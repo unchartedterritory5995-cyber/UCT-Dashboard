@@ -57,6 +57,14 @@ export const KEEP = Object.freeze([
   // not a wrong number), which is the safe half — and still a whole capability
   // silently absent from the shipped bundle. Third key this rail has caught.
   '_bind_time_constants',
+  // ⛔⛔ READ BY `pine.js`, WHICH DECIDES WHICH `barstate.*` NAMES THE HOST
+  // CONTRACT SERVES AND WHICH ONE IT REFUSES BY NAME. Stripping it empties the
+  // rosters: the six shipped names stop resolving on a pane — a member's script
+  // refuses for a capability that IS built — and `isnew` loses the sentence that
+  // tells its author why per-tick evaluation is a different question. Fourth key
+  // this rail has caught, and the first one it caught by failing the BUILD
+  // instead of by somebody noticing.
+  '_barstate',
 ])
 
 /**
@@ -126,12 +134,18 @@ export const DROP = Object.freeze([
   "_functions_sum_dev",
   "_benchmarks",
   "_functions_vendor_parity_resolutions",
-  // ⭐ ADDED 2026-09-09 with the six barstate clock columns. DROP, because the
-  // running product reads the COLUMNS (which are ordinary `clock` entries the
-  // browser already receives) and never this note — it is the argument for why
-  // they are columns rather than folds, and for why the trading calendar stays
-  // in Python. Full version: docs/pine/barstate.md.
-  "_clock_barstate",
+  // ⚰️ `_clock_barstate` STOOD HERE AND IS GONE — CORRECTLY, AND ITS SUCCESSOR
+  // MUST NOT REPLACE IT. That key was a flat prose STRING: one note arguing why
+  // `barstate.*` are columns rather than folds, which the running product never
+  // reads. Its successor `_barstate` is a DATA object — `pine.js` derives
+  // `BUILTIN_BARSTATE_SERIES` and `BUILTIN_BARSTATE_REFUSED` from its `extent`,
+  // `realtime` and `refused` rosters, and `clockTimeframeWire` reads it too — so
+  // dropping it would strip the roster the door is built from.
+  // ⛔ RENAMING THE ENTRY WAS THE OBVIOUS EDIT AND IT WAS WRONG: it put one key
+  // in KEEP and DROP at once, which `manifestProse.test.js` catches by name. The
+  // prose INSIDE `_barstate` (`_`, `_the_two_ingredients`, `_the_tri_state`, …)
+  // is still stripped — every one of those is underscore-prefixed and handled by
+  // the ordinary nested rule. Full argument: docs/pine/barstate.md.
 ])
 
 export function stripProse(table) {

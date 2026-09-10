@@ -2754,7 +2754,27 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // `computeClock` call, the same thirteen columns, the same validation. What is
   // skipped is skipped only when the answer could not have depended on it.
   if (readsClock(ast, TABLE)) {
-    const cols = computeClock(bars, opts ? opts.tf : undefined)
+    // ⭐ THE TRI-STATE TRAVELS WITH THE TIMEFRAME, and for the same reason: it
+    // is something the CALLER knows and the bars do not. `null` or absent leaves
+    // the four BARSTATE realtime columns NaN — the identical fail-closed
+    // contract `tf` already has, and never a guessed instant.
+    //
+    // ⛔⛔ AND THE TRADING CALENDAR DOES NOT CROSS THIS SEAM. Whether the newest
+    // bar is still forming is decided once, on the Python side, by
+    // `indicator_compute.py::bar_close_state` — the only place the NYSE
+    // full-closure and early-close sets are read. What arrives here is one
+    // tri-state.
+    //
+    // ⚰️ A `holidays` PARAMETER (and, next to it, a `now`) USED TO BE THREADED
+    // TO THIS CALL AND NO CALLER EVER FED EITHER. An unfed channel into a second
+    // calendar authority is worse than none: it reads as wired, so the next
+    // person fills it in rather than asking whether it should exist. Removed
+    // rather than left open. The pair moved to
+    // `api/services/indicator_compute.py::bar_close_state`, which is the ONE
+    // consumer of the NYSE sets, and that function's answer is the tri-state
+    // the caller now passes as `newestBarIsForming`.
+    const cols = computeClock(bars, opts ? opts.tf : undefined,
+      opts ? opts.newestBarIsForming : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]
       if (!col) {

@@ -520,11 +520,57 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
         # the member reads.
         note = notes[target]
         measured = row.get("measured") or {}
-        assert str(measured.get("worst_abs_delta", ""))[:4] or True
-        assert "0.23" in note, (
-            f"{row['id']}: the member note does not carry the measured seed "
-            f"delta the ledger records ({measured.get('decay', {}).get('bar_14')})")
+        # ⚰️⚰️ THIS ASSERTED THE LITERAL `"0.23"` AGAINST EVERY ACCEPTED ROW, and
+        # `0.23` is ONE row's number — the ATR seed delta. It was exactly right
+        # while the ledger held one accepted row and became unsatisfiable the day
+        # a second one landed: a viewer-dependence divergence has no delta to
+        # carry, and the rail demanded it carry ATR's. A hand-typed value from one
+        # subject asserted over all subjects is this repo's most repeated defect,
+        # arriving inside the rail that exists to keep a member's sentence honest.
+        # ⭐ THE CLAIM IS UNCHANGED AND NOW DERIVES: whatever number the LEDGER
+        # records for THIS row must appear in the sentence the member reads, so
+        # the reassuring half can never drift from the measured half. A row with
+        # no measurement has nothing to carry, and is required to say so instead.
+        numbers = _measured_numbers(measured)
+        if numbers:
+            assert any(n in note for n in numbers), (
+                f"{row['id']}: the member note carries none of the numbers the "
+                f"ledger measures {sorted(numbers)}. The reassuring half is the "
+                f"one the member reads, so it must not drift from the measured "
+                f"half.")
+        else:
+            assert row.get("confidence") != "measured", (
+                f"{row['id']}: `confidence: measured` with no numbers in the "
+                f"ledger's `measured` block — one of the two is wrong.")
 
+
+
+def _measured_numbers(measured):
+    """Every number the ledger records for a row, as the strings a sentence would
+    spell them with.
+
+    ⛔ DERIVED FROM THE ROW, NEVER TYPED. The point of the check above is that a
+    member's sentence and the ledger cannot drift apart; a literal typed into the
+    test would be a THIRD copy, and the one nobody updates.
+    """
+    out = set()
+    stack = [measured]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            stack.extend(node.values())
+        elif isinstance(node, (list, tuple)):
+            stack.extend(node)
+        elif isinstance(node, (int, float)) and not isinstance(node, bool):
+            text = f"{node}"
+            out.add(text)
+            # A ledger value of 0.2345 is written 0.23 in prose; the leading
+            # significant digits are what a sentence actually carries.
+            if "." in text:
+                whole, _, frac = text.partition(".")
+                if len(frac) > 2:
+                    out.add(f"{whole}.{frac[:2]}")
+    return out
 
 def test_a_vendorNote_EXISTS_only_where_a_measurement_does():
     """⛔ THE OTHER DIRECTION, AND IT IS THE ONE THAT PROTECTS TRUST. A note
@@ -558,9 +604,25 @@ def test_the_two_lanes_read_the_SAME_vendor_note_declaration():
                      "closedTable.json"), encoding="utf-8"))
     direct = {n: sp[VENDOR_NOTE] for n, sp in manifest["functions"].items()
               if isinstance(sp.get(VENDOR_NOTE), str) and sp[VENDOR_NOTE].strip()}
+    # ⭐⭐ AND A NOTE MAY BELONG TO A FAMILY RATHER THAN TO A FUNCTION. The
+    # `barstate.*` divergence is about a group of CLOCK COLUMNS, so there is no
+    # function entry to hang it on — while a member reading one of those columns
+    # needs the sentence exactly as much as one calling `atr` does. Both lanes
+    # read the family block; this reads it a third way, which is what makes the
+    # equality a mirror check rather than two copies of one expression.
+    for family in ("_barstate",):
+        spec = manifest.get(family) or {}
+        if isinstance(spec.get(VENDOR_NOTE), str) and spec[VENDOR_NOTE].strip():
+            direct[family.lstrip("_")] = spec[VENDOR_NOTE]
     assert vendor_notes() == direct
     # ⛔ AND THE DERIVATION IS PLANTABLE, so it is a walk rather than a hand-list.
     planted = {**manifest, "functions": {
         **manifest["functions"],
         "sma": {**manifest["functions"]["sma"], VENDOR_NOTE: "planted"}}}
     assert set(vendor_notes(planted)) == set(direct) | {"sma"}
+    # ⛔ PLANTABLE ON THE FAMILY SIDE TOO. Without this, the family branch could
+    # be deleted and the equality above would still hold on any manifest that
+    # happened to carry no family note — which is every manifest until the day
+    # one does, i.e. the day it stops being checked.
+    stripped = {k: v for k, v in manifest.items() if k != "_barstate"}
+    assert "barstate" not in vendor_notes(stripped)

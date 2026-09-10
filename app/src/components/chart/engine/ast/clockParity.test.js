@@ -53,10 +53,44 @@ describe('the clock oracle — this lane against the committed fixture', () => {
   })
 
   it('every column matches bar for bar, across the DST change and the weekend', () => {
-    const cols = computeClock(doc.bars, doc.tf)
+    // ⭐ THE TRI-STATE IS PASSED, and the four BARSTATE realtime columns are
+    // all-NaN without it — the fail-closed contract, not an omission.
+    // ⚰️ THIS READ `doc.now` UNTIL 2026-09-09. The retired seam handed an
+    // evaluating instant into the column layer; the shipped one hands ONE
+    // tri-state, decided upstream by `indicator_compute.bar_close_state` where
+    // the trading calendar lives. A number here would be neither `true` nor
+    // `false` and would silently blank all four — passing for the wrong reason.
+    const cols = computeClock(doc.bars, doc.tf, doc.newest_bar_is_forming)
     for (const name of Object.keys(doc.expected)) {
       same(clean(cols[name]), doc.expected[name], name)
     }
+  })
+
+  it('⛔⛔ THE TRI-STATE, ALL THREE VALUES — and `null` is not `false`', () => {
+    // ⭐ THE FIXTURE PINS THIS AS DATA, not as prose. `barstate_cases` was
+    // recorded by `tools/record_clock_parity.py` across true / false / null, so
+    // a future edit that collapsed unknown onto "not forming" moves recorded
+    // numbers and goes red here rather than shipping a confident `isconfirmed`
+    // on a bar that may still be open.
+    const states = { true: true, false: false, null: null }
+    for (const [label, state] of Object.entries(states)) {
+      const want = doc.barstate_cases[label]
+      expect(want, `fixture has no barstate_cases.${label}`).toBeTruthy()
+      const cols = computeClock(doc.bars, doc.tf, state)
+      for (const name of Object.keys(want)) {
+        same(clean(cols[name]), want[name], `barstate_cases.${label}.${name}`)
+      }
+    }
+    // ⛔ NON-VACUITY — the three cases must not be the same table. `null` blanks
+    // the realtime four while the EXTENT pair still answers, and that asymmetry
+    // is the ruling; a lane that blanked all six, or none, satisfies the loop
+    // above and is wrong.
+    const n = doc.barstate_cases.null
+    expect(n.isrealtime.every((v) => v === null), '`null` did not blank isrealtime').toBe(true)
+    expect(n.isconfirmed.every((v) => v === null), '`null` did not blank isconfirmed').toBe(true)
+    expect(n.islast.some((v) => v === 1), '`null` wrongly blanked the EXTENT pair').toBe(true)
+    expect(doc.barstate_cases.true.isrealtime)
+      .not.toEqual(doc.barstate_cases.false.isrealtime)
   })
 
   it('⭐ THE TIMEFRAME VOCABULARY, BOTH DIRECTIONS — every code AND every non-code', () => {
@@ -87,7 +121,14 @@ describe('the clock oracle — this lane against the committed fixture', () => {
   })
 
   it('⛔ a series that is not in SECONDS refuses the time columns — and ONLY those', () => {
-    const cols = computeClock(doc.non_instant_bars, 'D')
+    // ⭐⭐ THE TRI-STATE IS PASSED EXPLICITLY, AND THAT IS WHAT MAKES THIS TEST
+    // MEAN SOMETHING. Omit it and the four BARSTATE realtime columns blank for
+    // want of a tri-state — the same symptom the unit gate produces on the eight
+    // time columns, from a completely different cause. This test's whole job is
+    // to pin the gate, so the two causes must not wear one appearance: with
+    // `false` handed in, the barstate six stay populated and the blanks that
+    // remain are the gate's alone.
+    const cols = computeClock(doc.non_instant_bars, 'D', false)
     for (const name of Object.keys(doc.non_instant_expected)) {
       same(clean(cols[name]), doc.non_instant_expected[name], `non-instant ${name}`)
     }

@@ -46,10 +46,10 @@ says which name and why — it never guesses a meaning.
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
 | `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
 | `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
-| `isrealtime` | 1 on the newest bar when its scheduled close time has not yet passed, otherwise 0 |
-| `isconfirmed` | 1 unless the bar is still forming, which only the newest bar can ever be |
-| `ishistory` | 1 unless the bar is still forming -- the same predicate as isconfirmed, kept as its own name because Pine spells both |
-| `islastconfirmedhistory` | 1 on the newest bar that is not still forming, otherwise 0 |
+| `isrealtime` | 1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- never a guess |
+| `isconfirmed` | 1 on a bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- collapsing blank onto 1 would put a confident isconfirmed on a bar that may still be open |
+| `ishistory` | 1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This engine evaluates a static fetch, so ishistory is exactly isconfirmed -- a divergence from the vendor, recorded in `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` |
+| `islastconfirmedhistory` | 1 on the newest bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This is a POINTER to the right edge of the confirmed region and moves as soon as the newest bar closes -- consumers must not treat it as a per-bar fact |
 
 ## Operators
 

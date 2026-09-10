@@ -324,8 +324,29 @@ export function vendorNotesOf(table) {
       out[name] = spec[VENDOR_NOTE]
     }
   }
+  // ⭐⭐ AND A NOTE MAY BELONG TO A FAMILY RATHER THAN TO A FUNCTION. The
+  // `barstate.*` divergence is about a group of CLOCK COLUMNS and has no
+  // function entry to hang it on — while a member reading one of those columns
+  // needs the sentence exactly as much as one calling `atr` does.
+  for (const family of ['_barstate']) {
+    const spec = table && table[family]
+    if (spec && typeof spec[VENDOR_NOTE] === 'string' && spec[VENDOR_NOTE].trim()) {
+      out[family.replace(/^_/, '')] = spec[VENDOR_NOTE]
+    }
+  }
   return out
 }
+
+/** The clock columns a family-level vendor note covers, `<column> -> <family>`.
+ *
+ *  ⛔ DERIVED FROM THE SAME BLOCK THAT CARRIES THE NOTE, so a seventh barstate
+ *  column surfaces the sentence on the day it lands rather than on the day
+ *  somebody remembers. */
+export const FAMILY_NOTE_COLUMNS = Object.freeze(Object.fromEntries(
+  [...(((TABLE || {})._barstate || {}).extent || []),
+    ...(((TABLE || {})._barstate || {}).realtime || [])]
+    .map((col) => [col, 'barstate']),
+))
 
 export const VENDOR_NOTES = Object.freeze(vendorNotesOf(TABLE))
 
@@ -350,6 +371,18 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
         && Object.prototype.hasOwnProperty.call(notes, node.name) && !taken.has(node.name)) {
       taken.add(node.name)
       seen.push({ name: node.name, note: notes[node.name] })
+    }
+    // ⭐ A SERIES NODE CAN CARRY ONE TOO, through its family. `barstate.ishistory`
+    // reaches the evaluator as the clock column `ishistory`, so a walk that only
+    // looked at CALL nodes would find the note and never show it — which is the
+    // "built, tested, green and unreachable" shape one layer in.
+    if (node.type === 'series' && typeof node.name === 'string') {
+      const family = FAMILY_NOTE_COLUMNS[node.name]
+      if (family && Object.prototype.hasOwnProperty.call(notes, family)
+          && !taken.has(family)) {
+        taken.add(family)
+        seen.push({ name: family, note: notes[family] })
+      }
     }
     for (const a of (node.args || [])) stack.push(a)
   }

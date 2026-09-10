@@ -81,11 +81,13 @@ BLIND_WEB = "blind_web"
 # Half-days are intentionally NOT in that set (they are real sessions) —
 # we add the 1:00 PM ET early-close dates here. Refresh annually together
 # with _NYSE_HOLIDAYS_YYYYMMDD (same invariant, nyse.com/markets/hours-calendars).
-_NYSE_EARLY_CLOSES_YYYYMMDD = frozenset({
-    20250703, 20251128, 20251224,   # 2025
-    20261127, 20261224,             # 2026
-    20271126,                       # 2027 (Dec 24 2027 is a FULL closure)
-})
+# ⚰️ THE LITERAL MOVED TO ``api/services/nyse_calendar.py`` (2026-09-09), a
+# dependency-free leaf, and is RE-EXPORTED here so the five existing read sites
+# that name ``liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`` are untouched.
+# ⛔ STILL ONE AUTHORITY. This name and the leaf are the same object.
+from api.services.nyse_calendar import (
+    NYSE_EARLY_CLOSES_YYYYMMDD as _NYSE_EARLY_CLOSES_YYYYMMDD,
+)
 
 
 def _full_closures() -> frozenset:

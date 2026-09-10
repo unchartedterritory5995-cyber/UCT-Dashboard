@@ -18,14 +18,32 @@
 // until a member pastes a script that uses it.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, BUILTIN_TIMEFRAME_ALIAS, BUILTIN_BARSTATE_ALIAS, BUILTIN_CONSTANT_TREE, BUILTIN_CALENDAR_TREE } from './pine.js'
+import { translatePine, BUILTIN_TIMEFRAME_ALIAS, BUILTIN_BARSTATE_SERIES, BUILTIN_CONSTANT_TREE, BUILTIN_CALENDAR_TREE } from './pine.js'
 import { TABLE } from './parse.js'
 
 const plot = (expr) => `//@version=6\nindicator("t")\nplot(${expr})\n`
 
 /** Every clock entry whose name reads as a timeframe predicate. */
+/** ⚰️⚰️ THIS WAS A NAME SHAPE — `/^is[a-z]+$/` OVER THE CLOCK — AND A NAME SHAPE
+ *  IS NOT AN AUTHORITY. It was exactly right while `isdaily`, `isweekly`,
+ *  `ismonthly` and `isintraday` were the only `is…` columns the manifest
+ *  declared, and it broke the day six BARSTATE columns landed with the same
+ *  spelling and an entirely different meaning: it demanded a `timeframe.islast`
+ *  alias, which would be a name Pine does not have pointing at a column that is
+ *  not about the timeframe.
+ *
+ *  ⭐ THE MANIFEST ALREADY SPLITS THEM, so the split is READ rather than guessed:
+ *  `_barstate.extent` and `_barstate.realtime` name the barstate family, and what
+ *  is left of the `is…` columns is the timeframe family. A seventh barstate
+ *  column is covered the day it lands; a fifth timeframe predicate still fails
+ *  here for want of an alias, which is the direction this rail exists for. */
+const barstateColumns = () => new Set([
+  ...((TABLE._barstate || {}).extent || []),
+  ...((TABLE._barstate || {}).realtime || []),
+])
+
 const clockPredicates = () => Object.keys(TABLE.clock || {})
-  .filter((n) => /^is[a-z]+$/.test(n))
+  .filter((n) => /^is[a-z]+$/.test(n) && !barstateColumns().has(n))
   .sort()
 
 describe('the alias map points at real columns, in both directions', () => {
@@ -53,7 +71,7 @@ describe('the alias map points at real columns, in both directions', () => {
     // rail now unions the namespaces — and asserts they stay DISJOINT, because a
     // column reachable under two Pine names would be two authorities over it.
     const tf = Object.values(BUILTIN_TIMEFRAME_ALIAS)
-    const bs = Object.values(BUILTIN_BARSTATE_ALIAS)
+    const bs = Object.values(BUILTIN_BARSTATE_SERIES)
     const overlap = tf.filter((n) => bs.includes(n))
     expect(overlap, `column(s) ${overlap.join(', ')} are reachable under BOTH `
       + '`timeframe.` and `barstate.` — one column, two Pine names').toEqual([])
@@ -66,14 +84,14 @@ describe('the alias map points at real columns, in both directions', () => {
   })
 
   it('⛔ and the barstate map points at real columns too', () => {
-    const names = Object.values(BUILTIN_BARSTATE_ALIAS)
+    const names = Object.values(BUILTIN_BARSTATE_SERIES)
     expect(names.length, 'the barstate map is empty — the rail above proves nothing')
       .toBeGreaterThan(0)
     for (const n of names) {
       expect(TABLE.clock, `${n} is aliased but the manifest declares no such clock column`)
         .toHaveProperty(n)
     }
-    for (const [key, col] of Object.entries(BUILTIN_BARSTATE_ALIAS)) {
+    for (const [key, col] of Object.entries(BUILTIN_BARSTATE_SERIES)) {
       expect(key).toBe(`barstate.${col}`)
     }
   })

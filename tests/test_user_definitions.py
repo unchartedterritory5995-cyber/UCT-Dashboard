@@ -1553,3 +1553,85 @@ def test_import_accepted_fires_again_on_a_subsequent_edit(telemetry_store, app):
     assert len(rows) == 2
     assert "import_id" not in rows[0]
     assert rows[1]["import_id"] == "journey-3"
+
+
+# ─── ⭐⭐ TEXT IS AN OPERAND, AND THE STORE IS WHERE THAT IS PROVEN ────────────
+#
+# The translator door builds these nodes correctly by construction, so a rail
+# that only drove the door would be measuring the one path that cannot go wrong.
+# THE STORE IS THE INTERESTING DOOR: a tree reaching `save` arrived over a wire
+# or came back out of a database, and it never met `convertTextOperand`. If the
+# containment held only at the translator, a hand-edited or replayed definition
+# could persist a `symtext` in a numeric position — and every later walk would
+# read a string where it expected a number.
+
+_TEXT_QUESTION = {
+    "type": "textop", "name": "contains",
+    "args": [{"type": "symtext", "name": "ticker"}, {"type": "str", "value": "/"}],
+}
+
+
+def _defn_with_ast(ast, def_id: str = DEF_ID) -> dict:
+    d = defn(20, def_id=def_id)
+    d["compute"]["ast"] = ast
+    return d
+
+
+def test_a_text_question_SAVES_because_it_is_an_ordinary_numeric_node(store):
+    """⭐ THE POSITIVE HALF, AND IT COMES FIRST ON PURPOSE.
+
+    A containment rule that refused everything would satisfy every negative case
+    below while breaking the feature outright. `textop` answers with a NUMBER, so
+    it sits wherever a number sits — here, as the condition of a ternary, which
+    is exactly where `Uncharted Volume` line 222 puts its answer.
+    """
+    ast = {"type": "op", "name": "?:", "args": [
+        _TEXT_QUESTION, {"type": "num", "value": 0}, {"type": "series", "name": "close"}]}
+    out = svc.save(USER, DEF_ID, _defn_with_ast(ast))
+    assert out["version"] == 1
+    assert out["ast_hash"].startswith("sha256:")
+
+
+def test_a_BARE_symtext_at_the_TOP_LEVEL_is_REFUSED_by_the_store(store):
+    """⛔⛔ THE MUTATION CONTROL THE OWNER ASKED FOR — the invariant proven ACTIVE
+    rather than merely present.
+
+    A definition whose whole formula IS a symbol-scoped field is not a column: it
+    is a string wearing a tree. Nothing downstream could evaluate it, and the
+    failure would show up as a wrong number rather than an error, because every
+    numeric walker would coerce it.
+    """
+    with pytest.raises(ValueError) as caught:
+        svc.save(USER, DEF_ID, _defn_with_ast({"type": "symtext", "name": "ticker"}))
+    msg = str(caught.value)
+    assert "may only be an operand of a textop" in msg, msg
+    # ⭐ AND IT SAYS WHERE IT FOUND IT, because "somewhere in your tree" is not a
+    # refusal an engineer replaying a definition can act on.
+    assert "under the root" in msg, msg
+
+
+@pytest.mark.parametrize("ast, where", [
+    ({"type": "op", "name": "+",
+      "args": [{"type": "symtext", "name": "ticker"}, {"type": "num", "value": 1}]},
+     "a op"),
+    ({"type": "call", "name": "sma",
+      "args": [{"type": "str", "value": "close"}, {"type": "num", "value": 5}]},
+     "a call"),
+    ({"type": "op", "name": "?:", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "str", "value": "yes"},
+        {"type": "num", "value": 0}]},
+     "a op"),
+])
+def test_text_BURIED_anywhere_but_under_a_textop_is_REFUSED_too(store, ast, where):
+    """⛔ THE TOP LEVEL IS THE EASY CASE. These bury the node one level down, in
+    the three shapes a replayed tree is most likely to carry: arithmetic, a
+    function argument, and a ternary arm. A check that only looked at the root
+    would pass all three.
+    """
+    with pytest.raises(ValueError) as caught:
+        svc.save(USER, DEF_ID, _defn_with_ast(ast))
+    assert "may only be an operand of a textop" in str(caught.value)
+    assert where in str(caught.value)
+
+

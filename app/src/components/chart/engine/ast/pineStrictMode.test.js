@@ -16,6 +16,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine.js'
+import { interpret } from './interpret.js'
 
 /** The Clouds shape in miniature: two plots that translate, N that cannot.
  *  ⛔ Written out rather than read from the member's file so this rail owns its

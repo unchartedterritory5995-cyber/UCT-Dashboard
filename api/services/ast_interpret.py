@@ -48,6 +48,10 @@ import math
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
+from api.services.nyse_calendar import (
+    NYSE_EARLY_CLOSES_YYYYMMDD,
+    NYSE_HOLIDAYS_YYYYMMDD,
+)
 from api.services.ast_table import (
     TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
     SERIES_SECTION, ARG_DOMAIN, arg_domains, bar_readers, recurrences,
@@ -76,6 +80,7 @@ from api.services.indicator_compute import (
     AVWAP_MIN_INSTANT,
     compute_atr_raw,
     compute_avwap_raw,
+    bar_close_state,
     compute_cci_raw,
     compute_clock,
     compute_donchian_raw,
@@ -3201,6 +3206,38 @@ def _assert_clock_wiring() -> None:
     _CLOCK_WIRING_OK.add(key)
 
 
+def _nyse_full_closures() -> frozenset:
+    """NYSE FULL CLOSURES, from the one authority.
+
+    ⛔ READ, NEVER COPIED — ``api/services/nyse_calendar.py``, a dependency-free
+    leaf. ``bars_fetch`` re-exports the same object under its historical name, so
+    there is still exactly one set and five readers of it.
+
+    ⚰️ THIS WAS A ``try: from api.services.bars_fetch import ...`` UNTIL
+    2026-09-09. The defensiveness was real — importing ``bars_fetch`` drags
+    fastapi, the Massive client and a thread pool in to read thirty dates — but a
+    ``try/except`` in THIS file is forbidden by ``tests/test_ast_budget.py``: a
+    caught ``RecursionError`` is one line from being a budget refusal. Moving the
+    literal to a leaf removes the reason for the guard instead of the guard.
+    """
+    return NYSE_HOLIDAYS_YYYYMMDD
+
+
+def _nyse_early_closes() -> frozenset:
+    """NYSE 1pm ET HALF-DAYS, from the one authority.
+
+    ⛔ READ, NEVER COPIED — the same leaf; ``liveflow_monitor`` re-exports this
+    object under its historical name, keeping its five read sites and the parity
+    rail ``tests/test_nyse_calendar_parity.py`` untouched.
+
+    ⚰️ THIS SET WAS ONCE REPORTED AS NOT EXISTING. The claim reasoned from
+    ``bars_fetch``'s own comment that half-days are "intentionally NOT" in THAT
+    set — true of that set, false of the repo. Wiring it in is what closed the
+    gap; naming the gap was what kept it open.
+    """
+    return NYSE_EARLY_CLOSES_YYYYMMDD
+
+
 def _reads_clock(ast: Any) -> bool:
     """Does this tree read any name the manifest declares as a clock entry?
 
@@ -3377,7 +3414,28 @@ def interpret(ast: Any, bars: List[dict],
     # is what caught it: it interprets `close`, a leaf that reads no clock.
     _assert_clock_wiring()
     if _reads_clock(ast):
-        clock_cols = compute_clock(bars, (opts or {}).get("tf"))
+        # ⭐ THE TRI-STATE TRAVELS WITH THE TIMEFRAME, and for the same reason:
+        # it is something the CALLER knows and the bars do not. Absent, the four
+        # BARSTATE realtime columns are None -- the identical fail-closed
+        # contract tf already has, and never a guessed instant.
+        #
+        # ⛔⛔ THIS IS THE ONE PLACE THE TRADING CALENDAR IS CONSULTED, AND IT IS
+        # CONSULTED ON THIS SIDE ON PURPOSE. Both sets are READ from their single
+        # authorities rather than copied: ``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD``
+        # (full closures) and ``liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD``
+        # (1pm ET half-days). ``bar_close_state`` reduces them to ONE tri-state,
+        # and that is the only thing the JS twin is ever handed -- never a date
+        # set, which would be a second authority in a second language.
+        _o = opts or {}
+        forming = _o.get("newest_bar_is_forming")
+        if forming is None and _o.get("now") is not None:
+            forming = bar_close_state(
+                bars, _o.get("tf"), _o.get("now"),
+                _o["holidays"] if "holidays" in _o else _nyse_full_closures(),
+                _o["early_closes"] if "early_closes" in _o
+                else _nyse_early_closes(),
+            )
+        clock_cols = compute_clock(bars, _o.get("tf"), forming)
         for name in TABLE.get(CLOCK_SECTION) or {}:
             col = clock_cols.get(name)
             if col is None:

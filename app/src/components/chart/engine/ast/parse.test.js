@@ -457,6 +457,12 @@ describe('the manifest', () => {
     // `series` node, so `NODE_TYPES` is unmoved and every stored `astHash` is
     // unmoved with it; what is new is that `interpret` has an argument it did
     // not have. See the `tableVersion` assertion at the end of this case.
+    // ⚰️ 13 -> 19 (owner ruling 2026-09-09): the six BARSTATE columns —
+    // `islast`, `isfirst`, `isrealtime`, `isconfirmed`, `ishistory` and
+    // `islastconfirmedhistory`. They ride the EXISTING `series` node too, so
+    // `NODE_TYPES` is again unmoved; what `interpret` gained is two more
+    // arguments it did not have — the evaluating instant and the closure set —
+    // both fail-closed exactly as `tf` is.
     expect(Object.keys(TABLE.clock)).toHaveLength(19)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
@@ -616,7 +622,7 @@ describe('the manifest', () => {
     // ⭐⭐ 104 -> 110 IS THE SIX BARSTATE CLOCK COLUMNS (2026-09-09), and like
     // `cumFrom` they cost the grammar nothing — no node type, no argument kind,
     // no lookback form — because what they buy is a RULING. `closedTable.json::
-    // _clock_barstate` says why `barstate.*` is evaluated per bar on a pane and
+    // _barstate` says why `barstate.*` is evaluated per bar on a pane and
     // still folded on a screen, and why the trading calendar stays in Python
     // rather than being restated in JS. Scalar half untouched at 137.
     expect(bar.size).toBe(110)

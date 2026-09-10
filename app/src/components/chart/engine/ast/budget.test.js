@@ -775,7 +775,15 @@ describe('🔴 the clock is seeded LAZILY, and a tree that reads it is untouched
       // timeframe the engine cannot know the bar kind, and NOT COMPUTABLE is the
       // honest answer rather than a guess. The rail was demanding a finite value
       // for a name that is legitimately unknowable on the fixture it was given.
-      const col = interpret(p.ast, bars, {}, undefined, undefined, { tf: 'D' })
+      // ⚠️ AND `now` IS SUPPLIED FOR THE SAME REASON `tf` IS. The four BARSTATE
+      // realtime columns are NaN without an evaluating instant — correctly: with
+      // no clock the engine cannot know whether the newest bar's period has
+      // finished, and NOT COMPUTABLE is the honest answer rather than a guessed
+      // `Date.now()`. The rail would otherwise demand a finite value for a name
+      // that is legitimately unknowable on the arguments it was given, which is
+      // the mistake the `tf` note above records one draft earlier.
+      const col = interpret(p.ast, bars, {}, undefined, undefined,
+        { tf: 'D', newestBarIsForming: false })
       expect(col.length, name).toBe(bars.length)
       const finite = [...col].filter((v) => Number.isFinite(v)).length
       expect(finite, `${name} produced no finite value — the lazy seed skipped a tree that READS it`)

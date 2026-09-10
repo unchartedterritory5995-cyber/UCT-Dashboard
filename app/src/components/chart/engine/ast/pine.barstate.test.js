@@ -18,8 +18,9 @@
 // ⭐ SO THE SPLIT IS NOW FOUR-WAY, and all four are asserted here:
 //   · BUILTIN_CONSTANT_TREE   — the SCREENER fold. On a sweep every delivered bar
 //                               is closed, so `isconfirmed` is exactly 1.
-//   · BUILTIN_BARSTATE_ALIAS  — the clock columns a PANE evaluates per bar.
-//   · PINE_LIVE_ONLY          — `isnew`, refused on BOTH contracts: it needs a
+//   · BUILTIN_BARSTATE_SERIES — the clock columns a PANE evaluates per bar,
+//     read off `closedTable.json::_barstate`.
+//   · BUILTIN_BARSTATE_REFUSED — `isnew`, refused on BOTH contracts: it needs a
 //                               per-tick event this engine never observes.
 //   · window_dependent        — `isfirst`, served on a pane, refused for a screen.
 //
@@ -30,7 +31,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   translatePine, BUILTIN_CONSTANT_TREE, BUILTIN_REQUEST_DEPENDENT,
-  BUILTIN_BARSTATE_ALIAS, PINE_LIVE_ONLY,
+  BUILTIN_BARSTATE_SERIES, BUILTIN_BARSTATE_REFUSED,
 } from './pine.js'
 import { interpret } from './interpret.js'
 
@@ -83,8 +84,8 @@ describe('the four the evaluation model answers', () => {
     expect([...RESOLVES].sort(),
       `the screener fold moved — now [${RESOLVES.join(' | ')}]`)
       .toEqual(['barstate.isconfirmed', 'barstate.ishistory', 'barstate.isrealtime'])
-    expect(Object.keys(BUILTIN_BARSTATE_ALIAS).length, 'the alias map moved').toBe(6)
-    expect(Object.keys(PINE_LIVE_ONLY)).toEqual(['barstate.isnew'])
+    expect(Object.keys(BUILTIN_BARSTATE_SERIES).length, 'the served roster moved').toBe(6)
+    expect(Object.keys(BUILTIN_BARSTATE_REFUSED)).toEqual(['barstate.isnew'])
     // ⚰️ THE WITHDRAWN MAP IS ASSERTED EMPTY RATHER THAN DELETED. It is where the
     // NEXT genuinely request-dependent name lands, so a name reappearing there is
     // a decision somebody made rather than a silent regrowth.
@@ -92,10 +93,10 @@ describe('the four the evaluation model answers', () => {
       .toEqual([])
     // ⛔ NO NAME IS IN TWO PLACES AT ONCE — catches a name being promoted out of
     // "refused" into "served" without leaving the map that refuses it.
-    const live = Object.keys(PINE_LIVE_ONLY)
+    const live = Object.keys(BUILTIN_BARSTATE_REFUSED)
     for (const [a, b, what] of [
       [RESOLVES, live, 'the screener fold AND the live-only refusal'],
-      [Object.keys(BUILTIN_BARSTATE_ALIAS), live, 'the alias map AND the live-only refusal'],
+      [Object.keys(BUILTIN_BARSTATE_SERIES), live, 'the served roster AND the by-name refusal'],
       [RESOLVES, REFUSES, 'the screener fold AND the withdrawn map'],
     ]) {
       const both = a.filter((n) => b.includes(n))
@@ -120,6 +121,12 @@ describe('the four the evaluation model answers', () => {
     // 50 apart on every fixture bar, so a swapped branch is unmissable.
     expect(col(outOf('barstate.isconfirmed ? close : open').ast)[10]).toBe(BARS[10].c)
     expect(col(outOf('barstate.ishistory ? close : open').ast)[10]).toBe(BARS[10].c)
+    // ⚰️ `barstate.isnew` WAS A THIRD ROW HERE AND IS NOW REFUSED. Asserted as a
+    // refusal rather than deleted, so the withdrawal is visible in the file that
+    // used to claim the opposite — and so a fold quietly reinstated tomorrow
+    // fails here rather than passing by absence.
+    expect(outOf('barstate.isnew ? close : open').refusal,
+      'barstate.isnew resolved — its fold was withdrawn').toBeTruthy()
     // ⛔ THE ONE THAT INVERTS. Without this, a map that returned 1 for everything
     // would pass every assertion above.
     expect(col(outOf('barstate.isrealtime ? close : open').ast)[10]).toBe(BARS[10].o)
@@ -141,7 +148,10 @@ describe('🔴 what is still refused, and refused with its own reason', () => {
       const why = String((found && found.refusal && found.refusal.message)
         || (r.refusal && r.refusal.message) || '')
       expect(why, `isnew was served on ${JSON.stringify(opts)}`).toMatch(/per-tick/)
-      expect(why).toMatch(/once per bar/)
+      // ⭐ ASSERTED AGAINST THE MANIFEST'S OWN SENTENCE, not a phrasing typed
+      // here — `closedTable.json::_barstate.refused.isnew` is the one owner of
+      // this text, and a second copy in a regex is a second authority over it.
+      expect(why).toMatch(/static fetch once|restatement of the question/)
     }
   })
 

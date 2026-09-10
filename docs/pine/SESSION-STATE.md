@@ -28,6 +28,31 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 8 | Remaining real names in demand order | ⬜ not started; list in `r11-remaining-nine.md` |
 | 9 | Group C order-asserting rail | ⬜ not started; why the outcome-shaped version is vacuous is in `r11-vocabulary-gap.md` |
 | 10 | M1 — Volume's numeric plots as a pane behind the flag | ⬜ not started |
+| 11 | **NYSE calendar cross-lane parity** — see below | ⬜ logged 2026-09-09, NOT started |
+
+### Item 11 — the JS-side NYSE calendar (logged, deliberately NOT in this merge)
+
+⛔ **`app/src/lib/marketClock/nyseCalendar.js` IS OUT OF SCOPE FOR THE BARSTATE MERGE.**
+Owner ruling 2026-09-09: do not touch it or its six consumers. It ships
+`NYSE_HOLIDAYS_2026/2027` **and** `NYSE_EARLY_CLOSES_2026/2027` as code and is
+load-bearing for `useMarketOpen`, `StockChart`, `sessionModel`, `sessionStale`,
+`useBrokerMarkPreference`, `EarningsCard`, `weekAnchor`, `ChartDayGain`,
+`GridChartCell` — deleting it breaks live UI.
+
+⚠️ It is nonetheless a **second authority over the same NYSE dates, in a second
+language** — the exact hazard the barstate seam ruling is built around, sitting one
+directory away. It predates this wave and is not something this merge introduced.
+
+- **11a.** A cross-lane PARITY test: `nyseCalendar.js` full closures ==
+  `ast_interpret._nyse_full_closures()`, early closes ==
+  `liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD` — as SETS, asserted in BOTH
+  directions so neither lane may carry a date the other lacks. Runs in the JS suite,
+  either off a small JSON the Python side emits or by reading both files directly.
+- **11b.** Later, not now: GENERATE `nyseCalendar.js`'s data from the Python sets so
+  there is one hand-maintained source and the parity test becomes structural rather
+  than a diff.
+
+⛔ Nothing is written for item 11 in this merge beyond this entry.
 
 Also outstanding from the owner's §3: apply the *"guard shipped unable to fire"* control rule
 **retroactively to the object pool and the licence rail**.

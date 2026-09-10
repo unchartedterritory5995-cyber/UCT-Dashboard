@@ -22,7 +22,6 @@
 import { describe, it, expect } from 'vitest'
 import { computeFor } from '../nativeRegistry'
 import { TABLE } from '../ast/parse'
-import { BUILTIN_TIMEFRAME_ALIAS } from '../ast/pine.js'
 
 /** 04:00 and 04:05 ET on 2025-10-30 — real instants, so the unit gate passes and
  *  the wall-clock columns are answerable. Two bars is enough: the timeframe is a
@@ -40,19 +39,28 @@ const defFor = (name) => ({
 
 const col = (name, ctx) => Array.from(computeFor(defFor(name), BARS, {}, ctx).v)
 
-/** The entries that can only be answered from what the CALLER knows — derived,
- *  never typed, so a fifth timeframe flag arrives covered.
+/** The entries that can only be answered from what the CALLER knows — READ from
+ *  the manifest's own POSITIVE declaration, so a fifth timeframe flag arrives
+ *  covered and a seventh barstate column does not disturb this.
  *
- *  ⚰️ THIS WAS `Object.keys(TABLE.clock).filter((n) => n.startsWith('is'))`, which
- *  was a correct SET reached by a wrong RULE: it happened to select exactly the
- *  timeframe flags only while they were the only `is*` clock columns. The six
- *  barstate columns are `is*` too and are answered from the FETCH rather than
- *  from `ctx.tf`, so the heuristic started sweeping in names this file's
- *  assertions are false of — `isconfirmed` is 1 with no `tf` at all, correctly,
- *  because it does not read one.
- *  ⭐ Deriving from the alias map names the real property: these are the columns
- *  the `timeframe.` namespace serves, which is exactly the set `ctx.tf` decides. */
-const TF_FLAGS = Object.values(BUILTIN_TIMEFRAME_ALIAS)
+ *  ⚰️⚰️ THIS WAS `startsWith('is')` OVER THE CLOCK, AND A NAME SHAPE IS NOT AN
+ *  AUTHORITY. It was exactly right while the timeframe booleans were the only
+ *  `is…` columns, and it broke the day six BARSTATE columns landed with the same
+ *  spelling and a different meaning — demanding that `islast` blank itself for
+ *  want of a TIMEFRAME it does not read.
+ *
+ *  ⭐⭐ AND THE FIX IS NEITHER OF THE TWO THAT MET IN THE MERGE. One branch
+ *  derived this from `BUILTIN_TIMEFRAME_ALIAS` — accurate, but a hand-typed
+ *  literal in `pine.js`, so it is a SECOND roster. The other subtracted the
+ *  barstate rosters from `TABLE.clock` — manifest-read, but by SUBTRACTION, which
+ *  is right only while those are the sole `is…` columns and quietly re-acquires
+ *  the same fragility. `closedTable.json::_bind_time_constants.clock` states the
+ *  four POSITIVELY, and `ast/bind.js` already reads exactly that key — so this
+ *  rail now reads the authority the engine itself uses instead of adding a third
+ *  way to compute one set. */
+// ⚠️ COPIED, because the manifest's arrays are frozen and callers below sort
+// this in place — mutating the authority to read it is not a read.
+const TF_FLAGS = [...(((TABLE._bind_time_constants || {}).clock) || [])]
 
 describe('the timeframe reaches interpret through computeFor', () => {
   it('⭐ ctx.tf ANSWERS the timeframe booleans — one true, the rest false, per code', () => {

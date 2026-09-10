@@ -237,6 +237,42 @@ describe('⛔ the six unserved fields refuse BY NAME, with their own sentences',
     })
   }
 
+  // ── the rule the mintick fix generalises to ────────────────────────────────
+  //
+  // ⚰️ `str.length(syminfo.mintick)` REFUSED `str.length` — naming the one part
+  // of the line that was fine, and sending a member to delete a call they could
+  // have kept. The fix was not local: whenever a line carries several refusable
+  // constructs, the one NAMED must be the innermost unserved thing, never an
+  // outer construct that would have been fine on its own.
+  //
+  // ⛔ THREE NESTINGS, BECAUSE ONE WOULD ONLY RE-TEST THE CASE THE FIXTURE FOUND.
+  // Each puts the unserved name under a DIFFERENT kind of outer construct, so a
+  // fix that happened to work for text predicates and nowhere else fails here.
+  const NESTED = [
+    ['inside a served TEXT op',
+      'plot(close + str.length(syminfo.session))', 'syminfo.session', 'str.length'],
+    ['inside served ARITHMETIC',
+      'plot(close * 2 + syminfo.pointvalue)', 'syminfo.pointvalue', null],
+    ['inside a TERNARY arm',
+      'plot(close > 1 ? syminfo.currency : close)', 'syminfo.currency', null],
+  ]
+  for (const [label, body, inner, outer] of NESTED) {
+    it(`⛔ the INNERMOST unserved name is the one refused — ${label}`, () => {
+      const r = translatePine(`${HEAD}${body}\n`)
+      expect(r.ok).toBe(false)
+      const said = [r.refusal, ...(r.refusals || [])].filter(Boolean)
+        .map((x) => x.what || x.detail || x.message || '').join(' ')
+      expect(said, `expected the refusal to name ${inner}`).toContain(inner)
+      if (outer) {
+        // ⭐ AND NOT THE OUTER ONE. This half is what the original defect
+        // violated: the sentence named `str.length`, which was never the problem.
+        expect(said, `the refusal named the outer construct \`${outer}\` instead`)
+          .not.toContain(`\`${outer}\``)
+      }
+      expect(said).not.toContain('the engine grammar does not hold')
+    })
+  }
+
   it('⭐ …while the three symbol-scoped names DO resolve at the door', () => {
     expect(Object.keys(BUILTIN_SYMBOL_SCOPED).sort())
       .toEqual(['syminfo.exchange', 'syminfo.ticker', 'syminfo.tickerid'])

@@ -1167,17 +1167,38 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  manifest's `clock` keys out of this bundle and throws BY NAME on an entry the
  *  bundle has no column for — a declared name quietly seeded NaN would be a
  *  clock that reads "not computable" forever, on every bar, silently. */
-/** ⭐⭐ THE SIX `barstate.*` COLUMNS. Like `barindex` they read no `t` at all —
- *  each is a pure function of (bar index, delivered bar count, and the single
- *  `newestBarIsForming` boolean) — so they are filled OUTSIDE the unit gate and a
- *  series whose `t` is a `YYYYMMDD` int still gets them. */
-export const CLOCK_BARSTATE = Object.freeze([
-  'islast', 'isfirst', 'isrealtime', 'isconfirmed', 'ishistory', 'islastconfirmedhistory',
-])
+/** The two BARSTATE columns that read only the fetch's EXTENT — which bar this
+ *  is out of how many — and no clock at all.
+ *
+ *  ⭐ THEY ARE OUTSIDE THE UNIT GATE FOR THE SAME REASON `barindex` IS: they
+ *  never touch `t`, so a series stored in `YYYYMMDD` ints gives them no reason
+ *  to doubt themselves. They also can never BLANK — there is no input they
+ *  could be missing. `isfirst` is nonetheless WINDOW-DEPENDENT in the
+ *  requirement-tag sense and `islast` is not — widen the fetch and the oldest
+ *  bar moves while the newest one does not. That distinction is the ruling, and
+ *  it is the reason these two are not one column with a flag. */
+export const CLOCK_EXTENT = Object.freeze(['islast', 'isfirst'])
+
+/** The four BARSTATE columns that need to know whether the newest bar's period
+ *  has finished — a fact this module is TOLD, never one it computes.
+ *
+ *  ⛔⛔ ALL FOUR ARE TRI-STATE AND FAIL CLOSED TO NaN when `newestBarIsForming`
+ *  is `null`, exactly as the four timeframe booleans fail closed without a
+ *  `tf`. `null` means "nobody told me", which every consumer of this table
+ *  already renders; it does NOT mean "not forming". Collapsing the two would
+ *  make `isconfirmed` a confident 1 on a bar that is still forming — a wrong
+ *  answer wearing a right one's clothes — and the whole point of these columns
+ *  is that a member can trust the last bar. */
+export const CLOCK_REALTIME = Object.freeze(['isrealtime', 'isconfirmed',
+  'ishistory', 'islastconfirmedhistory'])
+
+/** The six together. DERIVED, never retyped — a second literal listing these
+ *  names would be a second authority over one set. */
+export const CLOCK_BARSTATE = Object.freeze([...CLOCK_EXTENT, ...CLOCK_REALTIME])
 
 export const CLOCK_COLUMNS = Object.freeze([
   ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
-  ...CLOCK_BARSTATE,
+  ...CLOCK_EXTENT, ...CLOCK_REALTIME,
 ])
 
 /**
@@ -1211,9 +1232,25 @@ export const CLOCK_COLUMNS = Object.freeze([
  * @param {Array}  bars `[{t,o,h,l,c,v}]`, `t` in UNIX SECONDS
  * @param {string} [tf] one of `1 5 15 30 60 D W M`; absent or unknown ⇒ the four
  *                      timeframe booleans are NaN
+ * @param {boolean|null} [newestBarIsForming] THE TRI-STATE: `true`, `false`, or
+ *                      `null` for "nobody told me". `null` (or anything that is
+ *                      not a boolean) ⇒ the four BARSTATE realtime columns are
+ *                      NaN. ⛔ `null` IS NOT `false`: collapsing them would make
+ *                      `isconfirmed` a confident 1 on a bar that may still be
+ *                      open. ⛔ A PARAMETER RATHER THAN `Date.now()`: two
+ *                      bindings of one fetch must agree bar for bar, and a
+ *                      function that reads the wall clock cannot be asked the
+ *                      same question twice — which is what the stability rails
+ *                      ask it.
+ *                      ⚰️ THERE WERE ONCE `now` AND `holidays` PARAMETERS HERE.
+ *                      They are gone: the instant and both NYSE sets are read on
+ *                      the Python side by `indicator_compute.py::bar_close_state`,
+ *                      which reduces them to this one value. A date set in this
+ *                      lane would be a second calendar authority in a second
+ *                      language.
  * @returns {object} `{<name>: Float64Array}` — one entry per `CLOCK_COLUMNS`
  */
-export function computeClock(bars, tf, newestBarIsForming = false) {
+export function computeClock(bars, tf, newestBarIsForming = null) {
   const length = bars && bars.length ? bars.length : 0
   const cols = {}
   for (const name of CLOCK_COLUMNS) cols[name] = new Float64Array(length)
@@ -1233,43 +1270,53 @@ export function computeClock(bars, tf, newestBarIsForming = false) {
   for (let i = 0; i < length; i++) cols.barindex[i] = i
 
   // ── barstate ─────────────────────────────────────────────────────────────
-  // ⭐⭐ ALL SIX ARE DECIDED BY (index, length, forming) AND NOTHING ELSE. No
-  // clock is read here and NO TRADING CALENDAR IS CONSULTED — whether the newest
-  // bar is still forming is settled once by the caller, where the calendar
-  // actually lives (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` +
-  // `liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`, both Python).
+  // ⭐ THE EXTENT PAIR reads no `t` and no clock, so it answers above the unit
+  // gate — the same line `barindex` sits on, for the same reason. It can never
+  // blank: there is no input it could be missing.
+  cols.isfirst[0] = 1
+  cols.islast[length - 1] = 1
+
+  // ⛔⛔ THE REALTIME FOUR ARE TRI-STATE AND FAIL CLOSED FIRST.
+  // `newestBarIsForming` is `true | false | null`, and `null` means UNKNOWN —
+  // never "not forming". A confident `isconfirmed = 1` on a bar that is still
+  // open is the one wrong answer these columns exist to prevent, so an unknown
+  // blanks all four rather than guessing either way.
   //
-  // ⛔⛔ THAT IS THE LOAD-BEARING DESIGN DECISION, NOT AN IMPLEMENTATION DETAIL.
-  // Restating the NYSE holiday set here would put a SECOND AUTHORITY over a
-  // value in a second language, where the two would drift silently and each
-  // would look correct on its own. The boundary carries the boolean instead.
+  // ⛔⛔ NO TRADING CALENDAR IS CONSULTED HERE, AND THAT IS THE LOAD-BEARING
+  // DESIGN DECISION, NOT AN IMPLEMENTATION DETAIL. Whether the newest bar is
+  // still forming is settled ONCE, upstream, by
+  // `indicator_compute.py::bar_close_state` — on the side the calendar actually
+  // lives (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` +
+  // `liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`, both Python). Restating
+  // either set here would put a SECOND AUTHORITY over one value in a second
+  // language, where the two drift silently and each looks correct on its own.
+  // The seam carries the tri-state; the calendar does not cross it.
   //
-  // ⭐ THE DEFAULT IS THE SCREENER'S TRUE STATE, NOT A GUESS. A sweep evaluates
-  // bars that are all closed at scan time, so `forming=false` makes
-  // `isconfirmed` 1 on every bar — exactly the constant the Pine door folded to
-  // before these columns existed, now reached by EVALUATION rather than by a
-  // special case. Contrast `tf`, which fails CLOSED when absent because a
-  // guessed timeframe is a wrong answer; there is no wrong answer to guess here,
-  // only the caller's own situation.
-  const forming = newestBarIsForming === true
-  const lastI = length - 1
-  for (let i = 0; i < length; i++) {
-    const isLast = i === lastI
-    const rt = forming && isLast
-    cols.islast[i] = isLast ? 1 : 0
-    cols.isfirst[i] = i === 0 ? 1 : 0
-    cols.isrealtime[i] = rt ? 1 : 0
-    cols.isconfirmed[i] = rt ? 0 : 1
-    // ⚠️ `ishistory` IS THE SAME PREDICATE, deliberately. TradingView separates
-    // the two by VIEWER ARRIVAL — a bar that formed under your session is
-    // confirmed but not history — and we have no viewers, so the distinction has
-    // no referent here. Documented in docs/pine/barstate.md rather than faked.
-    cols.ishistory[i] = rt ? 0 : 1
+  // ⚠️ AND NOTHING IN HERE READS THE WALL CLOCK. Two bindings of one fetch must
+  // agree bar for bar, and a function that read `Date.now()` could not be asked
+  // the same question twice — which is exactly what the stability rails ask it.
+  for (const name of CLOCK_REALTIME) cols[name].fill(NA)
+  if (newestBarIsForming === true || newestBarIsForming === false) {
+    const forming = newestBarIsForming === true
+    const lastI = length - 1
+    for (let i = 0; i < length; i++) {
+      const rt = forming && i === lastI
+      cols.isrealtime[i] = rt ? 1 : 0
+      cols.isconfirmed[i] = rt ? 0 : 1
+      // ⚠️ `ishistory` IS AN ALIAS OF `isconfirmed` HERE AND IS NOT ONE IN PINE.
+      // TradingView distinguishes a bar the chart loaded as history from one it
+      // watched form; this engine evaluates a STATIC FETCH, where every closed
+      // bar arrived the same way, so the distinction has no referent. Recorded
+      // rather than hidden — `divergences.json` and `closedTable.json::_barstate`.
+      cols.ishistory[i] = cols.isconfirmed[i]
+    }
+    // The newest bar that is not still forming: the last bar normally, the one
+    // before it while the last is forming, and NO bar when a 1-bar series forms.
+    const lch = forming ? lastI - 1 : lastI
+    for (let i = 0; i < length; i++) {
+      cols.islastconfirmedhistory[i] = (lch >= 0 && i === lch) ? 1 : 0
+    }
   }
-  // The newest bar that is not still forming: the last bar normally, the one
-  // before it while the last is forming, and NO bar when a 1-bar series forms.
-  const lch = forming ? lastI - 1 : lastI
-  for (let i = 0; i < length; i++) cols.islastconfirmedhistory[i] = (lch >= 0 && i === lch) ? 1 : 0
 
   // THE UNIT GATE — before any formatter work, so a refused series costs none.
   let instants = true

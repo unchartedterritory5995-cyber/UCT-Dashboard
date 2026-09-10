@@ -53,8 +53,19 @@ def _leaf(name: str) -> dict:
     return {"type": "series", "name": name}
 
 
-def _column(name: str, bars: list, tf=None) -> list:
-    opts = None if tf is None else {"tf": tf}
+def _column(name: str, bars: list, tf=None, forming: bool = False) -> list:
+    """⭐ THE TRI-STATE IS THREADED AND DEFAULTS TO ``False``, which is the state
+    the fixture was RECORDED at (``clock_parity.json::newest_bar_is_forming``).
+
+    ⚰️ IT USED TO BE ABSENT, because the retired seam took an evaluating instant
+    the fixture supplied as ``now``. Under the shipped seam an absent tri-state
+    means UNKNOWN, so leaving it out blanked the four realtime columns and every
+    comparison against a recorded number failed for a reason that had nothing to
+    do with the maths.
+    """
+    opts: dict = {"newest_bar_is_forming": forming}
+    if tf is not None:
+        opts["tf"] = tf
     return ai.interpret(_leaf(name), bars, opts=opts)
 
 
@@ -80,7 +91,9 @@ def test_every_clock_column_matches_the_other_lane_bar_for_bar():
         "the manifest's clock section and the recorded fixture name different "
         f"columns: manifest {declared}, fixture {sorted(doc['expected'])}")
     for name in declared:
-        _same(_column(name, doc["bars"], doc["tf"]), doc["expected"][name], name)
+        _same(_column(name, doc["bars"], doc["tf"],
+                      doc["newest_bar_is_forming"]),
+              doc["expected"][name], name)
 
 
 def test_the_fixture_actually_spans_a_DST_CHANGE_and_a_WEEKEND():
@@ -205,7 +218,12 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
     time_derived = [n for n, col in exp.items() if all(v is None for v in col)]
     assert len(time_derived) == 8, sorted(time_derived)
     for name in sorted(exp):
-        _same(_column(name, bars, "D"), exp[name], name)
+        # ⭐ `False` EXPLICITLY — the same reasoning as the JS twin. Omit it and
+        # the four realtime columns blank for want of a tri-state, which is the
+        # symptom the UNIT GATE produces on the eight time columns from a
+        # different cause. This test pins the gate, so the two causes must not
+        # wear one appearance.
+        _same(_column(name, bars, "D", False), exp[name], name)
 
 
 def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
@@ -438,9 +456,13 @@ def test_the_wiring_guard_runs_WITHOUT_paying_for_the_lazy_seed(monkeypatch):
     seen = []
     real = compute_clock
 
-    def counted(passed, tf=None):
+    def counted(passed, tf=None, newest_bar_is_forming=None):
+        # ⛔ THE STUB'S SIGNATURE TRACKS THE REAL ONE. It shadowed a two-argument
+        # `compute_clock`; the tri-state made it three, and a stub that silently
+        # dropped the new parameter would raise TypeError from inside the very
+        # seam this test is measuring — reading as a regression in the guard.
         seen.append(len(passed))
-        return real(passed, tf)
+        return real(passed, tf, newest_bar_is_forming)
 
     monkeypatch.setattr(ai, "compute_clock", counted)
 

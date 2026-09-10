@@ -357,8 +357,36 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # non-repainting, this is `preview-repaints`, and a flag would have had to be
     # threaded into the linter by hand.
     "tf_live": ("type", "value", "args"),
+    # ⭐⭐ THE BIND-TIME TEXT TRIO. ``textop`` is a QUESTION about text whose
+    # answer is a NUMBER (``text_contains``, ``text_startswith``,
+    # ``text_endswith``, ``text_eq``, ``text_ne``, ``text_length``); ``str`` and
+    # ``symtext`` are the only operands it takes and may appear NOWHERE else --
+    # see ``_TEXT_OPERAND_TYPES`` and the parentage check in
+    # ``assert_canonical``.
+    # ⛔ WITHOUT THESE ROWS THE STORE IS THE DOOR THAT REFUSES THE FEATURE, which
+    # is the trap ``offset`` documents four rows up and the reason it is worth
+    # documenting twice: a definition containing ``str.contains(syminfo.ticker,
+    # "/")`` would translate, fold, lint and read back correctly in both lanes
+    # and then fail to PERSIST.
+    "str": ("type", "value"),
+    # ⚠️ ``name``, NOT ``value``: this node does not hold a string, it NAMES one
+    # that a symbol will supply. ``series`` carries ``name`` for the same reason,
+    # and reading it as ``value`` is how somebody eventually ships a tree whose
+    # "ticker" is the literal text ``ticker``.
+    "symtext": ("type", "name"),
+    "textop": ("type", "name", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
+
+#: The two node types that are NOT numbers. They may appear ONLY as a direct
+#: child of a ``textop``.
+#:
+#: ⛔⛔ THE RULE IS ENFORCED HERE, ON THE PERSISTED ARTIFACT, AND NOT ONLY AT THE
+#: TRANSLATOR DOOR. A tree reaching this function arrived over a wire or came
+#: back out of a database; it never met ``convertTextOperand``. Text can be ASKED
+#: ABOUT and can never be CARRIED, and a rule that only holds for trees this
+#: process built a millisecond ago is not that claim.
+_TEXT_OPERAND_TYPES = ("str", "symtext")
 
 
 def assert_canonical(ast: Any) -> Any:
@@ -373,9 +401,13 @@ def assert_canonical(ast: Any) -> Any:
     blob that arrived over a wire or out of a database — and a deep tree must
     fail on its shape, never inside the checker.
     """
-    stack = [ast]
+    # ⭐⭐ THE PARENT TRAVELS WITH THE NODE, for one rule: TEXT IS ONLY EVER AN
+    # OPERAND. Mirrors ``parse.js::assertCanonical`` exactly, and it is enforced
+    # in BOTH lanes because they are two different doors onto the same store --
+    # the browser saves through one and a sweep reads back through the other.
+    stack = [(ast, None)]
     while stack:
-        node = stack.pop()
+        node, parent = stack.pop()
         if not isinstance(node, dict):
             raise ValueError(f"astHash: not a canonical node: {node!r}")
         expected = _CANONICAL_KEYS.get(node.get("type"))
@@ -383,6 +415,13 @@ def assert_canonical(ast: Any) -> Any:
             raise ValueError(
                 f"astHash: node type {node.get('type')!r} is not one of "
                 f"{', '.join(NODE_TYPES)}")
+        if node.get("type") in _TEXT_OPERAND_TYPES and parent != "textop":
+            raise ValueError(
+                f"astHash: a {node['type']} node may only be an operand of a "
+                f"textop — found one under "
+                f"{'the root' if parent is None else 'a ' + str(parent)}. Text is "
+                "not a value in this engine; a text question answers with a "
+                "number and the text never leaves it.")
         keys = sorted(node)
         want = sorted(expected)
         if keys != want:
@@ -392,7 +431,7 @@ def assert_canonical(ast: Any) -> Any:
         if "args" in node:
             if not isinstance(node["args"], list):
                 raise ValueError("astHash: `args` must be an array")
-            stack.extend(node["args"])
+            stack.extend((child, node["type"]) for child in node["args"])
     return ast
 
 

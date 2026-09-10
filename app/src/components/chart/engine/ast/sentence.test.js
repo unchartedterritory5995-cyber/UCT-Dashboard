@@ -1096,6 +1096,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
+    // ⚰️ 104 -> 110 WITH THE SIX BARSTATE CLOCK COLUMNS (owner ruling
+    // 2026-09-09). They are ordinary clock entries: each renders a sentence,
+    // each round-trips, and each is ASCII — which is the whole reason they went
+    // into the CLOCK rather than into a family of their own. The count moves
+    // deliberately, beside the list it describes, because the list is what the
+    // rail actually asserts.
     expect(entries.length).toBe(110)
   })
 
@@ -2444,6 +2450,17 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // Its three `cumFrom_*` neighbours above are the ANCHORED form; this is the
       // unanchored one, admitted because the containment moved to the definition.
       'cum_running_total',
+      // ⭐⭐ THE SIX BARSTATE COLUMNS (owner ruling 2026-09-09). They are here for
+      // the reason every other row is: this is the CROSS-LANE net, and a column
+      // the two lanes might disagree about must be pinned somewhere both of them
+      // walk. `isrealtime` is the one that needed the corpus to grow an
+      // `opts.now` — the evaluating instant sits 100 seconds into the newest
+      // 5-minute bar, so that bar is FORMING and is the only one that can answer
+      // true. A closed newest bar would make `islast` and
+      // `islastconfirmedhistory` coincide, and a lane that confused them would
+      // stay green.
+      'barstate_islast', 'barstate_isfirst', 'barstate_isrealtime',
+      'barstate_isconfirmed', 'barstate_ishistory', 'barstate_islastconfirmedhistory',
     ])
   })
 
@@ -2490,6 +2507,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // 103 -> 104 (2026-09-09): `cum`. The addend is the ENTRY COUNT of the
     // table's generated set, so it moves with a declaration and not with the
     // corpus — which is why it is written as a sum rather than one number.
+    // ⚰️ 104 -> 110 WITH THE SIX BARSTATE CLOCK COLUMNS. Written as a SUM
+    // rather than one number for exactly this reason: the corpus half moves on
+    // its own and the table half moves on its own, and a single literal would
+    // hide which one did.
     expect(sentences.length).toBe(CORPUS.cases.length + 110)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)

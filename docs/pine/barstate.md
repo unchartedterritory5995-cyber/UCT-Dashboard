@@ -110,15 +110,64 @@ here and no calendar is duplicated.
 
 ⛔⛔ **AND IT MUST NOT BE COPIED INTO JAVASCRIPT.** The engine's runtime is JS and the calendar is
 Python. Restating the holiday set in JS would be a second authority over a value — the defect
-this repo has paid for repeatedly. Instead the boundary carries **one boolean per fetch**:
+this repo has paid for repeatedly. Instead the boundary carries **one TRI-STATE per fetch**:
 
 ```
-newestBarIsForming  :=  scheduled_close(newest_bar, tf)  >  now
+newestBarIsForming  :=  bar_close_state(bars, tf, now, holidays, early_closes)
+                     ->  true | false | null      # null = nobody told me
 ```
 
 computed where the calendar already lives, and handed to the runtime. Every flag above is then a
 pure function of `(bar index, N, newestBarIsForming)` — no clock and no calendar inside the
 runtime at all.
+
+### ⭐⭐ The seam carries a TRI-STATE, and `null` is not `false`
+
+`newestBarIsForming` is **`true` / `false` / `null`**, and `null` means *nobody told
+me* — never *not forming*.
+
+| handed in | the two EXTENT columns | the four REALTIME columns |
+|---|---|---|
+| `true` | answer | answer; the newest bar is realtime |
+| `false` | answer | answer; every bar is confirmed |
+| `null` | **still answer** | **blank** |
+
+⛔ **Collapsing `null` onto `false` is the one wrong answer these columns exist to
+prevent.** It would put a confident `isconfirmed = 1` on a bar that may still be
+open, and it is invisible: it looks exactly like a correctly-closed bar. The
+default is therefore `null`, not `false` — a caller who knows nothing gets blanks
+rather than a guess, and a caller who does know says so.
+
+⭐ **The extent pair never blanks**, because it reads only the fetch's shape:
+which bar is newest, which is oldest. There is no input it could be missing. That
+asymmetry is why the roster is two groups rather than one — `CLOCK_EXTENT` and
+`CLOCK_REALTIME` — with `CLOCK_BARSTATE` derived from the two rather than typed a
+third time.
+
+**Produced once, on the Python side**, by
+`api/services/indicator_compute.py::bar_close_state(bars, tf, now, holidays, early_closes)`
+— the only place either NYSE set is read. The browser is handed the tri-state and
+never a date set.
+
+### Gap — the calendar sets have to be handed in
+
+`scheduled_close_seconds` takes both sets as **parameters** and imports neither: a
+second list of exchange dates is exactly the defect `/api/market-calendar` was
+written to prevent. **Absent the closure set, a holiday-shortened week reads
+`isrealtime` for a day longer than it should** — a week ending on Good Friday
+actually ended on the Thursday. **Absent the early-close set, a half-day reads
+long by three hours.** Both are wired in at the one call site
+(`ast_interpret._nyse_full_closures()` / `._nyse_early_closes()`), so the absent
+case is a programming error rather than a shipped state.
+
+⚰️ **A "Gap 1 — early closes are not known" once stood here** and is gone. It
+reasoned from `bars_fetch`'s own comment that half-days are *"intentionally NOT"*
+included — true of that set, false of the repo:
+`liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD` is a real frozenset with five read
+sites and the parity rail `tests/test_nyse_calendar_parity.py`. Wiring it in is
+what closed the gap; naming it is what kept it open.
+
+---
 
 ### Scheduled close, by timeframe
 
@@ -153,6 +202,11 @@ Read from the code instead of from belief:
 - **Daily and above do NOT.** `prepost=True` occurs at exactly one site in the repo, and it
   reads `_YF_CONFIG`, which is intraday-only (`1/5/15/30/60`). The daily path passes no
   `prepost`; the only other site in the tree, `api/index_bars.py`, passes `prepost=False`.
+- **Railed, not merely written down** — `tests/test_bars_extended_hours_scope.py` pins
+  all three halves: the intraday site asks, the daily and index lanes do not, and a
+  zero-volume extended-hours print survives the serve-time filter. It also asserts
+  `prepost=True` occurs at exactly ONE site, so the scope claim above cannot go stale
+  silently.
 
 **The formulas survive; their justification does not.** Intraday is `bar_open + interval`
 because interval arithmetic is indifferent to session — **not** because the regular session was
@@ -200,6 +254,25 @@ On a screener sweep every bar is closed at scan time, so `isrealtime` is false e
 `isconfirmed` folds to `true` exactly as it does today. **That path and its tests are kept
 verbatim** — the fold is not an approximation there, it is the correct answer, and it is
 expressed by passing no `now` at all rather than by a special case.
+
+## What a member is told
+
+The manifest's `_barstate.vendorNote` reaches the paste box through the same walk
+that surfaces `atr`'s note, and the pane's data notes carry the scope limit.
+
+> This engine defines `barstate.*` from our clock and our fetch. Two consequences
+> for a member porting a script: `barstate.ishistory` here means exactly
+> `barstate.isconfirmed` — the bar's period has ended — while on TradingView the
+> two differ by whether the chart LOADED the bar or WATCHED it form. And these
+> flags are correct at fetch time rather than live, so a bar that closes while
+> this pane sits open does not flip until the next fetch.
+
+Ledger row: `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor`,
+status **accepted**, confidence **measured** — captured on a live chart across the
+2026-09-09 US open, fixture
+`tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json`.
+
+---
 
 ## Disclosure
 

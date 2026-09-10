@@ -902,13 +902,23 @@ export const BUILTIN_CONSTANT_TREE = Object.freeze({
   'barstate.isconfirmed': () => cNum(1),
   'barstate.ishistory': () => cNum(1),
   'barstate.isrealtime': () => cNum(0),
+  // ⚰️ `barstate.isnew` WAS HERE AND FOLDED TO 1, AND THE FOLD WAS A
+  // RESTATEMENT OF THE QUESTION. It is true on the FIRST EXECUTION of each bar —
+  // a fact about how many times the script ran, not about the bar — and this
+  // engine executes a static fetch exactly once, so every bar is "new" and the
+  // constant carried no information. The other three fold to something a member
+  // can act on; this one folded to a tautology wearing a value. Refused by name
+  // now, on both contracts, with the reason in
+  // `closedTable.json::_barstate.refused`. ⚠️ THAT IS A SHIPPED-BEHAVIOUR CHANGE
+  // for a screen that spelled it: it translated before and refuses now.
 })
 
 /* ⚰️ `barstate.isnew` WAS IN THE MAP ABOVE, FOLDING TO 1, AND IT WAS WRONG IN THE
  * WAY THAT IS HARDEST TO SEE. `isnew` is true on the FIRST TICK of a bar. On a
  * once-per-bar model every evaluation is arguably "the first", so 1 looked
  * defensible — and was unfalsifiable, because nothing here ever observes a second
- * tick that would make it false. It refuses by name now (`PINE_LIVE_ONLY`), which
+ * tick that would make it false. It refuses by name now (`BUILTIN_BARSTATE_REFUSED`,
+ * read off `closedTable.json::_barstate.refused`), which
  * is the honest answer to a question about an event we do not watch. */
 
 /** ⭐⭐ `dayofweek.<name>` — THE CALENDAR NAMES, IN THEIR OWN MAP.
@@ -982,50 +992,61 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
   'timeframe.isintraday': 'isintraday',
 })
 
-/** ⭐⭐ `barstate.<predicate>` — THE SAME KIND OF ALIAS AS `timeframe.*`, and it
- *  replaces a FOLD that used to live in `BUILTIN_CONSTANT_TREE`.
+/** ⭐⭐⭐ `barstate.<name>` — SERVED AS CLOCK COLUMNS ON THE HOST CONTRACT, and
+ *  the roster is READ OFF `closedTable.json::_barstate` rather than typed here.
  *
- *  The fold said: this engine evaluates closed history once per bar, so
- *  `isconfirmed` IS 1 and `isrealtime` IS 0 — not approximately, exactly. ⭐ That
- *  is still TRUE OF A SCREEN and the fold is kept there. It is NOT true of a pane,
- *  which draws a fetch that may have been taken mid-session.
+ *  ⚰️ THESE WERE CONSTANTS, AND THAT WAS ONLY EVER TRUE FOR ONE CONTRACT. The
+ *  screener evaluates CLOSED bars, so `barstate.isconfirmed` is genuinely 1 on
+ *  every bar it will ever see and the fold is exact there. A PANE DRAWS THE
+ *  FORMING BAR, and on the one bar a member is actually watching the same
+ *  constant is false — which is why host mode refused these outright rather than
+ *  shipping a confident wrong value. The refusal was the right answer to a
+ *  missing capability and is the wrong answer to one that exists: `computeClock`
+ *  now decides them per bar from the CLOCK and the FETCH.
  *
- *  ⛔⛔ AND THE VENDOR CANNOT BE COPIED, WHICH IS WHY THIS IS A RULING AND NOT A
- *  PORT. Measured across the 2026-09-09 open (`tests/fixtures/vendor/barstate-
- *  realtime-spy-2026-09-09.json`): a bar that formed under the viewer's own session
- *  KEEPS its realtime barstate after closing, while the same bar loaded as history
- *  reads differently. On TradingView these flags, on a CLOSED bar, are a function of
- *  when the viewer arrived. A screener column has no viewer, so matching that is
- *  impossible by construction. We define them from our clock and our fetch and say
- *  so — `docs/pine/barstate.md`.
- *
- *  ⚠️ `barstate.isnew` IS NOT HERE: it needs a per-tick event this engine never
- *  observes, and it refuses BY NAME in `PINE_LIVE_ONLY` below.
- *  ⚠️ `barstate.isfirst` IS here but is `window_dependent`, so a SCREEN refuses it
- *  while a pane draws it — the `cum` bargain, applied to a name rather than a call.
- */
-export const BUILTIN_BARSTATE_ALIAS = Object.freeze({
-  'barstate.islast': 'islast',
-  'barstate.isfirst': 'isfirst',
-  'barstate.isrealtime': 'isrealtime',
-  'barstate.isconfirmed': 'isconfirmed',
-  'barstate.ishistory': 'ishistory',
-  'barstate.islastconfirmedhistory': 'islastconfirmedhistory',
-})
+ *  ⛔ THE SCREENER FOLD IS RETAINED, UNCHANGED, WITH ITS TESTS. Two contracts,
+ *  two answers, each true where it is given — and neither derived from the
+ *  other. A screener that started evaluating these per bar would be recomputing,
+ *  at cost, a constant it can prove. */
+export const BUILTIN_BARSTATE_SERIES = Object.freeze(Object.fromEntries(
+  [...((TABLE._barstate || {}).extent || []),
+    ...((TABLE._barstate || {}).realtime || [])]
+    .map((name) => [`barstate.${name}`, name]),
+))
 
-/** ⛔ NAMES THAT NEED AN EVENT THIS ENGINE NEVER OBSERVES. Refused on BOTH
- *  contracts, because a pane does not see ticks either. */
-export const PINE_LIVE_ONLY = Object.freeze({
-  'barstate.isnew':
-    'requires per-tick evaluation; UCT evaluates once per bar',
-})
+/** The `barstate.*` names refused BY NAME, with their reasons — the same data
+ *  file, so the roster and its sentences have one owner. */
+export const BUILTIN_BARSTATE_REFUSED = Object.freeze(Object.fromEntries(
+  Object.entries(((TABLE._barstate || {}).refused) || {})
+    .filter(([k]) => !k.startsWith('_'))
+    .map(([k, why]) => [`barstate.${k}`, String(why)]),
+))
 
-/** The look-alikes of the four above — REFUSED, and refused with the reason.
+/** ⚰️⚰️ THE REQUEST-DEPENDENT REFUSAL, WITHDRAWN BY OWNER RULING 2026-09-09,
+ *  AND KEPT HERE EMPTY SO THE ARGUMENT IS NOT LOST.
  *
- *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE. "This engine has
- *  no home for that name" is false: it has a home for its three siblings. The true
- *  sentence is that the answer would change with the request, and a member who
- *  reads it knows to rewrite the script rather than wait for us to add the name.
+ *  It held `barstate.islast`, `barstate.isfirst` and
+ *  `barstate.islastconfirmedhistory`, and its sentence was that each one "would
+ *  answer differently for the same stock on the same day" because its value is
+ *  decided by HOW MANY BARS WERE ASKED FOR. ⭐ THAT ARGUMENT WAS HALF RIGHT, AND
+ *  THE HALF IT GOT WRONG IS THE INTERESTING ONE: widen the fetch and the OLDEST
+ *  bar moves, but the NEWEST bar is the newest bar however much history was
+ *  requested. So `islast` was never request-dependent at all, and
+ *  `islastconfirmedhistory` is request-dependent only through the clock, which
+ *  is a different question with a different answer.
+ *
+ *  ⛔ AND `isfirst` REALLY IS REQUEST-DEPENDENT — it just does not need a REFUSAL
+ *  any more. The containment mechanism it wanted did not exist when this map was
+ *  written; it does now, on the DEFINITION rather than on the name
+ *  (`_requirement_tags.window_dependent`), so `isfirst` is served on a pane with
+ *  a disclosure and refused BY NAME at the screener, the sweep, an alert, a share
+ *  and a listing. A refusal at the grammar was the right answer to a missing
+ *  mechanism and is the wrong answer to one that exists.
+ *
+ *  ⚠️ THE MAP IS EMPTY AND NOT DELETED. Its consult site is gone, so nothing here
+ *  can fire; what remains is the reasoning, which the next name of this shape
+ *  will need. A future entry must also add its own test — the loop that drove
+ *  this map is now a withdrawal record and no longer a live rail.
  */
 export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({})
 
@@ -5467,22 +5488,46 @@ export class Resolver {
       // The request-dependent siblings are named FIRST, so a future edit that adds
       // `barstate.islast` to the constant map contradicts itself here rather than
       // silently shipping a number that changes with the bar count.
-      if (own(BUILTIN_REQUEST_DEPENDENT, name)) {
-        // ⚰️⚰️ THE GENERIC PREFIX WAS INTERPOLATED HERE AND THIS FILE ALREADY
-        // CALLED IT FALSE. `BUILTIN_REQUEST_DEPENDENT`'s own docblock, forty lines
-        // up, reads: "⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE.
-        // 'This engine has no home for that name' is false: it has a home for its
-        // three siblings." And `REFUSALS['pine:builtin']` is exactly that sentence.
-        // MEASURED: `barstate.islast` refused with "the engine grammar does not
-        // hold" while `barstate.isconfirmed` translates to `close` on the same run.
-        // ⭐ THE TRUE REASON WAS ALREADY IN THE TAIL. It is now the whole sentence,
-        // and it says what the docblock says it should: not that the name is
-        // unknown, but that its answer moves with the request — which tells a
-        // member to rewrite rather than wait for us to add it.
+      // ⭐⭐ BARSTATE, AND THE CONTRACT DECIDES. Asked BEFORE the
+      // request-dependent roster and before the constant fold, because both of
+      // those hold names this now serves and the first match would win.
+      if (own(BUILTIN_BARSTATE_REFUSED, name)) {
         throw new PineRefusal('pine:builtin',
           `\`${name}\` is a Pine built-in this engine holds no COLUMN for, though it `
-          + `holds its siblings: ${BUILTIN_REQUEST_DEPENDENT[name]}`,
+          + `holds its siblings: ${BUILTIN_BARSTATE_REFUSED[name]}`,
           locate(node.tok))
+      }
+      if (own(BUILTIN_BARSTATE_SERIES, name)) {
+        // ⛔ THE HOST GETS THE COLUMN; THE SCREENER KEEPS ITS FOLD WHERE IT HAS
+        // ONE. `isconfirmed`, `ishistory` and `isrealtime` are PROVABLE
+        // constants for a lane that only ever evaluates closed bars, and
+        // recomputing a value you can prove is cost without truth. The three
+        // names with no fold — `islast`, `isfirst`, `islastconfirmedhistory` —
+        // are real columns on both contracts.
+        if (!this.strict && own(BUILTIN_CONSTANT_TREE, name)) {
+          return BUILTIN_CONSTANT_TREE[name]()
+        }
+        const col = BUILTIN_BARSTATE_SERIES[name]
+        // ⛔⛔ THE `cum` BARGAIN, APPLIED TO A NAME — AND IT REFUSES AT THE DOOR,
+        // not only on the saved definition. A `window_dependent` column is
+        // servable on a pane (one symbol, one fetch, the member can see where the
+        // data starts) and never on a screen, where the same number would mean
+        // something different tomorrow. Derived from the manifest's own tag, so a
+        // second window-dependent column is covered the day it lands.
+        //
+        // ⚰️ THIS GUARD WAS LOST FOR ONE COMMIT IN THE 2026-09-09 MERGE. Two
+        // implementations of one ruling met: the other contained `isfirst`
+        // through `_requirement_tags.window_dependent` stamped at SAVE time, this
+        // one refuses at TRANSLATE time, and taking the other's dispatch wholesale
+        // dropped the door check — a screener was handed `barstate.isfirst` with
+        // no refusal at all. Both containments are wanted; this is the one a
+        // member sees immediately.
+        if (!this.strict && hostAdmissible(this.table).has(col)) {
+          throw new PineRefusal('pine:window-dependent',
+            `${REFUSALS['pine:window-dependent']} — \`${name}\` is `
+            + `${PINE_INEXPRESSIBLE[col]}`, locate(node.tok))
+        }
+        return { type: 'series', name: col }
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) {
         // ⛔⛔ THE FOLD IS EXACT FOR ONE CONTRACT AND WRONG FOR THE OTHER.
@@ -5532,29 +5577,15 @@ export class Resolver {
         // near-enough one.
         if (!this.strict) return BUILTIN_CONSTANT_TREE[name]()
       }
-      // ⛔ AN EVENT THIS ENGINE NEVER OBSERVES — refused on BOTH contracts,
-      // because a pane does not see ticks either.
-      if (own(PINE_LIVE_ONLY, name)) {
-        throw new PineRefusal('pine:live-bar-state',
-          `\`${name}\` ${PINE_LIVE_ONLY[name]}`, locate(node.tok))
-      }
-      // ⭐⭐ THE BARSTATE COLUMNS. Same shape as the `timeframe.` aliases: no fold,
-      // no constant, just the clock column the manifest declares — so both lanes
-      // evaluate it identically and a pane and a screen agree wherever both serve.
-      if (own(BUILTIN_BARSTATE_ALIAS, name)) {
-        const col = BUILTIN_BARSTATE_ALIAS[name]
-        // ⛔ THE `cum` BARGAIN, APPLIED TO A NAME. A `window_dependent` column is
-        // servable on a pane (one symbol, one fetch, the member can see where the
-        // data starts) and never on a screen, where the same number would mean
-        // something different tomorrow. Derived from the manifest's own tag, so a
-        // second window-dependent column is covered the day it lands.
-        if (!this.strict && hostAdmissible(this.table).has(col)) {
-          throw new PineRefusal('pine:window-dependent',
-            `${REFUSALS['pine:window-dependent']} — \`${name}\` is `
-            + `${PINE_INEXPRESSIBLE[col]}`, locate(node.tok))
-        }
-        return { type: 'series', name: col }
-      }
+      // ⚰️⚰️ A SECOND BARSTATE DISPATCH STOOD HERE AND WAS UNREACHABLE.
+      // Two implementations of one ruling met in the merge: this one keyed
+      // off hand-typed maps (`BUILTIN_BARSTATE_ALIAS` / `PINE_LIVE_ONLY`),
+      // the surviving one keys off `closedTable.json::_barstate`. Both are
+      // correct; only one may be REACHED, and the manifest-derived one is
+      // asked first, so every one of the six names had already been served
+      // or refused before control arrived here. ⛔ THE MANIFEST IS THE
+      // AUTHORITY — a second literal roster is the defect this engine keeps
+      // paying for, and it is worse when it is also dead code.
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
       // ⭐ THE DOTTED SPELLING OF A COLUMN THIS ENGINE ALREADY HAS. No fold, no
       // constant — it becomes the same `series` node the bare name does, so both
