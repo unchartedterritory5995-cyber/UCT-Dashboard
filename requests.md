@@ -10,7 +10,7 @@ sentence describing a failure costs the reader the whole investigation again.
 
 ---
 
-## OPEN · 2026-09-09 · two escape-census rails are green ALONE and red IN COMPANY
+## ✅ ANSWERED 2026-09-11 · two escape-census rails are green ALONE and red IN COMPANY
 
 **Raised by:** the indicator-ecosystem session (Pine ingestion engine).
 **Territory:** the repo-root `conftest.py` / test-fixture scoping. Not ours.
@@ -78,6 +78,77 @@ Either a fix, or a one-line answer we can put in the test: if the census is
 legitimately measuring something different under the sandbox pins, the tests
 should say so and assert the pinned behaviour, rather than reading as a red
 nobody owns.
+
+> ### ✅ ANSWERED — it does not reproduce here, and the neighbouring defect it looks like IS real and is fixed
+>
+> **2026-09-11, on `feat/indicator-r0r1`.** Both rails are green ALONE and green
+> IN COMPANY, so the red you saw is not reproducible from this branch:
+>
+> ```
+> python -m pytest tests/test_ast_interpret.py::test_the_escape_census_ZERO_is_ATTRIBUTABLE_and_the_reconciliation_says_so -q   -> 1 passed
+> python -m pytest tests/test_ast_conformance.py::test_the_guarded_census_offers_each_case_to_the_DOOR_ITS_CLAIM_IS_ABOUT -q   -> 1 passed
+> python -m pytest tests/test_ast_conformance.py tests/test_ast_interpret.py -q                                              -> 162 passed, 5 skipped
+> python -m pytest tests/test_ast_*.py -q                                                                                    -> 796 passed, 5 skipped, 1 xfailed
+> ```
+>
+> ⚠️ **That is a measurement on THIS branch, not a fix of yours.** Your repro ran
+> in `.claude/worktrees/indicator-ecosystem`; if it still reproduces there, the
+> difference is that worktree, and the run above is the control proving the two
+> rails themselves are sound.
+>
+> ⭐⭐ **What to check first if it does — because your symptom has a mechanism, and
+> it is not the env pins.** "Green outside pytest, red under pytest, same code,
+> and the case fires a DIFFERENT GUARD" is the exact signature of a **stack
+> overflow laundered into a guard name**. Under pytest the interpreter is already
+> many frames deep, so a walker that recurses once per node has less headroom than
+> the same walker run from a bare script — and the recursion error, caught by an
+> outer `except`, comes out wearing whichever guard that handler defaults to. A
+> census cannot tell that apart from an ordinary refusal: it is `ok: False`, it
+> has a guard name, and it is counted as refused.
+>
+> ⚰️ **We found exactly that defect — in the JS lane — while looking.**
+> `parse.js::convert` was recursive, one frame per node, and `parseFormula` ends
+> with `guard: err instanceof TableRefusal ? err.guard : 'canonicalise:node'`. A
+> `RangeError` is not a `TableRefusal`, so a stack overflow reached the member as
+> **`canonicalise:node`** — "I don't recognise this node shape" — for a formula
+> made entirely of `+` and `1`. Measured by importing the pre-change file beside
+> the new one and bisecting:
+>
+> ```
+>   recursive convert : survives 5,468 nodes deep, dies by 5,500   (this runtime)
+>   iterative convert : 200,000 deep, fine
+>   OLD parseFormula(12,000 terms) -> refused: canonicalise:node
+>   NEW parseFormula(12,000 terms) -> ok, and the BUDGET then refuses it
+> ```
+>
+> `convert` is now an explicit-stack walk (guards still run at ENTER, children
+> pushed in reverse so they complete left-to-right, so refusal ORDER is unchanged).
+> Rail: `app/src/components/chart/engine/ast/parse.deepTree.test.js`, whose depth
+> control **calibrates itself** — it bisects the ceiling of a minimal recursive
+> walk on the running engine and tests past it, because the number it needs is a
+> property of the engine and not of this repo.
+>
+> ⛔ **The corpus case did NOT prove this, and we are saying so rather than
+> claiming the credit.** `escapes.json::too_many_nodes` is `gen:nest(4000)` =
+> 4,001 deep, which is UNDER the measured ceiling — it passed before the change
+> and passes after. It is pinned in that file because it is the declared claim;
+> the regression proof is the self-calibrating control beside it.
+>
+> ⭐ **And the reason this could only bite the JS lane is structural, which is
+> worth knowing before you look for it in Python.** `ast_interpret.interpret`
+> asserts the budget BEFORE it walks, so an over-budget tree never reaches a
+> per-node walker; and `ast_budget`'s `node_count` / `series_refs` /
+> `max_lookback` are all iterative — verified at 8,001 nodes deep against a
+> recursion limit of 1,000:
+>
+> ```
+>   interpret(nest(4000))  -> BudgetExceeded: exceeds the node budget (measures 4001)
+>   node_count(nest(8000)) -> 8001        series_refs / max_lookback -> OK
+> ```
+>
+> The JS door cannot do that, because there the walk IS the parse: there is no
+> tree to budget until `convert` has built one. So budget-after-walk is forced on
+> that side, and the walk has to be the thing that cannot fall over.
 
 ---
 

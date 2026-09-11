@@ -885,15 +885,29 @@ function convertTextOperand(node) {
   return refuse('canonicalise:textop')
 }
 
-function convert(node) {
+/** ⭐⭐ ENTER one jsep node: run ITS OWN guards, then DECLARE its children.
+ *
+ *  Returns either `{leaf}` — a finished canonical node with nothing to descend
+ *  into — or `{children, build}`, where `build` receives the converted children
+ *  in order.
+ *
+ *  ⛔⛔ EVERY GUARD RUNS HERE, BEFORE ANY CHILD IS TOUCHED, AND THAT IS THE WHOLE
+ *  CONTRACT. `refuse` THROWS, so WHICH guard fires first is observable behaviour
+ *  — `escapes.json` fates cases to guards BY NAME. The recursive version checked
+ *  a node's own shape and then descended left-to-right; keeping every guard in
+ *  the enter step, and `convert` pushing children in reverse so they complete
+ *  left-to-right, reproduces that order exactly. Moving a guard into `build`
+ *  would silently re-fate every case whose CHILD also refuses.
+ */
+function enterNode(node) {
   switch (node.type) {
     case 'Literal': {
-      if (typeof node.value === 'number') return num(node.value)
+      if (typeof node.value === 'number') return { leaf: num(node.value) }
       // The manifest declares `!`, `&&`, `||` and `?:` over a table whose only
       // literal is a number, so a condition IS a 0/1 column and `true`/`false`
       // are spellings of 1 and 0. See `_booleans` in closedTable.json.
-      if (node.value === true) return num(1)
-      if (node.value === false) return num(0)
+      if (node.value === true) return { leaf: num(1) }
+      if (node.value === false) return { leaf: num(0) }
       return refuse('canonicalise:node')
     }
     case 'Identifier':
@@ -902,11 +916,11 @@ function convert(node) {
       // `globalThis` / `toString` / `hasOwnProperty` to that guard. Refusing
       // them here would move three census cases out from under the guard that
       // is supposed to catch them and make its first zero mean less.
-      return series(node.name)
+      return { leaf: series(node.name) }
     case 'UnaryExpression': {
       const name = UNARY_CANONICAL[node.operator]
       if (!name) return refuse('canonicalise:operator')
-      return op(name, [convert(node.argument)])
+      return { children: [node.argument], build: (k) => op(name, [k[0]]) }
     }
     case 'BinaryExpression': {
       // Reachable only if the parser was reconfigured behind this module's back;
@@ -914,20 +928,23 @@ function convert(node) {
       // case in parse.test.js is what asserts the removal itself. This is the
       // belt, and it is exercised directly rather than left theoretical.
       if (TABLE.operators[node.operator]?.arity !== 2) return refuse('canonicalise:operator')
-      return op(node.operator, [convert(node.left), convert(node.right)])
+      return { children: [node.left, node.right], build: (k) => op(node.operator, k) }
     }
     case 'ConditionalExpression':
-      return op(TERNARY, [convert(node.test), convert(node.consequent), convert(node.alternate)])
+      return {
+        children: [node.test, node.consequent, node.alternate],
+        build: (k) => op(TERNARY, k),
+      }
     case 'CallExpression': {
-      // \u2b50 `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
+      // ⭐ `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
       // HIGHER TIMEFRAME, and the timeframe is a FIELD on the node rather than a
-      // child expression \u2014 the same shape rule `offset` follows for its bar
+      // child expression — the same shape rule `offset` follows for its bar
       // count. A shape with no slot for an expression cannot hold one, so a
       // timeframe can never be computed at runtime and `max_lookback` stays a
       // tree sum over a bounded thing.
       //
-      // \u26d4 IT IS SPELLED AS A CALL BECAUSE THAT IS WHAT A MEMBER TYPES, and the
-      // alternative \u2014 inventing punctuation \u2014 would put a second grammar in a
+      // ⛔ IT IS SPELLED AS A CALL BECAUSE THAT IS WHAT A MEMBER TYPES, and the
+      // alternative — inventing punctuation — would put a second grammar in a
       // language whose whole claim is that it has one. The string literal is
       // legal HERE and nowhere else: `convert` still refuses every other string,
       // so the table stays closed and this is the single declared exception.
@@ -938,12 +955,12 @@ function convert(node) {
         if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
           return refuse('canonicalise:timeframe')
         }
-        // \u26a0\ufe0f WHICH timeframes are legal is `interpret`'s question, not this
+        // ⚠️ WHICH timeframes are legal is `interpret`'s question, not this
         // one's. The parser decides SHAPE; the table decides meaning, and
         // `interpret:timeframe` names an unserveable code at its own door with
         // the ladder listed. Validating it twice would be two authorities on one
         // vocabulary, and the parser's copy would be the one that goes stale.
-        return { type: 'tf', value: code.value, args: [convert(args[0])] }
+        return { children: [args[0]], build: (k) => ({ type: 'tf', value: code.value, args: k }) }
       }
       // ⭐ THE FORMING VARIANT, spelled `tf_live(expr, 'W')` — the same surface
       // one word along, because a member who knows one should not have to learn a
@@ -955,7 +972,10 @@ function convert(node) {
         if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
           return refuse('canonicalise:timeframe')
         }
-        return { type: 'tf_live', value: code.value, args: [convert(args[0])] }
+        return {
+          children: [args[0]],
+          build: (k) => ({ type: 'tf_live', value: code.value, args: k }),
+        }
       }
       // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
       // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
@@ -984,7 +1004,10 @@ function convert(node) {
         // member built, kept, and can never use. The shape check belongs at the
         // door they typed at.
         if (!TICKER_SHAPE.test(ticker.value)) return refuse('canonicalise:symbol')
-        return { type: 'sym', value: ticker.value, args: [convert(args[1])] }
+        return {
+          children: [args[1]],
+          build: (k) => ({ type: 'sym', value: ticker.value, args: k }),
+        }
       }
       // ⭐⭐ THE SYMBOL-SCOPED FIELD — `syminfo('ticker')` — and the FIELD IS A
       // FIELD ON THE NODE for the third time in this switch, for the third
@@ -1006,7 +1029,7 @@ function convert(node) {
         // decides SHAPE only; a field list copied into this file would be the
         // copy that goes stale, which is the `sym` ticker lesson verbatim.
         if (!/^[a-z][a-z0-9_]{0,23}$/.test(field.value)) return refuse('canonicalise:symtext')
-        return { type: 'symtext', name: field.value }
+        return { leaf: { type: 'symtext', name: field.value } }
       }
       // ⭐⭐ A TEXT QUESTION WITH A NUMERIC ANSWER. `text_contains(…)` is 1 or 0
       // and `text_length(…)` is a count, so a `textop` sits wherever a number
@@ -1022,9 +1045,9 @@ function convert(node) {
         const want = TEXTOP_ARITY[bare]
         const args = node.arguments || []
         if (!want || args.length !== want) return refuse('canonicalise:textop')
-        return { type: 'textop', name: bare, args: args.map(convertTextOperand) }
+        return { leaf: { type: 'textop', name: bare, args: args.map(convertTextOperand) } }
       }
-      return call(node.callee.name, (node.arguments || []).map(convert))
+      return { children: node.arguments || [], build: (k) => call(node.callee.name, k) }
     }
     case 'MemberExpression': {
       // The whole-tree scan already refused every illegal member and every
@@ -1033,7 +1056,6 @@ function convert(node) {
       // the idiom `BinaryExpression` above uses for the same reason.
       const read = readOffset(node)
       if (!read || read.guard) return refuse(read ? read.guard : 'canonicalise:member')
-      const child = convert(node.object)
       // ⭐⭐ `x[0]` IS `x`, AND IT FOLDS TO IT RATHER THAN BECOMING A NODE.
       // Same values, same (absent) NaN prefix, same `maxLookback` — so emitting
       // a zero-bar offset would give ONE COLUMN TWO CANONICAL TREES and
@@ -1042,11 +1064,65 @@ function convert(node) {
       // `compute.rev`, and a rev bump force-migrates every binding: two
       // spellings of one column is a migration a user can trigger by typing
       // `[0]`. Pine spells the identity the same way and means the same thing.
-      return read.value === 0 ? child : offset(read.value, child)
+      return {
+        children: [node.object],
+        build: (k) => (read.value === 0 ? k[0] : offset(read.value, k[0])),
+      }
     }
     default:
       return refuse('canonicalise:node')
   }
+}
+
+/** jsep's tree → the canonical tree, ITERATIVELY.
+ *
+ *  ⚰️⚰️ THIS WAS RECURSIVE AND IT DIED ON THE CORPUS'S OWN CASE. `escapes.json`
+ *  carries `too_many_nodes` — 8,001 nodes, 4,001 deep — declared to refuse at
+ *  `budget:nodes`. The recursive version threw `RangeError: Maximum call stack
+ *  size exceeded` in here instead, and a `RangeError` IS NOT A REFUSAL: the
+ *  escape census counted the case as ESCAPED, so the one number that is supposed
+ *  to read zero read one — for a tree that never reached the budget waiting for
+ *  it.
+ *
+ *  ⛔ THE FIX IS TO STOP OVERFLOWING, NOT TO CATCH THE OVERFLOW. `budget.js`
+ *  says in writing that a `RangeError` is not a refusal and that it contains no
+ *  `try`, so it cannot become one — and catching it HERE would turn a property of
+ *  the running machine's stack into a guard name, which is a script refusing
+ *  differently on a different browser. An explicit stack has no such limit, so
+ *  the tree reaches `interpret`'s node budget and refuses at the door its case
+ *  names.
+ *
+ *  ⭐ `offencesIn` ABOVE IS THE IN-FILE PRECEDENT — it has been stack-based the
+ *  whole time, which is exactly why the whole-tree refusal SCAN survived the
+ *  case that killed this walker.
+ */
+function convert(root) {
+  const stack = [{ node: root, entered: false, plan: null }]
+  const done = []
+  while (stack.length) {
+    const frame = stack[stack.length - 1]
+    if (!frame.entered) {
+      frame.entered = true
+      const plan = enterNode(frame.node)
+      if (plan.children === undefined) {
+        stack.pop()
+        done.push(plan.leaf)
+        continue
+      }
+      frame.plan = plan
+      // ⭐ PUSHED IN REVERSE so children COMPLETE left-to-right — the order the
+      // recursion visited them, and therefore the order their refusals fired in.
+      for (let i = plan.children.length - 1; i >= 0; i -= 1) {
+        stack.push({ node: plan.children[i], entered: false, plan: null })
+      }
+      continue
+    }
+    stack.pop()
+    const n = frame.plan.children.length
+    const kids = n === 0 ? [] : done.splice(done.length - n, n)
+    done.push(frame.plan.build(kids))
+  }
+  return done.pop()
 }
 
 /** jsep's tree → the persisted tree.
