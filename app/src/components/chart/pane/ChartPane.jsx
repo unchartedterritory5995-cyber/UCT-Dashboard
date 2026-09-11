@@ -604,9 +604,9 @@ function ChartPane({
    *  same hazard, and the same answer, as the library dialog closing itself
    *  before it opens the builder. The builder is a full authoring surface with
    *  seven tabs; it wants the room anyway. */
-  const openFormulaBuilder = useCallback(() => {
+  const openFormulaBuilder = useCallback((intent = null) => {
     setSettingsOpen(false)
-    try { paneToolbarApi.current?.openFormulaBuilder?.() } catch { /* noop */ }
+    try { paneToolbarApi.current?.openFormulaBuilder?.(intent) } catch { /* noop */ }
   }, [])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {

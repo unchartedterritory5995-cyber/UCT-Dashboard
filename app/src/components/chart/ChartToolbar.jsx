@@ -32,6 +32,9 @@ import PatternToolbarButton from './PatternToolbarButton'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
+// ⭐ THE CONSUMER ADAPTERS — the Builder shell authors, these write. The two chart-
+// settings consumers land here; an indicator still saves through its own store.
+import { saveAsCondition, saveAsInfoField } from './builder/consumerAdapters'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
@@ -1080,10 +1083,21 @@ function ChartToolbar({
   // ⭐ ONE-WAY: once a member has opened the builder the sheet stays mounted, so
   // its draft survives a close exactly as it did when the import was static.
   const [builderEverOpened, setBuilderEverOpened] = useState(false)
-  const openBuilder = useCallback(() => {
+  /**
+   * ⭐⭐ WHICH OF THE THREE THE SHEET IS BEING OPENED FOR.
+   *
+   * The Builder's six authoring doors are identical in all three modes — that is
+   * the point of unifying it — so the only thing an opener has to say is what the
+   * formula will BE. `{consumerKind, editId}`; absent means the original indicator
+   * behaviour, unchanged.
+   */
+  const [builderIntent, setBuilderIntent] = useState({ consumerKind: 'indicator' })
+  const openBuilder = useCallback((intent) => {
+    setBuilderIntent(intent && intent.consumerKind ? intent : { consumerKind: 'indicator' })
     setBuilderEverOpened(true)
     setBuilderOpen(true)
   }, [])
+
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1159,10 +1173,12 @@ function ChartToolbar({
     // reason `openIndicatorLibrary` does: a read-only mount site passes no
     // `onUpdateSettings`, and a caller that got `true` would render a button that
     // opened nothing.
-    openFormulaBuilder: () => {
+    // ⭐ THE INTENT RIDES THROUGH. `{consumerKind, editId}` — absent means the
+    // original indicator behaviour, so every existing caller is unchanged.
+    openFormulaBuilder: (intent = null) => {
       if (!canManageIndicators) return false
       setLibraryOpen(false)   // never two Sheets: see the mount comment below
-      openBuilder()
+      openBuilder(intent)
       return true
     },
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
@@ -1181,6 +1197,28 @@ function ChartToolbar({
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
+
+  /**
+   * The CONSUMER's write, for the two kinds that live in chart settings.
+   *
+   * ⛔⛔ THE SHELL DOES NOT PERSIST THESE, and this is where that seam lands. A
+   * condition and an info value are keys in the settings blob — no server document,
+   * no version, no `compute.rev` — so they are written here, through the same pure
+   * settings writers their own tabs use, with the adapter doing the type gate.
+   * An INDICATOR never reaches this: it still saves itself through the versioned
+   * store, exactly as before.
+   */
+  const handleAuthored = useCallback((authored, { name } = {}) => {
+    if (!authored || !onUpdateSettings) return
+    const { consumerKind, editId = null } = builderIntent || {}
+    const next = consumerKind === 'condition'
+      ? saveAsCondition(cs, authored, { name, editId })
+      : consumerKind === 'infoValue'
+        ? saveAsInfoField(cs, authored, { label: name, editId })
+        : cs
+    // ⛔ A REFUSAL RETURNS THE SAME OBJECT — the whole of a caller's error handling.
+    if (next !== cs) onUpdateSettings(next)
+  }, [builderIntent, cs, onUpdateSettings])
   const updateComparisons = useCallback((arr) => {
     if (!onUpdateSettings || !cs) return
     onUpdateSettings({ ...cs, comparisonSymbols: arr, preset: 'custom' })
@@ -1635,6 +1673,10 @@ function ChartToolbar({
           <BuilderSheet
             open={builderOpen}
             onClose={() => setBuilderOpen(false)}
+            /* ⭐⭐ THE SECOND AXIS. `initialMode` says which DOOR opens; this says
+               what the formula will BE. The doors are the same either way. */
+            consumerKind={builderIntent.consumerKind}
+            onAuthored={handleAuthored}
             /* ⭐ PHASE D TASK 16 — the same pair `IndicatorLibraryDialog` takes,
                and for the same reason: adding a formula to the chart is the same
                act as ticking one in the library, so it goes through the same

@@ -1190,6 +1190,11 @@ export default function ChartSettingsModal({
               settings={settings}
               onChange={(next) => onChange?.({ ...next, preset: 'custom' })}
               registry={engineRegistry}
+              /* ⭐ THE SAME AUTHORING SHELL, OPENED FOR A CONDITION. Context already
+                 says which of the three this is, so the sheet never asks. */
+              onBuild={onCreateFormula
+                ? (opts) => onCreateFormula({ consumerKind: 'condition', ...opts })
+                : null}
             />
           )}
 
@@ -1293,6 +1298,10 @@ export default function ChartSettingsModal({
               registry={engineRegistry}
               creating={createFormulaField}
               onCreatingChange={setCreateFormulaField}
+              /* ⭐ …and opened for an INFO VALUE. Same shell, same doors. */
+              onBuild={onCreateFormula
+                ? (opts) => onCreateFormula({ consumerKind: 'infoValue', ...opts })
+                : null}
             />
             {infoFields.length > 0 && (
               <div className={styles.card}>

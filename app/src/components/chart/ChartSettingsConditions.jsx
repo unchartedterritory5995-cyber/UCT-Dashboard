@@ -66,7 +66,7 @@ const SHAPE_LABEL = {
 const POSITION_LABEL = { aboveBar: 'Above bar', belowBar: 'Below bar' }
 
 export default function ChartSettingsConditions({
-  settings, onChange, conditionErrors = null, registry = null,
+  settings, onChange, conditionErrors = null, registry = null, onBuild = null,
 }) {
   const list = useMemo(() => conditionsOf(settings), [settings])
   const [openId, setOpenId] = useState(null)
@@ -336,6 +336,19 @@ export default function ChartSettingsConditions({
       {list.map(renderRow)}
 
       <div className={styles.sectionLabel}>ADD</div>
+      {/* ⭐⭐ THE UNIFIED BUILDER, OPENED FOR A CONDITION. The same six doors an
+          indicator is authored through — plain English, the firm's Library, the
+          criteria picker, a Pine/ThinkScript/PCF import, a screenshot, the formula
+          box — with the screener's snapshot columns hidden, because on a chart they
+          are NaN. A member learns ONE authoring surface, not three. */}
+      {onBuild && (
+        <button
+          type="button"
+          className={styles.chip}
+          aria-label="Build a condition"
+          onClick={() => onBuild({})}
+        >⊕ Build a condition…</button>
+      )}
       {STARTERS.map((s) => (
         <div key={s.name} className={styles.indRow}>
           <span className={styles.indLabel}>{s.name}</span>

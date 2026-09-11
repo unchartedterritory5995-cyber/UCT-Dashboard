@@ -41,6 +41,9 @@ import UIcon from '../../ui/UIcon'
 import { SETUP_GROUPS } from '../../../constants/setupGroups'
 import { parseFormula, astHash } from '../engine/ast/parse'
 import { sentenceFor } from '../engine/ast/sentence'
+import { treeYieldsBool } from '../engine/ast/pine'
+import { chartEvaluability } from '../engine/operandCapability'
+import { startersFor } from './starterCapability'
 import CATALOG from '../engine/ast/starterScans.json'
 import styles from './StarterLibrary.module.css'
 
@@ -89,12 +92,28 @@ export function buildFrom(catalog, groups) {
             + 'about what it computes.'
         } else {
           try {
+            // ⭐⭐ THE CAPABILITY IS DERIVED HERE, FROM THE TREE, and never typed
+            // into the catalogue. `resultType` is the same `treeYieldsBool` the
+            // three consumers already gate on, and `chartEvaluable` is the same
+            // scalar test the runtime guard uses — so a starter cannot advertise a
+            // capability it does not have, and adding a starter cannot forget to
+            // declare one.
+            //
+            // ⚠️ MEASURED: of the 8 shipped starters, ALL EIGHT are boolean and only
+            // ONE (`Oops Reversal`) is chart-evaluable; the other seven read
+            // `screener_rows` columns that are NaN on a chart. Offering them in a
+            // chart CONDITION mode would offer seven setups that save cleanly and
+            // can never fire.
+            const runnable = chartEvaluability(parsed.ast)
             entry = {
               setup,
               family: group.label,
               source: spec.source,
               ast: parsed.ast,
               sentence: sentenceFor(parsed.ast, {}),
+              resultType: treeYieldsBool(parsed.ast) ? 'boolean' : 'numeric',
+              chartEvaluable: runnable.ok,
+              blockedBy: runnable.ok ? null : runnable.offenders,
             }
           } catch (err) {
             why = `${setup} has no read-back: ${err && err.message ? err.message : err}`
@@ -138,17 +157,19 @@ export function starterHash(setup) {
   return entry ? astHash(entry.ast) : null
 }
 
-export default function StarterLibrary({ onPick = null, activeSource = '' }) {
+export default function StarterLibrary({ onPick = null, activeSource = '', consumerKind = null }) {
   const [showRefused, setShowRefused] = useState(false)
+  const offered = useMemo(() => startersFor(consumerKind, STARTER_LIST), [consumerKind])
+  const hiddenByCapability = STARTER_LIST.length - offered.length
   const families = useMemo(() => {
     const seen = []
-    for (const entry of STARTER_LIST) {
+    for (const entry of offered) {
       const row = seen.find((f) => f.family === entry.family)
       if (row) row.entries.push(entry)
       else seen.push({ family: entry.family, entries: [entry] })
     }
     return seen
-  }, [])
+  }, [offered])
 
   return (
     <section className={styles.wrap} data-testid="starter-library"
@@ -157,6 +178,16 @@ export default function StarterLibrary({ onPick = null, activeSource = '' }) {
         The firm&apos;s setups, as ordinary scans. Pick one and it lands in the
         formula box below — yours to change.
       </p>
+      {/* ⛔ SAY WHAT IS MISSING AND WHY. A shorter list with no explanation reads
+          as a broken library; naming the reason is what lets a member go and find
+          the setup where it does work. */}
+      {hiddenByCapability > 0 && (
+        <p className={styles.lede} data-testid="starter-hidden-note">
+          {hiddenByCapability === STARTER_LIST.length
+            ? 'None of the firm’s setups can run on a chart yet — they read screener columns, which have no per-bar history.'
+            : `${hiddenByCapability} of the firm’s setups are hidden here — they read screener columns, which have no per-bar history.`}
+        </p>
+      )}
 
       {families.map(({ family, entries }) => (
         <div key={family} className={styles.family}>

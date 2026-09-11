@@ -120,3 +120,39 @@ export function chartEvaluability(ast) {
       + 'historical chart data — they are one value per symbol from a nightly snapshot, not a value per bar.'
   return { ok: false, offenders, reason }
 }
+
+// ─── THE SAME TABLE, WITH THE SCREENER'S OWN COLUMNS TAKEN OUT ──────────────
+//
+// ⭐⭐ FILTERING BY HANDING THE PICKER A DIFFERENT TABLE, not by teaching the
+// picker about capability. `criteria.js::vocabulary` derives EVERYTHING from the
+// manifest it is given — the terms, the flags, the comparators, even its own
+// refusal cases — and its own note says so: *"a 55th boolean scalar … the list
+// and every label are the vocabulary's, nothing here is typed."* So the whole
+// filter is one substitution: a table whose `scalars` section is empty. Nothing
+// downstream needs a new branch, and nothing can forget to apply it.
+//
+// ⛔ THE ORIGINAL TABLE IS UNTOUCHED. The screener still gets all 137 — this
+// returns a NEW object, and `vocabulary` caches by table identity, so the two
+// vocabularies coexist without either invalidating the other.
+
+let _chartTable = null
+
+/** The manifest as a CHART sees it: price series, clock, functions, operators. */
+export function chartOnlyTable(table) {
+  if (_chartTable && _chartTable.__from === table) return _chartTable
+  _chartTable = Object.freeze({ ...table, scalars: {}, __from: table })
+  return _chartTable
+}
+
+/** How many columns the chart modes are hiding, for the picker's one-line note. */
+export const HIDDEN_SCALAR_COUNT = SCREENER_SCALARS.length
+
+/**
+ * The one sentence the picker shows when it hides them.
+ *
+ * ⛔ ONE LINE, NOT 137 DISABLED ROWS. A picker full of dead ends is worse than a
+ * shorter picker with an explanation — but a member who came looking for
+ * `adr_pct` and simply cannot find it deserves to know it exists somewhere.
+ */
+export const HIDDEN_SCALARS_NOTE =
+  `${HIDDEN_SCALAR_COUNT} screener-only fields are hidden here — they have no historical chart data.`

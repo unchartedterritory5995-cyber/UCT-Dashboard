@@ -648,3 +648,13 @@
   padding-top: 8px;
   border-top: 1px solid var(--border);
 }
+
+/* The one line the criteria picker shows in a CHART consumer mode, where the
+   screener's snapshot columns are not offered. Quiet by design — it explains an
+   absence, it does not warn about anything. */
+.pickerNote {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--menu-text-faint, #6b6b6b);
+}

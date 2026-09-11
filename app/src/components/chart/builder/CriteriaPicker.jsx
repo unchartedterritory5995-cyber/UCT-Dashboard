@@ -27,10 +27,11 @@
 // `change` event, so on a phone whose viewport never changes it renders the
 // desktop arrangement at first paint and never corrects it.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../ui/UIcon'
 import { TABLE } from '../engine/ast/parse'
 import { vocabulary, fromAst, toSource, canonicalPicker } from './criteria'
+import { chartOnlyTable, HIDDEN_SCALARS_NOTE } from '../engine/operandCapability'
 import styles from './BuilderSheet.module.css'
 
 /** ⛔ THE OPTION LISTS ARE THE MANIFEST'S, IN ITS OWN ORDER. A curated list here
@@ -39,6 +40,33 @@ import styles from './BuilderSheet.module.css'
 const VOCAB = vocabulary(TABLE)
 const NAME_OPTIONS = Object.freeze([...VOCAB.series, ...VOCAB.scalars])
 const FN_OPTIONS = Object.freeze([...VOCAB.functions.keys()])
+
+// ─── THE SAME PICKER, ON A CHART ────────────────────────────────────────────
+//
+// ⭐⭐ THE FILTER IS A DIFFERENT TABLE, NOT A DIFFERENT PICKER. `vocabulary`
+// derives the terms, the flags, the comparators and its own refusals from the
+// manifest it is handed, so "hide the screener's columns" is one substitution:
+// the same manifest with an empty `scalars` section. Nothing below needs a
+// capability branch, and nothing can forget to apply it.
+//
+// ⛔⛔ AND IT IS NOT COSMETIC. `interpret` seeds every declared scalar as NaN when
+// no `scalars` are passed, and a chart never passes any — it draws one symbol from
+// bars, not a `screener_rows` row. Measured: `adr_pct > 5` on a chart validates,
+// saves, and is FALSE on 300 of 300 bars. Offering those 137 names here would be
+// offering 137 ways to build a condition that can never fire.
+//
+// ⛔ THE SCREENER KEEPS ALL OF THEM. This is a CONSUMER capability, not a verdict
+// on the columns; `vocabulary` caches by table identity so both coexist.
+const CHART_VOCAB = vocabulary(chartOnlyTable(TABLE))
+const CHART_NAME_OPTIONS = Object.freeze([...CHART_VOCAB.series])
+
+/** Which operand names this picker may offer, for the consumer it is serving. */
+const namesFor = (chartOnly) => (chartOnly ? CHART_NAME_OPTIONS : NAME_OPTIONS)
+
+// ⛔ A CONTEXT RATHER THAN SEVEN PROPS. The term editors sit four components
+// deep behind rows and groups, and threading a capability flag through every one
+// of them is how a surface ends up with a control that forgot to ask.
+const ChartOnly = createContext(false)
 
 /** ⭐ ONE DROPDOWN, TWO ROW SHAPES. A member does not care that `>` is an
  *  operator and `crossOver` is a function — both are *the relation between the
@@ -276,6 +304,7 @@ function NegateToggle({ on, label, onChange }) {
 }
 
 function TermEditor({ term, label, onChange }) {
+  const names = namesFor(useContext(ChartOnly))
   return (
     <span className={styles.pickerArgs}>
       <select
@@ -285,7 +314,7 @@ function TermEditor({ term, label, onChange }) {
         onChange={(e) => onChange(defaultTermFor(e.target.value))}
       >
         <option value={NUMBER_OPTION}>a number</option>
-        {NAME_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+        {names.map((n) => <option key={n} value={n}>{n}</option>)}
         {FN_OPTIONS.map((n) => <option key={n} value={n}>{`${n}(…)`}</option>)}
       </select>
       {term.t === 'num' && (
@@ -319,7 +348,7 @@ function TermEditor({ term, label, onChange }) {
             ...term, args: term.args.map((a, j) => (j === i ? { t: 'name', name: e.target.value } : a)),
           })}
         >
-          {NAME_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+          {names.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       )))}
       {/* ⛔ NOT ON A NUMBER, AND NOT ON AN ARGUMENT. `5[1]` is not a formula the
@@ -579,7 +608,7 @@ function GroupEditor({ group, path, negated = false, onNegate = null, onChange, 
  * @param {Function}    onSourceChange   (source) => void — the ONLY output
  * @param {Function}    [onUnrepresentable] ({guard, reason}) => void
  */
-export default function CriteriaPicker({ ast, onSourceChange, onUnrepresentable = null }) {
+export default function CriteriaPicker({ ast, onSourceChange, onUnrepresentable = null, chartOnly = false }) {
   const read = useMemo(() => (ast ? fromAst(ast, VOCAB) : null), [ast])
   const [group, setGroup] = useState(() => (read && read.ok ? read.group : null))
 
@@ -613,14 +642,23 @@ export default function CriteriaPicker({ ast, onSourceChange, onUnrepresentable 
   }, [emit])
 
   return (
-    <div className={styles.pickerWrap} data-testid="criteria-picker">
-      {group ? (
-        <GroupEditor group={group} path={[]} onChange={emit} onRemove={null} />
-      ) : (
-        <button type="button" className="btn btn-ghost" onClick={start}>
-          <UIcon name="plus" size={14} />Add condition
-        </button>
-      )}
-    </div>
+    <ChartOnly.Provider value={!!chartOnly}>
+      <div className={styles.pickerWrap} data-testid="criteria-picker">
+        {group ? (
+          <GroupEditor group={group} path={[]} onChange={emit} onRemove={null} />
+        ) : (
+          <button type="button" className="btn btn-ghost" onClick={start}>
+            <UIcon name="plus" size={14} />Add condition
+          </button>
+        )}
+        {/* ⛔ ONE LINE, NOT 137 DISABLED ROWS. A picker full of dead ends is
+            worse than a shorter picker with an explanation — but a member who came
+            looking for `adr_pct` and simply cannot find it deserves to know it
+            exists somewhere. Shown only where something is actually hidden. */}
+        {chartOnly && (
+          <p className={styles.pickerNote} data-testid="criteria-hidden-note">{HIDDEN_SCALARS_NOTE}</p>
+        )}
+      </div>
+    </ChartOnly.Provider>
   )
 }

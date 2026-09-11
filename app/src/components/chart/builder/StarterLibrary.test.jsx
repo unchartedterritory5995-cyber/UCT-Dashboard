@@ -157,8 +157,15 @@ describe('the card hands back a SOURCE and nothing else', () => {
     // ⛔ NO HASH, NO DOCUMENT, NO ROW. Installing is the member's action through
     // the shipped save path; a card that handed over a prebuilt document would
     // be a second write door with a second set of gates to keep in step.
+    //
+    // ⭐ `resultType`, `chartEvaluable` and `blockedBy` joined the entry when the
+    // Library learned to serve three consumers. They are DERIVED FROM THE TREE at
+    // module load — `treeYieldsBool` and the same scalar test the runtime guard
+    // uses — so they are facts ABOUT the starter, not a document: still no hash,
+    // no definition, no row. The list stays pinned so a real document cannot slip
+    // in beside them.
     expect(Object.keys(picked[0]).sort())
-      .toEqual(['ast', 'family', 'sentence', 'setup', 'source'])
+      .toEqual(['ast', 'blockedBy', 'chartEvaluable', 'family', 'resultType', 'sentence', 'setup', 'source'])
   })
 
   it('the active card is marked from the SHARED source, not from its own state', () => {

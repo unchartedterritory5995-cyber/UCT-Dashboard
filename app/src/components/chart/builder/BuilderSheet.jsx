@@ -103,6 +103,8 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+// ⭐ THE SEAM: the shell authors, the adapter saves. See consumerAdapters.js.
+import { authoredResult, validateFor, CONSUMER_LABEL, CONSUMER_BLURB } from './consumerAdapters'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
 // a VIEW: it installs the document this form would save under one fixed id and
 // forgets it the moment the draft stops evaluating or the sheet closes.
@@ -684,6 +686,22 @@ export default function BuilderSheet({
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null,
+  /**
+   * ⭐⭐ WHAT THIS FORMULA IS BEING AUTHORED **FOR** — a second axis, orthogonal
+   * to `initialMode`/`buildMode`, which mean HOW you author (library · picker ·
+   * pine · image · formula). Conflating the two would make "switch to the Formula
+   * tab" and "make this a Condition" the same control.
+   *
+   *   'indicator'  numeric or 0/1 → a historical plot   (the original, unchanged)
+   *   'condition'  boolean         → visual actions
+   *   'infoValue'  numeric         → the newest value in the header
+   *
+   * ⛔ ONLY `indicator` PERSISTS FROM INSIDE THIS SHEET. The other two hand back
+   * an AUTHORED RESULT through `onAuthored` and the CONSUMER writes it — their
+   * stores are chart settings, not the versioned server document this sheet knows.
+   */
+  consumerKind = 'indicator',
+  onAuthored = null,
 }) {
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
@@ -1270,6 +1288,21 @@ export default function BuilderSheet({
   // moves, the button and its explanation start disagreeing — which is worse than
   // no explanation, because the member now has a reason that is false. Both read
   // the same `saveGates` object.
+  // ⭐ THE AUTHORED RESULT — what every door converges on, with nothing in it about
+  // where it will be stored. Derived from the SAME settled evaluation the read-back
+  // and the document are built from, so the three cannot disagree.
+  const isIndicator = consumerKind === 'indicator'
+  const authored = useMemo(() => authoredResult(result, {}), [result])
+  // ⛔⛔ TYPED INTENT, AT THE SAVE DOOR. A condition must answer true or false; an
+  // info value must answer a number and is REFUSED a boolean rather than saved as
+  // 1/0. And every chart consumer needs a tree the chart can actually run — the
+  // picker hides the screener's columns, and this is what stops one arriving by
+  // import, screenshot or typing.
+  const typeCheck = useMemo(
+    () => (authored ? validateFor(consumerKind, authored) : { ok: true }),
+    [authored, consumerKind],
+  )
+
   const saveGates = useMemo(() => ({
     // ⛔ PLOT 1's OWN `acknowledged` (FIX ROUND 1, IMPORTANT #3) — it lives on
     // `plot0` now, not on a sheet-wide flag every row shared.
@@ -1291,20 +1324,29 @@ export default function BuilderSheet({
     // sentence for. And the key gate is here rather than beside `save()`, for
     // the reason the comment above this object gives: a shut gate that only
     // fires in the handler is a live button that silently does nothing.
-    plots: plotKeyProblem(plot0.key, 0) === null
+    plots: !isIndicator || (plotKeyProblem(plot0.key, 0) === null
       && plotRows.every((r, i) => plotKeyProblem(r.key, i + 1) === null
         && canSaveFormula(r.result, r.acknowledged))
-      && !levelsProblem,
+      && !levelsProblem),
+    // ⛔ THE CONSUMER'S OWN QUESTION, asked with the others rather than beside
+    // `save()` — a gate that only fires in the handler is a live button that
+    // silently does nothing, which is the defect this object exists to prevent.
+    consumer: typeCheck.ok,
   }), [result, plot0.acknowledged, name, saving, inputsValid,
-    plotKeyProblem, plot0.key, plotRows, levelsProblem])
+    plotKeyProblem, plot0.key, plotRows, levelsProblem, isIndicator, typeCheck.ok])
 
   const canSave = saveGates.formula && saveGates.named && saveGates.idle
-    && saveGates.inputs && saveGates.plots
+    && saveGates.inputs && saveGates.plots && saveGates.consumer
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
   // would be a second voice for a fact the member can already see.
-  const saveHint = (saveGates.idle && saveGates.formula && !saveGates.named)
+  // ⛔ THE CONSUMER'S REFUSAL COMES FIRST, because it is the one a member cannot
+  // work out from the form. "Give it a name" is obvious once you look; "this
+  // answers true or false and an info field shows a number" is not.
+  const saveHint = (saveGates.idle && saveGates.formula && !saveGates.consumer)
+    ? typeCheck.reason
+    : (saveGates.idle && saveGates.formula && !saveGates.named)
     ? 'Give it a name to save.'
     // An input problem already names itself on its own row, so this points at
     // WHICH gate is shut without restating the reason a second time.
@@ -1358,6 +1400,21 @@ export default function BuilderSheet({
     // carry a declaration the formula cannot reference — or worse, one that
     // SHADOWS a table name and quietly computes something else.
     if (!canSave) return
+
+    // ⭐⭐ TWO OF THE THREE CONSUMERS STOP HERE. A CONDITION and an INFO VALUE live
+    // in the chart-settings blob — no server document, no version, no `compute.rev`,
+    // no bound-alert migration — so running them through the indicator store below
+    // would be one set of gates serving three different contracts. The shell hands
+    // back what it authored and the CONSUMER writes it, through the same pure
+    // settings writers its own tab already uses.
+    //
+    // ⛔ AND IT PERSISTS NOTHING ITSELF. That is the whole seam: this sheet no
+    // longer knows where a condition or an info field is stored.
+    if (!isIndicator) {
+      onAuthored?.(authored, { name: name.trim(), consumerKind })
+      onClose?.()
+      return
+    }
     setSaving(true)
     setStoreError(null)
     // ⚠️ THE DOCUMENT'S OWN `version` MOVES ON AN EDIT, AND IT HAS TO.
@@ -1477,7 +1534,8 @@ export default function BuilderSheet({
     }
     onSaved?.(res.row)
   }, [canSave, result, allRows, plot0, plotRows, scanIndex, target, levels,
-    memberInputs, name, onSaved, settings, onChange, editing])
+    memberInputs, name, onSaved, settings, onChange, editing,
+    isIndicator, authored, onAuthored, onClose, consumerKind])
 
   // ⭐⭐ DELETE ASKS FIRST.
   //
@@ -1556,7 +1614,10 @@ export default function BuilderSheet({
       open={open}
       onClose={requestClose}
       variant="auto"
-      title={editing ? 'Edit formula' : 'New formula'}
+      /* ⭐ THE SHEET SAYS WHICH OF THE THREE IT IS BUILDING. The doors below are
+         identical in all three modes — which is the point — so the title is the one
+         place that tells a member what this formula is going to BE. */
+      title={`${editing ? 'Edit' : 'New'} ${consumerKind === 'indicator' ? 'formula' : CONSUMER_LABEL[consumerKind].toLowerCase()}`}
       maxWidth={640}
     >
       {/* The portal exemption — `ChartToolbar` closes its settings panel on any
@@ -1707,6 +1768,9 @@ export default function BuilderSheet({
           {buildMode === 'library' && (
             <StarterLibrary
               activeSource={source}
+              /* ⛔ A starter that saves cleanly and can never fire is worse than no
+                 starter. Filtered by result type AND chart-evaluability. */
+              consumerKind={consumerKind}
               onPick={(entry) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE. Not the tree, not a prebuilt
                 // document, not a hash — the starter arrives at the typed box the
@@ -1827,6 +1891,11 @@ export default function BuilderSheet({
               ast={result?.ast || null}
               onSourceChange={setSource}
               onUnrepresentable={(refusal) => setPickerNote(refusal.reason)}
+              /* ⛔⛔ ON A CHART, the screener's 137 snapshot columns are not offered:
+                 `interpret` seeds them as NaN when no `scalars` are passed, and a
+                 chart never passes any. Measured — `adr_pct > 5` validates, saves,
+                 and is false on 300 of 300 bars. */
+              chartOnly={consumerKind !== 'indicator'}
             />
           )}
 
@@ -1862,6 +1931,11 @@ export default function BuilderSheet({
               Without these the period lives in the formula as a literal, so a
               saved indicator is ONE INSTANCE of itself — nobody can change it,
               and sharing it hands over somebody else's constant. */}
+          {/* ⛔ INDICATOR-ONLY. Tunable inputs, plots, placement and levels are
+              what an INDICATOR is; a condition has actions and an info value has a
+              format, and neither has a plot to configure. Showing them in the other
+              two modes would be controls that write nowhere. */}
+          {isIndicator && (
           <section className={styles.readbackWrap} aria-labelledby="uct-inputs-head">
             <h3 className={styles.sectionHead} id="uct-inputs-head">Inputs you can change later</h3>
             {memberInputs.length === 0 && (
@@ -1912,6 +1986,7 @@ export default function BuilderSheet({
               + Add an input
             </button>
           </section>
+          )}
 
           {/* ── THE PLOTS (W1b.5) ────────────────────────────────────────────
               ⭐ WHERE A MULTI-PLOT INDICATOR IS ACTUALLY AUTHORED, and until now
@@ -1928,6 +2003,7 @@ export default function BuilderSheet({
               ⛔ AND THE SCAN RADIO APPEARS ONLY WITH A SECOND PLOT, because with
               one there is nothing to choose: `compute.ast` IS that plot's tree
               and no `scanPlot` is written at all. */}
+          {isIndicator && (
           <section className={styles.readbackWrap} aria-labelledby="uct-plots-head">
             <h3 className={styles.sectionHead} id="uct-plots-head">Plots</h3>
             {plotRows.length === 0 && (
@@ -2129,6 +2205,7 @@ export default function BuilderSheet({
               )}
             </div>
           </section>
+          )}
 
           {/* ── THE READ-BACK ────────────────────────────────────────────────
               ⛔ `{result.readback}` AND NOTHING ELSE. See the header. */}

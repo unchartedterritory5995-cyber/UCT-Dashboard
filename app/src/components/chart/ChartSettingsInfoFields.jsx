@@ -70,6 +70,7 @@ const BINDING_KEYS = ['a', 'b', 'c']
 
 export default function ChartSettingsInfoFields({
   settings, onChange, registry = null, creating = false, onCreatingChange = null,
+  onBuild = null,
 }) {
   const list = useMemo(() => infoFieldsOf(settings), [settings])
   const [openId, setOpenId] = useState(null)
@@ -292,15 +293,30 @@ export default function ChartSettingsInfoFields({
           ))}
           <div className={styles.indRow}>
             <span className={styles.indLabel} />
-            <button
-              type="button"
-              className={styles.chip}
-              aria-label="Add blank info field"
-              onClick={() => {
-                commit(addInfoField(settings, { label: 'Value', formula: 'close' }))
-                onCreatingChange?.(false)
-              }}
-            >Blank</button>
+            <span style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                className={styles.chip}
+                aria-label="Add blank info field"
+                onClick={() => {
+                  commit(addInfoField(settings, { label: 'Value', formula: 'close' }))
+                  onCreatingChange?.(false)
+                }}
+              >Blank</button>
+              {/* ⭐⭐ THE UNIFIED BUILDER, OPENED FOR AN INFO VALUE. The same shell an
+                  indicator and a condition are authored through — plain English, the
+                  Library, the criteria picker, imports, a screenshot, the formula box
+                  — refusing a boolean tree here for the reason it refuses a numeric
+                  one there: an info field shows a NUMBER. */}
+              {onBuild && (
+                <button
+                  type="button"
+                  className={styles.chip}
+                  aria-label="Build an info value"
+                  onClick={() => { onBuild({}); onCreatingChange?.(false) }}
+                >⊕ Build…</button>
+              )}
+            </span>
           </div>
         </div>
       )}
