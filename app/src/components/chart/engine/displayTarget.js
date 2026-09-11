@@ -1,5 +1,6 @@
 import { getDefinition } from './nativeRegistry'
 import { isInstanceTombstone } from '../chartDefaults'
+import { derivedTargetFor, parsePaneOfTarget } from './sourceRef'
 
 /**
  * WHERE AN INDICATOR DRAWS — the one place that decides it.
@@ -37,7 +38,7 @@ export const DISPLAY_TARGETS = Object.freeze(['pane', 'volume'])
  * @param {object} cs         chart settings (read for the legacy list only)
  * @param {string} [defTarget] the definition's declared target; looked up when omitted
  */
-export function resolveDisplayTarget(instance, cs, defTarget) {
+export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
   if (!instance || typeof instance !== 'object') return null
   const defId = instance.defId
   if (typeof defId !== 'string' || !defId) return null
@@ -62,8 +63,63 @@ export function resolveDisplayTarget(instance, cs, defTarget) {
     return 'volume'
   }
 
+  // (2.5) ⭐⭐ A DERIVED INDICATOR DEFAULTS TO ITS SOURCE'S PANE. `MA(RSI)` into
+  // RSI's pane, `MA(Volume)` into the volume pane, `MA(Close)` onto the candles —
+  // the answer a trader expects, and the one that makes those three feel like one
+  // feature. It sits BELOW the explicit placement above, so moving it later is an
+  // ordinary write that outranks this: a default, never a weld.
+  //
+  // ⚠️ RESOLVED THROUGH THIS SAME FUNCTION, so a follower of a follower gets the
+  // right answer and a source that is itself overlaid on Volume takes its
+  // follower with it. Depth is bounded by the recursion guard below.
+  if (cs && depth < 8) {
+    const def = getDefinition(defId)
+    const derived = derivedTargetFor(
+      instance, def,
+      Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [],
+      getDefinition,
+      (other) => resolveDisplayTarget(other, cs, undefined, depth + 1),
+    )
+    if (derived) return derived
+  }
+
   // (3) What the indicator is for.
   return declared
+}
+
+/**
+ * The DEFINITION whose pane an instance draws in, or null for a shared pane.
+ *
+ * ⭐ THE ONE TRANSLATION FROM "SEMANTIC OWNER" TO "PANE KEY", and every consumer
+ * takes it from here — `placement.js` to find the index, `paneLayout` to decide
+ * who gets a pane of their own, `StockChart` to decide what sits above Price.
+ * Four modules each translating it themselves is exactly the drift
+ * `displayTarget.js` was created to end for Volume; this is the dynamic case of
+ * the same rule.
+ *
+ * ⛔ IT ANSWERS A DEFINITION ID, NEVER A PANE INDEX. `computePaneLayout` keys
+ * panes by definition id, and an index is a fact about the current stack that
+ * changes when anything above it moves. A stored index would break the first time
+ * RSI went above Price; a stored definition id cannot.
+ */
+export function paneOwnerOf(instance, cs) {
+  const target = resolveDisplayTarget(instance, cs)
+  if (!target || target === 'price' || target === 'volume') return null
+  const owner = parsePaneOfTarget(target)
+  if (owner) return owner
+  return instance && typeof instance.defId === 'string' ? instance.defId : null
+}
+
+/** Definition ids that FOLLOW somebody else's pane rather than owning one. */
+export function paneFollowerKeys(instances, cs) {
+  const out = new Set()
+  for (const inst of (Array.isArray(instances) ? instances : [])) {
+    if (!inst || typeof inst !== 'object' || inst.hidden === true) continue
+    const target = resolveDisplayTarget(inst, cs)
+    const owner = parsePaneOfTarget(target)
+    if (owner && owner !== inst.defId) out.add(inst.defId)
+  }
+  return out
 }
 
 /**

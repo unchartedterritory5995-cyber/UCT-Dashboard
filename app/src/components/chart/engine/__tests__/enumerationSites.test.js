@@ -1632,6 +1632,10 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'ichimoku::kijun', 'ichimoku::tenkan',
       'macd::macd', 'macd::signal',
       'mfi::mfi',
+      // ⭐ AND `movingAverage` SINCE THE SOURCE PHASE — the first definition that
+      // reads a SERIES rather than the bars. Its one output is a number a reader
+      // wants named, so it declares a chip like every other primary plot.
+      'movingAverage::ma',
       'obv::obv',
       // TEN AT PHASE C TASK 13. `rsLine` takes its own PANE, and a pane whose
       // crosshair prints nothing is a value you cannot read. Kept an EQUALITY, so a
@@ -1669,7 +1673,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // half is still empty and still asserted empty — but the engine half is now
     // every definition there is, because every definition declares a chip.
     const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine',
-      'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands']
+      'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
+      // ⭐ `movingAverage` CAN ONLY EVER BE ON THIS LANE. There is no legacy chip
+      // registrar for it to come from — it was never a `cs.indicators` block —
+      // which makes it the first entry here that is engine-lane by construction
+      // rather than by migration.
+      'movingAverage']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -1843,7 +1852,13 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
-      const cols = engineRegistry.computeFor(def, PROBE_BARS, {})
+      // ⭐ A SOURCE-TAKING DEFINITION READS A SERIES, NOT THE BARS — with no ctx it
+      // correctly computes nothing, which would make this case assert the opposite
+      // of what it means. See `sourceRef.js`.
+      const cols = engineRegistry.computeFor(def, PROBE_BARS, {},
+        (def.inputs || []).some(i => i && i.type === 'source')
+          ? { source: PROBE_BARS.map((b, i) => 100 + Math.sin(i / 6) * 5) }
+          : undefined)
       expect(Object.keys(cols).sort(), `${def.id}: columns`)
         .toEqual([...engineRegistry.columnKeys(def)].sort())
       for (const [key, col] of Object.entries(cols)) {
@@ -2594,9 +2609,14 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     avwap: [],
     atrBands: [],
     rsLine: [],
+    // ⭐ `ma` IS THE FIRST DEFINITION THAT WAS NEVER A LEGACY INDICATOR AT ALL.
+    // The shipped price moving averages live in `cs.overlays`, a different legacy
+    // shape with no instance id — so there is no `cs.indicators.ma` block that was
+    // retired and no hand-written refs to record. It is additive beside them.
+    movingAverage: [],
   }
   /** The definitions that never had a hand-written block to retire. */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine']
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'movingAverage', 'rsLine']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2605,7 +2625,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, rsLine: null,
+    avwap: null, atrBands: null, movingAverage: null, rsLine: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2895,7 +2915,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 17,
+      flipSetSize: 18,
       mutableSets: [],
     })
   })
@@ -3214,12 +3234,13 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
         `${def.id} is a price overlay — a pane height for it would reserve space for nothing`)
         .toBe(false)
     }
-    // Non-vacuity: every price overlay really was visited, by name. SEVEN since
-    // Phase C Task 14 — `avwap` and `atrBands` draw inside the candles' pane too,
-    // so A6 covers them and this count is what says so.
-    expect(checked).toBe(7)
+    // Non-vacuity: every price overlay really was visited, by name. EIGHT since
+    // the source phase — `avwap` and `atrBands` draw inside the candles' pane, and
+    // `ma` DECLARES price because `MA(Close)` is its base case (the derived cases
+    // are resolved from the source by `displayTarget`). This count is what says so.
+    expect(checked).toBe(8)
     expect(engineRegistry.listDefinitions().filter(d => d.placement.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'movingAverage'])
     // …and the predicate catches the thing it is for.
     expect(reserves({ placement: { target: 'price', pane: { height: 0.15 } } })).toBe(true)
     // …and the file it used to read really is gone, so nobody re-points it back.

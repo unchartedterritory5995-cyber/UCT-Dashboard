@@ -177,6 +177,9 @@ describe('EVENT_COLUMN_DOMAIN — a domain, not a null test', () => {
  * would have been a red test on the very change it was guarding.
  */
 const SHIPPED_COLUMNS = Object.freeze({
+  // ⭐ `ma` — ONE output. Its INPUT is a numeric series rather than the bars
+  // (`sourceRef.js`), which changes nothing about what it RETURNS.
+  movingAverage: ['ma'],
   rsi: ['rsi'],
   macd: ['macd', 'signal', 'histogram'],
   bb: ['upper', 'middle', 'lower'],

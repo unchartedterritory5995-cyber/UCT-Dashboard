@@ -287,6 +287,11 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // overlay was REMOVED (default set 5→4) and the watermark went sizeScale 1.0→1.25
       // + weight 700→500. Value/structure edits to CHART_DEFAULTS only; no
       // per-definition door changed behaviour. INVESTIGATED, not regenerated.
-      .toBe('a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b')
+      // 2026-09-11: re-pinned for the `movingAverage` definition — the first that
+      // reads a SERIES rather than the bars (`sourceRef.js`). It ADDS one
+      // per-definition door and moves none: the corpus gains exactly that
+      // definition's row and every existing row is byte-identical.
+      // INVESTIGATED, not regenerated.
+      .toBe('033a48bed1adea66a56dacadfce80cf3db9a2178c290d58fab8a46801dd1473f')
   })
 })

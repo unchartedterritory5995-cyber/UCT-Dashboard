@@ -57,6 +57,9 @@ import {
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { resolvePlotStyle, drawsHistory } from './presentation'
+import {
+  orderByDependency, sourceInputsOf, parseSource, barFieldSeries, resolveScaleDomain,
+} from './sourceRef'
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -250,6 +253,11 @@ function attempt(fn) {
  * which is why nothing failed when it regressed.
  * `app/src/__tests__/sourcesAreText.test.js` is the rail that does.
  */
+/** Monotonic ids stamped on COLUMN arrays so a consumer's memo key can name the
+ *  exact array it computed against. Cheaper and more exact than hashing the
+ *  numbers: a recomputed column is a new object and gets a new id. */
+let SOURCE_SERIAL = 0
+
 function inputsSignature(inputs) {
   if (!inputs || typeof inputs !== 'object') return ''
   const keys = Object.keys(inputs).sort()
@@ -590,7 +598,33 @@ export function createBinder({ chart, LWC }) {
     // cannot be computed must not take the paint down with it.
     const columns = new Map()
     const computedIds = new Set()
+
+    // ⭐⭐ SOURCES FIRST, CONSUMERS AFTER. The loop below used to walk `instances`
+    // in ARRAY order, which is the order they were ADDED — so an MA added before
+    // its RSI read a column that did not exist yet and drew nothing, silently and
+    // only sometimes. `orderByDependency` is Kahn's algorithm over the source
+    // edges and nothing else; `cyclic` holds anything still waiting when the
+    // queue drained, which is refused rather than spun on.
+    const { ordered: computeOrder, cyclic } = orderByDependency(
+      instances, (id) => registry.getDefinition(id),
+    )
+
+    // ⭐ AND A HIDDEN INSTANCE IS COMPUTED WHEN SOMETHING DEPENDS ON IT. Hiding
+    // RSI is a statement about INK; `MA(RSI)` still has to have numbers. The skip
+    // below exists because computing what nobody draws is a full pass over the
+    // bar set for nothing — that stays true for a hidden instance nobody reads,
+    // and stops being true the moment one does.
+    const dependedOn = new Set()
     for (const inst of instances) {
+      if (!inst || inst.hidden === true) continue
+      const def = registry.getDefinition(inst.defId)
+      for (const [, value] of sourceInputsOf(def, inst)) {
+        const parsed = parseSource(value)
+        if (parsed && parsed.kind === 'instance') dependedOn.add(parsed.instanceId)
+      }
+    }
+
+    for (const inst of computeOrder) {
       if (!inst || typeof inst.instanceId !== 'string') continue
       // A HIDDEN instance is computed by NOBODY. `planBindings` drops it on its
       // first line (`if (inst.hidden === true) continue`), before it ever asks
@@ -604,12 +638,46 @@ export function createBinder({ chart, LWC }) {
       // line's antialiasing on one scanline. It did not fully explain that flake
       // (see the runbook's "a diff confined to one scanline" note), but it was
       // wasted work either way.
-      if (inst.hidden === true) continue
+      if (inst.hidden === true && !dependedOn.has(inst.instanceId)) continue
       const def = registry.getDefinition(inst.defId)
       if (!def) continue
+      // ⛔ A CYCLE COMPUTES NOTHING. Its columns are absent, so `hasData` is
+      // false and the binding is dropped — the same "draw nothing" a warm-up pad
+      // produces, rather than a hang or a half-answer.
+      if (cyclic.has(inst.instanceId)) { computeMemo.delete(inst.instanceId); continue }
       computedIds.add(inst.instanceId)
 
-      const sig = inputsSignature(inst.inputs)
+      // ⭐⭐ THE SOURCE SERIES, RESOLVED FROM WHAT IS ALREADY COMPUTED. A bar
+      // field is read off the bars; an indicator output is a lookup in `columns`,
+      // which the dependency order guarantees is already filled. The key it looks
+      // up is `instanceId::plotKey` — the same string `bindingKey` writes, which
+      // is why a source reference and a computed column cannot drift apart.
+      let sourceCols = null
+      let sourceSig = ''
+      for (const [key, value] of sourceInputsOf(def, inst)) {
+        const parsed = parseSource(value)
+        let series = null
+        if (parsed && parsed.kind === 'bar') series = barFieldSeries(bars, parsed.field)
+        else if (parsed && parsed.kind === 'instance') {
+          series = columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
+        }
+        sourceCols = sourceCols || {}
+        sourceCols[key] = series
+        // ⭐ THE COLUMN'S IDENTITY IS THE INVALIDATION KEY, and it costs nothing.
+        // A recomputed source is a NEW array, so the consumer's memo misses and it
+        // recomputes; a source that only changed COLOUR or PANE returns the very
+        // same array from its own memo, so the consumer hits and does not. The
+        // dependency invalidation rule is therefore not a rule anybody has to
+        // maintain — it is object identity.
+        sourceSig += `${key} ${value}`
+        if (series) { if (!series.__srcId) series.__srcId = ++SOURCE_SERIAL; sourceSig += `${series.__srcId}` }
+      }
+      // ⛔ THE PRIMARY SOURCE IS THE FIRST DECLARED ONE. `ctx.source` is what a
+      // single-source definition reads; `ctx.sources` carries them all by input
+      // key for the day one takes two.
+      const primarySource = sourceCols ? sourceCols[Object.keys(sourceCols)[0]] : null
+
+      const sig = inputsSignature(inst.inputs) + sourceSig
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === bars && memo.sig === sig) {
@@ -621,7 +689,8 @@ export function createBinder({ chart, LWC }) {
         // line registered, enabled and permanently blank — a definition that
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
-        const r = attempt(() => registry.computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf }))
+        const r = attempt(() => registry.computeFor(def, bars, inst.inputs,
+          { sym: ctx.sym, tf: ctx.tf, source: primarySource, sources: sourceCols }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -756,11 +825,12 @@ export function createBinder({ chart, LWC }) {
         // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
         // Placement returns a string; `pool` owns the two function singletons.
         autoscale,
-        // ⭐ THE DEFINITION'S DECLARED DOMAIN — `fixedPane(0, 100, …)` in the
-        // registry, absent for `autoPane(…)`. It reaches the renderer as an
-        // `autoscaleInfoProvider`, which is the only thing in 5.2.0 that actually
-        // pins a range; absent means the shipped dynamic autoscale, unchanged.
-        scaleDomain: b.def && b.def.placement ? b.def.placement.scale : null,
+        // ⭐⭐ THE DOMAIN, FOLLOWED THROUGH THE SOURCE CHAIN. A definition that
+        // declares its own (`fixedPane(0, 100, …)`) keeps it; one that declares
+        // `domainBehavior: 'inherit'` takes its SOURCE's, which is how `MA(RSI)`
+        // reads against 0-100 without this file knowing what an RSI is. Absent
+        // means the shipped dynamic autoscale, unchanged.
+        scaleDomain: resolveScaleDomain(b.inst, (id) => registry.getDefinition(id), instances),
         // The right-axis value tag — the same shape of answer as `autoscale`, and
         // for the same reason: whether a series may write on the axis it sits on
         // is a question about PLACEMENT, and `pool` has never been told where a
@@ -947,7 +1017,7 @@ export function createBinder({ chart, LWC }) {
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
     const next = []
     for (const p of prepared) {
-      const { b, paneIndex, scaleId, scaleOptions, series, showGuides, historyDrawn, lastValue, options } = p
+      const { b, paneIndex, scaleId, scaleOptions, series, showGuides, historyDrawn, options } = p
       let { guideHandles, lvhHandle } = p
 
       // ── TRAP #2: the FULL set, every SYNC, create branch or not ──

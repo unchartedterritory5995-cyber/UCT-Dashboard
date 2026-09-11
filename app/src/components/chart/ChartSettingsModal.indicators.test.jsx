@@ -296,7 +296,13 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     // row now, and adding REVIVES the tombstone rather than minting a stranger —
     // so the colour and period the member set are still theirs.
     search('moving average')
-    const row = result(/Moving Average/)
+    // ⚠️ BY ID, because there are TWO ROWS MATCHING THE WORDS NOW. The engine's
+    // "Moving Average (Source)" is a different indicator that shares a name; this
+    // case is about the LEGACY overlay row's tombstone, and `data-def-id` is the
+    // only thing that tells them apart without depending on a label.
+    const row = screen.getAllByRole('option')
+      .find((el) => el.getAttribute('data-def-id') === 'ma')
+    expect(row, 'the legacy Moving Average catalogue row is gone').toBeTruthy()
     // ⚠️ THE ROW READS "Active", AND CORRECTLY SO — three moving averages are
     // still drawn, so the ADD verb is the ＋ beside it rather than the row body.
     // (`isRowOn` for this row is "at least one live overlay", not "all four".)

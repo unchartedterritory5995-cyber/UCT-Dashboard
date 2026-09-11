@@ -85,6 +85,7 @@
 
 import { IND_TOKENS } from '../designTokens'
 import { paneMode } from './paneLayout'
+import { parsePaneOfTarget } from './sourceRef'
 
 /**
  * Each preset's canvas colour. Taken from `designTokens.IND_TOKENS[p].surface`,
@@ -354,6 +355,39 @@ export function resolvePlacement(instance, def, ctx) {
   // list, because that toolbar control is what users actually toggle and a
   // snapshot taken at migration must not outrank it. B4 flips that authority when
   // the engine owns its own placement UI.
+  // ⭐⭐ A FOLLOWER RESOLVES TO SOMEBODY ELSE'S PANE KEY. `'@rsi'` means "the pane
+  // the RSI definition owns" — a SEMANTIC address, resolved to an index here and
+  // never stored as one. That is what makes `MA(RSI)` move when RSI moves above
+  // Price: the key it names does not change, only the index that key resolves to.
+  const follows = parsePaneOfTarget(target)
+  if (follows) {
+    if (paneMode() !== 'panes') return null
+    const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
+    const pane = panes ? panes.find((p) => p && p.key === follows) : null
+    // ⛔ NO PANE FOR THE OWNER MEANS NO BINDING, not a guess. The owner may be
+    // off, hidden, or not on this chart at all; landing the follower in pane 0
+    // would paint an oscillator over the candles on their own scale.
+    if (!pane || !Number.isInteger(pane.index)) return null
+    return {
+      paneIndex: pane.index,
+      // ⭐ THE OWNER'S SCALE, BY NAME. Sharing `'right'` with the pane's owner is
+      // the whole point of following it — `MA(RSI)` has to be read against RSI's
+      // ladder, not against a second axis of its own that happens to overlap.
+      scaleId: 'right',
+      // ⛔ AND IT ASSERTS NOTHING ON THAT SCALE. The owner's margins and range are
+      // the owner's; a guest that re-wrote them would move the line it is drawn
+      // beside. Same reasoning as a price overlay on the candles' axis.
+      scaleOptions: null,
+      autoscale: 'default',
+      lastValue: false,
+      // ⚠️ NOT `ownPane`. The binder creates an own-pane series at the END of the
+      // stack and then reorders; a follower must JOIN an existing pane, which is
+      // exactly what `addSeries(ctor, opts, i)` does by default.
+      guides: false,
+      PANE_BAND: undefined,
+    }
+  }
+
   if (target !== 'pane' && target !== 'volume') return null
   if (typeof def.id !== 'string' || !def.id) return null
   const key = def.id

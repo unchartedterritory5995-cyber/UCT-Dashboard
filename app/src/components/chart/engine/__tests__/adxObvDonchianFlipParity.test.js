@@ -786,7 +786,7 @@ describe('donchian — a band plot with edges, and the LAST price overlay', () =
     // last is what keeps it on top of the four it sits on top of today.
     expect(engineRegistry.listDefinitions()
       .filter(d => d.placement && d.placement.target === 'price').map(d => d.id))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'movingAverage'])
     // …and the binder really does insert in the order it is handed, which is why
     // the instance list's order is the thing that has to be registry order.
     const overlays = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].map(id => ({

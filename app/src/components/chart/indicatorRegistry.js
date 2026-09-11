@@ -196,6 +196,13 @@ export function fieldFromInput(input) {
       return { ...base, type: 'toggle' }
     case 'enum':
       return { ...base, type: 'select', options: (input.options || []).map(optionPair) }
+    // ⭐ A SOURCE CARRIES NO OPTIONS, AND THAT IS THE DIFFERENCE FROM AN ENUM.
+    // Its choices are the OTHER indicators on THIS chart, so they are a property
+    // of the settings blob rather than of the definition — baking a list in here
+    // would freeze it at the moment the definition was written. The renderer
+    // builds them from the live instances (`sourceRef.sourceOptions`).
+    case 'source':
+      return { ...base, type: 'source' }
     case 'int':
     case 'float':
       return {

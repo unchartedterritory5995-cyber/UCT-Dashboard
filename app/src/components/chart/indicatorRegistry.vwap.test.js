@@ -126,7 +126,12 @@ describe('the VWAP row is DERIVED from the definition, not written here', () => 
     // A type with no control renders NOTHING rather than rendering wrong — a
     // control that writes nowhere is the defect this whole task is retiring.
     expect(fieldFromInput({ key: 's', label: 'S', type: 'string' })).toBe(null)
-    expect(fieldFromInput({ key: 'src', label: 'Src', type: 'source' })).toBe(null)
+    // ⚰️ `source` USED TO BE ON THIS LINE, and it was right while nothing consumed
+    // one: a control that writes a value no compute reads is the defect this case
+    // exists for. It is a REAL control now — the Source selector — so the case
+    // asserts the opposite about it and keeps `string`, which still has none.
+    expect(fieldFromInput({ key: 'src', label: 'Src', type: 'source' }))
+      .toEqual({ key: 'src', label: 'Src', type: 'source' })
   })
 })
 

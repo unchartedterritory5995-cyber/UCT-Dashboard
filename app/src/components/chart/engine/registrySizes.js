@@ -58,6 +58,11 @@ export const SHIPPED_DEF_IDS = Object.freeze({
   native: Object.freeze([
     'rsi', 'macd', 'bb', 'vwap', 'stoch', 'atr', 'sar', 'ichimoku',
     'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
+    // ⭐ THE FIRST DEFINITION WHOSE INPUT IS A SERIES rather than the bars.
+    // `MA(Close)`, `MA(Volume)` and `MA(RSI)` are one definition with different
+    // numeric sources — see `sourceRef.js`. In registration order, which is why
+    // it is last rather than filed alphabetically.
+    'movingAverage',
   ]),
   server: Object.freeze(['rsLine']),
   ast: Object.freeze([]),

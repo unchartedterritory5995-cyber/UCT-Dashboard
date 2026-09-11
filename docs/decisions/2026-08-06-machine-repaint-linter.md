@@ -111,21 +111,28 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 17
-plots 42
+definitions 18
+plots 43
 decided 1
-undecidable-hand-written 41
+undecidable-hand-written 42
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
 
+**2026-09-11 — the catalogue grew by one.** `movingAverage` is the first shipped
+definition whose INPUT is a numeric series rather than the bars (`sourceRef.js`),
+and it is hand-written JS like every other native — so it adds one plot to the
+undecidable column and changes nothing the linter can read. The measurement moves
+17→18 definitions and 42→43 plots; `decided` stays 1 and the single recorded
+disagreement is untouched. Re-measured, not re-typed.
+
 **Read `decided 1` before reading anything else.** Every shipped definition today
 is hand-written JS or Python, and spec §11 explicitly forbids static analysis of
-hand-written JS — so the linter **cannot assign 41 of the 42 plot badges at all**,
+hand-written JS — so the linter **cannot assign 42 of the 43 plot badges at all**,
 and it says so per plot rather than reporting a clean answer it did not earn.
 *"The linter agreed with every shipped badge"* is therefore a sentence this
 measurement makes **unwriteable**: the truth is that it could read one plot of
-forty-two, and the one it could read disagrees.
+forty-three, and the one it could read disagrees.
 
 The one decided row is not decided by reading `computeIchimoku`. It is decided by
 a fact that was **already pinned before this task existed** and was handed in from

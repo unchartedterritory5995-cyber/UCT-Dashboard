@@ -243,7 +243,11 @@ describe('the catalog covers every settings section, and nothing else', () => {
 
   it('splits by placement target, not by a hand-written list', () => {
     expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'rsLine'])
-    expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands'])
+    // ⭐ `movingAverage` DECLARES `price` because `MA(Close)` is its base case —
+    // the derived placements (`MA(RSI)`, `MA(Volume)`) are resolved from the
+    // SOURCE at runtime by `displayTarget`, not from this static split.
+    expect(priceOverlayIds())
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'movingAverage'])
     // ⭐ `rsLine` (Phase C Task 13) is a PANE definition and lands at the END of
     // the oscillator list, because `listDefinitions()` is now `natives ++ server`
     // and order is z-order. It is asserted in the equality above rather than
@@ -629,6 +633,11 @@ describe('the library needs a sentence per indicator, and the schema already all
      *  not qualify for the clean badge — the row below still reads
      *  `non-repainting` because Task 7 MEASURES and the owner decides. */
     const BADGES = {
+      // ⭐ JUDGED DELIBERATELY: a moving average of any series re-states only
+      // values already closed — it reads its source at bar `i` and never past
+      // it — so it repaints exactly as much as its source does, which is none
+      // for every source it can currently take.
+      movingAverage: 'non-repainting',
       rsi: 'non-repainting',
       macd: 'non-repainting',
       bb: 'non-repainting',

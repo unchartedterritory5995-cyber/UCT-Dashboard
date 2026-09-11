@@ -214,7 +214,7 @@ describe('a blob written before the engine existed', () => {
     // shipped z-order. `rsLine` is last and is a PANE, which is exactly what
     // `computeShippedStackOrder` appending rather than inserting means.
     expect(SHIPPED_STACK_ORDER.slice(9))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'rsLine'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'movingAverage', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -429,7 +429,10 @@ describe('a blob written before the engine existed', () => {
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
-    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'rsLine'])
+    // ⭐ APPENDED, NOT INSERTED. `FROZEN_SHIPPED_STACK_ORDER` records the
+    // fourteen the July blob knew; anything registered since lands after it in
+    // registry order. `ma` is the first definition never in a legacy blob at all.
+    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'movingAverage', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

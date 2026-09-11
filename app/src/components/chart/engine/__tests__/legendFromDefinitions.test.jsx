@@ -1318,6 +1318,8 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         // …and the ten that already shipped, untouched by it.
         'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
         'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+        // …and `movingAverage`, the first definition whose INPUT is a series.
+        'movingAverage::ma',
       ].sort())
     // …and the control: the shipped nine are still in it, character for character,
     // read off the SHIPPED ARTIFACT rather than re-typed above.

@@ -63,6 +63,7 @@ import {
   setInstancePanePosition, setInstanceDisplayTarget,
   setInstancePlotStyle, setInstanceDotSize } from './engine/instanceControls'
 import { resolveDisplayTarget } from './engine/displayTarget'
+import { sourceOptions } from './engine/sourceRef'
 import {
   resolvePlotStyle, resolveDotSize, availableStyles, styleIrrelevantInputs,
   PLOT_STYLE_CHOICES, DOT_SIZE_CHOICES,
@@ -718,6 +719,44 @@ export default function ChartSettingsIndicators({
                       onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
                     />
                   )}
+                  {/* ⭐ THE SOURCE CONTROL — grouped, and every row disambiguated.
+                      Its choices are the OTHER indicators on THIS chart, so they
+                      are built from the settings blob rather than declared on the
+                      definition (`sourceRef.sourceOptions`). The VALUE is an
+                      instance id, never a name, so renaming or re-ordering
+                      anything can never re-target a dependency.
+                      ⚠️ A STORED SOURCE THAT IS NO LONGER OFFERED STILL SHOWS —
+                      as "Source unavailable" — because silently snapping the
+                      select back to Close would change what the indicator
+                      COMPUTES without the user asking. */}
+                  {f.type === 'source' && (() => {
+                    const groups = sourceOptions(
+                      settings,
+                      (id) => (registry && registry.getDefinition ? registry.getDefinition(id) : null),
+                      row.instanceId,
+                    )
+                    const known = groups.some(g => g.options.some(o => o.value === val))
+                    return (
+                      <select
+                        className={styles.indSelect} {...inert}
+                        value={known ? val : '__unavailable__'}
+                        aria-label={`${row.label} ${f.label}`}
+                        onChange={(e) => {
+                          if (e.target.value === '__unavailable__') return
+                          onRowPatch?.(row, { [f.key]: e.target.value })
+                        }}
+                      >
+                        {!known && <option value="__unavailable__">Source unavailable</option>}
+                        {groups.map((g) => (
+                          <optgroup key={g.label} label={g.label}>
+                            {g.options.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    )
+                  })()}
                   {f.type === 'select' && (
                     <select
                       className={styles.indSelect} {...inert} value={val ?? ''}

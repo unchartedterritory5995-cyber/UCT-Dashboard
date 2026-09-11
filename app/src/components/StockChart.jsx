@@ -6,7 +6,7 @@ import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
 import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
-import { volumeOverlayKeys } from './chart/engine/displayTarget'
+import { volumeOverlayKeys, paneFollowerKeys } from './chart/engine/displayTarget'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -10274,16 +10274,24 @@ export default function StockChart({
     // be one out: the same off-by-one `orderedPaneKeys` skips hidden instances to
     // avoid. `volOverlaySet` is already the resolved answer, so this is a lookup
     // rather than a second opinion.
+    const _followerKeys = paneFollowerKeys(engineInstances, cs)
     const _topKeys = new Set(
       (engineInstances || [])
         .filter((i) => i && i.hidden !== true && i.placement && i.placement.position === 'above')
         .map((i) => i.defId)
-        .filter((id) => typeof id === 'string' && id && !volOverlaySet.has(id)),
+        .filter((id) => typeof id === 'string' && id
+          && !volOverlaySet.has(id) && !_followerKeys.has(id)),
     )
     const paneLayout = computePaneLayout(engineInstances, {
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
-      excludeKeys: volOverlaySet,
+      // ⭐⭐ A FOLLOWER RESERVES NO PANE OF ITS OWN. `MA(RSI)` draws INSIDE RSI's
+      // pane, so carving a second one for it would leave an empty rectangle and
+      // push every index below it out by one — the same off-by-one an overlaid
+      // oscillator would cause, which is why both sets are subtracted here and in
+      // the same place. `displayTarget` decides who follows whom; this consumes
+      // that answer rather than forming its own.
+      excludeKeys: new Set([...volOverlaySet, ...paneFollowerKeys(engineInstances, cs)]),
       separatorPx: SEPARATOR_PX,
       firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,

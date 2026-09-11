@@ -304,6 +304,9 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     // ── the ten Task 2 gave a chip to, in the order the registry declares them ──
     'bb::middle', 'vwap::vwap', 'mfi::mfi', 'cci::cci', 'williamsR::williams_r',
     'adx::adx', 'obv::obv', 'donchian::middle', 'avwap::avwap', 'atrBands::middle',
+    // ⭐ …and `movingAverage`, which shipped after that legend and therefore was
+    // never in it either. One output, one chip.
+    'movingAverage::ma',
   ]
 
   /** Every plot in the registry that declares a VISIBLE chip. */

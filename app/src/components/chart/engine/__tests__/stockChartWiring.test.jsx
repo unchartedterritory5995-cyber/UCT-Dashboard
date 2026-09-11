@@ -1451,7 +1451,8 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // a chip-bearing definition that stops being one still fails here.
     expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
       .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
-        'macd', 'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
+        'williamsR'])
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -3906,7 +3907,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // 'server'` definition, so the set grew again with no flip and no block.
     expect([...ENGINE_OWNED].sort()).toEqual(
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -4095,7 +4096,11 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // ⭐ EIGHTEEN AT PHASE C TASK 13 — `rsLine` reaches the right-click menu with
     // no edit to the menu, on the SERVER lane, which is the same proof one lane
     // further out.
-    expect(items).toHaveLength(18)
+    // ⭐ NINETEEN SINCE THE SOURCE PHASE — `movingAverage` reaches the right-click
+    // menu with no edit to the menu, which is the same proof one definition
+    // further out, and the first time it has been made by a definition that was
+    // never a legacy indicator at all.
+    expect(items).toHaveLength(19)
     expect(items).toHaveLength(catalogRows().length)
     expect(items.map(i => i.id)).toEqual(catalogRows().map(r => 'ind-' + r.id))
     expect(items.map(i => i.label)).toEqual(catalogRows().map(r => r.shortName))
