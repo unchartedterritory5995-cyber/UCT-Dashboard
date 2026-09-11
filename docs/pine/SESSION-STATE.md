@@ -27,7 +27,7 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 7 | `time(timeframe)` + `ta.valuewhen` | ⚠️ **Q3 ANSWERED 2026-09-11; Q1/Q2/Q4 AND valuewhen STILL UNREAD.** ✅ `r11-time-session.pine` was added on a 5m chart and read: `time(tf, "0930-1600")` is **`na` outside the session and the bar's own `time` inside it**, never the session start — so the corpus's two-argument sites are a MEMBERSHIP TEST, and the `na`-ness is the whole signal (`tests/fixtures/vendor/r11-time-session-spy-5m-2026-09-11.json`). It COMPILES, which was a real fork. ⛔ The first attempt was VACUOUS and looked conclusive — on the default `regular` session every bar is in-session, so `na` had no bar to be false on; the probe's own hour/minute channels caught it and the capture was retaken on `extended`. ⚰️ The rest of this row was: **PROBES AUTHORED 2026-09-10, READINGS NOT TAKEN** — all eight questions of `r11-time-and-valuewhen.md` are now committed as three probes, split so one risky arity cannot take the others down: `r11-time-tf.pine` (Q1/Q2/Q4, 10 plots), `r11-time-session.pine` (Q3 alone — the two-arg session form; ⛔ read it INTRADAY or every bar is inside the session and it answers nothing), `r11-valuewhen.pine` (12 plots, and it carries its own oracle: `bar_index % 5 == 0` makes the right answer computable, with the inclusive/exclusive discriminating bars marked). Blocked on the same add mechanism as item 6 |
 | 8 | Remaining real names in demand order | ⚠️ **NOT DONE, AND "CHEAP TO TAKE" NO LONGER HOLDS** — it rested on the by-id add refuted under item 4. Still "a vocabulary backlog, not an unlock plan"; the next visit should fix the add route FIRST, because items 6, 7 and 8 are all queued behind that single mechanism |
 | 9 | Group C order-asserting rail | ✅ **DONE** (`771a101ac`) — asserted on ORDER over pine.js's AST, with two non-vacuity controls; mutation-proved |
-| 10 | M1 — Volume's numeric plots as a pane behind the flag | ⛔ **BLOCKED ON THE OWNER** — §6 was truncated mid-sentence at "Feature fl…"; the runbook says ask for the tail before starting M1 |
+| 10 | M1 — Volume's numeric plots as a pane behind the flag | ✅ **DONE, SHIPPED DARK 2026-09-11** — gate `VITE_VOLUME_NUMERIC_PANE_ENABLED`, default OFF, read in exactly one place (`placement.js::volumeNumericPaneEnabled`). With it on, a definition overlaid onto the volume pane skips the shared LEFT axis and falls through to the Flip-C branch: its own pane, its own right-hand scale, its own ladder. 11 tests, mutation-proved (deleting the gate turns 3 red). ⚠️ The NAME is an assumption — see "Decisions taken autonomously" below — because the owner's §6 was truncated and the tail never came. ⚰️ The rest of this row was: **BLOCKED ON THE OWNER** — §6 was truncated mid-sentence at "Feature fl…"; the runbook says ask for the tail before starting M1 |
 | 11 | **NYSE calendar cross-lane parity** — see below | ✅ **11a DONE** (`1c98b4493`) — the rail already existed and the sets AGREE; two blind spots closed. 11b still logged |
 | 12 | `record_clock_parity.py --check` in CI | ✅ **DONE** (`86e31c706`) — red observed on a perturbed fixture, then reverted |
 | 13 | live window reads the calendar leaf | ✅ **DONE** (`2a89bf997`) — half-days shorten the window to 13:00 ET; discriminator + control mutation-proved |
@@ -602,6 +602,58 @@ been applied to the merge; only `barstate.md` on this branch was corrected.
 4. Then resume the ten-item order at item 4.
 
 ---
+
+## Decisions taken autonomously — 2026-09-11
+
+### Item 10's gate is named `VITE_VOLUME_NUMERIC_PANE_ENABLED` and defaults OFF
+
+⚠️ **THE OWNER NEVER SUPPLIED §6's TAIL.** The message was truncated mid-sentence
+at *"Feature fl…"*, and the runbook's standing instruction was to ask before
+starting M1. The directive of 2026-09-11 overrode that with "ship it behind a
+flag, OFF" — so the following are this session's assumptions, stated rather than
+hidden:
+
+1. **The name.** `VITE_VOLUME_NUMERIC_PANE_ENABLED`, following the frontend
+   convention read off the code (`VITE_*_ENABLED === '1'`, default off, read
+   INSIDE a function so a test can flip it — the reason is written down in
+   `GlobalVideoLayer.jsx`). ⭐ **Renameable in one line**: it is read in exactly
+   one place, `placement.js::volumeNumericPaneEnabled`, and the test derives the
+   name from the source rather than typing it.
+2. **The behaviour.** "Volume's numeric plots as a pane" is implemented as: a
+   definition the user has overlaid onto the volume pane stops landing on that
+   pane's SHARED LEFT AXIS — where it is autoscaled by every other overlay and
+   has no ladder of its own — and instead falls through to the Flip-C branch that
+   gives it a real pane and its own right-hand scale. That is the one behaviour
+   the phrase can mean at the seam that owns placement.
+3. **The default.** OFF. Turning it on is a member-visible change.
+
+⛔ **AND IT COULD NOT BE DECLARED IN `docs/feature_flags.json`.** That ledger's
+gate list is DERIVED by AST from `api/`, `scripts/`, `tools/` only, and
+`test_the_ledger_does_not_describe_gates_that_no_longer_exist` **fails on an entry
+it cannot derive** — so adding a `VITE_*` row there would break the rail it was
+meant to satisfy. Measured 2026-09-11: 115 declared flags, **zero** `VITE_`.
+⭐ So `docs/frontend_feature_flags.json` was created as the frontend half, same
+shape, same three statuses, with a rail that checks the declaration names a file
+that really reads the gate. **The frontend having no gate ledger at all is itself
+a finding** and is routed.
+
+### What item 10 does NOT do yet, measured rather than assumed
+
+⚠️ **Volume itself does not reach this pane, because it does not translate in the
+pane lane.** Re-measured 2026-09-11 through `translatePine`:
+
+```
+SCREENER (default)   ok=true   refusals=4   ta.cum x4 (line 225)
+HOST/pane (strict)   ok=false  refusals=1   pine:reassign (line 250)
+```
+
+⭐ **That is a big improvement nobody had recorded.** The list in "Volume's
+refusal list" above says screener `ok=false` with 5 refusals and pane `ok=false`
+with 4 — the three `pine:window` / `isWeekly` refusals at line 233 are GONE (the
+other session's bind-time fold landed) and the screener lane has flipped to
+`ok=true`. The pane lane is now ONE refusal from translating: `pine:reassign` at
+line 250. ⛔ The three-number metric above it ("30/266 host · 45/266 screener —
+unmoved") is therefore stale too and should be re-derived before it is quoted.
 
 ## Decisions taken autonomously — 2026-09-10
 
