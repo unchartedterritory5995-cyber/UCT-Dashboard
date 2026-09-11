@@ -4,7 +4,7 @@ import {
   setInfoFieldBinding, moveInfoRowField,
 } from './engine/infoFieldControls'
 import {
-  validateInfoFormula, INFO_FORMATS, INFO_FORMAT_LABEL, MAX_DECIMALS,
+  validateInfoFormula, INFO_FORMATS, INFO_FORMAT_LABEL, MAX_DECIMALS, MAX_LABEL,
 } from './engine/infoFields'
 import { formatInfoValue } from './engine/infoFormat'
 import { sourceOptions, parseSource } from './engine/sourceRef'
@@ -156,7 +156,7 @@ export default function ChartSettingsInfoFields({
             <div className={styles.indRow}>
               <span className={styles.indLabel}>Label</span>
               <input
-                type="text" className={styles.indNum} style={{ width: 150 }}
+                type="text" className={styles.indNum} style={{ width: 150 }} maxLength={MAX_LABEL}
                 aria-label={`${f.label} label`}
                 value={f.label}
                 onChange={(e) => set({ label: e.target.value })}

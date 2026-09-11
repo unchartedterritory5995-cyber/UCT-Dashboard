@@ -51,6 +51,19 @@ export const INFO_FORMAT_LABEL = Object.freeze({
 
 export const MAX_DECIMALS = 4
 
+/**
+ * How long a label may be.
+ *
+ * ⛔ THE INFO ROW IS `white-space: nowrap` WITH NO TRUNCATION, so a long label
+ * pushes the row into the timeframe bar rather than eliding. The built-ins each
+ * carry a terse `short` form that `headerFit` swaps in when the pane narrows; a
+ * CUSTOM field's short form is its label (a member's own word is already the
+ * short one), so there is nothing shorter to fall back to. Capping at the door is
+ * the clamp — 12 characters is longer than every built-in label's short form and
+ * short enough that four custom fields still fit a narrow pane.
+ */
+export const MAX_LABEL = 12
+
 /** The list, normalised. A malformed row is DROPPED rather than thrown over —
  *  one bad entry in a settings blob must not take the header down with it. */
 export function normaliseInfoFields(cs) {
@@ -65,7 +78,7 @@ export function normaliseInfoFields(cs) {
     const dec = Number.isInteger(f.decimals) ? Math.max(0, Math.min(MAX_DECIMALS, f.decimals)) : 2
     out.push({
       id: f.id,
-      label: typeof f.label === 'string' && f.label.trim() ? f.label.trim() : 'Value',
+      label: typeof f.label === 'string' && f.label.trim() ? f.label.trim().slice(0, MAX_LABEL) : 'Value',
       formula: f.formula,
       bindings: (f.bindings && typeof f.bindings === 'object' && !Array.isArray(f.bindings))
         ? { ...f.bindings } : {},

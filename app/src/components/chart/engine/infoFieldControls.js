@@ -1,6 +1,6 @@
 import {
   newInfoFieldId, normaliseInfoFields, validateInfoFormula,
-  INFO_FORMATS, MAX_DECIMALS, isInfoFieldId,
+  INFO_FORMATS, MAX_DECIMALS, MAX_LABEL, isInfoFieldId,
 } from './infoFields'
 import { headerFieldKeys } from '../headerFields'
 
@@ -60,7 +60,7 @@ export function addInfoField(cs, { label, formula, bindings, format, decimals, c
   const id = newInfoFieldId()
   list.push({
     id,
-    label: typeof label === 'string' && label.trim() ? label.trim() : 'Value',
+    label: typeof label === 'string' && label.trim() ? label.trim().slice(0, MAX_LABEL) : 'Value',
     formula,
     bindings: bindings && typeof bindings === 'object' ? { ...bindings } : {},
     format: INFO_FORMATS.includes(format) ? format : 'number',
@@ -101,8 +101,9 @@ export function setInfoField(cs, id, patch) {
   const next = { ...cur }
   let changed = false
 
-  if (typeof patch.label === 'string' && patch.label.trim() && patch.label.trim() !== cur.label) {
-    next.label = patch.label.trim(); changed = true
+  if (typeof patch.label === 'string' && patch.label.trim()) {
+    const lbl = patch.label.trim().slice(0, MAX_LABEL)
+    if (lbl !== cur.label) { next.label = lbl; changed = true }
   }
   if (typeof patch.formula === 'string' && patch.formula !== cur.formula) {
     if (!validateInfoFormula(patch.formula, cur.bindings).ok) return cs
