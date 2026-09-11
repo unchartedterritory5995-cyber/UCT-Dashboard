@@ -132,7 +132,7 @@ export default function ChartSettingsInfoFields({
             aria-expanded={isOpen}
             onClick={() => setOpenId(isOpen ? null : f.id)}
           >
-            {f.label}
+            <span className={styles.actLabel}>{f.label}</span>
             <span className={styles.actBadge}>
               {err || formatInfoValue(SAMPLE, f.format, f.decimals, f.suffix)}
             </span>

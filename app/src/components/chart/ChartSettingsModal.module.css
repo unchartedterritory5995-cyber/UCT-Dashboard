@@ -972,6 +972,12 @@
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+  /* ⛔ A <button> WITHOUT THIS INHERITS THE UA `buttontext` BLACK, not the modal's
+     text colour. Measured in the browser: the field name rendered rgb(0,0,0) on
+     the rgb(14,14,16) panel — a contrast ratio of 1.09, i.e. invisible. `.actLabel`
+     below sets its own colour; this is the floor for anything that is not wrapped
+     in it, so the failure cannot come back through a new child. */
+  color: var(--menu-text, #ededed);
 }
 .actLabel {
   font-size: 12.5px;

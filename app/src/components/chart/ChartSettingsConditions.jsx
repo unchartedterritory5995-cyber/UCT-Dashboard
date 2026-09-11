@@ -201,7 +201,7 @@ export default function ChartSettingsConditions({
             aria-expanded={isOpen}
             onClick={() => setOpenId(isOpen ? null : c.id)}
           >
-            {c.name}
+            <span className={styles.actLabel}>{c.name}</span>
             {/* ⭐ "2 actions", not "2 consumers". */}
             <span className={styles.actBadge}>
               {err
