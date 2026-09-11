@@ -1,3 +1,57 @@
+# ⛔⛔ SUPERSEDED 2026-09-11 — SINGLE WRITER IS **NOT** EXECUTED. HERE IS WHY.
+
+**The decision below (§5: "SINGLE WRITER") was made to remove a race that the
+measurements now say does not exist on the member path.** Everything under the
+line is preserved because the reasoning is still readable and the axes are still
+the right axes — but the conclusion is reversed, and three of its supporting
+claims were wrong.
+
+## 1. The defect it was answering was an instrument artifact
+
+`window_check.DOOR_JS` fired the door with a raw `fetch`, which is a SECOND-WRITER
+simulation. Through the product's own controls the same ordering does not lose
+words: **12 of 12 clean, r = 0.00**, against **12 of 13 lost, r = 0.92** for the
+raw-fetch door. There is no race on the member path to remove.
+
+## 2. ⚰️ AND MY AXIS-3 MEASUREMENT WAS WRONG
+
+§4 below says *"546 lines of coordination plus 21 call sites exist only because a
+note has two writers"* and that single-writer makes the marker, the landed ring,
+the two-pass drain and `settleMetadataRevision` *"unnecessary for correctness"*.
+
+**That is false, and the rig proved it in the opposite direction.** Those lines
+are precisely what makes the member path CORRECT:
+
+* `settleMetadataRevision` → `recordLandedRevision` puts the door's revision in
+  the landed ring;
+* guard 2 reads that ring, answers **"ours"**, and **rebases** instead of forking.
+
+That is the whole reason the real door is clean. ⛔ **Delete that machinery and
+the working path breaks.** And single-writer would not remove it anyway: a
+genuine second writer — another device, a second tab — still exists, still 409s,
+and still needs guard 2 and the ring to tell "ours" from "theirs". The savings I
+projected were counted against a problem that would survive the rewrite.
+
+## 3. So the remaining case is architectural preference, on the riskiest path
+
+What is left of the argument is "fewer writers is simpler". That is true and it is
+not worth a rewrite of the one code path that carries the member's words, with no
+defect to fix, against a design now measured clean. The program's own rule
+applies: *once a wave's defined contract is proven, freeze that scope and move
+forward* — and *Wave A is not to be reopened for speculative hardening.*
+
+## 4. WHAT WOULD REOPEN IT
+
+* a real-path loss at any rate, measured through the member's door;
+* the two-tab case being ruled a defect rather than a product question;
+* the coordination becoming a maintenance problem in its own right (a third
+  authority appearing over "is this revision ours").
+
+⭐ **Recorded as a decision, not a deferral.** Anyone reading §5 below without
+this section would rebuild a race that isn't there.
+
+---
+
 # WAVE Q1 §B — ONE WRITER OR TWO? THE MEASUREMENT, AND THE DECISION
 
 **2026-09-11.** The handoff's §B asks the design question to be *answered by
