@@ -406,6 +406,28 @@ export const modes = [
         color: '--hub-mode-notebook',
         kind: 'run',
       },
+      // ⭐ D-17 RETURNS, AND ONLY BECAUSE ITS SEAM DOES. v1.1 listed "Voice note" on this outer ring
+      // and v1.2 deferred it ("Voice note is deferred"); `deferred.md` D-17 recorded the enabling
+      // change as "call the generic POST /api/voice/transcribe from the hub and feed the text into
+      // createNoteViaApi — no Notebook change needed". Both halves were already reached from here,
+      // so this is the wire, not a new capability — see `hub/voiceNote.js`.
+      //
+      // ⛔ IT IS NOT `notebook.voice`, AND THE TWO MUST NOT BE CONFLATED. `.voice` is HubRoot's own
+      // action on every mode's inner ring and opens a Compass REALTIME CONVERSATION
+      // (`HubRoot.jsx` -> `voiceConnectRef.current('compass')`). This one dictates and writes a
+      // note. Different icon (`wave`, not `mic`) because colour is never the only signal and
+      // neither is position.
+      //
+      // ⚠️ OUTER, NOT INNER: the inner ring is already at INNER_MAX (Daily plan · Postmortem ·
+      // Voice · Home) and the last of those must stay Home.
+      {
+        id: 'notebook.voiceNote',
+        label: 'Voice note',
+        icon: 'wave',
+        ring: 0,
+        color: '--hub-mode-notebook',
+        kind: 'run',
+      },
       // ⚰️ `notebook.linkTicker` REMOVED (R-17) and `notebook.templates` REMOVED (R-19), both when
       // §3.7 shipped. Neither had a seam, and an action with no seam is worse live than absent:
       //   linkTicker `requires: ['symbol']` and the Notebook route carries no symbol, so it would
@@ -413,7 +435,8 @@ export const modes = [
       //   templates needs the member to CHOOSE one, and the only surface for that is the confirm
       //     sheet's `fields`, which is unreachable (D-35 / R-14). With no run body it would be a
       //     dead bubble: the fan closes and nothing happens, the exact R-09 defect.
-      // Both return the day their seam exists. Ring layout after removal: outer 1, inner 4 — legal.
+      // Both return the day their seam exists — which is precisely what `notebook.voiceNote` above
+      // just did. Ring layout now: outer 2, inner 4 — legal.
       {
         id: 'notebook.dailyPlan',
         label: 'Daily plan',

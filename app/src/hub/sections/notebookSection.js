@@ -16,7 +16,7 @@
 // attribute renders at all (`hub/noteCardIdentity.test.jsx`) and once that a change to that file
 // can only ever be the attribute (`hub/rule12Paths.test.js`). If the cards stop carrying it, this
 // controller finds zero notes and the failure is loud in our suite rather than silent on a phone.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 
 import useHubMode from '../useHubMode'
@@ -24,6 +24,7 @@ import useHubCursor from '../useHubCursor'
 import { modesById } from '../registry'
 import { applyTargetToParams } from '../../pages/journal-2-0/lib/searchNavigation'
 import { createNoteViaApi } from '../../pages/journal-2-0/lib/noteCreation'
+import { createVoiceNote, startVoiceRecording, VOICE_NOTE_MESSAGES } from '../voiceNote'
 
 /** The one DOM contract this controller depends on. R-18; see the header. */
 export const NOTE_CARD_SELECTOR = '[data-note-card-id]'
@@ -71,6 +72,28 @@ function listScope(pathname, search) {
  * route is folded in so moving between folders is a genuinely different list.
  */
 const makeIdentityKey = (scope) => (id, index) => `notebook:${scope}:${id ?? index}`
+
+/**
+ * The chip's scrub readout: "Notebook · 3/12".
+ *
+ * ⛔⛔ THIS WAS MISSING, AND `contracts.js:422` HAS ALWAYS SAID IT MUST NOT BE. The rule is "a
+ * section with onScrub must also supply readout() — a scrub the chip cannot narrate is invisible",
+ * and this controller has shipped an `onScrub` with no `readout` since B10. It was never caught
+ * because the check runs in `registerHubMode` (`HubContext.jsx:166`) and every existing notebook
+ * rail renders the HOOK without a provider, so the mounted boundary — the only place the contract
+ * is enforced — was never crossed in a test. D-17's rail mounts the real `NotebookHubSection` under
+ * a real `HubProvider`, and the contract threw on the first run.
+ *
+ * ⚠️ INDEX/COUNT, NOT THE NOTE'S TITLE. The hub knows the ids (R-18's `data-note-card-id`) and
+ * nothing else about a card; scraping a title out of `textContent` would be a second authority on
+ * what a note is called, drifting the moment the card's layout changes. This is the same form the
+ * Screener's own chip uses (`screenerSection.js` `chipLabel`).
+ */
+export function notebookReadout({ index = 0, count = 0 } = {}) {
+  if (!count || count <= 0) return 'No notes'
+  const at = Math.min(Math.max(index, 0), count - 1)
+  return `Notebook · ${at + 1}/${count}`
+}
 
 export default function useNotebookSection() {
   const location = useLocation()
@@ -129,6 +152,90 @@ export default function useNotebookSection() {
       { replace: false })
   }, [setSearchParams])
 
+  // ── D-17, the voice note ──────────────────────────────────────────────────────────────────────
+  //
+  // ⭐ A TOGGLE, NOT PUSH-TO-TALK, AND THAT MIRRORS THE APP'S OWN DICTATION CONTROL.
+  // `VoiceInputButton.jsx:185-188` is a toggle too (`if (recording) stopRecording(); else
+  // startRecording()`), so "fire once to start, again to save" is the behaviour this app already
+  // teaches. A fan bubble has no press-and-hold anyway: the gesture that fires it ENDS on release.
+  //
+  // ⛔ THE LABEL CARRIES THE STATE, for the same reason `calendar.macro`'s does: a bubble that reads
+  // the same in both positions tells the member nothing about which way the next fire will go.
+  const [voiceMsg, setVoiceMsg] = useState(null)
+  const [recording, setRecording] = useState(false)
+  const recorderRef = useRef(null)
+  // ⛔ A REF, NOT STATE, FOR THE BUSY LATCH. Two fires inside one render would both read the same
+  // stale `false` from state and open two microphones; a ref is written before the first await.
+  const busyRef = useRef(false)
+
+  // The message clears itself EXCEPT while recording, which is a state the member needs to keep
+  // reading — a 2.2s auto-clear would take "Recording…" away mid-sentence and leave a fired gesture
+  // with nothing on screen to say it is still live.
+  useEffect(() => {
+    if (!voiceMsg || recording) return undefined
+    const t = setTimeout(() => setVoiceMsg(null), 4000)
+    return () => clearTimeout(t)
+  }, [voiceMsg, recording])
+
+  // An open microphone must not outlive the controller, OR the route. Leaving the track live would
+  // keep the browser's recording indicator on over a page whose fan no longer carries the bubble
+  // that would stop it — a recording the member cannot end. Navigating away ABANDONS it rather than
+  // saving it: the member left before the second fire, and writing a note they never confirmed
+  // would be the hub deciding on their behalf.
+  useEffect(() => {
+    if (onRoute) return undefined
+    if (recorderRef.current) {
+      recorderRef.current.cancel?.()
+      recorderRef.current = null
+      setRecording(false)
+      setVoiceMsg('Recording stopped — you left the Notebook.')
+    }
+    return undefined
+  }, [onRoute])
+
+  useEffect(() => () => {
+    recorderRef.current?.cancel?.()
+    recorderRef.current = null
+  }, [])
+
+  const toggleVoiceNote = useCallback(async () => {
+    if (busyRef.current) return
+    const active = recorderRef.current
+
+    if (active) {
+      recorderRef.current = null
+      setRecording(false)
+      busyRef.current = true
+      try {
+        const blob = await active.stop()
+        setVoiceMsg('Transcribing…')
+        const note = await createVoiceNote({ blob })
+        setVoiceMsg(null)
+        openNote(note?.id)
+      } catch (err) {
+        // ⛔ EVERY FAILURE ENDS IN A SENTENCE. The transcribe endpoint refuses four ways a member can
+        // act on (paid plan, voice disabled in settings, monthly cap, provider down) and each
+        // carries its own words; `transcribeVoiceNote` surfaces them. A swallowed error here would
+        // be a gesture that records the member's voice and then throws it away in silence.
+        setVoiceMsg(err?.message || VOICE_NOTE_MESSAGES.failed)
+      } finally {
+        busyRef.current = false
+      }
+      return
+    }
+
+    busyRef.current = true
+    try {
+      recorderRef.current = await startVoiceRecording()
+      setRecording(true)
+      setVoiceMsg('Recording — fire Voice note again to save.')
+    } catch (err) {
+      setVoiceMsg(err?.message || VOICE_NOTE_MESSAGES.failed)
+    } finally {
+      busyRef.current = false
+    }
+  }, [openNote])
+
   const config = useMemo(() => {
     if (!onRoute) return undefined
     const mode = modesById[LIST_ID]
@@ -141,17 +248,22 @@ export default function useNotebookSection() {
         openNote(ids[at ?? 0])
       },
       onScrub: (_ctx, scrub) => { if (scrub && typeof scrub.delta === 'number') scrubTo(scrub.delta) },
-      fan: mode.fan.map((action) => (
-        action.id === 'notebook.newNote'
-          ? { ...action, run: async () => { const note = await createNoteViaApi({}); openNote(note?.id) } }
-          : action
-      )),
+      readout: () => notebookReadout({ index, count }),
+      fan: mode.fan.map((action) => {
+        if (action.id === 'notebook.newNote') {
+          return { ...action, run: async () => { const note = await createNoteViaApi({}); openNote(note?.id) } }
+        }
+        if (action.id === 'notebook.voiceNote') {
+          return { ...action, label: recording ? 'Stop' : action.label, run: toggleVoiceNote }
+        }
+        return action
+      }),
     }
-  }, [onRoute, ids, next, scrubTo, openNote])
+  }, [onRoute, ids, index, count, next, scrubTo, openNote, recording, toggleVoiceNote])
 
   useHubMode(config)
 
-  return { onRoute, ids, index, count, next, prev, openNote }
+  return { onRoute, ids, index, count, next, prev, openNote, voiceMsg, recording }
 }
 
 function sameOrder(a, b) {
