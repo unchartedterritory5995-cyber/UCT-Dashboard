@@ -66,9 +66,21 @@ vi.mock('../../hooks/useTradeReview', () => ({
 // ChartPane also calls useFlagged() (Shift+F flag toast), which reads useAuth()
 // — extend the existing useIsPaid stub with a logged-out useAuth so that call
 // doesn't throw "useAuth must be used within AuthProvider".
+// ⛔ `AuthContext` ITSELF IS PART OF THE MOCK, NOT JUST THE TWO HOOKS.
+// This page mounts a real `ChartPane`, which mounts `ChartSettingsModal`, which
+// subscribes to the member's own formulas — and `useUserDefinitions` reads the
+// CONTEXT OBJECT directly (`useContext(AuthContext)`) rather than calling
+// `useAuth`, deliberately, because `useAuth` throws outside a provider and a
+// chart renders in plenty of surfaces that mount none. A mock factory that omits
+// a named export does not return `undefined` for it — vitest THROWS on the
+// access — so the omission crashed the whole page render and every case in this
+// file failed on a missing `data-testid="chart"`, with the real cause three
+// components away. `legendFromDefinitions.test.jsx` carries the same three-key
+// mock for the same reason.
 vi.mock('../../../../context/AuthContext', () => ({
   useIsPaid: () => false,
   useAuth: () => ({ user: null }),
+  AuthContext: { Provider: ({ children }) => children },
 }))
 vi.mock('../../hooks/useJ2SelectedAccount', () => ({
   default: () => ({ accountId: 'a1', account: null, accounts: [] }),

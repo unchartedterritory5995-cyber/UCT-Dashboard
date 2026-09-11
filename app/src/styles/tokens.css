@@ -157,8 +157,20 @@
   --menu-border: rgba(255, 255, 255, 0.09);
   --menu-divider: rgba(255, 255, 255, 0.06);
   --menu-text: #ededed;
-  --menu-text-dim: #8a8a8f;
-  --menu-text-faint: #6b6b6b;
+  /* ⭐ RAISED 2026-09-10 (owner call, measured on Chart Settings). They were
+     #8a8a8f / #6b6b6b — 5.6:1 and 3.6:1 against --menu-bg (#0e0e10), so the
+     faint tier was BELOW WCAG AA for body text and the dim tier only just over
+     it. Both are used at 10–12.5px with 0.3–1.4px letter-spacing, which is where
+     a ratio that passes on paper stops being readable.
+     ⛔ ONE CHANGE, NOT TWENTY, AND THAT IS WHY IT IS HERE. These two carry the
+     tab row, the Templates / UCT Chart Themes / Restore Defaults buttons, every
+     `sectionLabel`, every indicator field label, the ✕ and the blurbs — most of
+     the words in every chart menu. Retuning them at the twenty call sites would
+     have left the twenty-first dim.
+     Now 9.4:1 and 6.2:1, same cool-grey hue, and still a TIER below --menu-text
+     rather than three whites. */
+  --menu-text-dim: #b3b3b9;
+  --menu-text-faint: #93939a;
   --menu-accent: #dcbb5e;
   --menu-accent-bg: rgba(220, 187, 94, 0.12);
   --menu-hover: rgba(255, 255, 255, 0.055);

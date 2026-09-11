@@ -548,7 +548,17 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     const byText = (re) => [...leg.children].find(el => re.test((el.textContent || '').trim()))
     expect(byText(/^\$ Vol/).className, '$ Vol is not marked for the phone-only rule').toMatch(/volXtra/)
     expect(byText(/^Avg 50D/).className, 'Avg ND is not marked for the phone-only rule').toMatch(/volXtra/)
-    expect(byText(/^V\s/).className, 'the V row was swept into the phone-only rule').not.toMatch(/volXtra/)
+    // ⚰️ THIS READ `byText(/^V\s/)` — the V row used to be ONE span, `V 56.0M`.
+    // It is a `LegendRow` now (it grew the eye / gear / ✕ every other indicator
+    // has), so the label and the value are separate cells and no single child's
+    // text starts with "V ". The CLAIM is unchanged and is what is asserted: the
+    // volume row must not carry `.volXtra`, or a metric that works everywhere
+    // would become phone-only. Addressed by the id the row publishes rather than
+    // by its text, which is what made the probe brittle in the first place.
+    const volRow = leg.querySelector('[data-legend-row="volume"]')
+      || byText(/^V\s/)
+    expect(volRow, 'the volume row is gone from the legend entirely').toBeTruthy()
+    expect(volRow.className, 'the V row was swept into the phone-only rule').not.toMatch(/volXtra/)
   })
 
   it('they are CONTEXTUAL — no crosshair, no rows', async () => {

@@ -137,6 +137,8 @@ function SwatchRow({ label, value, onChange }) {
  * other study currently ON (library adds, member formulas, carved-out rows), so
  * what this sheet shows always agrees with the toolbar's ƒx badge — a running
  * study the sheet hides would read as a badge counting ghosts. */
+import { isOverlayRemoved } from '../../../components/chart/chartDefaults'
+
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
 export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null }) {
@@ -230,7 +232,11 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Indicators" ariaLabel="Indicators" className={className}>
       <div className={styles.sheetList}>
         <div className={styles.sectionLabel}>Moving averages</div>
-        {overlays.map((o, i) => (
+        {/* ⛔ INDEX FIRST, FILTER SECOND — `toggleMa(i)` / `patchMa(i, …)` address
+            the slot in the STORED array, so `i` must stay the real index. A moving
+            average the member removed keeps its slot (positional merge; see
+            `chartDefaults`'s tombstone header) and only stops being LISTED. */}
+        {overlays.map((o, i) => [o, i]).filter(([o]) => !isOverlayRemoved(o)).map(([o, i]) => (
           <div key={i} className={styles.indRow}>
             <button
               type="button"

@@ -14,7 +14,14 @@ import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
-import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
+import {
+  mergeChartSettings, mergeSettingsOverride,
+  // The fixture tombstone: a moving average / volume pane the member REMOVED.
+  // `enabled` is hide-but-keep; `removed` is gone-from-this-chart, and both gate
+  // whether a line is drawn. See `chartDefaults`'s tombstone header for why the
+  // slot has to stay in place.
+  liveOverlayList, isOverlayRemoved, isVolumeRemoved,
+} from './chart/chartDefaults'
 import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
 import { crosshairModeOf } from './chart/crosshairMode'
 
@@ -62,7 +69,7 @@ import ChartToolbar from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
-import { clampVolPct, resolveVolPanePct, latchOnDrag } from './chart/volumePaneDrag'
+import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack } from './chart/volumePaneDrag'
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
@@ -108,6 +115,10 @@ import {
 import { legendChips, siblingSuffixes } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
+// ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
+// overlays and the volume pane. They became removable with `chartDefaults`'s
+// overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
+import LegendRow from './chart/legend/LegendRow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
@@ -138,6 +149,58 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
+/** `paneLegendKeys`' empty value. A stable identity, so the state write below
+ *  can bail on "still nothing" without allocating a fresh `[]` every layout. */
+const NO_PANE_KEYS = Object.freeze([])
+
+/**
+ * The legend chips grouped by the INDICATOR PANE they are drawn in — one entry
+ * per pane, in pane order, top to bottom.
+ *
+ * ⭐ THIS IS WHAT PUTS "RSI(14) 59.0" AT THE TOP-LEFT OF THE RSI PANE, and the
+ * owner's ask for it was literal: *"just like for the volume pane we have the
+ * volume label showing"*. The volume pane has had `.volLegend` since it was
+ * built; every oscillator pane was a bare rectangle you had to read off a ladder
+ * of gridline numbers and match to a chip in a legend somewhere else.
+ *
+ * ⛔ IT REUSES `crosshairData.chips` AND FORMATS NOTHING. Those chips already
+ * carry the label (`legendParams` → `RSI(14)`), the plot colour and the decimals,
+ * built by `readout.legendChips` — the one formatting pipeline the whole legend
+ * goes through. A pane readout that computed its own label would be the second
+ * place an indicator's name is spelled, and the first place it could disagree
+ * with the strip six pixels above it.
+ *
+ * ⚠️ KEYED BY `defId`, BECAUSE THE PANES ARE. `computePaneLayout` keys a pane by
+ * DEFINITION id, so two RSIs share one pane — and therefore one readout, with
+ * both chips in it, which is exactly what the pane draws. When per-instance panes
+ * arrive this groups by instance and nothing else here changes.
+ *
+ * A HIDDEN chip is skipped rather than printed dim: `orderedPaneKeys` gives a
+ * hidden instance no pane at all, so there is no rectangle for its label to sit
+ * in and nothing on screen for the value to describe.
+ *
+ * @param {object[]} chips  `crosshairData.chips`
+ * @param {object|null} layout `paneLayoutRef.current`
+ * @returns {{key: string, index: number, chips: object[]}[]}
+ */
+function paneReadoutRows(chips, layout) {
+  const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
+  if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
+  const byKey = new Map()
+  for (const c of chips) {
+    if (!c || c.hidden === true || typeof c.defId !== 'string') continue
+    const group = byKey.get(c.defId)
+    if (group) group.push(c)
+    else byKey.set(c.defId, [c])
+  }
+  const out = []
+  for (const pane of panes) {
+    if (!pane || typeof pane.key !== 'string' || !Number.isInteger(pane.index)) continue
+    const group = byKey.get(pane.key)
+    if (group && group.length) out.push({ key: pane.key, index: pane.index, chips: group })
+  }
+  return out.length ? out : EMPTY_CHIPS
+}
 
 /** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
  *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
@@ -2813,7 +2876,13 @@ export default function StockChart({
   // volume) — but only WHEN volume is on. Turning Volume off in settings removes the
   // pane entirely, same as any other chart; blankVolume just decides blank-vs-bars
   // for the pane WHEN it shows.
-  const showVolume = hideBase ? false : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
+  // ⛔ `isVolumeRemoved` IS NOT `!visible`. A hidden pane is still on the chart and
+  // still in the member's list; a REMOVED one has been deleted from it and comes
+  // back only from the catalogue. A host `showVolumeProp` still wins over both —
+  // that is a surface fixing its own layout, not a member's choice.
+  const showVolume = (hideBase || isVolumeRemoved(cs))
+    ? false
+    : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
   // Volume in its own pane (no bottom band reserved on the price scale). Only when
   // volume is actually shown — otherwise no pane exists and its bottom-margin
   // reservation would leave an empty gap (the breadth "pane won't go away" bug).
@@ -2830,7 +2899,14 @@ export default function StockChart({
     : null
   const resolvedOverlays = useMemo(
     () => {
-      const base = overlaysProp !== undefined ? overlaysProp : cs.overlays.filter(o => o.enabled)
+      // ⛔ `enabled` AND `removed` ARE TWO DIFFERENT FACTS AND BOTH GATE THE LINE.
+      // `enabled: false` is hidden-but-mine (the row's toggle); `removed: true` is
+      // a tombstoned slot the member deleted, kept in place only because the merge
+      // is positional. Filtering on `enabled` alone would keep drawing a moving
+      // average that is on no list and has no settings row anywhere.
+      const base = overlaysProp !== undefined
+        ? overlaysProp
+        : liveOverlayList(cs.overlays).filter(o => o.enabled)
       // showSma5 is a LEGACY fallback from before SMA 5 was a real, editable overlay.
       // Only inject the synthetic faint SMA 5 when the user has NO SMA 5 overlay AT ALL
       // — checked against the UNFILTERED cs.overlays. Otherwise a DISABLED real SMA 5
@@ -3163,6 +3239,20 @@ export default function StockChart({
   // renderer's own time-axis height in the component body. The binder's height
   // check is what makes a stale layout loud instead of silent.
   const paneLayoutRef = useRef(null)
+  /** The oscillator panes' top-left readout nodes, by definition id. Written by
+   *  each row's ref callback, read by `pinPaneLegend` — the elements are
+   *  positioned straight in the DOM, never through React state, for the same
+   *  reason `volLegendRef` is: they must slide WITH the divider the user is
+   *  dragging, and a re-render per frame fights the drag instead of following it. */
+  const paneLegendRefs = useRef(new Map())
+  /** Which indicator panes exist, in order — published by the layout effect.
+   *
+   *  ⭐ STATE, NOT A READ OF `paneLayoutRef` DURING RENDER. The layout lives in a
+   *  ref because the RENDERER needs it inside effects; the readout rows are a
+   *  render output, and deriving them from a ref would leave them a paint behind
+   *  every time an indicator is added, removed or hidden — visible as a label
+   *  that stays after its pane is gone. */
+  const [paneLegendKeys, setPaneLegendKeys] = useState(NO_PANE_KEYS)
   const indexPaneSeriesRef = useRef(null) // LineSeries for the index-comparison pane (Model Book ^IXIC)
   const indexMaSeriesRef = useRef(null)   // 50-period SMA line drawn on the index pane (matches the price chart's 50 SMA color)
   const indexScaleRef = useRef({ range: null, pin: false })  // fixed price range for the index pane's autoscaleInfoProvider (pins it steady across ticker switches; pin=false in Percent mode)
@@ -3413,7 +3503,22 @@ export default function StockChart({
   // closure (it would carry an old resolvedTf / default params).
   const measureViewLockRef = useRef(_measureViewLock); measureViewLockRef.current = _measureViewLock
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
-  const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
+  /** ms of the last press on the chart that actually TRAVELLED.
+   *
+   *  ⚰️ THIS WAS `lastPointerDownAtRef` — "the last press ANYWHERE on the chart" —
+   *  and the volume-pane sampler used it as its drag gate. The legend, the pane
+   *  readouts and every button inside them live inside `containerRef`, so
+   *  CLICKING THE EYE ON A LEGEND ROW opened a 1.5 s window in which the sampler
+   *  believed the member was dragging the price/volume separator. Owner, verbatim:
+   *  *"when I turn bollinger bands on or off in legend, the other indicator panes
+   *  move by themselves."* They did, and this is half of why.
+   *
+   *  ⛔ THE PREDICATE IS THE ONE THIS FILE ALREADY TRUSTS ELSEWHERE. Four lines
+   *  from here `onUp` says it out loud — *"ONLY a press that actually MOVED
+   *  changes the view. A plain focus-click changes nothing"* — and `viewPointerRef`
+   *  already computes it, against the same 4 px threshold. The separator drag is a
+   *  view interaction like any other; it had simply never been asked the question. */
+  const lastPointerDragAtRef = useRef(0)
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
   // "am I the hovered chart" signal. LWC's crosshair subscription is not: an
   // externally-applied crosshair (setCrosshairPosition, multi-chart sync) fires
@@ -3541,6 +3646,15 @@ export default function StockChart({
   // cell) so it stops permanently covering candles, and (c) render it COMPACT when it
   // pops up on hover. Declared HERE — above the crosshair effects that read it (they'd
   // hit a TDZ if it were declared lower, where the rAF sampler that SETS it lives).
+  // ⚰️ LEGEND-ROW HOVER STATE STOOD HERE, and deleting it was the fix rather
+  // than a tidy-up. The vertical legend was one grid of sibling CELLS, so React
+  // had to track which row the pointer was on — and because `.legend` is
+  // `pointer-events: none`, the gaps BETWEEN those cells were not hit targets:
+  // crossing one read as leaving the legend, so the controls vanished
+  // mid-approach and could not be clicked, and they flickered off and on between
+  // a label and its own value. Rows are single `subgrid` boxes now, so plain CSS
+  // `:hover` covers a whole row — gaps included — and no state is left that can
+  // disagree with the pointer.
   const [compactLegend, setCompactLegend] = useState(false)
   const compactLegendRef = useRef(false)
   compactLegendRef.current = compactLegend
@@ -3751,6 +3865,89 @@ export default function StockChart({
   }
   // Build the legend payload for the LATEST bar (used when the cursor is off the
   // chart and alwaysShowLegend is on). Reads live refs; safe to call from effects.
+  /**
+   * 🔴 THE MOVING-AVERAGE LEGEND ROWS — ONE BUILDER, TWO CALLERS.
+   *
+   * ⚰️ THERE WERE TWO COPIES OF THIS, AND THEY DRIFTED WITHIN THE HOUR. The
+   * crosshair path built its rows in `processCrosshair`; the off-cursor path
+   * built its own here, with a comment saying it was "matching the live/crosshair
+   * builder's `ov.enabled === false` guard" — a sentence that exists precisely
+   * because keeping two copies in step is a manual job. When the rows grew a
+   * `csIndex` (the stored slot every legend control addresses), only one copy
+   * learned it, and the always-on legend rendered `ma:undefined` — every MA
+   * silently lost its eye, gear and ✕ while the crosshair legend had all three.
+   * Caught in the browser; no test could see it, because both paths produce a
+   * legend that LOOKS right.
+   *
+   * @param {object[]} rovs     `resolvedOverlays` — what the chart actually drew
+   * @param {Function} valueOf  (ov, resolvedIndex) => number|null
+   */
+  const buildOverlayLegendRows = (rovs, valueOf) => {
+    // ⛔ `liveOverlayList` DROPS TOMBSTONES, WHICH IS A DIFFERENT FACT FROM
+    // HIDDEN. `enabled: false` is hidden-and-still-mine — it keeps its row so the
+    // legend's own eye can bring it back, exactly as a hidden `IndicatorChip`
+    // does; `removed: true` is off this chart (see `chartDefaults`'s tombstone
+    // header) and has no row at all.
+    // 🔴 THROUGH A REF, AND THAT IS A BUG FIX, NOT A STYLE.
+    //
+    // ⚰️ MEASURED IN THE BROWSER: hiding EMA 9 from the legend's own eye made the
+    // row VANISH instead of dimming. The always-on legend is driven by a 500ms
+    // `setInterval` whose effect deps are `[effAlwaysShow, chartReady, sym]` — so
+    // its closure holds the `cs` from whenever that effect last ran, while
+    // `resolvedOverlaysRef` is a ref and is always current. The two disagreed in
+    // exactly the way that deletes a row: the STALE `cs` still said EMA 9 was
+    // enabled (`hidden: false`), the LIVE ref no longer drew it (`value: null`),
+    // and `hidden || value != null` was false for both terms.
+    //
+    // ⛔ SO BOTH HALVES OF EVERY ROW NOW COME FROM REFS. `hidden` and `value` are
+    // two readings of one fact — is this line on the chart — and a row built from
+    // two different instants can always contradict itself.
+    const stored = Array.isArray(csRef.current?.overlays) ? csRef.current.overlays : []
+    // ⛔ `csIndex` IS THE STORED SLOT, NOT THE ROW'S POSITION. These rows are
+    // SORTED BY PERIOD below, so an index taken from the rendered array would
+    // hide EMA 20 when the member clicked EMA 9's eye. `indexOf` on object
+    // identity is the same resolution the right-click overlay menu already makes.
+    const row = (ov, csIndex) => {
+      const ri = rovs ? rovs.indexOf(ov) : -1
+      const hidden = ov.enabled === false
+      return {
+        label: `${ov.type} ${ov.period}`,
+        // ⛔ NO VALUE WHILE HIDDEN, rather than a stale one — the line is not
+        // drawn, so a number here would read out something not on the chart. Same
+        // rule `legendChips` keeps for a hidden instance.
+        value: hidden ? null : valueOf(ov, ri),
+        // Match the DISPLAYED line colour (`ema9CandleColorFor`: candle-up repaint
+        // only while the 9-EMA wears its stock default; a user-picked colour wins).
+        color: ema9CandleColorFor(ov) ?? ov.color,
+        hidden,
+        csIndex,
+        _period: Number(ov.period),
+      }
+    }
+    return [
+      ...liveOverlayList(stored).map((ov) => row(ov, stored.indexOf(ov))),
+      // ⚠️ THE SYNTHETIC SMA 5 IS NOT IN THE BLOB (`showSma5`, a legacy faint
+      // whisper), so it has no slot to address: `csIndex: -1` is how the legend
+      // row knows to render it with no controls rather than offering to remove
+      // something that would write nowhere.
+      ...((rovs || []).filter((ov) => ov && stored.indexOf(ov) < 0).map((ov) => row(ov, -1))),
+    ]
+      // A row with no value and no reason to be there is a dead grid cell — the
+      // defect the original "drop disabled overlays" comment was really about.
+      .filter((r) => r.hidden || r.value != null)
+      // ⚰️ A `.sort((a, b) => a._period - b._period)` STOOD HERE — "legend always in
+      // ascending-period order (SMA 5 before EMA 9)". The owner asked for one
+      // order across the product: the legend must read exactly like Chart
+      // Settings → Indicators, and that tab prints `listAllIndicators`, which is
+      // the STORED order of `cs.overlays`. Sorting here made the two lists agree
+      // only by coincidence — they match today because the shipped overlays happen
+      // to be in ascending period, and would have silently diverged the first time
+      // anyone added a moving average with a smaller period than one already on
+      // the chart. Stored order is now the single answer, and it is the order this
+      // array is already built in.
+  }
+
+
   const computeLatestCrosshair = () => {
     const bars = prevBarsRef.current
     if (!bars || !bars.length) return null
@@ -3841,16 +4038,11 @@ export default function StockChart({
     }
     const ovData = overlayDataRef.current || []
     const rovs = resolvedOverlaysRef.current || []
-    const overlays = rovs.map((ov, i) => {
-      const d = ovData[i]?.data
+    const overlays = buildOverlayLegendRows(rovs, (ov, ri) => {
+      const d = ri >= 0 ? ovData[ri]?.data : null
       const pt = (d && d.length) ? d[d.length - 1] : null
-      // Drop DISABLED overlays (they can still carry stale computed data) so a
-      // toggled-off MA vanishes from the always-on legend and the grid collapses —
-      // matching the live/crosshair builder's `ov.enabled === false` guard.
-      if (!pt || !ov || ov.enabled === false) return null
-      const color = ema9CandleColorFor(ov) ?? ov.color
-      return { label: `${ov.type} ${ov.period}`, value: pt.value, color, _period: Number(ov.period) }
-    }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order
+      return pt && Number.isFinite(Number(pt.value)) ? pt.value : null
+    })
     const vma = volMaDataRef.current
     return {
       time: last.t, open: o, high: h, low: l, close: c, volume: vol,
@@ -3943,6 +4135,15 @@ export default function StockChart({
   const livePricesRef = useRef(null)
   const resolvedTfRef = useRef(null)   // current tf, for the imperative daily-candle fast writer (writer E)
   const resolvedOverlaysRef = useRef(null)
+  // ⛔ THE LIVE SETTINGS BLOB, FOR THE READERS THAT RUN OUTSIDE A RENDER. The
+  // always-on legend's 500ms interval declares `[effAlwaysShow, chartReady, sym]`
+  // and an `eslint-disable` for the rest — deliberately, because re-arming it on
+  // every settings keystroke would restart the timer — so anything it calls holds
+  // the `cs` from whenever that effect last ran. `buildOverlayLegendRows` needs
+  // the current one or it builds rows half from one instant and half from
+  // another; see the comment at its `stored`.
+  const csRef = useRef(cs)
+  csRef.current = cs
   const symRef = useRef(null)
   const onCrosshairMoveRef = useRef(null)
   // The instance list the engine last drew, for the crosshair handler — which
@@ -4130,6 +4331,15 @@ export default function StockChart({
       openIndicatorLibrary: () => {
         try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
       },
+      // The formula builder. Mounted ONCE, inside `ChartToolbar` (an AST rail in
+      // `BuilderSheet.test.jsx` fails the build on a second `<BuilderSheet>`), so
+      // every door onto it is a CALL rather than a mount. This is the one Chart
+      // Settings → Indicators → "New Formula" travels down: the modal is a sibling
+      // of this chart, not a child of its toolbar, so it cannot reach the sheet
+      // any other way. Returns `false` on a read-only chart, like its neighbour.
+      openFormulaBuilder: () => {
+        try { return toolbarRef.current?.openFormulaBuilder?.() ?? false } catch { return false }
+      },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
       },
@@ -4205,9 +4415,126 @@ export default function StockChart({
    * edits their chart on. `IndicatorChip` renders NO control at all when it gets
    * no handlers, so those surfaces keep exactly the inert chip Task 3 shipped —
    * and the export route keeps a legend with no buttons in it. */
+  // ─── THE MA / VOLUME LEGEND ROWS' THREE VERBS ─────────────────────────────
+  //
+  // ⛔ EACH ONE IS THE DOOR THAT SURFACE ALREADY USES, never a fourth writer.
+  // Hiding an MA is the `enabled` flag the settings row and the right-click
+  // overlay menu both write; removing one is `chartDefaults`'s TOMBSTONE, which
+  // keeps the slot in place because the merge is positional (splice EMA 9 out and
+  // the next read slides EMA 20 into its slot and resurrects a default SMA 200 —
+  // see that file's header). Settings hands off to whatever the host opens.
+  //
+  // ⚠️ `rowId` IS `ma:<storedIndex>` OR `volume`, and the index is the slot in
+  // `cs.overlays` — NOT the row's position in the legend, which is sorted by
+  // period. `crosshairData.overlays` carries `csIndex` for exactly this reason.
+  const legendRowHidden = useCallback((rowId) => {
+    if (rowId === 'volume') {
+      handleUpdateChartSettings({ ...cs, volume: { ...(cs.volume || {}), visible: !cs.volume?.visible }, preset: 'custom' })
+      return
+    }
+    const i = Number(String(rowId).split(':')[1])
+    if (!Number.isInteger(i)) return
+    handleUpdateChartSettings({
+      ...cs,
+      overlays: (cs.overlays || []).map((o, n) => (n === i ? { ...o, enabled: o.enabled === false } : o)),
+      preset: 'custom',
+    })
+  }, [cs, handleUpdateChartSettings])
+
+  const legendRowRemove = useCallback((rowId) => {
+    if (rowId === 'volume') {
+      handleUpdateChartSettings({ ...cs, volume: { ...(cs.volume || {}), removed: true }, preset: 'custom' })
+      return
+    }
+    const i = Number(String(rowId).split(':')[1])
+    if (!Number.isInteger(i)) return
+    handleUpdateChartSettings({
+      ...cs,
+      overlays: (cs.overlays || []).map((o, n) => (n === i ? { ...o, removed: true } : o)),
+      preset: 'custom',
+    })
+  }, [cs, handleUpdateChartSettings])
+
+  // ⛔ THE SETTINGS VERB IS THE HOST'S MODAL, NOT `IndicatorSettingsDialog`. That
+  // dialog is per-INSTANCE and an MA overlay has none; the surface that carries
+  // an MA's average type, period, offset, plot style, line style and width is
+  // Chart Settings → Indicators. `onOpenSettings` is what the charts workspace
+  // passes; the legacy toolbar panel is the fallback, the same pair the
+  // right-click "Chart settings" row routes through.
+  const legendRowSettings = useCallback((rowId) => {
+    // ⭐ IT NAMES THE ROW, NOT JUST THE TAB (owner: "if I click settings next to
+    // RSI it should take me to chart settings with RSI open to edit right away").
+    // `ind:<rowId>` rides the SAME `scrollTo` string every other deep-link into
+    // this modal uses (`watermark`, `axis`, `volume`) — one channel, so there is
+    // no second way for a surface to ask the settings modal for something.
+    const target = rowId ? `ind:${rowId}` : 'ma'
+    if (typeof onOpenSettings === 'function') { try { onOpenSettings(target) } catch { /* noop */ } return }
+    try { toolbarRef.current?.openSettings() } catch { /* noop */ }
+  }, [onOpenSettings])
+
+  /**
+   * 🔴 THE LEGEND'S MA ROWS, RECONCILED AGAINST THE **LIVE** SETTINGS.
+   *
+   * ⚰️ MEASURED 2026-09-10: clicking a row's eye took **320ms** to dim the row,
+   * every time. That is not React being slow — it is the row reading `hidden` off
+   * `crosshairData`, and `crosshairData` is rebuilt by a 500ms `setInterval` when
+   * the pointer is off the chart. The write landed instantly and the READOUT
+   * waited for the next tick, so a control that had already done its job looked
+   * like it had not, and the reflex is to click it again.
+   *
+   * ⛔ SO PRESENCE AND VISIBILITY COME FROM `cs`, WHICH IS THIS RENDER'S TRUTH,
+   * and only the VALUE still comes from the sampled readout — because a value is
+   * a reading of a bar and genuinely does belong to the last crosshair sample,
+   * while "is this line on the chart" is a fact about the settings the member
+   * just changed. Two different questions, two different sources, and the bug was
+   * answering the first with the second.
+   *
+   * ⚠️ A HIDDEN ROW DROPS ITS VALUE HERE TOO. Without that it would keep printing
+   * the last number for up to half a second after the line stopped being drawn —
+   * a readout of something that is not on the chart, which is the same rule
+   * `legendChips` keeps for a hidden instance.
+   */
+  const liveLegendOverlays = (rows) => (rows || [])
+    .filter((ov) => ov.csIndex < 0 || !isOverlayRemoved(cs.overlays?.[ov.csIndex]))
+    .map((ov) => {
+      if (ov.csIndex < 0) return ov
+      const hidden = cs.overlays?.[ov.csIndex]?.enabled === false
+      return hidden === ov.hidden ? ov : { ...ov, hidden, value: hidden ? null : ov.value }
+    })
+
+  // ⛔ ALL THREE OR NONE — the gate `IndicatorChip` uses. A read-only mount
+  // (Model Book, a grid cell, the `/r/chart` export route) passes no
+  // `showDrawingTools` and gets inert rows, so the export keeps a legend with no
+  // buttons in it and the pixel-parity baselines do not move.
+  const legendRowHandlers = useMemo(() => (showDrawingTools ? {
+    onToggleHidden: legendRowHidden,
+    onOpenSettings: legendRowSettings,
+    onRemove: legendRowRemove,
+  } : null), [showDrawingTools, legendRowHidden, legendRowSettings, legendRowRemove])
+
+  /** A legend chip's gear.
+   *
+   *  ⭐ IT GOES TO CHART SETTINGS → INDICATORS, EXPANDED ON THAT INSTANCE, on any
+   *  surface that has the modal — the owner's rule that every legend gear lands in
+   *  the same place regardless of which KIND of row it sits on. A chip's row id in
+   *  that tab IS its instanceId, so the address needs no translation.
+   *
+   *  ⛔ AND IT FALLS BACK TO `IndicatorSettingsDialog`, which is not dead code: the
+   *  phone shell and every surface that mounts a chart without the workspace modal
+   *  pass no `onOpenSettings`, and that per-instance dialog is the only settings
+   *  surface they have. A gear that opened nothing there would be worse than the
+   *  inconsistency this change removes. */
+  const handleChipSettings = useCallback((instanceId) => {
+    if (typeof onOpenSettings === 'function') {
+      try { onOpenSettings(`ind:${instanceId}`) } catch { /* noop */ }
+      return
+    }
+    setSettingsInstanceId(instanceId)
+  }, [onOpenSettings])
+
   const chipHandlers = useMemo(() => (showDrawingTools ? {
     onToggleHidden: handleChipHidden,
-    onOpenSettings: setSettingsInstanceId,
+    onOpenSettings: handleChipSettings,
     onRemove: handleChipRemove,
     onMenu: handleChipMenu,
     // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
@@ -4216,7 +4543,7 @@ export default function StockChart({
     onBodyTap: onLegendStudyTap
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
-  } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu, onLegendStudyTap])
+  } : null), [showDrawingTools, handleChipHidden, handleChipSettings, handleChipRemove, handleChipMenu, onLegendStudyTap])
 
   // Reset to the default present-day view (newest bar at LAST_CANDLE_POS). Extracted
   // to the component body so the right-click "Reset view" AND the floating
@@ -6755,9 +7082,13 @@ export default function StockChart({
           case 'ma': {
             // Toggle all moving-average overlays at once. If any are on, turn
             // them all off; otherwise turn them all on.
+            // ⛔ THROUGH `liveOverlays`, so the chord reads what the chart draws.
+            // A tombstoned slot must not count toward "any enabled" (it would make
+            // one press do nothing) and must not be switched back on (the member
+            // deleted it).
             const overlays = Array.isArray(cs.overlays) ? cs.overlays : []
-            const anyEnabled = overlays.some(o => o?.enabled)
-            const next = overlays.map(o => ({ ...o, enabled: !anyEnabled }))
+            const anyEnabled = liveOverlayList(overlays).some(o => o?.enabled)
+            const next = overlays.map(o => (isOverlayRemoved(o) ? o : { ...o, enabled: !anyEnabled }))
             handleUpdateChartSettings({ ...cs, overlays: next, preset: 'custom' })
             break
           }
@@ -9793,6 +10124,18 @@ export default function StockChart({
       mainPaneIndex: _hasIdxPane ? 1 : 0,
     })
     paneLayoutRef.current = paneLayout
+    // ⭐ AND THE PANE LIST GOES OUT TO THE RENDER, so each oscillator pane can
+    // print its own name and value at its top-left. Guarded on a shallow compare
+    // because this effect runs on every settings write and an unconditional
+    // `setState` here would re-render the chart on each one for nothing.
+    {
+      const _keys = paneLayout.panes.map((p) => p.key)
+      setPaneLegendKeys((prev) => (
+        prev.length === _keys.length && _keys.every((k, i) => prev[i] === k)
+          ? prev
+          : (_keys.length ? _keys : NO_PANE_KEYS)
+      ))
+    }
     // The BAND map — what `computePaneMargins(csMargins, hasVolumeBand,
     // volOverlaySet)` returned, key for key, off the same quantised stack. Read
     // by the volume band below, by `placement.js`'s `'bands'` branch through the
@@ -12365,24 +12708,18 @@ export default function StockChart({
         vol = livePrices[sym].volume
       }
 
-      // Get overlay values (SMA/EMA) — if missing for current bar, use last available
-      const ovValues = overlaySeriesRefs.current.map((s, i) => {
-        let d = seriesData.get(s)
-        if (!d && overlayData[i]?.data?.length) {
+      // The same rows the off-cursor legend builds — see `buildOverlayLegendRows`,
+      // which exists because these two paths used to be two copies.
+      const ovValues = buildOverlayLegendRows(resolvedOverlays, (ov, ri) => {
+        if (ri < 0) return null
+        let d = seriesData.get(overlaySeriesRefs.current[ri])
+        if (!d && overlayData[ri]?.data?.length) {
           // Developing bar has no MA point — use the last computed value
-          const lastOv = overlayData[i].data[overlayData[i].data.length - 1]
+          const lastOv = overlayData[ri].data[overlayData[ri].data.length - 1]
           d = lastOv ? { value: lastOv.value } : null
         }
-        const ov = resolvedOverlays?.[i]
-        // Disabled overlays (and any without a finite value) must be dropped, not
-        // rendered blank — the vertical legend is a CSS grid, so an empty entry
-        // leaves a dead row where the MA used to be instead of collapsing.
-        if (!d || !ov || ov.enabled === false || !Number.isFinite(Number(d.value))) return null
-        // Match the DISPLAYED line color (ema9CandleColorFor: candle-up repaint only
-        // while the 9-EMA wears its stock default; a user-picked color wins).
-        const color = ema9CandleColorFor(ov) ?? ov.color
-        return { label: `${ov.type} ${ov.period}`, value: d.value, color, _period: Number(ov.period) }
-      }).filter(Boolean).sort((a, b) => a._period - b._period)   // legend always in ascending-period order (SMA 5 before EMA 9, etc.)
+        return (d && Number.isFinite(Number(d.value))) ? d.value : null
+      })
 
       // For OHLC types (candles/bars/hollow)
       const o = priceData.open ?? priceData.value
@@ -13433,7 +13770,6 @@ export default function StockChart({
     const el = containerRef.current
     if (!el) return undefined
     const onDown = (e) => {
-      lastPointerDownAtRef.current = Date.now()
       viewPointerRef.current = { x: e.clientX, y: e.clientY, moved: false }
     }
     // Capture the CURRENT (settled) view as right-relative params for the replay lock.
@@ -13493,6 +13829,9 @@ export default function StockChart({
       if (!p) return
       if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
         p.moved = true                                    // gesture-scoped: this press actually dragged
+        // ⭐ AND THE VOLUME SAMPLER'S GATE IS STAMPED HERE, not on the press. Same
+        // threshold, same gesture, one definition of "the member is dragging".
+        lastPointerDragAtRef.current = Date.now()
         userViewMovedRef.current = true
         if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
       }
@@ -13560,10 +13899,30 @@ export default function StockChart({
         const mainPane = candleSeriesRef.current?.getPane?.()
         const volPane = volumeSeriesRef.current?.getPane?.()
         if (!mainPane || !volPane || mainPane === volPane) return
-        const hMain = mainPane.getHeight(), hVol = volPane.getHeight()
-        const total = hMain + hVol
-        if (!(total > 0)) return
-        const actual = Math.round((hVol / total) * 100)
+        const hVol = volPane.getHeight()
+        // ⛔⛔ THE DENOMINATOR IS THE WHOLE PANE STACK, AND IT USED TO BE
+        // `hMain + hVol`. `applied` is a percentage the LAYOUT hands out — and
+        // `computePaneLayout` spends it over every pane (`abovePct` is normalised
+        // across the stack, and the oscillators are carved out of the main pane's
+        // share). So the moment ONE indicator pane exists, the sampler's fraction
+        // and the layout's fraction are measurements of different things, and
+        // subtracting them is meaningless.
+        //
+        // ⚰️ MEASURED ON THE OWNER'S OWN CHART, 2026-09-10 — AAPL 1D with volume,
+        // RSI and MACD, panes `[376, 98, 83, 92]`: the sampler read **21%** while
+        // the layout had applied **15%**. `latchOnDrag` fires at a 2-point gap, so
+        // a SIX-point gap stood permanently, at rest, on every such chart. Any
+        // press inside the container then latched 21 as a "drag", persisted it,
+        // and the volume pane grew from 15% to 21% with every pane below it
+        // sliding to make room. Together with the press-vs-drag gate above, that
+        // is the whole of *"the other indicator panes move by themselves"*.
+        //
+        // ⚠️ `paneStackHeightPx` IS THE LAYOUT'S OWN BUDGET FUNCTION — the same one
+        // `computePaneLayout` is handed as `chartHeight`, not a second sum. That
+        // identity is the fix: two numbers that mean the same thing can be
+        // compared, and at rest they now agree exactly.
+        const actual = volPanePctOfStack(hVol, paneStackHeightPx(chart))
+        if (actual === null) return
         const applied = lastAppliedVolPctRef.current
         // ⚠️ ONLY a real separator DRAG may report a new height. The measured
         // fraction does not always equal the stretch factors we set — LWC clamps
@@ -13572,9 +13931,13 @@ export default function StockChart({
         // persist 18 → prop feeds back → apply 18 → measure 24 → … and the volume
         // pane ratcheted up until it hit the 45% clamp. That's the "volume pane
         // randomly triples in size" bug, and because the pref is global it then
-        // hit every widget. A pointer press within the last 1.5s is the only
-        // thing that can move it; nothing else resizes the pane on its own.
-        const dragging = Date.now() - lastPointerDownAtRef.current < 1500
+        // hit every widget. A pointer DRAG within the last 1.5s is the only thing
+        // that can move it; nothing else resizes the pane on its own.
+        //
+        // ⛔ A DRAG, NOT A PRESS — see `lastPointerDragAtRef`. A press was every
+        // click on a legend control, which is why toggling an indicator from the
+        // legend could resize the volume pane.
+        const dragging = Date.now() - lastPointerDragAtRef.current < 1500
         if (!dragging || applied == null) return
         // ⚠️ MOVEMENT is judged against what we last APPLIED (the height the pane
         // is at, exactly as before), while the latch RECORDS the setting it has to
@@ -13612,8 +13975,53 @@ export default function StockChart({
   // pane heights every frame and writes the offsets straight to the DOM (no React
   // re-render → no fight → smooth), so they slide with the divider in real time.
   const showVolLegend = showVolume && volInSeparatePane
+  /** The volume-pane strip's ink — `legBase` for a block that is not inside the
+   *  legend's IIFE. Memoised so the six spans below share ONE object instead of
+   *  allocating six per crosshair frame. */
+  const legBaseVol = useMemo(
+    () => (legendColor ? { color: legendColor } : undefined), [legendColor])
+
+  /**
+   * Put ONE oscillator pane's readout at the top-left of its pane.
+   *
+   * The top is the sum of every pane ABOVE it plus their separators — read off
+   * `chart.panes()`, i.e. off the renderer, never off the layout's own pixel
+   * arithmetic. Those two agree today and the divider drag is precisely when
+   * they do not: the user is moving the boundary and the setting has not been
+   * written yet, which is the bug `volLegendRef`'s sampler exists to avoid.
+   *
+   * ⭐ CALLED FROM THE REF CALLBACK AS WELL AS THE SAMPLER, and that is what
+   * makes the label appear in the right place on its FIRST painted frame. The
+   * sampler's first tick lands after paint; without this the row would flash at
+   * the top of the chart and jump down, once per indicator, on every add.
+   *
+   * ⚠️ IT COMPARES AGAINST THE INLINE STYLE rather than a remembered value, so a
+   * remounted node (symbol flip → fresh DOM with no inline top) re-pins itself
+   * instead of being skipped as "unchanged". `volLegendRef`'s sampler learned the
+   * same lesson the hard way and keeps `lastVl` for it.
+   */
+  const pinPaneLegend = useCallback((el, key) => {
+    if (!el) return
+    try {
+      const chart = chartRef.current, container = containerRef.current
+      const layout = paneLayoutRef.current
+      if (!chart || !container || !layout || !Array.isArray(layout.panes)) return
+      const row = layout.panes.find((p) => p && p.key === key)
+      if (!row || !Number.isInteger(row.index) || row.index < 1) return
+      const panes = chart.panes ? chart.panes() : null
+      if (!panes || panes.length <= row.index) return
+      let top = 0
+      for (let i = 0; i < row.index; i++) {
+        const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
+        top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
+      }
+      const want = `${Math.round(top + 3)}px`
+      if (el.style.top !== want) el.style.top = want
+    } catch { /* pane API missing → the CSS default */ }
+  }, [])
+
   useEffect(() => {
-    if ((!showRangeSelector && !showVolLegend && !verticalLegend) || !chartReady) return
+    if ((!showRangeSelector && !showVolLegend && !verticalLegend && !paneLegendKeys.length) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
     if (!chart || !container) return
     // Track the last element too, not just the last value: on a symbol flip the
@@ -13637,6 +14045,11 @@ export default function StockChart({
           if (vl) {
             const top = Math.round(h0 + 5) // just below the boundary = volume pane top
             if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
+          }
+          // …and every oscillator pane's own readout, by the same rule and in the
+          // same frame, so the whole stack of labels slides with one divider drag.
+          if (paneLegendRefs.current.size) {
+            paneLegendRefs.current.forEach(pinPaneLegend)
           }
           // Responsive vertical legend: measure its bottom against the price/volume
           // boundary (h0) and shed to fit. STAGE 1 — legend reaches the range-selector
@@ -13668,7 +14081,7 @@ export default function StockChart({
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, showVolLegend, verticalLegend, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -15356,6 +15769,10 @@ export default function StockChart({
           DATA on the mode blanked that unrelated readout (measured on screen,
           invisible to every test). The data keeps its lifecycle; the box is what
           this decides. */}
+      {/* ⭐ ONE PLACE THAT TURNS A `crosshairData.overlays` ROW INTO `LegendRow`
+          PROPS, shared by all three legend layouts. Written once because the
+          three branches below have drifted from each other before — the header
+          day-change colour was fixed in one of them and read as a no-op. */}
       {crosshairData && !hideLegend && legendMode !== 'off'
         && (legendMode !== 'hold' || legendHeld) && (() => {
         // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
@@ -15413,6 +15830,24 @@ export default function StockChart({
         // seeing it, and the export CSS is the only thing keeping the strip out
         // of every branded newsletter screenshot. Only these three values are
         // shared; the elements themselves stay inside the box that hides them.
+        // ⭐ A HIDDEN VOLUME PANE KEEPS ITS LEGEND ROW, DIMMED AND VALUELESS —
+        // exactly what a hidden moving average does.
+        //
+        // ⚰️ THE GATE WAS `crosshairData.volume != null`, and hiding the pane made
+        // the row VANISH: the series stops reporting, so the payload's `volume`
+        // goes null and the row that was the only way back fell out of the legend
+        // with it. Owner: *"when I hide a moving average or indicator in the
+        // legend it just becomes more transparent and doesn't show the value, but
+        // it stays in the legend, I like that. But for volume it disappears."*
+        //
+        // ⛔ SAME RULE AS `liveLegendOverlays` USES FOR THE MOVING AVERAGES —
+        // `hidden || value != null` — because a hidden volume pane and a hidden MA
+        // are the same fact and must not read as two different states. REMOVED is
+        // still different from HIDDEN and still takes the row away; that is the
+        // `isVolumeRemoved` half, unchanged.
+        const volHidden = cs.volume?.visible === false
+        const volLegendRowVisible = !isVolumeRemoved(cs)
+          && (volHidden || crosshairData.volume != null)
         const indChips = crosshairData.chips || EMPTY_CHIPS
         const overflow = !chipsExpanded && indChips.length > CHIP_COLLAPSE_AT
         const foldedFrom = overflow ? CHIP_COLLAPSE_AT : indChips.length
@@ -15446,9 +15881,43 @@ export default function StockChart({
                 <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
                 <span className={styles.legendLabel} style={legBase}>Chg <span className={styles.legendVal} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.change}</span></span>
                 <span className={styles.legendLabel} style={legBase}>Chg% <span className={styles.legendVal} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.changePct}%</span></span>
-                {crosshairData.volume != null && (
+                {/* ⚰️ THIS WAS A BARE `<span>Vol 56.0M</span>` WITH NO CONTROLS, so
+                    the volume pane could be hidden, configured and removed from
+                    the vertical legend and from Chart Settings — and not from the
+                    strip a member on the horizontal layout is actually looking at.
+                    ⛔ INLINE, NOT A SHARED HELPER: `parityGateBlindness.test.js`
+                    refuses legend JSX hoisted into a const, because the proof that
+                    a row renders INSIDE the legend element (and is therefore
+                    hidden from the branded export) is lexical. */}
+                {volLegendRowVisible && (legendRowHandlers ? (
+                  <LegendRow
+                    rowId="volume"
+                    label="Vol"
+                    value={volHidden ? '' : formatVolume(crosshairData.volume)}
+                    baseColor={legendColor || undefined}
+                    hidden={volHidden}
+                    {...legendRowHandlers}
+                  />
+                ) : (
                   <span className={styles.legendLabel} style={legBase}>Vol <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
-                )}
+                ))}
+                {/* ⭐ MOVING AVERAGES, THEN THE ENGINE INSTANCES — Chart Settings'
+                    own order, and the same order the other two layouts print.
+                    ⚰️ THIS BRANCH USED TO PUT THE MOVING AVERAGES **LAST**, after
+                    the chips and the comparison symbol, so one set of indicators
+                    was listed three different ways on three surfaces. */}
+                {liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
+                  <LegendRow
+                    key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
+                    rowId={`ma:${ov.csIndex}`}
+                    label={ov.label}
+                    value={ov.value != null ? ov.value.toFixed(2) : ''}
+                    color={opaqueColor(ov.color)}
+                    baseColor={legendColor || undefined}
+                    hidden={!!ov.hidden}
+                    {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
+                  />
+                ))}
                 {indChips.map((c, i) => (
                   <IndicatorChip
                     key={`${c.instanceId}::${c.plotKey}`}
@@ -15476,9 +15945,6 @@ export default function StockChart({
                     {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
                   </span>
                 )}
-                {crosshairData.overlays.map((ov, i) => (
-                  <span key={'ov' + i} style={{ color: opaqueColor(ov.color) }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
-                ))}
               </div>
             </>
           ) : legendStacked ? (
@@ -15494,25 +15960,74 @@ export default function StockChart({
                   mode saves height by dropping the MA/indicator rows + shrinking the
                   font (see .legendCompact + the overlay/chip guards below), never by
                   going two-up (which got too wide and ate the chart). */}
-              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'O' : 'Open'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'H' : 'High'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'L' : 'Low'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'C' : 'Close'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
-              {crosshairData.volume != null && (
-                <><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'V' : 'Vol'}</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
-              )}
+              {/* ⛔ EVERY ROW EMITS THREE CELLS, AND THE THIRD IS USUALLY EMPTY.
+                  `.legendVertical` grew a third track for the hover controls, and
+                  a CSS grid FILLS BY ORDER — so a row that emitted only two cells
+                  would let the NEXT row's label land in the control column and
+                  cascade the whole legend one cell out of true. `.vlCtlPad` is
+                  that third cell for the rows that have no controls; it measures
+                  zero and is invisible. */}
+              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'O' : 'Open'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
+              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'H' : 'High'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
+              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'L' : 'Low'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
+              <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'C' : 'Close'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span><span className={styles.vlCtlPad} /></span>
+              {/* ⭐ THE VOLUME PANE'S ROW IS A `LegendRow` NOW — same three verbs
+                  as a moving average, on the row that already prints its number.
+                  It falls back to the plain pair on a read-only mount, where
+                  `legendRowHandlers` is null and a row with no controls is exactly
+                  the two cells it always was. */}
+              {/* ⛔ `isVolumeRemoved(cs)`, NOT the sampled readout — same reason as
+                  `liveLegendOverlays`: the pane leaves the chart on the click, so
+                  its row has to leave the legend on the click, not on the next
+                  500ms tick. */}
+              {volLegendRowVisible && (legendRowHandlers ? (
+                <LegendRow
+                  vertical
+                  rowId="volume"
+                  label={compactLegend ? 'V' : 'Vol'}
+                  value={volHidden ? '' : formatVolume(crosshairData.volume)}
+                  baseColor={legendColor || undefined}
+                  hidden={volHidden}
+                  {...legendRowHandlers}
+                />
+              ) : (
+                <span className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'V' : 'Vol'}</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
+              ))}
               {/* Compact mode drops the MA + indicator value rows (the tallest part —
                   those lines are drawn on the chart anyway) so the legend stops
                   spilling into the volume pane WITHOUT going wider. */}
-              {!compactLegend && crosshairData.overlays.flatMap((ov, i) => [
-                <span key={'l' + i} className={styles.vlLabel} style={{ color: opaqueColor(ov.color) }}>{ov.label}</span>,
-                <span key={'v' + i} className={styles.vlVal} style={{ color: opaqueColor(ov.color) }}>{ov.value?.toFixed(2)}</span>,
-              ])}
+              {/* ⚰️ THESE WERE TWO BARE `<span>`s WITH NO IDENTITY AND NO CONTROLS.
+                  A moving average is removable now (`chartDefaults`'s overlay
+                  tombstone), so its legend row carries the same eye / gear / ✕ an
+                  engine chip has — in a THIRD grid column that is zero-wide until
+                  hovered, so the numbers above and below never move. */}
+              {!compactLegend && liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
+                <LegendRow
+                  key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
+                  vertical
+                  rowId={`ma:${ov.csIndex}`}
+                  label={ov.label}
+                  value={ov.value != null ? ov.value.toFixed(2) : ''}
+                  color={opaqueColor(ov.color)}
+                  baseColor={legendColor || undefined}
+                  hidden={!!ov.hidden}
+                  /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS. It is not in
+                     `cs.overlays` (`csIndex: -1`), so there is no slot to hide or
+                     tombstone and every verb would write nowhere. */
+                  {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
+                />
+              ))}
+
+              {/* ⚰️ `.vlFull` (grid-column 1 / -1) STOOD HERE and is why RSI's
+                  number never lined up with the values above it. `grid` splits the
+                  chip into the same label / value / gutter cells every other row
+                  emits, so it joins the shared tracks instead of spanning them. */}
               {!compactLegend && indChips.map((c, i) => (
                 <IndicatorChip
                   key={`${c.instanceId}::${c.plotKey}`}
                   chip={c}
-                  className={`${styles.vlFull}${i >= foldedFrom ? ' ' + chipStyles.chipFolded : ''}`}
+                  grid
+                  className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
                   {...chipHandlers}
                 />
               ))}
@@ -15535,9 +16050,20 @@ export default function StockChart({
           <span className={styles.legendLabel} style={legBase}>H <span className={styles.legendVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
           <span className={styles.legendLabel} style={legBase}>L <span className={styles.legendVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
           <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
-          {crosshairData.volume != null && (
+          {/* The volume pane's row — same three verbs as every other layout. See
+              the flat branch for why this is inlined rather than shared. */}
+          {volLegendRowVisible && (legendRowHandlers ? (
+            <LegendRow
+              rowId="volume"
+              label="V"
+              value={volHidden ? '' : formatVolume(crosshairData.volume)}
+              baseColor={legendColor || undefined}
+              hidden={volHidden}
+              {...legendRowHandlers}
+            />
+          ) : (
             <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
-          )}
+          ))}
           {/* ⭐ MOB-06′ — dollar volume + average volume, for the PHONE only.
               These already render on desktop in the volume-pane strip (.volLegend),
               which is `display:none` on the phone shell — so on a phone the two
@@ -15569,8 +16095,17 @@ export default function StockChart({
           >
             {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
           </span>
-          {crosshairData.overlays.map((ov, i) => (
-            <span key={i} style={{ color: opaqueColor(ov.color) }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+          {liveLegendOverlays(crosshairData.overlays).map((ov, i) => (
+            <LegendRow
+              key={ov.csIndex >= 0 ? `ma:${ov.csIndex}` : `ma-syn:${i}`}
+              rowId={`ma:${ov.csIndex}`}
+              label={ov.label}
+              value={ov.value != null ? ov.value.toFixed(2) : ''}
+              color={opaqueColor(ov.color)}
+              baseColor={legendColor || undefined}
+              hidden={!!ov.hidden}
+              {...(ov.csIndex >= 0 ? legendRowHandlers : null)}
+            />
           ))}
           {indChips.map((c, i) => (
             <IndicatorChip
@@ -15861,28 +16396,161 @@ export default function StockChart({
       {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
           period. Follows the crosshair (or the latest bar), pinned live to the top
           of the volume pane. */}
+      {/* `legBase`'s twin. The legend block computes its own inside an IIFE this
+          strip is not part of, and a second `legendColor ? {...} : undefined` per
+          span would allocate six objects a frame on a surface that repaints with
+          the crosshair. */}
       {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.volume != null || crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
         <div ref={volLegendRef} className={styles.volLegend}>
+          {/* ⭐ THE MEMBER'S OWN LEGEND COLOUR, THE SAME WAY THE LEGEND TAKES IT.
+              `legendColor` is the Chart Settings → Header setting, and the OHLC
+              rows wear it as an INLINE style — so matching "the color in the
+              legend" with a CSS token would have matched on the default theme and
+              drifted the moment anybody changed it. Measured before this line
+              existed: the strip painted `rgb(240,239,234)` against the legend's
+              `rgb(214,216,221)`. Same reasoning, same source, as `LegendRow`'s
+              `baseColor`.
+              ⚠️ LABEL AND VALUE TAKE THE SAME COLOUR — that is not a slip. The
+              legend tells them apart by WEIGHT (500 vs 600) at one colour, which
+              is what `.volLegLabel` / `.volLegVal` now do too; the CSS tokens stay
+              as the fallback for a member who has set no colour. */}
           {crosshairData.volume != null && (
             <span className={styles.volLegItem}>
-              <span className={styles.volLegLabel}>Vol</span>
-              <span className={styles.volLegVal}>{formatVolume(crosshairData.volume)}</span>
+              <span className={styles.volLegLabel} style={legBaseVol}>Vol</span>
+              <span className={styles.volLegVal} style={legBaseVol}>{formatVolume(crosshairData.volume)}</span>
             </span>
           )}
           {crosshairData.dollarVol != null && (
             <span className={styles.volLegItem}>
-              <span className={styles.volLegLabel}>$ Vol</span>
-              <span className={styles.volLegVal}>{formatDpNotional(crosshairData.dollarVol)}</span>
+              <span className={styles.volLegLabel} style={legBaseVol}>$ Vol</span>
+              <span className={styles.volLegVal} style={legBaseVol}>{formatDpNotional(crosshairData.dollarVol)}</span>
             </span>
           )}
           {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
             <span className={styles.volLegItem}>
-              <span className={styles.volLegLabel}>Avg {crosshairData.volMaPeriod}D</span>
-              <span className={styles.volLegVal}>{formatVolume(crosshairData.volAvg)}</span>
+              <span className={styles.volLegLabel} style={legBaseVol}>Avg {crosshairData.volMaPeriod}D</span>
+              <span className={styles.volLegVal} style={legBaseVol}>{formatVolume(crosshairData.volAvg)}</span>
             </span>
+          )}
+          {/* ⭐ THE SAME THREE VERBS THE INDICATOR PANES GOT — hide · settings ·
+              remove, revealed on hover at the right of the strip (owner: *"when I
+              hover over this with my mouse the buttons should pop up on the right
+              just like for RSI"*).
+
+              ⛔ IT CARRIES NO LABEL AND NO VALUE OF ITS OWN. The three readings to
+              its left are already the volume pane's, so a fourth `Vol 69.8M` would
+              print the first one twice. `LegendRow` renders exactly the controls
+              when label and value are empty, and `controlLabel` is what names them
+              for a screen reader and for the tooltip.
+
+              ⚠️ `legendRowHandlers`, NOT `chipHandlers` — the volume pane is a
+              `cs.volume` row, not an engine instance, and `rowId="volume"` is the
+              address its hide/settings/remove verbs already take from the legend.
+              One address, so the strip's gear opens the same settings row the
+              legend's does. */}
+          {legendRowHandlers && (
+            <LegendRow
+              rowId="volume"
+              label=""
+              value=""
+              controlLabel="Volume"
+              baseColor={legendColor || undefined}
+              hidden={cs.volume?.visible === false}
+              {...legendRowHandlers}
+            />
           )}
         </div>
       )}
+      {/* ── EACH OSCILLATOR PANE'S OWN TOP-LEFT READOUT ────────────────────────
+          "RSI(14) 59.0" at the top-left of the RSI pane — the thing the volume
+          pane has always had (`.volLegend`, directly above) and every indicator
+          pane went without, so an RSI's number could only be read off the
+          gridline ladder or matched by colour to a chip in a legend elsewhere.
+
+          ⭐⭐ EACH ROW IS A `LegendRow`, THE SAME COMPONENT THE LEGEND'S OWN ROWS
+          ARE — which is how it answers two owner asks at once and can answer
+          neither by drifting. *"use the same font, font thickness, and color, and
+          boldness as the values in the legend"*: it inherits them, rather than
+          restating them, so there is no second set of numbers to keep in sync.
+          And *"when user hovers over the indicator values or labels in the panes
+          [the] same buttons pop up like the legend"*: they ARE the same buttons,
+          same reveal, same spacing, same `baseColor` ink.
+
+          ⚰️ IT USED TO BE BARE SPANS ON `.volLegItem`/`.volLegLabel`/`.volLegVal` —
+          the VOLUME strip's type, which is a different size and weight from the
+          legend's and carries no controls at all. Two stacked panes whose labels
+          were built to different rules is exactly the inconsistency this pass is
+          closing; the first version closed it against the wrong neighbour.
+
+          ⚠️ EVERY CHIP CARRIES ITS OWN CONTROLS, INCLUDING BOTH OF MACD'S. They
+          act on the same instance, which is correct — MACD and SIG are one
+          indicator — and only one of two sibling spans can be hovered at a time,
+          so the owner's "only ONE row of buttons at once" still holds without a
+          second mechanism. Giving the controls to just one of the two would make
+          hovering the other value do nothing, which is the exact complaint that
+          produced the legend's own all-rows rule.
+
+          ⛔ NOT `IndicatorChip`, and the reason is a rail rather than a taste:
+          `parityGateBlindness.test.js` asserts from the AST that EVERY
+          `<IndicatorChip>` in this file is a descendant of the legend element,
+          and that the `+N` control count equals the chip count. A chip here would
+          fail both. `LegendRow` carries the same three verbs, is under no such
+          rail, and its module declares no class containing "legend" — so it
+          inherits this container's export-time hide and never trips the
+          `volLegend` re-show.
+
+          ⛔ NOT GATED ON `legendMode`/`hideLegend`. Those three vetoes govern the
+          OHLC legend BOX — a thing that floats over the candles and that the user
+          and the host each get a say in. A pane readout is pane furniture, like
+          the volume strip beside it, and follows the same gates it does:
+          declutter (Alt+Shift+I) hides the lines, so it hides their labels too.
+
+          ⚠️ IT IS HIDDEN IN THE NEWSLETTER EXPORT, because `ChartRender.jsx`
+          hides `[class*="legend" i]` and re-shows only `volLegend`. That is the
+          status quo for exports (an RSI pane carries no label there today) and
+          keeping it means this change moves no pixel-parity baseline. Showing it
+          is one selector in that file — a decision about the newsletter, taken
+          there, not smuggled in from here. */}
+      {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current).map((row) => (
+        <div
+          key={row.key}
+          ref={(el) => {
+            const m = paneLegendRefs.current
+            if (el) { m.set(row.key, el); pinPaneLegend(el, row.key) } else m.delete(row.key)
+          }}
+          className={styles.paneLegend}
+          data-pane-legend={row.key}
+        >
+          {row.chips.map((c) => (
+            <LegendRow
+              key={`${c.instanceId}::${c.plotKey}`}
+              /* ⭐ THE ROW ID IS THE INSTANCE ID, and that is what wires the three
+                 controls with no adapter: `LegendRow` calls `fn(rowId)`, and
+                 `handleChipHidden` / `handleChipSettings` / `handleChipRemove` all
+                 take an instanceId. The gear therefore lands on the SAME Chart
+                 Settings row the legend's own gear does — one address, one door. */
+              rowId={c.instanceId}
+              label={c.label}
+              value={c.value != null ? c.value.toFixed(c.decimals) : ''}
+              color={c.color}
+              baseColor={legendColor || undefined}
+              /* ⚠️ THE CONTROLS ARE NAMED FOR THE INDICATOR, NOT FOR THE PLOT.
+                 Both of MACD's rows drive the same instance, so `SIG`'s ✕ removes
+                 MACD — and said so, until this. The primary plot is the group's
+                 first chip by declaration order, which is the name the settings
+                 list and the browse catalogue both use. */
+              controlLabel={row.chips[0].label}
+              hidden={!!c.hidden}
+              {...(chipHandlers ? {
+                onToggleHidden: chipHandlers.onToggleHidden,
+                onOpenSettings: chipHandlers.onOpenSettings,
+                onRemove: chipHandlers.onRemove,
+              } : null)}
+            />
+          ))}
+        </div>
+      ))}
       {!disablePatterns && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}

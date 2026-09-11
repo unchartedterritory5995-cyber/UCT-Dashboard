@@ -18,7 +18,21 @@ vi.mock('../../../../components/CompanyLogo', () => ({
 // ChartPane calls useFlagged() (Shift+F flag toast, flag button state), which
 // reads useAuth() — stub it logged-out so that call doesn't throw "useAuth
 // must be used within AuthProvider" (this file renders without an AuthProvider).
-vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// ⛔ `AuthContext` ITSELF IS PART OF THE MOCK, NOT JUST THE TWO HOOKS.
+// This page mounts a real `ChartPane`, which mounts `ChartSettingsModal`, which
+// subscribes to the member's own formulas — and `useUserDefinitions` reads the
+// CONTEXT OBJECT directly (`useContext(AuthContext)`) rather than calling
+// `useAuth`, deliberately, because `useAuth` throws outside a provider and a
+// chart renders in plenty of surfaces that mount none. A mock factory that omits
+// a named export does not return `undefined` for it — vitest THROWS on the
+// access — so the omission crashed the whole page render and every case in this
+// file failed on a missing `data-testid="chart"`, with the real cause three
+// components away. `legendFromDefinitions.test.jsx` carries the same three-key
+// mock for the same reason.
+vi.mock('../../../../context/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
+  AuthContext: { Provider: ({ children }) => children },
+}))
 // The canonical SymbolSearch component has its own dedicated coverage
 // elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
 // action can be exercised without its real dropdown/fetch machinery. The

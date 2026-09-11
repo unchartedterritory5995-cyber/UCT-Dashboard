@@ -227,8 +227,10 @@ export const MENU_THEME = Object.freeze({
   '--menu-border': 'rgba(255,255,255,0.09)',
   '--menu-divider': 'rgba(255,255,255,0.06)',
   '--menu-text': '#ededed',
-  '--menu-text-dim': '#8a8a8f',
-  '--menu-text-faint': '#6b6b6b',
+  // ⭐ RAISED 2026-09-10 with tokens.css — see the reason there. The two files
+  // are each other's mirror and "retune both or neither" is written above.
+  '--menu-text-dim': '#b3b3b9',
+  '--menu-text-faint': '#93939a',
   '--menu-accent': '#c9a84c',
   '--menu-accent-bg': 'rgba(201,168,76,0.12)',
   '--menu-hover': 'rgba(255,255,255,0.055)',
