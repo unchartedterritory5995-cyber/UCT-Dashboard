@@ -16,6 +16,26 @@
 *.ttf   binary
 *.otf   binary
 
+# ⛔⛔ PINE SOURCES ARE BYTE-FIDELITY ARTIFACTS AND THIS BOX REWRITES LINE
+# ENDINGS ON CHECKOUT. Measured 2026-09-11:
+# `tests/fixtures/member/uncharted-volume.pine` was 34,950 bytes on disk against a
+# 34,342-byte blob — exactly its 608 CRLFs — so
+# `test_the_file_on_disk_matches_BOTH_recorded_hashes` failed on BOTH hashes and
+# read as "🔴 THE AUTHOR'S SCRIPT CHANGED … every 'line N' reference in this
+# project now points at a different statement". The author's script had not
+# changed at all; the checkout filter had. Both hashes match the LF form exactly.
+#
+# ⚠️ THAT IS THE WORST DIRECTION FOR THIS PARTICULAR RAIL TO FAIL IN. It exists to
+# shout when a member's script is swapped under our line-number references, so a
+# line-ending false positive teaches whoever sees it that the loudest alarm in the
+# fixture directory cries wolf — and the remedy it invites (re-record the hashes)
+# would bake this box's CRLF into a manifest every other checkout then fails.
+#
+# Same class as the note-connector fixtures below, same fix. Applies to all 510
+# tracked `.pine` files, not just the member two: the corpus rosters, the probe
+# integrity sweep and the linemaps all compare Pine bytes or characters.
+*.pine text eol=lf
+
 # note-connectors cross-language schema rail (Task 5): the Python drift test
 # (`test_note_convert_fixtures.py`) byte-compares a freshly regenerated copy
 # of these fixtures against the committed ones. `fixtures_gen.py` always
