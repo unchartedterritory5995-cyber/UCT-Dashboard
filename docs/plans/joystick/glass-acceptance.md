@@ -17,6 +17,54 @@ finger on physical glass, driving BrowserStack Live in a browser.
 > explicit INCOMPLETE, never a stale pass from a previous run. (Phase 2 run 2 lost a Pixel 8
 > mid-session and the previous run's JSON read as current.)
 
+---
+
+# ⛔⛔ PRECONDITION G0-1 — RUN THIS FIRST. NOTHING BELOW COUNTS UNTIL IT PASSES.
+
+**The Phase 2 device runs recorded an iPhone 15 Pro scoring flick 0/10 while an iPhone SE scored
+10/10, on the same calibrated pointer path.** The run record's own words: *"Unexplained. It needs
+its own trace, the way the sticky-fan 5/10 did — guessing here is how the previous wrong diagnoses
+started."* It has never been explained.
+
+⛔ **Everything in Block G1 is the same measurement performed by hand.** If the flick threshold
+behaves differently on a 15 Pro-class device, then a G1 row that "fails" is not telling you about
+the product — it is telling you about whatever G0-1 is. Reading it as a product FAIL would send
+the next engineering task in exactly the wrong direction, which is the mistake the run record
+warned about by name.
+
+## How to run it
+
+**Device:** an iPhone 15 Pro-class device. (If you also have an SE to hand, run it there too — the
+diff between the two is the whole point.)
+
+1. Sign in, open the **Journal** with at least one open position, and open the hub's fan.
+2. Target the **Close** bubble — the most dangerous one, deliberately.
+3. Perform **ten flicks**: finger down and up on the bubble as fast as you can, each well under
+   ~120ms. Do not pause on the bubble; a deliberate press is a different gesture.
+4. **Count the fires.** A "fire" is the Close sheet opening, or anything at all happening beyond
+   the fan closing.
+5. **Then one deliberate press** (~500ms) on the same bubble. It MUST open the sheet.
+
+| | |
+|---|---|
+| Flicks performed | ______ / 10 |
+| **Fires (want 0)** | ______ |
+| **Score = 10 − fires** | ______ / 10 |
+| Deliberate control opened the sheet | [ ] YES  [ ] NO |
+| Device / iOS / browser | ____________________ |
+
+## What the score means
+
+- **Score 8/10 or better** (0–2 fires) → G0-1 **PASSES**. Carry on into G1 and read its rows
+  normally.
+- **Score below 8/10** (3 or more fires) → ⛔ **G0-1 FAILS.** Record **every G1 row as
+  `BLOCKED-BY-G0`** — *not* FAIL. A G1 row cannot be a verdict on the product while the
+  instrument disagrees with itself between two devices. Then the next engineering task is the
+  trace the run record asked for: **`docs/plans/joystick/g0-flick-trace-plan.md`**, which is
+  written and ready.
+- ⛔ **If the deliberate control did NOT open the sheet, the whole run is void** regardless of the
+  flick score — a session where nothing fires and nothing can fire proves nothing.
+
 ## Preconditions
 
 - Target: **production**, `https://uctintelligence.com`. A local sandbox shake-out is NOT

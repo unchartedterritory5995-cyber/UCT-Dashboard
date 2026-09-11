@@ -1,11 +1,37 @@
 # Joystick hub — closure
 
-**The feature is complete.** Every row in `deferred.md` and every request in `requests.md`
-carries a final-state verdict. What remains is not engineering: it is the owner's real-glass
-verification (`glass-acceptance.md`) and whatever members ask for once they have used it.
+> ## ✅ FEATURE COMPLETE at `f7ec5d5dd` + the Peek removal (`ccd661051`).
+> **The programme is closed. No further deploys are authorized.**
+>
+> Every row in `deferred.md` and every request in `requests.md` carries a final-state verdict,
+> including the four owner decisions, all now DECIDED. What remains is not engineering:
+>
+> 1. ⬜ **OPEN — the owner's real-glass run.** `glass-acceptance.md`, gated behind precondition
+>    **G0-1**, which must be run first and which nothing else counts without.
+> 2. ⬜ **OPEN — whatever members ask for** once they have used it.
+>
+> Nothing else in this programme is open. Anything that reads as open elsewhere is history — the
+> two RESUME docs carry a SUPERSEDED banner saying so.
 
 This document supersedes `70-increment-6-closure.md`, which closed Increment 6 with a core list
 of one. That list is still one, and it is still the same item.
+
+## 0. The CLOSED-BLOCKED register — every stop, quoted once
+
+These are not gaps in the work. Each is an item the programme could not touch, with the reason it
+could not, so nobody re-derives the stop from scratch.
+
+| Item | The stop |
+|---|---|
+| **P6 — server-side preference-key validation** | `api/` is watched by **two** services. Live Railway manifest: `worker` → `['/api/**', …]`, `bars-api` → `['api/**', …]`. Either would redeploy on any `api/` edit. (`flow-worker` is NOT implicated — its list is 20 enumerated top-level `api/*.py` modules with no `routers/` path.) ⛔ Consequence recorded plainly: **B6 is an exposure default, not a security boundary** — `POST /api/auth/preferences` accepts any `{key, value}`. |
+| **R-08 — `PUT /api/j2/positions/{id}` stop validation** | Same stop. `api/` file. |
+| **D-14 · D-15 · D-19** | Same stop. Each needs an endpoint, a column or an append-only log. |
+| **D-32 — Screener → Plan trade prefill** | Same stop for the half that matters: the absolute level exists only server-side and is never emitted. ⛔ The client-side derivation was **refused, not overlooked** — `deferred.md` names it as "a SECOND AUTHORITY over a number the live tier already computes", and a wrong step still produces a plausible number. |
+| **D-20 — Add to Notebook from a calendar entry** | Two stops, either sufficient: the only surface naming an entry is `EarningsResearchModal`, whose `z-index: var(--z-modal, 1000)` buries the hub's own ladder (`--z-hub-open: 401`); and `Calendar.jsx` never sets the hub `symbol`, so a `requires:['symbol']` bubble would render permanently DISABLED. |
+| **D-06 — Metric-group cycling** | `useBreadthCustomize.js:112` — `if (prev.activePreset === DEFAULT_PRESET) return prev  // immutable`. `Default` is the shipped state, so the named mechanism is a **no-op for every member who has never made a preset** and **destructive** for those who have. ⭐ The mutation proof found the stop is DOUBLED: removing either guard alone leaves the rail green. |
+| **R-11 — `OptionsBoard` cursor carrier** | `app/src/pages/journal-2-0/**`, which this build does not edit; the request names Journal 2.0 as owner and says "Blocking: no". |
+| **D-16 — Notebook double-tap search** | The only fix is inside `NotebookTab.jsx`, under a standing zero-edit rule. |
+| **D-30 — one `data_root()` helper** | Not this programme's, and a live PRODUCTION risk. See §1.
 
 ---
 
@@ -16,26 +42,26 @@ of one. That list is still one, and it is still the same item.
 | **G** | **`glass-acceptance.md`** — real-glass D4 (flick safety) and D1 (the TalkBack/VoiceOver no-drag door), plus every surface Increments 3–7 added. | Needs a human with a finger on glass. jsdom performs no layout; emulated-green is not device-green. **Block G0 carries two Phase 2 findings that were never explained** — an iPhone 15 Pro scoring 0/10 on flick where an iPhone SE scored 10/10, and iOS gesture rows that have never actually run because WebDriverAgent rejects the action. G0-1 must be resolved **before** any G1 result is read as a pass, because G1 is the same measurement done by hand. |
 | **Member feedback** | Whatever the first members ask for. | Not knowable from here. |
 
-### Owner decisions — costed, not decided
+### Owner decisions — ALL FOUR DECIDED, 2026-09-11
 
-These are product calls, not gaps. Each is recorded with its options and their price.
+Each was recommended with its cost and taken as the ruling under the charter's default. Full
+reasoning lives on the rows in `deferred.md`; these are the verdicts.
 
-- **D-02 — the chart fan is structurally full.** Outer 5/5, inner 4/4 against `OUTER_MAX`/
-  `INNER_MAX`; `validateRegistry` rejects a sixth. An Indicator bubble cannot exist until you say
-  what it displaces. Also measured: `vwap`/`avwap` are intraday-only while the phone chart
-  defaults to `'D'`, and "AVWAP from last pivot" matches **neither** existing AVWAP — it is a
-  choice between `swingHigh` and `swingLow`, which is a directional opinion about the member's
-  chart.
-- **D-08 — Compare prior cycle.** The data is already **paid**-gated, not admin-gated; only the
-  client declines. Making it member-visible is two lines. The price is editorial: the tab's
-  headline is a forward-return claim shown to members, and the tab count goes 5→6 for everyone.
-- **D-26 — LWC pane geometry for the scrim.** The row says it itself: "needs an owner decision,
-  not an engineering one." The scrim ships its stated `calc(22% + 32px)` approximation, labelled.
-- **D-36 — does planning a trade escalate?** `scan.planTrade`/`chart.planTrade` are `kind:'run'`
-  with `escalate: false`, so `PlanTradeSheet` is a commit sheet whose action does not escalate.
-  Rendering the notice anyway puts a second authority on "is this the serious kind"; flipping the
-  flag changes the haptic every member feels. The notice is written and railed; this needs a
-  ruling, not code.
+- **D-02 — Indicator on the chart fan → CLOSED BY DESIGN** (owner pre-ruled). The fan is full at
+  5/5 outer, 4/4 inner, and `validateRegistry` rejects a sixth. Replacing a shipped action needs
+  **glass evidence about which bubble members actually use**, not a guess from a registry.
+- **D-08 — Compare prior cycle → ADMIN-ONLY STANDS.** The tab's headline is a **forward-return
+  claim** shown to members, and this repo's own standing lesson is that a hit rate is meaningless
+  without its base rate. That is editorial, not plumbing, and the safe default is not to publish
+  the number. The two-line change stays available if the claim is ever reworded.
+- **D-26 — LWC pane geometry → CLOSED BY DESIGN.** Keep the labelled `calc(22% + 32px)`
+  approximation. The fix needs a new imperative method on an 11,700-line file; the cost of being
+  wrong is a scrim edge a few pixels off, with no write and no gesture behind it.
+- **D-36 — does Plan trade escalate? → NO, `escalate` stays false.** Plan trade writes to
+  `hub_planned_trades` and **never a broker**. B5's escalation marks writes that change a live
+  position — move stop, breakeven, close. A plan is a record of intent that cannot lose money, and
+  flipping the flag would change the haptic every member feels on every Plan trade to say
+  otherwise.
 
 ### Not this program's, and still live
 
