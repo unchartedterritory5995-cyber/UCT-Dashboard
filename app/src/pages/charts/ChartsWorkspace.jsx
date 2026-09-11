@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
@@ -9,6 +9,8 @@ import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import LayoutDock from './LayoutDock'
 import { UCT_DEFAULT_ID, arrangementSig, fullStateSig } from './layoutDockPins'
+// ⛔ THE SETTINGS-SIDE COUNTERPART OF THE SHRINK GUARD — see boardTrust.js.
+import { boardCrashed, subscribeBoardTrust } from './boardTrust'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -2276,9 +2278,18 @@ export default function ChartsWorkspace() {
   // every switch). Deriving it each render has no such ordering hazard.
   const baselineSig = lastFlushedSigRef.current ?? dockCompare?.storedFullSig ?? null
 
+  // ⛔⛔ A REBUILT TREE IS NOT A TRUSTWORTHY BOARD. Widening the flush so it can
+  // see a settings edit also widened what a bad board can destroy: a render error
+  // rebuilds the tree, the chart comes back re-seeded from defaults, and to a
+  // signature that is simply "a different board". Measured — it wrote a re-seeded
+  // chart over a configured one. The shrink guard protects the board from losing
+  // WIDGETS; this protects a widget from losing its CONTENTS.
+  const untrusted = useSyncExternalStore(subscribeBoardTrust, boardCrashed, boardCrashed)
+
   const flushNeeded = autoSaveReady
     && dockAutoSaves
     && !shrinkBlocked
+    && !untrusted
     && baselineSig !== null
     && fullStateSig(layout) !== baselineSig
   flushNamedSaveRef.current = async () => (flushNeeded ? runNamedSave() : { ok: true })
@@ -2302,7 +2313,7 @@ export default function ChartsWorkspace() {
     console.warn('[layout-dock] auto-save skipped — the board has fewer widgets than the layout stored, and nothing was closed by hand. The stored layout was left intact.')
   }, [shrinkBlocked])
 
-  const dirtySig = autoSaveOk ? arrangementSig(layout) : null
+  const dirtySig = (autoSaveOk && !untrusted) ? arrangementSig(layout) : null
   const runNamedSaveRef = useRef(null)
   runNamedSaveRef.current = runNamedSave
   useEffect(() => {
