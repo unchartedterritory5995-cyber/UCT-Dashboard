@@ -33,6 +33,7 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import { fetchSnapshot } from './widgetSnapshotFetcher'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
@@ -44,8 +45,7 @@ import styles from './MarketContextWidget.module.css'
 // the RUN (`wire_date`), not the read. Stamping here keeps the render pure and
 // costs no cascading render, and the instant travels with the payload it
 // describes so it can never attach to a different one.
-const fetcher = (url) => fetch(url)
-  .then((r) => (r.ok ? r.json() : null))
+const fetcher = (url) => fetchSnapshot(url)
   .then((d) => (d ? { ...d, _fetchedAt: Date.now() } : d))
 
 const BREADTH_URL = '/api/breadth'

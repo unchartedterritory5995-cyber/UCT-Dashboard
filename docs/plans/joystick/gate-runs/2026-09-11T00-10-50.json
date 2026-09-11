@@ -1,0 +1,150 @@
+{
+  "at": "2026-09-11T00:10:50",
+  "tree_head_start": "d4a77409052b832ea77b7fb959a7419e3f52c6ea",
+  "tree_head_end": "d4a77409052b832ea77b7fb959a7419e3f52c6ea",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "8f9b6f4656e6c2d025d088643ec76d1f3fb765b2",
+  "shards": 6,
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 3,
+        "passed": 208,
+        "skipped": 0,
+        "todo": 0,
+        "total": 211
+      },
+      "tests": {
+        "failed": 4,
+        "passed": 2678,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2682
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 0,
+        "passed": 210,
+        "skipped": 1,
+        "todo": 0,
+        "total": 211
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 2886,
+        "skipped": 5,
+        "todo": 0,
+        "total": 2891
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 2,
+        "passed": 209,
+        "skipped": 0,
+        "todo": 0,
+        "total": 211
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 3844,
+        "skipped": 4,
+        "todo": 0,
+        "total": 3850
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 0,
+        "passed": 211,
+        "skipped": 0,
+        "todo": 0,
+        "total": 211
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 2955,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2955
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 210,
+        "skipped": 0,
+        "todo": 0,
+        "total": 211
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2468,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2469
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 211,
+        "skipped": 0,
+        "todo": 0,
+        "total": 211
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3960,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3960
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 6,
+      "passed": 1259,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1266
+    },
+    "tests": {
+      "failed": 7,
+      "passed": 18791,
+      "skipped": 9,
+      "todo": 0,
+      "total": 18807
+    }
+  },
+  "test_files_on_disk": 1266,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "baseline_sha": "258c5609d529a1f247ae6ff2da266f8479742823",
+  "baseline_measured_at": "2026-09-10 (re-measured on origin/master 62a228e5d)",
+  "vs_baseline": {
+    "observed_count": 7,
+    "baseline_count": 8,
+    "new": [],
+    "no_longer_failing": [
+      "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing"
+    ],
+    "matches_baseline": false
+  }
+}

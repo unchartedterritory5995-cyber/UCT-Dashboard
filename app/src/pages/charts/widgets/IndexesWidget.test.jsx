@@ -261,39 +261,9 @@ test('CONTROL — the embed rail fails when the frozen rows are not rendered', (
   expect(within(container).getAllByText(/645\.12|583\.20/).length).toBe(2)
 })
 
-/**
- * ⛔ The fetcher's failure half. `jsonFetcher.test.js` proves it CHECKS the
- * response; these prove it fails HONESTLY, which is a different property and the
- * one a member actually sees.
- */
-describe('⛔ a failed index fetch fails honestly', () => {
-  // The module-level fetcher is not exported, so drive the behaviour it encodes:
-  // a checked fetch that yields no body must produce a truthy marker with no stamp.
-  const fetcherBehaviour = async (ok, body) => {
-    const r = { ok, json: async () => body }
-    const d = r.ok ? await r.json() : null
-    return d ? { ...d, _fetchedAt: Date.now() } : { _failed: true }
-  }
-
-  it('⛔ a non-2xx never becomes data — the error body is not parsed into the widget', async () => {
-    const out = await fetcherBehaviour(false, { detail: 'Internal Server Error' })
-    expect(out.detail).toBeUndefined()
-    expect(out._failed).toBe(true)
-  })
-
-  it('⛔ ...and carries NO `_fetchedAt`, because that is the "as of" stamp', async () => {
-    const out = await fetcherBehaviour(false, null)
-    expect(out._fetchedAt).toBeUndefined()
-  })
-
-  it('⛔ ...but is TRUTHY, so the empty state reads rather than spinning forever', async () => {
-    const out = await fetcherBehaviour(false, null)
-    expect(Boolean(out)).toBe(true)
-  })
-
-  it('⭐ CONTROL — a 2xx still carries its body AND a stamp', async () => {
-    const out = await fetcherBehaviour(true, { tickers: [] })
-    expect(out.tickers).toEqual([])
-    expect(typeof out._fetchedAt).toBe('number')
-  })
-})
+// ⛔ The fetcher's failure half is NOT restated here. It moved to
+// `snapshotFetcherPair.test.js`, which owns it for BOTH snapshot widgets and
+// drives the real `fetchSnapshot`. A guard written twice is a guard that cannot
+// be mutation-proved: mutate the helper and the copy here would still pass,
+// which is how a rail turns into decoration
+// (`lesson_a_guard_repeated_is_a_guard_unproved` — delete every copy but one).
