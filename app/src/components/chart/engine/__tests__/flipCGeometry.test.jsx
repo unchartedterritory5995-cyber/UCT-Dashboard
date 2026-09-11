@@ -157,7 +157,7 @@ function openChart({ height = CHART_H, volumePane = false, volPct = 22 } = {}) {
  * drift between this harness and the component is a drift in one line, not in a
  * re-implementation.
  */
-async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, layoutOverride } = {}) {
+async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, layoutOverride, topKeys } = {}) {
   const instances = ids.map((id) => inst(id))
   const cs = csWith(ids)
   const paneLayout = paneMode() === 'panes'
@@ -170,6 +170,9 @@ async function sync(h, ids, { hasVolumeBand = false, plan = { fresh: true }, lay
       // every case written before this reads exactly as it did.
       firstPaneIndex: h.firstPaneIndex,
       abovePct: h.abovePct,
+      // Phase 2: which indicators live ABOVE the candles. Absent on every case
+      // written before top panes existed, so they read exactly as they did.
+      topKeys,
     }))
     : null
   const result = h.binder.sync({
@@ -972,5 +975,127 @@ describe('paneMargins.js and paneMarginsProjection.js are RETIRED, not renamed',
     const oscPx = Math.round(layout.bands.volume.bottom * CHART_H)
     expect(layout.panes.reduce((s, p) => s + p.heightPx, 0)
       + layout.panes.length * SEPARATOR_PX).toBe(oscPx)
+  })
+})
+
+
+// ─── PHASE 2 · POC B — AN INDICATOR PANE ABOVE THE CANDLES ──────────────────
+//
+// ⛔⛔ THE BUG THIS SUITE EXISTS TO MAKE UNREPEATABLE.
+// `chart.addSeries(ctor, opts, i)` JOINS the pane at `i`. It does not insert one.
+// So asking for "RSI at visual index 0" by passing 0 to `addSeries` puts RSI
+// INSIDE THE PRICE PANE — measured twice in the browser as two panes on screen
+// instead of three, with the oscillator drawn against the candles' axis. Only an
+// index EQUAL TO THE PANE COUNT makes lightweight-charts create a pane.
+//
+// These run against a REAL `createChart`, so they are claims about the library's
+// behaviour and not about a mock's.
+describe('POC B — own-pane creation and ordering', () => {
+  const TOP = new Set(['rsi'])
+
+  it('⛔⛔ a top pane does NOT join the price pane — the regression this suite is for', async () => {
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['rsi'], { hasVolumeBand: true, topKeys: TOP })
+
+    // Three panes: RSI, price, volume. TWO would mean RSI joined the candles.
+    expect(h.raw.panes(), 'RSI joined an existing pane instead of getting its own')
+      .toHaveLength(3)
+    // …and the candles are NOT in RSI's pane, asserted from the series itself
+    // rather than from an index we could have mis-derived.
+    const rsi = h.seriesFor('legacy:rsi::rsi')
+    expect(rsi).toBeTruthy()
+    expect(rsi.getPane().paneIndex()).toBe(0)
+    expect(h.candles.getPane().paneIndex()).toBe(1)
+    expect(rsi.getPane()).not.toBe(h.candles.getPane())
+  })
+
+  it('the candles are DISPLACED, not moved by us — price ends up below the top pane', async () => {
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    expect(h.candles.getPane().paneIndex()).toBe(0)       // before
+    await sync(h, ['rsi'], { hasVolumeBand: true, topKeys: TOP })
+    expect(h.candles.getPane().paneIndex()).toBe(1)       // after
+    expect(h.volume.getPane().paneIndex()).toBe(2)
+  })
+
+  it('⛔ BELOW is unchanged — the shipped default, same chart, no topKeys', async () => {
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['rsi'], { hasVolumeBand: true })
+    expect(h.raw.panes()).toHaveLength(3)
+    expect(h.candles.getPane().paneIndex()).toBe(0)       // candles stay at the top
+    expect(h.seriesFor('legacy:rsi::rsi').getPane().paneIndex()).toBe(2)
+  })
+
+  it('a multi-output indicator above price still gets ONE pane, not one per output', async () => {
+    // MACD is three series. The first draft asked for a new pane on each of them
+    // and produced seven panes where four belonged.
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['macd'], { hasVolumeBand: true, topKeys: new Set(['macd']) })
+    expect(h.raw.panes()).toHaveLength(3)
+    const macd = h.seriesFor('legacy:macd::macd')
+    const signal = h.seriesFor('legacy:macd::signal')
+    expect(macd.getPane()).toBe(signal.getPane())
+    expect(macd.getPane().paneIndex()).toBe(0)
+  })
+
+  it('⭐ moving top → bottom KEEPS THE SAME SERIES — identity survives order', async () => {
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['rsi'], { hasVolumeBand: true, topKeys: TOP })
+    const before = h.seriesFor('legacy:rsi::rsi')
+    const removedBefore = h.rec.removeSeries.length
+
+    await sync(h, ['rsi'], { hasVolumeBand: true, plan: {} })   // back below
+    const after = h.seriesFor('legacy:rsi::rsi')
+
+    expect(after, 'the series was recreated instead of its pane being moved').toBe(before)
+    expect(h.rec.removeSeries.length).toBe(removedBefore)
+    expect(h.candles.getPane().paneIndex()).toBe(0)
+    expect(after.getPane().paneIndex()).toBe(2)
+  })
+
+  it('⛔ repeated moves do not accumulate panes', async () => {
+    // bottom → top → bottom → top → bottom. A pane leaked on any leg shows up
+    // here as a count that climbs.
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['rsi'], { hasVolumeBand: true })
+    const baseline = h.raw.panes().length
+    for (const top of [TOP, undefined, TOP, undefined]) {
+      await sync(h, ['rsi'], { hasVolumeBand: true, plan: {}, topKeys: top })
+      expect(h.raw.panes().length, 'a move leaked a pane').toBe(baseline)
+    }
+    expect(h.candles.getPane().paneIndex()).toBe(0)
+  })
+
+  it('turning the indicator off removes its pane, wherever it was sitting', async () => {
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    await sync(h, ['rsi'], { hasVolumeBand: true, topKeys: TOP })
+    expect(h.raw.panes()).toHaveLength(3)
+    await sync(h, [], { hasVolumeBand: true, plan: {} })
+    expect(h.raw.panes(), 'the top pane outlived its series').toHaveLength(2)
+    expect(h.candles.getPane().paneIndex()).toBe(0)
+  })
+
+  it('⛔ the RENDERED order matches the LAYOUT order — two top panes', async () => {
+    // The failure this rules out is a chart where the solver believes RSI is at 0
+    // and the renderer still has it at 3: heights are written BY INDEX, so the
+    // two disagreeing silently puts every height on the wrong pane.
+    __setPaneModeForTest('panes')
+    const h = openChart({ volumePane: true })
+    const { paneLayout } = await sync(h, ['rsi', 'macd'], {
+      hasVolumeBand: true, topKeys: new Set(['rsi', 'macd']),
+    })
+    for (const p of paneLayout.panes) {
+      const series = h.seriesFor(`legacy:${p.key}::${p.key}`)
+      if (!series) continue
+      expect(series.getPane().paneIndex(), `${p.key} is not where the layout put it`)
+        .toBe(p.index)
+    }
+    expect(h.candles.getPane().paneIndex()).toBe(paneLayout.mainPaneIndex)
   })
 })

@@ -419,6 +419,22 @@ export function createBinder({ chart, LWC }) {
       .slice()
       .sort((a, b) => a.index - b.index)
 
+    // ⛔⛔ ONE MOVE PER FRAME — MEASURED AGAINST THE INSTALLED BUNDLE.
+    // `PaneApi.moveTo` asserts `paneIndex < chartWidget._internal_paneWidgets().length`,
+    // and that widget list is rebuilt by `_internal_syncGuiWithModel`, which the
+    // invalidate handler defers to rAF. So a SECOND move issued in the same tick
+    // throws `Assertion failed: Invalid pane index` — reproduced on a real chart,
+    // and silently, because `attempt` swallows it. The visible symptom was a
+    // second top pane that simply stayed where it was.
+    //
+    // Separated by a frame both land, and the semantics are REMOVE-AND-INSERT
+    // rather than swap: `[0,1,2,3]` with pane 2 moved to 0 becomes `[1,2,0,3]`.
+    // That is what makes ascending-target placement correct.
+    //
+    // So this performs at most one move and REPORTS whether more are owed; the
+    // caller re-runs it on the next frame. Converging over frames is the same
+    // shape `applyPaneStretch` already uses for heights, for the same reason.
+    let owed = 0
     for (const want of wanted) {
       const series = paneSeries.get(want.key)
       if (!series) continue
@@ -426,8 +442,24 @@ export function createBinder({ chart, LWC }) {
       if (!pane.ok || !pane.value) continue
       const cur = attempt(() => pane.value.paneIndex())
       if (!cur.ok || !Number.isInteger(cur.value) || cur.value === want.index) continue
-      attempt(() => pane.value.moveTo(want.index))
+      if (owed === 0) attempt(() => pane.value.moveTo(want.index))
+      owed += 1
     }
+    return owed > 1
+  }
+
+  /** Re-run the reconcile on later frames until the stack matches, or we run out
+   *  of attempts. Bounded because a layout the renderer will never honour must
+   *  not spin a rAF loop for the life of the chart — the same refusal
+   *  `paneHeightMismatch` makes about re-applying heights forever. */
+  function settlePaneOrder(layout, entries, attemptsLeft) {
+    if (attemptsLeft <= 0 || typeof requestAnimationFrame !== 'function') return
+    requestAnimationFrame(() => {
+      let more = false
+      try { more = reconcilePaneOrder(layout, entries) } catch { return }
+      applyPaneStretch(layout)
+      if (more) settlePaneOrder(layout, entries, attemptsLeft - 1)
+    })
   }
 
   /**
@@ -992,8 +1024,12 @@ export function createBinder({ chart, LWC }) {
     // the wrong pane — and the next sync would find the heights "already correct"
     // and never repair them.
     if (paneMode() === 'panes' && ctx.paneLayout) {
-      reconcilePaneOrder(ctx.paneLayout, prepared)
+      const moreToOrder = reconcilePaneOrder(ctx.paneLayout, prepared)
       applyPaneStretch(ctx.paneLayout)
+      // A stack needing more than one move finishes on later frames. Bounded by
+      // the number of panes: every pass places at least one, so that many frames
+      // is a ceiling, not a guess.
+      if (moreToOrder) settlePaneOrder(ctx.paneLayout, prepared, ctx.paneLayout.panes.length + 1)
     }
 
     return { ok: true, bound: next.length, released: release.length }

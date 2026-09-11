@@ -3272,6 +3272,9 @@ export default function StockChart({
    *  positioned straight in the DOM, never through React state, for the same
    *  reason `volLegendRef` is: they must slide WITH the divider the user is
    *  dragging, and a re-render per frame fights the drag instead of following it. */
+  /** The positioned ancestor every floating chart control is measured against.
+   *  Carries `--uct-top-pane-h` — see `pinTopPaneOffset`. */
+  const wrapperRef = useRef(null)
   const paneLegendRefs = useRef(new Map())
   /** Which indicator panes exist, in order — published by the layout effect.
    *
@@ -14070,6 +14073,48 @@ export default function StockChart({
    * instead of being skipped as "unchanged". `volLegendRef`'s sampler learned the
    * same lesson the hard way and keeps `lastVl` for it.
    */
+  /**
+   * Publish the height of everything ABOVE the candles as `--uct-top-pane-h`.
+   *
+   * ⭐⭐ THIS IS HOW THE DRAWING TOOLBAR FOLLOWS THE PRICE PANE DOWN. The toolbar
+   * has ALWAYS been `position: absolute; top: 4px` inside `.wrapper` — a floating
+   * strip, never a flow element — so a top pane does not need it to reflow, it
+   * needs it to re-anchor. `ChartToolbar.module.css` reads this variable; when it
+   * is `0px` (every chart with no top pane) the toolbar sits exactly where it
+   * always did, which is the whole backward-compatibility story for this control.
+   *
+   * ⛔ MEASURED OFF THE RENDERER, NEVER DERIVED FROM SETTINGS. The owner's rule
+   * was explicit: no hardcoded pixel guess at "how tall RSI probably is". During a
+   * divider drag the settings have not been written yet and only `chart.panes()`
+   * knows where the boundary actually is — the same reason `volLegendRef` and the
+   * range bar are sampled rather than computed, and the same sampler runs this.
+   *
+   * ⚠️ `mainPaneIndex` IS THE DIVIDING LINE, not a count of indicators. Panes
+   * above the candles may include the Model Book index pane, which is not an
+   * indicator at all and predates this feature.
+   */
+  const pinTopPaneOffset = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    try {
+      const chart = chartRef.current
+      const layout = paneLayoutRef.current
+      const main = layout && Number.isInteger(layout.mainPaneIndex) ? layout.mainPaneIndex : 0
+      let px = 0
+      if (main > 0 && chart && chart.panes) {
+        const panes = chart.panes()
+        for (let i = 0; i < main && i < panes.length; i++) {
+          const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
+          px += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
+        }
+      }
+      const want = `${Math.round(px)}px`
+      if (el.style.getPropertyValue('--uct-top-pane-h') !== want) {
+        el.style.setProperty('--uct-top-pane-h', want)
+      }
+    } catch { /* pane API missing → the variable stays where it was */ }
+  }, [])
+
   const pinPaneLegend = useCallback((el, key) => {
     if (!el) return
     try {
@@ -14116,6 +14161,9 @@ export default function StockChart({
             const top = Math.round(h0 + 5) // just below the boundary = volume pane top
             if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
           }
+          // …the drawing toolbar's anchor, so it rides the top of the PRICE pane
+          // rather than the top of the chart whenever something sits above it.
+          pinTopPaneOffset()
           // …and every oscillator pane's own readout, by the same rule and in the
           // same frame, so the whole stack of labels slides with one divider drag.
           if (paneLegendRefs.current.size) {
@@ -14151,7 +14199,7 @@ export default function StockChart({
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinTopPaneOffset, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -15200,7 +15248,7 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
+    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
