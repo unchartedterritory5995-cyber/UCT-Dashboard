@@ -1697,6 +1697,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
                   newest_bar_is_forming: Optional[bool] = None,
                   confirmed: Optional[bool] = None,
                   mode: str = BARSTATE_MODE_CALENDAR,
+                  dataset_live: bool = True,
                   ) -> Dict[str, List[MaybeNum]]:
     """The clock columns for a bar series, aligned to ``bars``.
 
@@ -1787,18 +1788,35 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         # dataset is live; without `confirmed` we do not know the instant. Either
         # missing blanks all four rather than guessing.
         if newest_bar_is_forming is not None and confirmed is not None:
+            # ⛔⛔ `dataset_live` IS THE THIRD INPUT, AND ROW 7 IS WHY IT EXISTS.
+            # This branch used to hard-code "the newest bar is the realtime one".
+            # Timeline row 7 falsified that: at 23:57 ET the SAME daily bar that
+            # had read isrealtime=1 for seven and a half hours — across three
+            # separate page loads, so not a fetch artifact — read isrealtime=0,
+            # ishistory=1, islastconfirmedhistory=1. The dataset had stopped
+            # being live, and the position axis moved with it.
+            #
+            # ⛔ THE INSTANT AT WHICH THAT HAPPENS IS NOT IN HERE, AND MUST NOT BE
+            # GUESSED INTO IT. It is bracketed (20:55, 23:57) ET — three hours
+            # wide — with no proposed mechanism at all, which is a weaker footing
+            # than even the 20:00 confirmation hypothesis. So liveness arrives as
+            # an INPUT the caller observes, exactly as `confirmed` does; what this
+            # function owns is the derivation, never the clock behind it.
             last_i = n - 1
-            cols["isrealtime"] = [1.0 if i == last_i else 0.0 for i in range(n)]
+            live = bool(dataset_live)
+            rt_i = last_i if live else -1
+            cols["isrealtime"] = [1.0 if i == rt_i else 0.0 for i in range(n)]
             cols["ishistory"] = [1.0 - v for v in cols["isrealtime"]]
             done = bool(confirmed)
             cols["isconfirmed"] = [1.0 if (i < last_i or done) else 0.0
                                    for i in range(n)]
-            # ⚠️ `islastconfirmedhistory` IS THE BAR BEFORE THE REALTIME ONE, not
-            # the newest confirmed bar. Measured: it read 0 on the newest bar in
-            # all six timeline rows INCLUDING the one where that bar was already
-            # confirmed — so it cannot be "the newest confirmed bar", which would
-            # have put it there.
-            lch = last_i - 1
+            # ⚠️ `islastconfirmedhistory` IS THE BAR BEFORE THE REALTIME ONE —
+            # while there IS one. Measured: it read 0 on the newest bar in all six
+            # LIVE timeline rows, including the one where that bar was already
+            # confirmed, so it is not "the newest confirmed bar". ⭐ And row 7
+            # completes the shape rather than contradicting it: with no realtime
+            # bar to sit behind, it lands ON the last bar.
+            lch = last_i - 1 if live else last_i
             cols["islastconfirmedhistory"] = [1.0 if (lch >= 0 and i == lch) else 0.0
                                               for i in range(n)]
     elif newest_bar_is_forming is not None:

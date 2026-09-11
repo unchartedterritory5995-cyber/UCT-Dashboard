@@ -190,13 +190,47 @@
       },
       "agreesWithOurSeam": false,
       "note": "⭐⭐ THE POST-20:00 ROW, AND THE FLAG MOVED. 20:55 ET, and isconfirmed has gone 0 -> 1 since row 5 at 19:22 ET -- in the SAME page load (performance.timeOrigin 2026-09-10T23:13:08.758Z for both), so this is the vendor pushing a confirmation to a live session, not an arrival artifact. ⛔ CALENDAR-CLOSED IS REFUTED: the vendor did not confirm the daily bar at the 16:00 scheduled close; at 19:22 ET, 202 minutes past it, isconfirmed was still 0. VENDOR-LATE is what survives, and the window now brackets to (19:22, 20:55) ET -- consistent with the 20:00 ET post-market close being the event. ⚠️ isrealtime STAYS 1 while isconfirmed is 1, so on the vendor those two are INDEPENDENT rather than a tri-state; a reader that treats isrealtime as the complement of isconfirmed is wrong on this bar right now. A pre-open row is still needed to see whether isrealtime ever drops."
+    },
+    {
+      "instantUTC": "2026-09-11T03:57:44Z",
+      "instantET": "2026-09-10T23:57:44-04:00",
+      "symbol": "AMEX:SPY",
+      "tf": "D",
+      "study": "UCTPROBE_BARSTATE_FULL",
+      "chartSession": "regular",
+      "arrival": "late",
+      "newestBarUnix": 1789047000.0,
+      "newestBarET": "2026-09-10T09:30:00-04:00",
+      "session": {
+        "etDate": "2026-09-10",
+        "etClock": "23:57:44",
+        "isNyseHoliday": false,
+        "isNyseEarlyClose": false,
+        "scheduledCloseUnix": 1789070400.0,
+        "scheduledCloseET": "2026-09-10T16:00:00-04:00",
+        "secondsPastScheduledClose": 28664,
+        "ourSeamSaysForming": false
+      },
+      "agreesWithOurSeam": true,
+      "vendor": {
+        "isrealtime": 0,
+        "isconfirmed": 1,
+        "ishistory": 1,
+        "islast": 1,
+        "islastconfirmedhistory": 1,
+        "isnew": 1
+      },
+      "note": "⭐⭐ THE ROW THE RULING WAS WAITING FOR — `isrealtime` HAS GONE 1 -> 0 and `ishistory` 0 -> 1 on the SAME bar (1789047000), with `islastconfirmedhistory` 0 -> 1 alongside. 23:57 ET, 28,664 s past the 16:00 close. ⛔ AND IT IS NOT A RELOAD ARTIFACT: rows 4, 5 and 6 were ALSO `late` arrivals (full page reloads) on this same bar and every one of them read isrealtime=1, which is precisely what the arrival control was built to establish. So the flip is the CLOCK, not the fetch. Bracketed: isrealtime 1 -> 0 somewhere in (20:55, 23:57) ET, i.e. AFTER isconfirmed had already gone 1 in (19:22, 20:55). ⭐ The two axes therefore move at DIFFERENT INSTANTS, which is the strongest possible evidence for the three-axes reading: a tri-state cannot express two flags flipping hours apart. ⚠️ Read after a reload of a renderer left frozen by the previous visit; the chart was untouched between the reload and this read."
     }
   ],
   "_still_needed": {
     "anArrivalControl": false,
     "aRowAfter2000ET": false,
-    "aRowBefore0930ET": true,
+    "aRowBefore0930ET": false,
     "rulingUnlocked": false,
-    "_": "⛔ While any of these is true the mapping question stays OPEN and the seam stays unchanged. ⭐ THE ARRIVAL CONTROL IS THE ONE THAT WAS MISSING FROM THE ORIGINAL PLAN: time-of-day rows taken from ONE long-open chart cannot separate the hypotheses at all, because a bar that formed under your own session is already known to keep its realtime barstate. Two arrivals on the same bar is what discriminates; the clock rows then say for how long."
+    "_": "⛔ While any of these is true the mapping question stays OPEN and the seam stays unchanged. ⭐ THE ARRIVAL CONTROL IS THE ONE THAT WAS MISSING FROM THE ORIGINAL PLAN: time-of-day rows taken from ONE long-open chart cannot separate the hypotheses at all, because a bar that formed under your own session is already known to keep its realtime barstate. Two arrivals on the same bar is what discriminates; the clock rows then say for how long.",
+    "_aRowBefore0930ET": "✅ SATISFIED BY ROW 7 (2026-09-10T23:57 ET) — in the overnight gap, after the 20:00 extended close and before the next 09:30 open, which is the window this flag was asking about. It answered the question as posed (\"whether isrealtime ever drops before the next session opens, or stays 1 right through\"): IT DROPS. ⚠️ What it did NOT do is pin an instant — the flip is bracketed across (20:55, 23:57) ET, three hours wide.",
+    "anIsrealtimeInstant": true,
+    "_anIsrealtimeInstant": "⭐ NEW, RAISED BY ROW 7. `isconfirmed` and `isrealtime` flip at DIFFERENT instants, so pinning one says nothing about the other. The isconfirmed bracket is 93 minutes (19:22, 20:55); the isrealtime bracket is three hours (20:55, 23:57) and has no hypothesised mechanism at all. Rows through the 21:00-00:00 ET stretch would close it."
   }
 }

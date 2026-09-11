@@ -166,14 +166,33 @@ apart. Browser work stopped there rather than hammering it.
    whether those sites are a BOOLEAN test or an ARITHMETIC one, and a compile refusal
    would itself be the answer. The probe is committed and the route is proven; it
    needs one add on a 5m chart.
-2. ⚠️ **V4's restore is NOT confirmed.** The chart was mid-switch to 5m when the
-   renderer froze, so its resolution is UNKNOWN — it may be 5m rather than the 1D
-   this visit found. ⛔ Do not assume; read it. Everything else V4 asks for WAS
-   verified immediately before the switch: AMEX:SPY, 1D, eight probes all compiling
-   with rosters matching their committed sources, no duplicates, and `__uct*` globals
-   back to zero (the one this visit created, `__uctBufferBackup`, was deleted).
+2. ✅ **V4 IS CONFIRMED — read, not assumed (2026-09-11).** The frozen tab was
+   recovered with ONE navigate to the same layout URL (tab id unchanged) and then
+   read before anything was touched: **`AMEX:SPY`, resolution `1D`**, `__uct*`
+   globals **zero**, 13 studies of which the **8 `UCTPROBE_*` all compile with 400
+   rows each**. So the interrupted `setResolution('5')` did NOT persist — the worry
+   was unfounded, and recording it rather than assuming was still right, because
+   the two outcomes are indistinguishable without reading.
+   ⚠️ **One pre-existing failure, and it is NOT one of ours:** the study named
+   `UCT marker parity probe` is in `status().type === 3` with
+   *Compilation error — Undeclared identifier "{identifier}"*. It is not a
+   `UCTPROBE_*` capture and predates this visit; routed, not silenced.
 3. ⭐ **The layout is the disposable one and stays for the owner**, per the standing
    ruling. Nothing was written to either named script.
+
+⭐⭐ **THE FREEZE HAS A DIAGNOSIS NOW, AND IT WAS OUR OWN CALL SHAPE.** A poll
+written as a 40-second `await` loop INSIDE one `Runtime.evaluate` exceeds that
+call's 45 s budget and returns as a timeout — indistinguishable from a dead page.
+Reproduced deliberately this visit. **Poll from outside in cheap calls; never
+write an evaluate that waits.** Recorded with the rest of the recovery discipline
+and the correct study accessors in `docs/pine/capture-procedure.md`
+("THE RENDERER FREEZE").
+
+⛔ **A second instrument trap, same visit:** `si._data._items.length` inside a
+`try` returns **0 for every study** — the wrapper has no `_data` — so thirteen
+healthy studies read as "nothing loaded". Use `si.dataLength()` / `si.status()` /
+`si._study.data().last()`. An instrument reporting its own blindness as a zero is
+the shape that cost this project a day once already.
 
 ⭐ **AND THE BINDING GATE EARNED ITS KEEP.** Twice in this session the action button
 read *"Update on chart"* when a naive pass would have clicked it: once after adding
@@ -183,10 +202,22 @@ touched, which is the ordering that matters: check the button, THEN `setValue`.
 
 ## Known reds — routed, not silenced
 
-1. **`tests/test_ast_interpret.py::test_the_escape_census_ZERO_is_ATTRIBUTABLE`** — inherited
-   from the Kind 4 merge, **not ours**. Verified pre-existing by checking out HEAD's own
-   `closedTable.json` and `indicator_compute.py`, running it, and restoring (hashes verified
-   both directions): it fails identically with none of this wave's changes.
+1. ✅ **`tests/test_ast_interpret.py::test_the_escape_census_ZERO_is_ATTRIBUTABLE` — NO
+   LONGER RED HERE.** Measured 2026-09-11 on `c04e86bb0`: green alone, green with its
+   sibling rail (162 passed across the two files), and green in company across the whole
+   family (`tests/test_ast_*.py` → 796 passed, 5 skipped, 1 xfailed). It was routed in
+   `requests.md` as "green ALONE and red IN COMPANY", raised from
+   `.claude/worktrees/indicator-ecosystem` — that entry is now **ANSWERED** with this
+   control rather than closed as fixed, because the repro was never reproducible from
+   this branch and the difference may be that worktree.
+   ⭐⭐ **But the defect it LOOKS like is real, and RULING J1 fixed it.** "Green outside
+   pytest, red under pytest, same code, different guard" is the signature of a **stack
+   overflow laundered into a guard name** — and `parse.js` had exactly that: `convert`
+   recursed once per node (ceiling measured at 5,468 deep on this runtime) and
+   `parseFormula`'s `err instanceof TableRefusal ? err.guard : 'canonicalise:node'`
+   turned the `RangeError` into `canonicalise:node`, so a chain of `+` and `1` was
+   refused as an unrecognised node shape. A laundered overflow is invisible to a census:
+   it is `ok: false`, it has a guard name, and it counts as refused. See `c04e86bb0`.
 2. **Two census floors** — `capabilityDemandCensus` and `historyDemandCensus`, both
    `expected 129 to be greater than 150`. Diagnosed: `tests/fixtures/oos2_parity` is **empty**,
    and neither census includes `corpus/committed` at all. ⛔ **So "re-census" in items 5–8 is

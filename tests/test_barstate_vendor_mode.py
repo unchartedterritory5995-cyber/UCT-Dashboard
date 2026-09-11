@@ -45,17 +45,40 @@ def _bars_for(row, count=3):
              "l": 0.0, "c": 1.0, "v": 10.0} for i in range(count)]
 
 
-@pytest.mark.parametrize("row", _rows(), ids=lambda r: r["instantET"][11:19])
-def test_vendor_mode_reproduces_every_timeline_reading(row):
-    """Every column the vendor showed, back out of our own derivation."""
+def _live_rows():
+    """The rows taken while the dataset was still live.
+
+    ⛔ PARTITIONED ON THE VENDOR'S OWN `isrealtime`, WHICH IS NOT CIRCULAR HERE
+    AND IS CIRCULAR ONE LINE LATER. Liveness is a property of the PAGE, not of the
+    clock -- there is no instant in any calendar that says "the socket stopped
+    delivering". So the replay below is scoped to the regime it models, and the
+    row outside that regime gets its own test, which asserts the LIMIT rather
+    than quietly widening the model to cover it.
+    """
+    return [r for r in _rows() if int(r["vendor"]["isrealtime"]) == 1]
+
+
+def _dead_rows():
+    return [r for r in _rows() if int(r["vendor"]["isrealtime"]) == 0]
+
+
+def _clock_inputs(row):
+    """`forming` and `confirmed`, derived from the INSTANT and nothing else."""
     bars = _bars_for(row)
     now = float(row["session"]["scheduledCloseUnix"]) + \
         float(row["session"]["secondsPastScheduledClose"])
+    forming, confirmed = ic.bar_close_state_full(bars, "D", now=now)
+    return bars, forming, confirmed
+
+
+@pytest.mark.parametrize("row", _live_rows(), ids=lambda r: r["instantET"][11:19])
+def test_vendor_mode_reproduces_every_LIVE_timeline_reading(row):
+    """Every column the vendor showed, back out of our own derivation."""
+    bars, forming, confirmed = _clock_inputs(row)
 
     # ⭐ THE TWO INPUTS COME FROM THE PRODUCER, NOT FROM THE ROW'S OWN ANSWERS.
     # Reading the vendor's `isconfirmed` and feeding it back in would make this
     # test a tautology; both are derived from the INSTANT instead.
-    forming, confirmed = ic.bar_close_state_full(bars, "D", now=now)
     assert forming is False, "every row is past the scheduled close"
     assert confirmed is not None, "the confirmation instant must resolve for D"
 
@@ -67,14 +90,69 @@ def test_vendor_mode_reproduces_every_timeline_reading(row):
         f"{row['instantET']}: vendor mode produced {got}, the chart showed {want}")
 
 
+@pytest.mark.parametrize("row", _dead_rows(), ids=lambda r: r["instantET"][11:19])
+def test_the_CLOCK_ALONE_CANNOT_REACH_a_row_where_the_dataset_went_cold(row):
+    """⭐⭐ THE LIMIT, ASSERTED SO NOBODY CAN GUESS IT AWAY.
+
+    Row 7 read isrealtime=0 on a bar that had read 1 for seven and a half hours,
+    across three separate page loads. Nothing in any calendar predicts that
+    instant -- it is bracketed (20:55, 23:57) ET, three hours wide, with no
+    proposed mechanism. So the derivation is given liveness as an INPUT, and this
+    test pins BOTH halves of that decision:
+
+    ⛔ with only clock-derived inputs, vendor mode gets this row WRONG -- and
+    that is asserted, not tolerated, because a later "fix" that hard-codes an
+    instant would make this test pass for exactly the wrong reason.
+    ⭐ given the observation, it reproduces the row exactly -- so the gap is the
+    INSTANT, not the derivation.
+    """
+    bars, forming, confirmed = _clock_inputs(row)
+    want = {c: float(row["vendor"][c]) for c in COLS}
+
+    blind = ic.compute_clock(bars, "D", newest_bar_is_forming=forming,
+                             confirmed=confirmed, mode=ic.BARSTATE_MODE_VENDOR)
+    got_blind = {c: blind[c][-1] for c in COLS}
+    assert got_blind != want, (
+        f"{row['instantET']}: the clock alone now reproduces a row it cannot "
+        f"know about. If an instant for the isrealtime flip has been MEASURED, "
+        f"this test should be replaced by a real one -- and if it has been "
+        f"GUESSED, that guess is now shipping inside a derivation.")
+
+    told = ic.compute_clock(bars, "D", newest_bar_is_forming=forming,
+                            confirmed=confirmed, mode=ic.BARSTATE_MODE_VENDOR,
+                            dataset_live=False)
+    got_told = {c: told[c][-1] for c in COLS}
+    assert got_told == want, (
+        f"{row['instantET']}: told the dataset was cold, vendor mode produced "
+        f"{got_told}, the chart showed {want}")
+
+
 def test_the_replay_is_not_vacuous_the_two_regimes_DIFFER():
-    """⛔⛔ THE CONTROL. Six rows that all read the same would be reproduced by a
+    """⛔⛔ THE CONTROL. Rows that all read the same would be reproduced by a
     derivation that ignores its inputs entirely. They do not: `isconfirmed` is 0
     before the transition and 1 after, so the fixture separates the two regimes
     and the parametrised test above has something to be right about.
     """
     seen = {int(r["vendor"]["isconfirmed"]) for r in _rows()}
     assert seen == {0, 1}, f"the timeline no longer spans the transition: {seen}"
+
+
+def test_the_TWO_AXES_MOVE_AT_DIFFERENT_INSTANTS_which_is_the_whole_finding():
+    """⭐⭐ A TRI-STATE CANNOT SPELL TWO FLAGS THAT FLIP HOURS APART.
+
+    This is the evidence the divergence row rests on, and it is read off the
+    fixture rather than restated: there is an instant where `isconfirmed` has
+    already moved and `isrealtime` has not. One axis cannot produce that.
+    """
+    rows = _rows()
+    both = [r for r in rows
+            if int(r["vendor"]["isconfirmed"]) == 1 and int(r["vendor"]["isrealtime"]) == 1]
+    assert both, (
+        "no row shows isconfirmed=1 WITH isrealtime=1, so the timeline no longer "
+        "witnesses the state our tri-state cannot spell")
+    assert _dead_rows(), (
+        "no row shows isrealtime=0, so the timeline no longer witnesses the "
+        "position axis moving at all")
 
 
 def test_calendar_mode_is_the_DEFAULT_and_is_untouched():

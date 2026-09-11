@@ -1344,18 +1344,35 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     throw new Error('unknown barstate mode ' + barstateMode)
   }
   const confirmedIn = (opts && opts.confirmed !== undefined) ? opts.confirmed : null
+  // @@@ `datasetLive` IS THE THIRD INPUT, AND TIMELINE ROW 7 IS WHY IT EXISTS.
+  // This branch used to hard-code "the newest bar is the realtime one". Row 7
+  // falsified that: at 23:57 ET the SAME daily bar that had read isrealtime=1 for
+  // seven and a half hours -- across three separate page loads, so not a fetch
+  // artifact -- read isrealtime=0, ishistory=1, islastconfirmedhistory=1. The
+  // dataset had stopped being live and the POSITION axis moved with it.
+  //
+  // !! THE INSTANT IS NOT IN HERE AND MUST NOT BE GUESSED INTO IT. It is
+  // bracketed (20:55, 23:57) ET, three hours wide, with no proposed mechanism at
+  // all -- weaker footing than even the 20:00 confirmation hypothesis. Liveness
+  // arrives as an INPUT the caller observes, exactly as `confirmed` does.
+  const liveIn = (opts && opts.datasetLive !== undefined) ? opts.datasetLive : true
   if (barstateMode === BARSTATE_MODE_VENDOR) {
     if ((newestBarIsForming === true || newestBarIsForming === false)
         && (confirmedIn === true || confirmedIn === false)) {
       const lastI = length - 1
+      const live = liveIn !== false
+      const rtI = live ? lastI : -1
+      const lchI = live ? lastI - 1 : lastI
       for (let i = 0; i < length; i++) {
-        cols.isrealtime[i] = i === lastI ? 1 : 0
+        cols.isrealtime[i] = i === rtI ? 1 : 0
         cols.ishistory[i] = 1 - cols.isrealtime[i]
         cols.isconfirmed[i] = (i < lastI || confirmedIn === true) ? 1 : 0
-        // !! the bar BEFORE the realtime one, not the newest confirmed bar --
-        // measured 0 on the newest bar in all six timeline rows, including the
-        // one where that bar was already confirmed.
-        cols.islastconfirmedhistory[i] = (lastI - 1 >= 0 && i === lastI - 1) ? 1 : 0
+        // !! the bar BEFORE the realtime one -- while there IS one. Measured 0 on
+        // the newest bar in all six LIVE timeline rows, including the one where
+        // that bar was already confirmed, so it is not "the newest confirmed
+        // bar". @@ Row 7 completes the shape rather than contradicting it: with
+        // no realtime bar to sit behind, it lands ON the last bar.
+        cols.islastconfirmedhistory[i] = (lchI >= 0 && i === lchI) ? 1 : 0
       }
     }
   } else if (newestBarIsForming === true || newestBarIsForming === false) {

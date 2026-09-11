@@ -434,6 +434,82 @@ the same action from the script-title dropdown saved within 500 ms. The cause wa
 `pine-facade`** — never by the click succeeding, and never by the status line. Both clicks
 looked exactly like success.
 
+## ⛔⛔ THE RENDERER FREEZE — what wedges it, and the discipline that avoids it
+
+**2026-09-11.** The previous visit ended with a dead renderer: two consecutive
+`Runtime.evaluate` calls timed out at 45 s, 45 seconds apart, during the
+`setResolution('5')` a sixth capture needed, and the page reloaded under the visit
+(tab `603418943` → `603419102`). This visit found the same tab still wedged — a
+`Runtime.evaluate` timed out again, and `takeScreenshot` failed with *"Chrome
+blocked the extension from accessing this page"*. **One navigate to the same
+layout URL brought it back**, tab id unchanged, everything intact.
+
+### ⭐⭐ THE LIKELY CAUSE, AND IT IS A THING WE WERE DOING
+
+**A long-running `await` loop inside a single `Runtime.evaluate` is a 45-second
+bomb.** Reproduced deliberately this visit: a poll written as
+`while (Date.now() - t0 < 40000) { await sleep(1500); ... }` — a perfectly
+ordinary "wait for the studies to load" — came back as
+`CDP sendCommand "Runtime.evaluate" timed out after 45000ms`, because the call's
+own budget is 45 s and the loop was built to spend 40 of them before returning.
+
+⛔ **POLL FROM OUTSIDE, IN CHEAP CALLS.** One tiny evaluate that reads the
+current state and returns immediately, repeated, is safe. One evaluate that waits
+is not — and when it times out you cannot tell "the page is busy" from "the page
+is dead", which is exactly the ambiguity the last visit ended on.
+
+⚠️ An `async` IIFE is a second way to lose: `(async () => {...})()` returns a
+**Promise**, and the tool renders it as `{}` — a silent empty answer rather than an
+error. Use a top-level `await`.
+
+### ⭐ THE ORDER, WHEN CHANGING RESOLUTION (the J2 discipline)
+
+1. **Assert first, touch nothing.** Read `symbol()`, `resolution()`, the study
+   roster and the `__uct*` globals BEFORE any mutation — a chart mid-switch has no
+   trustworthy state to restore to, which is why the last visit could not say
+   whether it left the chart on 1D or 5m.
+2. **Set, then assert the set took**, rather than assuming the call that returned
+   did what it said.
+3. **Then wait for data** — from outside, per the rule above — before touching
+   anything else. A study with no rows yet is not a study that failed.
+
+✅ **And the resolution DID survive**: found `1D`, which is what the visit before
+last left. A `setResolution` interrupted by a reload does not persist, so the
+worry the last visit recorded turned out to be unfounded — but it was right to
+record it rather than assume, because the two outcomes are indistinguishable
+without reading.
+
+### ⛔⛔ THE ACCESSOR THAT REPORTS ZERO WHEN IT CANNOT READ
+
+The study wrapper `getStudyById()` returns is **not** the object with `_data`.
+Reading `si._data._items.length` inside a `try` yields **0 for every study** — not
+an error, a zero — so thirteen healthy studies read as "nothing loaded". The
+instrument reported its own blindness as a measurement
+(`lesson_a_saturated_instrument_reports_zero`).
+
+⭐ **The handles that actually answer:**
+
+    si.dataLength()          // rows; 400 on a loaded daily probe
+    si.status()              // {type: 2} computing//ok, {type: 3} + errorDescription on a compile failure
+    si._study.metaInfo().plots   // plot ids, IN ORDER — plot_0 .. plot_N
+    si._study.data().last()      // {index, value: [time, plot_0, plot_1, ...]}
+
+⚠️ `value[0]` is the BAR TIME; the plots start at `value[1]`. So plot *k* is
+`value[1 + k]`, and the NAME of plot *k* comes from the committed source's
+balanced-paren roster, never from `Object.keys(styles)`.
+
+✅ **A compile failure is visible and specific**: `status().type === 3` carries
+`errorDescription.error` (e.g. *Undeclared identifier "{identifier}"*) and
+`.title` *"Compilation error"* — a better gate than `isFailed()`, which was not
+present on this wrapper at all.
+
+### ⚠️ A HIDDEN TAB STILL ANSWERS READS
+
+`document.visibilityState` was `'hidden'` throughout this visit and every read
+above worked. The hidden-tab rule at the top of this file is about **adding a
+study**, not about reading one — do not let a hidden tab stop you collecting a
+timeline row.
+
 ## Moving data out
 
 `fetch` to a localhost sink is **dead** — tradingview.com's CSP `connect-src` stops the request
