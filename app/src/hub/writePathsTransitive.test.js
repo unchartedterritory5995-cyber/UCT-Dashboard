@@ -91,6 +91,49 @@ const ENTRIES = [
          + 'method option — a GET. Change the fetcher to a write and this rail goes red.',
     }],
   },
+  {
+    // ⭐ R-17. `notebook.linkTicker` files a note under a ticker through the Notebook's OWN note
+    // client. THE ENTRY IS THE HOOK, NOT `update`: `update` is a property on the hook's return
+    // value, and `functionsByName` indexes named BINDINGS. Teaching it to index object properties
+    // by key would make `refresh` — which appears six times in this one file — resolve to
+    // whichever came last. `useJ2Note` is a unique FunctionDeclaration that CONTAINS `update`, and
+    // the walk descends into nested functions, so entering one level up loses nothing: every write
+    // `update` can perform is a write `useJ2Note` can reach.
+    module: 'pages/journal-2-0/hooks/useJ2Notes.js',
+    entry: 'useJ2Note',
+    hubCallSite: 'hub/sections/notebookSection.js — `armed.update({ ticker })` inside `linkTicker`',
+    reachable: ['PUT /api/j2/notes/{param}'],
+    alsoInModule: ['POST /api/j2/notes/{param}/opened'],
+    why: 'useJ2Note holds exactly one write — the note PUT behind `update`. The recency beacon '
+       + '(`recordNoteOpened`) and the favourite toggle are sibling module-level functions this '
+       + 'hook never calls.\n'
+       + '⚠️ RECORDED RATHER THAN CLAIMED: `setNoteFavorite` writes with '
+       + "`method: isFavorite ? 'POST' : 'DELETE'`, and `methodOf` reads only a string Literal, so "
+       + 'that call site is invisible to BOTH this rail and `writePaths.test.js`. It is out of '
+       + "`useJ2Note`'s reach either way, but the blind spot is real and is written down here "
+       + 'rather than left for the next person to discover.\n'
+       + '⚠️ ALSO RECORDED: `update` calls the SWR `mutate` it destructured from `useSWR`. That is '
+       + 'a LOCAL binding, not an import, so it is neither followed nor reported as unresolved. It '
+       + "is the same SWR revalidation `globalMutate` is declared inert for above, re-running this "
+       + "module's own read-only `fetcher`.",
+    inertHops: [
+      {
+        name: 'useSWR',
+        from: 'swr',
+        revalidatesVia: 'fetcher',
+        why: "the SWR hook itself. What it calls is this module's `fetcher`, which is "
+           + '`url => fetch(url, {credentials})` with no method option — a GET.',
+      },
+      {
+        name: 'invalidateNoteLinkTarget',
+        from: '../lib/noteLinkTargetsBatch',
+        inModule: 'pages/journal-2-0/lib/noteLinkTargetsBatch.js',
+        revalidatesVia: 'invalidateNoteLinkTarget',
+        why: 'a cache eviction: it deletes an id from a module-level Map and calls `notify()`. That '
+           + "module's one fetch is a GET behind `flush`, which an eviction never calls.",
+      },
+    ],
+  },
 ]
 
 // `noteCreation.js` is handled separately, below — its second write is GUARDED rather than
@@ -336,8 +379,13 @@ describe('transitive write reachability from the hub\'s own call sites', () => {
           + 'allowance no longer applies.').toBe(h.from)
 
         // The revalidation path must perform no write.
-        const { writes } = reachableWrites(src, h.revalidatesVia)
-        expect(writes.map((w) => w.w), `${e.module}'s \`${h.revalidatesVia}\` now performs a write, so `
+        // ⭐ `inModule` lets the PROOF live where the function does. Without it a hop into a
+        // first-party module could only be substantiated by naming some unrelated local function
+        // and calling it the proof — a label, not evidence. The hop's module is still pinned by
+        // the `from` assertion above, so this cannot quietly read a file the import does not name.
+        const proofSrc = h.inModule ? read(h.inModule) : src
+        const { writes } = reachableWrites(proofSrc, h.revalidatesVia)
+        expect(writes.map((w) => w.w), `${h.inModule || e.module}'s \`${h.revalidatesVia}\` now performs a write, so `
           + `\`${h.name}\` is no longer inert: a cache revalidation triggered from ${e.entry} would `
           + 'reach it. ' + h.why).toEqual([])
       }

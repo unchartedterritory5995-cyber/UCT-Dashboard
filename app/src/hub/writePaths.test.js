@@ -180,6 +180,13 @@ const WRITE_PATHS = [
     what: "New note. §3.7's `notebook.newNote` calls the Notebook's own `createNoteViaApi`; the hub performs no note write of its own. ⚠️ That module ALSO holds `PUT /api/j2/notes/{id}` (noteCreation.js:34), but it is gated on `properties && Object.keys(properties).length` and the hub passes none — structurally unreachable from this call site, so it is not a hub-reachable write and is deliberately not declared.",
   },
   {
+    endpoint: '/api/j2/notes/{param}',
+    method: 'PUT',
+    via: 'pages/journal-2-0/hooks/useJ2Notes.js',
+    owner: 'app',
+    what: "Set ticker. R-17's `notebook.linkTicker` writes `{ticker}` through the Notebook's OWN note client, `useJ2Note(id).update` — the same one the Notebook's ticker control uses (`NoteEditorPage.jsx:1743`), which is why it also invalidates the note's SWR entry and the noteLink title cache (`useJ2Notes.js:172-179`). A hub-local fetch to this URL would leave the total at six and lose both. ⚠️ There is NO note PATCH client anywhere in `app/src` — the Notebook updates a note with a partial PUT body — so \"the PATCH client\" this row was requested against does not exist; this is the client that performs the write. ⚠️ The OTHER `PUT /api/j2/notes/{id}` (`noteCreation.js:34`) stays undeclared for the reason on the POST entry above: the hub cannot reach it.",
+  },
+  {
     endpoint: '/api/watchlist-alerts',
     method: 'POST',
     via: 'hooks/useWatchlistAlerts.js',
@@ -246,10 +253,15 @@ describe('the hub write-path manifest', () => {
     }
   })
 
-  it('the manifest is five paths — two hub-owned, three through pre-existing app clients', () => {
+  it('the manifest is six paths — two hub-owned, four through pre-existing app clients', () => {
     // The count, kept LAST and deliberately weakest: it is a tripwire on the shape of the claim, not
     // the claim itself. The three assertions above are what actually hold.
-    expect(WRITE_PATHS).toHaveLength(5)
+    //
+    // ⚰️ WAS FIVE — "two hub-owned, three through pre-existing app clients". Increment 7's R-17
+    // added `PUT /api/j2/notes/{param}`: `notebook.linkTicker` files a note under a ticker through
+    // the Notebook's own `useJ2Note(id).update`. The hub-owned pair is UNCHANGED, which is the
+    // half that matters — the hub still performs exactly two writes of its own.
+    expect(WRITE_PATHS).toHaveLength(6)
     expect(WRITE_PATHS.filter((p) => p.owner === 'hub').map(key)).toEqual([
       'PUT /api/j2/positions/{param}',
       'POST /api/hub/planned-trades',
@@ -257,6 +269,7 @@ describe('the hub write-path manifest', () => {
     expect(WRITE_PATHS.filter((p) => p.owner === 'app').map(key)).toEqual([
       'POST /api/watchlists/flagged/sync',
       'POST /api/j2/notes',
+      'PUT /api/j2/notes/{param}',
       'POST /api/watchlist-alerts',
     ])
   })

@@ -406,14 +406,48 @@ export const modes = [
         color: '--hub-mode-notebook',
         kind: 'run',
       },
-      // ⚰️ `notebook.linkTicker` REMOVED (R-17) and `notebook.templates` REMOVED (R-19), both when
-      // §3.7 shipped. Neither had a seam, and an action with no seam is worse live than absent:
-      //   linkTicker `requires: ['symbol']` and the Notebook route carries no symbol, so it would
-      //     render permanently DISABLED (spec §2e — disabled, never hidden).
-      //   templates needs the member to CHOOSE one, and the only surface for that is the confirm
-      //     sheet's `fields`, which is unreachable (D-35 / R-14). With no run body it would be a
-      //     dead bubble: the fan closes and nothing happens, the exact R-09 defect.
-      // Both return the day their seam exists. Ring layout after removal: outer 1, inner 4 — legal.
+      {
+        // ⭐ R-17 — `notebook.linkTicker` IS BACK, and the reason it could return is that the
+        // SYMBOL NOW COMES FROM THE SHEET rather than from the route.
+        //
+        // ⚰️ It was removed when §3.7 shipped because it declared `requires: ['symbol']` and
+        // `/journal/notebook` carries no symbol (`?ticker=` exists only on the `?new=` seed deep
+        // link). An unmet `requires` renders DISABLED and never hidden (spec §2e,
+        // `HubRoot.jsx:373-387`), so shipping it live would have put a permanently dimmed bubble
+        // in the fan — worse than absent, because a dimmed bubble with a reason the member can
+        // never satisfy teaches them the product is broken.
+        //
+        // ⛔⛔ `requires: ['symbol']` IS DELIBERATELY GONE, AND ITS REMOVAL IS THE WHOLE FIX.
+        // `requires` is a precondition on the CONTEXT, evaluated before the gesture resolves —
+        // it answers "does the hub already hold this?". The symbol this action needs is one the
+        // MEMBER supplies, on this action's own confirm sheet, after the gesture. Keeping the
+        // precondition would disable the one action whose entire purpose is to provide the thing
+        // the precondition demands. The gate moved, it was not dropped:
+        //   · PRESENCE  — `notebookSection.js` drops this action when the grid holds no note at
+        //                 all (absent, never present-and-inert), so there is always a note to tag.
+        //   · THE FIELD — the sheet's `ticker` field is REQUIRED: an empty or unparseable value
+        //                 writes nothing and says so in the member's own words.
+        // Neither state is a permanently dimmed bubble, and neither is a label that lies.
+        //
+        // `confirmText` is the registry's REQUIRED fallback body (validateRegistry), not the one
+        // the member reads — `notebookSection.linkTickerConfirmPayload()` supplies the real
+        // payload, and it NEVER returns null, so the generic fallback cannot become a dead
+        // bubble behind a primary button with no `run` behind it.
+        id: 'notebook.linkTicker',
+        label: 'Set ticker',
+        icon: 'link',
+        ring: 0,
+        color: '--hub-mode-notebook',
+        kind: 'confirm',
+        escalate: true,
+        confirmText: (ctx) => (ctx?.symbol
+          ? `Tag this note ${ctx.symbol}`
+          : 'Tag this note with a ticker'),
+      },
+      // ⚰️ `notebook.templates` REMOVED (R-19) when §3.7 shipped: it needs the member to CHOOSE
+      // one, and the only surface for that is the confirm sheet's `fields`, which was unreachable
+      // (D-35 / R-14). With no run body it would be a dead bubble — the fan closes and nothing
+      // happens, the exact R-09 defect. It returns the day that surface can carry a picker.
       {
         id: 'notebook.dailyPlan',
         label: 'Daily plan',

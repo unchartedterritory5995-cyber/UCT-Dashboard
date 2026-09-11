@@ -247,14 +247,19 @@ describe('validateRegistry — escalate (B5)', () => {
     })])).toEqual([])
   })
 
-  it('the shipped escalate set is the five actions that fired warn() before B3', () => {
+  it('the shipped escalate set is the five B3 actions plus every confirm that has landed since', () => {
     ran()
+    // ⚰️ WAS "the five actions that fired warn() before B3". Increment 7's R-17 added
+    // `notebook.linkTicker` as the registry's third kind:'confirm' action, and the rule below —
+    // "every confirm carries the marker" — makes its presence here mandatory, not optional. The
+    // list stays hand-typed on purpose: it is the claim, and the derivation beneath is the check.
     const escalating = modes.flatMap((m) => m.fan).filter((a) => a.escalate === true).map((a) => a.id)
     expect(escalating.sort()).toEqual([
       'chart.alert',
       'journal.breakeven',
       'journal.close',
       'journal.moveStop',
+      'notebook.linkTicker',
       'scan.alert',
     ])
   })

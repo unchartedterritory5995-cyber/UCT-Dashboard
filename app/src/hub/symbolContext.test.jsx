@@ -40,8 +40,11 @@ const SHIPPED = {
   breadth: { symbol: false, position: false },
   // ⚰️ ADDED BY INCREMENT 4 (B10). Notebook left the preview when §3.7 shipped. It sets nothing and
   // needs nothing: `newNote` requires no context, and `dailyPlan`/`postMortem` are navigations.
-  // The one action that DID require a symbol — `linkTicker` — was removed rather than shipped
-  // permanently disabled, because the route carries no symbol (R-17).
+  // ⭐ AND `linkTicker` IS BACK (Increment 7, R-17) WITHOUT `requires`. It was removed rather than
+  // shipped permanently disabled, because the route carries no symbol; it returns with the symbol
+  // coming from a REQUIRED FIELD on its own confirm sheet instead of from ctx. So this row still
+  // reads `symbol: false` and the fan is still entirely enabled — which is the point: a section
+  // that cannot supply a symbol must not declare an action that demands one.
   notebook: { symbol: false, position: false },
   // ⚰️ ADDED BY INCREMENT 5. Calendar left the preview when its controller shipped (R-C — it was a
   // §6 omission, never a §7 error). It needs NEITHER: the fan is a macro toggle plus a navigation
