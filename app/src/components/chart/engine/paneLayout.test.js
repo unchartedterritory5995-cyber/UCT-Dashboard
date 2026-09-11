@@ -40,6 +40,7 @@ import {
   MIN_PANE_PX,
   SEPARATOR_PX,
   VOLUME_PANE_HEIGHT,
+  paneStretchPlan,
 } from './paneLayout'
 
 /**
@@ -867,5 +868,98 @@ describe('a HIDDEN instance takes no pane — the layout agrees with the binder'
     const binder = at('binder.js')
     expect(here).toContain('if (inst.hidden === true) continue')
     expect(binder).toContain('if (inst.hidden === true) continue')
+  })
+})
+
+
+// ─── PHASE 2 · PANES ABOVE THE PRICE PANE ───────────────────────────────────
+//
+// The layout half of "an RSI pane can live ABOVE the candles" (spec §23-§27).
+// Everything here is about ARITHMETIC and INDICES; the renderer half — actually
+// creating a pane at index 0 — is a separate seam and is NOT proven by these.
+describe('topKeys — an ordered pane stack above the candles', () => {
+  const inst = (defId) => ({ instanceId: defId, defId, hidden: false, inputs: {} })
+  const CH = 800
+
+  it('⛔ absent topKeys changes NOTHING — the backward-compatibility floor', () => {
+    // Every saved chart in production has no `placement.position`, so this is the
+    // case that must stay byte-identical. Asserted by comparing the whole object.
+    const withOut = computePaneLayout([inst('rsi'), inst('macd')], { chartHeight: CH, hasVolumeBand: true })
+    const withEmpty = computePaneLayout([inst('rsi'), inst('macd')], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(),
+    })
+    expect(withEmpty).toEqual(withOut)
+    expect(withOut.topPanes).toEqual([])
+  })
+
+  it('a top pane takes index 0 and pushes every other index down by one', () => {
+    const base = computePaneLayout([inst('rsi'), inst('macd')], { chartHeight: CH, hasVolumeBand: true })
+    const top = computePaneLayout([inst('rsi'), inst('macd')], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(['rsi']),
+    })
+    expect(base.mainPaneIndex).toBe(0)
+    expect(top.mainPaneIndex).toBe(1)          // candles moved down
+    expect(top.firstPaneIndex).toBe(base.firstPaneIndex + 1)
+    // RSI is pane 0 now; MACD is the only remaining bottom oscillator.
+    expect(top.topPanes.map((p) => p.key)).toEqual(['rsi'])
+    expect(top.topPanes[0].index).toBe(0)
+    const byKey = Object.fromEntries(top.panes.map((p) => [p.key, p.index]))
+    expect(byKey.rsi).toBe(0)
+    expect(byKey.macd).toBeGreaterThan(top.mainPaneIndex)
+  })
+
+  it('⛔ the top pane is published in `panes` too — placement resolves through it', () => {
+    // `resolvePlacement` finds an indicator's pane by looking its key up in
+    // `layout.panes`. A top pane published only as `topPanes` would resolve to
+    // null and bind NOWHERE — silently, which is the failure mode the resolver's
+    // fail-closed branch is designed around.
+    const top = computePaneLayout([inst('rsi')], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(['rsi']),
+    })
+    expect(top.panes.find((p) => p.key === 'rsi')).toBeTruthy()
+    expect(top.panes.find((p) => p.key === 'rsi').index).toBe(0)
+  })
+
+  it('the budget is carved off the TOP — the stack below still totals correctly', () => {
+    const top = computePaneLayout([inst('rsi'), inst('macd')], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(['rsi']),
+    })
+    const topH = top.topPanes[0].heightPx
+    expect(topH).toBeGreaterThan(0)
+    // Everything that is not the top pane fits in what remains of the chart.
+    const rest = top.above.slice(1).reduce((a, b) => a + b, 0)
+      + top.panes.filter((p) => p.index > top.mainPaneIndex).reduce((a, p) => a + p.heightPx, 0)
+    expect(rest).toBeLessThanOrEqual(CH - topH)
+  })
+
+  it('two top panes keep declaration order — an ordered stack, not a single slot', () => {
+    // Spec §26: architect for a STACK, never a singular `topPane`.
+    const top = computePaneLayout([inst('rsi'), inst('macd')], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(['rsi', 'macd']),
+    })
+    expect(top.topPanes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    expect(top.topPanes.map((p) => p.index)).toEqual([0, 1])
+    expect(top.mainPaneIndex).toBe(2)
+  })
+
+  it('a HIDDEN indicator reserves no pane above price either', () => {
+    // `orderedPaneKeys` already drops hidden instances so the layout agrees with
+    // the binder. Reserving a top slot for one would leave a gap LWC will not hold.
+    const top = computePaneLayout([{ ...inst('rsi'), hidden: true }], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(['rsi']),
+    })
+    expect(top.topPanes).toEqual([])
+    expect(top.mainPaneIndex).toBe(0)
+  })
+
+  it('⭐ paneStretchPlan addresses panes by their OWN index, not first+i', () => {
+    // The bug this replaced: `first + i` assumed every pane in the list is in the
+    // bottom stack, which is false the moment one is at index 0.
+    const top = computePaneLayout([inst('rsi'), inst('macd')], {
+      chartHeight: CH, hasVolumeBand: true, topKeys: new Set(['rsi']),
+    })
+    const plan = paneStretchPlan(top, [0, 0, 0, 0])
+    expect(plan[0]).toBe(top.topPanes[0].stretchFactor)   // RSI, above the candles
+    expect(plan[top.mainPaneIndex]).toBeGreaterThan(0)    // the candles
   })
 })

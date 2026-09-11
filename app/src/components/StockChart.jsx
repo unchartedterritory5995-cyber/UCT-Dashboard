@@ -10166,6 +10166,23 @@ export default function StockChart({
         ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
         : [_idxPct, 100 - _idxPct])
       : (volSeparatePane ? [100 - _volPct, _volPct] : [100])
+    // ⭐ PHASE 2 · WHICH INDICATORS LIVE ABOVE THE CANDLES.
+    //
+    // `placement.position === 'above'` is a per-INSTANCE, purely ADDITIVE field:
+    // `normalizeInstances` spreads `placement` wholesale and `validateInstance`
+    // checks only `target`, so an old saved chart carries no `position`, reads as
+    // `undefined`, and lands below price exactly where it always did. That is the
+    // whole of the backward-compatibility story for top panes.
+    //
+    // ⚠️ HIDDEN INSTANCES ARE EXCLUDED for the same reason `orderedPaneKeys`
+    // excludes them: a hidden indicator gets no pane at all, so reserving a slot
+    // above the candles for one would leave a gap the renderer refuses to hold.
+    const _topKeys = new Set(
+      (engineInstances || [])
+        .filter((i) => i && i.hidden !== true && i.placement && i.placement.position === 'above')
+        .map((i) => i.defId)
+        .filter((id) => typeof id === 'string' && id),
+    )
     const paneLayout = computePaneLayout(engineInstances, {
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
@@ -10174,6 +10191,7 @@ export default function StockChart({
       firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,
       mainPaneIndex: _hasIdxPane ? 1 : 0,
+      topKeys: _topKeys,
     })
     paneLayoutRef.current = paneLayout
     // ⭐ AND THE PANE LIST GOES OUT TO THE RENDER, so each oscillator pane can

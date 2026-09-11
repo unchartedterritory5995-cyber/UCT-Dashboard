@@ -430,6 +430,22 @@ export function resolvePlacement(instance, def, ctx) {
       // every later resolve.
       scaleOptions: { borderVisible: false, scaleMargins: { ...PANE_BAND }, ...range },
       autoscale: 'default',
+      // ⭐⭐ THIS INDICATOR OWNS ITS PANE, AND SAYING SO IS WHAT STOPS IT JOINING
+      // THE CANDLES. `chart.addSeries(ctor, opts, i)` JOINS the pane at `i`; it
+      // does not INSERT one. So "put RSI at visual index 0" cannot be expressed
+      // as `addSeries(…, 0)` — that reads as "put RSI in the price pane", which
+      // is exactly what it did when measured (2 panes on screen instead of 3,
+      // RSI drawn on the candles' axis).
+      //
+      // A pane is INSERTED by creating at the END of the stack — the one index
+      // LWC treats as "make a new pane" — and then moving it. `binder.js` owns
+      // both halves; this flag is the only thing it needs from placement to tell
+      // "give this its own pane" apart from "overlay it onto someone else's".
+      //
+      // ⛔ ONLY THIS BRANCH SETS IT. A price overlay lands on the candles' pane
+      // and a volume-pane overlay lands on the volume pane — both are GUESTS, and
+      // moving the pane they are sitting in would move their host.
+      ownPane: true,
       // ⭐ THE PANE'S OWN AXIS CARRIES THE INDICATOR'S LAST VALUE, in a tag, in the
       // plot's colour — the thing the volume pane has always had and every
       // oscillator pane went without. Sub-choice 2.2 already bought the axis and

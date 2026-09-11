@@ -581,6 +581,11 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
       scaleOptions: { borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: false, minimum: 0, maximum: 100 },
       autoscale: 'default',
       lastValue: true,
+      // ⭐ PHASE 2 · `ownPane` — "this indicator's pane is its own, so CREATE one
+      // rather than joining the pane already at this index". `binder.js` is the
+      // only consumer. It is asserted HERE, in the case that pins the WHOLE
+      // object, because that is where a fifth key would otherwise slip in unseen.
+      ownPane: true,
     })
   })
 

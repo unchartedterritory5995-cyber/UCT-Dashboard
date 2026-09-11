@@ -273,6 +273,43 @@ export function setInstanceHidden(cs, instanceId, hidden, registry) {
 }
 
 /**
+ * Where this indicator's OWN pane sits relative to the candles.
+ *
+ * ⭐⭐ PURELY ADDITIVE, AND THAT IS THE WHOLE BACKWARD-COMPATIBILITY STORY.
+ * `normalizeInstances` spreads `placement` wholesale and `validateInstance`
+ * checks only `placement.target`, so `position` needs no schema change, no
+ * migration and no write-on-load. Every saved chart in production carries none,
+ * reads as `undefined`, and lands BELOW price exactly where it always did.
+ *
+ * ⛔ `'below'` IS WRITTEN AS A DELETION, not as a stored value. Storing it would
+ * make "the default" and "explicitly the default" two different blobs that mean
+ * one thing, and the first template saved from a chart that had merely been
+ * toggled back and forth would carry a key the shipped default does not. Absent
+ * IS below; that is the invariant the read side already depends on.
+ *
+ * @param {'above'|'below'} position
+ */
+export function setInstancePanePosition(cs, instanceId, position, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (position !== 'above' && position !== 'below') return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const placement = { ...(i.placement || {}) }
+    if (position === 'above') placement.position = 'above'
+    else delete placement.position
+    // An empty placement is dropped entirely, for the same reason `below` is not
+    // stored: a blob carrying `placement: {}` is not the blob a fresh chart writes.
+    return Object.keys(placement).length ? { ...i, placement } : (() => {
+      const { placement: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
  * Remove ONE instance, leaving its siblings drawing.
  *
  * ⭐ THE MIRROR IS "AT LEAST ONE LIVE INSTANCE", NOT "THE ONE I JUST DELETED".

@@ -379,6 +379,58 @@ export function createBinder({ chart, LWC }) {
   }
 
   /**
+   * Put the panes in the order the layout asked for.
+   *
+   * ⭐ ORDER IS A WHOLE-STACK PROPERTY, WHICH IS WHY THIS IS ONE PASS AND NOT A
+   * MOVE PER CREATE. `pane.moveTo(i)` re-indexes every pane it passes, so a move
+   * issued while another pane is still in the wrong place measures against a
+   * stack that is about to change. Reconciling once, against the settled stack,
+   * is the only formulation that does not depend on the order bindings happen to
+   * be walked in.
+   *
+   * ⛔ ASCENDING TARGET INDEX, AND THE CURRENT INDEX IS RE-READ EVERY STEP. That
+   * is selection-placement: after the pane wanted at 0 is at 0 it never moves
+   * again, so each later move only permutes panes at higher indices. Sorting
+   * descending, or caching the indices up front, both produce a permutation that
+   * is right only for some starting states.
+   *
+   * ⚠️ ONLY PANES WE OWN ARE MOVED. A volume-pane overlay's series lives in the
+   * VOLUME pane; asking it to move would move the volume pane and take the
+   * candles' neighbour with it. `ownPane` is placement's answer to exactly that
+   * question and this is the only consumer that needs it.
+   *
+   * The candles, the volume band and any index pane are never moved directly —
+   * they are displaced by the panes that ARE moved, which is what makes "RSI
+   * above price" and "price below RSI" the same operation.
+   */
+  function reconcilePaneOrder(layout, entries) {
+    if (!layout || !Array.isArray(layout.panes) || !layout.panes.length) return
+    /** defId → a series known to live in that indicator's own pane. */
+    const paneSeries = new Map()
+    for (const e of entries) {
+      if (!e || !e.ownPane || !e.series) continue
+      const defId = e.b && e.b.defId
+      if (typeof defId === 'string' && defId && !paneSeries.has(defId)) paneSeries.set(defId, e.series)
+    }
+    if (!paneSeries.size) return
+
+    const wanted = layout.panes
+      .filter((p) => p && typeof p.key === 'string' && Number.isInteger(p.index))
+      .slice()
+      .sort((a, b) => a.index - b.index)
+
+    for (const want of wanted) {
+      const series = paneSeries.get(want.key)
+      if (!series) continue
+      const pane = attempt(() => series.getPane())
+      if (!pane.ok || !pane.value) continue
+      const cur = attempt(() => pane.value.paneIndex())
+      if (!cur.ok || !Number.isInteger(cur.value) || cur.value === want.index) continue
+      attempt(() => pane.value.moveTo(want.index))
+    }
+  }
+
+  /**
    * Give every pane the height the layout asked for, and arm the check.
    *
    * Plan §A7: the factors ARE the pixel heights, because LWC distributes the
@@ -607,6 +659,28 @@ export function createBinder({ chart, LWC }) {
     // scale, the guides and the data. Both walk `bind` in the same order, so
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
+    /** defId -> a series already living in that indicator's OWN pane.
+     *
+     *  Seeded from what we already hold so a plot that appears mid-session (a
+     *  definition gaining an output, a re-bind after a settings write) joins the
+     *  pane its siblings are in instead of opening a second one beside it. */
+    const ownPaneSeries = new Map()
+    /** series -> the defId that owns it, for the exclusivity test below. A series
+     *  absent from this map is NOT ours: the candles and the volume histogram are
+     *  the two that matter, and neither is a binding. */
+    const seriesOwner = new Map()
+    for (const h of held) {
+      if (!h || !h.series || typeof h.defId !== 'string' || !h.defId) continue
+      if (!ownPaneSeries.has(h.defId)) ownPaneSeries.set(h.defId, h.series)
+      seriesOwner.set(h.series, h.defId)
+    }
+
+    /** Is `pane` occupied by this indicator ALONE? */
+    const paneIsExclusivelyOurs = (pane, defId) => {
+      const list = attempt(() => pane.getSeries())
+      if (!list.ok || !Array.isArray(list.value)) return false
+      return list.value.every((s2) => seriesOwner.get(s2) === defId)
+    }
     for (const b of bind) {
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
@@ -614,7 +688,7 @@ export function createBinder({ chart, LWC }) {
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, ownPane } = placement.value
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
@@ -640,10 +714,48 @@ export function createBinder({ chart, LWC }) {
 
       if (!series) {
         const ctor = LWC[SERIES_CTOR[b.poolKey]]
-        const created = attempt(() => chart.addSeries(ctor, options, paneIndex))
+        // ⛔⛔ AN OWN-PANE INDICATOR IS CREATED AT THE END OF THE STACK, NEVER AT
+        // ITS TARGET INDEX. `addSeries(ctor, opts, i)` JOINS the pane at `i`; only
+        // an index EQUAL TO THE CURRENT PANE COUNT makes LWC create one. Passing
+        // the target directly is what put RSI inside the price pane when a top
+        // pane was first attempted — measured: 2 panes on screen, not 3, and the
+        // oscillator drawn against the candles' axis.
+        //
+        // ⚠️ THE ORDERING IS NOT DONE HERE. Moving each pane as it is created is
+        // ORDER-DEPENDENT and wrong: creating `macd` before `rsi` with targets
+        // 1 and 0 lands [rsi, price, macd, volume] instead of [rsi, macd, price,
+        // volume], because each move re-indexes the panes the next one measured
+        // against. Order is a WHOLE-STACK property and is reconciled once, in
+        // pass three, against the settled stack.
+        //
+        // A second and later series of the same indicator finds its pane already
+        // there and is placed into it by index, which is the joining behaviour
+        // being correct rather than accidental: MACD's signal line belongs in
+        // MACD's pane.
+        let createAt = paneIndex
+        if (ownPane) {
+          // ⛔ PER INDICATOR, NOT PER SERIES. MACD is three series in ONE pane;
+          // asking for a new pane on each of them produced SEVEN panes where four
+          // belonged (measured in `flipCGeometry`). The first series of an
+          // indicator CREATES the pane; its siblings JOIN the pane it landed in,
+          // read back live because a reconcile may have moved it since.
+          const sibling = ownPaneSeries.get(b.defId)
+          if (sibling) {
+            const at = attempt(() => sibling.getPane().paneIndex())
+            if (at.ok && Number.isInteger(at.value)) createAt = at.value
+          } else {
+            // The one index LWC reads as "make a new pane": the current count.
+            const paneCount = attempt(() => chart.panes().length)
+            if (paneCount.ok && Number.isInteger(paneCount.value)) createAt = paneCount.value
+          }
+        }
+        const created = attempt(() => chart.addSeries(ctor, options, createAt))
         if (!created.ok || !created.value) continue
         series = created.value
         guideHandles = []
+        if (ownPane && typeof b.defId === 'string' && b.defId && !ownPaneSeries.has(b.defId)) {
+          ownPaneSeries.set(b.defId, series)
+        }
       } else {
         // ── THE #2049 ESCAPE ──
         // Pane and priceScaleId are both mutable on 5.2.0 (`moveToPane` /
@@ -709,11 +821,56 @@ export function createBinder({ chart, LWC }) {
         // REAL renderer — bands → panes on a live chart, asserting the SAME
         // series object ends up in the new pane with `toBe` and an empty
         // `removeSeries` list.
-        if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
+        // ⛔⛔ AN OWN-PANE INDICATOR IS RE-ORDERED BY MOVING ITS PANE, NEVER BY
+        // MOVING ITS SERIES. `series.moveToPane(i)` puts the SERIES into the pane
+        // at `i` — so asking RSI to "go to index 0" walks it into the CANDLES'
+        // pane, which is the same joining failure as the create branch wearing a
+        // different hat. Measured: flipping Pane position to Above left 2 panes on
+        // screen, RSI drawn on the price axis.
+        //
+        // The pane RSI already lives in IS RSI's pane; what has to change is where
+        // that pane sits in the stack, and `reconcilePaneOrder` does exactly that
+        // in pass three. So the correct action here is to do nothing.
+        //
+        // ⏳ KNOWN GAP, STATED: an indicator moving OUT of a shared pane (the
+        // volume-overlay toggle) into a pane of its own still needs a real
+        // relocation — it has no pane yet, so there is nothing for the reconcile
+        // to move. That transition belongs to POC C (RSI over Volume) and is not
+        // reachable today, because nothing writes `ownPane` and a shared target in
+        // the same pass. It is a `moveToPane(chart.panes().length)` when it lands.
+        if (b.from && b.from.paneIndex !== paneIndex) {
+          if (!ownPane) {
+            attempt(() => series.moveToPane(paneIndex))
+          } else {
+            // ⛔ AN OWN-PANE INDICATOR IS RE-ORDERED BY MOVING ITS PANE, AND THE
+            // TEST IS WHETHER IT ALREADY HAS ONE. If the pane it sits in holds
+            // nothing but this indicator, that IS its pane: leave the series where
+            // it is and let `reconcilePaneOrder` move the pane in pass three.
+            // Calling `moveToPane(paneIndex)` here would walk the SERIES into
+            // whoever occupies that index — the candles, for a top pane — which is
+            // the same joining failure as the create branch wearing a different hat
+            // (measured: flipping Pane position to Above left 2 panes, RSI on the
+            // price axis).
+            //
+            // ⭐ IF IT IS SHARING, IT STILL NEEDS A REAL RELOCATION, and this is
+            // the bands→panes cutover: under `'bands'` every oscillator lives in
+            // pane 0 with the candles, so flipping to `'panes'` has to carry each
+            // one OUT. It moves to the END of the stack — the one index LWC reads
+            // as "make a new pane" — and the reconcile then positions it. Skipping
+            // this is what broke `#2049 — moving a series to a new pane REUSES it`.
+            const cur = attempt(() => series.getPane())
+            const mine = cur.ok && cur.value && paneIsExclusivelyOurs(cur.value, b.defId)
+            if (!mine) {
+              const count = attempt(() => chart.panes().length)
+              const to = (count.ok && Number.isInteger(count.value)) ? count.value : paneIndex
+              attempt(() => series.moveToPane(to))
+            }
+          }
+        }
         attempt(() => series.applyOptions(options))
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles })
+      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, ownPane })
     }
 
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
@@ -830,7 +987,14 @@ export function createBinder({ chart, LWC }) {
     // pane whose last series was removed is gone by now (measured: `removeSeries`
     // drops the pane synchronously), so this is the first point in the sync where
     // `chart.panes()` describes the stack the layout is talking about.
-    if (paneMode() === 'panes' && ctx.paneLayout) applyPaneStretch(ctx.paneLayout)
+    // ⭐ ORDER FIRST, THEN HEIGHT. `paneStretchPlan` addresses panes BY INDEX, so
+    // sizing a stack that is not yet in its final order writes every height onto
+    // the wrong pane — and the next sync would find the heights "already correct"
+    // and never repair them.
+    if (paneMode() === 'panes' && ctx.paneLayout) {
+      reconcilePaneOrder(ctx.paneLayout, prepared)
+      applyPaneStretch(ctx.paneLayout)
+    }
 
     return { ok: true, bound: next.length, released: release.length }
   }

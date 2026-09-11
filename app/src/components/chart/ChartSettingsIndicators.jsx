@@ -60,6 +60,7 @@ import {
 import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
+  setInstancePanePosition,
 } from './engine/instanceControls'
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
@@ -379,6 +380,44 @@ export default function ChartSettingsIndicators({
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
   }, [settings, onChange, registry])
 
+  /**
+   * The DISPLAY control for an indicator that owns its pane: above or below the
+   * candles.
+   *
+   * ⛔ `undefined` IS `below`, EVERYWHERE. The stored shape has no `position` on
+   * any chart saved before this existed, so the read has to treat absent as the
+   * shipped default rather than as "unset" — and `setInstancePanePosition`
+   * DELETES the key rather than writing `'below'`, so the two halves agree that
+   * there is exactly one representation of the default.
+   */
+  const panePositionControl = useCallback((row) => {
+    if (!row || !row.engineOwned || !row.instanceId) return null
+    const def = registry && typeof registry.getDefinition === 'function'
+      ? registry.getDefinition(row.defId)
+      : null
+    const target = def && def.placement && def.placement.target
+    if (target && target !== 'pane') return null
+    const inst = findInstance(settings, row.instanceId)
+    const cur = inst && inst.placement && inst.placement.position === 'above' ? 'above' : 'below'
+    return (
+      <div className={styles.indRow}>
+        <span className={styles.indLabel}>Pane position</span>
+        <select
+          className={styles.indSelect}
+          value={cur}
+          aria-label={`${row.label} pane position`}
+          onChange={(e) => {
+            const next = setInstancePanePosition(settings, row.instanceId, e.target.value, registry)
+            if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+          }}
+        >
+          <option value="below">Below price</option>
+          <option value="above">Above price</option>
+        </select>
+      </div>
+    )
+  }, [settings, registry, onChange])
+
   // ─── ONE ROW, COLLAPSED (§9 option B: toggle · name · colour · chevron) ────
   const renderActiveRow = (row) => {
     const on = rowVisible(row)
@@ -485,6 +524,25 @@ export default function ChartSettingsIndicators({
         </div>
         {isOpen && (
           <div className={styles.actBody}>
+            {/* ─── DISPLAY · where this indicator's own pane sits ──────────────
+                ⭐ PHASE 2 POC B. Rendered ABOVE the definition's own inputs
+                because "where does it appear" is a coarser question than "what
+                period is it" — the progressive hierarchy in the spec (§79) puts
+                DISPLAY before the calculation's own knobs, and this is the first
+                control that belongs to it.
+
+                ⛔ ONLY FOR AN INDICATOR THAT OWNS A PANE. A price overlay (BB,
+                VWAP) has no pane to position and a volume-pane overlay is a guest
+                in someone else's, so offering either of them "above / below
+                price" would be offering a control that cannot do anything —
+                exactly the "do not populate UI with meaningless options" rule
+                (§21). The definition's declared `placement.target` is the test.
+
+                ⚠️ IT IS NOT PART OF `row.fields`. Those are the DEFINITION's
+                inputs and feed the calculation; this writes PLACEMENT, which the
+                calculation never sees. Keeping them apart at the seam is the
+                whole point of the calculation/presentation split. */}
+            {panePositionControl(row)}
             {row.fields.map((f) => {
               if (f.showIf && !f.showIf(row.values)) return null
               const val = row.values?.[f.key]

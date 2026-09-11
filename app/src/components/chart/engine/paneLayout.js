@@ -556,7 +556,48 @@ export function computePaneLayout(instances, opts) {
   const mainPaneIndex = (Number.isInteger(o.mainPaneIndex)
     && o.mainPaneIndex >= 0 && o.mainPaneIndex < firstPaneIndex) ? o.mainPaneIndex : 0
 
-  const keys = orderedPaneKeys(instances, excluded)
+  const allKeys = orderedPaneKeys(instances, excluded)
+
+  // ─── PHASE 2 · PANES ABOVE THE PRICE PANE ─────────────────────────────────
+  //
+  // ⭐ CARVED OFF THE TOP, EXACTLY LIKE THE TIME AXIS IS CARVED OFF THE BOTTOM.
+  // Every line of arithmetic below this block is unchanged and still solves the
+  // SAME problem it always did — "distribute a budget across the candle pane, an
+  // optional volume band and a stack of oscillators". Top panes simply reduce
+  // that budget first and then shift every index the solver produced.
+  //
+  // ⛔ WHY NOT TEACH THE SOLVER ABOUT THEM. The squeeze, the hundredths
+  // quantisation and both shaves are index-sensitive and their tie-breaks are
+  // pinned by tests; threading a second direction through them would put every
+  // one of those proofs back in play to buy nothing. A top pane's height does not
+  // participate in the oscillator squeeze — it is a sibling of the candle pane,
+  // not a member of the stack — so taking it off the top is not a shortcut, it is
+  // the honest shape of the problem.
+  //
+  // ⚠️ ORDER IS DECLARATION ORDER, TOP-TO-BOTTOM, and `orderedPaneKeys` already
+  // fixes it. The first top key is pane 0, the next is pane 1, and the candle
+  // pane follows them. That is what makes "Relative Strength / RSI / PRICE /
+  // Volume / MACD" expressible as one ordered stack (spec §26).
+  const topSet = o.topKeys instanceof Set ? o.topKeys : new Set(o.topKeys || [])
+  const topList = topSet.size ? allKeys.filter((k) => topSet.has(k)) : []
+  const keys = topSet.size ? allKeys.filter((k) => !topSet.has(k)) : allKeys
+  const nTop = topList.length
+
+  // Each top pane takes its declared share of the WHOLE chart, the same fraction
+  // the same definition would take as a bottom pane. `separatorPx` per top pane
+  // because each one adds a separator the stack below no longer has to pay for.
+  const topHeights = (Number.isFinite(chartHeight) && chartHeight > 0)
+    ? topList.map((k) => Math.max(MIN_PANE_PX, Math.round(paneHeightFor(k) * chartHeight)))
+    : topList.map(() => MIN_PANE_PX)
+  const topTotalPx = topHeights.reduce((a, b) => a + b, 0) + nTop * separatorPx
+
+  // ⛔ THE SOLVER SEES THE REDUCED BUDGET, NOT THE CHART. Passing the full height
+  // and subtracting afterwards would hand the candles a rectangle that does not
+  // exist and put `mainMargins` — which are FRACTIONS of that rectangle — on the
+  // wrong pixels.
+  const solveHeight = (Number.isFinite(chartHeight) && chartHeight > 0)
+    ? Math.max(MIN_PANE_PX, chartHeight - topTotalPx)
+    : chartHeight
 
   // Bottom-to-top, because that is the order the squeeze and both shaves run in
   // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
@@ -576,13 +617,13 @@ export function computePaneLayout(instances, opts) {
   if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
     return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
   }
-  if (!keys.length && !hasVolumeBand) {
+  if (!keys.length && !hasVolumeBand && !nTop) {
     return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
   }
 
   // ⭐ THE SUBSTITUTION. Every fraction below is a fraction of THIS, not of the
   // chart — see "THE FRAME OF REFERENCE" above. Identical at firstPaneIndex 1.
-  const above = bandsAboveHeights(chartHeight, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
+  const above = bandsAboveHeights(solveHeight, firstPaneIndex, separatorPx, abovePct, mainPaneIndex)
   const mainHeightPx = above[mainPaneIndex]
 
   const oscTotalC = heightsC.slice(0, oscCount).reduce((s, h) => s + h, 0)
@@ -624,22 +665,45 @@ export function computePaneLayout(instances, opts) {
   const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
   above[mainPaneIndex] = pane0HeightPx
 
+  // ⭐ EVERY INDEX THE SOLVER PRODUCED MOVES DOWN BY THE NUMBER OF TOP PANES, and
+  // `above` grows at the FRONT so `above[mainPaneIndex]` still addresses the
+  // candles. Consumers read `firstPaneIndex` / `mainPaneIndex` off this object,
+  // so shifting here is the whole of what they need to learn.
+  const shiftedFirst = firstPaneIndex + nTop
+  const shiftedMain = mainPaneIndex + nTop
+  const aboveWithTop = nTop ? [...topHeights, ...above] : above
+
   return {
     chartHeight,
     separatorPx,
-    firstPaneIndex,
-    mainPaneIndex,
-    above,
+    firstPaneIndex: shiftedFirst,
+    mainPaneIndex: shiftedMain,
+    above: aboveWithTop,
     bands,
+    /** The panes ABOVE the candles, top-to-bottom. Empty on every chart that has
+     *  none, which is why nothing downstream needs a branch for the common case. */
+    topPanes: topList.map((key, i) => ({
+      key, index: i, heightPx: topHeights[i], stretchFactor: topHeights[i],
+    })),
     // Top-to-bottom, so `index` is the LWC pane index a series is moved to.
     // `stretchFactor` IS the pixel height: stretch factors distribute the
     // AVAILABLE height (chart minus separators minus time axis), so a factor set
     // to a target pixel count lands on it exactly — measured, not assumed, in
     // `__tests__/paneSeparatorPin.test.js`.
-    panes: keys.map((key, i) => {
-      const heightPx = paneHeights[oscCount - 1 - i]
-      return { key, index: firstPaneIndex + i, heightPx, stretchFactor: heightPx }
-    }),
+    // ⛔ TOP PANES ARE IN HERE TOO. `placement.js` resolves an indicator's pane by
+    // looking its key up in this list, so a top pane that were published only as
+    // `topPanes` would resolve to nothing and bind nowhere — fail-closed, silent,
+    // and exactly the shape of the "oscillator with no pane" bug the resolver's
+    // null branch exists to prevent.
+    panes: [
+      ...topList.map((key, i) => ({
+        key, index: i, heightPx: topHeights[i], stretchFactor: topHeights[i],
+      })),
+      ...keys.map((key, i) => {
+        const heightPx = paneHeights[oscCount - 1 - i]
+        return { key, index: shiftedFirst + i, heightPx, stretchFactor: heightPx }
+      }),
+    ],
     pane0: {
       heightPx: pane0HeightPx,
       // ✅ THE CANDLE PANE's OWN HEIGHT — and it used to be the price-pane BUDGET
@@ -698,9 +762,13 @@ export function paneStretchPlan(layout, currentStretch) {
   const out = cur.slice()
 
   // ── the stack ──
+  // ⚰️ THIS COMPUTED `first + i` AND THAT ASSUMED EVERY PANE IN THE LIST IS IN THE
+  // BOTTOM STACK. It is equivalent for a chart with no top panes and wrong for one
+  // with any: a top pane's index is 0, not `first + 0`. Each pane now carries its
+  // own index and this reads it, which is also one fewer thing to keep in sync.
   for (let i = 0; i < layout.panes.length; i++) {
-    const idx = first + i
-    if (idx < out.length) out[idx] = layout.panes[i].stretchFactor
+    const idx = layout.panes[i].index
+    if (Number.isInteger(idx) && idx >= 0 && idx < out.length) out[idx] = layout.panes[i].stretchFactor
   }
 
   // ── the panes above it, at the heights the layout computed ──
