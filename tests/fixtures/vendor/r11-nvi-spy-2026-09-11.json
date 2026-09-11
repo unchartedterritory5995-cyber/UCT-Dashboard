@@ -1,0 +1,54 @@
+{
+  "_": "⭐⭐ ITEM 8, NAME #1 — `ta.nvi` ANSWERED. The seed is 1, and the accumulation rule is confirmed on 399 bars with zero exceptions.",
+  "_probe": "tools/visual_conformance/probes/r11-nvi.pine",
+  "_probeSha256": "f3658d3886e3dcab9ac1067a266219334a48e6a3fac04119e085082ed645ec5b",
+  "_probeBytes": 2794,
+  "_studyName": "UCTPROBE_R11_NVI",
+  "_capturedUTC": "2026-09-11T12:30:00Z",
+  "_capturedET": "2026-09-11T08:30:00-04:00",
+  "symbol": "AMEX:SPY",
+  "_compiles": true,
+  "_vendorRoster": 8,
+  "_committedRoster": 8,
+  "_demand": "25 sites across 2 scripts — the highest-demand name in `r11-remaining-nine.md`, which is why it was captured ALONE.",
+
+  "theSeed": {
+    "value": 1,
+    "atBarIndex": 0,
+    "atBar": "1993 — SPY's first bar",
+    "tf": "1M",
+    "verdict": "THE SEED IS 1",
+    "_": "⛔⛔ AND BOTH CANDIDATES IN THE WILD WERE WRONG. `r11-remaining-nine.md` asked '100? 1000?' and warned that a wrong seed is a CONSTANT OFFSET that looks plausible forever — every shape right, every crossover right, the number wrong by a factor of ten or a hundred. It is neither: NVI here is a pure multiplicative index starting at UNITY.",
+    "_howItWasReached": "⚠️ THE FIRST CAPTURE COULD NOT SEE IT, AND SAID SO. On the daily chart the loaded window began at bar_index 8061, so the earliest visible nvi was 2557.16 — an accumulated value, not a seed. The probe carries `N02_bar_index_SEED_IS_AT_ZERO` precisely so that this is CHECKED rather than assumed, and it read 8061. Clicking the chart's own `All` range button loaded the full history; TradingView auto-coarsened the timeframe to 1M in doing so, which is recorded here because it bounds what else this capture can be used for."
+  },
+
+  "theAccumulationRule": {
+    "rule": "nvi starts at 1. On a bar where volume FELL against the prior bar, nvi *= (1 + (close - close[1]) / close[1]). Otherwise nvi HOLDS.",
+    "measuredOnDaily": {
+      "tf": "D",
+      "bars": 400,
+      "volumeFELL": { "n": 209, "nviMoved": 209, "nviHeld": 0 },
+      "volumeROSE": { "n": 190, "nviMoved": 0, "nviHeld": 190 },
+      "_": "⭐⭐ A PERFECT SPLIT, 209/209 AND 0/190, WITH NO EXCEPTIONS EITHER WAY. That is what makes this a rule rather than a tendency."
+    },
+    "arithmeticWitnesses": [
+      { "barIndex": 0, "close": 43.938, "volume": 1003200, "fell": 0, "nvi": 1, "_": "the seed" },
+      { "barIndex": 1, "close": 44.40625, "closePrev": 43.938, "volume": 5417600, "volumePrev": 1003200, "fell": 0, "nvi": 1, "_": "volume ROSE → held at 1, even though price rose 1.07%" },
+      { "barIndex": 2, "close": 45.1875, "closePrev": 44.40625, "volume": 3019200, "volumePrev": 5417600, "fell": 1, "nvi": 1.0175932441942295, "_": "⭐ volume FELL → 1 × (1 + (45.1875-44.40625)/44.40625) = 1.0175932441942295 EXACTLY" },
+      { "barIndex": 3, "close": 44.03125, "closePrev": 45.1875, "volume": 2697200, "volumePrev": 3019200, "fell": 1, "nvi": 0.99155524278677, "_": "a DOWN close on falling volume pulls it below 1 — the index is not floored" },
+      { "barIndex": 4, "close": 45.21875, "closePrev": 44.03125, "volume": 1808000, "volumePrev": 2697200, "fell": 1, "nvi": 1.0182969739619987 },
+      { "barIndex": 5, "close": 45.0625, "closePrev": 45.21875, "volume": 3438000, "volumePrev": 1808000, "fell": 0, "nvi": 1.0182969739619987, "_": "volume ROSE → held, unchanged from bar 4 to the last digit" }
+    ],
+    "_": "⭐ THE WITNESSES ARE THE PROOF, not the counts. The counts say nvi moved on every falling-volume bar; these six say WHAT it moved to, and the multiplication reproduces the vendor's own doubles to the last significant figure."
+  },
+
+  "_STILL_OPEN": {
+    "unchangedVolume": {
+      "occurrences": 0,
+      "status": "UNANSWERED",
+      "_": "⛔ ZERO BARS IN 400 HAD volume == volume[1], so the third case — neither fell nor rose — was never exercised. The probe's `N05_volume_UNCHANGED_flag` exists to detect exactly this and it read 0 everywhere, so the capture KNOWS it did not answer rather than quietly implying it did. ⚠️ An exact volume tie is vanishingly rare on a liquid daily series; settling it needs either a thin symbol or a synthetic series, and until then an implementation must pick a side and SAY it picked one."
+    }
+  },
+
+  "_bounds": "⚠️ ONE SYMBOL. The accumulation counts are AMEX:SPY 1D over 400 bars; the seed and the six arithmetic witnesses are the same symbol at 1M, because the full history only loads at a coarser timeframe. The seed is a property of the function, not of the timeframe, so 1 carries over — but nothing here measures nvi across a timeframe CHANGE, and nothing measures it on a symbol whose first bar has no prior volume to compare against."
+}

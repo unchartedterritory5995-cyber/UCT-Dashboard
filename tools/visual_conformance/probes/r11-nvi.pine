@@ -1,0 +1,43 @@
+//@version=6
+indicator("UCTPROBE_R11_NVI", overlay = false)
+
+// ⭐⭐ ITEM 8, NAME #1 — `ta.nvi`, 25 SITES ACROSS 2 SCRIPTS. THE HIGHEST-DEMAND
+// NAME ON THE LIST, AND IT IS ALONE IN ITS FILE BECAUSE OF THAT: item 7's split
+// rule says do not let a risky arity take others down, and the corollary is do not
+// let a cheap name take the VALUABLE one down either.
+//
+// ⛔ TWO QUESTIONS, AND BOTH ARE UNGUESSABLE:
+//
+//   1. THE SEED. Negative Volume Index starts from a constant. 100 and 1000 are
+//      both in the wild. ⚠️ A wrong seed is a CONSTANT OFFSET that looks plausible
+//      forever — every shape is right, every crossover is right, and the number is
+//      wrong by a factor of ten. That is the worst kind of wrong for this project:
+//      it never announces itself.
+//
+//   2. THE UNCHANGED-VOLUME CASE. NVI accumulates the price change only on bars
+//      where volume FELL. What happens when volume is exactly equal to the prior
+//      bar's is a third case the name does not mention, and a daily series has
+//      plenty of them.
+//
+// ⭐ THE CHANNELS BELOW ANSWER BOTH FROM ONE CAPTURE, because the bar's own volume
+// comparison rides along: with `nvi`, `volume` and `volume[1]` on the same bar, the
+// unchanged-volume bars can be FOUND rather than hoped for, and what nvi did on
+// exactly those bars is then a reading rather than an inference.
+
+// ── the subject ────────────────────────────────────────────────────────────
+plot(ta.nvi, "N01_ta_nvi")                                                  // N01
+
+// ── the seed: bar 0's value IS the seed, so the index is the control ───────
+plot(bar_index, "N02_bar_index_SEED_IS_AT_ZERO")                            // N02
+
+// ── the unchanged-volume discriminator ─────────────────────────────────────
+// ⛔ WITHOUT THESE THE CAPTURE CANNOT FIND ITS OWN EVIDENCE. "Did nvi move on an
+// unchanged-volume bar" needs those bars identified, and only the bar knows.
+plot(volume, "N03_volume")                                                  // N03
+plot(volume[1], "N04_volume_prev")                                          // N04
+plot(volume == volume[1] ? 1 : 0, "N05_volume_UNCHANGED_flag")              // N05
+plot(volume < volume[1] ? 1 : 0, "N06_volume_FELL_flag")                    // N06
+
+// ── the price change nvi is supposed to be accumulating ────────────────────
+plot(close, "N07_close")                                                    // N07
+plot(close[1], "N08_close_prev")                                            // N08
