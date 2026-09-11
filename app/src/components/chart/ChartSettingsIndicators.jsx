@@ -63,7 +63,7 @@ import {
   setInstancePanePosition, setInstanceDisplayTarget,
   setInstancePlotStyle, setInstanceDotSize } from './engine/instanceControls'
 import { resolveDisplayTarget } from './engine/displayTarget'
-import { sourceOptions } from './engine/sourceRef'
+import { sourceOptions, parsePaneOfTarget, derivedTargetFor } from './engine/sourceRef'
 import {
   resolvePlotStyle, resolveDotSize, availableStyles, styleIrrelevantInputs,
   PLOT_STYLE_CHOICES, DOT_SIZE_CHOICES,
@@ -501,9 +501,13 @@ export default function ChartSettingsIndicators({
    * `setInstanceDisplayTarget`. Hiding a control must not be a way of deleting
    * what it holds.
    *
-   * Only `pane`-target definitions get any of this: a price overlay has nowhere
-   * else to go, and offering it a destination it cannot reach would be a menu
-   * entry for something that does not work.
+   * ⛔⛔ THE MENU IS GATED ON WHERE IT *RESOLVES*, NOT ON WHAT IT DECLARES. This
+   * read the DEFINITION's target and returned null for anything but `pane`,
+   * which was the same sentence while every target was static. `MA(RSI)`
+   * declares `price` — it is a moving average — and resolves into RSI's PANE, so
+   * the declared reading hid the destination menu from the one indicator whose
+   * destination is most worth moving, and hid the STYLE controls with it.
+   * `resolveDisplayTarget` is the single seam that knows; this asks it.
    */
   const displayControls = useCallback((row) => {
     if (!row || !row.engineOwned || !row.instanceId) return null
@@ -511,29 +515,71 @@ export default function ChartSettingsIndicators({
       ? registry.getDefinition(row.defId)
       : null
     const declared = def && def.placement && def.placement.target
-    if (declared && declared !== 'pane') return null
     const inst = findInstance(settings, row.instanceId)
     // The one seam decides where it draws — the settings UI reads that answer, it
     // does not compute its own. (`displayTarget.js`: four places used to.)
     const where = resolveDisplayTarget(inst || { defId: row.defId }, settings, declared || 'pane')
-    const onOwnPane = where !== 'volume'
+    const follows = parsePaneOfTarget(where)
+    const sourcePane = derivedTargetFor(
+      { ...(inst || { defId: row.defId }), placement: undefined },
+      def,
+      Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : [],
+      (id) => (registry && registry.getDefinition ? registry.getDefinition(id) : null),
+      (other) => resolveDisplayTarget(other, settings),
+    )
+    // A DERIVED instance has somewhere of its own to go back to; a plain pane
+    // oscillator has the two destinations it always had. A price overlay that is
+    // NOT derived still has none — and still gets its style controls below.
+    // ⛔ A PLAIN PRICE OVERLAY STILL GETS NOTHING, and that is not an oversight:
+    // Bollinger and VWAP have exactly one place to draw and one shape to draw in,
+    // so a destination menu would be a menu entry for something that does not
+    // work. What changed is that "price overlay" is no longer decided by the
+    // DECLARED target alone — a DERIVED instance declares `price` and means
+    // "wherever my source is", which is a real choice and gets the real menu.
+    if (!sourcePane && declared !== 'pane') return null
+    const labelForTarget = (t) => {
+      const owner = parsePaneOfTarget(t)
+      if (owner) {
+        const od = registry && registry.getDefinition ? registry.getDefinition(owner) : null
+        // Named after the pane's OWNER, which is what the user sees on the chart —
+        // "RSI pane", not "@rsi" and not the anonymous "Source pane".
+        const stem = od && od.meta ? (od.meta.shortName || od.meta.name) : null
+        return stem ? `${stem} pane` : 'Source pane'
+      }
+      if (t === 'volume') return 'Volume'
+      if (t === 'price') return 'Price'
+      return 'Own pane'
+    }
+    // ⭐ THE DERIVED DEFAULT IS THE FIRST ENTRY, and the other two shared panes
+    // follow it. De-duplicated by VALUE so `MA(Volume)` — whose default already is
+    // the volume pane — gets one Volume row, not two.
+    const options = sourcePane
+      ? [sourcePane, 'price', 'volume']
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .map((v) => [v, labelForTarget(v)])
+      : (declared === 'pane' ? [['pane', 'Own pane'], ['volume', 'Volume']] : [])
+    const current = options.some(([v]) => v === where)
+      ? where
+      : (options.length ? options[0][0] : null)
+    const onOwnPane = where !== 'volume' && (declared === 'pane' || !!follows)
     const pos = inst && inst.placement && inst.placement.position === 'above' ? 'above' : 'below'
     const commit = (next) => { if (next !== settings) onChange?.({ ...next, preset: 'custom' }) }
     return (
       <>
-        <div className={styles.indRow}>
-          <span className={styles.indLabel}>Display in</span>
-          <select
-            className={styles.indSelect}
-            value={onOwnPane ? 'pane' : 'volume'}
-            aria-label={`${row.label} display in`}
-            onChange={(e) => commit(setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry))}
-          >
-            <option value="pane">Own pane</option>
-            <option value="volume">Volume</option>
-          </select>
-        </div>
-        {onOwnPane ? (
+        {options.length ? (
+          <div className={styles.indRow}>
+            <span className={styles.indLabel}>Display in</span>
+            <select
+              className={styles.indSelect}
+              value={current}
+              aria-label={`${row.label} display in`}
+              onChange={(e) => commit(setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry))}
+            >
+              {options.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            </select>
+          </div>
+        ) : null}
+        {onOwnPane && declared === 'pane' ? (
           <div className={styles.indRow}>
             <span className={styles.indLabel}>Pane position</span>
             <select

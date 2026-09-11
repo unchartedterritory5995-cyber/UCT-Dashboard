@@ -14,13 +14,36 @@ const csWith = (instances, legacy) => ({
 
 describe('resolveDisplayTarget — the precedence IS the contract', () => {
   it('1 · an explicit instance placement wins over everything', () => {
-    // …including a legacy list that says the opposite, in BOTH directions.
+    // …including a legacy list that says the opposite.
     expect(resolveDisplayTarget(
       inst({ placement: { target: 'volume' } }), csWith([], []),
     )).toBe('volume')
+  })
+
+  it('⛔⛔ …but a target that RESTATES THE DEFINITION is not an override', () => {
+    // ⚰️ THIS CASE USED TO ASSERT THE OPPOSITE, with `{target:'pane'}` beating a
+    // legacy list. The reason it changed is the first indicator whose correct
+    // target is not static: `addInstance` and the migrator BOTH write
+    // `placement: { target: <the declared one> }` on every instance they create,
+    // expressing no user intent at all — and that copy outranked `MA(RSI)`'s
+    // derived answer forever. Measured live: a perfect average of RSI, drawn on
+    // the candles' scale.
+    //
+    // ⚠️ IT COSTS NOTHING, because the pairing below is one the SETTER cannot
+    // produce. `setInstanceDisplayTarget` removes the id from the legacy list in
+    // the same write that sends it home, so "explicitly pane AND still listed as
+    // a volume overlay" is hand-written state, not a chart anybody has.
     expect(resolveDisplayTarget(
       inst({ placement: { target: 'pane' } }), csWith([], ['rsi']),
-    )).toBe('pane')
+    )).toBe('volume')
+    // …and the SETTER's answer to the same question is the right one, because it
+    // leaves the two in step.
+    const sent = setInstanceDisplayTarget(
+      { indicatorInstances: [inst()], volumeOverlayIndicators: ['rsi'] },
+      'legacy:rsi', 'pane', registry,
+    )
+    expect(sent.volumeOverlayIndicators).toEqual([])
+    expect(resolveDisplayTarget(sent.indicatorInstances[0], sent)).toBe('pane')
   })
 
   it('2 · with no explicit placement, the legacy list is read', () => {
@@ -59,9 +82,15 @@ describe('volumeOverlayKeys', () => {
     expect(volumeOverlayKeys(cs.indicatorInstances, cs).has('rsi')).toBe(false)
   })
 
-  it('⭐ an explicit "pane" OVERRIDES the legacy list — sending it home actually works', () => {
-    const cs = csWith([inst({ placement: { target: 'pane' } })], ['rsi'])
-    expect(volumeOverlayKeys(cs.indicatorInstances, cs).has('rsi')).toBe(false)
+  it('⭐ sending it home actually works — through the SETTER, which keeps both in step', () => {
+    // Not by hand-writing `{target:'pane'}` beside a legacy entry that still says
+    // volume: those two disagree, and the resolver believes the legacy one (see
+    // the precedence case above). The setter writes the pair that agrees.
+    const sent = setInstanceDisplayTarget(
+      { indicatorInstances: [inst()], volumeOverlayIndicators: ['rsi'] },
+      'legacy:rsi', 'pane', registry,
+    )
+    expect(volumeOverlayKeys(sent.indicatorInstances, sent).has('rsi')).toBe(false)
   })
 
   it('…but a legacy id with NO instance still counts', () => {
@@ -105,7 +134,13 @@ describe('setInstanceDisplayTarget', () => {
 
   it('refuses a target it does not offer, and an instance it cannot find', () => {
     const cs = base()
-    expect(setInstanceDisplayTarget(cs, 'legacy:rsi', 'price', registry)).toBe(cs)
+    // ⭐ `price` USED TO BE REFUSED HERE and now is not. It was always resolvable
+    // (`placement.js` has handled it since the first pass) and was withheld only
+    // because nothing offered it; the derived-target work needs it writable, so
+    // "a target it does not offer" now means a target that is not a target.
+    const toPrice = setInstanceDisplayTarget(cs, 'legacy:rsi', 'price', registry)
+    expect(toPrice).not.toBe(cs)
+    expect(toPrice.indicatorInstances[0].placement).toEqual({ target: 'price' })
     expect(setInstanceDisplayTarget(cs, 'legacy:rsi', 'nowhere', registry)).toBe(cs)
     expect(setInstanceDisplayTarget(cs, 'inst:nope:9', 'volume', registry)).toBe(cs)
   })

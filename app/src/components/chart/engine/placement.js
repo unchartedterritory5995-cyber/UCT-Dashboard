@@ -323,7 +323,15 @@ export function resolvePlacement(instance, def, ctx) {
   // it resolves to nothing rather than to a guess.
   const instTarget = instance && instance.placement && instance.placement.target
   const defTarget = def.placement && def.placement.target
-  const target = (typeof instTarget === 'string' && instTarget)
+  // ⭐⭐ `c.targetOf` IS `displayTarget.resolveDisplayTarget`, AND IT OUTRANKS
+  // BOTH OF THE ABOVE. A DERIVED indicator's target is computed from its SOURCE —
+  // `MA(RSI)` belongs in RSI's pane — and neither the instance nor the definition
+  // says so. Reading the stored fields directly was correct while every target
+  // was static; it is blind to any answer that depends on the rest of the chart.
+  // The fallback keeps every caller that predates this working unchanged.
+  const resolved = (typeof c.targetOf === 'function') ? c.targetOf(instance) : null
+  const target = (typeof resolved === 'string' && resolved)
+    || (typeof instTarget === 'string' && instTarget)
     || (typeof defTarget === 'string' && defTarget)
     || 'pane'
 

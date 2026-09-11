@@ -66,8 +66,10 @@
 // re-add, which `mergeSettingsOverride` already understands.
 
 import { validateInputValue } from './defSchema'
+import { getDefinition } from './nativeRegistry'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
-import { resolveDisplayTarget, DISPLAY_TARGETS } from './displayTarget'
+import { resolveDisplayTarget, isWritableDisplayTarget } from './displayTarget'
+import { wouldCycle } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE } from './presentation'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
@@ -465,6 +467,16 @@ export function removeInstance(cs, instanceId, registry) {
  * the survival, and the sibling cases where the mirror must stay untouched.
  */
 export function setInstanceInput(cs, instanceId, key, value, registry) {
+  // ⛔⛔ A SOURCE THAT WOULD CLOSE A LOOP IS REFUSED AT THE DOOR, not stored and
+  // coped with afterwards. `A → A` and `A → B → A` are the same case to
+  // `wouldCycle`, so self-reference needs no separate check. Refusing here is what
+  // keeps every reader downstream — the sort, the resolvers, the renderer — free
+  // of a state they would each have to defend against.
+  try {
+    if (wouldCycle(cs && cs.indicatorInstances, (id) => resolveRegistry(registry)(id), instanceId, value)) {
+      return cs
+    }
+  } catch { /* an unreadable instance list cannot describe a cycle */ }
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs
   const def = resolveRegistry(registry)(inst.defId)
@@ -576,28 +588,56 @@ function placementFor(def, defId, cs) {
  */
 export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   if (!cs || typeof cs !== 'object') return cs
-  if (!DISPLAY_TARGETS.includes(target)) return cs
+  if (!isWritableDisplayTarget(target)) return cs
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs
   const defId = inst.defId
 
+  // ⛔ THE LEGACY MIRROR IS KEYED BY DEFINITION, so only a definition the legacy
+  // list could ever have named is written to it. `volumeOverlayIndicators` holds
+  // DEF ids, which means one entry moves EVERY instance of that definition — fine
+  // for the shipped oscillators it was built for (one RSI, one MFI), wrong for a
+  // definition users instantiate many times. Sending `MA(Volume)` to the volume
+  // pane must not also send `MA(RSI)` there. The canonical `placement.target`
+  // carries the whole meaning; the mirror is compatibility, not storage.
+  const lookup = resolveRegistry(registry)
+  const mirrorsLegacy = ((lookup(defId) || getDefinition(defId))?.placement?.target) === 'pane'
+  const legacy = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
+  const wantsVolume = target === 'volume'
+  const inLegacy = legacy.includes(defId)
+  let volumeOverlayIndicators = legacy
+  if (!mirrorsLegacy) volumeOverlayIndicators = legacy
+  else if (wantsVolume && !inLegacy) volumeOverlayIndicators = [...legacy, defId]
+  else if (!wantsVolume && inLegacy) volumeOverlayIndicators = legacy.filter((x) => x !== defId)
+
+  // ⭐ "BACK TO DEFAULT" IS WHAT THE RESOLVER SAYS WITH NO OVERRIDE, not the
+  // literal `'pane'`. For most definitions those are the same sentence; for a
+  // DERIVED one they are not — `MA(RSI)`'s default is RSI's PANE, so deleting the
+  // key makes it FOLLOW its source, and `'pane'` is a real override meaning "give
+  // it one of its own". Asking the resolver is what keeps one answer.
+  //
+  // ⛔⛔ ASKED WITH THIS DEFINITION OUT OF THE LEGACY LIST ENTIRELY — not with the
+  // list as it arrived, and not with the list this write leaves behind. The
+  // legacy entry is the OLD way of saying the same thing, and letting it answer
+  // here means "volume is already the default, so write nothing", which is how
+  // the CANONICAL `placement.target` would quietly never get written and the
+  // whole POC C decision would reverse itself. The default is what the definition
+  // and the SOURCE say — the two things a user has not overridden.
+  const bare = { ...inst, placement: { ...(inst.placement || {}), target: undefined } }
+  const defaultTarget = resolveDisplayTarget(bare, {
+    ...cs, volumeOverlayIndicators: legacy.filter((x) => x !== defId),
+  })
+
   const next = cs.indicatorInstances.map((i) => {
     if (!i || i.instanceId !== instanceId) return i
     const placement = { ...(i.placement || {}) }
-    if (target === 'pane') delete placement.target
+    if (target === defaultTarget) delete placement.target
     else placement.target = target
     return Object.keys(placement).length ? { ...i, placement } : (() => {
       const { placement: _drop, ...rest } = i
       return rest
     })()
   })
-
-  const legacy = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
-  const wantsVolume = target === 'volume'
-  const inLegacy = legacy.includes(defId)
-  let volumeOverlayIndicators = legacy
-  if (wantsVolume && !inLegacy) volumeOverlayIndicators = [...legacy, defId]
-  else if (!wantsVolume && inLegacy) volumeOverlayIndicators = legacy.filter((x) => x !== defId)
 
   return { ...withInstances(cs, next, registry), volumeOverlayIndicators }
 }

@@ -6,7 +6,9 @@ import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
 import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
-import { volumeOverlayKeys, paneFollowerKeys } from './chart/engine/displayTarget'
+import {
+  volumeOverlayKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
+} from './chart/engine/displayTarget'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -10291,7 +10293,11 @@ export default function StockChart({
       // oscillator would cause, which is why both sets are subtracted here and in
       // the same place. `displayTarget` decides who follows whom; this consumes
       // that answer rather than forming its own.
-      excludeKeys: new Set([...volOverlaySet, ...paneFollowerKeys(engineInstances, cs)]),
+      excludeKeys: new Set([...volOverlaySet, ..._followerKeys]),
+      // ⭐ A HIDDEN OWNER KEEPS ITS PANE WHILE SOMETHING VISIBLE DRAWS IN IT.
+      // Hiding RSI must not take `MA(RSI)` with it — the eye icon is about ink,
+      // not about existence.
+      keepKeys: paneOwnersNeeded(engineInstances, cs),
       separatorPx: SEPARATOR_PX,
       firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,
@@ -10801,6 +10807,14 @@ export default function StockChart({
         volOverlaySet,
         volSeparatePane,
         VOL_PANE_INDEX,
+        // ⭐⭐ THE RESOLVED TARGET, NOT THE DECLARED ONE. `resolvePlacement` used to
+        // read `instance.placement.target || def.placement.target` itself, which
+        // is fine for a static answer and blind to a DERIVED one: `MA(RSI)`
+        // belongs in RSI's pane, and nothing in the definition or the instance
+        // says so — it is computed from the source. Handing the resolver
+        // `displayTarget`'s answer is what keeps ONE module deciding where an
+        // indicator draws, which is the same rule Volume already follows.
+        targetOf: (inst) => resolveDisplayTarget(inst, cs),
         resolvePlacement,
         resolvePreset,
       })

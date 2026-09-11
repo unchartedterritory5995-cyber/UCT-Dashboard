@@ -634,3 +634,85 @@ describe('the deep-link scroll does not depend on a frame count', () => {
     expect(code, 'the observer never disconnects').toMatch(/ro\.disconnect\(\)/)
   })
 })
+
+// ─── A DERIVED INDICATOR'S TWO SEPARATE MENUS ───────────────────────────────
+//
+// ⭐⭐ SOURCE AND DISPLAY TARGET ARE TWO CONTROLS, and that is the whole claim of
+// the dependency phase made visible. `MA(RSI)` reads RSI and draws in RSI's pane
+// by DEFAULT; moving it to the candles must not change a number it computes, and
+// changing what it reads must not be spelled by dragging it somewhere.
+//
+// ⛔ AND THE MENU EXISTS AT ALL ONLY BECAUSE THE GATE ASKS THE RESOLVER. The
+// definition declares `price` — it is a moving average — so the old declared-
+// target gate hid both of these controls from the one indicator that needs them.
+
+const WITH_MA_OF_RSI = {
+  indicators: { rsi: { enabled: true } },
+  indicatorInstances: [
+    { instanceId: 'legacy:rsi', defId: 'rsi', hidden: false, inputs: {} },
+    {
+      instanceId: 'inst:movingAverage:1',
+      defId: 'movingAverage',
+      hidden: false,
+      inputs: { source: '@legacy:rsi::rsi', period: 5, maType: 'sma' },
+    },
+  ],
+}
+
+const maRow = () => {
+  const btn = expanders().find((b) => /Moving Average/i.test(b.textContent || ''))
+  expect(btn, `no MA row among: ${activeLabels().join(' | ')}`).toBeTruthy()
+  return btn.closest('[data-row-id]')
+}
+
+describe('a derived indicator gets BOTH menus, and they are independent', () => {
+  const openMa = (extra) => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={base({ ...WITH_MA_OF_RSI, ...(extra || {}) })} onChange={onChange} onClose={() => {}} />)
+    openIndicators()
+    expand(/Moving Average/i)
+    return onChange
+  }
+
+  it('⭐ the SOURCE control names the instance it reads — RSI, not "pane 1"', () => {
+    openMa()
+    const sel = within(maRow()).getByLabelText(/ Source$/)
+    const chosen = [...sel.options].find((o) => o.value === sel.value)
+    expect(chosen, 'the stored source is not among the offered options').toBeTruthy()
+    expect(chosen.value).toBe('@legacy:rsi::rsi')
+    expect(chosen.textContent).toMatch(/RSI/i)
+    cleanup()
+  })
+
+  it('⭐⭐ …and a SEPARATE "Display in" control, defaulting to the SOURCE pane', () => {
+    openMa()
+    const sel = within(maRow()).getByLabelText(/display in/i)
+    // Named after the owner of the pane, which is what the chart shows.
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['RSI pane', 'Price', 'Volume'])
+    expect(sel.options[sel.selectedIndex].textContent).toBe('RSI pane')
+    cleanup()
+  })
+
+  it('⛔⛔ MOVING IT DOES NOT RE-SOURCE IT — the two writes never touch', () => {
+    const onChange = openMa()
+    fireEvent.change(within(maRow()).getByLabelText(/display in/i), { target: { value: 'price' } })
+    const next = lastCall(onChange)
+    const ma = next.indicatorInstances.find((i) => i.defId === 'movingAverage')
+    expect(ma.placement.target, 'the move did not land').toBe('price')
+    expect(ma.inputs.source, 'the move changed WHAT IT READS').toBe('@legacy:rsi::rsi')
+    // …and the source instance was not touched either.
+    expect(next.indicatorInstances.find((i) => i.defId === 'rsi').placement).toBeUndefined()
+    cleanup()
+  })
+
+  it('⛔ a PLAIN price overlay still gets no destination menu', () => {
+    // Bollinger has one place to draw. An inert menu entry for somewhere it
+    // cannot go is the defect this gate has always existed to prevent — widening
+    // it for derived instances must not widen it for everything.
+    render(<ChartSettingsModal open settings={base({ indicators: { bb: { enabled: true } } })} onChange={() => {}} onClose={() => {}} />)
+    openIndicators()
+    expand(/Bollinger/i)
+    expect(screen.queryByLabelText(/display in/i)).toBeNull()
+    cleanup()
+  })
+})

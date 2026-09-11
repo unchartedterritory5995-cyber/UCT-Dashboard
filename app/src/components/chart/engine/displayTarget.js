@@ -27,9 +27,31 @@ import { derivedTargetFor, parsePaneOfTarget } from './sourceRef'
  * thing worse than two formats is two formats plus a rewrite nobody asked for.
  */
 
-/** The targets a user can currently CHOOSE. `price` is resolvable but is not
- *  offered by the UI yet — only what is fully working gets a menu entry. */
+/** The targets a user can currently CHOOSE for a definition that declares
+ *  `pane`. A DERIVED instance is offered more than this — see below. */
 export const DISPLAY_TARGETS = Object.freeze(['pane', 'volume'])
+
+/**
+ * Is `t` a target a user may WRITE?
+ *
+ * ⭐⭐ SOURCE AND DISPLAY TARGET ARE SEPARABLE, AND THIS IS THE SENTENCE THAT
+ * SAYS SO. `MA(RSI)` DEFAULTS into RSI's pane; it is not welded there. So the
+ * writable set has to include the two things the fixed list could never express:
+ *
+ *   `'@rsi'`  — "wherever RSI is", the derived default said out loud. Writing it
+ *               is how "put it back with its source" is spelled, and
+ *               `setInstanceDisplayTarget` then DELETES the key because it
+ *               equals the default. One spelling of the default, as ever.
+ *   `'price'` — resolvable since the first pass (`placement.js`) and now
+ *               reachable: a moving average of RSI drawn on the candles is a
+ *               strange chart, but it is the user's chart, and refusing it here
+ *               would mean the pane is a property of the SOURCE rather than a
+ *               default.
+ */
+export function isWritableDisplayTarget(t) {
+  if (typeof t !== 'string' || !t) return false
+  return DISPLAY_TARGETS.includes(t) || t === 'price' || !!parsePaneOfTarget(t)
+}
 
 /**
  * The effective target for one instance.
@@ -52,8 +74,20 @@ export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
   // including back to its own pane, which is why `setInstanceDisplayTarget`
   // DELETES the key for `pane` rather than writing it: absent means "the
   // definition's own answer", and there is exactly one spelling of the default.
+  // ⛔⛔ A TARGET THAT RESTATES THE DEFINITION IS NOT AN OVERRIDE. The migrator
+  // and `addInstance` both write `placement: { target: <the declared one> }` on
+  // every instance they create — harmless while every target was static, and
+  // fatal to the first one that is not: `MA(RSI)` belongs in RSI's pane, and a
+  // `target: 'price'` stored at ADD time (copied straight from the definition,
+  // expressing no user intent at all) outranked that forever. Measured live — the
+  // MA computed a perfect average of RSI and drew it on the candles' scale.
+  //
+  // ⚠️ NOTHING IS REWRITTEN, AND NO USER INTENT IS LOST. An explicit write that
+  // DIFFERS still wins, and `setInstanceDisplayTarget` never stores a value equal
+  // to the default anyway — it deletes the key instead. This only stops a copy of
+  // the definition's own answer from masquerading as a decision.
   const explicit = instance.placement && instance.placement.target
-  if (typeof explicit === 'string' && explicit) return explicit
+  if (typeof explicit === 'string' && explicit && explicit !== declared) return explicit
 
   // (2) The legacy answer. Only a PANE oscillator can be overlaid onto volume —
   // a price overlay listed there (which nothing writes, but data is data) keeps
@@ -157,6 +191,29 @@ export function volumeOverlayKeys(instances, cs) {
     for (const id of cs.volumeOverlayIndicators) {
       if (typeof id === 'string' && id && !live.has(id)) out.add(id)
     }
+  }
+  return out
+}
+
+/**
+ * Definition ids that must KEEP a pane even though their own instance is hidden.
+ *
+ * ⭐⭐ BECAUSE SOMETHING VISIBLE IS DRAWING IN IT. Hiding RSI is a statement about
+ * RSI's ink, and `orderedPaneKeys` correctly gives a hidden instance no pane —
+ * but `MA(RSI)` is still visible and still computing, and its pane is RSI's. With
+ * no pane to join it resolved to nothing and vanished too, which turns the eye
+ * icon into a delete button for everything downstream of it.
+ *
+ * ⚠️ ONLY FOR A VISIBLE FOLLOWER. Hide both and the pane goes, which is right:
+ * an empty rectangle is the thing `orderedPaneKeys` skips hidden instances to
+ * avoid in the first place.
+ */
+export function paneOwnersNeeded(instances, cs) {
+  const out = new Set()
+  for (const inst of (Array.isArray(instances) ? instances : [])) {
+    if (!inst || typeof inst !== 'object' || inst.hidden === true) continue
+    const owner = parsePaneOfTarget(resolveDisplayTarget(inst, cs))
+    if (owner && owner !== inst.defId) out.add(owner)
   }
   return out
 }

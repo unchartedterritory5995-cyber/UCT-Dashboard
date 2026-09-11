@@ -276,7 +276,7 @@ function paneHeightFor(defId) {
  * order the list is in. `legendFromDefinitions.test.jsx` pins the two together;
  * one list, two readings.
  */
-function orderedPaneKeys(instances, excluded) {
+function orderedPaneKeys(instances, excluded, keep) {
   const paneIds = paneTargetIds()
   const keys = []
   const seen = new Set()
@@ -305,8 +305,12 @@ function orderedPaneKeys(instances, excluded) {
     // re-solves to RSI=1, MACD=2 and MACD slides down to make room. Reserving an
     // empty pane instead would mean maintaining a fiction the library refuses to
     // hold, in a second place.
-    if (inst.hidden === true) continue
-    const id = inst.defId
+    const id0 = inst.defId
+    // ⭐ …UNLESS SOMETHING VISIBLE DRAWS IN ITS PANE. A hidden RSI reserves
+    // nothing on its own account, and everything if `MA(RSI)` is still on screen —
+    // see `displayTarget.paneOwnersNeeded`.
+    if (inst.hidden === true && !(keep && keep.has(id0))) continue
+    const id = id0
     if (typeof id !== 'string' || !paneIds.has(id)) continue
     if (excluded.has(id) || seen.has(id)) continue
     seen.add(id)
@@ -556,7 +560,8 @@ export function computePaneLayout(instances, opts) {
   const mainPaneIndex = (Number.isInteger(o.mainPaneIndex)
     && o.mainPaneIndex >= 0 && o.mainPaneIndex < firstPaneIndex) ? o.mainPaneIndex : 0
 
-  const allKeys = orderedPaneKeys(instances, excluded)
+  const keepKeys = o.keepKeys instanceof Set ? o.keepKeys : new Set(o.keepKeys || [])
+  const allKeys = orderedPaneKeys(instances, excluded, keepKeys)
 
   // ─── PHASE 2 · PANES ABOVE THE PRICE PANE ─────────────────────────────────
   //

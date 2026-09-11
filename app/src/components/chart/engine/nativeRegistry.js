@@ -1102,7 +1102,13 @@ const NATIVE_COMPUTE = {
   // were right is the one failure a source system must not have.
   movingAverage: (bars, p, ctx) => {
     const n = Array.isArray(bars) ? bars.length : 0
-    const src = (ctx && Array.isArray(ctx.source)) ? ctx.source : null
+    // ⛔⛔ NOT `Array.isArray`. A resolved column is a **Float64Array** — `toColumn`
+    // has always built one — and `Array.isArray(new Float64Array(3))` is FALSE.
+    // The first live run had a perfectly good RSI source of 10,203 values and
+    // returned an all-NaN column, silently: no error, no warning, just an MA that
+    // never bound because `hasAnyFinite` said no. Indexable-with-a-length is the
+    // honest test, and it accepts a plain array too.
+    const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
     if (!src) return { ma: new Array(n) }
     return { ma: p.maType === 'ema' ? emaOfSeries(src, p.period, n) : smaOfSeries(src, p.period, n) }
   },
