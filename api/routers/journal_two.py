@@ -101,18 +101,6 @@ _J2_TELEMETRY_EVENTS = {
     #
     # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
     "notebook_offline_opt_in",
-    # Wave Q1 R-10/R-14 — THE DECISION CHANNEL. The canary can see stores, PUTs
-    # and revisions from outside the page; it cannot see what the editor DECIDED,
-    # and the decision is what three fixes kept getting wrong. Fires only when
-    # BOTH the offline key is '1' AND `uct.nb.diag` is '1' — a member who opted
-    # into offline editing does not silently gain a diagnostic.
-    #
-    # ⛔ NEVER note content. Hashes and lengths only (FNV-1a over the serialized
-    # body), the answer a comparison gave, a baseline string, and a status code.
-    # Capped at 20 posts per session client-side so a diagnostic cannot flood the
-    # shared activity_log. Railed: app/.../diag.test.js pins that the member's
-    # text cannot appear in a record and that either key unset is silence.
-    "notebook_diag_decision",
 }
 
 

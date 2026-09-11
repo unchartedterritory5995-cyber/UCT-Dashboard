@@ -370,6 +370,21 @@ same one CLAUDE.md names repeatedly: *a hand-typed claim beside the source that 
 
 ---
 
+### 🗄️ SHELVED — the offline diagnostic (`diag.js`)
+
+**Built, railed (19 cases, mutation on the gate), and SHELVED on branch
+`notebook/diag-shelved`.** It is not in any deploy.
+
+⛔ **Investigate a closed defect no further.** It was written to see inside
+round 3, which turned out to be an instrument artifact — and the wire evidence
+(request *and* response, correlated) answered every question it was meant to
+answer, better. The deploy gate then returned **TIER 1** on it, correctly: its
+hooks sat inside `outboxDrain`'s discard-vs-rebase decision and inside
+`sameAuthoredContent`, the one authority for "did the server catch up".
+
+⛔ **No hooks inside `outboxDrain`'s decision or `sameAuthoredContent` under any
+name.** Reconsider only against a real, open finding on the member path.
+
 ## 8. DO-NOT-BUILD — recorded so nobody rebuilds them
 
 General web clipper (narrow bookmarklet carve-out only) · third-party plugin

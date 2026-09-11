@@ -35,7 +35,6 @@ import {
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
-import { diag, shape } from '../../lib/offline/diag'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -1711,17 +1710,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // it made guard 2 answer "not ours" about our own write and fork the note.
     await recordLandedRevision({ accountId: user?.id, noteId, updatedAt: saved.updatedAt })
     const current = captureLocalState()
-    // ⛔ INSTRUMENT ONLY — inert unless `uct.nb.diag` is armed, and nothing below
-    // branches on it. This is the decision round 3 is suspected of getting
-    // wrong, and the canary cannot see it from outside the page.
-    diag('settleMetadataRevision', () => ({
-      noteId,
-      currentWasNull: current === null,
-      current: shape(current),
-      acked: shape(saved),
-      editorPresent: !!editorRef.current,
-      editorDestroyed: editorRef.current ? !!editorRef.current.isDestroyed : null,
-    }))
     // ⛔⛔ NULL IS "NO EVIDENCE", NOT "CAUGHT UP" — AND THE DIFFERENCE COST A
     // MEMBER'S WORDS.
     //

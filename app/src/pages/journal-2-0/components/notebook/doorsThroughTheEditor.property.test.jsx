@@ -57,11 +57,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
-import { __resetNotebookConnections } from './useDurableNote'
-import { OFFLINE_FLAG_KEY } from './offlineFlag'
-import { dbNameFor } from './notebookDb'
-import { useOutboxDrain } from './useOutboxDrain'
+import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/__fixtures__/fakeIndexedDb'
+import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
+import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
+import { dbNameFor } from '../../lib/offline/notebookDb'
+import { useOutboxDrain } from '../../lib/offline/useOutboxDrain'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -202,7 +202,7 @@ function RealSavePath({ noteId }) {
   const [Editor, setEditor] = React.useState(null)
   React.useEffect(() => {
     let live = true
-    import('../../components/notebook/NoteEditorPage').then((m) => { if (live) setEditor(() => m.default) })
+    import('./NoteEditorPage').then((m) => { if (live) setEditor(() => m.default) })
     return () => { live = false }
   }, [])
   // ⛔ CONDITIONAL, exactly as NotebookTab does it: `{noteId ? <NoteEditorPage
