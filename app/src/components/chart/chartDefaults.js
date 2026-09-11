@@ -234,6 +234,10 @@ export const CHART_DEFAULTS = {
   // once, at read time. See `mergeChartSettings`.
   settingsVersion: 2,
   indicatorInstances: [],
+  /** ⭐ THE CONDITION LIST — rules that answer true/false per bar and the visual
+   *  ACTIONS that consume the answer. Empty by default, so a chart that has never
+   *  had one is byte-identical to what it was. See `engine/conditions.js`. */
+  conditions: [],
   // ⭐ B5 TASK 4 — `engineEnabled` STOOD HERE, AND IT IS DELETED, NOT FLIPPED.
   // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
   //
@@ -550,6 +554,17 @@ export function mergeChartSettings(userSettings) {
     // re-seed instances the user has since deleted.
     settingsVersion: 2,
     indicatorInstances: Array.isArray(parsed.indicatorInstances) ? parsed.indicatorInstances : [],
+    // ⭐⭐ CONDITIONS — ADDITIVE, AND THE ALLOW-LIST IS WHY THIS LINE HAS TO EXIST.
+    // This object is a HARD allow-list: a key absent from it is destroyed on
+    // every read, which is the trap that nearly took `indicatorInstances` in B1.
+    // A chart with no conditions carries `[]` and is byte-identical to what it
+    // was; nothing is written on load and no old blob is rewritten.
+    //
+    // ⛔ AND ONLY THE DEFINITION IS PERSISTED — never the boolean columns, never
+    // the background rectangles, never a resolved candle colour per historical
+    // bar. Those are derived from the bars on screen and would be wrong for the
+    // next symbol, the next timeframe and the next zoom (Part 46).
+    conditions: Array.isArray(parsed.conditions) ? parsed.conditions : [],
     // ⭐⭐ B5 TASK 4 — `engineEnabled: parsed.engineEnabled === true` STOOD HERE.
     //
     // 🔑 THIS LINE, NOT THE DECLARATION, WAS THE FLAG. It read the STORED BLOB,

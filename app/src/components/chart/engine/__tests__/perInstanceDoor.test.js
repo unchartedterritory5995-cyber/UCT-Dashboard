@@ -292,6 +292,12 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // per-definition door and moves none: the corpus gains exactly that
       // definition's row and every existing row is byte-identical.
       // INVESTIGATED, not regenerated.
-      .toBe('033a48bed1adea66a56dacadfce80cf3db9a2178c290d58fab8a46801dd1473f')
+      // ⭐ 2026-09-11 (second, same day) — re-pinned for `conditions: []`, the
+      // condition/visual-action list. INVESTIGATED BY MEASUREMENT: this corpus
+      // rebuilt with the `conditions` key stripped from every blob reproduces
+      // `033a48be…` EXACTLY, so no per-definition door changed behaviour and
+      // each blob gained one additive empty array. A condition is not an
+      // indicator and takes no door here — which is the point.
+      .toBe('1d4481227f588bd872d882cb5d877e27c5e53bdb00bb2a8c6bc8ab33316dfe0c')
   })
 })

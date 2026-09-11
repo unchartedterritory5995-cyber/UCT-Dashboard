@@ -290,8 +290,16 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // 2026-08-27: re-pinned for the owner default-chart retune — the terminal SMA5
   // overlay REMOVED (default set 5→4) + watermark sizeScale 1.0→1.25 / weight 700→500.
   // CHART_DEFAULTS value/structure edits only; per-chart scope path unchanged.
+  // ⭐ 2026-09-11 — re-pinned for `conditions: []`, the condition/visual-action
+  // list. INVESTIGATED BY MEASUREMENT, NOT REGENERATED: this corpus rebuilt with
+  // the `conditions` key STRIPPED from each merged blob reproduces the prior
+  // literal `b5eb05e6…` **exactly**, so the merge answers identically on every
+  // other key and each blob simply gained one additive empty array. Same class as
+  // `markers.ipo` / `crosshair.enabled` / the per-MA `onTop` re-pins above — a
+  // default-empty field no renderer reads until a member writes a rule, so no
+  // pixel moves.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    'b5eb05e672170c4efd5831fde856518e6dae717c2379535b189ab49221fe7e3f'
+    '5c8f279f1419dd7664482f425d566f45a02f7af06403f2ec00f883c9dc620bf5'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

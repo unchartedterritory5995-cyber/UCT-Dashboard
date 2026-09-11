@@ -15,6 +15,7 @@ import {
 // THIS file's writer and colour swatch; see its header for why it is a
 // composition of the two shipped surfaces rather than a third one.
 import ChartSettingsIndicators from './ChartSettingsIndicators'
+import ChartSettingsConditions from './ChartSettingsConditions'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
 // The engine's definitions, so the Indicators tab can GENERATE the rows for the
 // indicators the engine owns instead of carrying a second hand-written copy of
@@ -884,7 +885,14 @@ export default function ChartSettingsModal({
         </div>
 
         <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
+          {/* ⭐ CONDITIONS IS ITS OWN TAB, and the owner's lean is the right one
+              here for an architectural reason rather than a layout one: the list
+              is not about PRICE STYLE. The same condition will later drive a
+              marker, an indicator's colour and an alert, none of which belongs
+              under "Price Style → Conditional Appearance". Putting it beside the
+              Indicators list says what it is — a second kind of thing the chart
+              computes — rather than a decoration on the candles. */}
+          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['conditions', 'Conditions'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -1171,6 +1179,13 @@ export default function ChartSettingsModal({
                rather than a click plus a hunt down a list. */
             openRowId={indTargetRow(scrollTo)}
           />
+          )}
+
+          {activeTab === 'conditions' && (
+            <ChartSettingsConditions
+              settings={settings}
+              onChange={(next) => onChange?.({ ...next, preset: 'custom' })}
+            />
           )}
 
           {activeTab === 'header' && (<>
