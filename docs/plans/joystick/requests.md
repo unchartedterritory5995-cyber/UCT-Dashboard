@@ -30,8 +30,12 @@ this table disagree, **this table is the authority and the section is history**.
 | R-16 | **CLOSED — RESOLVED.** `planTrade` is `kind:'run'`, so Plan trade opens ONE sheet. | `registry.js:159-172` |
 | R-18 | **CLOSED — RESOLVED.** `data-note-card-id` carries note identity, with its own rail. | `hub/noteCardIdentity.test.jsx` |
 
-The remaining rows — **R-10, R-14, R-17, R-19** — were closed by Increment 7's own work; their
-verdicts are recorded in the closure report beside the commits that closed them.
+| R-10 | **SHIPPED `608721f3c`.** The Journal's chip said "Add trade" and opened the **Plan-trade** sheet — a label that lies, and a placement decision a section had made about Director-owned data. The registry now carries the right identity and the label matches the behaviour. Three artifacts described this inner ring and no two agreed; the running code is now the one they are reconciled to. | `registry.js`, `sections/journalSection.js` |
+| R-14 | **SHIPPED `124d27c6d`.** `HubRoot`'s confirm branch prefers `action.confirmPayload?.(ctx)`, validates it before it becomes state, and forwards the sheet's `values` to `run(ctx, values)`. Railed on the RENDERED sheet — a test that the payload function was *called* passes with the branch deleted. ⭐ R-14 understated it: `alertConfirmPayload` was already written, exported, tested **and attached to the action**; the single missing link really was that one branch. | `hub/confirmFieldsReachable.test.jsx` |
+| R-17 | **SHIPPED `1b8ca51d4`.** `notebook.linkTicker` returns as **Set ticker**, a `confirm` whose symbol comes from a required field on its own sheet — defaulting from `ctx` when a symbol is in scope, empty otherwise. `requires: ['symbol']` is deliberately gone: that was the thing making it a permanently dimmed bubble. Presence is gated on there being a note to file instead — absent, never present-and-inert. | `hub/linkTickerWritesTheNote.test.jsx` |
+| R-19 | **SHIPPED `33758ffed`.** Its own first return condition — "either D-35 is closed (the confirm sheet carries fields, and Templates becomes a `confirm` with a select)" — was met by R-14 the same night, so Templates returns with a real `<select>` whose options are **derived** from `lib/notebookTemplates.js`, never typed. ⛔ The second condition is still unmet and was measured, not assumed: `NotebookTab.jsx` holds `TemplatePicker` behind a private `useState` with no prop, URL param or handle, and that file is rule-12. A `text` field was considered and rejected — asking a member to type `daily-prep` is worse than the hardcoded key, not better. | `hub/notebookTemplatesPicker.test.jsx` |
+
+⭐ **Every one of the four was closed by BUILDING the thing, not by rewording the request.**
 
 ---
 
