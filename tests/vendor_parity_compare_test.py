@@ -12,6 +12,16 @@ Uses a small hand-computable `sma(close, 3)` fixture rather than the real
 rsi/atr capture (not yet available) — this file proves the TOOL is correct
 and mutation-sensitive independent of when the real TradingView capture
 lands; the real capture plugs into the same `compare()` function unchanged.
+
+⚰️ MOVED HERE FROM `tools/` ON 2026-09-11, AND IT HAD NEVER RUN.
+Nine mutation/non-vacuity tests — the ones the Vendor Parity authorization
+required, each pinning one way the comparison could pass for the wrong reason —
+sat outside every `testpaths` root, so no standard run collected them. A
+mutation suite that never runs is the most convincing green there is.
+
+⛔ Adding `tools/` to `testpaths` instead would have pulled in the live
+SnapTrade and TwitterAPI.io smoke tests at collection; `NOT_A_SUITE` keeps those
+out of the discovery RAIL, not out of a run.
 """
 import math
 
