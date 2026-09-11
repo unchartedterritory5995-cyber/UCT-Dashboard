@@ -197,8 +197,20 @@ ROW_MARK = "| **mini-canary** |"
 # that decays into a deletion is how a wave loses the instrument that found the
 # defect, and this instrument caught H1 on three separate occasions while the
 # step beside it read green every time.
-CANARY_SUSPENDED = True
-SUSPENSION_REASON = "mini-canary suspended pending self-fork round 3"
+# ⛔⛔ THE SUSPENSION IS LIFTED — 2026-09-11, and the reason it existed is gone.
+#
+# It was raised while self-fork round 3 was open. Round 3 CLOSED BY FINDING: the
+# fork was the INSTRUMENT, not the product. `DOOR_JS` fired a metadata door with
+# a raw `fetch`, so the editor's handlers never ran, `recordLandedRevision` never
+# recorded the revision, and guard 2 correctly answered "not ours" and forked —
+# which is the right answer to a second writer, and a member changing a ticker is
+# not one. Measured on the same rig and ordering: the raw-fetch door lost 11 of 13
+# (r = 0.85); the MEMBER'S OWN door lost 0 of 36 (r = 0.00).
+#
+# The canary now fires `REAL_DOOR_JS` — the member's door — so running it is no
+# longer a way to reproduce an artifact.
+CANARY_SUSPENDED = False
+SUSPENSION_REASON = ""
 
 # ⛔ ON EVERY ROW, AT THE TOP. A reader who needs it is not reading for pleasure.
 ROLLBACK_LINE = ("⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the "
@@ -2289,8 +2301,18 @@ def self_check() -> int:
     # ══════════════════════════════════════════════════════════════════════════
     # ⛔⛔ THE SUSPENSION — one switch, and SUSPENDED IS NOT DELETED.
     # ══════════════════════════════════════════════════════════════════════════
-    cases.append(("⛔ the mini-canary is SUSPENDED — the switch is on",
-                  CANARY_SUSPENDED is True))
+    # ⛔⛔ THE SWITCH IS NOW OFF — LIFTED 2026-09-11, round 3 closed by finding.
+    # The pin is INVERTED rather than deleted: the state is still asserted, so
+    # flipping it back on (or forgetting to) shows up as a red line and not as
+    # silence. ⚰️ While it was on, seven "streak" runs exited 0 having exercised
+    # nothing — the suppression worked and the reporting did not, which is why
+    # the reads-only exit code below exists.
+    cases.append(("⭐ the mini-canary is ARMED — the switch is off",
+                  CANARY_SUSPENDED is False))
+    cases.append(("…and the suspension REASON is cleared with it, never left stale",
+                  SUSPENSION_REASON == ""))
+    cases.append(("⛔ A READS-ONLY RUN IS NOT COUNTABLE — it exits 3, never 0",
+                  'return 3' in src_wc and 'if not chk.canary:' in src_wc))
     cases.append(("…and the switch alone stops it, even with no --no-canary flag",
                   canary_should_run(True, False) is False))
     cases.append(("…and `--no-canary` alone stops it too, switch off",
@@ -2727,7 +2749,28 @@ def main() -> int:
             print("   -", f)
     print()
     ok = stamp(chk, args.dry_run)
-    return 0 if (ok and not chk.findings) else 1
+    if not (ok and not chk.findings):
+        return 1
+    # ⛔⛔ A RUN THAT DID NOT FIRE THE CANARY IS NOT A STREAK RUN, AND MUST NOT
+    # BE COUNTABLE AS ONE.
+    #
+    # ⚰️ 2026-09-11: seven runs were launched as a streak against the deployed
+    # build and all seven exited 0 in 106 seconds total. They had done READS
+    # ONLY — no note, no typing, no door, no fork check — because
+    # `CANARY_SUSPENDED` still won over the missing `--no-canary`, exactly as it
+    # was designed to. The suppression worked; the REPORTING did not. A caller
+    # counting exit codes cannot tell "seven clean canaries" from "seven runs
+    # that did nothing", and that is the whole shape of the defect this wave
+    # exists to hunt (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    #
+    # So a reads-only run gets its OWN exit code. 0 means the canary ran and was
+    # green; 3 means nothing was exercised. Any streak loop counts 0 and only 0.
+    if not chk.canary:
+        print("")
+        print("⛔ READS-ONLY RUN - the canary did not fire, so this is NOT a streak run.")
+        print("   exit 3: green reads, nothing exercised.")
+        return 3
+    return 0
 
 
 if __name__ == "__main__":
