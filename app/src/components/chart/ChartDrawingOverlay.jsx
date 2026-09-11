@@ -2277,7 +2277,16 @@ export default function ChartDrawingOverlay({
       if (!chart || chartLock) return
       try {
         const o = chart.options?.() || {}
-        chartLock = { handleScroll: o.handleScroll ?? true, handleScale: o.handleScale ?? true }
+        // ⛔⛔ DEEP-COPY THE SNAPSHOT. lightweight-charts' `options()` returns its
+        // LIVE internal object, and `applyOptions` merges INTO that object in
+        // place — so holding a reference to `o.handleScroll` and then locking
+        // it meant the "saved" state was overwritten by the lock itself, and
+        // the restore re-applied all-false. That shipped: after one drawing
+        // drag the chart could never be panned, pinched or price-scaled again
+        // and the browser zoomed the page instead. Copy the values, not the
+        // references. (Booleans pass through; the library expands them.)
+        const snap = (v) => (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v
+        chartLock = { handleScroll: snap(o.handleScroll ?? true), handleScale: snap(o.handleScale ?? true) }
         chart.applyOptions({ handleScroll: false, handleScale: false })
       } catch { chartLock = null }
     }
