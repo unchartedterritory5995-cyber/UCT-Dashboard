@@ -148,3 +148,8 @@ app/src/stripqa2.jsx
 # NEVER committed: licence-gated (see docs/pine/LICENSING.md). Re-fetchable via
 # tools/pine_survey/tvfetch.py.
 tools/pine_survey/cache/
+
+# Per-chunk logs from tools/pytest_chunks.py (the R7 full-lane runner). One
+# full run is ~40 MB across 12 logs and is evidence for ONE run, not an
+# artifact. Cite a chunk log by path in a commit message; never commit it.
+.pytest_chunks/
