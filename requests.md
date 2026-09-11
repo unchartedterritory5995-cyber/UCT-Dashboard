@@ -244,3 +244,62 @@ something that is yours to rule on.
   one that did not.
 
 ⛔ **We changed neither census test.** This entry is the routing.
+
+---
+
+## OPEN · 2026-09-11 · a committed fixture and its blob disagree about line endings, and the alarms say "STALE"
+
+**Raised by:** the `indicator-r0r1` session.
+**Territory:** repo-wide (`.gitattributes`), so nobody's in particular.
+**Blocking us:** no — the two instances that were RED are fixed. This is about the next one.
+
+### It has now happened three times in one day
+
+| where | what the alarm said | what it was |
+|---|---|---|
+| `tests/fixtures/member/*.pine` | 🔴 *"THE AUTHOR'S SCRIPT CHANGED … every 'line N' reference in this project now points at a different statement"* | 34,950 bytes on disk vs a 34,342-byte blob — exactly its 608 CRLFs |
+| `…/importer/__fixtures__/obsidian_parity/*.json` | *"committed fixtures are STALE relative to the current provider pre-pass output — regenerate … and commit the result"* | all 7 byte-identical to their blobs once normalised |
+| every "modified" file in `git status` with an empty `git diff` | nothing — silent | the same thing, wearing no alarm at all |
+
+Each was fixed with one `text eol=lf` line, and the second of them sits **directly
+beneath a rule written for the identical failure in a sibling directory** — that rule
+named `server_convert/` and the fixtures live in `obsidian_parity/`.
+
+### ⛔ Why this is worth a ruling rather than another one-line patch
+
+**The prescribed remedy causes the real defect.** Both alarms tell you to re-record:
+*"re-record `file_sha256`"*, *"regenerate … and commit the result"*. Doing that bakes
+this box's CRLF into the committed artifact, and the same test then fails on every
+checkout that is not this box. The louder the alarm, the more likely someone obeys it.
+
+**And the alarm is the one you least want crying wolf.** The member-fixture rail exists
+to shout when a member's script is swapped under our line-number references. Teaching
+whoever meets it that it cries wolf is worse than the drift it guards.
+
+### The measurement
+
+**1,887 tracked fixture files** (`tests/fixtures/**` plus every `__fixtures__/**`), and
+**none carries an eol attribute**. Repo-wide, 8,061 of 9,481 tracked files are CRLF on
+disk against an LF blob — which is simply what `core.autocrlf=true` does here and is
+harmless for source. It bites **only** where a test compares raw BYTES: a hash, a
+`read_bytes()`, or a regenerate-and-diff. JSON that gets parsed does not care.
+
+### Two candidate fixes, and the second is not obviously safe
+
+1. **`-text` on fixture paths** — no conversion in either direction, so whatever bytes
+   are committed are the bytes on disk. ⭐ Safe for a fixture that contains
+   *intentional* CRLF as test data.
+2. **`text eol=lf` on fixture paths** — ⛔ **this would DESTROY such a fixture**: `text`
+   normalises on commit, so a fixture deliberately holding CRLF (a converter test, a
+   header parser, an import round-trip) has its own subject silently rewritten. We did
+   not audit 1,887 files for that, which is exactly why this is routed and not done.
+
+**What we would find most useful:** a ruling on which of the two, and whether it applies
+to all fixture roots or only the byte-compared ones. A rail asserting the chosen
+attribute holds for every fixture path is then mechanical, and this stops recurring.
+
+⭐ **The detection recipe, so the fourth instance costs a minute instead of an hour:**
+compare `os.path.getsize(f)` with the blob size from
+`git cat-file --batch-check`. If the difference equals the file's CRLF count, nothing
+drifted — the checkout filter did. `git diff` will also be empty while `git status` says
+modified, which is the same fact wearing a disguise.
