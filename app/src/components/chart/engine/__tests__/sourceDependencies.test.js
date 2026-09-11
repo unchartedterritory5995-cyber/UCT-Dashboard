@@ -12,7 +12,7 @@ import {
 import {
   resolveDisplayTarget, paneOwnerOf, paneFollowerKeys, paneOwnersNeeded,
 } from '../displayTarget'
-import { setInstanceInput } from '../instanceControls'
+import { setInstanceInput, setIndicatorInput } from '../instanceControls'
 import { autoscaleProvider, AUTOSCALE_DEFAULT } from '../pool'
 
 // ─── CALCULATION READS A NUMERIC SERIES ──────────────────────────────────────
@@ -550,5 +550,48 @@ describe('an instance with THREE outputs', () => {
     expect(ordered.map((i) => i.instanceId).slice(1).sort())
       .toEqual(['inst:ma:1', 'inst:ma:2'])
     expect([...cyclic]).toEqual([])
+  })
+})
+
+
+// ─── THE CYCLE GUARD HAS TO STAND AT BOTH DOORS ────────────────────────
+//
+// ⛔⛔ `applyRowPatch` routes a USER-ADDED instance through `setInstanceInput` and
+// the FOLD's instance (`legacy:<defId>`) through `setIndicatorInput`, so that the
+// legacy mirror keeps agreeing with it. A guard on one door is therefore half a
+// guard: a loop closed through the fold's half was accepted. Measured live —
+// `legacy:movingAverage` → `inst:movingAverage:1` → `legacy:movingAverage`, stored
+// without complaint, then dropped by the binder's cycle set, and the chart
+// quietly lost two lines with nothing said about why.
+
+describe('a loop is refused at whichever door it arrives', () => {
+  const two = () => ([
+    rsi(),
+    { ...ma(instanceSource('legacy:rsi', 'rsi')), instanceId: 'legacy:movingAverage' },
+    { ...ma(instanceSource('legacy:movingAverage', 'ma')), instanceId: 'inst:movingAverage:1' },
+  ])
+
+  it('⛔ the USER-ADDED door refuses — `setInstanceInput`', () => {
+    const cs = csOf(two())
+    const back = instanceSource('inst:movingAverage:1', 'ma')
+    expect(setInstanceInput(cs, 'legacy:movingAverage', 'source', back, registry)).toBe(cs)
+  })
+
+  it('⛔⛔ …and so does the FOLD door — `setIndicatorInput`', () => {
+    const cs = csOf(two())
+    const back = instanceSource('inst:movingAverage:1', 'ma')
+    const next = setIndicatorInput(cs, 'movingAverage', 'source', back, registry)
+    expect(next, 'the loop was stored through the legacy mirror').toBe(cs)
+    // …and the MIRROR is untouched too, which is the half a `return cs` guarantees
+    // and a late bail-out would not.
+    expect(next.indicators?.movingAverage?.source).toBeUndefined()
+  })
+
+  it('✅ a source that closes NO loop still writes through that door', () => {
+    const cs = csOf(two())
+    const next = setIndicatorInput(cs, 'movingAverage', 'source', 'volume', registry)
+    expect(next).not.toBe(cs)
+    const fold = next.indicatorInstances.find((i) => i.instanceId === 'legacy:movingAverage')
+    expect(fold.inputs.source).toBe('volume')
   })
 })

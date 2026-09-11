@@ -665,6 +665,19 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
 export function setIndicatorInput(cs, defId, key, value, registry) {
   const def = resolveRegistry(registry)(defId)
   if (!def || !cs || typeof cs !== 'object') return cs
+  // ⛔⛔ THE CYCLE GUARD BELONGS AT **BOTH** DOORS, and putting it at only one
+  // was a real hole. `applyRowPatch` routes a USER-ADDED instance through
+  // `setInstanceInput` and the FOLD's instance (`legacy:<defId>`) through here,
+  // for the mirror reason written beside it — so a two-instance loop closed
+  // through the fold's half was stored without complaint. Measured live:
+  // `legacy:movingAverage` → `inst:movingAverage:1` → `legacy:movingAverage`, both
+  // accepted, both then dropped by the binder's cycle set, and the chart quietly
+  // lost two lines with nothing said. Refusing at the door is what keeps every
+  // reader downstream free of a state it would have to defend against.
+  try {
+    if (wouldCycle(cs.indicatorInstances, (id) => resolveRegistry(registry)(id),
+      legacyInstanceId(defId), value)) return cs
+  } catch { /* an unreadable instance list cannot describe a cycle */ }
   const declared = declaredInputs(def).get(key)
   if (!declared) return cs
   const coerced = coerce(declared, value)
