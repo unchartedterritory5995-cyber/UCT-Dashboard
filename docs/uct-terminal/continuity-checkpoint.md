@@ -2457,6 +2457,26 @@ member-facing):
   feature. Two separately-tracked items, one product decision: mount them,
   delete them, or record the decision. Fixing the news door is moot until that
   call is made — and whoever makes it closes both at once.
+  ⚰️⚰️ **CORRECTED 2026-09-10 (owner ruling). The entry above conflates two
+  different claims, and only one of them is true.** *"Unmounted from
+  `App.jsx`"* was TRUE. *"Unreleased"* was NOT: the Community feature named
+  in that orphan list is **LIVE to members** under `COMMUNITY_ENABLED=1`,
+  reached through the **`floor2` bundle** — `app/floor2.html` is a SECOND HTML
+  entry point with its own `app/src/floor2/` tree.
+
+  ⭐ **That second entry point is why both readings could look correct at
+  once.** `reachable.test.js` walks the import graph FROM `App.jsx`, so
+  anything whose only door is another entry bundle is structurally invisible
+  to it and reads as an orphan. The rail was not wrong about what it
+  measured; it was read as measuring something wider than it does — "nothing
+  reaches this module" rather than "nothing reaches this module FROM
+  App.jsx". Any future use of that list must carry the qualifier, and a
+  module in it must be checked against the other entry points before being
+  called unreachable, let alone unreleased.
+
+  ⛔ The 18 recorded entries stay recorded — the decision to record rather
+  than delete is unchanged and was right. What changes is the INFERENCE:
+  "unreachable from App.jsx" is not evidence about what members can see.
 - **Seam 22 — event context preservation absent.** `ResearchPage.jsx` reads one
   query param, seeded at mount, never updated; no `from=`/`returnTo`/`backTo`
   anywhere in the research surfaces. Confirmed NOT NEEDED for V1; a real gap for
@@ -2491,38 +2511,74 @@ Six of its seven commits are dark or test-only; the seventh
 member-impact paragraph is in the commit. Calling this out rather than letting
 the plan's own label stand as the record.
 
-### ⛔ THE FLAG LEDGER HAD DRIFTED, AND THE TOOL THAT CHECKS IT COULD NOT RUN
+### THE LEDGER DRIFTED — AND I REPORTED THE DRIFT AS A DISCOVERY
 
-`docs/feature_flags.json` records INTENT and says so; `tools/flag_ledger_audit.py`
-is the half that LOOKS. It has been unrunnable on the only machine that runs it:
-`subprocess.run(..., text=True)` decodes with the locale codec (cp1252 here), the
-Railway CLI emits UTF-8, and the first box-drawing byte killed a reader thread.
-The tool then correctly REFUSED to audit against a partial service roster — so
-the symptom read as "could not enumerate the services", like an auth problem, not
-like an encoding bug. That is why it went unfixed. Fixed in `d806f4463`.
+⚰️⚰️ **CORRECTED 2026-09-10, same night, on owner ruling. The section this
+replaces claimed that finding `RESEARCH_TECHNICAL_TAB_ENABLED='1'` on `web` meant
+"the member-facing surface of this program is ON and the program has been
+reasoning about it as unreleased." That is FALSE, and it was falsifiable from
+this very file.**
 
-**Its first successful run, against all five Railway services:**
+**What actually happened.** The flag was flipped ON **by owner ruling at
+2026-09-09 23:22:30 ET**, verified in the running process at flip time. The
+Research → Technical tab has been deliberately LIVE to paid members since that
+timestamp. It is recorded here (*"✅ FLAG FLIPPED ON 2026-09-09 23:22:30 ET.
+Verified in the running process."*) and in the session's own status document §0
+(*"live to paid members since 2026-09-09 23:22 ET"*).
+
+**What drifted is the LEDGER, and only the ledger.** `docs/feature_flags.json`
+kept the MERGE-TIME `dark` entry because nothing updated it when the flag was
+flipped. It now reads `armed`, `where: ["web"]`, with the flip timestamp in the
+note.
+
+⛔ **The reading error is the part worth keeping.** A live-flag question was
+answered from the LEDGER — the artifact that records INTENT and explicitly
+"cannot see Railway" — instead of from the checkpoint, which records what
+happened. The flip and its timestamp sat **488 lines higher in the same file
+being edited**. *The ledger is the artifact most likely to be stale, precisely
+because nothing fails when it is.* When the ledger and the checkpoint disagree
+about a live flag, **the checkpoint wins and the ledger is what drifted.**
+
+⛔ **The durable fix is procedural, and it is now in CLAUDE.md beside the flip
+procedure as step 5: every flip updates the ledger entry in the same docs push
+that records the flip time.** A flip is not finished when the process has the
+value; it is finished when the ledger says so.
+
+### The auditor — the actual win
+
+`tools/flag_ledger_audit.py` is the only thing that compares the ledger against
+Railway, and it has never been runnable on the machine that runs it.
+`subprocess.run(..., text=True)` decodes a pipe with the locale codec (cp1252
+here); the Railway CLI emits UTF-8; the first box-drawing byte killed a reader
+thread, the service roster came back `None`, and the tool then did the RIGHT
+thing and refused to audit against a partial roster.
+
+⭐ **So the symptom was `"CANNOT AUDIT: could not enumerate the project's
+services"` — a decode failure wearing the costume of an auth or project-access
+problem.** That is why it sat unfixed rather than unnoticed: the message sent
+every reader to the wrong subsystem. Fixed 2026-09-10 (`d806f4463`,
+`encoding="utf-8", errors="replace"`). Run it after any flip.
+
+**After the ledger correction, the auditor reports one remaining disagreement:**
 
 | finding | n | names |
 |---|---|---|
 | ledger says ARMED, nothing sets it (fiction) | 0 | — |
-| ledger says OFF, but it IS set | **2** | `ALPHA_GOLD_EOD_ENABLED` · **`RESEARCH_TECHNICAL_TAB_ENABLED`** |
+| ledger says OFF, but it IS set | 1 | `ALPHA_GOLD_EOD_ENABLED` |
 | off-by-default and undeclared | 0 | — |
 | awaiting a decision | 0 | — |
 
-⛔⛔ **`RESEARCH_TECHNICAL_TAB_ENABLED = '1'` ON `web`.** The ledger said dark and
-both CLAUDE.md and this file describe the Technical tab as shipping dark. **The
-member-facing surface of this entire program is ON**, and has been while the
-program reasoned about it as unreleased. Read from the service config, and the
-pod has booted three times tonight since, so the running process has it — but the
-standing rule is that `--kv` is the SERVICE's config and not proof about the
-PROCESS, and confirming in-process needs an authenticated session, which is off
-the table. Recorded as config-level truth with that limit stated.
+⚠️ **`ALPHA_GOLD_EOD_ENABLED` is another workstream's and was NOT touched.**
+Recorded with the caveat that governs every reading of this kind: `--kv` reports
+what a SERVICE IS CONFIGURED WITH, which is not evidence the RUNNING PROCESS has
+it. Its ledger note already says it was confirmed `=0` on flow-worker on
+2026-09-06 and superseded by `CREAM_EOD_ENABLED`; reconciling that is that
+workstream's call, not this program's.
 
-⚠️ Also read live: `COMMUNITY_ENABLED='1'`, `PATTERN_VISION_ENABLED='1'`,
-`HUB_PREVIEW_ENABLED='true'`, `BRAIN_TOOLS_ENABLED='1'`,
-`COMPASS_MENTOR_MODE='admin'`, `COMPASS_AUTOMATION_ENABLED='1'`,
-`AWARENESS_ENGINE_ENABLED='1'`.
+⚠️ Also read from service config, same caveat: `COMMUNITY_ENABLED='1'`,
+`PATTERN_VISION_ENABLED='1'`, `HUB_PREVIEW_ENABLED='true'`,
+`BRAIN_TOOLS_ENABLED='1'`, `COMPASS_MENTOR_MODE='admin'`,
+`COMPASS_AUTOMATION_ENABLED='1'`, `AWARENESS_ENGINE_ENABLED='1'`.
 
 ### 1g — COMMUNITY: NOT BUILT, BECAUSE BUILDING IT WOULD HAVE BEEN A REGRESSION
 
@@ -2563,6 +2619,43 @@ which makes the two clocks agree by coincidence; `catch_up()` posts a slot up to
 20 minutes late by design, and the failure is one injected clock away. The fix
 removes a latent double-post path. Nothing the room sees changes today, and the
 schedule, the board and the copy are all untouched.
+
+### The steady-lean change, as shipped (owner ruling, YES — and it stands)
+
+⚠️ **The question I put to the owner rested on a wrong diagnosis** (the bias
+red was a fixture date-bomb, not the percent gate — see the corrections
+below). **The ruling was argued on product terms and is independent of it, so
+it stays**, and it shipped as its own commit `2bc991e40` so it could be
+reverted alone if it had not.
+
+A lean had to clear BOTH gates — dollars AND percent — so a small, permanent
+lean on a large book was silent forever. That is exactly the shape the module
+exists to catch: its own docstring records the owner's hero sitting **$19.96
+off the broker's total every day for weeks**, found only by comparing two
+screens by hand. The gate meant to suppress noise was suppressing the signal.
+
+A lean that clears the DOLLAR gate and has persisted across
+`_BIAS_STEADY_SESSIONS` (5) separate sessions is now reported regardless of
+percent. A one-off is not. The dollar floor stays absolute.
+
+⛔ **N is anchored, not invented:** `bias_scan()`'s own default window is 7
+CALENDAR days = one trading week, so 5 is the largest value that can ever be
+satisfied inside the module's own default window. ⛔ **"Sessions" means
+DISTINCT DATES WITH A READING, not consecutive calendar days** — a Fri→Mon gap
+would break consecutive-calendar every weekend, and resolving trading days
+would have made this a FOURTH NYSE-calendar consumer, which Seam 7 ruled
+against. Consecutiveness is carried by the dominance test that was already
+there: a session where the lean vanished contributes a near-zero reading,
+widens the spread, and fails `spread <= 2·|mean|`.
+
+**MEMBER IMPACT (as shipped):** members whose broker account sits a small but
+consistent distance from the broker's own reported total — under 0.02% of the
+account, over $10, on five or more separate sessions — now get that named in
+the daily drift digest instead of never hearing about it. Small accounts are
+what this reaches: on a large book 0.02% is already a big number, so nothing
+changes there. A drift that appears once and goes away is still not reported,
+and the dollar floor, the spike test and the "not enough readings yet" verdict
+are unchanged.
 
 ### Flags added tonight — the ledger entries, and what each flip would mean
 
@@ -2635,17 +2728,44 @@ appeared to say "SIX canonical composers" against eight routed domains. It reads
 6 → 7 → 8 incrementally and matches `_DOMAIN_RE` exactly. Reported only after
 checking.
 
-### Friday's flips, as they now stand
+### Friday's flips — THREE CANCELLED, ONE REMAINS (owner rulings, 2026-09-10)
 
-- ~~**F1** Technical Ask AI~~ — **DROPPED.** Not built, and correctly so: the S7
-  record states *"Technical Ask AI: BLOCKED ON PATTERN VISION ACCEPTANCE. Phase A
-  complete; do not repeat."* Parked on its own S7 dependency, not on this
-  program. `feat/technical-ask-ai` is a spent label already merged to master.
-- **F2** `GRADE_TICKER_CONFIRMED_SOURCE_ENABLED` — merged dark. ⛔ Read the
-  inertness note above before flipping: it will change nothing a member sees.
-- **F3** Community — **MOOT.** `COMMUNITY_ENABLED='1'` already.
-- **F4** `S7_FILING_WATCH_ENABLED` — merged dark, conditional, and the one flip
-  tonight's work actually arms.
+- ~~**F1** Technical Ask AI~~ — **DROPPED.** Not built, and correctly so: the
+  S7 record states *"Technical Ask AI: BLOCKED ON PATTERN VISION ACCEPTANCE.
+  Phase A complete; do not repeat."* Parked on its own S7 dependency, not on
+  this program. `feat/technical-ask-ai` is a spent label already merged.
+- ~~**F2** `GRADE_TICKER_CONFIRMED_SOURCE_ENABLED`~~ — **CANCELLED. STAYS
+  DARK.** Verdicts carry `key_level` and nothing else, the
+  `entry is None -> SKIP` gate makes the flip inert, and fabricating an entry
+  and a stop from one level is the Seam 23/28 move. The wire is built, tested
+  and declared, so nothing is lost by leaving it off.
+  ⛔ **Re-enablement is now a DESIGN question — "should verdicts carry
+  levels?" — and it belongs to the owner, later, NOT to this program.** Do not
+  reopen it as an engineering task.
+  ⭐ `test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels`
+  is the tripwire: it goes RED the day verdicts gain levels, which is exactly
+  when this decision becomes live again.
+- ~~**F3** Community~~ — **MOOT.** Live under `COMMUNITY_ENABLED=1`, reached
+  through the `floor2` bundle. See the Seam 18 correction above for why it
+  could read as unreleased and was not.
+- **F4** `S7_FILING_WATCH_ENABLED` — **THE ONE FLIP.** Friday 16:05,
+  conditional on ALL of:
+  1. **B1 PASS.** It consumes nothing from fix C — the conditionality is
+     deliberate anyway: no new surface is exposed on a day the judge proved
+     wrong.
+  2. **P3 boot clean** — already satisfied (20:06:16, uptime 3019→16, auth and
+     `/api/patterns` error-free).
+  3. **The flag-on paragraph written.**
+
+  **After the flip:** verify the boot, read the value IN-PROCESS (not `--kv`),
+  and watch auth plus the three affected routes for **15 minutes**. Then
+  update the ledger entry to `armed` with the flip timestamp IN THE SAME DOCS
+  PUSH (CLAUDE.md flip procedure, step 5 — the rule this night produced).
+
+  ⚠️ **It then needs a human click-through**, the same one Community would
+  have needed; the owner will do it over the weekend. **Auto-off on any
+  traceback attributable to it.** Weekend monitoring is scoped to the S7
+  routes only.
 
 ### B10 — the measured backend baseline, and every red characterized
 

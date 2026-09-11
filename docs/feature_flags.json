@@ -704,11 +704,11 @@
       "note": ""
     },
     "RESEARCH_TECHNICAL_TAB_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
         "web"
       ],
-      "note": "Research > Technical tab (Chart/Technical Intelligence Convergence Phase B). Ships DARK on purpose: it is the first member-facing change in the Terminal program and the owner wanted an off switch that is not revert-and-redeploy. Read per request in api/routers/auth.py::_access_payload and consumed via AuthContext.researchTechnicalTabEnabled, so flipping it in Railway changes what members see WITHOUT a deploy. Enablement gate, not a kill switch: unset means not-yet-released, never accidentally live. Flag-on decision pending a read of confirmed-verdict coverage across the active set."
+      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. ⚰️ THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
     },
     "S7_FILING_WATCH_ENABLED": {
       "status": "dark",
