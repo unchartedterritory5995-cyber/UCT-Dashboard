@@ -176,7 +176,7 @@ def _record_response(rec: Repro, resp) -> None:
             entry["responseDetail"] = body["detail"][:200]
 
 
-def run_ordering(ordering: str, keep_open: bool = False) -> Repro:
+def run_ordering(ordering: str, keep_open: bool = False, run_index: int = 0) -> Repro:
     from playwright.sync_api import sync_playwright
 
     rec = Repro(ordering)
@@ -308,7 +308,12 @@ def run_ordering(ordering: str, keep_open: bool = False) -> Repro:
                 rec.step(f"{n} body send(s) put on the wire", True, "typed inside the debounce window")
 
             # ── 4. THE DOOR ─────────────────────────────────────────────────
-            rec.door = wc.door_for(len(rec.steps))
+            # ⛔ R-18: the door rotates across RUNS, not within one. It was
+            # `door_for(len(rec.steps))`, and the step count is the same every
+            # run, so three "independent" reproductions all fired `ticker` and
+            # I reported them as a rate. A sample that never varies the variable
+            # it claims to sample is one observation repeated.
+            rec.door = wc.door_for(run_index)
             sends_before = len(rec.puts) - online_puts
             dr = page.evaluate(wc.DOOR_JS, {"id": rec.note_id, "patch": wc.DOOR_PATCH[rec.door]})
             if not isinstance(dr, dict):
@@ -460,6 +465,8 @@ def main() -> int:
     # 02:55:10Z and red at 02:57:30Z. A single green run proves nothing.
     ap.add_argument("--repeat", type=int, default=1,
                     help="run the ordering up to N times, stopping on the first red")
+    ap.add_argument("--sample", action="store_true",
+                    help="keep going after a red — measure the RATE, do not stop at evidence")
     a = ap.parse_args()
 
     if a.self_check or (not a.ordering and not a.all):
@@ -468,8 +475,10 @@ def main() -> int:
     todo = list(ORDERINGS) if a.all else [a.ordering] * max(1, a.repeat)
     reds = []
     greens = 0
+    run_i = 0
     for o in todo:
-        rec = run_ordering(o, keep_open=a.keep_open)
+        run_i += 1
+        rec = run_ordering(o, keep_open=a.keep_open, run_index=run_i)
         p = write_artifact(rec)
         print(f"  artifact: {p}", flush=True)
         if rec.red:
@@ -480,7 +489,8 @@ def main() -> int:
             # ⛔ STOP ON THE FIRST RED. It is the jsdom rail's target (R-10), and
             # a second ordering run afterwards would write over the account state
             # that explains the first.
-            break
+            if not a.sample:
+                break
         greens += 1
         print(f"  `{o}` green — sentence landed, no fork. ({greens} green so far)", flush=True)
 
