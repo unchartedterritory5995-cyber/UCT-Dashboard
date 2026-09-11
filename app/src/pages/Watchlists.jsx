@@ -643,7 +643,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -2527,6 +2527,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   aria-label="Add a symbol"
                 ><UIcon name="plus" size={15} /></button>
               )}
+              {/* Host-supplied header actions for a SCAN (Wave R R-1a: the Scanner's
+                  send-to-Journal door). The node is built by the host that owns the
+                  scan's data (ScannerResults) — this page only gives it a home in the
+                  same action row as ⚙ and the criteria popover, which is where the
+                  other nine capture doors live (a header/tab row, not a footer). */}
+              {scanMode && scanActions}
               {/* Scan criteria — a read-only popover listing what the preset filters on. */}
               {scanMode && scanCriteria && scanCriteria.length > 0 && (
                 <div ref={filterWrapRef} style={{ position: 'relative', display: 'flex' }}>

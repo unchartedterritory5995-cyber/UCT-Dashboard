@@ -5,7 +5,7 @@
 // live prices, per-widget appearance) EXCEPT you can't add/remove/reorder symbols
 // (membership comes from the scan). Clicking a row publishes the ticker to this
 // widget's color group so a paired chart follows.
-import { useMemo, useCallback, useId } from 'react'
+import { useMemo, useCallback, useId, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
@@ -122,6 +122,22 @@ const SCAN_ENDPOINTS = {
 }
 
 import useLivePrices from '../../../hooks/useLivePrices'
+// ─── Wave R (R-1a): the Screener's send-to-Journal door ───────────────────────
+// The shared capture flow + the shared toast + the destination picker — the same
+// three imports the other nine doors use. A second hand-rolled copy of this flow
+// is how doors drift (sendToJournal.js's own header warning).
+//
+// ⚰️ HISTORY, so this isn't re-litigated: a door existed here once (`2dc852ced`)
+// and was removed in `76c5f4a80` — "removed the send-to-Journal button from the
+// results FOOTER (owner: not needed)". That same commit MOVED the Theme Tracker's
+// door out of its search row and up into its period-tab row. The footer icon is
+// what was declined; the door itself is required by the program manifest's R-1a
+// ("wire this door explicitly, don't assume it exists"), which is the later
+// artifact and wins. So it comes back in the HEADER action row, one-click +
+// choose-where, exactly like Breadth/News/Fundamentals — not in the footer.
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
@@ -150,6 +166,10 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // Door state: prices ride the SHARED polling store (the wrapped table
   // already polls these symbols — same slice, no extra request).
   const { prices: doorPrices } = useLivePrices(symbols)
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  // The destination+comment picker state; {anchor, capture} — the capture is built
+  // when the menu OPENS and never re-derived on Send.
+  const [captureMenu, setCaptureMenu] = useState(null)
   // Distinguish "still building the reference" from "genuinely no qualifiers".
   const emptyCopy = SCAN_EMPTY_TEXT[scanKey] || { building: 'Building…', none: 'No matches yet today.' }
   const scanEmptyText = !data
@@ -192,6 +212,79 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
     }
     return out
   }, [data, scanKey])
+
+  // ── Wave R (R-1a): freeze the scan the member is looking at ──────────────────
+  // A scanner capture is a FULL-LIST FREEZE, not a query the note can re-run. The
+  // registry says so in code: `scanner.reconstructable` is
+  //   (p) => Array.isArray(p?.rows) && p.rows.length > 0
+  // i.e. the embed re-renders from the captured `rows` and from nothing else —
+  // re-running the scan later would silently change which tickers even appear, so
+  // the payload IS the honest record. ScannerEmbed renders exactly these rows
+  // through FrozenList.
+  //
+  // Built ONCE per interaction and shared by the one-click send AND the
+  // destination picker, so both freeze the identical payload — never re-derived at
+  // Send time, or a 30s poll landing while the member types a comment would freeze
+  // a different list than the one they were looking at when they opened the menu.
+  const buildScanCapture = useCallback(() => {
+    const period = GAINERS_PERIOD[scanKey] || null
+    return {
+      scanKey,
+      scanName: scanName || null,
+      asOf: data?.as_of ? `${fmtScanTime(data.as_of)} ET` : null,
+      rows: symbols.map((sym) => {
+        const live = doorPrices[sym] || {}
+        const nd = period != null ? perfOverride?.[sym]?.[period] : null
+        return {
+          sym,
+          price: Number.isFinite(Number(live.price)) ? Number(live.price) : null,
+          chgPct: Number.isFinite(Number(live.change_pct)) ? Number(live.change_pct) : null,
+          ...(nd != null ? { extraValue: `${Number(nd) > 0 ? '+' : ''}${Number(nd).toFixed(1)}% ${period}` } : {}),
+        }
+      }),
+    }
+  }, [scanKey, scanName, data, symbols, doorPrices, perfOverride])
+
+  const doorLabel = scanName || 'Scan'
+  // ⛔ The door is absent, not disabled, while the scan holds nothing: an empty
+  // `rows` fails the registry's own `reconstructable` predicate, so such a capture
+  // could only ever render as a placeholder chip. An offer to freeze nothing is
+  // worse than no offer.
+  const scanActions = symbols.length > 0 ? (
+    <>
+      <button
+        type="button"
+        className={styles.doorBtn}
+        onClick={async () => {
+          setJournalMsg('sending…')
+          setJournalMsg(await sendCaptureToJournal('scanner', buildScanCapture(), { label: doorLabel }))
+        }}
+        title="Send this scan to Journal"
+        aria-label="Send this scan to Journal"
+      ><UIcon name="journal" size={13} /></button>
+      <button
+        type="button"
+        className={styles.doorBtn}
+        onClick={(e) => setCaptureMenu({
+          anchor: { x: e.clientX, y: e.clientY }, capture: buildScanCapture(),
+        })}
+        title="Send to Journal — choose where"
+        aria-label="Send to Journal — choose where"
+      ><UIcon name="chevronDown" size={13} /></button>
+      <JournalToast msg={journalMsg} />
+      {captureMenu && (
+        <CaptureMenu
+          open
+          onClose={() => setCaptureMenu(null)}
+          anchor={captureMenu.anchor}
+          widgetId="scanner"
+          capture={captureMenu.capture}
+          label={doorLabel}
+          onSent={setJournalMsg}
+        />
+      )}
+    </>
+  ) : null
 
   // Footer: how many stocks the scan holds, when it was last computed (ET), and a manual
   // refresh. Prices tick live already; this re-ranks membership on demand instead of
@@ -238,6 +331,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         metaOverride={metaOverride}
         perfOverride={perfOverride}
         scanFooter={scanFooter}
+        scanActions={scanActions}
         scanCriteria={SCAN_CRITERIA[scanKey]}
       />
     </ChartsSymContext.Provider>

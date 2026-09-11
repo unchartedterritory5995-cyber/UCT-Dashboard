@@ -12,7 +12,51 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from './mobile/Sheet'
 import UIcon from './ui/UIcon'
 import SymbolSearch from './chart/SymbolSearch'
+import { buildWidgetEmbedAttrs } from '../pages/journal-2-0/lib/widgetEmbedCore'
+import { targetsFor } from '../pages/journal-2-0/lib/captureTargets'
+import { sendCaptureToJournal } from '../pages/journal-2-0/lib/sendToJournal'
 import styles from './TickerActions.module.css'
+
+// ─── Wave R (R-2e): "Send chart to note" ─────────────────────────────────────
+//
+// THE DEFAULT TIMEFRAME, and why it is 'D'.
+//
+// This menu is reached from ticker chips all over the app — movers, news rows,
+// breadth drills, theme holdings, the flow tape. There is NO chart instance in
+// scope here and therefore no `getCaptureState()` to read: the only things this
+// door honestly knows are the SYMBOL and the MOMENT the member asked. So the
+// timeframe is a decision, not a measurement, and it is made once, here:
+//
+//   1. 'D' is the chart widget's OWN declared default (registry.js `paramsSchema`
+//      → `{ key: 'tf', default: 'D' }`), so a right-click capture and a typed
+//      `/chart AMD` insert land on the same timeframe. One answer, not two.
+//   2. 'D' never expires. `chartReconstructable` gates NUMERIC (intraday) tfs on
+//      `CHART_TF_CEILING_DAYS` — 1m dies at 60 days, 5m at a year — past which an
+//      anchored snapshot can no longer re-render and falls back to its archived
+//      image. THIS DOOR HAS NO IMAGE ARCHIVE, so an expired intraday default
+//      would degrade to a placeholder chip inside a note the member keeps
+//      forever. Non-numeric tfs are reconstructable at any horizon.
+//   3. Nothing about a ticker chip suggests an execution timeframe. Guessing
+//      '15' would be inventing the member's intent from no evidence; the embed's
+//      own timeframe switcher (R-2d) re-anchors around the same moment in one
+//      click, which is the right place to change it.
+const TICKER_CAPTURE_TF = 'D'
+
+/** The frozen capture for a symbol, anchored at the moment the member opened the
+ *  menu — NOT at the moment they pick a destination. `buildWidgetEmbedAttrs`
+ *  would stamp `to` itself if we left it absent, but that stamp happens at SEND,
+ *  and a member reading four destination labels is the interval where "frozen
+ *  means anchored" quietly stops being true. Every other door freezes at open;
+ *  so does this one.
+ *
+ *  ⛔ `from` is deliberately ABSENT. We did not measure a visible range and must
+ *  not claim one: ChartEmbed renders the frozen window from `params.to` alone
+ *  (`tsToAnchorDay(params.to)` → `replayCutoff`) and never reads `from`, so a
+ *  fabricated start would be a claim about what the member saw that buys the
+ *  renderer nothing. */
+export function tickerChartCapture(sym, nowMs = Date.now()) {
+  return { symbol: sym, tf: TICKER_CAPTURE_TF, to: Math.floor(nowMs / 1000) }
+}
 
 export function useTickerActions() {
   const [menu, setMenu] = useState(null) // { sym, x, y }
@@ -87,6 +131,23 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const [newListName, setNewListName] = useState('')
   const [creating, setCreating] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
+  // Wave R (R-2e). Same bespoke-toggle shape as Add to list / Compare / Set alert:
+  // the entry is always present and reveals an inline section, and it consults NO
+  // React context — `targetsFor` and `sendCaptureToJournal` are plain module
+  // functions over fetch/localStorage. That is what makes this safe on the many
+  // surfaces that render TickerActions with no VoiceProvider and no journal
+  // context above them; a menu item that throws on one of those would be worse
+  // than an absent one.
+  //   null            → the entry is collapsed
+  //   {capture,targets} → open, holding the capture FROZEN at the moment it opened
+  const [sendNote, setSendNote] = useState(null)
+  const [sending, setSending] = useState(false)
+  // ⛔ The result sentence is owned by the section that stays mounted, and the menu
+  // does NOT close on send. This repo has shipped two toast defects where the
+  // message was set by an action that unmounted its own host and rendered for zero
+  // frames; the member is told what happened, in place, and closes the menu
+  // themselves.
+  const [sendResult, setSendResult] = useState(null)
   // "+ Add to list" used to depend on a `lists` prop that NO call site passed,
   // so every surface in the app rendered "No lists yet". The menu now fetches
   // the user's lists itself when the picker opens; an explicit prop still wins
@@ -148,6 +209,26 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
       setNewListName('')
     } catch { /* leave the picker open so the user can retry */ } finally {
       setCreating(false)
+    }
+  }
+
+  // Open the send-to-note section: build + freeze the capture ONCE, right here,
+  // and resolve which destinations apply to it from that same frozen object.
+  function openSendNote() {
+    const capture = tickerChartCapture(sym)
+    setSendResult(null)
+    setSendNote({ capture, targets: targetsFor('chart', buildWidgetEmbedAttrs('chart', capture)) })
+  }
+
+  async function sendNoteTo(targetId) {
+    if (sending || !sendNote) return
+    setSending(true)
+    setSendResult('sending…')
+    try {
+      // The SAME frozen capture object the section opened with — never rebuilt.
+      setSendResult(await sendCaptureToJournal('chart', sendNote.capture, { label: sym, target: targetId }))
+    } finally {
+      setSending(false)
     }
   }
 
@@ -236,6 +317,33 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
         ) : (
           <div className={styles.compareSection}>
             <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+          </div>
+        )}
+
+        {/* Send chart to note (Wave R R-2e) — same bespoke-toggle pattern as
+            Add to list / Compare / Set alert. */}
+        {!sendNote ? (
+          <button className={styles.item} onClick={openSendNote}>
+            <UIcon name="journal" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Send {sym} chart to note
+          </button>
+        ) : (
+          <div className={styles.sendNoteSection}>
+            {/* Say what is being frozen, in the member's words — the capture is a
+                daily chart anchored at this moment, and nothing else is known. */}
+            <div className={styles.sendNoteHint}>Daily chart of {sym}, frozen at now</div>
+            {sendNote.targets.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={styles.sendNoteTarget}
+                disabled={sending}
+                title={t.hint}
+                onClick={() => sendNoteTo(t.id)}
+              >{t.label}</button>
+            ))}
+            <span role="status" className={styles.sendNoteStatus} data-empty={!sendResult}>
+              {sendResult || ''}
+            </span>
           </div>
         )}
 

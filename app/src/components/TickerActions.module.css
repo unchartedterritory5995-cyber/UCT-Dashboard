@@ -107,6 +107,47 @@
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 
+/* ── Send chart to note (Wave R R-2e) ── */
+.sendNoteSection {
+  padding: 6px 14px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sendNoteHint {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-bottom: 2px;
+}
+.sendNoteTarget {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--ut-cream, #e8e0d0);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.sendNoteTarget:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+.sendNoteTarget:disabled { cursor: default; opacity: 0.6; }
+/* The result sentence. A PERMANENT role="status" container whose TEXT toggles —
+   a transient mount-with-text is silent to screen readers, which is how
+   "Capture failed — try again" became a silent failure elsewhere in this app. */
+.sendNoteStatus {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ut-gold, #c9a84c);
+  padding: 2px 0 0;
+  min-height: 12px;
+}
+.sendNoteStatus[data-empty='true'] { min-height: 0; padding: 0; }
+
 .alertRow {
   display: flex;
   gap: 4px;
@@ -174,7 +215,18 @@
 }
 .sheetBody .tagSection,
 .sheetBody .alertSection,
+.sheetBody .sendNoteSection,
 .sheetBody .compareSection { padding: var(--space-md) 0; }
+.sheetBody .sendNoteTarget {
+  min-height: var(--tap-min);
+  font-size: var(--text-lg);
+  padding: var(--space-md);
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+}
+.sheetBody .sendNoteHint,
+.sheetBody .sendNoteStatus { font-size: var(--text-sm); }
 .sheetBody .swatches { gap: var(--space-md); }
 .sheetBody .swatch { width: 32px; height: 32px; }
 .sheetBody .tagLabel { font-size: var(--text-sm); margin-bottom: var(--space-sm); }

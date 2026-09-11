@@ -143,3 +143,23 @@
 .scanRefresh:hover { color: var(--wl-accent, var(--ut-gold)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
 .scanRefreshSpin { animation: scanSpin 0.7s linear infinite; }
 @keyframes scanSpin { to { transform: rotate(360deg); } }
+
+/* Send-to-Journal door buttons (Wave R R-1a). These render into the SCAN HEADER's
+   action row (Watchlists' `scanActions` slot), beside the criteria popover and ⚙,
+   so the scanner's door sits where the other nine doors sit. Geometry deliberately
+   mirrors Watchlists' own `.wlActionBtn` — the row is that page's, not this one's. */
+.doorBtn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 5px;
+  line-height: 1;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s, background 0.15s;
+}
+.doorBtn:hover { opacity: 1; background: var(--wl-row-hover, var(--widget-row-hover, var(--bg-hover))); }
