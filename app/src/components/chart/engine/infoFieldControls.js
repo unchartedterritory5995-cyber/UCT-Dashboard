@@ -2,6 +2,7 @@ import {
   newInfoFieldId, normaliseInfoFields, validateInfoFormula,
   INFO_FORMATS, MAX_DECIMALS, isInfoFieldId,
 } from './infoFields'
+import { headerFieldKeys } from '../headerFields'
 
 // ─── THE WRITE DOOR FOR INFO FIELDS ─────────────────────────────────────────
 //
@@ -30,10 +31,19 @@ export function infoFieldsOf(cs) {
   return normaliseInfoFields(cs)
 }
 
-/** The keys shown in the row, in order. */
+/**
+ * The keys shown in the row, in order.
+ *
+ * ⛔⛔ IT MATERIALISES THE LEGACY SHAPE, and it has to. `header.fields` is ABSENT
+ * on a default blob — `headerFieldKeys` derives `['mcap','earn','rating']` from
+ * the three legacy `show*` booleans on every read. Appending to a null list
+ * silently did nothing: the field was created, the row never showed it, and
+ * nothing said why. Writing the derived list once is the same migration
+ * `headerFieldKeys` performs, made permanent at the moment a member first
+ * reorders the row.
+ */
 function keysOf(cs) {
-  const f = cs && cs.header && Array.isArray(cs.header.fields) ? cs.header.fields : null
-  return f ? [...f] : null
+  return headerFieldKeys(cs && cs.header)
 }
 
 /**
@@ -58,8 +68,7 @@ export function addInfoField(cs, { label, formula, bindings, format, decimals, c
     color: typeof color === 'string' && color ? color : null,
     suffix: typeof suffix === 'string' ? suffix.slice(0, 4) : '',
   })
-  const keys = keysOf(cs)
-  return withFields(cs, list, keys ? [...keys, id] : undefined)
+  return withFields(cs, list, [...keysOf(cs), id])
 }
 
 /**
@@ -73,8 +82,7 @@ export function removeInfoField(cs, id) {
   const list = infoFieldsOf(cs)
   const next = list.filter((f) => f.id !== id)
   if (next.length === list.length) return cs
-  const keys = keysOf(cs)
-  return withFields(cs, next, keys ? keys.filter((k) => k !== id) : undefined)
+  return withFields(cs, next, keysOf(cs).filter((k) => k !== id))
 }
 
 /**
@@ -151,7 +159,6 @@ export function setInfoFieldBinding(cs, id, key, ref) {
  */
 export function moveInfoRowField(cs, key, delta) {
   const keys = keysOf(cs)
-  if (!keys) return cs
   const i = keys.indexOf(key)
   if (i < 0) return cs
   const j = i + (delta < 0 ? -1 : 1)

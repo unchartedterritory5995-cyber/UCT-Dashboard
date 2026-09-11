@@ -699,13 +699,31 @@ export function createBinder({ chart, LWC }) {
     // bar set for nothing — that stays true for a hidden instance nobody reads,
     // and stops being true the moment one does.
     const dependedOn = new Set()
+    const noteDependency = (value) => {
+      const parsed = parseSource(value)
+      if (parsed && parsed.kind === 'instance') dependedOn.add(parsed.instanceId)
+    }
     for (const inst of instances) {
       if (!inst || inst.hidden === true) continue
       const def = registry.getDefinition(inst.defId)
-      for (const [, value] of sourceInputsOf(def, inst)) {
-        const parsed = parseSource(value)
-        if (parsed && parsed.kind === 'instance') dependedOn.add(parsed.instanceId)
-      }
+      for (const [, value] of sourceInputsOf(def, inst)) noteDependency(value)
+    }
+    // ⛔⛔ A CONDITION AND AN INFO FIELD ARE READERS TOO, and leaving them out of
+    // this set was a real hole: a HIDDEN RSI that only a condition or a header
+    // formula reads was skipped, and both then reported "Source unavailable" for
+    // an indicator that is on the chart and merely not drawn. Found by the
+    // hidden-source case, which is the one Part 36 asks for by name.
+    //
+    // ⭐ THE RULE IS THE SAME ONE, WIDENED: *visibility is ink, not existence.*
+    // Hiding RSI must not take `MA(RSI)`, a regime background or an ADR readout
+    // with it — the eye icon is about what is drawn.
+    for (const cond of (Array.isArray(ctx.conditions) ? ctx.conditions : [])) {
+      if (!cond || cond.enabled === false) continue
+      for (const value of Object.values(cond.bindings || {})) noteDependency(value)
+    }
+    for (const f of (Array.isArray(ctx.infoFields) ? ctx.infoFields : [])) {
+      if (!f) continue
+      for (const value of Object.values(f.bindings || {})) noteDependency(value)
     }
 
     for (const inst of computeOrder) {

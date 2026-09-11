@@ -157,8 +157,32 @@ export function severReferencesTo(cs, instanceId, defOf) {
     return bindings ? { ...cond, bindings } : cond
   })
 
+  // ⭐ AND THE HEADER'S FORMULAS, BY THE SAME LOOP. A third consumer of one
+  // reference language joins this function by being in the settings blob, not by
+  // being remembered here — which is why adding it was four lines.
+  const info = (cs.header && Array.isArray(cs.header.infoFormulas)) ? cs.header.infoFormulas : null
+  let nextInfo = info
+  if (info) {
+    nextInfo = info.map((f) => {
+      if (!f || !f.bindings || typeof f.bindings !== 'object') return f
+      let bindings = null
+      for (const [key, value] of Object.entries(f.bindings)) {
+        if (sourceDependsOn(value) !== instanceId) continue
+        bindings = bindings || { ...f.bindings }
+        bindings[key] = severedSource(value)
+        touched = true
+      }
+      return bindings ? { ...f, bindings } : f
+    })
+  }
+
   if (!touched) return cs
-  return { ...cs, indicatorInstances: nextInstances, conditions: nextConditions }
+  return {
+    ...cs,
+    indicatorInstances: nextInstances,
+    conditions: nextConditions,
+    ...(nextInfo ? { header: { ...cs.header, infoFormulas: nextInfo } } : {}),
+  }
 }
 
 export function sourceDependsOn(value) {
