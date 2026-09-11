@@ -94,55 +94,41 @@ beforeEach(() => {
 const { default: StockChart } = await import('./StockChart')
 
 describe('the Pre/Post word sits on the price scale, not on the pane', () => {
-  it('creates the orange ext price line WITHOUT a pane title', async () => {
+  it('gives the orange ext price line the WORD as its title on a wide plot', async () => {
+    // ⭐ LWC's axis STACKS labels that would overlap, so the orange ext label is often
+    // drawn somewhere other than priceToCoordinate(extPrice) — any time the ext price
+    // is within a label height of the regular close, which post-market is most of the
+    // time. Positioning a DOM chip ourselves put "Post" on the GREEN regular-close
+    // label instead of the orange one it names. The library owns that layout; give it
+    // the word and it stays attached through the displacement.
     render(<StockChart sym="AAPL" tf="5" sessionView="regular" />)
     await vi.waitFor(() => {
       expect(created.some((l) => l.options().color === '#f5a623')).toBe(true)
     }, { timeout: 4000 })
     const ext = created.filter((l) => l.options().color === '#f5a623')
-    for (const l of ext) expect(l.options().title).toBe('')
-    // NON-VACUITY: it is the ext tag (axis chip only, no line), not some other line.
+    for (const l of ext) expect(l.options().title).toBe('Post')
     expect(ext[0].options().lineVisible).toBe(false)
     expect(ext[0].options().axisLabelVisible).toBe(true)
+    // …and the DOM chip stays out of the way entirely.
+    expect(screen.queryByTestId('session-ext-chip')).toBeNull()
   })
 
-  it('sits BESIDE the price label — same row, right edge butted to the axis', async () => {
+  it('falls back to the stacked DOM chip on a narrow plot — the phone fix holds', async () => {
+    // ⛔ The regression this guards: a `title` is painted on the PANE, hugging the axis
+    // from the left, so on a phone it covers the newest candles. Below the threshold the
+    // library must NOT get the word; the chip renders on the scale instead.
+    h.plotW = 380
     render(<StockChart sym="AAPL" tf="5" sessionView="regular" />)
     const chip = await screen.findByTestId('session-ext-chip', {}, { timeout: 4000 })
     expect(chip.textContent).toBe('Post')
     await vi.waitFor(() => expect(chip.style.display).toBe('block'), { timeout: 4000 })
-    const left = parseFloat(chip.style.left)
-    const width = parseFloat(chip.style.width)
-    const top = parseFloat(chip.style.top)
-    const height = parseFloat(chip.style.height)
-    // The axis cell starts at plot width (600) + the 1px border. The chip ends there,
-    // so the word and the orange price label read as one continuous "Post 101.25".
-    expect(left + width).toBe(601)
-    // priceToCoordinate → 120. SAME ROW means the chip SPANS that y, which is exactly
-    // what the stacked layout did not do — this pair of assertions is the whole
-    // difference between the two designs.
-    expect(top).toBeLessThan(120)
-    expect(top + height).toBeGreaterThan(120)
-    //   height = 11 + 2 × (2.5/12 × 11), i.e. the label's own height
-    expect(height).toBe(Math.round(11 + 2 * (2.5 / 12) * 11))
-    // Sized to the WORD, not to the price label's box — it is a tag, not a second price.
-    expect(width).toBeLessThan(58)
-    // It must never intercept the member's finger — the scale under it drags.
-    expect(chip.style.pointerEvents).toBe('none')
-  })
-
-  it('STACKS above the label on a narrow plot — the phone fix still holds', async () => {
-    // ⛔ The regression this guards: going back to a side-by-side tag put "Post" over
-    // the newest candles on a phone, which is what moved it onto the scale to begin
-    // with. Below the threshold the old layout must still apply.
-    h.plotW = 380
-    render(<StockChart sym="AAPL" tf="5" sessionView="regular" />)
-    const chip = await screen.findByTestId('session-ext-chip', {}, { timeout: 4000 })
-    await vi.waitFor(() => expect(chip.style.display).toBe('block'), { timeout: 4000 })
+    const ext = created.filter((l) => l.options().color === '#f5a623')
+    for (const l of ext) expect(l.options().title).toBe('')
     // Starts AT the axis cell (no leftward overhang into the candles) …
     expect(parseFloat(chip.style.left)).toBe(381)
     // … and sits entirely ABOVE the label centred on 120.
     expect(parseFloat(chip.style.top) + parseFloat(chip.style.height)).toBeLessThanOrEqual(120 - 7)
+    expect(chip.style.pointerEvents).toBe('none')
   })
 
   it('does not render the chip when price labels are switched off', async () => {

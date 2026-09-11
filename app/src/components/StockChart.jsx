@@ -3651,6 +3651,27 @@ export default function StockChart({
   // this ref to yield the D/W/M last bar to the memo-driven setData.
   const sessionOwnsDailyRef = useRef(false)
 
+  // ── Where the "Pre"/"Post" word lives: the price line's title, or a DOM chip ──
+  // Wide plot  → the price line's own `title`. LWC draws it against the label it names
+  //              and moves it with that label when the axis stacks overlapping labels,
+  //              which is the only way the word stays glued to the ORANGE ext price
+  //              rather than to the green regular close beside it.
+  // Narrow plot → stripped, and the DOM chip renders stacked above the label instead,
+  //              because a title is painted on the PANE and would cover the newest
+  //              candles on a phone.
+  // Measured off the time-scale (plot) width, re-read whenever the chart resizes —
+  // `overlayBounds` is the existing signal for that.
+  const [extTagInline, setExtTagInline] = useState(true)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chartReady || !chart) return
+    let w = 0
+    try { w = chart.timeScale().width() || 0 } catch { w = 0 }
+    if (!w) return                       // mid-swap: keep the current choice
+    const next = w >= SESSION_TAG_INLINE_MIN_PLOT_W
+    setExtTagInline((prev) => (prev === next ? prev : next))
+  }, [chartReady, overlayBounds])
+
   // ── Today-pack: keep today's whole-market developing bar warm ─────────────
   // Keyed on `sym` — NOT a mount-only effect and NOT a timer. The seed runs during
   // the FIRST render for a newly typed symbol, so a fetch started then lands far too
@@ -11665,11 +11686,22 @@ export default function StockChart({
       lineStyle: t.lineStyle ?? 2,
       axisLabelVisible: t.axisLabelVisible ?? true,
       lineVisible: t.lineVisible ?? true,   // ext tag = axis chip only, no line
-      // The ext tag's "Pre"/"Post" word is NOT the price line's `title`: LWC draws a
-      // title on the PANE, hugging the axis from the left, so it drifted over the
-      // newest candles on a phone. The word is a DOM chip stacked ABOVE the orange
-      // price label on the price scale instead (sessionExtChipRef, below).
-      title: t._sessionTag === 'ext' ? '' : (t.title || ''),
+      // ⭐ THE "PRE"/"POST" WORD IS THE PRICE LINE'S OWN `title` ON A WIDE PLOT, AND
+      // THAT IS A CORRECTNESS CHOICE, NOT A STYLE ONE. LWC's price axis STACKS labels
+      // that would overlap, so the orange ext label is frequently DRAWN somewhere other
+      // than `priceToCoordinate(extPrice)` — whenever the ext price sits within a label
+      // height of the regular close, which post-market is most of the time. A DOM chip
+      // positioned at the ext price's true coordinate therefore lands on the GREEN
+      // regular-close label instead of the orange one it names (owner screenshot,
+      // 2026-09-11: "Post" glued to 715.75 while its price was 714.96). Handing the
+      // word to `title` lets the library place it against the label it belongs to,
+      // displacement included — no reimplementation of a layout we do not own.
+      //
+      // ⚠️ NARROW PLOTS STILL USE THE DOM CHIP. A title is drawn on the PANE, hugging
+      // the axis from the left, which on a phone puts the word over the newest candles
+      // — the original complaint. Below the width threshold the word is stripped here
+      // and the stacked chip renders instead.
+      title: t._sessionTag === 'ext' ? (extTagInline ? (t.title || '') : '') : (t.title || ''),
     })
     // Same tag count = same tags in the same roles (daily = [locked close, ext],
     // intraday = [ext]); only their prices/titles move. Update in place.
@@ -11691,7 +11723,7 @@ export default function StockChart({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])
 
   // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
   // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
@@ -11734,7 +11766,9 @@ export default function StockChart({
   // when nothing moved.
   const sessionExtTagIdx = (cs.showPriceLabels === false || lastBarOff || !activeSessionTags)
     ? -1 : activeSessionTags.findIndex((t) => t._sessionTag === 'ext')
-  const sessionExtChipOn = chartReady && sessionExtTagIdx >= 0
+  // Wide plot ⇒ the word rides the price line's own `title` (LWC positions it), so the
+  // DOM chip is only for the narrow/stacked case. See _extTagInline.
+  const sessionExtChipOn = chartReady && sessionExtTagIdx >= 0 && !extTagInline
   useEffect(() => {
     if (!sessionExtChipOn) return undefined
     let raf = 0
@@ -11788,31 +11822,14 @@ export default function StockChart({
           const paneTop = overlayBounds?.top || 0
           const axisLeft = Math.round(lw + tw + 1)
 
-          // ── BESIDE the price label, not stacked above it (owner ask 2026-09-11, the
-          // second one). The word and the price it describes are ONE reading — "Post
-          // 265.34" — and stacking split them into two labels that scan as unrelated
-          // values on a price axis, which is the worst place to put an ambiguous number.
-          // Same row, right edge butted against the axis cell, sized to the WORD rather
-          // than to the price label's box.
-          //
-          // ⚠️ THE PHONE CASE IS WHY IT WAS STACKED IN THE FIRST PLACE. Sitting left of
-          // the axis means sitting OVER the newest candles, which is exactly the
-          // complaint that moved it here earlier today. So the side-by-side layout is
-          // for plots wide enough to spare the pixels, and a narrow plot keeps the
-          // stacked position. Reverting outright would have re-broken the earlier fix.
-          const tagText = marketSession === 'post' ? 'Post' : 'Pre'
-          const tagW = boxFor(tagText)
-          if (tw >= SESSION_TAG_INLINE_MIN_PLOT_W) {
-            const top = Math.round(paneTop + y - labelH / 2)
-            const left = axisLeft - tagW
-            style = { top, left, width: tagW, height: chipH }
-          } else {
-            const width = boxFor(priceText)
-            let top = Math.round(paneTop + y - labelH / 2 - chipH - 1)
-            // Pinned at the very top of the pane → stack it under the label instead.
-            if (top < paneTop) top = Math.round(paneTop + y + labelH / 2 + 1)
-            style = { top, left: axisLeft, width, height: chipH }
-          }
+          // Stacked ABOVE the label — the NARROW-plot layout only. On a wide plot the
+          // word is the price line's own `title` and never reaches this chip, because
+          // LWC owns where that label actually lands (see _extTagInline).
+          const width = boxFor(priceText)
+          let top = Math.round(paneTop + y - labelH / 2 - chipH - 1)
+          // Pinned at the very top of the pane → stack it under the label instead.
+          if (top < paneTop) top = Math.round(paneTop + y + labelH / 2 + 1)
+          style = { top, left: axisLeft, width, height: chipH }
           key = `${style.top}|${style.left}|${style.width}|${style.height}`
         }
       } catch { /* chart mid-swap */ }
@@ -11828,7 +11845,7 @@ export default function StockChart({
     }
     raf = requestAnimationFrame(tick)
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize, marketSession])
+  }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
   // custom-TF live developing bar ──
