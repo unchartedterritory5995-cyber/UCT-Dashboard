@@ -1,0 +1,40 @@
+//@version=6
+indicator("UCTPROBE_R11_CORR_PCT", overlay = false)
+
+// ⭐⭐ ITEM 8, NAMES #8 AND #9 — `ta.correlation` AND
+// `ta.percentile_linear_interpolation`. GROUPED: both are ordinary `ta.`
+// functions with conventional arity, so neither carries the existence risk that
+// put `alma` in its own file — and `alma` then PROVED that rule by failing
+// totally, which is why these two are still worth one add rather than two.
+//
+// ⛔ THE TWO QUESTIONS, from `r11-remaining-nine.md`:
+//   #8 "which correlation over which window, and what it returns BEFORE THE
+//       WINDOW FILLS"
+//   #9 "the interpolation rule AT THE BOUNDARIES is the whole function"
+
+// ── the control ────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_WATCH_THE_FIRST_20")                         // N01
+
+// ── #8: correlation over 20 bars ───────────────────────────────────────────
+// ⭐ `close` against `open` is deliberately NOT a degenerate pair: perfectly
+// correlated inputs would answer 1 everywhere and tell us nothing about the
+// pre-fill bars, which is the actual question.
+plot(ta.correlation(close, open, 20), "N02_corr_close_open_20")             // N02
+// ⛔ THE SELF-CORRELATION CONTROL. A series against itself must be exactly 1
+// wherever the function is defined — so any bar where N03 is NOT 1 is a bar
+// where the window has not filled, and that identifies the pre-fill region
+// WITHOUT us having to guess where it ends.
+plot(ta.correlation(close, close, 20), "N03_corr_SELF_must_be_1")           // N03
+
+// ── #9: the percentile, at both boundaries and the middle ──────────────────
+// ⛔ 0 and 100 ARE THE WHOLE QUESTION. If they answer the window's min and max
+// exactly, the interpolation is the ordinary one and clamps at the ends; if they
+// answer something else — or `na` — the rule is not what anyone assumes.
+plot(ta.percentile_linear_interpolation(close, 20, 0), "N04_pct_0_expect_MIN")    // N04
+plot(ta.percentile_linear_interpolation(close, 20, 50), "N05_pct_50_median")      // N05
+plot(ta.percentile_linear_interpolation(close, 20, 100), "N06_pct_100_expect_MAX")// N06
+
+// ── the oracles the boundaries are checked against ─────────────────────────
+// ⭐ WITHOUT THESE, "N04 looks like the minimum" IS AN EYEBALL, NOT A READING.
+plot(ta.lowest(close, 20), "N07_lowest_20_ORACLE_for_N04")                  // N07
+plot(ta.highest(close, 20), "N08_highest_20_ORACLE_for_N06")                // N08
