@@ -95,10 +95,28 @@ offline", and the product was answering it correctly the entire time.
 Every run below is the same ordering, the same rig, the same night, with the
 same **3 sends beating the door**, doors rotating folder/ticker/tags.
 
-| door | runs fired | sentence LOST | rate | new forks |
+| door | VERIFIABLE runs | sentence LOST | rate | new forks |
 |---|---|---|---|---|
-| raw `fetch` (`DOOR_JS`) | **13** | **12** | **r = 0.92** | on every loss |
-| the product's own control (`--real-door`) | **12** | **0** | **r = 0.00** | **0** |
+| raw `fetch` (`DOOR_JS`) | **13** | **11** | **r = 0.85** | on every loss |
+| the product's own control (`--real-door`) | **28** | **0** | **r = 0.00** | **0** |
+
+⚠️ **"Verifiable" is doing work here.** Two runs finished with an UNREADABLE final
+server read, and my runner scored an unreadable server as *"the sentence is
+absent"* — `_doc_text(None) == ""`, so a failed read became a finding. One of the
+two was a real-door run, and it briefly read as the first real-path loss.
+
+⛔ **It was not.** Its own wire shows the rebase working:
+
+```
+#5 03:55:51  body SENTENCE  base 03:55:37  -> 409  "note changed"
+#6 03:55:51  body SENTENCE  base 03:55:50  -> 200  server = 03:55:52
+```
+
+`#6` moved onto the door's revision and landed the sentence. Only the closing
+verification read failed. ⚰️ **This is the SECOND false positive of this exact
+shape in this tool** — the first counted pre-existing conflicted copies. A layer
+that could not be READ is not a layer that is EMPTY (`window_check` has carried
+`layer_read_failed` for precisely this; `q1_repro` did not).
 
 ⭐ The one raw-door run that survived had **`sends=1`, not 3** — so even the
 second-writer case only loses the words when several sends are in flight. At
@@ -110,26 +128,33 @@ second-writer case only loses the words when several sends are in flight. At
 P(M greens | r) = (1−r)^M.
 
 ```
-P(12 greens | r = 0.92) = 6.9e-14   rejected
-P(12 greens | r = 0.50) = 2.4e-04   rejected
-P(12 greens | r = 0.32) = 9.8e-03   rejected  (the 1% line)
-P(12 greens | r = 0.20) = 6.9e-02   NOT rejected
-P(12 greens | r = 0.10) = 2.8e-01   NOT rejected
+P(28 greens | r = 0.85) = 8.5e-24   rejected
+P(28 greens | r = 0.50) = 3.7e-09   rejected
+P(28 greens | r = 0.30) = 4.6e-05   rejected
+P(28 greens | r = 0.16) = 7.6e-03   rejected
+P(28 greens | r = 0.15) = 1.1e-02   NOT rejected
+P(28 greens | r = 0.10) = 5.2e-02   NOT rejected
+P(28 greens | r = 0.05) = 2.4e-01   NOT rejected
 ```
 
-**So 12 clean real-door runs exclude any failure rate ≥ 32% at ≥99% confidence,
-and exclude nothing below ~20%.** For ≥99% power at a given `r`, M ≥ ln(0.01)/ln(1−r):
+**So 28 clean real-door runs exclude any failure rate ≥ 28% — precisely r ≥ 0.153 —
+at ≥99% confidence, and exclude nothing below ~10%.** For ≥99% power at a given
+`r`, M ≥ ln(0.01)/ln(1−r):
 
 ```
 r = 0.30  ->  M = 13        r = 0.10  ->  M = 44
 r = 0.20  ->  M = 21        r = 0.05  ->  M = 90
 ```
 
-⛔ **The honest claim is therefore: the round-3 failure mode does not occur on the
-member path at any rate this sample could detect, and the raw-fetch door's rate
-(0.92) is excluded by fourteen orders of magnitude.** It is NOT "the path is
-proven clean" — a rare real-path defect below ~20% would need 21–90 runs to
-exclude, and that is a cost decision, not a measurement.
+⛔ **The honest claim: the round-3 failure mode does not occur on the member path
+at any rate ≥ 15%, and the raw-fetch door's 0.85 is excluded outright.** It is NOT
+"proven clean" — a defect below ~10% would need 44+ runs, which is a cost
+decision, not a measurement.
+
+⭐ **And one real-door run independently corroborates the mechanism working**: it
+409'd on the stale baseline and then REBASED onto the door's revision and landed
+the sentence with a 200, in the same second. That is guard 2's "ours ⇒ rebase"
+arm doing exactly its job, captured on the wire.
 
 ## ⛔ WHAT THIS EXPLAINS — every confusing thing about this wave
 
