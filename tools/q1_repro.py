@@ -456,13 +456,18 @@ def main() -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument("--keep-open", action="store_true")
+    # ⛔ R-15: the defect is a RACE — the identical ordering ran green at
+    # 02:55:10Z and red at 02:57:30Z. A single green run proves nothing.
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run the ordering up to N times, stopping on the first red")
     a = ap.parse_args()
 
     if a.self_check or (not a.ordering and not a.all):
         return self_check()
 
-    todo = list(ORDERINGS) if a.all else [a.ordering]
+    todo = list(ORDERINGS) if a.all else [a.ordering] * max(1, a.repeat)
     reds = []
+    greens = 0
     for o in todo:
         rec = run_ordering(o, keep_open=a.keep_open)
         p = write_artifact(rec)
@@ -476,9 +481,16 @@ def main() -> int:
             # a second ordering run afterwards would write over the account state
             # that explains the first.
             break
-        print(f"  `{o}` green — sentence landed, no fork.", flush=True)
+        greens += 1
+        print(f"  `{o}` green — sentence landed, no fork. ({greens} green so far)", flush=True)
 
-    print("\n" + ("RED: " + ", ".join(reds) if reds else "all orderings green"), flush=True)
+    # ⛔ REPORT THE DENOMINATOR. "green" over an unstated number of runs is
+    # the shape that let a race look fixed three times.
+    total = greens + len(reds)
+    msg = f"{len(reds)} red / {total} run(s)"
+    msg += ("  —  RED: " + ", ".join(reds)) if reds else "  —  no finding in this sample"
+    print("", flush=True)
+    print(msg, flush=True)
     return 1 if reds else 0
 
 
