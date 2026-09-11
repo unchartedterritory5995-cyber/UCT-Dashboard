@@ -4,7 +4,10 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
-import { hitThreshold, crossedDragSlop, useCoarsePointer } from './coarsePointer'
+import {
+  hitThreshold, handleGrabRadius, crossedDragSlop, useCoarsePointer, isCoarsePointer,
+  withHitBoost, SELECTED_BODY_BOOST_COARSE,
+} from './coarsePointer'
 import { fmtLevel, visibleOnly } from './drawingObjects'
 import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
 import {
@@ -114,6 +117,30 @@ const HIT_THRESHOLD = () => hitThreshold()
 // Same shape as HIT_THRESHOLD: a FUNCTION, never a module-load constant — the
 // pointer answer must be read when the gesture happens, not when the file loads.
 const CROSSED_SLOP = (startPixel, pos) => crossedDragSlop(startPixel, pos)
+// What the touch drag readout calls each object. Display copy only — the type
+// keys are the drawing schema's and are not restated anywhere else here.
+const DRAG_HUD_LABELS = {
+  trendline: 'trend line', ray: 'ray', extended: 'extended line', horizontal: 'horizontal line',
+  hray: 'horizontal ray', vertical: 'vertical line', rect: 'rectangle', circle: 'circle',
+  arrow: 'arrow', fib: 'Fibonacci', fibext: 'Fib extension', channel: 'channel',
+  pitchfork: 'pitchfork', avwap: 'anchored VWAP', text: 'note', measure: 'measurement',
+  advance: 'price move',
+}
+/** A bar time (ISO day string or unix seconds) as short readout text; '' when unknown. */
+function fmtHudTime(t, futureBars) {
+  let d = null
+  if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}/.test(t)) d = new Date(t.slice(0, 10) + 'T12:00:00')
+  else if (Number.isFinite(t)) d = new Date(t > 1e11 ? t : t * 1000)
+  if (!d || Number.isNaN(d.getTime())) return ''
+  const isDay = typeof t === 'string' || (Number.isFinite(t) && (t * 1000) % 86400000 === 0)
+  let s
+  try {
+    s = isDay
+      ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  } catch { s = '' }
+  return futureBars ? `${s} +${futureBars} bar${futureBars === 1 ? '' : 's'}` : s
+}
 // One-time "tap two points" coach chip for multi-point tools on touch —
 // single flag across all tools (the voice.dictation.hintSeen idiom).
 const TAP_HINT_LS = 'uct.drawings.tapHintSeen'
@@ -440,6 +467,11 @@ export default function ChartDrawingOverlay({
   // mouse input, so the shipped mouse path is unaffected.
   const touchHitRef = useRef(false)
   const [isDragging, setIsDragging] = useState(false)
+  // Live readout while a FINGER drags a drawing: the fingertip covers the very
+  // point being placed, so the chart cannot show it. `{ label, price, time,
+  // futureBars, handle }` while a touch drag is armed; null otherwise. Mouse
+  // drags never set it — the cursor hides nothing.
+  const [dragHud, setDragHud] = useState(null)
   const [hoverDrawingId, setHoverDrawingId] = useState(null)
   // Direct-manipulation: true when the mouse is over a drawing while NO tool is
   // armed. Flips the transparent overlay to interactive JUST for that moment so a
@@ -1644,8 +1676,23 @@ export default function ChartDrawingOverlay({
             ? labelBoxRef.current.get(d.id) : null)
       if (hit) return d.id
     }
+    // ⭐ SECOND PASS, SELECTED DRAWING ONLY, TOUCH ONLY. A finger reaching for
+    // the line it already chose may land a few px wide of it; widening the
+    // threshold for THAT drawing alone keeps a first tap beside two lines
+    // unambiguous while making the re-grab forgiving. Runs after the normal
+    // pass so it can never outrank a drawing that was genuinely under the touch.
+    if (selectedId && isCoarsePointer()) {
+      const sel = visibleDrawings.find(d => d.id === selectedId)
+      if (sel && sel.type !== 'advance') {
+        const rect = rectForDrawing(sel, geom)
+        const pts = resolvePixels(sel.points || [], rect)
+        const box = (sel.type === 'text' || sel.type === 'fib' || sel.type === 'fibext')
+          ? labelBoxRef.current.get(sel.id) : null
+        if (withHitBoost(SELECTED_BODY_BOOST_COARSE, () => hitTestDrawing(sel, pts, mx, my, rect, box))) return sel.id
+      }
+    }
     return null
-  }, [visibleDrawings, resolvePixels, hitTestAdvance, paneGeom, rectForDrawing])
+  }, [visibleDrawings, resolvePixels, hitTestAdvance, paneGeom, rectForDrawing, selectedId])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
@@ -1670,7 +1717,10 @@ export default function ChartDrawingOverlay({
       // what `handleIdx` means to the drag path. Skipping an unresolvable anchor
       // (rather than filtering it out of the array) is what keeps that true.
       if (!pts[i].valid) continue
-      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD() + 2) {
+      // ⭐ `handleGrabRadius()`, not the body threshold: a selected handle is a
+      // full fingertip on touch (see coarsePointer.js), and the halo paints the
+      // same read, so the grab zone a finger sees is the one it gets.
+      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < handleGrabRadius()) {
         return { drawingId: d.id, handleIdx: i }
       }
     }
@@ -1688,6 +1738,10 @@ export default function ChartDrawingOverlay({
   // fought by the drag path when a drawing sits behind it).
   const ctxMenuOpenRef = useRef(false)
   ctxMenuOpenRef.current = !!ctxMenu
+  // The touch router's "is this touch ours?" decision, published for the
+  // document-level deselect listener below, which fires BEFORE the router can
+  // run (document capture precedes wrapper capture). null on fine pointers.
+  const touchClaimRef = useRef(null)
 
   // ── Direct-manipulation hover (mouse only) ──
   // With NO tool armed the overlay canvas is pointer-transparent so the chart owns
@@ -1993,6 +2047,10 @@ export default function ChartDrawingOverlay({
       if (!drag.armed) {
         if (!CROSSED_SLOP(drag.startPixel, pos)) return
         drag.armed = true
+        // The moment a touch becomes a DRAG, say so through the finger: the
+        // chart is now locked under it and the drawing — not the view — is what
+        // moves. One short tick, same budget as the long-press cue.
+        if (e.pointerType !== 'mouse') { try { navigator.vibrate?.(8) } catch { /* noop */ } }
       }
 
       // Compute delta in chart coordinates. In the empty right-pad, toChart clamps
@@ -2122,6 +2180,19 @@ export default function ChartDrawingOverlay({
       // collapses into a single undo step; per-move writes then skip history.
       if (!drag.snapped) { snapshotHistory?.(); drag.snapped = true }
       updateDrawing(drag.drawingId, { points: newPoints }, { record: false })
+      if (e.pointerType !== 'mouse') {
+        // Report the point the finger is covering. A handle drag names THAT
+        // anchor; a body drag names the whole object, because no single anchor
+        // is "the" one under the finger.
+        const hp = drag.handleIdx != null ? newPoints[drag.handleIdx] : null
+        setDragHud({
+          label: d.type,
+          handle: drag.handleIdx != null,
+          price: Number.isFinite(hp?.price) ? hp.price : null,
+          time: hp?.time ?? null,
+          futureBars: Number.isFinite(hp?.futureBars) && hp.futureBars > 0 ? hp.futureBars : null,
+        })
+      }
       requestRedraw()
       return
     }
@@ -2155,6 +2226,7 @@ export default function ChartDrawingOverlay({
       dragRef.current = null
       setIsDragging(false)
     }
+    setDragHud(null)
   }, [])
 
   // ── Touch / tablet direct manipulation ──
@@ -2172,35 +2244,84 @@ export default function ChartDrawingOverlay({
   const pointerDownRef = useRef(handlePointerDown); pointerDownRef.current = handlePointerDown
   const pointerMoveRef = useRef(handlePointerMove); pointerMoveRef.current = handlePointerMove
   const pointerUpRef = useRef(handlePointerUp); pointerUpRef.current = handlePointerUp
+  // ⛔⛔ THE CHART DOES NOT LISTEN TO POINTER EVENTS. lightweight-charts binds
+  // native `touchstart` on its own canvas (`MouseEventHandler`: `mousedown` +
+  // `touchstart` on the target, then `touchmove`/`touchend` on the document
+  // for the rest of the gesture — it never subscribes to `pointerdown`). So the
+  // `pointerdown` stopPropagation below, correct as it is, never reached the
+  // chart: `pointerdown` and `touchstart` are two separate dispatches for one
+  // finger, and stopping the first does nothing to the second. The chart
+  // started its pan on the very touch the overlay had claimed for a drag, and
+  // on a phone the drawing and the view moved TOGETHER — "the chart thinks I
+  // am trying to scroll". The touch-event listeners here are the fix: the same
+  // claim, applied to the events the chart actually reads. Order-independent,
+  // because the spec does not promise which of the two dispatches lands first
+  // on every engine: whichever arrives first makes the decision, the other
+  // reads it.
+  //
+  // ⭐ AND THE CHART IS LOCKED FOR THE DRAG'S DURATION as well — the same
+  // `handleScroll`/`handleScale` latch the Shift+drag measure uses — restored
+  // from the chart's OWN options on release, so a frozen chart stays frozen.
+  // Belt and braces: even a touch that slipped past the listeners above could
+  // not move the view while a drawing is under the finger.
   useEffect(() => {
     const canvas = canvasRef.current
     const wrapper = canvas?.parentElement
     if (!wrapper || !coarsePointer) return     // touch / coarse-pointer devices only
-    let dragging = false
-    const onDown = (e) => {
-      if (e.pointerType === 'mouse') return
-      if (ctxMenuOpenRef.current) return       // menu/sheet open → let taps reach it
+    let dragging = false      // the POINTER sequence we claimed (drives the drag)
+    let touchClaimed = false  // the matching TOUCH sequence (what the chart listens to)
+    let chartLock = null      // the chart's own pan/scale options, held for restore
+
+    const lockChart = () => {
+      const chart = chartRef?.current
+      if (!chart || chartLock) return
+      try {
+        const o = chart.options?.() || {}
+        chartLock = { handleScroll: o.handleScroll ?? true, handleScale: o.handleScale ?? true }
+        chart.applyOptions({ handleScroll: false, handleScale: false })
+      } catch { chartLock = null }
+    }
+    const unlockChart = () => {
+      if (!chartLock) return
+      const restore = chartLock
+      chartLock = null
+      try { chartRef?.current?.applyOptions(restore) } catch { /* chart torn down mid-drag */ }
+    }
+
+    // Would a touch at this CLIENT point be ours? The one decision both event
+    // families share — one hit test, so they can never disagree.
+    const claimAt = (target, clientX, clientY) => {
+      if (ctxMenuOpenRef.current) return null   // menu/sheet open → let taps reach it
       // The floating quick bar overlays the canvas — a tap on its buttons must
       // never hit-test the drawing beneath it into a drag (capture phase: the
       // bar's own stopPropagation runs too late to save it).
-      if (e.target.closest?.('[data-uct-qbar]')) return
+      if (target?.closest?.('[data-uct-qbar]')) return null
       const g = hoverGuardRef.current
-      if (g.activeTool) return                 // a tool is armed → the canvas React handlers own it
-      // A 2nd finger means the user wants to pinch/pan — bail out of any drag we
-      // started and let the gesture through (don't stopPropagation).
-      if (activePointersRef.current.size >= 1) {
-        if (dragging) { dragging = false; pointerUpRef.current(e) }
-        return
-      }
+      if (g.activeTool) return null              // a tool is armed → the canvas React handlers own it
       const rect = canvas.getBoundingClientRect()
-      const x = e.clientX - rect.left, y = e.clientY - rect.top
+      const x = clientX - rect.left, y = clientY - rect.top
       let hit = null
       if (g.selectedId) { const hh = hitTestHandleRef.current(x, y); if (hh) hit = hh.drawingId }
       if (!hit) hit = hitTestAllRef.current(x, y)
-      if (!hit) return                         // empty space → let the chart pan / pinch
+      return hit
+    }
+    touchClaimRef.current = claimAt
+
+    const onDown = (e) => {
+      if (e.pointerType === 'mouse') return
+      // A 2nd finger means the user wants to pinch/pan — bail out of any drag we
+      // started and let the gesture through (don't stopPropagation).
+      if (activePointersRef.current.size >= 1) {
+        if (dragging) { dragging = false; pointerUpRef.current(e); unlockChart() }
+        touchClaimed = false
+        return
+      }
+      if (!claimAt(e.target, e.clientX, e.clientY)) return   // empty space → let the chart pan / pinch
       // We own this touch. Stop it reaching the chart, then run the shared path.
       e.stopPropagation()
       dragging = true
+      touchClaimed = true
+      lockChart()
       touchHitRef.current = true
       try { pointerDownRef.current(e) } finally { touchHitRef.current = false }
     }
@@ -2213,24 +2334,64 @@ export default function ChartDrawingOverlay({
       if (e.pointerType === 'mouse' || !dragging) return
       dragging = false
       pointerUpRef.current(e)
+      unlockChart()
+    }
+
+    // The chart-facing half. `touchstart` is what starts a lightweight-charts
+    // pan; if it never reaches the chart canvas, the chart binds no move/end
+    // handlers for this finger and the gesture is ours alone.
+    const onTouchStart = (e) => {
+      const n = e.touches?.length ?? 0
+      if (n >= 2) { touchClaimed = false; return }   // pinch → the chart's, always
+      if (dragging || touchClaimed) { e.stopPropagation(); return }
+      if (n !== 1) return
+      const t = e.touches[0]
+      if (!claimAt(e.target, t.clientX, t.clientY)) return
+      touchClaimed = true
+      e.stopPropagation()
     }
     // While WE are dragging a drawing, block the browser's default touch scrolling
-    // (non-passive so preventDefault sticks). Chart pans (dragging=false) are untouched.
-    const onTouchMove = (e) => { if (dragging) e.preventDefault() }
+    // (non-passive so preventDefault sticks) AND keep the move from the chart.
+    // Chart pans (nothing claimed) are untouched.
+    const onTouchMove = (e) => {
+      if (!dragging && !touchClaimed) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const onTouchEnd = (e) => {
+      if (!touchClaimed) return
+      e.stopPropagation()
+      // A claimed tap must not ALSO click the chart. The browser synthesises
+      // mousedown/mouseup/click after a touch it was allowed to finish, and
+      // lightweight-charts only recognises those as touch-born when it saw the
+      // touch itself (`sourceCapabilities` on Chromium; a timestamp on Safari,
+      // which it never recorded because the touchstart never reached it).
+      // Cancelling the touchend suppresses the compat mouse events at source.
+      if (e.cancelable) e.preventDefault()
+      if ((e.touches?.length ?? 0) === 0) touchClaimed = false
+    }
     const capT = { capture: true }
     wrapper.addEventListener('pointerdown', onDown, capT)
     wrapper.addEventListener('pointermove', onMove, capT)
     wrapper.addEventListener('pointerup', onUp, capT)
     wrapper.addEventListener('pointercancel', onUp, capT)
+    wrapper.addEventListener('touchstart', onTouchStart, { capture: true, passive: true })
     wrapper.addEventListener('touchmove', onTouchMove, { capture: true, passive: false })
+    wrapper.addEventListener('touchend', onTouchEnd, capT)
+    wrapper.addEventListener('touchcancel', onTouchEnd, capT)
     return () => {
       wrapper.removeEventListener('pointerdown', onDown, capT)
       wrapper.removeEventListener('pointermove', onMove, capT)
       wrapper.removeEventListener('pointerup', onUp, capT)
       wrapper.removeEventListener('pointercancel', onUp, capT)
+      wrapper.removeEventListener('touchstart', onTouchStart, { capture: true })
       wrapper.removeEventListener('touchmove', onTouchMove, { capture: true })
+      wrapper.removeEventListener('touchend', onTouchEnd, capT)
+      wrapper.removeEventListener('touchcancel', onTouchEnd, capT)
+      touchClaimRef.current = null
+      unlockChart()   // an unmount mid-drag must not leave the chart frozen
     }
-  }, [coarsePointer])
+  }, [coarsePointer, chartRef])
 
   // Deselect when clicking away. In no-tool mode the overlay canvas is
   // pointer-transparent over empty space, so an empty-space click lands on the
@@ -2249,7 +2410,32 @@ export default function ChartDrawingOverlay({
       // stopPropagation can never beat it), so exempt them explicitly.
       if (ctxMenuOpenRef.current) return
       if (e.target.closest?.('[data-uct-qbar]')) return
-      setSelectedId(null)
+      // ⛔ A FINGER REACHING FOR THE SELECTION'S OWN HANDLE lands on the CHART
+      // canvas (with no tool armed the overlay is pointer-transparent), so it
+      // is not `canvasRef.current` and this listener — which fires before the
+      // touch router can claim the touch — used to strip the selection out
+      // from under the very drag that was about to start: the handles vanished
+      // on the first move and the drawing was deselected on release. Ask the
+      // router's own hit test instead; a body hit re-selects on its own path.
+      if (e.pointerType !== 'mouse' && touchClaimRef.current?.(e.target, e.clientX, e.clientY)) return
+      if (e.pointerType === 'mouse') { setSelectedId(null); return }
+      // ⭐ ON TOUCH, A PAN IS NOT A TAP-AWAY. Deselecting on pointerdown meant
+      // that scrolling the chart to see where a line went stripped the
+      // selection — and the quick bar and handles with it — so every adjustment
+      // began with re-finding the drawing. Decide on RELEASE: a finger that
+      // stayed within the drag slop was a tap and deselects; one that travelled
+      // was a pan and keeps the selection it started with.
+      const start = { x: e.clientX, y: e.clientY }
+      const id = e.pointerId
+      const settle = (up) => {
+        if (up.pointerId != null && id != null && up.pointerId !== id) return
+        document.removeEventListener('pointerup', settle, true)
+        document.removeEventListener('pointercancel', settle, true)
+        if (up.type === 'pointercancel') return          // the browser took it — not a tap
+        if (!crossedDragSlop(start, { x: up.clientX, y: up.clientY })) setSelectedId(null)
+      }
+      document.addEventListener('pointerup', settle, true)
+      document.addEventListener('pointercancel', settle, true)
     }
     document.addEventListener('pointerdown', onDocDown, true)
     return () => document.removeEventListener('pointerdown', onDocDown, true)
@@ -2615,6 +2801,42 @@ export default function ChartDrawingOverlay({
           >×</button>
         </div>
       )}
+      {/* Touch drag readout. The fingertip covers the point it is placing, so
+          while a FINGER drags a handle this chip says where that anchor is —
+          price and bar — and while it drags a body it names what is moving.
+          Top-center, clear of the finger (which is in the plot) and of the
+          bottom chrome (quick bar, draw bar). Mouse drags never set `dragHud`:
+          a cursor hides nothing. Inline-styled like the placement chip; same
+          palette. */}
+      {dragHud && (() => {
+        const fmtPrice = priceFormatterFor(seriesRef?.current)
+        const label = DRAG_HUD_LABELS[dragHud.label] || dragHud.label || 'drawing'
+        const priceText = dragHud.price != null ? fmtPrice(dragHud.price) : ''
+        const timeText = fmtHudTime(dragHud.time, dragHud.futureBars)
+        const parts = dragHud.handle ? [priceText, timeText].filter(Boolean) : []
+        return (
+          <div
+            data-testid="drag-readout"
+            aria-live="polite"
+            style={{
+              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 6, display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(26, 28, 23, 0.94)', border: '1px solid rgba(201, 168, 76, 0.55)',
+              borderRadius: 999, padding: '7px 14px', pointerEvents: 'none',
+              color: '#ece6d4', fontSize: 12.5, fontFamily: '"Instrument Sans", sans-serif',
+              whiteSpace: 'nowrap', boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {dragHud.handle && parts.length > 0
+              ? (<>
+                  <span style={{ color: '#c9a84c', fontWeight: 600 }}>{parts[0]}</span>
+                  {parts[1] && <span style={{ opacity: 0.75 }}>{parts[1]}</span>}
+                </>)
+              : <span>Moving {label}</span>}
+          </div>
+        )
+      })()}
       {textInput && (
         <TextInputOverlay
           x={textInput.x}
@@ -2656,6 +2878,11 @@ export default function ChartDrawingOverlay({
             onToggleLock={() => updateDrawing(d.id, { locked: !d.locked })}
             onToggleHide={() => { updateDrawing(d.id, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null) }}
             onDelete={() => { removeDrawing(d.id); setSelectedId(null) }}
+            /* A mis-drag is the main cost of finger imprecision, and Ctrl+Z
+               does not exist on a phone. Only surfaces that own history pass
+               `undo` (annotation layers omit it), so the button appears only
+               where it can work. */
+            onUndo={undo ? () => undo() : null}
           />
         )
       })()}
@@ -2941,7 +3168,7 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
 // TradingView mobile's idiom. Four 44px actions: the current-color Style dot
 // (opens the full DrawingContextMenu sheet), Duplicate, Lock, Delete. It owns
 // no state and invents no behavior: every handler is the context menu's own.
-function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onDelete }) {
+function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onDelete, onUndo = null }) {
   const locked = !!drawing.locked
   const curColor = (drawing.type === 'advance' ? drawing.labelColor : drawing.color) || '#c9a84c'
   const btn = {
@@ -2974,6 +3201,14 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
           boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)',
         }} />
       </button>
+      {onUndo && (
+        <button type="button" style={btn} onClick={onUndo} aria-label="Undo">
+          <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+            <path d="M6.5 4.5 3.5 7.5l3 3" />
+            <path d="M3.5 7.5h6.75a3.75 3.75 0 0 1 0 7.5H8" />
+          </svg>
+        </button>
+      )}
       <button type="button" style={btn} onClick={onDuplicate} aria-label="Duplicate">
         <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
           <rect x="6" y="6" width="9" height="9" rx="1.5" />

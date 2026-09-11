@@ -20,7 +20,7 @@
  * expected to change. Everything else is a contract.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { __resetCoarsePointerForTest, HANDLE_FINE, HANDLE_COARSE, HIT_COARSE } from './coarsePointer'
+import { __resetCoarsePointerForTest, HANDLE_FINE, HANDLE_COARSE, HIT_COARSE, HANDLE_GRAB_COARSE, handleGrabRadius } from './coarsePointer'
 import { UCT_DRAW_GOLD } from './drawingColors'
 import { _clearLabelCache } from './drawingLabels'
 import {
@@ -1172,7 +1172,13 @@ describe('⚠️ CHARACTERISATION — selection handles (Phase 1 makes them adap
     const ctx = makeCtx()
     renderSelectionHandles(ctx, [P(10, 10)], '#ff5b5b')
     const radii = ctx.__find('arc').map((c) => c.args[2])
-    expect(radii).toEqual([HIT_COARSE + 2, HANDLE_COARSE])
+    // The halo IS the grab zone — the same `handleGrabRadius()` read the
+    // overlay's hitTestHandle makes, so a finger sees exactly what it can grab.
+    // ⚰️ Was `HIT_COARSE + 2` (17px): a second derivation of the grab radius
+    // beside the one that decided it. Now a full fingertip, from ONE export.
+    expect(radii).toEqual([HANDLE_GRAB_COARSE, HANDLE_COARSE])
+    expect(radii[0]).toBe(handleGrabRadius())
+    expect(HANDLE_GRAB_COARSE).toBeGreaterThan(HIT_COARSE + 2)
     // The touch HALO stays neutral gold: it is a readout of the grab radius —
     // chrome, not part of the shape — and at 16% alpha a dark red would vanish.
     expect(ctx.__find('set:fillStyle')[0].args[0]).toBe('rgba(201, 168, 76, 0.16)')
