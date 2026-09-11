@@ -623,7 +623,7 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 
 Shown at ≤1024px (desktop uses the left `NavBar`). ONE piece in `Layout.jsx`:
 - **`MobileNav` top bar** — fixed header: top-left menu button + page title + movers shortcut + `AlertBell`. The menu button opens **`MoreSheet`** — the SINGLE comprehensive directory (sectioned Core/Markets/Trading/Help/Account, identity header, free/paid/admin gating, active-route highlight, Compass badge).
-- ⚰️ **`MobileTabBar` (bottom) was REMOVED 2026-09-01** (owner call: it duplicated the top-left menu route-for-route, and its 58px belonged to the chart). Its `--mobile-tabbar-h` token is gone from tokens.css and guarded against resurrection by `pages/charts/mobileShellHeight.test.js`; `navGroups.js` (the shared route taxonomy it derived from) lives on for NavBar + the route rail. On the phone chart shell — where the top bar also hides — the app-menu door is the **Menu button in the chart symbol strip** (`MobileSymbolStrip`, via `MoreSheetContext`). The old side drawer was removed 2026-06-19 for the same reason: one menu (`MoreSheet`), and every trigger opens THAT — don't reintroduce a second nav surface.
+- ⚰️ **`MobileTabBar` (bottom) was REMOVED 2026-09-01** (owner call: it duplicated the top-left menu route-for-route, and its 58px belonged to the chart). Its `--mobile-tabbar-h` token is gone from tokens.css and guarded against resurrection by `pages/charts/mobileShellHeight.test.js`; `navGroups.js` (the shared route taxonomy it derived from) lives on for NavBar + the route rail. On the phone chart shell — where the top bar also hides — the app-menu door is the **Menu button in the chart symbol strip** (`MobileSymbolStrip`, via `MoreSheetContext`). **The gold timeframe pill is the strip's far-RIGHT control** (moved up from the bottom toolbar 2026-09-11, owner call — that bottom row is being freed for shortcut tools; `MobileChartToolbar` now carries four doors and must not grow a second timeframe door; rail `pages/charts/mobile/tfDoor.wire.test.jsx`). The old side drawer was removed 2026-06-19 for the same reason: one menu (`MoreSheet`), and every trigger opens THAT — don't reintroduce a second nav surface.
 
 ### Floating buttons (FABs)
 The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedback "?" (`FeedbackWidget.jsx`, bottom-left) are `position:fixed` just above the bottom safe area (they stepped down when the tab bar was removed). Both **auto-hide on scroll-down** via `hooks/useHideOnScroll.js` and restore on scroll-up / near-top / ~1.4s idle. The orb stays put during a live call or drag; the feedback button stays put while its menu is open.
@@ -1135,6 +1135,13 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Read-only on: Breadth DrillModal, Journal TradeDrawer (contextual, symbol locked)
 - **Flag button** (⚑ Flag/Flagged) on: ThemeTrackerPage, Watchlists, CustomScan, Breadth DrillModal, TickerPopup
 - **Period tabs**: 5min / 30min / 1hr / Daily / Weekly (Journal: Daily/Weekly only)
+- **The "Pre"/"Post" word is a DOM chip ON the price scale (2026-09-11)**, stacked
+  directly above the orange ext price label (`sessionExtChipRef` + a rAF glue loop in
+  `StockChart.jsx`; rail `StockChart.sessionExtChip.test.jsx`). ⛔ Do not put it back
+  as the price line's `title` — lightweight-charts draws a title on the PANE, hugging
+  the axis from the left, and on a phone it sat over the newest candles. The session
+  tag applier blanks `title` for `_sessionTag === 'ext'` on purpose. (`ChartRender`'s
+  `?exttag=` bot path still passes a titled line through `priceLines` — different door.)
 - **TickerPopup**: click-to-open modal with StockChart, live price, flag, earnings intel, insider activity. NO Finviz hover preview, NO external links. ⚰️ This also claimed a **position calculator** — `components/PositionCalc.jsx` has zero importers and `TickerPopup.jsx` contains no calculator (see *⚰️ DOCUMENTED BUT UNREACHABLE*).
 
 ## Live Pricing
