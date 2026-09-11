@@ -74,6 +74,27 @@ const HubContext = createContext({
   lastSection: null,
 })
 
+/**
+ * ⛔ THE REGISTRAR LIVES IN ITS OWN CONTEXT, AND THAT IS A LOOP BREAKER, NOT TIDINESS.
+ *
+ * `useHubMode` used to read `registerHubMode` off the main `HubContext`. That made every
+ * registrant a subscriber to the value it was itself writing: register → `setPageModeConfig` →
+ * `activeModeConfig` changes → the main context value changes → the registrant re-renders. With
+ * a memoized config that is one wasted render; with a config whose identity changed every render
+ * (`catalystsSection`, 2026-09-10, keyed on an object `useHubCursor` rebuilt each render) it was
+ * an infinite passive-effect loop — React never throws for those, it just runs them at ~4,500
+ * renders a second until navigation starves.
+ *
+ * `registerHubMode` is a `useCallback([], …)`, so this context's value NEVER changes after mount
+ * and a component that only registers is never re-rendered by its own registration. A per-render
+ * config is now merely wasteful (one provider setState per render) instead of fatal. Rail:
+ * `hubRegistrarLoop.test.jsx`, mutation-proved by pointing `useHubMode` back at `useHub()`.
+ *
+ * `registerHubMode` is ALSO still exposed on the main context for any direct caller — that path
+ * subscribes the caller to the whole hub value, which is what a direct caller presumably wants.
+ */
+const HubRegistrarContext = createContext(() => () => {})
+
 const LAST_SECTION_STORAGE_KEY = 'hub.lastSection'
 
 function readLastSection() {
@@ -225,9 +246,18 @@ export function HubProvider({ children }) {
     selectedPosition, livePrice, isStreaming, lastSection,
   ])
 
-  return <HubContext.Provider value={value}>{children}</HubContext.Provider>
+  return (
+    <HubRegistrarContext.Provider value={registerHubMode}>
+      <HubContext.Provider value={value}>{children}</HubContext.Provider>
+    </HubRegistrarContext.Provider>
+  )
 }
 
 export function useHub() {
   return useContext(HubContext)
+}
+
+/** The registration function alone — see `HubRegistrarContext`. `useHubMode` is its consumer. */
+export function useHubRegistrar() {
+  return useContext(HubRegistrarContext)
 }

@@ -189,15 +189,20 @@ describe('the fan carries the cursor\'s symbol, and drops what the tile does not
 
 describe('the three concurrent mounts cannot fight over the cursor', () => {
   it('⛔⛔ exactly ONE Dashboard render owns the hub', () => {
-    // `{hero}` appears twice — desktop zone B and the mobile stack — and both are in the document.
-    // The hub is coarse-pointer-only, so the MOBILE copy owns it. If both owned it, the cursor
-    // would address whichever tree came first.
+    // The hero is rendered from two branches — desktop zone B and the mobile stack — through ONE
+    // factory that decides visibility and ownership together (`heroFor('desktop' | 'mobile')`).
+    // ⚰️ This used to match `heroFor(true|false)` literals; since 2026-09-11 ownership is derived
+    // from which branch the stylesheet is showing (mobile wins when both are), so the literal is
+    // gone. The behavioural half — one hero per visible branch, one owner — lives in
+    // `pages/Dashboard.heroMount.test.jsx`; this keeps the structural half: two call sites, one
+    // per branch, and the hub prop derived from a single `owns` expression.
     const dash = SRC('..', '..', 'pages', 'Dashboard.jsx')
-    const owners = [...dash.matchAll(/heroFor\((true|false)\)/g)].map((m) => m[1])
-    expect(owners.length, 'the hero is no longer rendered through the heroFor factory — the two '
-      + 'renders can no longer differ by the hubScope prop').toBe(2)
-    expect(owners.filter((o) => o === 'true').length, 'more than one Dashboard render claims the '
-      + 'hub, so two tiles would register the same mode and the last to mount would win').toBe(1)
+    const calls = [...dash.matchAll(/heroFor\('(desktop|mobile)'\)/g)].map((m) => m[1])
+    expect(calls.sort(), 'the hero is no longer rendered through the heroFor factory — the two '
+      + 'renders can no longer differ by the hubScope prop').toEqual(['desktop', 'mobile'])
+    expect(dash.match(/hubScope=\{/g)?.length, 'hubScope is set at more than one site, so two '
+      + 'tiles could register the same mode and the last to mount would win').toBe(1)
+    expect(dash).toMatch(/const owns = branch === 'mobile' \? true : !mobileShown/)
   })
 
   it('⛔ Morning Wire\'s copy does NOT claim it', () => {

@@ -1461,6 +1461,48 @@ it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
 
+### ⛔ Registering a hub mode must never re-render the registrant — the 2026-09-10 navigation freeze
+
+> **A `useHubMode` config is memoized by its caller on the values it is built from, and the hook
+> reads its registrar from `HubRegistrarContext`, never from `useHub()`.**
+
+The night §3.6 Catalysts went live (`80a520cb3`), clicking any nav entry on `/dashboard` changed
+the URL and left the screen where it was; only a hard refresh recovered. Measured: Dashboard
+rendered 0/sec, the hub-owning `CatalystTable` ~4,500/sec. A passive-effect loop — React never
+throws "Maximum update depth" for one — starved React Router's transition commit, and the member
+was held on the exact page that was looping, which is why it read as app-wide.
+
+The chain: `useHubCursor` returned a fresh object every render → `catalystsSection`'s config
+memo was keyed on that object → `useHubMode` re-registered → `setPageModeConfig` changed the hub
+context value → the tile, a context consumer THROUGH `useHubMode`, re-rendered. A second leg:
+while the catalysts fetch was pending, `data?.rows || []` manufactured a new array per render, so
+the loop began on the first mount, before the API had answered at all.
+
+⚰️ It was filed as *"only when the catalysts API returns no data."* Measured under the real
+`HubProvider`, the owning tile never settled with a healthy payload, a 401, a network error OR a
+still-pending request — the API state was a coincidence of when it was noticed. And
+`useHubMode`'s own docstring asserted a fresh config per render *"costs one setState … and
+correctness never depends on it."* It was the loop.
+
+Four fixes, four rails, each mutation-proved by reverting exactly that fix:
+- `useHubCursor` returns a memoized object (`hubRegistrarLoop.test.jsx`);
+- `useHubMode` reads a SEPARATE, never-changing registrar context, so registering cannot
+  re-render the registrant — a per-render config is now wasteful, not fatal (same file);
+- `catalystsSection` keys its config on the cursor's stable parts, and `CatalystTable` derives
+  `allRows` from a frozen constant (`CatalystTable.renderLoop.test.jsx` renders the REAL tile under
+  the REAL provider across all four API states and asserts the render count stays bounded — the
+  section's unit tests stub the cursor and the Dashboard tests mock the tile, so neither could see it);
+- `Dashboard.jsx` prunes the hero out of whichever branch the stylesheet hides
+  (`useCssDisplayed`, measured from computed style, never a second breakpoint literal), so the
+  tile mounts ONCE in a browser and hub ownership follows the visible copy — the old
+  "mobile copy owns it" rule handed the hub to a `display:none` tree on every tablet
+  (`Dashboard.heroMount.test.jsx`). jsdom applies no CSS, so tests still see both branches.
+
+⭐ ESLint had already named the second leg at HEAD — *"the `allRows` logical expression could make
+the dependencies of useMemo change on every render"* — in a file whose pre-existing
+`rules-of-hooks` errors made one more red line invisible. A lint finding on a file you touch is a
+report, not noise.
+
 ### ⛔ A test run without a totals line is not a run (Testing)
 
 > **Assert the totals line before reading the exit code.**
