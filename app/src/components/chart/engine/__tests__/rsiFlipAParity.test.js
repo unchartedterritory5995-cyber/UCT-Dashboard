@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
-import { AUTOSCALE_DEFAULT } from '../pool'
+import { autoscaleProvider, AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeRSI } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
@@ -101,7 +101,14 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   // PANE indicator and owns its scale, so this is the value placement returns;
   // a price overlay would carry `AUTOSCALE_EXCLUDE` here instead, matching the
   // `autoscaleInfoProvider: () => null` the legacy BB/VWAP/SAR blocks pass.
-  autoscaleInfoProvider: AUTOSCALE_DEFAULT,
+  // ⭐ POC E: A FIXED-DOMAIN INDICATOR NO LONGER DEFERS TO THE LIBRARY'S
+  // AUTOSCALE. `RSI` declares `0..100` in the registry (`fixedPane`), and
+  // that domain now reaches the renderer as an `autoscaleInfoProvider` — the only
+  // mechanism in 5.2.0 that actually pins a range. The legacy block deferred, so
+  // the ladder drifted with the data; this is a deliberate divergence from it and
+  // the one the owner asked for. `autoscaleProvider` is memoised per range, so
+  // this is an IDENTITY comparison, not a shape one.
+  autoscaleInfoProvider: autoscaleProvider('default', { min: 0, max: 100 }),
 }
 
 /** `applyIndScale('rsi', …, { autoScale: false, minimum: 0, maximum: 100 })` —

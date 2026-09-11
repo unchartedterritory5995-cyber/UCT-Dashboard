@@ -752,6 +752,11 @@ export function createBinder({ chart, LWC }) {
         // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
         // Placement returns a string; `pool` owns the two function singletons.
         autoscale,
+        // ⭐ THE DEFINITION'S DECLARED DOMAIN — `fixedPane(0, 100, …)` in the
+        // registry, absent for `autoPane(…)`. It reaches the renderer as an
+        // `autoscaleInfoProvider`, which is the only thing in 5.2.0 that actually
+        // pins a range; absent means the shipped dynamic autoscale, unchanged.
+        scaleDomain: b.def && b.def.placement ? b.def.placement.scale : null,
         // The right-axis value tag — the same shape of answer as `autoscale`, and
         // for the same reason: whether a series may write on the axis it sits on
         // is a question about PLACEMENT, and `pool` has never been told where a

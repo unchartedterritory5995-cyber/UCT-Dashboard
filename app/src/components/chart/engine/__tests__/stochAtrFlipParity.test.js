@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
-import { AUTOSCALE_DEFAULT } from '../pool'
+import { autoscaleProvider, AUTOSCALE_DEFAULT } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeStochastic, computeATR } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
@@ -103,7 +103,14 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   priceFormat: { type: 'price', precision: 2 },
-  autoscaleInfoProvider: AUTOSCALE_DEFAULT,
+  // ⭐ POC E: A FIXED-DOMAIN INDICATOR NO LONGER DEFERS TO THE LIBRARY'S
+  // AUTOSCALE. `stoch` declares `0..100` in the registry (`fixedPane`), and
+  // that domain now reaches the renderer as an `autoscaleInfoProvider` — the only
+  // mechanism in 5.2.0 that actually pins a range. The legacy block deferred, so
+  // the ladder drifted with the data; this is a deliberate divergence from it and
+  // the one the owner asked for. `autoscaleProvider` is memoised per range, so
+  // this is an IDENTITY comparison, not a shape one.
+  autoscaleInfoProvider: autoscaleProvider('default', { min: 0, max: 100 }),
 }
 
 /** `applyIndScale(key, series, tgt, bandExtra)`'s non-`left` branch, `:6037`. */
@@ -395,7 +402,13 @@ describe('atr transcription — the AUTOSCALED band, which stoch is not', () => 
     expect(created[0].args[0]).toBe(F.LWC.LineSeries)
     expect(created[0].args[2]).toBe(0)
     expect(opts(F)).toMatchObject(LEGACY_ATR)
-    expect(opts(F)).toEqual({ ...LEGACY_ATR, ...LWC_LINE_DEFAULTS_RESTATED })
+    expect(opts(F)).toEqual({ ...LEGACY_ATR, ...LWC_LINE_DEFAULTS_RESTATED,
+      // ⭐ POC E: STILL DYNAMIC. `atr` declares NO domain in the registry
+      // (`autoPane`), so it keeps the library's own autoscale. Spelled at the
+      // assertion rather than in a constant because the shared
+      // `LWC_LINE_DEFAULTS_RESTATED` is spread LAST here and would win.
+      autoscaleInfoProvider: AUTOSCALE_DEFAULT,
+    })
 
     const scaleCalls = F.callsOf('priceScale.applyOptions')
     expect(scaleCalls).toHaveLength(1)

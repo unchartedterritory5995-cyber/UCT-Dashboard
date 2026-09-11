@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
-import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
+import { autoscaleProvider, AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { ENGINE_OWNED } from '../flipState'
 import { REGISTRY_SIZES } from '../registrySizes'
@@ -135,7 +135,14 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   priceFormat: { type: 'price', precision: 2 },
-  autoscaleInfoProvider: AUTOSCALE_DEFAULT,
+  // ⭐ POC E: A FIXED-DOMAIN INDICATOR NO LONGER DEFERS TO THE LIBRARY'S
+  // AUTOSCALE. `adx` declares `0..100` in the registry (`fixedPane`), and
+  // that domain now reaches the renderer as an `autoscaleInfoProvider` — the only
+  // mechanism in 5.2.0 that actually pins a range. The legacy block deferred, so
+  // the ladder drifted with the data; this is a deliberate divergence from it and
+  // the one the owner asked for. `autoscaleProvider` is memoised per range, so
+  // this is an IDENTITY comparison, not a shape one.
+  autoscaleInfoProvider: autoscaleProvider('default', { min: 0, max: 100 }),
 }
 
 /** …and the PRICE-OVERLAY half of the same list. `lineStyle` is NOT in here —
@@ -562,7 +569,13 @@ describe('obv — the autoscale seam, on values that are actually large', () => 
     expect(created[0].args[0]).toBe(F.LWC.LineSeries)
     expect(created[0].args[2]).toBe(0)
     expect(opts(F)).toMatchObject(LEGACY_OBV)
-    expect(opts(F)).toEqual({ ...LEGACY_OBV, ...LWC_LINE_DEFAULTS_RESTATED })
+    expect(opts(F)).toEqual({ ...LEGACY_OBV, ...LWC_LINE_DEFAULTS_RESTATED,
+      // ⭐ POC E: STILL DYNAMIC. `obv` declares NO domain in the registry
+      // (`autoPane`), so it keeps the library's own autoscale. Spelled at the
+      // assertion rather than in a constant because the shared
+      // `LWC_LINE_DEFAULTS_RESTATED` is spread LAST here and would win.
+      autoscaleInfoProvider: AUTOSCALE_DEFAULT,
+    })
   })
 
   it('one autoScale:true scale call, with NO inherited fixed range', () => {

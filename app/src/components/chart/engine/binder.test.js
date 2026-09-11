@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from './binder'
 import { resolvePlacement as realPlacement, MAIN_PRICE_SCALE_ID } from './placement'
-import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from './pool'
+import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, autoscaleProvider } from './pool'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import { __setPaneModeForTest, computePaneLayout, SEPARATOR_PX } from './paneLayout'
 import * as registry from './nativeRegistry'
@@ -858,11 +858,16 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
       // here would leave the Bollinger band's EXCLUDE in place and the RSI would
       // contribute nothing to its own 0-100 scale.
       expect(typeof opts.autoscaleInfoProvider).toBe('function')
-      // …and the RIGHT function: calling it must return the base implementation's
-      // answer, which `() => null` never does.
-      const S = { priceRange: { minValue: 0, maxValue: 100 } }
-      expect(opts.autoscaleInfoProvider(() => S)).toBe(S)
-      expect(opts.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
+      // …and the RIGHT function. ⭐ POC E CHANGED WHICH ONE THAT IS: RSI declares
+      // `fixedPane(0, 100, …)`, so it now gets the memoised FIXED provider rather
+      // than the identity one. The property this case has always been about is
+      // unchanged — the re-purposed series SIZES its scale instead of declining to
+      // — and a fixed domain is a stronger form of that, not a weaker one: it
+      // answers 0..100 without even consulting the base.
+      expect(opts.autoscaleInfoProvider).toBe(autoscaleProvider('default', { min: 0, max: 100 }))
+      expect(opts.autoscaleInfoProvider).not.toBe(AUTOSCALE_EXCLUDE)
+      expect(opts.autoscaleInfoProvider(() => null))
+        .toEqual({ priceRange: { minValue: 0, maxValue: 100 } })
 
       // ── AND THE OMISSION VARIANT DOES NOT RESTORE ──
       // Same merge, same previous tenant, this key dropped. That is what "reset
@@ -876,10 +881,14 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
       ).toBe(AUTOSCALE_EXCLUDE)
       expect(viaOmission.autoscaleInfoProvider(() => S)).toBeNull()
 
-      // The explicit provider, merged the same way, actually restores.
+      // The explicit provider, merged the same way, actually restores — to RSI's
+      // own declared domain (POC E), which is what the previous tenant's EXCLUDE
+      // has to be displaced BY for the pane to draw at all.
       const viaIdentity = lwcMerge({ ...tenant }, opts)
-      expect(viaIdentity.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
-      expect(viaIdentity.autoscaleInfoProvider(() => S)).toBe(S)
+      expect(viaIdentity.autoscaleInfoProvider)
+        .toBe(autoscaleProvider('default', { min: 0, max: 100 }))
+      expect(viaIdentity.autoscaleInfoProvider(() => null))
+        .toEqual({ priceRange: { minValue: 0, maxValue: 100 } })
     }
   })
 
@@ -914,7 +923,14 @@ describe('a re-purposed series is RESET, never left excluded (B3 carry #1)', () 
     expect(elsewhere, 'RSI landed on the candles\' axis too — vacuous').toHaveLength(1)
 
     for (const p of onCandles) expect(p, 'BB must not stretch the candles').toBe(AUTOSCALE_EXCLUDE)
-    for (const p of elsewhere) expect(p, 'RSI owns its own axis and must size it').toBe(AUTOSCALE_DEFAULT)
+    // ⭐ POC E: RSI sizes its axis to its DECLARED domain now, not to the data.
+    // Still the point of the case — an oscillator that declined to size a scale it
+    // is the only source of would leave the pane empty.
+    for (const p of elsewhere) {
+      expect(p, 'RSI owns its own axis and must size it').not.toBe(AUTOSCALE_EXCLUDE)
+      expect(p, 'RSI stopped pinning its declared 0-100 ladder')
+        .toBe(autoscaleProvider('default', { min: 0, max: 100 }))
+    }
   })
 })
 

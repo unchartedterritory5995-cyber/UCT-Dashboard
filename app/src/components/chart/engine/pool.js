@@ -394,12 +394,63 @@ const AUTOSCALE_PROVIDERS = Object.freeze({
  */
 export const AUTOSCALE_PROVIDER_MODES = Object.freeze(Object.keys(AUTOSCALE_PROVIDERS))
 
-/** The provider for a placement's mode. Total: never returns undefined, so the
- *  complete-key-set rule cannot be broken by a bad mode. */
-export function autoscaleProvider(mode) {
-  return Object.prototype.hasOwnProperty.call(AUTOSCALE_PROVIDERS, mode)
-    ? AUTOSCALE_PROVIDERS[mode]
-    : AUTOSCALE_DEFAULT
+/**
+ * ⭐⭐ THE FIXED-DOMAIN PROVIDERS — one MEMOISED singleton per range.
+ *
+ * `autoscaleInfoProvider` is the ONLY mechanism lightweight-charts 5.2.0 has for
+ * "this scale means 0 to 100 whatever the data is doing". `minimum`/`maximum` on
+ * the price-scale options are NOT 5.2.0 options and pin nothing (TRAP #2); the
+ * only thing they change is `autoScale: false`, which FREEZES the scale at
+ * whatever it is holding — a different and worse behaviour.
+ *
+ * ⛔ MEMOISED, AND THAT IS NOT AN OPTIMISATION. Every other provider here is a
+ * frozen singleton precisely so the option object stays DEEP-COMPARABLE: the
+ * binder diffs option sets to decide what to re-apply, and a fresh closure per
+ * sync would make every series look changed on every tick. Keying the cache by
+ * the range gives the same identity for the same domain, so `0..100` is one
+ * function for the life of the process no matter how many RSIs ask for it.
+ */
+const FIXED_PROVIDERS = new Map()
+function fixedDomainProvider(min, max) {
+  const key = `${min}:${max}`
+  let fn = FIXED_PROVIDERS.get(key)
+  if (!fn) {
+    // Named, so a failing `toEqual` prints `AUTOSCALE_FIXED_0_100` rather than
+    // `[Function fn]` and the reader learns which domain was asked for.
+    fn = { [`AUTOSCALE_FIXED_${key.replace(/[.:-]/g, '_')}`]:
+      () => ({ priceRange: { minValue: min, maxValue: max } }) }[
+      `AUTOSCALE_FIXED_${key.replace(/[.:-]/g, '_')}`]
+    FIXED_PROVIDERS.set(key, fn)
+  }
+  return fn
+}
+
+/**
+ * The provider for a placement's mode, and a definition's declared domain.
+ *
+ * Total: never returns undefined, so the complete-key-set rule cannot be broken
+ * by a bad mode.
+ *
+ * ⛔ `'exclude'` OUTRANKS A DOMAIN, and the order matters. `exclude` is how a
+ * PRICE OVERLAY says "I am a guest on the candles' axis and must not stretch
+ * it". A domain-bearing overlay — nothing declares one today, but the vocabulary
+ * allows it — would otherwise pin the CANDLES to 0..100 and reframe the chart.
+ * Declining to size a scale must always beat asking it for a size.
+ *
+ * ⚠️ A DOMAIN IS DEFINITION METADATA, NOT PLACEMENT METADATA. RSI is 0-100 in
+ * its own pane, above Price, and overlaid on Volume — the number does not depend
+ * on where it is standing, which is exactly why this reads `placement.scale` off
+ * the DEFINITION and takes the same answer in all three.
+ */
+export function autoscaleProvider(mode, scaleDomain) {
+  const known = Object.prototype.hasOwnProperty.call(AUTOSCALE_PROVIDERS, mode)
+  const base = known ? AUTOSCALE_PROVIDERS[mode] : AUTOSCALE_DEFAULT
+  if (base === AUTOSCALE_EXCLUDE) return base
+  const d = scaleDomain
+  if (d && Number.isFinite(d.min) && Number.isFinite(d.max) && d.min < d.max) {
+    return fixedDomainProvider(d.min, d.max)
+  }
+  return base
 }
 
 /**
@@ -536,7 +587,7 @@ export function seriesOptionsForPlot(plot, ctx) {
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —
     // and there is no "omit to reset" for this one (LWC's merge skips undefined).
-    autoscaleInfoProvider: autoscaleProvider(c.autoscale),
+    autoscaleInfoProvider: autoscaleProvider(c.autoscale, c.scaleDomain),
   }
 
   if (pk === 'histogram') {
