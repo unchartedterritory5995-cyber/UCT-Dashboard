@@ -85,6 +85,24 @@ export default function HubConfirmSheet({ payload, onClose }) {
       {(payload.fields ?? []).map((field) => (
         <div key={field.name} className={styles.confirmField}>
           <label htmlFor={`hub-cf-${field.name}`}>{field.name}</label>
+          {/* ⭐ R-19 — THE CHOOSE-ONE FIELD, AND IT GETS NO STEPPERS ON PURPOSE. ± on a set with
+              no ordering is a control that promises arithmetic it cannot do; a native <select> is
+              also the most accessible picker there is, and it is already a 44px target on touch.
+              This is what let "Templates" return: with no run body it was a dead bubble, and with
+              a hardcoded key its label lied. */}
+          {field.type === 'select' ? (
+            <select
+              id={`hub-cf-${field.name}`}
+              data-testid={`hub-confirm-field-${field.name}`}
+              className={styles.confirmSelect}
+              value={values[field.name]}
+              onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
+            >
+              {(field.options ?? []).map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : (
           <div className={styles.confirmStepper}>
             <button
               type="button"
@@ -111,6 +129,7 @@ export default function HubConfirmSheet({ payload, onClose }) {
               onClick={() => step(field.name, field.step ?? 0.01, field)}
             >+</button>
           </div>
+          )}
         </div>
       ))}
 

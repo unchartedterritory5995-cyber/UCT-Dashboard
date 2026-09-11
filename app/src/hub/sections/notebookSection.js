@@ -23,7 +23,8 @@ import useHubMode from '../useHubMode'
 import useHubCursor from '../useHubCursor'
 import { modesById } from '../registry'
 import { applyTargetToParams } from '../../pages/journal-2-0/lib/searchNavigation'
-import { createNoteViaApi } from '../../pages/journal-2-0/lib/noteCreation'
+import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../pages/journal-2-0/lib/noteCreation'
+import { TEMPLATES } from '../../pages/journal-2-0/lib/notebookTemplates'
 import { useJ2Note } from '../../pages/journal-2-0/hooks/useJ2Notes'
 import { JournalToast } from '../../pages/journal-2-0/lib/useJournalToast'
 
@@ -99,6 +100,58 @@ export function noteLabelFromCard(node) {
  * @param {{noteId: string|null, symbol: string|null,
  *          write: (noteId: string, raw: string) => void}} args
  */
+/**
+ * The template catalog, as the sheet's picker sees it — R-19.
+ *
+ * ⛔ DERIVED FROM `lib/notebookTemplates.js`, NEVER TYPED. The keys are stable API
+ * (`daily-prep` / `weekly-plan` / `trade-review` predate the catalog and are deep-linkable), and
+ * the catalog has grown since its own file header last counted it. A list copied here would agree
+ * with the catalog exactly once — on the day it was written — and this repo has paid for that
+ * shape in the writer index, the COT router's "4 routes" and the setup catalog's "24".
+ */
+export function templateOptions(templates = TEMPLATES) {
+  return (templates ?? [])
+    .filter((t) => t && typeof t.key === 'string' && t.key && typeof t.label === 'string' && t.label)
+    .map((t) => ({ value: t.key, label: t.label }))
+}
+
+/**
+ * `notebook.templates`'s sheet — R-19, and the reason that action could come back.
+ *
+ * ⛔ IT NEVER RETURNS NULL, for the same reason `linkTickerConfirmPayload` does not: `HubRoot`
+ * falls back to its own generic payload when a section answers null, and that fallback's primary
+ * calls `action.run?.(ctx, values)` — which this action does not have.
+ *
+ * ⭐ THE PRESELECTED OPTION IS A PICKER'S STARTING POSITION, NOT A HARDCODED KEY. R-19 rejects
+ * "Templates that always makes the same one"; a select whose every option is one tap away is the
+ * opposite of that, and `validateConfirmPayload` REQUIRES the initial value to be one of the
+ * options (a <select> silently shows its first option otherwise, so the sheet would display one
+ * choice and commit another).
+ *
+ * @param {{options?: Array<{value: string, label: string}>,
+ *          write: (templateKey: string) => void}} args
+ */
+export function templatesConfirmPayload({ options = templateOptions(), write } = {}) {
+  const list = options.length ? options : null
+  if (!list) {
+    // The catalog is empty or unreadable. A picker with nothing to pick is the dead control the
+    // contract refuses, so the sheet says so rather than opening a blank one.
+    return {
+      title: 'Templates',
+      body: 'No templates are available right now.',
+      primaryLabel: 'Close',
+      onConfirm: () => {},
+    }
+  }
+  return {
+    title: 'Templates',
+    body: 'Start a note from one of the firm\'s templates. Pick one, and the note opens ready to write in.',
+    primaryLabel: 'Start note',
+    fields: [{ name: 'template', type: 'select', value: list[0].value, options: list }],
+    onConfirm: (values) => write?.(values?.template),
+  }
+}
+
 export function linkTickerConfirmPayload({ noteId = null, symbol = null, write } = {}) {
   const seed = normaliseTicker(symbol) ?? ''
   return {
@@ -279,6 +332,28 @@ export default function useNotebookSection() {
     }
   }, [toast])
 
+  /**
+   * R-19 — start a note from a template the member CHOSE, and open it.
+   *
+   * ⛔ NO HUB WRITE OF ITS OWN. `createNoteFromTemplateViaApi` is the Notebook's own path — the
+   * same `assembleTemplateContext` → `build` → `defaultTitle` chain every other template entry
+   * point uses — and it reaches `POST /api/j2/notes`, which the manifest already declares through
+   * `noteCreation.js`. No template in the catalog declares `properties`, so the guarded second
+   * write inside `createNoteViaApi` stays closed on this path too (railed in
+   * `writePathsTransitive.test.js`).
+   */
+  const startFromTemplate = useCallback(async (key) => {
+    const chosen = templateOptions().find((o) => o.value === key)
+    if (!chosen) { toast('Pick a template first — nothing was created.'); return }
+    try {
+      const note = await createNoteFromTemplateViaApi(chosen.value)
+      openNote(note?.id)
+      toast(`Started ${chosen.label}`)
+    } catch (e) {
+      toast(`Could not start that note: ${String(e?.message || e)}`)
+    }
+  }, [openNote, toast])
+
   const hasNotes = ids.length > 0
 
   const config = useMemo(() => {
@@ -341,6 +416,12 @@ export default function useNotebookSection() {
             run: async () => { const note = await createNoteViaApi({}); openNote(note?.id) },
           }]
         }
+        if (action.id === 'notebook.templates') {
+          // ⭐ Unlike linkTicker, this needs NOTHING from the page — it creates a note rather than
+          // editing one — so it is present whether or not the grid holds anything. On an empty
+          // notebook it is the most useful bubble on the fan.
+          return [{ ...action, confirmPayload: () => templatesConfirmPayload({ write: startFromTemplate }) }]
+        }
         if (action.id === 'notebook.linkTicker') {
           // ⛔ ABSENT, NEVER PRESENT-AND-INERT (registry.js header). With no note in the grid
           // there is nothing to file under a ticker, and a bubble that can only ever tell the
@@ -373,7 +454,8 @@ export default function useNotebookSection() {
     // move. `screenerSection` carries the same cost for the same reason. A registration is one
     // setState; what must never ride the cursor is a FETCH, which is why the note client is armed
     // at the gesture instead (see above).
-  }, [onRoute, ids, index, count, next, scrubTo, openNote, hasNotes, noteUnderCursor, linkTicker])
+  }, [onRoute, ids, index, count, next, scrubTo, openNote, hasNotes, noteUnderCursor, linkTicker,
+    startFromTemplate])
 
   useHubMode(config)
 

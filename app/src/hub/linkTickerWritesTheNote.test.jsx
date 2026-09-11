@@ -296,8 +296,10 @@ describe('R-17 — the action is on the fan, and it is never the thing it was re
     const drawn = hoisted.actionsDoor.current.actions
     const outer = drawn.filter((a) => a.ring === 0).map((a) => a.id)
     const inner = drawn.filter((a) => a.ring === 1).map((a) => a.id)
-    expect(outer, 'the outer ring is not the two the notebook declares')
-      .toEqual(['notebook.newNote', LINK])
+    // ⚰️ WAS TWO. R-19 landed `notebook.templates` in the same increment; three is still legal,
+    // and the list is spelled out rather than counted so the next addition has to be looked at.
+    expect(outer, 'the outer ring is not the three the notebook declares')
+      .toEqual(['notebook.newNote', LINK, 'notebook.templates'])
     expect(inner).toEqual([
       'notebook.dailyPlan', 'notebook.postMortem', 'notebook.voice', 'notebook.home',
     ])

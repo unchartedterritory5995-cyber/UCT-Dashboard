@@ -414,6 +414,22 @@ describe('transitive write reachability from the hub\'s own call sites', () => {
       + 'passes properties, PUT /api/j2/notes/{id} becomes a hub-reachable write and must be '
       + 'declared in writePaths.test.js\'s manifest')
       .toMatch(/createNoteViaApi\(\{\s*\}\)/)
+
+    // ⭐ R-19 OPENED A SECOND ROUTE TO THE SAME FUNCTION, and the direct call site above cannot
+    // see it. `notebook.templates` calls `createNoteFromTemplateViaApi`, which calls
+    // `createNoteViaApi({ …, properties: tpl.properties })` — so from the hub, `properties` is now
+    // whatever the CATALOG says, not a literal at the call site. The guard therefore holds only
+    // while no shipped template declares any, and that is a fact about another file, checked here
+    // rather than assumed.
+    const catalog = read('pages/journal-2-0/lib/notebookTemplates.js')
+    const withProperties = [...catalog.matchAll(/^\s*properties\s*:/gm)]
+    expect(withProperties, 'a notebook template now declares `properties`, so the hub\'s template '
+      + 'action reaches the guarded PUT /api/j2/notes/{id} inside createNoteViaApi. That is a '
+      + 'hub-reachable write and must be declared in writePaths.test.js\'s manifest.')
+      .toEqual([])
+    // Non-vacuity: the scan must be looking at the real catalog.
+    expect(catalog, 'the template catalog does not look like itself — the check above is vacuous')
+      .toMatch(/export const TEMPLATES/)
   })
 
   it('⛔ every owner:\'app\' row of the manifest is covered here, derived not typed', () => {

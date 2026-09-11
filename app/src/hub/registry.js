@@ -470,10 +470,37 @@ export const modes = [
           ? `Tag this note ${ctx.symbol}`
           : 'Tag this note with a ticker'),
       },
-      // ⚰️ `notebook.templates` REMOVED (R-19) when §3.7 shipped: it needs the member to CHOOSE
-      // one, and the only surface for that is the confirm sheet's `fields`, which was unreachable
-      // (D-35 / R-14). With no run body it would be a dead bubble — the fan closes and nothing
-      // happens, the exact R-09 defect. It returns the day that surface can carry a picker.
+      {
+        // ⭐ R-19 — `notebook.templates` IS BACK, because the surface it was waiting for exists.
+        //
+        // ⚰️ It was removed when §3.7 shipped for a reason with no good shape: "Templates" means
+        // CHOOSE ONE, and the only place to ask was the confirm sheet's `fields`, which nothing
+        // could reach (D-35 / R-14). With no run body it was a dead bubble — the fan closes and
+        // nothing happens, the exact R-09 defect — and with a hardcoded key the label lies.
+        //
+        // ⛔ R-19's OWN RETURN CONDITION, MET LITERALLY: "either D-35 is closed (the confirm
+        // sheet carries fields, and Templates becomes a `confirm` with a SELECT)". D-35 closed in
+        // P1; the select is this increment's contract edit. The other return condition — "the
+        // Notebook gains a template-picker route the hub can navigate to" — is still NOT met:
+        // `NotebookTab.jsx`'s picker is a private `pickerOpen` useState with no prop, no URL param
+        // and no imperative handle (the R-13 shape exactly), and that file is rule-12.
+        //
+        // ⚠️ THE OPTIONS ARE DERIVED FROM `lib/notebookTemplates.js`, NEVER TYPED HERE — see
+        // `notebookSection.templatesConfirmPayload`. A hand-typed copy of the catalog beside the
+        // catalog is the drift this repo keeps paying for.
+        //
+        // ⚠️ `notebook.dailyPlan`/`notebook.postMortem` stay on the inner ring and overlap two of
+        // these keys. That is deliberate: they are ONE-TAP shortcuts to the two rituals, and a
+        // picker is not a substitute for a shortcut you use every morning.
+        id: 'notebook.templates',
+        label: 'Templates',
+        icon: 'library',
+        ring: 0,
+        color: '--hub-mode-notebook',
+        kind: 'confirm',
+        escalate: true,
+        confirmText: () => 'Start a note from a template',
+      },
       {
         id: 'notebook.dailyPlan',
         label: 'Daily plan',

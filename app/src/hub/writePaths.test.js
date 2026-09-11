@@ -177,7 +177,7 @@ const WRITE_PATHS = [
     method: 'POST',
     via: 'pages/journal-2-0/lib/noteCreation.js',
     owner: 'app',
-    what: "New note. §3.7's `notebook.newNote` calls the Notebook's own `createNoteViaApi`; the hub performs no note write of its own. ⚠️ That module ALSO holds `PUT /api/j2/notes/{id}` (noteCreation.js:34), but it is gated on `properties && Object.keys(properties).length` and the hub passes none — structurally unreachable from this call site, so it is not a hub-reachable write and is deliberately not declared.",
+    what: "New note, AND Templates. §3.7's `notebook.newNote` calls the Notebook's own `createNoteViaApi`; R-19's `notebook.templates` calls `createNoteFromTemplateViaApi`, which reaches the SAME POST. The hub performs no note write of its own. ⚠️ That module ALSO holds `PUT /api/j2/notes/{id}` (noteCreation.js:34), gated on `properties && Object.keys(properties).length`. `newNote` passes none literally; the template path passes `tpl.properties`, and no shipped template declares any — both facts are checked in `writePathsTransitive.test.js` rather than assumed, because only one of them is visible at a call site.",
   },
   {
     endpoint: '/api/j2/notes/{param}',
