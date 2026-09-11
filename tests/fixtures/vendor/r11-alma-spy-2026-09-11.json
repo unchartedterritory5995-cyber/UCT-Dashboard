@@ -1,0 +1,32 @@
+{
+  "_": "⭐⭐ ITEM 8, NAME #4 — bare `alma` DOES NOT EXIST IN PINE v6. The compile failure IS the reading.",
+  "_probe": "tools/visual_conformance/probes/r11-alma.pine",
+  "_probeSha256": "0230c0bf82cb6a8a76c59ddab263e46f6f7405ee81fcb218f272804ace571ce7",
+  "_probeBytes": 2313,
+  "_committedRoster": 6,
+  "_capturedET": "2026-09-11T08:50:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "D",
+
+  "_compiles": false,
+  "verdict": "REFUSED BY THE VENDOR — the identifier does not exist",
+
+  "vendorError": {
+    "title": "Compilation error",
+    "error": "Could not find {kind} '{fullName}'",
+    "_": "⚠️ THE PLACEHOLDERS ARE THE VENDOR'S, NOT OURS. TradingView returned the message template with `{kind}` and `{fullName}` unsubstituted — recorded verbatim rather than tidied, because a cleaned-up quote would be our sentence attributed to them. The meaning is unambiguous either way: the name was looked up and not found.",
+    "landedAs": {
+      "studyId": "NtXdMU",
+      "displayName": "UCT marker parity probe",
+      "plots": 1,
+      "dataLength": 0,
+      "_": "⭐ EXACTLY THE FAILURE SIGNATURE `capture-procedure.md` DOCUMENTS: a failed study lands as a ONE-PLOT stub named after the shared unsaved-buffer slot rather than after the script. It did not appear under `UCTPROBE_R11_ALMA` at all, which is why 'the study is missing' and 'the study failed' look identical until you go looking for the stub. Removed after reading; the identically-named failure that predates this session (`Cdp0Dk`) was left alone."
+    }
+  },
+
+  "_whatThisSettles": "The 3 sites on `alma` in the corpus are NOT 'a name we lack'. They are v3-era scripts that do not compile at TradingView either — a different finding with a different fix. ⛔ So `alma` should not be added to the table: adding it would make this engine ACCEPT a script the vendor rejects, which is a divergence in the expensive direction. The row belongs in the 'refuses at both doors' column, not the vocabulary backlog.",
+
+  "_whatItDoesNOTSettle": "⚠️ NOTHING ABOUT `ta.alma`. Only the BARE spelling was asked. The namespaced form is a different identifier and is untested here — if the corpus's 3 sites are rewritten to `ta.alma` they may well compile, and the offset/sigma default question this probe was also built to answer (N04, defaulted MINUS explicit) went unasked because nothing ran.",
+
+  "_theSplitRuleEARNED_ITS_KEEP": "⭐⭐ MEASURED, NOT ARGUED. `alma` was given its own file under item 7's rule — 'separate a RISKY arity so it cannot take the others down'. It failed, and it failed TOTALLY: no study, no plots, no data. Had it been grouped with `ta.correlation` and `ta.percentile_linear_interpolation` as the cheaper packaging, all three names would have returned nothing from one add, and the two innocent ones would have looked refused by association. This is the first time in this wave the rule has been tested by an actual failure."
+}
