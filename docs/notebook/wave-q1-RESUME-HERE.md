@@ -190,6 +190,171 @@ which is what it has always actually measured.
 
 ---
 
+## ⛔⛔ THE INSTRUMENT ARTIFACTS — recorded here so the notes can be cleaned (R-22)
+
+
+⚰️ **These are the runs that "found" the defect, and every one of them is the
+raw-fetch door, not a member.** They are recorded in full below so the canary
+account can be returned to baseline without destroying the evidence — the doc
+is the durable copy, exactly as it was for the preserved forks in the section
+above.
+
+⛔⛔ **THE RULING SAID 15. THE CAPTURE SAYS 17.** The count is DERIVED from the
+artifacts by `tools/q1_repro_cleanup.py`'s own `classify()`, not retyped — same
+rule as **R-Y**, and the reason it exists. Two of these are not findings at all
+but `errored` closes (an undrivable real door, and one VACUOUS run), which the
+tool keeps for the same reason it keeps a finding: **absence of evidence
+resolves to KEEP** (**R-Z**). A disagreement about state is not reconciled by
+acting on it, so the number stands at 17 and the discrepancy is stated rather
+than tidied.
+
+⭐ **What they are evidence OF.** Not a product defect. The comparison in the
+section above measured this door at **r = 0.85** against the member's own door
+at **r = 0.00** over 36 verifiable runs. What these rows record is an instrument
+firing a metadata door with a raw `fetch`, so the editor's handlers never ran,
+`recordLandedRevision` never recorded the revision, and guard 2 correctly
+answered **"not ours"** and forked. **That fork is the right answer to a second
+writer.** These are kept as the worked example of
+`lesson_a_quantised_instrument_can_manufacture_a_finding`.
+
+| # | artifact | door | note id | landed | why kept |
+|---|---|---|---|---|---|
+| 1 | `2026-09-11T02-53-35Z` | `None` | `cd790bfcf8434137…` | None | errored: VACUOUS: nothing queued and nothing dirty before the door |
+| 2 | `2026-09-11T02-55-10Z` | `ticker` | `1e74d52493b541fe…` | True | 2 finding(s) — evidence |
+| 3 | `2026-09-11T02-57-30Z` | `ticker` | `7c47b8f1ee274883…` | False | 2 finding(s) — evidence |
+| 4 | `2026-09-11T03-13-49Z` | `ticker` | `c0fdd24906794f22…` | False | 2 finding(s) — evidence |
+| 5 | `2026-09-11T03-25-29Z` | `ticker` | `3b801f8f646b4bb8…` | False | 2 finding(s) — evidence |
+| 6 | `2026-09-11T03-26-23Z` | `tags` | `ee85b08b6089434e…` | False | 1 finding(s) — evidence |
+| 7 | `2026-09-11T03-27-32Z` | `ticker` | `e5760a1825cc465c…` | False | 2 finding(s) — evidence |
+| 8 | `2026-09-11T03-29-52Z` | `folder` | `53cf7364714247d5…` | False | 2 finding(s) — evidence |
+| 9 | `2026-09-11T03-30-46Z` | `ticker` | `2c6e23cff8834e1f…` | False | 2 finding(s) — evidence |
+| 10 | `2026-09-11T03-31-39Z` | `tags` | `be79e791a737442d…` | False | 2 finding(s) — evidence |
+| 11 | `2026-09-11T03-32-33Z` | `folder` | `1d53efd3bb264065…` | False | 2 finding(s) — evidence |
+| 12 | `2026-09-11T03-33-28Z` | `ticker` | `c1e8c027b1be422d…` | False | 2 finding(s) — evidence |
+| 13 | `2026-09-11T03-34-22Z` | `tags` | `2c0e4824ca6342bf…` | False | 2 finding(s) — evidence |
+| 14 | `2026-09-11T03-35-15Z` | `folder` | `73ed6d707bc140ab…` | False | 2 finding(s) — evidence |
+| 15 | `2026-09-11T03-38-23Z` | `folder` | `ce1d78feaa554461…` | None | errored: the real door could not be driven: {'ok': False, 'why': 'no  |
+| 16 | `2026-09-11T03-40-46Z` | `folder` | `8e15882791d04180…` | None | errored: the real door could not be driven: {'ok': False, 'why': 'no  |
+| 17 | `2026-09-11T03-55-21Z` | `ticker` | `9992ff1fd63d40fe…` | False | 1 finding(s) — evidence |
+
+### The findings, verbatim
+
+**1. `2026-09-11T02-53-35Z-canary.json`** — door `None`, note `cd790bfcf843413796a8224e6f03339c`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T02:53:35Z`
+- errored: VACUOUS: nothing queued and nothing dirty before the door
+- wire: 4 PUT(s), 0 landed revision(s); notes 34 → None
+
+**2. `2026-09-11T02-55-10Z-canary.json`** — door `ticker`, note `1e74d52493b541fe875a246defff6228`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T02:55:10Z`
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL 2026-09-11T00:00:56Z (conflicted copy)']
+- finding: THE RIG IS LEFT OPTED IN (read back 'ERR: Error') — the next run does not start from rest
+- wire: 7 PUT(s), 2 landed revision(s); notes 35 → 36
+
+**3. `2026-09-11T02-57-30Z-canary.json`** — door `ticker`, note `7c47b8f1ee274883b0ab0aa6340ad0cf`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T02:57:30Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T02:57:30Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 36 → 38
+
+**4. `2026-09-11T03-13-49Z-canary.json`** — door `ticker`, note `c0fdd24906794f22bce70bd03d2d0606`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:13:49Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:13:49Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 38 → 40
+
+**5. `2026-09-11T03-25-29Z-canary.json`** — door `ticker`, note `3b801f8f646b4bb895defefff443fb48`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:25:29Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:25:29Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 40 → 42
+
+**6. `2026-09-11T03-26-23Z-canary.json`** — door `tags`, note `ee85b08b6089434eb219106234417d59`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:26:23Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `tags`, 3 send(s) beat it)
+- wire: 6 PUT(s), 2 landed revision(s); notes 42 → None
+
+**7. `2026-09-11T03-27-32Z-canary.json`** — door `ticker`, note `e5760a1825cc465cb1f41de7d0f05216`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:27:32Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:27:32Z (conflicted copy)']
+- wire: 7 PUT(s), 2 landed revision(s); notes 44 → 46
+
+**8. `2026-09-11T03-29-52Z-canary.json`** — door `folder`, note `53cf7364714247d58af071726b257bec`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `folder`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 47 → 49
+
+**9. `2026-09-11T03-30-46Z-canary.json`** — door `ticker`, note `2c6e23cff8834e1f8f40689990eee650`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:30:46Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:30:46Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 49 → 51
+
+**10. `2026-09-11T03-31-39Z-canary.json`** — door `tags`, note `be79e791a737442da1bb23ab70d61784`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:31:39Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `tags`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:31:39Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 51 → 53
+
+**11. `2026-09-11T03-32-33Z-canary.json`** — door `folder`, note `1d53efd3bb264065998459f702cca4fe`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:32:33Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `folder`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:32:33Z (conflicted copy)']
+- wire: 7 PUT(s), 2 landed revision(s); notes 53 → 55
+
+**12. `2026-09-11T03-33-28Z-canary.json`** — door `ticker`, note `c1e8c027b1be422d9bdcd6268d17e396`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:33:28Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:33:28Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 55 → 57
+
+**13. `2026-09-11T03-34-22Z-canary.json`** — door `tags`, note `2c0e4824ca6342bf9e2183b776dc2d5c`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:34:22Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `tags`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:34:22Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 57 → 59
+
+**14. `2026-09-11T03-35-15Z-canary.json`** — door `folder`, note `73ed6d707bc140ab89639988ceb4e37f`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:35:15Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `folder`, 3 send(s) beat it)
+- finding: `canary` — a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:35:15Z (conflicted copy)']
+- wire: 6 PUT(s), 2 landed revision(s); notes 59 → 61
+
+**15. `2026-09-11T03-38-23Z-canary.json`** — door `folder`, note `ce1d78feaa554461b4bd1997ab47aed6`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:38:23Z`
+- errored: the real door could not be driven: {'ok': False, 'why': 'no other folder to move to'}
+- wire: 4 PUT(s), 0 landed revision(s); notes 63 → None
+
+**16. `2026-09-11T03-40-46Z-canary.json`** — door `folder`, note `8e15882791d04180b42f18be15d1e95a`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:40:46Z`
+- errored: the real door could not be driven: {'ok': False, 'why': 'no other folder to move to'}
+- wire: 4 PUT(s), 0 landed revision(s); notes 66 → None
+
+**17. `2026-09-11T03-55-21Z-canary.json`** — door `ticker`, note `9992ff1fd63d40fe98e280d3e89e5cd8`
+
+- sentence typed offline: `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:55:21Z`
+- finding: `canary` — the server body does not contain the offline sentence (door `ticker`, 3 send(s) beat it)
+- wire: 7 PUT(s), 2 landed revision(s); notes 79 → 80
+
+---
+
 # ⛔⛔ ROUND 3, THE MEASURED CHAIN — reproduced on the rig, 2026-09-11
 
 **Reproduced 2 times in 3 runs of the same ordering (`canary`, door `ticker`).**
