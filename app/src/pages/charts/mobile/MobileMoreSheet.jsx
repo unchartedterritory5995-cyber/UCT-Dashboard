@@ -20,8 +20,6 @@ export default function MobileMoreSheet({
   activeLayoutName,        // name of the open named layout, or null for the working board
   onOpenBoards,            // the Drawing Boards sheet (row hidden when absent)
   activeBoardName,         // name of the ACTIVE drawing board, or null
-  onOpenObjects,           // the Objects recovery sheet (row hidden when absent)
-  hiddenObjectCount = 0,   // how many objects on this chart are hidden
   onOpenSettings,          // chart settings modal
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
@@ -60,23 +58,6 @@ export default function MobileMoreSheet({
             <span className={styles.rowIcon}><UIcon name="camera" size={17} gold={false} /></span>
             <span className={styles.rowLabel}>Share chart image</span>
             <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
-          </button>
-        )}
-        {/* ⛔ THE COUNT IS ON THE DOOR, not just inside it. A hidden object is only
-            recoverable if you have a reason to go looking; a chart that quietly
-            omits three of your levels gives you none. This row says so from the
-            Tools sheet, before you open anything. */}
-        {onOpenObjects && (
-          <button type="button" className={styles.row} aria-label="Objects"
-            onClick={() => { haptics.tap(); onClose(); onOpenObjects() }}>
-            <span className={styles.rowIcon}><UIcon name="library" size={17} gold={hiddenObjectCount > 0} /></span>
-            <span className={styles.rowLabel}>Objects</span>
-            <span className={styles.rowRight}>
-              {hiddenObjectCount > 0
-                ? <span className={styles.rowSub}>{hiddenObjectCount} hidden</span>
-                : null}
-              <UIcon name="chevronRight" size={14} gold={false} />
-            </span>
           </button>
         )}
         <button type="button" className={styles.row} onClick={() => { onClose(); onOpenSettings?.() }}>

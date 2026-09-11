@@ -171,6 +171,12 @@ This is why F14 moves to PARITY below and not to UCT_AHEAD.
 
 ### R3 · MOB-10 per-object Hide — **SHIPPED** (`d216ba57b`), constraint honoured
 
+⚰️ **The Objects sheet was REMOVED 2026-09-11 by owner call** ("not needed and
+redundant"): `MobileObjectsSheet.jsx`, its Tools-sheet door, `objectsDoor.wire.test.jsx`
+and the `objects-ui` device step are gone. Per-object Hide (the long-press menu's
+Hide row) still ships; on the phone its only way back is now Undo. The paragraphs
+below describe the surface as it stood when it shipped.
+
 The gate held: **the recovery surface shipped first, and Hide is safe because of
 it.** The Objects sheet answers all three kinds of lost — HIDDEN (still listed,
 marked, one tap back, plus "Show all N", and the count is on the *door* so a
