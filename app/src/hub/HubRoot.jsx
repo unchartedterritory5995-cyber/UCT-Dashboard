@@ -183,6 +183,13 @@ function HubShell({ setToastMsg }) {
         title: action.label,
         body: action.confirmText?.(ctx) ?? `${action.label}?`,
         primaryLabel: action.label,
+        // ⛔ THE VISIBLE HALF OF THE ESCALATION. `useJoystick.js:197` reads this same flag to pick
+        // `haptics.warn()` over `haptics.impact()` — and that is a VIBRATION, which iOS Safari
+        // cannot produce (`components/mobile/haptics.js:5-10` feature-detects `navigator.vibrate`
+        // and no-ops). Read from `action.escalate` rather than from `kind`, because B5 is exactly
+        // the lesson that those were the same set only by accident. `validateRegistry` requires
+        // `escalate` on every kind:'confirm', so this is `true` for every action that can get here.
+        escalate: action.escalate === true,
         onConfirm: () => Promise.resolve(action.run?.(ctx)).catch((err) => {
           setToastMsg(err?.message || 'That did not work. Try again.')
         }),

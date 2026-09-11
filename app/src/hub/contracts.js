@@ -363,6 +363,12 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  *   The EQUAL path, not a fallback: steppers and a numeric input operating on the same value the
  *   gesture produced, for a member who cannot perform a fine drag. This is why the sheet exists
  *   at all rather than the gesture committing.
+ * @property {boolean} [escalate]
+ *   The action that opened this sheet declared `escalate` — so the sheet shows the VISIBLE
+ *   escalation (`HubCommitNotice`) beside the haptic one. ⛔ Not decoration and not a duplicate of
+ *   the cue: `useJoystick.js:197` escalates to `haptics.warn()`, which is a vibration, and iOS
+ *   Safari exposes no `navigator.vibrate` (`components/mobile/haptics.js:5-10`) — so on an iPhone
+ *   the haptic escalation is a no-op and this is the ONLY escalation the member gets.
  */
 
 /**
@@ -494,6 +500,12 @@ export function validateConfirmPayload(payload, where = 'confirm payload') {
     if (typeof payload[k] !== 'string' || !payload[k].trim()) p.push(`${k} must be a non-empty string`)
   }
   if (!isFn(payload.onConfirm)) p.push('onConfirm must be a function')
+  // A non-boolean `escalate` is the silent case: `'false'` is truthy, so a sheet would escalate
+  // forever, and the notice would stop meaning anything the first time a member saw it on a
+  // navigate. Typed at the boundary rather than trusted.
+  if (payload.escalate != null && typeof payload.escalate !== 'boolean') {
+    p.push('escalate must be a boolean when present')
+  }
   if (payload.fields != null) {
     if (!Array.isArray(payload.fields)) p.push('fields must be an array when present')
     else payload.fields.forEach((f, i) => {

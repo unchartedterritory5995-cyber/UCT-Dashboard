@@ -26,6 +26,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import Sheet from '../components/mobile/Sheet'
+import HubCommitNotice from './HubCommitNotice'
 import { validateConfirmPayload } from './contracts'
 import {
   clampStopToSide, formatR, rForCandidate, sideFlipRefusal, stopTickFor,
@@ -119,6 +120,12 @@ export default function StopConfirmSheet({
 
   return (
     <Sheet open onClose={onClose} variant="auto" title={title} ariaLabel={title}>
+      {/* ⛔ UNCONDITIONAL, because this sheet IS the escalation. Every action that opens it
+          (`journal.moveStop`, `journal.breakeven`) declares `escalate: true` — the flag is not
+          passed in because there is no non-escalated way to reach a stop write. The haptic half
+          of that escalation does not exist on iOS Safari (no `navigator.vibrate`), so this is the
+          member's only signal there that a write is about to happen. */}
+      <HubCommitNotice testId="hub-stop-escalation" />
       <div className={styles.confirmBody} data-testid="hub-stop-body">
         <p data-testid="hub-stop-symbol">{symbol} {String(side).toLowerCase()}</p>
         <p data-testid="hub-stop-current">Current stop {money(currentStop)}</p>
