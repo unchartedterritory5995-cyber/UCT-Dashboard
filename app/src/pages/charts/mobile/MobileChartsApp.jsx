@@ -404,7 +404,7 @@ export default function MobileChartsApp({
       {chartWidget ? (
         <>
           <div className={styles.chartCol}>
-          <MobileSymbolStrip sym={sym} onOpenSearch={() => setSheet('symbol')} />
+          <MobileSymbolStrip sym={sym} onOpenSearch={() => setSheet('symbol')} tf={tf} onOpenTf={() => setSheet('tf')} />
           <div className={styles.chartArea}>
             {(review.position.total > 0 || navProbe) && (
               <ReviewNavControl
@@ -452,8 +452,6 @@ export default function MobileChartsApp({
             )}
           </div>
           <MobileChartToolbar
-            tf={tf}
-            onOpenTf={() => setSheet('tf')}
             onOpenType={() => setSheet('type')}
             onOpenIndicators={() => setSheet('indicators')}
             onOpenWatchlist={handleOpenWatchlist}
