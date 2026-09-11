@@ -38,6 +38,26 @@ finger on physical glass, driving BrowserStack Live in a browser.
 
 ---
 
+## Block G0 — carried forward from Phase 2, UNRESOLVED. Read before anything else.
+
+⛔⛔ **These are not new rows. They are open findings from the Phase 2 device runs that were
+never explained, and they sit exactly on top of the thing G1 measures.** They are repeated here
+because a closure report that said "feature complete" while these lived only in a run record
+would be hiding the most important open question in the program.
+
+| # | Finding | Source | Status |
+|---|---|---|---|
+| G0-1 | **iPhone 15 Pro scored sticky fan 0/10 and flick 0/10, while iPhone SE scored 10/10 on both** — on the same calibrated pointer path, so the Selenium wheel bug no longer explains it. The run record's own words: "⚠️ **Unexplained. It needs its own trace**, the way the sticky-fan 5/10 did — guessing here is how the previous wrong diagnoses started." | `40-phase2-device.md` §"Still open on iPhone 15 Pro" | ⬜ **UNEXPLAINED** |
+| G0-2 | **iOS gesture rows blocked by a Selenium input-source bug.** `driver.actions()` emits a `wheel` input source alongside the pointer and iOS WebDriverAgent rejects the whole action: `Only actions of '(...)' types are supported ... 'wheel' is given instead`. Harness, not product — but it means **the iOS gesture rows have never actually run**. | `40-phase2-device.md` §"Still open — all harness, none product" | ⬜ **HARNESS BLOCKED** |
+| G0-3 | Ring 0 miss #1 — first iteration stayed on `/dashboard`, the other nine passed. "Smells like harness warm-up rather than product, **recorded as a guess, not a finding**." | same | ⬜ open, low severity |
+
+⭐ **G0-1 is the reason this whole file exists.** A flick score of 0/10 on one iPhone and 10/10
+on another is either a harness artifact or the flick-safety threshold behaving differently on
+real glass — and those two have opposite consequences. **Resolve G0-1 before reading any G1
+result as a pass**, because G1 is the same measurement performed by hand.
+
+---
+
 ## Block G1 — D4, the flick-safety check. THE ONE THAT MATTERS.
 
 The whole no-accidental-write design rests on this. It has passed in emulation on three
