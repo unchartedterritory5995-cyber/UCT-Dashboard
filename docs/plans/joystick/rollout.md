@@ -63,7 +63,7 @@ Four things are deliberately stage-independent. Each is a rail in
 | Situation | Do this | Cost |
 |---|---|---|
 | The hub is misbehaving for members, any stage | Set `HUB_PREVIEW_ENABLED=false` in Railway | No redeploy. Takes effect on each member's next authenticated request — in practice a reload or route change, not a background poll. |
-| A stage went too far, but the hub itself is fine | Lower `ROLLOUT_STAGE` and deploy | A deploy, so it is bound by the no-push window (Mon–Fri 09:00–16:00 ET). |
+| A stage went too far, but the hub itself is fine | Lower `ROLLOUT_STAGE` and deploy | A deploy. There is no push window (ruling 2026-09-11) — ship it when it is ready. |
 | A member wants it off for themselves | They already can, at Settings → Joystick | Nothing. This is the point of stage 2 existing at all. |
 
 ⚠️ **Lowering the stage does not reach a member who already opted in**, by design — their
@@ -81,6 +81,6 @@ what reaches everyone.
 3. Write the member-impact paragraph. Stage 2's is *"the joystick's settings card is now
    visible to everyone; it stays off until you turn it on."* Stage 3's is *"the joystick is now
    on by default on touch devices; if you turned it off, it stays off."*
-4. Deploy outside the no-push window.
+4. Deploy. ⚰️ This step used to read *"Deploy outside the no-push window"*; deploy windows were retired 2026-09-11 and there is nothing to wait for.
 5. Run `tools/hub_nav_smoke.py` against production, signed in. A stage that widens the audience
    and an inconclusive smoke do not go together.

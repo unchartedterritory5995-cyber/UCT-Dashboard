@@ -1,5 +1,7 @@
 # RESUME — joystick hub Increment 3
 
+> ⚰️ **THE DEPLOY-WINDOW REASONING IN THIS FILE IS HISTORICAL.** It records a real sequence in which a window was lost to master — that part still happened and is still worth reading. But **deploy windows were RETIRED by owner ruling 2026-09-11**: there is no 09:00–16:00 ET bar, no 15:45–16:15 avoidance, and no second-blip clause. Do not plan a push around anything in here.
+
 > ⚰️ **SUPERSEDED — THIS FILE IS HISTORY, NOT STATE.** It was written mid-programme and its
 > open-item lists were true when written. Increment 7 closed every row in `deferred.md` and
 > every request in `requests.md`. **Read `closure.md` for what is actually open** — it is one

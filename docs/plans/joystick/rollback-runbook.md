@@ -114,16 +114,24 @@ git push origin <branch>:master
 
 ---
 
-## 4. Deploy window — **outside US market hours**
+## 4. ⚰️ DEPLOY WINDOWS ARE RETIRED — push any time
 
-**Recommended: after 16:15 ET on a weekday, or any time at the weekend.**
+**There is no deploy window. Push when the work is ready.** Owner ruling 2026-09-11: *"We are building; there is no closed window for pushes, now or later."*
+
+⚰️ This section used to read *"Recommended: after 16:15 ET on a weekday, or any time at the weekend"*, and the paragraphs below it argued for avoiding 15:45–16:15 ET and for leaving room for a second blip. **All three are struck.** What survives is condition 5 in its new form:
+
+> **5. At push time: master tip unchanged since the gate, nothing BUILDING, `/api/health` stable. Nothing else.**
+
+⭐ Soft preference, never blocking: when it costs nothing, don't start a restart that spans a **:00 minute during 09:00–16:00 ET** — the one minute a Terminal slot can be lost. If it happens, note it and move on.
 
 The reason is the blip, not the feature. A web swap interrupts `/api/*` for about a minute, and
 this dashboard's users are traders: a minute of dead quotes, a stalled Options Flow tape or a
 Journal that will not save **during an open session** is a materially worse minute than the same
 minute at 18:00. Nothing in Increment 2 is urgent enough to spend that.
 
-⚠️ Avoid 15:45–16:15 ET specifically — the scheduled index-close Discord post runs at 15:45 ET and
+⚰️ **STRUCK (2026-09-11).** This read: *"Avoid 15:45–16:15 ET specifically — the scheduled index-close Discord post runs at 15:45 ET and"* — kept only so nobody reinstates it from memory. The index-close post is still real; it is no longer a reason to hold a push. Original text follows, inert:
+
+> Avoid 15:45–16:15 ET — the index-close Discord post runs at 15:45 ET and
 the EOD updater at 16:05 ET.
 
 Note the repo-wide market-hours push freeze and its two guards were **removed** by owner decision
