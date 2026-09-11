@@ -4967,3 +4967,26 @@ this count**; the extra note IS the defect. ⛔ **DERIVE it, never restate it**
 server BODY CONTAINS THE OFFLINE SENTENCE*.
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
+
+---
+
+## 🕒 TIP STAMP — 2026-09-11, and it stamps an **OPEN DEFECT**
+
+⛔⛔ **THIS IS NOT THE CLOSE-OF-WAVE STAMP.** The wave did not close. This stamps
+the end of a working session that finished with **the self-fork OPEN (round 3)**,
+the **gate NOT closed**, the **packet NO-GO**, and the **flip BLOCKED**. Read it
+as a bookmark, never as completion.
+
+| | |
+|---|---|
+| content tip at session close | **`fa64821a4`** — *"Wave Q1: the session closes with the self-fork OPEN — round 3"* (this stamp is the commit immediately after it; a doc cannot name its own SHA) |
+| branch | `notebook-primary-platform` — ⛔ the coordinator pushes; this worktree does not |
+| shipped and LIVE | #1 `cd674ef56` · #2 `eedb58ac8` · #3 `7ed6b2ce5` · #4 `f093bf731` · #4b `23f6ce271` · #4c `6db8ba93a` |
+| `OFFLINE_DEFAULT_ON` | **`false`** — branch and `master`. Members are unaffected by the open defect. |
+| what is open | the queued entry still reaches the **server** as a discard via the `folder` door (**SELF-FORK, ROUND 3**) |
+| what to do next | **START HERE → §A, §B, §C**, in that order |
+| live notes | **34 — correct and intentional.** ⛔ Do not tidy it. |
+
+⭐ **The deploy-#5 stamp is still owed**, and it is the one that dates the gate.
+This stamp exists so the next session can tell a *paused* wave from a *finished*
+one — the distinction the two hard stops kept losing.
