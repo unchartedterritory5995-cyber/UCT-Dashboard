@@ -221,6 +221,38 @@
         "isnew": 1
       },
       "note": "⭐⭐ THE ROW THE RULING WAS WAITING FOR — `isrealtime` HAS GONE 1 -> 0 and `ishistory` 0 -> 1 on the SAME bar (1789047000), with `islastconfirmedhistory` 0 -> 1 alongside. 23:57 ET, 28,664 s past the 16:00 close. ⛔ AND IT IS NOT A RELOAD ARTIFACT: rows 4, 5 and 6 were ALSO `late` arrivals (full page reloads) on this same bar and every one of them read isrealtime=1, which is precisely what the arrival control was built to establish. So the flip is the CLOCK, not the fetch. Bracketed: isrealtime 1 -> 0 somewhere in (20:55, 23:57) ET, i.e. AFTER isconfirmed had already gone 1 in (19:22, 20:55). ⭐ The two axes therefore move at DIFFERENT INSTANTS, which is the strongest possible evidence for the three-axes reading: a tri-state cannot express two flags flipping hours apart. ⚠️ Read after a reload of a renderer left frozen by the previous visit; the chart was untouched between the reload and this read."
+    },
+    {
+      "instantUTC": "2026-09-11T04:56:09Z",
+      "instantET": "2026-09-11T00:56:09-04:00",
+      "symbol": "AMEX:SPY",
+      "tf": "D",
+      "study": "UCTPROBE_BARSTATE_FULL",
+      "chartSession": "regular",
+      "arrival": "late",
+      "pageLoadEpoch": 1789098797,
+      "newestBarUnix": 1789047000.0,
+      "newestBarET": "2026-09-10T09:30:00-04:00",
+      "session": {
+        "etDate": "2026-09-10",
+        "etClock": "00:56:09",
+        "isNyseHoliday": false,
+        "isNyseEarlyClose": false,
+        "scheduledCloseUnix": 1789070400.0,
+        "scheduledCloseET": "2026-09-10T16:00:00-04:00",
+        "secondsPastScheduledClose": 32169,
+        "ourSeamSaysForming": false
+      },
+      "agreesWithOurSeam": true,
+      "vendor": {
+        "isrealtime": 0,
+        "isconfirmed": 1,
+        "ishistory": 1,
+        "islast": 1,
+        "islastconfirmedhistory": 1,
+        "isnew": 1
+      },
+      "note": "⭐ THE PRE-OPEN ROW, ON THE NEXT CALENDAR DAY — 00:56 ET on 2026-09-11, 8.8 hours past the 16:00 close, still on the SAME bar (1789047000). Every flag is unchanged from row 7: isrealtime 0, ishistory 1, isconfirmed 1, islastconfirmedhistory 1. So the cold state PERSISTS through the overnight gap rather than being a momentary transition. ⭐⭐ AND IT SHARES ROW 7'S `pageLoadEpoch` (1789098797, the page loaded 23:53 ET), so rows 7 and 8 are ONE session an hour apart. That matters twice: it is the same evidence shape rows 5 and 6 used for the isconfirmed flip, and here it rules out the reading that row 7's isrealtime=0 was an artifact of how THAT page load happened to fetch — a second reading, same session, same answer. ⚠️ It does NOT narrow instant B: row 7 already showed the flag cold at 23:57, and the bracket (20:55, 23:57) is untouched by a later row. Closing it needs rows INSIDE 21:00-00:00 ET."
     }
   ],
   "_still_needed": {

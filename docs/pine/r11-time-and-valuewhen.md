@@ -46,9 +46,26 @@ it.
    completed one? The three answers differ on every bar that is not a period boundary.
 2. Same question **on the chart's own timeframe** (`time(timeframe.period)`) — is it exactly
    `time`, or can it differ at a session edge?
-3. With a **session argument** (`time(timeframe.period, "0930-1600")`) — `na` outside the
-   session, or the session's start time? This decides whether the two-argument sites are a
-   boolean test or an arithmetic one.
+3. ✅ **ANSWERED 2026-09-11 — `na` OUTSIDE, THE BAR'S OWN `time` INSIDE.** Not the
+   session's start time. Measured on AMEX:SPY 5m, chart session `extended`, 400 bars:
+   156 in-session bars all read `not na` with `tsess - time` **exactly 0**, and
+   `tsess / 86400000` reproduced each bar's own unix timestamp; 244 out-of-session
+   bars all read `na`. Boundaries land on 09:30 and 16:00, and the **16:00 bar is
+   already outside** — the window is half-open, `[09:30, 16:00)`.
+   ⭐ **So the two-argument form is a MEMBERSHIP TEST wearing an arithmetic shape.**
+   Inside the session the value is just `time`, carrying nothing the bar did not
+   already have; the `na`-ness is the entire signal. A translation that reads the
+   return as a session-start instant is reading information that is not there.
+   ⭐ It also COMPILES, which was a real fork: this file's own probe header says a
+   compile failure would have meant those sites do not compile at TradingView either
+   — a different finding with a different fix.
+   ⛔⛔ **AND THE FIRST ATTEMPT ANSWERED NOTHING WHILE LOOKING CONCLUSIVE.** On the
+   chart's default `regular` session all 400 bars are inside 09:30-16:00 (hours 9-15),
+   so `na` had no bar to be true on and N02 read 0 everywhere — indistinguishable from
+   "never na". The probe's `N05_hour` / `N06_minute` channels exist to catch exactly
+   that, and they did; the capture was only taken after switching the chart to
+   `extended`. Capture:
+   `tests/fixtures/vendor/r11-time-session-spy-5m-2026-09-11.json`.
    ⭐ **MEASURED, NOT TYPED — 54 sites across 13 scripts in `corpus/committed`**
    (2026-09-11). ⚰️ This said **52**, which was right when it was written and had
    drifted by two; a count typed beside the list it describes is this repo's most
