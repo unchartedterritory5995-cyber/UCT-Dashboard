@@ -502,6 +502,10 @@
       ],
       "note": ""
     },
+    "GRADE_TICKER_CONFIRMED_SOURCE_ENABLED": {
+      "status": "dark",
+      "note": "Seam 28's re-enablement, merged dark 2026-09-10 on owner authorization. OFF: grade_ticker._default_patterns_fn returns [] exactly as it has since 2026-09-06, so Compass keeps routing every call through its honest no-usable-setup SKIP. ON: it sources pattern_vision.store.get_confirmed ONLY -- D1-window-bounded, latest-evidence-bar-per-setup, so a setup confirmed on an older bar and rejected on a newer one is never served -- and the raw rule-engine feed stays unreachable in both states (Seam 23/28). DELIBERATELY OFF because turning it ON changes the SOURCE and not the OUTPUT: pattern_verdicts has key_level but no entry/stop/target column, and grade_ticker's hard gate is entry-or-stop-is-None -> SKIP, so a confirmed verdict alone still cannot produce a tradable verdict. Manufacturing an entry and a stop from one level would be the fabricated-confidence move Seam 23 and Seam 28 each removed. Flipping this on is therefore safe but currently pointless; making it meaningful needs verdicts to carry levels, which is a schema change and separate work. Pinned by tests/test_grade_ticker_confirmed_source.py::test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels, which goes RED the day levels are added."
+    },
     "GROUPS_SWING_GATES_ENABLED": {
       "status": "armed",
       "where": [
