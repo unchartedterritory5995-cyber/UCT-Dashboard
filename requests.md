@@ -303,3 +303,97 @@ compare `os.path.getsize(f)` with the blob size from
 `git cat-file --batch-check`. If the difference equals the file's CRLF count, nothing
 drifted — the checkout filter did. `git diff` will also be empty while `git status` says
 modified, which is the same fact wearing a disguise.
+
+---
+
+## OPEN · 2026-09-11 · five standing Python reds, grouped by area, with one-line causes
+
+**Raised by:** the `indicator-r0r1` session, from a chunked full-lane run.
+**Territory:** none of these are ours — no file below was touched by this wave.
+**Blocking us:** no. We route around them and do not claim repo-green.
+
+Each is named with the assertion it actually makes, so nobody has to re-derive it.
+
+### 1. `financial_statements.py` reaches yfinance with no binding proof
+
+```
+tests/test_yf_guard_binds.py::test_every_yfinance_module_has_a_binding_proof_or_a_named_reason
+  → these modules reach yfinance and have no binding proof:
+        api/services/financial_statements.py
+    Add a `test_<module>_reaches_yfinance_through_the_guard` here.
+```
+
+The rail wants one test per yfinance-reaching module proving it goes through the
+bounded guard. ⚠️ Worth doing rather than exempting: the guard is what stops an
+unbounded provider call pinning a thread in the single shared anyio pool, which is the
+524-outage surface.
+
+### 2. A `vcp/engine` threshold moved without its agreement table
+
+```
+tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved
+  → these thresholds changed since the agreement table was measured:
+        vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+    RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+```
+
+⭐ The rail is explicit that the two must move together, so this is a re-measure, not a
+number edit. We did not touch the detector and cannot know whether 200/150 is the new
+intent or a slip.
+
+### 3. An unquarantined URL literal in the FMP news adapter
+
+```
+tests/test_fmp_guard_census.py::test_real_repo_has_zero_unquarantined_violations
+  → unquarantined URL-literal hits:
+        api/services/news/adapters/fmp_news.py:37  BASE = "https://financialmodelingprep.com"
+```
+
+One literal, one line. Either route it through the same guard every other FMP caller
+uses, or quarantine it with the reason.
+
+### 4. An import-time `sys.modules` bind in a test module
+
+```
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+  → import-time sys.modules bind(s) — install AND remove it in a fixture, or delete the
+    stub if the reason for it has expired:
+        tests/test_mobile_audit_route_validity.py:30   sys.modules[...] =
+```
+
+⛔ This is the shape that makes a suite order-dependent: a stub installed at import
+outlives its own file and is still there for everything collected after it. ⚠️ We hit
+four order-dependent reds in this same run (see below), so this one is not cosmetic.
+
+### 5. Six feature gates that are off, and nothing says whether that is deliberate
+
+```
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+  → COMPANY_NEWS_INGEST_ENABLED (default='', api/main.py)
+    FLOW_BOOTSTRAP_ENABLED (default='0', api/services/flow_aggregate.py)
+    FLOW_PREPARE_ENABLED (default='0', api/flow_router.py)
+    OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED (default='0', api/services/optionsflow_etf_push.py)
+    OPTIONSFLOW_ETF_REPLICA_RECEIVE_ENABLED (default='0', api/services/optionsflow_etf_replica.py)
+    PANEL_PREWARM_ENABLED (default='', api/main.py)
+    Add an entry: armed / dark (with a reason) / pending (reason + since).
+```
+
+The ledger exists because *off-and-unset is indistinguishable from off-on-purpose*.
+Each needs one line in `docs/feature_flags.json` from whoever owns the flag.
+
+### And a sixth thing, which is not a red — it is a warning about reading reds
+
+⚠️ **FOUR failures in the same run were LOAD-SENSITIVE, not real.** Under memory
+pressure — 3.7 GB free with eleven test processes from several sessions — these failed:
+
+```
+api/services/bars_fetch_test.py::TestHotIntradaySet::test_recent_first_and_bounded
+tests/test_desk_session_recap.py::test_post_recap_posts_chunks
+tests/test_earnings_analysis.py::TestGenerateEarningsPreview::test_preview_graceful_finnhub_failure
+tests/test_exposed_routes_gated.py::test_the_gate_ladder_MEASURES_who_each_gate_admits
+```
+
+Re-run together on an idle box: **229 passed**. ⛔ So a failure list from a loaded
+machine is not a defect list, and the difference is not visible in the log — a
+load-sensitive red and a real one read identically. Anyone triaging this suite should
+re-run a candidate alone before filing it.
