@@ -1108,6 +1108,21 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   the `isDragging` closure (state needs a render to reach a callback; the ref
   is written synchronously — the stale closure stuck drags on fast taps and
   dropped a drag's first moves).
+- **Touch drag routing (2026-09-11)**: ⛔ **lightweight-charts starts a pan from
+  a native `touchstart` on its own canvas and never listens to pointer events.**
+  The overlay's touch router used to claim a drawing touch by stopping
+  `pointerdown` in the capture phase — a correct stop of the wrong event, so the
+  chart panned under every drawing drag on a phone. The router in
+  `ChartDrawingOverlay.jsx` now stops BOTH families (`pointerdown` +
+  `touchstart`/`touchmove`/`touchend`) from ONE shared hit test (`claimAt`),
+  order-independently, and latches `handleScroll`/`handleScale` off for the
+  drag (restored from the chart's OWN options, so a frozen chart stays frozen).
+  A selected handle's grab radius on touch is `handleGrabRadius()` (24px) in
+  `coarsePointer.js` — the halo paints the same read. The document tap-away
+  deselect asks the router's hit test before stripping a selection (a handle
+  touch lands on the CHART canvas, not the overlay). Rail:
+  `ChartDrawingOverlay.touchRouting.test.jsx` — behavioural, with a chart
+  stand-in carrying bubble listeners where the library binds its own.
 
 ### Chart Header — Consistent UI Across All Surfaces
 - **SymbolSearch** (`app/src/components/chart/SymbolSearch.jsx`): clickable ticker title that opens search dropdown with popular tickers + type-any-ticker
