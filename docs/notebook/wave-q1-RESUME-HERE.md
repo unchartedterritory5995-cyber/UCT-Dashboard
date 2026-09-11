@@ -71,6 +71,72 @@ conditional on the checklist, exactly as before.
 
 ---
 
+# ⛔⛔⛔ READ THIS BEFORE THE CHAIN BELOW — THE INSTRUMENT MANUFACTURED THE FINDING
+
+**2026-09-11. The canary's metadata door is NOT the product's door, and that is
+where "round 3" came from.**
+
+`window_check.DOOR_JS` fires the door with a **raw `fetch()` from the page
+context** — its own GET, its own PUT, its own baseline. It never calls
+`onFolderChange` / `onTickerChange` / `onTagsChange`. So on every canary run:
+
+* `settleMetadataRevision` never ran,
+* `recordLandedRevision` never put the door's revision in the landed ring,
+* guard 2's `serverCopyIsOurs` therefore answered **"not ours"** — **correctly**,
+  because that write genuinely was not made by the notebook's save path,
+* and it **forked**, which is **the right answer to a second writer**.
+
+⭐ **A member changing a ticker is not a second writer. The canary was one.** The
+instrument was asking "what happens when another device writes while you are
+offline", and the product was answering it correctly the entire time.
+
+## THE COMPARISON, measured the same night, same rig, same ordering
+
+| door | runs that fired | sentence lost | new forks |
+|---|---|---|---|
+| raw `fetch` (`DOOR_JS`) | 12 | **10 — 83%** | on every red |
+| the product's own control (`--real-door`) | 4 | **0** | **0** |
+
+⚠️ **What n=4 does and does not settle.** It rejects "the real door fails at the
+raw door's rate" — P(4 greens at r=0.83) ≈ 0.0008. It does **not** exclude a
+low-rate defect on the real path: P(4 greens at r=0.1) ≈ 0.66. A wider real-door
+sample is the confirmation, and until it lands this section says "the reproduction
+does not survive the real door", not "the path is proven clean".
+
+## ⛔ WHAT THIS EXPLAINS — every confusing thing about this wave
+
+* Three fixes that each looked correct in review, shipped, and "failed" again.
+* Mechanism-level rails staying green through what looked like shipped defects.
+* A jsdom rail that could not be made red **even replaying the rig transcript
+  step for step** — because in jsdom the door goes through the real handler, the
+  landed ring gets the revision, guard 2 says "ours", and it rebases. ⚰️ **That
+  was the product working, and it was read as the rail being inadequate.**
+
+`lesson_a_quantised_instrument_can_manufacture_a_finding` ·
+`lesson_an_instrument_can_reproduce_its_own_blind_spot`.
+
+## ⛔ WHAT IS **NOT** VOID
+
+1. **The second-writer behaviour is correct and must stay railed.** The raw-fetch
+   door is a *good* test of "another device wrote"; fork-and-preserve-both is the
+   right answer. `inFlightGuards.test.jsx:151` ("A GENUINE SECOND WRITER STILL
+   FORKS") and the new `doorsThroughTheEditor` control both hold that line.
+2. **Round 2 is not void.** Its `|| saved` defect lost words through the REAL
+   path and its fix stands.
+3. **Two real tabs ARE a genuine second writer** and would produce this
+   legitimately. That is a product question — is a fork the experience we want
+   for one member with two tabs open? — and it is not a defect.
+
+## ⛔ THE INSTRUMENT MUST BE FIXED BEFORE THE STREAK IS RE-ARMED
+
+`CANARY_SUSPENDED = True` today, so the daily task cannot manufacture an H1 right
+now. **The moment it is re-armed with the raw-fetch door, it will.** The door in
+`window_check` must drive the product's controls (as `q1_repro.py --real-door`
+does) — or keep the raw-fetch door and RENAME what it tests to "second writer",
+which is what it has always actually measured.
+
+---
+
 # ⛔⛔ ROUND 3, THE MEASURED CHAIN — reproduced on the rig, 2026-09-11
 
 **Reproduced 2 times in 3 runs of the same ordering (`canary`, door `ticker`).**
