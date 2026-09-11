@@ -8,7 +8,7 @@ import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
 import { normaliseConditions } from './chart/engine/conditions'
 import {
-  resolveCandleColors, resolveBackgroundColors, colorRuns, resolveMarkers, hasChannel,
+  resolveCandleColors, resolveBackgroundColors, colorRuns, resolveMarkers,
 } from './chart/engine/conditionActions'
 import { createConditionShadingPrimitive } from './chart/conditionShadingPrimitive'
 import {
@@ -10997,17 +10997,6 @@ export default function StockChart({
       // `createBinder` with a `{ sync }` and nothing else; a hard call here turns
       // "this chart has no conditions" into a crash in eighteen unrelated cases.
       const _cg = engineRef.current.binder.conditions?.().generation ?? 0
-      // TEMP-MEASURE
-      if (typeof globalThis !== 'undefined') {
-        globalThis.__uctCond = {
-          binder: engineRef.current.binder,
-          candles: candleSeriesRef.current,
-          bars: displayBars,
-          adjustTime,
-          list: conditionListRef.current,
-        }
-      }
-      // /TEMP-MEASURE
       if (_cg !== conditionGenRef.current) {
         conditionGenRef.current = _cg
         setConditionGen(_cg)

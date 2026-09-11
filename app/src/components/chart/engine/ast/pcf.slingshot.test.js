@@ -111,3 +111,38 @@ describe("the firm's Slingshot column, pasted as TC2000", () => {
     expect(ev.measured.maxNodes).toBe(34)
   })
 })
+
+// ─── …AND THE CONDITION STARTER IS THE SAME FORMULA ─────────────────────────
+//
+// ⭐⭐ THE CONDITIONS TAB OFFERS "Slingshot" AS A ONE-CLICK STARTER, spelled in
+// the chart's own canonical grammar rather than in TC2000's. That spelling is a
+// TRANSLATION I made, and a translation nobody checks is a claim about the
+// owner's setup that the product then draws on their chart.
+//
+// ⛔ SO IT IS CHECKED AGAINST THE VERBATIM DIALOG ROWS ABOVE, on the same two
+// series — the one that slingshots and the control that misses by a single
+// clause. Byte equality of the two columns, not "both fire somewhere".
+
+import { STARTER_FORMULAS } from '../../ChartSettingsConditions'
+import { parseFormula } from './parse.js'
+
+describe('the Conditions starter is the owner\u2019s column, translated', () => {
+  const starter = STARTER_FORMULAS.Slingshot
+  const parsed = parseFormula(starter)
+
+  it('the starter reads back in the canonical grammar', () => {
+    expect(starter, 'the Conditions tab stopped offering a Slingshot starter').toBeTruthy()
+    expect(parsed.ok, parsed.error || '').toBe(true)
+  })
+
+  it('\u2b50\u2b50 it answers IDENTICALLY to the pasted TC2000 rows, bar for bar', () => {
+    const canon = (bars) => [...interpret(parsed.ast, bars, {})]
+    expect(canon(slingshotBars())).toEqual(col(slingshotBars()))
+    expect(canon(missesOnVolume())).toEqual(col(missesOnVolume()))
+  })
+
+  it('\u26d4 …and the fixtures are not both all-zero, which would prove nothing', () => {
+    expect(col(slingshotBars()).some((v) => v === 1), 'the setup series never fires').toBe(true)
+    expect(col(missesOnVolume()).every((v) => v !== 1), 'the control fires anyway').toBe(true)
+  })
+})

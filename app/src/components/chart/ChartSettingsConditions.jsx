@@ -50,6 +50,14 @@ const STARTERS = Object.freeze([
   },
 ])
 
+/** The starters' formulas, by name — exported so a test can hold the Slingshot
+ *  translation against the owner's verbatim TC2000 rows
+ *  (`engine/ast/pcf.slingshot.test.js`). A translation nobody checks is a claim
+ *  about somebody's setup that the product then draws on their chart. */
+export const STARTER_FORMULAS = Object.freeze(
+  Object.fromEntries(STARTERS.map((s) => [s.name, s.formula])),
+)
+
 const ACTION_LABEL = { candleColor: 'Candle colour', marker: 'Marker', background: 'Background' }
 const SHAPE_LABEL = {
   dot: 'Dot', circle: 'Circle', triangleUp: 'Triangle up',
