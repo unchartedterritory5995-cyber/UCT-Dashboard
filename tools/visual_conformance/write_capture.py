@@ -130,7 +130,16 @@ def main() -> int:
         # ⚠️ RESOLVE FIRST — a relative --pine-source is the normal way to invoke
         # this, and `relative_to(ROOT)` raises on one that has not been resolved.
         p = pathlib.Path(args.pine_source).resolve()
-        text = io.open(p, encoding="utf-8").read()
+        # ⭐⭐ NORMALISED BEFORE HASHING. This digest is compared against what the
+        # VENDOR stores, and TradingView stores Pine with CRLF while the repo
+        # keeps LF — so a raw hash of the working copy measures the checkout
+        # filter as much as it measures the source. Normalising here makes the
+        # receipt mean the same thing on any machine.
+        # ⚠️ THIS IS NOT THE CRLF COMPARISON AGAINST THE VENDOR. That one is
+        # deliberate and lives in `docs/pine/capture-procedure.md`: stored ==
+        # committed.replace(LF, CRLF). Here the question is "which bytes did
+        # OUR source have", and line endings are not part of the answer.
+        text = io.open(p, "rb").read().decode("utf-8").replace("\r\n", "\n")
         exact = text[:-1] if text.endswith("\n") else text
         src_block = {
             "kind": "own .pine source",

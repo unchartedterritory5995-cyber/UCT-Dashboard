@@ -33,6 +33,29 @@ MEMBER = ROOT / "tests" / "fixtures" / "member"
 MANIFEST = MEMBER / "manifest.json"
 
 
+def _text(path, row):
+    """The fixture's content, with line endings normalised unless they ARE the subject.
+
+    ⭐⭐ LINE ENDINGS ARE NORMALISED BEFORE HASHING, AND THAT IS A CORRECTNESS FIX
+    RATHER THAN A CONVENIENCE. On 2026-09-11 this rail fired on a checkout whose
+    working copy was CRLF against LF blobs: 34,950 bytes on disk vs 34,342 stored,
+    exactly its 608 CRLFs. Nothing had changed. The alarm said the author's script
+    had, and its remedy said to re-record — which would have baked one machine's
+    line endings into a manifest every other checkout then fails.
+
+    ⛔ A HASH OVER RAW BYTES MEASURES THE CHECKOUT FILTER AS WELL AS THE CONTENT,
+    and only one of those is the subject. `.gitattributes` now pins these paths to
+    LF, which fixes it for THIS repo on THIS machine; normalising here fixes it for
+    any checkout, which is what a rail should do.
+
+    ⚠️ A FIXTURE WHOSE SUBJECT *IS* LINE ENDINGS OPTS OUT with
+    `"crlf_subject": true` in its manifest row — for those, the raw bytes are the
+    content and normalising would erase the thing under test.
+    """
+    raw = io.open(path, "rb").read().decode("utf-8")
+    return raw if row.get("crlf_subject") else raw.replace("\r\n", "\n")
+
+
 def _manifest():
     return json.loads(io.open(MANIFEST, encoding="utf-8").read())
 
@@ -62,11 +85,13 @@ def test_the_file_on_disk_matches_BOTH_recorded_hashes(row):
     different file. The two failures read differently on purpose.
     """
     path = ROOT / row["path"]
-    whole = io.open(path, encoding="utf-8", newline="").read()
+    whole = _text(path, row)
     assert hashlib.sha256(whole.encode("utf-8")).hexdigest() == row["file_sha256"], (
-        f"{row['path']}: the FILE changed. If only the appended licence block was "
-        "edited, re-record `file_sha256`. If the script body moved, the body hash "
-        "below will fail too and that is the serious one.")
+        f"{row['path']}: the FILE changed — and line endings are NOT the cause, "
+        "they are normalised to LF before this hash unless the row says "
+        "`crlf_subject`. If only the appended licence block was edited, re-record "
+        "`file_sha256`. If the script body moved, the body hash below will fail too "
+        "and that is the serious one.")
 
     body = "".join(whole.splitlines(keepends=True)[: row["body_lines"]])
     assert hashlib.sha256(body.encode("utf-8")).hexdigest() == row["body_sha256"], (

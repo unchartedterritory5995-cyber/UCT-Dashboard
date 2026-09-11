@@ -60,15 +60,27 @@ def test_regeneration_is_byte_identical_to_the_committed_fixtures(tmp_path):
     )
 
     mismatches: list[str] = []
+    # ⭐⭐ LINE ENDINGS NORMALISED BEFORE COMPARING. A checkout whose working
+    # copy is CRLF against LF blobs made this rail report all seven fixtures
+    # STALE on 2026-09-11 — each was byte-identical once normalised (556 bytes
+    # on disk vs a 535-byte blob, exactly its 21 CRLFs). ⛔ AND THE MESSAGE
+    # BELOW TOLD YOU TO REGENERATE AND COMMIT, which would have baked one
+    # machine's line endings into the repo and broken this test everywhere
+    # else. A byte comparison measures the checkout filter as well as the
+    # content, and only one of those is the subject.
+    # ⚠️ The generator writes LF-only, so nothing here has CRLF as its
+    # subject; if one ever does, compare its raw bytes explicitly.
+    norm = lambda b: b.replace(b"\r\n", b"\n")
     for name in sorted(committed_names):
-        committed_bytes = (gen.FIXTURES_OUT_DIR / name).read_bytes()
-        regenerated_bytes = (tmp_path / name).read_bytes()
+        committed_bytes = norm((gen.FIXTURES_OUT_DIR / name).read_bytes())
+        regenerated_bytes = norm((tmp_path / name).read_bytes())
         if committed_bytes != regenerated_bytes:
             mismatches.append(name)
 
     assert not mismatches, (
         "committed obsidian_parity fixtures are STALE relative to the "
-        "current provider pre-pass output -- regenerate via `python -m "
+        "current provider pre-pass output -- and line endings are NOT the cause, "
+        "they are normalised before this comparison. Regenerate via `python -m "
         "api.services.journal_two.note_connectors.convert."
         "obsidian_parity_fixtures_gen` and commit the result. "
         f"Stale files: {mismatches}"

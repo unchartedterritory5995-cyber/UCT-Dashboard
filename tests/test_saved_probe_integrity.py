@@ -33,6 +33,11 @@ SWEEP = REPO / "tests" / "fixtures" / "vendor" / "saved-probe-integrity-2026-09-
 SAVED = PROBES / "saved-scripts.json"
 
 
+def _source(path):
+    """A committed probe's text, line endings normalised to LF."""
+    return io.open(path, "rb").read().decode("utf-8").replace("\r\n", "\n")
+
+
 def plot_roster(src):
     """The plot titles of a Pine source, by BALANCED-PAREN scan.
 
@@ -104,7 +109,13 @@ def test_a_saved_probe_still_matches_the_source_the_sweep_measured(row):
     src_name = entry.get("sourceFile") or entry.get("probe") or entry.get("source")
     path = PROBES / src_name
     assert path.exists(), f"{row['name']}: {src_name} is gone"
-    roster = plot_roster(io.open(path, encoding="utf-8").read())
+    # ⭐ NORMALISED BEFORE THE SCAN, for the same reason every other rail in this
+    # repo now is: a checkout whose working copy is CRLF against LF blobs is not a
+    # changed file, and a rail that cannot tell those apart sends people to
+    # re-record artifacts that were never wrong. (This particular scan counts
+    # `plot(` occurrences and would survive either way — it is normalised so the
+    # NEXT assertion added here inherits the right default.)
+    roster = plot_roster(_source(path))
     assert len(roster) == row["committedRoster"], (
         f"{row['name']}: {src_name} now declares {len(roster)} plots, but the "
         f"2026-09-10 sweep measured {row['committedRoster']} against the SAVED "

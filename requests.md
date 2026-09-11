@@ -247,7 +247,7 @@ something that is yours to rule on.
 
 ---
 
-## OPEN · 2026-09-11 · a committed fixture and its blob disagree about line endings, and the alarms say "STALE"
+## ✅ RESOLVED 2026-09-11 · a committed fixture and its blob disagree about line endings, and the alarms say "STALE"
 
 **Raised by:** the `indicator-r0r1` session.
 **Territory:** repo-wide (`.gitattributes`), so nobody's in particular.
@@ -303,6 +303,29 @@ compare `os.path.getsize(f)` with the blob size from
 `git cat-file --batch-check`. If the difference equals the file's CRLF count, nothing
 drifted — the checkout filter did. `git diff` will also be empty while `git status` says
 modified, which is the same fact wearing a disguise.
+
+> ### ✅ RESOLVED — killed at the rails, so the repo-wide question is moot
+>
+> **2026-09-11.** The ruling was *normalise at every hash-comparing rail*, and that
+> is done: `test_member_fixtures`, `test_obsidian_parity_fixtures`, the
+> saved-scripts sweep and `write_capture` all normalise line endings before they
+> hash or compare. A fixture whose SUBJECT is line endings opts out with
+> `"crlf_subject": true` in its manifest row.
+>
+> ⭐ **PROVED, NOT ASSUMED.** Each rail was re-run against a deliberately CRLF'd
+> working copy — `uncharted-volume.pine` at 34,950 bytes and the obsidian fixtures
+> at 556, the exact states that produced the false alarms — and both stayed green;
+> every file was restored byte-exact afterwards.
+>
+> **The alarm text is fixed too**, which was the dangerous half. Both messages now
+> say line endings are *not* the cause before they suggest anything, so the remedy
+> they prescribe can no longer cause the defect they are reporting.
+>
+> ⚠️ **The 1,887-fixture `.gitattributes` question is now moot rather than
+> answered.** It only mattered because the rails could not tell a filter from a
+> change; they can now. The `*.pine` and `obsidian_parity` `eol=lf` rules stay as
+> defence in depth — they keep `git status` honest — but nothing depends on them,
+> and in particular nobody has to audit 1,887 files for one whose subject is CRLF.
 
 ---
 
