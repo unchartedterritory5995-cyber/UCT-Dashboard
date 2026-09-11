@@ -31,7 +31,18 @@
 
 /* Volume-pane legend — top-left of the volume pane: dollar volume + avg volume
    over the MA period. `top` is pinned live to the pane boundary by a rAF sampler. */
-.volLegend {
+/* ⭐ `.paneLegend` IS THE SAME STRIP, ON AN OSCILLATOR'S PANE. One rule for both,
+   because a member reading down a stack of panes must not meet two typefaces for
+   the same job — and because the pair has drifted once already (the strong-token
+   fix below was applied to the volume strip alone the first time round).
+
+   ⛔ THEY SHARE A RULE, NOT A CLASS NAME, and the difference is load-bearing:
+   `pages/ChartRender.jsx` hides `[class*="legend" i]` from the newsletter export
+   and then re-shows `[class*="volLegend" i]`. A `composes: volLegend` would put
+   that hashed name on the element and silently add indicator labels to every
+   branded export — a change to a different product, made by a shortcut. */
+.volLegend,
+.paneLegend {
   position: absolute;
   left: 8px;
   top: 76%; /* fallback until the sampler pins it to the volume pane top */
@@ -41,22 +52,113 @@
   padding: 2px 7px;
   border-radius: 3px;
   background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.78));
+  align-items: center;
   /* Match the main chart legend: mono font + tan/gold label + value colors. */
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  /* ⭐ 10.5 → 10, AND THE WEIGHTS AND COLOURS BELOW MOVED WITH IT (owner: *"make
+     sure in the volume pane that the labels and values are the same font size,
+     thickness, and color as it is in the legend"*). `.legend` is 10px; a half
+     pixel is invisible in isolation and obvious in a stack of panes where the row
+     above and the row below are both 10. */
+  font-size: 10px;
   pointer-events: none;
   user-select: none;
 }
+/* Pinned by `pinPaneLegend` on the frame it mounts; `0` is only ever the value
+   between `addSeries` and that call. `76%` would put an RSI label in the middle
+   of the candles. */
+.paneLegend {
+  top: 0;
+  /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
+     can you use the same font, font thickness, and color, and boldness as the
+     values in the legend"). These two declarations are `.legend`'s own, and the
+     rows inside are `LegendRow`s that INHERIT them — so an indicator's name and
+     number read identically whether you find them in the legend box or at the top
+     of the pane they are drawn in.
+
+     ⚰️ IT INHERITED `.volLegend`'s `10.5px` AND ITS `--chart-panel-text-strong-low`
+     ink, because the first version modelled the pane readout on the strip
+     DIRECTLY ABOVE IT rather than on the rows it actually duplicates. Right
+     neighbour, wrong one to copy.
+
+     ⛔ AND THE VOLUME STRIP KEEPS ITS OWN, deliberately: the owner asked for the
+     range buttons and the `Vol · $ Vol · Avg 50D` strip to be left alone, and
+     `.volLegend` shares its colour token with `.rangeBtn` on purpose (see below).
+     That is why this overrides rather than the shared rule changing. */
+  font-family: var(--font-mono);
+  font-size: 10px;
+  /* ⛔ AND THE WEIGHTS, WHICH FAMILY AND SIZE ALONE DO NOT BUY. Measured against
+     the legend after the first pass: family, size and colour matched, and the
+     weights did NOT — the pane read 400/700 against the legend's 500/600, because
+     a `LegendRow`'s label inherits (400 here) and its value is a `<strong>` (700).
+     Same two numbers as `IndicatorChip.module.css`'s `.chipGridLabel` /
+     `.chipGridVal`, which is what the legend rows in the owner's screenshot are.
+     ⚠️ SCOPED TO THIS CONTAINER, VIA THE ELEMENT — `.flatVal` is a CSS-module
+     class in `LegendRow.module.css` and hashed, so it cannot be named from here;
+     restyling it THERE would change the flat legend too, which nobody asked for. */
+  font-weight: 500;
+  /* Rows are `LegendRow`s and bring their own inner spacing; this is the gap
+     BETWEEN indicators sharing one pane (MACD and SIG). */
+  gap: 10px;
+}
+.paneLegend strong { font-weight: 600; }
+/* ⚰️ `pointer-events: auto` WAS ON `.volLegItem` AND THE CONTAINER STAYED `none`,
+   to keep the crosshair passing through the GAPS between readings. It worked
+   exactly as designed and the design was wrong: the 12px gaps, the 7px padding and
+   the space the controls expand into were all DEAD, so the strip only reacted over
+   the glyphs themselves — and a mouse travelling from "49.3M" to the eye crossed a
+   hole, `:hover` dropped, and the buttons vanished mid-approach. Owner, both
+   symptoms, one cause: *"buttons only pop up when my mouse is hovered over the
+   values or label, not in between them … buttons disappear when I try to go click
+   them, same as legend issue before."*
+
+   ⭐ THE HOVER TARGET IS THE WHOLE BOX. One continuous region from the left
+   padding to the last button, so there is nowhere inside the row for the pointer
+   to fall through. This is the same answer the vertical legend already reached:
+   `.vRow` is `grid-column: 1 / -1` precisely so a row is ONE box rather than three
+   islands with gaps between them.
+
+   ⚠️ THE COST, STATED: the strip now swallows the crosshair over its own
+   ~250x18px box at the top of the volume pane. That is the trade `.legend` and
+   `IndicatorChip` already make for a clickable readout, and a readout whose
+   controls cannot be reached is not a cheaper one.
+
+   ⛔ `.paneLegend` IS DELIBERATELY NOT GIVEN THIS. Its rows are `LegendRow`s that
+   carry their own label AND value AND controls inside one `.flat` box, so the
+   pointer never leaves the hover target on its way to a button — it has no gap to
+   fall through and needs no help. */
+.volLegend { pointer-events: auto; }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
-/* The $ Vol / Avg strip sits directly under the range buttons (3M/6M/YTD/…), so it
-   shares their color token — the two must always match, and both follow the canvas.
-   Not user-editable by design; the Indicators tab only toggles visibility.
-   Both read the STRONG token (the plain one resolves to a dim #8a8578 on a dark
-   canvas, which made this strip and the range buttons hard to read); the label
-   steps back via opacity instead of a dimmer color, so contrast survives. */
-.volLegLabel { color: var(--chart-panel-text-strong-low, #e2dfd6); opacity: 0.72; font-weight: 600; }
-.volLegVal { color: var(--chart-panel-text-strong-low, #f2eee3); font-weight: 700; font-variant-numeric: tabular-nums; }
-:global([data-charts-theme='sunrise']) .volLegend { background: rgba(255, 255, 255, 0.55); }
+/* ⭐ HOVER THE STRIP, REVEAL ITS ROW'S CONTROLS (owner: "when I hover over this
+   with my mouse the buttons should pop up on the right just like for RSI").
+   The strip's `LegendRow` carries no label and no value, so it has no hoverable
+   area of its own — the readings to its left ARE its hover target.
+   ⛔ `span[data-legend-ctl]` RATHER THAN THE CLASS, for two reasons: `.flatCtl` is
+   hashed by CSS Modules and unnameable from here, and the extra element selector
+   puts this at (0,2,2) against `LegendRow`'s own (0,2,1) `.flat:hover .flatCtl`,
+   so it wins regardless of which stylesheet the bundler emits first. */
+.volLegend:hover span[data-legend-ctl] { max-width: 88px; opacity: 1; }
+/* ⚰️ THIS STRIP USED TO SHARE ITS COLOUR TOKEN WITH `.rangeBtn`, and the note here
+   said "the two must always match". They no longer do, deliberately: the owner
+   asked for the range buttons to be LEFT ALONE ("they look great") and for these
+   labels and values to match THE LEGEND instead. The pairing was a readability
+   fix — both were a dim `#8a8578` on a dark canvas — and the legend's own tokens
+   are at least as bright, so nothing regresses by unpicking it.
+
+   ⭐ `--text` / `--text-bright` AT 500 / 600 ARE `.legendLabel` / `.legendVal`
+   VERBATIM. Copied rather than shared because `.legend` carries positioning and a
+   backdrop this strip must not inherit; the four declarations are the whole of
+   what "same as the legend" means, and `volumeStrip.test.js` pins them equal to
+   the legend's so a future edit to one fails on the other.
+
+   ⚠️ THE LABEL NO LONGER STEPS BACK VIA `opacity`. The legend distinguishes label
+   from value by WEIGHT (500 vs 600) at full opacity; layering an opacity on top
+   would make this strip the one place where a label is dimmer than every other
+   label on the chart. */
+.volLegLabel { color: var(--text); font-weight: 500; }
+.volLegVal { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+:global([data-charts-theme='sunrise']) .volLegend,
+:global([data-charts-theme='sunrise']) .paneLegend { background: rgba(255, 255, 255, 0.55); }
 :global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
 :global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }
 .rangeBtn {
@@ -305,7 +407,11 @@
 :global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
 :global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
 /* Vertical OHLCV legend (workspace) — date + labels + values dark & bold on the bright canvas. */
-:global([data-charts-theme='sunrise']) .legendVertical { background: rgba(255, 255, 255, 0.88); box-shadow: none; }
+/* Sunrise (light canvas) gets the same treatment — see `.legendVertical`. */
+:global([data-charts-theme='sunrise']) .legendVertical {
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
 :global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
 :global([data-charts-theme='sunrise']) .vlLabel,
 :global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
@@ -316,7 +422,27 @@
    Fixed width pushes every value to the same right edge (TC2000-style). */
 .legendVertical {
   display: grid;
-  grid-template-columns: auto auto;   /* content-sized → compact; values sit close to labels */
+  /* ⭐⭐ THREE TRACKS: label · value · CONTROL GUTTER.
+     The third is `auto` and every row's control cell is EMPTY until that row is
+     hovered — so it measures 0 and the legend is byte-identical to what it was
+     before the controls existed. On hover the one filled cell gives the track a
+     width: the legend's own box grows to the RIGHT, and the label and value
+     columns, sized by their own content, do not move by a pixel. That is the
+     owner's rule — "the values stay in place, the border extends".
+     ⛔ EVERY ROW MUST EMIT THREE CELLS. A grid fills by ORDER, so a two-cell row
+     would let the next row's label land in the gutter and cascade the whole
+     legend one cell out of true; `.vlCtlPad` is the empty third cell for the rows
+     that carry no controls. */
+  /* 🔴 `max-content max-content auto` — AND THE FIRST TWO ARE NOT `auto`, WHICH
+     IS A BUG FIX. An `auto` track is COMPRESSIBLE: when the control gutter opened,
+     the grid re-solved and took the space out of the label and value columns
+     instead of out of thin air. Measured — tracks went `43.7 / 32.8 / 0` to
+     `14.3 / 39.2 / 64`, and every label, every value, the date and the day-change
+     slid LEFT, which is exactly what the whole zero-width-gutter design exists to
+     prevent. `max-content` pins the first two to their own content so the only
+     track that can change is the one that is supposed to. Re-measured after: all
+     four move by 0.0px. */
+  grid-template-columns: max-content max-content auto;   /* content-sized → compact; values sit close to labels */
   justify-content: start;
   column-gap: 10px;
   row-gap: 1px;
@@ -332,11 +458,33 @@
      attempt and `dividerColor.test.js` refused it: the RANGE-SELECTOR BAR shares
      that token, and its appearance is pinned. So this surface takes the opaquer
      `--chart-panel-bg` (0.88) that the horizontal legend already uses, and the
-     shared token keeps its meaning for the bar that still wants to be soft. */
-  background: var(--chart-panel-bg, rgba(14, 15, 13, 0.88));
+     shared token keeps its meaning for the bar that still wants to be soft.
+
+     ⭐⭐ …AND SINCE 2026-09-10 IT IS THAT PANEL AT ~72%, OVER A BACKDROP BLUR
+     (owner: "make it more see-through so the grid lines show — TradingView
+     style"). At a flat 0.88 the grid is simply GONE behind the box, and with the
+     control gutter open the legend is wide enough that the missing lines read as
+     a hole punched in the chart.
+     ⛔ THE BLUR IS WHAT MAKES THE LOWER ALPHA SAFE, and it is why this is not
+     just a re-run of the 0.62 that failed above. `backdrop-filter` averages what
+     is behind the box: a CANDLE — high-contrast, high-frequency — smears into a
+     flat wash the numbers still read against, while the GRID — thin, straight,
+     low-contrast, and the thing the owner wants back — survives as a soft line.
+     The 2026-08-10 failure was transparency with nothing to tame the candles.
+     ⚠️ `color-mix` ON THE TOKEN, NOT A NEW LITERAL. The token carries the theme's
+     own canvas (there is a `[data-charts-theme='sunrise']` override below), so
+     mixing keeps light mode light instead of pinning one dark rgba here. */
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 72%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 .vlHead {
-  grid-column: 1 / -1;
+  /* ⛔ `1 / 3`, NOT `1 / -1`. The legend grew a third track for the row controls,
+     and a header centred across ALL THREE re-centres the moment that track opens
+     — measured by the owner as the date and the day-change sliding right and
+     "glitching" whenever a row's buttons appeared. Spanning the label and value
+     columns only keeps them centred over the numbers they title, at every state. */
+  grid-column: 1 / 3;
   text-align: center;
   color: var(--text-bright);
   font-weight: 600;
@@ -344,7 +492,7 @@
   padding-bottom: 1px;
 }
 .vlChange {
-  grid-column: 1 / -1;
+  grid-column: 1 / 3;   /* see .vlHead — never 1 / -1, or it drifts with the gutter */
   text-align: center;
   font-weight: 700;
   white-space: nowrap;
@@ -370,6 +518,24 @@
   row-gap: 0;
   padding: 3px 5px;
 }
+/* ⭐ EVERY LEGEND LINE IS ONE ROW BOX THAT BORROWS THE LEGEND'S TRACKS.
+ *
+ * 🔴 THE ROWS USED TO BE LOOSE CELLS OF THIS GRID, and that is what made the
+ * hover controls unusable: `.legend` is `pointer-events: none`, so the COLUMN
+ * GAPS between sibling cells were not hit targets and the pointer "left the
+ * legend" every time it crossed one. `subgrid` gives each line a real, continuous
+ * box — first letter of the label to last digit of the value, gaps included —
+ * without giving up the shared tracks that put every value on one right edge. */
+.vlRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+/* The empty third cell. Zero-width, no ink — see `.legendVertical`. */
+.vlCtlPad { display: block; width: 0; }
+
 .vlVal {
   text-align: right;
   color: var(--text-bright);
@@ -415,6 +581,13 @@
   gap: 3px 11px;
   font-variant-numeric: tabular-nums;
   background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
+  /* The same backdrop blur the vertical legend takes. This strip was ALREADY the
+     more transparent of the two (0.55 against the vertical's old 0.88) — which is
+     why the grid was only ever missing behind the vertical one — but the blur is
+     what lets a candle behind either of them stay a wash rather than a shape, and
+     the comment above claims the two layouts look identical. Now they do. */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   padding: 3px 8px;
   border-radius: 3px;
 }
@@ -789,6 +962,7 @@
    surface (desktop workspace, grid cells, iPad) is untouched. */
 @media (pointer: coarse) and (max-width: 640px) {
   :global(html[data-mobile-chart-shell]) .volLegend,
+  :global(html[data-mobile-chart-shell]) .paneLegend,
   :global(html[data-mobile-chart-shell]) .scaleToggle {
     display: none;
   }
@@ -803,6 +977,9 @@
 @media (pointer: coarse) and (max-width: 640px),
        (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .volLegend,
+  /* Same reasoning as `.volLegend`: on a 393 px canvas these cover candles to
+     answer a question the phone legend's own chips already answer. */
+  :global(html[data-mobile-chart-shell]) .paneLegend,
   :global(html[data-mobile-chart-shell]) .scaleToggle,
   :global(html[data-mobile-chart-shell]) .liveIndicator {
     display: none;

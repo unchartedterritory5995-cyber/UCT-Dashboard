@@ -495,6 +495,44 @@ function ChartPane({
   const updateChartSettings = useCallback((next) => {
     writeActiveSettings(next)
   }, [writeActiveSettings])
+
+  // ─── THE TOOLBAR'S IMPERATIVE API, HELD BY THE PANE ───────────────────────
+  //
+  // The settings modal below is a SIBLING of `<StockChart>`, not a child of its
+  // toolbar — so "New Formula" in the Indicators tab has no way to reach the one
+  // mounted `BuilderSheet` except through the API `StockChart` publishes into a
+  // host-supplied ref.
+  //
+  // ⛔ AND IT MUST NOT STEAL A HOST'S REF. `MobileChartsApp` passes its OWN
+  // `toolbarApiRef` through `stockChartProps` and drives the phone ƒx sheet, the
+  // draw bar and the share-snapshot button off it. `StockChart` publishes by
+  // plain assignment (`toolbarApiRef.current = {…}`) into whichever single ref it
+  // is handed, so passing ours in its place would leave all three of those dead.
+  // This object fans that ONE assignment out to both.
+  const paneToolbarApi = useRef(null)
+  const hostToolbarApiRef = stockChartProps?.toolbarApiRef || null
+  const toolbarApiRef = useMemo(() => ({
+    get current() { return paneToolbarApi.current },
+    set current(v) {
+      paneToolbarApi.current = v
+      if (hostToolbarApiRef) hostToolbarApiRef.current = v
+    },
+  }), [hostToolbarApiRef])
+
+  /** Chart Settings → Indicators → "New Formula".
+   *
+   *  ⛔ IT CLOSES THE MODAL FIRST, DELIBERATELY. `BuilderSheet` is a `Sheet`, and
+   *  `Sheet` installs a body-scroll lock plus an Escape handler that calls
+   *  `stopPropagation()`, while the settings modal installs its own Escape
+   *  handler on `window`. Two open at once means one Escape closes the wrong
+   *  surface and the scroll lock is restored by whichever unmounts last — the
+   *  same hazard, and the same answer, as the library dialog closing itself
+   *  before it opens the builder. The builder is a full authoring surface with
+   *  seven tabs; it wants the room anyway. */
+  const openFormulaBuilder = useCallback(() => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openFormulaBuilder?.() } catch { /* noop */ }
+  }, [])
   // User-saved custom colors, shared across every picker in the settings modal.
   const savedColors = useMemo(() => {
     try {
@@ -896,6 +934,10 @@ function ChartPane({
              if the underlying chart instance is ever recreated. */
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
+          /* AFTER the host spread for the same reason as the two above — and this
+             one does not DROP the host's ref, it fans out to it. See
+             `toolbarApiRef`'s declaration. */
+          toolbarApiRef={toolbarApiRef}
         />
         {flagToast && (
           <div className={styles.flagToast}>
@@ -924,6 +966,11 @@ function ChartPane({
            volume.paneHeightPct. Tell the modal so those two settings render inert
            here instead of looking live and doing nothing. */
         volumePaneFixed={VOLUME_PANE_SURFACE_FIXED}
+        /* ⭐ THE AUTHORING DOOR, ON THE ONE SURFACE A CHARTING MEMBER LIVES ON.
+           The Indicators tab renders "+ New Formula" only when it is handed one
+           (absent prop ⇒ absent door), and this is the handler that reaches the
+           single mounted `BuilderSheet`. */
+        onCreateFormula={openFormulaBuilder}
       />
     </div>
   )

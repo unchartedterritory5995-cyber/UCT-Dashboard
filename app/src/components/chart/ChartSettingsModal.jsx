@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
@@ -8,8 +8,14 @@ import { legendModeOf, LEGEND_MODES } from './legendMode'
 import { WM_BOX_WIDTHS, DEFAULT_BOX_W } from './watermarkPrimitive'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
-  listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
+  listAllIndicators, applyRowPatch, splitIndTarget, isIndTarget, overlayRowId,
 } from './indicatorRegistry'
+// The consolidated Indicators tab — search · browse · author · the active list ·
+// per-indicator settings, all in one place. It renders THIS file's rows through
+// THIS file's writer and colour swatch; see its header for why it is a
+// composition of the two shipped surfaces rather than a third one.
+import ChartSettingsIndicators from './ChartSettingsIndicators'
+import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
 // The engine's definitions, so the Indicators tab can GENERATE the rows for the
 // indicators the engine owns instead of carrying a second hand-written copy of
 // their fields. See `indicatorRegistry.js`'s header — this import is what
@@ -146,6 +152,80 @@ const LEGEND_LAYOUTS = [
 
 // Location-aware right-click "… settings" → the settings tab to open on. Watermark
 // and axis are deeper Canvas sections (scrolled to); the rest are tab-tops.
+/** A `scrollTo` naming ONE indicator row: `ind:<rowId>` (`ind:ma:2`,
+ *  `ind:volume`, `ind:legacy:rsi`).
+ *
+ *  ⭐ THE LEGEND'S GEAR SENDS THESE. It rides the same `scrollTo` channel as
+ *  `watermark` / `axis` / `volume` rather than a second prop, so a surface has
+ *  exactly one way to ask this modal to open somewhere — and the row id is the
+ *  one the Indicators tab already publishes as `data-row-id`, so nothing has to
+ *  translate between the two.
+ *  ⚠️ THE ROW ID ITSELF CONTAINS COLONS (`legacy:rsi`), which is why this slices
+ *  the prefix instead of splitting on ':'. */
+// ⛔ NOT EXPORTED. This is a component file, and `react-refresh/only-export-components`
+// refuses a second export — correctly: a shared helper here would break fast
+// refresh for the whole modal. The modal is the only reader; the WRITERS just
+// build the string, which is why the prefix is spelled in the JSDoc above.
+/** `userDefs`' empty value. A STABLE identity, and that is load-bearing: SWR
+ *  answers `[]` as a fresh array on every render until data lands, so a feed that
+ *  compared by identity alone would set state forever. See `sameFeed`. */
+const NO_USER_DEFS = Object.freeze({ rows: Object.freeze([]), errors: Object.freeze([]) })
+
+/** Two lists are "the same answer" when they are the same object OR both empty. */
+const sameList = (a, b) => a === b
+  || (Array.isArray(a) && Array.isArray(b) && a.length === 0 && b.length === 0)
+
+/**
+ * The member's own formulas, subscribed and handed up. Renders NOTHING.
+ *
+ * ⭐ IT EXISTS TO BE UNMOUNTABLE. React has no conditional hooks, so "subscribe
+ * only while the modal is open" cannot be expressed in the modal's own body — it
+ * has to be a child that the open branch renders and the closed branch does not.
+ * See the block at `userDefs` for what running these while closed actually cost.
+ *
+ * ⛔ THE ORDER OF THE TWO CALLS IS LOAD-BEARING, and is copied from
+ * `IndicatorLibraryDialog`. `useInstalledUserDefinitions` performs the install
+ * DURING RENDER, so a registry read taken before it is the value from before.
+ * Two hooks, ONE request — both hand SWR the same key, so the second is deduped
+ * into the first, and the install is idempotent by `installKey`.
+ *
+ * ⚠️ THE PARENT LEARNS ONE FRAME LATER THAN IT USED TO, and that is the whole
+ * price. A child renders after its parent, so on the paint where SWR's data lands
+ * the parent's `indRows` is still the pre-install list; `onLoaded` then sets state
+ * and the next paint reads the installed registry. The alternative — keeping the
+ * hooks in the parent — is what cost a subscription on every closed modal.
+ */
+function UserFormulaFeed({ onLoaded }) {
+  const { rows } = useUserDefinitions()
+  const { errors } = useInstalledUserDefinitions()
+  useEffect(() => { onLoaded(rows, errors) }, [rows, errors, onLoaded])
+  return null
+}
+
+const IND_TARGET_PREFIX = 'ind:'
+
+/** The LEGEND's spelling for a moving-average row. Its own vocabulary — see
+ *  `indicatorRegistry.overlayRowId` for why the two differ and why the seam is
+ *  here rather than at either end. */
+const LEGEND_MA_PREFIX = 'ma:'
+
+function indTargetRow(scrollTo) {
+  if (typeof scrollTo !== 'string' || !scrollTo.startsWith(IND_TARGET_PREFIX)) return null
+  const rowId = scrollTo.slice(IND_TARGET_PREFIX.length)
+  // ⭐ THE ONE TRANSLATION: `ma:0` (what the legend calls it) → `overlay-0` (what
+  // this tab calls it). Everything else — `volume`, `legacy:rsi`, an instance id —
+  // is spelled the same on both surfaces and passes straight through.
+  //
+  // ⚠️ `Number.isInteger` RATHER THAN A TRUTHY PARSE. `ma:0` is a real row and
+  // `Number('0')` is falsy; a `||` guard here would have dropped EMA 9 — the first
+  // moving average on every chart — and nothing else.
+  if (rowId.startsWith(LEGEND_MA_PREFIX)) {
+    const n = Number(rowId.slice(LEGEND_MA_PREFIX.length))
+    return Number.isInteger(n) && n >= 0 ? overlayRowId(n) : null
+  }
+  return rowId
+}
+
 const SETTINGS_TARGET_TAB = {
   candles: 'price',
   canvas: 'canvas',
@@ -192,6 +272,19 @@ export default function ChartSettingsModal({
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
   volumePaneFixed = null,
+  // ⭐ THE FORMULA BUILDER'S DOOR — A LAUNCHER, NOT A MOUNT.
+  //
+  // `BuilderSheet` has exactly ONE mount site (`ChartToolbar`) and an AST rail
+  // in `BuilderSheet.test.jsx` that fails the build if a second appears —
+  // deliberately, because two mounts is two drafts over one member's work. So
+  // the Indicators tab asks the HOST to open the one that exists; the host is
+  // whoever can reach the chart's toolbar API (`ChartPane` does, through
+  // `toolbarApiRef`).
+  //
+  // ⚠️ ABSENT PROP ⇒ ABSENT DOOR, the same rule `IndicatorLibraryDialog` follows.
+  // A surface with no way to reach a builder shows no New Formula button rather
+  // than one that does nothing.
+  onCreateFormula = null,
 }) {
   const panelRef = useRef(null)
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
@@ -215,6 +308,49 @@ export default function ChartSettingsModal({
     // 'one' = this chart only. An app-mirrored theme uses the app surface as canvas.
     else onChange?.(applyThemeToSettings(settings, themeWithAppSurface(theme)))
   }
+
+  // ─── THE MEMBER'S OWN FORMULAS, SUBSCRIBED FROM A CHILD ───────────────────
+  //
+  // ⛔⛔ THE SUBSCRIPTION IS STILL THE MODAL'S, BUT IT NO LONGER RUNS WHILE THE
+  // MODAL IS CLOSED. `indRows` is computed by THIS component, from a registry the
+  // tab does not touch — so a member's formulas arriving from SWR after first
+  // paint have to re-render THIS one or the row list stays the one built while the
+  // registry was still empty. That reason is unchanged; what changed is WHERE the
+  // hooks live.
+  //
+  // ⚰️ THEY WERE CALLED DIRECTLY IN THIS BODY, above `if (!open) return null` —
+  // and a closed modal still runs its body. Every chart mounts this component,
+  // open or not, so every chart in a nine-cell grid was subscribing to the
+  // member's formulas for a panel nobody had opened. Before the consolidation
+  // these hooks lived in `IndicatorLibraryDialog`, which only MOUNTED when the
+  // library was open; moving them here quietly widened them to every chart.
+  //
+  // ⛔ AND IT BROKE TWO PAGES IN ANOTHER WORKSTREAM. `useUserDefinitions` reads
+  // `useContext(AuthContext)` directly (deliberately — `useAuth` throws outside a
+  // provider and a chart renders in surfaces that mount none). Two journal pages
+  // mount a real `ChartPane`, and their `vi.mock` of that module omits the context
+  // OBJECT; vitest THROWS on a missing named export rather than returning
+  // undefined, so the whole page rendered blank and 39 assertions failed three
+  // components from the cause. Completing those mocks would have been an edit to
+  // files the Notebook workstream owns — `hub/rule12Paths.test.js` refuses it, and
+  // it is right to: the defect is HERE, in a chart component that had no business
+  // subscribing while closed.
+  //
+  // ⭐ SO `UserFormulaFeed` MOUNTS INSIDE THE OPEN BRANCH and lifts what it finds.
+  // A closed modal now runs no formula hooks at all, touches no auth context, and
+  // costs no SWR subscription — which is what it did before this tab existed.
+  const [userDefs, setUserDefs] = useState(NO_USER_DEFS)
+  const { rows: userDefRows, errors: userDefErrors } = userDefs
+  // ⚠️ THE GUARD IS NOT AN OPTIMISATION, IT IS WHAT STOPS AN INFINITE LOOP. SWR
+  // hands back a FRESH `[]` on every render until data arrives, so a plain
+  // `setUserDefs({rows, errors})` would change identity every time, re-render,
+  // re-fire the child's effect, and never settle. `sameList` treats two empty
+  // lists as one answer; once data lands, SWR's own object identity is stable.
+  const onUserDefsLoaded = useCallback((rows, errors) => {
+    setUserDefs((prev) => (sameList(prev.rows, rows) && sameList(prev.errors, errors)
+      ? prev
+      : { rows, errors }))
+  }, [])
 
   // ── Settings templates (save the whole look, reuse on any tab) ──────────────
   const { prefs, setPref } = usePreferences()
@@ -342,7 +478,7 @@ export default function ChartSettingsModal({
   const didScrollRef = useRef(false)
   useLayoutEffect(() => {
     if (!open) { didScrollRef.current = false; return }
-    setActiveTab(SETTINGS_TARGET_TAB[scrollTo] || 'price')
+    setActiveTab(indTargetRow(scrollTo) ? 'indicators' : (SETTINGS_TARGET_TAB[scrollTo] || 'price'))
   }, [open, scrollTo])
   useLayoutEffect(() => {
     if (!open || didScrollRef.current) return
@@ -475,7 +611,28 @@ export default function ChartSettingsModal({
   // to `listIndicators` here; `listAllIndicators` forwards the same options object
   // to it, so master's inert-toggle reason (`f3d9daba`) survives B4's switch to
   // generated rows.
-  const indRows = listAllIndicators(settings, engineRegistry, { volumePaneFixed })
+  //
+  // 🔴 …AND THE ROWS NOW INCLUDE THE MEMBER'S OWN FORMULAS. `listEngineIndicators`
+  // reads `registry.listDefinitions()`, which is SHIPPED-ONLY by design (three
+  // rails read it to prove what ships, and a member's formula must never be able
+  // to make the shipped manifest true by joining it — see `nativeRegistry`'s
+  // split). The consequence on this surface was that a formula a member wrote,
+  // saved, installed and DREW on their chart had no settings row anywhere: they
+  // could turn it on from the library and then never change its colour.
+  //
+  // ⛔ SO THE WIDENING IS A SHIM AT THE CALL SITE, NOT A CHANGE TO THE SPLIT.
+  // `listAllDefinitions()` is the registry's own union of both lanes; handing it
+  // in as `listDefinitions` widens THIS list and nothing else. Every write still
+  // goes through `applyRowPatch(…, engineRegistry)`, whose `getDefinition`
+  // already resolves both lanes.
+  //
+  // ⚠️ NOT MEMOISED, AND THAT IS NOT AN OVERSIGHT: this code runs BELOW
+  // `if (!open) return null`, so a hook here would be a conditional hook — and
+  // there is nothing to save, because `listAllIndicators` already walks the
+  // registry on every render of an open modal. What makes the list ARRIVE is the
+  // `useInstalledUserDefinitions` subscription up top, not a memo key down here.
+  const allLanes = { ...engineRegistry, listDefinitions: engineRegistry.listAllDefinitions }
+  const indRows = listAllIndicators(settings, allLanes, { volumePaneFixed })
   const indRowById = (id) => indRows.find((r) => r.id === id)
   /** One writer for every row: `patchFor` for the hand-written ones, and
    *  `instanceControls` for the engine-owned ones — the same writer the toolbar
@@ -623,6 +780,14 @@ export default function ChartSettingsModal({
 
   return (
     <>
+      {/* ⭐ THE FORMULA SUBSCRIPTION, MOUNTED BY THE OPEN BRANCH AND ONLY BY IT.
+          Below `if (!open) return null`, so a closed modal renders it not at all
+          and runs none of its hooks — see the `userDefs` block for the two things
+          that cost when these were called in this component's own body.
+          ⚠️ OUTSIDE THE PORTAL AND OUTSIDE THE TAB SWITCH, deliberately: `indRows`
+          is read by the colour panel and the row writers too, not only by the
+          Indicators tab, so the feed must not be gated on which tab is active. */}
+      <UserFormulaFeed onLoaded={onUserDefsLoaded} />
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
@@ -971,111 +1136,42 @@ export default function ChartSettingsModal({
             </div>
           </section>
           </>)}
-          {activeTab === 'indicators' && (<>
-          {/* Rendered ENTIRELY from the rows — no per-indicator JSX, and no
-              hardcoded section list either. The groups come from the rows in row
-              order, so a definition added to `nativeRegistry` brings its own
-              section with it (B4 Task 6 deleted `ENGINE_ROW_DEF_IDS`, the list
-              of which definitions got a generated row; every one of them does
-              now). The three group names used to be an array literal here, and
-              it was an enumeration site of its own: a row in a group nobody had
-              listed rendered NOTHING, silently, until someone remembered to add
-              it. `enumerationSites.test.js` fails if it returns. */}
-          {[...new Set(indRows.map((r) => r.group))].map((group) => {
-            const rows = indRows.filter((r) => r.group === group)
-            if (!rows.length) return null
-            return (
-              <section key={group} className={styles.section}>
-                <div className={styles.sectionLabel} ref={/volume/i.test(group) ? volumeRef : undefined}>{group}</div>
-                {rows.map((row) => {
-                  const on = readEnabled(row)
-                  const enabledKey = row.enabledKey || 'enabled'
-                  const set = (patch) => setRow(row, patch)
-                  return (
-                    <div key={row.id} className={styles.indBlock}>
-                      <div className={styles.indHead}>
-                        <button
-                          type="button" role="switch" aria-checked={on} aria-label={`Toggle ${row.label}`}
-                          className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
-                          onClick={() => set({ [enabledKey]: !on })}
-                        ><span className={styles.toggleKnob} /></button>
-                        <span className={styles.indName}>{row.label}</span>
-                      </div>
-                      {on && row.fields.map((f) => {
-                        if (f.showIf && !f.showIf(row.values)) return null
-                        const val = row.values?.[f.key]
-                        const dis = !!f.disabled
-                        // ⛔ THE REASON HAS TO REACH A SCREEN READER, NOT JUST A POINTER.
-                        //
-                        // `f.disabled` carries a sentence ("Coming soon — needs renderer
-                        // support", "Fixed by this chart's layout") and it was rendered
-                        // ONLY as a `title` on the row below — a hover tooltip. Measured
-                        // on production 2026-08-15: the five MA rows ship `Offset` and
-                        // `Plot style` inert, and the controls carried `disabled` with
-                        // NO `aria-disabled` and no description, so assistive tech got
-                        // "dimmed, no reason" while a mouse user got the sentence. The
-                        // toggle branch below already put the reason on the control; the
-                        // number and select branches did not, which is the same
-                        // inconsistency that let the toggle ship live-but-inert.
-                        //
-                        // `IndicatorSettingsDialog` states the rule this follows:
-                        // "`aria-disabled` alongside `disabled` so the reason reaches
-                        // assistive tech, which a bare `disabled` attribute does not
-                        // carry." The sentence is bound with `aria-describedby` to a
-                        // visually-hidden span (the global `.sr-only` in tokens.css), so
-                        // nothing about the rendered layout changes.
-                        const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
-                        const inert = dis
-                          ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
-                          : {}
-                        return (
-                          <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
-                            <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
-                            {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
-                            {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
-                            {f.type === 'toggle' && (
-                              /* `disabled` is load-bearing, not decoration: a disabled
-                                 <button> fires no click, so an inert field can't write
-                                 a pref the surface will ignore. The number/select
-                                 branches below already honored f.disabled — the toggle
-                                 didn't, which is how a "not applicable here" field
-                                 could still look (and act) live. */
-                              <button
-                                type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
-                                {...inert}
-                                className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
-                                onClick={() => set({ [f.key]: val === false })}
-                              ><span className={styles.toggleKnob} /></button>
-                            )}
-                            {f.type === 'number' && (
-                              <input
-                                type="number" className={styles.indNum} {...inert}
-                                min={f.min} max={f.max} step={f.step} value={val ?? ''}
-                                onChange={(e) => set({ [f.key]: Number(e.target.value) })}
-                              />
-                            )}
-                            {f.type === 'select' && (
-                              <select
-                                className={styles.indSelect} {...inert} value={val ?? ''}
-                                onChange={(e) => {
-                                  const raw = e.target.value
-                                  const opt = f.options.find(([v]) => String(v) === raw)
-                                  set({ [f.key]: opt ? opt[0] : raw })
-                                }}
-                              >
-                                {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                              </select>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </section>
-            )
-          })}
-          </>)}
+          {activeTab === 'indicators' && (
+          /* ⭐ THE CONSOLIDATION. This tab used to render EVERY row from
+             `listAllIndicators` with every field open — four MA overlays, the
+             volume pane and one section per DEFINITION whether or not the chart
+             drew it — which on a stock blob is twenty-two sections and a tab you
+             scroll for a minute to reach the EMA you can see on the chart. And
+             it could not ADD anything: discovery lived in a separate toolbar
+             modal that in turn could not EDIT anything.
+
+             `ChartSettingsIndicators` composes the two. The rows, the writer and
+             the colour swatch are still THIS file's — the tab is handed
+             `indRows`, `setRow` and `colorSwatch` rather than reaching for the
+             settings blob itself, so there is exactly one control door onto an
+             indicator on this surface, the same one there has always been. */
+          <ChartSettingsIndicators
+            rows={indRows}
+            settings={settings}
+            onChange={onChange}
+            registry={engineRegistry}
+            onRowPatch={setRow}
+            colorSwatch={colorSwatch}
+            volumeRef={volumeRef}
+            onCreateFormula={onCreateFormula}
+            /* Subscribed up here, for the reason written beside the hooks: this
+               component builds `indRows`, so it is the one that has to re-render
+               when a member's formulas install. Handing the two results down is
+               what keeps the tab from opening a SECOND subscription over the same
+               key to learn the same thing. */
+            userDefRows={userDefRows}
+            userDefErrors={userDefErrors}
+            /* ⭐ THE ROW THE LEGEND'S GEAR NAMED — opened straight into its
+               settings, so "edit this indicator" is one click from the chart
+               rather than a click plus a hunt down a list. */
+            openRowId={indTargetRow(scrollTo)}
+          />
+          )}
 
           {activeTab === 'header' && (<>
           {/* TITLE — the ticker/company label + its color + the day-change readout that

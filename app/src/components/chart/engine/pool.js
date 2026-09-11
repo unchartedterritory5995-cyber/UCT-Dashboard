@@ -498,7 +498,7 @@ function effectiveColor(plot, fallback) {
  *
  * @param {object} plot
  * @param {{scaleId?: string, autoscale?: 'exclude'|'default', LineStyle?: object,
- *          LineType?: object, indicatorsHidden?: boolean}} [ctx]
+ *          LineType?: object, indicatorsHidden?: boolean, lastValue?: boolean}} [ctx]
  */
 export function seriesOptionsForPlot(plot, ctx) {
   const pk = poolKey(plot)
@@ -513,7 +513,16 @@ export function seriesOptionsForPlot(plot, ctx) {
   // effect instead of fighting it.
   const base = {
     priceLineVisible: false,
-    lastValueVisible: false,
+    // ⭐ THE AXIS TAG, AND THE TWO CONDITIONS ARE DIFFERENT QUESTIONS.
+    // `c.lastValue` is PLACEMENT's ("does this series own the axis it is on?" —
+    // true only for an indicator in its own Flip-C pane). `plot.legend` is the
+    // DEFINITION's ("is this plot a number a human reads?"), and it is the exact
+    // filter `readout.legendChips` applies, deliberately: MACD's histogram, RSI's
+    // guide bands and Ichimoku's cloud edges are shape, not readings, and a
+    // definition that already declines to put a plot in the legend has said so
+    // once. Tag set == chip set, decided in one place, by the author.
+    lastValueVisible: c.lastValue === true
+      && !!(plot && plot.legend && plot.legend.hide !== true),
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
     priceFormat: { type: 'price', precision: precisionFor(plot) },

@@ -25,8 +25,11 @@
 // ⭐ SO THIS FILE RENDERS THE PAGE AND CLICKS. `<ChartsWorkspace/>` is what
 // `App.jsx` mounts at `/charts` — asserted below by parsing `App.jsx` with an
 // AST rather than by trusting this sentence. Then it does the only thing a
-// member can do: open the chart's Indicators dialog and look for a way to author
-// one. The assertion is that `BuilderSheet`'s OWN markup — the
+// member can do: open the chart's settings, go to Indicators — the one home for
+// every indicator verb since the consolidation — and look for a way to author
+// one. (The PHONE walk still goes through the library dialog, which is that
+// shell's own indicator surface and keeps every opener it had.) The assertion
+// is that `BuilderSheet`'s OWN markup — the
 // `role="tablist"` / `aria-label="How to build this"` mode row, which no file
 // here writes and no file here mocks — reaches the DOM.
 //
@@ -184,15 +187,27 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 /** Walk from the surface a member opens to the builder, clicking only what a
  *  member can see. Returns nothing — it throws if any step is missing, which is
- *  the point: a removed door fails HERE, by name. */
+ *  the point: a removed door fails HERE, by name.
+ *
+ *  ⚰️ THE DESKTOP WALK USED TO START AT A LABELLED "Indicators" BUTTON ON THE
+ *  CHART TOOLBAR, and that button is retired: Chart Settings → Indicators is the
+ *  one home for finding, adding, editing and removing an indicator now, and the
+ *  formula builder's door moved there with the rest of the add-flow. The CLAIM
+ *  this file exists for is untouched — nine tasks of authoring work must be
+ *  reachable by clicking, from the page `App.jsx` mounts at `/charts` — and it is
+ *  the reason the walk is written as clicks rather than as a mount. */
 async function openTheBuilderFromCharts(user) {
-  // 1. The chart's own toolbar carries a LABELLED "Indicators" button. On
-  //    `/charts` it is the only add-flow entry point there is — the legacy gear
-  //    beside it is suppressed by `hideSettingsButton`.
-  const indicators = await screen.findByTitle('Indicators — browse and add', {}, { timeout: 8000 })
-  await user.click(indicators)
+  // 1. The chart pane's own gear. On `/charts` this is the settings surface —
+  //    the toolbar's LEGACY gear is suppressed by `hideSettingsButton`, which the
+  //    CONTROL case below still asserts.
+  const gear = await screen.findByTitle('Chart settings', {}, { timeout: 8000 })
+  await user.click(gear)
 
-  await intoTheLibraryDoor(user)
+  // 2. The Indicators tab, which is where every indicator verb lives.
+  await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
+
+  // 3. 🔴 THE DOOR. Cut it and this line is what reds.
+  await user.click(await screen.findByTestId('settings-new-formula'))
 }
 
 /** Steps 2–3, shared by both viewports: the library is open — find the
@@ -308,18 +323,26 @@ describe('/charts — the criteria builder has a door', () => {
   it('CONTROL — the legacy gear really is suppressed on /charts, so this door is the only one', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
-    await screen.findByTitle('Indicators — browse and add', {}, { timeout: 8000 })
+    const gear = await screen.findByTitle('Chart settings', {}, { timeout: 8000 })
 
     // ⭐ THE CONTROL THAT STOPS THIS FILE PASSING FOR THE WRONG REASON. If
     // `/charts` ever stopped setting `hideSettingsButton`, the legacy
     // `ChartSettingsPanel` would come back WITH its own "New formula" launcher —
-    // and the four cases above would stay green while proving nothing about the
-    // door this commit added. They are only load-bearing while this is true.
+    // and the cases above would stay green while proving nothing about the door
+    // they walk to. They are only load-bearing while this is true.
+    // ⚠️ CASE MATTERS: the legacy toolbar gear is titled "Chart Settings"; the
+    // pane's own gear, which the walk clicks, is "Chart settings".
     expect(screen.queryByTitle('Chart Settings')).toBeNull()
 
-    // And the door under test is genuinely inside the library, not on the chart.
-    expect(screen.queryByTestId('library-new-formula')).toBeNull()
-    await user.click(screen.getByTitle('Indicators — browse and add'))
-    expect(await screen.findByTestId('library-new-formula')).toBeInTheDocument()
+    // ⚰️ …AND THE RETIRED TOOLBAR BUTTON HAS NOT COME BACK. Two labelled entry
+    // points onto one job is the split the consolidation ended; if this reappears
+    // the walk above could pass through a door that is not the shipped one.
+    expect(screen.queryByRole('button', { name: /^Indicators$/ })).toBeNull()
+
+    // And the door under test is genuinely inside Chart Settings, not on the chart.
+    expect(screen.queryByTestId('settings-new-formula')).toBeNull()
+    await user.click(gear)
+    await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
+    expect(await screen.findByTestId('settings-new-formula')).toBeInTheDocument()
   })
 })

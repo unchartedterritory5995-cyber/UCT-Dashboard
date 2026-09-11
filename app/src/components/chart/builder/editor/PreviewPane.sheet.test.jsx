@@ -13,6 +13,7 @@
 // ⛔ THIS HEADER USED TO SAY "Every case", and the correction sat 95 lines below
 // it. A reader trusts the header, so a correction the header contradicts is
 // worse than no correction — the false sentence is the one that gets believed.
+import { createRef } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -131,6 +132,7 @@ describe('ChartToolbar is what hands the sheet the chart it was opened over', ()
       <AuthContext.Provider value={{ isPaid: true, user: { id: 7 }, loading: false }}>
         <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
           <ChartToolbar
+            ref={toolbarRef}
             activeTool="cursor"
             setActiveTool={noop}
             chartSettings={mergeChartSettings(null)}
@@ -144,9 +146,19 @@ describe('ChartToolbar is what hands the sheet the chart it was opened over', ()
     )
   }
 
-  // The member's real route in: Indicators → "none of these — write one".
+  // The member's real route in: the indicator library → "none of these — write
+  // one".
+  //
+  // ⚰️ IT USED TO CLICK A LABELLED TOOLBAR **BUTTON** to open the library. That
+  // button is retired — Chart Settings → Indicators is the one home for finding
+  // and adding an indicator now — so the library is reached through the
+  // imperative door its remaining openers use (`Alt+Shift+A`, both right-click
+  // rows, the phone ƒx sheet). The ROUTE this file cares about is unchanged:
+  // library → "New formula" → the sheet, on the toolbar's own symbol and
+  // timeframe.
+  const toolbarRef = createRef()
   async function openBuilder() {
-    fireEvent.click(screen.getByRole('button', { name: /Indicators/ }))
+    toolbarRef.current.openIndicatorLibrary()
     await flush()
     fireEvent.click(screen.getByTestId('library-new-formula'))
     await flush()

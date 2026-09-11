@@ -1,0 +1,237 @@
+/* app/src/components/chart/legend/LegendRow.module.css
+ *
+ * ⛔ NO CLASS IN THIS FILE MAY CONTAIN THE SUBSTRING "legend". The export route
+ * (`pages/ChartRender.jsx`) hides `[class*="legend" i]` and then re-shows
+ * `[class*="volLegend" i]`; a class here that matched the second rule would
+ * un-hide the strip inside every branded export and move all 46 pixel-parity
+ * baselines. These rows inherit the hide as DESCENDANTS of the legend box, which
+ * is the whole reason they render there. Same rule `IndicatorChip.module.css`
+ * opens with, and for the same measured reason.
+ */
+
+/* ── THE VERTICAL ROW: ONE BOX THAT BORROWS THE LEGEND'S COLUMNS ─────────────
+ *
+ * 🔴 `subgrid` IS THE FIX FOR FOUR REPORTED BUGS AT ONCE, not a refactor.
+ *
+ * ⚰️ THE ROW USED TO BE THREE SIBLING CELLS OF THE LEGEND'S OWN GRID, with hover
+ * tracked per-cell in React. `StockChart.module.css` `.legend` is
+ * `pointer-events: none`, so the COLUMN GAPS between those cells were not hit
+ * targets — the pointer left the legend every time it crossed one. Measured by
+ * the owner: the buttons vanished mid-approach and could not be clicked; they
+ * flickered off and on between the label and the value; and a cell that forgot
+ * `pointer-events: auto` never armed at all.
+ *
+ * ⭐ AS ONE ELEMENT THE ROW IS CONTINUOUS — first letter of the label to last
+ * digit of the value, INCLUDING the gaps, because the gaps are now inside the
+ * row's own box rather than the container's. `subgrid` is what keeps the columns
+ * aligned across rows while that is true: the row spans the legend's three tracks
+ * and its children map onto them, so every value still lands on one right edge.
+ *
+ * ⛔ AND HOVER IS PLAIN CSS AGAIN. With a real row box there is no reason for
+ * React to hold hover state, and state was the thing that could disagree with the
+ * pointer. `:focus-within` comes free, which a conditionally-RENDERED control can
+ * never have. */
+.vRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  /* ⛔ LOAD-BEARING, NOT POLISH. `.legend` is `pointer-events: none` — the box
+   * sits over the chart and must not swallow the crosshair — and that INHERITS.
+   * Without this the row receives no hover, no click and no focus: the whole
+   * strip is unreachable in a browser.
+   *
+   * ⚠️ AND A GREEN TEST PROVES NOTHING ABOUT IT — jsdom implements no
+   * pointer-events hit-testing, so `button.click()` fires on an unreachable
+   * control. That is how the `+N` button shipped un-clickable for an hour with a
+   * passing interaction case. The gate for this line is an assertion on the CSS
+   * artifact, in both directions.
+   *
+   * ⚠️ THE PRICE, STATED: the crosshair does not update while the pointer is over
+   * a row. That is the trade every charting product makes for a clickable legend,
+   * and it is why the box is the ROW and not the whole legend. */
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* ⛔ THESE CARRY NO `font-size`. `.legendVertical` sets it once for the whole
+   legend (and `.legendCompact` shrinks it), and the owner's report was that the
+   indicator rows did not match the Open/High/Low/Close rows above them — which is
+   exactly what happens when a row brings its own type. Inheriting is the fix and
+   the rail: a row can never disagree with the rows it sits between. */
+.vLabel {
+  white-space: nowrap;
+  font-weight: 500;
+}
+.vVal {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ⭐⭐ THE THIRD TRACK — THE REASON THE NUMBERS DO NOT MOVE.
+ *
+ * The cell is `width: 0; overflow: hidden` at rest, so it contributes NOTHING to
+ * the legend's third `auto` track and the box is exactly as wide as it was before
+ * these controls existed. On the row's hover it takes its content width: the
+ * legend's own border grows to the RIGHT, and the label and value columns — sized
+ * by their own content — do not move by a pixel.
+ *
+ * ⛔ `width: 0`, NOT `display: none`. A `display: none` control cannot be focused,
+ * so `:focus-within` could never re-open the strip and a keyboard user would have
+ * no way in at all. */
+.vCtl {
+  /* The row wears the LINE's colour; the controls must not. Reset here so the
+     buttons inherit the legend's own ink instead — see `baseColor` in the JSX. */
+  color: var(--text, #e8e6e0);
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  /* ⛔ NO TRANSITION. The width cannot animate anyway (it is `0` → `auto`), so a
+     fading opacity only put the strip half-visible for 120ms while its buttons
+     were already at full size and fully clickable — a control you can hit before
+     you can see it. Instant is also what the chip's grid variant was changed to
+     match, so every row in this legend reveals identically. */
+}
+/* ⛔ `:has(:focus-visible)`, NOT `:focus-within` — and that is a bug fix.
+ *
+ * ⚰️ MEASURED BY THE OWNER: click a row's eye, move to the next indicator, and
+ * BOTH rows show their buttons. `:focus-within` is true for as long as the
+ * clicked button holds DOM focus, which a mouse click gives it and nothing takes
+ * away — so the row you just acted on stayed open behind the one you moved to,
+ * and the legend claimed two rows were live at once.
+ *
+ * ⛔ THE ANSWER IS NOT `blur()` ON CLICK. That would take the strip away from a
+ * KEYBOARD user the instant they activated anything in it, which is the whole
+ * population `:focus-within` was there for. `:focus-visible` is the distinction
+ * the platform already draws: Chrome sets it for tab-navigation and not for a
+ * pointer click, so the keyboard path keeps its reveal and the mouse path stops
+ * leaving one behind. */
+.vRow:hover .vCtl,
+.vRow:has(:focus-visible) .vCtl {
+  width: auto;
+  overflow: visible;
+  opacity: 1;
+}
+
+/* ── THE HORIZONTAL VARIANT: one inline span ─────────────────────────────── */
+.flat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
+}
+.flatVal { font-variant-numeric: tabular-nums; }
+/* Same collapse as the vertical gutter, for the same reason: a strip that took
+   width at rest would push every later row of the flat legend along. */
+.flatCtl {
+  color: var(--text, #e8e6e0);
+  display: inline-flex;
+  align-items: center;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  /* Instant here too — see `.vCtl`. One legend, one reveal. */
+}
+.flat:hover .flatCtl,
+.flat:has(:focus-visible) .flatCtl {   /* see `.vRow` — never `:focus-within` */
+  max-width: 88px;
+  opacity: 1;
+}
+
+/* GRAY = intentional (spec §6's colour language: red broken / amber degraded /
+   gray intentional). A hidden moving average is not an error — it is the
+   member's own choice — so it recedes rather than alarms. Matches
+   `IndicatorChip.module.css`'s `.chipHidden` exactly, because a hidden MA and a
+   hidden RSI are the same fact and must not read as two different states. */
+.rowHidden { opacity: 0.45; }
+
+/* ⭐ ONE GAP, EVENLY SPACED (owner: "make sure the three buttons are the same
+   distance from each other"). All three are the same 16px box holding the same
+   11px glyph, so a single `gap` puts equal space between their optical edges —
+   which no per-button margin can keep true if the icons are ever resized.
+
+   ⚰️ `.btnDanger` CARRIED `margin-left: 10px`, inherited from
+   `IndicatorChip.module.css` where it is a SAFETY MARGIN with a measurement
+   behind it: on the inline chip the controls sit AFTER a live number, so one
+   extra glyph (a minus sign) moved every button 5.4px and the ✕ that was Settings
+   a moment ago was Remove. THAT HAZARD DOES NOT EXIST HERE — the value lives in
+   its own grid column and this strip cannot reflow under the pointer — so the
+   margin was buying nothing and costing the even spacing. The destructive control
+   still announces itself on hover, in red. */
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  /* ⭐ 6 → 2 (owner: "move the start of the buttons a little closer to the
+     values"). The real distance is this PLUS the legend grid's own 10px
+     `column-gap` between the value track and the control track, so the eye was
+     16px from the number it belongs to — far enough to read as its own column
+     rather than as that row's controls. */
+  margin-left: 2px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  /* ⭐ THE SAME INK AS THE `Open` / `High` / `Low` / `Close` LABELS, at full
+     opacity (owner: "the buttons are a little hard to see"). It was
+     `--chart-panel-text-strong-low` at `opacity: 0.8`, which is the CHIP's
+     resting tone — right for a control that sits on a busy inline strip, too
+     quiet for one in a column of legend text a member is already reading.
+     ⛔ NOT `currentColor`: the row inherits the LINE's colour, so the buttons
+     would come out EMA-9 blue on one row and SMA-200 purple on the next, and a
+     control whose colour is the member's data is a control they can style into
+     invisibility. */
+  /* ⭐ INHERITED FROM THE CONTROL CELL, which the row sets to the legend's own
+     `legendColor` — the exact ink the `Open` / `High` / `Low` / `Close` labels
+     wear. See `baseColor` in the JSX for why this is neither `currentColor` nor a
+     token. The fallback is the app text colour, for the mounts that pass none.
+     ⚰️ IT WAS `--chart-panel-text-strong-low` AT `opacity: 0.8` — the CHIP's
+     resting tone, right for a control on a busy inline strip, too quiet for one
+     in a column of legend text a member is already reading. */
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.btn:hover { color: var(--text-bright, #f8f7f3); background: rgba(255, 255, 255, 0.14); }
+.btn:focus-visible { outline: 1px solid rgba(220, 187, 94, 0.9); outline-offset: 1px; }
+
+/* ⛔ NO EXTRA MARGIN — see `.controls` above. Remove is told apart by its RED
+   hover, not by a gap that would break the even spacing. */
+.btnDanger:hover { color: var(--loss); background: rgba(196, 31, 45, 0.35); }
+
+/* ── TOUCH: THERE IS NO HOVER ──────────────────────────────────────────────
+ *
+ * 1024px is the canonical TOUCH boundary (`styles/breakpoints.css`) and
+ * `--tap-min` is the app-wide 44px floor (`tokens.css`). A 16px icon button is
+ * unreachable with a thumb.
+ *
+ * ⛔ AND THE ROWS DO NOT SPROUT AN ALWAYS-OPEN STRIP HERE, unlike the chip's.
+ * Three 44px buttons per row, on six rows, is a control surface taller than the
+ * chart on a phone. The touch path to these verbs is the phone's own indicator
+ * sheet and Chart Settings → Indicators, both of which already carry all three at
+ * 44px — hiding a control that has a reachable equivalent is different from
+ * hiding one that has none. */
+@media (max-width: 1024px) {
+  .btn {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
+}
+@media (max-width: 640px) {
+  .vCtl, .flatCtl { display: none; }
+}
