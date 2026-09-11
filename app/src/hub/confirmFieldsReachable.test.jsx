@@ -493,17 +493,27 @@ describe('the section payload is contract-checked before it can reach the sheet'
     scene.fan = [{ ...registryAlert(), confirmPayload: () => broken }, ...innerRing()]
     renderHub(<CustomPageStandIn />)
 
-    const action = actionInFan('scan.alert')
-    expect(() => fire(action)).toThrow(HubContractError)
+    // ⚰️ THIS BLOCK WAS VACUOUS ON ITS FIRST WRITING, and its own mutation proof is what caught
+    // it. The assertions lived INSIDE a `catch`, after a first `expect(...).toThrow()` had already
+    // consumed one throw. Delete `HubRoot`'s validator call and the sheet's own render-time check
+    // throws instead — the first `toThrow` still passed, the second `fire()` hit an already-torn-
+    // down tree and threw nothing, so the catch never ran and NEITHER message assertion was ever
+    // evaluated. A test whose real assertions are reachable only on a branch that may not be taken
+    // is a test that passes for free (`lesson_a_capture_that_only_breaks_on_failure`).
+    let caught = null
     try {
-      fire(action)
+      fire(actionInFan('scan.alert'))
     } catch (err) {
-      // ⭐ The call-site LABEL is the load-bearing half. `HubConfirmSheet` validates on render
-      // too, so a payload this bad is rejected either way — but only the hub's own check names
-      // the ACTION, and only the hub's own check runs BEFORE the payload becomes state.
-      expect(err.message).toMatch(/scan\.alert confirmPayload/)
-      expect(err.message).toMatch(/step is required/)
+      caught = err
     }
+
+    expect(caught, 'the malformed payload was accepted — nothing refused it').toBeInstanceOf(HubContractError)
+    // ⭐ THE CALL-SITE LABEL IS THE LOAD-BEARING HALF, and it is the only half that can tell the
+    // two validators apart. `HubConfirmSheet` validates on render too, so a payload this bad is
+    // refused either way — but the sheet's report is labelled `HubConfirmSheet` and fires only
+    // AFTER the payload has become state, while the hub's names the ACTION and fires before.
+    expect(caught.message).toMatch(/scan\.alert confirmPayload/)
+    expect(caught.message).toMatch(/step is required/)
     expect(sheetOpen(), 'a payload that fails its contract still opened a sheet').toBe(false)
   })
 })
