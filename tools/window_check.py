@@ -184,6 +184,36 @@ SENTINEL = "WINDOW-CHECK-SENTINEL"
 ROW_MARK = "| **mini-canary** |"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ⛔⛔ THE MINI-CANARY IS SUSPENDED. ONE SWITCH, AND IT IS THIS ONE.
+# ══════════════════════════════════════════════════════════════════════════════
+# Hard stop H1, streak run 1 against deploy #4c (2026-09-11T00:00:56Z, door
+# `folder`): the offline sentence was ABSENT from the server body, the note
+# forked from a single writer, and the note count moved. Owner's ruling: no
+# fourth fix that night — close cleanly, hand off, the flag does NOT flip.
+#
+# ⭐ SUSPENDED IS NOT DELETED. The fork detector and the offline-sentence check
+# stay defined, stay HARD REDS, and stay driven by `--self-check`. Re-arming is
+# flipping this ONE constant back to False — never rebuilding them. A suspension
+# that decays into a deletion is how a wave loses the instrument that found the
+# defect, and this instrument caught H1 on three separate occasions while the
+# step beside it read green every time.
+CANARY_SUSPENDED = True
+SUSPENSION_REASON = "mini-canary suspended pending self-fork round 3"
+
+# ⛔ ON EVERY ROW, AT THE TOP. A reader who needs it is not reading for pleasure.
+ROLLBACK_LINE = ("⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the "
+                 "Railway `web` service. It stops processing; it destroys nothing.")
+
+
+def canary_should_run(suspended: bool, no_canary_flag: bool) -> bool:
+    """⛔ Pure, so the suspension is driven rather than asserted about.
+
+    The SWITCH wins over the flag's absence: a scheduled task that forgets
+    `--no-canary` must still not write to the account while H1 is open.
+    """
+    return (not suspended) and (not no_canary_flag)
+
+# ══════════════════════════════════════════════════════════════════════════════
 # THE DOOR ROTATION — round 2's three metadata doors, one per run
 # ══════════════════════════════════════════════════════════════════════════════
 # ⛔ Folder, ticker and tags each move the server's `updatedAt` while saying
@@ -433,6 +463,13 @@ class Check:
             lines.append("")
         else:
             lines += [head, ""]
+        # ⛔ THE ROLLBACK LINE IS AT THE TOP OF EVERY ROW, findings or not.
+        lines += [ROLLBACK_LINE, ""]
+        if CANARY_SUSPENDED:
+            lines += [f"⛔ **{SUSPENSION_REASON}** — this row is READS ONLY: nothing was "
+                      "opted in, nothing was created on the account, not a single write. "
+                      "The fork detector and the offline-sentence check remain defined and "
+                      "remain hard reds; re-arming is one constant.", ""]
         lines += ["| | reading |", "|---|---|"]
         for r in self.reads:
             lines.append(f"| {r.name} | {r.render()} |")
@@ -449,6 +486,8 @@ class Check:
             ) + " |")
             for s in self.canary:
                 lines.append(f"| \u2003↳ {s.name} | {s.render()} |")
+        elif CANARY_SUSPENDED:
+            lines.append(f"{ROW_MARK} \u26d4 **{SUSPENSION_REASON}** |")
         else:
             lines.append("| **mini-canary** | \u2014 not run this pass |")
         lines.append("")
@@ -2194,6 +2233,38 @@ def self_check() -> int:
                   "profile = PROFILE if profile is None" in src_wc))
 
     # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE SUSPENSION — one switch, and SUSPENDED IS NOT DELETED.
+    # ══════════════════════════════════════════════════════════════════════════
+    cases.append(("⛔ the mini-canary is SUSPENDED — the switch is on",
+                  CANARY_SUSPENDED is True))
+    cases.append(("…and the switch alone stops it, even with no --no-canary flag",
+                  canary_should_run(True, False) is False))
+    cases.append(("…and `--no-canary` alone stops it too, switch off",
+                  canary_should_run(False, True) is False))
+    cases.append(("⭐ RE-ARMING IS THAT ONE CONSTANT — nothing else to rebuild",
+                  canary_should_run(False, False) is True))
+    _susp_row = Check(label="check 11", number=11).row()
+    cases.append(("every row carries the suspension note",
+                  SUSPENSION_REASON in _susp_row))
+    cases.append(("…and the ROLLBACK line sits at the TOP of the row",
+                  ROLLBACK_LINE in _susp_row
+                  and _susp_row.index(ROLLBACK_LINE) < _susp_row.index("| | reading |")))
+    _find_row = Check(label="t", findings=["something"]).row()
+    cases.append(("…on a FINDING row too — that reader needs it most",
+                  ROLLBACK_LINE in _find_row))
+    # ⛔ SUSPENDED IS NOT DELETED. Both hard reds must still be DEFINED, and the
+    # rails that drive them must still run — a suspension that quietly removes
+    # the instrument is how the next round goes unmeasured.
+    _wc_all = pathlib.Path(__file__).read_text(encoding="utf-8")
+    cases.append(("the FORK detector is still defined",
+                  'chk.step("5 no fork' + ' from a single writer"' in _wc_all))
+    cases.append(("the OFFLINE-SENTENCE check is still defined",
+                  "the server BODY CONTAINS THE OFFLINE SENTENCE" in _wc_all
+                  and "def offline_sentence" in _wc_all))
+    cases.append(("the note-count check is still defined",
+                  "5 note count moved by exactly this run's own note" in _wc_all))
+
+    # ══════════════════════════════════════════════════════════════════════════
     # ⭐ THE DOOR ROTATION — derived, varying, and DRIVEN.
     # ══════════════════════════════════════════════════════════════════════════
     cases.append(("the door is derived from the run's own number",
@@ -2477,6 +2548,18 @@ def self_check() -> int:
     cases.append(("CONTROL: that sweep can see a flag when one is there",
                   "--label" in _main_src))
 
+    # ⛔ LAST, so every case above exists to be counted: suspended is not deleted,
+    # and the three hard reds are still DRIVEN rather than merely present in the
+    # source. (Placed here because a sweep over `cases` from the middle of the
+    # function measures the cases written so far — which is not the question.)
+    _names = [n for n, _ in cases]
+    cases.append(("…and all three hard reds are still DRIVEN, not merely present",
+                  any("offline sentence is NOT in the server body" in n for n in _names)
+                  and any("a run that FORKS keeps BOTH halves" in n for n in _names)
+                  and any("a run that GAINS a note" in n for n in _names)))
+    cases.append(("CONTROL: that sweep can see a name that is NOT there",
+                  not any("a rail nobody wrote" in n for n in _names)))
+
     bad_ct = 0
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
@@ -2550,7 +2633,8 @@ def main() -> int:
     number = this_run_number()
     log_line(f"{label}: starting (row #{number}, door `{door_for(number)}`)")
     try:
-        chk = run_check(label, with_canary=not args.no_canary, number=number)
+        chk = run_check(label, with_canary=canary_should_run(CANARY_SUSPENDED, args.no_canary),
+                        number=number)
     except SystemExit as e:
         log_line(f"{label}: STOPPED — {e}")
         raise

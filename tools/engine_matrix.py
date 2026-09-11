@@ -1141,6 +1141,210 @@ def _ls_on_disk(profile: pathlib.Path, key: str) -> dict:
     return {"dir": str(d), "exists": True, "files": scanned, "hits": found}
 
 
+SENTINEL_PREFIX = "WINDOW-CHECK-SENTINEL"
+
+STORES_DUMP_JS = """async (acct) => {
+""" + w.OPEN_IF_EXISTS + """
+  const out = {db: 'uct_notebook_' + acct, stores: {}, rows: {}};
+  const h = await openIfExists('uct_notebook_' + acct);
+  if (h.missing)  return Object.assign(out, {missing: true});
+  if (h.phantom)  return Object.assign(out, {phantom: true});
+  for (const s of h.stores) {
+    const all = await new Promise(res => {
+      const t = h.db.transaction(s, 'readonly').objectStore(s).getAll();
+      t.onsuccess = () => res(t.result || []); t.onerror = () => res('ERR');
+    });
+    out.stores[s] = Array.isArray(all) ? all.length : all;
+    out.rows[s] = all;
+  }
+  return out;
+}"""
+
+
+def stores_dump(out_path: pathlib.Path | None = None) -> int:
+    """READ-ONLY: every row in the rig's per-account IndexedDB, verbatim.
+
+    ⛔ Rows left in these stores are the LOCAL half of a fork's evidence — the
+    server half is already in the record, and half a record is not a record. So
+    they are captured before anyone decides whether they may be cleared. Same
+    rule as the notes, one layer down.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"stores-dump-{stamp}.json")
+    rec = {"at": utc(), "mode": "stores-dump", "read_only": True, "writes": "none",
+           "profile": str(w.PROFILE), "account": ACCOUNT_ID,
+           "status": "INCOMPLETE — the dump did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            # ⛔ `/api/health` — JSON, no app code. The notebook is never mounted.
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            dump = page.evaluate(STORES_DUMP_JS, ACCOUNT_ID)
+    finally:
+        k, left, others, rel, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": k, "survivors": left, "lock_released": rel}
+    rec["dump"] = dump
+    rec["counts"] = dump.get("stores")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"stores: {rec['counts']}")
+    print(f"artifact: {out}")
+    return 0
+
+
+def notes_from_capture(cap: dict) -> dict:
+    """One note → one record. ⭐ ONE AUTHORITY, used by the CAPTURE and by the
+    gate that compares the record against the account before anything is removed.
+    If these were two functions they could disagree about what a note's words
+    are, and the disagreement would appear as "the record is not of this state"
+    — or worse, as a false match."""
+    notes = {}
+    for row in (cap.get("full") or []):
+        n = row.get("note")
+        if not isinstance(n, dict):
+            notes[row.get("id")] = {"error": row.get("error")}
+            continue
+        body = n.get("bodyJson")
+        text = doc_text(body)
+        # ⭐ `bodyPlain` is the server's own flattening. When bodyJson is absent
+        # (a list row rather than a full fetch) it is the only text there is —
+        # and when both exist, a disagreement between them is itself worth seeing.
+        plain = n.get("bodyPlain") if isinstance(n.get("bodyPlain"), str) else None
+        notes[n.get("id")] = {
+            "id": n.get("id"), "title": n.get("title"), "deleted": row.get("deleted"),
+            "deletedAt": n.get("deletedAt"), "note_from": row.get("note_from", "full GET"),
+            "updatedAt": n.get("updatedAt"), "createdAt": n.get("createdAt"),
+            "baseUpdatedAt": n.get("baseUpdatedAt"), "tags": n.get("tags") or [],
+            "other_fields": sorted(k for k in n.keys() if k not in ("bodyJson",)),
+            "body_text": text or (plain or ""),
+            "body_text_source": "bodyJson" if text else ("bodyPlain" if plain else "empty"),
+            "bodyPlain": plain, "bodyJson": body,
+        }
+    return notes
+
+
+def preserve_delete_set(capture: dict) -> list:
+    """Which notes a cleanup may remove: LIVE notes THIS TOOL MADE, identified by
+    the canary title prefix — and nothing else, ever.
+
+    ⛔⛔ NEAR MISS, 2026-09-10, caught by running the capture before the clean:
+    the first version of this also selected anything tagged `sync-conflict`, and
+    the account holds TWO SUCH NOTES THAT ARE THE OWNER'S — `To Do List` and
+    `To Do List (synced copy)`, created 2026-09-04, part of the 32-note baseline
+    and the pre-existing pair this wave was asked to identify, not to touch. The
+    cleanup would have soft-deleted a member's own notes to make a count come out
+    right. **A tag describes what happened to a note, never who made it.** Only
+    the title this tool wrote is evidence of authorship.
+
+    A TRASHED original stays trashed: the preservation ruling covers the trash.
+    """
+    out = []
+    for n in (capture.get("notes") or {}).values():
+        if not isinstance(n, dict) or n.get("deleted"):
+            continue
+        if (n.get("title") or "").startswith(SENTINEL_PREFIX):
+            out.append(n)
+    return sorted(out, key=lambda n: ((n.get("createdAt") or ""), (n.get("id") or "")))
+
+
+def clean_refusal(capture: dict, live_by_id: dict) -> str | None:
+    """⛔⛔ CAPTURE THEN CLEAN — MADE STRUCTURAL, NOT WRITTEN ABOVE THE DELETE.
+
+    A comment saying "capture first" is obeyed by whoever read it. This is asked
+    first and it REFUSES unless the record already holds the WORDS of every note
+    the cleanup would remove, exactly as they stand on the account right now.
+
+    ⭐ The last clause is the one that matters: a record of a DIFFERENT state is
+    not a record of this one. If a body moved between the capture and the clean,
+    something wrote to a preserved note and that is a finding, not a formality.
+    """
+    if not isinstance(capture, dict) or not capture.get("notes"):
+        return "no capture: nothing has been recorded, so nothing may be removed"
+    status = str(capture.get("status") or "")
+    if status.startswith(("INCOMPLETE", "STOPPED", "REFUSED")):
+        return f"the capture did not finish ({status!r}) — a partial record is not a record"
+    doomed = preserve_delete_set(capture)
+    if not doomed:
+        return "the capture names no live artifact to remove"
+    for n in doomed:
+        nid = n.get("id")
+        if not (n.get("body_text") or "").strip():
+            return f"the record holds NO WORDS for `{nid}` — capture it before removing it"
+        if nid not in live_by_id:
+            return f"`{nid}` is in the record but NOT live on the account — the record is not of this state"
+        if (live_by_id[nid].get("body_text") or "") != (n.get("body_text") or ""):
+            return f"`{nid}`'s body on the account differs from the record — the record is not of this state"
+    return None
+
+
+def baseline_verdict(expect: int, api: dict, rig: dict) -> tuple:
+    """Did the account come back to rest, measured TWO WAYS that can disagree?
+
+    ⛔ Nothing is averaged and nothing is preferred. The API way (an independent
+    context holding only the session cookie) answers "what does the server say".
+    The RIG way (its own profile and browser) answers "what does the machine that
+    runs the streak see". A disagreement is the finding.
+    """
+    reasons = []
+    a_total, r_total = api.get("notes_total"), rig.get("notes_total")
+    if a_total != expect:
+        reasons.append(f"API says **{a_total}** notes, expected **{expect}**")
+    if r_total != expect:
+        reasons.append(f"the rig's own read says **{r_total}** notes, expected **{expect}**")
+    if a_total != r_total:
+        reasons.append(f"⛔ THE TWO WAYS DISAGREE: API {a_total} vs rig {r_total}")
+    # ⛔⛔ AUTHORSHIP IS THE TITLE, NOT THE TAG — HERE TOO. The delete set learned
+    # this on 2026-09-10 (it nearly removed the owner's `To Do List` pair, which
+    # is tagged `sync-conflict` and belongs to the baseline). The VERDICT was left
+    # believing the tag, so it went red on those same two member notes and would
+    # have kept going red for ever — a permanent red is a muted red.
+    # ⭐ Fixing a check in one lane and leaving its mirror weaker is how the next
+    # false green gets built. Same rule, both lanes: a `sync-conflict` note THIS
+    # TOOL MADE is a defect; a member's own is expected, and is NAMED rather than
+    # counted, so it can never quietly become the reason a run reads clean.
+    for lab, d in (("API", api), ("rig", rig)):
+        if d.get("canary_notes"):
+            reasons.append(f"{lab}: {len(d['canary_notes'])} canary note(s) still live: {d['canary_notes']}")
+        ours = [t for t in (d.get("sync_conflict_notes") or [])
+                if str(t).startswith(SENTINEL_PREFIX)]
+        if ours:
+            reasons.append(f"{lab}: {len(ours)} `sync-conflict` note(s) THIS TOOL MADE still live: {ours}")
+    if rig.get("locks") != 0:
+        reasons.append(f"rig locks = {rig.get('locks')!r}, expected 0")
+    if rig.get("opt_in_key_in_browser") != "0":
+        reasons.append(f"rig opt-in key in browser = {rig.get('opt_in_key_in_browser')!r}, expected '0'")
+    if rig.get("opt_in_key_on_disk") != "0":
+        reasons.append(f"opt-in key ON DISK (Chrome dead) = {rig.get('opt_in_key_on_disk')!r}, expected '0'")
+    if not rig.get("stores_ok"):
+        reasons.append(f"stores: {rig.get('stores_text')}")
+    # ⛔ AND THE STORES MUST BE AT REST, NOT MERELY READABLE. `render_stores` says
+    # "ok" for a healthy DB whatever its row counts, so rows left behind by a run
+    # that PRESERVED its evidence would sail past it. They are named, never
+    # cleared here: local rows are the other half of a fork's evidence.
+    counts = rig.get("store_counts")
+    if isinstance(counts, dict):
+        rows = {k: v for k, v in counts.items() if isinstance(v, int) and v > 0}
+        if rows:
+            reasons.append(f"rig stores are NOT at rest: {rows} — rows from a run that "
+                           "kept its evidence; they are named, not cleared")
+    return (not reasons), reasons
+
+
 def capture_fork(out_path: pathlib.Path | None = None,
                  prefix: str = "WINDOW-CHECK-SENTINEL") -> int:
     from playwright.sync_api import sync_playwright
@@ -1216,28 +1420,7 @@ def capture_fork(out_path: pathlib.Path | None = None,
     rec["sync_conflict_notes"] = cap.get("conflicts")
     rec["sentinel_notes"] = cap.get("sentinels")
 
-    notes = {}
-    for row in cap.get("full") or []:
-        n = row.get("note")
-        if not isinstance(n, dict):
-            notes[row.get("id")] = {"error": row.get("error")}
-            continue
-        body = n.get("bodyJson")
-        text = doc_text(body)
-        # ⭐ `bodyPlain` is the server's own flattening. When bodyJson is absent
-        # (a list row rather than a full fetch) it is the only text there is —
-        # and when both exist, a disagreement between them is itself worth seeing.
-        plain = n.get("bodyPlain") if isinstance(n.get("bodyPlain"), str) else None
-        notes[n.get("id")] = {
-            "id": n.get("id"), "title": n.get("title"), "deleted": row.get("deleted"),
-            "deletedAt": n.get("deletedAt"), "note_from": row.get("note_from", "full GET"),
-            "updatedAt": n.get("updatedAt"), "createdAt": n.get("createdAt"),
-            "baseUpdatedAt": n.get("baseUpdatedAt"), "tags": n.get("tags") or [],
-            "other_fields": sorted(k for k in n.keys() if k not in ("bodyJson",)),
-            "body_text": text or (plain or ""),
-            "body_text_source": "bodyJson" if text else ("bodyPlain" if plain else "empty"),
-            "bodyPlain": plain, "bodyJson": body,
-        }
+    notes = notes_from_capture(cap)
     rec["notes"] = notes
 
     # ── 3. THE PAIRS, and the question that matters.
@@ -1393,11 +1576,418 @@ def capture_fork(out_path: pathlib.Path | None = None,
 # ═══ END OF THE READ-ONLY DRY RUN ════════════════════════════════════════════
 # ⛔ `--self-check`'s read-only sweep is bounded HERE, by name, not by "whatever
 # comes before `def main`". Everything ABOVE this line must contain no write of
-# any kind. `rig_opt_out` below is the ONE deliberate write this tool makes to
-# the rig profile, it is railed separately, and it only ever runs when asked.
+# any kind. The deliberate writers live BELOW, each railed separately, each run
+# only when asked: `rig_opt_out` (writes the opt-in key on the rig profile) and
+# `preserve_clean` (soft-deletes the preserved artifacts, and only after the
+# record already holds their words).
 # ⭐ The boundary is a sentinel rather than the next `def` so that reordering the
 # file cannot silently move it — the first version of this sweep swallowed
 # `rig_opt_out` the moment it was added, which is the rail working.
+
+
+STORE_KEY_PATHS = {"notes": "noteId", "meta": "name", "outbox": "id", "conflicts": "id"}
+
+STORES_CLEAR_JS = """async ({acct, plan}) => {
+""" + w.OPEN_IF_EXISTS + """
+  const out = {deleted: {}, remaining: {}, missing: []};
+  const h = await openIfExists('uct_notebook_' + acct);
+  if (h.missing || h.phantom) return Object.assign(out, {noDb: true});
+  for (const [store, keys] of Object.entries(plan)) {
+    if (!h.stores.includes(store)) { out.missing.push(store); continue }
+    const tx = h.db.transaction(store, 'readwrite');
+    const os = tx.objectStore(store);
+    // ⛔ BY KEY, one row at a time — never `os.clear()`. A row that arrived after
+    // the capture is not in the record, and clearing the store would destroy
+    // something nobody has read.
+    for (const k of keys) os.delete(k);
+    await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
+    out.deleted[store] = keys.length;
+  }
+  for (const s of h.stores) {
+    const all = await new Promise(res => {
+      const t = h.db.transaction(s, 'readonly').objectStore(s).getAll();
+      t.onsuccess = () => res(t.result || []); t.onerror = () => res('ERR');
+    });
+    out.remaining[s] = Array.isArray(all) ? all.length : all;
+  }
+  return out;
+}"""
+
+
+def clear_plan(dump: dict) -> dict:
+    """{store: [primary key, …]} — EXACTLY the rows the record holds."""
+    plan = {}
+    for store, rows in (((dump or {}).get("dump") or {}).get("rows") or {}).items():
+        kp = STORE_KEY_PATHS.get(store)
+        if not kp or not isinstance(rows, list):
+            continue
+        keys = [r.get(kp) for r in rows if isinstance(r, dict) and r.get(kp) is not None]
+        if keys:
+            plan[store] = keys
+    return plan
+
+
+def clear_refusal(dump: dict, live_counts: dict) -> str | None:
+    """⛔ CAPTURE THEN CLEAR — the same rule as the notes, one layer down.
+
+    The dump must be finished, must name rows, and the stores must hold EXACTLY
+    what it recorded. A count that moved since the capture means a row exists
+    that nobody has read, and clearing then destroys an unread artifact.
+    """
+    if not isinstance(dump, dict) or not dump.get("dump"):
+        return "no stores dump: nothing has been recorded, so nothing may be cleared"
+    if str(dump.get("status") or "").startswith(("INCOMPLETE", "STOPPED", "REFUSED")):
+        return f"the dump did not finish ({dump.get('status')!r}) — a partial record is not a record"
+    plan = clear_plan(dump)
+    if not plan:
+        return "the dump names no rows to clear"
+    recorded = dump.get("counts") or {}
+    for store, n in (live_counts or {}).items():
+        if not isinstance(n, int):
+            return f"store `{store}` could not be counted ({n!r})"
+        if n != recorded.get(store):
+            return (f"store `{store}` holds {n} row(s), the record has "
+                    f"{recorded.get(store)} — the record is not of this state")
+    return None
+
+
+def stores_clear(dump_path: pathlib.Path | None = None,
+                 out_path: pathlib.Path | None = None) -> int:
+    """Clear the captured IndexedDB rows from the rig — and ONLY those.
+
+    ⛔ The ONE write this tool makes to the rig profile's stores, and it refuses
+    unless a finished dump already holds every row it would remove.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"stores-clear-{stamp}.json")
+    rec = {"at": utc(), "mode": "stores-clear", "profile": str(w.PROFILE),
+           "account": ACCOUNT_ID, "status": "INCOMPLETE — the clear did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    d = dump_path
+    if d is None:
+        found = sorted((w.ROOT / ".worktrees" / "q1-dry-run").glob("stores-dump-*.json"))
+        d = found[-1] if found else None
+    if d is None or not pathlib.Path(d).exists():
+        _write_json(out, dict(rec, status="REFUSED — no stores dump on disk"))
+        print("⛔ REFUSED: no stores dump — capture the rows before clearing them")
+        return 1
+    dump = json.loads(pathlib.Path(d).read_text(encoding="utf-8"))
+    plan = clear_plan(dump)
+    rec["dump_file"], rec["dump_at"], rec["plan"] = str(d), dump.get("at"), plan
+    print(f"record: {pathlib.Path(d).name} ({dump.get('at')}) — "
+          f"{sum(len(v) for v in plan.values())} row(s) across {len(plan)} store(s)")
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            before = page.evaluate(STORES_DUMP_JS, ACCOUNT_ID)
+            rec["counts_before"] = before.get("stores")
+            refusal = clear_refusal(dump, before.get("stores") or {})
+            rec["gate"] = refusal or "PASSED — the record holds every row to be cleared"
+            if refusal:
+                _write_json(out, dict(rec, status=f"REFUSED — {refusal}"))
+                print(f"⛔ REFUSED: {refusal}")
+                return 1
+            res = page.evaluate(STORES_CLEAR_JS, {"acct": ACCOUNT_ID, "plan": plan})
+            rec["cleared"] = res.get("deleted")
+            rec["counts_after"] = res.get("remaining")
+            rec["missing_stores"] = res.get("missing")
+            rec["rig_after"] = _rig_read(page)
+    finally:
+        k, left, others, rel, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": k, "survivors": left, "lock_released": rel,
+                               "untouched_browsers": others}
+    disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["opt_in_key_on_disk"] = disk.get("value")
+    counts = rec.get("counts_after") or {}
+    at_rest = bool(counts) and all(v == 0 for v in counts.values())
+    rec["stores_at_rest"] = at_rest
+    rec["status"] = "COMPLETE" if at_rest else "⛔ STORES STILL NOT AT REST"
+    _write_json(out, rec)
+    print(f"cleared: {rec['cleared']}")
+    print(f"stores after: {counts}")
+    print(f"locks {rec['rig_after'].get('locks')} · key in-browser "
+          f"{rec['rig_after'].get('opt_in_key_in_browser')!r} · on disk {disk.get('value')!r}")
+    print(f"VERDICT: {'✅ STORES AT REST' if at_rest else '⛔ rows remain'}")
+    print(f"artifact: {out}")
+    return 0 if at_rest else 1
+
+
+def preserve_clean(capture_path: pathlib.Path | None = None,
+                   out_path: pathlib.Path | None = None,
+                   expect_notes: int = 32,
+                   prefix: str = SENTINEL_PREFIX) -> int:
+    """CAPTURE THEN CLEAN — and the order is enforced, not remembered.
+
+    ⛔⛔ This refuses to delete anything unless a finished capture on disk already
+    holds the WORDS of every note it would remove, matching the account as it
+    stands right now (`clean_refusal`). The evidence outlives the artifact, or the
+    artifact outlives the run.
+
+    ⭐ THE RIG NEVER WRITES HERE. It is opened twice, purely to read — its own
+    state, and its own cookie — and the deletes go through a FRESH context that
+    holds nothing but that cookie. The streak runs on that profile next; this job
+    hands it back in the state it read it in, minus nothing.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"preserve-clean-{stamp}.json")
+    rec = {"at": utc(), "mode": "preserve-clean", "origin": PROD,
+           "profile": str(w.PROFILE), "expect_notes": expect_notes,
+           "status": "INCOMPLETE — the cleanup did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    # ── 0. THE RECORD FIRST. No capture, no cleanup.
+    cap_dir = w.ROOT / ".worktrees" / "q1-dry-run"
+    cap_path = capture_path
+    if cap_path is None:
+        found = sorted(cap_dir.glob("fork-capture-*.json"))
+        cap_path = found[-1] if found else None
+    if cap_path is None or not pathlib.Path(cap_path).exists():
+        _write_json(out, dict(rec, status="REFUSED — no capture artifact on disk"))
+        print("⛔ REFUSED: no capture artifact — capture the notes before removing them")
+        return 1
+    capture = json.loads(pathlib.Path(cap_path).read_text(encoding="utf-8"))
+    rec["capture_file"] = str(cap_path)
+    rec["capture_at"] = capture.get("at")
+    doomed = preserve_delete_set(capture)
+    rec["would_remove"] = [{k: n.get(k) for k in ("id", "title", "createdAt", "updatedAt", "tags")}
+                           for n in doomed]
+    print(f"record: {cap_path.name} ({capture.get('at')}) — names {len(doomed)} live artifact(s)")
+
+    # ── 1. THE RIG, READ-ONLY, TWICE. First pass: its state before, and the cookie.
+    cookie = None
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            # ⛔ `/api/health` — a JSON document on the same origin. It runs NO app
+            # code, so the notebook is never mounted and nothing can drain.
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            rec["rig_before"] = _rig_read(page)
+            for c in ctx.cookies():
+                if c["name"] == "uct_session":
+                    cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                "httpOnly", "secure", "sameSite") if k in c}
+                    break
+    finally:
+        k1, left1, others1, rel1, held1 = w.teardown(None)
+        rec["rig_teardown_1"] = {"killed": k1, "survivors": left1, "lock_released": rel1}
+    if cookie is None:
+        _write_json(out, dict(rec, status="STOPPED — no session cookie in the rig profile"))
+        print("⛔ no session cookie in the rig profile")
+        return 1
+
+    # ── 2. THE GATE, THEN THE DELETES — from a FRESH context holding only the
+    #      cookie. The rig's profile is not involved in any write.
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(headless=True)
+        c = br.new_context()
+        c.add_cookies([cookie])
+        p = c.new_page()
+        p.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        p.wait_for_timeout(1500)
+
+        before = p.evaluate(CAPTURE_JS, prefix)
+        live_by_id = {i: n for i, n in notes_from_capture(before).items()
+                      if isinstance(n, dict) and not n.get("deleted")}
+        rec["api_before"] = _api_read(before)
+        refusal = clean_refusal(capture, live_by_id)
+        rec["gate"] = refusal or "PASSED — the record holds the words of every note to be removed"
+        if refusal:
+            c.close(); br.close()
+            _write_json(out, dict(rec, status=f"REFUSED — {refusal}"))
+            print(f"⛔ REFUSED: {refusal}")
+            return 1
+        print(f"gate PASSED — removing {len(doomed)} note(s)")
+
+        removed = []
+        for n in doomed:
+            r = p.evaluate("""async (id) => {
+                const x = await fetch('/api/j2/notes/' + id, {method:'DELETE', credentials:'include'});
+                return {status: x.status};
+            }""", n["id"])
+            removed.append({"id": n["id"], "title": n.get("title"), "status": r.get("status")})
+            print(f"  soft-deleted {n['id']} → {r.get('status')}")
+        rec["removed"] = removed
+        p.wait_for_timeout(2000)
+        after = p.evaluate(CAPTURE_JS, prefix)
+        rec["api_after"] = _api_read(after)
+        c.close()
+        br.close()
+
+    # ── 3. WAY 2 IS IN. NOW WAY 1: the rig's own read, on its own profile.
+    try:
+        proc, endpoint, version = w.spawn_rig()
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            rec["rig_after"] = _rig_read(page)
+    finally:
+        k2, left2, others2, rel2, held2 = w.teardown(None)
+        rec["rig_teardown_2"] = {"killed": k2, "survivors": left2, "lock_released": rel2,
+                                 "untouched_browsers": others2}
+
+    # ⛔ THE ONLY INSTRUMENT THAT CAN DISAGREE WITH THE BROWSER — read with Chrome
+    # dead, so it is the durable value the streak will actually start from.
+    disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["rig_after"]["opt_in_key_on_disk"] = disk.get("value")
+    rec["opt_in_key_on_disk_detail"] = {"appends": disk.get("appends"),
+                                        "tail": (disk.get("sequence") or "")[-12:]}
+
+    ok, reasons = baseline_verdict(expect_notes, rec["api_after"], rec["rig_after"])
+    rec["baseline_ok"] = ok
+    rec["baseline_reasons"] = reasons
+    rec["lock_released"] = bool(rel2)
+    rec["status"] = "COMPLETE" if ok else "⛔ BASELINE NOT PROVEN"
+    _write_json(out, rec)
+
+    print(f"\nAPI  : notes {rec['api_after'].get('notes_total')} · canary "
+          f"{len(rec['api_after'].get('canary_notes') or [])} · sync-conflict "
+          f"{len(rec['api_after'].get('sync_conflict_notes') or [])}")
+    print(f"RIG  : notes {rec['rig_after'].get('notes_total')} · locks "
+          f"{rec['rig_after'].get('locks')} · key in-browser "
+          f"{rec['rig_after'].get('opt_in_key_in_browser')!r} · on disk "
+          f"{rec['rig_after'].get('opt_in_key_on_disk')!r}")
+    print(f"       stores: {rec['rig_after'].get('stores_text')}")
+    print(f"VERDICT: {'✅ BASELINE PROVEN BOTH WAYS' if ok else '⛔ ' + ' · '.join(reasons)}")
+    print(f"artifact: {out}")
+    return 0 if ok else 1
+
+
+def verify_baseline(out_path: pathlib.Path | None = None,
+                    expect_notes: int = 32,
+                    prefix: str = SENTINEL_PREFIX) -> int:
+    """The two-way baseline proof, READ-ONLY — no capture, no deletes, no writes.
+
+    ⭐ The same two readings and the SAME verdict function the cleanup uses, so a
+    re-check can never be a friendlier instrument than the one that ran first.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"baseline-{stamp}.json")
+    rec = {"at": utc(), "mode": "verify-baseline", "read_only": True, "writes": "none",
+           "origin": PROD, "profile": str(w.PROFILE), "expect_notes": expect_notes,
+           "status": "INCOMPLETE — the verification did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    cookie = None
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            rec["rig"] = _rig_read(page)
+            for c in ctx.cookies():
+                if c["name"] == "uct_session":
+                    cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                "httpOnly", "secure", "sameSite") if k in c}
+                    break
+    finally:
+        k, left, others, rel, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": k, "survivors": left, "lock_released": rel,
+                               "untouched_browsers": others}
+    if cookie is None:
+        _write_json(out, dict(rec, status="STOPPED — no session cookie in the rig profile"))
+        return 1
+
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(headless=True)
+        c = br.new_context()
+        c.add_cookies([cookie])
+        p = c.new_page()
+        p.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        p.wait_for_timeout(1500)
+        rec["api"] = _api_read(p.evaluate(CAPTURE_JS, prefix))
+        c.close()
+        br.close()
+
+    disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["rig"]["opt_in_key_on_disk"] = disk.get("value")
+    ok, reasons = baseline_verdict(expect_notes, rec["api"], rec["rig"])
+    rec["baseline_ok"], rec["baseline_reasons"] = ok, reasons
+    rec["status"] = "COMPLETE" if ok else "⛔ BASELINE NOT PROVEN"
+    _write_json(out, rec)
+    print(f"API  : notes {rec['api'].get('notes_total')} · canary "
+          f"{len(rec['api'].get('canary_notes') or [])} · sync-conflict titles "
+          f"{rec['api'].get('sync_conflict_notes')}")
+    print(f"RIG  : notes {rec['rig'].get('notes_total')} · locks {rec['rig'].get('locks')} · "
+          f"key in-browser {rec['rig'].get('opt_in_key_in_browser')!r} · on disk "
+          f"{rec['rig'].get('opt_in_key_on_disk')!r}")
+    print(f"       stores: {rec['rig'].get('store_counts')}")
+    print(f"VERDICT: {'✅ BASELINE PROVEN BOTH WAYS' if ok else '⛔ ' + ' · '.join(reasons)}")
+    print(f"artifact: {out}")
+    return 0 if ok else 1
+
+
+def _rig_read(page) -> dict:
+    """The rig's own read: its stores, its locks, its opt-in key."""
+    st = page.evaluate(w.STATE_JS, ACCOUNT_ID)
+    nt = page.evaluate(w.NOTES_JS)
+    stores_ok, stores_text = w.render_stores(st)
+    return {"notes_total": nt.get("total") if isinstance(nt, dict) else None,
+            "canary_notes": (nt.get("canary") if isinstance(nt, dict) else None) or [],
+            "sync_conflict_notes": (nt.get("conflicts") if isinstance(nt, dict) else None) or [],
+            "locks": st.get("locks"), "held": st.get("held"),
+            "opt_in_key_in_browser": st.get("optInKey"),
+            "stores_ok": stores_ok, "stores_text": stores_text,
+            "store_counts": st.get("stores"), "store_names": st.get("storeNames")}
+
+
+def _api_read(cap: dict) -> dict:
+    """The API way: what the server says, from a context holding only the cookie."""
+    return {"notes_total": cap.get("total"), "trashed_total": cap.get("trashed_total"),
+            "list_error": cap.get("list_error"), "trash_error": cap.get("trash_error"),
+            "canary_notes": [n.get("title") for n in (cap.get("sentinels") or [])
+                             if not n.get("deleted")],
+            "sync_conflict_notes": [n.get("title") for n in (cap.get("conflicts") or [])
+                                    if not n.get("deleted")]}
 
 
 PROBE_KEY = "uct.q1.rigprobe.flush"
@@ -2207,6 +2797,29 @@ def main() -> int:
     ap.add_argument("--rig-opt-out", action="store_true",
                     help="record the rig profile's opt-in key, then restore it to '0' "
                          "(the only write this tool makes to that profile)")
+    ap.add_argument("--preserve-clean", action="store_true",
+                    help="soft-delete the preserved canary artifacts and prove the "
+                         "baseline TWO WAYS. ⛔ REFUSES unless a finished capture on "
+                         "disk already holds the words of every note it would remove.")
+    ap.add_argument("--stores-clear", action="store_true",
+                    help="clear the CAPTURED IndexedDB rows from the rig, by primary "
+                         "key. ⛔ REFUSES unless a finished stores dump already holds "
+                         "every row it would remove, and the stores still match it.")
+    ap.add_argument("--dump", default=None,
+                    help="the stores dump --stores-clear must answer to "
+                         "(default: the newest stores-dump-*.json)")
+    ap.add_argument("--stores-dump", action="store_true",
+                    help="READ-ONLY: dump every row in the rig's per-account "
+                         "IndexedDB — the LOCAL half of a fork's evidence.")
+    ap.add_argument("--verify-baseline", action="store_true",
+                    help="READ-ONLY: prove the baseline TWO WAYS (API from an "
+                         "independent context; the rig's own stores/locks/key + the "
+                         "on-disk key with Chrome dead). No capture, no deletes.")
+    ap.add_argument("--capture", default=None,
+                    help="the capture artifact --preserve-clean must answer to "
+                         "(default: the newest fork-capture-*.json)")
+    ap.add_argument("--expect-notes", type=int, default=32,
+                    help="the baseline note count --preserve-clean must land on")
     ap.add_argument("--out", default=None, help="where the results file goes")
     ap.add_argument("--profile", default=None,
                     help=f"absolute path to THE chromium rig profile (or ${w.PROFILE_ENV})")
@@ -2227,6 +2840,16 @@ def main() -> int:
     _out = pathlib.Path(args.out).resolve() if args.out else None
     if args.capture_fork:
         return capture_fork(_out)
+    if args.stores_clear:
+        return stores_clear(pathlib.Path(args.dump).resolve() if args.dump else None, _out)
+    if args.stores_dump:
+        return stores_dump(_out)
+    if args.verify_baseline:
+        return verify_baseline(_out, expect_notes=args.expect_notes)
+    if args.preserve_clean:
+        return preserve_clean(
+            pathlib.Path(args.capture).resolve() if args.capture else None,
+            _out, expect_notes=args.expect_notes)
     if args.flush_probe:
         return flush_probe(_out)
     if args.mount_probe:
@@ -2464,6 +3087,131 @@ def self_check() -> int:
     ]
 
     # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ CAPTURE THEN CLEAN — the ORDER is structural, and here it is driven.
+    # A preserved artifact may only be removed once the record holds its words,
+    # AS THEY STAND ON THE ACCOUNT. Every refusal below is a way the record could
+    # be of a different state than the one about to be deleted.
+    # ══════════════════════════════════════════════════════════════════════════
+    def _cap(*notes, status="COMPLETE"):
+        return {"status": status, "notes": {n["id"]: n for n in notes}}
+
+    _fork = {"id": "f1", "title": SENTINEL_PREFIX + " x (conflicted copy)", "deleted": False,
+             "tags": ["sync-conflict"], "createdAt": "T1", "body_text": "the member's words"}
+    _orig = {"id": "o1", "title": SENTINEL_PREFIX + " x", "deleted": False,
+             "tags": [], "createdAt": "T0", "body_text": "the member's words"}
+    _trashed = {"id": "t1", "title": SENTINEL_PREFIX + " old", "deleted": True,
+                "tags": [], "createdAt": "T-1", "body_text": "an older run"}
+    # ⛔⛔ THE OWNER'S OWN NOTES, verbatim from the account (created 2026-09-04).
+    # They are tagged `sync-conflict` and they are part of the 32-note baseline.
+    # The first version of the delete set selected by TAG and would have removed
+    # them. This case is that near miss, driven.
+    _member_a = {"id": "a09fc55abc024cfabc067f502ad13aa0", "title": "To Do List",
+                 "deleted": False, "tags": ["sync-conflict"], "createdAt": "2026-09-04T17:58:00+00:00",
+                 "body_text": "the owner's own words"}
+    _member_b = {"id": "ff547947888e45579a86a9ab81be4894", "title": "To Do List (synced copy)",
+                 "deleted": False, "tags": ["sync-conflict"], "createdAt": "2026-09-04T17:58:00+00:00",
+                 "body_text": "the owner's own words"}
+    _live = {"f1": _fork, "o1": _orig}
+    cases += [
+        ("the delete set is the LIVE artifacts, in creation order",
+         [n["id"] for n in preserve_delete_set(_cap(_fork, _orig, _trashed))] == ["o1", "f1"]),
+        ("⛔⛔ a MEMBER note tagged `sync-conflict` is NEVER in the delete set",
+         preserve_delete_set(_cap(_member_a, _member_b)) == []),
+        ("…and it is excluded even standing beside real artifacts",
+         [n["id"] for n in preserve_delete_set(_cap(_fork, _orig, _member_a, _member_b))]
+         == ["o1", "f1"]),
+        ("…because authorship is the TITLE THIS TOOL WROTE, never a tag",
+         all((n.get("title") or "").startswith(SENTINEL_PREFIX)
+             for n in preserve_delete_set(_cap(_fork, _orig, _member_a, _member_b)))),
+        ("⛔ a TRASHED original is never in the delete set (preservation covers the trash)",
+         "t1" not in [n["id"] for n in preserve_delete_set(_cap(_fork, _orig, _trashed))]),
+        ("the gate PASSES when the record matches the account",
+         clean_refusal(_cap(_fork, _orig), _live) is None),
+        ("⛔ REFUSES with no capture at all",
+         "no capture" in (clean_refusal({}, _live) or "")),
+        ("⛔ REFUSES on an UNFINISHED capture — a partial record is not a record",
+         "did not finish" in (clean_refusal(_cap(_fork, status="INCOMPLETE — x"), _live) or "")),
+        ("⛔ REFUSES when the record holds no WORDS for a note it would remove",
+         "NO WORDS" in (clean_refusal(_cap(dict(_fork, body_text="  "), _orig), _live) or "")),
+        ("⛔ REFUSES when a recorded note is no longer live on the account",
+         "NOT live on the account" in (clean_refusal(_cap(_fork, _orig), {"o1": _orig}) or "")),
+        ("⛔ REFUSES when the body MOVED between the capture and the clean",
+         "differs from the record" in (clean_refusal(
+             _cap(_fork, _orig), {"f1": dict(_fork, body_text="something else"), "o1": _orig}) or "")),
+        ("⛔ REFUSES when the capture names nothing live to remove",
+         "names no live artifact" in (clean_refusal(_cap(_trashed), _live) or "")),
+    ]
+
+    # THE BASELINE, PROVEN TWO WAYS — and a disagreement is the finding.
+    _good_api = {"notes_total": 32, "canary_notes": [], "sync_conflict_notes": []}
+    _good_rig = {"notes_total": 32, "canary_notes": [], "sync_conflict_notes": [], "locks": 0,
+                 "opt_in_key_in_browser": "0", "opt_in_key_on_disk": "0",
+                 "stores_ok": True, "stores_text": "all zero"}
+    cases += [
+        ("the baseline passes only when BOTH ways agree at the expected count",
+         baseline_verdict(32, _good_api, _good_rig)[0]),
+        ("⛔ the two ways DISAGREEING is itself the finding",
+         "THE TWO WAYS DISAGREE" in " ".join(
+             baseline_verdict(32, _good_api, dict(_good_rig, notes_total=33))[1])),
+        ("⛔ a leftover canary note fails it, named",
+         not baseline_verdict(32, dict(_good_api, canary_notes=["WINDOW-CHECK-SENTINEL z"]),
+                              _good_rig)[0]),
+        # ⛔⛔ THE MIRROR OF THE DELETE-SET RULE. The owner's `To Do List` pair is
+        # tagged `sync-conflict` and lives in the baseline for ever; a verdict that
+        # reds on the TAG is red for ever, and a permanent red is a muted red.
+        ("⛔⛔ the owner's `sync-conflict` notes do NOT fail the baseline",
+         baseline_verdict(32, dict(_good_api, sync_conflict_notes=[
+             "To Do List", "To Do List (synced copy)"]), _good_rig)[0]),
+        ("…while a `sync-conflict` note THIS TOOL made does, by name",
+         "THIS TOOL MADE" in " ".join(baseline_verdict(32, dict(
+             _good_api, sync_conflict_notes=["To Do List",
+                                             SENTINEL_PREFIX + " z (conflicted copy)"]),
+             _good_rig)[1])),
+        ("⛔ store ROWS left behind fail it, and are named not cleared",
+         "NOT at rest" in " ".join(baseline_verdict(32, _good_api, dict(
+             _good_rig, store_counts={"notes": 1, "meta": 2, "outbox": 0}))[1])),
+        ("CONTROL: all-zero stores pass",
+         baseline_verdict(32, _good_api, dict(_good_rig, store_counts={
+             "notes": 0, "meta": 0, "outbox": 0, "conflicts": 0}))[0]),
+        ("⛔ a held lock fails it", not baseline_verdict(32, _good_api, dict(_good_rig, locks=1))[0]),
+        ("⛔ the opt-in key ON DISK is checked, not just in the browser",
+         not baseline_verdict(32, _good_api, dict(_good_rig, opt_in_key_on_disk="1"))[0]),
+        ("⛔ stores that are not at rest fail it",
+         not baseline_verdict(32, _good_api, dict(_good_rig, stores_ok=False))[0]),
+        ("the expected count is a PARAMETER, never a number typed into the verdict",
+         baseline_verdict(34, dict(_good_api, notes_total=34),
+                          dict(_good_rig, notes_total=34))[0]),
+    ]
+    cases.append(("the rig is only ever READ by the cleanup — the deletes use a fresh context",
+                  "THE RIG NEVER WRITES HERE" in src))
+
+    # ⛔⛔ CAPTURE THEN CLEAR — the notes rule, one layer down, driven.
+    _clear_code = "\n".join(l for l in STORES_CLEAR_JS.splitlines()
+                            if not l.strip().startswith("//"))
+    _dump = {"status": "COMPLETE", "counts": {"notes": 1, "meta": 2, "outbox": 0},
+             "dump": {"rows": {"notes": [{"noteId": "n1"}],
+                               "meta": [{"name": "inflight:n1"}, {"name": "landed:n1"}],
+                               "outbox": []}}}
+    cases += [
+        ("the clear plan names rows by PRIMARY KEY, never a whole store",
+         clear_plan(_dump) == {"notes": ["n1"], "meta": ["inflight:n1", "landed:n1"]}),
+        # ⚠️ COMMENTS STRIPPED — for the THIRD time tonight the first version of a
+        # sweep matched the comment that EXPLAINS the property (here, the line
+        # saying "never `os.clear()`"). Prose about a defect is not the defect.
+        ("…and it never uses a blanket store clear",
+         ".clear()" not in _clear_code and "os.delete(k)" in _clear_code),
+        ("the gate PASSES when the stores still match the record",
+         clear_refusal(_dump, {"notes": 1, "meta": 2, "outbox": 0}) is None),
+        ("⛔ REFUSES with no dump at all", "no stores dump" in (clear_refusal({}, {}) or "")),
+        ("⛔ REFUSES on an unfinished dump",
+         "did not finish" in (clear_refusal(dict(_dump, status="INCOMPLETE — x"), {}) or "")),
+        ("⛔ REFUSES when a store gained a row since the capture",
+         "not of this state" in (clear_refusal(_dump, {"notes": 2, "meta": 2, "outbox": 0}) or "")),
+        ("⛔ REFUSES when a store could not be counted",
+         "could not be counted" in (clear_refusal(_dump, {"notes": "ERR"}) or "")),
+    ]
+
+    # ══════════════════════════════════════════════════════════════════════════
     # THE PROFILE-PATH OVERRIDE. ⛔ The bug it exists for: the default resolves
     # against THIS COPY's repo root, so a second worktree points both rigs at its
     # own empty `.worktrees/` — and an empty profile is a signed-out one.
@@ -2553,6 +3301,14 @@ def self_check() -> int:
     # before `def main`") swallowed `rig_opt_out` the moment it was written.
     cases.append(("the read-only region is bounded by a named sentinel",
                   "END OF THE READ-ONLY DRY RUN" in src and "def rig_opt_out" not in dry_src))
+    # ⛔ The SECOND deliberate writer, held to the same boundary — and it must be
+    # in the file at all, or the first half of this case passes vacuously.
+    cases.append(("`preserve_clean` is OUTSIDE the read-only region too",
+                  "def preserve_clean" in src and "def preserve_clean" not in dry_src))
+    cases.append(("CONTROL: the region sweep can see a def that IS inside it",
+                  "def capture_fork" in dry_src))
+    cases.append(("`stores_clear` is OUTSIDE the read-only region too",
+                  "def stores_clear" in src and "def stores_clear" not in dry_src))
     opt_src = src.split("def rig_opt_out", 1)[1].split("\ndef _row", 1)[0]
     cases.append(("the ONE deliberate write is the flag key, and nothing else",
                   opt_src.count("localStorage.setItem") == opt_src.count("(k, '0')")))
