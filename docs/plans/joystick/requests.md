@@ -4,6 +4,37 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## FINAL STATE — Increment 7 (BACKLOG ZERO)
+
+Every request gets a verdict. **These were MEASURED against shipped code, not read off the
+status lines below** — most of those lines are stale, because the request was resolved in a
+later increment and nobody came back to amend the section. Where a section's `Status:` and
+this table disagree, **this table is the authority and the section is history**.
+
+| # | Final state | Evidence |
+|---|---|---|
+| R-01 | **CLOSED — OUTSIDE OWNER.** Options Flow's `of-tip` hook, Ravi's file. Its own line says "**Blocking the hub:** no", and `OptionsFlow.jsx` is a hard no for this build. | section header |
+| R-02 | **CLOSED — resolved, no request needed.** | its own status line |
+| R-03 | **CLOSED — RESOLVED.** Orb gated, hub owns the corner. | `App.jsx:207`, `hub/useHubActive.js` |
+| R-04 (suite failures) | **CLOSED — SUPERSEDED.** "Seven standing suite failures" is now owned by `gate-baseline.json`, which is re-measured every run, carries its own provenance caveat, and has since both ADDED a row master introduced and REMOVED two master fixed. A frozen list of seven was the wrong instrument; the living baseline is the right one. | `docs/plans/joystick/gate-baseline.json` |
+| R-04 (reachable) | **CLOSED — RESOLVED.** | `reachable.test.js` AWAITING_A_DECISION |
+| R-05 | **CLOSED — RESOLVED.** `onScrub(ctx, scrub)` is the one mounted shape, and the arity is pinned by a rail that reads the real call site. | `hub/contractArity.test.js` |
+| R-06 | **CLOSED — RESOLVED.** `scrubReadout` is a real `useMemo` and is passed to the chip; it is no longer hard-coded `null`, so every section's `readout()` reaches a member. | `HubRoot.jsx:299`, `:481` |
+| R-07 | **CLOSED — RESOLVED.** The hub's two `AWAITING_A_DECISION` entries are gone; the entries remaining in that file are the cockpit-retirement set and belong to another workstream. | `reachable.test.js:279+` |
+| R-08 | **CLOSED — BLOCKED.** `PUT /api/j2/positions/{id}` is an `api/` file. The Railway `worker` service's live watch list is `['/api/**', …]`, so any `api/` edit redeploys `worker`. Not this increment's to touch. | `railway status --json` |
+| R-09 | **CLOSED — RESOLVED.** `run` and `confirm` are dispatched. | `HubRoot.jsx:171`, `:186` |
+| R-11 | **CLOSED — BLOCKED + OUTSIDE OWNER.** `OptionsBoard.jsx` lives under `app/src/pages/journal-2-0/**`, which this build does not edit; the request itself names Journal 2.0 as owner and says "**Blocking:** no". | file path; section header |
+| R-12 | **CLOSED — informational.** "Owner: none — informational, recorded so the plan line…" | its own header |
+| R-13 | **CLOSED — RESOLVED.** The scan picker ships through the page's own seam: `ScannerShell` supplies `onOpenScans`, and `screenerSection` pushes the action **only** when a seam exists — absent, never present-and-inert. | `ScannerShell.jsx:201`, `screenerSection.js:312-318` |
+| R-15 | **CLOSED — RESOLVED.** The cursor row is painted in all three renderers. | `VirtualResults.jsx:38`, `ResultCards.jsx:17` |
+| R-16 | **CLOSED — RESOLVED.** `planTrade` is `kind:'run'`, so Plan trade opens ONE sheet. | `registry.js:159-172` |
+| R-18 | **CLOSED — RESOLVED.** `data-note-card-id` carries note identity, with its own rail. | `hub/noteCardIdentity.test.jsx` |
+
+The remaining rows — **R-10, R-14, R-17, R-19** — were closed by Increment 7's own work; their
+verdicts are recorded in the closure report beside the commits that closed them.
+
+---
+
 ## R-19 — `notebook.templates` needs a picker, and the confirm sheet cannot carry one
 
 **Status:** filed 2026-09-10, DEFERRED by the same reasoning as R-17. · **Owner:** this build, once
