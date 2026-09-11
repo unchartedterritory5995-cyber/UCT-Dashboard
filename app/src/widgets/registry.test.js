@@ -10,6 +10,8 @@
 //
 // If a value here needs to change, change it in registry.js and update the
 // pin here to match — this test exists to make that a DECISION, not a drift.
+import { readFileSync, existsSync } from 'node:fs'
+import { join, dirname } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
   WIDGET_REGISTRY,
@@ -33,12 +35,13 @@ import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
+  'indexes', 'marketcontext',
   'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow',
   'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
 ]
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 18 workspace widget types, in menu order', () => {
+  it('registers exactly the 20 workspace widget types, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -46,6 +49,7 @@ describe('widget registry — metadata pins', () => {
     expect(labelMap('header')).toEqual({
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
+      indexes: 'Indexes', marketcontext: 'Market Context',
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
@@ -57,6 +61,7 @@ describe('widget registry — metadata pins', () => {
     expect(labelMap('menu')).toEqual({
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Theme Tracker',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
+      indexes: 'Indexes', marketcontext: 'Market Context',
       aisearch: 'AI Search', news: 'News & Catalysts', notebook: 'Notebook', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
@@ -68,6 +73,7 @@ describe('widget registry — metadata pins', () => {
     expect(labelMap('tab')).toEqual({
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
+      indexes: 'Indexes', marketcontext: 'Context',
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
@@ -84,6 +90,8 @@ describe('widget registry — metadata pins', () => {
       scanner:      { w: 8,  h: 10, minW: 2, minH: 4 },
       fundamentals: { w: 8,  h: 4,  minW: 6, minH: 2 },
       breadth:      { w: 8,  h: 10, minW: 4, minH: 4 },
+      indexes:      { w: 6,  h: 6,  minW: 3, minH: 3 },
+      marketcontext:{ w: 5,  h: 8,  minW: 3, minH: 4 },
       aisearch:     { w: 7,  h: 10, minW: 3, minH: 3 },
       news:         { w: 6,  h: 10, minW: 2, minH: 4 },
       notebook:     { w: 5,  h: 11, minW: 3, minH: 5 },
@@ -114,6 +122,7 @@ describe('widget registry — metadata pins', () => {
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
     expect(WORKSPACE_MENU_TYPES).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
+      'indexes', 'marketcontext',
       'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
     ])
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
@@ -179,7 +188,13 @@ describe('widget registry — workspace host bindings', () => {
     const SPECIAL = {
       chart: ['chartId', 'color', 'onOptsChange', 'opts'],
       themes: ['color', 'onOptsChange', 'opts'],
+      // The market-wide readings take no `color`: they have no symbol, so a
+      // color group would be a link to nothing (the breadth prop shape).
       breadth: ['onOptsChange', 'opts'],
+      indexes: ['onOptsChange', 'opts'],
+      // …and market context takes NOTHING: no symbol and no per-widget
+      // options today (the aisearch idiom — a widget receives what it uses).
+      marketcontext: [],
       aisearch: ['color'],
     }
     const DEFAULT_SHAPE = ['color', 'onOptsChange', 'opts']
@@ -212,6 +227,23 @@ const CAPTURE_FIXTURES = {
   scanner: { scanKey: 'top-gainers-30d', scanName: 'Top Gainers (30d)', settings: { bg: '#111' }, cols: { order: ['sym'] }, asOf: '2026-08-11 13:26 ET' },
   fundamentals: { symbol: 'NVDA', view: 'quarterly', company: 'NVIDIA Corp', settings: { bg: '#141414' }, data: { annual: [{ label: 'FY25', eps_actual: 2.94, rev_actual: 130500 }], quarterly: [{ label: 'Q1 26', eps_actual: 0.81, eps_estimate: 0.75 }] } },
   breadth: { hiddenMetrics: ['naaim'], tileStyle: 'spark', settings: { bg: '#0f0f0f' }, row: { date: '2026-08-11', pct_above_50sma: 48.2 }, series: { pct_above_50sma: [44, 46, 48.2] }, updated: '1:26 PM ET' },
+  indexes: {
+    hiddenSymbols: ['BTC'],
+    rows: [
+      { sym: 'SPY', price: '645.12', chg: '+0.43%' },
+      { sym: 'QQQ', price: '583.20', chg: '-0.12%' },
+    ],
+    updated: '1:26 PM ET',
+  },
+  marketcontext: {
+    readings: {
+      marketPhase: 'Confirmed Uptrend', exposureScore: 112, exposureDelta: 4,
+      breadthScore: 71.5, distributionDays: 2, pctAbove50: 62.4, pctAbove200: 55.1,
+      powerTrend: null,
+    },
+    wireDate: '2026-08-11',
+    updated: '1:26 PM ET',
+  },
   aisearch: { thread: [{ id: 1, q: 'Why is SMCI moving today?', answer: 'Because…', citations: [] }], settings: { bg: '#101010' } },
   news: { symbol: 'NVDA', filter: 'up', company: 'NVIDIA Corp', settings: { bg: '#101010' }, events: [{ type: 'earnings', date: '2026-08-05', title: 'Q2 beat and raise', direction: 'up', move_pct: 6.1, source: 'desk' }] },
   notebook: { folderId: 'f1', noteId: 'n1', settings: { bg: '#101010' } },
@@ -278,6 +310,16 @@ describe('widget registry — params layer', () => {
     expect(paramsPlainText('calendar', normalizeParams('calendar', CAPTURE_FIXTURES.calendar))).toBe('[calendar: 2026-08-06]')
     expect(paramsPlainText('periodsort', normalizeParams('periodsort', CAPTURE_FIXTURES.periodsort))).toBe('[periodsort: 2026-07-06 → 2026-08-05 · theme]')
     expect(paramsPlainText('aisearch', normalizeParams('aisearch', CAPTURE_FIXTURES.aisearch))).toBe('[ai search: "Why is SMCI moving today?"]')
+    // R-3b/R-3c: the search line is the ONLY thing that makes these embeds
+    // findable in notebook search (it feeds both serializers), so it carries
+    // the readings themselves, not just a type label.
+    expect(paramsPlainText('indexes', normalizeParams('indexes', CAPTURE_FIXTURES.indexes)))
+      .toBe('[indexes: SPY 645.12 +0.43% · QQQ 583.20 -0.12% — 1:26 PM ET]')
+    expect(paramsPlainText('marketcontext', normalizeParams('marketcontext', CAPTURE_FIXTURES.marketcontext)))
+      .toBe('[market context: Confirmed Uptrend · exposure 112 · breadth 71.5 — 2026-08-11]')
+    // Empty captures degrade to a labeled line rather than a bare bracket.
+    expect(paramsPlainText('indexes', { rows: [] })).toBe('[indexes: no readings]')
+    expect(paramsPlainText('marketcontext', {})).toBe('[market context: no readings]')
     // Unknown id degrades to a generic label, never throws (render chain rule).
     expect(paramsPlainText('nope', {})).toBe('[widget]')
   })
@@ -331,8 +373,21 @@ describe('widget registry — params layer', () => {
       ...CAPTURE_FIXTURES.themes, rows: [{ sym: 'SMH', note: 'Semiconductors', chgPct: 2.1 }],
     }))).toBe(true)
     expect(isReconstructable('themes', normalizeParams('themes', CAPTURE_FIXTURES.themes))).toBe(false)
+    // R-3b indexes + R-3c market context joined the payload-frozen set. ⛔ The
+    // verdict is a FREEZE on purpose: /api/snapshot and /api/breadth each take
+    // no date, and the wire payload behind market context is overwritten every
+    // morning — neither source can answer "what did this read at that moment",
+    // so neither embed may promise a re-render. Live exactly when the payload
+    // exists; an empty capture falls to its archived image.
+    expect(isReconstructable('indexes', normalizeParams('indexes', CAPTURE_FIXTURES.indexes))).toBe(true)
+    expect(isReconstructable('indexes', { rows: [] })).toBe(false)
+    expect(isReconstructable('indexes', {})).toBe(false)
+    expect(isReconstructable('marketcontext', normalizeParams('marketcontext', CAPTURE_FIXTURES.marketcontext))).toBe(true)
+    expect(isReconstructable('marketcontext', {})).toBe(false)
+    // An array is an object to `typeof` — the predicate must not accept one.
+    expect(isReconstructable('marketcontext', { readings: [] })).toBe(false)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes'].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes', 'indexes', 'marketcontext'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.
@@ -343,5 +398,89 @@ describe('widget registry — params layer', () => {
     for (const id of WIDGET_IDS) {
       expect(WIDGET_REGISTRY[id].liveCapable, id).toBe(id === 'chart')
     }
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JOURNAL EMBED BINDINGS — the second host. WidgetHost binds /charts; the
+// notebook binds EMBED_COMPONENTS in WidgetEmbedView.jsx, and that file's own
+// header warns: "A registry entry flipped reconstructable WITHOUT a binding
+// here degrades to its archive (never crashes) — flip both together." Nothing
+// enforced it, and a silent degrade-to-image is invisible to every other test:
+// the embed renders, the note saves, and the member just never sees the widget.
+//
+// The binding set is READ FROM THE SOURCE, never retyped — importing the module
+// would drag TipTap into this metadata suite, and a hand-typed copy here would
+// be the second-authority defect this rail exists to catch.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** The richest representative capture per id — CAPTURE_FIXTURES, plus the
+ *  frozen row payloads the page-seam doors add (watchlist/themes/scanner
+ *  deliberately omit them above so the empty-payload verdict stays pinned). */
+const RECONSTRUCTABLE_FIXTURES = {
+  ...CAPTURE_FIXTURES,
+  // The shared chart fixture is anchored at a FIXED 2024 instant, which walks
+  // past the 5m fetch ceiling as the clock runs — an un-anchored capture is the
+  // one that asks "can this type reach the live path at all".
+  chart: { symbol: 'AMD', tf: '5', settings: CAPTURE_FIXTURES.chart.settings },
+  watchlist: { ...CAPTURE_FIXTURES.watchlist, rows: [{ sym: 'NVDA', price: 224.1, chgPct: 3.0 }] },
+  themes: { ...CAPTURE_FIXTURES.themes, rows: [{ sym: 'SMH', note: 'Semiconductors', chgPct: 2.1 }] },
+  scanner: { ...CAPTURE_FIXTURES.scanner, rows: [{ sym: 'NVDA', price: 224.1, chgPct: 3.0 }] },
+}
+
+const EMBED_VIEW_REL = 'app/src/pages/journal-2-0/components/notebook/WidgetEmbedView.jsx'
+
+/** The repo root, walked up from wherever vitest was invoked — `import.meta.url`
+ *  is an http: URL under this environment's vite transform, so it cannot be
+ *  read directly. Same walk as `singleWriterIndex.test.js`; throws by name. */
+const ROOT = (() => {
+  let dir = process.cwd()
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, EMBED_VIEW_REL))) return dir
+    const up = dirname(dir)
+    if (up === dir) break
+    dir = up
+  }
+  throw new Error(`registry.test: could not find the repo root from ${process.cwd()}`)
+})()
+
+/** EMBED_COMPONENTS' keys, parsed out of WidgetEmbedView.jsx. */
+function journalEmbedIds() {
+  const src = readFileSync(join(ROOT, EMBED_VIEW_REL), 'utf8').replace(/\r\n/g, '\n')
+  const block = /const\s+EMBED_COMPONENTS\s*=\s*\{([\s\S]*?)\n\}/.exec(src)
+  if (!block) return []
+  return [...block[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*lazy\(/gm)].map(m => m[1])
+}
+
+describe('widget registry — journal embed bindings', () => {
+  it('the binding set actually parses (non-vacuity control)', () => {
+    // ⛔ Without this, a regex that matched NOTHING would make every assertion
+    // below pass over an empty set. Name a member the file certainly has
+    // rather than trusting a count.
+    const ids = journalEmbedIds()
+    expect(ids).toContain('chart')
+    expect(ids.length).toBeGreaterThan(5)
+    expect(new Set(ids).size, 'a widget id is bound twice').toBe(ids.length)
+  })
+
+  it('every journal embed binding names a registered widget id', () => {
+    for (const id of journalEmbedIds()) {
+      expect(WIDGET_IDS, `EMBED_COMPONENTS binds unknown widget id '${id}'`).toContain(id)
+    }
+  })
+
+  it('reconstructable widgets and journal embed bindings cannot drift apart', () => {
+    const bound = new Set(journalEmbedIds())
+    const renders = WIDGET_IDS.filter(
+      id => isReconstructable(id, normalizeParams(id, RECONSTRUCTABLE_FIXTURES[id])),
+    )
+    // Fails BY NAME in both directions: a registry entry that promises a live
+    // re-render with no renderer, and a renderer for a type that can never
+    // reach the live path.
+    expect([...bound].sort()).toEqual([...renders].sort())
+    // The two Wave-R additions, named explicitly so a future widening of the
+    // derivation can't quietly drop them.
+    expect(bound.has('indexes')).toBe(true)
+    expect(bound.has('marketcontext')).toBe(true)
   })
 })

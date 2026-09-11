@@ -1,0 +1,147 @@
+/* Indexes widget — the six market readings as a tile grid. Token-driven so the
+   widget follows its PLACED theme (registry themeFollow) and renders identically
+   inside a note under the frozen workspace host. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.title {
+  font-size: var(--fs-xs, 11px);
+  letter-spacing: var(--ls-label, 1.5px);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.spacer { flex: 1 1 auto; }
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.iconBtn:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
+
+.restore {
+  font: inherit;
+  font-size: var(--fs-xs, 11px);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.restore:hover { color: var(--text-bright); border-color: var(--accent); }
+
+.grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+  padding: 8px;
+  align-content: start;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated, transparent);
+  min-width: 0;
+}
+
+.tileSym {
+  font-size: var(--fs-sm, 12px);
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--text-bright);
+}
+
+.tileLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tilePrice {
+  font-size: var(--fs-md, 15px);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright);
+}
+
+.tileChg {
+  font-size: var(--fs-xs, 11px);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+
+.tileX {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.tile:hover .tileX { display: inline-flex; }
+.tileX:hover { color: var(--text-bright); }
+
+.hint {
+  padding: 14px;
+  font-size: var(--fs-sm, 12px);
+  color: var(--text-muted);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.footerUpdated { flex: 1 1 auto; }
