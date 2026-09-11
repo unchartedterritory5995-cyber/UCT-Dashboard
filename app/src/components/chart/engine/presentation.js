@@ -140,21 +140,39 @@ export function resolvePlotStyle(instance, plot) {
   const pres = instance && instance.presentation
   const key = plot && plot.key
 
+  let chosen = null
   if (pres && pres.plots && typeof key === 'string' && key) {
     const perOutput = pres.plots[key] && pres.plots[key].style
-    if (isKnownStyle(perOutput)) return perOutput
+    if (isKnownStyle(perOutput)) chosen = perOutput
   }
-  if (pres && isKnownStyle(pres.plotStyle)) return pres.plotStyle
+  if (!chosen && pres && isKnownStyle(pres.plotStyle)) chosen = pres.plotStyle
 
-  const declared = plot && plot.style
-  // The definition's vocabulary is the author's; map it back into the user's.
-  for (const [userStyle, defStyle] of Object.entries(PLOT_STYLE_TO_DEF_STYLE)) {
-    // `lastValueHorizontal` also maps to `'line'`, and a definition that ships a
-    // line must resolve to `line` — so the first match wins and the LVH entry,
-    // which comes later in the object, can never be reached from a declaration.
-    if (defStyle === declared) return userStyle
+  if (!chosen) {
+    const declared = plot && plot.style
+    // The definition's vocabulary is the author's; map it back into the user's.
+    for (const [userStyle, defStyle] of Object.entries(PLOT_STYLE_TO_DEF_STYLE)) {
+      // `lastValueHorizontal` also maps to `'line'`, and a definition that ships a
+      // line must resolve to `line` — so the first match wins and the LVH entry,
+      // which comes later in the object, can never be reached from a declaration.
+      if (defStyle === declared) { chosen = userStyle; break }
+    }
   }
-  return DEFAULT_PLOT_STYLE
+  if (!chosen) chosen = DEFAULT_PLOT_STYLE
+
+  // ⛔⛔ CAPABILITY BINDS THE RENDERER, NOT JUST THE MENU — and this line is here
+  // because leaving it out was VISIBLE. An RSI stored as `area` and then sent to
+  // the Volume pane kept its stored style: the dropdown correctly stopped
+  // OFFERING Area, and the chart drew it anyway, a full-height translucent fill
+  // over the candles it was supposed to be read beside. A capability model that
+  // only filters a `<select>` is a suggestion; one the resolver honours is a rule.
+  //
+  // ⚠️ THE STORED VALUE IS NOT REWRITTEN. Moving back to its own pane restores
+  // Area, because the instance still says so — the clamp is a reading of the
+  // state at a placement, not an edit of it. Same shape as `placement.position`
+  // surviving a round trip through Volume.
+  const allowed = availableStyles(plot, { target: instance && instance.placement && instance.placement.target })
+  if (allowed.length && !allowed.includes(chosen)) return allowed[0]
+  return chosen
 }
 
 /**

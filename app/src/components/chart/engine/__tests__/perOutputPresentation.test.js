@@ -128,6 +128,29 @@ describe('the capability model', () => {
     expect(availableStyles(null)).toEqual([])
     expect(availableStyles({})).toEqual([])
   })
+
+  it('⛔⛔ CAPABILITY BINDS THE RENDERER — a withheld style is not drawn either', () => {
+    // Measured in the browser before this existed: an RSI stored as `area` and
+    // sent to the Volume pane kept drawing a full-height translucent fill over
+    // the candles, because only the `<select>` had been filtered.
+    const onVolume = inst('rsi', {
+      presentation: { plotStyle: 'area' },
+      placement: { target: 'volume' },
+    })
+    expect(resolvePlotStyle(onVolume, plotOf('rsi', 'rsi'))).toBe('line')
+    expect(presentedPlot(plotOf('rsi', 'rsi'), onVolume).style).toBe('line')
+  })
+
+  it('⭐ …and the STORED value is not rewritten — sending it home restores Area', () => {
+    const stored = { presentation: { plotStyle: 'area' } }
+    const home = inst('rsi', stored)
+    expect(resolvePlotStyle(home, plotOf('rsi', 'rsi'))).toBe('area')
+    // The same instance, only its placement differing, reads differently — which
+    // is the clamp being a READING of state at a placement, not an edit of it.
+    const away = inst('rsi', { ...stored, placement: { target: 'volume' } })
+    expect(resolvePlotStyle(away, plotOf('rsi', 'rsi'))).toBe('line')
+    expect(away.presentation.plotStyle, 'the clamp edited the stored state').toBe('area')
+  })
 })
 
 describe('presentedPlot — the restyle the renderer actually sees', () => {
