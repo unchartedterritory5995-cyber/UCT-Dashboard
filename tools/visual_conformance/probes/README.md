@@ -23,8 +23,13 @@ text that produced a fixture is versioned beside it.
 
 ⭐⭐ **STATUS 2026-09-10 — THE PROBES ARE SAVED SCRIPTS NOW. THE EDITOR IS NO LONGER ON THE PATH.**
 
-Each probe below was saved under its own name, so a future visit is `createStudy` by id with
-no editor, no paste and no binding hazard. Ids read off `_metaInfo.id` at add time AND
+⚰️ **THIS SAID a future visit is `createStudy` by id "with no editor, no paste and no
+binding hazard". RETIRED 2026-09-11 — `createStudy` refuses every id form** (seven
+variants measured; see `docs/pine/capture-procedure.md`). Each probe below IS saved
+under its own name, and that still buys two things: `pine-facade/translate/<id>/last`
+returns the vendor's own plot roster and compile status **without touching a chart**,
+and the source is recoverable byte-exact. ⛔ **Adding one still needs the editor, and
+the binding hazard is real** — every add binds, so unbind before the next. Ids read off `_metaInfo.id` at add time AND
 cross-checked against the account's saved-script list.
 
 | probe | saved script id | ver | state |

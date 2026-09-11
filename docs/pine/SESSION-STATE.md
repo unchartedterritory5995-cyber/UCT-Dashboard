@@ -505,9 +505,16 @@ against `Script$USER;787899e2…` would write to the owner's account-scoped scri
 Swapping the Monaco model does **not** unbind it (measured: uri changes, button does
 not). The unbind is *New indicator* in the editor's script-title dropdown.
 
-⭐ **ONCE EACH PROBE IS SAVED UNDER ITS NAME, EVERY FUTURE VISIT IS `createStudy`-BY-ID
-WITH NO EDITOR AT ALL** — and the Monaco handle (webpack module scan, see
-`capture-procedure.md`) writes the buffer with no paste, so the rest is unattended.
+⚰️ **THIS SAID "ONCE EACH PROBE IS SAVED UNDER ITS NAME, EVERY FUTURE VISIT IS
+`createStudy`-BY-ID WITH NO EDITOR AT ALL". RETIRED 2026-09-11 — it never worked.**
+Seven `createStudy` variants were measured and every one refused; the table is in
+`capture-procedure.md`. ⭐ **What DOES work, proven on three probes that night:** the
+Monaco handle (webpack module scan) writes the buffer with no paste, and the editor's
+own **"Add to chart"** button adds it. ⛔ **EVERY ADD BINDS THE EDITOR** — even to an
+unsaved "Untitled script" — so the next add must first unbind via the script-title
+dropdown → *Create new* → *Indicator*. The button text is the gate and it caught a
+real one: after adding `UCTPROBE_GB_HILO` the button read *"Update on chart"*, and
+clicking it would have edited that saved script in place.
 
 ⭐⭐ **RULING 1g IS SETTLED BY MEASUREMENT.** The vendor folds a timeframe-conditional
 length to a plain integer at bind time: `fold == sma20` on 400/400 daily bars and

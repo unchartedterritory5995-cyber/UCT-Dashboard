@@ -340,6 +340,43 @@ balanced-paren scan of the committed file. `GET pine-facade/get/<id>/last` likew
 these probes are full of multi-byte marks, so `groupb-hilo-default.pine` is 3810 bytes on disk
 and 3557 characters stored.
 
+### ✅ THE ROUTE THAT WORKS, PROVEN ON THREE PROBES (2026-09-11)
+
+**S1-S5, by pointer click, on a tab that was never visible.** In order:
+
+1. **Assert the action button FIRST, before touching the buffer.** Exactly one
+   `"Add to chart"` and zero `"Update on chart"`. ⛔ This is not ceremony — it fired
+   for real: after `UCTPROBE_GB_HILO` was added, the button read *"Update on chart"*,
+   and a `setValue` + click there would have edited that SAVED script in place.
+2. **`setValue` through the Monaco handle**, re-derived by webpack scan each visit
+   (module `423129` today; the id is a build artifact). Pass the source as base64 and
+   decode in the page — a gzip round-trip corrupted one attempt, plain base64 has not.
+3. **Verify the buffer receipt**: sha256 of `model.getValue()` == sha256 of the
+   committed file. Byte-exact, before the click, every time.
+4. **Click "Add to chart"**, then gate the study on `isFailed() === false` AND a plot
+   count equal to the balanced-paren scan of the committed source.
+5. ⛔⛔ **EVERY ADD BINDS THE EDITOR — INCLUDING TO AN UNSAVED "Untitled script".**
+   Measured directly: before an add the button reads *"Add to chart"*; after it reads
+   *"Update on chart"*. So each subsequent probe needs an unbind first:
+   **script-title dropdown → hover *Create new* → *Indicator*.** The submenu populates
+   on HOVER, not on click — a click alone leaves a zero-height menu container and
+   looks like a broken route.
+
+⚠️ **A HIDDEN TAB CAN DO ALL OF THAT, AND CANNOT DO THE INDICATORS DIALOG.** The
+editor's own menus render fine with `document.visibilityState === 'hidden'`. The
+**Indicators → PERSONAL → My scripts** route does not: the sidebar click REGISTERS
+(the item gains its `active-` class), and the script list never renders — its content
+container sat at one child and zero text for 12 seconds. That route is not refuted,
+it is **untested**, and it needs a visible tab to test. Do not record it as broken.
+
+⭐ **AND THERE IS A PRE-ADD COMPILE GATE FOR A SAVED SCRIPT.**
+`GET pine-facade/translate/<id>/last` answers `success: false` for a script that will
+not compile, and its `metaInfo.plots` is the roster — so for a SAVED probe you can
+know both BEFORE spending an add. ⛔ It does not help an unsaved buffer, which is
+exactly where the cost lands: `groupb-round-max-vwap.pine` compiled locally in nobody's
+head, failed at the vendor with `CE10041`, and landed as a one-plot stub named after
+the shared unsaved slot rather than after the script.
+
 ⛔ **WHAT DOES NOT FOLLOW: that the roster check replaces the capture.** A roster is the
 script's shape; the READINGS still need the study on a chart, because the values are what the
 probe exists for. The editor route (S1-S5, Monaco handle, "Add to chart") remains the only
