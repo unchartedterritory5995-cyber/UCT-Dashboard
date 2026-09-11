@@ -6,7 +6,12 @@
 // `abbrev` (set by ChartPane's width fit) swaps each label for its terse form
 // (MARKET CAP → MC) once the row would collide with the timeframe bar. The full
 // label is kept in `title` so a hover still reads it. Values are never abbreviated.
-export default function ChartMetaRow({ items = [], abbrev = false, tight = false, styles }) {
+// `ink` is the DEFAULT value colour, resolved from the chart's own canvas
+// (`useChartSurfaceSettings`). A field that carries its own colour still wins —
+// this only fills the slot that was previously left to inherit the app theme's
+// text, which is how a light chart skin ended up printing near-white values on a
+// near-white bar (contrast 1.002, built-in `Price` included).
+export default function ChartMetaRow({ items = [], abbrev = false, tight = false, ink = null, styles }) {
   if (!items.length) return null
   return (
     <div className={`${styles.chartMeta} ${tight ? styles.chartMetaTight : ''}`}>
@@ -15,7 +20,10 @@ export default function ChartMetaRow({ items = [], abbrev = false, tight = false
         return (
           <span key={it.key} className={styles.chartMetaItem}>
             <span className={styles.chartMetaLabel} title={it.label}>{label}</span>
-            <span className={styles.chartMetaVal} style={it.color ? { color: it.color } : undefined}>
+            <span
+              className={styles.chartMetaVal}
+              style={(it.color || ink) ? { color: it.color || ink } : undefined}
+            >
               {it.value != null && it.value !== '' ? it.value : '—'}
             </span>
           </span>

@@ -16,6 +16,7 @@
 // the workspace (patchOptsWithTheme + ChartsWorkspace.applyThemeToAllCharts).
 
 import { APP_THEME_BY_ID } from '../../styles/appThemes'
+import { parseColor } from '../../utils/dividerColor'
 
 // The families, in gallery order. Each theme carries a `family` key matching one
 // of these ids; the modal renders one filter pill per family (+ "All").
@@ -305,6 +306,110 @@ function _rgbaAlpha(color, a) {
 // use this instead so their text always stands out.
 export function readableInk(bg) {
   return _luminance(bg) > 0.55 ? '#14181d' : '#e8e8ec'
+}
+
+// ─── A SHIPPED ACCENT, MADE READABLE WITHOUT LOSING ITS IDENTITY ────────────
+//
+// ⭐⭐ `readableInk` IS THE WRONG TOOL FOR A COLOURED VALUE. It answers "bright or
+// dark?", which is right for text that has no colour of its own and wrong for the
+// header's semantic tints: flattening Market Cap's blue, UCT Rating's gold and
+// the sector grey to one near-black would make four different fields look like
+// one, and the colour IS how a member finds a field in a dense row.
+//
+// ⛔⛔ AND IT APPLIES ONLY TO COLOURS WE SHIPPED. A colour the MEMBER picked is
+// literal, always — if they chose #ffffff we do not quietly turn it black. The
+// split lives at the call site (`hdrColors[...]` is theirs, `f.dflt` and the
+// sign/tier defaults are ours); this function is only ever handed ours.
+//
+// ⭐ THE WALK KEEPS HUE AND SATURATION AND MOVES ONLY LIGHTNESS, toward whichever
+// side contrasts with the surface, stopping the moment it clears `target`. So the
+// gold stays gold and the blue stays blue — measured on the Cream canvas
+// (#f3efe4): #dcbb5e 1.62 → #6d5100 at 4.63, #6ba3be 2.40 → #3f6c82 at 4.72.
+//
+// ⚠️ NOTHING MOVES ON A DARK SURFACE. Every shipped accent already clears the
+// target on OLED (6.7–10.7) and Graphite (6.0–9.6), so the early return fires and
+// the dark themes render byte-identically to before this function existed.
+
+/** WCAG contrast ratio between two [r,g,b] triples. */
+function _contrast(a, b) {
+  const chan = (v) => {
+    const x = v / 255
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)
+  }
+  const rel = (c) => 0.2126 * chan(c[0]) + 0.7152 * chan(c[1]) + 0.0722 * chan(c[2])
+  const l1 = rel(a)
+  const l2 = rel(b)
+  const hi = Math.max(l1, l2)
+  const lo = Math.min(l1, l2)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+function _rgbToHsl([r, g, b]) {
+  const rr = r / 255
+  const gg = g / 255
+  const bb = b / 255
+  const max = Math.max(rr, gg, bb)
+  const min = Math.min(rr, gg, bb)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l]
+  const d = max - min
+  const sat = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h
+  if (max === rr) h = ((gg - bb) / d + (gg < bb ? 6 : 0))
+  else if (max === gg) h = (bb - rr) / d + 2
+  else h = (rr - gg) / d + 4
+  return [h / 6, sat, l]
+}
+
+function _hslToRgb([h, s, l]) {
+  if (s === 0) { const v = Math.round(l * 255); return [v, v, v] }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+  const p = 2 * l - q
+  const hue = (t) => {
+    let tt = t
+    if (tt < 0) tt += 1
+    if (tt > 1) tt -= 1
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt
+    if (tt < 1 / 2) return q
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6
+    return p
+  }
+  return [hue(h + 1 / 3), hue(h), hue(h - 1 / 3)].map((v) => Math.round(v * 255))
+}
+
+const _hex = ([r, g, b]) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('')
+
+/**
+ * One of OUR default colours, resolved to something readable on `surface`.
+ *
+ * @param {string} intended  the shipped accent (#rgb/#rrggbb/rgb()/rgba())
+ * @param {string} surface   the canvas/bar colour it will sit on
+ * @param {number} [target]  contrast ratio to reach (default 4.5 — WCAG AA body text)
+ * @returns {string} `intended` when it already reads, else the same hue at a
+ *   different lightness. Unparseable input is passed straight through rather than
+ *   guessed at.
+ */
+export function readableAccent(intended, surface, target = 4.5) {
+  const ink = parseColor(intended)
+  const bg = parseColor(surface)
+  if (!ink || !bg) return intended
+  if (_contrast(ink, bg) >= target) return intended
+
+  const [h, sat] = _rgbToHsl(ink)
+  // Darken on a light surface, lighten on a dark one — the side that can win.
+  const lightBg = _contrast([0, 0, 0], bg) > _contrast([255, 255, 255], bg)
+  let best = ink
+  let bestC = _contrast(ink, bg)
+  for (let i = 1; i <= 100; i += 1) {
+    const l = lightBg ? Math.max(0, 0.5 - i * 0.005) : Math.min(1, 0.5 + i * 0.005)
+    const cand = _hslToRgb([h, sat, l])
+    const c = _contrast(cand, bg)
+    if (c > bestC) { best = cand; bestC = c }
+    if (c >= target) return _hex(cand)
+  }
+  // Never reached target (a mid-grey surface): hand back the best we found rather
+  // than the unreadable original.
+  return _hex(best)
 }
 
 /**

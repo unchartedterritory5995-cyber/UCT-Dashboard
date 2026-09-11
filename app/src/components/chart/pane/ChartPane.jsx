@@ -12,6 +12,9 @@ import ChartIdentityRow from './ChartIdentityRow'
 import ChartTfBar from './ChartTfBar'
 import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
+// ⭐ THE SHIPPED-ACCENT RESOLVER — hue-preserving, and it never touches a colour
+// the member picked. See its own doc block in chartThemes.js.
+import { readableAccent } from '../chartThemes'
 import ChartSettingsModal from '../ChartSettingsModal'
 import UIcon from '../../ui/UIcon'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
@@ -217,7 +220,8 @@ function ChartPane({
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
   const {
-    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
+    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme,
+    ink: metaInk, canvasColor: metaSurface } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
@@ -465,16 +469,48 @@ function ChartPane({
       const { value, color, sign } = resolveHeaderField(key, ctx)
       // Signed fields (% change, $ change, N-day…): pick the pos/neg override by the value's
       // sign, falling back to the green/red default tint. Non-signed: user override → default.
+      // ⛔⛔ THE LINE IS "WHO CHOSE THIS COLOUR", AND IT RUNS THROUGH BOTH BRANCHES.
+      // `hdrColors[...]` is the MEMBER'S pick and is literal — if they chose white
+      // we do not quietly turn it black. Everything else (`f.dflt`, the sign
+      // defaults, the tier tint `resolveHeaderField` returns) is OURS, and we own
+      // whether it can be read on the canvas the member also chose. `readableAccent`
+      // keeps the hue and moves only lightness, and returns the input untouched
+      // when it already clears the target — so every dark theme is byte-identical.
+      // ⛔⛔ THE LINE IS "WHO CHOSE THIS COLOUR". `hdrColors[...]` is the MEMBER'S
+      // pick and is literal — if they chose white we do not quietly turn it black.
+      // Everything else (`f.dflt`, the sign defaults, the tier tint
+      // `resolveHeaderField` returns) is OURS, and we own whether it can be read on
+      // the canvas the member also chose. `readableAccent` keeps the hue and moves
+      // only lightness, and returns its input untouched when it already clears the
+      // target — so every dark theme renders byte-identically.
+      //
+      // ⚠️⚠️ AND A STORED VALUE THAT IS BYTE-EQUAL TO OUR OWN DEFAULT IS OURS, not
+      // theirs. `ChartsWorkspace.forceNewChartDefaults` MATERIALISES the three
+      // shipped accents into `header.colors` on every chart it seeds, so for
+      // essentially every existing chart `hdrColors.marketCap === f.dflt` — the blob
+      // genuinely cannot tell "the member picked #6ba3be" from "our own template
+      // wrote our own default here". Reading an exact match as ours is the closest
+      // the CURRENT data supports to the rule "we own our defaults, they own their
+      // picks"; the collision it accepts is a member who deliberately chose the
+      // exact shipped hex, who then gets that same hue at a readable lightness.
+      // ⏳ The real fix is provenance — stop writing a default into the override
+      // slot, so "present" means "chosen". That is a migration, named not done.
+      const mine = (c) => !!c && !!f.dflt && String(c).toLowerCase() === String(f.dflt).toLowerCase()
       let finalColor
       if (f.signed) {
         const s = sign || 'pos'
-        finalColor = hdrColors[`${f.colorKey}:${s}`] || color || (s === 'neg' ? SIGN_NEG : SIGN_POS)
+        const picked = hdrColors[`${f.colorKey}:${s}`]
+        const ours = color || (s === 'neg' ? SIGN_NEG : SIGN_POS)
+        finalColor = picked ? picked : readableAccent(ours, metaSurface)
       } else {
-        finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
+        const stored = f.colorKey ? hdrColors[f.colorKey] : null
+        const picked = mine(stored) ? null : stored
+        const ours = stored && mine(stored) ? stored : (color || f.dflt || null)
+        finalColor = picked || (ours ? readableAccent(ours, metaSurface) : null)
       }
       return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName,
+  }, [metaSurface, infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName,
     isFundLike, infoDefs, infoBus])
 
   // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
@@ -772,7 +808,7 @@ function ChartPane({
           {!compact && !mini && (
             /* tight: when the Time Navigator sits before the fields, drop the wide
                left margin so MARKET CAP hugs the box's divider (matches its left gap). */
-            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
+            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} ink={metaInk} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
