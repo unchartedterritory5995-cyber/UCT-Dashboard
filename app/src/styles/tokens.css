@@ -361,6 +361,35 @@
   --hub-knob-face: color-mix(in srgb, var(--text-heading) 16%, var(--bg-elevated) 84%);
   --hub-tick: color-mix(in srgb, var(--text-heading) 14%, transparent);
 
+  /* ── The hub CURSOR's appearance — the ONE authority (D-29) ─────────────
+     Phase 1 wrote the [data-hub-cursor="active"] rule below in terms of
+     --hub-rim-highlight and --hub-glass-tint-strong, tokens that also paint
+     the knob rim (hub.module.css:23,61) and the pressed Actions button
+     (hub.module.css:234). That coupling was invisible while nothing rendered
+     a cursor; four real lists render it now (Screener, Notebook, Catalysts,
+     Calendar), and it means retuning the cursor silently retunes hub chrome
+     and vice versa. These five tokens are the cursor's own dial, so the rule
+     below declares no value of its own and every cursor surface — declarative
+     `itemProps(i)` rows and imperatively painted Morning Wire rows alike —
+     reads the same definition.
+     ⛔ ONE DEFINITION: `hub/cursorAppearance.test.js` fails if a second
+     [data-hub-cursor] rule appears anywhere under app/src, if this rule grows
+     a literal, or if a --hub-cursor-* token is declared outside this file.
+     ⭐ No [data-theme] variants, deliberately, riding this block's own stated
+     idiom: every value is composed from --text-heading, which each theme
+     (OLED included) already redefines, so the cursor re-resolves per theme
+     for free instead of needing a second authority per theme — and no theme
+     island has to pin a token whose value it already derives.
+     The fill sits between the resting (8%) and pressed (20%) glass tiers on
+     purpose: on a dense result row the 2px outline is what IDENTIFIES the
+     cursor, and a pressed-strength wash over the row's own tone chips made
+     the fill compete with it. */
+  --hub-cursor-outline: var(--hub-rim-highlight);
+  --hub-cursor-outline-width: 2px;
+  --hub-cursor-outline-offset: -1px;
+  --hub-cursor-fill: color-mix(in srgb, var(--text-heading) 12%, transparent);
+  --hub-cursor-radius: var(--radius-sm);
+
   /* The ten mode accents (§2a) — approved literal hexes, not derived; do not
      adjust them. home/journal/wire are deliberately distinct green siblings
      (v1.2 gave one hex to all three, which collided in Home's own fan) —
@@ -529,6 +558,18 @@
   --hub-glass-tint-strong: var(--bg-hover);
   --hub-rim: color-mix(in srgb, var(--text-heading) 65%, transparent);
   --hub-rim-width: 2px;
+
+  /* ⚰️ THE CURSOR NEVER REACHED THIS BLOCK. Its outline was --hub-rim-highlight
+     and this block redefines --hub-rim — a different token — so "rim goes
+     full-strength + a wider 2px width" was true of the knob and false of the
+     one surface a low-vision member uses to know WHICH ROW they are on. Now
+     that the cursor has its own dial, high contrast can move it: an opaque
+     fill on the same --bg-hover surface the pressed tint uses, a full-strength
+     outline, and 3px so it still reads as the wider one when the base width
+     has already gone to 2. */
+  --hub-cursor-outline: var(--text-heading);
+  --hub-cursor-outline-width: 3px;
+  --hub-cursor-fill: var(--bg-hover);
 }
 
 /* Hub cursor selection highlight (§2d) — a plain GLOBAL rule, not a CSS
@@ -545,10 +586,10 @@
    `[data-hub-selected]`, an attribute name nothing in the codebase ever
    writes — dead CSS that would never have matched a real DOM node. */
 [data-hub-cursor="active"] {
-  outline: 2px solid var(--hub-rim-highlight);
-  outline-offset: -1px;
-  background: var(--hub-glass-tint-strong);
-  border-radius: var(--radius-sm);
+  outline: var(--hub-cursor-outline-width) solid var(--hub-cursor-outline);
+  outline-offset: var(--hub-cursor-outline-offset);
+  background: var(--hub-cursor-fill);
+  border-radius: var(--hub-cursor-radius);
 }
 
 * {
