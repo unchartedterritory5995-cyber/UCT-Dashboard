@@ -172,6 +172,14 @@ this hub keeps rediscovering.
 
 ## R-14 — `HubRoot`'s confirm sheet cannot carry a section's FIELDS, so the accessible path is unreachable
 
+**Status:** ✅ APPLIED 2026-09-10 on `inc7/p1-confirm-fields` — the diff below landed as requested,
+plus the contract edit its ⚠️ note demands (`confirmPayload` documented on `HubActionRef`;
+`validateSectionConfig` refuses it on a non-function and on any kind but `confirm`) and the
+`validateConfirmPayload` call on the section-supplied payload. Railed on the RENDERED sheet in
+`app/src/hub/confirmFieldsReachable.test.jsx`, per the ⭐ warning. `screenerSection.js` needed no
+wiring — `alertConfirmPayload()` was already attached to `scan.alert`; only its two "cannot reach
+the member" comments were corrected.
+
 **Filed by:** the 3.3 Screener integrator. **Blocks the Screener's `Alert` action from being
 useful.** **Owner:** Director (`HubRoot.jsx`).
 
