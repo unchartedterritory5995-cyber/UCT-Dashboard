@@ -265,7 +265,10 @@ touched, which is the ordering that matters: check the button, THEN `setValue`.
 
 ⛔ **Do not claim repo-green** while either stands.
 
-### ⭐⭐ THE FIRST CLEAN FULL PYTHON LANE — ZERO KILLED CHUNKS (2026-09-11)
+### ⭐⭐ FULL PYTHON LANE — ZERO KILLED CHUNKS, TWICE (2026-09-11)
+
+✅ **C1, RE-RUN AT THE END OF THE ORDER on `5d25012d2`: 23,772 passed · 40 failed · 56 skipped · 10 xfailed · ZERO KILLED.** ⭐⭐ **ZERO NEW** — the 40 are a strict SUBSET of the previous run's 44 (`comm -13` over both sorted lists is empty). Four disappeared: three `test_interventions` cases and one `test_mutation_check`, all of which had been flagged load- or order-sensitive. ⛔ **And none of them is ours**, measured rather than asserted: the 22 failing FILES and the 51 Python files this whole BRANCH touches have an EMPTY intersection.
+JS full lane the same day: 1,220 files, 17,400 passed, 28 failed — the failing set BYTE-IDENTICAL to the pre-directive baseline, 28 for 28 by test name. One unhandled error (a `LineType` export missing on the lightweight-charts mock) present in the earlier run too.
 
 ✅ **RE-RUN 2026-09-11 on `769ddfb09`: 23,756 passed · 44 failed · 56 skipped · 10 xfailed · **ZERO KILLED CHUNKS**.** The run below had TEN killed, so this is the first complete traversal of the suite — nothing was lost to an OOM.
 ⭐⭐ **And all 44 were re-run ALONE: 35 are real, 9 pass in isolation.** The nine are named in `requests.md`, together with the confirmation that three of the four load-sensitive cases that entry already warned about reproduced exactly. ⛔ **None of the 44 is ours** — the files this directive changed and the files with failures have an empty intersection, measured rather than asserted.
