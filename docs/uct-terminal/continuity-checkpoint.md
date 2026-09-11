@@ -2248,7 +2248,7 @@ overlap with master:
 **⭐ BOTH DOCUMENTED INHERITED BACKEND REDS ARE NOW CLOSED.** This file and the
 session memory both carried "never claim repo-green" because of
 `test_no_shadowed_definitions` and `test_feature_flag_ledger`. Both pass. **That
-instruction still stands for the FULL suite** (~9,600 tests, not run here) — two
+instruction still stands for the FULL suite** (20,583 passing / 43 failing, measured 2026-09-10;, not run here) — two
 named reds closing is not a green repo.
 
 **Item 21 shipped as its own push**, being the only member-visible change.
@@ -2318,7 +2318,7 @@ memoized and the window length was declared twice.
 - The fixture deliberately has one symbol reporting on TWO days, so "earliest
   wins" is exercised — with one date per symbol that rule is unfalsifiable.
 
-27. **`high_tight_flag` APPEARS UNABLE TO FIRE — RECORDED, NOT CHASED.**
+27. **`high_tight_flag` CANNOT FIRE IN THIS POPULATION — INVESTIGATED, CLOSED SCOPE-ONLY.**
    (Numbered 27, not 26: 26 is already taken on master by the vacuous
    OptionsFlow guard.)
 
@@ -2346,13 +2346,88 @@ memoized and the window length was declared twice.
    is rare but demonstrably alive; that contrast is what makes this zero worth
    chasing.
 
-   **SCOPE OF THE INVESTIGATION (not performed):** instrument the detector's own
-   gate chain on the 78 qualifying tickers and record which gate rejects — pole
-   pivot structure, flag bar count, the ≤25% retrace, or the ≤60% volume
-   contraction. A single gate rejecting all 78 is the answer; several rejecting
-   different subsets means the setup is genuinely rare and the zero is honest.
-   ⛔ Do NOT tune a threshold to make it fire: detection counts are a regression
-   net, never a target.
+   **INVESTIGATION PERFORMED 2026-09-10 — CLOSED SCOPE-ONLY. NO THRESHOLD
+   MOVED.** Three read-only passes (`mode=ro` on bars.db), same 78 qualifying
+   tickers, 40 session-ends each = **3,120 ticker-sessions**. The instrument was
+   checked against production first: `high_tight_flag.py:95` calls
+   `detect_pivots(bars, window=3)`, and the trace uses that same window, the
+   same gate ORDER, and the same confidence formula
+   (`0.40·geom + 0.25·vol + 0.20·ctx + 0.15·50`) — so it measures the detector
+   that ships, not a lookalike.
+
+   **Where the 3,120 go:**
+
+   | outcome | n |
+   |---|---|
+   | no candidate pole top at all | 109 |
+   | candidate pole tops, no complete pole+flag extraction | 2,988 |
+   | complete extraction, reaching the gate chain | **23** |
+
+   **Of the 23 that reach the gates, ONE gate takes all of them:**
+
+   | gate | discarded |
+   |---|---|
+   | `_flag_volume_contracted` (flag avg vol ≤ 60% of pole avg vol) | **23** |
+   | `_already_broken` | 0 |
+   | `_CONFIDENCE_FLOOR` (50.0) | 0 |
+
+   That is the "ONE gate rejects all" shape the scope was written to catch — so
+   the deciding question became whether its rejection is a **plain defect**.
+
+   **It is not, and that was settled by measurement, not by reading the code.**
+   Inspection found no inverted comparison (the test is
+   `flag_avg/pole_avg <= 0.60`, the direction the docstring and the HTF
+   definition both ask for), no wrong index (`pole` and `flag` are slices of the
+   SAME bars array on the SAME index base) and no unit mismatch (both sum
+   `b["v"]`). But inspection cannot tell a strict threshold from an unsatisfiable
+   guard, so the 23 ratios were measured:
+
+   ```
+   min 0.612 · p25 0.723 · median 0.852 · p75 0.945 · max 1.688
+   0.61 0.67 0.68 0.71 0.71 0.72 0.73 0.73 0.75 0.75 0.78 0.85 0.86
+   0.88 0.90 0.92 0.94 0.94 1.39 1.47 1.51 1.62 1.69
+   ```
+
+   A continuous real distribution — no sentinel pinning, no zero/None volume
+   bars (0 of 23), no unmeasurable `pole_avg <= 0` cases (0 of 23). The nearest
+   miss is LIFE at **0.612 against a 0.60 ceiling**. Every rejection is
+   individually defensible: eighteen sit at 0.61–0.95, meaning flag volume went
+   **flat rather than dry**, and five run 1.39–1.69, meaning volume **expanded
+   into the flag** — which the gate's own docstring calls "distribution, not
+   absorption". ⛔ `_MAX_FLAG_VOLUME_RATIO` was NOT moved, and no "what if it
+   were 0.8" count was produced: detection counts are a regression net, never a
+   target.
+
+   ⚠️ **THE 23 ARE NOT 23 SETUPS — they are ~6 structures re-observed.** The walk
+   steps one session-end at a time, so one live flag is counted once per session
+   it is still visible: OKTA k=32–39 is a single flag seen eight times, TENB
+   k=34–39 six times, LIFE k=8–12 five times, plus LIFE k=4, DELL k=38–39 and
+   WNC k=28. Reporting "23 extractions" without this would have overstated the
+   population by ~4×, and the ratio table shows it plainly (OKTA's pole_avg is
+   the same 4,282,189 on all eight rows).
+
+   **The honest headline is upstream, not at the volume gate.** 2,988 of 3,120
+   ticker-sessions never produce a complete pole+flag at all. Even with the
+   volume gate passing everything, this population yields **~6 distinct
+   structures across 78 tickers × 40 sessions** — so `high_tight_flag`'s zero is
+   dominated by extraction rarity, and the volume gate is the last of several
+   narrow filters rather than the sole cause. `_score_volume` is never reached
+   in this population, so its contribution remains unexercised here.
+
+   ⚠️ **Limits of the check, stated rather than buried:** the walk covers 40
+   session-ends on a 520-bar window — a recent-quarter rear view, not the full
+   history held for these tickers — so a longer walk could surface more
+   structures. The 78-ticker population came from a pole test that remains
+   LOOSER than the detector. And "no plain defect in the volume gate" is not
+   "the detector is correct"; it is the narrower claim the evidence supports.
+
+   ⛔ **DISCLOSURE — the outcome fell BETWEEN the two arms of the authorization.**
+   The scope said: fix it if one gate rejects all AND its rejection is a plain
+   defect; record SCOPE-ONLY if several gates reject different subsets. What was
+   measured is neither — **one** gate rejects all, and its rejection is **not** a
+   defect. The clause governing the fix is the one attached to it, and it is
+   unmet, so no code changed. Recording that the conditional did not cover the
+   observed case, rather than picking whichever arm was closer.
 
 ### Remaining open seams — scoped 2026-09-10, none executable under the standing rules
 
@@ -2382,6 +2457,26 @@ member-facing):
   feature. Two separately-tracked items, one product decision: mount them,
   delete them, or record the decision. Fixing the news door is moot until that
   call is made — and whoever makes it closes both at once.
+  ⚰️⚰️ **CORRECTED 2026-09-10 (owner ruling). The entry above conflates two
+  different claims, and only one of them is true.** *"Unmounted from
+  `App.jsx`"* was TRUE. *"Unreleased"* was NOT: the Community feature named
+  in that orphan list is **LIVE to members** under `COMMUNITY_ENABLED=1`,
+  reached through the **`floor2` bundle** — `app/floor2.html` is a SECOND HTML
+  entry point with its own `app/src/floor2/` tree.
+
+  ⭐ **That second entry point is why both readings could look correct at
+  once.** `reachable.test.js` walks the import graph FROM `App.jsx`, so
+  anything whose only door is another entry bundle is structurally invisible
+  to it and reads as an orphan. The rail was not wrong about what it
+  measured; it was read as measuring something wider than it does — "nothing
+  reaches this module" rather than "nothing reaches this module FROM
+  App.jsx". Any future use of that list must carry the qualifier, and a
+  module in it must be checked against the other entry points before being
+  called unreachable, let alone unreleased.
+
+  ⛔ The 18 recorded entries stay recorded — the decision to record rather
+  than delete is unchanged and was right. What changes is the INFERENCE:
+  "unreachable from App.jsx" is not evidence about what members can see.
 - **Seam 22 — event context preservation absent.** `ResearchPage.jsx` reads one
   query param, seeded at mount, never updated; no `from=`/`returnTo`/`backTo`
   anywhere in the research surfaces. Confirmed NOT NEEDED for V1; a real gap for
@@ -2398,6 +2493,504 @@ member-facing):
 
 **None of these is picked up.** Each is member-facing or needs a product ruling,
 which the standing directive reserves to the owner.
+
+### 2026-09-10 LATE NIGHT — P1, P2, P3 shipped and boot-verified
+
+Three pushes, each B-checked, each boot-verified by an uptime reset, each
+followed by an auth + `/api/patterns` error check. No hard stop was hit.
+
+| push | range | boot | post-boot |
+|---|---|---|---|
+| **P1** a-class fixes + Seam 18 record | `0863b5f6f..e908f61c4` | 19:09:06, uptime 1201→12 | auth/me 401 · patterns 401 · login 401 · health 200 |
+| **P2** Seam 24 + Seam 22 | `e908f61c4..5102b8435` | 19:15:12, uptime 318→16 | same, plus `/` and `/research/NVDA` 200 |
+| **P3** dark flags + broker bias | `5102b8435..eb8db17c5` | 20:06:16, uptime 3019→16 | same, plus `/settings` 200, `/api/community/status` 401, `/api/alerts/taxonomy/document-arrival` 401 |
+
+⚠️ **P3 IS NOT "member impact none", which is what the plan said it would be.**
+Six of its seven commits are dark or test-only; the seventh
+(`2bc991e40`) changes what the daily broker-drift digest reports. Its
+member-impact paragraph is in the commit. Calling this out rather than letting
+the plan's own label stand as the record.
+
+### THE LEDGER DRIFTED — AND I REPORTED THE DRIFT AS A DISCOVERY
+
+⚰️⚰️ **CORRECTED 2026-09-10, same night, on owner ruling. The section this
+replaces claimed that finding `RESEARCH_TECHNICAL_TAB_ENABLED='1'` on `web` meant
+"the member-facing surface of this program is ON and the program has been
+reasoning about it as unreleased." That is FALSE, and it was falsifiable from
+this very file.**
+
+**What actually happened.** The flag was flipped ON **by owner ruling at
+2026-09-09 23:22:30 ET**, verified in the running process at flip time. The
+Research → Technical tab has been deliberately LIVE to paid members since that
+timestamp. It is recorded here (*"✅ FLAG FLIPPED ON 2026-09-09 23:22:30 ET.
+Verified in the running process."*) and in the session's own status document §0
+(*"live to paid members since 2026-09-09 23:22 ET"*).
+
+**What drifted is the LEDGER, and only the ledger.** `docs/feature_flags.json`
+kept the MERGE-TIME `dark` entry because nothing updated it when the flag was
+flipped. It now reads `armed`, `where: ["web"]`, with the flip timestamp in the
+note.
+
+⛔ **The reading error is the part worth keeping.** A live-flag question was
+answered from the LEDGER — the artifact that records INTENT and explicitly
+"cannot see Railway" — instead of from the checkpoint, which records what
+happened. The flip and its timestamp sat **488 lines higher in the same file
+being edited**. *The ledger is the artifact most likely to be stale, precisely
+because nothing fails when it is.* When the ledger and the checkpoint disagree
+about a live flag, **the checkpoint wins and the ledger is what drifted.**
+
+⛔ **The durable fix is procedural, and it is now in CLAUDE.md beside the flip
+procedure as step 5: every flip updates the ledger entry in the same docs push
+that records the flip time.** A flip is not finished when the process has the
+value; it is finished when the ledger says so.
+
+### The auditor — the actual win
+
+`tools/flag_ledger_audit.py` is the only thing that compares the ledger against
+Railway, and it has never been runnable on the machine that runs it.
+`subprocess.run(..., text=True)` decodes a pipe with the locale codec (cp1252
+here); the Railway CLI emits UTF-8; the first box-drawing byte killed a reader
+thread, the service roster came back `None`, and the tool then did the RIGHT
+thing and refused to audit against a partial roster.
+
+⭐ **So the symptom was `"CANNOT AUDIT: could not enumerate the project's
+services"` — a decode failure wearing the costume of an auth or project-access
+problem.** That is why it sat unfixed rather than unnoticed: the message sent
+every reader to the wrong subsystem. Fixed 2026-09-10 (`d806f4463`,
+`encoding="utf-8", errors="replace"`). Run it after any flip.
+
+**After the ledger correction, the auditor reports one remaining disagreement:**
+
+| finding | n | names |
+|---|---|---|
+| ledger says ARMED, nothing sets it (fiction) | 0 | — |
+| ledger says OFF, but it IS set | 1 | `ALPHA_GOLD_EOD_ENABLED` |
+| off-by-default and undeclared | 0 | — |
+| awaiting a decision | 0 | — |
+
+⚠️ **`ALPHA_GOLD_EOD_ENABLED` is another workstream's and was NOT touched.**
+Recorded with the caveat that governs every reading of this kind: `--kv` reports
+what a SERVICE IS CONFIGURED WITH, which is not evidence the RUNNING PROCESS has
+it. Its ledger note already says it was confirmed `=0` on flow-worker on
+2026-09-06 and superseded by `CREAM_EOD_ENABLED`; reconciling that is that
+workstream's call, not this program's.
+
+⚠️ Also read from service config, same caveat: `COMMUNITY_ENABLED='1'`,
+`PATTERN_VISION_ENABLED='1'`, `HUB_PREVIEW_ENABLED='true'`,
+`BRAIN_TOOLS_ENABLED='1'`, `COMPASS_MENTOR_MODE='admin'`,
+`COMPASS_AUTOMATION_ENABLED='1'`, `AWARENESS_ENGINE_ENABLED='1'`.
+
+### 1g — COMMUNITY: NOT BUILT, BECAUSE BUILDING IT WOULD HAVE BEEN A REGRESSION
+
+The instruction was to mount CommunityPage behind a new
+`COMMUNITY_SURFACE_ENABLED`, **default off, dark**. Three measurements say don't:
+
+1. **Community is already gated**, by `COMMUNITY_ENABLED` — read at
+   `api/routers/community.py:45` and `api/routers/education.py:317`, defaulting
+   `"0"`, with every `/api/community/*` endpoint except `/status` returning 503
+   when off, the nav item hidden in both `NavBar` and `MoreSheet`, an entry
+   already in the ledger, and tests in `tests/api/test_floor_router.py`.
+2. **`COMMUNITY_SURFACE_ENABLED` exists nowhere in the repo.** Creating it would
+   have broken this repo's own rule — *never invent an env flag; every
+   kill-switch name must be grepped to an actual read site* — which exists
+   because an invented name (`BARS_PREWARM_DISABLED`) once produced silence
+   indistinguishable from a working kill switch.
+3. **`COMMUNITY_ENABLED = '1'` in production: Community is LIVE to members.** A
+   second gate defaulting OFF would have *removed a live member feature on
+   deploy*. The instruction's own "default off, dark" is what makes it
+   destructive here, because its premise — that Community is unmounted — is
+   false.
+
+⛔ So nothing was built, and **F3 is moot**: Community cannot be "flipped on
+Friday" because it is already on. What a second flag would have added is a second
+authority over one value, which is the defect this file has paid for repeatedly.
+
+### The buzz fix, stated as the member-facing correction it is
+
+P1's `024f2e8de` reads as a test fix and is not one. `_write_state` pruned
+retention with `dt.date.today()` while every other decision in that module is
+driven by the caller's injected `now`, so a write dated anything but real-today
+was pruned in the same breath as being made — and `already_posted()` then read
+the set the write had just been deleted from.
+
+**MEMBER IMPACT:** that is the guard against posting a slot twice into a room of
+~750 members. Production has been safe only because production passes real time,
+which makes the two clocks agree by coincidence; `catch_up()` posts a slot up to
+20 minutes late by design, and the failure is one injected clock away. The fix
+removes a latent double-post path. Nothing the room sees changes today, and the
+schedule, the board and the copy are all untouched.
+
+### The steady-lean change, as shipped (owner ruling, YES — and it stands)
+
+⚠️ **The question I put to the owner rested on a wrong diagnosis** (the bias
+red was a fixture date-bomb, not the percent gate — see the corrections
+below). **The ruling was argued on product terms and is independent of it, so
+it stays**, and it shipped as its own commit `2bc991e40` so it could be
+reverted alone if it had not.
+
+A lean had to clear BOTH gates — dollars AND percent — so a small, permanent
+lean on a large book was silent forever. That is exactly the shape the module
+exists to catch: its own docstring records the owner's hero sitting **$19.96
+off the broker's total every day for weeks**, found only by comparing two
+screens by hand. The gate meant to suppress noise was suppressing the signal.
+
+A lean that clears the DOLLAR gate and has persisted across
+`_BIAS_STEADY_SESSIONS` (5) separate sessions is now reported regardless of
+percent. A one-off is not. The dollar floor stays absolute.
+
+⛔ **N is anchored, not invented:** `bias_scan()`'s own default window is 7
+CALENDAR days = one trading week, so 5 is the largest value that can ever be
+satisfied inside the module's own default window. ⛔ **"Sessions" means
+DISTINCT DATES WITH A READING, not consecutive calendar days** — a Fri→Mon gap
+would break consecutive-calendar every weekend, and resolving trading days
+would have made this a FOURTH NYSE-calendar consumer, which Seam 7 ruled
+against. Consecutiveness is carried by the dominance test that was already
+there: a session where the lean vanished contributes a near-zero reading,
+widens the spread, and fails `spread <= 2·|mean|`.
+
+**MEMBER IMPACT (as shipped):** members whose broker account sits a small but
+consistent distance from the broker's own reported total — under 0.02% of the
+account, over $10, on five or more separate sessions — now get that named in
+the daily drift digest instead of never hearing about it. Small accounts are
+what this reaches: on a large book 0.02% is already a big number, so nothing
+changes there. A drift that appears once and goes away is still not reported,
+and the dollar floor, the spike test and the "not enough readings yet" verdict
+are unchanged.
+
+### Flags added tonight — the ledger entries, and what each flip would mean
+
+| flag | polarity | state | flipping it ON does |
+|---|---|---|---|
+| `S7_FILING_WATCH_ENABLED` | enablement (unset = not released) | dark | shows "Notify me about new SEC filings for {sym}" on ResearchHeader, TickerPopup and TickerHubSheet, plus the Settings → Filing watches panel |
+| `GRADE_TICKER_CONFIRMED_SOURCE_ENABLED` | enablement | dark | changes grade_ticker's SOURCE to confirmed verdicts and **changes nothing a member sees** — see below |
+
+⛔ **`GRADE_TICKER_CONFIRMED_SOURCE_ENABLED` IS CURRENTLY INERT BY CONSTRUCTION,
+and F2 must not be flipped expecting otherwise.** `pattern_verdicts` carries
+`key_level` and `vision_confidence` and has **no entry, stop or target_primary
+column**, while grade_ticker's hard gate is `entry is None or stop is None ->
+SKIP`. So with the flag ON, Compass still declines. The promised behaviour —
+"Compass will name an entry, stop and size derived from a confirmed setup" —
+needs verdicts to CARRY levels, which is a schema change and separate work.
+Manufacturing an entry and a stop from one level would be the fabricated-
+confidence move Seam 23 and Seam 28 each removed, and worse here, because the
+invented number would wear a confirmed judge's authority.
+`test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels` pins
+this and goes RED the day levels are added.
+
+### S7 Stage 4/5 — MERGED DARK, and its commit message corrected
+
+⚰️ **Its own message said "(dark, unmerged)". The "dark" half was false**: the
+branch contained no env read, no gate and no payload field. Being UNMERGED was
+the only thing hiding a member-facing control on three surfaces, and merging it
+as written would have exposed all three at once with revert-and-deploy as the
+only rollback. The message now reads "(unmerged; NO FLAG until the commit that
+follows)" and carries the correction in its body.
+
+⚠️ The forward reference is by ROLE, not SHA, and that is a git constraint, not
+a shortcut: amending the parent changes the child's hash, so a forward SHA can
+never be written. The reference runs backwards instead — the follow-up names the
+parent by SHA.
+
+**The rebase the release-requirements paragraph priced: 940 commits behind, 8 of
+14 files overlapping.** It produced **three conflicts, all in test files, all
+mechanical** — both sides had inserted independent blocks at the same line and
+shared a single trailing `})`. Both sides kept, closers restored. **No conflict
+required a behaviour judgment**, which was the stop condition, so the item did
+not park.
+
+### Corrections from tonight, stated rather than smoothed
+
+**1. The (c) question was built on a wrong diagnosis, and the ruling it produced
+was implemented anyway — deliberately, and separately.** I reported
+`test_it_flags_and_names_a_leaning_book` as failing because a steady −$19.96 lean
+cleared the dollar gate and missed the 0.02% percent gate. **It was not.** The
+fixture stamped every reading `2026-08-30` while `run_bias_digest()` scans a
+rolling **7-day** window, so eleven days later the scan saw zero readings and
+returned `insufficient`. Proven by making the dates relative: **all 14 tests pass
+with the percent gate untouched.** The sibling test survived only because it
+passes `days=3650`. That red was a **third date-bomb**, class (a), fixed in
+`f92cdee4e` with no source change. The owner's YES was a product decision argued
+on its own terms, so it shipped as `2bc991e40` — a SEPARATE commit, so it can be
+reverted alone now that the question that prompted it is void.
+
+**2. I called a red "pre-existing, not mine" and it was mine.** A BRK-B test in
+`TickerHubSheet.test.jsx` went red in company, and a probe appeared to clear my
+change. The probe removed my new test from `TickerPopup.test.jsx` — **the wrong
+file**; BRK-B lives in TickerHubSheet. The real cause was that my
+absent-when-off test had been appended *inside* the BRK-B test's body, because
+that file's trailing `})` closes a top-level `test`, not a `describe`. Relocated
+into the S7 describe; all five suites now pass alone and together. **There is no
+(b) here**, and the B10 classification's single (b) remains
+`test_ticker_explain::test_requires_auth`.
+
+**3. A suspected stale count was checked and was not stale.** `ticker_explain.py`
+appeared to say "SIX canonical composers" against eight routed domains. It reads
+6 → 7 → 8 incrementally and matches `_DOMAIN_RE` exactly. Reported only after
+checking.
+
+### Friday's flips — THREE CANCELLED, ONE REMAINS (owner rulings, 2026-09-10)
+
+- ~~**F1** Technical Ask AI~~ — **DROPPED.** Not built, and correctly so: the
+  S7 record states *"Technical Ask AI: BLOCKED ON PATTERN VISION ACCEPTANCE.
+  Phase A complete; do not repeat."* Parked on its own S7 dependency, not on
+  this program. `feat/technical-ask-ai` is a spent label already merged.
+- ~~**F2** `GRADE_TICKER_CONFIRMED_SOURCE_ENABLED`~~ — **CANCELLED. STAYS
+  DARK.** Verdicts carry `key_level` and nothing else, the
+  `entry is None -> SKIP` gate makes the flip inert, and fabricating an entry
+  and a stop from one level is the Seam 23/28 move. The wire is built, tested
+  and declared, so nothing is lost by leaving it off.
+  ⛔ **Re-enablement is now a DESIGN question — "should verdicts carry
+  levels?" — and it belongs to the owner, later, NOT to this program.** Do not
+  reopen it as an engineering task.
+  ⭐ `test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels`
+  is the tripwire: it goes RED the day verdicts gain levels, which is exactly
+  when this decision becomes live again.
+- ~~**F3** Community~~ — **MOOT.** Live under `COMMUNITY_ENABLED=1`, reached
+  through the `floor2` bundle. See the Seam 18 correction above for why it
+  could read as unreleased and was not.
+- **F4** `S7_FILING_WATCH_ENABLED` — **THE ONE FLIP.** Friday 16:05,
+  conditional on ALL of:
+  1. **B1 PASS.** It consumes nothing from fix C — the conditionality is
+     deliberate anyway: no new surface is exposed on a day the judge proved
+     wrong.
+  2. **P3 boot clean** — already satisfied (20:06:16, uptime 3019→16, auth and
+     `/api/patterns` error-free).
+  3. **The flag-on paragraph written.**
+
+  **After the flip:** verify the boot, read the value IN-PROCESS (not `--kv`),
+  and watch auth plus the three affected routes for **15 minutes**. Then
+  update the ledger entry to `armed` with the flip timestamp IN THE SAME DOCS
+  PUSH (CLAUDE.md flip procedure, step 5 — the rule this night produced).
+
+  ⚠️ **It then needs a human click-through**, the same one Community would
+  have needed; the owner will do it over the weekend. **Auto-off on any
+  traceback attributable to it.** Weekend monitoring is scoped to the S7
+  routes only.
+
+### B10 — the measured backend baseline, and every red characterized
+
+**MEASURED, 2026-09-10: 20,583 passed · 43 failed · 0 errors · 43 skipped,
+across all 1,224 backend test files.**
+
+⛔⛔ **CLAUDE.md's "~9,600 tests" IS WRONG BY 2.1×** and has been quoted as a gate
+number. It is corrected to the measured figure in the same push as this entry. A
+count nobody re-measures is the defect this file keeps paying for; the number
+above is reproducible from `b10_backend.txt` + `b10_backend_1_6.txt`.
+
+**How it was measured, including what went wrong with the instrument.**
+`pytest tests/` unscoped balloons past 15 GB and OOMs on this box, so the suite
+ran in 21 chunks of 60 files, each in its own process, each recording its own
+totals line — a chunk with no totals line is recorded INCOMPLETE, never as zero
+failures. None were incomplete.
+
+⚰️ **The instrument truncated its own log.** `chunked_backend.py` opened its
+output with `io.open(OUT, "w")`. Restarting it at chunk 7 re-truncated the same
+path and destroyed the chunk 01–06 results, leaving a GRAND TOTAL that silently
+covered chunks 07–21 ONLY — a partial suite failing in the FLATTERING direction
+(fewer files run, fewer failures found), which is exactly the corollary CLAUDE.md
+already carries. Caught before it was quoted; chunks 01–06 were re-run into a
+separate append-only file, and the tool now opens `"a"`.
+(`lesson_open_w_truncates_before_your_write_can_fail`.)
+
+⚠️ **Two files were covered by NEITHER pass and were run explicitly** (15
+passed): `tests/test_mutate.py` and `tests/test_pattern_vision_evaluated_count.py`,
+both committed by concurrent work *while the sweep was running*, which moved the
+file count 1,222 → 1,224. Because chunking is by index over a sorted list,
+insertions shift later boundaries; both landed at indices 786/833, so the 01–06
+boundary at 360 was unaffected and no gap opened there. **Count the files, not
+just the passes** — the union is 1,224 of 1,224.
+
+⚠️ **The sweep ran under contention from two other sessions' test runs**
+(`tools/pytest_chunks.py`, `scripts/gate_shards.py`). Chunk 18 took 777s wall
+against 262s of pytest time. Timings here are therefore not performance data, and
+any `--timeout` red would have to be re-run alone before being banked. None of
+the 43 was a timeout.
+
+#### The 43, classified
+
+| class | n | disposition |
+|---|---|---|
+| **(a)** deterministic, local cause | **10** | **FIXED tonight**, fail-before/pass-after |
+| **(b)** load- or order-sensitive | 1 | recorded, not fixed |
+| **(c)** needs product judgment | 1 | recorded as a one-word question, NOT fixed |
+| **(d)** another workstream, in-flight | 29 | recorded with the SHA, NOT touched |
+| environment precondition | 2 | see the disclosure below |
+
+**(a) — FIXED, 10 reds, TWO root causes.**
+
+| test | chunk | cause |
+|---|---|---|
+| `test_buzz_digest.py` (9 tests) | 08 | `_write_state` pruned retention with `dt.date.today()` while every other decision uses the caller's injected `now`, so a write dated anything but real-today was pruned in the same breath as being written — the slot then read back as never posted. Fixed `024f2e8de` by anchoring retention to the newest key in the data. ⛔ In production that is a DOUBLE POST path into a ~750-member room, not a test artifact; it was masked only because production passes real time. `_KEEP_DAYS` had NO test at all, so a retention guard was added and mutation-checked both ways. |
+| `test_user_playbook.py::test_note_links_replace_set_and_liveness` | 19 | The liveness LEFT JOIN did not filter `deleted_at`, so a SOFT-deleted (trashed) Notebook note still matched and a playbook chip claimed a dead link was live — contradicting the function's own docstring. Fixed `093670c7e`. Nothing in that file changed; the contract changed underneath it, in another module. |
+
+⚰️ **The nine buzz reds were GREEN when written on 2026-09-02 and turned red on
+2026-09-07, untouched.** They pin `2026-09-01` dates against a 5-day retention
+window. A date-bomb: no commit, no notice, five days of a red baseline reading as
+"pre-existing". Both fixes are anchored to data rather than a clock, so neither
+can rot the same way.
+
+**(b) — 1 red, recorded per CLAUDE.md, not fixed.**
+
+| test | evidence |
+|---|---|
+| `test_ticker_explain.py::TestRoute::test_requires_auth` | Failed inside its 60-file chunk; **passes in isolation and passes in a 19-file group of the failing files**. Load/order-sensitive, so it is not banked as permitted breakage and not "fixed" into a green that means nothing. |
+
+**(c) — 1 red, NOT fixed. The decision, in a form answerable in one word:**
+
+> `test_broker_bias_scan.py::test_it_flags_and_names_a_leaning_book` drives a
+> steady **−$19.96** lean across 8 readings and expects it reported. It is not:
+> the dollar gate (`BROKER_BIAS_DOLLAR=10`) passes, the percent gate
+> (`BROKER_BIAS_PCT=0.02%`) does not, and a lean must clear BOTH.
+>
+> **Question: should a steady sub-0.02% lean be reported — YES or NO?**
+>
+> **YES** → the percent gate is wrong for small books, and a member with a
+> consistently mismarked small account currently hears nothing; the cost is more
+> digests on accounts where the lean is genuinely fee-convention noise.
+> **NO** → the code is right and the test's fixture asserts a lean the product
+> deliberately declines to flag; the test is re-pinned above the gate and no
+> member-facing behaviour changes.
+>
+> ⛔ Not decided here, and no threshold moved either way.
+
+**(d) — 29 reds, another workstream's in-flight work. Hunk-checked, not
+file-checked. Recorded with SHAs; none touched.**
+
+| tests | n | in-flight work | SHA / date |
+|---|---|---|---|
+| `test_discord_chart.py` · `test_discord_activity.py` · `test_discord_chart_prefs.py` | 10 | the `/flow` command + chart-popup workstream — `'flow'` joins the command registry, the collapse control changes glyph, `/chart` is restricted to one channel | `08cadbba9` … `9d38e5d8e`, 2026-09-06 |
+| `test_web_capture_coverage.py` | 8 | Notebook Wave P3 — `ask_evidence.py:308` `KeyError: 'text_origin'` | `79a16fd35`, 2026-09-09 |
+| `test_scan_screener_auth.py` | 3 | screener router now passes `user=` to a service the test stubs with a lambda that does not accept it | `93686844d`, 2026-09-05 |
+| `test_fmp_guard_census.py` | 1 | new `news/adapters/fmp_news.py:37` carries an unquarantined vendor URL literal | `5978e05d2`, 2026-09-07 |
+| `test_yf_guard_binds.py` | 1 | new `financial_statements.py` reaches yfinance with no binding proof | `b8c3fdf57`, 2026-09-07 |
+| `test_no_cr_in_tracked_text_blobs.py` | 1 | `tools/wave_p_cert_corpus/manifest.json` staged with CR endings — ⭐ by the very commit that set out to make that corpus bytes rather than text | `b7a0c6f3b`, 2026-09-09 |
+| `test_shared_state_landmines.py` | 1 | `tests/test_mobile_audit_route_validity.py:30` binds `sys.modules` at import time | `159bba4c0`, 2026-09-07 |
+| `test_test_discovery_coverage.py` | 1 | `scripts/test_entity_master_seed.py` matches pytest's patterns but sits outside every `testpaths` root | `ac76a93cf`, 2026-09-06 |
+| `test_earnings_table.py` | 1 | a complete table's TTL reads 120 where the rail expects 300/21600 | `7c1d8eb7b`, 2026-09-08 |
+| `test_launch_hardening.py` | 1 | theme-warm throttle no longer suppresses a second immediate poll | `606708703` / `614235fd8`, 2026-09-05 |
+| `test_two_engines_do_not_agree.py` | 1 | VCP `_TREND_TEMPLATE_SMA_LONG/SHORT` (200/150) moved since the agreement table was measured; the rail asks for a RE-MEASURE of both the docstring table and `MEASURED_AGAINST` | `f38363d53`, 2026-09-03 ⚠️ exactly on the 7-day boundary |
+
+⛔ **None of these was fixed, and that is the point.** Each sits in a file another
+program is actively editing; "fixing" them tonight would mean editing someone
+else's in-flight hunk and handing them a conflict.
+
+**DISCLOSURE — 2 reds have no class in the scheme.**
+`test_spa_head_reachability.py::test_head_on_the_root_is_not_a_405` and
+`tests/api/test_health.py::test_spa_fallback_serves_html` both fail on
+`app/../app/dist/index.html does not exist`: **the frontend is not built in this
+worktree.** That is deterministic and its cause is local and obvious, which reads
+like (a), but the remedy is `npm run build`, not a commit — `dist/` is gitignored,
+so there is nothing to fix and nothing to push. Recording them as an environment
+precondition rather than forcing them into (a) and reporting a fix that is not a
+fix. ⚠️ It also means **these two are NOT evidence about the repo**, and a run
+with a built frontend should show 41 reds, not 43.
+
+### Two authorized inspections, 2026-09-10 — NOTHING SHIPPED FROM EITHER
+
+Both were ruled INSPECT-ONLY. Both were inspected; no code from either reached
+master. Recorded here because an inspection nobody writes down reads as an
+inspection nobody did.
+
+**TECHNICAL ASK AI — NOT BUILT, AND CORRECTLY SO.** `ticker_explain.py` routes
+**eight** domains (`_DOMAIN_RE`, derived by AST, not counted by hand):
+`news · analyst · rating · earnings · financials · estimates · ownership ·
+filings`. **None of them is technical.** The file contains zero references to
+`pattern_vision`, `pv_store` or `get_confirmed` — there is no technical
+composer, dark or otherwise, and nothing half-built behind a flag.
+- ⚠️ **The branch name misleads.** `feat/technical-ask-ai` is an ANCESTOR of
+  master and 0 commits ahead — a spent label whose tip has drifted onto
+  unrelated theme-tracker work. Reading the branch list alone would suggest
+  parked work exists. It does not.
+- **This is a documented block, not an oversight.** The S7 continuity record
+  states: *"Technical Ask AI: BLOCKED ON PATTERN VISION ACCEPTANCE. Phase A
+  complete; do not repeat."* Phase A shipped; the ninth domain waits on the
+  acceptance gate this program is currently running.
+- ⛔ Wiring it would mean a NEW domain plus an adapter over the Pattern Vision
+  store — new construction, which is a hard stop. Not attempted.
+- ⚰️ A count in that module's docstring was suspected stale ("SIX canonical
+  composers") and **checked before being reported**: it is not stale. The
+  docstring narrates SIX (Slice 2) → SEVENTH (composite rating) → EIGHTH
+  (earnings) incrementally, and the total matches `_DOMAIN_RE` exactly.
+
+**S7 STAGE 4/5 — BUILT, UNMERGED, AND NOT DARK.** Branch
+`feat/s7-stage4-5-filing-watch-ui`, one commit `01a898347`, 14 files / 745
+insertions: a member-facing "Notify me about new SEC filings for {sym}" control
+on THREE creation surfaces (`ResearchHeader`, `TickerPopup`,
+`TickerHubSheet` (mobile)) plus a Stage 5 Settings management panel
+(`FilingWatchesPanel`, list + suspend/reactivate, no hard delete).
+
+⛔⛔ **ITS OWN COMMIT MESSAGE SAYS "(dark, unmerged)". THE "dark" HALF IS
+FALSE.** The branch diff contains **no feature flag of any kind** — no env read,
+no `import.meta.env`, no `_access_payload` field. The only flag-shaped added
+line in the whole diff is `auth.isPaid = true`, inside a test.
+`FilingWatchAction` renders unconditionally. **Being unmerged is the only thing
+making it invisible**, so merging it exposes member UI on three surfaces at
+once and the rollback is a revert-and-deploy, not a flag flip. That is exactly
+the ambiguity `project_feature_flag_ledger` exists to prevent, and it is the
+strongest single reason the owner's NOT NOW is right.
+
+**RELEASE REQUIREMENTS — what merging Stage 4/5 actually costs, measured:**
+1. **A real flag first**, in the established `_access_payload` pattern
+   (`api/routers/auth.py`, alongside `HUB_PREVIEW_ENABLED` and
+   `RESEARCH_TECHNICAL_TAB_ENABLED`). Polarity must be stated deliberately:
+   this is a NEW surface, so it is an enablement gate defaulting OFF, not a
+   kill switch defaulting ON.
+2. **A rebase that this repo's own rule makes mandatory, and that can hit a
+   hard stop.** The branch is **940 commits behind** master, and **8 of its 14
+   files overlap** master's changes since the merge-base:
+   `TickerPopup.jsx` · `TickerPopup.test.jsx` · `TickerHubSheet.jsx` ·
+   `TickerHubSheet.test.jsx` · `Settings.jsx` · `ResearchHeader.jsx` ·
+   `ResearchPage.module.css` · `ResearchPage.test.jsx`. A rebase conflict
+   needing behaviour judgment is a standing hard stop, so this is not a
+   mechanical operation and must not be scheduled as one.
+3. **The backend half is NOT on master.** The branch adds an optional
+   `active_only` query param to `GET /api/alerts/taxonomy/document-arrival`;
+   master still passes `active_only=True` as a fixed call argument. Without the
+   branch's change a SUSPENDED watch vanishes from every surface with no way
+   back to it — so the frontend cannot ship ahead of the backend here, and the
+   two must land together.
+4. **Re-measure the tests rather than trusting the commit.** The commit message
+   claims "27 new" and then enumerates 10+4+4+4+7+1 = **30**, with the author's
+   own unresolved "wait -- see individual files for exact counts" left in the
+   text. Neither number is evidence; count them at rebase time.
+
+### Seam 13 — CLOSED AS DONE (owner ruling, 2026-09-10). No re-scope.
+
+**The cross-reference, recorded as instructed.** The surface that satisfies this
+seam was shipped by a DIFFERENT program's ledger — the notebook-platform work,
+commit **`37d608967`** (2026-09-06, *"fix(notebook): Stage A Bucket A —
+thesis-link creation, note-load error state, error sanitization"*). Nothing in
+this program built it and nothing in this program needs to.
+
+**The observable behaviour that satisfies the seam, verified on `origin/master`
+rather than taken from the earlier note:**
+
+| Surface | Line | Call |
+|---|---|---|
+| `journal-2-0/components/position/PositionDetailPage.jsx` | 338 | `<LinkedNotesPanel tradeRef={String(id)} tradeRefType="position" />` |
+| `journal-2-0/components/trade/TradeDetailPage.jsx` | 587 | `<LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />` |
+
+with `journal-2-0/components/notebook/LinkedNotesPanel.{jsx,module.css,test.jsx}`
+all present on master.
+
+⚠️ **This is BROADER than this file previously recorded.** The earlier entry
+named only `PositionDetailPage`. It also reaches `TradeDetailPage`, under a
+second `tradeRefType`. The seam is more completely covered than the record
+claimed — worth stating because the failure mode being corrected here is a
+checkpoint that describes less than what shipped, which invites someone to
+"finish" work that is already done.
+
+⚰️ **The stale framing is retired.** Seam 13's original "fully ABSENT" wording
+was false by 2026-09-06 and is superseded by this entry.
+
+⛔ **The process defect this exposed is NOT closed by closing the seam.** Two
+independent program ledgers covered overlapping product surface while
+cross-referencing neither. That is why this seam sat open in one ledger for days
+after another ledger shipped it, and why a header-line read of either ledger
+gave the wrong answer. Recorded here as the cross-reference the ruling asked
+for; the durable fix (ledgers that name each other at the surface they share)
+is a process change, not a code change, and is not this program's to make
+unilaterally.
 
 ### Follow-up defects — SCOPED ONLY, NONE AUTHORIZED
 
@@ -2704,7 +3297,7 @@ under it are recorded here with their rationale, per that grant.
 
 - ✅ **BOTH DOCUMENTED INHERITED BACKEND REDS ARE CLOSED (2026-09-10).** This
   file and the session memory both carry "never claim repo-green" because of
-  them; that instruction stands for the FULL suite (~9,600 tests, never run
+  them; that instruction stands for the FULL suite (20,583 passing / 43 failing, measured 2026-09-10;, never run
   here), but the two named reds are fixed:
   - `test_no_shadowed_definitions` — `ticker_explain._DOMAIN_FETCHERS` was bound
     twice at module level: a forward declaration

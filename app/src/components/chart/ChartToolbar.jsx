@@ -35,6 +35,9 @@ import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
+// A moving average the member REMOVED keeps its slot (the merge is positional)
+// and must not be listed. See `chartDefaults`'s tombstone header.
+import { isOverlayRemoved } from './chartDefaults'
 import { chordForTool } from './keyboardShortcuts'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
@@ -419,7 +422,11 @@ function ChartSettingsPanel({
       {/* Indicators */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Moving Averages</span>
-        {cs.overlays.map((ov, i) => (
+        {/* ⛔ INDEX FIRST, FILTER SECOND. `updateOverlay(i, …)` addresses the slot
+            in the STORED array, so `i` has to be the real index — filtering the
+            array before mapping would renumber every row after a tombstone and
+            send an edit to the wrong moving average. */}
+        {cs.overlays.map((ov, i) => [ov, i]).filter(([ov]) => !isOverlayRemoved(ov)).map(([ov, i]) => (
           <div key={i} className={styles.sOverlayRow}>
             <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
             <select className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>
@@ -1136,6 +1143,28 @@ function ChartToolbar({
       setLibraryOpen(true)
       return true
     },
+    // ⭐ THE FORMULA BUILDER'S THIRD OPENER, AND ON `/charts` ITS ONLY ONE.
+    //
+    // The builder is mounted here and NOWHERE ELSE — `BuilderSheet.test.jsx`
+    // parses this file and fails if a second `<BuilderSheet>` element appears,
+    // because two mounts is two drafts over one member's work. Its two existing
+    // doors are the legacy settings panel (hidden on `/charts`) and the library
+    // dialog (whose toolbar button this consolidation removes), so without this
+    // entry the nine tasks of authoring work would once again be unreachable from
+    // the one surface a charting member lives on. `ChartSettingsModal` →
+    // Indicators → "New Formula" reaches it through `StockChart`'s
+    // `toolbarApiRef`.
+    //
+    // ⚠️ IT REPORTS ITS REFUSAL rather than silently no-opping, for the same
+    // reason `openIndicatorLibrary` does: a read-only mount site passes no
+    // `onUpdateSettings`, and a caller that got `true` would render a button that
+    // opened nothing.
+    openFormulaBuilder: () => {
+      if (!canManageIndicators) return false
+      setLibraryOpen(false)   // never two Sheets: see the mount comment below
+      openBuilder()
+      return true
+    },
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
     // right-click **Add alert on <label>…** row, reach THIS popover rather than
     // mounting a second one. ⚠️ IT RETURNS `false` WHEN THERE IS NO SYMBOL, for
@@ -1148,7 +1177,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym])
+  }), [canManageIndicators, currentSym, openBuilder])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1499,25 +1528,28 @@ function ChartToolbar({
           )}
         </div>
 
-        {/* Indicators — spec §6 asks for a LABELLED button, "not icon-only in
-            v1": the add-flow is the thing users are hunting for and a glyph is a
-            guess. Gated on the same pair as the settings panel, so a read-only
-            mount site (which passes no `onUpdateSettings`) gets neither.
+        {/* ⚰️ A LABELLED "Indicators" BUTTON STOOD HERE, AND IT IS RETIRED RATHER
+            THAN MOVED — the dialog it opened is still mounted below and still has
+            three live doors (see them at the mount).
 
-            ⚠️ NOT gated on `hideSettingsButton`. That flag retires the LEGACY V1
-            gear on surfaces that have the new modal; the library launcher is the
-            add-flow itself and has no equivalent in the modal, so hiding it with
-            the gear would leave the charts workspace with no way to add one. */}
-        {canManageIndicators && (
-          <button
-            type="button"
-            className={`${styles.btn} ${styles.indicatorsBtn} ${libraryOpen ? styles.active : ''}`}
-            onClick={() => { setLibraryOpen(true); closeOthers(null) }}
-            title="Indicators — browse and add"
-          >
-            <UIcon name="breadth" size={14} gold={false} strokeWidth={1.95} /> Indicators
-          </button>
-        )}
+            It existed because spec §6 wanted the add-flow visible and because
+            *"the library launcher is the add-flow itself and has no equivalent in
+            the modal, so hiding it with the gear would leave the charts workspace
+            with no way to add one"*. That sentence was true and is now false:
+            `ChartSettingsModal` → Indicators IS the add-flow — the same catalogue,
+            the same `matches()` search, the same `toggledRow` write, the same
+            "+ Add another", plus the settings for what is already on and a door
+            to the formula builder. Two labelled entry points onto one job is the
+            split this consolidation exists to end; a member should not have to
+            know that "find an indicator" and "configure an indicator" are
+            different buttons.
+
+            ⛔ WHAT DID **NOT** GO WITH IT. `IndicatorLibraryDialog` keeps every
+            other opener — `Alt+Shift+A`, both right-click rows, the phone ƒx
+            sheet through `toolbarApiRef` — because those are chords and menus,
+            not a second permanent surface, and the mobile shell has no settings
+            modal to fall back on. Deleting the component would have been the
+            regression; deleting the BUTTON is the consolidation. */}
 
         {/* Chart settings — legacy V1 inline panel. Hidden on surfaces that have
             the new ChartSettingsModal (charts workspace); still the settings entry

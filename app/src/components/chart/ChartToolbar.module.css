@@ -731,7 +731,13 @@
    `.btn` is a 24px square built for a glyph; this one carries a WORD, so it
    overrides the width and adds room for the label. Everything else — the
    canvas-derived background, the hover step, `.active` — is inherited, so it
-   still reads as one of the toolbar's own controls. */
+   still reads as one of the toolbar's own controls.
+
+   ⚰️ ITS BUTTON IS RETIRED — Chart Settings → Indicators is the one home now (the
+   tombstone is in `ChartToolbar.jsx`). The RULE stays: it is the shape any future
+   labelled toolbar control needs, and it is the only written answer to "why is
+   this one not 24px". Retire it alongside the next labelled button, not instead
+   of one. */
 .indicatorsBtn {
   width: auto;
   gap: 5px;

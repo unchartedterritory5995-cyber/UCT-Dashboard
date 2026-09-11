@@ -20,6 +20,7 @@ See docs/superpowers/specs/2026-07-02-compass-grade-ticker-verdict-design.md.
 """
 from __future__ import annotations
 
+import os
 import logging
 
 _log = logging.getLogger("grade_ticker")
@@ -62,35 +63,58 @@ def _default_quote_fn(symbol):
     return _get_quote(symbol)
 
 
+
+
+def _confirmed_source_enabled() -> bool:
+    """Read at CALL time, never captured at import -- a module-level capture
+    makes the flag a deploy-time decision and quietly breaks the no-redeploy
+    rollback this repo relies on elsewhere (see HUB_PREVIEW_ENABLED)."""
+    # ⛔ The NAME IS A LITERAL here on purpose. feature_flag_index.py derives
+    # the gate roster by AST and only matches os.environ.get("<Constant>"),
+    # so naming this through a module constant made it INVISIBLE to the
+    # ledger -- test_feature_flag_ledger stayed green over an undeclared
+    # gate, which is the ledger becoming fiction.
+    return os.environ.get("GRADE_TICKER_CONFIRMED_SOURCE_ENABLED", "0") == "1"
+
+
 def _default_patterns_fn(symbol):
-    """Seam 28 (2026-09-06): returns no detections, deliberately, until Pattern
-    Vision reaches LIVE + ACCEPTED.
+    """Seam 28: no detections by default. With
+    GRADE_TICKER_CONFIRMED_SOURCE_ENABLED=1, sources Pattern Vision's
+    CONFIRMED verdicts -- `get_confirmed` only, which is D1-window-bounded and
+    latest-evidence-bar-per-setup, so a setup confirmed on an older bar and
+    rejected on a newer one can never be served. The raw rule-engine feed is
+    NOT reachable from here in either state; that exclusion is Seam 23/28 and
+    is not what this flag governs.
 
-    This used to read `pattern_engine.memory.get_active_detections()` -- the
-    same raw, unconfirmed rule-engine table whose universe-wide page was
-    already retired by the owner (2026-08-26) after Pattern Vision's own
-    Opus-vision judge confirmed only ~16% of its candidates. grade_ticker
-    still narrated that same feed as "deterministic... the firm's computed
-    read" with concrete entry/stop/target/size numbers, on three live,
-    member-reachable surfaces (AI Search's fast + agent lanes, Compass
-    voice+chat) -- the exact defect class already adjudicated once this
-    session as Seam 23, which likewise removed the raw feed rather than
-    merely label it. `ticker_explain.py` had already excluded this same
-    table as "D9-unsafe" for Research's own Ask AI; that judgment was never
-    applied here.
+    ⛔⛔ WITH THE FLAG ON, grade_ticker STILL RETURNS SKIP/no_setup, and that
+    is CORRECT, not a bug. `pattern_verdicts` carries `key_level` and
+    `vision_confidence` -- it has NO entry, stop or target_primary column.
+    grade_ticker's hard gate is `entry is None or stop is None -> SKIP`, so a
+    confirmed verdict alone cannot produce a tradable verdict. `levels` below
+    therefore carries key_level and NOTHING ELSE: manufacturing an entry and
+    a stop from one level is exactly the fabricated-confidence move Seam 23
+    and Seam 28 each removed, and it would be worse here because the number
+    would wear a confirmed judge's authority.
 
-    Do NOT re-point this at Pattern Vision's own confirmed verdicts
-    (`pattern_vision.store.get_confirmed`) either -- Pattern Vision is
-    itself still under its own live, time-boxed acceptance trial (see the
-    continuity checkpoint), and doing so would be exactly the "quietly
-    promote an unaccepted system into a member-facing authority" move Seam
-    23's own adjudication forbids. `grade_ticker` already has a correct,
-    honest fallback for "no usable setup" (the SKIP/no_setup branch below,
-    predating this fix) -- returning no detections here routes every call
-    through that existing honest path instead of a fabricated-confidence
-    one. Re-enable sourcing from confirmed Pattern Vision verdicts only
-    once that classification lands, as its own deliberate follow-up change."""
-    return []
+    So this flag makes the SOURCE correct and leaves the OUTPUT unchanged.
+    Delivering an entry/stop/size from a confirmed setup needs the verdict to
+    carry levels, which is a schema change and a separate, owner-authorized
+    piece of work. `test_confirmed_source_on_still_skips_because_verdicts_
+    carry_no_levels` pins this and will go RED the day levels are added --
+    which is precisely when someone should come back here."""
+    if not _confirmed_source_enabled():
+        return []
+    try:
+        from api.services.pattern_vision import store as pv_store
+        rows = pv_store.get_confirmed(symbol, "D") or []
+    except Exception:  # noqa: BLE001
+        return []
+    return [{
+        "pattern_name": r.get("setup"),
+        "confidence": r.get("vision_confidence"),
+        "asof_date": r.get("asof_date"),
+        "levels": {"key_level": r.get("key_level")},
+    } for r in rows]
 
 
 def _default_playbook_fn(setup_name):

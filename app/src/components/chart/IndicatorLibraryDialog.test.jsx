@@ -5,10 +5,29 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
-import { catalogRows } from './indicatorCatalog'
+import { catalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
+
+// ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
+//
+// ⭐ THE MOVING AVERAGES AND THE VOLUME PANE JOINED THE CATALOGUE (2026-09-10).
+// They are `cs.overlays` (a positional ARRAY) and `cs.volume` (a SECTION), so
+// they are not definitions and not settings slices, and until this change they
+// appeared in NO catalogue: searching "moving average" answered *"No indicator
+// matches"* over a chart drawing four of them.
+//
+// ⛔ THEY ARE **NOT** IN `catalogRows()`, AND THE CASE THAT PROVES IT IS KEPT.
+// That function is the shipped DEFINITION manifest — the right-click submenu and
+// the share-link payload are asserted against it id-for-id — so the union is made
+// at the CONSUMER, exactly as it already was for a member's own formulas. Which
+// is why the expectations below name the union and not the manifest.
+
+/** Every row the DIALOG offers, in render order — the union it actually makes.
+ *  ⛔ DERIVED, NEVER TYPED: a row added to either list arrives here for free,
+ *  which is the property the hand-typed section list this suite replaced lost. */
+const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows()]
 
 // ─── THE BROWSE / ADD SURFACE (spec §6) ─────────────────────────────────────
 //
@@ -36,8 +55,8 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // heading; there is no group array to forget to edit — the exact defect the
     // settings modal's hardcoded section list was (B3 Task 12 retired it).
     const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(headings).toEqual([...new Set(catalogRows().map((r) => r.category))])
-    expect(screen.getAllByRole('option')).toHaveLength(catalogRows().length)
+    expect(headings).toEqual([...new Set(OFFERED().map((r) => r.category))])
+    expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
     // …and the carved-out section is one of them. A list built from definitions
     // alone drops it — the regression B3 Task 11 refused.
     expect(optionIds()).toContain('volumeProfile')
@@ -89,7 +108,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // assertion above cannot tell the two apart on its own.
     expect(next.indicatorInstances.some((i) => i && i.defId === 'atr' && !i.deleted)).toBe(true)
     expect(screen.getByRole('searchbox'), 'the dialog closed after an add').toBeTruthy()
-    expect(screen.getAllByRole('option')).toHaveLength(catalogRows().length)
+    expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
   })
 
   it('🔴 reopening clears a stale search — a member never comes back to an empty library', () => {
@@ -111,7 +130,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     rerender(<IndicatorLibraryDialog open {...props} />)
 
     expect(screen.getByRole('searchbox').value, 'the query survived a close').toBe('')
-    expect(screen.getAllByRole('option')).toHaveLength(catalogRows().length)
+    expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
   })
 
   it('a second click removes it, and the row un-ticks', () => {
@@ -176,7 +195,12 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // Carved-out rows still list; the point is it does not crash and does not
     // paint an empty row. defSchema's line: a control that refuses to appear is a
     // bug report, one that appears and writes nowhere is a support ticket.
-    expect(optionIds()).toEqual(['volumeProfile'])
+    // ⭐ THE TWO BUILT-IN ROWS SURVIVE AN EMPTY REGISTRY, and that is the point of
+    // them: a moving average and the volume pane are blob SHAPE (`cs.overlays`,
+    // `cs.volume`), not definitions, so a registry that knows nothing still has
+    // them to offer. Only `volumeProfile` — the carved-out row — kept that
+    // property before.
+    expect(optionIds()).toEqual(['ma', 'volume', 'volumeProfile'])
   })
 
   it('⭐ a REFUSED write persists nothing — the identity guard, with a real subject', () => {
@@ -191,7 +215,11 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
       placement: { target: 'pane' }, inputs: [], plots: [],
     }
     const { onChange } = open(base(), { listDefinitions: () => [ghost], getDefinition: () => null })
-    expect(optionIds()).toEqual(['ghost', 'volumeProfile'])
+    // ⚠️ THE ORDER IS THE DERIVED GROUPING, not the array order: rows are grouped
+    // by CATEGORY in first-appearance order, so `volume` (Volume) pulls
+    // `volumeProfile` (Volume) up beside it and the ghost's own category lands
+    // after both.
+    expect(optionIds()).toEqual(['ma', 'volume', 'volumeProfile', 'ghost'])
     fireEvent.click(screen.getByRole('option', { name: /Ghost Indicator/ }))
     expect(onChange, 'a refused write was persisted').not.toHaveBeenCalled()
     // …and the control half: the carved-out row on the SAME render does write, so
@@ -229,7 +257,12 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // checkmark's job and two controls doing one thing is how a user learns to
     // trust neither. Asserted over EVERY off row, so the claim is a totality
     // rather than one hand-picked witness.
-    const off = catalogRows().map((r) => r.id).filter((id) => id !== 'rsi')
+    // ⛔ THE BUILT-IN ROWS ARE EXCLUDED, AND NOT AS A CONVENIENCE. This sweep's
+    // premise is "only RSI is on", which it gets by turning one definition on —
+    // but a default blob DRAWS four moving averages and a volume pane, so `ma`
+    // and `volume` are legitimately ON here and their ＋ is correct. Their own
+    // on-ness is asserted in the built-in cases below.
+    const off = OFFERED().filter((r) => !r.builtIn).map((r) => r.id).filter((id) => id !== 'rsi')
     expect(off.length, 'nothing is off — the control half is vacuous').toBeGreaterThan(5)
     for (const id of off) {
       expect(addAnotherIn(id), `${id} is OFF and offers "Add another" — there is nothing to `
