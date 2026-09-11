@@ -13,6 +13,7 @@ import {
   EDGE_GUARD_TRAVEL_PX,
 } from './constants.js'
 import { resolveTarget, ringForPointer } from './fanGeometry.js'
+import { recordGestureEvent } from './gestureTrace.js'
 import haptics from '../components/mobile/haptics.js'
 
 // ⭐ THE HOOK RENDERS NOTHING. It owns one pointer-driven state machine and calls back into the
@@ -97,6 +98,43 @@ function forceOuterRing(dx, dy) {
   return { dx: dx * k, dy: dy * k }
 }
 
+// ── G0 gesture trace helpers ────────────────────────────────────────────────────────────────────
+// docs/plans/joystick/g0-flick-trace-plan.md. Everything below is inert unless the admin-only
+// "Record gesture trace" toggle is on (`settings.traceGestures`, resolved admin-only in
+// `useHubSettings.js`). Nothing here decides anything: see `gestureTrace.js`' header.
+
+/** `performance.now()` where it exists, `Date.now()` where it does not. HALF of the load-bearing
+ *  clock pair — the other half is `event.timeStamp`, read off the event itself. */
+function nowMs() {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+}
+
+/** Direct evidence of Safari's pointer batching, which is cause A's proposed mechanism. Wrapped:
+ *  a browser that throws here must not take the gesture down with it. */
+function coalescedCount(e) {
+  try {
+    if (!e || typeof e.getCoalescedEvents !== 'function') return null
+    const list = e.getCoalescedEvents()
+    return list && Number.isFinite(list.length) ? list.length : null
+  } catch {
+    return null
+  }
+}
+
+/** A ResolveResult flattened for JSON. Cause C is answered by `id` + `ring` + `flickable`. */
+function targetInfo(resolved) {
+  if (!resolved || !resolved.action) return null
+  return {
+    id: resolved.action.id ?? null,
+    ring: resolved.ring ?? null,
+    index: resolved.index ?? null,
+    angle: resolved.angle ?? null,
+    flickable: resolved.action.flickable !== false,
+  }
+}
+
 /**
  * The gesture engine. Pure state + callbacks — draws nothing.
  *
@@ -156,6 +194,21 @@ export default function useJoystick({
   // press-release gestures, not one.
   const pendingTapRef = useRef(null)
 
+  /**
+   * ⛔ THE G0 TRACE GATE. Off unless an ADMIN turned "Record gesture trace" on in Settings —
+   * `useHubSettings.js` resolves this key against `isAdmin`, so a member cannot reach it even by
+   * POSTing the preference directly. Read once per render into a const, exactly like
+   * `hapticsEnabled` above it.
+   *
+   * ⛔⛔ WHEN THIS IS FALSE THE POINTER PATH IS THE UNINSTRUMENTED ONE. Not "instrumented and
+   * skipped" — the handlers returned at the bottom of this hook are the raw functions themselves,
+   * and `withTrace` is never applied. There is no trace branch inside any handler to mis-execute.
+   * That is the only shape that makes "the toggle off changes nothing" checkable rather than
+   * asserted (`docs/plans/joystick/g0-flick-trace-plan.md` §3).
+   */
+  const traceOn = settings.traceGestures === true
+  const traceDownRef = useRef(null)
+
   function clearHoldTimer() {
     if (holdTimerRef.current != null) {
       clearTimeout(holdTimerRef.current)
@@ -206,7 +259,16 @@ export default function useJoystick({
     onFire?.(target)
   }
 
-  /** Ordinary (non-flick) release while the fan was open: fire on a target, else obey stickyFan. */
+  /**
+   * Ordinary (non-flick) release while the fan was open: fire on a target, else obey stickyFan.
+   *
+   * ⭐ IT NOW REPORTS WHICH OF ITS THREE PATHS IT TOOK — `{outcome, resolved}`, where outcome is
+   * `'fire' | 'sticky' | 'close'`. Nothing consumes that value except the G0 trace wrapper, and it
+   * is returned unconditionally (the bare `return`s were already there; only a value was added), so
+   * the behaviour is identical whether or not anyone reads it. It exists so the trace can say what
+   * this function DID rather than guessing from `stickyFan` and the fan contents afterwards — the
+   * "no second authority" rule this instrument is built around.
+   */
   function releaseOntoFan(dx, dy) {
     const resolved = resolveTarget({
       dx, dy, actions: fan, travelPx, mirrored, prevRing: ringRef.current,
@@ -222,7 +284,7 @@ export default function useJoystick({
         ring: null,
         knob: { x: 0, y: 0 },
       }))
-      return
+      return { outcome: 'fire', resolved }
     }
     if (stickyFan) {
       // §C2: release with no target keeps the fan open, dismissed only via dismiss().
@@ -235,7 +297,7 @@ export default function useJoystick({
         ring: null,
         knob: { x: 0, y: 0 },
       }))
-      return
+      return { outcome: 'sticky', resolved: null }
     }
     setState((s) => ({
       ...s,
@@ -246,6 +308,7 @@ export default function useJoystick({
       ring: null,
       knob: { x: 0, y: 0 },
     }))
+    return { outcome: 'close', resolved: null }
   }
 
   const onPointerDown = (e) => {
@@ -365,6 +428,20 @@ export default function useJoystick({
     setState((s) => ({ ...s, knob: clampToTravel(dx, dy, travelPx) }))
   }
 
+  /**
+   * ⭐ THIS HANDLER RETURNS A DESCRIPTOR OF THE DECISION IT REACHED:
+   *   `{decision, phase, elapsed, travelled, resolved}`.
+   *
+   * ⛔ IT IS THE ONLY SOURCE OF THOSE FIELDS IN THE TRACE. Each `return` below is written INSIDE
+   * the branch that ran, carrying the very locals that branch compared — `elapsed` (the number
+   * measured against `FLICK_MS`), `travelled` (the number measured against `openThreshold`), and
+   * the target `resolveTarget` actually returned. The trace wrapper serialises them and adds
+   * nothing of its own. Re-deriving any of this outside the branch would produce a trace that
+   * agrees with the engine until the moment they disagree — the only moment anyone reads it.
+   *
+   * The return value is unused by React and by every caller in the app; the descriptor is built
+   * whether or not the trace is on, so the two cases execute the same code.
+   */
   const onPointerUp = (e) => {
     const el = padRef && padRef.current
     if (el && typeof el.releasePointerCapture === 'function' && pointerIdRef.current != null) {
@@ -383,8 +460,10 @@ export default function useJoystick({
     if (phase === 'scrubbing') {
       setState((s) => ({ ...s, scrubbing: false, dragging: false, pressing: false }))
       onScrubCommit?.()
+      // ⚠️ Read BEFORE resetGesture(), which zeroes it.
+      const scrubTravelled = maxDistRef.current
       resetGesture()
-      return
+      return { decision: 'scrub-commit', phase, elapsed, travelled: scrubTravelled, resolved: null }
     }
 
     const { cx, cy } = centerOf(padRef)
@@ -399,6 +478,8 @@ export default function useJoystick({
       const outer = forceOuterRing(dx, dy)
       const flickTarget = outer ? resolveTarget({ dx: outer.dx, dy: outer.dy, actions: fan, travelPx, mirrored }) : null
 
+      let decision
+      let decided = flickTarget
       if (flickTarget && flickTarget.action.flickable !== false) {
         fireTarget(flickTarget)
         setState((s) => ({
@@ -411,6 +492,7 @@ export default function useJoystick({
           ring: null,
           knob: { x: 0, y: 0 },
         }))
+        decision = 'flick-fire'
       } else if (flickTarget) {
         // flickable:false (Journal's Close, etc.) — open the fan instead of firing anything.
         setState((s) => ({
@@ -423,18 +505,21 @@ export default function useJoystick({
           target: flickTarget,
           knob: { x: 0, y: 0 },
         }))
+        decision = 'flick-open'
       } else {
         // The flick direction matched no outer action — fall back to an ordinary release.
-        releaseOntoFan(dx, dy)
+        const released = releaseOntoFan(dx, dy)
+        decision = `flick-none-${released.outcome}`
+        decided = released.resolved
       }
       resetGesture()
-      return
+      return { decision, phase, elapsed, travelled, resolved: decided }
     }
 
     if (phase === 'pushing') {
-      releaseOntoFan(dx, dy)
+      const released = releaseOntoFan(dx, dy)
       resetGesture()
-      return
+      return { decision: `press-${released.outcome}`, phase, elapsed, travelled, resolved: released.resolved }
     }
 
     // phase === 'down': either a hold-without-drag (Home) or a tap/double-tap.
@@ -442,20 +527,26 @@ export default function useJoystick({
       // Never also a tap (C1) — this branch returns before the tap logic below ever runs.
       onHome?.()
       resetGesture()
-      return
+      return { decision: 'home', phase, elapsed, travelled, resolved: null }
     }
 
+    let decision
     if (pendingTapRef.current != null) {
       clearTimeout(pendingTapRef.current)
       pendingTapRef.current = null
       onDoubleTap?.()
+      decision = 'double-tap'
     } else {
       pendingTapRef.current = setTimeout(() => {
         pendingTapRef.current = null
         onTap?.()
       }, doubleTapMs)
+      // ⚠️ "pending", not "tap": the single tap fires `doubleTapMs` LATER unless a second press
+      // cancels it. Calling this row `tap` would record an outcome that has not happened yet.
+      decision = 'tap-pending'
     }
     resetGesture()
+    return { decision, phase, elapsed, travelled, resolved: null }
   }
 
   // ⚰️ A CONST ARROW AGAIN. It was hoisted to a `function` declaration for ONE reason: the
@@ -479,6 +570,9 @@ export default function useJoystick({
       knob: { x: 0, y: 0 },
       edgeGuarded: false,
     }))
+    // Same contract as onPointerUp's descriptors: the handler names its own outcome, so no decision
+    // vocabulary exists anywhere in the trace wrapper. One path, one word.
+    return 'cancel'
   }
 
   /** For the knob/scrim tap, to close a sticky-open (or flick-opened) fan. */
@@ -497,8 +591,115 @@ export default function useJoystick({
     }))
   }
 
+  // ── G0 gesture trace — the instrumented handler set ──────────────────────────────────────────
+
+  /** The two clocks, both read at HANDLER ENTRY, before the FSM has done anything.
+   *  Defensive for the same reason `traceRow` is: this runs before the raw handler, so a property
+   *  access that throws here would take the gesture down before the engine ever saw the event. */
+  const traceStamps = (e) => {
+    let eventTs = null
+    try {
+      if (e && Number.isFinite(e.timeStamp)) eventTs = e.timeStamp
+    } catch {
+      eventTs = null
+    }
+    return { eventTs, perfNow: nowMs() }
+  }
+
+  /**
+   * Write one row. Every field is either copied off the event or handed in by the branch that
+   * decided; this function computes only the two deltas, and each is a subtraction of two stamps it
+   * was given.
+   *
+   * ⛔ THE WHOLE BODY IS WRAPPED. An instrument that can throw inside a pointer handler does not
+   * measure the gesture, it breaks it — and it would break it only on the device being diagnosed.
+   */
+  const traceRow = (type, e, stamps, extra) => {
+    try {
+      const down = traceDownRef.current
+      recordGestureEvent({
+        type,
+        pointerType: e && e.pointerType != null ? e.pointerType : null,
+        pointerId: e && e.pointerId != null ? e.pointerId : null,
+        isPrimary: e && typeof e.isPrimary === 'boolean' ? e.isPrimary : null,
+        pressure: e && Number.isFinite(e.pressure) ? e.pressure : null,
+        clientX: e && Number.isFinite(e.clientX) ? e.clientX : null,
+        clientY: e && Number.isFinite(e.clientY) ? e.clientY : null,
+        // ⭐ THE LOAD-BEARING TRIPLE. `eventTs`/`perfNow` are this event's two clocks;
+        // `sinceDownEventTs`/`sinceDownPerfNow` are the same two measured from pointerdown; and
+        // `elapsed` (below, from the branch) is the engine's own `Date.now()` delta — the ONE
+        // number actually compared against `flickMs`. Cause A is exactly the case where those
+        // three disagree.
+        eventTs: stamps.eventTs,
+        perfNow: stamps.perfNow,
+        sinceDownEventTs: down && down.eventTs != null && stamps.eventTs != null
+          ? stamps.eventTs - down.eventTs
+          : null,
+        sinceDownPerfNow: down ? stamps.perfNow - down.perfNow : null,
+        coalesced: coalescedCount(e),
+        flickMs: FLICK_MS,
+        openThreshold,
+        travelPx,
+        phase: null,
+        elapsed: null,
+        travelled: null,
+        decision: null,
+        target: null,
+        ...extra,
+      })
+    } catch {
+      /* an instrument must never break the gesture it measures */
+    }
+  }
+
+  /**
+   * Wrap the raw handlers. ⛔ APPLIED ONLY WHEN THE TOGGLE IS ON — with it off, the object below
+   * is never built and `handlers` holds the raw functions themselves.
+   */
+  const withTrace = () => ({
+    onPointerDown: (e) => {
+      const stamps = traceStamps(e)
+      traceDownRef.current = stamps
+      const out = onPointerDown(e)
+      traceRow('pointerdown', e, stamps, { phase: phaseRef.current, travelled: maxDistRef.current })
+      return out
+    },
+    onPointerMove: (e) => {
+      const stamps = traceStamps(e)
+      const out = onPointerMove(e)
+      // `travelled` is the engine's own running maximum AFTER this sample — including the early
+      // returns (idle, edge guard), where it is correctly unchanged.
+      traceRow('pointermove', e, stamps, { phase: phaseRef.current, travelled: maxDistRef.current })
+      return out
+    },
+    onPointerUp: (e) => {
+      const stamps = traceStamps(e)
+      const d = onPointerUp(e)
+      traceRow('pointerup', e, stamps, {
+        phase: d ? d.phase : null,
+        elapsed: d ? d.elapsed : null,
+        travelled: d ? d.travelled : null,
+        decision: d ? d.decision : null,
+        target: d ? targetInfo(d.resolved) : null,
+      })
+      return d
+    },
+    onPointerCancel: (e) => {
+      const stamps = traceStamps(e)
+      // Captured BEFORE the raw handler, which resets the phase to 'idle' — recording it after
+      // would say 'idle' for every cancel and lose the one fact the row carries.
+      const phase = phaseRef.current
+      const travelled = maxDistRef.current
+      const out = onPointerCancel(e)
+      traceRow('pointercancel', e, stamps, { phase, travelled, decision: out ?? null })
+      return out
+    },
+  })
+
   return {
-    handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
+    handlers: traceOn
+      ? withTrace()
+      : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
     state,
     dismiss,
   }

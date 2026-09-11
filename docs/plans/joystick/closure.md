@@ -1,21 +1,86 @@
 # Joystick hub — closure
 
-> ## ✅ FEATURE COMPLETE — with one incident on the record.
-> at `f7ec5d5dd` + the Peek removal (`ccd661051`) + Increment 8's class rails.
-> **The programme is closed. No further deploys are authorized.**
+> ## ⬜ NOT YET LAUNCHED — this is the LAUNCHED template, and every box below is empty.
+> Engineering-complete at `f7ec5d5dd` + the Peek removal (`ccd661051`) + Increment 8's class
+> rails — **with one incident on the record.** Read the caveat under the boxes before reading
+> anything here as a clean close.
 >
+> **LAUNCHED is a state this document does not yet describe.** The charter's DEFINITION OF
+> LAUNCHED is below, one box per line, each with the evidence that closes it.
+>
+> ⛔ **A box is ticked only by the artifact named in its own evidence slot** — a run record, a
+> commit, a live check — never by a judgement that it is probably fine, and never ahead of the
+> run. An empty evidence slot and an unticked box say the same thing, and today that is the
+> true thing to say. ⭐ An absent result is not a pass; it is an absent result.
+>
+> **The programme is closed to further FEATURE work, and no further deploys are authorized**
+> for anything except the work these six boxes name.
+
+## DEFINITION OF LAUNCHED — the gate, unticked
+
+- [ ] **G0 resolved.** Flick scores **≥ 8/10 on an iPhone 15 Pro-class device**, measured by the
+      owner on real glass; if it comes in below, the root cause is **traced and fixed** — not
+      noted, not averaged across devices. `glass-acceptance.md:98` still carries G0-1 as
+      ⬜ UNEXPLAINED: *"iPhone 15 Pro scored sticky fan 0/10 and flick 0/10, while iPhone SE
+      scored 10/10 on both — on the same calibrated pointer path."* `g0-flick-trace-plan.md` is
+      the plan for explaining it.
+      **Evidence:**
+
+- [ ] **Glass acceptance passed on ≥ 1 notched iOS device and ≥ 1 Android.**
+      `glass-acceptance.md`, every block, including the surfaces Increments 3–7 added.
+      ⛔ Gated behind G0-1 above, in that file's own words (`:104`): *"Resolve G0-1 before
+      reading any G1"* — G1 is the same measurement done by hand, so a G1 pass read while G0-1
+      is unexplained proves nothing.
+      **Evidence:**
+
+- [ ] **Post-deploy client smoke, signed in, covering every top-level route including
+      `/dashboard`, and CONCLUSIVE.** ⛔ *Conclusive* is the load-bearing word, not decoration:
+      `tools/hub_nav_smoke.py` exists because a green suite, a 200 from `/api/health` and a
+      rising uptime were all simultaneously true while navigation was frozen for members
+      (`postmortem-nav-freeze.md`). A run that comes back empty, or that dies before it writes,
+      is an INCOMPLETE — never a pass.
+      **Evidence:**
+
+- [ ] **Preference-key validation live server-side.** `POST /api/auth/preferences` accepts any
+      `{key, value}` from any authenticated user with no validation, which is why §2 below
+      records B6 as an **exposure default, not a security boundary**, and §4 lists calling it a
+      gate among the things to reverse. Closing it is an `api/` edit; the `api/` stop measured
+      in §2 is why it is still open, and that stop is a reason, not a dispensation.
+      **Evidence:**
+
+- [ ] **Rollout at stage 3, with the kill switch verified on glass.** ⚠️ The plan's own ladder
+      stops at two rungs — `45-phase2.5-plan.md:52` **Step 1 — ADMIN PREVIEW** and `:61`
+      **Step 2 — MEMBER PREVIEW** (*"`hub.enabled` default becomes true for every authenticated
+      user"*) — so the charter's stage 3 is a rung beyond anything this programme planned, and
+      the first thing its evidence slot must name is what stage 3 IS. Today the product is at
+      Step 1: `useHubSettings.js` resolves an unset preference to `isAdmin`. The kill switch
+      (`HUB_PREVIEW_ENABLED=false`) must be **seen to take effect on a device**, not inferred
+      from the flag being read per request — a `--kv` read confirms the service's config and is
+      not evidence the running process has it.
+      **Evidence:**
+
+- [ ] **closure.md rewritten as LAUNCHED, citing each of the above.** This document: five filled
+      evidence slots above this line, and this header replaced by one that says LAUNCHED and
+      has the citations to mean it. ⛔ It is deliberately last and deliberately not
+      self-satisfying — ticking it while any box above is empty is the only way to make this
+      whole gate a lie.
+      **Evidence:**
+
+---
+
 > ⛔⛔ **READ `postmortem-nav-freeze.md` BEFORE TREATING THIS AS A CLEAN CLOSE.** On 2026-09-10
 > this programme shipped a render loop that **froze navigation app-wide for about four and a half
 > hours** — clicking any nav entry changed the URL and left the screen where it was. It was found
 > by a member and fixed by another session. Three of the four links in the chain were this
 > programme's code.
 >
-> "Feature complete" is written above on the basis that the defect CLASS is now railed
+> "Engineering-complete" is written above on the basis that the defect CLASS is now railed
 > (Increment 8: C1 every host, C2 every ineligible member, C3 every width, C4 a real browser
 > against production, C5 charter rule H14) — **not** on the basis that nothing went wrong.
 >
 > Every row in `deferred.md` and every request in `requests.md` carries a final-state verdict,
-> including the four owner decisions, all now DECIDED. What remains is not engineering:
+> including the four owner decisions, all now DECIDED. What remains **of this programme's own
+> work** is not engineering:
 >
 > 1. ⬜ **OPEN — the owner's real-glass run.** `glass-acceptance.md`, gated behind precondition
 >    **G0-1**, which must be run first and which nothing else counts without.
@@ -23,6 +88,14 @@
 >
 > Nothing else in this programme is open. Anything that reads as open elsewhere is history — the
 > two RESUME docs carry a SUPERSEDED banner saying so.
+>
+> ⚠️ **That sentence and the LAUNCHED boxes above are not in conflict, and the distinction is
+> worth stating rather than leaving to be re-derived.** The boxes name work LAUNCH requires,
+> which is not the same set as work this programme left undone: preference-key validation is
+> engineering, it is required for LAUNCHED, and it is CLOSED-BLOCKED in §0 — stopped by the
+> `api/` watch lists measured in §2, not skipped. A box can therefore be empty because someone
+> still has to run something, or empty because something outside this programme has to move
+> first. Both are empty. Neither is a pass.
 
 This document supersedes `70-increment-6-closure.md`, which closed Increment 6 with a core list
 of one. That list is still one, and it is still the same item.
@@ -43,6 +116,85 @@ could not, so nobody re-derives the stop from scratch.
 | **R-11 — `OptionsBoard` cursor carrier** | `app/src/pages/journal-2-0/**`, which this build does not edit; the request names Journal 2.0 as owner and says "Blocking: no". |
 | **D-16 — Notebook double-tap search** | The only fix is inside `NotebookTab.jsx`, under a standing zero-edit rule. |
 | **D-30 — one `data_root()` helper** | Not this programme's, and a live PRODUCTION risk. See §1.
+
+### ⛔⛔ THE REGISTER ABOVE WAS RE-EXAMINED — L3, member-launch charter, 2026-09-11
+
+The owner widened the authority: `api/routers/auth.py` was waived **for that one file, on proof**,
+as a maintenance deploy. That re-opened exactly one row (**P6**) and **changed the reason on every
+other row without changing any verdict**. The re-examination's rule was: re-measure the stop at its
+source, never re-litigate the ruling.
+
+| Item | New verdict | Why |
+|---|---|---|
+| **P6** | ✅ **BUILT** — `60cbe8919` | The waived file. Allow-list + `joystick_hub` schema; rail `tests/test_preference_key_validation.py` (24). See `71-open-items-proposals.md` §1 for the design and what was deliberately NOT built. |
+| **D-32** | **CLOSED — product decision (OWNER)** | The `api/` stop is now a priced deploy, not a bar — but the fix lives in `live_tier.py`'s serialiser, which the one-file waiver does not name, AND the row already carried an owner ruling ("do not add an endpoint for this now") that no file-list widening reaches. |
+| **D-20** | **CLOSED — product decision (OWNER)** | Never an `api/` row. Half (1) is one line; half (2) asks whether the joystick outranks a modal **app-wide** (`hub.module.css:306-312` says the ladder split is deliberate). One ruling, not a calendar fix. |
+| **D-06** | **CLOSED — product decision (OWNER, breadth customize)** | Never an `api/` row. Re-measure found the writer guard **three** times (`:112`, `:123`, `:185`) plus the reader guard (`:100-103`). The fix changes what a preset MEANS. |
+| **R-08** | **CLOSED — dependency (Journal 2.0)** | The waiver is `auth.py` only; all three holes are in `positions.py`. There is no zero-`api/` implementation — every hole is a server-side acceptance rule. |
+| **R-11** | **CLOSED — product decision (Journal 2.0)** | L3 widened `api/`; the zero-edit rule on `app/src/pages/journal-2-0/**` is a different rule and was not widened. |
+
+#### The three proofs the `auth.py` waiver was granted on
+
+1. **Not on `flow-worker`'s watch list.** The in-repo mirror (`api/flow_worker_main.py` header)
+   enumerates its watched top-level modules: `massive_ws_worker, massive_processor, flow_db, bs_iv,
+   flow_worker_main, live_massive_router, flow_router, flow_router_mount, flow_heal_enrich,
+   flow_gap_autofill, massive_flatfiles_worker, flow_watchdog, oi_snapshots, massive_stream,
+   flow_tape_spool, flow_backup, dealer_positioning, flow_rest_backfill, alpha_gold_eod,
+   weekly_flow, flow_opt_aggregate`. No `routers/` path, and no `auth`.
+   ⚰️ **The count in the register above says 20. Counted from the file, it is 21.** Off by one,
+   harmlessly — but the register restates a number it does not derive, so it drifted. The header
+   also carries two standing ⚠️ TODOs that `confluence_flow.py`, `oi_massive_snapshots.py` and
+   `oi_morning.py` are flow-worker modules that are NOT watched.
+2. **Not imported by `flow_worker_main`.** An `ast` walk of the transitive in-repo `api.*` import
+   graph from that root reaches **228** modules; `api.routers.auth` is not one of them.
+   **Control:** the same walk DOES reach `api.routers.ticker_search`, so "not reachable" is a
+   measurement and not a resolver blind spot. (The walk's first run returned 1 module — a
+   misjoined root path — and the control is what caught it.)
+3. **The restart cost, measured.** Below.
+
+#### What an `api/routers/auth.py` push actually costs — measured, for the member-impact paragraph
+
+⛔ **THREE services restart, not one.** `web` (every master push rebuilds it, docs-only included),
+`worker` (`/api/**`) and `bars-api` (`api/**`). `flow-worker` does **not** — which matters most,
+because its gap is the only PERMANENT one ("a push touching a flow-worker watched file bounces the
+OPRA tape, and that gap is PERMANENT until the overnight T+1 flat file"). The OPRA tape is untouched.
+
+- **`web`** — ~1 min `/api/*` blip. **This is where the APScheduler class lands.** Its job store is
+  in memory, so any scheduled slot whose time passes during the swap is never scheduled at all —
+  lost outright, not run late, and `misfire_grace_time` cannot see it.
+- **`worker`** — ⭐ **runs NO APScheduler.** Grepping `api/worker_main.py` for
+  `scheduler|BackgroundScheduler|add_job|cron` returns two COMMENT lines (`:552`, `:558`) that
+  refer to the *web* pod's scheduler being kept alive by the keep-warm ping. Every worker job is a
+  `while True: … time.sleep(N)` daemon thread, so a restart loses loop PHASE, not a slot. What it
+  actually drops:
+  - the in-flight **prewarm pass, from zero** — the product says so itself in
+    `_bars_alert_text`: "the most common way to see this alert is DURING the boot pass, and a
+    redeploy restarts that pass from zero";
+  - the **down-alert state machine** (`_alert_state = {"fails": 0, "down": False,
+    "last_alert_at": None}`, in-process only). If the site is DOWN across the swap, the recovery
+    ping is never sent, the 30-min re-nag cooldown resets, and DOWN must be re-detected from zero —
+    `DOWN_ALERT_FAILS = 2` probes at a 60 s interval, so **~2 minutes blind**;
+  - the **bars-freshness watchdog** state, same class (can re-page);
+  - `_uploader_state`, so `/internal/health` reports no upload attempt until the first loop ends;
+  - **R2 snapshots pause** until the blocking weekly-key purge finishes — its `DISTINCT` scan "has
+    no tf-leading index and takes minutes on the worker's multi-GB ohlcv table", and the uploader
+    starts from the same thread strictly after it.
+  - **NOT dropped, by design:** the R2 base-snapshot day marker (a volume marker added precisely
+    because "on busy deploy nights the in-process-only tracker re-uploaded a ~2.4 GB base per
+    push"), the breadth-backfill floor marker, the deep-history-warm done-marker, the wick sweep's
+    resume, and `bars.db` itself.
+- **`bars-api`** — ⛔ **the member-visible one, and the one the register never priced.** It is the
+  dedicated chart-data serving tier (`/api/bars` + `/api/bars-history`). Its own header says it
+  exists "so app/partner deploys can NEVER restart chart serving" — but its watch paths were never
+  narrowed (that sentence is still conditional: "once its Railway watch paths are narrowed"), so an
+  `api/**` edit restarts exactly the thing it was built to protect. On boot it **serves cold-fetches
+  until the R2 `bars.db` install thread completes**; charts are correct throughout, just slower
+  until it lands.
+- **Timing** — push → container start was measured at **~4-7 minutes** on this repo's services.
+
+⛔ **The honest summary for a member-impact paragraph:** no data is lost and nothing members own is
+touched; for a few minutes charts serve cold, one prewarm pass restarts, R2 snapshots pause, and any
+`web` scheduler slot falling inside the swap is skipped. The options tape is not affected.
 
 ---
 

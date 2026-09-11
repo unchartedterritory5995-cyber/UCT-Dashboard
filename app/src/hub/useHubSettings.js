@@ -4,6 +4,7 @@
 import { useCallback, useContext, useMemo } from 'react'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import { AuthContext } from '../context/AuthContext'
+import { unsetDefault } from './rolloutStage'
 
 /**
  * Parse a stored preference value — `usePreferences`' own `parsePref`, plainly
@@ -47,6 +48,7 @@ export const JOYSTICK_HUB_PREF_KEY = 'joystick_hub'
  *   doubleTapMs: number,
  *   stickyFan: boolean,
  *   highContrast: boolean,
+ *   traceGestures: boolean,
  *   overrides: Readonly<Record<string, unknown>>,
  * }}
  */
@@ -59,6 +61,17 @@ export const HUB_SETTINGS_DEFAULTS = Object.freeze({
   doubleTapMs: 280,
   stickyFan: true,
   highContrast: false,
+  /**
+   * ⛔ THE G0 GESTURE TRACE — A DIAGNOSTIC, OFF BY DEFAULT, ADMIN ONLY.
+   *
+   * Not a member setting: `resolveTraceGestures` below ANDs it with `isAdmin`, so this default
+   * being `false` is the second of two independent reasons a member never records anything. It is
+   * in the §8 blob rather than in localStorage because the owner flips it from the Settings screen
+   * on the device under test, and everything else that screen writes lives here.
+   *
+   * The trace itself never leaves the device (`gestureTrace.js`): no endpoint, no beacon, no sink.
+   */
+  traceGestures: false,
   overrides: Object.freeze({}),
 })
 
@@ -142,14 +155,43 @@ export default function useHubSettings() {
    */
   const storedEnabled = stored && typeof stored === 'object' ? stored.enabled : undefined
 
+  // ⛔ THE UNSET DEFAULT IS THE ROLLOUT'S, NOT THIS FILE'S. It used to read `isAdmin` inline,
+  // which was correct and was also one of TWO places a rollout stage has to move at once (the
+  // other is the Settings card's own visibility). Both now ask `hub/rolloutStage.js`, so a stage
+  // cannot half-ship. An explicit boolean never reaches `unsetDefault` — "never chosen" and
+  // "explicitly false" stay opposite things, which is the distinction this whole block exists for.
   const resolveEnabled = useCallback(
-    (explicitEnabled) => (explicitEnabled === undefined ? isAdmin : !!explicitEnabled),
+    (explicitEnabled) => (
+      explicitEnabled === undefined ? unsetDefault({ isAdmin }) : !!explicitEnabled
+    ),
+    [isAdmin],
+  )
+
+  /**
+   * ⛔⛔ `traceGestures` IS ADMIN-ONLY, AND THAT IS DECIDED HERE — not in the Settings card.
+   *
+   * The card hides its trace section from non-admins, but hiding a control is an EXPOSURE default,
+   * never a boundary: `POST /api/auth/preferences` accepts any `{key, value}` from any
+   * authenticated user with no validation (`api/routers/auth.py`), so a member can put
+   * `{"traceGestures": true}` into their own blob. Resolving it against `isAdmin` at the one
+   * authority every consumer reads means that write resolves to `false` anyway, and
+   * `useJoystick` — which has no auth context and never will — needs no gate of its own.
+   *
+   * ⭐ NOT the `enabled` rule. `enabled` treats UNSET as "admin default ON"; this treats unset, and
+   * every non-admin value, as OFF. A diagnostic must never be on because nobody chose.
+   */
+  const resolveTraceGestures = useCallback(
+    (explicitTrace) => isAdmin && explicitTrace === true,
     [isAdmin],
   )
 
   const settings = useMemo(
-    () => ({ ...baseSettings, enabled: resolveEnabled(storedEnabled) }),
-    [baseSettings, storedEnabled, resolveEnabled],
+    () => ({
+      ...baseSettings,
+      enabled: resolveEnabled(storedEnabled),
+      traceGestures: resolveTraceGestures(baseSettings.traceGestures),
+    }),
+    [baseSettings, storedEnabled, resolveEnabled, resolveTraceGestures],
   )
 
   const updateHubSettings = useCallback((updater) => (

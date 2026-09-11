@@ -20,7 +20,12 @@ import { AuthContext } from '../context/AuthContext'
 import useHubSessionOverride, {
   hideForSession, showForSession, clearSessionOverride, resolveVisible,
 } from './hubSessionVisibility'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { restoreToast } from './HubEdgeTab'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 // One mutable prefs bag + one spy on the write path, so a test can both SET the stored
 // value and assert whether anything wrote it back. Same shape as HubRoot.test.jsx.
@@ -259,7 +264,43 @@ describe('the copy contract — in this fix the words ARE the feature', () => {
   })
 
   it('a PERSISTENT hide points at the permanent switch by its real name', () => {
-    expect(restoreToast(true)).toBe('Turn it back on permanently in Settings → Joystick')
+    expect(restoreToast(true)).toBe('Turn it back on permanently in Settings → Charts → Joystick')
+  })
+
+  it('⛔⛔ and the place it names EXISTS — derived from Settings.jsx, never trusted', () => {
+    // ⚰️ This toast read 'Settings → Joystick' for two increments. There is no Joystick
+    // SECTION: the card is mounted under Charts. So the one sentence the product gives a
+    // member who wants their hidden hub back named a heading they could not find, and the
+    // Settings search box returned nothing for "joystick" either. That is the SAME defect as
+    // the original 'Re-enable in Settings soon' toast which named a screen that did not exist
+    // — the one this whole recovery path was built to fix. It came back as a STALE NAME
+    // rather than a missing feature, which is why every structural test stayed green.
+    //
+    // ⭐ So this asserts against the SOURCE, not a second copy of the answer. A rail that
+    // restated the section name would drift in lockstep with the toast and prove nothing.
+    const settings = readFileSync(
+      path.join(HERE, '..', 'pages', 'Settings.jsx'), 'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+    const sectionIds = [...settings.matchAll(/\{\s*id:\s*'([a-zA-Z]+)',\s*label:/g)].map(m => m[1])
+    expect(sectionIds.length, 'could not parse SECTIONS out of Settings.jsx').toBeGreaterThan(3)
+
+    // Every "Settings → X → …" hop in the toast must be a real section label or the card.
+    const hops = restoreToast(true).split('Settings →')[1].split('→').map(h => h.trim())
+    const sectionHop = hops[0].toLowerCase()
+    expect(sectionIds.map(i => i.toLowerCase()), `the toast sends members to Settings → `
+      + `${hops[0]}, which is not a section in Settings.jsx (it has ${sectionIds.join(', ')})`)
+      .toContain(sectionHop)
+
+    // ...and the card really is mounted under THAT section, not merely named after it.
+    const block = settings.slice(settings.indexOf(`    ${sectionHop}: [`))
+    expect(block.slice(0, block.indexOf(']')), `JoystickSettingsCard is not mounted under the `
+      + `'${sectionHop}' section the toast names`).toMatch(/card\('joystick'/)
+
+    // ⛔ NON-VACUITY: the search box must find it, which is how a member who reads the toast
+    // as a search term actually arrives. This is the half that was missing entirely.
+    expect(settings, 'no SEARCH_INDEX row for the joystick card — typing "joystick" into '
+      + 'Settings finds nothing').toMatch(/card:\s*'joystick'[^}]*keywords:[^}]*joystick/)
   })
 
   it('a session restore does NOT send the member to Settings for nothing', () => {

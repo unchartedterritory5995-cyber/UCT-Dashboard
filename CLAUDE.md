@@ -1650,6 +1650,36 @@ enough to ask whether it is running.
 ⚠️ This is deliberately stricter than "add a rail". A rail protects the next change; H14 is about
 the change that already shipped.
 
+### ⛔⛔ H15 — A FAILING POST-DEPLOY SMOKE IS ROLLED BACK FIRST AND DIAGNOSED SECOND
+
+> **When the post-deploy smoke fails, roll back via the runbook, THEN report. Never diagnose on
+> a live failure.**
+
+Owner ruling, 2026-09-11, written into the member-launch charter. It exists because the
+2026-09-10 navigation freeze was live for **four and a half hours**, and essentially none of that
+was spent fixing it — it was spent not knowing. Once a member is looking at a broken screen, the
+time cost of a diagnosis is paid by them, and the rollback is cheaper than the investigation in
+every case where both are available.
+
+**The order, and it is not negotiable:**
+
+1. **Roll back.** `HUB_PREVIEW_ENABLED=false` in Railway removes the hub per request with **no
+   redeploy** — `docs/plans/joystick/rollback-runbook.md` §1. If the failure is not hub-scoped,
+   §3's revert-and-push is the slow path.
+2. **Confirm the rollback took**, at the layer the failure appeared in — not by reading the
+   variable back. `--kv` shows what the service is CONFIGURED with, which is not evidence the
+   running process has it.
+3. **Then** report, and only then diagnose. The branch is still there; the member is not.
+
+⛔ **"Let me just check one thing first" is the failure mode this rule names.** A smoke that
+fails has already done the checking — it names the route and the shape of the break. Reading its
+output is not diagnosing; opening a browser to see how bad it is, is.
+
+⚠️ **INCONCLUSIVE is not FAILED, and must not trigger a rollback.** `tools/hub_nav_smoke.py`
+exits **2** when nothing was measurable and **1** when a break was measured, precisely so this
+rule cannot fire on an unmeasured deploy. "We could not compute it" and "it is broken" are
+different facts; rolling back on the first one teaches everyone to stop running the smoke.
+
 ### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
 
 > **A contract is verified against the runtime call site, never against a harness that restates
