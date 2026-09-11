@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
 import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
+import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -3477,7 +3478,15 @@ export default function StockChart({
       const raw = localStorage.getItem(k); if (!raw) return null
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
-      const vOK = typeof v?.top === 'number' && typeof v?.bottom === 'number'
+      // ⛔ A STORED VERTICAL BAND MUST BE A BAND THE WRITER COULD HAVE WRITTEN.
+      // `_measureViewLock` clamps each margin into [0, 0.9] and rescales the pair
+      // to sum at most 0.95, so anything outside that was not produced by this
+      // code — a hand-edited value, a foreign key, a future schema — and applying
+      // it would leave the candles in a rectangle with no room to draw in. Falling
+      // back to the layout's own margins is always a readable chart; honouring a
+      // corrupt band is not. Deliberately NOT a repair: it drops only the vertical
+      // half, keeps any horizontal lock, and never rewrites what is in storage.
+      const vOK = isStorableVerticalBand(v?.top, v?.bottom)
       if (v && (hOK || vOK)) return { anchorFrac: hOK ? v.anchorFrac : null, width: hOK ? v.width : null, tf: hOK ? (typeof v?.tf === 'string' ? v.tf : null) : null, top: vOK ? v.top : null, bottom: vOK ? v.bottom : null }
     } catch { /* */ }
     return null
@@ -3514,17 +3523,40 @@ export default function StockChart({
         const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
         let hi = -Infinity, lo = Infinity
         for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
-        let paneH = 0; try { paneH = chart.paneSize().height } catch { /* */ }
-        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
         const series = candleSeriesRef.current
-        if (hi > lo && paneH > 8) {
-          const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
-          if (yHi != null && yLo != null) {
-            let t = Math.min(0.9, Math.max(0, yHi / paneH)), bt = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
-            if (t + bt > 0.95) { const k = 0.95 / (t + bt); t *= k; bt *= k }
-            const mbase = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
-            if (!(Math.abs(t - mbase.top) < 0.03 && Math.abs(bt - mbase.bottom) < 0.03)) { top = +t.toFixed(4); bottom = +bt.toFixed(4); vLocked = true }
-          }
+        // ⛔⛔ THE CANDLES' OWN PANE, ASKED FOR BY THE SERIES — NEVER `chart.paneSize()`.
+        //
+        // `top`/`bottom` below are FRACTIONS of the pane the candles live in, and
+        // `yHi`/`yLo` come from `series.priceToCoordinate()`, which answers in THAT
+        // pane's coordinate space. `chart.paneSize()` answers for PANE 0, and pane 0
+        // stopped being the candles' pane the moment an indicator could sit above
+        // Price. Dividing one pane's coordinates by another pane's height produced a
+        // margin that was pure arithmetic nonsense — measured live at
+        // `yHi 39.96 / paneH 98 = 0.408` where the candle pane was 333px tall and the
+        // honest answer was 0.12 — and `bottom` went NEGATIVE and clamped to 0. That
+        // pair is then PERSISTED as the user's vertical lock and re-applied on every
+        // load, which is why the symptom was a chart that came back squashed after a
+        // refresh and never recovered on its own.
+        //
+        // ⭐ AND THIS IS ALSO THE WHOLE "pane resize vs. deliberate zoom" DISTINCTION.
+        // A fraction of the candle pane's own height is invariant to that pane's
+        // height, so dragging a divider moves `t`/`bt` by ~nothing, they stay inside
+        // the 0.03 tolerance against `_mainMargins` below, `vLocked` stays false and
+        // NO lock is written — while a real vertical zoom moves them well outside it
+        // and is captured exactly as before. Nothing here needs to know which gesture
+        // happened; measuring the right rectangle is what tells the two apart.
+        let paneH = 0
+        try { paneH = series.getPane().getHeight() } catch { /* pre-v5 pane API */ }
+        if (!(paneH > 0)) { try { paneH = chart.paneSize().height } catch { /* */ } }
+        if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - ts.height() } catch { /* */ } }
+        if (hi > lo) {
+          const band = verticalBand({
+            yHi: series.priceToCoordinate(hi),
+            yLo: series.priceToCoordinate(lo),
+            paneH,
+            base: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+          })
+          top = band.top; bottom = band.bottom; vLocked = band.locked
         }
       } catch { /* vertical optional */ }
       return { anchorFrac: +anchorFrac.toFixed(5), width: w, top, bottom, hLocked, vLocked }
@@ -7254,8 +7286,17 @@ export default function StockChart({
         // right after release (the "skips one more time" bug). Reading the price at
         // the inset boundaries [top·H, (1−bottom)·H] captures exactly the range that
         // maps back to these same pixels, so releasing leaves the scale untouched.
+        // ⛔⛔ THE CANDLES' PANE, NOT PANE 0 — the same trap as `_measureViewLock`.
+        // `yTop`/`yBot` below are fed to `series.coordinateToPrice()`, which reads
+        // coordinates in the SERIES' pane. Asking `chart.panes()[0]` for the height
+        // was right only while the candles were guaranteed to be pane 0, and an
+        // indicator sitting above Price ends that guarantee. Get it wrong and the two
+        // ends of the range are sampled at pixels that mean nothing on this scale, so
+        // the pin — which `autoscaleInfoProvider` then forces back on EVERY autoscale
+        // — holds a price range the user never dragged to.
         let paneH = 0
-        try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
+        try { paneH = series.getPane?.()?.getHeight?.() || 0 } catch { paneH = 0 }
+        if (paneH <= 0) { try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 } }
         if (paneH <= 0) return
         let sm = { top: 0, bottom: 0 }
         try {
