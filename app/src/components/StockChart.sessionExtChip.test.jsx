@@ -5,12 +5,24 @@ import { render, cleanup, screen } from '@testing-library/react'
 //
 // It used to be the price line's `title`. lightweight-charts paints a title on
 // the PANE, to the LEFT of the axis label, so on a phone "Post" sat over the
-// newest candles (owner report, 2026-09-11). The word is now a DOM chip
-// stacked ABOVE the label ON the price scale, and the price line carries no
-// title. This file pins both halves: the library never gets the word, and the
-// member still sees it.
+// newest candles (owner report, 2026-09-11). The word became a DOM chip on the
+// price scale, and the price line carries no title.
+//
+// ⭐ THEN IT WENT BACK BESIDE THE PRICE (owner report, same day, later): stacked,
+// "Post" and "265.34" read as two unrelated values on a price axis, which is the
+// worst possible place for an ambiguous number. The word and its price are ONE
+// reading and must sit on ONE row.
+//
+// ⚠️ BOTH REPORTS ARE STILL TRUE, so the layout branches on plot width: beside the
+// label where there are pixels to spare, stacked above it where going left would
+// put the word back over the candles. This file pins BOTH branches — a
+// fixed-width harness would have let one of them rot.
 
 const created = []
+// Hoisted so the (hoisted) module mock can read it and a test can steer it: the
+// chip's layout BRANCHES on plot width, so a fixed-width harness could only ever
+// exercise one of the two behaviours.
+const h = vi.hoisted(() => ({ plotW: 600 }))
 vi.mock('lightweight-charts', async (importOriginal) => {
   const actual = await importOriginal()
   const mkLine = (opts) => {
@@ -30,12 +42,12 @@ vi.mock('lightweight-charts', async (importOriginal) => {
     addSeries: () => series, addCandlestickSeries: () => series, addHistogramSeries: () => series,
     addLineSeries: () => series, addAreaSeries: () => series, addBarSeries: () => series,
     removeSeries: () => {}, applyOptions: () => {}, priceScale: (id) => ({ applyOptions: () => {}, width: () => (id === 'left' ? 0 : 58) }),
-    paneSize: () => ({ width: 600, height: 300 }),
+    paneSize: () => ({ width: h.plotW, height: 300 }),
     timeScale: () => ({
       applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: () => {}, getVisibleLogicalRange: () => null,
       setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
       unsubscribeVisibleLogicalRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
-      resetTimeScale: () => {}, options: () => ({}), width: () => 600,
+      resetTimeScale: () => {}, options: () => ({}), width: () => h.plotW,
       subscribeSizeChange: () => {}, unsubscribeSizeChange: () => {},
       subscribeVisibleTimeRangeChange: () => {}, unsubscribeVisibleTimeRangeChange: () => {},
     }),
@@ -71,6 +83,7 @@ const bars = Array.from({ length: 40 }, (_, i) => ({
 
 beforeEach(() => {
   cleanup()
+  h.plotW = 600
   created.length = 0
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
     ok: true,
@@ -93,25 +106,43 @@ describe('the Pre/Post word sits on the price scale, not on the pane', () => {
     expect(ext[0].options().axisLabelVisible).toBe(true)
   })
 
-  it('renders "Post" as a chip the SAME BOX as the price label, stacked above it', async () => {
+  it('sits BESIDE the price label — same row, right edge butted to the axis', async () => {
     render(<StockChart sym="AAPL" tf="5" sessionView="regular" />)
     const chip = await screen.findByTestId('session-ext-chip', {}, { timeout: 4000 })
     expect(chip.textContent).toBe('Post')
     await vi.waitFor(() => expect(chip.style.display).toBe('block'), { timeout: 4000 })
-    // Mirrors lightweight-charts' label geometry at fontSize 11 (the default):
-    //   x = plot width (600) + the 1px axis border
-    expect(chip.style.left).toBe('601px')
-    //   width = border 1 + padding 2×(11/12×5) + ceil(text "101.25" = 6 chars × 6px stub) + tick 5
-    const expectedW = Math.round(1 + 2 * (11 / 12) * 5 + 36 + 5)
-    expect(chip.style.width).toBe(`${expectedW}px`)
-    // NOT the whole price-scale column (58px in this harness) — that ran off the phone.
-    expect(parseFloat(chip.style.width)).toBeLessThan(58)
+    const left = parseFloat(chip.style.left)
+    const width = parseFloat(chip.style.width)
+    const top = parseFloat(chip.style.top)
+    const height = parseFloat(chip.style.height)
+    // The axis cell starts at plot width (600) + the 1px border. The chip ends there,
+    // so the word and the orange price label read as one continuous "Post 101.25".
+    expect(left + width).toBe(601)
+    // priceToCoordinate → 120. SAME ROW means the chip SPANS that y, which is exactly
+    // what the stacked layout did not do — this pair of assertions is the whole
+    // difference between the two designs.
+    expect(top).toBeLessThan(120)
+    expect(top + height).toBeGreaterThan(120)
     //   height = 11 + 2 × (2.5/12 × 11), i.e. the label's own height
-    expect(chip.style.height).toBe(`${Math.round(11 + 2 * (2.5 / 12) * 11)}px`)
-    // priceToCoordinate → 120: the label is centred on 120 and the chip sits ABOVE it.
-    expect(parseFloat(chip.style.top) + parseFloat(chip.style.height)).toBeLessThanOrEqual(120 - 7)
+    expect(height).toBe(Math.round(11 + 2 * (2.5 / 12) * 11))
+    // Sized to the WORD, not to the price label's box — it is a tag, not a second price.
+    expect(width).toBeLessThan(58)
     // It must never intercept the member's finger — the scale under it drags.
     expect(chip.style.pointerEvents).toBe('none')
+  })
+
+  it('STACKS above the label on a narrow plot — the phone fix still holds', async () => {
+    // ⛔ The regression this guards: going back to a side-by-side tag put "Post" over
+    // the newest candles on a phone, which is what moved it onto the scale to begin
+    // with. Below the threshold the old layout must still apply.
+    h.plotW = 380
+    render(<StockChart sym="AAPL" tf="5" sessionView="regular" />)
+    const chip = await screen.findByTestId('session-ext-chip', {}, { timeout: 4000 })
+    await vi.waitFor(() => expect(chip.style.display).toBe('block'), { timeout: 4000 })
+    // Starts AT the axis cell (no leftward overhang into the candles) …
+    expect(parseFloat(chip.style.left)).toBe(381)
+    // … and sits entirely ABOVE the label centred on 120.
+    expect(parseFloat(chip.style.top) + parseFloat(chip.style.height)).toBeLessThanOrEqual(120 - 7)
   })
 
   it('does not render the chip when price labels are switched off', async () => {

@@ -1684,6 +1684,10 @@ const MB_BG = '#0e0f0d'      // matches the app page background (--bg) so the ca
 const MB_UP_RGB = '26,229,26', MB_DOWN_RGB = '196,31,45'
 const VOL_MA_COLOR = 'rgba(255,255,255,0.45)'   // volume-pane MA line (subtle white)
 export const SESSION_EXT_COLOR = '#f5a623'  // pre/post-market price tag (TradingView "Pre"/"Post" orange)
+// Plot width (px) at/above which the "Pre"/"Post" word sits BESIDE the orange price
+// label instead of stacked above it. Below this the word would cover the newest
+// candles — the phone complaint that produced the stacked layout in the first place.
+export const SESSION_TAG_INLINE_MIN_PLOT_W = 420
 const SESSION_PREVIEW_COLOR = '#d8d6cf'  // muted (not-bright) white for the pre-market preview daily candle
 const _candleRgba = (up, a) => `rgba(${up ? MB_UP_RGB : MB_DOWN_RGB},${a})`
 // Re-express any hex / rgb / rgba color at the given alpha (for the MA tail fade).
@@ -7543,7 +7547,22 @@ export default function StockChart({
           // is Monday's (or the 1st's) and whose high/low span the whole period —
           // today's OHLC is not that bar, and seeding it there would paint a visibly
           // wrong candle that the fetch then corrects.
-          if (!_pt && resolvedTf === 'D') {
+          // ⛔ REGULAR SESSION ONLY — the same rule the live-price seed above obeys, and
+          // I shipped this without it. The pack's close is the snapshot's `last_price`,
+          // which in post-market is the POST-MARKET print; the daily candle is settled at
+          // the 4pm close and must not move for an extended-hours trade. Seeding it
+          // anyway paints today's candle at the post price and lets the fetch correct it
+          // a beat later — the exact "wrong price then corrects" flash the ext_session
+          // branch above exists to prevent. Pre-market needs no test here (the server
+          // sends an empty pack before the open) but the check is written for the
+          // SESSION, not for post, so it cannot rot if that ever changes.
+          //
+          // ⚰️ THIS READ `marketSession === 'regular'` FOR ONE COMMIT. The value is
+          // `'pre' | 'post' | 'rth'` — there is no `'regular'` — so the test was
+          // permanently FALSE and the whole feature silently did nothing, on every
+          // symbol, with no error and a green test suite. `_inExtWindow` is the named
+          // concept that already exists; use it rather than restating a literal.
+          if (!_pt && resolvedTf === 'D' && !_inExtWindow) {
             try {
               const _tb = getTodayBar(sym)
               // Same sanity chokepoint as the live path — a bad pack row must not
@@ -7561,7 +7580,7 @@ export default function StockChart({
     // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
     // imperatively (fresh at eval), and the live writers own prices that arrive later; a
     // livePrices dep would re-run this O(n) memo every tick (churn) even when dark.
-    [displayBars, adjustTime, sym, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
+    [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
@@ -11748,28 +11767,53 @@ export default function StockChart({
           const fs = cs.textSize ?? 11
           const labelH = fs + 2 * (2.5 / 12) * fs
           const pad = (fs / 12) * 5
-          let text = ''
-          try { text = String(series.priceFormatter().format(price)) } catch { text = String(price) }
           let ctx = sessionExtMeasureRef.current
           if (!ctx) {
             try { ctx = document.createElement('canvas').getContext('2d') } catch { ctx = null }
             sessionExtMeasureRef.current = ctx
           }
-          let textW = text.length * fs * 0.6
-          if (ctx) {
-            ctx.font = `${fs}px 'Instrument Sans Tab', 'Instrument Sans', sans-serif`
-            const m = ctx.measureText(text)
-            if (m && Number.isFinite(m.width) && m.width > 0) textW = m.width
+          const measure = (t) => {
+            let w = String(t).length * fs * 0.6
+            if (ctx) {
+              ctx.font = `${fs}px 'Instrument Sans Tab', 'Instrument Sans', sans-serif`
+              const m = ctx.measureText(String(t))
+              if (m && Number.isFinite(m.width) && m.width > 0) w = m.width
+            }
+            return w
           }
-          const width = Math.round(1 + pad + pad + Math.ceil(textW) + 5)
-          const left = Math.round(lw + tw + 1)
+          const boxFor = (t) => Math.round(1 + pad + pad + Math.ceil(measure(t)) + 5)
+          let priceText = ''
+          try { priceText = String(series.priceFormatter().format(price)) } catch { priceText = String(price) }
           const chipH = Math.round(labelH)
           const paneTop = overlayBounds?.top || 0
-          let top = Math.round(paneTop + y - labelH / 2 - chipH - 1)
-          // Pinned at the very top of the pane → stack it under the label instead.
-          if (top < paneTop) top = Math.round(paneTop + y + labelH / 2 + 1)
-          style = { top, left, width, height: chipH }
-          key = `${top}|${left}|${width}|${chipH}`
+          const axisLeft = Math.round(lw + tw + 1)
+
+          // ── BESIDE the price label, not stacked above it (owner ask 2026-09-11, the
+          // second one). The word and the price it describes are ONE reading — "Post
+          // 265.34" — and stacking split them into two labels that scan as unrelated
+          // values on a price axis, which is the worst place to put an ambiguous number.
+          // Same row, right edge butted against the axis cell, sized to the WORD rather
+          // than to the price label's box.
+          //
+          // ⚠️ THE PHONE CASE IS WHY IT WAS STACKED IN THE FIRST PLACE. Sitting left of
+          // the axis means sitting OVER the newest candles, which is exactly the
+          // complaint that moved it here earlier today. So the side-by-side layout is
+          // for plots wide enough to spare the pixels, and a narrow plot keeps the
+          // stacked position. Reverting outright would have re-broken the earlier fix.
+          const tagText = marketSession === 'post' ? 'Post' : 'Pre'
+          const tagW = boxFor(tagText)
+          if (tw >= SESSION_TAG_INLINE_MIN_PLOT_W) {
+            const top = Math.round(paneTop + y - labelH / 2)
+            const left = axisLeft - tagW
+            style = { top, left, width: tagW, height: chipH }
+          } else {
+            const width = boxFor(priceText)
+            let top = Math.round(paneTop + y - labelH / 2 - chipH - 1)
+            // Pinned at the very top of the pane → stack it under the label instead.
+            if (top < paneTop) top = Math.round(paneTop + y + labelH / 2 + 1)
+            style = { top, left: axisLeft, width, height: chipH }
+          }
+          key = `${style.top}|${style.left}|${style.width}|${style.height}`
         }
       } catch { /* chart mid-swap */ }
       if (key === last) return
@@ -11784,7 +11828,7 @@ export default function StockChart({
     }
     raf = requestAnimationFrame(tick)
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize])
+  }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize, marketSession])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
   // custom-TF live developing bar ──
