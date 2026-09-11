@@ -1,0 +1,30 @@
+{
+  "_what": "What the 2-ARGUMENT `ta.pivothigh(left, right)` / `ta.pivotlow(left, right)` default their SOURCE to, read off a live TradingView chart.",
+  "_ruling": "⭐ `ta.pivothigh(l, r)` DEFAULTS TO `high`. `ta.pivotlow(l, r)` DEFAULTS TO `low`. The same asymmetry as `ta.highest`/`ta.lowest`, and not `close` for either. 11 of 11 usable bars agree for the high side, 17 of 17 for the low side, with ZERO agreeing with `close`.",
+  "_this_CONFIRMS_the_engine_rather_than_changing_it": "⭐⭐ `pine.js::pivotAtConfirmation` already defaulted the 1-arg-short form to the function's own extreme, and its comment already said why: \"THE DEFAULT IS THE FUNCTION'S OWN EXTREME, not `close`: reading a pivot LOW off closes would answer a different question entirely.\" That was a reasoned assumption; this is the measurement behind it. A confirmation is worth capturing precisely because the alternative — discovering the assumption was wrong — would have been silent.",
+  "_why_a_SENTINEL_and_not_a_bare_delta": "⛔⛔ `pivothigh` RETURNS `na` ON ALMOST EVERY BAR, and `na - na` is `na`. A column of `na` cannot be told from a study that never evaluated, which is the exact failure this probe family exists to catch. So every comparison is gated on BOTH sides being present and says so out of band: -2 means \"not comparable on this bar\", 0 means the two forms agreed, anything else is a real disagreement. A capture must count ONLY the bars that are not -2; averaging a column containing sentinels produces a number with no meaning, and it will look fine.",
+  "_the_firing_check_comes_first": "⭐ If the default form never fired, every delta would be -2 forever and the probe would be measuring its own silence. It fired: the default `pivothigh` produced a value on 23 bars and `pivotlow` on 28.",
+  "_instrument": "UCTPROBE_GB_PIVOT, pasted into the Pine editor via the Monaco model handle and added with the action button asserted to read \"Add to chart\" (no \"Update on chart\" present). Buffer verified sha256-identical to the committed source before the click: d5c2bc971964b00fd567e5cddd415594a90b1df93ff402549de4849c8281df8c, 2618 characters.",
+  "_gates": "isFailed() === false; plot roster 9 == the balanced-paren scan of the committed source; 400 bars.",
+  "symbol": "AMEX:SPY",
+  "resolution": "1D",
+  "bars": 400,
+  "capturedAtUTC": "2026-09-11T01:10:12Z",
+  "firing": {
+    "_": "bars on which the DEFAULT form returned a value rather than na",
+    "default_pivothigh_fired_on_bars": 23,
+    "default_pivotlow_fired_on_bars": 28
+  },
+  "usableBars": {
+    "_": "bars where both forms were present AND the explicit high/close (or low/close) spread was non-zero",
+    "high_side": 11,
+    "low_side": 17
+  },
+  "agreementCounts": {
+    "pivothigh_default_equals_HIGH": 11,
+    "pivothigh_default_equals_CLOSE": 0,
+    "pivotlow_default_equals_LOW": 17,
+    "pivotlow_default_equals_CLOSE": 0
+  },
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE SESSION, and a SMALL usable denominator — 11 and 17 bars, because a pivot only confirms occasionally and the spread guard discards more. That is enough to settle WHICH SOURCE the default is (a signature property), and it is NOT enough to characterise pivot behaviour generally. It says nothing about the `left`/`right` confirmation offset, which `pivotAtConfirmation` handles separately and which this probe does not ask about."
+}

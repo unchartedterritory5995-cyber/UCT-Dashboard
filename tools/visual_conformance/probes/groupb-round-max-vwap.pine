@@ -31,7 +31,13 @@ plot(math.round(3.5),   "N04_round_3p5_4_both_rules_CONTROL")              // N0
 // not 4 the function is doing something neither rule describes and N02 must not
 // be read as a rule.
 plot(math.round(0.125, 2),  "N05_round_2dp_0p13_HALFUP_0p12_BANKERS")      // N05
-plot(math.round(1234.5, -2), "N06_round_negPRECISION_what_happens")        // N06
+// ⚰️⚰️ N06 WAS REMOVED TO ITS OWN FILE ON 2026-09-11, AND THE REMOVAL IS A
+// MEASUREMENT. `math.round(1234.5, -2)` does NOT COMPILE at TradingView:
+//     CE10041 — Invalid value "-2" for "precision" parameter of the
+//     "math.round()" function. It must be between 0 and 100   (line 34, col 6-26)
+// Read on a live chart, and it took the other two readings in this file down
+// with it exactly as the header above warned. See `groupb-round-negprecision.pine`,
+// which now carries that question alone.
 plot(math.round(2.675, 2),  "N07_round_binary_float_hazard")               // N07
 
 // ── math.max: genuinely variadic, or capped? ─────────────────────────────────

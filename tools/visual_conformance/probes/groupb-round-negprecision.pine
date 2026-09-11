@@ -1,0 +1,27 @@
+//@version=6
+indicator("UCTPROBE_GB_ROUND_NEGPRECISION", overlay = false)
+
+// ⭐⭐ ONE QUESTION, ALONE, BECAUSE ITS ANSWER IS A COMPILE FAILURE.
+// Does `math.round(x, -2)` — round to the nearest hundred — exist at TradingView?
+//
+// ✅ ALREADY ANSWERED, 2026-09-11, AND THE ANSWER IS NO:
+//     CE10041 — Invalid value "-2" for "precision" parameter of the
+//     "math.round()" function. It must be between 0 and 100
+// read off a live chart at line 34, columns 6-26 of the combined probe this line
+// was split out of (`groupb-round-max-vwap.pine`).
+//
+// ⛔ THE FILE IS KEPT ANYWAY, AND NOT AS A CURIOSITY. A refusal measured once is a
+// fact about the vendor ON THAT DAY; TradingView widens argument domains between
+// releases, and the day `precision` accepts a negative value this file compiles
+// and starts plotting instead of failing — which is a louder signal than anybody
+// re-reading a note. It is the negative control for the `math.round` family.
+//
+// ⚠️ AND IT IS WHY THE COMBINED FILE NOW CARRIES A SCAR. Three documented-and-
+// therefore-expected-to-compile questions shared one file; this one was not the
+// risky arity anybody had flagged, and it took `math.max`'s variadic reading and
+// `ta.vwap`'s anchoring reading down with it. "Expected to compile" is a
+// prediction, and the grouping rule should read "one question per file unless the
+// forms are proven" rather than "unless they are documented".
+
+plot(bar_index, "N01_bar_index_CONTROL")                                    // N01
+plot(math.round(1234.5, -2), "N02_round_negPRECISION_compiles_is_the_finding")  // N02
