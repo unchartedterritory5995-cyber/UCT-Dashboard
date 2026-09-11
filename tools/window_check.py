@@ -783,6 +783,10 @@ NOTES_JS = """async () => {
     conflicts: notes.filter(n => (n.tags || []).includes('sync-conflict')).map(n => n.title)};
 }"""
 
+# ⛔⛔ THIS IS THE SECOND-WRITER SIMULATION, NOT THE MEMBER'S DOOR.
+# It writes with its own fetch, so the editor's handlers never run. Keep it — the
+# second-writer case is real and must keep forking — but never read its fork as a
+# defect in the member's path. `REAL_DOOR_JS` below is the member's door.
 DOOR_JS = """async ({id, patch}) => {
   // ⛔ METADATA ONLY — no title, no bodyJson. The server patches exactly the
   // keys it is sent, so this write moves `updatedAt` while saying nothing about
@@ -807,6 +811,39 @@ DOOR_JS = """async ({id, patch}) => {
   }
   return {status: w.status, before: prev, after: j?.note?.updatedAt ?? null, attempts: tries};
 }"""
+
+REAL_DOOR_JS = """async ({door, value}) => {
+  // ⛔⛔ THE MEMBER'S DOOR. `DOOR_JS` above fires a raw fetch from the page and
+  // therefore simulates a SECOND WRITER — the editor's own handlers never run,
+  // `settleMetadataRevision` never runs, `recordLandedRevision` never records the
+  // revision, guard 2 correctly answers "not ours", and the note FORKS. That is
+  // the right answer to another device, and it is NOT what a member changing a
+  // ticker does.
+  //
+  // ⚰️ Measured 2026-09-11, same rig, same ordering, 3 sends beating the door:
+  //      raw fetch door  13 runs  12 lost the offline sentence   r = 0.92
+  //      this door       12 runs   0 lost the offline sentence   r = 0.00
+  //    Three deploys were spent fixing a defect the instrument was creating.
+  const fire = (el, type) => el.dispatchEvent(new Event(type, {bubbles: true}));
+  const setNative = (el, v) => {
+    const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);
+  };
+  if (door === 'folder') {
+    const sel = document.querySelector('select');
+    if (!sel) return {ok:false, why:'no folder <select> on the page'};
+    const opt = [...sel.options].find(o => o.value && o.value !== sel.value);
+    if (!opt) return {ok:false, why:'no other folder to move to'};
+    setNative(sel, opt.value); fire(sel, 'change');
+    return {ok:true, via:'select.change'};
+  }
+  const ph = door === 'ticker' ? 'Ticker' : 'Tags (comma sep)';
+  const el = document.querySelector(`input[placeholder="${ph}"]`);
+  if (!el) return {ok:false, why:'no ' + ph + ' input on the page'};
+  el.focus(); setNative(el, value); fire(el, 'input'); el.blur(); fire(el, 'blur');
+  return {ok:true, via:'input.blur'};
+}"""
+
 
 ACTIVITY_JS = """async (names) => {
   // ⭐ TWO SOURCES, AND THEY ANSWER DIFFERENT QUESTIONS.
@@ -1419,7 +1456,24 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     door = door_for(chk.number)
     chk.door = door
     sends_before_door = len([p for p in puts if note_id in p["url"]]) - len(online_puts)
-    dr = page.evaluate(DOOR_JS, {"id": note_id, "patch": DOOR_PATCH[door]})
+    # ⛔⛔ THE MEMBER'S DOOR, not a script's. This was `DOOR_JS` — a raw fetch —
+    # and that is a SECOND-WRITER simulation whose fork is correct. Reading it as
+    # a defect in the member's path cost this wave three deploys.
+    _val = DOOR_PATCH["ticker"]["ticker"] if door == "ticker" else DOOR_PATCH["tags"]["tags"][0]
+    _rr = page.evaluate(REAL_DOOR_JS, {"door": door, "value": _val})
+    if not (isinstance(_rr, dict) and _rr.get("ok")):
+        # ⛔ INCONCLUSIVE, NOT GREEN, AND NOT A RAW-FETCH FALLBACK. Falling back
+        # to DOOR_JS here would silently reintroduce the artifact.
+        chk.step(f"4 door `{door}` (the member's own control)", False,
+                 f"could not be driven: {_rr}",
+                 f"the real door could not be driven ({_rr}) — this run did NOT exercise a door")
+        dr = {"status": None, "before": None, "after": None, "attempts": 0}
+    else:
+        page.wait_for_timeout(4000)
+        _after = page.evaluate(
+            "async (id) => (await (await fetch('/api/j2/notes/'+id,{credentials:'include'})).json()).note?.updatedAt",
+            note_id)
+        dr = {"status": 200, "before": None, "after": _after, "attempts": 1, "via": _rr.get("via")}
     if not isinstance(dr, dict):
         dr = {"status": None, "before": None, "after": None}
     door_moved = (dr.get("status") == 200 and isinstance(dr.get("after"), str)
@@ -2410,6 +2464,26 @@ def self_check() -> int:
                 if arg == self.note_id:
                     self.notes = []
                 return None
+            if "dispatchEvent" in js:                      # REAL_DOOR_JS — the MEMBER's door
+                # ⭐ The difference that matters: this goes through the product's
+                # own handler, so the revision it creates is recorded as OURS and
+                # a queued entry REBASES onto it instead of forking. Measured on
+                # the rig, 12 runs, 0 losses.
+                if not self.door_moves:
+                    return {"ok": False, "why": "simulated: the control could not be driven"}
+                d, v = (arg or {}).get("door"), (arg or {}).get("value")
+                if d == "ticker":
+                    self.ticker = v
+                if d == "tags":
+                    self.tags = [v]
+                self.put(self.updated)
+                self.updated = self.bump()
+                # the queued entry is carried onto the door's revision
+                if self.queued:
+                    self.queued_base = self.updated
+                return {"ok": True, "via": "input.blur"}
+            if "note?.updatedAt" in js:                    # the post-door revision read
+                return self.updated
             if "method:'PUT'" in js:                       # DOOR_JS
                 before = self.updated
                 if not self.door_moves:
