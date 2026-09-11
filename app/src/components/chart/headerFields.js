@@ -12,6 +12,8 @@
 // change). These get TWO color overrides — one for positive values, one for negative — stored
 // under `<colorKey>:pos` / `<colorKey>:neg` in header.colors, defaulting to green / red.
 
+import { isInfoFieldId } from './engine/infoFields'
+
 // `short` is the abbreviated label shown when the pane narrows enough that the
 // info row would collide with the timeframe bar (see headerFit.js). Values are
 // never abbreviated — only these labels. Keep them terse + unambiguous.
@@ -59,9 +61,24 @@ export const THEME_HEADER_KEYS = new Set(['theme'])
 // What the old three toggles showed — the default before any pick.
 export const DEFAULT_HEADER_FIELDS = ['mcap', 'earn', 'rating']
 
-/** The selected field keys for a header blob — migrating a legacy show* blob once. */
+/**
+ * The selected field keys for a header blob — migrating a legacy show* blob once.
+ *
+ * ⭐⭐ A CUSTOM FORMULA FIELD IS AN ORDINARY KEY IN THIS LIST. That one sentence
+ * is the whole of Part 29: ordering, the abbreviate-on-narrow pass, the
+ * responsive fit and the colour controls all walk `header.fields`, so a formula
+ * field participates in every one of them by being IN it — rather than by a
+ * second custom-field row that would need each of those behaviours rebuilt.
+ *
+ * ⚠️ AND AN UNKNOWN KEY IS STILL DROPPED. `info:…` ids pass this filter on their
+ * prefix, not on a lookup, because their definitions live in
+ * `header.infoFormulas` and a field whose definition was deleted must not keep a
+ * slot in the row. `ChartPane` resolves that and drops it there.
+ */
 export function headerFieldKeys(header) {
-  if (Array.isArray(header?.fields)) return header.fields.filter((k) => HEADER_FIELD_BY_KEY[k])
+  if (Array.isArray(header?.fields)) {
+    return header.fields.filter((k) => HEADER_FIELD_BY_KEY[k] || isInfoFieldId(k))
+  }
   const f = []
   if (header?.showMarketCap !== false) f.push('mcap')
   if (header?.showNextEarnings !== false) f.push('earn')
@@ -69,7 +86,11 @@ export function headerFieldKeys(header) {
   return f
 }
 
-// ── formatters (kept in sync with the watchlist columns) ──────────────────────
+/** ⭐ CUSTOM FIELDS NEED NO FETCH. The three `*_HEADER_KEYS` sets above gate
+ *  ChartPane's per-symbol requests; a formula field reads the chart's own bars,
+ *  which are already there. So it appears in none of them and opens nothing. */
+
+// ── formatters (kept in sync with the watchlist columns) ──────────────────
 const num = (v) => (typeof v === 'number' && Number.isFinite(v))
 const signColor = (v) => (num(v) ? (v >= 0 ? SIGN_POS : SIGN_NEG) : null)
 const signOf = (v) => (num(v) ? (v >= 0 ? 'pos' : 'neg') : null)

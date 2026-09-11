@@ -298,8 +298,21 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // `markers.ipo` / `crosshair.enabled` / the per-MA `onTop` re-pins above — a
   // default-empty field no renderer reads until a member writes a rule, so no
   // pixel moves.
+  // ⭐ 2026-09-11 (second, same day) — re-pinned for `header.infoFormulas: []`,
+  // the custom Info Row formula list. INVESTIGATED BY MEASUREMENT, NOT
+  // REGENERATED, and by a stronger method than the previous re-pin: this corpus
+  // was computed with `header.infoFormulas` REMOVED from every merged blob, at
+  // HEAD and with the change, and the two agree EXACTLY
+  // (`6d86d36d00e404d34c4170328cfd2943501cd2a508e59e121e3235c60e165d1a`). So the
+  // merge answers identically on every other key and the whole delta is one
+  // additive empty array.
+  //
+  // ⚠️ NOTE FOR THE NEXT RE-PIN: that stripped digest is NOT the prior literal,
+  // and it never could be — this rail hashes `JSON.stringify` WITHOUT sorting
+  // keys, so rebuilding the header object to drop a key reorders it. The valid
+  // comparison is stripped-vs-stripped across the two trees, not stripped-vs-pin.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '5c8f279f1419dd7664482f425d566f45a02f7af06403f2ec00f883c9dc620bf5'
+    '18865f45bf1ef8a9b1474b53881122f99d14814189a9057659f0153d990fb7e6'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's

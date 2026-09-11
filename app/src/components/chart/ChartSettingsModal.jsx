@@ -16,6 +16,7 @@ import {
 // composition of the two shipped surfaces rather than a third one.
 import ChartSettingsIndicators from './ChartSettingsIndicators'
 import ChartSettingsConditions from './ChartSettingsConditions'
+import ChartSettingsInfoFields from './ChartSettingsInfoFields'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
 // The engine's definitions, so the Indicators tab can GENERATE the rows for the
 // indicators the engine owns instead of carrying a second hand-written copy of
@@ -297,6 +298,9 @@ export default function ChartSettingsModal({
   const [panelPos, setPanelPos] = useState(null)
   const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
   const [confirmReset, setConfirmReset] = useState(false)
+  /** Opens the formula-field editor in a “create” state. The editor itself lives
+   *  in `ChartSettingsInfoFields`, which owns every write. */
+  const [createFormulaField, setCreateFormulaField] = useState(false)
   const resetTimerRef = useRef(null)
   const [themesOpen, setThemesOpen] = useState(false)
 
@@ -1280,6 +1284,16 @@ export default function ChartSettingsModal({
                 aria-expanded={fieldMenuOpen}
               >＋ Add Field</button>
             </div>
+            {/* ⭐ CUSTOM FORMULA FIELDS — the same list, the same order. They are
+                rendered above the built-ins' colour rows because they carry more
+                than a colour: a formula, a format and their own label. */}
+            <ChartSettingsInfoFields
+              settings={settings}
+              onChange={(next) => onChange?.({ ...next, preset: 'custom' })}
+              registry={engineRegistry}
+              creating={createFormulaField}
+              onCreatingChange={setCreateFormulaField}
+            />
             {infoFields.length > 0 && (
               <div className={styles.card}>
                 {infoFields.map((k) => {
@@ -1608,6 +1622,18 @@ export default function ChartSettingsModal({
             autoFocus
           />
           <div className={styles.fieldList}>
+            {/* ⭐⭐ BUILT-IN AND CUSTOM ARE DIFFERENT ACTIONS, so they are different
+                entries. A built-in row TOGGLES a known key; "Create formula
+                field" opens an editor and mints one. Mixing a raw formula box
+                into this list would make a search-and-tick menu do two jobs. */}
+            <button
+              type="button"
+              className={styles.fieldItem}
+              onClick={() => { setFieldMenuOpen(false); setCreateFormulaField(true) }}
+            >
+              <span className={styles.fieldCheck}>＋</span>
+              Create formula field…
+            </button>
             {HEADER_FIELDS
               .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
               .map((f) => {

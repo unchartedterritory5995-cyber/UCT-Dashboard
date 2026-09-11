@@ -61,6 +61,7 @@ import {
   orderByDependency, sourceInputsOf, parseSource, barFieldSeries, resolveScaleDomain,
 } from './sourceRef'
 import { evaluateCondition } from './conditions'
+import { evaluateInfoField } from './infoFields'
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -807,6 +808,19 @@ export function createBinder({ chart, LWC }) {
     // `conditions.conditionInstance` already shapes them for it.
     evaluateConditions(ctx.conditions, bars, columns)
 
+    // ── 1c. THE INFO FIELDS — THE THIRD CONSUMER, IN THE SAME PASS ─────────
+    //
+    // ⭐ A NUMERIC FORMULA WHOSE ONLY CONSUMER IS THE HEADER. It is not an
+    // indicator — it takes no pane, no scale, no series and no legend plot — and
+    // it is not a condition. It reads the very same columns through the very same
+    // `'@id::plot'` bindings and produces ONE number: the newest finite value.
+    //
+    // ⛔ IT EVALUATES HERE AND NOT IN THE HEADER, and that is the load-bearing
+    // half. `ChartPane` re-renders on every live tick; interpreting a 10,000-bar
+    // tree inside a React render would run the whole formula set several times a
+    // second. Here it runs when its INPUTS change and at no other time.
+    evaluateInfoFields(ctx.infoFields, bars, columns)
+
     const hasData = (key) => {
       const col = columns.get(key)
       return col !== undefined && registry.hasAnyFinite(col)
@@ -1423,6 +1437,56 @@ export function createBinder({ chart, LWC }) {
     if (changed) conditionGeneration += 1
   }
 
+  /** field id → the newest numeric value, or null. */
+  const infoResults = new Map()
+  /** field id → why it has no value, for the settings row to say. */
+  const infoErrors = new Map()
+  let infoGeneration = 0
+  /** id → { bars, sig } — the same memo shape the instances and conditions use. */
+  const infoMemo = new Map()
+
+  /**
+   * Evaluate every info-field formula, reusing the columns this pass computed.
+   *
+   * ⭐⭐ THE MEMO KEY HOLDS THE FORMULA AND THE BOUND COLUMNS — AND NOTHING ELSE.
+   * Not the label, not the format, not the decimals, not the colour, not the
+   * position. That is why changing any of them costs a re-render and zero
+   * arithmetic: they are not inputs to the maths, so they cannot invalidate it.
+   * The rule is not enforced here; it is a consequence of what the key contains.
+   */
+  function evaluateInfoFields(list, bars, columns) {
+    const fields = Array.isArray(list) ? list : []
+    const live = new Set()
+    let changed = false
+    for (const field of fields) {
+      if (!field || typeof field.id !== 'string') continue
+      live.add(field.id)
+      let sig = field.formula + ' '
+      for (const [key, ref] of Object.entries(field.bindings || {})) {
+        sig += key + '=' + ref
+        const parsed = parseSource(ref)
+        const col = (parsed && parsed.kind === 'instance')
+          ? columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) : null
+        if (col) { if (!col.__srcId) col.__srcId = ++SOURCE_SERIAL; sig += '#' + col.__srcId }
+        sig += ';'
+      }
+      const memo = infoMemo.get(field.id)
+      if (memo && memo.bars === bars && memo.sig === sig) continue
+      const r = attempt(() => evaluateInfoField(field, bars, (key) => columns.get(key) || null))
+      const out = r.ok && r.value ? r.value : { value: null, error: 'the formula could not be evaluated' }
+      infoMemo.set(field.id, { bars, sig })
+      if (out.value === null) infoResults.delete(field.id)
+      else infoResults.set(field.id, out.value)
+      if (out.error) infoErrors.set(field.id, out.error)
+      else infoErrors.delete(field.id)
+      changed = true
+    }
+    for (const id of [...infoResults.keys()]) if (!live.has(id)) { infoResults.delete(id); changed = true }
+    for (const id of [...infoErrors.keys()]) if (!live.has(id)) { infoErrors.delete(id); changed = true }
+    for (const id of [...infoMemo.keys()]) if (!live.has(id)) infoMemo.delete(id)
+    if (changed) infoGeneration += 1
+  }
+
   function bindings() { return held.slice() }
 
   /**
@@ -1438,5 +1502,17 @@ export function createBinder({ chart, LWC }) {
     return { columns: conditionColumns, errors: conditionErrors, generation: conditionGeneration }
   }
 
-  return { sync, teardown: releaseAll, bindings, conditions }
+  /**
+   * The newest value of every info-field formula, by field id.
+   *
+   * ⛔ VALUES, NOT COLUMNS. A condition hands back a column because three
+   * channels each walk every bar of it; an info field's whole product is one
+   * number, and publishing the column would invite a consumer to re-derive the
+   * value a second way.
+   */
+  function infoValues() {
+    return { values: infoResults, errors: infoErrors, generation: infoGeneration }
+  }
+
+  return { sync, teardown: releaseAll, bindings, conditions, infoValues }
 }

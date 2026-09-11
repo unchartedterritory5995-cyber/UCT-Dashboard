@@ -91,6 +91,12 @@ export const CHART_DEFAULTS = {
     // Day change is a pair (up-day / down-day). Keys: dayChangeUp, dayChangeDown,
     // marketCap, nextEarnings, uctRating, legend.
     colors: {},
+    /** ⭐ CUSTOM INFO-ROW FORMULAS — the definitions; `fields` holds their ids in
+     *  display order alongside the built-in keys. Empty by default, so a header
+     *  that has never had one is byte-identical to what it was. Only the
+     *  DEFINITION is stored: never the numeric column, never the latest value,
+     *  never the formatted string (`engine/infoFields.js`). */
+    infoFormulas: [],
   },
 
   // Moving-average overlays. `lineWidth`/`lineStyle` are per-overlay (the Indicators
@@ -478,6 +484,11 @@ export function mergeChartSettings(userSettings) {
       // stored partial `colors` (e.g. only marketCap set) would drop the others'
       // defaults. Same trap `timeframes` guards against — merge, never wholesale-swap.
       colors: { ...CHART_DEFAULTS.header.colors, ...(parsed.header?.colors || {}) },
+      // ⛔ THE HEADER IS SPREAD WHOLESALE ABOVE, so an array key needs the same
+      // guard `timeframes` and `customTimeframes` get: a stored non-array (or a
+      // blob that predates the feature) must fold to the default rather than
+      // reaching the resolver as a string.
+      infoFormulas: Array.isArray(parsed.header?.infoFormulas) ? parsed.header.infoFormulas : [],
       // ⭐ RESOLVED FROM THE STORED BLOB, and it must be — `legendModeOf(parsed)`,
       // never `legendModeOf(out)`. The spread above has already injected the
       // default `legendMode: 'always'`, so re-reading the merged object would

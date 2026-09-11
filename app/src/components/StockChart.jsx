@@ -11,6 +11,8 @@ import {
   resolveCandleColors, resolveBackgroundColors, colorRuns, resolveMarkers,
 } from './chart/engine/conditionActions'
 import { createConditionShadingPrimitive } from './chart/conditionShadingPrimitive'
+import { normaliseInfoFields } from './chart/engine/infoFields'
+import { publishInfoValues, clearInfoValues } from '../lib/infoValueStore'
 import {
   volumeOverlayKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
   derivedTargetOf,
@@ -2207,6 +2209,11 @@ export default function StockChart({
   // (`charts_workspace_layout`, `multichart_state`); a surface without one
   // passes nothing and stays global.
   chartId = null,
+  /** ⭐ WHERE CUSTOM INFO-ROW VALUES ARE PUBLISHED. The header lives ABOVE this
+   *  component, so its values travel through a store rather than a prop — see
+   *  `lib/infoValueStore.js`. Absent means nobody is listening and nothing is
+   *  published, which is every surface that has no Info Row. */
+  infoBusKey = null,
   // Optional host ref filled with the mounted ChartToolbar's imperative API
   // ({ openIndicatorLibrary, openAlerts }) so external chrome — the phone bottom
   // toolbar's ƒx sheet — can open the SAME IndicatorLibraryDialog / alert
@@ -3361,6 +3368,15 @@ export default function StockChart({
   const conditionColumnOf = useCallback((id) => {
     try { return engineRef.current?.binder?.conditions?.().columns.get(id) || null } catch { return null }
   }, [])
+
+  // ─── CUSTOM INFO-ROW FORMULAS — THE THIRD CONSUMER ───────────────────
+  //
+  // ⭐ NOTHING HERE FORMATS. The engine computes a NUMBER per field; the header
+  // decides whether that number reads as `6.84%`, `1.2M` or `$3.40`. Splitting it
+  // there is what makes a format change cost zero arithmetic.
+  const infoFieldList = useMemo(() => normaliseInfoFields(cs), [cs])
+  const infoFieldListRef = useRef(infoFieldList)
+  infoFieldListRef.current = infoFieldList
   // The pane manifest's unregister thunk (Task 3's one-slot registry in
   // `engine/paneLayout.js`). Held in a ref so the unmount cleanup — which is the
   // effect that owns `chart.remove()` — can undo exactly what the create branch did.
@@ -10926,6 +10942,7 @@ export default function StockChart({
     // candle" needs no indicator at all, and without this the binder is never
     // created, `sync` never runs and the formula is never evaluated.
     const engineNeeded = engineInstances.length > 0 || conditionListRef.current.length > 0
+      || infoFieldListRef.current.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
       engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
@@ -10940,6 +10957,11 @@ export default function StockChart({
         // name, in dependency order, against the same `bars`. A second pass
         // would be a second scheduler and a second memo.
         conditions: conditionListRef.current,
+        // ⛔ THE HEADER'S FORMULAS ARE COMPUTED HERE, in the pass that owns the
+        // bars and the memo — never in a React render. `ChartPane` re-renders on
+        // every live tick, and interpreting a 10,000-bar tree there would run the
+        // whole set several times a second.
+        infoFields: infoFieldListRef.current,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
@@ -10996,6 +11018,15 @@ export default function StockChart({
       // ⚠️ OPTIONAL, BECAUSE A TEST DOUBLE IS A BINDER TOO. Several suites stub
       // `createBinder` with a `{ sync }` and nothing else; a hard call here turns
       // "this chart has no conditions" into a crash in eighteen unrelated cases.
+      // ⭐ PUBLISHED FROM THE SYNC, not from a render: the values are fresh
+      // exactly when the engine has recomputed them, and the header wakes only
+      // when the generation actually moved.
+      if (infoBusKey) {
+        try {
+          const iv = engineRef.current.binder.infoValues?.()
+          if (iv) publishInfoValues(infoBusKey, iv)
+        } catch { /* a test double is a binder too */ }
+      }
       const _cg = engineRef.current.binder.conditions?.().generation ?? 0
       if (_cg !== conditionGenRef.current) {
         conditionGenRef.current = _cg
@@ -15104,6 +15135,10 @@ export default function StockChart({
       // than erasing its successor's registration.
       try { unregisterManifestRef.current?.() } catch {}
       unregisterManifestRef.current = null
+      // ⛔ A CHART THAT UNMOUNTS STOPS ANSWERING. Its info values are GONE, not
+      // stale — leaving them would make a closed widget's ADR sit in the header of
+      // whatever replaced it.
+      try { if (infoBusKey) clearInfoValues(infoBusKey) } catch { /* SSR/teardown */ }
       if (chartRef.current) {
         try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
         chartRef.current.remove()

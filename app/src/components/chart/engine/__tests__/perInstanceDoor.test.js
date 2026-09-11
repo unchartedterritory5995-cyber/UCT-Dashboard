@@ -298,6 +298,12 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // `033a48be…` EXACTLY, so no per-definition door changed behaviour and
       // each blob gained one additive empty array. A condition is not an
       // indicator and takes no door here — which is the point.
-      .toBe('1d4481227f588bd872d882cb5d877e27c5e53bdb00bb2a8c6bc8ab33316dfe0c')
+      // ⭐ 2026-09-11 (third, same day) — re-pinned for `header.infoFormulas: []`.
+      // INVESTIGATED BY MEASUREMENT: this corpus rebuilt with that key stripped
+      // reproduces `1d448122…` EXACTLY, so every per-definition door answers
+      // identically and each blob gained one additive empty array. An info field
+      // is neither an indicator nor a condition and takes no door here — which
+      // is the point.
+      .toBe('19f30cb4f264438e4f7c9b14f142597f23930a4e4691f72eab87314d2b08ada3')
   })
 })

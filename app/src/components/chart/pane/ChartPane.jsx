@@ -1,7 +1,11 @@
 import {
-  forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef,
+  useState, useSyncExternalStore,
 } from 'react'
 import StockChart from '../../StockChart'
+import { isInfoFieldId, infoFieldsById } from '../engine/infoFields'
+import { formatInfoValue } from '../engine/infoFormat'
+import { subscribeInfoValues, getInfoValues } from '../../../lib/infoValueStore'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
@@ -407,6 +411,25 @@ function ChartPane({
   // source (live quote / perf / rvol+ipo meta / theme) is fetched for THIS one symbol ONLY
   // when a field that needs it is actually shown.
   const infoFieldKeys = useMemo(() => headerFieldKeys(hdr), [hdr])
+
+  // ─── CUSTOM FORMULA FIELDS ──────────────────────────────────
+  //
+  // ⭐⭐ THE MATHS HAPPENS IN THE CHART BELOW THIS HEADER, and the value arrives
+  // through a store rather than a prop because the data flows the wrong way for
+  // props: `StockChart` owns the bars, the engine and the memo, and this
+  // component owns the display. Nothing here interprets a tree — this row
+  // re-renders on every live tick.
+  const infoDefs = useMemo(() => infoFieldsById(chartCs), [chartCs])
+  /** A stable per-mount key so two widgets on ONE symbol never overwrite each
+   *  other's values. `chartId` when the host supplies one; otherwise minted once. */
+  const infoBusKeyRef = useRef(null)
+  if (!infoBusKeyRef.current) infoBusKeyRef.current = chartId || `pane:${Math.random().toString(36).slice(2)}`
+  const infoBusKey = infoBusKeyRef.current
+  const infoBus = useSyncExternalStore(
+    subscribeInfoValues,
+    useCallback(() => getInfoValues(infoBusKey), [infoBusKey]),
+    useCallback(() => getInfoValues(infoBusKey), [infoBusKey]),
+  )
   const infoGate = !compact && !mini && showTfBar
   // A delisted ticker has no live feed, so never open the live-quote poll for one
   // (it would return nothing and render a broken 0.00%). Its Info-Row quote fields
@@ -422,6 +445,21 @@ function ChartPane({
   const metaItems = useMemo(() => {
     const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike }
     return infoFieldKeys.map((key) => {
+      // ⭐ A CUSTOM FIELD RESOLVES FROM A VALUE THE ENGINE ALREADY COMPUTED, and
+      // the only work here is FORMATTING it. A field whose definition was deleted
+      // resolves to nothing and drops out of the row.
+      if (isInfoFieldId(key)) {
+        const def = infoDefs.get(key)
+        if (!def) return null
+        const v = infoBus.values.get(key)
+        return {
+          key,
+          label: def.label,
+          short: def.label,
+          value: formatInfoValue(v === undefined ? null : v, def.format, def.decimals, def.suffix),
+          color: def.color || null,
+        }
+      }
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
       const { value, color, sign } = resolveHeaderField(key, ctx)
@@ -436,7 +474,8 @@ function ChartPane({
       }
       return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike])
+  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName,
+    isFundLike, infoDefs, infoBus])
 
   // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
   // A signature of what occupies the row besides the timeframe buttons: the info
@@ -789,6 +828,11 @@ function ChartPane({
       >
         <StockChart
           sym={sym}
+          /* ⭐ WHERE TO PUBLISH CUSTOM INFO-ROW VALUES. A dedicated prop rather
+             than `chartId`, which this pane deliberately does NOT pass down —
+             `StockChart` scopes indicator ALERTS by it, and handing it one here
+             would change that behaviour as a side effect of a header feature. */
+          infoBusKey={infoBusKey}
           tf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
           /* The old drawing-toolbar compare entry is retired — comparisons are
              managed by the /charts Tools → Compare Symbols panel now (rendering via
