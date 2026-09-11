@@ -159,11 +159,42 @@
       },
       "agreesWithOurSeam": false,
       "note": "202 minutes past the 16:00 close and STILL isrealtime=1, isconfirmed=0 -- the longest-elapsed row so far, and it rules out every hypothesis where the vendor confirms a daily bar within a few hours of the close. arrival=late is EVIDENCED, not assumed: performance.timeOrigin was 2026-09-10T23:13:08.758Z (9.6 minutes before this reading) with navigation type back_forward, so this session loaded the bar as history rather than watching it form -- and it reads IDENTICALLY to the watched-form rows, which is the second independent arrival control. Still short of the 20:00 ET row the ruling needs, by 38 minutes; not waited for, per T2."
+    },
+    {
+      "instantUTC": "2026-09-11T00:55:00Z",
+      "instantET": "2026-09-10T20:55:00-04:00",
+      "symbol": "AMEX:SPY",
+      "tf": "D",
+      "study": "UCTPROBE_BARSTATE_FULL",
+      "chartSession": "regular",
+      "arrival": "late",
+      "newestBarUnix": 1789047000.0,
+      "newestBarET": "2026-09-10T09:30:00-04:00",
+      "session": {
+        "etDate": "2026-09-10",
+        "etClock": "20:55:00",
+        "isNyseHoliday": false,
+        "isNyseEarlyClose": false,
+        "scheduledCloseUnix": 1789070400.0,
+        "scheduledCloseET": "2026-09-10T16:00:00-04:00",
+        "secondsPastScheduledClose": 17700,
+        "ourSeamSaysForming": false
+      },
+      "vendor": {
+        "isrealtime": 1,
+        "isconfirmed": 1,
+        "ishistory": 0,
+        "islast": 1,
+        "islastconfirmedhistory": 0,
+        "isnew": 0
+      },
+      "agreesWithOurSeam": false,
+      "note": "⭐⭐ THE POST-20:00 ROW, AND THE FLAG MOVED. 20:55 ET, and isconfirmed has gone 0 -> 1 since row 5 at 19:22 ET -- in the SAME page load (performance.timeOrigin 2026-09-10T23:13:08.758Z for both), so this is the vendor pushing a confirmation to a live session, not an arrival artifact. ⛔ CALENDAR-CLOSED IS REFUTED: the vendor did not confirm the daily bar at the 16:00 scheduled close; at 19:22 ET, 202 minutes past it, isconfirmed was still 0. VENDOR-LATE is what survives, and the window now brackets to (19:22, 20:55) ET -- consistent with the 20:00 ET post-market close being the event. ⚠️ isrealtime STAYS 1 while isconfirmed is 1, so on the vendor those two are INDEPENDENT rather than a tri-state; a reader that treats isrealtime as the complement of isconfirmed is wrong on this bar right now. A pre-open row is still needed to see whether isrealtime ever drops."
     }
   ],
   "_still_needed": {
     "anArrivalControl": false,
-    "aRowAfter2000ET": true,
+    "aRowAfter2000ET": false,
     "aRowBefore0930ET": true,
     "rulingUnlocked": false,
     "_": "⛔ While any of these is true the mapping question stays OPEN and the seam stays unchanged. ⭐ THE ARRIVAL CONTROL IS THE ONE THAT WAS MISSING FROM THE ORIGINAL PLAN: time-of-day rows taken from ONE long-open chart cannot separate the hypotheses at all, because a bar that formed under your own session is already known to keep its realtime barstate. Two arrivals on the same bar is what discriminates; the clock rows then say for how long."
