@@ -1185,6 +1185,7 @@ export default function ChartSettingsModal({
             <ChartSettingsConditions
               settings={settings}
               onChange={(next) => onChange?.({ ...next, preset: 'custom' })}
+              registry={engineRegistry}
             />
           )}
 

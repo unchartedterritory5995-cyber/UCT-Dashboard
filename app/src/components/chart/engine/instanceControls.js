@@ -69,7 +69,7 @@ import { validateInputValue } from './defSchema'
 import { getDefinition } from './nativeRegistry'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { resolveDisplayTarget, isWritableDisplayTarget } from './displayTarget'
-import { wouldCycle } from './sourceRef'
+import { wouldCycle, severReferencesTo } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE } from './presentation'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
@@ -226,7 +226,15 @@ export function setIndicatorEnabled(cs, defId, enabled, registry) {
   indicators[defId] = { ...(indicators[defId] || {}), enabled }
 
   if (!enabled) {
-    const next = list.map(i => (isLiveInstance(i) && i.defId === defId ? instanceTombstone(i.instanceId) : i))
+    // ⛔ SWITCHING A DEFINITION OFF TOMBSTONES EVERY LIVE INSTANCE OF IT, so it is
+    // a delete by another name and severs inbound references for the same reason.
+    // (Hiding — the eye — does NOT come through here: visibility is about ink.)
+    const doomed = list.filter(i => isLiveInstance(i) && i.defId === defId).map(i => i.instanceId)
+    let severedCs = cs
+    for (const id of doomed) severedCs = severReferencesTo(severedCs, id, (x) => resolveRegistry(registry)(x))
+    if (severedCs !== cs) cs = severedCs
+    const next = (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : list)
+      .map(i => (isLiveInstance(i) && i.defId === defId ? instanceTombstone(i.instanceId) : i))
     // Nothing stored yet, but the legacy toggle may still be projecting one in at
     // read time — the tombstone is what stops the migrator putting it straight back.
     if (!next.some(i => i && i.instanceId === id)) next.push(instanceTombstone(id))
@@ -423,13 +431,20 @@ export function removeInstance(cs, instanceId, registry) {
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs
   const defId = inst.defId
-  const next = cs.indicatorInstances.map(i =>
+  // ⛔⛔ DELETION BREAKS THE DEPENDENCY — OWNER DECISION, LOCKED. `legacy:<defId>`
+  // is deterministic, so deleting RSI and adding it again minted the SAME id and
+  // every reference to it silently reconnected. Measured live in the
+  // source-dependency phase and ruled on: "the same definition appeared again" is
+  // not the same logical instance. Severing here is the smallest correct place —
+  // no id scheme changes and no persistence migration. See `severReferencesTo`.
+  const severed = severReferencesTo(cs, instanceId, (id) => resolveRegistry(registry)(id))
+  const next = severed.indicatorInstances.map(i =>
     (i && i.instanceId === instanceId) ? instanceTombstone(instanceId) : i)
-  const indicators = { ...(cs.indicators || {}) }
+  const indicators = { ...(severed.indicators || {}) }
   if (!next.some(i => isLiveInstance(i) && i.defId === defId)) {
     indicators[defId] = { ...(indicators[defId] || {}), enabled: false }
   }
-  return { ...withInstances(cs, next, registry), indicators }
+  return { ...withInstances(severed, next, registry), indicators }
 }
 
 /**

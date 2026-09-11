@@ -99,7 +99,42 @@ export function moveCondition(cs, id, delta) {
   return withConditions(cs, list)
 }
 
-// ─── ACTIONS ────────────────────────────────────────────────────────────────
+/**
+ * Bind (or clear) one named series on a condition.
+ *
+ * ⭐⭐ THIS IS THE WHOLE OF "A CONDITION READS ANOTHER INDICATOR". The value is
+ * the SAME `'@instanceId::plotKey'` string the Moving Average takes for its
+ * source — one reference language, built by `sourceRef.sourceOptions`, and the
+ * dependency edge, the sort and the invalidation all come with it.
+ *
+ * ⚠️ CLEARING A BINDING IS A REAL WRITE, and it may leave the formula naming a
+ * word that no longer resolves. That is refused at evaluation with the name in
+ * the message rather than silently rewritten to `close` — the same rule the
+ * Moving Average's missing source follows.
+ */
+export function setConditionBinding(cs, id, key, ref) {
+  if (typeof key !== 'string' || !KEY_RE.test(key)) return cs
+  const list = conditionsOf(cs)
+  const i = list.findIndex((c) => c.id === id)
+  if (i < 0) return cs
+  const bindings = { ...list[i].bindings }
+  if (!ref) {
+    if (!(key in bindings)) return cs
+    delete bindings[key]
+  } else {
+    if (bindings[key] === ref) return cs
+    bindings[key] = ref
+  }
+  list[i] = { ...list[i], bindings }
+  return withConditions(cs, list)
+}
+
+/** The names a condition may bind. Short, so a formula reads like arithmetic
+ *  (`a > b`) rather than like plumbing, and fixed so the UI needs no name box. */
+export const BINDING_KEYS = Object.freeze(['a', 'b', 'c'])
+const KEY_RE = /^[a-z][a-z0-9]*$/
+
+// ─── ACTIONS ────────────────────────────────────────────────
 
 /** A new action's shape, per type. Kept here rather than in the renderer so the
  *  persisted default and the drawn default are one answer. */

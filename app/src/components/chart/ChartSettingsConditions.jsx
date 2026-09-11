@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import {
   conditionsOf, addCondition, removeCondition, renameCondition, setConditionEnabled,
   setConditionFormula, moveCondition, addAction, removeAction, setActionSettings, usedChannels,
+  setConditionBinding, BINDING_KEYS,
 } from './engine/conditionControls'
+import { sourceOptions, parseSource } from './engine/sourceRef'
 import { validateConditionFormula } from './engine/conditions'
 import { MARKER_SHAPES, MARKER_POSITIONS, ACTION_CHANNEL } from './engine/conditionActions'
 import UIcon from '../ui/UIcon'
@@ -55,7 +57,9 @@ const SHAPE_LABEL = {
 }
 const POSITION_LABEL = { aboveBar: 'Above bar', belowBar: 'Below bar' }
 
-export default function ChartSettingsConditions({ settings, onChange, conditionErrors = null }) {
+export default function ChartSettingsConditions({
+  settings, onChange, conditionErrors = null, registry = null,
+}) {
   const list = useMemo(() => conditionsOf(settings), [settings])
   const [openId, setOpenId] = useState(null)
   const [draft, setDraft] = useState({})
@@ -126,9 +130,48 @@ export default function ChartSettingsConditions({ settings, onChange, conditionE
     )
   }
 
+  /** What this chart offers a condition to read. `sourceOptions` excludes the
+   *  asker, which is meaningless for a condition — it is not an instance — so any
+   *  id that cannot collide is fine here. */
+  const bindable = useMemo(() => {
+    if (!registry || typeof registry.getDefinition !== 'function') return []
+    try {
+      return sourceOptions(settings, (id) => registry.getDefinition(id), '__condition__')
+        .filter((g) => g.label !== 'Price data')
+    } catch { return [] }
+  }, [settings, registry])
+
+  /**
+   * Why this condition draws nothing — derived HERE, from the settings blob.
+   *
+   * ⭐ THE SAME ANSWER THE ENGINE REACHES, ASKED OF THE SAME DATA. The binder
+   * knows too (`binder.conditions().errors`), and plumbing that back through the
+   * modal would be a second authority arriving one render late. A binding whose
+   * instance is no longer in the list is unresolvable no matter who asks, and a
+   * formula that does not read back is unresolvable before any bar exists.
+   *
+   * ⛔ AND IT NEVER REWRITES ANYTHING. The stored binding stays exactly as the
+   * member left it, so re-adding the source resolves it again — the alternative,
+   * silently falling back to `close`, is the defect this whole shape exists to
+   * avoid.
+   */
+  const problemOf = (c) => {
+    const instances = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
+    for (const [key, ref] of Object.entries(c.bindings || {})) {
+      const parsed = parseSource(ref)
+      if (!parsed) return `Series ${key} cannot be read`
+      if (parsed.kind !== 'instance') continue
+      const live = instances.some((i) => i && i.instanceId === parsed.instanceId && !i.deleted)
+      if (!live) return 'Source unavailable'
+    }
+    const check = validateConditionFormula(c.formula, c.bindings)
+    return check.ok ? null : check.reason
+  }
+
   const renderRow = (c, i) => {
     const isOpen = openId === c.id
-    const err = conditionErrors && conditionErrors.get ? conditionErrors.get(c.id) : null
+    const err = (conditionErrors && conditionErrors.get ? conditionErrors.get(c.id) : null)
+      || problemOf(c)
     const used = usedChannels(c)
     const problem = formulaProblem(c)
     return (
@@ -204,6 +247,43 @@ export default function ChartSettingsConditions({ settings, onChange, conditionE
                 <span role="alert" style={{ fontSize: 11, opacity: 0.8 }}>{problem}</span>
               </div>
             )}
+
+            {/* ── BOUND SERIES — the one reference language, again ──────────
+                ⭐ THE SAME GROUPED SELECTOR THE MOVING AVERAGE'S SOURCE USES, built
+                by `sourceRef.sourceOptions` from the instances on THIS chart. A
+                bound name becomes a word the formula can use — `a > b` — and the
+                dependency edge, the compute order and the invalidation all come
+                with it because the VALUE is the same `'@id::plot'` string.
+                ⚠️ Only offered when something is on the chart to bind to; a
+                self-contained formula (`close > open`) needs none of this. */}
+            {bindable.length > 0 && BINDING_KEYS.map((key) => {
+              const cur = c.bindings[key] || ''
+              // Slots are offered in order and one at a time: `b` appears once `a`
+              // is filled, so an empty condition shows ONE row rather than three.
+              const idx = BINDING_KEYS.indexOf(key)
+              const prev = idx === 0 ? true : !!c.bindings[BINDING_KEYS[idx - 1]]
+              if (!prev) return null
+              return (
+                <div key={key} className={styles.indRow}>
+                  <span className={styles.indLabel}>{`Series ${key}`}</span>
+                  <select
+                    className={styles.indSelect}
+                    aria-label={`${c.name} series ${key}`}
+                    value={cur}
+                    onChange={(e) => commit(setConditionBinding(settings, c.id, key, e.target.value))}
+                  >
+                    <option value="">— none —</option>
+                    {bindable.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              )
+            })}
 
             {c.actions.map((a) => renderAction(c, a))}
 

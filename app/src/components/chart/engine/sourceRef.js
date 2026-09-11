@@ -87,6 +87,80 @@ export function parseSource(value) {
 }
 
 /** The instance id a source depends on, or null for market data. */
+/**
+ * A reference to an instance that has been DELETED — remembered, unreadable.
+ *
+ * ⭐⭐ OWNER DECISION, LOCKED: DELETION BREAKS THE DEPENDENCY. A `legacy:<defId>`
+ * id is DETERMINISTIC per definition, so deleting RSI and adding it again mints
+ * the very same id and every reference to it silently reconnected — measured
+ * live, and reported as the nuance that prompted the ruling. "The same definition
+ * appeared again" is not the same logical instance, and stable identity has to
+ * mean instance identity or it means nothing.
+ *
+ * ⛔ SO THE REFERENCE IS SEVERED AT THE DELETE, NOT RE-RESOLVED AT THE READ, and
+ * that is the smallest correct place: no id scheme changes, no persistence
+ * migration, no tombstone bookkeeping in four readers. The severed string is
+ * DELIBERATELY one `parseSource` refuses, so every consumer that already handles
+ * "Source unavailable" — the Moving Average, a condition binding, the settings
+ * selector — handles this with no new branch.
+ *
+ * ⚠️ AND IT KEEPS THE OLD TEXT. A member looking at the row can see WHICH series
+ * went away; the alternative, blanking it, loses the only clue. Nothing parses it
+ * back — it is a gravestone, not a reference.
+ */
+const SEVERED = '!'
+export function severedSource(value) {
+  return typeof value === 'string' && value ? SEVERED + value : value
+}
+
+/** Is this a reference that was severed by a delete? */
+export function isSeveredSource(value) {
+  return typeof value === 'string' && value.startsWith(SEVERED)
+}
+
+/**
+ * Sever every reference to `instanceId` — in indicator `source` inputs and in
+ * condition bindings alike.
+ *
+ * ⭐ ONE FUNCTION FOR BOTH, because there is ONE reference language. A future
+ * consumer of `'@id::plot'` joins it by being in the settings blob, not by being
+ * remembered here.
+ */
+export function severReferencesTo(cs, instanceId, defOf) {
+  if (!cs || typeof instanceId !== 'string' || !instanceId) return cs
+  let touched = false
+
+  const instances = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const nextInstances = instances.map((inst) => {
+    if (!inst || inst.instanceId === instanceId) return inst
+    const def = defOf ? defOf(inst.defId) : null
+    let inputs = null
+    for (const [key, value] of sourceInputsOf(def, inst)) {
+      if (sourceDependsOn(value) !== instanceId) continue
+      inputs = inputs || { ...(inst.inputs || {}) }
+      inputs[key] = severedSource(value)
+      touched = true
+    }
+    return inputs ? { ...inst, inputs } : inst
+  })
+
+  const conditions = Array.isArray(cs.conditions) ? cs.conditions : []
+  const nextConditions = conditions.map((cond) => {
+    if (!cond || !cond.bindings || typeof cond.bindings !== 'object') return cond
+    let bindings = null
+    for (const [key, value] of Object.entries(cond.bindings)) {
+      if (sourceDependsOn(value) !== instanceId) continue
+      bindings = bindings || { ...cond.bindings }
+      bindings[key] = severedSource(value)
+      touched = true
+    }
+    return bindings ? { ...cond, bindings } : cond
+  })
+
+  if (!touched) return cs
+  return { ...cs, indicatorInstances: nextInstances, conditions: nextConditions }
+}
+
 export function sourceDependsOn(value) {
   const parsed = parseSource(value)
   return parsed && parsed.kind === 'instance' ? parsed.instanceId : null
