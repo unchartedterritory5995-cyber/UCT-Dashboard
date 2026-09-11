@@ -886,8 +886,34 @@ def test_a_scalar_RIDES_the_series_node_and_there_is_no_FIFTH_node_type():
     # that was correct, and the honest fix is to stop restating it. What this
     # rail is actually about is unchanged and is the line below: a SCALAR still
     # rides the `series` node and never became a node type of its own.
-    assert found == set(ast_interpret.NODE_TYPES), found
+    # ⭐⭐ THE CONFORMANCE CORPUS CARRIES THE EVALUABLE VOCABULARY, AND THE SPLIT
+    # HAS ONE OWNER. `ast_interpret.BIND_TIME_NODE_TYPES` exists for this exact
+    # pair of rails and says so in its own docstring: this census "measures
+    # NUMERIC agreement between the lanes and cannot carry a node that never
+    # becomes a number", while the node-type rails "must still prove every type is
+    # exercised somewhere". A `textop` folds to a number at BIND time and is gone
+    # before a bar is read, so a case built from one would have nothing for the two
+    # lanes to disagree about numerically.
+    # ⛔ THIS IS NOT AN EXEMPTION. The trio's own net is asserted immediately
+    # below, so "not in this corpus" can never quietly become "in no corpus".
+    evaluable = set(ast_interpret.NODE_TYPES) - set(ast_interpret.BIND_TIME_NODE_TYPES)
+    assert found == evaluable, found
     assert "scalar" not in found
+
+    # ⭐ …AND THE BIND-TIME TRIO IS EXERCISED WHERE IT BELONGS, string for string.
+    # Without this, moving a type into `BIND_TIME_NODE_TYPES` would be a way to
+    # delete it from every rail at once — which is precisely how an exemption list
+    # turns into a hiding place.
+    import json, pathlib
+    net = json.loads(
+        (pathlib.Path(__file__).resolve().parents[1]
+         / "tests" / "fixtures" / "ast" / "bind_fold_parity.json").read_text(encoding="utf-8"))
+    in_net = set()
+    types_in(net, in_net)
+    missing_from_net = set(ast_interpret.BIND_TIME_NODE_TYPES) - in_net
+    assert not missing_from_net, (
+        f"{sorted(missing_from_net)} is declared bind-time but appears in no "
+        f"committed net, so nothing measures it in either lane")
     assert "offset" in found, (
         "the corpora no longer exercise the offset node, so this rail has stopped "
         "measuring the vocabulary it claims to")

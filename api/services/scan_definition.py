@@ -68,6 +68,19 @@ _SYM = "sym"
 #: changes WHEN, never WHAT — but it is its own constant because the branch census
 #: compares this module's set against the engine's, name for name.
 _TF_LIVE = "tf_live"
+#: ⭐ THE BIND-TIME TEXT TRIO. `closedTable.json` settles what they mean to a
+#: classifier in its own words: *"THE TRIO ADDS NO VALUE KIND, AND THAT IS THE
+#: WHOLE DESIGN. A `textop` sits wherever a number sits and every existing walker
+#: prices it as one; `str` and `symtext` may appear NOWHERE except directly under
+#: a `textop`."* So all three settle to `num` here, and none of them is a filter.
+#: ⛔ WITHOUT AN ARM THEY FELL TO THE TABLE LOOKUP BELOW, which is the trap the
+#: `offset` comment already spells out: `str` has no `name`, so the table would be
+#: asked to declare `None`; `symtext`'s name is a FIELD (`ticker`), which the
+#: table does not declare either. Both settle to `num` by accident instead of by
+#: decision — the same answer, reached in the way this module exists to prevent.
+_STR = "str"
+_SYMTEXT = "symtext"
+_TEXTOP = "textop"
 
 #: The three answers ``ast_table.yields_of`` can give, likewise pinned by a test
 #: rather than assumed. ``passthrough`` belongs to the ternary alone: its result
@@ -235,6 +248,15 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             children = list(node.get("args") or [])
             kinds[id(node)] = (kinds[id(children[0])] if len(children) == 1
                                else _KIND_NUM)
+            continue
+        if node_type in (_STR, _SYMTEXT, _TEXTOP):
+            # ⭐ A TEXT QUESTION HAS A NUMERIC ANSWER, and its operands are not
+            # answers at all. `str.contains(syminfo.ticker, "/")` folds to 1 or 0
+            # at bind time and sits wherever a number sits; a bare `syminfo.ticker`
+            # is not a screen condition in any language. Declaring that here means
+            # a member asking to filter on raw text is refused BY NAME at the
+            # `yields` gate rather than by a lookup that happened to miss.
+            kinds[id(node)] = _KIND_NUM
             continue
         if node_type in (_TF, _SYM, _TF_LIVE):
             # ⭐ NEITHER CHANGES *WHAT*. A timeframe changes WHICH PERIOD and a

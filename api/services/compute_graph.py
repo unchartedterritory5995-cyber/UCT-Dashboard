@@ -62,6 +62,18 @@ CANONICAL_KEYS = {
     "tf": ("type", "value", "args"),
     "sym": ("type", "value", "args"),
     "tf_live": ("type", "value", "args"),
+    # ⚰️ THE BIND-TIME TEXT TRIO, MISSING HERE UNTIL 2026-09-11 while
+    # `parse.js::CANONICAL_KEYS` — the roster this one claims to mirror — has
+    # carried all three since the Kind-4 merge. Key sets are that file's, not a
+    # fresh guess: `str` is `num`'s sibling (the value IS the node), `symtext`
+    # carries `name` because it NAMES a string a symbol will supply rather than
+    # holding one, and `textop` is `call`'s shape because that is what it is.
+    # ⛔ THIS COPY HAD NO RAIL AT ALL — the other mirrors each had a parity test
+    # and went red; this one was silently eight for as long as the trio existed.
+    # `tests/test_compute_graph_vocabulary.py` is that rail now.
+    "str": ("type", "value"),
+    "symtext": ("type", "name"),
+    "textop": ("type", "name", "args"),
 }
 
 _PLOT_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")

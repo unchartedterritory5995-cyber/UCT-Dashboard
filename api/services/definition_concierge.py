@@ -68,8 +68,8 @@ from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-from api.services import (ast_freshness, ast_lint, ast_table, concept_vocabulary,
-                          scan_definition, user_definitions)
+from api.services import (ast_bind, ast_freshness, ast_lint, ast_table,
+                          concept_vocabulary, scan_definition, user_definitions)
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TF_RESAMPLABLE, TableRefusal, interpret
 from api.services.catalyst import cost_guard
@@ -276,6 +276,30 @@ NODE_TYPES: Tuple[str, ...] = tuple(user_definitions.NODE_TYPES)
 #: ``tests/test_definition_concierge.py`` fails on any node type that is neither
 #: described below nor named here — which makes the ninth node type a DECISION
 #: rather than another silent dangling reference.
+#: Node types DESCRIBED in the schema but not offered as expressions in their own
+#: right, each with the reason.
+#:
+#: ⛔⛔ THIS IS NOT A SECOND `CONCIERGE_OMITS`, AND THE DIFFERENCE IS THE WHOLE
+#: POINT. An omitted type has NO `$defs` entry and no `$ref`; an operand-only type
+#: HAS a full `$defs` entry — it is reachable, describable and validatable — and is
+#: simply not a member of the top-level `node` union, because it cannot stand alone.
+#: `closedTable.json` is what settles which is which: *"`str` and `symtext` may
+#: appear NOWHERE except directly under a `textop`"*. Folding them into
+#: `CONCIERGE_OMITS` would leave `textop`'s own `args` pointing at two definitions
+#: the schema had deliberately removed — the dangling `$ref` all over again.
+_OPERAND_ONLY: Mapping[str, str] = MappingProxyType({
+    "str": (
+        "a literal operand of a text question; it is never an expression on its "
+        "own, so it is described under `#/$defs/str` and reachable only through "
+        "`textop.args`."
+    ),
+    "symtext": (
+        "a symbol-supplied text operand; same containment as `str`, and for the "
+        "same reason — `syminfo.ticker` is not a screen condition, "
+        "`contains(syminfo.ticker, \"/\")` is."
+    ),
+})
+
 CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
     "tf_live": (
         "the look-ahead timeframe read. It exists to translate Pine's "
@@ -424,14 +448,97 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
         "$defs": {
             # ⭐ DERIVED FROM `NODE_TYPES` MINUS THE DECLARED OMISSIONS, so a
             # `$ref` here can only name something `$defs` below actually defines.
+            # ⛔ `str` and `symtext` are DEFINED above but excluded here: they
+            # are a `textop`'s operand shapes, not expressions a member can ask
+            # for on their own. Excluding them from the union while DEFINING
+            # them is what keeps every `$ref` resolvable — the dangling-ref
+            # defect this block's own history records.
             "node": {"oneOf": [{"$ref": f"#/$defs/{k}"} for k in NODE_TYPES
-                               if k not in CONCIERGE_OMITS]},
+                               if k not in CONCIERGE_OMITS
+                               and k not in _OPERAND_ONLY]},
             "num": {
                 "type": "object", "additionalProperties": False,
                 "required": ["type", "value"],
                 "properties": {
                     "type": {"const": "num"},
                     "value": {"type": "number", "minimum": 0},
+                },
+            },
+            # ═══ the bind-time text trio ═══════════════════════════════════
+            # ⚠️ DESCRIPTIONS DRAFTED AUTONOMOUSLY 2026-09-11, PRODUCT REVIEW
+            # PENDING. They are written from each type's ACTUAL evaluation
+            # semantics in `ast_bind.fold_text` / `fold_scalar`, not from the
+            # names — but the WORDING a member reads is a product decision this
+            # session did not have, so it is marked rather than presented as
+            # settled.
+            #
+            # ⛔ THEY ARE DESCRIBED RATHER THAN OMITTED BECAUSE KIND 4 IS
+            # MEMBER-REACHABLE. `CONCIERGE_OMITS` is for translated-only shapes
+            # (`tf_live` is there because nothing a member asks for in English
+            # should author a look-ahead read). A member CAN reasonably ask "only
+            # symbols whose ticker contains a slash", and the engine answers it —
+            # so hiding the trio would refuse a question the table supports.
+            #
+            # ⭐ THE TRIO ADDS NO VALUE KIND. `closedTable.json` states the design:
+            # a `textop` sits wherever a number sits, and `str`/`symtext` may
+            # appear NOWHERE except directly under a `textop`. That is why neither
+            # of them is in the `node` union — they are not expressions, they are
+            # a `textop`'s two operand shapes — and why `textop` itself is.
+            "str": {
+                "type": "object", "additionalProperties": False,
+                "description": (
+                    "A literal piece of text, used only as an operand of a text "
+                    "question. Example: the \"/\" in \"does this ticker contain a "
+                    "slash?\". It is not a value a formula can return."
+                ),
+                "required": ["type", "value"],
+                "properties": {
+                    "type": {"const": "str"},
+                    "value": {"type": "string"},
+                },
+            },
+            "symtext": {
+                "type": "object", "additionalProperties": False,
+                "description": (
+                    "A piece of text the SYMBOL supplies, named rather than "
+                    "written out: `ticker` is the symbol's own code, `prefix` its "
+                    "exchange as TradingView spells it, `tickerid` the two joined. "
+                    "It is settled the moment a symbol is chosen, so it costs no "
+                    "bars. A field with no witnessed spelling refuses by name "
+                    "instead of guessing. Like `str`, it is an operand only."
+                ),
+                "required": ["type", "name"],
+                "properties": {
+                    "type": {"const": "symtext"},
+                    # ⭐ DERIVED: `ticker` is unconditional (it is our own store's
+                    # key, so there is no vendor question in it); every OTHER
+                    # symbol-scoped field is one `symbolScope.json` tracks, and
+                    # `ast_bind._PENDING` is read off that file.
+                    "name": {"enum": ["ticker"] + sorted(ast_bind._PENDING)},
+                },
+            },
+            "textop": {
+                "type": "object", "additionalProperties": False,
+                "description": (
+                    "A question ABOUT text whose answer is a NUMBER — 1 or 0 for "
+                    "the yes/no ones, a count for `length`. Example: "
+                    "`contains(ticker, \"/\")` is 1 for a forex pair and 0 for a "
+                    "stock. It is decided when the symbol is chosen rather than "
+                    "bar by bar, so it reads no history, and it can be used "
+                    "anywhere a number can."
+                ),
+                "required": ["type", "name", "args"],
+                "properties": {
+                    "type": {"const": "textop"},
+                    # ⭐ DERIVED from the fold's own predicate table, so a seventh
+                    # predicate reaches the schema the day it reaches the engine.
+                    "name": {"enum": sorted(ast_bind._TEXT_PREDICATE)},
+                    "args": {
+                        "type": "array",
+                        "items": {"oneOf": [{"$ref": "#/$defs/str"},
+                                            {"$ref": "#/$defs/symtext"}]},
+                        "minItems": 1, "maxItems": 2,
+                    },
                 },
             },
             "series": {

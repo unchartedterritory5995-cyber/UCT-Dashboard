@@ -414,7 +414,14 @@ def _add_reach(a: Reach, b: Reach) -> Reach:
 #: and sell that proof, so the copy stays and
 #: ``test_the_node_vocabulary_here_IS_the_interpreter_s`` is what binds the two.
 #: ⭐ THE BINDING LIVES IN THE TEST, WHERE BOTH MODULES MAY BE IMPORTED AT ONCE.
-_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
+#: ⚰️ THE TRIO ARRIVED LATE AND THIS COPY DID NOT MOVE WITH IT (fixed
+#: 2026-09-11). ``str``/``symtext``/``textop`` were added to
+#: ``ast_interpret.NODE_TYPES`` by the Kind-4 merge and this list kept naming
+#: eight, so every tree carrying bind-time text fell to the ELSE arm below and
+#: read UNKNOWN — fail-closed, nothing red in this module, and the badge
+#: hedging about a formula the engine prices exactly.
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
+                    "str", "symtext", "textop")
 
 #: ⛔ THE SPANS, DUPLICATED FOR THE SAME FORCED REASON AS THE VOCABULARY ABOVE,
 #: and bound to ``ast_interpret.TF_BASE_BARS`` by a test rather than by an import.
@@ -476,6 +483,17 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
         args = node.get("args") if isinstance(node.get("args"), list) else []
 
         if kind == "num":
+            reach_of[id(node)] = (0, 0)
+        elif kind in ("str", "symtext", "textop"):
+            # ⭐ BIND-TIME TEXT REACHES NO BAR, IN EITHER DIRECTION. A `symtext`
+            # is settled by the BINDING — `syminfo.ticker` is decided the moment a
+            # symbol is chosen — and a `textop` over such operands is decided with
+            # it, so the whole subtree costs zero bars back and zero bars forward.
+            # Mirrors `ast_interpret`'s own arm and `interpret.js::maxLookback`.
+            # ⛔ THIS IS NOT THE ELSE ARM'S ZERO. Falling through would answer
+            # UNKNOWN and brand every `str.contains(syminfo.ticker, "/")` formula
+            # `repaints` — fail-closed, nothing red, and the badge lying about the
+            # most ordinary text question in either source language.
             reach_of[id(node)] = (0, 0)
         elif kind == "series":
             name = node.get("name")
