@@ -38,7 +38,13 @@ function _isFresh() {
 }
 
 async function _fetchPack() {
-  const r = await fetch('/api/bars-today-pack', { credentials: 'include' })
+  // ⛔ NO `credentials` — DELIBERATE, AND THE WHOLE POINT OF THE EDGE CACHE. Sending
+  // cookies makes Cloudflare treat the response as per-user and bypass the cache, so
+  // every symbol switch would put a ~630KB build on the web pod instead of a PoP.
+  // `/api/bars-history` — the sibling that measurably returns `cf-cache-status: HIT` —
+  // fetches exactly this way. The endpoint carries no per-user data, so there is
+  // nothing for a cookie to authorize.
+  const r = await fetch('/api/bars-today-pack')
   if (!r.ok) throw new Error(`today-pack ${r.status}`)
   const j = await r.json()
   if (!j || typeof j !== 'object' || typeof j.bars !== 'object') throw new Error('today-pack shape')

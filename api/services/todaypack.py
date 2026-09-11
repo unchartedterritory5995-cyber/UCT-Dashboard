@@ -34,6 +34,8 @@ exactly as it does today.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 
 from api.services import massive
 
@@ -43,6 +45,27 @@ _log = logging.getLogger(__name__)
 # snapshot every ~30s; asking for it with a 15s tolerance means this endpoint rides
 # their fetch essentially always and never forces one of its own on a quiet pod.
 _SNAP_TTL = 15.0
+
+# Built-pack memo. The snapshot behind this is already shared, but the PROJECTION is
+# ~11k iterations and the serialize is ~630KB — per request. The edge should absorb
+# nearly all of these, but "should" is not a design: if a Cache Rule is missing, or a
+# client sends a cookie, or the edge evicts under pressure, every request lands here.
+# Memoizing the built dict makes an origin MISS cost a dict reference instead of a
+# rebuild, so the endpoint is cheap whether or not the edge behaves.
+_BUILD_TTL = 15.0
+_built: dict = {"data": None, "ts": 0.0}
+_build_lock = threading.Lock()
+
+
+def _reset_for_test() -> None:
+    """Drop the built-pack memo.
+
+    Module state outlives a test file, so without this the SECOND test to build a
+    pack silently receives the FIRST test's snapshot — which is how a memo turns a
+    suite green while the code under test never ran. Cheap seam, loud failure mode.
+    """
+    _built["data"] = None
+    _built["ts"] = 0.0
 
 
 def _canonical(provider_sym: str) -> str:
@@ -58,6 +81,22 @@ def _canonical(provider_sym: str) -> str:
 
 
 def build_today_pack() -> dict:
+    """Memoized wrapper — see `_build_today_pack` for the real work."""
+    c = _built
+    if c["data"] is not None and (time.time() - c["ts"]) < _BUILD_TTL:
+        return c["data"]
+    with _build_lock:
+        if c["data"] is not None and (time.time() - c["ts"]) < _BUILD_TTL:
+            return c["data"]
+        data = _build_today_pack()
+        # Don't memoize an EMPTY pack for the full window: the first request after the
+        # 09:30 open must not be answered from a pre-open miss cached seconds earlier.
+        c["data"] = data
+        c["ts"] = time.time() if data.get("bars") else (time.time() - _BUILD_TTL + 3.0)
+        return data
+
+
+def _build_today_pack() -> dict:
     """``{"d": "YYYY-MM-DD", "n": <count>, "bars": {SYM: [o, h, l, c, v]}}``.
 
     An empty pack (``d: ""``, ``bars: {}``) whenever today's regular session has not

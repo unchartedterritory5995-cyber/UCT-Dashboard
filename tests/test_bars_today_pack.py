@@ -16,6 +16,16 @@ def _snap(**rows):
     return rows
 
 
+@pytest.fixture(autouse=True)
+def _fresh_memo():
+    """`build_today_pack` memoizes for ~15s. Without a reset between tests, the
+    second test to build silently gets the FIRST test's snapshot back and passes
+    while exercising nothing."""
+    todaypack._reset_for_test()
+    yield
+    todaypack._reset_for_test()
+
+
 @pytest.fixture
 def session_open(monkeypatch):
     monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: True)
@@ -107,3 +117,36 @@ def test_route_is_edge_cacheable(monkeypatch, session_open):
     r = bars.get_today_pack()
     assert "public" in r.headers["Cache-Control"] and "max-age" in r.headers["Cache-Control"]
     assert orjson.loads(r.body)["bars"]["AAPL"]
+
+
+# ── the built-pack memo ──────────────────────────────────────────────────────
+# The edge should absorb nearly every request, but "should" is not a design: a
+# missing Cache Rule, a cookie, or an eviction puts them all on the pod, where the
+# projection is ~11k iterations and ~630KB of serialize.
+
+def test_a_second_request_inside_the_window_does_not_rebuild(monkeypatch, session_open):
+    builds = {"n": 0}
+
+    def _snapshot(ttl=0):
+        builds["n"] += 1
+        return _snap(AAPL={"day_open": 1.0, "day_high": 2.0, "day_low": 1.0,
+                           "last_price": 2.0, "today_vol": 3})
+    monkeypatch.setattr(massive, "get_full_market_snapshot_hl_cached", _snapshot)
+
+    a = todaypack.build_today_pack()
+    b = todaypack.build_today_pack()
+    assert builds["n"] == 1, "a cache MISS must cost a dict reference, not a rebuild"
+    assert a is b
+
+
+def test_an_empty_pre_open_pack_is_not_pinned_across_the_open(monkeypatch):
+    """⛔ THE EDGE CASE THE MEMO COULD CREATE. An empty pack cached for the full
+    window at 09:29:58 would answer the first post-open requests with "no bars".
+    Empty results get a deliberately near-expired stamp so the open is picked up."""
+    monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: False)
+    monkeypatch.setattr(massive, "get_full_market_snapshot_hl_cached", lambda ttl=0: {})
+    pre = todaypack.build_today_pack()
+    assert pre["bars"] == {}
+    # the stamp on an empty result must already be near expiry, not fresh
+    age = __import__("time").time() - todaypack._built["ts"]
+    assert age > todaypack._BUILD_TTL - 5, "an empty pack must not hold the window"
