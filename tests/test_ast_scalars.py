@@ -753,7 +753,20 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # is the exact defect this file exists to catch, and it caught its own author.
     # Two entries landing on the bar floor is a claim about the corpus's coverage
     # obligation, so it is meant to cost somebody a deliberate edit here.
-    assert len(parts["bar"]) == 104 and len(parts["scalar"]) == 137
+    # ⭐ 104 -> 110 (2026-09-09, recorded 2026-09-11): the BARSTATE SIX --
+    # `isconfirmed`, `isfirst`, `ishistory`, `islast`, `islastconfirmedhistory`,
+    # `isrealtime` -- landed by the barstate merge. The scalar half is untouched at
+    # 137, which is the whole reason this assertion carries two numbers instead of
+    # one total: a bar-state flag is a property of a BAR and has nothing to say
+    # about a per-symbol column.
+    # ⚠️ THE MERGE DID NOT BUMP THIS LINE AND SHIPPED THIS RAIL RED for two days --
+    # the same thing the `falling`/`pvtN` note above records, and the rail working
+    # rather than failing. The six were DERIVED here before this line moved
+    # (partition diffed against `0a96689ef`, the commit that wrote 104), not read
+    # off the failure message: the message says only that a number moved, and
+    # editing a count to match a number you did not explain is how a floor stops
+    # being a claim about coverage.
+    assert len(parts["bar"]) == 110 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
