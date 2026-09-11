@@ -2294,11 +2294,39 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         + `The table declares ${declared(TABLE.series)}, ${declared(TABLE.clock || {})}, `
         + `${declared(TABLE.functions)} and ${declared(TABLE.scalars)}.`)
     }
-    // Only finite numbers are seeded. An input that is a function, an object or
-    // a string is NOT a name this table can resolve, and leaving it out makes
-    // referencing it a loud `resolve:name` refusal rather than a column of
-    // `undefined` — which is what a scope that accepted anything would produce.
-    if (typeof value === 'number' && Number.isFinite(value)) scope[name] = value
+    // Only finite numbers and BAR-LENGTH NUMERIC COLUMNS are seeded. An input
+    // that is a function, a string or an object of any other shape is NOT a name
+    // this table can resolve, and leaving it out makes referencing it a loud
+    // `resolve:name` refusal rather than a column of `undefined` — which is what
+    // a scope that accepted anything would produce.
+    if (typeof value === 'number' && Number.isFinite(value)) { scope[name] = value; continue }
+    // ⭐⭐ A COLUMN IS THE OTHER THING THIS SCOPE ALREADY HOLDS, AND ADMITTING ONE
+    // IS WHAT LETS A CONDITION READ ANOTHER INDICATOR'S OUTPUT.
+    //
+    // `TABLE.series` seeds five `Float64Array`s into this very object a hundred
+    // lines above, and every operator, `lift1/2/3` and `toColumn` broadcasts a
+    // scalar against a column already. So a caller-supplied column needs no node
+    // type, no vocabulary entry and no second walker — it is a name resolving to
+    // the same kind of value `close` resolves to.
+    //
+    // ⛔ AND IT IS NOT A WIDENING OF THE GRAMMAR. The manifest is untouched, so
+    // the scan lane's contract with Python is untouched: a bound name only exists
+    // for a caller that passes one, which today is the chart's CONDITION engine
+    // (`engine/conditions.js`) binding `'@instanceId::plotKey'` sources. A tree
+    // that names an unbound identifier still refuses exactly as it did.
+    //
+    // ⚠️ LENGTH IS CHECKED, because a column of the wrong length is a WIRING
+    // defect that would otherwise read as `NaN` from the first missing bar on —
+    // an indicator that silently stops halfway with nothing red anywhere.
+    if (value && typeof value === 'object' && typeof value.length === 'number'
+        && typeof value[0] !== 'string') {
+      if (value.length !== length) {
+        throw new Error(
+          `interpret: the input ${JSON.stringify(name)} is a column of ${value.length} `
+          + `values and there are ${length} bars. A bound series must be one value per bar.`)
+      }
+      scope[name] = value
+    }
   }
 
   const lookup = (name) => {

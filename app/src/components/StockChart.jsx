@@ -6,6 +6,11 @@ import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
 import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
+import { normaliseConditions } from './chart/engine/conditions'
+import {
+  resolveCandleColors, resolveBackgroundColors, colorRuns, resolveMarkers, hasChannel,
+} from './chart/engine/conditionActions'
+import { createConditionShadingPrimitive } from './chart/conditionShadingPrimitive'
 import {
   volumeOverlayKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
   derivedTargetOf,
@@ -1539,6 +1544,31 @@ const OHLC_TYPES = new Set(['candles', 'hollow', 'bars', 'hlc'])
 // Shared frozen empty so "shading off" is one stable identity across renders —
 // a fresh [] would defeat the band-change guard in updateChart.
 const EMPTY_BANDS = Object.freeze([])
+/** A STABLE empty, so "no condition shades anything" is one identity and the
+ *  primitive's `setOptions` is never called for a change that did not happen. */
+const EMPTY_RUNS = Object.freeze([])
+
+/**
+ * The pane the CANDLES are in — asked of the series, never of an index.
+ *
+ * ⛔⛔ `chart.panes()[0]` IS THE CANDLES ONLY WHILE NOTHING SITS ABOVE THEM, and
+ * POC B made that possible. The source-dependency phase found four separate
+ * defects of exactly this shape — a follower joining an index, a mover measuring
+ * against a stale stack, a price overlay hard-coded to pane 0 — and every one of
+ * them was invisible to a unit suite and obvious in a browser. A pane primitive
+ * attached by index lands in the oscillator's rectangle the moment RSI goes
+ * above Price.
+ *
+ * Falls back to pane 0 only when there is no candle series to ask, which is the
+ * pre-chart state where the answer cannot be wrong.
+ */
+function _pricePane(chart, candleSeries) {
+  try {
+    const p = candleSeries && candleSeries.getPane && candleSeries.getPane()
+    if (p) return p
+  } catch { /* mid-swap */ }
+  return chart.panes()[0]
+}
 
 // ⛔ NO `VWAP_TFS`, NO `_withVwapOpacity` — VWAP is FLIPPED (B3 Task 11) and the
 // legacy block that read both is deleted. `engine/eligibility.js` carries the
@@ -2956,6 +2986,10 @@ export default function StockChart({
   const wmAttachedRef = useRef(false)   // guard: primitive attached once
   const sessionShadeRef = useRef(null)      // extended-hours shading primitive (price pane)
   const sessionShadeAttachedRef = useRef(false)
+  const conditionShadeRef = useRef(null)    // condition/regime shading primitive (price pane)
+  const conditionShadeAttachedRef = useRef(false)
+  const lastConditionRunsRef = useRef(null)
+  const conditionRunsRef = useRef(EMPTY_RUNS)
   const sessionShadeVolRef = useRef(null)   // second instance for the separate VOLUME pane
   const sessionShadeVolAttachedRef = useRef(false)
   const lastShadeBandsVolRef = useRef(null)
@@ -3308,6 +3342,25 @@ export default function StockChart({
   // series that no longer exist (the same latch-reset discipline every other ref in
   // `updateChart` follows).
   const engineRef = useRef(null)
+
+  // ─── CONDITIONS — THE ANSWER, AND THE THREE CHANNELS THAT CONSUME IT ─────
+  //
+  // ⭐⭐ THE FORMULA IS EVALUATED ONCE, IN THE BINDER, and everything below reads
+  // the SAME `Uint8Array`. Slingshot with an orange candle and a blue dot is one
+  // column; `EMA9 > EMA20` with a green background is one column. Nothing here
+  // parses, and nothing here evaluates — see `engine/conditions.js`.
+  const conditionList = useMemo(() => normaliseConditions(cs), [cs])
+  const conditionListRef = useRef(conditionList)
+  conditionListRef.current = conditionList
+  /** Bumped by the binder when the resolved COLUMNS change. A number, because a
+   *  `Map` is not something a memo can compare — see the bump site. */
+  const [conditionGen, setConditionGen] = useState(0)
+  const conditionGenRef = useRef(0)
+  /** id → column, read through a function so a memo can depend on the GENERATION
+   *  rather than on the live Map the binder keeps handing back. */
+  const conditionColumnOf = useCallback((id) => {
+    try { return engineRef.current?.binder?.conditions?.().columns.get(id) || null } catch { return null }
+  }, [])
   // The pane manifest's unregister thunk (Task 3's one-slot registry in
   // `engine/paneLayout.js`). Held in a ref so the unmount cleanup — which is the
   // effect that owns `chart.remove()` — can undo exactly what the create branch did.
@@ -7737,6 +7790,78 @@ export default function StockChart({
       return { ...d, color: col, borderColor: col, wickColor: col }
     })
   }, [goldOhlc, candleFrameFade, frameFadeAlpha, fadeCutoff, highlightTimeSet])
+
+  // ─── CONDITION PIPELINE 1 — CANDLE COLOUR ──────────────────────────
+  //
+  //   condition columns + enabled candle actions + priority
+  //     → resolved override per bar
+  //     → NATIVE per-bar candle data
+  //
+  // ⭐ THE RENDERER ALREADY TAKES PER-BAR COLOURS, and this file already sets
+  // them four ways — the Sunrise inside-bar paint, the pre-market preview candle,
+  // the Model Book look and the gold setup highlight all write `color` /
+  // `borderColor` / `wickColor` into `ohlcData`. So a condition override is one
+  // more transform in that chain and NOT an overlay of fake rectangles, not a
+  // DOM node per bar, and not a second candle renderer.
+  //
+  // ⛔⛔ AND A BAR NOTHING MATCHED IS PASSED THROUGH **BY IDENTITY** (Part 21).
+  // `d` is returned, not `{...d}`, so a chart with one matching candle keeps
+  // every other bar's up/down colour, theme, hollow shape and session styling
+  // exactly as it was — a condition is an OVERRIDE, not a replacement renderer.
+  const conditionCandleColors = useMemo(
+    () => resolveCandleColors(conditionList, conditionColumnOf, displayBars ? displayBars.length : 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conditionList, conditionColumnOf, displayBars, conditionGen],
+  )
+  const conditionOhlc = useMemo(() => {
+    if (!conditionCandleColors) return fadedOhlc
+    const src = fadedOhlc
+    let hit = false
+    const out = src.map((d, i) => {
+      const c = conditionCandleColors[i]
+      if (!c) return d
+      hit = true
+      return { ...d, color: c, borderColor: c, wickColor: c }
+    })
+    return hit ? out : src
+  }, [fadedOhlc, conditionCandleColors])
+
+  // ─── CONDITION PIPELINE 2 — MARKERS ─────────────────────────────
+  //
+  // ⭐ A SEVENTH CATEGORY IN THE MARKER SYSTEM THAT ALREADY EXISTS, not a new
+  // mechanism: the same LWC descriptor objects earnings, news, desk mentions and
+  // flow emit, into the same sorted array, drawn by the same one
+  // `createSeriesMarkers` controller. Chart-native, no DOM per marker.
+  const conditionMarkers = useMemo(
+    () => resolveMarkers(conditionList, conditionColumnOf, displayBars, adjustTime),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conditionList, conditionColumnOf, displayBars, adjustTime, conditionGen],
+  )
+
+  // ─── CONDITION PIPELINE 3 — BACKGROUND RUNS ──────────────────────
+  //
+  //   condition columns + enabled background actions + priority
+  //     → resolved colour per bar
+  //     → CONTIGUOUS RUNS
+  //     → one `fillRect` per run, behind everything
+  //
+  // ⛔ PRIORITY IS RESOLVED BEFORE SEGMENTATION (Part 33). Segmenting each
+  // condition separately and painting them all would stack translucent layers
+  // into colours nobody chose.
+  const conditionRuns = useMemo(() => {
+    const colors = resolveBackgroundColors(conditionList, conditionColumnOf,
+      displayBars ? displayBars.length : 0)
+    if (!colors) return EMPTY_RUNS
+    const runs = colorRuns(colors, displayBars, adjustTime)
+    return runs.length ? runs : EMPTY_RUNS
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditionList, conditionColumnOf, displayBars, adjustTime, conditionGen])
+  // ⚠️ READ THROUGH A REF INSIDE `updateChart`, which is a `useCallback` whose
+  // dependency list is the paint's trigger set. Adding the runs to it would make
+  // every regime change re-run the whole paint — including its visible-range
+  // logic — where all that changed is a rectangle. The dedicated effect below
+  // re-asserts them, exactly as the gold-candle recolour does.
+  conditionRunsRef.current = conditionRuns
   const closeData = useMemo(
     () => {
       if (!displayBars) return []
@@ -9283,9 +9408,39 @@ export default function StockChart({
     }
     if (!sessionShadeAttachedRef.current) {
       try {
-        chart.panes()[0].attachPrimitive(sessionShadeRef.current.primitive)
+        // ⛔⛔ THE CANDLES' OWN PANE, NOT `panes()[0]`. This read index 0, which was
+        // the same sentence until POC B made a pane ABOVE Price possible — with RSI
+        // up there the session tint landed in the OSCILLATOR's rectangle. Same
+        // class as the four placement defects the source-dependency phase found
+        // and fixed: a pane INDEX describes the stack, and the stack moves. Ask
+        // the series which pane it is in.
+        _pricePane(chart, candleSeriesRef.current).attachPrimitive(sessionShadeRef.current.primitive)
         sessionShadeAttachedRef.current = true
       } catch { /* older pane API — primitive optional */ }
+    }
+
+    // ── Condition background / regime shading (same primitive shape, behind all) ──
+    //
+    // ⭐ ATTACHED ONLY WHEN A BACKGROUND ACTION EXISTS. A chart with no condition
+    // creates no primitive and attaches nothing, so the whole feature is zero
+    // calls until somebody asks for it.
+    if (conditionRunsRef.current.length || conditionShadeRef.current) {
+      if (!conditionShadeRef.current) {
+        conditionShadeRef.current = createConditionShadingPrimitive({})
+      }
+      if (!conditionShadeAttachedRef.current) {
+        try {
+          _pricePane(chart, candleSeriesRef.current).attachPrimitive(conditionShadeRef.current.primitive)
+          conditionShadeAttachedRef.current = true
+        } catch { /* older pane API — primitive optional */ }
+      }
+      if (lastConditionRunsRef.current !== conditionRunsRef.current) {
+        lastConditionRunsRef.current = conditionRunsRef.current
+        conditionShadeRef.current.setOptions({
+          enabled: conditionRunsRef.current.length > 0,
+          runs: conditionRunsRef.current,
+        })
+      }
     }
     {
       // `sessionShadeBands` is memoized on [filteredBars, adjustTime, shadeOn] — the
@@ -10767,7 +10922,10 @@ export default function StockChart({
     // binder for a flag-on chart with no instances, and the flag was on for
     // nobody — and it made the honest predicate look like a fallback. What is left
     // says exactly what it means: no instances, no binder, zero library calls.
-    const engineNeeded = engineInstances.length > 0
+    // ⭐ A CONDITION KEEPS THE ENGINE LIVE ON ITS OWN. "Inside Bar → black
+    // candle" needs no indicator at all, and without this the binder is never
+    // created, `sync` never runs and the formula is never evaluated.
+    const engineNeeded = engineInstances.length > 0 || conditionListRef.current.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
       engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc() }) }
@@ -10777,6 +10935,11 @@ export default function StockChart({
         enabled: engineNeeded,
         cs,
         instances: engineInstances,
+        // ⭐⭐ THE CONDITIONS RIDE THE SAME SYNC, and that is the point: they are
+        // evaluated in the pass that has just computed every column they could
+        // name, in dependency order, against the same `bars`. A second pass
+        // would be a second scheduler and a second memo.
+        conditions: conditionListRef.current,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
@@ -10824,6 +10987,20 @@ export default function StockChart({
         resolvePlacement,
         resolvePreset,
       })
+      // ⭐ THE GENERATION IS A NUMBER BECAUSE REACT CANNOT COMPARE A `Map`.
+      // `binder.conditions()` hands back live objects; a consumer that depended
+      // on them would either never re-render or re-render every frame. The
+      // binder bumps this only when the RESOLVED set actually changed, so an
+      // action recolour — which never reaches the evaluator — costs nothing here
+      // either.
+      // ⚠️ OPTIONAL, BECAUSE A TEST DOUBLE IS A BINDER TOO. Several suites stub
+      // `createBinder` with a `{ sync }` and nothing else; a hard call here turns
+      // "this chart has no conditions" into a crash in eighteen unrelated cases.
+      const _cg = engineRef.current.binder.conditions?.().generation ?? 0
+      if (_cg !== conditionGenRef.current) {
+        conditionGenRef.current = _cg
+        setConditionGen(_cg)
+      }
     }
 
     // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────
@@ -11086,12 +11263,19 @@ export default function StockChart({
     // which is what covers the two cases the identity check can't see: the series
     // was swapped (the swap nulls the controller, since it was bound to the old
     // series) and a fresh chart. Never skip on either, or markers silently vanish.
-    const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
+    // ⭐ THE CONDITION CATEGORY JOINS HERE, NOT INSIDE `mergedMarkers`. That memo
+    // is declared hundreds of lines before `displayBars` exists, and the six
+    // categories in it are all payload-driven; a condition marker is derived from
+    // a column this same pass computed. Merging at the consumption point keeps
+    // both memos honest and the dirty check still identity-based.
+    const _markerSrc = conditionMarkers.length
+      ? [...(mergedMarkers || []), ...conditionMarkers] : mergedMarkers
+    const _markersDirty = lastMarkersSrcRef.current !== _markerSrc
       || !markersControllerRef.current
       || _freshChart
     if (candleSeriesRef.current && _markersDirty) {
-      lastMarkersSrcRef.current = mergedMarkers
-      const allMarkers = [...(mergedMarkers || [])]
+      lastMarkersSrcRef.current = _markerSrc
+      const allMarkers = [...(_markerSrc || [])]
         .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
         if (!createSeriesMarkers || !candleSeriesRef.current) return
@@ -11930,14 +12114,36 @@ export default function StockChart({
   useEffect(() => {
     const series = candleSeriesRef.current
     if (!series || !isOhlcType(cs.chartType)) return
-    if (highlightTimeSet) {
+    // ⭐ CONDITION COLOURS RIDE THE SAME RE-ASSERT, for the same reason the gold
+    // highlight does: `updateChart` paints plain candles, so an override has to
+    // land after it and must not be pulled into its dependency list (which would
+    // re-run the visible-range logic and fight the focus zoom). `conditionOhlc`
+    // IS `fadedOhlc` when nothing matched — identity, so this costs one compare.
+    if (highlightTimeSet || conditionCandleColors) {
       hadHighlightRef.current = true
-      try { series.setData(fadedOhlc) } catch { /* range can be out of bounds mid-load */ }
+      try { series.setData(conditionOhlc) } catch { /* range can be out of bounds mid-load */ }
     } else if (hadHighlightRef.current) {
       hadHighlightRef.current = false
-      try { series.setData(ohlcData) } catch { /* clear gold back to normal */ }
+      try { series.setData(ohlcData) } catch { /* clear the override back to normal */ }
     }
-  }, [fadedOhlc, goldOhlc, ohlcData, highlightTimeSet, chartReady, cs.chartType, updateChart])
+  }, [fadedOhlc, goldOhlc, ohlcData, conditionOhlc, conditionCandleColors,
+    highlightTimeSet, chartReady, cs.chartType, updateChart])
+
+  // ─── CONDITION BACKGROUND — RE-ASSERTED AFTER EVERY PAINT ────────────
+  //
+  // Mirrors the candle recolour above and for the identical reason: the runs must
+  // not be in `updateChart`'s dependency list, or a regime change would re-run
+  // the whole paint. `updateChart` IS a dep here, so a repaint for any other
+  // reason re-asserts them and the shading cannot intermittently vanish.
+  useEffect(() => {
+    const ctrl = conditionShadeRef.current
+    if (!ctrl) return
+    if (lastConditionRunsRef.current === conditionRuns) return
+    lastConditionRunsRef.current = conditionRuns
+    try {
+      ctrl.setOptions({ enabled: conditionRuns.length > 0, runs: conditionRuns })
+    } catch { /* primitive may be detached mid-swap */ }
+  }, [conditionRuns, chartReady, updateChart])
 
   // Volume crossfade re-tint (Setup⇄Result). Mirrors the candle recolor above and
   // MUST run AFTER updateChart so its setData wins over updateChart's full-opacity

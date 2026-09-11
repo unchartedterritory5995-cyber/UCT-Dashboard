@@ -60,6 +60,7 @@ import { resolvePlotStyle, drawsHistory } from './presentation'
 import {
   orderByDependency, sourceInputsOf, parseSource, barFieldSeries, resolveScaleDomain,
 } from './sourceRef'
+import { evaluateCondition } from './conditions'
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -792,6 +793,20 @@ export function createBinder({ chart, LWC }) {
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
 
+    // ── 1b. THE CONDITIONS, IN THE SAME PASS AND OFF THE SAME COLUMNS ──
+    //
+    // ⭐⭐ A CONDITION IS A CONSUMER, SO IT COMPUTES LAST AND NEEDS NO SECOND
+    // SCHEDULER. Every numeric dependency it can name has just been computed in
+    // dependency order above, and `columns` is the map its `'@id::plot'` bindings
+    // resolve through — the very arrays their producers returned, which is what
+    // makes invalidation object identity here too (`evaluateConditions`).
+    //
+    // ⛔ CONDITIONS CANNOT DEPEND ON CONDITIONS TODAY (Part 43), and that type
+    // rule is what keeps this a straight line rather than a second Kahn sort. The
+    // day one becomes sourceable, its rows join `orderByDependency` unchanged —
+    // `conditions.conditionInstance` already shapes them for it.
+    evaluateConditions(ctx.conditions, bars, columns)
+
     const hasData = (key) => {
       const col = columns.get(key)
       return col !== undefined && registry.hasAnyFinite(col)
@@ -1343,7 +1358,85 @@ export function createBinder({ chart, LWC }) {
    * A COPY of the list — a caller walking it must not be able to reorder or
    * truncate the binder's own state.
    */
+  /** condition id → the `Uint8Array` this pass produced. */
+  const conditionColumns = new Map()
+  /** condition id → why it produced nothing, for the settings row to say. */
+  const conditionErrors = new Map()
+  /** Bumped whenever the RESOLVED set changes, so a React consumer can depend on
+   *  a number instead of on a Map it cannot compare. */
+  let conditionGeneration = 0
+  /** id → { bars, formula, sig, column } — the same memo shape the instances use. */
+  const conditionMemo = new Map()
+
+  /**
+   * Evaluate every condition, reusing the columns this pass already computed.
+   *
+   * ⭐⭐ ONE EVALUATION PER CONDITION, WHATEVER IT FEEDS (Part 24/37). Slingshot
+   * with an orange candle AND a blue dot is ONE entry in `conditionColumns`; the
+   * two actions read the same array. There is no path here that walks actions.
+   *
+   * ⭐ AND THE MEMO KEY IS THE SAME IDEA AS THE INSTANCES’ — identity, not a
+   * hash of numbers. A bound source that recomputed is a NEW array and its
+   * `__srcId` differs, so the condition recomputes; a source that only changed
+   * COLOUR or PANE hands back the very same array and the condition does not.
+   * Changing a marker’s colour or a background’s opacity never reaches this
+   * function at all — those live in the ACTION, and the action is not in the key.
+   */
+  function evaluateConditions(list, bars, columns) {
+    const conditions = Array.isArray(list) ? list : []
+    const live = new Set()
+    let changed = false
+    for (const cond of conditions) {
+      if (!cond || typeof cond.id !== 'string') continue
+      live.add(cond.id)
+      // ⛔ A DISABLED CONDITION IS NOT EVALUATED (Part 39). Its configuration is
+      // untouched — it is in this list, it keeps its formula and its actions —
+      // and it simply costs nothing while it is off.
+      if (cond.enabled === false) {
+        if (conditionColumns.delete(cond.id) || conditionErrors.delete(cond.id)) changed = true
+        conditionMemo.delete(cond.id)
+        continue
+      }
+      let sig = cond.formula + ' '
+      for (const [key, ref] of Object.entries(cond.bindings || {})) {
+        sig += key + '=' + ref
+        const parsed = parseSource(ref)
+        const col = (parsed && parsed.kind === 'instance')
+          ? columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) : null
+        if (col) { if (!col.__srcId) col.__srcId = ++SOURCE_SERIAL; sig += '#' + col.__srcId }
+        sig += ';'
+      }
+      const memo = conditionMemo.get(cond.id)
+      if (memo && memo.bars === bars && memo.sig === sig) continue
+      const r = attempt(() => evaluateCondition(cond, bars, (key) => columns.get(key) || null))
+      const out = r.ok && r.value ? r.value : { column: null, error: 'the condition could not be evaluated' }
+      conditionMemo.set(cond.id, { bars, sig })
+      if (out.column) conditionColumns.set(cond.id, out.column)
+      else conditionColumns.delete(cond.id)
+      if (out.error) conditionErrors.set(cond.id, out.error)
+      else conditionErrors.delete(cond.id)
+      changed = true
+    }
+    for (const id of [...conditionColumns.keys()]) if (!live.has(id)) { conditionColumns.delete(id); changed = true }
+    for (const id of [...conditionErrors.keys()]) if (!live.has(id)) { conditionErrors.delete(id); changed = true }
+    for (const id of [...conditionMemo.keys()]) if (!live.has(id)) conditionMemo.delete(id)
+    if (changed) conditionGeneration += 1
+  }
+
   function bindings() { return held.slice() }
 
-  return { sync, teardown: releaseAll, bindings }
+  /**
+   * The condition columns this pass produced, by condition id.
+   *
+   * ⛔ IT IS A SEPARATE ACCESSOR FROM `bindings()` BECAUSE A CONDITION BINDS
+   * NOTHING. It has no series, no pane and no legend chip — it has an ANSWER, and
+   * three unrelated consumers (candle data, the marker array, a background
+   * primitive) read it. Folding it into `bindings()` would make every existing
+   * caller filter for a shape that has no series.
+   */
+  function conditions() {
+    return { columns: conditionColumns, errors: conditionErrors, generation: conditionGeneration }
+  }
+
+  return { sync, teardown: releaseAll, bindings, conditions }
 }
