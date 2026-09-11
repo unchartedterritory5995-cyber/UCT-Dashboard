@@ -397,3 +397,56 @@ Re-run together on an idle box: **229 passed**. ⛔ So a failure list from a loa
 machine is not a defect list, and the difference is not visible in the log — a
 load-sensitive red and a real one read identically. Anyone triaging this suite should
 re-run a candidate alone before filing it.
+
+---
+
+## OPEN · 2026-09-11 · the 1-arg `ta.highest`/`ta.lowest` default needs an ARITY layer, not a tree rewrite
+
+**Raised by:** the `indicator-r0r1` session, which wrote the fix, shipped it, and reverted it the same night.
+**Territory:** `pine.js` ↔ `pineRuntimeFrontend.js` — the boundary is the point.
+**Blocking us:** yes, softly. 97 one-argument call sites across 33 tracked `.pine` files do not translate.
+
+### The measurement is settled
+
+`ta.highest(n)` defaults its source to `high`; `ta.lowest(n)` to `low` — an
+asymmetry, and not `close` for either. 397 of 397 usable bars agree, zero agree with
+any rival. Capture: `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`.
+Site count re-measured by balanced-paren scan over all 510 tracked `.pine` files:
+**97 one-argument sites in 33 files** (the doc's older 81 is stale and understated).
+
+### What we tried, and exactly why it was wrong
+
+Adding `'ta.highest'` / `'ta.lowest'` to `PINE_NAMESPACED_TREE` supplies the default in
+three lines and translates the 1-arg form correctly. It also **reclassifies the names**:
+
+```js
+// pineRuntimeFrontend.js — windowTarget AND carriedTarget both open with:
+if (tree[name]) return null      // a name rewritten here is NOT carried/windowed
+```
+
+So the runtime lane began refusing
+`runtime:call-windowed-state: a WINDOWED builtin fed by a mutable variable — this one
+needs the series bridge` for the **two-argument** form, which had always worked. Four
+`finiteWindow.test.js` tests and one `executionShapeCensus.test.js` script went red.
+
+⭐ **The guard predicted this in writing.** `carriedTarget`'s comment calls that line
+*"UNFALSIFIABLE AGAINST THE SHIPPED TABLES … deleting this line changes no answer and a
+mutation run would report it surviving. It is kept because `ta.highestbars` proved what
+a dropped namespaced transform costs."* This change is the first thing that ever
+falsified it, and it fired correctly.
+
+### The distinction that matters
+
+`ta.highestbars` and `ta.pivothigh` belong in `PINE_NAMESPACED_TREE` because they need a
+**transform** — a negation, a confirmation shift. `ta.highest` needs only a **default
+argument**. Supplying a default by rewriting the tree drags the name across a
+classification boundary it has no business crossing.
+
+**What we would find most useful:** somewhere to declare *"this Pine spelling may be
+called with n−1 arguments; here is the node that fills slot 0"*, consulted where arity
+is resolved and invisible to `PINE_NAMESPACED_TREE`. `ta.pivothigh`'s 2-arg form and
+`ta.highestbars`' 1-arg form already hand-roll the same idea inside their transforms, so
+there would be at least three callers on day one.
+
+⛔ **Do not close this by editing `finiteWindow.test.js`.** Those four tests are the
+runtime differential and they were right.

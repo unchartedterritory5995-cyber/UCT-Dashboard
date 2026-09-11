@@ -1,21 +1,29 @@
 // app/src/components/chart/engine/ast/pine.hiloDefault.test.js
 //
-// ⭐⭐ THE 81-SITE ASYMMETRY, AND THE DOOR IS PINNED TO THE CAPTURE.
-// `docs/pine/r11-group-b-arity.md` named this as the Group B risk in the exact
-// shape it turned out to have: "does `ta.highest(20)` default the source to
-// `high` (and `ta.lowest` to `low`), or to `close` for both? The asymmetry is the
-// whole risk — guessing `close` would be silently wrong on 81 sites."
+// ⭐⭐ THE 81-SITE ASYMMETRY IS MEASURED. THE DOOR DOES NOT SERVE IT YET.
+// This file pins BOTH facts, and the second one is a recorded gap rather than a
+// hidden one.
 //
-// It was measured on a live TradingView chart on 2026-09-10, and the reading is
-// `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`. THIS FILE
-// READS THAT FIXTURE rather than restating its numbers — a vendor fact retyped
-// into a test is the second-authority defect this repo keeps paying for, and the
-// one place it would hurt most is a rule about which PRICE a window is measured
-// from, because the wrong answer is the right shape with different numbers.
+// `docs/pine/r11-group-b-arity.md` named the risk in the shape it turned out to
+// have: "does `ta.highest(20)` default the source to `high` (and `ta.lowest` to
+// `low`), or to `close` for both? The asymmetry is the whole risk — guessing
+// `close` would be silently wrong on 81 sites." It was measured on a live
+// TradingView chart on 2026-09-10 and the reading is
+// `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`.
 //
-// ⛔ A RED HERE IS NOT "UPDATE THE EXPECTATION". Either the door stopped matching
-// the vendor, or the capture was replaced by one that says something else. Read
-// the fixture's `_ruling` before touching either.
+// ⚰️ THE DOOR CHANGE WAS WRITTEN, SHIPPED AND REVERTED THE SAME NIGHT.
+// Adding `ta.highest`/`ta.lowest` to `PINE_NAMESPACED_TREE` supplies the default,
+// and it also RECLASSIFIES them: `pineRuntimeFrontend.js`'s `windowTarget` and
+// `carriedTarget` both open with `if (tree[name]) return null`, so a name in that
+// map is by definition not a carried/windowed builtin. The runtime lane then
+// refused `runtime:call-windowed-state` for the TWO-argument form, which had
+// worked all along — four `finiteWindow` tests and one `executionShapeCensus`
+// script went red. The fix belongs where ARITY is resolved, not in a tree rewrite;
+// `requests.md` carries it.
+//
+// ⛔ SO THE `refuses` TEST BELOW IS PINNING A DEFECT, NOT BLESSING ONE. When the
+// default lands at the right layer, that test goes red — INVERT it then, and the
+// two `matches the capture` assertions beside it stop being `.skip`.
 
 import { describe, it, expect } from 'vitest'
 
@@ -67,28 +75,27 @@ describe('the 1-argument ta.highest / ta.lowest default their SOURCE', () => {
     expect(c.lowest_1arg_equals_lowest_HL2).toBe(0)
   })
 
-  it('⭐⭐ the DOOR matches the capture, source for source', () => {
-    const hi = formulaOf('ta.highest(20)')
-    const lo = formulaOf('ta.lowest(20)')
-    expect(hi.ok).toBe(true)
-    expect(lo.ok).toBe(true)
-    expect(hi.formula).toBe(`highest(${vendorDefault('highest')}, 20)`)
-    expect(lo.formula).toBe(`lowest(${vendorDefault('lowest')}, 20)`)
-  })
-
-  it('⚰️ it used to REFUSE, and that is why 81 sites were stuck', () => {
-    // Before 2026-09-11 both answered `pine:arity`: the table declares
-    // `args: [series, int]` and nothing supplied the default. An over-refusal is
-    // invisible to a member — the script simply does not translate — so this
-    // asserts the refusal is GONE rather than trusting that it was.
+  it('⚰️ THE GAP, PINNED: the door still REFUSES the 1-arg form', () => {
+    // ⛔ This asserts what the engine does TODAY, which is not what the vendor
+    // does. It is here so the gap cannot be forgotten, and so that closing it is
+    // announced by a red test rather than discovered by a member.
+    // ⭐ WHEN THE DEFAULT LANDS: delete this test, and un-skip the two below.
     for (const src of ['ta.highest(20)', 'ta.lowest(20)']) {
-      expect(formulaOf(src).refusals).not.toContain('pine:arity')
+      const r = formulaOf(src)
+      expect(r.ok).toBe(false)
+      expect(r.refusals).toContain('pine:arity')
     }
   })
 
-  it('⛔ an EXPLICIT source is still honoured, including a deliberately odd one', () => {
-    // The default must not become an override. `ta.highest(close, 20)` is a
-    // legitimate thing to write and must survive unchanged.
+  it.skip('⭐⭐ the DOOR matches the capture, source for source (blocked: see above)', () => {
+    expect(formulaOf('ta.highest(20)').formula).toBe(`highest(${vendorDefault('highest')}, 20)`)
+    expect(formulaOf('ta.lowest(20)').formula).toBe(`lowest(${vendorDefault('lowest')}, 20)`)
+  })
+
+  it('⛔ an EXPLICIT source is honoured, and the TWO-arg form is untouched', () => {
+    // ⚰️ THIS IS THE ONE THE REVERTED CHANGE BROKE, and it broke it in the runtime
+    // lane rather than here — which is why this file alone could not have caught
+    // it. Kept as the near-guard; `finiteWindow.test.js` is the far one.
     expect(formulaOf('ta.highest(close, 20)').formula).toBe('highest(close, 20)')
     expect(formulaOf('ta.lowest(close, 20)').formula).toBe('lowest(close, 20)')
     expect(formulaOf('ta.highest(high, 20)').formula).toBe('highest(high, 20)')
@@ -96,8 +103,9 @@ describe('the 1-argument ta.highest / ta.lowest default their SOURCE', () => {
   })
 
   it('⭐ the sibling that already knew the rule is unchanged', () => {
-    // `ta.highestbars(20)` has defaulted to `high` the whole time, five lines from
-    // where the fix landed. If this moves, the fix reached further than intended.
+    // `ta.highestbars(20)` has defaulted to `high` all along — and it is allowed to
+    // live in PINE_NAMESPACED_TREE because it needs a TRANSFORM (a negation), not
+    // merely a default. That distinction is the whole lesson of the revert.
     expect(formulaOf('ta.highestbars(20)').formula).toBe('-highestbars(high, 20)')
     expect(formulaOf('ta.lowestbars(20)').formula).toBe('-lowestbars(low, 20)')
   })
@@ -105,7 +113,6 @@ describe('the 1-argument ta.highest / ta.lowest default their SOURCE', () => {
   it('⭐ the capture is the one this test claims to read', () => {
     expect(FIXTURE.symbol).toBe('AMEX:SPY')
     expect(FIXTURE.resolution).toBe('1D')
-    // the gates the capture itself had to pass
     expect(FIXTURE._gates).toMatch(/isFailed\(\) === false/)
     expect(FIXTURE._gates).toMatch(/11/)
   })

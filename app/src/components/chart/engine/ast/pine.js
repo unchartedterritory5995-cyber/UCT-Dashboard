@@ -1206,21 +1206,32 @@ export const PINE_NAMESPACED_TREE = Object.freeze({
   // actionable refusal is only worth what it costs to RE-READ it.
   'ta.highestbars': (a) => negatedBars('highestbars', a),
   'ta.lowestbars': (a) => negatedBars('lowestbars', a),
-  // ⭐⭐ THE 81-SITE ASYMMETRY, MEASURED 2026-09-10 AND NOT GUESSED.
-  // `ta.highest(20)` defaults its source to `high`; `ta.lowest(20)` to `low`.
-  // Reading BOTH off `close` — the obvious guess, and the one this door used to
-  // make impossible by refusing outright — would have been silently wrong on all
-  // 81 corpus sites: wrong NUMBERS, right shape, no refusal to notice.
-  // `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json` carries the
-  // reading (397 of 397 usable bars agree with high/low, ZERO with close or hl2),
-  // and `pine.hiloDefault.test.js` pins this door to that file rather than to a
-  // number retyped here.
-  // ⚰️ UNTIL NOW THIS DOOR ANSWERED `pine:arity` for the one-argument form, because
-  // the table declares `args: [series, int]` and nothing supplied the default. The
-  // sibling `ta.highestbars(20)` HAS defaulted correctly the whole time, five lines
-  // up — so the engine already knew the rule and only this pair could not say it.
-  'ta.highest': (a) => extremeWithDefault('highest', a),
-  'ta.lowest': (a) => extremeWithDefault('lowest', a),
+  // ⚰️⚰️ `ta.highest` / `ta.lowest` WERE ADDED HERE ON 2026-09-11 AND REVERTED THE
+  // SAME NIGHT. The measurement behind them stands and is committed
+  // (`tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`: the 1-arg
+  // form defaults to `high` / `low`, 397 of 397 usable bars, zero for `close`), but
+  // THIS IS THE WRONG DOOR FOR IT.
+  //
+  // ⛔ MEMBERSHIP OF THIS MAP IS ITSELF A SIGNAL. `pineRuntimeFrontend.js`'s
+  // `windowTarget` and `carriedTarget` both open with `if (tree[name]) return null`
+  // — a name rewritten here is, by that test, NOT a carried/windowed builtin. So
+  // adding these two silently reclassified them and the runtime lane began refusing
+  // `runtime:call-windowed-state: a WINDOWED builtin fed by a mutable variable` for
+  // the TWO-argument form, which had worked all along. Four `finiteWindow` tests and
+  // one `executionShapeCensus` script went red.
+  //
+  // ⭐ AND THE GUARD THAT CAUGHT IT SAYS SO IN ADVANCE: `carriedTarget`'s own
+  // comment calls that line "UNFALSIFIABLE AGAINST THE SHIPPED TABLES … deleting
+  // this line changes no answer and a mutation run would report it surviving. It is
+  // kept because `ta.highestbars` proved what a dropped namespaced transform costs."
+  // This change is the first thing that ever falsified it, and it fired correctly.
+  //
+  // ⭐ THE DIFFERENCE FROM ITS NEIGHBOURS IS REAL: `ta.highestbars` and
+  // `ta.pivothigh` need a TRANSFORM (a negation, a shift), which is what this map
+  // is for. `ta.highest` needs only a DEFAULT ARGUMENT, and supplying one by
+  // rewriting the tree drags the name across a classification boundary it should
+  // never have crossed. The default belongs where arity is resolved — a facility
+  // this engine does not have yet. Routed in `requests.md`.
 })
 
 /** `-<bars-fn>(src, n)` — Pine's non-positive offset from our positive distance.
@@ -1228,15 +1239,6 @@ export const PINE_NAMESPACED_TREE = Object.freeze({
  *  ⚠️ THE ONE-ARGUMENT FORM DEFAULTS TO THE FUNCTION'S OWN EXTREME, never to
  *  `close`: `ta.lowestbars(5)` measures to the LOW, and reading it off closes
  *  would answer a different question with the same shape. */
-function extremeWithDefault(name, args) {
-  const two = args.length >= 2
-  const src = two ? args[0] : { type: 'series', name: name === 'highest' ? 'high' : 'low' }
-  const len = two ? args[1] : args[0]
-  if (!len) return null
-  return cCall(name, [src, len])
-}
-
-/** `-<bars-fn>(src, n)` — Pine's non-positive offset from our positive distance. */
 function negatedBars(name, args) {
   const two = args.length >= 2
   const src = two ? args[0] : { type: 'series', name: name === 'highestbars' ? 'high' : 'low' }
