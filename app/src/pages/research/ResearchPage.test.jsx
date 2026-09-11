@@ -81,6 +81,9 @@ vi.mock('../../context/AuthContext', () => ({
 // S7 filing-watch — controlled mock so the header action's tests are
 // deterministic rather than depending on an unmocked real fetch.
 const filingWatchMock = vi.hoisted(() => ({
+  // The S7 gate lives in useFilingWatch itself, so a mock of that hook must
+  // say whether the feature exists. These tests are about behaviour, so on.
+  enabled: true,
   watchState: vi.fn(() => 'NOT_WATCHING'),
   getWatch: vi.fn(() => null),
   createOrReactivate: vi.fn(),
@@ -278,6 +281,7 @@ describe('S7 filing-watch header action (Stage 4, D7 — visible regardless of a
   beforeEach(() => {
     auth.isPaid = true
     filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.enabled = true   // an OFF test must not leak forward
     filingWatchMock.getWatch.mockReset().mockReturnValue(null)
     filingWatchMock.createOrReactivate.mockReset()
     filingWatchMock.suspend.mockReset()
