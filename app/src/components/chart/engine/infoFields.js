@@ -2,6 +2,7 @@ import { parseFormula } from './ast/parse'
 import { treeYieldsBool } from './ast/pine'
 import { interpret, maxLookback } from './ast/interpret'
 import { parseSource, barFieldSeries } from './sourceRef'
+import { chartEvaluability } from './operandCapability'
 import { bindingKey } from './pool'
 
 // ─── THE THIRD CONSUMER OF ONE FORMULA ──────────────────────────────────────
@@ -135,6 +136,14 @@ export function validateInfoFormula(formula, bindings) {
       }
     }
   }
+  // ⛔⛔ NO SILENT DEAD FORMULAS. `interpret` seeds every table-declared SCALAR as
+  // NaN when the caller passes no `scalars` — and a chart never can, because a
+  // chart has no `screener_rows` row. Measured before this guard existed:
+  // `adr_pct` as an info field returned `value: null, error: null` and the header
+  // printed `—` forever, with nothing anywhere saying why. A refusal that names the
+  // column is strictly better than a field that looks broken.
+  const runnable = chartEvaluability(parsed.ast)
+  if (!runnable.ok) return { ok: false, reason: runnable.reason }
   return { ok: true, ast: parsed.ast }
 }
 

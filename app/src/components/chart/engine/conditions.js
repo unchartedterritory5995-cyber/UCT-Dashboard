@@ -2,6 +2,7 @@ import { parseFormula } from './ast/parse'
 import { treeYieldsBool } from './ast/pine'
 import { interpret, maxLookback } from './ast/interpret'
 import { parseSource, barFieldSeries } from './sourceRef'
+import { chartEvaluability } from './operandCapability'
 import { bindingKey } from './pool'
 
 // ─── A CONDITION IS DATA ────────────────────────────────────────────────────
@@ -175,6 +176,15 @@ export function validateConditionFormula(formula, bindings) {
       }
     }
   }
+  // ⛔⛔ NO SILENT DEAD CONDITIONS. `interpret` seeds every table-declared SCALAR
+  // as NaN when no `scalars` are passed, and a chart never passes any — it draws
+  // one symbol from bars, not a `screener_rows` row. Measured before this guard
+  // existed: `adr_pct > 5` validated, saved, and was FALSE on 300 of 300 bars with
+  // `error: null`. A member would have built a regime band that can never paint and
+  // been told nothing. The screener lane is untouched: those columns are perfectly
+  // valid there, and this refusal is a CONSUMER capability, not a verdict on them.
+  const runnable = chartEvaluability(parsed.ast)
+  if (!runnable.ok) return { ok: false, reason: runnable.reason }
   return { ok: true, ast: parsed.ast }
 }
 
