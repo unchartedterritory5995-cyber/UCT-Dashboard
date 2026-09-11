@@ -1,3 +1,112 @@
+# PROGRAM CLOSED 2026-09-11
+
+The UCT Terminal convergence program is closed. Pattern Vision's fixes are
+verified on a live judge slot, the S7 filing-watch UI is live to members, and
+every follow-up, seam and open item below is SHIPPED, CLOSED, or ASSIGNED to a
+named program. Nothing is pending and nothing is awaiting a word.
+
+### What is live to members, and since when
+
+| feature | live? | since (ET) | flag | how to turn it off |
+|---|---|---|---|---|
+| Research → **Technical tab** | **YES** | 2026-09-09 23:22:30 | `RESEARCH_TECHNICAL_TAB_ENABLED=1` | set `0` on web, restart |
+| **Community** (The Floor) | **YES** | before this program | `COMMUNITY_ENABLED=1` | set `0` on web, restart |
+| **S7 filing watch** (Stage 4/5 UI) | **YES** | **2026-09-11 12:07:29** | `S7_FILING_WATCH_ENABLED=1` | set `0` on web, restart → surfaces return to ABSENCE |
+| Seam 24 **evaluated-count empty state** | **YES** | 2026-09-10 (P2) | none — copy | revert `d75155149` |
+| Seam 22 **Compare return link** | **YES** | 2026-09-10 (P2) | none — nav | revert `5102b8435` |
+| **Steady-lean** broker digest | **YES** | 2026-09-10 (P3) | none | revert `2bc991e40` |
+| grade_ticker confirmed source | **no** | — | `GRADE_TICKER_CONFIRMED_SOURCE_ENABLED` unset | already off; inert even if set |
+
+⛔ **THE VOCABULARY TRAP, restated because it caused a wrong report this week.**
+`docs/feature_flags.json` records INTENT and says in its own readme that it
+cannot see Railway. The checkpoint records WHAT HAPPENED. **When they disagree
+about a live flag, the checkpoint wins and the ledger is what drifted.** A live
+flag was reported as a "discovery" from the ledger while the flip and its
+timestamp sat 488 lines higher in this same file. The durable fix is CLAUDE.md
+flip-procedure step 5: every flip updates the ledger in the same docs push that
+records the flip time.
+
+### F4 — the S7 filing-watch flip
+
+Flipped **2026-09-11 12:07:29 ET**. Conditions were all met first: V1 PASS
+(78/78 at `asof_date` 2026-09-10), P3 boot clean, and the flag-on member-impact
+paragraph written in advance. `railway variables --set` **auto-redeployed** on
+`web` (consistent with the 2026-09-09 measurement, not the 2026-08-30 one), the
+new boot was confirmed by uptime reset, and the value was read **IN-PROCESS on
+the running pod** — `S7_FILING_WATCH_ENABLED='1'` — never from `--kv`, which
+reports only what a service is configured with. The ledger entry moved to
+`armed` with that timestamp **in this same push**.
+
+15-minute post-flip watch: auth/login errors **0**, `/api/patterns` 4xx/5xx **0**,
+the S7 route 4xx/5xx **0**, `/research/:sym` and `/settings` **200** throughout,
+no traceback naming the S7 UI modules. Auto-off remains pre-authorised on any
+traceback attributable to it.
+
+### Follow-ups 1–28 — final disposition, none omitted, none merged
+
+| # | disposition |
+|---|---|
+| 1 | `nyseCalendar.js COVERED_YEARS` — **SHIPPED** (parity + coverage fixed) |
+| 2 | Cross-stack parity test — **SHIPPED**; and **CLOSED** today on V1 PASS: this is the follow-up the whole Friday gate existed to answer |
+| 3 | `_session_state()` zero coverage — **SHIPPED** |
+| 4 | `_et_now()` naive DST — **SHIPPED** |
+| 5 | SQ retired symbol (merged with 19) — **SHIPPED** in B; V2 confirms `dropped_stale` 0 and XYZ judged |
+| 6 | Awareness reachability — **SHIPPED** |
+| 7 | `BROKER_BALANCE_HISTORY_ENABLED` — **CLOSED**, recorded live and money-adjacent |
+| 8 | `min_conf` on the confirmed read path — **SHIPPED** `6e38e55a4` |
+| 9 | `test_no_shadowed_definitions` — **SHIPPED** `2aaf2dfe1`, rail GREEN |
+| 10 | `test_feature_flag_ledger` — **SHIPPED** `eb1be6f03`, rail GREEN |
+| 11 | grade_ticker re-enablement — **CLOSED HERE; ASSIGNED to a future "verdict levels" design program.** NO fabricated entry/stop from one `key_level` (Seam 23/28). Stays dark. Tripwire: `test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels` |
+| 12 | Technical Research — **SHIPPED** `f58383e69`, flag ON 09-09 23:22 |
+| 13 | Cap-test fixture fidelity — **SHIPPED** |
+| 14 | `init_db` on an empty active set — **SHIPPED** `b41b4ed07` |
+| 15 | 10 inherited vitest reds — **CLOSED**: 3 fixed, 2 load-sensitive recorded per CLAUDE.md, 1 (`reachable`) closed as Seam 18, 1 (`pine.blindCorpus`) ASSIGNED to the renderer program, 3 pinned to current behaviour, 1 (`tapFloor`) LEFT RED and ASSIGNED to the next mobile pass |
+| 16 | `selectedKey` across tickers — **SHIPPED** `f58383e69` |
+| 17 | APScheduler in-memory job store — **SHIPPED** `a8da52209`; and re-demonstrated today by the 12:00 LOST slot |
+| 18 | Tuesday's missing 09:00 slot — **CLOSED as unresolvable**, instrument-limited, UNKNOWN |
+| 19 | (merged into 5) — **SHIPPED** |
+| 20 | Startup contract line verified a print statement — **SHIPPED** `bdddb969c`; all six values re-verified today (V10) |
+| 21 | Detectors read `bars[-1]` — **SHIPPED** `62a228e5d`; **verified today by V3** |
+| 22 | Per-ticker evidence only for judged — **SHIPPED**; histogram verified today (V4) |
+| 23 | Coverage re-read — **CLOSED**. Measured today: 9/56 tickers (16.1%), 83.9% empty state, same band as 09-10. No change in any band; the Seam 24 count is the mitigation. 09-16 re-read is informational only |
+| 24 | PXD zero stored bars — **SHIPPED**; verified today (V5) |
+| 25 | Partial-bar arrival curve — **CLOSED**, the measurement that produced C and 21 |
+| 26 | Options-flow guard that could never fail — **SHIPPED** |
+| 27 | `high_tight_flag` — **CLOSED SCOPE-ONLY; ASSIGNED to a future detector-engine program** with the gate-chain measurement attached |
+| 28 | **NEVER CREATED.** Reserved for a V6 migration failure. V6 **PASSED** (23 columns, all five present), so the condition never arose. Recorded so the gap in the numbering is not read as a lost item |
+
+### Seams
+
+| seam | status |
+|---|---|
+| 3 | **CLOSED** — one authority for the notable-move threshold |
+| 4 | **CLOSED** — one earnings-window walk, equivalence test |
+| 7 | **CLOSED** (2026-09-07) — and honoured again today: "sessions" is distinct dates with a reading, never a fourth NYSE-calendar consumer |
+| 8 | **CLOSED** (2026-09-07) |
+| 13 | **CLOSED** — `LinkedNotesPanel` live on both PositionDetailPage and TradeDetailPage; cross-reference `37d608967` |
+| 18 | **RECORDED, CLOSED** — 18 modules recorded not deleted; "unmounted from `App.jsx`" true, "unreleased" FALSE (live via the `floor2` bundle) |
+| 22 | **SHIPPED** `5102b8435` — Compare stops dead-ending the way back |
+| 27 | **SHIPPED** `62a228e5d` — breadth `Query`-vs-`str`; verification instrument-limited (V7) |
+
+### Lessons banked this week
+
+- **Read to the bullet's terminator.** A seam entry that opens with the defect and
+  buries its resolution mid-paragraph gives a header-line reader exactly the
+  wrong answer — 22 of 29 bullets had that shape.
+- **A comment claiming two values agree is not evidence they agree.** Derive one
+  from the other and prove it by moving the source.
+- **The ledger records intent; the checkpoint records what happened.** When they
+  disagree about a live flag, the ledger is what drifted.
+- **A prepared revert is verified by what it changes, not by its label.** The
+  held exit's first SHA touched only tests and would have been a no-op revert.
+- **An instrument can reproduce its own blind spot.** The chunked runner
+  truncated its own log; the ledger auditor died on an encoding it was reading;
+  a probe cleared a red by testing the wrong file.
+- **Stacking on an unverified fix makes the exit riskier by an unmeasured
+  amount.** Items 22 and 24 extended B before B was observed.
+
+---
+
 # UCT Terminal — Continuity Checkpoint
 
 > Navigation/resume artifact for session crash recovery. Refresh at every
@@ -2991,6 +3100,150 @@ gave the wrong answer. Recorded here as the cross-reference the ruling asked
 for; the durable fix (ledgers that name each other at the surface they share)
 is a process change, not a code change, and is not this program's to make
 unilaterally.
+
+### FRIDAY 2026-09-11 VERIFICATION — V1–V11, branch D2
+
+**Branch taken: D2** (V1 PASS + V2 PASS) → close-out in full. The prepared exit
+`64aea3c62` was NOT needed and stays on `revert-C-held` as the documented exit.
+
+| # | what | result | deciding number |
+|---|---|---|---|
+| **V1** | fix C — evidence bar by DATE | **PASS** | **78 of 78** verdicts in the 09:00 window carry `asof_date` **2026-09-10**; **zero** at 09-09. Slot row: `evidence_min = evidence_max = 2026-09-10`, `evidence_distinct = 1` |
+| **V2** | fix B — active-set hygiene under cron | **PASS** | `active_set_n` **83** · `dropped_stale` **0** · `dropped_no_bars` **1** (PXD) · `truncated` **0** · `hygiene_skipped` **null** · XYZ judged (1 verdict). SQ retains 51 historical rows and produced none new |
+| **V3** | item 21 — detectors on closed bars | **PASS (both halves)** | 10:00 judged **0** ≤3 · 11:00 judged **0** ≤3 · `evidence_max` held at 2026-09-10 across all three slots · cost rows == verdict rows every hour (78==78, 0==0, 0==0) |
+| **V4** | item 22 — evidence histogram | **PASS** | `{"2026-09-10": 78}` — keys **1** == `evidence_distinct` **1**; sum **78** == judged 78 + skipped 0 |
+| **V5** | item 24 — no-bars path | **PASS** | PXD in `vision_slot_ticker` exactly once, `path="dropped_no_bars"`, message *"no stored daily bars at all"*, 09:00 slot |
+| **V6** | the column migration | **PASS** | **23** columns; all five present: `dropped_stale`, `truncated`, `hygiene_skipped`, `dropped_no_bars`, `evidence_hist` |
+| **V7** | Seam 27 — breadth warm | **AMBIGUOUS — INSTRUMENT-LIMITED** | `62a228e5d` IS an ancestor of master and the coercion is present at `breadth_monitor.py:491-492`. What is missing is OBSERVABILITY, not the fix: `railway logs` retains only a live tail, so the 08:40 boot window is gone, and the endpoint is auth-gated (401) so an unauthenticated probe never reaches the coerced path. **Zero failures AND zero successes observed** — recorded as instrument-limited, never as a pass |
+| **V8** | Seam 24 live | **PASS** | **47** tickers all-rejected → count form (e.g. ABBV, N=2); **9** with ≥1 confirmed (AMD, CVX, DASH, DE, FTNT, OKTA, OXY, TSM, WFC) → verdict cards; PXD never judged → N=0 plain form |
+| **V9** | steady-lean digest | **NOT EXERCISED** | no `broker_bias_digest` row in `j2_broker_digest_dedup` for 2026-09-11 |
+| **V10** | external pushes + contract | **PASS** | **95** deploys since Thu 21:23 ET; latest pre-window `0c0af484a` 08:38 ET; **zero inside 09:00–16:00 ET at the time of the read**. All six contract values match: `model=claude-opus-4-8[code]`, `cost_hard_cap=$10.0[default]` (unset), `max_per_run=84[env]`, `active_set_only=on:83[resolved]`, `skip_if_stable=on[force_default]`, `confirmed_only=on[api_default]` |
+| **V11** | ledger audit | **PASS** | 0 fictions · 1 known drift (`ALPHA_GOLD_EOD_ENABLED`, another workstream's) · 0 undeclared · 0 pending |
+
+#### ⚠️ Two scoring corrections, both caught the night before
+
+- **V6's expected count was wrong in the directive (22).** The migration adds
+  **FIVE** columns; the prose omitted `hygiene_skipped`. Scored mechanically
+  against 22, a CORRECT migration would have read FAIL.
+- **V4's denominator was a units mismatch.** The directive asked the histogram to
+  sum to `active_set_n` minus drops (82). It sums to **78**, because `asofs`
+  extends a LIST PER TICKER — the histogram is per-CANDIDATE while `active_set_n`
+  is per-TICKER. 78 candidates across 56 tickers. The correct reconciliation is
+  sum == judged + skipped. ⭐ Same units trap as 2026-09-10's `43+40=83` vs
+  `active_set_n=84`.
+
+#### ⛔ THE CLOSING LINE OF THE C FINDING
+
+**Thursday, on the old code, the judge trickled: 43 → 1 → 10 → 2 as partial bars
+arrived through the day. Friday, on the fixed code, it went 78 → 0 → 0.**
+
+That single comparison proves C and 21 TOGETHER, which neither proves alone.
+Thursday's trickle was the judge re-deciding as each ticker's partial bar landed —
+the staggered ingestion that made `bars[-2]` wrong per-ticker. Friday's cliff is
+the evidence bar pinned to the last CLOSED session: at 09:00 all 78 candidates are
+judged against 2026-09-10, and at 10:00 and 11:00 every one of them skips as
+stable because the evidence bar has not moved and cannot move until 09-11 closes.
+Same detector, same universe, same hours — the only change is which bar counts.
+
+### Friday 2026-09-11 — the slot record
+
+⛔ **A LOST SLOT IS A ROW IN THIS TABLE, NOT AN ABSENCE.** A cron hour in 9..16
+that is past with no `vision_slot_log` row is emitted explicitly as LOST with
+whatever cost it orphaned. Rendering only what the table contains would describe
+the day as clean, which is the exact invisibility the table exists to remove.
+
+| Slot | dur | active | judged | skip | evidence min→max (distinct) | paid | spend | stale | no_bars | trunc |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 09:00 | 309.12s | 83 | **78** | 0 | 2026-09-10 → 2026-09-10 (1) | 78 | $1.2188 | 0 | 1 | 0 |
+| 10:00 | 9.96s | 83 | **0** | 78 | 2026-09-10 → 2026-09-10 (1) | 0 | $0.0000 | 0 | 1 | 0 |
+| 11:00 | 9.27s | 83 | **0** | 78 | 2026-09-10 → 2026-09-10 (1) | 0 | $0.0000 | 0 | 1 | 0 |
+| **12:00** | — | — | — | — | **NO ROW — SLOT LOST** | **0** | **$0.0000** | — | — | — |
+| 13:00–16:00 | | | | | *post-close; appended after 16:00* | | | | | |
+
+**Per-hour cost vs verdicts:** 09:00 → 78 cost rows / 78 verdicts ✓ · 10:00 → 0/0 ✓
+· 11:00 → 0/0 ✓ · 12:00 → 0/0. **No hour shows cost > verdicts**, so there is no
+paid-then-aborted slot anywhere in the day.
+
+#### The 12:00 LOST slot — recorded with its cause UNDETERMINED
+
+**Zero orphaned cost**, which is what a killed skip-everything slot and a
+never-fired slot look like identically.
+
+What the evidence supports, stated without inventing a cause:
+
+- The pod ran **continuously 08:40:57 → 12:04:08 ET**. `/api/health` answered from
+  that same pod at **12:03:57** (uptime 12,180s), so the process was alive and
+  serving for the whole four minutes after the slot fired.
+- 10:00 and 11:00 each completed in **~10 seconds** on that same pod and wrote
+  their rows. A 12:00 run of the same shape would have finished by 12:00:10 and
+  written from its `finally`, nearly four minutes before the swap.
+- A deploy (`b9d66e0c3`, authored 12:01 ET) landed at **12:04:08**. It cannot
+  explain a run that should have completed at 12:00:10.
+- ⛔ **NOT attributable to this session.** No push of mine was in flight; my first
+  action of the afternoon was the F4 flip at 12:05:28, after the slot was already
+  missing.
+
+So the honest record is: **LOST, cause undetermined.** Either the job did not fire
+at all, or it died before its first paid call AND before its `finally` — and the
+instrument cannot distinguish those two, which is the same limit that made
+Tuesday's missing 09:00 unresolvable. ⭐ A `finally` does not survive process
+death, and a slot that never fires leaves nothing at all; the append-only cost log
+is the only witness either way, and here it is empty.
+
+⚠️ **Context for the rest of the day:** another workstream shipped *"Deploy B —
+preferences validated server-side; deploy windows retired"* at 12:01 ET. Deploy
+windows being retired elsewhere raises the odds of further in-hours restarts, and
+therefore of further lost slots. That is their call and is recorded here, not
+contested.
+
+### Every open item, closed — dispositions (owner-ruled 2026-09-11)
+
+⛔ **Definition of done for this program: nothing "pending", nothing "awaiting a
+word".** Each item below is CLOSED, SHIPPED, or ASSIGNED TO A NAMED PROGRAM with
+a one-line reason. An item assigned onward is not a loose end; it is a decision
+about where it belongs.
+
+| item | disposition |
+|---|---|
+| **Coverage (23)** | **CLOSED.** Measured on the fixed code, 2026-09-11 09:00: 9 of 78 candidates confirmed (11.5%), 9 of 56 tickers with a candidate (16.1%), **83.9% showing the empty state** — the same band as 09-10's ~80%. Owner ruling: NO further change in any band; the Seam 24 evaluated-count empty state IS the mitigation and it is live. The 09-16 re-read is informational only. |
+| **grade_ticker / verdict levels (11)** | **CLOSED HERE; design question ASSIGNED to a future "verdict levels" program.** Verdicts will NOT carry a fabricated entry/stop derived from a single `key_level` — that is the Seam 23/28 move, and worse here because the invented number would wear a confirmed judge's authority. `GRADE_TICKER_CONFIRMED_SOURCE_ENABLED` stays dark. ⭐ The tripwire is `test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels`, which goes RED the day verdicts gain levels — i.e. exactly when the question becomes live again. |
+| **high_tight_flag (27)** | **CLOSED SCOPE-ONLY; investigation ASSIGNED to a future detector-engine program**, with the gate-chain measurement attached: 3,120 ticker-sessions on 78 qualifying tickers → 23 extractions → `_flag_volume_contracted` takes 23 of 23, the other two gates take none. Ratios 0.612–1.688, continuous, nearest miss 0.612 against a 0.60 ceiling. NOT a defect; no threshold moved. |
+| **Technical Ask AI** | **CLOSED HERE; ASSIGNED to the S7 program.** Not built, and correctly so — the S7 record states *"BLOCKED ON PATTERN VISION ACCEPTANCE. Phase A complete; do not repeat."* `ticker_explain.py` routes eight domains, none technical. `feat/technical-ask-ai` is a spent label already merged. |
+| **The 29 (d)-class reds** | **CLOSED HERE; ASSIGNED to the owning workstreams**, each recorded with its SHA in the baseline table (the `/flow` command workstream `08cadbba9`…`9d38e5d8e`; Notebook Wave P3 `79a16fd35`; screener `93686844d`; `5978e05d2`; `b8c3fdf57`; `b7a0c6f3b`; `159bba4c0`; `ac76a93cf`; `7c1d8eb7b`; `606708703`; `f38363d53`). None was touched: "fixing" another program's in-flight hunk hands them a conflict. |
+| **The judgment-class vitest reds** | ⚠️ **FOUR, not one** — see the note below. Three take the pin-to-current default; `tapFloor` does not. |
+| **`ALPHA_GOLD_EOD_ENABLED` drift** | **CLOSED HERE; ASSIGNED to its workstream.** Recorded with the caveat that governs every such reading: `--kv` reports what a SERVICE IS CONFIGURED WITH, never proof that the RUNNING PROCESS has it. Its ledger note already says it was confirmed `=0` on flow-worker 2026-09-06 and superseded by `CREAM_EOD_ENABLED`. Not touched. |
+| **Tuesday's missing 09:00 slot (18)** | **CLOSED as unresolvable.** Instrument-limited: the slot log did not exist yet, so the evidence that would settle it was never written. UNKNOWN is the honest answer and "we could not know" is a different statement from "nothing happened". |
+| **Community mount (Seam 18)** | **RECORDED, CLOSED.** Already live to members under `COMMUNITY_ENABLED=1`, reached through the `floor2` bundle (`app/floor2.html` + `app/src/floor2/`). "Unmounted from `App.jsx`" was true; "unreleased" was not. |
+
+#### ⚠️ The vitest reds — the directive says one, the evidence says four
+
+Item 15 is characterized in this file (each red run ALONE, which is the only way
+to separate a broken test from a load-sensitive one). Removing the two FIXED
+(`sourcesAreText`, `ImportBox.thinkscript`), the two load-sensitive (b)s
+(`enumerationSites`, `NoteEditorPage.durable`), `reachable.test.js` (closed
+separately as Seam 18) and `pine.blindCorpus.test.js` (`ACCEPTED` 21 vs
+`ACCEPT_FLOOR` 28 — a deliberate quality floor; "fixing" it means making the Pine
+engine accept seven more scripts, which is the renderer program's work and not
+authorized; the corpus is a regression net, never a target) leaves FOUR:
+
+- **`manifestProse.test.js` — PINNED.** Manifest key `_session` is READ but would
+  be stripped: a contract question, not a typo. Pinned to CURRENT behaviour with
+  a comment naming the question and both options. No behaviour change. CLOSED.
+- **`pollingSites.rail.test.js` — PINNED + DOC FIX.** It fails ALONE (1 of 4)
+  while this file AND CLAUDE.md both assert those rails "fire ONLY in the FULL
+  suite". Pinned to current behaviour, and the stale sentence corrected in both
+  places — a documentation fix, not a product change. CLOSED.
+- **`ThemeTrackerPage.chartmount.test.jsx` — PINNED.** Characterized and pinned,
+  same default. CLOSED.
+- **`tapFloor.test.js` — ⛔ THE DEFAULT DOES NOT FIT. LEFT RED, ASSIGNED to the
+  next mobile pass.** `CaptureDialog.module.css` declares the finger target at
+  ≤640px and not at ≤1024px, which is precisely the documented rule *the touch
+  tier is ≤1024, not ≤640 — a floor restored only at ≤640 leaves TABLET broken*.
+  Pinning it to current behaviour would **enshrine as correct a rendering the
+  repo's own rule calls broken**, which is worse than leaving the red: a green
+  test asserting a known defect is a false negative forever, while a red one is
+  a standing reminder. The one-line fix is written and ready; it is withheld only
+  because changing a tablet tap target is member-visible and unparagraphed.
 
 ### Follow-up defects — SCOPED ONLY, NONE AUTHORIZED
 
