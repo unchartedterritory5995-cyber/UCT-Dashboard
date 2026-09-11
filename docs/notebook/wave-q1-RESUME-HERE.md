@@ -1,5 +1,142 @@
 # Wave Q1 — RESUME HERE
 
+# ⛔⛔⛔ START HERE — THIS SESSION CLOSED WITH AN **OPEN DEFECT**
+
+**The self-fork is NOT fixed.** It fired again — **round 3** — against deploy
+**#4c**, on **streak run 1**, door **`folder`**, at **2026-09-11T00:00:56Z**. The
+measurements are in the next section. The owner has ruled: **NO FOURTH FIX
+TONIGHT, NO FLIP.** ⛔ **The gate is NOT closed. The packet is NO-GO.**
+
+⛔ **The next session inherits a PROBLEM, not a hypothesis.** Three steps, in this
+order. Do not reorder them, and do not skip to C.
+
+## A. THE RAIL FIRST — ⛔⛔ NO FIX IS ATTEMPTED UNTIL THE RAIL IS RED
+
+Rebuild the property rail so **every door is driven through the EDITOR'S REAL
+SAVE PATH**: `NoteEditorPage` mounted in jsdom, the **real** autosave, the **real**
+`folder`/`ticker`/`tags` handlers, the **real** drain, and a fake server with CAS
+and revision history.
+
+⛔⛔ **NEVER by calling `settleLandedSave` — or any store helper — directly.**
+That shortcut is exactly what let **#4b and #4c through**: the current rail models
+a door by *calling the helper the door calls*, so it is structurally blind to a
+defect that lives in the **wiring**, or in an **ordering the editor creates**. A
+rail that restates the mechanism cannot fail on the mechanism being wired wrong
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`,
+[[lesson_built_tested_green_and_unreachable]]).
+
+**Reproduce tonight's failure DETERMINISTICALLY through that rail BEFORE touching
+any product code:**
+
+1. the **`folder` door with N queued sends already in flight** — **N = 3 minimum**,
+   sweep **1–5** (3 is what was measured tonight, not a guess);
+2. **reload mid-flight**, same path;
+3. **slow PUT**, same path.
+
+⛔⛔ **IF THE RAIL CANNOT GO RED ON THE CURRENT CODE, IT IS NOT MODELLING THE
+FAILURE, AND NO FIX IS ATTEMPTED.** A green rail over an unfixed defect is how
+this wave has now spent three deploys.
+
+## B. THE DESIGN QUESTION — answered by MEASUREMENT, before a fix
+
+**While the layer is on, does a note have ONE writer to the server, or TWO?**
+Today it has **two**: the editor PUTs, and the drain PUTs.
+
+**Evaluate SINGLE WRITER.** When `offlineEnabled()`, the editor's body autosave
+**and all three metadata doors ENQUEUE**, and **the drain is the only thing that
+PUTs a note** — in queue order, the queue **coalescing per note** (latest body +
+latest metadata, one entry, one baseline).
+
+- **Expected:** the race **DISAPPEARS** rather than being guarded. The in-flight
+  marker, the landed ring, guard 2's two passes and `settleMetadataRevision` all
+  become **unnecessary for correctness**. ⭐ Keep guard 2's **409 self-supersede**
+  as defence in depth.
+- **Cost:** latency-to-server for ONLINE saves now goes through the drain tick —
+  ⛔ **MEASURE IT**, do not estimate it. If it must be immediate, the drain runs a
+  tick on enqueue when online.
+- **Compare against "fix round 3 in place"** on three axes: **orderings the rail
+  covers · mutations needed · lines of coordination code.**
+- **Decide, log, continue.** The decision is a ruling in this file, whichever way
+  it goes.
+
+## C. THEN, IN ORDER
+
+fix → **rail red-to-green** → gauntlet → deploy (**flag false**) → clean the
+preserved evidence → **streak of seven with the doors driven through the REAL
+path** → matrix → packet → **flip on GO** → post-flip §15 → task back to full runs
+→ close.
+
+⭐ **Same charter, same hard stops, same standing deploy/flip authorisation** —
+conditional on the checklist, exactly as before.
+
+---
+
+# ⛔ SELF-FORK, ROUND 3 — **OPEN**
+
+**Streak run 1 against deploy #4c, 2026-09-11T00:00:56Z, door `folder`. THREE H1
+hits in one run. The streak is DEAD AT RUN 1 and restarts from ZERO.**
+
+| # | what fired |
+|---|---|
+| 1 | ⛔⛔ **The server BODY DOES NOT CONTAIN the offline sentence** `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T00:00:56Z` — the queued entry was **DISCARDED, not rebased**. |
+| 2 | ⛔ **A SINGLE-WRITER offline session produced** `WINDOW-CHECK-SENTINEL 2026-09-11T00:00:56Z (conflicted copy)`. |
+| 3 | ⛔ **The note count moved: 34, expected 33** (baseline 32 + this run's one note). |
+
+## ⭐ WHAT #4c DID FIX — say it plainly, it is not a failed deploy
+
+The same log reads:
+
+```
+record holds the sentence: True · draft holds the sentence: True · outbox entries: 1
+```
+
+⭐ **The LOCAL-LOSS half is CLOSED.** Round 2's finding — that the local **record**,
+the **draft** and the **outbox** had all been reconciled to a server revision
+lacking the member's words — **does not reproduce**. What survives is **narrower**:
+the queued entry still reaches the **SERVER** as a discard.
+
+⛔ Do not read this section as "#4c failed". Read it as: #4c closed one half, and
+the other half is still open. Both halves were the same bug report; they were not
+the same defect.
+
+## ⛔ THE TIMELINE — verbatim, and it is the most valuable content in this handoff
+
+```
+00:01:16.638550Z  one CAS PUT (type online)
+00:01:24.671652Z  offline; queued entry captures this baseline
+00:01:37.747261Z  door `folder` PUT 200, baseline moves 00:01:24 → 00:01:37
+                  ⭐ queued sends that beat it: 3
+then              drain settles `dirty 0 · outbox 0` on the door's revision
+                  — sentence never landed
+```
+
+## ⛔ THE OBSERVATION TO CARRY INTO THE NEXT SESSION
+
+**Three sends were already in flight when the door PUT landed**, so **the entry
+that finally settled may not be the one the door invalidated.**
+
+⭐ `settleSent` rebuilds the re-queued intent **from the RECORD** rather than from
+the **patch** — that is the **more likely place the sentence is now being
+dropped**, and it is **untested through the editor's real path**.
+
+⛔ This is a lead, not a diagnosis. **§A above is not optional because of it** —
+the rail goes red first, and the rail is what decides whether this lead is right.
+
+## ⛔ THE EVIDENCE IS PRESERVED AND UNCLEANED
+
+| what | id |
+|---|---|
+| the run's note | `0910373ae0e84b758c39f4a13c33e5fe` |
+| its conflicted copy | the `(conflicted copy)` beside it, same instant |
+
+⛔⛔ **THE ACCOUNT READS 34 LIVE NOTES, AND THAT IS CORRECT AND INTENTIONAL.**
+**32** baseline **+ 1** this run's note **+ 1** its conflicted copy = **34**.
+⛔ **Nobody "fixes" this count.** The expected number was 33; the extra one **is
+the defect**, standing where it fell. Deleting it deletes the evidence (**R-Z**,
+**R-X**).
+
+---
+
 # ⛔⛔⛔ HARD STOP #2 — 2026-09-10 — **THE MEMBER'S WORDS WERE LOST**
 
 **Read this first. It is worse than HARD STOP #1 below, and it is a different
@@ -12,9 +149,11 @@ minutes after deploy #4b went live** — two hard stops fired in a single run:
   rebased.** The queued entry was deleted with the words **unsent**.
 - ⛔ **SINGLE-WRITER FORK.** A new `(conflicted copy)` at the same instant.
 
-**The streak is DEAD AT RUN 1 and restarts from ZERO.** ⛔ The fix is committed
-(`998f802ae`) and **NOT DEPLOYED** — deploy #4c's checklist is running. There is
-no #4c record in this file and there must not be one until it lands.
+**The streak is DEAD AT RUN 1 and restarts from ZERO.** ✅ The fix shipped as
+**deploy #4c** (`6db8ba93a`, live 2026-09-10T23:28:42Z) and its record is below.
+⚠️ **It closed the LOCAL-LOSS half, and the defect is still OPEN:** the queued
+entry still reaches the SERVER as a discard via the `folder` door. ⛔ Read
+**SELF-FORK, ROUND 3** at the top of this file before anything here.
 
 ## ⭐ The step that caught it was written that hour — and its neighbour was GREEN
 
@@ -59,7 +198,7 @@ rail, because every rail supplies local state.
 never *"do we believe the server has it?"* but *"can we prove it?"*. Absence of
 proof resolves to **keep**, always.
 
-## The fix — `998f802ae`, ⛔ NOT DEPLOYED
+## The fix — `998f802ae`, ✅ SHIPPED AS #4c — ⚠️ it NARROWED the defect, it did not close it
 
 **FIX 1 — null local state is NO EVIDENCE, not caught-up.** Refuse to settle. The
 entry stays queued, drains, and guard 2 rebases it. In the code:
@@ -115,10 +254,10 @@ property.**
 | | |
 |---|---|
 | Deploys #4 and #4b | ✅ still live, still flag-false. ⚠️ **#4b's round-2 fix was not the whole answer** — the metadata doors could discard queued words. |
-| Deploy #4c | ✅ **LIVE** — `6db8ba93a`, 2026-09-10T23:28:42Z. The four-door / content-decides fix. Flag unchanged. Record below. |
+| Deploy #4c | ✅ **LIVE** — `6db8ba93a`, 2026-09-10T23:28:42Z. Flag unchanged. ⚠️ **AMENDED:** it closed the **local-loss half**; the queued entry still reaches the server as a **discard** via the `folder` door — see **round 3**. |
 | The flag flip | ⛔⛔ **BLOCKED**, and now on a defect that LOST DATA rather than duplicated it. |
-| The seven-run streak | ⛔ **DEAD AT RUN 1.** Restarts from zero, against #4c. |
-| Preserved artifacts | ⛔ **TWO forks** — 16:54:50Z (a DUPLICATE) and 20:57:31Z (**a LOSS**). Their CONTENT is now recorded verbatim — see 🧾🔬 **THE PRESERVED FORKS** at the top, which is what releases the clean. Live notes: **35** (**R-Y**). |
+| The seven-run streak | ⛔ **DEAD AT RUN 1 AGAIN** — 2026-09-11T00:00:56Z, against **#4c**. Restarts from zero, and ⛔ the next attempt only counts if the doors are driven through the **editor's real save path** (**§A**). |
+| Preserved artifacts | The two earlier forks' CONTENT is recorded verbatim (🧾🔬 **THE PRESERVED FORKS**) and that RELEASED their clean. ⛔ **Round 3's evidence is preserved and UNCLEANED**: `0910373ae0e84b758c39f4a13c33e5fe` + its conflicted copy. ⛔⛔ **Live notes: 34 — CORRECT AND INTENTIONAL** (32 + 1 + 1). Nobody fixes that count. |
 | Any "server holds text" check | ⚰️ **DELETED, not weakened** — see **R-O** and the annotation under PART A. |
 
 ---
@@ -196,9 +335,10 @@ is a claim that Wave Q1 is finished. It exists so that closing is an act of
 **dating a prepared statement**, not of writing one under time pressure — which is
 how the two hard stops above got their first, wrong write-ups.
 
-⛔ **What is deliberately NOT here:** a deploy #4c or #5 record (their checklists
-have not run), a branch tip, and a date on the CLOSED line. **Tip-stamp is LAST**,
-after the flip is confirmed.
+⛔ **What is deliberately NOT here:** a **#5** record (its checklist has not run)
+and **a date on the CLOSED line**. The **#4c** record IS here — it landed.
+⛔⛔ **THE GATE IS NOT CLOSED AND THE PACKET IS NO-GO** — packet row:
+**"self-fork round 3 OPEN"**. **Tip-stamp is LAST.**
 
 ## ⛔⛔ THE INVARIANT — corrected, and the one sentence the wave answers to
 
@@ -259,7 +399,7 @@ sequences two writers is a race with a name.
 | **#3** | the opt-in denominator + `window_check.py` (`7ed6b2ce5`) | ✅ live |
 | **#4** | the self-fork fix, round 1 (`f093bf731`) | ✅ live — ⚠️ **narrowed, did not close** |
 | **#4b** | the self-fork fix, round 2 (`23f6ce271`) | ✅ live — ⚠️ **the metadata doors could still discard queued words** |
-| **#4c** | the four-door / content-decides fix (`6db8ba93a`) | ✅ live 2026-09-10T23:28:42Z — ⭐ **every check on ONE SHA**, so no honesty note was needed |
+| **#4c** | the four-door / content-decides fix (`6db8ba93a`) | ✅ live 2026-09-10T23:28:42Z — ⭐ **every check on ONE SHA**. ⚠️ **AMENDED:** closed the local-loss half; the queued entry still reaches the server as a discard via the `folder` door — see **round 3** |
 | **#5** | ⛔ **the flag flip** — `OFFLINE_DEFAULT_ON = false → true` | ⛔ **NOT DEPLOYED, and BLOCKED.** `<record to be written when it lands>` |
 
 ⛔ **Each record carries its own checklist as checked AT PUSH TIME**, its
@@ -279,7 +419,8 @@ record into this table; the table is an index.
 | Harness integrity — identity, ports, controls | `docs/notebook/wave-q1-harness-integrity.md` |
 | The observation window's own record | `docs/notebook/wave-q1-observation-window.md` |
 | The 18 GB runaway backend pytest (**another session's process**, recorded so its evidence is not lost) | `docs/notebook/runaway-pytest-2026-09-10.md` |
-| ⛔ **The preserved forks** — their CONTENT, verbatim (ids, bodies, timestamps, tags) | 🧾🔬 **THE PRESERVED FORKS** at the top of this file. ⛔ **This record REPLACES the artifacts** once they are cleaned. Live notes **35** (**R-Y**); the capture is `.worktrees/q1-dry-run/fork-capture-20260910T233538Z.json`. |
+| ⛔ **The preserved forks (rounds 1-2)** — their CONTENT, verbatim (ids, bodies, timestamps, tags) | 🧾🔬 **THE PRESERVED FORKS** at the top of this file. ⛔ **This record REPLACES the artifacts**, and it is what released their clean; the capture is `.worktrees/q1-dry-run/fork-capture-20260910T233538Z.json`. |
+| ⛔ **Round 3's artifacts — PRESERVED AND UNCLEANED** | Live in the account: `0910373ae0e84b758c39f4a13c33e5fe` + its `(conflicted copy)`. ⛔⛔ **Live notes = 34, CORRECT AND INTENTIONAL** (32 baseline + 1 + 1). **Nobody fixes that count** — the extra note IS the defect, standing where it fell. |
 
 ⭐ **Instruments, not prose:** `tools/window_check.py` (one command = one stamped
 row) · `tools/engine_matrix.py` · `tools/deploy_scope_gate.py` +
@@ -291,21 +432,33 @@ row) · `tools/engine_matrix.py` · `tools/deploy_scope_gate.py` +
 
 - 🔙 **ROLLBACK RUNBOOK** — its own standalone section in this file. ⛔ Not
   indicated by either hard stop; every shipped deploy stays.
-- 🧾 **RULINGS** — `R1`–`R16` (the deploy-#4 round) and **ROUND-2 RULINGS**
-  `R-A`–`R-R`. Complete as of this writing; **R-P/R-Q/R-R are about the machine,
-  and R-Q/R-R also bind through the `uct-conventions` skill.**
+- 🧾 **RULINGS** — `R1`–`R16` (the deploy-#4 round) and the lettered strand
+  `R-A`–`R-R` plus `R-X`–`R-Z`. ⭐ **Complete through the end of this session.**
+  ⚠️ `R-S`–`R-W` are other streams' and are deliberately absent — ⛔ do not
+  renumber. **R-P/R-Q/R-R are about the machine, and R-Q/R-R also bind through
+  the `uct-conventions` skill.**
 - 📄 The runaway-pytest record is **standalone and owns its own measurements** —
   cross-referenced from **R-P**, never duplicated.
+- ❄️ **THE FREEZE IS RELEASED AND NONE IS OUTSTANDING.** Requested ~**22:5x Z**,
+  **RELEASED 23:29Z**, held ~**35 minutes**, **one push** inside it (#4c). ⛔ A
+  freeze that is released is stated as released; the next session starts with the
+  machine free (**R-P**).
 
 ## ⛔ THE GATE — the line, ready to date
 
 > **WAVE Q1 CERTIFICATION GATE: CLOSED — `<DATE>`.**
 
+⛔⛔ **THE LINE ABOVE IS STILL UNDATED, AND THAT IS THE STATE, NOT AN OVERSIGHT.**
+As of the end of this session: **the gate is NOT CLOSED**, and **the decision
+packet is NO-GO** — packet row: **"self-fork round 3 OPEN"**. ⛔ Do not date the
+line; do not soften the packet row.
+
 ⛔⛔ **DO NOT DATE THIS LINE UNTIL ALL OF THE FOLLOWING ARE TRUE**, and each is a
 measurement, not a judgement:
 
-1. **Deploy #4c is LIVE**, with its record written and its checklist recorded as
-   checked at push time.
+1. ✅ **Deploy #4c is LIVE**, with its record written and its checklist recorded
+   as checked at push time. ⚠️ **Satisfied, and it did NOT advance the gate** —
+   see condition 8.
 2. **SEVEN CONSECUTIVE GREEN RUNS** against the deployed #4c — ⛔ **restarting from
    ZERO**, not resumed from 3 or 1, and ⛔ **every run's STARTING STATE recorded,
    not only its verdict** (**R16**).
@@ -319,6 +472,13 @@ measurement, not a judgement:
    — ⛔ never quietly, and never as tidying.
 7. ⛔ **journal-2-0 and the full suite reported as TWO SEPARATE NUMBERS.** There is
    no repo-green to claim, and closing does not create one.
+8. ⛔⛔ **SELF-FORK ROUND 3 IS CLOSED — by a RAIL THAT WENT RED FIRST.** The rail
+   drives every door through the **editor's real save path** (**§A** at the top),
+   reproduces the folder door with **3 queued sends in flight** plus reload-mid-
+   flight and slow-PUT, and **went red on the pre-fix code** before any fix was
+   written. ⛔ A fix whose rail was only ever green does not satisfy this.
+   **And the ONE-WRITER question (§B) is answered by measurement and logged**,
+   whichever way it is decided.
 
 ⭐ **Tip-stamp is the LAST act, after the flip is confirmed** — a doc cannot name
 its own SHA, and a tip stamped before the final commit is wrong the moment it is
@@ -1766,6 +1926,15 @@ by construction. ⛔ **Read the count from the capture.** Every number in this
 paragraph will be wrong the moment the preserved artifacts are cleaned, and the
 correct response then is to re-derive it, not to edit it to taste.
 
+> ⚰️ **ANNOTATION, 2026-09-11 — and this ruling predicted its own annotation.**
+> The artifacts were cleaned, and the count is now **34 = 32 baseline + round 3's
+> note (`0910373ae0e84b758c39f4a13c33e5fe`) + its conflicted copy**. The sequence
+> is now **33 → 34 → 35 → 34**, which is the fourth different answer in one day.
+> ⛔ **The NUMBER in the heading above is a measurement at an instant; the RULE is
+> the durable part.** It is re-derived here rather than edited there, exactly as
+> the paragraph above instructs — and **34 is CORRECT AND INTENTIONAL**, not a
+> count to be tidied back to 33.
+
 ## R-Z — absence of evidence resolves to KEEP, never to discard
 
 **Attributed to `patrick-c7`.**
@@ -1926,6 +2095,16 @@ for members" one) and the post-flip §15 canary are in **🔀 THE FLIP ITSELF** 
 ⚠️ **`R-W` is the freeze/release ruling and its text is NOT in this file** — it
 belongs to the coordinator. ⛔ Recorded here as a pointer, not paraphrased: a
 citation this file cannot quote is struck, not softened.
+
+> ⚠️ **AMENDMENT, 2026-09-11 — the record above stands exactly as written; this
+> line is ADDED to it, nothing in it is rewritten.**
+> **closed the local-loss half; the queued entry still reaches the server as a
+> discard via the folder door — see round 3.**
+>
+> ⭐ This is an amendment and not a retraction on purpose: **#4c is a correct
+> deploy that closed one half of the bug report.** The log from round 3 proves it
+> — `record holds the sentence: True · draft holds the sentence: True`. What it
+> did not close is the SERVER side.
 
 ## Verified on the LIVE BUNDLE — 14/14 PASS
 
@@ -4779,24 +4958,53 @@ docs/notebook/wave-q1-*.md                 certification · canary-red · harnes
 docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 ```
 
-**Sections in this file worth knowing by name:** ⛔⛔⛔ **HARD STOP #2** (read it
-FIRST — the member's words were LOST; the fix is committed, ⛔ NOT deployed) ·
-🏁 **THE CLOSE — PREPARED, NOT PUBLISHED** (the end state, undated on purpose) ·
+**Sections in this file worth knowing by name:** ⛔⛔⛔ **START HERE** (the FIRST
+section — the defect is OPEN, and §A/§B/§C are what the next session does, in
+order) · ⛔ **SELF-FORK, ROUND 3 — OPEN** (the measurements, the verbatim
+timeline, and the `settleSent` lead) · ⛔⛔⛔ **HARD STOP #2** (the member's words
+were LOST; its fix shipped as **#4c** and closed only the local half) ·
+🏁 **THE CLOSE — PREPARED, NOT PUBLISHED** (⛔ gate NOT closed, packet NO-GO) ·
 ⛔⛔ **HARD STOP #1** (the self-fork reproduced after #4) · 🔧 **ROUND 2 — THE
 FINAL DESIGN (R-A)** (shipped as **#4b**, and #4b was not the end) · ⛔ **DEPLOY
-#5** and ⛔ **DEPLOY #4c** (placeholders — neither deployed) · ✅✅ **DEPLOY #4b**
-then ✅✅ **DEPLOY #4** (⚠️ both annotated, neither rewritten) · 🧾 **RULINGS**
+#5** (the flip — the one real placeholder left) · ✅✅ **DEPLOY #4c** then
+✅✅ **DEPLOY #4b** then ✅✅ **DEPLOY #4** (⚠️ all three annotated, none
+rewritten) · 🧾 **RULINGS**
 R1–R16 and 🧾 **ROUND-2 RULINGS** R-A…R-R + R-X…R-Z (⚠️ R-S…R-W are other streams') ·
-🧾🔬 **THE PRESERVED FORKS** (the evidence set that replaces the artifacts) ·
+🧾🔬 **THE PRESERVED FORKS** (the evidence set that replaced the rounds-1-2 artifacts) ·
 ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
 ⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not
 indicated — every shipped deploy stays).
 📄 **Standalone records:** `docs/notebook/inherited-red-ledger.md` ·
 `docs/notebook/runaway-pytest-2026-09-10.md` (**R-P**) ·
 `docs/notebook/wave-q1-browser-certification.md` + `wave-q1-probe-results/`.
-⛔ **Live notes: 35** (**R-Y**) — 32 baseline + 3 canary artifacts. ⛔ **DERIVE it from
-the capture, never from a sentence**; it has moved 33 → 34 → 35.
+⛔ **Live notes: 34 — CORRECT AND INTENTIONAL** (32 baseline + round 3's note
+`0910373ae0e84b758c39f4a13c33e5fe` + its conflicted copy). ⛔⛔ **Nobody fixes
+this count**; the extra note IS the defect. ⛔ **DERIVE it, never restate it**
+(**R-Y**) — it has now read 33 → 34 → 35 → 34 inside one day.
 ⛔ **"Server holds text" is DELETED everywhere** (**R-O**) — the check is *the
 server BODY CONTAINS THE OFFLINE SENTENCE*.
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
+
+---
+
+## 🕒 TIP STAMP — 2026-09-11, and it stamps an **OPEN DEFECT**
+
+⛔⛔ **THIS IS NOT THE CLOSE-OF-WAVE STAMP.** The wave did not close. This stamps
+the end of a working session that finished with **the self-fork OPEN (round 3)**,
+the **gate NOT closed**, the **packet NO-GO**, and the **flip BLOCKED**. Read it
+as a bookmark, never as completion.
+
+| | |
+|---|---|
+| content tip at session close | **`fa64821a4`** — *"Wave Q1: the session closes with the self-fork OPEN — round 3"* (this stamp is the commit immediately after it; a doc cannot name its own SHA) |
+| branch | `notebook-primary-platform` — ⛔ the coordinator pushes; this worktree does not |
+| shipped and LIVE | #1 `cd674ef56` · #2 `eedb58ac8` · #3 `7ed6b2ce5` · #4 `f093bf731` · #4b `23f6ce271` · #4c `6db8ba93a` |
+| `OFFLINE_DEFAULT_ON` | **`false`** — branch and `master`. Members are unaffected by the open defect. |
+| what is open | the queued entry still reaches the **server** as a discard via the `folder` door (**SELF-FORK, ROUND 3**) |
+| what to do next | **START HERE → §A, §B, §C**, in that order |
+| live notes | **34 — correct and intentional.** ⛔ Do not tidy it. |
+
+⭐ **The deploy-#5 stamp is still owed**, and it is the one that dates the gate.
+This stamp exists so the next session can tell a *paused* wave from a *finished*
+one — the distinction the two hard stops kept losing.
