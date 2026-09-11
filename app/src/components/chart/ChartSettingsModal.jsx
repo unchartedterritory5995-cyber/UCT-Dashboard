@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
@@ -166,6 +166,42 @@ const LEGEND_LAYOUTS = [
 // refuses a second export — correctly: a shared helper here would break fast
 // refresh for the whole modal. The modal is the only reader; the WRITERS just
 // build the string, which is why the prefix is spelled in the JSDoc above.
+/** `userDefs`' empty value. A STABLE identity, and that is load-bearing: SWR
+ *  answers `[]` as a fresh array on every render until data lands, so a feed that
+ *  compared by identity alone would set state forever. See `sameFeed`. */
+const NO_USER_DEFS = Object.freeze({ rows: Object.freeze([]), errors: Object.freeze([]) })
+
+/** Two lists are "the same answer" when they are the same object OR both empty. */
+const sameList = (a, b) => a === b
+  || (Array.isArray(a) && Array.isArray(b) && a.length === 0 && b.length === 0)
+
+/**
+ * The member's own formulas, subscribed and handed up. Renders NOTHING.
+ *
+ * ⭐ IT EXISTS TO BE UNMOUNTABLE. React has no conditional hooks, so "subscribe
+ * only while the modal is open" cannot be expressed in the modal's own body — it
+ * has to be a child that the open branch renders and the closed branch does not.
+ * See the block at `userDefs` for what running these while closed actually cost.
+ *
+ * ⛔ THE ORDER OF THE TWO CALLS IS LOAD-BEARING, and is copied from
+ * `IndicatorLibraryDialog`. `useInstalledUserDefinitions` performs the install
+ * DURING RENDER, so a registry read taken before it is the value from before.
+ * Two hooks, ONE request — both hand SWR the same key, so the second is deduped
+ * into the first, and the install is idempotent by `installKey`.
+ *
+ * ⚠️ THE PARENT LEARNS ONE FRAME LATER THAN IT USED TO, and that is the whole
+ * price. A child renders after its parent, so on the paint where SWR's data lands
+ * the parent's `indRows` is still the pre-install list; `onLoaded` then sets state
+ * and the next paint reads the installed registry. The alternative — keeping the
+ * hooks in the parent — is what cost a subscription on every closed modal.
+ */
+function UserFormulaFeed({ onLoaded }) {
+  const { rows } = useUserDefinitions()
+  const { errors } = useInstalledUserDefinitions()
+  useEffect(() => { onLoaded(rows, errors) }, [rows, errors, onLoaded])
+  return null
+}
+
 const IND_TARGET_PREFIX = 'ind:'
 
 /** The LEGEND's spelling for a moving-average row. Its own vocabulary — see
@@ -273,26 +309,48 @@ export default function ChartSettingsModal({
     else onChange?.(applyThemeToSettings(settings, themeWithAppSurface(theme)))
   }
 
-  // ─── THE MEMBER'S OWN FORMULAS, SUBSCRIBED **HERE** ───────────────────────
+  // ─── THE MEMBER'S OWN FORMULAS, SUBSCRIBED FROM A CHILD ───────────────────
   //
-  // ⛔⛔ AND NOT ONLY IN THE TAB, WHICH IS THE WHOLE REASON THE HOOKS ARE UP HERE.
-  // `indRows` is computed by THIS component, from a registry the tab does not
-  // touch — so a member's formulas arriving from SWR after first paint have to
-  // re-render THIS one or the row list stays the one built while the registry was
-  // still empty, and the tab below re-renders alone with nothing new to show.
-  // That is the "installed, drawing, and on no settings screen" defect one level
-  // up from the one `IndicatorLibraryDialog` fixed in its own catalogue memo.
+  // ⛔⛔ THE SUBSCRIPTION IS STILL THE MODAL'S, BUT IT NO LONGER RUNS WHILE THE
+  // MODAL IS CLOSED. `indRows` is computed by THIS component, from a registry the
+  // tab does not touch — so a member's formulas arriving from SWR after first
+  // paint have to re-render THIS one or the row list stays the one built while the
+  // registry was still empty. That reason is unchanged; what changed is WHERE the
+  // hooks live.
   //
-  // ⛔ THE ORDER OF THE TWO CALLS IS LOAD-BEARING AND IS COPIED FROM THAT DIALOG.
-  // `useInstalledUserDefinitions` performs the install DURING RENDER, so its
-  // `generation` is the value AFTER this render's install; a registry read taken
-  // before it is the value from before. Two hooks, ONE request — both hand SWR the
-  // same key, so the second is deduped into the first, and the install is
-  // idempotent by `installKey`.
+  // ⚰️ THEY WERE CALLED DIRECTLY IN THIS BODY, above `if (!open) return null` —
+  // and a closed modal still runs its body. Every chart mounts this component,
+  // open or not, so every chart in a nine-cell grid was subscribing to the
+  // member's formulas for a panel nobody had opened. Before the consolidation
+  // these hooks lived in `IndicatorLibraryDialog`, which only MOUNTED when the
+  // library was open; moving them here quietly widened them to every chart.
   //
-  // ⚠️ ABOVE `if (!open) return null`, like every other hook in this file.
-  const { rows: userDefRows } = useUserDefinitions()
-  const { errors: userDefErrors } = useInstalledUserDefinitions()
+  // ⛔ AND IT BROKE TWO PAGES IN ANOTHER WORKSTREAM. `useUserDefinitions` reads
+  // `useContext(AuthContext)` directly (deliberately — `useAuth` throws outside a
+  // provider and a chart renders in surfaces that mount none). Two journal pages
+  // mount a real `ChartPane`, and their `vi.mock` of that module omits the context
+  // OBJECT; vitest THROWS on a missing named export rather than returning
+  // undefined, so the whole page rendered blank and 39 assertions failed three
+  // components from the cause. Completing those mocks would have been an edit to
+  // files the Notebook workstream owns — `hub/rule12Paths.test.js` refuses it, and
+  // it is right to: the defect is HERE, in a chart component that had no business
+  // subscribing while closed.
+  //
+  // ⭐ SO `UserFormulaFeed` MOUNTS INSIDE THE OPEN BRANCH and lifts what it finds.
+  // A closed modal now runs no formula hooks at all, touches no auth context, and
+  // costs no SWR subscription — which is what it did before this tab existed.
+  const [userDefs, setUserDefs] = useState(NO_USER_DEFS)
+  const { rows: userDefRows, errors: userDefErrors } = userDefs
+  // ⚠️ THE GUARD IS NOT AN OPTIMISATION, IT IS WHAT STOPS AN INFINITE LOOP. SWR
+  // hands back a FRESH `[]` on every render until data arrives, so a plain
+  // `setUserDefs({rows, errors})` would change identity every time, re-render,
+  // re-fire the child's effect, and never settle. `sameList` treats two empty
+  // lists as one answer; once data lands, SWR's own object identity is stable.
+  const onUserDefsLoaded = useCallback((rows, errors) => {
+    setUserDefs((prev) => (sameList(prev.rows, rows) && sameList(prev.errors, errors)
+      ? prev
+      : { rows, errors }))
+  }, [])
 
   // ── Settings templates (save the whole look, reuse on any tab) ──────────────
   const { prefs, setPref } = usePreferences()
@@ -722,6 +780,14 @@ export default function ChartSettingsModal({
 
   return (
     <>
+      {/* ⭐ THE FORMULA SUBSCRIPTION, MOUNTED BY THE OPEN BRANCH AND ONLY BY IT.
+          Below `if (!open) return null`, so a closed modal renders it not at all
+          and runs none of its hooks — see the `userDefs` block for the two things
+          that cost when these were called in this component's own body.
+          ⚠️ OUTSIDE THE PORTAL AND OUTSIDE THE TAB SWITCH, deliberately: `indRows`
+          is read by the colour panel and the row writers too, not only by the
+          Indicators tab, so the feed must not be gated on which tab is active. */}
+      <UserFormulaFeed onLoaded={onUserDefsLoaded} />
       {createPortal(
         <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="Chart settings">
       <div
