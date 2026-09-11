@@ -8,6 +8,23 @@ every rule below was learned by losing time to it.
 
 ## ⛔⛔ NEVER ADD A STUDY WHILE THE TAB IS HIDDEN
 
+> ### ⭐⭐ THE ONE-LINE PRE-FLIGHT — run it before planning any visit that ADDS
+>
+> ```js
+> ({ vis: document.visibilityState, w: window.innerWidth, h: window.innerHeight })
+> ```
+>
+> **2026-09-11: this returned `{vis: 'hidden', w: 0, h: 0}`** — every dimension
+> zero, `screen.width` included, because the Chrome window was MINIMISED. Reads all
+> worked (V4, and the timeline row that turned out to be the one the barstate ruling
+> was waiting for); the add route was simply unavailable, and no amount of retrying
+> was going to change that.
+>
+> ⛔ **A minimised window cannot be un-minimised from page context**, and
+> `takeScreenshot` fails with *"Cannot take screenshot with 0 width"* rather than
+> anything that names the cause. Check this FIRST and plan the visit around the
+> answer: a hidden tab is a READ-ONLY visit, and that is still a useful visit.
+
 **If you did: `chartWidget._adjustSize()` rebuilds the pane widgets. Remove-and-re-add does
 NOT.**
 

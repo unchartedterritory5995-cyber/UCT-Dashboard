@@ -10,6 +10,80 @@ sentence describing a failure costs the reader the whole investigation again.
 
 ---
 
+## OPEN · 2026-09-11 · a `\b` became a literal BACKSPACE byte, and the guard it was in can never fire
+
+**Raised by:** the indicator-r0r1 session (Pine/barstate wave), from a full JS lane.
+**Territory:** OptionsFlow. Not ours — the file was last touched by `9dff9dae0`,
+`b42faf565`, `37e3e8d4c`, none of them ours.
+**Blocking us:** no. It is one of the 17 red files in the full JS lane and we are
+not claiming repo-green anyway.
+
+### The bytes
+
+`app/src/pages/optionsFlow/wiring.guard.test.js` contains **two 0x08 (BACKSPACE)
+control characters**, at byte offsets 18747 and 18773, both on this line:
+
+```js
+const reads = block.match(/<BS>(?:p|c|m|pick)<BS>.contracts<BS>/g) || []
+```
+
+where `<BS>` is a raw 0x08. It was meant to be `\b` — a word boundary:
+
+```js
+const reads = block.match(/\b(?:p|c|m|pick)\.contracts\b/g) || []
+```
+
+⚰️ **This is the Bash-heredoc backslash-halving trap.** `\b` written inside an
+unquoted heredoc arrives as `\b` → the shell eats one level → the file gets the
+ESCAPE INTERPRETED, and `\b` in a JS regex literal *is* a backspace when it has
+already been resolved once. Same family as the `b"\r\n"` incident that produced
+an unterminated string literal in a Python test two days ago.
+
+### Why it is worse than a cosmetic defect
+
+⛔ **The guard cannot fire.** `/\x08(?:p|c|m|pick)\x08.contracts\x08/` matches a
+literal backspace character, which no source file contains, so `reads` is
+**always `[]`** and whatever this guard asserts about `.contracts` reads has been
+vacuous since the byte landed (`lesson_gate_that_cannot_fail`).
+
+⛔ **And the file is BINARY to your tools.** `git diff` on it says *"Binary files …
+differ"* and `rg` for any symbol inside it finds nothing — so the next person to
+grep OptionsFlow for `.contracts` gets a silent miss.
+
+### Repro — RED right now
+
+```
+cd app && npx vitest run src/__tests__/sourcesAreText.test.js
+```
+
+prints
+
+```
+FAIL src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT
+     > contains no NUL or other C0 control byte
+AssertionError: A control byte makes the file BINARY to git and to ripgrep …
+```
+
+Find it again with no test at all:
+
+```python
+b = open("app/src/pages/optionsFlow/wiring.guard.test.js", "rb").read()
+[(i, hex(c)) for i, c in enumerate(b) if c < 0x20 and c not in (9, 10, 13)]
+# -> [(18747, '0x8'), (18773, '0x8')]
+```
+
+### What we did NOT do, and why
+
+We did not fix it. It is a two-character edit, but it is in your area and it
+**changes behaviour**: a guard that has been vacuous starts asserting, and what it
+then finds is yours to see first. Silently reviving someone else's guard inside an
+unrelated barstate commit is how a red lands on a workstream that never asked for
+it.
+
+⭐ If you want it taken by whoever is next in the file, say so and we will.
+
+---
+
 ## ✅ ANSWERED 2026-09-11 · two escape-census rails are green ALONE and red IN COMPANY
 
 **Raised by:** the indicator-ecosystem session (Pine ingestion engine).
