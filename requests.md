@@ -81,7 +81,7 @@ nobody owns.
 
 ---
 
-## For `worktree-indicator-ecosystem` — `test_definition_concierge` is red on your own tip
+## ✅ SUPERSEDED 2026-09-11 by `a835b0ade` — `test_definition_concierge` is red on your own tip
 
 Measured 2026-09-09 by checking out `35ba654da` clean and running the file there:
 **2 failed, 89 passed** — `test_the_tool_schema_has_no_dangling_node_reference` and
@@ -100,6 +100,35 @@ to catch.
 guessing which of the two remedies you want — describe them, or declare them omitted —
 would put a second opinion on a decision that is yours. The merge carries it forward
 unchanged and this note is the routing.
+
+> ### ✅ SUPERSEDED — the owner ruled, and the answer was neither remedy alone
+>
+> **`a835b0ade` (2026-09-11), under owner RULING D.** The two remedies this note
+> offered were *describe them* or *declare them omitted*. The ruling took the first
+> — **Kind 4 is member-reachable**, so hiding the trio would refuse a question the
+> table supports — but the schema needed a THIRD category to do it honestly:
+>
+> * `textop` is **described and offered**: it sits wherever a number sits.
+> * `str` and `symtext` are **described but operand-only** (`_OPERAND_ONLY`): they
+>   are defined in `$defs` and reachable through `textop.args`, and excluded from
+>   the top-level `node` union, because `closedTable.json` says they *"may appear
+>   NOWHERE except directly under a `textop`"*. ⚠️ Putting them in
+>   `CONCIERGE_OMITS` instead — the remedy as literally offered — would have left
+>   `textop`'s own `args` pointing at two definitions the schema had just removed:
+>   the dangling `$ref` this block exists to prevent, reintroduced by the fix for it.
+>
+> ⚠️ The member-facing WORDING is marked *"drafted autonomously 2026-09-11, product
+> review pending"* in `definition_concierge.py`. It is drafted from each type's
+> evaluation semantics in `ast_bind`, not invented — but what a member reads is
+> still yours to approve.
+>
+> ⭐ **And the diagnosis in this note was right and incomplete in the same way.** It
+> named `definition_concierge` as the artifact left behind. Four others were:
+> `ast_lint._CANONICAL_TYPES`, `ast_freshness._CANONICAL_TYPES`,
+> `scan_definition`'s branch arms, and — the one with **no rail at all** —
+> `compute_graph.CANONICAL_KEYS`. All are fixed in the same commit, and
+> `tests/test_node_vocabulary_parity.py` now FINDS copies of the vocabulary by AST
+> walk instead of listing them, so the next one is covered the day it lands.
 
 ⚠️ Also worth knowing: your worktree's `app/node_modules` is what
 `uct-worktrees/indicator-r0r1` (and, through it, a temporary merge probe) symlinks to,
