@@ -573,6 +573,67 @@ export class TableRefusal extends Error {
   }
 }
 
+/** ⭐⭐ IS THIS THROW A REFUSAL? The discriminator is `guard`, not the class.
+ *
+ *  ⛔ THERE ARE **SEVEN** REFUSAL CLASSES IN THIS ENGINE, measured 2026-09-11:
+ *  `TableRefusal` TWICE (this module's and `interpret.js`'s, different classes
+ *  under one name), `PcfRefusal`, `PineRefusal`, `RuntimeRefusal`,
+ *  `SentenceRefusal`, `ThinkScriptRefusal`. Each sets its own `name` and every one
+ *  of them carries a string `guard`. The split is deliberate — a census
+ *  recognises a refusal BY TYPE, so one shared class would let a `canonicalise`
+ *  guard's deletion be covered by an `interpret` guard's test.
+ *
+ *  ⚰️ THAT IS THE RIGHT RULE FOR A TEST AND THE WRONG ONE AT A CATCH SITE, which
+ *  does not know which door threw. `err instanceof TableRefusal` is false for six
+ *  of the seven, so a real refusal from `sentence` or `pine` would be relabelled
+ *  as this door's guard — this ruling's defect, one class identity along. Caught
+ *  by this file's own rail: `evaluateFormula('close * nosuchinput')` lost its
+ *  `sentence:name` the moment `isRefusal` tested the name instead of the field.
+ *
+ *  ⭐ SO THE FIELD IS THE CONTRACT. A refusal is an Error that NAMES A GUARD;
+ *  a `RangeError` or a `TypeError` has none, which is exactly the distinction.
+ *  ⚠️ `bind.js::NotFoldable` carries `what` and no guard — verified — so it
+ *  correctly reads as not-a-refusal.
+ */
+export function isRefusal(err) {
+  return err instanceof Error
+    && typeof err.guard === 'string' && err.guard.length > 0
+}
+
+/** The status a throw that is NOT a refusal comes back as. It is not a guard,
+ *  it has no guard, and nothing may count it as "refused". */
+export const ENGINE_ERROR = 'engine-error'
+
+/** ⭐ GUARDS WHOSE SENTENCE IS NOT OURS TO WRITE.
+ *
+ *  `parser` carries jsep's own syntax error VERBATIM — the character offset is
+ *  the part the text box needs — so it is a real guard name with no entry in any
+ *  `REFUSALS` table. Declared here so the registry rail can tell "deliberately
+ *  messageless" apart from "never registered", which is the whole difference
+ *  between a designed guard and a typo. */
+export const MESSAGELESS_GUARDS = Object.freeze(['parser'])
+
+/** ⭐⭐ CLASSIFY A CAUGHT THROW. A refusal keeps its guard; ANYTHING ELSE becomes
+ *  an engine error with NO `guard` KEY AT ALL.
+ *
+ *  ⚰️ THIS EXISTS BECAUSE THE ABSENCE OF IT SHIPPED. `parseFormula` ended with
+ *  `guard: err instanceof TableRefusal ? err.guard : 'canonicalise:node'`, so a
+ *  `RangeError` from a stack overflow reached the member as `canonicalise:node` —
+ *  "I don't recognise this node shape" — for a formula made of nothing but `+`
+ *  and `1`. Measured 2026-09-11: the recursive walker's ceiling was 5,468 nodes,
+ *  and past it every deep formula was refused for a reason that was not true.
+ *
+ *  ⛔ AND NOTHING COULD SEE IT. A laundered crash is `ok: false`, carries a guard
+ *  name, and is counted as refused by every census, log and fixture in this repo.
+ *  That is why the fix is a CLASSIFIER rather than a better fallback guard: there
+ *  is no guard name that makes "the engine broke" true.
+ */
+export function classifyThrow(err) {
+  const error = String(err && err.message ? err.message : err)
+  if (isRefusal(err)) return { ok: false, guard: err.guard, error }
+  return { ok: false, status: ENGINE_ERROR, engineError: (err && err.name) || 'Error', error }
+}
+
 /** guard → the sentence it refuses with. The fragments `escapes.json` pins are
  *  each a substring of exactly one of these, and no message is a substring of
  *  another. `parse.test.js` asserts both halves. */
@@ -1181,11 +1242,10 @@ export function parseFormula(source) {
   try {
     return { ok: true, ast: canonicalise(tree) }
   } catch (err) {
-    return {
-      ok: false,
-      error: String(err && err.message ? err.message : err),
-      guard: err instanceof TableRefusal ? err.guard : 'canonicalise:node',
-    }
+    // ⛔ NOT `instanceof`, AND NOT A FALLBACK GUARD — see `classifyThrow`. A
+    // crash in the walker comes back as an ENGINE ERROR with no guard, so it can
+    // never be counted as a refusal by anything downstream.
+    return classifyThrow(err)
   }
 }
 

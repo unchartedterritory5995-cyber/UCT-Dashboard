@@ -90,6 +90,7 @@ import {
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
 import { interpret } from './ast/interpret'
+import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
 // `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
 // so a timeframe-conditional length refused at the door and nothing ever folded
@@ -1312,10 +1313,13 @@ function astColumnsFor(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null, crossMemo })
       } catch (err) {
-        errors[key] = {
-          guard: (err && err.guard) || 'compute:error',
-          message: String((err && err.message) || err),
-        }
+        // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
+        // exception a guard name, so a TypeError inside a walker was
+        // indistinguishable from the table declining to compute a column.
+        errors[key] = isRefusal(err)
+          ? { guard: err.guard, message: String(err.message) }
+          : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
+            message: String((err && err.message) || err) }
       }
     }
     return withColumnErrors(out, errors)

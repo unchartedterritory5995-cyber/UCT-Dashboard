@@ -21,6 +21,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import UIcon from '../../ui/UIcon'
 import { readFormulaSource } from '../engine/ast/pcf'
 import { checkBudget } from '../engine/ast/budget'
+import { ENGINE_ERROR, isRefusal } from '../engine/ast/parse'
 import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint } from '../engine/ast/lint'
 import { interpret } from '../engine/ast/interpret'
@@ -151,6 +152,12 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
     // position rides on the refusal and `diagnostics.js`'s path 2 places it —
     // which is the ONLY path open for an input-shadow refusal, because that
     // recovery deliberately asks without a scope and so cannot see one.
+    // ⛔ AN ENGINE ERROR CARRIES NO GUARD — see `classifyThrow`. `|| 'parser'`
+    // would tell the member their SYNTAX is wrong when the engine crashed.
+    if (parsed.status === ENGINE_ERROR) {
+      return { ...blank, status: ENGINE_ERROR, engineError: parsed.engineError,
+        error: parsed.error }
+    }
     return {
       ...blank, guard: parsed.guard || 'parser', error: parsed.error,
       ...(Number.isInteger(parsed.index) ? { index: parsed.index } : {}),
@@ -178,7 +185,7 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
   try {
     budget = checkBudget(ast, undefined)
   } catch (err) {
-    return { ...blank, ast, verdict, guard: err?.guard || 'resolve:node', error: msg(err) }
+    return { ...blank, ast, verdict, ...refusalOrEngineError(err) }
   }
   if (!budget.ok) {
     return { ...blank, ast, verdict, guard: budget.guard, error: budget.error, measured: budget.measured }
@@ -190,7 +197,7 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
   } catch (err) {
     return {
       ...blank, ast, verdict, measured: budget.measured,
-      guard: err?.guard || 'sentence:node', error: msg(err),
+      ...refusalOrEngineError(err),
     }
   }
 
@@ -225,7 +232,7 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
   } catch (err) {
     return {
       ...blank, ast, verdict, measured: budget.measured, readback,
-      guard: err?.guard || 'interpret:node', error: msg(err),
+      ...refusalOrEngineError(err),
     }
   }
 
@@ -287,6 +294,23 @@ export function canSaveFormula(result, acknowledged = false) {
   if (mode === 'repaints') return false
   if (mode === 'preview-repaints') return acknowledged === true
   return true
+}
+
+/** ⭐⭐ A REFUSAL KEEPS ITS GUARD; ANYTHING ELSE IS AN ENGINE ERROR WITH NONE.
+ *
+ *  ⚰️ THESE THREE CATCH SITES READ `err?.guard || '<a guard name>'`, so EVERY
+ *  exception left here wearing a guard: a `TypeError` in the budget walker was
+ *  reported to the member as `resolve:node`, a crash in the read-back as
+ *  `sentence:node`, and a crash in the gate run as `interpret:node`. Each of those
+ *  is a sentence about THEIR formula, for a fault in OUR engine — and downstream
+ *  every one of them counts as a refusal.
+ *
+ *  ⛔ There is no guard name that makes "the engine broke" true, which is why
+ *  this returns a different SHAPE rather than a better default.
+ */
+function refusalOrEngineError(err) {
+  if (isRefusal(err)) return { guard: err.guard, error: msg(err) }
+  return { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error', error: msg(err) }
 }
 
 function msg(err) {

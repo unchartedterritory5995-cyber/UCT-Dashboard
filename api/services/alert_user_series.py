@@ -1064,12 +1064,23 @@ def user_catalog(user_id: Any) -> list[dict]:
             _gate_budget(definition, def_id)
         except AdmissionRefused:
             continue
-        except Exception:  # noqa: BLE001 — a TableRefusal out of `check_budget`
+        except Exception:  # noqa: BLE001 — a refusal, OR a crash; see below
             # The TABLE refusing a tree is not this function's to relabel (see
             # `_gate_budget`), and a formula the table refuses cannot fire, so it
             # is not offered. It stays visible where a user manages it —
             # `GET /api/user-definitions` — and `refusal_for_alert` is the
             # attribution read-out for anything already armed on it.
+            #
+            # ⚰️ THIS COMMENT SAID "a TableRefusal out of `check_budget`" AS IF
+            # THAT WERE THE ONLY THING IT CATCHES. It is not: `except Exception`
+            # also swallows a genuine CRASH, and skipping is then indistinguishable
+            # from the table declining. ⭐ Skipping is still right — one broken
+            # definition must not empty a member's whole catalog — but the
+            # DISTINCTION is kept where it is read: `_refusal_of` attributes with
+            # `getattr(exc, "guard", None)`, so a crash names NO door rather than
+            # borrowing one. Railed by `tests/test_refusal_not_laundered.py`
+            # (RULING K), because an unrailed correct behaviour is one refactor
+            # away from being a wrong one.
             continue
         pairs = _plots_of(definition)
         if not pairs:

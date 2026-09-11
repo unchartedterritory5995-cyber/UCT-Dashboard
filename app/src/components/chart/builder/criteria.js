@@ -188,7 +188,7 @@
 // string constants are intersected with every name the manifest declares, and
 // the intersection must be EMPTY.
 
-import { TABLE, parseFormula } from '../engine/ast/parse'
+import { ENGINE_ERROR, TABLE, parseFormula } from '../engine/ast/parse'
 import { interpret } from '../engine/ast/interpret'
 
 export class PickerRefusal extends Error {
@@ -855,7 +855,17 @@ export function fromAst(ast, vocab = vocabulary()) {
  *  and a string the picker reads are the same string through the same parser. */
 export function fromSource(source, vocab = vocabulary()) {
   const parsed = parseFormula(source)
-  if (!parsed.ok) return { ok: false, guard: parsed.guard || 'parser', reason: parsed.error }
+  if (!parsed.ok) {
+    // ⛔ AN ENGINE ERROR IS NOT A REFUSAL AND GETS NO GUARD HERE EITHER. A
+    // `|| 'parser'` here would re-launder exactly what `classifyThrow` just
+    // separated — and `parser` is the guard for the member's SYNTAX, so it would
+    // blame their typing for our crash.
+    if (parsed.status === ENGINE_ERROR) {
+      return { ok: false, status: ENGINE_ERROR, engineError: parsed.engineError,
+        reason: parsed.error }
+    }
+    return { ok: false, guard: parsed.guard || 'parser', reason: parsed.error }
+  }
   return fromAst(parsed.ast, vocab)
 }
 
