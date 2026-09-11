@@ -190,6 +190,65 @@ which is what it has always actually measured.
 
 ---
 
+## ✅ R-26 — THE CANARY ACCOUNT IS BACK AT ITS INTENDED STATE (2026-09-11)
+
+The seventeen evidence notes are deleted. Their content is the section below,
+which was committed and pushed **before** anything was removed.
+
+| | server total | canary-titled | sync-conflict | screen marker hits |
+|---|---|---|---|---|
+| before | 63 | 31 | 15 | 13 |
+| after the 17 | 46 | 14 | 15 | 0 |
+| after the orphan sweep | **34** | **2** | **3** | **0** |
+
+**removed 17 + 12 = 29 · refused 0.**
+
+⛔ **THE TWELVE WERE NOT IN THE RULING, AND THEY WERE NOT OPTIONAL.** Deleting a
+repro note leaves the fork the server made from it standing — a child whose
+parent is gone. Those twelve appear in no artifact of the cleanup tool's, so
+they cannot be selected by primary key the way everything else here is. They
+were selected by **the tool's own title marker** instead.
+
+⛔⛔ **NEVER BY THE TAG — and the run now PRINTS what the tag would have taken:**
+
+```
+  by MARKER (what this deletes): 0
+  by TAG    (what R-X forbids) : 3
+    ⭐ the tag would also have taken: 'WINDOW-CHECK-SENTINEL …00:00:56Z (conflicted copy)'
+    ⭐ the tag would also have taken: 'To Do List'
+    ⭐ the tag would also have taken: 'To Do List (synced copy)'
+```
+
+Two of those three are **the owner's own notes**, tagged `sync-conflict` on
+2026-09-08 by a Notion-era import. A tag says what HAPPENED to a note, never who
+made it (**R-X**), and this is the second time that selection would have taken
+the owner's work. The guard is now visible in the run's own output rather than
+only in a docstring — *a guard nobody has seen refuse is not a guard.*
+
+### The 34 that remain, and why that is the right number
+
+| bucket | n |
+|---|---|
+| the owner's own notes | 30 |
+| `To Do List` + `(synced copy)` — owner's, tagged `sync-conflict` | 2 |
+| **= the 32 baseline** | **32** |
+| the preserved round-3 sentinel `0910373ae0e8` | 1 |
+| its preserved fork `f690097b6779` | 1 |
+| **total** | **34** |
+
+⛔ **34 is the documented intentional state**, not a leftover — the section
+"THE EVIDENCE IS PRESERVED AND UNCLEANED" below says so and still stands. The
+arithmetic closes exactly, which is why the cleanup could stop where it did.
+
+⭐ Verified **two ways, both directions**: the server's own list
+(`/api/j2/notes`) and the screen the member reads. The screen read counts the
+marker TEXT — its first draft queried `[data-note-id]` and two other selectors,
+**none of which exist in this product**, so it would have reported a confident
+zero for a page it never understood. Full record:
+`docs/notebook/wave-q1-cleanup-R26.json` and `wave-q1-account-after-R26.json`.
+
+---
+
 ## ⛔⛔ THE INSTRUMENT ARTIFACTS — recorded here so the notes can be cleaned (R-22)
 
 
