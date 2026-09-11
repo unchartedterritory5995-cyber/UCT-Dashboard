@@ -157,6 +157,29 @@ cannot fail when the door is wired to the wrong helper. This is
 
 ---
 
+
+### ⚰️ CORRECTION 2026-09-11 — "the doors send no baseline" was WRONG
+
+I wrote, in this file and in two commits, that the three metadata doors PUT with
+**no `baseUpdatedAt`** and therefore cannot 409. **That is false, and the rig
+disproved it.** The reproduction run recorded the door's actual request:
+
+```
+02:57:58Z  keys=['baseUpdatedAt', 'ticker']  carriedBody=False
+           base=2026-09-11T02:57:46.130041+00:00
+```
+
+The door DOES carry a baseline. I inferred its absence by reading
+`onTickerChange` (`await update({ ticker })`) and never checked the wire —
+`useJ2Note().update` supplies it. ⛔ **Reading the call site is not reading the
+request.** The claim survived into a manifest, a §B decision doc and two commit
+messages before a real browser contradicted it in one line.
+
+⭐ What this does NOT change: the door still carries **no body**, so it still
+decides the body while body-carrying entries are resolved elsewhere. The
+single-writer conclusion (R-11) is unaffected — it rests on there being two
+writers, not on whether one of them sends a baseline.
+
 ## 4. WAVE R — WIDGETS & CAPTURE (the charter's four named MUST items)
 
 The charter names four items that "MUST appear". All four trace to documents. **Three
