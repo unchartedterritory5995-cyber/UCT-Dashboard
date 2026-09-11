@@ -37,8 +37,26 @@ verdicts are recorded in the closure report beside the commits that closed them.
 
 ## R-19 — `notebook.templates` needs a picker, and the confirm sheet cannot carry one
 
-**Status:** filed 2026-09-10, DEFERRED by the same reasoning as R-17. · **Owner:** this build, once
-a field-bearing surface exists.
+**Status:** ✅ **APPLIED 2026-09-10 on `inc7/p2-linkticker`** — shipped as a `confirm` with a
+select, which is this section's own first return condition. · **Owner:** this build.
+
+**What shipped, and what was checked before choosing it.** `HubConfirmPayload` gained
+`type: 'select'` with a required `options` list (`contracts.js` + `HubConfirmSheet`), and
+`notebook.templates` is back on the outer ring with a payload whose options are DERIVED from
+`lib/notebookTemplates.js` — never typed — so a template added tomorrow is in the picker the day
+it lands. Ring layout after the return: outer 3, inner 4; both legal.
+
+⛔ **The second return condition is still NOT met, and it was measured rather than assumed.**
+"a template-picker route the hub can navigate to" does not exist: `NotebookTab.jsx` renders
+`TemplatePicker` behind a private `pickerOpen` useState with no prop, no URL param and no
+imperative handle — the R-13 shape exactly — and that file is rule-12. So `navigate` was never
+available, and the two remaining shapes were the two this section refuses.
+
+⛔ **A `text` field was considered and rejected**: it would ask the member to TYPE a stable API
+key (`daily-prep`), which is worse than the hardcoded key, not better. Rail:
+`hub/notebookTemplatesPicker.test.jsx`, which drives a real gesture and asserts that two
+different picks produce two different notes — a rail that creates one note from the default
+passes against the hardcoded version this section names.
 
 "Templates" means *choose one*. `createNoteFromTemplateViaApi(templateKey, …)`
 (`journal-2-0/lib/noteCreation.js:50`) requires a key, and the hub has no surface that can ask for
@@ -94,8 +112,31 @@ that list, and titles are not unique. Dispatching a synthetic click on the card 
 
 ## R-17 — `notebook.linkTicker` has no symbol source on `/journal/notebook`
 
-**Status:** filed 2026-09-10, DEFERRED by owner ruling (Q3/Q8). · **Owner:** this build, when a
-symbol reaches the route.
+**Status:** ✅ **APPLIED 2026-09-10 on `inc7/p2-linkticker`** — the action is back, and the
+decision below ("either the route gains a symbol, or the entry is removed") was answered with a
+THIRD option that neither branch anticipated. · **Owner:** this build.
+
+**The symbol comes from the SHEET, not from the route.** `notebook.linkTicker` is now
+`kind:'confirm'` with a section-supplied payload carrying one required text field, seeded from
+`ctx.symbol` when the hub is holding one and EMPTY otherwise.
+
+⛔⛔ **`requires: ['symbol']` IS GONE, AND THAT IS THE FIX RATHER THAN A SOFTENING.** `requires`
+is answered from the CONTEXT before the gesture resolves; the symbol this action needs is one the
+member types afterwards — so the precondition disabled the only action whose purpose is to supply
+the thing it demanded. The gate moved in two pieces, and neither can be a dimmed bubble or a dead
+one: the controller DROPS the action when the grid holds no note at all (absent, never
+present-and-inert), and the field is required — an empty or unparseable value writes nothing and
+says so in rendered text.
+
+**Ring layout as shipped:** outer 3 (New note · Set ticker · Templates, with R-19 landing in the
+same increment), inner 4. Both legal (`OUTER_MAX` 5, `INNER_MAX` 4), proved on the projection
+`HubRoot` draws rather than on the declaration alone.
+
+**The write** goes through the Notebook's own client, `useJ2Note(id).update` →
+`PUT /api/j2/notes/{id}`, which also invalidates the note's SWR entry and the noteLink title
+cache. ⚠️ There is **no note PATCH client anywhere in `app/src`** — the Notebook updates a note
+with a partial PUT body (`NoteEditorPage.jsx`'s own ticker control takes the same path). Declared
+in `writePaths.test.js` as `owner: 'app'`. Rail: `hub/linkTickerWritesTheNote.test.jsx`.
 
 `notebook.linkTicker` declares `requires: ['symbol']`, and the Notebook route carries no symbol —
 `?ticker=` exists only on the `?new=` seed deep link. An action whose `requires` cannot be satisfied
@@ -377,7 +418,8 @@ nothing ships half-wired.
 
 ## R-10 — the Journal fan has no `Plan trade`, and three artifacts name its inner ring differently
 
-**Filed by:** the 3.4 Journal integrator. **Owner:** Director (`registry.js`).
+**Status:** ✅ **APPLIED 2026-09-10 on `inc7/p2-linkticker`**, but **NOT as the diff below** — see
+the ruling under it. **Filed by:** the 3.4 Journal integrator. **Owner:** Director (`registry.js`).
 
 Three documents describe the Journal's inner ring and no two agree:
 
@@ -397,7 +439,23 @@ the only unclaimed `run` on the fan — and says so in its own header. That is a
 made by a section about Director-owned data, which is exactly the kind of thing this file exists
 to surface rather than bury.
 
-**Proposed diff** (not applied):
+⛔ **THE PROPOSED DIFF WAS EVALUATED AND NOT APPLIED AS WRITTEN.** It replaces
+`note('journal', 1)`, which DROPS Note from the Journal fan, and it leaves `journal.addTrade`
+declared with no body of its own. Measured against the caps, that trade buys nothing: replacing
+**`addTrade`** instead keeps Note, keeps the outer ring at 4 (≤ `OUTER_MAX` 5) and the inner at 4
+(≤ `INNER_MAX` 4), and removes the mislabelled action outright rather than leaving an orphan for
+someone else to resolve. Nothing is lost by dropping `addTrade`: it never had a body of its own —
+the Plan-trade sheet is what it always opened, which is the defect.
+
+The shipped entry is built from the shared `planTrade(mode)` builder, so "Plan trade" still means
+one thing everywhere, with exactly two facets overridden and both named beside the override:
+`ring: 1` (§3.4's inner ring) and `requires: ['position']` (A5 says PREFILLED FROM THE SELECTED
+POSITION — a symbol is not enough, because an option row publishes a symbol and a NULL position
+and the sheet would open with no entry, stop or size). Journal inner ring as shipped:
+**Plan trade · Note · Voice · Home**. `positionRequiredActionIds()` went 3 → 4 with no edit,
+exactly as the note below predicted.
+
+**Proposed diff** (not applied, retained as the record of what was proposed):
 
 ```diff
        {

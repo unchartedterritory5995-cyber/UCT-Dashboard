@@ -367,12 +367,38 @@ export const modes = [
         requires: ['position'],
       },
       {
-        id: 'journal.addTrade',
-        label: 'Add trade',
-        icon: 'plus',
+        // ⭐⭐ R-10 — `journal.planTrade` EXISTS NOW, AND IT REPLACES `journal.addTrade` RATHER
+        // THAN `note('journal', 1)`.
+        //
+        // ⚰️ THE DEFECT IT CLOSES IS A LABEL THAT LIES, not a missing action. Gate A5 requires
+        // "from the Journal: the same sheet opens prefilled from the selected position", and no
+        // `journal.planTrade` existed for that door to hang on — so `journalSection.js` wired the
+        // Plan-trade sheet to `journal.addTrade`, the only unclaimed `run` on the fan, and said so
+        // in its own header. The chip therefore read "Add trade" and opened the PLAN-TRADE sheet.
+        // A member reading the bubble and a member using it learned two different things.
+        //
+        // ⛔ R-10's proposed diff replaced `note('journal', 1)` instead, which DROPS Note from the
+        // Journal fan and leaves `journal.addTrade` needing either a body or a removal. Measured
+        // against the caps, that trade is unnecessary: replacing `addTrade` keeps Note, keeps the
+        // outer ring at 4 and the inner at 4 (both legal), and removes the mislabelled action
+        // outright instead of leaving an orphan for someone else to resolve. There is no separate
+        // "add a trade" door to lose — `addTrade` never had a body of its own; the Plan-trade
+        // sheet was always what it opened.
+        //
+        // ⛔ THE SHARED BUILDER STILL OWNS WHAT "Plan trade" IS. Only the two facets that are
+        // genuinely this mode's own are overridden, and both are named:
+        //   · `ring: 1` — §3.4's inner ring. The outer four are the stop/close set.
+        //   · `requires: ['position']` — A5 says PREFILLED FROM THE SELECTED POSITION, and a
+        //     symbol is not enough: an option row publishes a symbol and a NULL position
+        //     (`journalSection.js`'s cursor publish), and the sheet would open with no entry, no
+        //     stop and no size. On the Screener, where there is no position at all, `requires:
+        //     ['symbol']` is the right gate — which is exactly why this one is stated here rather
+        //     than changed in the builder.
+        // ⭐ `positionRequiredActionIds()` DERIVES its list from this fan, so it picks this up
+        // with no edit — the count goes 3 → 4 on the day this lands.
+        ...planTrade('journal'),
         ring: 1,
-        color: '--hub-mode-journal',
-        kind: 'run',
+        requires: ['position'],
       },
       note('journal', 1),
       voice('journal'),
@@ -446,15 +472,87 @@ export const modes = [
         color: '--hub-mode-notebook',
         kind: 'run',
       },
-      // ⚰️ `notebook.linkTicker` REMOVED (R-17) and `notebook.templates` REMOVED (R-19), both when
-      // §3.7 shipped. Neither had a seam, and an action with no seam is worse live than absent:
-      //   linkTicker `requires: ['symbol']` and the Notebook route carries no symbol, so it would
-      //     render permanently DISABLED (spec §2e — disabled, never hidden).
-      //   templates needs the member to CHOOSE one, and the only surface for that is the confirm
-      //     sheet's `fields`, which is unreachable (D-35 / R-14). With no run body it would be a
-      //     dead bubble: the fan closes and nothing happens, the exact R-09 defect.
-      // Both return the day their seam exists — which is precisely what `notebook.voiceNote` above
-      // just did. Ring layout now: outer 2, inner 4 — legal.
+      {
+        // ⭐ R-17 — `notebook.linkTicker` IS BACK, and the reason it could return is that the
+        // SYMBOL NOW COMES FROM THE SHEET rather than from the route.
+        //
+        // ⚰️ It was removed when §3.7 shipped because it declared `requires: ['symbol']` and
+        // `/journal/notebook` carries no symbol (`?ticker=` exists only on the `?new=` seed deep
+        // link). An unmet `requires` renders DISABLED and never hidden (spec §2e,
+        // `HubRoot.jsx:373-387`), so shipping it live would have put a permanently dimmed bubble
+        // in the fan — worse than absent, because a dimmed bubble with a reason the member can
+        // never satisfy teaches them the product is broken.
+        //
+        // ⛔⛔ `requires: ['symbol']` IS DELIBERATELY GONE, AND ITS REMOVAL IS THE WHOLE FIX.
+        // `requires` is a precondition on the CONTEXT, evaluated before the gesture resolves —
+        // it answers "does the hub already hold this?". The symbol this action needs is one the
+        // MEMBER supplies, on this action's own confirm sheet, after the gesture. Keeping the
+        // precondition would disable the one action whose entire purpose is to provide the thing
+        // the precondition demands. The gate moved, it was not dropped:
+        //   · PRESENCE  — `notebookSection.js` drops this action when the grid holds no note at
+        //                 all (absent, never present-and-inert), so there is always a note to tag.
+        //   · THE FIELD — the sheet's `ticker` field is REQUIRED: an empty or unparseable value
+        //                 writes nothing and says so in the member's own words.
+        // Neither state is a permanently dimmed bubble, and neither is a label that lies.
+        //
+        // `confirmText` is the registry's REQUIRED fallback body (validateRegistry), not the one
+        // the member reads — `notebookSection.linkTickerConfirmPayload()` supplies the real
+        // payload, and it NEVER returns null, so the generic fallback cannot become a dead
+        // bubble behind a primary button with no `run` behind it.
+        id: 'notebook.linkTicker',
+        label: 'Set ticker',
+        icon: 'link',
+        ring: 0,
+        color: '--hub-mode-notebook',
+        kind: 'confirm',
+        escalate: true,
+        confirmText: (ctx) => (ctx?.symbol
+          ? `Tag this note ${ctx.symbol}`
+          : 'Tag this note with a ticker'),
+      },
+      {
+        // ⭐ R-19 — `notebook.templates` IS BACK, because the surface it was waiting for exists.
+        //
+        // ⚰️ It was removed when §3.7 shipped for a reason with no good shape: "Templates" means
+        // CHOOSE ONE, and the only place to ask was the confirm sheet's `fields`, which nothing
+        // could reach (D-35 / R-14). With no run body it was a dead bubble — the fan closes and
+        // nothing happens, the exact R-09 defect — and with a hardcoded key the label lies.
+        //
+        // ⛔ R-19's OWN RETURN CONDITION, MET LITERALLY: "either D-35 is closed (the confirm
+        // sheet carries fields, and Templates becomes a `confirm` with a SELECT)". D-35 closed in
+        // P1; the select is this increment's contract edit. The other return condition — "the
+        // Notebook gains a template-picker route the hub can navigate to" — is still NOT met:
+        // `NotebookTab.jsx`'s picker is a private `pickerOpen` useState with no prop, no URL param
+        // and no imperative handle (the R-13 shape exactly), and that file is rule-12.
+        //
+        // ⚠️ THE OPTIONS ARE DERIVED FROM `lib/notebookTemplates.js`, NEVER TYPED HERE — see
+        // `notebookSection.templatesConfirmPayload`. A hand-typed copy of the catalog beside the
+        // catalog is the drift this repo keeps paying for.
+        //
+        // ⚠️ `notebook.dailyPlan`/`notebook.postMortem` stay on the inner ring and overlap two of
+        // these keys. That is deliberate: they are ONE-TAP shortcuts to the two rituals, and a
+        // picker is not a substitute for a shortcut you use every morning.
+        id: 'notebook.templates',
+        label: 'Templates',
+        icon: 'library',
+        ring: 0,
+        color: '--hub-mode-notebook',
+        kind: 'confirm',
+        escalate: true,
+        confirmText: () => 'Start a note from a template',
+      },
+      // ⚰️ THE TOMBSTONE THAT USED TO SIT HERE IS GONE, AND ITS REMOVAL IS THE POINT. It read
+      // "`notebook.linkTicker` REMOVED (R-17) and `notebook.templates` REMOVED (R-19), both when
+      // §3.7 shipped ... Both return the day their seam exists". Both seams shipped in this same
+      // increment, on a different branch from the voice note above, so the comment was false
+      // before it was ever merged. It is replaced rather than left to be read as current.
+      //
+      // ⭐ RING LAYOUT, RECOUNTED AT THE MERGE AND NOT TAKEN FROM EITHER BRANCH. Each side wrote
+      // its own total against its own base: the voice-note branch said "outer 2, inner 4" and the
+      // linkTicker/templates branch said "outer 3, inner 4". Both were right alone and both are
+      // wrong together — three actions joined one ring. `registry.test.js` and `fanGeometry` are
+      // what actually enforce OUTER_MAX 5 / INNER_MAX 4; this comment is the human-readable half
+      // and it is DERIVED there, never here.
       {
         id: 'notebook.dailyPlan',
         label: 'Daily plan',

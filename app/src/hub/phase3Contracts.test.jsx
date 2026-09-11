@@ -95,6 +95,35 @@ describe('validators reject the shapes that fail SILENTLY in production', () => 
     })).toThrow(/step is required/)
   })
 
+  it('a select with no options — a picker with nothing to pick (R-19)', () => {
+    expect(() => validateConfirmPayload({
+      title: 't', body: 'b', primaryLabel: 'Go', onConfirm: () => {},
+      fields: [{ name: 'template', type: 'select', value: 'thesis' }],
+    })).toThrow(/options must be a non-empty array/)
+  })
+
+  it('a select whose value is not one of its own options — shows one, commits another', () => {
+    // A browser <select> silently displays its FIRST option when `value` matches none of them, so
+    // this is the one malformed shape that renders as a perfectly normal sheet.
+    expect(() => validateConfirmPayload({
+      title: 't', body: 'b', primaryLabel: 'Go', onConfirm: () => {},
+      fields: [{
+        name: 'template',
+        type: 'select',
+        value: 'gone',
+        options: [{ value: 'thesis', label: 'Thesis' }],
+      }],
+    })).toThrow(/is not one of its own options/)
+  })
+
+  it('options on a NON-select field — a list nothing renders', () => {
+    // Same shape as `scrubAxis` without `onScrub`: declared, unreadable, silent either way.
+    expect(() => validateConfirmPayload({
+      title: 't', body: 'b', primaryLabel: 'Go', onConfirm: () => {},
+      fields: [{ name: 'note', type: 'text', value: 'x', options: [{ value: 'a', label: 'A' }] }],
+    })).toThrow(/declares a list nothing renders/)
+  })
+
   it('a plan-trade with stop === entry — a plan that cannot say what it risks', () => {
     // Mirrors the backend's hard 422: at stop === entry the side is undefined and r_value is null.
     expect(() => validatePlanTradeSheetProps({
@@ -111,6 +140,15 @@ describe('validators reject the shapes that fail SILENTLY in production', () => 
     expect(() => validateConfirmPayload({
       title: 't', body: 'b', primaryLabel: 'Go', onConfirm: () => {},
       fields: [{ name: 'stop', type: 'number', value: 1, step: 0.01 }],
+    })).not.toThrow()
+    expect(() => validateConfirmPayload({
+      title: 't', body: 'b', primaryLabel: 'Go', onConfirm: () => {},
+      fields: [{
+        name: 'template',
+        type: 'select',
+        value: 'thesis',
+        options: [{ value: 'thesis', label: 'Thesis' }, { value: 'tilt-log', label: 'Tilt Log' }],
+      }],
     })).not.toThrow()
     expect(() => validateCursorApi({
       item: null, index: -1, count: 0,

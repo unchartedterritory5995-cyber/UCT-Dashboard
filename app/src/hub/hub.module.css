@@ -485,6 +485,20 @@
   border-radius: var(--radius-sm);
 }
 
+/* R-19 — the choose-one field. Same box as `.confirmStepper input`, minus the ± buttons it has
+   no meaning for. 16px or iOS Safari zooms the page on focus, and `--tap-min` keeps it a real
+   touch target. */
+.confirmSelect {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
 .confirmPrimary {
   width: 100%;
   min-height: var(--tap-min);

@@ -368,11 +368,19 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  * @property {string} body                    Plain English. Shown to the member verbatim.
  * @property {string} primaryLabel            The button that performs the write.
  * @property {() => (void|Promise<void>)} onConfirm  Fired at most ONCE per sheet.
- * @property {Array<{name: string, type: 'number'|'text', value: (string|number),
- *   min?: number, max?: number, step?: number}>} [fields]
+ * @property {Array<{name: string, type: 'number'|'text'|'select', value: (string|number),
+ *   min?: number, max?: number, step?: number,
+ *   options?: Array<{value: string, label: string}>}>} [fields]
  *   The EQUAL path, not a fallback: steppers and a numeric input operating on the same value the
  *   gesture produced, for a member who cannot perform a fine drag. This is why the sheet exists
  *   at all rather than the gesture committing.
+ *   ⭐ `'select'` (R-19, Increment 7) is the CHOOSE-ONE case, and it is a different question from
+ *   the other two: number and text ask a member to STATE a value, select asks them to PICK from a
+ *   set the product owns. "Templates" could not ship without it — with no run body it is a dead
+ *   bubble, and with a hardcoded key the label lies ("Templates" that always makes the same one).
+ *   `options` is REQUIRED on a select and REFUSED on anything else, and `value` must be one of
+ *   them: a picker whose initial value is not in its own list opens on a blank row and commits a
+ *   key nobody chose.
  * @property {boolean} [escalate]
  *   The action that opened this sheet declared `escalate` — so the sheet shows the VISIBLE
  *   escalation (`HubCommitNotice`) beside the haptic one. ⛔ Not decoration and not a duplicate of
@@ -544,8 +552,35 @@ export function validateConfirmPayload(payload, where = 'confirm payload') {
     else payload.fields.forEach((f, i) => {
       if (!f || typeof f !== 'object') { p.push(`fields[${i}] must be an object`); return }
       if (typeof f.name !== 'string' || !f.name) p.push(`fields[${i}].name must be a non-empty string`)
-      if (f.type !== 'number' && f.type !== 'text') p.push(`fields[${i}].type must be 'number' or 'text'`)
+      if (f.type !== 'number' && f.type !== 'text' && f.type !== 'select') {
+        p.push(`fields[${i}].type must be 'number', 'text' or 'select'`)
+      }
       if (f.value == null) p.push(`fields[${i}].value is required`)
+      // ⛔ R-19 — A LIST NOTHING RENDERS IS THE `scrubAxis`-WITHOUT-`onScrub` SHAPE AGAIN.
+      // `HubConfirmSheet` reads `options` only on a select, so options on a number or a text field
+      // is a declaration the member can never reach, with no error either way.
+      if (f.options != null && f.type !== 'select') {
+        p.push(`fields[${i}].options on a type:'${f.type}' field declares a list nothing renders`)
+      }
+      if (f.type === 'select') {
+        if (!Array.isArray(f.options) || f.options.length === 0) {
+          p.push(`fields[${i}].options must be a non-empty array on a select — a picker with `
+            + 'nothing to pick is a dead control, which is the defect the select exists to avoid')
+        } else {
+          f.options.forEach((o, j) => {
+            if (!o || typeof o !== 'object') { p.push(`fields[${i}].options[${j}] must be an object`); return }
+            if (typeof o.value !== 'string' || !o.value) p.push(`fields[${i}].options[${j}].value must be a non-empty string`)
+            if (typeof o.label !== 'string' || !o.label) p.push(`fields[${i}].options[${j}].label must be a non-empty string`)
+          })
+          // ⛔ The initial value must BE one of the options. A browser <select> silently shows the
+          // first option when `value` matches none of them, so the sheet would display one choice
+          // and commit another until the member touched the control.
+          if (!f.options.some((o) => o && o.value === f.value)) {
+            p.push(`fields[${i}].value ${JSON.stringify(f.value)} is not one of its own options — `
+              + 'the sheet would show one choice and commit a different one')
+          }
+        }
+      }
       if (f.type === 'number') {
         for (const k of ['min', 'max', 'step']) {
           if (f[k] != null && !isNum(f[k])) p.push(`fields[${i}].${k} must be a number when present`)
