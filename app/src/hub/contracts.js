@@ -45,6 +45,16 @@
  * @property {boolean}  [escalate]  the action leads to a surface asking the member to COMMIT, so
  *                                  the fire haptic escalates to warn() (`useJoystick.js:197`).
  *                                  Required on kind:'confirm', legal on kind:'run' — see B5.
+ * @property {(ctx: HubActionCtx) => (HubConfirmPayload|null)} [confirmPayload]
+ *   The SECTION'S OWN sheet payload, and the only route `HubConfirmPayload.fields` — the WCAG
+ *   2.5.1 equal path — has to `HubConfirmSheet` (R-14 / D-35). `HubRoot`'s confirm branch asks
+ *   for one first and falls back to the generic yes/no sheet built from `label` +
+ *   `confirmText(ctx)` when the action declares none or this returns null. Returning null is a
+ *   legal answer from a section that normally supplies one: the Screener returns it when no price
+ *   is known, so the sheet is not opened around a fabricated level.
+ *   ⛔ Only kind:'confirm' is ever asked. `validateSectionConfig` refuses it on any other kind
+ *   rather than letting a section ship a payload nothing reads — the same rule `scrubAxis`
+ *   without `onScrub` follows, and for the same reason: the failure is SILENT.
  */
 
 /**
@@ -434,6 +444,29 @@ export function validateSectionConfig(config, where = 'section config') {
     }
     if (!isFn(config.onScrub)) {
       p.push('scrubAxis without onScrub declares an axis nothing reads')
+    }
+  }
+  // ⭐ `confirmPayload` (R-14) is the section's own sheet payload and the ONLY way
+  // `HubConfirmPayload.fields` reaches the member. Both of its failure modes are silent, so both
+  // are refused here:
+  //   · a NON-FUNCTION is not merely ignored — `HubRoot` evaluates `action.confirmPayload?.(ctx)`,
+  //     and optional-call only guards null/undefined, so a string or an object THROWS a TypeError
+  //     inside a gesture handler, where nothing catches it and the fan simply dies.
+  //   · a payload on a kind `HubRoot` never asks is a DECLARATION NOTHING CAN READ. The member
+  //     gets the section's fields on `confirm` and never on `run`, with no error either way —
+  //     exactly the `scrubAxis`-without-`onScrub` shape above.
+  if (Array.isArray(config.fan)) {
+    for (const action of config.fan) {
+      if (action?.confirmPayload == null) continue
+      const who = action.id ?? 'an action with no id'
+      if (!isFn(action.confirmPayload)) {
+        p.push(`${who}: confirmPayload must be a function (ctx) => HubConfirmPayload|null`)
+      } else if (action.kind !== 'confirm') {
+        p.push(
+          `${who}: confirmPayload on a kind:'${action.kind}' action declares a payload nothing `
+          + 'reads — only a kind:confirm action is ever asked for one',
+        )
+      }
     }
   }
   report(`${where} (${config?.id ?? 'no id'})`, p)
