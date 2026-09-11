@@ -47,3 +47,14 @@
 api/services/journal_two/note_connectors/convert/fixtures_in/*.md text eol=lf
 api/services/journal_two/note_connectors/convert/fixtures_in/*.html text eol=lf
 app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text eol=lf
+# ⚰️ AND ITS SIBLING DIRECTORY, MISSED BY THE RULE ABOVE (added 2026-09-11).
+# `test_obsidian_parity_fixtures.py` byte-compares a freshly regenerated copy against
+# the committed one, exactly as the note-connector test does — but the eol rule named
+# only `server_convert/`, so all SEVEN obsidian_parity fixtures were CRLF on disk
+# against LF blobs and the test reported every one of them STALE.
+# ⛔ ITS MESSAGE TELLS YOU TO REGENERATE AND COMMIT, which would have baked this
+# box's CRLF into the repo and made the same test fail on every other checkout —
+# a false alarm whose remedy causes the real thing. Measured: each file is
+# byte-identical to its blob once line endings are normalised (e.g. 556 bytes on
+# disk vs a 535-byte blob, exactly its 21 CRLFs). Nothing about the converter drifted.
+app/src/pages/journal-2-0/lib/importer/__fixtures__/obsidian_parity/*.json text eol=lf
