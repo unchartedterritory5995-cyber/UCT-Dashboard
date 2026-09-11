@@ -92,16 +92,44 @@ offline", and the product was answering it correctly the entire time.
 
 ## THE COMPARISON, measured the same night, same rig, same ordering
 
-| door | runs that fired | sentence lost | new forks |
-|---|---|---|---|
-| raw `fetch` (`DOOR_JS`) | 12 | **10 — 83%** | on every red |
-| the product's own control (`--real-door`) | 4 | **0** | **0** |
+Every run below is the same ordering, the same rig, the same night, with the
+same **3 sends beating the door**, doors rotating folder/ticker/tags.
 
-⚠️ **What n=4 does and does not settle.** It rejects "the real door fails at the
-raw door's rate" — P(4 greens at r=0.83) ≈ 0.0008. It does **not** exclude a
-low-rate defect on the real path: P(4 greens at r=0.1) ≈ 0.66. A wider real-door
-sample is the confirmation, and until it lands this section says "the reproduction
-does not survive the real door", not "the path is proven clean".
+| door | runs fired | sentence LOST | rate | new forks |
+|---|---|---|---|---|
+| raw `fetch` (`DOOR_JS`) | **13** | **12** | **r = 0.92** | on every loss |
+| the product's own control (`--real-door`) | **12** | **0** | **r = 0.00** | **0** |
+
+⭐ The one raw-door run that survived had **`sends=1`, not 3** — so even the
+second-writer case only loses the words when several sends are in flight. At
+`sends=3` the raw door lost 12 of 13.
+
+## ⛔ THE POWER ARITHMETIC (R-15/R-18), stated rather than implied
+
+`r` = per-run probability the sentence is lost. `M` = clean runs needed.
+P(M greens | r) = (1−r)^M.
+
+```
+P(12 greens | r = 0.92) = 6.9e-14   rejected
+P(12 greens | r = 0.50) = 2.4e-04   rejected
+P(12 greens | r = 0.32) = 9.8e-03   rejected  (the 1% line)
+P(12 greens | r = 0.20) = 6.9e-02   NOT rejected
+P(12 greens | r = 0.10) = 2.8e-01   NOT rejected
+```
+
+**So 12 clean real-door runs exclude any failure rate ≥ 32% at ≥99% confidence,
+and exclude nothing below ~20%.** For ≥99% power at a given `r`, M ≥ ln(0.01)/ln(1−r):
+
+```
+r = 0.30  ->  M = 13        r = 0.10  ->  M = 44
+r = 0.20  ->  M = 21        r = 0.05  ->  M = 90
+```
+
+⛔ **The honest claim is therefore: the round-3 failure mode does not occur on the
+member path at any rate this sample could detect, and the raw-fetch door's rate
+(0.92) is excluded by fourteen orders of magnitude.** It is NOT "the path is
+proven clean" — a rare real-path defect below ~20% would need 21–90 runs to
+exclude, and that is a cost decision, not a measurement.
 
 ## ⛔ WHAT THIS EXPLAINS — every confusing thing about this wave
 

@@ -1,0 +1,27 @@
+{
+  "ordering": "canary",
+  "started": "2026-09-11T03:27:16Z",
+  "sentence": "WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:27:16Z",
+  "noteId": null,
+  "door": null,
+  "landed": null,
+  "notesBefore": null,
+  "notesAfter": null,
+  "steps": [
+    {
+      "step": "rig",
+      "ok": true,
+      "detail": "PID 12700 \u00b7 Chrome/152.0.7977.83"
+    },
+    {
+      "step": "signed in",
+      "ok": false,
+      "detail": "/api/auth/me returned 502 \u2014 SIGN-IN REQUIRED (H5)"
+    }
+  ],
+  "findings": [],
+  "revisions": [],
+  "puts": [],
+  "layers": {},
+  "error": "/api/auth/me returned 502 \u2014 SIGN-IN REQUIRED (H5)"
+}
