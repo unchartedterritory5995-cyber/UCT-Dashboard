@@ -149,7 +149,16 @@ export default function IndicatorChip({
    * ⛔ IT REUSES THE ROW'S OWN `decimals`, which `readout.js` resolves from
    * `plots[].legend.decimals` and defaults to 2 — never a number typed here. A
    * plot that declares four places means four. */
-  const chipValueText = Number.isFinite(Number(chip.value))
+  //
+  // ⛔⛔ …AND `null` IS NOT ZERO. `Number(null)` is `0`, and `0` is finite, so a
+  // chip that HAS no value printed **0.00** — a number that reads as a reading.
+  // `readout.legendChips` sets `value: null` deliberately for the two cases where
+  // there is nothing to say: a HIDDEN instance, and one that computed nothing.
+  // Measured live: deleting RSI left `MA(5) 0.00` in the info row beside a
+  // "Source unavailable" selector, which is the opposite of what that state
+  // means. `undefined` was already safe by luck (`Number(undefined)` is `NaN`),
+  // which is why nothing caught it.
+  const chipValueText = (chip.value != null && Number.isFinite(Number(chip.value)))
     ? Number(chip.value).toFixed(Number.isInteger(chip.decimals) ? chip.decimals : 2)
     : ''
 

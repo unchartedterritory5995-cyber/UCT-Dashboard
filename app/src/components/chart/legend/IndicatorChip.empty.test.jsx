@@ -98,3 +98,41 @@ describe('a chip says whether its plot computed anything', () => {
     expect(screen.getByText('d1')).toBeTruthy()
   })
 })
+
+// ─── ⛔⛔ …AND `null` IS NOT ZERO ────────────────────────────────────────────
+//
+// The grid layout formatted its value column with
+// `Number.isFinite(Number(chip.value))`, and `Number(null)` is `0`. So the two
+// states that carry `value: null` ON PURPOSE — a HIDDEN instance and one that
+// computed nothing — printed **0.00**: a number that reads as a reading, in the
+// column beside real prices. Measured live: deleting RSI left `MA(5) 0.00` in
+// the info row next to a "Source unavailable" selector, which is the opposite of
+// what that state means. `undefined` was safe only by luck — `Number(undefined)`
+// is `NaN` — which is why nothing caught it.
+
+describe('a chip with NO value prints no number', () => {
+  const GRID = { grid: true }
+
+  it('⛔⛔ an UNRESOLVED plot does not print 0.00', () => {
+    const chip = chipOf([], VISIBLE)
+    expect(chip.value, 'the fixture stopped exercising the null case').toBe(null)
+    render(<IndicatorChip chip={chip} {...GRID} />)
+    expect(document.body.textContent).not.toMatch(/0\.00/)
+  })
+
+  it('⛔ …nor does a HIDDEN one', () => {
+    const chip = chipOf(BOUND, [{ ...VISIBLE[0], hidden: true }])
+    expect(chip.value).toBe(null)
+    cleanup()
+    render(<IndicatorChip chip={chip} {...GRID} />)
+    expect(document.body.textContent).not.toMatch(/0\.00/)
+  })
+
+  it('✅ and a REAL zero still prints — 0.00 is a legitimate RSI-free reading', () => {
+    // The guard is on `null`, not on falsiness: an oscillator that genuinely
+    // reads 0 must say so.
+    cleanup()
+    render(<IndicatorChip chip={{ ...chipOf([], VISIBLE), value: 0, computed: true }} {...GRID} />)
+    expect(document.body.textContent).toMatch(/0\.00/)
+  })
+})
