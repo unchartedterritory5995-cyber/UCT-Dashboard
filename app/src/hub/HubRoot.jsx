@@ -27,6 +27,7 @@ import HubActionsButton from './HubActionsButton'
 import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
 import HubConfirmSheet from './HubConfirmSheet'
+import { validateConfirmPayload } from './contracts'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
 import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
@@ -179,11 +180,41 @@ function HubShell({ setToastMsg }) {
       // primary button performs the write — the same WCAG 2.5.1 equal-path rule the Journal's
       // stop sheet follows, and the reason `confirmText` is REQUIRED on this kind
       // (`registry.js:32`). `HubConfirmSheet` latches `onConfirm` so a double-tap fires once.
+      //
+      // ⛔ R-14 / D-35 — A SECTION MAY SUPPLY ITS OWN PAYLOAD, AND THAT IS THE ONLY ROUTE
+      // `HubConfirmPayload.fields` HAS TO THE SHEET.
+      //
+      // Until this branch existed, the generic payload below was the only one that could ever
+      // render: `runAction` never asked a section for a payload, so the `fields` array
+      // `contracts.js` calls "the EQUAL path, not a fallback: steppers and a numeric input ...
+      // for a member who cannot perform a fine drag" was unreachable code, and `HubConfirmSheet`
+      // rendered its ± steppers for nobody. The Screener's Alert is what it cost: the section had
+      // `alertConfirmPayload()` written, exported and tested, and the member still had no way to
+      // say a price — the alert landed at whatever was on screen and fired on the next tick.
+      //
+      // ⭐ A generic yes/no confirm keeps the fallback UNCHANGED. `confirmPayload` is optional by
+      // design: a section that has nothing to add says nothing, and `null` is a legal answer from
+      // one that normally does (the Screener returns it when no price is known, rather than
+      // opening a sheet around a fabricated level).
+      const own = action.confirmPayload?.(ctx)
+      if (own) {
+        // Belt and braces — `HubConfirmSheet` validates on render too (its own boundary). This
+        // call names the ACTION, so a section that ships a malformed payload is reported against
+        // the section that built it rather than against the hub's sheet, which is the same
+        // call-site-label convention every other validator call in this feature uses.
+        validateConfirmPayload(own, `${action.id} confirmPayload`)
+        setConfirmPayload(own)
+        return
+      }
       setConfirmPayload({
         title: action.label,
         body: action.confirmText?.(ctx) ?? `${action.label}?`,
         primaryLabel: action.label,
-        onConfirm: () => Promise.resolve(action.run?.(ctx)).catch((err) => {
+        // ⛔ `values` IS FORWARDED, and it was not. `HubConfirmSheet` hands `onConfirm` the field
+        // values it is holding; a handler that ignores them writes the default no matter what the
+        // member typed or stepped. Harmless on THIS payload (it declares no fields, so `values` is
+        // `{}`) and load-bearing the moment any section grows one.
+        onConfirm: (values) => Promise.resolve(action.run?.(ctx, values)).catch((err) => {
           setToastMsg(err?.message || 'That did not work. Try again.')
         }),
       })
