@@ -60,6 +60,67 @@ hub, ever**, and that is one of the standing deploy conditions. This is handed o
 
 ---
 
+### ✅ RESOLVED — BUILT 2026-09-11 (`60cbe8919`, L3 of the member-launch charter)
+
+The owner waived `api/` for `api/routers/auth.py` **on proof**, as a maintenance deploy, and
+directed the allow-list this section argued against. It was built. **This section's objections were
+not waved away, and two of the three were right — so they shaped the build. Read them as the design
+rationale, not as a superseded opinion.**
+
+**Objection 1 — "an allowlist becomes a second authority over 'what settings exist', maintained by
+hand… the hand-typed-list defect this repo has paid for four times."** Correct, and answered by
+construction: `tests/test_preference_key_validation.py` **re-derives the key set from `app/src/**`
+on every run** — every literal handed to `setPref`/`setPrefMerged`/`deletePref`, with local and
+imported `const` names resolved, plus `WIDGET_GLOBAL_PREF_KEYS` for the one dynamic call site. The
+list in `auth.py` is still typed by hand; what changed is that **nothing can drift away from it
+silently.**
+
+**Objection 2 — "it would break the moment a feature ships a new key — a failure whose symptom is
+'my layout stopped saving', reported by a member, days later."** This is the defect the rail is
+built to catch, and it was mutation-proved by exactly that scenario: deleting `charts_layout_dock`
+from the allow-list turns the rail RED **naming the key**, before the push, instead of a member
+reporting it later.
+
+**Objection 3 — "it buys nothing against the actual risk… the risk is *known keys carrying values
+nobody checked*."** Right, and the build agrees with it: **every key except `joystick_hub` is
+`_PREF_OPAQUE` — any string, exactly the behaviour it has always had.** Re-describing forty blob
+shapes here would be the second authority this section warns about. Only `joystick_hub` — the key
+this program owns — got a real schema. The allow-list's own contribution is narrower than this
+section feared and narrower than the task implied: **it bounds the key space**, which is proposal
+(A)'s own abuse story ("today one member can write unbounded text into `auth.db`, repeatedly").
+
+**⛔ WHAT WAS NOT BUILT, AND WHY — proposal (A)'s SIZE ceiling is still open.** A key allow-list
+bounds *how many* keys a member can mint; it does nothing about *how large* a value on an
+allow-listed key may be. That half was deliberately left: picking "say 256 KB" requires knowing how
+big a real `charts_workspace_layout` or `chart_settings` blob gets, there is **no code-derived
+authority for that number**, and production data is not an admissible source here. A guessed bound
+whose failure mode is "my layout stopped saving" is precisely the defect objection 2 names — so
+guessing it would have undone the reason the rail exists. **It needs one measurement (the largest
+blob the app itself can produce, from the app's own defaults) and then it is a two-line change.**
+
+**⛔ A CORRECTION TO THIS SECTION.** The key list above cites `uct.j2.analytics.section.*` as a
+preference key. **It is not one — it is `localStorage`** (`journal-2-0/components/CollapsibleSection.jsx:13`,
+`KEY_PREFIX = 'uct.j2.analytics.section.'`, read and written through `window.localStorage`; and
+`localStorageMigrate.js` never touches this endpoint). That matters more than a footnote: had it
+been a real server key, it is a **dotted wildcard family**, and no allow-list of fixed names could
+have admitted it without a pattern rule. It was checked before the list was written, not after.
+
+**⭐ AND THE FINDING THIS SECTION COULD NOT HAVE HAD.** Proposal (B) suggests validating
+`joystick_hub` by rejecting "a non-object or **an unknown field**". Rejecting unknown fields would
+have shipped a defect: `coachMarkSeen` is **not** in `HUB_SETTINGS_DEFAULTS` — `HubRoot.jsx:356`
+writes it and `:479` reads it — so a schema built from the defaults alone 400s the coach-mark
+dismissal and leaves that card on screen forever. Worse in general: `withDefaults` spreads a
+member's whole stored blob into every later write, so **one stale field from an older build would
+become a permanent 400 on all of that member's hub settings.** Unknown fields are therefore
+accepted on purpose; known ones are checked. Mutation-proved both ways.
+
+**Proposal (C) — the docstring — SHIPPED**, and it is the part this section was right to call the
+most valuable half. The endpoint now says in its own comment: "⚠️ IT IS STILL AN EXPOSURE DEFAULT,
+NOT A SECURITY BOUNDARY, and nothing here changes that. `joystick_hub.enabled: true` is a VALID
+value — a member who posts it still turns the hub on for themselves."
+
+---
+
 ## 2. CI device job — design, not implementation
 
 ### The problem it solves
