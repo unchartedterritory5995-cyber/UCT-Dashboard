@@ -18,6 +18,16 @@ import UIcon from '../ui/UIcon'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
+// ⛔ FROZEN CONSTANTS, NOT `|| []`. While the catalysts request is PENDING (every mount, and every
+// 30s poll that errors) `data` is undefined, and `data?.rows || []` manufactured a NEW array on
+// every render. Everything memoized on it — `tickerSymbols`, `filteredRows`, the hub's `list` and
+// its registered config — churned per render for as long as the request was open. On 2026-09-10
+// that churn was one of the two legs of the render loop that froze navigation app-wide (the other
+// was the hub cursor's per-render object); with the loop closed it would still be a re-derivation
+// per render for nothing. One constant, stable identity, same emptiness.
+const EMPTY_ROWS = Object.freeze([])
+const EMPTY_SECTORS = Object.freeze([])
+
 const ALL_TAGS = ['Catalyst', 'Earnings', 'Gapper', 'News']
 
 // ET "today" as YYYY-MM-DD, and a UTC-safe day shifter for prev/next nav.
@@ -456,13 +466,15 @@ export default function CatalystTable({
 
   if (!UI_ENABLED) return null
 
-  const allRows = data?.rows || []
+  // `Array.isArray`, not `||`: a proxy error page served as JSON has no `rows`, and `|| []` would
+  // pass an object straight through to `.filter` (the `useUserTickerSet` lesson, same shape).
+  const allRows = Array.isArray(data?.rows) ? data.rows : EMPTY_ROWS
   const generatedAt = data?.generated_at
   // Prefer the honest last-refresh time (stamped on every engine pass) over
   // generated_at (= thesis_at, frozen by skip-if-stable on quiet mornings).
   const refreshedAt = data?.refreshed_at ?? data?.generated_at
   const marketDate = data?.market_date
-  const sectorContexts = data?.sector_contexts || []
+  const sectorContexts = Array.isArray(data?.sector_contexts) ? data.sector_contexts : EMPTY_SECTORS
 
   // One-glance morning digest: total + A-grade count + the top catalyst types.
   const summary = (() => {
@@ -544,7 +556,7 @@ export default function CatalystTable({
   // is loading or for tickers not in the live-price endpoint's universe.
   // Live prices only overlay the live "today" feed — a historical snapshot
   // shows the stored price/gap from that day, not today's tick.
-  const tickerSymbols = useMemo(() => isLive ? allRows.map(r => r.ticker) : [], [allRows, isLive])
+  const tickerSymbols = useMemo(() => isLive ? allRows.map(r => r.ticker) : EMPTY_ROWS, [allRows, isLive])
   const { prices: livePrices } = useLivePrices(tickerSymbols)
 
   // Sort state: null = engine-ranked order, or {col, dir} for column sort.

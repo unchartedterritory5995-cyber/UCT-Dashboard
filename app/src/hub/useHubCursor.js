@@ -21,7 +21,7 @@
 // the reset genuinely exists for (a re-scan returning different tickers) is still handled, because
 // there the old key is absent.
 
-import { useCallback, useLayoutEffect, useSyncExternalStore } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THIS IS THE ONLY CURSOR IN THE BUILD. No section may keep its own `useState`
@@ -309,7 +309,17 @@ export default function useHubCursor(listId, items, opts) {
     [effectiveIndex],
   );
 
-  return { item, index: effectiveIndex, count, next, prev, scrubTo, itemProps, paintCursor };
+  // ⛔ A STABLE OBJECT, NOT A FRESH LITERAL. This used to be `return { item, index, … }`, a new
+  // object on every render — and every field in it was already stable. A consumer that keyed a
+  // `useMemo` on the whole object (as `catalystsSection` did) re-derived its hub config on every
+  // render, and because registering a config re-rendered the registrant, that was an infinite
+  // passive-effect loop that froze navigation app-wide on 2026-09-10. The parts were never the
+  // problem; the wrapper was. Memoizing here makes the return value safe to put in a dep list,
+  // which is what any reader of `HubCursorApi` would already assume it was.
+  return useMemo(
+    () => ({ item, index: effectiveIndex, count, next, prev, scrubTo, itemProps, paintCursor }),
+    [item, effectiveIndex, count, next, prev, scrubTo, itemProps, paintCursor],
+  );
 }
 
 export { useHubCursor };
