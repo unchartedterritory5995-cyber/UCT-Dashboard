@@ -103,23 +103,14 @@ export default function HubActionsButton({
   onFeedback,
   onHide,
   hapticsEnabled = true,
-  // ⭐ OPTIONALLY CONTROLLED, so the two-finger Peek gesture can open the SAME sheet this button
-  // opens (§C1). Uncontrolled by default — pass neither and the button keeps its own state, which
-  // is what every existing caller and every existing test does.
-  //
-  // ⛔ ONE SHEET, NOT TWO. The gesture must not open a second copy: §C2's whole argument is that
-  // the button is the compliant door and the gesture is a shortcut TO IT. Two sheets would mean
-  // two `role="dialog"` regions and two focus traps racing.
-  open: openProp,
-  onOpenChange,
 }) {
-  const [openState, setOpenState] = useState(false)
-  const controlled = openProp !== undefined
-  const open = controlled ? openProp : openState
-  const setOpen = (next) => {
-    if (!controlled) setOpenState(next)
-    onOpenChange?.(next)
-  }
+  // ⚰️ THE `open` / `onOpenChange` PAIR IS GONE, with the gesture it existed for. This button was
+  // made optionally controlled so the two-finger Peek could open the SAME sheet rather than a
+  // second one. Peek was removed by owner ruling (2026-09-10) and `HubRoot` was its only caller,
+  // so the props were a capability with no consumer and a comment naming a feature that no longer
+  // exists — which reads as precedent to whoever finds it next. The button owns its own state
+  // again, which is what it did before §C1 and what every test already assumed.
+  const [open, setOpen] = useState(false)
   const label = `${mode} actions`
 
   // "On the inner side of the knob (left of it when right-handed, right of
