@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { render, screen, fireEvent, within, cleanup } from '@testing-library/react'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings, instanceTombstone } from './chartDefaults'
@@ -589,5 +592,39 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
         settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
       expect(expandedRowIds(), `row "${id}" is listed but no deep link opens it`).toEqual([id])
     }
+  })
+})
+
+
+// ─── THE DEEP-LINKED ROW IS PULLED INTO VIEW, AND NOT BY COUNTING FRAMES ────
+//
+// ⚠️ A SOURCE RAIL, BECAUSE JSDOM HAS NO LAYOUT. There is no scroll position to
+// assert on here — every box is 0×0 — so the only falsifiable thing is the
+// MECHANISM, and the mechanism is exactly what broke.
+describe('the deep-link scroll does not depend on a frame count', () => {
+  it('⚰️ observes the list instead of waiting N frames', () => {
+    // The first version waited two `requestAnimationFrame`s. That was measured
+    // correct when written — and stopped being correct the moment the formula
+    // subscription moved into a child, because the extra render pushed the row's
+    // layout past frame two. Volume then opened with `scrollTop: 0` and its last
+    // field below the fold, which is the bug the deep link exists to avoid.
+    //
+    // Re-asking on every resize is idempotent (`block: 'nearest'` scrolls by zero
+    // once the row fits), so there is no frame budget to get wrong.
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const src = fs.readFileSync(path.join(here, 'ChartSettingsIndicators.jsx'), 'utf8')
+    // Comments quote both shapes by name, so the assertions must read CODE only.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(code, 'nothing pulls the deep-linked row into view any more')
+      .toMatch(/scrollIntoView/)
+    expect(code, 'the pull is not driven by an observer').toMatch(/new ResizeObserver/)
+    // ⛔ AND NO NESTED rAF. A single `requestAnimationFrame` is fine; one INSIDE
+    // another is the frame-counting shape this replaced.
+    expect(/requestAnimationFrame\([^)]*\{[^}]*requestAnimationFrame/.test(code),
+      'a nested requestAnimationFrame is back — that is the frame count, not a settle')
+      .toBe(false)
+    // ⚠️ AND THE OBSERVER IS BOUNDED, so it cannot fight a scroll the member makes
+    // themselves a moment after the modal opens.
+    expect(code, 'the observer never disconnects').toMatch(/ro\.disconnect\(\)/)
   })
 })

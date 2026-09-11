@@ -168,22 +168,43 @@ export default function ChartSettingsIndicators({
   // the member opens a row BY HAND would fight their own scroll position. The
   // effect is keyed on `openRowId`, not on `expanded`.
   //
-  // ⚠️ DOUBLE rAF, MEASURED. One frame is not enough: the row's fields mount in
-  // the same commit, and a `scrollIntoView` issued before layout reads the
-  // COLLAPSED height and scrolls by ~40px instead of ~260px. The second frame is
-  // after the browser has laid the expanded body out.
+  // ⚰️ IT COUNTED FRAMES, AND THE COUNT WAS A GUESS THAT STOPPED BEING TRUE.
+  // The first version waited two rAFs — one was measurably not enough (a
+  // `scrollIntoView` issued before layout reads the COLLAPSED height and scrolls
+  // ~40px instead of ~260px), and two worked when it was written. Then
+  // `ChartSettingsModal`'s formula feed moved into a child, which adds a render
+  // after mount, and the row's expanded body was no longer laid out by frame two:
+  // the panel opened with `scrollTop: 0` and Volume's last field back below the
+  // fold. Measured again after the move, on the same chart that had passed.
+  //
+  // ⭐ SO IT OBSERVES INSTEAD OF COUNTING. Every time the list's box changes while
+  // a deep link is pending, ask for the row again — no frame arithmetic, and
+  // immune to however many renders the modal happens to do on the way in.
+  //
+  // ⛔ `scrollIntoView({block: 'nearest'})` IS IDEMPOTENT, which is what makes
+  // re-asking safe: once the row fits it scrolls by zero. So this needs no
+  // "have I done it yet" flag and no height heuristic to decide whether the body
+  // has rendered.
+  //
+  // ⚠️ AND IT IS TIME-BOUNDED. The observer disconnects after `SETTLE_MS` so it
+  // can never fight a scroll the member makes themselves a moment later — the
+  // window only has to outlast the modal's own opening renders.
   useEffect(() => {
     if (!openRowId) return undefined
-    let raf2 = 0
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        try {
-          const el = listRef.current?.querySelector(`[data-row-id="${CSS.escape(openRowId)}"]`)
-          el?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-        } catch { /* jsdom has no scrollIntoView, and nothing here depends on it */ }
-      })
-    })
-    return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2) }
+    const SETTLE_MS = 1500
+    const pull = () => {
+      try {
+        const el = listRef.current?.querySelector(`[data-row-id="${CSS.escape(openRowId)}"]`)
+        el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+      } catch { /* jsdom has neither scrollIntoView nor CSS.escape; nothing depends on it */ }
+    }
+    pull()
+    // jsdom (and any host without layout) simply gets the one call above.
+    if (typeof ResizeObserver !== 'function' || !listRef.current) return undefined
+    const ro = new ResizeObserver(pull)
+    ro.observe(listRef.current)
+    const stop = setTimeout(() => ro.disconnect(), SETTLE_MS)
+    return () => { ro.disconnect(); clearTimeout(stop) }
   }, [openRowId])
   const searchRef = useRef(null)
 
