@@ -349,12 +349,38 @@ export const modes = [
         requires: ['position'],
       },
       {
-        id: 'journal.addTrade',
-        label: 'Add trade',
-        icon: 'plus',
+        // ⭐⭐ R-10 — `journal.planTrade` EXISTS NOW, AND IT REPLACES `journal.addTrade` RATHER
+        // THAN `note('journal', 1)`.
+        //
+        // ⚰️ THE DEFECT IT CLOSES IS A LABEL THAT LIES, not a missing action. Gate A5 requires
+        // "from the Journal: the same sheet opens prefilled from the selected position", and no
+        // `journal.planTrade` existed for that door to hang on — so `journalSection.js` wired the
+        // Plan-trade sheet to `journal.addTrade`, the only unclaimed `run` on the fan, and said so
+        // in its own header. The chip therefore read "Add trade" and opened the PLAN-TRADE sheet.
+        // A member reading the bubble and a member using it learned two different things.
+        //
+        // ⛔ R-10's proposed diff replaced `note('journal', 1)` instead, which DROPS Note from the
+        // Journal fan and leaves `journal.addTrade` needing either a body or a removal. Measured
+        // against the caps, that trade is unnecessary: replacing `addTrade` keeps Note, keeps the
+        // outer ring at 4 and the inner at 4 (both legal), and removes the mislabelled action
+        // outright instead of leaving an orphan for someone else to resolve. There is no separate
+        // "add a trade" door to lose — `addTrade` never had a body of its own; the Plan-trade
+        // sheet was always what it opened.
+        //
+        // ⛔ THE SHARED BUILDER STILL OWNS WHAT "Plan trade" IS. Only the two facets that are
+        // genuinely this mode's own are overridden, and both are named:
+        //   · `ring: 1` — §3.4's inner ring. The outer four are the stop/close set.
+        //   · `requires: ['position']` — A5 says PREFILLED FROM THE SELECTED POSITION, and a
+        //     symbol is not enough: an option row publishes a symbol and a NULL position
+        //     (`journalSection.js`'s cursor publish), and the sheet would open with no entry, no
+        //     stop and no size. On the Screener, where there is no position at all, `requires:
+        //     ['symbol']` is the right gate — which is exactly why this one is stated here rather
+        //     than changed in the builder.
+        // ⭐ `positionRequiredActionIds()` DERIVES its list from this fan, so it picks this up
+        // with no edit — the count goes 3 → 4 on the day this lands.
+        ...planTrade('journal'),
         ring: 1,
-        color: '--hub-mode-journal',
-        kind: 'run',
+        requires: ['position'],
       },
       note('journal', 1),
       voice('journal'),

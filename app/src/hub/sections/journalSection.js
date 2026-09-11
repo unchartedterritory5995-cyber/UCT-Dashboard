@@ -579,10 +579,13 @@ export default function useJournalHubSection({
       // Breakeven is the same PUT with a different seed — never a second write path.
       'journal.breakeven': () => openStopSheet(stopCtx?.entry, 'Set stop'),
       'journal.close': () => { if (stopCtx) cbRef.current.onRequestClose?.(stopCtx.position) },
-      // ⚠️ SEE R-10. The registry's inner ring has no `journal.planTrade`, and the registry is
-      // Director-owned. `journal.addTrade` is the only unclaimed `run` on this fan, so it is
-      // wired to the Plan-trade sheet — which is the door A5 requires the Journal to have.
-      'journal.addTrade': () => openPlanSheet(),
+      // ⭐ R-10 RESOLVED. This read `'journal.addTrade': () => openPlanSheet()`, because the
+      // registry's inner ring had no `journal.planTrade` and `addTrade` was the only unclaimed
+      // `run` on the fan. The chip therefore said "Add trade" and opened the PLAN-TRADE sheet —
+      // a label that lies, which this program treats as a shipped defect. The registry now
+      // carries the right identity (`journal.planTrade`, built from the shared `planTrade`
+      // builder) and `journal.addTrade` is gone rather than left inert.
+      'journal.planTrade': () => openPlanSheet(),
     }
     return base.map((a) => (handlers[a.id] ? { ...a, run: handlers[a.id] } : a))
   }, [stopCtx, openStopSheet, openPlanSheet])
