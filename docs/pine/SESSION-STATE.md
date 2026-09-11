@@ -207,6 +207,24 @@ is ONE root cause:
 
 ## Open questions for the owner
 
+### Open product questions
+
+**Should the door supply a default bound for the vendor's 1-arg `ta.barssince(cond)`
+so imported scripts run instead of refusing?** Today it refuses by name:
+`PINE_INEXPRESSIBLE.barssince` declines the bare call because mapping it onto ours
+*"would silently cap the count — a different number wearing the same name"*, while
+`contextBoundedPlan` rewrites the compared form (`ta.barssince(c) < 5` →
+`barssince(c, 5) < 5`) exactly, because every count the cap destroys is one the
+comparison already answers the same way. The bound is the budget — `n` is the window
+the count saturates at and the whole bounded-state design is priced on it — so a
+default would be choosing a number on the member's behalf and charging them for it.
+Measured against the vendor 2026-09-10: Pine's takes one argument and answers `na`
+where ours answers the sentinel; `divergences.json::barssince-unbounded-vs-bounded-state`
+carries it at MEASURED tier with a member-facing `vendorNote`. ⚠️ **Not decided.**
+The trade is a pasted script that runs with a bound nobody chose, against one that
+refuses with a sentence naming exactly what to add.
+
+
 1. ✅ **ANSWERED AND CLOSED 2026-09-10 — item 5's row in the table above now owns this, and this entry is kept only so the reasoning is not lost.** The memo was built in this wave and
    **discarded**: it silently dropped `accum(...)` from four supertrend-family scripts — same
    guards, `ok:true` both ways, a formula that had quietly stopped being stateful — caught only
