@@ -227,7 +227,12 @@ touched, which is the ordering that matters: check the button, THEN `setValue`.
 
 ⛔ **Do not claim repo-green** while either stands.
 
-### ⭐⭐ THE FIRST MEASURED FULL PYTHON LANE SINCE THE OOMs (2026-09-10 evening)
+### ⭐⭐ THE FIRST CLEAN FULL PYTHON LANE — ZERO KILLED CHUNKS (2026-09-11)
+
+✅ **RE-RUN 2026-09-11 on `769ddfb09`: 23,756 passed · 44 failed · 56 skipped · 10 xfailed · **ZERO KILLED CHUNKS**.** The run below had TEN killed, so this is the first complete traversal of the suite — nothing was lost to an OOM.
+⭐⭐ **And all 44 were re-run ALONE: 35 are real, 9 pass in isolation.** The nine are named in `requests.md`, together with the confirmation that three of the four load-sensitive cases that entry already warned about reproduced exactly. ⛔ **None of the 44 is ours** — the files this directive changed and the files with failures have an empty intersection, measured rather than asserted.
+
+⭐ The earlier reading, kept for the comparison:
 
 Run through `tools/pytest_chunks.py`, 12 chunks, sequential, per-chunk logs, each
 chunk's own exit code kept (R7). **23,687 passed · 52 failed · 55 skipped · 10

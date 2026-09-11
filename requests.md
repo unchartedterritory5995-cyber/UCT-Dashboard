@@ -474,7 +474,7 @@ modified, which is the same fact wearing a disguise.
 
 ---
 
-## OPEN · 2026-09-11 · five standing Python reds, grouped by area, with one-line causes
+## OPEN · 2026-09-11 · the standing Python reds — RE-MEASURED, 35 real and 9 that are not
 
 **Raised by:** the `indicator-r0r1` session, from a chunked full-lane run.
 **Territory:** none of these are ours — no file below was touched by this wave.
@@ -550,6 +550,61 @@ The ledger exists because *off-and-unset is indistinguishable from off-on-purpos
 Each needs one line in `docs/feature_flags.json` from whoever owns the flag.
 
 ### And a sixth thing, which is not a red — it is a warning about reading reds
+
+> ### 🔁 RE-MEASURED 2026-09-11 on `769ddfb09` — the whole lane, and every failure sorted
+>
+> Full chunked run (R7: 12 chunks, sequential, per-chunk logs, each chunk's own
+> exit code): **23,756 passed · 44 failed · 56 skipped · 10 xfailed · ZERO KILLED
+> CHUNKS.** The previous measured run was 23,687 / 52 / 55 with **10 killed**, so
+> this is the first complete traversal — nothing was lost to an OOM.
+>
+> ⭐⭐ **EVERY ONE OF THE 44 WAS THEN RE-RUN ALONE.** That is the discipline this
+> very entry asks for, applied to itself:
+>
+> * **35 are REAL** — they fail in isolation on an idle box.
+> * **9 are ORDER- OR LOAD-SENSITIVE** — they pass alone and only fail in company.
+>
+> ⛔ **The nine, named, because a failure list from a loaded machine is not a
+> defect list:**
+>
+> ```
+> api/services/journal_two/test_interventions.py::test_portfolio_rules_persist_under_all_bucket
+> tests/test_desk_session_recap.py::test_post_recap_posts_chunks
+> tests/test_earnings_analysis.py::TestGenerateEarningsPreview::test_preview_graceful_finnhub_failure
+> tests/test_exposed_routes_gated.py::test_the_gate_ladder_MEASURES_who_each_gate_admits
+> tests/test_mutation_check.py::TestOutputCaptureSurvivesNonAsciiFailures::test_a_mis_attribution_shows_what_did_fail
+> tests/test_mutation_check.py::TestVerdicts::test_expect_red_naming_the_right_test_passes
+> tests/test_ticker_explain.py::TestRoute::test_requires_auth
+> tests/test_ticker_logos.py::test_run_hires_upgrade_recaches_existing
+> tests/test_ticker_logos_prewarm.py::test_run_pass_skips_warm_and_resolves_cold
+> ```
+>
+> ⭐ **THREE OF THE FOUR THIS ENTRY ALREADY NAMED REPRODUCED EXACTLY** —
+> `desk_session_recap`, `earnings_analysis` and `exposed_routes_gated` failed in the
+> lane and passed alone again. The fourth, `bars_fetch_test`, passed outright this
+> time. And the list has grown by six: `mutation_check` ×2, the three ticker ones,
+> and one `interventions` case. **The warning was right and was understated.**
+>
+> **The 35 real, by file:** `buzz_digest` 9 · `discord_chart` 5 ·
+> `scan_screener_auth` 3 · `discord_activity` 3 · `discord_chart_prefs` 2 ·
+> `data_sync` 2 · `interventions` 2 · and one each in `yf_guard_binds`,
+> `user_playbook`, `two_engines_do_not_agree`, `shared_state_landmines`,
+> `launch_hardening`, `fmp_guard_census`, `feature_flag_ledger`, `earnings_table`,
+> `broker_bias_scan`.
+>
+> ⚠️ **The five this entry originally routed are all still red** (yf_guard_binds,
+> two_engines_do_not_agree, fmp_guard_census, shared_state_landmines,
+> feature_flag_ledger) — so nothing here is closed. What is new is the other 30,
+> which nobody had enumerated, and the nine that should never have been counted.
+>
+> ⛔ **NONE OF THE 44 IS OURS.** Measured, not asserted: the set of files this
+> directive changed and the set of files with failures have an EMPTY intersection
+> (`comm -12` over both sorted lists).
+>
+> ⭐ **The biggest single cluster is `test_buzz_digest` (9 of 35), and it is worth
+> one look before anyone triages it individually** — nine failures in one file
+> usually has one cause, and that suite is time-of-day sensitive by construction
+> (its slots are 10:00-17:30 ET and this run was overnight).
 
 ⚠️ **FOUR failures in the same run were LOAD-SENSITIVE, not real.** Under memory
 pressure — 3.7 GB free with eleven test processes from several sessions — these failed:
