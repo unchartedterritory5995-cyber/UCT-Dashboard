@@ -17,7 +17,6 @@
     "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > ⛔ ENTERING EDIT MODE IS NOT A RESIZE",
     "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > ⛔⛔ every key the product READS survives the strip",
     "src/components/chart/engine/ast/pine.blindCorpus.test.js > ⭐⭐ an offer a member can TAKE, not retype > ⏳ the accepted floor moves one way too",
-    "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
     "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
@@ -62,5 +61,14 @@
         "evidence": "passes alone 12/12, that test 535 ms and the file 1661 ms, against 5426 ms in-shard; failure is a Testing Library async settle timeout (\"Unable to find an element with the text: The Rest of the Week — March 31, 2026\"), not a wrong assertion; branch and master's three new commits touch zero desk/ files; last modified c6f163b54 (2026-08-19) and f30842782 (2026-08-24); absent from all four prior manifests at 1188 and 1190; shard 3 resliced 198 -> 199 by master's offlineOptInEvent.test.jsx"
       }
     ]
-  }
+  },
+  "removals": [
+    {
+      "removed": "src/components/screener/reachable.test.js > every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+      "removed_at": "2026-09-11",
+      "removed_in": "Deploy B docs commit",
+      "why": "It stopped failing in the 2026-09-11T07-36-04 gate. Removed only after confirming it is FIXED and not SILENTLY SKIPPED — the distinction the gate manifest itself asks for. Verified by running the file alone: 12 tests execute and all five of its own planted-cut controls PASS (PLANTED CUT / dynamic edge / worker edge / tracked-vs-untracked orphan / allow-list guards), so the sweep can still detect an orphan. A baseline row left in place for a test that now passes is a slot a real failure can occupy unnoticed.",
+      "verified_by": "npx vitest run src/components/screener/reachable.test.js -> 12 passed (12)"
+    }
+  ]
 }
