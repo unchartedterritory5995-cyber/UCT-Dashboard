@@ -96,6 +96,11 @@ class Repro:
         self.notes_before = None
         self.notes_after = None
         self.error = None
+        # ⛔ R-13: correlate each response to ITS request. An instrument that
+        # records requests without responses cannot establish a causal chain —
+        # "which PUT landed and which 409'd" was pure inference on the first
+        # reproduction, and inference is not evidence.
+        self._by_request = {}
 
     def step(self, name: str, ok: bool, detail: str = "") -> None:
         self.steps.append({"step": name, "ok": bool(ok), "detail": detail})
@@ -130,7 +135,8 @@ def _record_put(rec: Repro, r) -> None:
             parsed = json.loads(body)
         except Exception:  # noqa: BLE001
             parsed = {"unparseable": True}
-    rec.puts.append({
+    entry = {
+        "seq": len(rec.puts),
         "at": wc.utc_now(),
         "url": r.url,
         # ⛔ The BODY question, per key: did this PUT carry a body at all, and did
@@ -140,7 +146,34 @@ def _record_put(rec: Repro, r) -> None:
         "carriedBody": isinstance(parsed, dict) and "bodyJson" in parsed,
         "baseUpdatedAt": (parsed or {}).get("baseUpdatedAt", "<absent>") if isinstance(parsed, dict) else "<unread>",
         "sentenceInPut": bool(body and rec.sentence in body),
-    })
+        # filled in by the response handler; `None` means the response never
+        # arrived, which is itself a fact worth keeping.
+        "status": None, "responseUpdatedAt": None, "responseDetail": None,
+    }
+    rec._by_request[r] = entry
+    rec.puts.append(entry)
+
+
+def _record_response(rec: Repro, resp) -> None:
+    """⛔ R-13 — the other half of the wire. Status decides whether a PUT LANDED
+    or 409'd, and the response's `updatedAt` is the revision it produced. Without
+    both, the chain "door lands (T2) → body PUT on T1 → 409 → what the client did
+    with it" is a story rather than a measurement."""
+    entry = rec._by_request.get(resp.request)
+    if entry is None:
+        return
+    entry["status"] = resp.status
+    try:
+        body = resp.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if isinstance(body, dict):
+        note = body.get("note") if isinstance(body.get("note"), dict) else body
+        if isinstance(note, dict) and isinstance(note.get("updatedAt"), str):
+            entry["responseUpdatedAt"] = note["updatedAt"]
+        # a refusal explains itself in `detail`; keep it, it is not member content
+        if isinstance(body.get("detail"), str):
+            entry["responseDetail"] = body["detail"][:200]
 
 
 def run_ordering(ordering: str, keep_open: bool = False) -> Repro:
@@ -196,6 +229,7 @@ def run_ordering(ordering: str, keep_open: bool = False) -> Repro:
             opted_in = True
 
             page.on("request", lambda r: _record_put(rec, r))
+            page.on("response", lambda resp: _record_response(rec, resp))
 
             nt0 = page.evaluate(wc.NOTES_JS)
             rec.notes_before = nt0.get("total") if isinstance(nt0, dict) else None
