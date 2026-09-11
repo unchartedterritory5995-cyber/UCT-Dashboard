@@ -190,6 +190,65 @@ which is what it has always actually measured.
 
 ---
 
+## ✅ R-26 — THE CANARY ACCOUNT IS BACK AT ITS INTENDED STATE (2026-09-11)
+
+The seventeen evidence notes are deleted. Their content is the section below,
+which was committed and pushed **before** anything was removed.
+
+| | server total | canary-titled | sync-conflict | screen marker hits |
+|---|---|---|---|---|
+| before | 63 | 31 | 15 | 13 |
+| after the 17 | 46 | 14 | 15 | 0 |
+| after the orphan sweep | **34** | **2** | **3** | **0** |
+
+**removed 17 + 12 = 29 · refused 0.**
+
+⛔ **THE TWELVE WERE NOT IN THE RULING, AND THEY WERE NOT OPTIONAL.** Deleting a
+repro note leaves the fork the server made from it standing — a child whose
+parent is gone. Those twelve appear in no artifact of the cleanup tool's, so
+they cannot be selected by primary key the way everything else here is. They
+were selected by **the tool's own title marker** instead.
+
+⛔⛔ **NEVER BY THE TAG — and the run now PRINTS what the tag would have taken:**
+
+```
+  by MARKER (what this deletes): 0
+  by TAG    (what R-X forbids) : 3
+    ⭐ the tag would also have taken: 'WINDOW-CHECK-SENTINEL …00:00:56Z (conflicted copy)'
+    ⭐ the tag would also have taken: 'To Do List'
+    ⭐ the tag would also have taken: 'To Do List (synced copy)'
+```
+
+Two of those three are **the owner's own notes**, tagged `sync-conflict` on
+2026-09-08 by a Notion-era import. A tag says what HAPPENED to a note, never who
+made it (**R-X**), and this is the second time that selection would have taken
+the owner's work. The guard is now visible in the run's own output rather than
+only in a docstring — *a guard nobody has seen refuse is not a guard.*
+
+### The 34 that remain, and why that is the right number
+
+| bucket | n |
+|---|---|
+| the owner's own notes | 30 |
+| `To Do List` + `(synced copy)` — owner's, tagged `sync-conflict` | 2 |
+| **= the 32 baseline** | **32** |
+| the preserved round-3 sentinel `0910373ae0e8` | 1 |
+| its preserved fork `f690097b6779` | 1 |
+| **total** | **34** |
+
+⛔ **34 is the documented intentional state**, not a leftover — the section
+"THE EVIDENCE IS PRESERVED AND UNCLEANED" below says so and still stands. The
+arithmetic closes exactly, which is why the cleanup could stop where it did.
+
+⭐ Verified **two ways, both directions**: the server's own list
+(`/api/j2/notes`) and the screen the member reads. The screen read counts the
+marker TEXT — its first draft queried `[data-note-id]` and two other selectors,
+**none of which exist in this product**, so it would have reported a confident
+zero for a page it never understood. Full record:
+`docs/notebook/wave-q1-cleanup-R26.json` and `wave-q1-account-after-R26.json`.
+
+---
+
 ## ⛔⛔ THE INSTRUMENT ARTIFACTS — recorded here so the notes can be cleaned (R-22)
 
 
@@ -4258,6 +4317,215 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### proof-reads-only-exits-3 — **2026-09-11T12:06:13Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **44208** · Chrome/152.0.7977.83 · CDP `127.0.0.1:51297` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | — not run this pass |
+
+### streak-7-of-7 — **2026-09-11T12:03:30Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **22312** · Chrome/152.0.7977.83 · CDP `127.0.0.1:64776` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
+### streak-6-of-7 — **2026-09-11T12:03:15Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **27716** · Chrome/152.0.7977.83 · CDP `127.0.0.1:62418` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
+### streak-5-of-7 — **2026-09-11T12:03:01Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **16320** · Chrome/152.0.7977.83 · CDP `127.0.0.1:53091` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
+### streak-4-of-7 — **2026-09-11T12:02:46Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **48812** · Chrome/152.0.7977.83 · CDP `127.0.0.1:63078` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
+### streak-3-of-7 — **2026-09-11T12:02:33Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **42420** · Chrome/152.0.7977.83 · CDP `127.0.0.1:60580` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
+### streak-2-of-7 — **2026-09-11T12:02:16Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **31612** · Chrome/152.0.7977.83 · CDP `127.0.0.1:57251` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
+## ⛔⛔ THE FIRST "STREAK" WAS VOID - READ THIS BEFORE THE ROWS BELOW
+
+The seven rows labelled `streak-N-of-7` at **2026-09-11T12:01-12:03Z** are
+**NOT a streak.** They are kept because deleting them would hide the finding.
+
+All seven exited **0** in **106 seconds total** - about fifteen seconds each -
+and every one of them did **READS ONLY**: rig up, signed in, stores counted,
+telemetry read, teardown. No note, no typing, no door, no fork check. The tool's
+own row says so (`mini-canary | - not run this pass`), and it even printed
+*"zero events over zero opted-in browsers is not evidence"*.
+
+**Why:** `CANARY_SUSPENDED` was still `True` ("pending self-fork round 3"), and
+`canary_should_run` deliberately lets the SWITCH win over a missing
+`--no-canary` so a scheduled task cannot write while a hard stop is open. That
+guard worked exactly as designed.
+
+⛔⛔ **THE SUPPRESSION WORKED; THE REPORTING DID NOT.** A caller counting exit
+codes could not tell *seven clean canaries* from *seven runs that did nothing* -
+both are `0`. An instrument that can manufacture a streak out of doing nothing is
+the same shape as the round-3 artifact it was suspended for
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+**Both halves are fixed, in one commit:**
+
+| | |
+|---|---|
+| the switch | `CANARY_SUSPENDED = False` - round 3 closed by finding, and the canary now fires `REAL_DOOR_JS`, the member's own door |
+| the reporting | a run whose canary did not fire **exits 3, never 0**, and says so. Any streak loop counts 0 and only 0 |
+| the pin | the self-check case is INVERTED, not deleted - the state is still asserted, so flipping it back shows as a red line rather than silence |
+
+⭐ Proved on a real run before the real streak was started: `--no-canary`
+returned exit **3** with *"READS-ONLY RUN - the canary did not fire."*
+
+---
+
+### streak-1-of-7 — **2026-09-11T12:01:44Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
+
+| | reading |
+|---|---|
+| rig | PID **46068** · Chrome/152.0.7977.83 · CDP `127.0.0.1:63363` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 108 · `notes` 54 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **unset** — a profile that has never opted in |
+| notes | **34** · canary notes 2 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **0** · latest **none** · scope: population-wide (admin)  ⛔⛔ **zero events over zero opted-in browsers is not evidence** |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ⛔ **mini-canary suspended pending self-fork round 3** |
+
 ### check 13 — **2026-09-11T04:18:40Z**
 
 ⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
@@ -4661,7 +4929,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 13 — 2026-09-11T04:18:40Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of proof-reads-only-exits-3 — 2026-09-11T12:06:13Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.

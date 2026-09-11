@@ -197,12 +197,51 @@ ROW_MARK = "| **mini-canary** |"
 # that decays into a deletion is how a wave loses the instrument that found the
 # defect, and this instrument caught H1 on three separate occasions while the
 # step beside it read green every time.
-CANARY_SUSPENDED = True
-SUSPENSION_REASON = "mini-canary suspended pending self-fork round 3"
+# ⛔⛔ THE SUSPENSION IS LIFTED — 2026-09-11, and the reason it existed is gone.
+#
+# It was raised while self-fork round 3 was open. Round 3 CLOSED BY FINDING: the
+# fork was the INSTRUMENT, not the product. `DOOR_JS` fired a metadata door with
+# a raw `fetch`, so the editor's handlers never ran, `recordLandedRevision` never
+# recorded the revision, and guard 2 correctly answered "not ours" and forked —
+# which is the right answer to a second writer, and a member changing a ticker is
+# not one. Measured on the same rig and ordering: the raw-fetch door lost 11 of 13
+# (r = 0.85); the MEMBER'S OWN door lost 0 of 36 (r = 0.00).
+#
+# The canary now fires `REAL_DOOR_JS` — the member's door — so running it is no
+# longer a way to reproduce an artifact.
+CANARY_SUSPENDED = False
+SUSPENSION_REASON = ""
 
 # ⛔ ON EVERY ROW, AT THE TOP. A reader who needs it is not reading for pleasure.
 ROLLBACK_LINE = ("⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the "
                  "Railway `web` service. It stops processing; it destroys nothing.")
+
+
+def new_since(titles, before):
+    """Titles present NOW that were not present when the run started. Pure.
+
+    THE SAME MISSING BASELINE HAS NOW BITTEN THREE TIMES in this tool, in three
+    different steps: the fork detector, the cleanup leftovers, and (in
+    q1_repro.py) the fork count that was fixed there and never carried across.
+    Every one of them compared against ZERO instead of against the account's
+    starting state, and every one of them reported the account's history as this
+    run's output. One helper now, so there is one place to be right.
+    """
+    b = set(before or ())
+    return [t for t in (titles or []) if t not in b]
+
+
+def split_forks(canary_titles, forks_before):
+    """(new, pre_existing). Pure, so the baseline is DRIVEN, not asserted about.
+
+    A fork detector with no baseline reports the account's history as this run's
+    output. On 2026-09-11 that produced a HARD RED naming a conflicted copy made
+    twelve hours earlier and deliberately preserved, while the same run's note
+    arithmetic said no fork had happened.
+    """
+    before = set(forks_before or ())
+    copies = [t for t in (canary_titles or []) if "(conflicted copy)" in t]
+    return (new_since(copies, before), [t for t in copies if t in before])
 
 
 def canary_should_run(suspended: bool, no_canary_flag: bool) -> bool:
@@ -430,6 +469,12 @@ class Check:
     # DIFFERENT failures and both have to be visible: the discard is caught by the
     # sentence, the fork by this arithmetic.
     notes_before: int = 0
+    # THE FORKS THAT WERE ALREADY THERE. A fork detector with no baseline counts
+    # the account's history as this run's output.
+    forks_before: tuple = ()
+    # Every canary-titled note present at run start - the baseline the cleanup
+    # receipt needs, for the same reason the fork detector needs one.
+    canary_before: tuple = ()
 
     def add(self, name, ok, value=None, error=""):
         self.reads.append(Read(name, ok, value, error))
@@ -723,7 +768,11 @@ STATE_JS = """async (acct) => {
   const out = {optInKey: localStorage.getItem('uct.j2.offline.enabled')};
   try {
     const q = await navigator.locks.query();
-    out.locks = [...q.held, ...q.pending].filter(l => String(l.name).startsWith('uct.nb.sync.')).length;
+    const _mine = [...q.held, ...q.pending].filter(l => String(l.name).startsWith('uct.nb.sync.'));
+    out.locks = _mine.length;
+    // NAMES, NOT A COUNT. A cleanup that says "locks=1" cannot be diagnosed;
+    // one that says which lock, held or pending, and by what, can be.
+    out.lockDetail = _mine.map(l => ({name: l.name, mode: l.mode, id: l.clientId}));
     out.held = (q.held || []).filter(l => String(l.name).startsWith('uct.nb.sync.')).map(l => l.mode);
     out.pending = (q.pending || []).filter(l => String(l.name).startsWith('uct.nb.sync.')).length;
   } catch { out.locks = 'ERR' }
@@ -940,6 +989,39 @@ PROBE = ("async () => await fetch('/api/health', {cache:'no-store'})"
          ".then(r => 'ONLINE ' + r.status).catch(e => 'FAILED: ' + e.name)")
 
 
+def flush_localstorage(page) -> str:
+    """Ask Chrome to EXIT GRACEFULLY so localStorage reaches disk. Returns why not.
+
+    CHROME BATCHES localStorage TO DISK, AND SIGKILL LOSES THE BATCH.
+    Measured 2026-09-11: after the opt-in/opt-out pair, the on-disk store held
+    `appends: 0, raw: []` - the key was not merely stale, it was ABSENT. The
+    run's in-browser read-back of `'0'` was green and truthful about memory and
+    said nothing about the disk. It had looked healthy only because an OLDER
+    on-disk `'0'` was lying around; clearing the key exposed it.
+
+    This matters most AFTER THE FLIP: with the default true, "unset" means ON, so
+    a rig that cannot persist its opt-out starts every later run opted in - a
+    browser in a state no member is in.
+
+    `Browser.close` over CDP is a clean shutdown, which flushes. The marker kill
+    in `teardown` still runs afterwards and mops up anything that ignored it.
+
+    ⛔ IT MUST RUN WHILE PLAYWRIGHT IS STILL ALIVE. The first attempt put this in
+    run_check's outer `finally`, which executes AFTER `with sync_playwright()`
+    has exited - every call came back "Event loop is closed! Is Playwright
+    already stopped?". A cleanup step that can only ever fail is not a cleanup
+    step.
+    """
+    if page is None:
+        return "no page"
+    try:
+        page.context.new_cdp_session(page).send("Browser.close")
+        time.sleep(3)
+        return ""
+    except Exception as e:                                   # noqa: BLE001
+        return f"{type(e).__name__}: {e}"
+
+
 def teardown(chk: Check | None = None):
     """⛔ Kills the BROWSER by marker and KEEPS THE PROFILE. The profile is the
     signed-in session; deleting it would make every future run need a human."""
@@ -984,9 +1066,11 @@ def run_check(label: str, with_canary: bool, number: int = 0) -> Check:
         return chk
 
     note_id = None
+    browser_handle = None
     try:
         with sync_playwright() as pw:
             b = pw.chromium.connect_over_cdp(endpoint)
+            browser_handle = b
             ctx = b.contexts[0]
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
             cdp = page.context.new_cdp_session(page)
@@ -1134,7 +1218,21 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
     pre_notes = page.evaluate(NOTES_JS)
     pre_canary = pre_notes.get("canary") or []
-    forks = [t for t in pre_canary if "(conflicted copy)" in t]
+    # BASELINED - AND IT WAS NOT, WHICH COST THIS WAVE A FALSE HARD RED.
+    #
+    # 2026-09-11T12:07Z: the first armed run of the re-armed streak reported
+    # "THIS RUN FORKED ITS OWN NOTE - HARD RED" and named
+    # `WINDOW-CHECK-SENTINEL 2026-09-11T00:00:56Z (conflicted copy)` - a note
+    # created TWELVE HOURS EARLIER and deliberately preserved as round-3
+    # evidence. The detector took every conflicted copy on the account as this
+    # run's own output. The same run's arithmetic said `34 -> 35 (expected 35)`:
+    # a real fork would have made it 36, so the instrument contradicted itself
+    # and the COUNT was the half telling the truth.
+    #
+    # This is the same defect already fixed once in `tools/q1_repro.py` and never
+    # carried across to here - lesson_a_guard_repeated_is_a_guard_unproved in its
+    # other form: a guard fixed in one copy is not fixed.
+    forks, _preexisting = split_forks(pre_canary, chk.forks_before)
     if forks:
         chk.findings.append(
             "**a SINGLE-WRITER offline session produced a `(conflicted copy)`** \u2014 "
@@ -1146,7 +1244,9 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     # defect the 2026-09-10 evidence set found, and a run that sees one must
     # refuse its row and KEEP BOTH HALVES of the artifact.
     chk.step("5 no fork from a single writer", not forks,
-             "no `(conflicted copy)` created by this run",
+             "no `(conflicted copy)` created by this run"
+             + (f" - {len(_preexisting)} pre-existing, excluded by baseline"
+                if _preexisting else " - no pre-existing copies to exclude"),
              f"THIS RUN FORKED ITS OWN NOTE \u2014 HARD RED: {forks}")
 
     # \u26d4 THE ARITHMETIC, BESIDE THE FORK AND BEFORE THE DELETE. A fork and a
@@ -1209,7 +1309,12 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     # check that passes because it measured nothing.
     stores = end.get("stores") if isinstance(end.get("stores"), dict) else None
     zeroed = bool(stores) and all(v == 0 for v in stores.values())
-    leftovers = end_notes.get("canary") or []
+    # BASELINED, for the third time and by the shared helper. The account
+    # deliberately holds preserved round-3 evidence; counting it as this run's
+    # litter turned a clean run red and would have had the next operator
+    # "tidying" the very artifact the doc says nobody may touch (R-X, R-Z).
+    leftovers = new_since(end_notes.get("canary") or [], chk.canary_before)
+    _kept_before = [t for t in (end_notes.get("canary") or []) if t in set(chk.canary_before)]
 
     # ⭐ POST-cleanup leftovers, for the cleanup RECEIPT only. The fork question
     # is asked and answered ABOVE, on the PRE-cleanup list, before anything can be
@@ -1220,19 +1325,27 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     if not zeroed:
         reasons.append(f"stores not all zero ({stores!r})")
     if end.get("locks") != 0:
-        reasons.append(f"locks={end.get('locks')}")
+        # NAME THE HOLDER'S NEIGHBOURHOOD TOO. A Web Lock belongs to an
+        # execution context, so "which pages are open" is half the answer and
+        # this profile is PERSISTENT - it can restore tabs from a prior session.
+        try:
+            _pages = [pg.url for pg in page.context.pages]
+        except Exception:                                    # noqa: BLE001
+            _pages = ["<unreadable>"]
+        reasons.append(f"locks={end.get('locks')} -> {end.get('lockDetail')!r} "
+                       f"; {len(_pages)} page(s) open: {_pages}")
     # ⭐ The opt-in key is NOT asserted here any more. `_mini_canary`'s `finally`
     # owns it, asserts it, and runs on every exit — including the two this step
     # can never be reached from. One authority, at the point of the action.
     if leftovers:
-        reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
+        reasons.append(f"{len(leftovers)} leftover note(s) THIS RUN LEFT: {leftovers}")
     # ⛔ AND THE COUNT COMES BACK. A cleanup that leaves the account one note
     # heavier than it found it is litter; one note lighter is worse.
     end_total = end_notes.get("total")
     if isinstance(chk.notes_before, int) and isinstance(end_total, int) and end_total != chk.notes_before:
         reasons.append(f"note count ended at {end_total}, baseline was {chk.notes_before}")
     chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
-             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}** \u00b7 notes **{chk.notes_before} \u2192 {end_total}**",
+             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}** (+{len(_kept_before)} pre-existing, excluded) \u00b7 notes **{chk.notes_before} \u2192 {end_total}**",
              # \u26d4 Name the sub-condition that failed. "cleanup incomplete" while
              # printing three values that all look fine cost a diagnosis today.
              "cleanup incomplete: " + " \u00b7 ".join(reasons))
@@ -1374,6 +1487,19 @@ def _mini_canary(chk: Check, page, offline, puts, body=None) -> str | None:
                  f"`{FLAG_KEY}` read back as `'0'`",
                  f"the opt-out did not take (read back {got!r}) — THE RIG PROFILE IS "
                  "LEFT OPTED IN and the next run does not start from rest")
+        # ⛔ AND IT HAS TO REACH DISK. The read-back above is truthful about
+        # MEMORY and says nothing about the store: Chrome batches localStorage,
+        # and the marker kill in `teardown` loses whatever has not flushed.
+        # Measured 2026-09-11 - on-disk `appends: 0, raw: []`, the key absent
+        # entirely, while this very step read back a green `'0'`. Asking Chrome
+        # to exit cleanly here, while Playwright is still alive, is what makes
+        # the opt-out durable; `teardown` still kills by marker afterwards.
+        _flush_why = flush_localstorage(page)
+        if _flush_why:
+            chk.add("graceful close so the opt-out reaches disk", False,
+                    error=f"Chrome would not exit cleanly ({_flush_why}) - the "
+                          "opt-out may be lost when the kill lands")
+
 
 
 def _canary_body(chk: Check, page, offline, puts) -> str | None:
@@ -1390,6 +1516,9 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     # is anchored to the moment the run starts touching the account.
     nt0 = page.evaluate(NOTES_JS)
     chk.notes_before = nt0.get("total") if isinstance(nt0, dict) else None
+    # Captured at the SAME moment as the count, and for the same reason.
+    chk.canary_before = tuple(nt0.get("canary") or ()) if isinstance(nt0, dict) else ()
+    chk.forks_before = tuple(t for t in chk.canary_before if "(conflicted copy)" in t)
     st = page.evaluate(STATE_JS, ACCOUNT_ID)
     ok1 = st.get("held") == ["exclusive"] and st.get("pending") == 0 and st.get("dbOpened") is True
     chk.step("1 opt in \u2192 leadership", ok1,
@@ -1506,12 +1635,29 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     ob = _as_list(after.get("outbox"))
     # \u26d4 A layer that could not be READ is not a layer that is empty. Fail the
     # step and say which, rather than drawing a conclusion from a failed read.
+    # THE WORDS ARE SAFE IF THEY ARE DURABLE AND EITHER QUEUED OR ALREADY LANDED.
+    #
+    # 2026-09-11: this step failed a HEALTHY run with record=True draft=False
+    # outbox=0. It required `draft_ok or ob`, and with the network UP at reload
+    # the drain had already succeeded - so the draft was legitimately cleared and
+    # the queue legitimately empty, while the durable record held the sentence and
+    # the server body (checked later in the same run) held it too. The member had
+    # lost nothing; the assertion had simply named two layers that a SUCCESSFUL
+    # sync is supposed to empty.
+    #
+    # The guard keeps its strength and loses the false red: the record must hold
+    # the words, AND they must be either still queued or already on the server.
+    # `LAYERS_JS` already returns the server copy, so this costs no extra read.
+    srv_now = after.get("server") if isinstance(after.get("server"), dict) else {}
+    server_has = sentence in _doc_text(srv_now.get("bodyJson"))
     unread = layer_read_failed(before) + layer_read_failed(after)
     chk.step("3 reload (network UP) \u2192 the local layers hold THE OFFLINE SENTENCE",
-             rec_ok and (draft_ok or bool(ob)) and not unread,
+             rec_ok and (bool(ob) or server_has) and not unread,
              f"record holds the sentence: **{rec_ok}** \u00b7 draft holds the sentence: **{draft_ok}** \u00b7 outbox entries: **{len(ob)}** \u00b7 baseline `{rec.get('baseUpdatedAt')}`",
              ("layers that could not be read: " + ", ".join(unread)) if unread
-             else f"a local layer came back without `{sentence}` \u2014 THE INCIDENT'S SHAPE")
+             else (f"a local layer came back without the sentence - THE INCIDENT'S SHAPE. "
+                   f"record={rec_ok} draft={draft_ok} outbox={len(ob)} server={server_has} "
+                   f"baseline={rec.get('baseUpdatedAt')!r} sentence={sentence!r}"))
     for lab, art in (("pre-reload record", before.get("record")), ("post-reload record", rec)):
         if isinstance(art, dict):
             chk.findings += baseline_findings(lab, art) + empty_document_findings(lab, art)
@@ -2289,8 +2435,34 @@ def self_check() -> int:
     # ══════════════════════════════════════════════════════════════════════════
     # ⛔⛔ THE SUSPENSION — one switch, and SUSPENDED IS NOT DELETED.
     # ══════════════════════════════════════════════════════════════════════════
-    cases.append(("⛔ the mini-canary is SUSPENDED — the switch is on",
-                  CANARY_SUSPENDED is True))
+    # ⛔⛔ THE SWITCH IS NOW OFF — LIFTED 2026-09-11, round 3 closed by finding.
+    # The pin is INVERTED rather than deleted: the state is still asserted, so
+    # flipping it back on (or forgetting to) shows up as a red line and not as
+    # silence. ⚰️ While it was on, seven "streak" runs exited 0 having exercised
+    # nothing — the suppression worked and the reporting did not, which is why
+    # the reads-only exit code below exists.
+    cases.append(("⭐ the mini-canary is ARMED — the switch is off",
+                  CANARY_SUSPENDED is False))
+    cases.append(("…and the suspension REASON is cleared with it, never left stale",
+                  SUSPENSION_REASON == ""))
+    cases.append(("a note that was ALREADY THERE is not this run's leftover",
+                  new_since(["kept"], ("kept",)) == []))
+    cases.append(("CONTROL - a note this run created IS a leftover",
+                  new_since(["kept", "mine"], ("kept",)) == ["mine"]))
+    cases.append(("with NO baseline everything counts - the defect, reproduced",
+                  new_since(["kept", "mine"], ()) == ["kept", "mine"]))
+    _pre = ("SENTINEL 00:00:56Z (conflicted copy)",)
+    cases.append(("⛔ a PRE-EXISTING conflicted copy is NOT this run's fork",
+                  split_forks(list(_pre), _pre)[0] == []))
+    cases.append(("⭐ CONTROL — a NEW conflicted copy still reports as a fork",
+                  split_forks([_pre[0], "SENTINEL 12:07Z (conflicted copy)"], _pre)[0]
+                  == ["SENTINEL 12:07Z (conflicted copy)"]))
+    cases.append(("…and the pre-existing one is still NAMED, never silently dropped",
+                  split_forks(list(_pre), _pre)[1] == list(_pre)))
+    cases.append(("⛔ with NO baseline every copy counts — the defect, reproduced",
+                  split_forks(list(_pre), ())[0] == list(_pre)))
+    cases.append(("⛔ A READS-ONLY RUN IS NOT COUNTABLE — it exits 3, never 0",
+                  'return 3' in src_wc and 'if not chk.canary:' in src_wc))
     cases.append(("…and the switch alone stops it, even with no --no-canary flag",
                   canary_should_run(True, False) is False))
     cases.append(("…and `--no-canary` alone stops it too, switch off",
@@ -2727,7 +2899,28 @@ def main() -> int:
             print("   -", f)
     print()
     ok = stamp(chk, args.dry_run)
-    return 0 if (ok and not chk.findings) else 1
+    if not (ok and not chk.findings):
+        return 1
+    # ⛔⛔ A RUN THAT DID NOT FIRE THE CANARY IS NOT A STREAK RUN, AND MUST NOT
+    # BE COUNTABLE AS ONE.
+    #
+    # ⚰️ 2026-09-11: seven runs were launched as a streak against the deployed
+    # build and all seven exited 0 in 106 seconds total. They had done READS
+    # ONLY — no note, no typing, no door, no fork check — because
+    # `CANARY_SUSPENDED` still won over the missing `--no-canary`, exactly as it
+    # was designed to. The suppression worked; the REPORTING did not. A caller
+    # counting exit codes cannot tell "seven clean canaries" from "seven runs
+    # that did nothing", and that is the whole shape of the defect this wave
+    # exists to hunt (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    #
+    # So a reads-only run gets its OWN exit code. 0 means the canary ran and was
+    # green; 3 means nothing was exercised. Any streak loop counts 0 and only 0.
+    if not chk.canary:
+        print("")
+        print("⛔ READS-ONLY RUN - the canary did not fire, so this is NOT a streak run.")
+        print("   exit 3: green reads, nothing exercised.")
+        return 3
+    return 0
 
 
 if __name__ == "__main__":
