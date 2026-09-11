@@ -176,7 +176,38 @@ def _record_response(rec: Repro, resp) -> None:
             entry["responseDetail"] = body["detail"][:200]
 
 
-def run_ordering(ordering: str, keep_open: bool = False, run_index: int = 0) -> Repro:
+REAL_DOOR_JS = """async ({door, value}) => {
+  // ⛔⛔ THE PRODUCT'S OWN DOOR, not a script's. The canary fires metadata writes
+  // with a raw fetch (`window_check.DOOR_JS`), which means the editor's
+  // `onFolderChange`/`onTickerChange`/`onTagsChange` never run — so
+  // `settleMetadataRevision` never runs, `recordLandedRevision` never records the
+  // revision, and guard 2 correctly answers "not ours" and FORKS. That is a
+  // faithful simulation of a SECOND WRITER, and a fork is the right answer to it.
+  // A member changing a folder is not a second writer. This drives the real
+  // controls so the real handlers run.
+  const fire = (el, type) => el.dispatchEvent(new Event(type, {bubbles: true}));
+  const setNative = (el, v) => {
+    const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);
+  };
+  if (door === 'folder') {
+    const sel = document.querySelector('select');
+    if (!sel) return {ok:false, why:'no folder <select> on the page'};
+    const opt = [...sel.options].find(o => o.value && o.value !== sel.value);
+    if (!opt) return {ok:false, why:'no other folder to move to'};
+    setNative(sel, opt.value); fire(sel, 'change');
+    return {ok:true, via:'select.change', value: opt.value};
+  }
+  const ph = door === 'ticker' ? 'Ticker' : 'Tags (comma sep)';
+  const el = document.querySelector(`input[placeholder="${ph}"]`);
+  if (!el) return {ok:false, why:'no ' + ph + ' input on the page'};
+  el.focus(); setNative(el, value); fire(el, 'input'); el.blur(); fire(el, 'blur');
+  return {ok:true, via:'input.blur', value};
+}"""
+
+
+
+def run_ordering(ordering: str, keep_open: bool = False, run_index: int = 0, real_door: bool = False) -> Repro:
     from playwright.sync_api import sync_playwright
 
     rec = Repro(ordering)
@@ -258,6 +289,23 @@ def run_ordering(ordering: str, keep_open: bool = False, run_index: int = 0) -> 
             rec.note_id = created["id"]
             rec.step("create a fresh note", True, rec.note_id)
 
+            # ⛔ THE FOLDER DOOR NEEDS SOMEWHERE TO GO. The rig account has one
+            # folder, so `--real-door folder` found no other option and the run
+            # reported RED for a harness reason — a red that is not the product
+            # is worse than no run. Ensure a second folder exists BEFORE the note
+            # page renders, or the <select> will not carry it.
+            if real_door:
+                page.evaluate("""async () => {
+                    const r = await fetch('/api/j2/note-folders', {credentials:'include'});
+                    const b = r.ok ? await r.json() : null;
+                    const have = (b?.folders || b || []).length || 0;
+                    if (have >= 2) return {ok:true, had:have};
+                    const mk = await fetch('/api/j2/note-folders', {method:'POST', credentials:'include',
+                      headers:{'Content-Type':'application/json'},
+                      body: JSON.stringify({name: 'repro-destination'})});
+                    return {ok: mk.ok, created: true};
+                }""")
+
             page.goto(f"{wc.PROD}/journal/notebook?note={rec.note_id}", wait_until="domcontentloaded")
             page.wait_for_timeout(6000)
 
@@ -315,7 +363,20 @@ def run_ordering(ordering: str, keep_open: bool = False, run_index: int = 0) -> 
             # it claims to sample is one observation repeated.
             rec.door = wc.door_for(run_index)
             sends_before = len(rec.puts) - online_puts
-            dr = page.evaluate(wc.DOOR_JS, {"id": rec.note_id, "patch": wc.DOOR_PATCH[rec.door]})
+            if real_door:
+                val = "NVDA" if rec.door == "ticker" else "repro"
+                rr = page.evaluate(REAL_DOOR_JS, {"door": rec.door, "value": val})
+                rec.layers["realDoor"] = rr
+                if not (isinstance(rr, dict) and rr.get("ok")):
+                    rec.error = f"the real door could not be driven: {rr}"
+                    rec.step("real door fired", False, str(rr))
+                    return rec
+                rec.step("real door fired (the PRODUCT's handler)", True, str(rr.get("via")))
+                page.wait_for_timeout(4000)
+                after = page.evaluate("async (id) => (await (await fetch('/api/j2/notes/'+id,{credentials:'include'})).json()).note?.updatedAt", rec.note_id)
+                dr = {"status": 200, "before": None, "after": after, "attempts": 1, "via": "real-ui"}
+            else:
+                dr = page.evaluate(wc.DOOR_JS, {"id": rec.note_id, "patch": wc.DOOR_PATCH[rec.door]})
             if not isinstance(dr, dict):
                 dr = {"status": None, "before": None, "after": None}
             moved = (dr.get("status") == 200 and isinstance(dr.get("after"), str)
@@ -467,6 +528,12 @@ def main() -> int:
                     help="run the ordering up to N times, stopping on the first red")
     ap.add_argument("--sample", action="store_true",
                     help="keep going after a red — measure the RATE, do not stop at evidence")
+    # ⛔⛔ R-18 follow-on: fire the door through the PRODUCT's controls instead
+    # of a raw fetch. The raw-fetch door simulates a SECOND WRITER, and a fork
+    # is the correct answer to one — so a reproduction built on it may be the
+    # instrument manufacturing its own finding.
+    ap.add_argument("--real-door", action="store_true",
+                    help="drive the editor's own folder/ticker/tags controls")
     a = ap.parse_args()
 
     if a.self_check or (not a.ordering and not a.all):
@@ -478,7 +545,7 @@ def main() -> int:
     run_i = 0
     for o in todo:
         run_i += 1
-        rec = run_ordering(o, keep_open=a.keep_open, run_index=run_i)
+        rec = run_ordering(o, keep_open=a.keep_open, run_index=run_i, real_door=a.real_door)
         p = write_artifact(rec)
         print(f"  artifact: {p}", flush=True)
         if rec.red:
