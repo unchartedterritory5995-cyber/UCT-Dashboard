@@ -151,6 +151,38 @@ Watch, in the first hour:
 
 ---
 
+## 5b. ⛔⛔ CONDITION 8 — THE POST-DEPLOY SMOKE, AND WHAT TO DO WHEN IT FAILS
+
+**The eighth standing deploy condition, added for the member launch: every deploy is followed by
+`tools/hub_nav_smoke.py` against production, signed in, and the result is reported with the
+deploy.** The seven that precede it are all things that must be true BEFORE a push. This is the
+first one that can only be true after, and it exists because on 2026-09-10 every pre-push
+condition held and navigation was broken app-wide anyway.
+
+```sh
+# the two variables are the smoke account's; see the launch charter's L2.
+SMOKE_EMAIL=... SMOKE_PASSWORD=... python tools/hub_nav_smoke.py --auth
+python tools/hub_nav_smoke.py --self-check     # prove the detector can still fail
+```
+
+It watches two layers: **navigation** (click a nav entry, assert BOTH the URL and the screen
+moved) and **render stability** (after the page settles, how much of the main thread is free).
+The second is the cause the first is a consequence of — a loop that has not yet starved a
+navigation is still the defect.
+
+| Exit | Means | Do |
+|---|---|---|
+| **0** | Every top-level route navigated and no route looked starved | Report it with the deploy. Quote the busiest main-thread figure, not just "pass". |
+| **1** | A break was **measured** | **⛔ H15: roll back FIRST (§1), then report, then diagnose.** |
+| **2** | Nothing was measurable | **NOT a rollback trigger.** The deploy is unverified, not bad. Say so in those words, fix the measurement, re-run. |
+
+⚠️ **Exit 2 is the honest answer to a missing smoke account, and it is the state this
+condition is in until one exists.** An anonymous visitor has no nav to click, so `/dashboard` —
+the route the freeze was reported on — is not covered at all. Do not read a public-routes-only
+run as coverage of the launch.
+
+---
+
 ## 6. The opted-in count — **READ-ONLY, run by the owner**
 
 ✅ **RESULT 2026-09-09: `0`.** Run read-only against production, `mode=ro`, single

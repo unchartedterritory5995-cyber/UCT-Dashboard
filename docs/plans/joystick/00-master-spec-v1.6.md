@@ -214,10 +214,12 @@ On touch viewports the joystick hub is the single bottom-right control.
   becomes a **"Voice" action on the inner ring of every mode**, calling the exact handler the orb calls
   today: `useRealtimeSession().connect(context)`. Do not reimplement voice capture, and do not edit the
   orb's internals — only the media query that governs where it mounts. **Desktop rendering is untouched.**
-- **Feedback FAB** (`FeedbackWidget.jsx`) moves behind the **Peek overlay** (two-finger tap) as a
-  "Feedback" button, calling the same handler. *(⚠️ GAP: on touch the feedback button is bottom-**left**
-  today, so it never collided with the hub. This decision trades a one-tap affordance for a two-finger
-  gesture. Recorded as a deliberate cost, not an accident.)*
+- **Feedback** is its own 44px button below the Actions button, plus a row in the actions sheet.
+  ⚰️ This said the FAB "moves behind the **Peek overlay** (two-finger tap)" and recorded the
+  one-tap-for-two-finger trade as "a deliberate cost, not an accident". **The trade was REVERSED by
+  D-25** and then the gesture was removed outright; Feedback is one tap again. ⭐ The ⚠️ GAP note
+  is left visible on purpose: it is the record of a cost that was correctly identified, escalated,
+  and paid back — which is the outcome the note existed to make possible.
 - **The chart-page precedent is respected, not overridden.** On the portrait phone chart the hub still
   mounts, but: (1) the fan opens only toward the upper-left quadrant; (2) the scrim excludes the volume
   pane region; (3) the hub sits at the offset the orb used on the wider touch range.
@@ -235,7 +237,9 @@ On touch viewports the joystick hub is the single bottom-right control.
 
 - **The Actions button.** A real `<button>`, **visible at rest** — not only while the fan is open —
   minimum 44×44, labelled "Actions", sitting on the **inner side of the knob** (left of it when
-  right-handed, right of it when mirrored). It opens the same Peek sheet the two-finger gesture opens.
+  right-handed, right of it when mirrored). It opens the actions sheet.
+  ⚰️ This said "the same Peek sheet the two-finger gesture opens". That gesture was removed
+  2026-09-10; this button is now the ONLY door, which is what §C2 asked for all along.
   It is the WCAG 2.5.1-compliant door to every action and is never gated on screen-reader detection.
 
 - **Android back-edge mitigation.** The right-side default stays. On Android, a `pointerdown` beginning
@@ -419,11 +423,19 @@ Build `src/hub/JoystickHub.tsx` and children.
   flick window 120ms · outer/inner split at 80% travel · fan radii 150/96px · 90° quadrant opening
   toward the upper-left.
 - Full vocabulary from C1: tap, double-tap, hold (home), hold+drag (scrub, live readout in the chip),
-  soft/hard push fans, flick, two-finger tap (Peek — which also carries the Feedback button, §2c).
-  Scrub emits a normalized `delta` and a `commit`.
+  soft/hard push fans, flick. Scrub emits a normalized `delta` and a `commit`.
+  ⚰️ **This line listed `two-finger tap (Peek)`.** The gesture was REMOVED on 2026-09-10; the
+  pointer branch is gone from `useJoystick.js` and `peekRemoved.test.jsx` scans for its return.
+  ⛔ **Every other row of the gesture table checks out against `useJoystick.js` — which is exactly
+  why this one was dangerous.** An artifact that is right about eleven things and wrong about the
+  twelfth is the one an engineer derives a member-facing gesture list from without re-measuring.
 - **The Actions button.** A small, always-visible `<button>` beside the knob, labelled "{Mode} actions",
-  single-tap, opening the same Peek sheet the two-finger gesture opens. **Not optional and never gated
-  on screen-reader detection** — see §C2 for why the two-finger gesture cannot be the only door.
+  single-tap, opening the actions sheet. **Not optional and never gated on screen-reader detection.**
+  ⚰️ This said it "opens the same Peek sheet the two-finger gesture opens". There is no other
+  door now: `HubActionsButton` owns its own `open` state, and the `open`/`onOpenChange` pair died
+  with the gesture. ⭐ §C2's argument survives its own example — it was written to say a
+  multi-touch gesture cannot be the ONLY way to reach an action, and removing that gesture is the
+  strongest possible form of agreeing with it.
 - `flickable: false` actions are excluded from flick resolution entirely: a flick in their direction
   opens the fan instead of firing. Journal's **Close** is the first such action.
 - **The open threshold and the ring split are fractions of `travelPx`, not fixed pixels** (10/24 and
@@ -615,7 +627,7 @@ discovered, and the exact questions needed. Then stop.
 | Drag (hard push) | Outer fan | Section actions, ≤5 |
 | Drag past 56px | **Reach mode** | Ring follows the POINTER, not the knob — see below |
 | Flick (<120ms) | Quick | Fires the outer action in that direction without opening the fan |
-| Two-finger tap | Peek | Gesture map + tap-to-select for every action + the Feedback button |
+| ~~Two-finger tap~~ | ⚰️ **REMOVED** | Removed by owner ruling 2026-09-10 (`ccd661051`), railed by `peekRemoved.test.jsx`. **The Actions button is the door.** |
 
 
 ### C1.1 Reach mode (v1.6) — the affordance wins
@@ -731,9 +743,12 @@ Constraints:
   **Close** and **Breakeven**, which v1.1 left unconfirmed. Every confirm sheet is primary + secondary
   ("Save stop" / "Cancel"), never a third button and never one button alone.
 - Scrub always shows a live readout in the mode chip.
-- **Every action is reachable without a drag** — via Peek, opened by the **Actions button** (single tap)
-  or the two-finger gesture. The button is the door that actually satisfies WCAG 2.5.1; the gesture is
-  the fast path for users who have no screen reader running.
+- **Every action is reachable without a drag** — via the sheet, opened by the **Actions button**
+  (single tap). It is the door that satisfies WCAG 2.5.1.
+  ⚰️ This offered the Actions button "or the two-finger gesture … the fast path for users who have
+  no screen reader running". The gesture was removed 2026-09-10, so there is no second path and no
+  fast/slow split: **everyone uses the button.** ⭐ That the two doors were ever described as
+  equal-but-different is what made removing one cheap.
 
 ## C2. Accessibility commitments
 
@@ -744,6 +759,12 @@ Constraints:
   current mode; the pad and compass ring are `aria-hidden`; the mode chip is `role="status"
   aria-live="polite"`; sheets and Peek reuse `components/mobile/Sheet.jsx` verbatim for dialog
   semantics, focus trap, Escape and focus restore.
+> ⚠️ **"Peek" below names the SHEET, not the removed gesture.** The two-finger tap is gone
+> (2026-09-10); the sheet it used to open is still there and the Actions button opens it. The
+> accessibility requirements in this section are therefore all still live — and §C2's argument
+> that a reserved multi-touch gesture cannot be an action's only door is what removing it
+> settled. Kept in its original words because it is the reasoning, not a status claim.
+
 - **⛔ The two-finger tap cannot be Peek's only door.** VoiceOver and TalkBack both reserve two-finger
   single-tap for pause/resume speech and consume it before the page sees a `pointerdown`, so the
   affordance that guarantees "no action is drag-only" is unreachable for exactly the users it protects.

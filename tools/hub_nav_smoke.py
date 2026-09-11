@@ -17,6 +17,18 @@ A green suite, a 200 and a rising uptime are all compatible with a browser that 
 move between pages. **The only layer that could have caught it is a real browser
 clicking a real link**, and nothing was watching there. This is that.
 
+IT WATCHES TWO LAYERS, and the second one was added for the member launch:
+
+  1. NAVIGATION — the symptom. Click a nav entry; assert BOTH the URL and a screen
+     fingerprint changed. A freeze moves the first and not the second.
+  2. RENDER STABILITY — the cause. After the page settles, sample how much of the main
+     thread is actually free. A passive-effect loop that has not yet starved a navigation
+     is still the defect, and this catches it one step earlier. See BLOCKED_FRACTION_LIMIT
+     for what the threshold is and, more importantly, what it is NOT calibrated against.
+
+Signed in, it sweeps EVERY top-level route (derived from NAV_ITEMS, /dashboard first) and
+departs from each one; the fan-out from /dashboard stays exhaustive.
+
 ⛔ READ-ONLY. It navigates and reads. It never submits a form, never fires a hub write
 action, never touches `/api/push`. The single POST it makes is the login, which is how
 `tools/mobile_audit.py` already authenticates.
@@ -122,6 +134,105 @@ def fingerprint(page) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
+# ── the render-stability probe ─────────────────────────────────────────────────────────────
+# ⛔⛔ THE NAV CHECK ABOVE MEASURES THE SYMPTOM. THIS MEASURES THE CAUSE.
+#
+# The 2026-09-10 freeze was a passive-effect render loop running at ~4,500 renders/sec. React
+# never throws "Maximum update depth" for one, `/api/health` stays 200, and the suite stays
+# green — the browser simply spends its whole main thread re-rendering, and React Router's
+# transition never gets a commit. Navigation freezing was the CONSEQUENCE.
+#
+# So a loop that has not yet starved a navigation is still the defect, and this catches it one
+# step earlier: after the page has settled, a healthy app is near-idle. We sample two things
+# that need NO instrumentation in the product and therefore work against production:
+#
+#   * requestAnimationFrame callbacks actually delivered in a fixed wall-clock window. A
+#     healthy settled page gets ~60/sec. A starved main thread gets a fraction of that.
+#   * `PerformanceObserver('longtask')` — total ms the main thread spent in tasks over 50ms.
+#     A render loop is a continuous wall of them.
+#
+# ⚠️ THE THRESHOLD IS CHOSEN, NOT DERIVED. The live incident cannot be re-run, so nothing here
+# is calibrated against it. It is set where a 4,500/sec loop is orders of magnitude past it and
+# a settled healthy page is nowhere near: >60% of the window blocked. THE MEASURED NUMBERS ARE
+# ALWAYS PRINTED so a future run can tighten this from evidence instead of argument
+# (`lesson_an_acceptance_number_is_a_forecast_until_derived`).
+BLOCKED_FRACTION_LIMIT = 0.60
+
+RENDER_PROBE_JS = """(ms) => new Promise((resolve) => {
+  let frames = 0;
+  let blockedMs = 0;
+  let obs = null;
+  try {
+    obs = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) blockedMs += e.duration;
+    });
+    obs.observe({ entryTypes: ['longtask'] });
+  } catch (e) { obs = null; }
+  const t0 = performance.now();
+  const tick = () => {
+    frames += 1;
+    if (performance.now() - t0 < ms) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(() => {
+    if (obs) obs.disconnect();
+    const elapsed = performance.now() - t0;
+    resolve({
+      elapsed,
+      frames,
+      fps: frames / (elapsed / 1000),
+      blockedMs,
+      blockedFraction: elapsed > 0 ? blockedMs / elapsed : 0,
+      longtaskSupported: obs !== null,
+    });
+  }, ms + 60);
+})"""
+
+
+def render_stability(page, window_ms: int = 2000) -> dict:
+    """Sample main-thread health on the CURRENT page. Never raises."""
+    try:
+        return page.evaluate(RENDER_PROBE_JS, window_ms)
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+def render_verdict(route: str, sample: dict) -> str | None:
+    """Return a failure sentence, or None. A sample we could not take is NOT a pass."""
+    if "error" in sample:
+        return f"{route}: the render probe could not run ({sample['error']})"
+    if not sample.get("longtaskSupported"):
+        # Honest about a blind instrument rather than reporting its silence as health.
+        return None
+    if sample.get("blockedFraction", 0) > BLOCKED_FRACTION_LIMIT:
+        return (
+            f"RENDER LOOP SUSPECTED on {route}: the main thread was blocked "
+            f"{sample['blockedMs']:.0f}ms of a {sample['elapsed']:.0f}ms window "
+            f"({sample['blockedFraction'] * 100:.0f}%) at {sample['fps']:.0f} fps, AFTER the "
+            "page settled. This is the 2026-09-10 shape: a passive-effect loop that throws "
+            "nothing, keeps /api/health at 200, and starves React Router's commit."
+        )
+    return None
+
+
+def top_level_routes(entries: list[dict]) -> list[str]:
+    """Every top-level route, DERIVED from the same NAV_ITEMS the nav is built from.
+
+    ⛔ The charter asks for 'every top-level route'. The nav IS that list — deriving it here
+    means a route added tomorrow is covered the day it lands, and a typed copy could never
+    make that claim honestly.
+    """
+    seen, out = set(), []
+    for e in entries:
+        if e["to"] not in seen:
+            seen.add(e["to"])
+            out.append(e["to"])
+    if "/dashboard" in out:  # the page the freeze was reported on leads.
+        out.remove("/dashboard")
+        out.insert(0, "/dashboard")
+    return out
+
+
 def login(page, base: str) -> bool:
     email = os.environ.get("SMOKE_EMAIL")
     pw = os.environ.get("SMOKE_PASSWORD")
@@ -185,6 +296,66 @@ def check_route(page, base: str, start: str, entries: list[dict]) -> tuple[list[
     return failures, clicked
 
 
+def sweep_every_route(page, base: str, routes: list[str], entries: list[dict]):
+    """Visit EVERY top-level route; probe each for a render loop; depart from each once.
+
+    ⛔ O(N), NOT O(N**2), AND THAT IS A DELIBERATE TRADE. A full click matrix from seventeen
+    routes is ~290 navigations and would take long enough that nobody runs it after a deploy —
+    and an instrument nobody runs is worse than none, because it reads as coverage. The
+    rotation departs from every route exactly once (route i clicks through to route i+1), so no
+    route is merely LOADED: every one of them is also asked to navigate away. `--full` restores
+    the exhaustive fan-out for a deliberate audit.
+
+    Returns (failures, clicked, probes).
+    """
+    failures: list[str] = []
+    probes: list[tuple[str, dict]] = []
+    clicked = 0
+    by_route = {e["to"]: e for e in entries}
+
+    for i, route in enumerate(routes):
+        target = routes[(i + 1) % len(routes)]
+        say(f"  {route} …")
+        try:
+            page.goto(f"{base}{route}", wait_until="domcontentloaded", timeout=45000)
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"{route}: the route would not load ({type(exc).__name__})")
+            continue
+        page.wait_for_timeout(2000)  # settle: a cold mount is legitimately busy.
+
+        sample = render_stability(page)
+        probes.append((route, sample))
+        if "error" not in sample and sample.get("longtaskSupported"):
+            say(f"      main thread {sample['blockedFraction'] * 100:5.1f}% blocked, "
+                f"{sample['fps']:.0f} fps")
+        verdict = render_verdict(route, sample)
+        if verdict:
+            failures.append(verdict)
+
+        if target == route:
+            continue
+        link = page.locator(f'a[href="{target}"]').first
+        if link.count() == 0:
+            continue
+        before_url, before_fp = page.url, fingerprint(page)
+        clicked += 1
+        try:
+            link.click(timeout=10000)
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"{route} -> {target}: click failed ({type(exc).__name__})")
+            continue
+        page.wait_for_timeout(1500)
+        if page.url == before_url:
+            failures.append(f"{route} -> {target}: the URL never changed (still {page.url})")
+        elif fingerprint(page) == before_fp:
+            label = by_route.get(target, {}).get("label", target)
+            failures.append(
+                f"NAVIGATION FROZE: {route} -> {target} ({label}): the URL became {page.url} "
+                "and the screen did NOT change. This is the 2026-09-10 defect."
+            )
+    return failures, clicked, probes
+
+
 # ── rule 14: prove the detector can FAIL ───────────────────────────────────────────────────
 FROZEN_PAGE = """<!doctype html><meta charset="utf-8"><title>frozen</title>
 <main><h1>Frozen</h1><p>This page never changes.</p>
@@ -207,6 +378,25 @@ document.getElementById('b').addEventListener('click', (e) => {
   document.title = 'healthy-b';
 });
 </script>"""
+
+
+# ⛔ RULE 14 FOR THE RENDER PROBE. A detector nobody has watched fire is not a detector.
+# LOOP_PAGE reproduces the PATHOLOGY, not the React mechanism: a main thread that never yields
+# for long, exactly as ~4,500 renders/sec presents to the browser. IDLE_PAGE is the control —
+# without it a probe that returned "blocked" unconditionally would pass the first half.
+LOOP_PAGE = """<!doctype html><meta charset="utf-8"><title>loop</title>
+<main><h1>Looping</h1></main>
+<script>
+function spin() {
+  const t = performance.now();
+  while (performance.now() - t < 120) { /* starve the main thread, like the render loop did */ }
+  setTimeout(spin, 0);
+}
+spin();
+</script>"""
+
+IDLE_PAGE = """<!doctype html><meta charset="utf-8"><title>idle</title>
+<main><h1>Idle</h1><p>A settled, healthy page.</p></main>"""
 
 
 def _serve(body_for_path, nonce):
@@ -278,14 +468,45 @@ def self_check() -> int:
         page.wait_for_timeout(300)
         healthy_ok = (page.url != base2 + "/") and (fingerprint(page) != before2)
 
-        br.close()
         srv2.shutdown()
 
+        # 3. THE PLANTED RENDER LOOP MUST BE CAUGHT — the failure path added for the launch
+        #    smoke. This is the CAUSE the 2026-09-10 freeze was a consequence of.
+        srv3, port3 = _serve(lambda p: LOOP_PAGE, nonce)
+        base3 = f"http://127.0.0.1:{port3}"
+        page.goto(base3, wait_until="domcontentloaded")
+        page.wait_for_timeout(500)
+        loop_sample = render_stability(page, 1500)
+        loop_caught = render_verdict("/loop", loop_sample) is not None
+        srv3.shutdown()
+
+        # 4. AN IDLE PAGE MUST NOT BE FLAGGED — the control for the probe.
+        srv4, port4 = _serve(lambda p: IDLE_PAGE, nonce)
+        base4 = f"http://127.0.0.1:{port4}"
+        page.goto(base4, wait_until="domcontentloaded")
+        page.wait_for_timeout(500)
+        idle_sample = render_stability(page, 1500)
+        idle_clean = render_verdict("/idle", idle_sample) is None
+        srv4.shutdown()
+
+        br.close()
+
     say("")
-    say(f"  planted freeze DETECTED : {frozen_caught}")
-    say(f"  healthy page NOT flagged: {healthy_ok}")
-    if frozen_caught and healthy_ok:
-        say("SELF-CHECK PASS — the detector fires on a freeze and stays quiet on a healthy page.")
+    say(f"  planted freeze DETECTED    : {frozen_caught}")
+    say(f"  healthy page NOT flagged   : {healthy_ok}")
+    say(f"  planted RENDER LOOP DETECTED: {loop_caught} "
+        f"(main thread {loop_sample.get('blockedFraction', 0) * 100:.0f}% blocked, "
+        f"{loop_sample.get('fps', 0):.0f} fps)")
+    say(f"  idle page NOT flagged      : {idle_clean} "
+        f"(main thread {idle_sample.get('blockedFraction', 0) * 100:.0f}% blocked, "
+        f"{idle_sample.get('fps', 0):.0f} fps)")
+    if not loop_sample.get("longtaskSupported", False):
+        say("SELF-CHECK FAILED — this browser reports no longtask entries, so the render probe "
+            "is BLIND here. Silence from a blind instrument is not health.", err=True)
+        return 1
+    if frozen_caught and healthy_ok and loop_caught and idle_clean:
+        say("SELF-CHECK PASS — both detectors fire on the thing they watch for and stay quiet "
+            "on a healthy page.")
         return 0
     say("SELF-CHECK FAILED — this smoke cannot be trusted.", err=True)
     return 1
@@ -296,6 +517,9 @@ def main(argv=None) -> int:
     ap.add_argument("--base", default=PROD)
     ap.add_argument("--auth", action="store_true", help="sign in with SMOKE_EMAIL / SMOKE_PASSWORD")
     ap.add_argument("--self-check", action="store_true", help="rule 14: prove the detector can fail")
+    ap.add_argument("--full", action="store_true",
+                    help="exhaustive fan-out from the three hub-hosting routes (slow; an "
+                         "audit, not a post-deploy smoke)")
     args = ap.parse_args(argv)
 
     if args.self_check:
@@ -322,18 +546,44 @@ def main(argv=None) -> int:
             say("    ⛔ /dashboard is where the 2026-09-10 freeze was reported. It is NOT covered "
                 "by this run. Create the smoke account and set the two variables.")
             say("")
-            starts = PUBLIC_ROUTES
-        else:
-            starts = START_ROUTES
 
         total_clicked = 0
-        for start in starts:
-            say(f"  checking nav from {start} …")
-            route_failures, clicked = check_route(page, args.base, start, entries)
-            say(f"    {clicked} nav entr{'y' if clicked == 1 else 'ies'} exercised")
+        probes: list[tuple[str, dict]] = []
+        if not authed:
+            for start in PUBLIC_ROUTES:
+                say(f"  checking nav from {start} …")
+                route_failures, clicked = check_route(page, args.base, start, entries)
+                say(f"    {clicked} nav entr{'y' if clicked == 1 else 'ies'} exercised")
+                failures += route_failures
+                total_clicked += clicked
+        elif args.full:
+            for start in START_ROUTES:
+                say(f"  exhaustive fan-out from {start} …")
+                route_failures, clicked = check_route(page, args.base, start, entries)
+                say(f"    {clicked} nav entr{'y' if clicked == 1 else 'ies'} exercised")
+                failures += route_failures
+                total_clicked += clicked
+        else:
+            routes = top_level_routes(entries)
+            say(f"  sweeping {len(routes)} top-level routes, /dashboard first …")
+            route_failures, clicked, probes = sweep_every_route(page, args.base, routes, entries)
             failures += route_failures
             total_clicked += clicked
+            # ⛔ THE FAN-OUT FROM /dashboard STAYS EXHAUSTIVE. It is the page the freeze was
+            # reported on and the one that mounts the hub-owning tile; one departure from it is
+            # not enough coverage of the surface that actually broke.
+            say("  exhaustive fan-out from /dashboard …")
+            dash_failures, dash_clicked = check_route(page, args.base, "/dashboard", entries)
+            say(f"    {dash_clicked} nav entr{'y' if dash_clicked == 1 else 'ies'} exercised")
+            failures += dash_failures
+            total_clicked += dash_clicked
         br.close()
+
+    # ⛔ COVERAGE IS REPORTED, NOT ASSUMED. `/dashboard` is the whole reason this file exists;
+    # a run that never reached it must not read like one that did.
+    covered = {r for r, _ in probes}
+    if authed and not args.full and "/dashboard" not in covered:
+        failures.append("/dashboard was never probed — the route this smoke exists for was missed")
 
     # ⛔ NON-VACUITY, BEFORE ANY VERDICT. A run that clicked nothing is not a clean run; it is a
     # run that did not happen, and reporting it as PASS is precisely how a green light gets
@@ -352,8 +602,13 @@ def main(argv=None) -> int:
             say(f"  ⛔ {f}", err=True)
         return 1
     scope = "authenticated" if authed else "public-routes-only"
-    say(f"SMOKE PASS ({scope}) — {total_clicked} nav entries exercised, and every one moved BOTH "
-        "the URL and the screen.")
+    if probes:
+        worst = max(probes, key=lambda rp: rp[1].get("blockedFraction", 0))
+        say(f"  busiest main thread: {worst[0]} at "
+            f"{worst[1].get('blockedFraction', 0) * 100:.1f}% blocked "
+            f"(limit {BLOCKED_FRACTION_LIMIT * 100:.0f}%)")
+    say(f"SMOKE PASS ({scope}) — {len(probes)} route(s) probed for a render loop, "
+        f"{total_clicked} nav entries exercised, and every one moved BOTH the URL and the screen.")
     return 0
 
 

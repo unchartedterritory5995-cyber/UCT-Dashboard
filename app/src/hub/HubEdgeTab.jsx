@@ -45,6 +45,13 @@ export default function HubEdgeTab({ persistent, mirrored = false, onRestore }) 
 /** The toast shown after a restore — copy differs by how it was hidden. */
 export const restoreToast = (persistent) => (
   persistent
-    ? 'Turn it back on permanently in Settings → Joystick'
+    // ⛔ NAME A HEADING THAT EXISTS. This read 'Settings → Joystick' and there is no
+    // Joystick section — SECTIONS in Settings.jsx is account/billing/preferences/charts/
+    // compass/connections/legal, and the card is mounted under CHARTS. This sentence is
+    // shown to a member the instant they restore a persistently-hidden hub, i.e. it is the
+    // one direction the product gives someone who wants their hub back, and it pointed at
+    // nothing. Same defect as the original 'Re-enable in Settings soon' toast that named a
+    // screen which did not exist yet — a recovery path that cannot be followed is not one.
+    ? 'Turn it back on permanently in Settings → Charts → Joystick'
     : 'Joystick back for this session'
 )
