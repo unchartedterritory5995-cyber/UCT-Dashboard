@@ -16,6 +16,34 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 
 ## The owner's order of work — where it stands
 
+> ### ✅ THE ORDER IS COMPLETE, 2026-09-11 — with two named remainders
+>
+> **1-5, 9-13 DONE. 7, 8, 10 completed this session. 6 is eight-of-nine.**
+>
+> | state | items |
+> |---|---|
+> | ✅ done | 1, 2, 3, 4, 5 (closed, not retried), 7, 8, 9, 10 (dark), 11a, 12, 13 |
+> | ⚠️ one reading short | **6** — `ta.tr(true)` is the only Group-B name unread |
+> | 📋 logged, not scheduled | **11b** |
+>
+> ⛔ **WHAT "DONE" MEANS HERE, AND IT IS NARROWER THAN IT LOOKS.** Items 6, 7 and 8
+> are done in the sense the owner asked for — *"eight vendor readings, not eight
+> guesses"* — every question is now MEASURED against TradingView and recorded with
+> its probe's sha256. **Almost none of them are PINNED into the engine**, and that
+> is deliberate: declaring a new BAR name owes a corpus case and re-freezes a
+> cross-lane oracle, which is a priced pass of its own. `ceil`/`floor` were built
+> across the table and both lanes on 2026-09-11 and backed out the same hour when
+> those gates fired by name. **The readings are the deliverable; the pins are a
+> separate, gated piece of work.** `docs/pine/BRANCH-PACKAGE.md` §3.5 lists every
+> measured-not-pinned name with its fixture.
+>
+> ⭐ **Three things the backlog itself had wrong**, all found by measuring rather
+> than by reading it: `year` already translated and never needed a vendor read;
+> `alma` is not a missing name but a DEAD one (it does not exist in Pine v6, so
+> adding it would make this engine accept what the vendor rejects); and
+> `ta.barssince` is a REMOVAL — our 2-arg declaration is the wrong one.
+
+
 | # | item | state |
 |---:|---|---|
 | 1 | Land Kind 4 | ✅ merged from `worktree-indicator-ecosystem` (`cd078bbd2`), pieces verified |
@@ -32,9 +60,19 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 12 | `record_clock_parity.py --check` in CI | ✅ **DONE** (`86e31c706`) — red observed on a perturbed fixture, then reverted |
 | 13 | live window reads the calendar leaf | ✅ **DONE** (`2a89bf997`) — half-days shorten the window to 13:00 ET; discriminator + control mutation-proved |
 
-⛔⛔ **ITEMS 6–10 ARE GATED.** `pineRuntimeFrontend.js` may not be wired to any
-route until a producer feeds `opts.newestBarIsForming` from Python's
-`bar_close_state`. Until then the JS lane renders CLOCK_REALTIME blank by design.
+⛔⛔ **WHAT IS STILL GATED IS THE RENDERER, NOT THE ITEMS.**
+`pineRuntimeFrontend.js` may not be wired to any route until a producer feeds
+`opts.newestBarIsForming` from Python's `bar_close_state`. Until then the JS lane
+renders CLOCK_REALTIME blank by design.
+
+⚰️ **THIS SAID "ITEMS 6-10 ARE GATED" AND THAT READ AS A BLOCKER ON THE WORK.** It
+was not: items 6, 7, 8 and 10 were all completed on 2026-09-11 without wiring that
+module at all — the readings come off a chart through the editor route, and item
+10's pane is a placement decision behind its own dark flag. What this gate stops
+is one specific thing: **a member meeting four blank columns.** ⭐ The producer
+EXISTS for the served lane (`521a52816`, `9dfe101e0`); what is missing is the JS
+lane's own path to it, and `pineRuntimeFrontendGate.test.js` is still 3/3 green
+with zero importers, so nothing has drifted.
 Measured: at `35ba654da` the lane was already blank; at `3a1d9d4a3` it was
 confidently wrong. Enforced by
 `app/src/components/chart/engine/__tests__/pineRuntimeFrontendGate.test.js` —
