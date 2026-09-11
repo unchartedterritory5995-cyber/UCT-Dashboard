@@ -247,6 +247,21 @@
   outline: var(--focus-ring);
 }
 
+/* ── Feedback, one tap, in the Actions button's column (D-25) ──────────────
+   Composed on the Actions button rather than re-declared: the two are one
+   column and a second copy of the glass recipe is how they drift apart. It is
+   painted a touch quieter — same glass, resting tint instead of the pressed
+   one — because it is the secondary control of the pair and must not compete
+   with the WCAG door above it. */
+.feedbackButton {
+  composes: actionsButton;
+  background: var(--hub-glass-tint);
+}
+
+.feedbackButton:focus-visible {
+  outline: var(--focus-ring);
+}
+
 .actionList {
   display: flex;
   flex-direction: column;
