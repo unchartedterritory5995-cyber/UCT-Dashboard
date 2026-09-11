@@ -10197,6 +10197,17 @@ export default function StockChart({
       topKeys: _topKeys,
     })
     paneLayoutRef.current = paneLayout
+    // ⭐ AND THE TOOLBAR'S ANCHOR IS REFRESHED THE MOMENT THE LAYOUT CHANGES, not
+    // only from the rAF sampler. The sampler is gated on there being pane-aligned
+    // chrome to move (`showVolLegend` / `verticalLegend` / pane readouts); a chart
+    // with none of those runs no loop, and the variable would then keep whatever
+    // value the last top pane left in it. Measured once as a toolbar still offset
+    // 113px after its top pane had moved back below the candles.
+    //
+    // ⚠️ IT STILL READS `chart.panes()`, not the layout's own pixel arithmetic —
+    // the sampler's rule, for the sampler's reason: during a divider drag only the
+    // renderer knows where the boundary is.
+    pinTopPaneOffset()
     // ⭐ AND THE PANE LIST GOES OUT TO THE RENDER, so each oscillator pane can
     // print its own name and value at its top-left. Guarded on a shallow compare
     // because this effect runs on every settings write and an unconditional
@@ -14122,7 +14133,12 @@ export default function StockChart({
       const layout = paneLayoutRef.current
       if (!chart || !container || !layout || !Array.isArray(layout.panes)) return
       const row = layout.panes.find((p) => p && p.key === key)
-      if (!row || !Number.isInteger(row.index) || row.index < 1) return
+      // ⚰️ `row.index < 1` STOOD HERE, and it was true only while every indicator
+      // pane was BELOW the candles. A top pane's index is 0, and the sum below
+      // already yields 0 for it — so the guard rejected exactly the pane whose
+      // answer was already correct, leaving its readout on the CSS default
+      // instead of the measured position. Reject a NEGATIVE index; 0 is a pane.
+      if (!row || !Number.isInteger(row.index) || row.index < 0) return
       const panes = chart.panes ? chart.panes() : null
       if (!panes || panes.length <= row.index) return
       let top = 0
