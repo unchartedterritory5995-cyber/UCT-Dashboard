@@ -369,6 +369,90 @@ const FAQS = [
       everything is down, check the status pill at the top of this page — if
       we're investigating, you'll see it there.</>,
   },
+  // ── The joystick ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ APPENDED AT THE END ON PURPOSE. `topic: 'joystick'` is a value
+  // `inferSourceTopic` never returns, so these three are never promoted by the
+  // contextual sort and stay at the bottom of Quick answers. That is correct
+  // while the hub is still rolling out: most members do not have it, and a
+  // preview feature must not outrank billing on a billing question. Keyword
+  // search still finds them, which is how someone who DOES have it arrives.
+  //
+  // ⛔ THE COPY MUST STAY TRUE THROUGH A STAGED ROLLOUT — it never says every
+  // member has it, and "Not seeing it at all?" below is the half that keeps
+  // that promise. Derive any change to the gesture list from `hub/useJoystick.js`
+  // and any change to an action name from `hub/registry.js`, never from a plan
+  // document: several are superseded, and one still describes the preview as
+  // navigation-only, which it has not been since Increment 5.
+  {
+    id: 'joystick-what',
+    topic: 'joystick',
+    q: 'What is the joystick control on my phone screen, and how do I use it?',
+    keywords: 'joystick hub pad knob corner circle glass drag gesture shortcut fan flick scrub tap hold double mobile phone tablet',
+    a: <>On phones and tablets there's a small glass pad in the bottom-right corner
+      (bottom-left if you set it left-handed). It knows which section you're on and
+      puts that section's most-used actions one gesture away — chart a ticker, flag
+      it, move a stop, start a note — without leaving the page. The label beside it
+      says where you are and what a tap does right now.
+      <ul>
+        <li><strong>Tap</strong> — go to the next thing: the next wire segment, the next
+          scan result, the next open position, the next day on the calendar.</li>
+        <li><strong>Double-tap</strong> — the same step backwards.</li>
+        <li><strong>Drag</strong> — a fan of shortcuts opens around the pad. Keep dragging
+          toward the one you want and let go to run it. The outer ring is Actions, the
+          inner ring is Tools. Let go without pointing at anything and the fan stays open;
+          tap the pad or anywhere outside to close it.</li>
+        <li><strong>Flick</strong> — a quick flick toward an outer shortcut runs it straight
+          away. A few of the riskier ones — closing a position, for one — deliberately won't
+          fire on a flick; they open the fan instead so you choose on purpose.</li>
+        <li><strong>Hold</strong> — press and hold about half a second, then let go, to jump
+          back to the dashboard. Hold and then <em>drag</em> instead and you scrub: step
+          through a list or nudge a value, and let go to commit it.</li>
+      </ul>
+      What's in the fan depends on the section. The Journal offers Move stop, Breakeven and
+      Close on an open position; the Screener offers Chart it, Flag, Alert and Plan trade;
+      the Notebook offers New note, Voice note and templates; every section has Voice and
+      Home. Nothing in the fan writes to a broker.
+      <br /><br />
+      If dragging isn't comfortable, you don't have to — see "Is there a way to use the
+      joystick without dragging?" for the one-tap route to all of it.</>,
+  },
+  {
+    id: 'joystick-onoff',
+    topic: 'joystick',
+    q: 'How do I turn the joystick off — or get it back?',
+    keywords: 'joystick hide turn off disable remove get rid gone missing restore show back tab edge sliver settings enable handedness left-handed haptics',
+    a: <>Three doors, and they do different things.
+      <ul>
+        <li><strong>Hide it for now</strong> — tap the Actions button beside the pad and
+          choose <em>Hide joystick</em>. It goes away until you reload the page, and
+          nothing is saved.</li>
+        <li><strong>Turn it off for good</strong> — <Link to="/settings?section=charts">Settings
+          → Charts → Joystick</Link>, and untick "Joystick shortcuts". It stays off on every
+          device until you tick it again. The same card sets which hand you use, haptics, and
+          how far and how long the pad has to be pressed.</li>
+        <li><strong>Get it back</strong> — either way, a thin glass sliver stays on the edge
+          of the screen where the pad was. Tap it and the joystick returns for this session.
+          To bring it back for good, tick the box in Settings again.</li>
+      </ul>
+      Not seeing it at all? It's phones and tablets only — never a desktop browser — and
+      it's still rolling out in stages, so it may not be switched on for your account yet.</>,
+  },
+  {
+    id: 'joystick-actions-button',
+    topic: 'joystick',
+    q: 'Is there a way to use the joystick without dragging?',
+    keywords: 'joystick actions button tap one tap drag voiceover talkback screen reader accessibility accessible sheet list cannot drag tremor motor',
+    a: <>Yes — and it isn't a lesser version. Beside the pad is a button labelled
+      <strong> Actions</strong>. One tap opens a sheet listing every shortcut the section
+      you're on has, each one an ordinary button you press once. No drag, no flick, no hold.
+      It's a real button with a real name, so VoiceOver and TalkBack read it out and work it
+      the way they work anything else. Anything that needs something you haven't picked yet
+      is listed too — dimmed, with the reason ("Pick a stock first"), never hidden. Where the
+      section has a scrub, the sheet carries it as a slider you can drag or arrow through, and
+      the sheet is also where Feedback and Hide joystick live. If dragging is awkward for any
+      reason, use this — it reaches everything the gestures reach.</>,
+  },
 ]
 
 const FAQ_BY_ID = Object.fromEntries(FAQS.map(f => [f.id, f]))

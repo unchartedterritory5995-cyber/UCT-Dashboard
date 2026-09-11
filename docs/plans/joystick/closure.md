@@ -1,21 +1,86 @@
 # Joystick hub — closure
 
-> ## ✅ FEATURE COMPLETE — with one incident on the record.
-> at `f7ec5d5dd` + the Peek removal (`ccd661051`) + Increment 8's class rails.
-> **The programme is closed. No further deploys are authorized.**
+> ## ⬜ NOT YET LAUNCHED — this is the LAUNCHED template, and every box below is empty.
+> Engineering-complete at `f7ec5d5dd` + the Peek removal (`ccd661051`) + Increment 8's class
+> rails — **with one incident on the record.** Read the caveat under the boxes before reading
+> anything here as a clean close.
 >
+> **LAUNCHED is a state this document does not yet describe.** The charter's DEFINITION OF
+> LAUNCHED is below, one box per line, each with the evidence that closes it.
+>
+> ⛔ **A box is ticked only by the artifact named in its own evidence slot** — a run record, a
+> commit, a live check — never by a judgement that it is probably fine, and never ahead of the
+> run. An empty evidence slot and an unticked box say the same thing, and today that is the
+> true thing to say. ⭐ An absent result is not a pass; it is an absent result.
+>
+> **The programme is closed to further FEATURE work, and no further deploys are authorized**
+> for anything except the work these six boxes name.
+
+## DEFINITION OF LAUNCHED — the gate, unticked
+
+- [ ] **G0 resolved.** Flick scores **≥ 8/10 on an iPhone 15 Pro-class device**, measured by the
+      owner on real glass; if it comes in below, the root cause is **traced and fixed** — not
+      noted, not averaged across devices. `glass-acceptance.md:98` still carries G0-1 as
+      ⬜ UNEXPLAINED: *"iPhone 15 Pro scored sticky fan 0/10 and flick 0/10, while iPhone SE
+      scored 10/10 on both — on the same calibrated pointer path."* `g0-flick-trace-plan.md` is
+      the plan for explaining it.
+      **Evidence:**
+
+- [ ] **Glass acceptance passed on ≥ 1 notched iOS device and ≥ 1 Android.**
+      `glass-acceptance.md`, every block, including the surfaces Increments 3–7 added.
+      ⛔ Gated behind G0-1 above, in that file's own words (`:104`): *"Resolve G0-1 before
+      reading any G1"* — G1 is the same measurement done by hand, so a G1 pass read while G0-1
+      is unexplained proves nothing.
+      **Evidence:**
+
+- [ ] **Post-deploy client smoke, signed in, covering every top-level route including
+      `/dashboard`, and CONCLUSIVE.** ⛔ *Conclusive* is the load-bearing word, not decoration:
+      `tools/hub_nav_smoke.py` exists because a green suite, a 200 from `/api/health` and a
+      rising uptime were all simultaneously true while navigation was frozen for members
+      (`postmortem-nav-freeze.md`). A run that comes back empty, or that dies before it writes,
+      is an INCOMPLETE — never a pass.
+      **Evidence:**
+
+- [ ] **Preference-key validation live server-side.** `POST /api/auth/preferences` accepts any
+      `{key, value}` from any authenticated user with no validation, which is why §2 below
+      records B6 as an **exposure default, not a security boundary**, and §4 lists calling it a
+      gate among the things to reverse. Closing it is an `api/` edit; the `api/` stop measured
+      in §2 is why it is still open, and that stop is a reason, not a dispensation.
+      **Evidence:**
+
+- [ ] **Rollout at stage 3, with the kill switch verified on glass.** ⚠️ The plan's own ladder
+      stops at two rungs — `45-phase2.5-plan.md:52` **Step 1 — ADMIN PREVIEW** and `:61`
+      **Step 2 — MEMBER PREVIEW** (*"`hub.enabled` default becomes true for every authenticated
+      user"*) — so the charter's stage 3 is a rung beyond anything this programme planned, and
+      the first thing its evidence slot must name is what stage 3 IS. Today the product is at
+      Step 1: `useHubSettings.js` resolves an unset preference to `isAdmin`. The kill switch
+      (`HUB_PREVIEW_ENABLED=false`) must be **seen to take effect on a device**, not inferred
+      from the flag being read per request — a `--kv` read confirms the service's config and is
+      not evidence the running process has it.
+      **Evidence:**
+
+- [ ] **closure.md rewritten as LAUNCHED, citing each of the above.** This document: five filled
+      evidence slots above this line, and this header replaced by one that says LAUNCHED and
+      has the citations to mean it. ⛔ It is deliberately last and deliberately not
+      self-satisfying — ticking it while any box above is empty is the only way to make this
+      whole gate a lie.
+      **Evidence:**
+
+---
+
 > ⛔⛔ **READ `postmortem-nav-freeze.md` BEFORE TREATING THIS AS A CLEAN CLOSE.** On 2026-09-10
 > this programme shipped a render loop that **froze navigation app-wide for about four and a half
 > hours** — clicking any nav entry changed the URL and left the screen where it was. It was found
 > by a member and fixed by another session. Three of the four links in the chain were this
 > programme's code.
 >
-> "Feature complete" is written above on the basis that the defect CLASS is now railed
+> "Engineering-complete" is written above on the basis that the defect CLASS is now railed
 > (Increment 8: C1 every host, C2 every ineligible member, C3 every width, C4 a real browser
 > against production, C5 charter rule H14) — **not** on the basis that nothing went wrong.
 >
 > Every row in `deferred.md` and every request in `requests.md` carries a final-state verdict,
-> including the four owner decisions, all now DECIDED. What remains is not engineering:
+> including the four owner decisions, all now DECIDED. What remains **of this programme's own
+> work** is not engineering:
 >
 > 1. ⬜ **OPEN — the owner's real-glass run.** `glass-acceptance.md`, gated behind precondition
 >    **G0-1**, which must be run first and which nothing else counts without.
@@ -23,6 +88,14 @@
 >
 > Nothing else in this programme is open. Anything that reads as open elsewhere is history — the
 > two RESUME docs carry a SUPERSEDED banner saying so.
+>
+> ⚠️ **That sentence and the LAUNCHED boxes above are not in conflict, and the distinction is
+> worth stating rather than leaving to be re-derived.** The boxes name work LAUNCH requires,
+> which is not the same set as work this programme left undone: preference-key validation is
+> engineering, it is required for LAUNCHED, and it is CLOSED-BLOCKED in §0 — stopped by the
+> `api/` watch lists measured in §2, not skipped. A box can therefore be empty because someone
+> still has to run something, or empty because something outside this programme has to move
+> first. Both are empty. Neither is a pass.
 
 This document supersedes `70-increment-6-closure.md`, which closed Increment 6 with a core list
 of one. That list is still one, and it is still the same item.
