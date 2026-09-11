@@ -61,3 +61,16 @@ export function _resetBoardTrustForTests() {
   reason = null
   listeners.clear()
 }
+
+// ⭐ A DEV-ONLY SEAM, so the guard can be exercised live rather than only in a
+// unit test. The real trigger — a render error that rebuilds the tree — is not
+// something to provoke deliberately against a member's board, and reproducing the
+// exact HMR hook-order crash is an artefact of the dev server rather than a
+// product behaviour. This exposes the same transition the route boundary drives.
+//
+// ⛔ IT DOES NOT SHIP. `import.meta.env.DEV` is statically false in a production
+// build, so the whole block is dropped at bundle time — there is no "crash button"
+// in the product, and nothing here widens what a page can do to a member's state.
+if (import.meta.env && import.meta.env.DEV) {
+  globalThis.__uctBoardTrust = { markBoardCrashed, boardCrashed }
+}
