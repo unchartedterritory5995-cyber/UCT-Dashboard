@@ -31,6 +31,9 @@
  *      window.__uctNbDiag = []                     // reset between orderings
  */
 
+import { offlineEnabled } from './offlineFlag'
+import { postJ2Telemetry } from './telemetry'
+
 export const DIAG_KEY = 'uct.nb.diag'
 
 /** ⛔ Capped. A run that loops would otherwise trade a data-loss bug for an
@@ -38,8 +41,29 @@ export const DIAG_KEY = 'uct.nb.diag'
  *  the interesting moment in every round so far was the LAST one. */
 export const DIAG_MAX = 500
 
+/** ⛔ How many telemetry posts one session may make. The in-page buffer is the
+ *  rig's real read (CDP, no round trip, no truncation); telemetry is the
+ *  fallback for a browser nobody is driving. `/api/j2/telemetry` truncates props
+ *  at 500 chars and writes to the shared `activity_log`, so an uncapped emit
+ *  would flood a member-facing log with diagnostics. */
+export const DIAG_POST_CAP = 20
+let posted = 0
+
+/** ⛔ For rails only — a session counter that could not be reset would make the
+ *  cap untestable, and an untestable cap is a comment. */
+export function __resetDiagPosts() { posted = 0 }
+
+/**
+ * ⛔⛔ TWO KEYS, BOTH REQUIRED (owner ruling R-14).
+ *
+ * The offline layer itself must be ON *and* the diagnostic separately armed.
+ * Either one alone is silence. One key would mean a member who opted into
+ * offline editing silently gained a diagnostic, and a diagnostic nobody asked
+ * for is not a diagnostic — it is collection.
+ */
 export function diagEnabled(storage = globalThis.localStorage) {
   try {
+    if (!offlineEnabled(storage)) return false
     return storage?.getItem(DIAG_KEY) === '1'
   } catch {
     // A browser that refuses storage is not an armed browser.
@@ -58,8 +82,15 @@ export function diag(event, build) {
     const g = globalThis
     if (!Array.isArray(g.__uctNbDiag)) g.__uctNbDiag = []
     const payload = typeof build === 'function' ? build() : build
-    g.__uctNbDiag.push({ at: new Date().toISOString(), event, ...payload })
+    const record = { at: new Date().toISOString(), event, ...payload }
+    g.__uctNbDiag.push(record)
     if (g.__uctNbDiag.length > DIAG_MAX) g.__uctNbDiag.splice(0, g.__uctNbDiag.length - DIAG_MAX)
+    // ⛔ Bounded, and never awaited: a save must not wait on bookkeeping, and a
+    // diagnostic must not become the reason a decision is slow.
+    if (posted < DIAG_POST_CAP) {
+      posted += 1
+      postJ2Telemetry('notebook_diag_decision', record)
+    }
   } catch {
     // ⛔ A diagnostic must never be able to break the thing it is diagnosing.
     // A throw here would turn an observation into an outage.
