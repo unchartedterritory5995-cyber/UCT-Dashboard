@@ -149,6 +149,38 @@ those scripts are blocked by `pine:function` / `pine:request` / `pine:tuple` reg
 
 ---
 
+
+### ⚠️ THE 2026-09-11 BROWSER SESSION ENDED ON A FROZEN RENDERER — what is outstanding
+
+Five captures landed (hi/lo, pivot, round-max-vwap, valuewhen, time-tf). Then, during
+the `setResolution('5')` that the SIXTH needs, **the page reloaded under the visit**
+— the tab id changed from `603418943` to `603419102` — and the renderer stopped
+answering: two consecutive `Runtime.evaluate` calls timed out at 45s, 45 seconds
+apart. Browser work stopped there rather than hammering it.
+
+**Outstanding, and none of it is lost work:**
+
+1. ⛔ **`r11-time-session.pine` IS UNREAD.** It is the last of item 7's three probes
+   and the only one that needs an INTRADAY chart — `time(timeframe.period,
+   "0930-1600")`, the form the corpus's **52 two-argument sites** ride on. It decides
+   whether those sites are a BOOLEAN test or an ARITHMETIC one, and a compile refusal
+   would itself be the answer. The probe is committed and the route is proven; it
+   needs one add on a 5m chart.
+2. ⚠️ **V4's restore is NOT confirmed.** The chart was mid-switch to 5m when the
+   renderer froze, so its resolution is UNKNOWN — it may be 5m rather than the 1D
+   this visit found. ⛔ Do not assume; read it. Everything else V4 asks for WAS
+   verified immediately before the switch: AMEX:SPY, 1D, eight probes all compiling
+   with rosters matching their committed sources, no duplicates, and `__uct*` globals
+   back to zero (the one this visit created, `__uctBufferBackup`, was deleted).
+3. ⭐ **The layout is the disposable one and stays for the owner**, per the standing
+   ruling. Nothing was written to either named script.
+
+⭐ **AND THE BINDING GATE EARNED ITS KEEP.** Twice in this session the action button
+read *"Update on chart"* when a naive pass would have clicked it: once after adding
+`UCTPROBE_GB_HILO` (a SAVED script — the exact H1 action), and once after adding an
+unsaved Untitled script. Every add binds. The gate refused before the buffer was
+touched, which is the ordering that matters: check the button, THEN `setValue`.
+
 ## Known reds — routed, not silenced
 
 1. **`tests/test_ast_interpret.py::test_the_escape_census_ZERO_is_ATTRIBUTABLE`** — inherited
