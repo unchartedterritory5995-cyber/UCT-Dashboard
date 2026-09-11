@@ -115,6 +115,7 @@ import { HubContractError, validateSectionConfig } from './contracts'
 import { _reset as resetCursors } from './useHubCursor'
 import { AuthContext } from '../context/AuthContext'
 import useScreenerHubSection, { buildScanFan } from './sections/screenerSection'
+import { COMMIT_NOTICE_TEXT } from './HubCommitNotice'
 
 // ── the scene ────────────────────────────────────────────────────────────────────────────────
 /** Two screener rows. `price` is the row's own snapshot — what the table shows with no live tick. */
@@ -269,6 +270,33 @@ describe("the Screener's Alert — the section's own payload, on the rendered sh
     expect(registeredFan().map((a) => a.id)).toContain('scan.alert')
     expect(typeof actionInFan('scan.alert').confirmPayload).toBe('function')
     expect(sheetOpen(), 'a sheet was open before any gesture').toBe(false)
+  })
+
+  it('⛔⛔ a SECTION-supplied payload still carries the action\'s escalation', () => {
+    // ⚰️ THE INTEGRATION DEFECT THIS EXISTS FOR, and it was built out of two correct changes.
+    // R-14's branch sets the section's payload verbatim. The iOS visible-escalation work put
+    // `escalate` on the FALLBACK payload only. `scan.alert` declares `escalate: true` in the
+    // registry and is the ONLY action that takes the section path — so the Screener's Alert,
+    // the exact action R-14 existed to fix, was the one confirm sheet in the product that
+    // rendered no commit notice. On an iPhone, where `navigator.vibrate` does not exist, that
+    // member got no escalation signal in either channel.
+    //
+    // ⭐ Asserted as RENDERED TEXT on the real sheet, not as a payload field: the whole point of
+    // the notice is that a phone which cannot buzz still SAYS the write is the serious kind, and
+    // a test that reads `payload.escalate` would pass with nothing on screen.
+    expect(modesById.scan.fan.find((a) => a.id === 'scan.alert')?.escalate,
+      'scan.alert stopped escalating in the registry — this rail now proves nothing, and the '
+      + 'right fix is to pick another escalating confirm, not to delete the assertion').toBe(true)
+
+    renderHub(<ScreenerPageStandIn />)
+    deliberateSelect('scan.alert')
+
+    expect(screen.getByLabelText('price'), 'the section payload did not open — this rail is '
+      + 'measuring the generic sheet, not the one under test').toBeTruthy()
+    expect(screen.queryByText(COMMIT_NOTICE_TEXT),
+      'the section-supplied sheet rendered NO commit notice. `scan.alert` escalates, so a member '
+      + 'on an iPhone — which cannot vibrate — now has no signal at all that this one writes. '
+      + '`escalate` belongs to the ACTION; HubRoot must carry it onto a section payload.').not.toBeNull()
   })
 
   it('⛔ the sheet carries a PRICE FIELD, defaulting to the number the table is showing', () => {

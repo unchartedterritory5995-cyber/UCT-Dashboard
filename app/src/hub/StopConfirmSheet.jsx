@@ -26,13 +26,16 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import Sheet from '../components/mobile/Sheet'
+import HubCommitNotice from './HubCommitNotice'
 import { validateConfirmPayload } from './contracts'
 import {
-  STOP_TICK, clampStopToSide, formatR, rForCandidate, round2, sideFlipRefusal,
+  clampStopToSide, formatR, rForCandidate, sideFlipRefusal, stopTickFor,
 } from './sections/journalSection'
+// D-31: the tick table and the price formatter are the same module, and this sheet is a caller of
+// both. ⛔ Not a `.toFixed(2)` anywhere below: this sheet renders the number the member is about
+// to WRITE, so a display rounded coarser than the step would show two different stops as one.
+import { formatPrice, roundToTick } from '../components/chart/drawingLabels'
 import styles from './hub.module.css'
-
-const money = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '—')
 
 /**
  * @param {Object} props
@@ -59,11 +62,17 @@ export default function StopConfirmSheet({
   onConfirm,
   onClose,
 }) {
-  const [value, setValue] = useState(() => round2(stop).toFixed(2))
+  // ⭐ ONE TICK FOR THE WHOLE SHEET, asked for ONCE, from the entry — the same price
+  // `journalSection` asks about, so the stepper, the readout and the gesture cannot disagree
+  // about what one step is worth. `entry ?? stop` mirrors `clampStopToSide`'s own default.
+  const tick = stopTickFor(entry ?? stop)
+  const money = (v) => formatPrice(v, { tick }) || '—'
+
+  const [value, setValue] = useState(() => formatPrice(roundToTick(stop, tick), { tick }))
   const firedRef = useRef(false)
 
   const numeric = Number(value)
-  const parsed = Number.isFinite(numeric) ? round2(numeric) : null
+  const parsed = Number.isFinite(numeric) ? roundToTick(numeric, tick) : null
 
   // The same risk basis the scrub readout uses, so the sheet and the chip can never disagree
   // about what R the member is about to lock in.
@@ -75,9 +84,9 @@ export default function StopConfirmSheet({
   const refusal = parsed === null ? null : sideFlipRefusal({ stop: parsed, entry, side })
   const blocked = parsed === null || refusal !== null
 
-  const primaryLabel = `Set stop ${parsed === null ? '—' : parsed.toFixed(2)}`
+  const primaryLabel = `Set stop ${money(parsed)}`
   const body = `${symbol} ${String(side).toLowerCase()} — current stop ${money(currentStop)}, `
-    + `new stop ${parsed === null ? '—' : parsed.toFixed(2)}`
+    + `new stop ${money(parsed)}`
 
   // Validated at the boundary, on the payload shape the contract declares. Cheap: once per
   // render of an open sheet, and it is the one check that catches a blank body or a dead
@@ -87,20 +96,21 @@ export default function StopConfirmSheet({
     body,
     primaryLabel,
     onConfirm: () => {},
-    fields: [{ name: 'stop', type: 'number', value: value, step: STOP_TICK, min: STOP_TICK }],
+    fields: [{ name: 'stop', type: 'number', value: value, step: tick, min: tick }],
   }, 'StopConfirmSheet')
 
   const step = useCallback((direction) => {
     setValue((cur) => {
       const base = Number.isFinite(Number(cur)) ? Number(cur) : Number(stop)
       // Clamped through the SAME function the gesture uses, so the accessible path cannot
-      // reach a value the drag refuses (and vice versa).
+      // reach a value the drag refuses (and vice versa) — and handed the SAME tick, so the
+      // WCAG equal path steps at the instrument's precision rather than a coarser cent.
       const nextValue = clampStopToSide({
-        stop: base + direction * STOP_TICK, entry, side,
+        stop: base + direction * tick, entry, side, tick,
       })
-      return (nextValue === null ? base : nextValue).toFixed(2)
+      return formatPrice(nextValue === null ? base : nextValue, { tick })
     })
-  }, [stop, entry, side])
+  }, [stop, entry, side, tick])
 
   const confirm = useCallback(() => {
     if (firedRef.current || blocked || parsed === null) return
@@ -110,10 +120,16 @@ export default function StopConfirmSheet({
 
   return (
     <Sheet open onClose={onClose} variant="auto" title={title} ariaLabel={title}>
+      {/* ⛔ UNCONDITIONAL, because this sheet IS the escalation. Every action that opens it
+          (`journal.moveStop`, `journal.breakeven`) declares `escalate: true` — the flag is not
+          passed in because there is no non-escalated way to reach a stop write. The haptic half
+          of that escalation does not exist on iOS Safari (no `navigator.vibrate`), so this is the
+          member's only signal there that a write is about to happen. */}
+      <HubCommitNotice testId="hub-stop-escalation" />
       <div className={styles.confirmBody} data-testid="hub-stop-body">
         <p data-testid="hub-stop-symbol">{symbol} {String(side).toLowerCase()}</p>
         <p data-testid="hub-stop-current">Current stop {money(currentStop)}</p>
-        <p data-testid="hub-stop-new">New stop {parsed === null ? '—' : parsed.toFixed(2)}</p>
+        <p data-testid="hub-stop-new">New stop {money(parsed)}</p>
         <p data-testid="hub-stop-r">New R {formatR(r)}</p>
       </div>
 
@@ -126,8 +142,8 @@ export default function StopConfirmSheet({
             data-testid="hub-stop-input"
             type="number"
             inputMode="decimal"
-            step={STOP_TICK}
-            min={STOP_TICK}
+            step={tick}
+            min={tick}
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />

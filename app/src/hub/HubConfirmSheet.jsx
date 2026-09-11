@@ -16,6 +16,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import Sheet from '../components/mobile/Sheet'
+import HubCommitNotice from './HubCommitNotice'
 import { validateConfirmPayload } from './contracts'
 import styles from './hub.module.css'
 
@@ -80,6 +81,11 @@ export default function HubConfirmSheet({ payload, onClose }) {
 
   return (
     <Sheet open onClose={onClose} variant="auto" title={payload.title} ariaLabel={payload.title}>
+      {/* ⛔ THE ESCALATION A PHONE CANNOT BUZZ. `escalate` reaches this sheet from the action that
+          opened it (HubRoot's confirm branch), the SAME flag `useJoystick.js:197` reads for the
+          haptic — one authority, two organs. iOS Safari has no `navigator.vibrate`, so without
+          this the escalation exists only for Android. */}
+      {payload.escalate ? <HubCommitNotice /> : null}
       <div className={styles.confirmBody} data-testid="hub-confirm-body">{payload.body}</div>
 
       {(payload.fields ?? []).map((field) => (
