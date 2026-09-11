@@ -264,5 +264,26 @@
     "_aRowBefore0930ET": "✅ SATISFIED BY ROW 7 (2026-09-10T23:57 ET) — in the overnight gap, after the 20:00 extended close and before the next 09:30 open, which is the window this flag was asking about. It answered the question as posed (\"whether isrealtime ever drops before the next session opens, or stays 1 right through\"): IT DROPS. ⚠️ What it did NOT do is pin an instant — the flip is bracketed across (20:55, 23:57) ET, three hours wide.",
     "anIsrealtimeInstant": true,
     "_anIsrealtimeInstant": "⭐ NEW, RAISED BY ROW 7. `isconfirmed` and `isrealtime` flip at DIFFERENT instants, so pinning one says nothing about the other. The isconfirmed bracket is 93 minutes (19:22, 20:55); the isrealtime bracket is three hours (20:55, 23:57) and has no hypothesised mechanism at all. Rows through the 21:00-00:00 ET stretch would close it."
+  },
+  "_prediction_early_close": {
+    "_": "⛔⛔ PRE-REGISTERED, BEFORE THE DAY THAT TESTS IT. A hypothesis written down after the measurement is not a prediction, it is a description.",
+    "nextEarlyCloseYYYYMMDD": 20261127,
+    "derivedFrom": "api/services/nyse_calendar.NYSE_EARLY_CLOSES_YYYYMMDD",
+    "earlyCloseCount": 6,
+    "scheduledCloseET": "13:00",
+    "instantA_confirmed": {
+      "predictedET": "17:00",
+      "basis": "nyse_calendar.EARLY_EXTENDED_CLOSE_HOUR — the extended-hours close on a half-day, derived from the 20:00 full-day hypothesis by the same 4-hours-after-the-close shape.",
+      "confidence": "HYPOTHESIS ABOUT A HYPOTHESIS. The 20:00 it is derived from is itself only a candidate that fits the (19:22, 20:55) bracket. If 20:00 is wrong, 17:00 is wrong for the same reason and this prediction fails for a reason that has nothing to do with half-days.",
+      "falsifiedIf": "isconfirmed is still 0 after 17:00 ET, or was already 1 before it."
+    },
+    "instantB_historical": {
+      "predictedET": "TBD — NO PREDICTION IS BEING MADE",
+      "basis": "none. The full-day flip is bracketed (20:55, 23:57) ET across three hours with no proposed mechanism at all, so there is nothing to scale to a half-day. Guessing '4 hours earlier' would invent a relationship that has never been observed even once.",
+      "confidence": "ABSENT, DELIBERATELY.",
+      "falsifiedIf": "n/a — a prediction that is not made cannot be wrong, and saying so is the honest position rather than a gap."
+    },
+    "howToTestIt": "On the next early-close date, take rows every ~5 min through 16:30-17:30 ET (instant A's window) and every ~15 min through 17:30-21:00 ET, on AMEX:SPY 1D with the chart session read off the page. Then compare against this block WITHOUT editing it.",
+    "_recorded": "2026-09-11, in the same session that measured instant B for the first time (timeline rows 7 and 8)."
   }
 }
