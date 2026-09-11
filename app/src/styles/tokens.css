@@ -570,6 +570,43 @@
   --hub-cursor-outline: var(--text-heading);
   --hub-cursor-outline-width: 3px;
   --hub-cursor-fill: var(--bg-hover);
+
+  /* ── D-27: the one mode accent high contrast moves ────────────────────────
+     Home's fan puts all THREE green siblings on screen at once — Wire
+     (#9FE887, ring 0), Journal (#4FB833, ring 1) and Home's own accent, worn
+     by the Voice bubble (`voice('home')` takes `--hub-mode-${mode}`). Wire and
+     Journal sit 2.2 degrees apart in hue at a WCAG ratio of 1.74, so the two
+     channels a viewer can use are BOTH nearly collapsed on that pair.
+     `hub/modeAccentSeparation.test.js` derives every figure in this comment
+     from the values above — none of them is typed twice.
+
+     ⛔ THIS IS NOT THE FIX THE DEFERRED ROW PROPOSED, because that one was
+     measured and is worse. The row's candidate `#8FE0B0` LOWERS the WCAG
+     ratio against Journal (1.744 -> 1.634) — the exact channel a hue-blind
+     viewer depends on, and the exact reason the row was filed — and it drops
+     Wire's worst CIEDE2000 neighbour in Home's fan from 8.3 to 7.7 by walking
+     into Breadth (#5dcaa5), which sits on ring 0 beside Wire. "Toward teal"
+     was the right direction and the wrong distance: the shift has to take
+     LIGHTNESS with it, or it buys hue separation with the channel that
+     matters most here.
+
+     ⭐ WIRE IS THE ONE THAT MOVES, not Journal. Journal is the tightest of the
+     three against the glass floor (4.06:1 on the pressed tier, against a 3:1
+     minimum), so darkening it to open the gap spends the margin the row's
+     other property depends on.
+
+     ⛔ ONLY UNDER THIS ATTRIBUTE. `:root` keeps #9FE887 and the block above
+     says "do not adjust them" — this does not. A member who has not enabled
+     high contrast sees no change at all, which is what makes this safe to
+     ship while the real-glass question (`docs/plans/joystick/
+     glass-acceptance.md`, G3-15) is still open. Flipping the default is that
+     row's call, not this file's.
+
+     ⚠️ It reads as a pale mint rather than the resting green. That is the
+     trade high contrast already makes everywhere in this block — the tint
+     goes opaque, the rim goes full strength — and the row's own finding is
+     that icon, ring radius and bubble size carry the identity here, not hue. */
+  --hub-mode-wire: #D4FEE4;
 }
 
 /* Hub cursor selection highlight (§2d) — a plain GLOBAL rule, not a CSS
