@@ -162,6 +162,47 @@ those scripts are blocked by `pine:function` / `pine:request` / `pine:tuple` reg
 
 ⛔ **Do not claim repo-green** while either stands.
 
+### ⭐⭐ THE FIRST MEASURED FULL PYTHON LANE SINCE THE OOMs (2026-09-10 evening)
+
+Run through `tools/pytest_chunks.py`, 12 chunks, sequential, per-chunk logs, each
+chunk's own exit code kept (R7). **23,687 passed · 52 failed · 55 skipped · 10
+xfailed · 0 KILLED.** Nothing was OOM-killed, which is the result the runner was
+built to be able to state.
+
+⚠️ **THE RUN'S OWN FIRST TOTAL WAS WRONG AND THE RUNNER IS WHAT FIXED IT.** It
+printed 46 failed / 21,817 passed, because chunk 11's summary line sat at line 407
+and a daemon thread from an imported `api.main` logged 4 MB after it — past the
+4,000-character tail the counts parser read. The chunk reported `(no counts)` and
+its 1,870 passes and 6 failures were silently absent from the total. Fixed in
+`f7870c678`; a chunk with a summary it cannot parse now shouts instead of
+contributing zero. ⛔ Same defect class R7 exists for, arriving inside the
+instrument built to enforce R7.
+
+**None of the 52 is from this wave's work** — ten were re-run individually and
+read, and every one names a file this session never touched. The largest cluster
+is ONE root cause:
+
+- ⚰️ **THE KIND-4 TEXT TRIO REACHED THE INTERPRETER AND NOT ITS MIRRORS.**
+  `str`, `symtext` and `textop` are in `ast_interpret.NODE_TYPES` and missing from
+  every artifact that redeclares that vocabulary: `ast_lint._CANONICAL_TYPES`,
+  `scan_definition`'s branch list, the concierge tool schema's `$defs`, and
+  `ast_scalars`/`ast_conformance`'s declarations — **7 failures, one unpropagated
+  change.** ⛔ It is NOT a mechanical fix: the concierge one is a product choice
+  (describe the three to members, or name them in `CONCIERGE_OMITS` as
+  translated-only), so it wants a ruling rather than a sweep.
+- **Inherited and unrelated**, each verified by reading its assertion: member
+  fixture hashes (`uncharted-volume.pine`, `uncharted-clouds.pine` — the recorded
+  hashes trail a committed edit), `financial_statements.py` missing a yfinance
+  binding proof, a `vcp/engine` threshold move, an unquarantined FMP URL literal,
+  two test files outside `testpaths`, an import-time `sys.modules` bind in
+  `test_mobile_audit_route_validity.py`, six undeclared feature gates, and
+  `ticker_explain.py` binding `_DOMAIN_FETCHERS` **twice** (lines 930 and 1000).
+- ⭐ That last one is worth its own note: it is the SAME defect the `_parse_mdy`
+  incident in CLAUDE.md describes — a top-level name bound twice, where Python
+  keeps the last binding and the earlier one reads as authoritative while being
+  dead. The rail that catches it (`test_no_shadowed_definitions.py`) was written
+  for that incident and has now found a second instance.
+
 ---
 
 ## Open questions for the owner
