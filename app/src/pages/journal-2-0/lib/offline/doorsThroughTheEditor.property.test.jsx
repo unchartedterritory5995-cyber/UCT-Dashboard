@@ -548,3 +548,95 @@ describe('⭐ CONTROLS — the rail can distinguish, and can fail', () => {
     expect(doorPut.patch.baseUpdatedAt).toBeUndefined()
   })
 })
+
+// ────────────────────────────────────────────────────────────────────────────
+/**
+ * ⛔⛔ THE MEASURED CHAIN — replayed from the rig, not invented.
+ *
+ * Every ordering above was a GUESS at what production does. This one is a
+ * TRANSCRIPT. It replays `docs/notebook/wave-q1-repro/2026-09-11T03-13-49Z-canary.json`
+ * step for step, with the response each request actually got:
+ *
+ *   #0 body, no sentence   base T0  -> 200   server = T1
+ *   #1 body, SENTENCE      base T1  -> never completed (offline)
+ *   #2 body, SENTENCE      base T1  -> never completed (offline)
+ *   #3 body, SENTENCE      base T1  -> never completed (offline)
+ *   #4 NO BODY (the door)  base T1  -> 200   server = T2
+ *   #5 body, SENTENCE      base T1  -> 409   "note changed — refresh and retry"
+ *   settled: server = T2, the DOOR's revision. The sentence is GONE.
+ *
+ * ⭐ The two steps the fix must close (owner ruling R-17):
+ *   (a) #5 is born stale — the door's 200 carried `updatedAt: T2` and nothing
+ *       moved the queued entry onto it before the resend.
+ *   (b) the 409 at #5 FORKED instead of rebasing, even though T2 is a revision
+ *       THIS browser landed.
+ */
+describe('⛔⛔ THE MEASURED CHAIN — the rig transcript, replayed', () => {
+  it('⛔ (a) after a door 200, no queued entry still holds a pre-door baseline', async () => {
+    await mountRealSavePath()
+    typeBody('online words')
+    await settle()
+    const beforeDoor = server.note.updatedAt
+
+    server.online = false
+    typeBody(OFFLINE_SENTENCE)
+    await settle()
+    proveThereIsQueuedWork('offline, before the door')
+
+    server.online = true
+    await act(async () => { doors.folder() })
+    await settle(2000, 8)
+
+    const doorRev = server.note.updatedAt
+    expect(doorRev, 'the door must have moved the revision').not.toBe(beforeDoor)
+
+    // ⛔ R-17(a): the door's own response carried this revision. Any entry still
+    // sitting on the pre-door baseline is BORN STALE and will 409 on arrival —
+    // which is exactly what #5 did on the rig.
+    const stale = store('outbox').filter((e) => e.baseUpdatedAt && e.baseUpdatedAt < doorRev)
+    expect(
+      stale.map((e) => ({ id: e.mutationId, base: e.baseUpdatedAt })),
+      `entries left on a pre-door baseline after the door landed at ${doorRev}`,
+    ).toEqual([])
+  })
+
+  it('⛔ (b) the full chain ends with the sentence on the server and no fork', async () => {
+    await mountRealSavePath()
+    typeBody('online words')
+    await settle()
+
+    server.online = false
+    typeBody(OFFLINE_SENTENCE)
+    await settle()
+    proveThereIsQueuedWork('offline, before the door')
+
+    server.online = true
+    await act(async () => { doors.folder() })
+    await settle(3000, 12)
+    await settle(3000, 12)
+
+    expect(serverBodyHasSentence(), 'the offline sentence must reach the server body').toBe(true)
+    expect(forkCount(), 'a single-writer session must not fork').toBe(0)
+  })
+
+  it('⭐ CONTROL — a GENUINELY foreign 409 still forks (the fix must not swallow that)', async () => {
+    await mountRealSavePath()
+    typeBody('online words')
+    await settle()
+
+    server.online = false
+    typeBody(OFFLINE_SENTENCE)
+    await settle()
+
+    // another device moves the server while we are dark — NOT our revision
+    server.applyPut({ title: 'someone else', bodyJson: docOf('a second writer') }, 'other-device')
+
+    server.online = true
+    await settle(3000, 12)
+    await settle(3000, 12)
+
+    // ⛔ The words must survive SOMEWHERE — that is the fork's whole job.
+    const survived = serverBodyHasSentence() || forkCount() > 0
+    expect(survived, 'a foreign 409 must preserve both versions, never drop ours').toBe(true)
+  })
+})
