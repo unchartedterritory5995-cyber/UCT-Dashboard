@@ -71,6 +71,10 @@ const LEGACY_ADX_SHARED = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  // POC D: always emitted so a pooled series cannot INHERIT a previous
+  // tenant's hidden line. `true` is LWC's default, so the pixels are the
+  // legacy block's either way — see `presentation.js`.
+  lineVisible: true,
 }
 
 /** ⭐ `lineWidth: 2` ON THE ADX LINE ALONE. The two directional lines are 1. */
@@ -86,6 +90,7 @@ const LEGACY_OBV = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  lineVisible: true,
 }
 
 /**
@@ -109,6 +114,7 @@ const legacyDonchian = (lineStyle) => ({
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  lineVisible: true,
   autoscaleInfoProvider: AUTOSCALE_EXCLUDE,
 })
 const LEGACY_DONCHIAN = [legacyDonchian(0), legacyDonchian(3), legacyDonchian(0)]

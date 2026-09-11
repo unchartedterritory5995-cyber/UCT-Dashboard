@@ -40,6 +40,10 @@ const LEGACY_LINE = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  // POC D: always emitted so a pooled series cannot INHERIT a previous
+  // tenant's hidden line. `true` is LWC's default, so the pixels are the
+  // legacy block's either way — see `presentation.js`.
+  lineVisible: true,
 }
 /** `:6106-6111` — same call, the signal colour. */
 const LEGACY_SIGNAL = { ...LEGACY_LINE, color: '#FF9800' }

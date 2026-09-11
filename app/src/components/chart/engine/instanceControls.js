@@ -68,6 +68,7 @@
 import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { resolveDisplayTarget, DISPLAY_TARGETS } from './displayTarget'
+import { PLOT_STYLES, DEFAULT_PLOT_STYLE } from './presentation'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
@@ -304,6 +305,37 @@ export function setInstancePanePosition(cs, instanceId, position, registry) {
     // stored: a blob carrying `placement: {}` is not the blob a fresh chart writes.
     return Object.keys(placement).length ? { ...i, placement } : (() => {
       const { placement: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Set ONE instance's plot style.
+ *
+ * ⭐ PRESENTATION LIVES IN ITS OWN KEY, not in `placement`. Where an indicator
+ * draws and how it draws are separate questions with separate controls and
+ * separate defaults, and folding them into one object is how they start being
+ * changed together by accident — the exact mistake `setInstanceDisplayTarget`
+ * exists to avoid between `target` and `position`.
+ *
+ * ⛔ THE DEFAULT DELETES, like every other optional key here. `'line'` removes
+ * `presentation.plotStyle` and then `presentation` itself if nothing else is
+ * left, so a chart that has never touched the control is byte-identical to one
+ * that set the style back.
+ */
+export function setInstancePlotStyle(cs, instanceId, style, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!PLOT_STYLES.includes(style)) return cs
+  if (!findInstance(cs, instanceId)) return cs
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const presentation = { ...(i.presentation || {}) }
+    if (style === DEFAULT_PLOT_STYLE) delete presentation.plotStyle
+    else presentation.plotStyle = style
+    return Object.keys(presentation).length ? { ...i, presentation } : (() => {
+      const { presentation: _drop, ...rest } = i
       return rest
     })()
   })

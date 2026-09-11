@@ -56,6 +56,7 @@ import {
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
+import { resolvePlotStyle, drawsHistory } from './presentation'
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -141,6 +142,19 @@ function lastPointValue(points) {
  *
  * The hand-rolled if-chain this replaced could not express LargeDashed at all.
  */
+/** The newest finite `value` in a point list — what "last value" means when the
+ *  developing bar has not produced one yet (a warm-up NaN, a gap, a plot that
+ *  only starts after its period). Walking back beats reading `points.at(-1)` and
+ *  drawing a level at `undefined`. */
+function lastFiniteValue(points) {
+  if (!Array.isArray(points)) return null
+  for (let i = points.length - 1; i >= 0; i--) {
+    const v = points[i] && points[i].value
+    if (Number.isFinite(v)) return v
+  }
+  return null
+}
+
 function guideSpecs(plot, LineStyle) {
   const specs = []
   const style = lineStyleValue(plot.lineStyle, LineStyle)
@@ -722,8 +736,19 @@ export function createBinder({ chart, LWC }) {
       if (!placement.ok || !placement.value) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, ownPane, guides: showGuides } = placement.value
 
+      // ⭐ PRESENTATION, RESOLVED BESIDE PLACEMENT AND SEPARATELY FROM IT. The
+      // style says HOW this output draws; the placement says WHERE. Neither
+      // touches what was computed — `b.plot` and its column are already in hand
+      // and are not consulted here.
+      const plotStyle = resolvePlotStyle(b.inst)
+      const historyDrawn = drawsHistory(plotStyle)
+
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
+        // ⭐ "Last value horizontal" hides the LINE, never the data — see
+        // `presentation.drawsHistory`. The value the member reads in the legend
+        // and under the crosshair is the same number from the same column.
+        hideLine: !historyDrawn,
         // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
         // Placement returns a string; `pool` owns the two function singletons.
         autoscale,
@@ -743,6 +768,11 @@ export function createBinder({ chart, LWC }) {
 
       let series = b.series
       let guideHandles = (b.from && b.from.guideHandles) || []
+      // The ONE price line that stands in for the whole history under
+      // "last value horizontal". Carried like `guideHandles`, and for the same
+      // reason: a pooled series outlives its tenant, so a line nobody tracked
+      // would stay drawn across whatever took the series next (TRAP #3).
+      let lvhHandle = (b.from && b.from.lvhHandle) || null
 
       if (!series) {
         const ctor = LWC[SERIES_CTOR[b.poolKey]]
@@ -902,14 +932,14 @@ export function createBinder({ chart, LWC }) {
         attempt(() => series.applyOptions(options))
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, ownPane, showGuides })
+      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, lvhHandle, ownPane, showGuides, plotStyle, historyDrawn, lastValue, options })
     }
 
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
     const next = []
     for (const p of prepared) {
-      const { b, paneIndex, scaleId, scaleOptions, series, showGuides } = p
-      let { guideHandles } = p
+      const { b, paneIndex, scaleId, scaleOptions, series, showGuides, historyDrawn, lastValue, options } = p
+      let { guideHandles, lvhHandle } = p
 
       // ── TRAP #2: the FULL set, every SYNC, create branch or not ──
       //
@@ -1006,6 +1036,57 @@ export function createBinder({ chart, LWC }) {
         attempt(() => series.setData(points))
       }
 
+      // ── LAST VALUE HORIZONTAL: one price line instead of the history ──
+      //
+      // ⭐⭐ NATIVE, AND THAT IS THE REQUIREMENT, NOT A PREFERENCE. `createPriceLine`
+      // belongs to the SERIES, so the line lives on the oscillator's own scale in
+      // the oscillator's own pane: it spans the full pane width, it moves when the
+      // pane moves, it is clipped by the pane, it carries its own axis tag, and it
+      // dies with the series. A DOM div or a drawing-tool object would have to be
+      // told all five of those things and would be wrong about at least one of them
+      // after every resize.
+      //
+      // ⛔ ONLY ON A PLOT THE LEGEND READS — and that is the ONLY condition.
+      // `plot.legend.hide` is the definition's "is this a number a human reads":
+      // MACD's histogram and RSI's guide bands are shape, not readings, and a
+      // labelled level for one would put a number on the axis for something that
+      // has never had one.
+      //
+      // ⚠️ IT DELIBERATELY DOES *NOT* ALSO REQUIRE `lastValue`. That flag is
+      // placement's "does this series own the axis it sits on", and only the
+      // OWN-PANE branch returns it — so gating on it drew nothing at all in the
+      // volume pane: the history was hidden and the line that was supposed to
+      // replace it never appeared (measured). An overlaid oscillator owns the LEFT
+      // axis outright (volume keeps the right), so a level and a tag there collide
+      // with nobody. `lastValue` still governs the SERIES' own tag in
+      // `seriesOptionsForPlot`, which is a different label with a different owner.
+      //
+      // ⚠️ UPDATED IN PLACE, NOT RECREATED. `IPriceLine.applyOptions` moves an
+      // existing line; `createPriceLine` on every tick would churn a handle per
+      // second in extended hours, which is the same churn the guide SIGNATURE check
+      // above exists to avoid.
+      const lvhWanted = !historyDrawn
+        && !!(b.plot && b.plot.legend && b.plot.legend.hide !== true)
+      const lvhPrice = lvhWanted ? lastFiniteValue(points) : null
+      if (lvhWanted && lvhPrice != null) {
+        const opts = {
+          price: lvhPrice,
+          color: options && options.color ? options.color : undefined,
+          lineWidth: 2,
+          lineStyle: LWC.LineStyle.Solid,
+          axisLabelVisible: true,
+          title: '',
+        }
+        if (lvhHandle) attempt(() => lvhHandle.applyOptions(opts))
+        else {
+          const made = attempt(() => series.createPriceLine(opts))
+          lvhHandle = (made.ok && made.value) ? made.value : null
+        }
+      } else if (lvhHandle) {
+        attempt(() => series.removePriceLine(lvhHandle))
+        lvhHandle = null
+      }
+
       next.push({
         key: b.key,
         instanceId: b.instanceId,
@@ -1014,6 +1095,7 @@ export function createBinder({ chart, LWC }) {
         poolKey: b.poolKey,
         series,
         guideHandles,
+        lvhHandle,
         guideSig: b.guideSig,
         paneIndex,
         scaleId,

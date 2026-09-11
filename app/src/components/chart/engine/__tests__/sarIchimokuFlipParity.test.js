@@ -59,6 +59,10 @@ const LEGACY_SAR = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  // POC D: always emitted so a pooled series cannot INHERIT a previous
+  // tenant's hidden line. `true` is LWC's default, so the pixels are the
+  // legacy block's either way — see `presentation.js`.
+  lineVisible: true,
 }
 
 /** `createIfNeeded(ref, opts)` at `:6464-6480` — the shared tail every one of the
@@ -68,6 +72,7 @@ const LEGACY_ICHI_SHARED = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  lineVisible: true,
 }
 
 /** The five `createIfNeeded` calls, `:6476-6480`, in shipped creation order.

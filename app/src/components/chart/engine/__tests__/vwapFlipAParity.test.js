@@ -38,7 +38,9 @@ const BARS = fixture.bars
 /** `chart.addSeries(LineSeries, <this>)` — `StockChart.jsx:6010-6014`, verbatim. */
 const LEGACY_VWAP = {
   color: '#26C6DA', lineWidth: 1, lineStyle: 0,
+  // POC D: always emitted, `true` is LWC's default — see `presentation.js`.
   priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+  lineVisible: true,
 }
 
 /** The options the engine states that the legacy block does not — each equal to

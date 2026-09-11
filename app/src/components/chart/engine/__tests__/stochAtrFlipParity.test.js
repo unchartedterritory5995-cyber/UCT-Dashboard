@@ -56,6 +56,10 @@ const LEGACY_STOCH_K = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  // POC D: always emitted so a pooled series cannot INHERIT a previous
+  // tenant's hidden line. `true` is LWC's default, so the pixels are the
+  // legacy block's either way — see `presentation.js`.
+  lineVisible: true,
 }
 
 /** `:6390-6396`. Identical, plus the `lineStyle: 2` that is the ONLY thing
@@ -74,6 +78,7 @@ const LEGACY_ATR = {
   priceLineVisible: false,
   lastValueVisible: false,
   crosshairMarkerVisible: false,
+  lineVisible: true,
 }
 
 /**

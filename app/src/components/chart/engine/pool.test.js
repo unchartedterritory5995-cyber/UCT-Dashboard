@@ -392,6 +392,10 @@ describe('seriesOptionsForPlot', () => {
       priceLineVisible: false,
       lastValueVisible: false,
       crosshairMarkerVisible: false,
+  // POC D: always emitted so a pooled series cannot INHERIT a previous
+  // tenant's hidden line. `true` is LWC's default, so the pixels are the
+  // legacy block's either way — see `presentation.js`.
+      lineVisible: true,
     })
   })
 
@@ -535,7 +539,9 @@ const BASE_KEYS = [
 
 /** …plus the ones every LINE-SHAPED series carries. */
 const LINE_SHAPE_KEYS = [
-  'crosshairMarkerVisible', 'lineWidth', 'lineStyle', 'lineType',
+  // POC D adds `lineVisible` to every line-shaped set — always emitted so a
+  // pooled series cannot inherit a previous tenant's hidden line.
+  'crosshairMarkerVisible', 'lineVisible', 'lineWidth', 'lineStyle', 'lineType',
   'pointMarkersVisible', 'pointMarkersRadius',
 ]
 

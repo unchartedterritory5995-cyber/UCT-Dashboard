@@ -60,8 +60,10 @@ import {
 import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
-  setInstancePanePosition, setInstanceDisplayTarget } from './engine/instanceControls'
+  setInstancePanePosition, setInstanceDisplayTarget,
+  setInstancePlotStyle } from './engine/instanceControls'
 import { resolveDisplayTarget } from './engine/displayTarget'
+import { resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/presentation'
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
@@ -451,6 +453,24 @@ export default function ChartSettingsIndicators({
             </select>
           </div>
         ) : null}
+        {/* ⭐ PLOT STYLE IS NOT CONDITIONAL ON WHERE IT DRAWS, and that asymmetry
+            with Pane position is the model showing through: PRESENTATION is
+            independent of PLACEMENT, so the same styles are available in its own
+            pane and on Volume. Pane position is conditional because it is a
+            property of HAVING a pane; this is a property of the output. */}
+        <div className={styles.indRow}>
+          <span className={styles.indLabel}>Plot style</span>
+          <select
+            className={styles.indSelect}
+            value={resolvePlotStyle(inst)}
+            aria-label={`${row.label} plot style`}
+            onChange={(e) => commit(setInstancePlotStyle(settings, row.instanceId, e.target.value, registry))}
+          >
+            {PLOT_STYLE_CHOICES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
       </>
     )
   }, [settings, registry, onChange])

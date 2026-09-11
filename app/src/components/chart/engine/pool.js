@@ -521,7 +521,13 @@ export function seriesOptionsForPlot(plot, ctx) {
     // guide bands and Ichimoku's cloud edges are shape, not readings, and a
     // definition that already declines to put a plot in the legend has said so
     // once. Tag set == chip set, decided in one place, by the author.
+    // ⛔ …AND NOT WHEN THE PRICE LINE IS CARRYING IT. Under "last value
+    // horizontal" the level is a `createPriceLine` with `axisLabelVisible: true`,
+    // which puts the number on the axis itself. Leaving the series' own tag on as
+    // well printed `62.54` TWICE, stacked, on the same axis — measured in the
+    // browser. Exactly one thing may own that label at a time.
     lastValueVisible: c.lastValue === true
+      && c.hideLine !== true
       && !!(plot && plot.legend && plot.legend.hide !== true),
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
@@ -545,6 +551,20 @@ export function seriesOptionsForPlot(plot, ctx) {
   // ── everything else is one of LWC's line-shaped series ──
   const markers = plot.style === 'markers'
   base.crosshairMarkerVisible = false
+  // ⭐⭐ `lineVisible`, NOT `visible` — AND THE DIFFERENCE IS THE WHOLE FEATURE.
+  // "Last value horizontal" hides the HISTORY and keeps the current level, and
+  // that level is a `createPriceLine` hanging off this series. `visible: false`
+  // takes the series' PRICE LINES down with it: measured in the browser, the
+  // history vanished correctly and the horizontal line vanished with it, leaving
+  // an empty pane with a ladder. `lineVisible: false` suppresses only the drawn
+  // line, so the price line, its axis tag, the data and every reading off it
+  // survive — which is also why switching styles costs no recomputation.
+  //
+  // ⚠️ LINE-SHAPED SERIES ONLY. A histogram returns above and has no line to
+  // hide; when Histogram/Dots/Area become styles in their own right this is the
+  // seam each of them answers differently, rather than one flag meaning five
+  // things.
+  base.lineVisible = c.hideLine !== true
   // SAR: dots, not a line — `lineWidth: 0` plus point markers
   // (`StockChart.jsx:5889-5894`). The plot's `width` is the DOT RADIUS there,
   // which is why SAR declares 3 and not 1.
