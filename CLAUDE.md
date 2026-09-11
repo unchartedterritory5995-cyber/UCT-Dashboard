@@ -1120,7 +1120,12 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   A selected handle's grab radius on touch is `handleGrabRadius()` (24px) in
   `coarsePointer.js` — the halo paints the same read. The document tap-away
   deselect asks the router's hit test before stripping a selection (a handle
-  touch lands on the CHART canvas, not the overlay). Rail:
+  touch lands on the CHART canvas, not the overlay). Also on touch: a PAN on
+  empty space keeps the selection (only a tap within the drag slop deselects,
+  decided on release); the selected drawing's BODY is re-grabbable
+  `SELECTED_BODY_BOOST_COARSE` px wider (`withHitBoost`, second pass in
+  `hitTestAll`, selected drawing only, never a first tap); and the quick bar
+  carries Undo wherever the surface passes `undo`. Rail:
   `ChartDrawingOverlay.touchRouting.test.jsx` — behavioural, with a chart
   stand-in carrying bubble listeners where the library binds its own.
 

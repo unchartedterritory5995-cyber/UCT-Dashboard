@@ -25,7 +25,7 @@ import { render, cleanup, act, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import ChartDrawingOverlay from './ChartDrawingOverlay'
 import {
-  __resetCoarsePointerForTest, HANDLE_GRAB_COARSE, HIT_COARSE, SLOP_COARSE,
+  __resetCoarsePointerForTest, HANDLE_GRAB_COARSE, HIT_COARSE, SLOP_COARSE, SELECTED_BODY_BOOST_COARSE,
 } from './coarsePointer'
 
 // ── a coarse primary pointer, the way coarsePointer.test installs one ───────
@@ -87,7 +87,7 @@ const EMPTY = { x: 200, y: 150 }
 
 /** Mount the overlay beside a chart stand-in, under one wrapper — the DOM shape
  *  StockChart produces (the overlay canvas and the chart canvas are siblings). */
-function mount({ drawings, selectedId = null } = {}) {
+function mount({ drawings, selectedId = null, undo = null } = {}) {
   const { chart, series } = fakeChart()
   const chartRef = createRef(); chartRef.current = chart
   const seriesRef = createRef(); seriesRef.current = series
@@ -104,6 +104,7 @@ function mount({ drawings, selectedId = null } = {}) {
         drawings={drawings} addDrawing={() => 'id'} updateDrawing={updateDrawing} removeDrawing={() => {}}
         selectedId={selectedId} setSelectedId={setSelectedId}
         snapshotHistory={snapshotHistory}
+        undo={undo}
       />
     </div>,
   )
@@ -277,10 +278,80 @@ describe('a selected handle is a full fingertip', () => {
     expect(rig.setSelectedId, 'the document deselect fired on a handle touch').not.toHaveBeenCalledWith(null)
   })
 
-  it('NON-VACUITY · a tap on empty space still deselects', () => {
+  it('NON-VACUITY · a TAP on empty space still deselects', () => {
     const rig = mount({ drawings: [TREND], selectedId: 't1' })
     fingerDown(rig.chartEl, EMPTY)
+    expect(rig.setSelectedId, 'the decision is made on release, not on the first touch').not.toHaveBeenCalledWith(null)
+    fingerMove(rig.chartEl, { x: EMPTY.x + 3, y: EMPTY.y + 2 })   // finger jitter
+    fingerUp(rig.chartEl, { x: EMPTY.x + 3, y: EMPTY.y + 2 })
     expect(rig.setSelectedId).toHaveBeenCalledWith(null)
+  })
+
+  it('⭐ a PAN on empty space keeps the selection — scrolling to look is not tapping away', () => {
+    const rig = mount({ drawings: [TREND], selectedId: 't1' })
+    fingerDown(rig.chartEl, EMPTY)
+    fingerMove(rig.chartEl, { x: EMPTY.x + 60, y: EMPTY.y })
+    fingerUp(rig.chartEl, { x: EMPTY.x + 60, y: EMPTY.y })
+    expect(rig.setSelectedId).not.toHaveBeenCalledWith(null)
+    expect(rig.chartSaw.touchstart, 'and the chart still got the pan').toHaveBeenCalledTimes(1)
+  })
+
+  it('a pan the browser cancels never deselects either', () => {
+    const rig = mount({ drawings: [TREND], selectedId: 't1' })
+    fingerDown(rig.chartEl, EMPTY)
+    pointer(rig.chartEl, 'pointercancel', EMPTY)
+    expect(rig.setSelectedId).not.toHaveBeenCalledWith(null)
+  })
+})
+
+describe('the body of the drawing you already chose is easier to re-grab', () => {
+  // The trendline runs (100,300)→(300,260); (200,300) is ~19.6px off it —
+  // outside HIT_COARSE, inside HIT_COARSE + the selected-body boost.
+  const NEAR_BODY = { x: 200, y: 300 }
+
+  it('the numbers this relies on', () => {
+    const dist = Math.abs(200 * 0 - (-40) * 100) / Math.hypot(200, 40)
+    expect(dist).toBeGreaterThan(HIT_COARSE)
+    expect(dist).toBeLessThan(HIT_COARSE + SELECTED_BODY_BOOST_COARSE)
+  })
+
+  it('SELECTED · a touch 20px off the line grabs it and drags the whole drawing', () => {
+    const rig = mount({ drawings: [TREND], selectedId: 't1' })
+    fingerDown(rig.chartEl, NEAR_BODY)
+    expect(rig.chartSaw.touchstart).not.toHaveBeenCalled()
+    fingerMove(rig.chartEl, { x: 200, y: 340 })
+    const [id, patch] = rig.updateDrawing.mock.calls.at(-1)
+    expect(id).toBe('t1')
+    expect(patch.points[0].price).toBeCloseTo(6, 5)    // both ends moved by -4
+    expect(patch.points[1].price).toBeCloseTo(10, 5)
+  })
+
+  it('NON-VACUITY · UNSELECTED · the same touch is the chart\'s — the boost never widens a first tap', () => {
+    const rig = mount({ drawings: [TREND], selectedId: null })
+    fingerDown(rig.chartEl, NEAR_BODY)
+    expect(rig.chartSaw.touchstart).toHaveBeenCalledTimes(1)
+    expect(rig.updateDrawing).not.toHaveBeenCalled()
+  })
+
+  it('NON-VACUITY · the boost does not leak: a later plain read is the base radius', async () => {
+    const { hitThreshold } = await import('./coarsePointer')
+    expect(hitThreshold()).toBe(HIT_COARSE)
+  })
+})
+
+describe('the touch quick bar can undo a mis-drag', () => {
+  it('shows Undo when the surface owns history, and it calls it', () => {
+    const undo = vi.fn()
+    const rig = mount({ drawings: [TREND], selectedId: 't1', undo })
+    const btn = rig.getByRole('button', { name: 'Undo' })
+    act(() => { btn.click() })
+    expect(undo).toHaveBeenCalledTimes(1)
+  })
+
+  it('NON-VACUITY · no Undo on a surface without history (annotation layers)', () => {
+    const rig = mount({ drawings: [TREND], selectedId: 't1' })
+    expect(rig.queryByRole('button', { name: 'Undo' })).toBeNull()
+    expect(rig.getByRole('button', { name: 'Delete' }), 'the bar itself is there').toBeTruthy()
   })
 })
 

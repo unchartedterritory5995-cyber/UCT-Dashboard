@@ -131,8 +131,31 @@ export function isCoarsePointer() {
   return !!(m && m.matches)
 }
 
+/**
+ * Extra body grab radius, in px, for the drawing that is ALREADY SELECTED on a
+ * coarse pointer. Once you have chosen a line, reaching for it again is not
+ * ambiguous the way a first tap beside two lines is — so the selected one may
+ * be grabbed from a little further away without stealing taps meant for the
+ * chart. Applied by `ChartDrawingOverlay.hitTestAll` as a second pass over the
+ * selected drawing only, through `withHitBoost`; never to anything else.
+ */
+export const SELECTED_BODY_BOOST_COARSE = 8
+
+let _boost = 0             // transient, only ever non-zero inside withHitBoost
+
 /** Grab radius for the current pointer. Call it; never cache the result. */
-export function hitThreshold() { return isCoarsePointer() ? HIT_COARSE : HIT_FINE }
+export function hitThreshold() { return (isCoarsePointer() ? HIT_COARSE : HIT_FINE) + _boost }
+
+/**
+ * Run `fn` with every `hitThreshold()` read widened by `px`. Synchronous and
+ * re-entrant; the previous value is restored even if `fn` throws, so a boost
+ * can never leak into the next hit test.
+ */
+export function withHitBoost(px, fn) {
+  const prev = _boost
+  _boost = prev + (Number.isFinite(px) ? px : 0)
+  try { return fn() } finally { _boost = prev }
+}
 
 /** Selection-handle paint radius for the current pointer. */
 export function handleRadius() { return isCoarsePointer() ? HANDLE_COARSE : HANDLE_FINE }

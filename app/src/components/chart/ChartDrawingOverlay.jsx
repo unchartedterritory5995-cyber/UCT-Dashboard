@@ -4,7 +4,10 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
-import { hitThreshold, handleGrabRadius, crossedDragSlop, useCoarsePointer } from './coarsePointer'
+import {
+  hitThreshold, handleGrabRadius, crossedDragSlop, useCoarsePointer, isCoarsePointer,
+  withHitBoost, SELECTED_BODY_BOOST_COARSE,
+} from './coarsePointer'
 import { fmtLevel, visibleOnly } from './drawingObjects'
 import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
 import {
@@ -1673,8 +1676,23 @@ export default function ChartDrawingOverlay({
             ? labelBoxRef.current.get(d.id) : null)
       if (hit) return d.id
     }
+    // ⭐ SECOND PASS, SELECTED DRAWING ONLY, TOUCH ONLY. A finger reaching for
+    // the line it already chose may land a few px wide of it; widening the
+    // threshold for THAT drawing alone keeps a first tap beside two lines
+    // unambiguous while making the re-grab forgiving. Runs after the normal
+    // pass so it can never outrank a drawing that was genuinely under the touch.
+    if (selectedId && isCoarsePointer()) {
+      const sel = visibleDrawings.find(d => d.id === selectedId)
+      if (sel && sel.type !== 'advance') {
+        const rect = rectForDrawing(sel, geom)
+        const pts = resolvePixels(sel.points || [], rect)
+        const box = (sel.type === 'text' || sel.type === 'fib' || sel.type === 'fibext')
+          ? labelBoxRef.current.get(sel.id) : null
+        if (withHitBoost(SELECTED_BODY_BOOST_COARSE, () => hitTestDrawing(sel, pts, mx, my, rect, box))) return sel.id
+      }
+    }
     return null
-  }, [visibleDrawings, resolvePixels, hitTestAdvance, paneGeom, rectForDrawing])
+  }, [visibleDrawings, resolvePixels, hitTestAdvance, paneGeom, rectForDrawing, selectedId])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
@@ -2400,7 +2418,24 @@ export default function ChartDrawingOverlay({
       // on the first move and the drawing was deselected on release. Ask the
       // router's own hit test instead; a body hit re-selects on its own path.
       if (e.pointerType !== 'mouse' && touchClaimRef.current?.(e.target, e.clientX, e.clientY)) return
-      setSelectedId(null)
+      if (e.pointerType === 'mouse') { setSelectedId(null); return }
+      // ⭐ ON TOUCH, A PAN IS NOT A TAP-AWAY. Deselecting on pointerdown meant
+      // that scrolling the chart to see where a line went stripped the
+      // selection — and the quick bar and handles with it — so every adjustment
+      // began with re-finding the drawing. Decide on RELEASE: a finger that
+      // stayed within the drag slop was a tap and deselects; one that travelled
+      // was a pan and keeps the selection it started with.
+      const start = { x: e.clientX, y: e.clientY }
+      const id = e.pointerId
+      const settle = (up) => {
+        if (up.pointerId != null && id != null && up.pointerId !== id) return
+        document.removeEventListener('pointerup', settle, true)
+        document.removeEventListener('pointercancel', settle, true)
+        if (up.type === 'pointercancel') return          // the browser took it — not a tap
+        if (!crossedDragSlop(start, { x: up.clientX, y: up.clientY })) setSelectedId(null)
+      }
+      document.addEventListener('pointerup', settle, true)
+      document.addEventListener('pointercancel', settle, true)
     }
     document.addEventListener('pointerdown', onDocDown, true)
     return () => document.removeEventListener('pointerdown', onDocDown, true)
@@ -2843,6 +2878,11 @@ export default function ChartDrawingOverlay({
             onToggleLock={() => updateDrawing(d.id, { locked: !d.locked })}
             onToggleHide={() => { updateDrawing(d.id, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null) }}
             onDelete={() => { removeDrawing(d.id); setSelectedId(null) }}
+            /* A mis-drag is the main cost of finger imprecision, and Ctrl+Z
+               does not exist on a phone. Only surfaces that own history pass
+               `undo` (annotation layers omit it), so the button appears only
+               where it can work. */
+            onUndo={undo ? () => undo() : null}
           />
         )
       })()}
@@ -3128,7 +3168,7 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
 // TradingView mobile's idiom. Four 44px actions: the current-color Style dot
 // (opens the full DrawingContextMenu sheet), Duplicate, Lock, Delete. It owns
 // no state and invents no behavior: every handler is the context menu's own.
-function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onDelete }) {
+function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onDelete, onUndo = null }) {
   const locked = !!drawing.locked
   const curColor = (drawing.type === 'advance' ? drawing.labelColor : drawing.color) || '#c9a84c'
   const btn = {
@@ -3161,6 +3201,14 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
           boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)',
         }} />
       </button>
+      {onUndo && (
+        <button type="button" style={btn} onClick={onUndo} aria-label="Undo">
+          <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+            <path d="M6.5 4.5 3.5 7.5l3 3" />
+            <path d="M3.5 7.5h6.75a3.75 3.75 0 0 1 0 7.5H8" />
+          </svg>
+        </button>
+      )}
       <button type="button" style={btn} onClick={onDuplicate} aria-label="Duplicate">
         <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
           <rect x="6" y="6" width="9" height="9" rx="1.5" />
