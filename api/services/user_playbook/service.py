@@ -536,12 +536,14 @@ def _note_links_for_entry(
     conn: sqlite3.Connection, user_id: str, entry_id: str
 ) -> list[dict[str, Any]]:
     """Note links with liveness in ONE LEFT JOIN (no N+1). A dead link
-    (Notebook note deleted) keeps its title_snapshot + live: false."""
+    (Notebook note deleted OR TRASHED) keeps its title_snapshot + live: false.
+    ⛔ `deleted_at IS NULL` is load-bearing: j2_notes is SOFT-deleted, so a
+    trashed note still has a row and a bare LEFT JOIN reports it live."""
     rows = conn.execute(
         """
         SELECT nl.note_id, nl.title_snapshot, n.id AS live_id, n.title AS live_title
         FROM upb_note_links nl
-        LEFT JOIN j2_notes n ON n.id = nl.note_id AND n.user_id = ?
+        LEFT JOIN j2_notes n ON n.id = nl.note_id AND n.user_id = ? AND n.deleted_at IS NULL
         WHERE nl.entry_id = ? AND nl.user_id = ?
         ORDER BY nl.sort_order ASC, nl.created_at ASC
         """,

@@ -24,6 +24,26 @@ const MIN_TAP_PX = 44
 // default, not a spec-given number.
 const INNER_GAP_PX = 6
 
+/**
+ * How far BELOW the Actions button the Feedback button sits, in the same column (D-25).
+ *
+ * ⭐ THE SLOT WAS CHOSEN BY MEASUREMENT, not by eye. Every other hub element is anchored off the
+ * same three constants, so the occupied bands at rest are computable: the pad and knob own
+ * x[24..108] y[68..152]; the chip owns y[96..124] from x 118 inward; the Actions button owns
+ * x[114..158] y[88..132]; the coach mark sits at y[162..] out to x 234; the edge tab (hidden
+ * state only) owns x[0..44] y[92..136]. The band BELOW the Actions button in its own column —
+ * y[38..82], x[114..158] — is the one rest-state rectangle no hub element claims, and it is the
+ * band the app already reserves for a FAB: the voice orb and the old Feedback FAB both sat there,
+ * and both are unmounted while the hub is up (`Layout.jsx`'s gate reads `hubWouldRender`).
+ *
+ * ⛔ IT MIRRORS WITH THE HUB, on the pad's edge — NOT on the far one. The deferred row remembers
+ * the old FAB as bottom-LEFT and "never actually collided", and putting it back there would be
+ * two mistakes: it breaks §C2:769 ("mirroring moves the hub as a unit", railed by
+ * `mirrorsAsAUnit.test.jsx`) and, for a left-handed member whose pad is on the left, it strands
+ * the one-tap affordance under the other hand.
+ */
+const FEEDBACK_DROP_PX = MIN_TAP_PX + INNER_GAP_PX
+
 function idsHas(ids, id) {
   if (!ids) return false
   if (typeof ids.has === 'function') return ids.has(id)
@@ -84,6 +104,12 @@ export default function HubActionsButton({
   onHide,
   hapticsEnabled = true,
 }) {
+  // ⚰️ THE `open` / `onOpenChange` PAIR IS GONE, with the gesture it existed for. This button was
+  // made optionally controlled so the two-finger Peek could open the SAME sheet rather than a
+  // second one. Peek was removed by owner ruling (2026-09-10) and `HubRoot` was its only caller,
+  // so the props were a capability with no consumer and a comment naming a feature that no longer
+  // exists — which reads as precedent to whoever finds it next. The button owns its own state
+  // again, which is what it did before §C1 and what every test already assumed.
   const [open, setOpen] = useState(false)
   const label = `${mode} actions`
 
@@ -149,6 +175,40 @@ export default function HubActionsButton({
       >
         <UIcon name="sliders" size={18} />
       </button>
+
+      {/* ⛔ D-25 — FEEDBACK IS ONE TAP AGAIN. The gate decision moved it behind the two-finger
+          Peek, which made it a gesture plus two taps; and with the hub up, `Layout.jsx` stops
+          mounting `<FeedbackWidget/>`, so that WAS the only feedback path a mobile member had.
+          The row offered "reverse the decision, or promote Feedback to an inner-ring action" —
+          the ring is not available: measured against the registry, six of ten modes already sit
+          at `INNER_MAX` (scan, chart, journal, catalysts, notebook, home all have 4), so
+          promoting it would evict a shipped action from six fans or ship a ring over its cap.
+          So the decision is reversed instead, and the affordance comes back as its own control.
+          ⭐ THE SHEET ENTRY STAYS. This is an icon button; the sheet's row is the labelled,
+          screen-reader path (VoiceOver and TalkBack both eat the two-finger Peek, §C2) and the
+          discoverable one. Two doors, one destination — never two destinations. */}
+      {onFeedback ? (
+        <button
+          type="button"
+          data-testid="hub-feedback"
+          className={styles.feedbackButton}
+          style={{
+            ...sideStyle,
+            bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + verticalOffset - FEEDBACK_DROP_PX}px)`,
+            minWidth: MIN_TAP_PX,
+            minHeight: MIN_TAP_PX,
+          }}
+          aria-label="Send feedback"
+          onClick={() => {
+            // The same cue the sheet's own rows fire for a non-escalating pick, through the app's
+            // ONE haptics helper — never a second `navigator.vibrate` call site (constants.js:160).
+            if (hapticsEnabled) haptics.impact()
+            onFeedback()
+          }}
+        >
+          <UIcon name="chat" size={18} />
+        </button>
+      ) : null}
 
       <Sheet open={open} onClose={() => setOpen(false)} variant="auto" title={label} ariaLabel={label}>
         {/* ⭐ SCRUB'S NO-DRAG DOOR, and it belongs HERE rather than on the pad (§C2).

@@ -82,6 +82,97 @@ const MODE_ROWS = modes.map((m) => ({
   runActions: runActionsOf(m),
 }))
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⛔⛔ THE BLIND SPOT THIS RAIL HAD, AND WHAT IT COST — added Increment 7.
+//
+// Everything below the registry checks rests on ONE assumption, stated in the file header and in
+// the skip line of the LIVE-mode assertion: "a controller rebuilds and drops what it cannot do".
+// **That assumption is false, and it was false for two of the four controllers that exist.**
+//
+//   · `screenerSection.js`  — DROPS unhandled actions. The documented idiom.
+//   · `calendarSection.js`  — passes through DELIBERATELY, and says why: the only thing reaching
+//                             its default arm is `kind:'navigate'`, which needs no body.
+//   · `chartSection.js`     — `default: out.push(action)`. Ships whatever it does not recognise.
+//   · `catalystsSection.js` — the same.
+//
+// ⚰️ WHAT IT COST, ON A LIVE SECTION. `chart.alert` fell through `buildChartFan`'s default arm
+// carrying no `run`. `HubRoot` opens the confirm sheet, the member reads "Alert on NVDA", presses
+// the primary — and `Promise.resolve(action.run?.(ctx))` resolves on `undefined`. No alert, no
+// error, no toast. Exactly the `breadth.sizeRule` tombstone this file was written to prevent,
+// wearing a different `kind` and hiding behind a controller the rail trusted.
+//
+// TWO holes, and they are different:
+//   1. `runActionsOf` filtered `kind === 'run'`, so a `confirm` was invisible to it. A `confirm`
+//      is handled if it carries `run` OR `confirmPayload` (`HubRoot`'s confirm branch tries the
+//      section's payload first, then falls back to a generic sheet whose primary calls `run`).
+//      Neither ⇒ the primary button does nothing.
+//   2. A mode WITH a controller was skipped entirely. That is only safe for a controller that
+//      actually drops.
+//
+// ⭐ THE FIX IS TO STOP ASSUMING AND START MEASURING: build each section's fan through its own
+// exported builder and check the OUTPUT. "Absent" is a pass — a builder that declines to ship an
+// action it cannot back is behaving correctly. "Present without a handler" is the defect. That
+// distinction is the whole rule, and it cannot be evaluated from the registry alone.
+import { buildCalendarFan } from './sections/calendarSection'
+import { buildCatalystsFan } from './sections/catalystsSection'
+import { buildChartFan } from './sections/chartSection'
+import { buildScanFan } from './sections/screenerSection'
+
+/** Every exported fan builder, called with NO seams — the state a page is in before it wires up. */
+const BUILDERS = [
+  ['calendarSection.buildCalendarFan', () => buildCalendarFan({})],
+  ['catalystsSection.buildCatalystsFan', () => buildCatalystsFan({})],
+  ['chartSection.buildChartFan', () => buildChartFan({})],
+  ['screenerSection.buildScanFan', () => buildScanFan({})],
+]
+
+/** A `run` needs `run`. A `confirm` needs `run` OR `confirmPayload`. Both are how `HubRoot` writes. */
+const needsHandler = (a) => a && (a.kind === 'run' || a.kind === 'confirm')
+const isHandled = (a) => typeof a.run === 'function' || typeof a.confirmPayload === 'function'
+
+describe('a BUILT fan never carries an action nothing can perform', () => {
+  it('CONTROL: every builder ran and returned a non-empty fan', () => {
+    // ⛔ NON-VACUITY. If a builder threw, or returned [], the assertion below passes over nothing —
+    // and this rail's whole subject is an empty result reading as a clean one.
+    for (const [name, build] of BUILDERS) {
+      const fan = build()
+      expect(Array.isArray(fan), `${name} did not return an array`).toBe(true)
+      expect(fan.length, `${name} returned an EMPTY fan — this rail is measuring nothing`)
+        .toBeGreaterThan(0)
+    }
+  })
+
+  it('CONTROL: the builders really do ship actions of the kinds this rule is about', () => {
+    // Otherwise "no unhandled run/confirm actions" is satisfied by there being none at all.
+    const kinds = new Set(BUILDERS.flatMap(([, build]) => build().map((a) => a?.kind)))
+    expect([...kinds], 'no builder ships a run or a confirm, so the rule below is vacuous')
+      .toEqual(expect.arrayContaining(['run']))
+  })
+
+  it('⛔⛔ no built fan ships a run or confirm action with no way to perform it', () => {
+    const offenders = []
+    for (const [name, build] of BUILDERS) {
+      for (const a of build()) {
+        if (!needsHandler(a)) continue          // navigate / home need no body
+        if (HUBROOT_OWNED.test(a.id)) continue  // Voice is HubRoot's own
+        if (!isHandled(a)) offenders.push(`${name} -> ${a.id} (kind:'${a.kind}')`)
+      }
+    }
+    expect(offenders, 'A section controller BUILT this action into its fan and gave it no `run` and '
+      + 'no `confirmPayload`. The member drags to it (or presses the confirm sheet\'s primary) and '
+      + 'NOTHING happens — `HubRoot` does `Promise.resolve(action.run?.(ctx))`, which resolves '
+      + 'silently on undefined.\n'
+      + '⛔ "The controller drops what it cannot do" is NOT true of every controller: '
+      + '`chartSection` and `catalystsSection` both end in `default: out.push(action)`. That is how '
+      + '`chart.alert` shipped inert on a LIVE section while the registry-level checks in this same '
+      + 'file stayed green.\n'
+      + 'Fix it the way B2 fixed breadth.sizeRule: SHIP THE HANDLER, or DROP THE ACTION from the '
+      + 'builder. An absent action tells the truth; an inert one teaches the member the product is '
+      + 'broken.')
+      .toEqual([])
+  })
+})
+
 describe('a run action never reaches a member without a handler', () => {
   it('the rail has a population to measure — non-vacuity', () => {
     expect(MODE_ROWS.length, 'no modes found — the registry shape changed and every assertion below '
@@ -129,20 +220,24 @@ describe('a run action never reaches a member without a handler', () => {
       + 'mode was declared with a fan and nothing behind it.\n'
       + '⛔ Taking any of these out of PREVIEW_MODES REQUIRES shipping its controller in the SAME '
       + 'commit, or dropping the listed actions.')
-      .toEqual([
-        // ⚰️ `calendar` LEFT THIS LIST in Increment 5, by a controller arriving — which is the
-        // departure this rail was written to require. Both of its naked run actions were resolved
-        // in that same commit, and in the two different ways the ruling allows: `calendar.macro`
-        // got a real body (a genuine event-type toggle), and `calendar.earnings` was REMOVED,
-        // because `CalendarHeader.jsx:347` locks that type (`if (locked) return`) and the bubble
-        // could therefore only ever have been silent.
-        // ⚰️ `chart` LEFT THIS LIST in Increment 5. Three of its five naked run actions got real
-        // bodies (Flag, Note, Plan trade); the other two were DROPPED BY THE CONTROLLER rather
-        // than deleted from the registry, because both are unreachable from THIS surface rather
-        // than impossible: `chart.compare`'s only write path cannot mount on a hub viewport, and
-        // `chart.logTrade` lives under a rule-12 path. `catalysts` is the last mode here.
-        'catalysts: catalysts.flag, catalysts.filter, catalysts.note',
-      ])
+      // ⭐⭐ EMPTY. No preview-hidden mode carries a naked run action any more — every one either
+      // has a controller that gives them bodies or drops what it cannot do.
+      //
+      // ⚰️ The three departures, and the THREE DIFFERENT resolutions the ruling allows, all of
+      // which appear here:
+      //   · `calendar` — `calendar.macro` got a real body; `calendar.earnings` was DELETED FROM
+      //     THE REGISTRY, because `CalendarHeader.jsx:347` locks that event type and the bubble
+      //     could only ever have been silent.
+      //   · `chart` — Flag, Note and Plan trade got bodies; `chart.compare` and `chart.logTrade`
+      //     were DROPPED BY THE CONTROLLER but left declared, because they are unreachable from
+      //     that surface rather than impossible.
+      //   · `catalysts` — Flag and Note got bodies; `catalysts.filter` was dropped, because the
+      //     tag chips render unconditionally and there is no closed filter UI for it to open.
+      //
+      // ⛔ The non-vacuity assertions above are what keep this from being a rail that cannot
+      // fail: they require the registry to still declare run actions and PREVIEW_MODES to be
+      // non-empty. So an empty list here means "all handled", never "nothing measured".
+      .toEqual([])
   })
 
   it('⛔ the projection really is what hides them — the mechanism is checked, not assumed', () => {

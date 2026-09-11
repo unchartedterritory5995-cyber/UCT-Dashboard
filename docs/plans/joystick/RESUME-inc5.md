@@ -1,5 +1,12 @@
 # RESUME — joystick hub Increment 5
 
+> ⚰️ **SUPERSEDED — THIS FILE IS HISTORY, NOT STATE.** It was written mid-programme and its
+> open-item lists were true when written. Increment 7 closed every row in `deferred.md` and
+> every request in `requests.md`. **Read `closure.md` for what is actually open** — it is one
+> thing (`glass-acceptance.md`) plus four costed owner decisions. Nothing below should be read
+> as outstanding; it is kept because the reasoning is worth having and deleting it would erase
+> why decisions were made.
+
 **Created 2026-09-10.** Increment 3 is at its deploy window; Increment 4 is built and gate-clean
 (0 NEW) waiting for the next window. This file carries Increment 5's scope, the three scout
 reports that shaped it, and the rulings they became.
@@ -267,3 +274,47 @@ killed mid-run. That fails SAFELY — the wrapper writes its manifest only at th
 run leaves no artifact that looks like a run — but it means a gate can vanish rather than fail.
 Judge it by the presence of a manifest describing the tree you gated, never by the absence of an
 error.
+
+## ⛔ STATE AT 2026-09-10 ~19:40 ET — read this first
+
+**LIVE IN PRODUCTION:** `258c5609d` — Increments 4 + 5 merged as one `--no-ff` commit and pushed
+at 18:54:10 ET. Confirmed by the artifact: `/api/health` uptime reset 2601s -> 26s at 18:56:53 ET.
+Manifest `gate-runs/2026-09-10T17-52-04.md` (banked `c3f0e0bb7`): 1241 files reconciling, 18,305
+passed, **0 NEW**. Increment 3 shipped earlier the same evening as `0179079d5`.
+
+**COMMITTED ON THIS BRANCH, NOT YET SHIPPED** (tips through `d4102b6c8`):
+- 3.6 Catalysts — the LAST section controller (`b9687e43e`)
+- §C1 two-finger Peek (`2eb7dd141`)
+- The Increment 6 closure report (`d0000a271`, `d4102b6c8`)
+
+⛔ **A MASTER-PUSH FREEZE IS IN EFFECT**, requested formally by the Wave Q1 / Notebook session at
+~19:05 ET and confirmed by me. Their pending deploy fixes a defect that DISCARDED a member's queued
+offline words, which outranks this program's feature work. They will message when their last push
+lands. **Do not push to master until that arrives.** Commit freely; it is only the push that resets
+their clock.
+
+### What is left, in full
+
+1. **⛔ Real-glass D4/D1 on production — NOT closable by this session, ever.** Needs a human on
+   BrowserStack Live. Recorded OPEN, never PASS.
+2. Ship the three commits above once the freeze lifts (rebase onto master, gate, `--no-ff` merge).
+3. Optional one-liner, deliberately NOT bundled: flip `flow` out of `PREVIEW_MODES`. Its real fan
+   and its preview projection are byte-identical, so no bubble changes — only the chip stops saying
+   "Preview — more coming" for a mode where nothing is coming. Left for the owner because it is a
+   copy change they may want worded differently.
+4. Owner decision, not a build: whether `home` leaves `PREVIEW_MODES`. It has a controller and zero
+   run actions; the curated seven-bubble `PREVIEW_HOME` fan is an owner ruling, and flipping shows
+   eight.
+5. Idle-capacity items still open: iOS visual escalation, the CI device-job design doc, and the
+   preference-key validation proposal.
+
+### Two hazards this session created or hit, for whoever is next
+
+- ⚰️ **I emptied the shared `node_modules` once tonight.** All four joystick worktrees chain to ONE
+  real directory at `joystick-hub/app/node_modules`. Removing a worktree whose `app/node_modules`
+  is a junction requires deleting the junction FIRST **and proving it is gone before**
+  `git worktree remove` — my check printed "abort" and did not block, and the remove walked the
+  live junction. `C:/Users/Patrick/uct-worktrees/inc5-merge` is LEFT IN PLACE for this reason.
+- ⚠️ Another session's unscoped `pytest tests/` reached 16 GB and starved the box for ~40 minutes.
+  It is NOT ours and must not be killed. `scripts/gate_shards.py` is CLEARED as a cause — it runs
+  `npx vitest` only and never invokes pytest.

@@ -95,35 +95,67 @@ describe('the compact legend can get back out again', () => {
   })
 })
 
-describe('the legend chip keeps dead space in front of its destructive control', () => {
+describe('the legend chip\'s controls are evenly spaced, and the strip fits them', () => {
   const css = read('components/chart/legend/IndicatorChip.module.css')
 
-  it('`.chipBtnDanger` carries a safety margin', () => {
-    // ⚰️ MEASURED, MACD chip on WMT 1D, 2026-08-14:
+  it('⚰️ `.chipBtnDanger` NO LONGER CARRIES A SAFETY MARGIN — an owner decision', () => {
+    // ⚰️ THIS CASE USED TO DEMAND `margin-left >= 8px`, and the measurement behind
+    // that demand was real. MACD chip on WMT 1D, 2026-08-14:
     //   `MACD 0.1605`  → Hide 396.1–412.1 · Settings 413.1–429.1 · Remove 430.1–446.1
     //   `MACD -0.1458` → Hide 401.5–417.5 · Settings 418.5–434.5 · Remove 435.5–451.5
     // The strip is laid out after the chip's TEXT NODE, so one extra glyph moved
     // every control +5.4px — and page-x 430.1–434.5 is Remove in the first state
     // and Settings in the second. On a live tape that number reflows under the
     // pointer, so the swap is reachable by standing still.
+    //
+    // ⚠️ THE OWNER RETIRED IT ANYWAY, WITH THE HAZARD ON THE TABLE (2026-09-10),
+    // after seeing this chip beside a `LegendRow` in the same legend: that row's
+    // value sits in its own grid column and CANNOT reflow its strip, so the gap
+    // only ever protected the inline chip while making the two kinds of row
+    // visibly disagree. What still carries the risk is the other half of the
+    // original answer — Remove no longer costs the member their settings
+    // (`instanceControls.setInstanceInput`), and the control turns red on hover.
+    //
+    // ⛔ THE CASE IS INVERTED RATHER THAN DELETED, so the day somebody re-adds a
+    // margin here they have to come and read the paragraph above and say why the
+    // two legends may disagree again.
     const body = ruleBody(css, '.chipBtnDanger')
-    expect(body, '.chipBtnDanger lost its rule entirely').toBeTruthy()
-    const px = /margin-left:\s*(\d+)px/.exec(body)
-    expect(px, '.chipBtnDanger lost its margin-left').toBeTruthy()
-    expect(Number(px[1])).toBeGreaterThanOrEqual(8)
+    if (body) {
+      expect(/margin-left:\s*[1-9]/.test(body),
+        '`.chipBtnDanger` grew a margin back — that puts the inline chip out of '
+        + 'step with every `LegendRow` in the same legend. If mis-clicked Removes '
+        + 'were reported, the fix is a confirm on the destructive verb, not a gap.')
+        .toBe(false)
+    }
   })
 
-  it('the revealed strip is wide enough to hold the margin it now contains', () => {
+  it('the three controls share ONE gap — even spacing, no per-button margin', () => {
+    const body = ruleBody(css, '.chipControls')
+    const gap = /gap:\s*(\d+)px/.exec(body)
+    expect(gap, '`.chipControls` lost its gap').toBeTruthy()
+    // The same gap `LegendRow.module.css` uses, so the two kinds of row in one
+    // legend are spaced identically — which is the whole point of the change.
+    const rowGap = /gap:\s*(\d+)px/.exec(
+      ruleBody(read('components/chart/legend/LegendRow.module.css'), '.controls'))
+    expect(gap[1], 'the chip and the MA row space their controls differently')
+      .toBe(rowGap[1])
+  })
+
+  it('the revealed strip is wide enough for what it now contains', () => {
     // `.chipControls` is `overflow: hidden`, so a max-width that no longer fits
     // clips the last button — and clipping is exactly the failure this file's own
     // header warns is invisible in jsdom.
-    const hover = /\.chip:hover \.chipControls,\s*\.chip:focus-within \.chipControls\s*\{([^}]*)\}/
+    // ⚠️ ANCHORED ON THE `:hover` HALF ONLY, DELIBERATELY. This spelled the whole
+    // selector and went red when the keyboard half became `:has(:focus-visible)`
+    // to stop a clicked chip's strip staying open. The CLAIM is about WIDTH.
+    const hover = /\.chip:hover \.chipControls,[^{]*\{([^}]*)\}/
       .exec(css.replace(/\/\*[\s\S]*?\*\//g, ''))
     expect(hover, 'the hover reveal rule is gone').toBeTruthy()
     const max = /max-width:\s*(\d+)px/.exec(hover[1])
     expect(max).toBeTruthy()
-    const danger = Number(/margin-left:\s*(\d+)px/.exec(ruleBody(css, '.chipBtnDanger'))[1])
-    // three 16px buttons + two 1px gaps + the danger margin
-    expect(Number(max[1])).toBeGreaterThanOrEqual(3 * 16 + 2 + danger)
+    const gap = Number(/gap:\s*(\d+)px/.exec(ruleBody(css, '.chipControls'))[1])
+    // three 16px buttons + two gaps, and it must not merely equal that — a strip
+    // sized to exactly its contents clips on the first sub-pixel rounding.
+    expect(Number(max[1])).toBeGreaterThanOrEqual(3 * 16 + 2 * gap)
   })
 })

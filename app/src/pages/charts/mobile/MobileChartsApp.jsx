@@ -19,8 +19,6 @@ import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
 import MobileLayoutsSheet from './MobileLayoutsSheet'
 import MobileBoardsSheet from './MobileBoardsSheet'
-import MobileObjectsSheet from './MobileObjectsSheet'
-import useChartDrawings from '../../../components/chart/useChartDrawings'
 // The ACTIVE board's name for the Tools row's subtitle. Read here rather than
 // inside the row so the sheet stays the only thing that mounts the manager.
 import useTracings from '../../../components/chart/useTracings'
@@ -28,6 +26,7 @@ import { tracingLabel } from '../../../components/chart/drawingsStore'
 import { pushRecent } from './mobileRecents'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
+import { liveOverlayList } from '../../../components/chart/chartDefaults'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MobileCharts.module.css'
 
@@ -123,10 +122,6 @@ export default function MobileChartsApp({
 
   const color = chartWidget?.color || 'A'
   const sym = groupSyms[color] || 'SPY'
-  // The objects on THIS symbol — the recovery surface's data, straight from the
-  // store the canvas draws from.
-  const _objDrawings = useChartDrawings(sym)
-  const _hiddenObjects = _objDrawings.drawings.reduce((n, d) => n + (d.hidden ? 1 : 0), 0)
 
   // Every page-open records the chart's symbol at that moment.
   const openWidgetScreen = useCallback((id) => {
@@ -194,11 +189,27 @@ export default function MobileChartsApp({
   // path into `opts.tf`. `customTfs` is the SAME expression MobileTfSheet is given below, so the
   // gesture and the picker step the same ladder. Everything it mounts is gated on
   // `useHubEligible` inside `hubMount`, so on a desktop or in a bare test render it is nothing.
+  // ⭐ D-01 — the hub's Draw bubble, through `StockChart`'s own toolbar API.
+  //
+  // ⛔ NOT `expandDrawToolbar()`. That door (the Tools sheet's "Draw on chart", below) REVEALS the
+  // drawbar and arms nothing, which is the whole reason D-01 was deferred: on a fan, a bubble that
+  // opens a toolbar is not the action "Draw". `selectTool` is the same door with the arm attached
+  // and it RETURNS FALSE rather than no-opping (unknown tool id, or a read-only mount), so the
+  // seam can say it did nothing instead of appearing to work.
+  //
+  // ⛔ TRENDLINE IS THE TOOL THE ROW NAMES — deferred.md D-01 is titled "Draw (trendline tool)"
+  // and master-spec v1.1 §241 reads "Draw (trendline tool active)". It is not a default chosen
+  // here.
+  const drawTrendline = useCallback(() => (
+    toolbarApiRef.current?.selectTool?.('trendline') === true
+  ), [])
+
   const chartHub = useChartHubSection({
     tf,
     symbol: sym,
     customTfs: Array.isArray(cs?.header?.customTimeframes) ? cs.header.customTimeframes : [],
     onTf: handleTf,
+    onDraw: drawTrendline,
   })
 
   const handleSymbolPick = useCallback((s) => {
@@ -229,7 +240,12 @@ export default function MobileChartsApp({
   // rows (Volume Profile) draw with no instance at all, so they count off
   // their settings slice.
   const indicatorCount = useMemo(() => {
-    const mas = Array.isArray(cs?.overlays) ? cs.overlays.filter((o) => o?.enabled).length : 0
+    // ⛔ THROUGH `liveOverlayList`, so the badge counts what the CHART draws. A
+    // moving average the member removed keeps its slot (the merge is positional —
+    // see `chartDefaults`'s tombstone header) and would otherwise still be counted
+    // here, which is the badge-counting-ghosts defect this block already guards
+    // against for tombstoned instances two lines down.
+    const mas = liveOverlayList(cs?.overlays).filter((o) => o?.enabled).length
     const studies = Array.isArray(cs?.indicatorInstances)
       ? cs.indicatorInstances.filter((i) => i && typeof i === 'object' && !isInstanceTombstone(i)).length
       : 0
@@ -545,8 +561,6 @@ export default function MobileChartsApp({
         onOpenLayouts={() => setSheet('layouts')}
         activeLayoutName={layoutsActive?.name || null}
         onOpenBoards={() => setSheet('boards')}
-        onOpenObjects={() => setSheet('objects')}
-        hiddenObjectCount={_hiddenObjects}
         activeBoardName={_activeBoard ? tracingLabel(_activeBoard) : null}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
@@ -558,22 +572,6 @@ export default function MobileChartsApp({
         open={sheet === 'boards'}
         onClose={closeSheet}
         sym={sym}
-        className={sheetTheme}
-      />
-      {/* The recovery surface. ⛔ It reads the SAME store the canvas draws from
-          (`useChartDrawings(sym)`), never a copy — a manager that could disagree
-          with the chart about what exists is worse than none. */}
-      <MobileObjectsSheet
-        open={sheet === 'objects'}
-        onClose={closeSheet}
-        sym={sym}
-        drawings={_objDrawings.drawings}
-        onToggleHidden={(id, hidden) => _objDrawings.updateDrawing(id, { hidden })}
-        onToggleLocked={(id, locked) => _objDrawings.updateDrawing(id, { locked })}
-        onDelete={(id) => _objDrawings.removeDrawing(id)}
-        onShowAll={() => {
-          for (const d of _objDrawings.drawings) if (d.hidden) _objDrawings.updateDrawing(d.id, { hidden: false })
-        }}
         className={sheetTheme}
       />
     </div>

@@ -17,8 +17,20 @@
 .panel {
   width: min(560px, 94vw);
   /* Fixed height so the modal doesn't resize between tabs — the longer Canvas
-     tab scrolls inside .body instead of growing the whole modal. */
-  height: min(568px, 88vh);
+     tab scrolls inside .body instead of growing the whole modal.
+
+     ⭐ 568 → 660, AND THE WIDTH IS DELIBERATELY UNCHANGED. The Indicators tab now
+     carries a search row, the active list and one open settings form; at 568 a
+     member with five indicators could not see the open form and the row it
+     belongs to at the same time. Widening would have re-laid-out four tabs to fix
+     one, so the tab was designed to the 560px column instead.
+
+     ⚠️ `88vh` IS WHAT KEEPS THIS OFF A LAPTOP'S CHIN, and it is why the height is
+     a `min()` rather than a flat 660: on a 768px-tall screen the second term wins
+     (676) and on a tall monitor the first does, so the modal never spills past the
+     viewport and never refuses to use a big one. `.body` scrolls, so a short
+     screen loses HEIGHT, never content. */
+  height: min(660px, 88vh);
   display: flex;
   flex-direction: column;
   /* --menu-surface = translucent canvas gradient (gradient canvas only); solid
@@ -240,6 +252,17 @@
   min-height: 0;
   padding: 18px;
   overflow-y: auto;
+  /* ⭐ `stable` RESERVES THE SCROLLBAR'S GUTTER WHETHER OR NOT ONE IS SHOWING, and
+     that is a layout fix rather than a cosmetic one. Without it the bar is 10px
+     of CONTENT width: expanding one indicator row makes the tab overflow, the bar
+     appears, and every row, the search field, the New Formula button and all five
+     tab labels jump 10px left — mid-click, on the row you just opened. It also
+     fires in REVERSE on collapse, so a member toggling two rows watches the panel
+     twitch each way. Reserving it costs 10px once, permanently, and nothing moves
+     again. ⚠️ It belongs on the ONE scroll container: this tab has exactly one
+     (asserted in `ChartSettingsModal.indicators.test.jsx`), so there is no second
+     gutter to reserve and no double gap. */
+  scrollbar-gutter: stable;
   /* Dark scrollbar so it blends with the modal instead of the OS default white. */
   scrollbar-width: thin;
   scrollbar-color: var(--menu-border, #3a3a3f) transparent;
@@ -335,7 +358,11 @@
 /* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
    — matches .indNum:disabled / .indSelect:disabled so inert reads the same
    everywhere in this tab. The reason rides the row's title. */
-.toggleOff, .toggleOff:hover { opacity: 0.4; cursor: not-allowed; border-color: var(--menu-border, #2e2e30); }
+/* ⭐ 0.4 → 0.55 with the 2026-09-10 contrast raise. An inert control still has to
+   read: its LABEL carries the reason it is inert ("Coming soon — needs renderer
+   support"), and a reason nobody can read is the same as no reason. Still an
+   unmistakable step below a live control. */
+.toggleOff, .toggleOff:hover { opacity: 0.55; cursor: not-allowed; border-color: var(--menu-border, #2e2e30); }
 
 /* A row's right-side controls sitting together (e.g. size dropdown + swatch). */
 .fieldControls { display: flex; align-items: center; gap: 10px; }
@@ -584,7 +611,7 @@
 .indLabel { font-size: 11px; color: var(--menu-text-dim, var(--text-muted, #8c8674)); }
 /* Fields present in the schema but not yet honored by the renderer are shown
    inert with a title explaining why — better than a control that silently no-ops. */
-.indLabelOff { opacity: 0.45; }
+.indLabelOff { opacity: 0.6; }   /* see .toggleOff — the label carries the reason */
 .indNum {
   width: 66px;
   background: var(--menu-input-bg, var(--bg-elevated, #16181c));
@@ -606,7 +633,7 @@
   padding: 3px 6px;
   cursor: pointer;
 }
-.indNum:disabled, .indSelect:disabled { opacity: 0.4; cursor: not-allowed; }
+.indNum:disabled, .indSelect:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Info Row field picker (Header tab) — an "Add Field" button beside the label opens a
    searchable, scrollable field menu. */
@@ -719,4 +746,489 @@
     justify-content: center;
   }
   .tplBtn { min-height: 40px; display: inline-flex; align-items: center; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INDICATORS TAB — the consolidated control centre (ChartSettingsIndicators)
+
+   ⛔ IT LIVES IN THIS FILE ON PURPOSE. The brief's line is "the old Indicators
+   modal supplies FUNCTIONALITY, Chart Settings supplies VISUAL LANGUAGE" — so
+   the tab reuses `.section`, `.sectionLabel`, `.toggle`, `.indRow`, `.indLabel`,
+   `.indNum`, `.indSelect` and `.cSwatch` as they are, and everything below is
+   the small amount of chrome those did not already have. A second stylesheet is
+   how a tab starts looking like a different app.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.indTab { display: block; }
+
+/* ── The ways in: search + New Formula, one compact row (§25/§26) ─────────── */
+.indTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.indBack {
+  flex: none;
+  width: 28px;
+  height: 30px;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 7px;
+  color: var(--menu-text-dim, #8a8a8f);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+.indBack:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+
+.indSearchWrap { position: relative; flex: 1 1 auto; min-width: 0; }
+.indSearchIcon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--menu-text-faint, #6b6b6b);
+  pointer-events: none;
+}
+.indSearch {
+  width: 100%;
+  height: 30px;
+  box-sizing: border-box;
+  background: var(--menu-input-bg, #161618);
+  border: 1px solid var(--menu-border, #2b2b2d);
+  border-radius: 7px;
+  color: var(--menu-text, #d4d4d4);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 0 26px;
+  outline: none;
+  transition: border-color 120ms, background 120ms;
+}
+.indSearch::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+.indSearch:focus { border-color: var(--menu-accent, #dcbb5e); }
+/* The native search widget's own clear button — we render our own, aligned. */
+.indSearch::-webkit-search-cancel-button { appearance: none; }
+.indClear {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--menu-text-faint, #6b6b6b);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.indClear:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
+
+/* Secondary button, NOT the old dashed hero card: inside a 560px panel that card
+   ate a third of the tab before a member saw a single indicator. */
+.indNewFormula {
+  flex: none;
+  height: 30px;
+  background: transparent;
+  border: 1px solid var(--menu-accent, rgba(220, 187, 94, 0.45));
+  border-radius: 7px;
+  color: var(--menu-accent, #e2c98a);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding: 0 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.indNewFormula:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); }
+
+/* ── Section head with a count ────────────────────────────────────────────── */
+.indSectionHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.indCount {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--menu-text-faint, #6b6b6b);
+  background: var(--menu-input-bg, #161618);
+  border: 1px solid var(--menu-border, #232325);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+}
+
+.indEmpty {
+  font-size: 12px;
+  color: var(--menu-text-faint, #6b6b6b);
+  padding: 14px 2px;
+  line-height: 1.6;
+}
+.indEmptyLink {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--menu-accent, #dcbb5e);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Category chips (§19) ─────────────────────────────────────────────────── */
+.indCats { display: flex; flex-wrap: wrap; gap: 6px; }
+.indCat {
+  background: transparent;
+  border: 1px solid var(--menu-border, #2b2b2d);
+  border-radius: var(--radius-pill);
+  color: var(--menu-text-dim, #9a9a9a);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 4px 11px;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.indCat:hover {
+  color: var(--menu-text, #ededed);
+  border-color: var(--menu-accent, rgba(220, 187, 94, 0.45));
+  background: var(--menu-hover, rgba(255, 255, 255, 0.04));
+}
+.indCatActive {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.indCatActiveName {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--menu-accent, #e2c98a);
+}
+.indCatDrop {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--menu-text-faint, #6b6b6b);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.indCatDrop:hover { color: var(--menu-text-dim, #9a9a9a); }
+
+/* ── ACTIVE ROW — compact, quiet, divider-separated (§23) ─────────────────────
+   Deliberately NOT a card grid: thin rules between rows read as a terminal
+   settings list, and a stack of rounded bordered cards reads as a SaaS
+   dashboard. The only row that gets a surface is the OPEN one, so the thing
+   being edited is obvious without any of the others shouting. */
+.actList {
+  border-top: 1px solid var(--menu-divider, #202022);
+}
+.actBlock {
+  border-bottom: 1px solid var(--menu-divider, #202022);
+}
+.actHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+
+  /* ─── THE THREE TRAILING CONTROLS: colour · settings · remove ─────────────
+     ⛔ EVEN SPACING IS BETWEEN OPTICAL EDGES, NOT BETWEEN BOXES, and that is why
+     these are variables rather than three hand-tuned numbers. The gear and the ✕
+     are 15px glyphs centred in 24px buttons, so each carries 4.5px of dead space
+     on every side; the colour swatch FILLS its box. With one flat `gap` the same
+     10px therefore rendered as 14.5px between swatch and gear and 19px between
+     gear and ✕ — measured, and visible as "the ✕ is further away".
+     Giving the swatch the SAME inset makes all three gaps 19px without anyone
+     maintaining a magic margin.
+     ⚠️ `--act-ctl-glyph` MUST MATCH the `size={}` the JSX passes `UIcon`. It is
+     spelled here because the inset is derived FROM it; if the icons are ever
+     resized, both move together or the spacing quietly goes uneven again. */
+  --act-ctl-box: 24px;
+  --act-ctl-glyph: 15px;
+  --act-ctl-inset: calc((var(--act-ctl-box) - var(--act-ctl-glyph)) / 2);
+}
+.actToggle { transform: scale(0.86); transform-origin: left center; margin-right: -5px; }
+.actName {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 8px 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.actLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--menu-text, #ededed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actName:hover .actLabel { color: var(--menu-accent, #e2c98a); }
+.actBadge {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #6b6b6b);
+  border: 1px solid var(--menu-border, #232325);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+/* The swatch is the shared `.cSwatch`, shrunk for the row — same control, same
+   pop-out panel, same writer; only the metrics change.
+
+   ⭐ `gap` IS LOAD-BEARING ON A TWO-COLOUR ROW, not tidiness. Volume declares an
+   up colour and a down colour, and butted edge to edge they read as ONE two-tone
+   chip — while each is a separate button opening its own picker. A control that
+   looks like half of something else is a control nobody clicks. */
+.actSwatch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* 🔴 `line-height: 0` IS THE FIX FOR A 3.2px VERTICAL DRIFT, MEASURED. The
+     swatches are <button>s wrapped in <span>s, and an inline-level box sits on
+     the TEXT BASELINE — so the wrapper inherited the row's line-height, grew a
+     descender's worth of empty space UNDER the 20px swatch, and `.actHead`'s
+     `align-items: center` then centred that TALLER box. The visible squares
+     ended up 3.2px above the gear and the ✕, which is exactly the "not lined up"
+     the eye catches on a list of five. Zeroing the line box makes the wrapper
+     the swatch's own height, so centring centres the thing you can see. */
+  line-height: 0;
+  /* The swatch fills its own box, so it needs the icon buttons' optical inset
+     applied by hand — see `--act-ctl-inset` on `.actHead`. */
+  padding-inline: var(--act-ctl-inset);
+}
+.actSwatch .cSwatch { width: 20px; height: 20px; border-radius: var(--radius-sm); }
+/* ⚰️ THIS DRESSED A `˅` CHEVRON until the owner asked for a settings icon; the
+   class name is kept because it is the row's EXPANDER whatever glyph it wears,
+   and renaming it would touch four selectors and two test queries for nothing. */
+.actChevron {
+  flex: none;
+  /* 24, not 22: a 15px gear in a 22px box leaves 3.5px of breathing room and the
+     hover surface crops the glyph. */
+  width: var(--act-ctl-box);
+  height: var(--act-ctl-box);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--menu-text-faint, #93939a);
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 5px;
+  /* ⛔ NO `transform` IN THE TRANSITION ANY MORE. A chevron flipping 180° meant
+     "this opens / this closes"; a GEAR doing it just spins upside down, which
+     says nothing and reads as a glitch. The open state is carried by ink and a
+     surface instead. */
+  transition: color 120ms, background 120ms;
+}
+.actChevron:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
+.actChevronOpen {
+  color: var(--menu-accent, #dcbb5e);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
+}
+
+/* ── The row's ✕ (owner request, after the first build) ───────────────────────
+   Quiet at rest and RED on hover: it has to be findable without being the
+   loudest thing on a list of eleven rows, and it has to be unmistakable in the
+   half-second before the click. The labelled "Remove indicator" inside the open
+   row is the same verb through the same writer — see the JSX. */
+.actRowRemove {
+  flex: none;
+  /* ⛔ THE SAME 24px BOX AS `.actChevron`, HOLDING THE SAME 15px ICON. Even
+     spacing between three controls is even spacing between their OPTICAL edges,
+     and that only falls out for free when the boxes and the glyphs inside them
+     match. It used to be a 22px box around a text `✕`, whose ink the font inset
+     by ~6.5px a side against the gear's 4.5px — so the same 10px flex gap
+     rendered as 14.5px on one side of the gear and ~21px on the other. */
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--menu-text-faint, #93939a);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 5px;
+  opacity: 0.75;
+  transition: color 120ms, background 120ms, opacity 120ms;
+}
+.actRowRemove:hover {
+  color: var(--loss);
+  background: var(--loss-bg);
+  opacity: 1;
+}
+.actRowRemove:focus-visible {
+  outline: 1px solid var(--menu-accent, #dcbb5e);
+  outline-offset: -1px;
+  opacity: 1;
+}
+/* ⚰️ `.actRemoveHole` STOOD HERE — a reserved-width spacer that held the ✕'s
+   column open on the MA overlays and the volume pane, because those rows could
+   not be removed and an inert ✕ that looks live is worse than none. The tombstone
+   made every row removable, so every row has a real ✕ and there is no hole left
+   to reserve. */
+@media (pointer: coarse) {
+  .actRowRemove { min-width: 34px; min-height: 34px; }
+}
+
+
+/* Disabled ⇒ subdued, still fully operable (§13). Never removed. */
+.actBlockOff .actLabel,
+.actBlockOff .actBadge { color: var(--menu-text-faint, #6b6b6b); }
+.actBlockOff .actSwatch { opacity: 0.45; }
+
+/* The open row gets the only surface on the list. */
+.actBlockOpen {
+  background: var(--menu-bg-top, #131315);
+  border-radius: 8px;
+  border-bottom-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--menu-border, #232325);
+  /* ⭐ THE SURFACE BLEEDS OUTWARD; THE CONTENT DOES NOT MOVE. Equal negative
+     margin and positive padding widen the card by 12px on each side while every
+     child stays at exactly the x it had while collapsed.
+
+     ⚰️ IT USED TO BE `.actBlockOpen .actHead { padding: 0 10px }`, which indented
+     the OPEN row's own header — so opening EMA 9 nudged its toggle, its name, its
+     colour and its gear 10px right while the four rows above and below stayed
+     put, and the five columns a member reads down stopped lining up at the exact
+     moment they were looking at one of them. A row that jumps when you open it
+     also makes the ✕ and the gear move under a cursor already travelling towards
+     them. */
+  margin-inline: -12px;
+  padding-inline: 12px;
+}
+.actBody {
+  /* ⛔ NO HORIZONTAL PADDING — the card's own `padding-inline` already supplies
+     it. A second one here would indent the field labels relative to the
+     indicator's name, which is the same misalignment one level in. */
+  padding: 4px 0 12px;
+  border-top: 1px solid var(--menu-divider, #202022);
+  margin-top: 2px;
+}
+/* The generated field rows keep their shipped look; only the indent changes,
+   because inside an open card the toggle they used to sit under is gone. */
+.actBody .indRow { padding-left: 0; }
+
+/* ⚰️ `.actRemove` (the expanded "Remove indicator" button) AND `.actNoRemove`
+   (the "Built into every chart" note beside it) BOTH LIVED HERE. The note stopped
+   being true when the tombstone made every row removable; the button became a
+   second door onto the verb the header's ✕ already carries, at the bottom of a
+   form. `.actRowRemove` (above) is the one that ships. */
+
+
+/* ── CATALOGUE RESULT (discovery mode) ────────────────────────────────────── */
+.resList { list-style: none; margin: 0; padding: 0; }
+.resRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 8px;
+  margin: 0 -8px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.resRow + .resRow { border-top: 1px solid var(--menu-divider, #202022); }
+.resRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.04)); }
+.resRow:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+.resRowOn { cursor: default; }
+.resRowOn:hover { background: transparent; }
+.resMain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.resTitleRow { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.resName { font-size: 12.5px; font-weight: 600; color: var(--menu-text, #ededed); }
+.resShort {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--menu-text-faint, #6b6b6b);
+  border: 1px solid var(--menu-border, #232325);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+.resBlurb { font-size: 11px; line-height: 1.45; color: var(--menu-text-dim, #8a8a8f); }
+.resMine,
+.resPill,
+.resTier,
+.resRepaint {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+  padding: 1.5px 6px;
+}
+.resMine { color: var(--menu-accent, #e2c98a); background: var(--menu-accent-bg, rgba(220, 187, 94, 0.14)); }
+.resPill { color: var(--menu-text-dim, #9a9a9a); background: var(--menu-input-bg, #161618); }
+.resTier { color: var(--menu-accent, #e2c98a); background: var(--menu-accent-bg, rgba(220, 187, 94, 0.14)); }
+.resRepaint { color: var(--warn); background: var(--warn-bg); text-transform: none; }
+
+.resAdd {
+  flex: none;
+  align-self: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--menu-text-faint, #6b6b6b);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 8px;
+  transition: color 120ms, border-color 120ms;
+}
+.resRow:hover .resAdd { color: var(--menu-accent, #e2c98a); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+.resActive { flex: none; align-self: center; display: inline-flex; align-items: center; gap: 6px; }
+.resActiveTag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--menu-accent, #e2c98a);
+}
+.resAddMore {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 6px;
+  color: var(--menu-text-dim, #9a9a9a);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+.resAddMore:hover { color: var(--menu-accent, #e2c98a); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+
+.resRefused, .resRefused:hover { cursor: default; background: transparent; opacity: 0.75; }
+.resRefusedLede { font-size: 11px; line-height: 1.5; color: var(--menu-text-dim, #8a8a8f); margin: 0 0 8px; }
+.resRefusedWhy { font-size: 10.5px; line-height: 1.45; color: var(--loss); }
+
+@media (pointer: coarse) {
+  .actHead { min-height: var(--tap-min, 44px); }
+  .actChevron { min-width: 34px; min-height: 34px; }
+  .indSearch, .indNewFormula, .indBack { height: 38px; }
 }

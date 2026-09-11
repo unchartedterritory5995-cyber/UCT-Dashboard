@@ -46,6 +46,13 @@
       ],
       "note": ""
     },
+    "ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "S7 first slice (owner authorization, 2026-09-03; api/main.py:6090-6116). Registers the 20-min alert_taxonomy_document_arrival cron, which polls SEC EDGAR per-ticker filings (api/services/sec_filings.py) against a watermark and fires document-arrival alerts through the alert-taxonomy predicate/delivery pipeline -- S7's first live trigger type. Independent of COMPASS_AUTOMATION_ENABLED. Live monitoring a real production predicate (NVDA) as of 2026-09-05, waiting on a genuine new filing; see docs/uct-terminal/continuity-checkpoint.md \"CURRENT WAITING ON EXTERNAL EVENT\"."
+    },
     "ALPHA_GOLD_EOD_ENABLED": {
       "status": "dark",
       "note": "Was armed; confirmed OFF (=0) on flow-worker as of 2026-09-06 -- the ledger entry had drifted. Superseded same-day by CREAM_EOD_ENABLED (api/flow_worker_main.py:456-489): Cream of the Crop's aggregate, curation-free EOD read replaced Alpha Gold's single-print summary on the adjacent 16:05/16:10 ET cron slot. The scheduler branch and the alpha_gold_eod.py module are both still present (env-var-only revert, no deploy needed either way), but nothing currently arms it."
@@ -77,6 +84,31 @@
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "BARS_API_ENABLED": {
+      "status": "armed",
+      "where": [
+        "bars-api"
+      ],
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Selects the dedicated bars-SERVING entrypoint via the railway.json dispatcher, so app/partner deploys can never restart chart serving. This entry read pending until now for a reason that was not about the flag: tools/flag_ledger_audit.py hardcoded a three-service roster (web, worker, flow-worker) while the project has five, so a flag armed only on bars-api was invisible to the audit and was reported as undecided. The roster is now derived from the project."
+    },
+    "BARS_A_CLOSE_GUARD_ENABLED": {
+      "status": "dark",
+      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed."
+    },
+    "BARS_HISTORY_ORIGIN_ENABLED": {
+      "status": "armed",
+      "where": [
+        "worker"
+      ],
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Lets the worker serve /api/bars-history as a READ-ONLY origin for the deep ~20GB history db, so Cloudflare can cache deep history worldwide without the web pod ever holding or fetching it (the 2026-08-31 OOM class)."
+    },
+    "BARS_HISTORY_PROXY_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Makes the web pod's /api/bars-history a reverse-proxy to that worker origin; the web pod keeps only shallow history. On a proxy error it falls back to its own local history rather than 5xx-ing."
     },
     "BARS_PREWARM_ENABLED": {
       "status": "armed",
@@ -126,6 +158,13 @@
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "BROKER_BALANCE_HISTORY_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Not caught by the ledger's own AST scanner -- a genuine blind spot recorded 2026-09-06: read via `import os as _os; _os.getenv(...)`, and api/services/feature_flag_index.py only recognizes the literal base name `os`, so an aliased import is invisible to it (see the debt-ledger entry for the scanner gap itself). Adds ONE extra check to the existing per-account broker fidelity audit (api/services/journal_two/broker/fidelity_audit.py:224-237): calls SnapTrade's BETA get_balance_history endpoint and cross-checks it against our own stored equity snapshots. Read-only (no writes to any balance/position), best-effort (wrapped in try/except, marked skipped+non-fatal on any error) -- SnapTrade's own comment notes the endpoint is 'disabled by default at SnapTrade', so it is often a no-op. Confirmed armed on web 2026-09-06; owner reviewed and chose to keep it armed with this entry as the recorded rationale (Feature-Flag Governance Sweep, owner check-in)."
     },
     "BROKER_SYNC_ENABLED": {
       "status": "armed",
@@ -236,6 +275,13 @@
       ],
       "note": ""
     },
+    "COMPANY_NEWS_INGEST_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Registers the company-news ingest jobs. Off in code so a deploy cannot begin ingesting before it is wanted; set on web, so ingest is running."
+    },
     "COMPASS_AUTOMATION_ENABLED": {
       "status": "armed",
       "where": [
@@ -260,6 +306,13 @@
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "CREAM_EOD_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Armed live 2026-09-06 (api/flow_worker_main.py:469-489), superseding ALPHA_GOLD_EOD_ENABLED on the adjacent cron slot (16:10 ET weekdays, 5 min after the now-dark Alpha Gold job). The scheduler job registers unconditionally and self-gates on this flag (api/cream_card.py:83) -- off means the job builds and posts nothing. Posts the day's highest-conviction AGGREGATE options-flow builds (curation-free, via live_massive_router.compute_cream) to Discord as an image-only card, filling the blind spot Top Flow (single prints) and the hand-curated Watchlist both had."
     },
     "DARKPOOL_BIGBLOCK_ENABLED": {
       "status": "armed",
@@ -388,6 +441,13 @@
       ],
       "note": ""
     },
+    "FLOW_BOOTSTRAP_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Enables the parts transport in flow_aggregate. The old whole-D path stays authoritative until this is on."
+    },
     "FLOW_GAP_AUTOFILL_ENABLED": {
       "status": "armed",
       "where": [
@@ -401,6 +461,13 @@
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "FLOW_PREPARE_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Starts the first-paint preparer. Self-gated so a caller cannot start it by accident, and additionally requires FLOW_BOOTSTRAP_ENABLED -- warming a transport nobody serves would burn CPU and report healthy while doing it."
     },
     "FLOW_PRUNE_ENABLED": {
       "status": "dark",
@@ -435,12 +502,23 @@
       ],
       "note": ""
     },
+    "GRADE_TICKER_CONFIRMED_SOURCE_ENABLED": {
+      "status": "dark",
+      "note": "Seam 28's re-enablement, merged dark 2026-09-10 on owner authorization. OFF: grade_ticker._default_patterns_fn returns [] exactly as it has since 2026-09-06, so Compass keeps routing every call through its honest no-usable-setup SKIP. ON: it sources pattern_vision.store.get_confirmed ONLY -- D1-window-bounded, latest-evidence-bar-per-setup, so a setup confirmed on an older bar and rejected on a newer one is never served -- and the raw rule-engine feed stays unreachable in both states (Seam 23/28). DELIBERATELY OFF because turning it ON changes the SOURCE and not the OUTPUT: pattern_verdicts has key_level but no entry/stop/target column, and grade_ticker's hard gate is entry-or-stop-is-None -> SKIP, so a confirmed verdict alone still cannot produce a tradable verdict. Manufacturing an entry and a stop from one level would be the fabricated-confidence move Seam 23 and Seam 28 each removed. Flipping this on is therefore safe but currently pointless; making it meaningful needs verdicts to carry levels, which is a schema change and separate work. Pinned by tests/test_grade_ticker_confirmed_source.py::test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels, which goes RED the day levels are added."
+    },
     "GROUPS_SWING_GATES_ENABLED": {
       "status": "armed",
       "where": [
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "HISTORY_PREWARM_ENABLED": {
+      "status": "armed",
+      "where": [
+        "worker"
+      ],
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Sweeps every symbol's sealed D/W/M history through the public Cloudflare domain so Cache Reserve holds it and no first-time user in any region hits the origin cold."
     },
     "IMPLIED_STORE_ENABLED": {
       "status": "armed",
@@ -455,6 +533,13 @@
         "web"
       ],
       "note": "Armed 2026-09-02 on web: screenshot -> candidate formulas, the third import door beside pasted Pine/thinkScript/PCF. It was the most visible incomplete edge in the product - the builder offers a Screenshot tab unconditionally, so while this was off EVERY member who clicked it got a refusal. (A GRACEFUL one: it points at the Import and Formula tabs, which reach the same engine. An earlier version told a paying member to ask an admin to set this variable, which is why the sentence now lives with the other refusals.) BOUNDED ON BOTH AXES, verified in code rather than taken from the docstring: require_paid gates it (402), INDICATOR_VISION_MAX_PER_HOUR caps one member at 10 screenshots an hour (429), the flag is checked BEFORE the limiter charges so a member cannot spend their allowance discovering the feature is off, the upload is read one byte past MAX_IMAGE_BYTES and refused, and the route STORES NOTHING - a candidate is a suggestion until the member saves it through the ordinary definition door. WORTH KNOWING: spend is ledgered through catalyst cost_guard, the SAME daily USD budget the catalyst engine draws on. A heavy screenshot day therefore eats into catalyst synthesis, and the cap fails safe by disabling synthesis rather than overspending. If that coupling ever bites, the fix is a separate ledger for this door, not a wider cap. Rollback is this variable."
+    },
+    "INSTANT_UNIVERSE_ENABLED": {
+      "status": "armed",
+      "where": [
+        "worker"
+      ],
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Widens the boot-only D/W/M warm pass to the whole reference universe. Deliberately kept OUT of the 5-minute refresh loop and the intraday active set, so it cannot cause a 26k-symbol intraday blow-up."
     },
     "INTRADAYPACK_ENABLED": {
       "status": "armed",
@@ -554,6 +639,49 @@
       ],
       "note": "Armed 2026-09-02 on flow-worker: the weekday 08:00 ET Morning OI card. Held off earlier in the same session on the grounds that arming it PUBLISHES; that was then checked rather than assumed, and the destination is not what the concern supposed. oi_morning._webhook() falls back OI_MORNING_WEBHOOK_URL -> ALPHA_GOLD_EOD_WEBHOOK_URL -> DISCORD_MASSIVE_WEBHOOK_URL -> DISCORD_LIVE_FLOW_WEBHOOK_URL -> DISCORD_WEBHOOK_URL, and on flow-worker only the LAST of those is set - the admin/signups channel, not a member channel. So the card lands in front of the owner, which is how it should be judged before it goes anywhere else. Point OI_MORNING_WEBHOOK_URL at a member channel to change that; it is a deliberate second act, not a side effect of this flag. TIMING WAS PART OF THE DECISION: applying it restarts flow-worker, which drops the OPRA WS, and Massive does not replay - a gap is permanent until the T+1 flat file. Done at 22:43 ET on a Wednesday with the session closed, so the restart cost no tape. Rollback is this variable plus a redeploy."
     },
+    "OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Sender half of the OptionsFlow ETF replica. Deliberately DISTINCT from the receiver's flag so one side can be turned off without the other silently looking like the active architecture."
+    },
+    "OPTIONSFLOW_ETF_REPLICA_RECEIVE_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
+    },
+    "PANEL_PREWARM_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Moves research-panel provider warming onto a schedule instead of the request path. Off in code because it walks providers on the WEB pod and bulk warming has OOM'd this pod before, so it takes a small bounded slice per cycle and holds nothing between symbols."
+    },
+    "PATTERN_CANONICAL_ADAPT_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Phase 8 Package 8F canonical pattern-engine migration, write-side leg (api/main.py:362-369; spec docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md). When on, the pattern scan additionally calls canonical_adapter.adapt_high_tight_flag/adapt_power_earnings_gap per detection and populates the new eligibility_json (etc.) columns on pattern_detections. Purely additive/persistence-side -- does not change what the scanner SERVES to any user. Checked per-call, not cached at import. Sibling flags PATTERN_CANONICAL_SCANNER_PILOT_ENABLED (read-side pilot) and PATTERN_CANONICAL_SHADOW_LOG_ENABLED (log-only shadow compare) are the other two independently-gated legs of the same migration; see their own entries."
+    },
+    "PATTERN_CANONICAL_SCANNER_PILOT_ENABLED": {
+      "status": "dark",
+      "note": "Phase 8 Package 8G-B canonical pattern-engine migration, read-side pilot leg (api/services/screener/pattern_join.py:564-628; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on AND the caller is admin AND a row already legacy-matched power_earnings_gap (the only family in the hardcoded _PILOT_SUPPORTED_FAMILIES set -- widening it is a deliberate code change, not an env toggle), attaches an additional pattern_canonical_pilot key sourced from the canonical read; never mutates any existing key, and any failure at any stage falls back to the untouched legacy rows. Actively being performance-tuned against real admin traffic this week (idx_pd_sym_tf index work); own tests tests/test_screener_wave5_pattern_join_pilot.py."
+    },
+    "PATTERN_CANONICAL_SHADOW_LOG_ENABLED": {
+      "status": "dark",
+      "note": "Phase 8 Package 8F canonical pattern-engine migration, shadow-log leg (api/services/screener/snapshot_builder.py:1052-1061; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on, every snapshot-build cycle additionally calls pattern_join.compare_pattern_shadow and logs the result -- pure observation, never touches pattern_map (the data actually served). Deliberately independent of the write-side flag per a 2026-09-04 design review: \"do not make snapshot_builder.py unconditionally switch to the canonical reader; legacy remains served while canonical is computed/logged beside it.\" Own tests tests/test_snapshot_builder_pattern_shadow.py."
+    },
+    "PERMANENT_DAILY_FRESHNESS_ENABLED": {
+      "status": "armed",
+      "where": [
+        "worker"
+      ],
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
+    },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
@@ -574,6 +702,17 @@
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "RESEARCH_TECHNICAL_TAB_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. ⚰️ THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
+    },
+    "S7_FILING_WATCH_ENABLED": {
+      "status": "dark",
+      "note": "S7 Stage 4 creation surfaces + Stage 5 Settings management, merged dark 2026-09-10. Gates the member-facing \"Notify me about new SEC filings for {sym}\" control on ResearchHeader, TickerPopup and TickerHubSheet, plus the Settings > Filing watches panel. ENABLEMENT polarity (unset = not released), the same as RESEARCH_TECHNICAL_TAB_ENABLED and the opposite of the HUB_PREVIEW_ENABLED kill switch. Read per request in auth.py::_access_payload and carried to the client as s7_filing_watch_enabled. ⛔ The ONE authority is hooks/useFilingWatch.js, which every surface already shared: it returns `enabled` and NULLS ITS SWR KEY when off, so a dark feature makes no network calls; the surfaces only ask. Four copies of an env check could not have been mutation-proved. ⚰️ The branch's own commit message claimed \"(dark, unmerged)\" while containing no flag at all -- being unmerged was the only thing hiding it, and merging it in that state would have exposed member UI on three surfaces with revert-and-deploy as the only rollback. Flip is a restart: set it outside 09:00-16:00 ET so it cannot land on a Pattern Vision slot."
     },
     "SCAN_LIVE_SWEEP_ENABLED": {
       "status": "dark",
@@ -631,6 +770,13 @@
         "(set — service not captured)"
       ],
       "note": ""
+    },
+    "THEME_SETS_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Brand-new per-user custom Theme Set feature (api/services/theme_sets.py, api/routers/theme_sets.py; last touched 2026-09-05), armed on web as of 2026-09-06. A personal, named diff on top of the shared Theme Tracker taxonomy (hide/add themes, add custom themes/stocks) stored in its own /data/theme_sets.db -- entirely additive, never touches the shared taxonomy or theme_memberships. Off would mean GET /api/theme-sets reports {enabled:false} and all writes refuse. Unrelated to the already-armed THEME_ENGINE_ENABLED (the autonomous Theme Membership Engine that absorbs orphan stocks into the shared taxonomy) despite the naming similarity."
     },
     "TRADE_CONDITION_FILTER_ENABLED": {
       "status": "armed",
@@ -694,144 +840,6 @@
         "(set — service not captured)"
       ],
       "note": ""
-    },
-    "HISTORY_PREWARM_ENABLED": {
-      "status": "armed",
-      "where": [
-        "worker"
-      ],
-      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Sweeps every symbol's sealed D/W/M history through the public Cloudflare domain so Cache Reserve holds it and no first-time user in any region hits the origin cold."
-    },
-    "BARS_API_ENABLED": {
-      "status": "armed",
-      "where": [
-        "bars-api"
-      ],
-      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Selects the dedicated bars-SERVING entrypoint via the railway.json dispatcher, so app/partner deploys can never restart chart serving. This entry read pending until now for a reason that was not about the flag: tools/flag_ledger_audit.py hardcoded a three-service roster (web, worker, flow-worker) while the project has five, so a flag armed only on bars-api was invisible to the audit and was reported as undecided. The roster is now derived from the project."
-    },
-    "BARS_HISTORY_ORIGIN_ENABLED": {
-      "status": "armed",
-      "where": [
-        "worker"
-      ],
-      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Lets the worker serve /api/bars-history as a READ-ONLY origin for the deep ~20GB history db, so Cloudflare can cache deep history worldwide without the web pod ever holding or fetching it (the 2026-08-31 OOM class)."
-    },
-    "BARS_HISTORY_PROXY_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Makes the web pod's /api/bars-history a reverse-proxy to that worker origin; the web pod keeps only shallow history. On a proxy error it falls back to its own local history rather than 5xx-ing."
-    },
-    "INSTANT_UNIVERSE_ENABLED": {
-      "status": "armed",
-      "where": [
-        "worker"
-      ],
-      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Widens the boot-only D/W/M warm pass to the whole reference universe. Deliberately kept OUT of the 5-minute refresh loop and the intraday active set, so it cannot cause a 26k-symbol intraday blow-up."
-    },
-    "PERMANENT_DAILY_FRESHNESS_ENABLED": {
-      "status": "armed",
-      "where": [
-        "worker"
-      ],
-      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
-    },
-    "ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "S7 first slice (owner authorization, 2026-09-03; api/main.py:6090-6116). Registers the 20-min alert_taxonomy_document_arrival cron, which polls SEC EDGAR per-ticker filings (api/services/sec_filings.py) against a watermark and fires document-arrival alerts through the alert-taxonomy predicate/delivery pipeline -- S7's first live trigger type. Independent of COMPASS_AUTOMATION_ENABLED. Live monitoring a real production predicate (NVDA) as of 2026-09-05, waiting on a genuine new filing; see docs/uct-terminal/continuity-checkpoint.md \"CURRENT WAITING ON EXTERNAL EVENT\"."
-    },
-    "BARS_A_CLOSE_GUARD_ENABLED": {
-      "status": "dark",
-      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed."
-    },
-    "CREAM_EOD_ENABLED": {
-      "status": "armed",
-      "where": [
-        "flow-worker"
-      ],
-      "note": "Armed live 2026-09-06 (api/flow_worker_main.py:469-489), superseding ALPHA_GOLD_EOD_ENABLED on the adjacent cron slot (16:10 ET weekdays, 5 min after the now-dark Alpha Gold job). The scheduler job registers unconditionally and self-gates on this flag (api/cream_card.py:83) -- off means the job builds and posts nothing. Posts the day's highest-conviction AGGREGATE options-flow builds (curation-free, via live_massive_router.compute_cream) to Discord as an image-only card, filling the blind spot Top Flow (single prints) and the hand-curated Watchlist both had."
-    },
-    "PATTERN_CANONICAL_ADAPT_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Phase 8 Package 8F canonical pattern-engine migration, write-side leg (api/main.py:362-369; spec docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md). When on, the pattern scan additionally calls canonical_adapter.adapt_high_tight_flag/adapt_power_earnings_gap per detection and populates the new eligibility_json (etc.) columns on pattern_detections. Purely additive/persistence-side -- does not change what the scanner SERVES to any user. Checked per-call, not cached at import. Sibling flags PATTERN_CANONICAL_SCANNER_PILOT_ENABLED (read-side pilot) and PATTERN_CANONICAL_SHADOW_LOG_ENABLED (log-only shadow compare) are the other two independently-gated legs of the same migration; see their own entries."
-    },
-    "PATTERN_CANONICAL_SCANNER_PILOT_ENABLED": {
-      "status": "dark",
-      "note": "Phase 8 Package 8G-B canonical pattern-engine migration, read-side pilot leg (api/services/screener/pattern_join.py:564-628; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on AND the caller is admin AND a row already legacy-matched power_earnings_gap (the only family in the hardcoded _PILOT_SUPPORTED_FAMILIES set -- widening it is a deliberate code change, not an env toggle), attaches an additional pattern_canonical_pilot key sourced from the canonical read; never mutates any existing key, and any failure at any stage falls back to the untouched legacy rows. Actively being performance-tuned against real admin traffic this week (idx_pd_sym_tf index work); own tests tests/test_screener_wave5_pattern_join_pilot.py."
-    },
-    "PATTERN_CANONICAL_SHADOW_LOG_ENABLED": {
-      "status": "dark",
-      "note": "Phase 8 Package 8F canonical pattern-engine migration, shadow-log leg (api/services/screener/snapshot_builder.py:1052-1061; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on, every snapshot-build cycle additionally calls pattern_join.compare_pattern_shadow and logs the result -- pure observation, never touches pattern_map (the data actually served). Deliberately independent of the write-side flag per a 2026-09-04 design review: \"do not make snapshot_builder.py unconditionally switch to the canonical reader; legacy remains served while canonical is computed/logged beside it.\" Own tests tests/test_snapshot_builder_pattern_shadow.py."
-    },
-    "THEME_SETS_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Brand-new per-user custom Theme Set feature (api/services/theme_sets.py, api/routers/theme_sets.py; last touched 2026-09-05), armed on web as of 2026-09-06. A personal, named diff on top of the shared Theme Tracker taxonomy (hide/add themes, add custom themes/stocks) stored in its own /data/theme_sets.db -- entirely additive, never touches the shared taxonomy or theme_memberships. Off would mean GET /api/theme-sets reports {enabled:false} and all writes refuse. Unrelated to the already-armed THEME_ENGINE_ENABLED (the autonomous Theme Membership Engine that absorbs orphan stocks into the shared taxonomy) despite the naming similarity."
-    },
-    "BROKER_BALANCE_HISTORY_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Not caught by the ledger's own AST scanner -- a genuine blind spot recorded 2026-09-06: read via `import os as _os; _os.getenv(...)`, and api/services/feature_flag_index.py only recognizes the literal base name `os`, so an aliased import is invisible to it (see the debt-ledger entry for the scanner gap itself). Adds ONE extra check to the existing per-account broker fidelity audit (api/services/journal_two/broker/fidelity_audit.py:224-237): calls SnapTrade's BETA get_balance_history endpoint and cross-checks it against our own stored equity snapshots. Read-only (no writes to any balance/position), best-effort (wrapped in try/except, marked skipped+non-fatal on any error) -- SnapTrade's own comment notes the endpoint is 'disabled by default at SnapTrade', so it is often a no-op. Confirmed armed on web 2026-09-06; owner reviewed and chose to keep it armed with this entry as the recorded rationale (Feature-Flag Governance Sweep, owner check-in)."
-    },
-    "RESEARCH_TECHNICAL_TAB_ENABLED": {
-      "status": "dark",
-      "where": [
-        "web"
-      ],
-      "note": "Research > Technical tab (Chart/Technical Intelligence Convergence Phase B). Ships DARK on purpose: it is the first member-facing change in the Terminal program and the owner wanted an off switch that is not revert-and-redeploy. Read per request in api/routers/auth.py::_access_payload and consumed via AuthContext.researchTechnicalTabEnabled, so flipping it in Railway changes what members see WITHOUT a deploy. Enablement gate, not a kill switch: unset means not-yet-released, never accidentally live. Flag-on decision pending a read of confirmed-verdict coverage across the active set."
-    },
-    "COMPANY_NEWS_INGEST_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Registers the company-news ingest jobs. Off in code so a deploy cannot begin ingesting before it is wanted; set on web, so ingest is running."
-    },
-    "PANEL_PREWARM_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Moves research-panel provider warming onto a schedule instead of the request path. Off in code because it walks providers on the WEB pod and bulk warming has OOM'd this pod before, so it takes a small bounded slice per cycle and holds nothing between symbols."
-    },
-    "FLOW_BOOTSTRAP_ENABLED": {
-      "status": "armed",
-      "where": [
-        "flow-worker"
-      ],
-      "note": "Enables the parts transport in flow_aggregate. The old whole-D path stays authoritative until this is on."
-    },
-    "FLOW_PREPARE_ENABLED": {
-      "status": "armed",
-      "where": [
-        "flow-worker"
-      ],
-      "note": "Starts the first-paint preparer. Self-gated so a caller cannot start it by accident, and additionally requires FLOW_BOOTSTRAP_ENABLED -- warming a transport nobody serves would burn CPU and report healthy while doing it."
-    },
-    "OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "note": "Sender half of the OptionsFlow ETF replica. Deliberately DISTINCT from the receiver's flag so one side can be turned off without the other silently looking like the active architecture."
-    },
-    "OPTIONSFLOW_ETF_REPLICA_RECEIVE_ENABLED": {
-      "status": "armed",
-      "where": [
-        "flow-worker"
-      ],
-      "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     }
   }
 }

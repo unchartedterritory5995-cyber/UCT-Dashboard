@@ -1,5 +1,12 @@
 # RESUME — joystick hub Increment 3
 
+> ⚰️ **SUPERSEDED — THIS FILE IS HISTORY, NOT STATE.** It was written mid-programme and its
+> open-item lists were true when written. Increment 7 closed every row in `deferred.md` and
+> every request in `requests.md`. **Read `closure.md` for what is actually open** — it is one
+> thing (`glass-acceptance.md`) plus four costed owner decisions. Nothing below should be read
+> as outstanding; it is kept because the reasoning is worth having and deleting it would erase
+> why decisions were made.
+
 **Created 2026-09-10.** Increment 2 is merged and deployed; this file carries its open items
 forward. ⚠️ Increment 2's resume lived at `C:\tools\hub-devicetests\RESUME-inc2.md`, outside the repo and
 therefore uncommittable. This one lives in the repo so it can be committed, as ruled.
@@ -70,20 +77,34 @@ an assumption. Tomorrow's pre-09:00 window is structurally better: the repo-wide
 pushes from 09:00, so the hour before it is the quietest of the day rather than the moment every
 blocked workstream is released.
 
-### ⛔⛔ THE HARD CUTOFF — owner clarification, 2026-09-10 evening
-
-> The 07:xx ET window is valid, but **the push AND any rollback blip must COMPLETE before 09:00**.
-> If the gate or a rebase lap would push the actual push past **~08:15 ET**, HOLD to the 16:15
-> window instead of crowding the market open. Below ~08:15, ship.
-
-⭐ **This is why the job is armed for ~07:08, not 07:40.** A clean run pushes ~07:45; even ONE
-rebase lap still lands ~08:10, inside the cutoff. The early start IS the margin — a 07:40 start
-would leave a lap finishing at ~08:10 with nothing to spare, and any second surprise would blow
-the cutoff with the merge half-built.
-
-⚠️ The cutoff is about the ROLLBACK, not the deploy. `HUB_PREVIEW_ENABLED=false` is the fastest
-lever and needs no redeploy — but a flag flip is itself a restart, so recovering from a bad deploy
-costs a second blip. Both have to fit before the market open, not just the first one.
+### ⛔⛔ THE HARD CUTOFF — owner clarification, 2026-09-10 evening
+
+
+
+> The 07:xx ET window is valid, but **the push AND any rollback blip must COMPLETE before 09:00**.
+
+> If the gate or a rebase lap would push the actual push past **~08:15 ET**, HOLD to the 16:15
+
+> window instead of crowding the market open. Below ~08:15, ship.
+
+
+
+⭐ **This is why the job is armed for ~07:08, not 07:40.** A clean run pushes ~07:45; even ONE
+
+rebase lap still lands ~08:10, inside the cutoff. The early start IS the margin — a 07:40 start
+
+would leave a lap finishing at ~08:10 with nothing to spare, and any second surprise would blow
+
+the cutoff with the merge half-built.
+
+
+
+⚠️ The cutoff is about the ROLLBACK, not the deploy. `HUB_PREVIEW_ENABLED=false` is the fastest
+
+lever and needs no redeploy — but a flag flip is itself a restart, so recovering from a bad deploy
+
+costs a second blip. Both have to fit before the market open, not just the first one.
+
 ### What the next window does — it is a lap from scratch, not a resume
 
 1. `git fetch`; rebase onto master's tip; verify by name (file set, patch-ids, delta == master's

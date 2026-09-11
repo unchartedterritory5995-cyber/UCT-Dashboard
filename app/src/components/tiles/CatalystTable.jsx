@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useCatalysts from '../../hooks/useCatalysts'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
 import useLivePrices from '../../hooks/useLivePrices'
@@ -7,6 +7,9 @@ import { timeAgo } from '../../utils/timeAgo'
 import TickerPopup from '../TickerPopup'
 import CompanyLogo from '../CompanyLogo'
 import { useAuth } from '../../context/AuthContext'
+import { useFlagged } from '../../hooks/useFlagged'
+import useCatalystsHubSection from '../../hub/sections/catalystsSection'
+import { createNoteViaApi } from '../../pages/journal-2-0/lib/noteCreation'
 import useMarketOpen from '../../hooks/useMarketOpen'
 import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
@@ -411,7 +414,14 @@ function CitationsPopover({ sources }) {
   )
 }
 
-export default function CatalystTable({ compact = false, datePicker = false, title = 'STOCK CATALYSTS' }) {
+export default function CatalystTable({
+  compact = false, datePicker = false, title = 'STOCK CATALYSTS',
+  // ⭐ EXACTLY ONE of the three concurrent mounts passes this. `Dashboard.jsx` renders {hero}
+  // TWICE (desktop zone B and the mobile stack) and MorningWire renders a third, compact copy —
+  // so without a single owner the hub's cursor would address whichever tree came first in the
+  // document. The flag decides who registers; the other two mount the hook and register nothing.
+  hubScope = false,
+}) {
   // null = live "today" feed; a YYYY-MM-DD string loads that past snapshot.
   const [selectedDate, setSelectedDate] = useState(null)
   const { data, mutate, isValidating } = useCatalysts({ date: selectedDate })
@@ -588,6 +598,22 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allRows, activeTags, aOnly, sortBy, livePrices])
 
+  // ── The joystick hub's Catalysts controller (§3.6) ─────────────────────
+  // `filteredRows` is what the member actually SEES — filtered by the tag chips and ordered by
+  // the active sort — so the hub's cursor walks the same list in the same order rather than a
+  // second opinion about which rows exist. The ref bounds every node lookup to THIS instance's
+  // own subtree, which is what makes three concurrent mounts safe.
+  const hubRootRef = useRef(null)
+  const { toggle: toggleFlag, isFlagged } = useFlagged()
+  const catalystsHub = useCatalystsHubSection({
+    rows: filteredRows,
+    enabled: !!hubScope,
+    rootRef: hubRootRef,
+    toggleFlag,
+    isFlagged,
+    createNote: createNoteViaApi,
+  })
+
   function toggleTag(tag) {
     setActiveTags(prev => {
       const next = new Set(prev)
@@ -620,7 +646,8 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
   const showingAll = activeTags.size === ALL_TAGS.length
 
   return (
-    <div className={`${styles.tile} ${compact ? styles.compact : ''}`}>
+    <div ref={hubRootRef} className={`${styles.tile} ${compact ? styles.compact : ''}`}>
+      {catalystsHub.hubMount}
       <div className={styles.header}>
         <span className={styles.title}><UIcon name="patterns" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />{title}</span>
         <span className={styles.meta}>
@@ -804,6 +831,9 @@ export default function CatalystTable({ compact = false, datePicker = false, tit
                 return (
                   <tr
                     key={r.ticker}
+                    /* The hub cursor paints and reveals by this. A React key never reaches the
+                       document, so without it there is nothing in the DOM to address. */
+                    data-catalyst-row-id={r.ticker}
                     className={onMyList ? styles.rowMine : ''}
                     onPointerEnter={() => prefetchBarOnIntent(r.ticker, 'D')}
                     onFocus={() => prefetchBarOnIntent(r.ticker, 'D')}

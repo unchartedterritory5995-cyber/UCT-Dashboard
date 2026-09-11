@@ -216,6 +216,29 @@ def say(text: str, *, err: bool = False) -> None:
         stream.flush()
 
 
+class _Parser(argparse.ArgumentParser):
+    """⛔ ARGPARSE IS THE SECOND CONSOLE WRITER, AND IT WAS MISSED WHEN THE FIRST WAS FIXED.
+
+    `say()` above exists because `print(render(manifest))` raised `UnicodeEncodeError` on the Σ in
+    the summary row and killed the wrapper **after a completely successful gate**. The fix routed
+    every console write through one place — except argparse, which writes `--help` and usage
+    errors STRAIGHT to the stream and never goes near `say()`.
+
+    So `--help` kept dying, on `\\u26d4` (⛔) in this module's own docstring, on any console whose
+    encoding is cp1252 — which is every default Windows console on this box. A new reader's first
+    command returned a traceback instead of the help text, and the flag that exists to stop this
+    script OOM-killing a neighbour (`--max-workers`) was in the output nobody could read.
+
+    ⭐ Fixed by routing argparse through the SAME channel rather than by reconfiguring stdout
+    beside it: a second encoding fix would be a second authority over one value, and the next
+    writer added to this file would miss it the same way this one was missed.
+    """
+
+    def _print_message(self, message, file=None):       # noqa: D102 - argparse's own hook
+        if message:
+            say(message.rstrip("\n"), err=(file is sys.stderr))
+
+
 class GateError(RuntimeError):
     """Raised for every condition that invalidates a run. The message NAMES the cause."""
 
@@ -383,7 +406,7 @@ def render(manifest: dict) -> str:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = _Parser(description=__doc__)
     ap.add_argument("--shards", type=int, default=6)
     ap.add_argument("--out", default=str(REPO / "docs" / "plans" / "joystick" / "gate-runs"))
     # ⛔ DEFAULT UNCHANGED AT 2. This exists because this box runs several

@@ -458,6 +458,10 @@ export default function useJoystick({
     resetGesture()
   }
 
+  // ⚰️ A CONST ARROW AGAIN. It was hoisted to a `function` declaration for ONE reason: the
+  // two-finger Peek branch in `onPointerDown` called it before this line. That gesture is removed
+  // (owner ruling, 2026-09-10), nothing calls it ahead of its definition, and it matches the other
+  // three handlers again.
   const onPointerCancel = () => {
     if (phaseRef.current === 'scrubbing') {
       onScrubCommit?.()

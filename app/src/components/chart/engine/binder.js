@@ -614,13 +614,18 @@ export function createBinder({ chart, LWC }) {
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue } = placement.value
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
         // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
         // Placement returns a string; `pool` owns the two function singletons.
         autoscale,
+        // The right-axis value tag — the same shape of answer as `autoscale`, and
+        // for the same reason: whether a series may write on the axis it sits on
+        // is a question about PLACEMENT, and `pool` has never been told where a
+        // series landed.
+        lastValue,
         LineStyle: LWC.LineStyle,
         LineType: LWC.LineType,
         // The declutter toggle (Alt+Shift+I). `visible` is part of the complete

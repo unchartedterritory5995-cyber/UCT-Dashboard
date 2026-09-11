@@ -184,7 +184,14 @@ export default function Dashboard() {
   // 260 — including every session day, where the wait buys nothing at all.
   const boundary = useNextBoundary()
   const heroState = boundary.holidayToday === true ? 'WEEKEND' : session
-  const hero = heroState === 'WEEKEND' ? <TheWeek /> : <CatalystTable />
+  // ⛔ TWO RENDERS, ONE HUB OWNER. `{hero}` appears TWICE below — Zone B (desktop) and the
+  // mobile stack — and both are in the document at once. The joystick hub only exists on a
+  // coarse-pointer viewport under 1024px, which is the mobile stack, so THAT copy is the one
+  // that registers the hub's Catalysts controller. Passing it to both would give the cursor two
+  // candidate trees and it would address whichever came first in the document.
+  //
+  // ⭐ A FACTORY, NOT A SHARED ELEMENT, so the two renders can differ by exactly this one prop.
+  const heroFor = (owns) => (heroState === 'WEEKEND' ? <TheWeek /> : <CatalystTable hubScope={owns} />)
 
   return (
     <div className={styles.page}>
@@ -221,7 +228,7 @@ export default function Dashboard() {
                 />
               </div>
               {/* Zone B · THE DECISION — the only zone that varies. */}
-              <div className={styles.zoneB}>{hero}</div>
+              <div className={styles.zoneB}>{heroFor(false)}</div>
               {/* Zone C · YOUR RISK */}
               <div className={styles.zoneC}><JournalSnapshotTile /></div>
             </div>
@@ -244,7 +251,7 @@ export default function Dashboard() {
             {/* 2. Breadth snapshot — always visible */}
             <MarketBreadth />
             {/* 3. The session hero — the same decision as Zone B above */}
-            {hero}
+            {heroFor(true)}
             {/* 4. Movers (which now carries the tape) */}
             <MobileSection
               title="Movers at the Open"

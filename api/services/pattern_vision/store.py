@@ -201,6 +201,38 @@ def get_confirmed(ticker, tf="D", today: str | None = None) -> list[dict]:
         return [_decode(r) for r in rows]
 
 
+def count_evaluated(ticker, tf="D", today: str | None = None) -> int:
+    """How many setups were EVALUATED for this ticker inside D1's window --
+    confirmed and rejected alike (Seam 24).
+
+    ⛔ DELIBERATELY THE SAME WINDOW AND THE SAME LATEST-PER-KEY RULE AS
+    `get_confirmed`, minus only its `confirmed=1` clause. If the two diverged,
+    a surface could say "4 setups evaluated, none confirmed" while
+    get_confirmed was serving one -- two authorities over one population, which
+    is the defect this file has already paid for. Keep them edited together.
+
+    Why it exists: a member seeing an empty Technical tab cannot tell
+    "we looked and nothing qualified" from "nothing was ever looked at". About
+    80% of judged tickers showed the empty state on 2026-09-10, and some of
+    those had REJECTED verdicts sitting in the table with a full Opus rationale
+    that no non-admin surface can read. This exposes the COUNT only -- never the
+    rejection reasons, which stay admin-only.
+    """
+    floor = confirmed_window_floor(today)
+    with connect() as c:
+        r = c.execute(
+            "SELECT COUNT(*) FROM pattern_verdicts v "
+            "WHERE v.ticker=? AND v.tf=? "
+            "  AND v.asof_date = (SELECT MAX(v2.asof_date) FROM pattern_verdicts v2 "
+            "                     WHERE v2.ticker=v.ticker AND v2.tf=v.tf "
+            "                       AND v2.setup=v.setup) "
+            "  AND v.asof_date >= ?",
+            (ticker.upper(), tf, floor)).fetchone()
+        return int(r[0] or 0)
+
+
+
+
 def cost_today(day: str) -> float:
     with connect() as c:
         r = c.execute("SELECT COALESCE(SUM(cost_usd),0) FROM vision_cost_log WHERE day=?",

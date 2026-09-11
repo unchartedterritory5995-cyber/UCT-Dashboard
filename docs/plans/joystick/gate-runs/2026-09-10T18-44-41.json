@@ -1,0 +1,149 @@
+{
+  "at": "2026-09-10T18:44:41",
+  "tree_head_start": "6cf27870e72c9046d969e46f4802b4ac617e4d74",
+  "tree_head_end": "6cf27870e72c9046d969e46f4802b4ac617e4d74",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "42b534f2020d3463eb6142111e6bb1ec10b0ae27",
+  "shards": 6,
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 3,
+        "passed": 205,
+        "skipped": 0,
+        "todo": 0,
+        "total": 208
+      },
+      "tests": {
+        "failed": 4,
+        "passed": 2585,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2589
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 1,
+        "passed": 206,
+        "skipped": 1,
+        "todo": 0,
+        "total": 208
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2838,
+        "skipped": 5,
+        "todo": 0,
+        "total": 2844
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 2,
+        "passed": 205,
+        "skipped": 0,
+        "todo": 0,
+        "total": 207
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 3763,
+        "skipped": 4,
+        "todo": 0,
+        "total": 3769
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 0,
+        "passed": 207,
+        "skipped": 0,
+        "todo": 0,
+        "total": 207
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 2866,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2866
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 206,
+        "skipped": 0,
+        "todo": 0,
+        "total": 207
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2394,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2395
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 207,
+        "skipped": 0,
+        "todo": 0,
+        "total": 207
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3919,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3919
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 7,
+      "passed": 1236,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1244
+    },
+    "tests": {
+      "failed": 8,
+      "passed": 18365,
+      "skipped": 9,
+      "todo": 0,
+      "total": 18382
+    }
+  },
+  "test_files_on_disk": 1244,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "baseline_sha": "258c5609d529a1f247ae6ff2da266f8479742823",
+  "baseline_measured_at": "2026-09-10 (re-measured on origin/master 62a228e5d)",
+  "vs_baseline": {
+    "observed_count": 8,
+    "baseline_count": 8,
+    "new": [],
+    "no_longer_failing": [],
+    "matches_baseline": true
+  }
+}

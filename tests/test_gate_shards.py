@@ -407,6 +407,54 @@ def test_say_survives_a_REAL_cp1252_console_subprocess():
         f"exit 1. stderr:\n{proc.stderr}")
     assert "UnicodeEncodeError" not in (proc.stderr or "")
 
+
+def test_the_docstring_still_carries_a_character_cp1252_cannot_encode():
+    """⛔ NON-VACUITY for the `--help` rail below. If this module's docstring ever became pure
+    ASCII, that rail would pass against a parser that never routed through `say()` and would prove
+    nothing. The ⛔ in the first lines of `gate_shards.__doc__` IS the hazard — argparse prints the
+    description verbatim, so that character is what reached the console and killed the process."""
+    import gate_shards
+    with pytest.raises(UnicodeEncodeError):
+        (gate_shards.__doc__ or "").encode("cp1252")
+
+
+def test_help_survives_a_REAL_cp1252_console_subprocess():
+    """⛔⛔ ARGPARSE WAS THE SECOND CONSOLE WRITER AND IT WAS MISSED.
+
+    `say()` was introduced because `print(render(manifest))` killed the wrapper on the Σ **after a
+    completely successful gate**, and the fix was stated as "every console write goes through here
+    so there is ONE place". Argparse never went through there — it writes `--help` and usage errors
+    straight to the stream — so `python scripts/gate_shards.py --help` still died with
+    `UnicodeEncodeError: 'charmap' codec can't encode character '\\u26d4'` on any cp1252 console,
+    which is the default console on the box that runs the gate of record.
+
+    ⭐ WHY THAT MATTERED MORE THAN A COSMETIC CRASH: the only way to discover `--max-workers` — the
+    flag that exists so this script lowers its own footprint instead of OOM-killing a neighbour's
+    13-minute run — was the help output that could not be printed.
+
+    Same shape as the rail above: a REAL child, real `PYTHONIOENCODING=cp1252`, assert exit 0.
+    ⚠️ Platform-honest in the same way — on a UTF-8 console this passes against the bug, because
+    there the bug is harmless. The forced encoding is what gives it teeth.
+    """
+    import os
+    import subprocess as sp
+
+    script = pathlib.Path(__file__).resolve().parent.parent / "scripts" / "gate_shards.py"
+    env = dict(os.environ, PYTHONIOENCODING="cp1252")
+    proc = sp.run([sys.executable, str(script), "--help"], capture_output=True, text=True,
+                  encoding="utf-8", errors="replace", env=env, timeout=60)
+
+    assert proc.returncode == 0, (
+        "`--help` crashed on a real cp1252 console. argparse bypasses say(); route its "
+        f"_print_message through say() the way _Parser does. stderr:\n{proc.stderr}")
+    assert "UnicodeEncodeError" not in (proc.stderr or ""), proc.stderr
+    # ⛔ AND IT MUST ACTUALLY HAVE PRINTED THE HELP. An exit code of 0 with empty output would
+    # satisfy every assertion above — the "empty result is a failed invocation" rule. Name a flag
+    # rather than count bytes: this is the one a reader is here to find.
+    assert "--max-workers" in (proc.stdout or ""), (
+        "exit 0 but the help text never named --max-workers — the command printed nothing, or "
+        f"printed to the wrong stream. stdout was:\n{proc.stdout!r}")
+
 # ── The exit code, and the day it disagreed with its own report ───────────────────────────────
 #
 # ⛔ THE DEFECT. `main()` ended in a bare `return 0` under a comment saying the verdict was "a

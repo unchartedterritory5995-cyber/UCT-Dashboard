@@ -23,6 +23,7 @@ import {
 import useNotebookSection, {
   NOTE_CARD_SELECTOR, NOTEBOOK_ROUTE, noteIdsInDocument, noteCardNodes,
 } from './notebookSection'
+import { HubProvider, useHub } from '../HubContext'
 
 afterEach(() => { cleanup(); document.body.innerHTML = '' })
 
@@ -89,9 +90,17 @@ describe('the DOM reading — cards in render order', () => {
   })
 })
 
-/** Renders the hook plus a live readout of the URL, at a chosen route. */
+/**
+ * Renders the hook plus a live readout of the URL, at a chosen route.
+ *
+ * ⭐ `seen.config` IS THE REGISTERED CONFIG, NOT A RECONSTRUCTION. A `HubProvider` is mounted so
+ * `useHubMode` actually registers, and `ConfigProbe` reads back what `HubRoot` would receive. A
+ * case that performs a gesture's steps itself — `next(); openNote(ids[i + 1])` — proves only that
+ * the test author knows what tap should do; the tap the product ships opened note ONE for weeks
+ * behind exactly that shape (R-05's lesson, in this file).
+ */
 function harness(initial) {
-  const seen = { search: null, pathname: null }
+  const seen = { search: null, pathname: null, config: null }
   function Probe() {
     const api = useNotebookSection()
     const loc = useLocation()
@@ -100,7 +109,18 @@ function harness(initial) {
     seen.api = api
     return null
   }
-  render(<MemoryRouter initialEntries={[initial]}><Probe /></MemoryRouter>)
+  function ConfigProbe() {
+    seen.config = useHub().activeModeConfig
+    return null
+  }
+  render(
+    <MemoryRouter initialEntries={[initial]}>
+      <HubProvider>
+        <Probe />
+        <ConfigProbe />
+      </HubProvider>
+    </MemoryRouter>,
+  )
   return seen
 }
 
@@ -164,20 +184,40 @@ describe('B11 — the cursor is painted, and tap advances it', () => {
     expect(painted()[0], 'the paint did not move with the index').not.toBe(first)
   })
 
-  it('⛔ tap ADVANCES and OPENS — the registry promises "tap: next note"', async () => {
+  it('⛔ tap ADVANCES and OPENS THE NOTE IT LANDS ON — the registry promises "tap: next note"', async () => {
     // The mode declares `tapHint: 'tap: next note'`. A tap that advanced without opening, or
-    // opened without advancing, would make that chip a lie the member reads every time.
+    // opened without advancing, or opened a DIFFERENT note than the one it advanced to, makes
+    // that chip a lie the member reads every time.
+    //
+    // ⚰️ THIS CASE USED TO RUN `seen.api.next(); seen.api.openNote(seen.api.ids[before + 1])` —
+    // the two steps a tap is MADE OF, performed by the test. It passed for weeks while the
+    // shipped `onTap` read `const at = next()` from a function that returns nothing and opened
+    // `ids[at ?? 0]`: every tap re-opened note ONE. The fix is to invoke the registered config,
+    // which is why `harness` mounts a HubProvider.
     const { modesById } = await import('../registry')
     expect(modesById.notebook.tapHint, 'the hint changed — this rail pins the promise it makes')
       .toBe('tap: next note')
 
     grid(['a', 'b', 'c'])
     const seen = harness(`${NOTEBOOK_ROUTE}?note=a`)
+    expect(typeof seen.config?.onTap, 'the controller registered no config — nothing below is the '
+      + 'product\'s tap').toBe('function')
     const before = seen.api.index
-    act(() => { seen.api.next(); seen.api.openNote(seen.api.ids[before + 1]) })
+    act(() => { seen.config.onTap() })
     expect(seen.api.index, 'tap did not advance the cursor').toBe(before + 1)
-    expect(new URLSearchParams(seen.search).get('note'), 'tap advanced but opened nothing')
-      .toBe('b')
+    expect(new URLSearchParams(seen.search).get('note'), 'tap opened the wrong note — it must open '
+      + 'the one the cursor LANDED on, not the one it left').toBe('b')
+
+    // And again, because the defect this replaced was invisible on a single tap from index 0.
+    act(() => { seen.config.onTap() })
+    expect(seen.api.index).toBe(before + 2)
+    expect(new URLSearchParams(seen.search).get('note'), 'the second tap did not reach note three')
+      .toBe('c')
+
+    // Clamped, never wrapped: a third tap stays on the last note.
+    act(() => { seen.config.onTap() })
+    expect(seen.api.index).toBe(2)
+    expect(new URLSearchParams(seen.search).get('note')).toBe('c')
   })
 
   it('an empty grid paints nothing and does not throw', () => {

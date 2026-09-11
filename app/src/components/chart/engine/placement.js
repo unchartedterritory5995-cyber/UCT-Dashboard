@@ -114,6 +114,30 @@ const LEFT_AXIS_OPTIONS = Object.freeze({
 const FALLBACK_BAND = Object.freeze({ top: 0.82, bottom: 0 })
 
 /**
+ * Breathing room at the top and bottom of an indicator's OWN pane (Flip C).
+ *
+ * ⚰️ THIS USED TO BE `{ top: 0, bottom: 0 }`, spelled out, with a comment saying
+ * the drawable rectangle "is the WHOLE pane now". It literally was — and that is
+ * the bug the owner reported: an RSI that ran to 71 and down to 29 painted its
+ * peaks and troughs ON the pane's edges, welded to the separator above and the
+ * time axis below, with no gap to read them against. The oscillator that needs
+ * this most is the one that spends its life near its extremes.
+ *
+ * ⭐ TOP IS THE BIGGER NUMBER, AND NOT FOR SYMMETRY'S SAKE: the pane's own
+ * top-left readout (`.paneLegend` in `StockChart`) is printed OVER this
+ * rectangle, exactly as the volume pane's "Vol · $ Vol · Avg 50D" strip is
+ * printed over its `{ top: 0.12 }`. The extra hundredths are that strip's
+ * height, so a line at the top of its range passes UNDER the label instead of
+ * through it. Nudge one and look at the other.
+ *
+ * ⚠️ FRACTIONS OF THE PANE, AND AN OSCILLATOR PANE IS SHORT — ~88 px at the
+ * shipped 15% default. 0.16/0.10 is ~14 px above and ~9 px below, the same ORDER
+ * as the volume pane's gap rather than a proportionally bigger one. Much larger
+ * starts costing the plot more than it buys the reading.
+ */
+export const PANE_BAND = Object.freeze({ top: 0.16, bottom: 0.1 })
+
+/**
  * The id of the scale the CANDLES own — what a price overlay must bind to.
  *
  * ⚠️ THIS USED TO BE `null`, MEANING "the main price scale", AND THE BINDER READ
@@ -376,10 +400,10 @@ export function resolvePlacement(instance, def, ctx) {
   // pane's ladder reads 0/50/100 because `placement.scale` says so, not because
   // this branch spells it out a second time.
   //
-  // The drawable rectangle is the WHOLE pane, so the margins are zero where they
-  // used to be a slice of pane 0.
+  // The drawable rectangle is the whole pane MINUS `PANE_BAND` — see there for why
+  // it stopped being zero, and why the top margin is the larger of the two.
   //
-  // ⚠️ `scaleMargins: {top: 0, bottom: 0}` IS SPELLED OUT AND MUST STAY SPELLED
+  // ⚠️ `scaleMargins` IS SPELLED OUT AND MUST STAY SPELLED
   // OUT. `applyOptions` MERGES and lightweight-charts' `merge()` SKIPS
   // `undefined`, so omitting the key does not reset the margins — it leaves the
   // previous band standing on a re-purposed scale, i.e. a pooled series drawing
@@ -401,8 +425,23 @@ export function resolvePlacement(instance, def, ctx) {
     return {
       paneIndex: pane.index,
       scaleId: 'right',
-      scaleOptions: { borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, ...range },
+      // Rebuilt per call, never the frozen singleton: `scaleOptions` is handed
+      // straight to `applyOptions`, and a caller that mutated it would poison
+      // every later resolve.
+      scaleOptions: { borderVisible: false, scaleMargins: { ...PANE_BAND }, ...range },
       autoscale: 'default',
+      // ⭐ THE PANE'S OWN AXIS CARRIES THE INDICATOR'S LAST VALUE, in a tag, in the
+      // plot's colour — the thing the volume pane has always had and every
+      // oscillator pane went without. Sub-choice 2.2 already bought the axis and
+      // paid 372 px for it; this is the number that makes the gutter worth its
+      // width, and reading RSI off a ladder of 40/60 was the workaround.
+      //
+      // ⛔ IT IS A PLACEMENT ANSWER, NOT A POOL DEFAULT, and only THIS branch
+      // returns it. A price overlay would hang a tag on the CANDLES' axis beside
+      // the live price (three of them, for Bollinger); the volume-pane overlay
+      // branch would hang one on a LEFT axis shared with whatever else is
+      // overlaid there. Own pane, own axis, own tag — nowhere else.
+      lastValue: true,
     }
   }
 

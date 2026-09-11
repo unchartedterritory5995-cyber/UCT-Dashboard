@@ -68,6 +68,10 @@ export default function TechnicalTab({ sym }) {
   const scannerHint = (searchParams.get('setup') || '').trim()
 
   const verdicts = data?.verdicts || []
+  // Seam 24: how many setups were evaluated in the same 7-day window, confirmed
+  // and rejected alike. Only ever a COUNT — the judge's reasons for rejecting a
+  // setup stay on the admin surface.
+  const evaluated = Number(data?.evaluated) || 0
   const [selectedKey, setSelectedKey] = useState(null)
 
   // ⛔ Clear the manual selection when the TICKER changes. `selectedKey` is a
@@ -136,8 +140,18 @@ export default function TechnicalTab({ sym }) {
 
       {!isLoading && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
-          No confirmed technical setups on {sym} right now. Setups are re-checked
-          hourly during market hours.
+          {evaluated > 0 ? (
+            <>
+              {evaluated} setup{evaluated === 1 ? '' : 's'} evaluated on {sym} in
+              the last 7 days — none confirmed. Setups are re-checked hourly
+              during market hours.
+            </>
+          ) : (
+            <>
+              No confirmed technical setups on {sym} right now. Setups are
+              re-checked hourly during market hours.
+            </>
+          )}
         </div>
       )}
 

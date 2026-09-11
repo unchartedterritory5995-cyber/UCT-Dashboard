@@ -100,6 +100,81 @@ export const CARVED_OUT_ROWS = Object.freeze([
   }),
 ])
 
+/**
+ * 🔴 THE TWO THINGS EVERY CHART SHIPS WITH, AS CATALOGUE ROWS.
+ *
+ * ⚰️ THEY USED TO BE UNFINDABLE AND UNREMOVABLE. The moving averages live in
+ * `cs.overlays` and the volume pane in `cs.volume` — neither is an engine
+ * definition, so neither appeared in ANY catalogue. Measured by the owner
+ * 2026-09-10: searching *"moving average"* in Chart Settings → Indicators
+ * answered **"No indicator matches"** while four moving averages were drawn on
+ * the chart in front of them, and there was no way to take one off.
+ *
+ * ⛔ THEY ARE **NOT** IN `catalogRows()`, AND THAT IS DELIBERATE. That function
+ * is the SHIPPED DEFINITION MANIFEST: `stockChartWiring.test.jsx` asserts the
+ * right-click Indicators ▸ submenu equals it item-for-item, and that the share
+ * link's `indicators:` payload keys equal it id-for-id. Two rows with no
+ * definition joining that list would put two live-looking rows in a submenu whose
+ * writer (`setIndEnabled`) cannot address them, and add two keys to the share
+ * format. The union is made AT THE CONSUMER — the same rule this file already
+ * applies to `userCatalogRows`, for the same reason.
+ *
+ * ⚠️ `builtIn` IS THE DISCRIMINATOR EVERY WRITER ROUTES ON. `carvedOut` means
+ * "a settings slice with no definition" (`volumeProfile`); these are a different
+ * third thing — a POSITIONAL ARRAY and a SECTION — and each needs its own verb.
+ * See `isRowOn` / `toggledRow` in `IndicatorLibraryDialog`, which are the one
+ * reader and the one writer both indicator surfaces share.
+ */
+export const BUILT_IN_ROWS = Object.freeze([
+  Object.freeze({
+    id: 'ma',
+    builtIn: 'overlay',
+    name: 'Moving Average',
+    shortName: 'MA',
+    category: 'Trend',
+    target: 'price',
+    carvedOut: false,
+    engineOwned: false,
+    userDefined: false,
+    description: 'A simple or exponential average of closing price, drawn over the candles.',
+    // ⭐ THE SEARCH TERMS ARE THE POINT OF THIS ROW. `matches()` reads name, short
+    // name, id, category and tags, so every way a member asks for this — "moving
+    // average", "ma", "sma", "ema", "average" — has to be spelled somewhere. The
+    // owner's report was literally a search for "moving average" returning nothing.
+    tags: Object.freeze(['ma', 'sma', 'ema', 'moving average', 'average', 'trend']),
+    repaint: null,
+    measuredRepaint: null,
+    repaintingPlots: Object.freeze([]),
+    tier: 'free',
+    sessionOnly: false,
+    // ⭐ MANY PER CHART, and the whole reason this row exists is that a member
+    // deleted one and wanted it back. An "Active" row here still offers ＋.
+    singleton: false,
+  }),
+  Object.freeze({
+    id: 'volume',
+    builtIn: 'volume',
+    name: 'Volume',
+    shortName: 'Vol',
+    category: 'Volume',
+    target: 'pane',
+    carvedOut: false,
+    engineOwned: false,
+    userDefined: false,
+    description: 'Shares traded per bar, coloured up or down, with a moving average.',
+    tags: Object.freeze(['volume', 'vol', 'shares', 'turnover']),
+    repaint: null,
+    measuredRepaint: null,
+    repaintingPlots: Object.freeze([]),
+    tier: 'free',
+    sessionOnly: false,
+    // ⛔ ONE PER CHART. `cs.volume` is a SECTION, not a list — a second one has
+    // nowhere to be stored, so the row must not offer ＋ (a control that writes
+    // nowhere is the defect this codebase keeps retiring).
+    singleton: true,
+  }),
+])
+
 function defs(registry) {
   const r = registry || defaultRegistry
   return typeof r.listDefinitions === 'function' ? r.listDefinitions() : []

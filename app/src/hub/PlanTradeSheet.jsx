@@ -30,6 +30,10 @@ import { validatePlanTradeSheetProps } from './contracts'
 import plannedTradesClient, { planSideOf } from './plannedTradesClient'
 import { tradePnlDollar } from '../lib/journal-2-0'
 import { computeDefaultShares, prefillStop } from '../pages/journal-2-0/lib/disciplineGuards'
+// D-31: the tick table and the price formatter live together, beside each other, in the module
+// that already knows how a price is rendered. This sheet is a caller of both — it holds no opinion
+// of its own about what a price step is, which is the ruling A2 makes by name.
+import { formatPrice, tickSizeFor } from '../components/chart/drawingLabels'
 import styles from './hub.module.css'
 
 /** '' / null / NaN all mean BLANK. `Number(null)` is 0 and 0 is finite — hence the explicit list. */
@@ -126,6 +130,17 @@ export default function PlanTradeSheet({
     entry: asNumber(entryValue), stop: asNumber(stopValue), size: asNumber(sizeValue),
   }), [entryValue, stopValue, sizeValue])
 
+  // ⭐ ONE TICK FOR BOTH PRICE FIELDS, because they are two levels on ONE instrument — asking per
+  // field would let a member's own typing change what a step means mid-edit. Anchored on whatever
+  // price is known first, exactly like the seeds above.
+  // ⛔ SIZE AND RISK ARE NOT PRICES. `size` is shares and `oneR` is dollars of risk; neither is
+  // quoted on this instrument's tick, so neither goes through this.
+  const tick = tickSizeFor(nums.entry ?? asNumber(entry) ?? asNumber(lastPrice) ?? nums.stop)
+  const showPrice = (v) => {
+    const n = asNumber(v)
+    return n === null ? DASH : formatPrice(n, { tick })
+  }
+
   const oneR = planOneR(nums)
   const complete = nums.entry !== null && nums.stop !== null && nums.size !== null
   const sameLevel = complete && nums.entry === nums.stop
@@ -143,7 +158,7 @@ export default function PlanTradeSheet({
     validatePlanTradeSheetProps({ ...plan, onClose }, 'PlanTradeSheet.save')
     try {
       const row = await client.create(plan)
-      onToast?.(`Planned ${symbol} — ${nums.size} at ${nums.entry.toFixed(2)}, stop ${nums.stop.toFixed(2)}`, 'success')
+      onToast?.(`Planned ${symbol} — ${nums.size} at ${showPrice(nums.entry)}, stop ${showPrice(nums.stop)}`, 'success')
       onPlanned?.(row)
       onClose?.()
     } catch (e) {
@@ -160,7 +175,7 @@ export default function PlanTradeSheet({
         <p data-testid="hub-plan-symbol">{symbol}</p>
         <p data-testid="hub-plan-r">
           {/* 1R only when entry, stop and size are ALL present. Blank renders as an em dash. */}
-          Risk (1R) {oneR === null ? DASH : `$${oneR.toFixed(2)}`}
+          Risk (1R) {oneR === null ? DASH : `$${oneR.toFixed(2)}`/* money, not a price */}
         </p>
         <p data-testid="hub-plan-side">
           Side {complete && !sameLevel ? planSideOf(nums.entry, nums.stop) : DASH}
@@ -174,12 +189,12 @@ export default function PlanTradeSheet({
           data-testid="hub-plan-entry"
           type="number"
           inputMode="decimal"
-          step="0.01"
+          step={tick}
           value={entryValue}
           placeholder={DASH}
           onChange={(e) => setEntryValue(e.target.value)}
         />
-        <span data-testid="hub-plan-entry-shown">{show(entryValue, 2)}</span>
+        <span data-testid="hub-plan-entry-shown">{showPrice(entryValue)}</span>
       </div>
 
       <div className={styles.confirmField}>
@@ -189,12 +204,12 @@ export default function PlanTradeSheet({
           data-testid="hub-plan-stop"
           type="number"
           inputMode="decimal"
-          step="0.01"
+          step={tick}
           value={stopValue}
           placeholder={DASH}
           onChange={(e) => setStopValue(e.target.value)}
         />
-        <span data-testid="hub-plan-stop-shown">{show(stopValue, 2)}</span>
+        <span data-testid="hub-plan-stop-shown">{showPrice(stopValue)}</span>
       </div>
 
       <div className={styles.confirmField}>

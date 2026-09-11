@@ -45,6 +45,16 @@
  * @property {boolean}  [escalate]  the action leads to a surface asking the member to COMMIT, so
  *                                  the fire haptic escalates to warn() (`useJoystick.js:197`).
  *                                  Required on kind:'confirm', legal on kind:'run' — see B5.
+ * @property {(ctx: HubActionCtx) => (HubConfirmPayload|null)} [confirmPayload]
+ *   The SECTION'S OWN sheet payload, and the only route `HubConfirmPayload.fields` — the WCAG
+ *   2.5.1 equal path — has to `HubConfirmSheet` (R-14 / D-35). `HubRoot`'s confirm branch asks
+ *   for one first and falls back to the generic yes/no sheet built from `label` +
+ *   `confirmText(ctx)` when the action declares none or this returns null. Returning null is a
+ *   legal answer from a section that normally supplies one: the Screener returns it when no price
+ *   is known, so the sheet is not opened around a fabricated level.
+ *   ⛔ Only kind:'confirm' is ever asked. `validateSectionConfig` refuses it on any other kind
+ *   rather than letting a section ship a payload nothing reads — the same rule `scrubAxis`
+ *   without `onScrub` follows, and for the same reason: the failure is SILENT.
  */
 
 /**
@@ -358,11 +368,25 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  * @property {string} body                    Plain English. Shown to the member verbatim.
  * @property {string} primaryLabel            The button that performs the write.
  * @property {() => (void|Promise<void>)} onConfirm  Fired at most ONCE per sheet.
- * @property {Array<{name: string, type: 'number'|'text', value: (string|number),
- *   min?: number, max?: number, step?: number}>} [fields]
+ * @property {Array<{name: string, type: 'number'|'text'|'select', value: (string|number),
+ *   min?: number, max?: number, step?: number,
+ *   options?: Array<{value: string, label: string}>}>} [fields]
  *   The EQUAL path, not a fallback: steppers and a numeric input operating on the same value the
  *   gesture produced, for a member who cannot perform a fine drag. This is why the sheet exists
  *   at all rather than the gesture committing.
+ *   ⭐ `'select'` (R-19, Increment 7) is the CHOOSE-ONE case, and it is a different question from
+ *   the other two: number and text ask a member to STATE a value, select asks them to PICK from a
+ *   set the product owns. "Templates" could not ship without it — with no run body it is a dead
+ *   bubble, and with a hardcoded key the label lies ("Templates" that always makes the same one).
+ *   `options` is REQUIRED on a select and REFUSED on anything else, and `value` must be one of
+ *   them: a picker whose initial value is not in its own list opens on a blank row and commits a
+ *   key nobody chose.
+ * @property {boolean} [escalate]
+ *   The action that opened this sheet declared `escalate` — so the sheet shows the VISIBLE
+ *   escalation (`HubCommitNotice`) beside the haptic one. ⛔ Not decoration and not a duplicate of
+ *   the cue: `useJoystick.js:197` escalates to `haptics.warn()`, which is a vibration, and iOS
+ *   Safari exposes no `navigator.vibrate` (`components/mobile/haptics.js:5-10`) — so on an iPhone
+ *   the haptic escalation is a no-op and this is the ONLY escalation the member gets.
  */
 
 /**
@@ -436,6 +460,29 @@ export function validateSectionConfig(config, where = 'section config') {
       p.push('scrubAxis without onScrub declares an axis nothing reads')
     }
   }
+  // ⭐ `confirmPayload` (R-14) is the section's own sheet payload and the ONLY way
+  // `HubConfirmPayload.fields` reaches the member. Both of its failure modes are silent, so both
+  // are refused here:
+  //   · a NON-FUNCTION is not merely ignored — `HubRoot` evaluates `action.confirmPayload?.(ctx)`,
+  //     and optional-call only guards null/undefined, so a string or an object THROWS a TypeError
+  //     inside a gesture handler, where nothing catches it and the fan simply dies.
+  //   · a payload on a kind `HubRoot` never asks is a DECLARATION NOTHING CAN READ. The member
+  //     gets the section's fields on `confirm` and never on `run`, with no error either way —
+  //     exactly the `scrubAxis`-without-`onScrub` shape above.
+  if (Array.isArray(config.fan)) {
+    for (const action of config.fan) {
+      if (action?.confirmPayload == null) continue
+      const who = action.id ?? 'an action with no id'
+      if (!isFn(action.confirmPayload)) {
+        p.push(`${who}: confirmPayload must be a function (ctx) => HubConfirmPayload|null`)
+      } else if (action.kind !== 'confirm') {
+        p.push(
+          `${who}: confirmPayload on a kind:'${action.kind}' action declares a payload nothing `
+          + 'reads — only a kind:confirm action is ever asked for one',
+        )
+      }
+    }
+  }
   report(`${where} (${config?.id ?? 'no id'})`, p)
   if (config.listAdapter != null) validateListAdapter(config.listAdapter, `${where} (${config.id}) listAdapter`)
   return config
@@ -494,13 +541,46 @@ export function validateConfirmPayload(payload, where = 'confirm payload') {
     if (typeof payload[k] !== 'string' || !payload[k].trim()) p.push(`${k} must be a non-empty string`)
   }
   if (!isFn(payload.onConfirm)) p.push('onConfirm must be a function')
+  // A non-boolean `escalate` is the silent case: `'false'` is truthy, so a sheet would escalate
+  // forever, and the notice would stop meaning anything the first time a member saw it on a
+  // navigate. Typed at the boundary rather than trusted.
+  if (payload.escalate != null && typeof payload.escalate !== 'boolean') {
+    p.push('escalate must be a boolean when present')
+  }
   if (payload.fields != null) {
     if (!Array.isArray(payload.fields)) p.push('fields must be an array when present')
     else payload.fields.forEach((f, i) => {
       if (!f || typeof f !== 'object') { p.push(`fields[${i}] must be an object`); return }
       if (typeof f.name !== 'string' || !f.name) p.push(`fields[${i}].name must be a non-empty string`)
-      if (f.type !== 'number' && f.type !== 'text') p.push(`fields[${i}].type must be 'number' or 'text'`)
+      if (f.type !== 'number' && f.type !== 'text' && f.type !== 'select') {
+        p.push(`fields[${i}].type must be 'number', 'text' or 'select'`)
+      }
       if (f.value == null) p.push(`fields[${i}].value is required`)
+      // ⛔ R-19 — A LIST NOTHING RENDERS IS THE `scrubAxis`-WITHOUT-`onScrub` SHAPE AGAIN.
+      // `HubConfirmSheet` reads `options` only on a select, so options on a number or a text field
+      // is a declaration the member can never reach, with no error either way.
+      if (f.options != null && f.type !== 'select') {
+        p.push(`fields[${i}].options on a type:'${f.type}' field declares a list nothing renders`)
+      }
+      if (f.type === 'select') {
+        if (!Array.isArray(f.options) || f.options.length === 0) {
+          p.push(`fields[${i}].options must be a non-empty array on a select — a picker with `
+            + 'nothing to pick is a dead control, which is the defect the select exists to avoid')
+        } else {
+          f.options.forEach((o, j) => {
+            if (!o || typeof o !== 'object') { p.push(`fields[${i}].options[${j}] must be an object`); return }
+            if (typeof o.value !== 'string' || !o.value) p.push(`fields[${i}].options[${j}].value must be a non-empty string`)
+            if (typeof o.label !== 'string' || !o.label) p.push(`fields[${i}].options[${j}].label must be a non-empty string`)
+          })
+          // ⛔ The initial value must BE one of the options. A browser <select> silently shows the
+          // first option when `value` matches none of them, so the sheet would display one choice
+          // and commit another until the member touched the control.
+          if (!f.options.some((o) => o && o.value === f.value)) {
+            p.push(`fields[${i}].value ${JSON.stringify(f.value)} is not one of its own options — `
+              + 'the sheet would show one choice and commit a different one')
+          }
+        }
+      }
       if (f.type === 'number') {
         for (const k of ['min', 'max', 'step']) {
           if (f[k] != null && !isNum(f[k])) p.push(`fields[${i}].${k} must be a number when present`)

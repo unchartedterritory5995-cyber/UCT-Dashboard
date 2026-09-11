@@ -28,6 +28,8 @@ import { validateActionCtx } from '../contracts'
 import PlanTradeSheet from '../PlanTradeSheet'
 import { AuthContext } from '../../context/AuthContext'
 import { useFlagged } from '../../hooks/useFlagged'
+import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
+import useRealtimePrices from '../../hooks/useRealtimePrices'
 import { createNoteViaApi } from '../../pages/journal-2-0/lib/noteCreation'
 import { JournalToast } from '../../pages/journal-2-0/lib/useJournalToast'
 import { tfLabel, tfSortKey } from '../../components/chart/timeframes'
@@ -51,7 +53,20 @@ export function timeframeLadder(customTfs = [], tf = null) {
 const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n)
 
 /** What the bridge publishes when no provider is mounted: every door closed, none broken. */
-const NO_ACTIONS = Object.freeze({ toggle: null, isFlagged: null })
+const NO_ACTIONS = Object.freeze({ toggle: null, isFlagged: null, createAlert: null, priceFor: null })
+
+/**
+ * The symbol a price stream will answer for, or `[]`.
+ *
+ * ⛔ SYNTHETICS ARE NOT SUBSCRIBED, and that is a rule this page already keeps: `$IDX:<slug>`
+ * theme indices are pseudo-tickers with no quote (`MobileSymbolStrip.jsx:34` passes `[]` for
+ * exactly this). Subscribing anyway would not produce a wrong price — it would produce NO price,
+ * which the alert body already refuses on. The reason to state it here is that the refusal then
+ * reads as a fact about the symbol rather than as a stream that happened to be quiet.
+ */
+const streamable = (symbol) => (
+  typeof symbol === 'string' && symbol && !symbol.startsWith('$') ? [symbol] : []
+)
 
 /**
  * ⛔ WHY A BRIDGE COMPONENT AND NOT A HOOK CALL IN THE SECTION HOOK.
@@ -63,12 +78,32 @@ const NO_ACTIONS = Object.freeze({ toggle: null, isFlagged: null })
  * already use: read the context null-safely, and only mount the component that uses the hook when
  * a provider is actually there.
  */
-function ActionsBridge({ apiRef }) {
+function ActionsBridge({ apiRef, symbol }) {
   const { toggle, isFlagged } = useFlagged()
+  // ⚠️ COSTS ONE POLL while mounted (`useWatchlistAlerts` carries `refreshInterval: 30000`) and
+  // the same deliberate trade `screenerSection.js:351` records: `createAlert` is the app's ONE
+  // alert-creation path — it optimistically seeds the Alerts widget's cache and then revalidates
+  // every `/api/watchlist-alerts*` key. A bare POST would create the alert and leave every
+  // already-rendered alert surface showing the state from before it.
+  const { createAlert } = useWatchlistAlerts()
+  // ⭐ THE SAME PRICE `MobileAlertSheet` CALLS "Last price" (`MobileAlertSheet.jsx:28,34`), from
+  // the same hook on the same symbol — not a second reading. The hook is POOLED (one browser-wide
+  // EventSource union), and `MobileSymbolStrip` on this very page is already subscribed to this
+  // symbol, so the subscription is shared rather than added. If the hub and the page's own sheet
+  // read two different numbers, "Alert at last price" would mean two prices.
+  const { prices } = useRealtimePrices(streamable(symbol))
   useEffect(() => {
-    apiRef.current = { toggle, isFlagged }
+    apiRef.current = {
+      toggle,
+      isFlagged,
+      createAlert,
+      priceFor: (sym) => {
+        const p = prices?.[sym]?.price
+        return Number.isFinite(p) && p > 0 ? p : null
+      },
+    }
     return () => { apiRef.current = NO_ACTIONS }
-  }, [toggle, isFlagged, apiRef])
+  }, [toggle, isFlagged, createAlert, prices, apiRef])
   return null
 }
 
@@ -100,11 +135,50 @@ const TOAST_STYLE = Object.freeze({
  * the sanctioned mechanism (`runActionsHaveHandlers.test.js`: "a controller rebuilds and drops what
  * it cannot do").
  */
-export function buildChartFan({ onFlag, onNote, onPlanTrade, flagged = false } = {}) {
+export function buildChartFan({
+  onFlag, onNote, onPlanTrade, onDraw, onAlert, flagged = false,
+} = {}) {
   const registryFan = modesById[CHART_MODE_ID]?.fan ?? []
   const out = []
   for (const action of registryFan) {
     switch (action.id) {
+      case 'chart.draw':
+        /**
+         * ⭐ D-01. The seam is `StockChart`'s `toolbarApiRef.selectTool('trendline')`, handed in by
+         * the page — this module never learns what a drawing tool is made of.
+         *
+         * ⛔ DROPPED WHEN THERE IS NO SEAM, never shipped inert: the `scan.scans` rule
+         * (`screenerSection.js`, R-13) and the B2 tombstone in `registry.js` say the same thing —
+         * a bubble that answers a deliberate gesture with silence teaches the member the product
+         * is broken. A bare `MobileChartsApp` render (its own suites) hands no seam and gets no
+         * bubble.
+         */
+        if (typeof onDraw === 'function') out.push({ ...action, run: (ctx) => { validateActionCtx(ctx, 'chartSection chart.draw'); onDraw() } })
+        break
+      case 'chart.alert':
+        /**
+         * ⛔⛔ D-03's REPLACEMENT, AND UNTIL NOW IT WAS NOT WIRED AT ALL. `chart.alert` fell
+         * through the default arm below and shipped with NO `run`. `HubRoot`'s confirm branch
+         * calls `action.run?.(ctx)` from the sheet's primary button (`HubRoot.jsx:187`), so the
+         * member dragged to Alert, read "Alert on NVDA", pressed the primary — and nothing was
+         * created. Exactly the B2 defect (`registry.js`, breadth.sizeRule/snapshot) wearing
+         * `kind:'confirm'` instead of `kind:'run'`, which is precisely why
+         * `runActionsHaveHandlers.test.js` could not see it: it filters `kind === 'run'`.
+         *
+         * ⭐ SAME SHAPE AS `scan.alert` (`screenerSection.js:282`), deliberately: one `run` that
+         * creates the alert at the price the member is looking at, fired from the confirm sheet's
+         * primary. D-35 records that the missing ± stepper in that sheet is ACCEPTED AS-IS for
+         * this increment (owner, 2026-09-09) — so shipping the same shape here is shipping the
+         * accepted product, not a second opinion about it.
+         *
+         * ⛔ NO PRICE ⇒ NOTHING IS CREATED. Never an alert at a fabricated level; the member is
+         * told which symbol had no price rather than left with a silent primary.
+         */
+        out.push({
+          ...action,
+          run: (ctx) => { validateActionCtx(ctx, 'chartSection chart.alert'); onAlert?.() },
+        })
+        break
       case 'chart.flag':
         out.push({
           ...action,
@@ -143,7 +217,8 @@ export function buildChartFan({ onFlag, onNote, onPlanTrade, flagged = false } =
  * @param {(code: string) => void} args.onTf  `MobileChartsApp`'s own `handleTf`.
  */
 export function createChartSection({
-  tf, tfs = [], symbol = null, onTf, onFlag, onNote, onPlanTrade, flagged = false, scrubRef,
+  tf, tfs = [], symbol = null, onTf, onFlag, onNote, onPlanTrade, onDraw, onAlert,
+  flagged = false, scrubRef,
 }) {
   const count = tfs.length
   const index = Math.max(0, tfs.indexOf(tf))
@@ -160,7 +235,7 @@ export function createChartSection({
 
   return {
     ...modesById[CHART_MODE_ID],
-    fan: buildChartFan({ onFlag, onNote, onPlanTrade, flagged }),
+    fan: buildChartFan({ onFlag, onNote, onPlanTrade, onDraw, onAlert, flagged }),
 
     // "tap: next timeframe". ⛔ CLAMPED at both ends rather than wrapping: the ladder runs from
     // one minute to monthly, so wrapping would jump a member from 1m straight to 1M — the largest
@@ -216,14 +291,14 @@ export function createChartSection({
  * Gating the mount is also what keeps this invisible to `MobileChartsApp`'s own suites, which
  * render it bare: jsdom fails the capability floor by construction.
  */
-export function ChartHubMount({ apiRef, msg, onToast, planTrade, onClosePlanTrade }) {
+export function ChartHubMount({ apiRef, symbol, msg, onToast, planTrade, onClosePlanTrade }) {
   const auth = useContext(AuthContext)
   const eligible = useHubEligible()
   if (!eligible) return null
   return createElement(
     Fragment,
     null,
-    auth ? createElement(ActionsBridge, { key: 'bridge', apiRef }) : null,
+    auth ? createElement(ActionsBridge, { key: 'bridge', apiRef, symbol }) : null,
     createElement(JournalToast, { key: 'toast', msg, style: TOAST_STYLE }),
     /**
      * ⛔ SYMBOL ONLY — no entry, stop, size or side. The chart holds a price series, not a trade
@@ -250,7 +325,7 @@ export function ChartHubMount({ apiRef, msg, onToast, planTrade, onClosePlanTrad
  *   sheet owned by the hub would have to live above the route, and this one is about the chart's
  *   own symbol.
  */
-export default function useChartHubSection({ tf, symbol, customTfs, onTf }) {
+export default function useChartHubSection({ tf, symbol, customTfs, onTf, onDraw }) {
   const scrubRef = useRef(null)
   const apiRef = useRef(NO_ACTIONS)
   const [planTrade, setPlanTrade] = useState(null)
@@ -285,18 +360,42 @@ export default function useChartHubSection({ tf, symbol, customTfs, onTf }) {
     setPlanTrade({ symbol })
   }, [symbol, onToast])
 
+  /**
+   * D-03's replacement, at the price the member is looking at.
+   *
+   * ⭐ THE DIRECTION IS DERIVED, NEVER ASKED — the same reading `alertConfirmPayload`
+   * (`screenerSection.js:203`) makes: an alert at the last price is neither above nor below it, and
+   * asking a member to state both the level and the direction lets them state a contradiction. At
+   * the reference price itself there is no crossing to describe, so `above` is the honest default
+   * and the member edits it in the Alerts surface the toast points at.
+   *
+   * ⛔ REFUSES rather than fabricating: no symbol, no live price, or no signed-in alert path each
+   * say so in the member's words and write nothing.
+   */
+  const onAlert = useCallback(() => {
+    if (!symbol) { onToast('No symbol on the chart'); return }
+    const api = apiRef.current
+    if (!api?.createAlert) { onToast('Sign in to set an alert'); return }
+    const price = api.priceFor?.(symbol)
+    if (price == null) { onToast(`No live price for ${symbol}`); return }
+    const at = Number(price.toFixed(2))
+    Promise.resolve(api.createAlert(symbol, at, 'above'))
+      .then(() => onToast(`Alert set on ${symbol} at ${at.toFixed(2)}`))
+      .catch(() => onToast('Could not set the alert'))
+  }, [symbol, onToast])
+
   const config = useMemo(
     () => createChartSection({
-      tf, tfs, symbol, onTf, onFlag, onNote, onPlanTrade, flagged, scrubRef,
+      tf, tfs, symbol, onTf, onFlag, onNote, onPlanTrade, onDraw, onAlert, flagged, scrubRef,
     }),
-    [tf, tfs, symbol, onTf, onFlag, onNote, onPlanTrade, flagged],
+    [tf, tfs, symbol, onTf, onFlag, onNote, onPlanTrade, onDraw, onAlert, flagged],
   )
 
   useHubMode(config)
 
   return {
     hubMount: createElement(ChartHubMount, {
-      apiRef, msg, onToast, planTrade, onClosePlanTrade: () => setPlanTrade(null),
+      apiRef, symbol, msg, onToast, planTrade, onClosePlanTrade: () => setPlanTrade(null),
     }),
   }
 }

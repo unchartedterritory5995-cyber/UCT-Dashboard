@@ -44,11 +44,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ⚠️ WHAT THIS SECTION CANNOT DO TODAY, recorded rather than faked
 // ─────────────────────────────────────────────────────────────────────────────
-//  * `Alert`'s price field cannot reach the member. `HubRoot`'s `confirm` branch builds its own
-//    payload and never asks the section for one, so the ± steppers `HubConfirmSheet` already
-//    implements — "the EQUAL path, not a fallback" per `contracts.js` — are unreachable and the
-//    alert lands at the price on screen. `confirmPayload()` below is the section's real answer;
-//    filed as R-14.
+// ⚰️ `Alert`'s price field USED to be the first bullet here: "cannot reach the member ... the ±
+//    steppers are unreachable and the alert lands at the price on screen". ✅ R-14 / D-35 CLOSED
+//    (`inc7/p1-confirm-fields`): `HubRoot`'s confirm branch asks the section for a payload before
+//    building its own, so `confirmPayload()` below is what opens the sheet and the member states
+//    the price. Railed on the RENDERED sheet in `hub/confirmFieldsReachable.test.jsx` — a test
+//    that the payload function was CALLED would pass with that branch deleted again.
 //  * `Plan trade` is `kind:'confirm'` in the registry while plan §3.3 calls it `run`, so today a
 //    gesture opens a generic "Plan AAA" confirm and THEN the plan sheet. The registry is
 //    Director-owned; filed as R-16 rather than overridden here.
@@ -283,13 +284,21 @@ export function buildScanFan({
         out.push({
           ...action,
           /**
-           * ⚠️ TWO HANDLERS, AND THE SECOND ONE IS THE GAP. `HubRoot`'s `confirm` branch builds
-           * its OWN payload from `label` + `confirmText(ctx)` and calls `action.run(ctx)` on
-           * confirm — it never asks the section for a payload, so the sheet carries no price
-           * field and the alert lands at the price on screen. `confirmPayload` is the section's
-           * real answer: a `HubConfirmPayload` with the ± steppers and numeric input that
-           * `HubConfirmSheet` already implements and `contracts.js` calls "the EQUAL path, not a
-           * fallback". Filed as R-14; until it lands, `run` is what actually fires.
+           * ⭐ TWO HANDLERS, AND `confirmPayload` IS NOW THE ONE THAT FIRES (R-14, landed).
+           *
+           * `HubRoot`'s confirm branch asks the section for a payload first, so Alert opens the
+           * sheet with the ± steppers and numeric input `HubConfirmSheet` already implements and
+           * `contracts.js` calls "the EQUAL path, not a fallback" — the member states the price
+           * instead of accepting whatever the table happened to show. ⚰️ This block read "it
+           * never asks the section for a payload ... until it lands, `run` is what actually
+           * fires"; that was true up to `inc7/p1-confirm-fields` and is the shape of stale
+           * comment this file's own header warns about.
+           *
+           * ⛔ `run` STAYS, and it is not dead: `confirmPayload` returns null when no price is
+           * known, and `HubRoot` then falls back to the generic yes/no sheet whose primary calls
+           * `run(ctx, values)`. That path re-derives the payload, finds none, and creates
+           * NOTHING — an alert is never placed at a fabricated level. Deleting `run` would make
+           * that case a dead bubble instead of a safe one.
            */
           confirmPayload: () => alertConfirmPayload({ symbol, reference: shownPrice, createAlert }),
           run: () => {

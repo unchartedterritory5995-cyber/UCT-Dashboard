@@ -1108,6 +1108,26 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   the `isDragging` closure (state needs a render to reach a callback; the ref
   is written synchronously — the stale closure stuck drags on fast taps and
   dropped a drag's first moves).
+- **Touch drag routing (2026-09-11)**: ⛔ **lightweight-charts starts a pan from
+  a native `touchstart` on its own canvas and never listens to pointer events.**
+  The overlay's touch router used to claim a drawing touch by stopping
+  `pointerdown` in the capture phase — a correct stop of the wrong event, so the
+  chart panned under every drawing drag on a phone. The router in
+  `ChartDrawingOverlay.jsx` now stops BOTH families (`pointerdown` +
+  `touchstart`/`touchmove`/`touchend`) from ONE shared hit test (`claimAt`),
+  order-independently, and latches `handleScroll`/`handleScale` off for the
+  drag (restored from the chart's OWN options, so a frozen chart stays frozen).
+  A selected handle's grab radius on touch is `handleGrabRadius()` (24px) in
+  `coarsePointer.js` — the halo paints the same read. The document tap-away
+  deselect asks the router's hit test before stripping a selection (a handle
+  touch lands on the CHART canvas, not the overlay). Also on touch: a PAN on
+  empty space keeps the selection (only a tap within the drag slop deselects,
+  decided on release); the selected drawing's BODY is re-grabbable
+  `SELECTED_BODY_BOOST_COARSE` px wider (`withHitBoost`, second pass in
+  `hitTestAll`, selected drawing only, never a first tap); and the quick bar
+  carries Undo wherever the surface passes `undo`. Rail:
+  `ChartDrawingOverlay.touchRouting.test.jsx` — behavioural, with a chart
+  stand-in carrying bubble listeners where the library binds its own.
 
 ### Chart Header — Consistent UI Across All Surfaces
 - **SymbolSearch** (`app/src/components/chart/SymbolSearch.jsx`): clickable ticker title that opens search dropdown with popular tickers + type-any-ticker
@@ -1694,6 +1714,35 @@ with three contradictory sentences (the lines that now point here).
    service is configured with, which is **not evidence the process has it**.
    Read it in-process (`os.environ.get(...)` over `railway ssh`) or from
    `/proc/1/environ`.
+
+5. ⛔⛔ **UPDATE `docs/feature_flags.json` IN THE SAME DOCS PUSH THAT RECORDS
+   THE FLIP TIME.** A flip is not finished when the process has the value; it
+   is finished when the ledger says so. Set `status` to `armed`, put the
+   SERVICE in `where`, and put the FLIP TIMESTAMP in the note.
+
+⚰️ **This rule exists because the ledger described an unreleased surface while
+members were using it.** `RESEARCH_TECHNICAL_TAB_ENABLED` was flipped ON by
+owner ruling at **2026-09-09 23:22:30 ET** and verified in the running process.
+Its ledger entry kept the MERGE-TIME `dark` state for a full day. Two
+independent readers then disagreed about whether the Research > Technical tab
+was live, and a session reading the LEDGER reported the live flag as a
+"discovery" — in a file that recorded the flip, with its timestamp, 488 lines
+higher up.
+
+⭐ **The ledger records INTENT and cannot see Railway; the checkpoint records
+WHAT HAPPENED. When they disagree about a live flag, the checkpoint wins and
+the ledger is the thing that drifted.** Do not infer a flag's state from the
+ledger — it is the artifact most likely to be stale, because nothing fails
+when it is.
+
+⚠️ **And the half that would have caught it was unrunnable.**
+`tools/flag_ledger_audit.py` is the only thing that compares the ledger to
+Railway. On Windows `subprocess.run(..., text=True)` decodes the pipe with the
+locale codec (cp1252); the Railway CLI emits UTF-8, so the first box-drawing
+byte killed a reader thread and the tool reported **"could not enumerate the
+project's services"** — which reads as an auth or project problem, not as an
+encoding bug. That is why it went unfixed rather than unnoticed. Fixed
+2026-09-10 (`encoding="utf-8", errors="replace"`); run it after any flip.
 
 ⚠️ **A flip is therefore a RESTART either way**, so it is bound by the push
 window above.

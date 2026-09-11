@@ -51,7 +51,14 @@ def _services() -> tuple[str, ...]:
             "the `railway` CLI is not on PATH — cannot enumerate services")
     try:
         r = subprocess.run([exe, "status", "--json"],
-                           capture_output=True, text=True, timeout=90, check=False)
+                           capture_output=True, text=True, timeout=90, check=False,
+                           # The Railway CLI emits UTF-8 (box-drawing, arrows).
+                           # Python on Windows decodes a pipe as cp1252 by
+                           # default and dies on the first such byte -- which
+                           # made this auditor unusable on the only machine
+                           # that runs it, and the failure surfaced as "could
+                           # not enumerate the services", not as an encoding bug.
+                           encoding="utf-8", errors="replace")
         edges = json.loads(r.stdout)["services"]["edges"]
         names = tuple(sorted(e["node"]["name"] for e in edges))
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as e:
@@ -83,6 +90,13 @@ def _vars_for(service: str) -> set[str]:
         r = subprocess.run(
             [exe, "variables", "--service", service, "--kv"],
             capture_output=True, text=True, timeout=90, check=False,
+                           # The Railway CLI emits UTF-8 (box-drawing, arrows).
+                           # Python on Windows decodes a pipe as cp1252 by
+                           # default and dies on the first such byte -- which
+                           # made this auditor unusable on the only machine
+                           # that runs it, and the failure surfaced as "could
+                           # not enumerate the services", not as an encoding bug.
+                           encoding="utf-8", errors="replace",
         )
     except (OSError, subprocess.SubprocessError) as e:
         raise RailwayUnavailable(f"reading {service}: {e}") from e

@@ -40,8 +40,11 @@ const SHIPPED = {
   breadth: { symbol: false, position: false },
   // ⚰️ ADDED BY INCREMENT 4 (B10). Notebook left the preview when §3.7 shipped. It sets nothing and
   // needs nothing: `newNote` requires no context, and `dailyPlan`/`postMortem` are navigations.
-  // The one action that DID require a symbol — `linkTicker` — was removed rather than shipped
-  // permanently disabled, because the route carries no symbol (R-17).
+  // ⭐ AND `linkTicker` IS BACK (Increment 7, R-17) WITHOUT `requires`. It was removed rather than
+  // shipped permanently disabled, because the route carries no symbol; it returns with the symbol
+  // coming from a REQUIRED FIELD on its own confirm sheet instead of from ctx. So this row still
+  // reads `symbol: false` and the fan is still entirely enabled — which is the point: a section
+  // that cannot supply a symbol must not declare an action that demands one.
   notebook: { symbol: false, position: false },
   // ⚰️ ADDED BY INCREMENT 5. Calendar left the preview when its controller shipped (R-C — it was a
   // §6 omission, never a §7 error). It needs NEITHER: the fan is a macro toggle plus a navigation
@@ -50,6 +53,9 @@ const SHIPPED = {
   // ⚰️ ADDED BY INCREMENT 5 (§3.5). Chart needs the SYMBOL — Flag, Note and Plan trade all act on
   // the chart's current ticker — and no position: the chart holds a price series, not a trade.
   chart: { symbol: true, position: false },
+  // ⚰️ ADDED BY INCREMENT 5 (§3.6) — the LAST section. Catalysts needs the SYMBOL: Chart it, Why,
+  // Flag and Note all act on the cursor's row ticker. No position; the tile is a read of the tape.
+  catalysts: { symbol: true, position: false },
 }
 
 describe('every shipped mode ships the fan it means to', () => {
@@ -61,7 +67,8 @@ describe('every shipped mode ships the fan it means to', () => {
     // unrepresentative, not the product: a control that pins a count of four is a control that has
     // to be edited by every increment that ships a section, which is the point of it.
     const shipped = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id)).sort()
-    expect(shipped).toEqual(['breadth', 'calendar', 'chart', 'journal', 'notebook', 'scan', 'wire'])
+    expect(shipped).toEqual(
+      ['breadth', 'calendar', 'catalysts', 'chart', 'journal', 'notebook', 'scan', 'wire'])
     expect(Object.keys(SHIPPED).sort()).toEqual(shipped)
   })
 

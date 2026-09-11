@@ -247,6 +247,21 @@
   outline: var(--focus-ring);
 }
 
+/* ── Feedback, one tap, in the Actions button's column (D-25) ──────────────
+   Composed on the Actions button rather than re-declared: the two are one
+   column and a second copy of the glass recipe is how they drift apart. It is
+   painted a touch quieter — same glass, resting tint instead of the pressed
+   one — because it is the secondary control of the pair and must not compete
+   with the WCAG door above it. */
+.feedbackButton {
+  composes: actionsButton;
+  background: var(--hub-glass-tint);
+}
+
+.feedbackButton:focus-visible {
+  outline: var(--focus-ring);
+}
+
 .actionList {
   display: flex;
   flex-direction: column;
@@ -398,6 +413,35 @@
   margin-bottom: 14px;
 }
 
+/* ── The commit sheet's VISIBLE escalation (iOS has no navigator.vibrate) ──
+   The haptic escalation shipped in Increment 2 is a vibration and nothing else,
+   and iOS Safari exposes no `navigator.vibrate` — so on an iPhone the serious
+   kind of write looked exactly like the ordinary kind. This is the half of the
+   signal that does not need a motor.
+   ⛔ TEXT FIRST, TONE SECOND. The sentence is the escalation (see
+   HubCommitNotice.jsx); the warn tone is emphasis on top of it, never the whole
+   message — a member in bright sun or with low vision reads the words. Tokens
+   only, no literals: `hubComponents.test.jsx` sweeps this file for hex. */
+.commitNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: var(--hub-rim-width) solid var(--warn-border);
+  border-left-width: 3px;
+  background: var(--warn-bg);
+  color: var(--text-bright);
+  font-size: var(--text-md);
+  line-height: 1.45;
+}
+
+.commitNotice svg {
+  flex: 0 0 auto;
+  color: var(--warn);
+}
+
 .confirmField {
   display: flex;
   flex-direction: column;
@@ -435,6 +479,20 @@
   min-height: var(--tap-min);
   padding: 0 10px;
   font-size: 16px; /* 16px or iOS Safari zooms the page on focus */
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* R-19 — the choose-one field. Same box as `.confirmStepper input`, minus the ± buttons it has
+   no meaning for. 16px or iOS Safari zooms the page on focus, and `--tap-min` keeps it a real
+   touch target. */
+.confirmSelect {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font-size: 16px;
   color: var(--text);
   background: var(--bg-surface);
   border: 1px solid var(--border);

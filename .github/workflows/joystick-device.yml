@@ -1,0 +1,424 @@
+# P7 — the joystick device job, and the gate that decides whether it may run.
+#
+# ⛔⛔ THE ONE RULE THIS FILE IS BUILT AROUND. A skip must be a CLEAN GREEN SKIP, and a
+# skip must NEVER be reachable from a broken invocation. CLAUDE.md rule 14 — "An empty
+# result is a failed invocation until proven otherwise" — with `scripts/deploy_watch.py`
+# as the worked example: `subprocess.run(["railway", ...])` could not resolve a Windows
+# `.cmd` shim, threw `FileNotFoundError` forty times, and EXITED 0. The network version
+# of that defect is one line long:
+#
+#     if ! curl -sf "$PLAN_URL"; then echo "device job skipped: ..."; exit 0; fi   # ⚰️ NEVER
+#
+# — under which a DNS failure, a revoked access key, a 502 and a genuinely exhausted
+# plan all print the same green sentence, forever, and the device job quietly stops
+# existing. So this job has SIX outcomes and three of them are red. The classifier is
+# `app/src/testing/device/automatePlanGate.js`; read its header for the measured
+# evidence (a real 401 from api.browserstack.com is `text/html`, not JSON — parsing it
+# first is exactly how a throw becomes "not funded").
+#
+# ⭐ A SKIP REQUIRES POSITIVE PROOF. Only two things skip: the secrets are absent (a
+# LOCAL fact — measured, no-credentials and wrong-credentials give a byte-identical 401,
+# so the wire can never answer "are they set"), or BrowserStack answered, we parsed its
+# answer, and the answer SAYS the plan is not funded.
+#
+# ⛔ NO NEW DEPENDENCY. "There is no BrowserStack MCP or SDK configured, and none is to
+# be installed." The gate is zero-dependency Node (`fetch`, stdlib) and runs straight
+# out of the checkout. The device SUITE is operator tooling that lives OUTSIDE this repo
+# by a recorded decision (`C:\tools\hub-devicetests`, whose own package.json says "NOT
+# part of the uct-dashboard repo") — this job stages it into a scratch directory and
+# proves the repo's manifests did not move, rather than vendoring it.
+#
+# ⛔ NEVER ON PUSH. `71-open-items-proposals.md` §2: "manual dispatch plus a nightly
+# schedule. ⛔ Never on every push. BrowserStack Automate is a metered quota ... a
+# per-push device job would exhaust it inside a week and then be disabled, which is
+# worse than not having it." A push to the gate's own files runs `gate-rails` ONLY —
+# unit rails plus an unauthenticated self-check, which opens no session and costs no
+# minutes.
+name: Joystick device suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: 'One device key (blank = the whole matrix)'
+        required: false
+        default: ''
+  schedule:
+    # 07:00 UTC = 03:00 ET — outside market hours and outside the master-push window.
+    - cron: '0 7 * * *'
+  push:
+    # Deliberately narrow, and it reaches `gate-rails` only. A workflow that runs on
+    # everything gets ignored, which is how `optionsflow-guard.yml` explains its own scope.
+    paths:
+      - '.github/workflows/joystick-device.yml'
+      - 'app/src/testing/device/automatePlanGate.js'
+      - 'app/src/testing/device/automatePlanGate.test.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  # One device run at a time. Never cancel one in flight — a half-run leaves a real
+  # BrowserStack session open and a half-written results file.
+  group: joystick-device
+  cancel-in-progress: false
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The gate's own rails, run BEFORE the gate is trusted. Rule 14: "Its mutation proof
+  # is run BEFORE the rail is called done, not after." Costs no Automate minutes.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  gate-rails:
+    name: Gate rails (no devices, no quota)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      # ⛔ A `-t`/path filter that matches NOTHING exits 0 and reads as a pass. Name the
+      # file, and assert the totals line below rather than trusting the exit code.
+      - name: The classifier's rails, including the control that proves it can fail
+        working-directory: app
+        run: npx vitest run src/testing/device/automatePlanGate.test.js 2>&1 | tee "$RUNNER_TEMP/gate-rails.log"
+
+      - name: ⛔ A run without a totals line is not a run
+        run: |
+          set -euo pipefail
+          # Strip ANSI first: vitest's totals line carries colour codes between the word
+          # and the number, so an anchored pattern silently matches nothing — which is
+          # itself the vacuous-check defect this step exists to prevent.
+          sed -r 's/\x1B\[[0-9;]*[a-zA-Z]//g' "$RUNNER_TEMP/gate-rails.log" > "$RUNNER_TEMP/gate-rails.plain"
+          if ! grep -qE 'Tests[^0-9]+[0-9]+ passed' "$RUNNER_TEMP/gate-rails.plain"; then
+            echo "::error::vitest produced no totals line — it did not run the gate rails,"
+            echo "::error::whatever its exit code said. (CLAUDE.md: 'A test run without a totals line is not a run'.)"
+            tail -n 20 "$RUNNER_TEMP/gate-rails.plain"
+            exit 1
+          fi
+          grep -E '(Test Files|Tests)[^0-9]+[0-9]+' "$RUNNER_TEMP/gate-rails.plain"
+
+      # ⭐ THE LIVE NON-VACUITY CONTROL, and it is NOT opt-in. An env-gated network rail
+      # that silently skips reads as "verified". This calls the real endpoint with no
+      # credentials, proves a real HTTP status came back, and proves the four cases stay
+      # four outcomes. It opens no session, so it costs nothing on any plan.
+      - name: Non-vacuity control — the real endpoint, unauthenticated
+        run: node app/src/testing/device/automatePlanGate.js --self-check
+
+  # ───────────────────────────────────────────────────────────────────────────────────
+  # The device job itself. Dispatch + schedule only.
+  # ───────────────────────────────────────────────────────────────────────────────────
+  device:
+    name: Device suite
+    needs: gate-rails
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The gate is about to be believed, so prove NOW that it can reach BrowserStack and
+      # that its outcomes have not collapsed. `gate-rails` ran this minutes ago on a
+      # different runner; this is the pre-flight on the machine that will act on it.
+      - name: Non-vacuity control — the real endpoint, unauthenticated
+        run: node app/src/testing/device/automatePlanGate.js --self-check
+
+      # ⛔ Secrets are passed by NAME. Their values are never echoed: the gate prints
+      # presence only, and builds the Basic header without returning it.
+      - name: Is Automate funded?
+        id: gate
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: node app/src/testing/device/automatePlanGate.js
+
+      # ⛔⛔ THE WORKFLOW-LEVEL NON-VACUITY CONTROL. If the gate wrote no verdict — a
+      # moved file, a node that did not start, an output that did not land — `$OUTCOME`
+      # is the empty string, and an empty string must NEVER fall through to the skip
+      # branch. The `*)` arm is the whole point of writing this as a `case`.
+      - name: ⛔ The verdict must be one of six
+        env:
+          OUTCOME: ${{ steps.gate.outputs.outcome }}
+          DETAIL: ${{ steps.gate.outputs.detail }}
+        run: |
+          set -euo pipefail
+          case "$OUTCOME" in
+            RUN|SKIP_NO_SECRETS|SKIP_NOT_FUNDED)
+              echo "verdict: $OUTCOME — $DETAIL"
+              ;;
+            FAIL_AUTH)
+              echo "::error title=BrowserStack rejected the credentials::$DETAIL"
+              echo "The BROWSERSTACK_* secrets are SET and were REJECTED (401/403). That is a"
+              echo "rotted or revoked access key, not an unfunded plan — skipping here would"
+              echo "hide a dead credential for as long as anyone cared to look."
+              exit 1
+              ;;
+            FAIL_UNREACHABLE)
+              echo "::error title=Could not reach BrowserStack::$DETAIL"
+              echo "No usable answer came back, so NOTHING is known about the plan. This is the"
+              echo "empty result rule 14 forbids treating as an answer: 'could not reach' and"
+              echo "'not funded' are different facts and this job refuses to merge them."
+              exit 1
+              ;;
+            FAIL_UNPARSEABLE)
+              echo "::error title=plan.json is not a plan document::$DETAIL"
+              echo "BrowserStack answered with something that is not a plan. Unclassifiable is"
+              echo "not unfunded — a response-shape change must surface as a red build, never as"
+              echo "a permanent green skip."
+              exit 1
+              ;;
+            *)
+              echo "::error title=The gate produced no verdict::outcome was '$OUTCOME'"
+              echo "The classifier ran without writing an outcome. An absent verdict is a FAILED"
+              echo "INVOCATION, never a skip — this is the arm that stops a broken gate from"
+              echo "reading as a clean green 'not funded' run."
+              exit 1
+              ;;
+          esac
+
+      # ── THE SKIP. Exit 0, one sentence, and unmistakable at a glance. ───────────────
+      - name: No devices ran
+        if: startsWith(steps.gate.outputs.outcome, 'SKIP')
+        env:
+          OUTCOME: ${{ steps.gate.outputs.outcome }}
+          DETAIL: ${{ steps.gate.outputs.detail }}
+          SKIP_LINE: ${{ steps.gate.outputs.skip_line }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/verdict"
+
+          # ⛔ THE SPECIFIED LINE, BYTE FOR BYTE. `automatePlanGate.js` owns the string
+          # and hands it over as an output, so the sentence has ONE authority and this
+          # file cannot drift from the rail that pins it. An EMPTY value would print a
+          # blank line and still exit 0 — a skip nobody can read is worse than a red
+          # build, so refuse it.
+          if [ -z "${SKIP_LINE:-}" ]; then
+            echo "::error title=The skip line did not arrive::The gate classified a SKIP but emitted no sentence."
+            exit 1
+          fi
+          echo "$SKIP_LINE"
+
+          # The reason, on its own line, because the two skip causes are different facts
+          # and "which one was it" must be answerable from the log.
+          echo "reason: $OUTCOME — $DETAIL"
+          echo "::notice title=No devices ran::$SKIP_LINE ($OUTCOME)"
+
+          {
+            echo "# ⛔ NO DEVICES RAN"
+            echo
+            echo '```'
+            echo "$SKIP_LINE"
+            echo '```'
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| outcome | \`$OUTCOME\` |"
+            echo "| reason | $DETAIL |"
+            echo "| devices exercised | **none** |"
+            echo
+            echo "This run made no claim about any device. Nothing here is device evidence."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          {
+            echo "$SKIP_LINE"
+            echo "outcome=$OUTCOME"
+            echo "detail=$DETAIL"
+            echo "devices_exercised=0"
+            echo "run=${GITHUB_RUN_ID:-unknown}"
+          } > "$RUNNER_TEMP/verdict/NO-DEVICES-RAN.txt"
+
+      # The artifact NAME is the at-a-glance signal on the run page: a skipped run and a
+      # real run cannot be confused by someone scanning the list.
+      - uses: actions/upload-artifact@v4
+        if: startsWith(steps.gate.outputs.outcome, 'SKIP')
+        with:
+          name: joystick-device-SKIPPED-no-devices-ran
+          path: ${{ runner.temp }}/verdict/
+          if-no-files-found: error
+
+      # ── THE RUN BRANCH. Everything below is gated on a POSITIVE funded verdict. ─────
+      #
+      # ⚠️ MEASURED, AND STATED PLAINLY: the joystick device suite is
+      # `C:\tools\hub-devicetests\tests\run.js` on the owner's machine — NOT in this
+      # repo, by the recorded decision that the BrowserStack tooling "appears in no
+      # package.json and no requirements.txt". It depends on `selenium-webdriver`, which
+      # must not become a repo dependency. So this branch STAGES it from a repository the
+      # owner controls, named by a repo variable, and refuses by name if it is not there.
+      # Nothing is vendored and no manifest moves.
+      - name: ⛔ The device suite must be stageable, or this is not a device run
+        if: steps.gate.outputs.outcome == 'RUN'
+        env:
+          SUITE_REPO: ${{ vars.JOYSTICK_DEVICE_SUITE_REPO }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUITE_REPO:-}" ]; then
+            echo "::error title=No device suite to run::The repository variable JOYSTICK_DEVICE_SUITE_REPO is not set."
+            echo "Automate IS funded, so a green build here would read as 'the devices passed'."
+            echo "It is not. NO DEVICE HAS BEEN TOUCHED BY THIS RUN."
+            echo
+            echo "The suite is operator tooling and lives outside this repo on purpose:"
+            echo "  C:\\tools\\hub-devicetests\\tests\\run.js  (+ hubSuite.js, devices.js)"
+            echo "  its package.json: \"Operator tooling ... NOT part of the uct-dashboard repo\""
+            echo "To wire this up, publish that directory as its own repo and set:"
+            echo "  vars.JOYSTICK_DEVICE_SUITE_REPO    = owner/hub-devicetests"
+            echo "  secrets.JOYSTICK_DEVICE_SUITE_TOKEN = a read-only token for it"
+            exit 1
+          fi
+          echo "staging suite from: $SUITE_REPO"
+
+      - name: Stage the device suite (outside the checkout — nothing is vendored)
+        if: steps.gate.outputs.outcome == 'RUN'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.JOYSTICK_DEVICE_SUITE_REPO }}
+          token: ${{ secrets.JOYSTICK_DEVICE_SUITE_TOKEN }}
+          path: device-suite
+
+      # ⛔⛔ THE PRECONDITION THAT WOULD OTHERWISE FAIL SILENTLY IN THE MIDDLE OF A PAID
+      # SESSION. `hubSuite.js` builds every URL as `http://bs-local.com:${HUB_TEST_PORT}`
+      # — a BrowserStack Local TUNNEL to a sandbox on the owner's Windows box. There is
+      # no tunnel and no sandbox on a GitHub runner, and the recorded design is explicit
+      # that CI drives "the deployed origin, never a local sandbox". A suite that cannot
+      # be pointed at an origin would open four real sessions, drive them at a host that
+      # does not resolve, and report a wall of failures that all mean "there was nothing
+      # there". Ask BEFORE spending a device minute.
+      - name: ⛔ Refuse a suite that can only drive the operator's tunnel
+        if: steps.gate.outputs.outcome == 'RUN'
+        run: |
+          set -euo pipefail
+          if [ ! -d device-suite/tests ]; then
+            echo "::error title=The staged suite has no tests/ directory::JOYSTICK_DEVICE_SUITE_REPO does not look like the device suite."
+            echo "NO DEVICE HAS BEEN TOUCHED BY THIS RUN."
+            exit 1
+          fi
+          if ! grep -rq 'HUB_TEST_BASE' device-suite/tests/; then
+            echo "::error title=The staged suite cannot target a deployed origin::It still hardcodes bs-local.com."
+            echo "NO DEVICE HAS BEEN TOUCHED BY THIS RUN."
+            echo
+            echo "hubSuite.js builds every URL from:"
+            echo "    const PORT = process.env.HUB_TEST_PORT || '8077'"
+            echo "    const BASE = \`http://bs-local.com:\${PORT}\`"
+            echo "which is the BrowserStack Local tunnel to the sandbox on the owner's machine."
+            echo "A GitHub runner has neither, and CI is specified to drive the deployed origin"
+            echo "(71-open-items-proposals.md §2). Teach hubSuite.js to honour HUB_TEST_BASE"
+            echo "before pointing this job at real devices."
+            exit 1
+          fi
+
+      - name: Install the suite's OWN dependencies, in its OWN directory
+        if: steps.gate.outputs.outcome == 'RUN'
+        working-directory: device-suite
+        run: npm ci
+
+      # ⛔ The no-new-dependency rule, as a rail rather than a promise. `npm ci` above ran
+      # against the suite's own lockfile in its own directory; prove this repo's manifests
+      # are byte-identical to the commit.
+      - name: ⛔ No repo manifest may have moved
+        if: steps.gate.outputs.outcome == 'RUN'
+        run: |
+          set -euo pipefail
+          # Non-vacuity control first: the pathspec must actually name files that exist,
+          # or `git diff --exit-code` passes over an empty set and proves nothing.
+          for f in app/package.json app/package-lock.json requirements.txt; do
+            test -f "$f" || { echo "::error::$f is missing — this check would have passed vacuously"; exit 1; }
+          done
+          git diff --exit-code -- app/package.json app/package-lock.json requirements.txt
+          echo "manifests unchanged: app/package.json app/package-lock.json requirements.txt"
+
+      - name: Run the device suite
+        id: suite
+        if: steps.gate.outputs.outcome == 'RUN'
+        continue-on-error: true
+        working-directory: device-suite
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          HUB_TEST_BASE: ${{ vars.JOYSTICK_DEVICE_ORIGIN || 'https://uctintelligence.com' }}
+          HUB_REPO: ${{ github.workspace }}
+          DEVICE: ${{ inputs.device }}
+        run: |
+          # ⛔ PIPE THE RUNNER'S EXIT STATUS, NEVER `tee`'s. An OOM kill gives a tiny log,
+          # no traceback and a zero from the tail of the pipe — the evidence of an OOM
+          # kill is that there is none. `set +e` so the status can be READ and reported
+          # rather than aborting the step before it is printed.
+          set +e
+          node tests/run.js $DEVICE 2>&1 | tee "$RUNNER_TEMP/device-suite.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "suite exit status (node, not tee): $status"
+          exit "$status"
+
+      # ⛔ THE SUITE'S OWN NON-VACUITY CONTROL. `tests/run.js` always prints
+      # "... across N device(s)". No totals line means it did not run, whatever the exit
+      # code was — and this check runs BEFORE the exit code is carried, so "the suite
+      # never started" can never be reported as "the devices passed".
+      - name: ⛔ A device run without a totals line is not a run
+        id: totals
+        if: steps.gate.outputs.outcome == 'RUN'
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/device-suite.log"
+          if [ ! -s "$log" ]; then
+            echo "::error title=The suite produced no output at all::NO DEVICE RESULT WAS OBTAINED."
+            exit 1
+          fi
+          if ! grep -qE 'across [0-9]+ device\(s\)' "$log"; then
+            echo "::error title=No totals line::The suite printed no 'across N device(s)' line,"
+            echo "::error::so it did not complete a run whatever its exit code said. NO DEVICE RESULT WAS OBTAINED."
+            tail -n 20 "$log"
+            exit 1
+          fi
+          TOTALS="$(grep -E 'across [0-9]+ device\(s\)' "$log" | tail -n 1)"
+          echo "totals: $TOTALS"
+          echo "totals=$TOTALS" >> "$GITHUB_OUTPUT"
+
+      - name: Devices ran
+        if: steps.gate.outputs.outcome == 'RUN'
+        env:
+          OUTCOME: ${{ steps.gate.outputs.outcome }}
+          PLAN: ${{ steps.gate.outputs.plan }}
+          # Derived by the step above, never re-grepped here — one authority over one value.
+          TOTALS: ${{ steps.totals.outputs.totals }}
+        run: |
+          set -euo pipefail
+          {
+            echo "# ✅ DEVICES RAN"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| plan | \`$PLAN\` (funded) |"
+            echo "| suite result | $TOTALS |"
+            echo
+            echo "Every claim carries a BrowserStack session id — see the artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Devices ran::$TOTALS"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.outcome == 'RUN'
+        with:
+          name: joystick-device-RESULTS
+          path: |
+            device-suite/results/
+            ${{ runner.temp }}/device-suite.log
+          if-no-files-found: error
+
+      # The suite exits non-zero on its OWN findings (failing steps). Those must not be
+      # swallowed — but the artifact and the totals have to land first, or a red run tells
+      # you nothing about WHY. Same ordering as `ocr-linux-cert.yml`.
+      - name: Carry the suite's verdict
+        if: steps.gate.outputs.outcome == 'RUN' && steps.suite.outcome == 'failure'
+        run: |
+          echo "The device suite reported failing steps — see the log and the results artifact."
+          exit 1

@@ -661,6 +661,92 @@ export function mergeChartSettings(userSettings) {
 // gridLayouts derives its persisted-state whitelist from this list so the
 // picker and the sanitizer can never drift apart. 'hlc' is rendered via
 // OHLC_TYPES in StockChart; the older toolbar/settings pickers predate it.
+// ─── REMOVING A MOVING AVERAGE / THE VOLUME PANE ─────────────────────────────
+//
+// 🔴 A FLAG, NOT A SPLICE, AND THE MERGE DIRECTLY ABOVE IS THE WHOLE REASON.
+//
+// `overlays` is merged POSITIONALLY — slot N of the stored array is read against
+// `CHART_DEFAULTS.overlays[N]`. So splicing EMA 9 out of a member's blob does not
+// remove EMA 9: on the very next read, EMA 20's stored values land in EMA 9's
+// slot, SMA 50's in EMA 20's, SMA 200's in SMA 50's, and the vacated fourth slot
+// RESURRECTS a default SMA 200. One delete silently rewrites the member's other
+// three moving averages and gives them back a line they did not ask for. This
+// was measured against the merge before the ✕ shipped, which is why the first
+// build had no ✕ on those rows at all.
+//
+// ⭐ SO REMOVAL IS A TOMBSTONE, exactly as it is for engine instances
+// (`instanceTombstone` / `deleted: true` in `engine/instanceShape.js`). The slot
+// STAYS, at its index, carrying `removed: true` — the positional merge is
+// untouched, nothing shifts, nothing is resurrected, and the member's colour and
+// period are still there when they add one back.
+//
+// ⛔ ABSENT MEANS PRESENT, and that is what makes this safe for every blob
+// already in the wild. `CHART_DEFAULTS` declares no `removed` key, so a stored
+// blob written before this existed reads as "not removed" without a migration.
+//
+// ⛔ AND THERE IS ONE READER, WHICH IS THE POINT. `enabled` (show/hide) and
+// `removed` (on the chart at all) are two different facts, and every surface that
+// draws or lists a moving average has to honour BOTH. A predicate spelled
+// `!o.removed` at six call sites is six chances to forget the seventh — the
+// enumeration defect this file's own header is a monument to.
+
+/** Is this MA overlay slot a tombstone — removed by the member rather than
+ *  merely switched off? */
+export function isOverlayRemoved(overlay) {
+  return !!(overlay && overlay.removed === true)
+}
+
+/** Every MA overlay still ON THE CHART, tombstones dropped.
+ *
+ *  ⚠️ THIS IS NOT "the ones that draw" — a live overlay with `enabled: false` is
+ *  still here, still listed, and still keeps its settings. Callers that DRAW
+ *  filter on `enabled` as well; callers that LIST (the settings tab, the phone
+ *  sheet, the ƒx badge) want exactly this. */
+export function liveOverlays(cs) {
+  return liveOverlayList(cs?.overlays)
+}
+
+/** The same answer over the ARRAY rather than the blob.
+ *
+ *  ⚠️ IT EXISTS FOR REACT'S DEPENDENCY LINTER, NOT FOR VARIETY. `StockChart`'s
+ *  `resolvedOverlays` memo depends on `cs.overlays` — correctly, because that is
+ *  the only field it reads — and `liveOverlays(cs)` makes the linter demand the
+ *  whole `cs`, which would re-run the memo on every unrelated settings keystroke.
+ *  Taking the array keeps the dependency honest AND narrow. */
+export function liveOverlayList(overlays) {
+  const list = Array.isArray(overlays) ? overlays : []
+  return list.filter((o) => !isOverlayRemoved(o))
+}
+
+/** Has the member removed the volume pane from this chart?
+ *
+ *  ⛔ A DIFFERENT FACT FROM `volume.visible`, and both are needed. `visible:
+ *  false` is "hidden, still mine, still in my list, bring it back with the
+ *  toggle"; `removed: true` is "not on this chart" — it leaves the active list
+ *  and has to be added back from the catalogue. Collapsing them would make the
+ *  hide toggle a delete button, which is the exact defect the Indicators tab's
+ *  own hide/remove split exists to end. */
+export function isVolumeRemoved(cs) {
+  return cs?.volume?.removed === true
+}
+
+/** A fresh moving-average overlay for "add one back".
+ *
+ *  ⛔ IT IS NOT A TYPED LITERAL. The shape — every key the renderer and the
+ *  settings row read — comes from `CHART_DEFAULTS.overlays[0]`, so an overlay
+ *  field added there arrives here for free rather than being silently absent on
+ *  every MA a member adds from the catalogue. Only period/type/colour are chosen.
+ *
+ *  ⚠️ THE COLOUR CYCLES THROUGH THE SHIPPED DEFAULTS rather than repeating one:
+ *  a member adding three moving averages should not get three identical lines
+ *  they then have to recolour by hand to tell apart. */
+export function newOverlay(existingCount = 0) {
+  const palette = CHART_DEFAULTS.overlays
+  const base = palette[0]
+  const pick = palette[existingCount % palette.length]
+  return { ...base, type: 'SMA', period: 50, color: pick.color, enabled: true }
+}
+
 export const CHART_TYPE_OPTIONS = [
   ['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'],
   ['hlc', 'HLC'], ['line', 'Line'], ['area', 'Area'],

@@ -39,7 +39,7 @@
  * balances for all 20 painters — the invariant the share/screenshot capture
  * depends on, and the one the new per-drawing clip makes load-bearing.
  */
-import { isCoarsePointer, hitThreshold, handleRadius } from './coarsePointer'
+import { isCoarsePointer, hitThreshold, handleRadius, handleGrabRadius } from './coarsePointer'
 import { UCT_DRAW_GOLD } from './drawingColors'
 import {
   boundsOf, cupControlPoint, extendLineFar, extendRay, extendToEdges, pointsUsable,
@@ -959,10 +959,13 @@ export function renderSelectionHandles(ctx, pts, ink = UCT_DRAW_GOLD) {
   for (const p of pts) {
     if (!p || p.valid === false || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
     if (coarse) {
-      // Halo = the actual grab zone (HIT_THRESHOLD + the handle slack), so a
-      // finger sees exactly how close is close enough.
+      // Halo = the actual grab zone (`handleGrabRadius()` — the SAME read the
+      // overlay's `hitTestHandle` makes), so a finger sees exactly how close is
+      // close enough. ⚰️ This was `HIT_THRESHOLD() + 2` — a second derivation of
+      // the grab zone beside the one that decided it, which is how a wider grab
+      // could ship with a halo that still said 17px.
       ctx.beginPath()
-      ctx.arc(p.x, p.y, HIT_THRESHOLD() + 2, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, handleGrabRadius(), 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(201, 168, 76, 0.16)'
       ctx.fill()
     }

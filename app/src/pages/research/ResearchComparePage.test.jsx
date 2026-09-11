@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent } from '../../test-utils'
 import ResearchComparePage from './ResearchComparePage'
+import { withResearchReturnParam } from '../../lib/journal-2-0'
 
 const auth = { user: { role: 'user' }, isPaid: true }
 vi.mock('../../context/AuthContext', () => ({
@@ -149,6 +150,58 @@ describe('ResearchComparePage', () => {
       expect(screen.getByTestId('research-compare-page')).toBeInTheDocument()
       // AAPL's own price still renders correctly alongside the missing side.
       expect(screen.getByText('$230.50')).toBeInTheDocument()
+    })
+  })
+
+  // Seam 22 — the return marker on the COMPARE surface.
+  //
+  // These are ROUND-TRIP tests on purpose: each one builds its URL with the
+  // WRITER helper the three journal surfaces actually call
+  // (withResearchReturnParam), instead of hand-typing '?from=trade:42'. Two
+  // hand-typed strings agreeing proves the strings agree; driving the real
+  // writer proves the writer and this reader agree. If the marker format
+  // ever changes, these go red rather than passing against a stale literal.
+  describe('return-to context (Seam 22)', () => {
+    beforeEach(() => {
+      mockComparisonReturn = { data: fullData(), isLoading: false }
+    })
+
+    it('round-trips a TRADE marker into a labelled link back to that trade', () => {
+      const route = withResearchReturnParam('/research/AAPL/compare/MSFT', 'trade', '42')
+      expect(route).toContain('from=')            // control: the writer produced a marker
+      renderWithProviders(<ResearchComparePage />, { route })
+      const link = screen.getByTestId('compare-return-link')
+      expect(link).toHaveTextContent('Back to Trade')
+      expect(link.getAttribute('href')).toBe('/journal-2-0/trade/42')
+    })
+
+    it('round-trips a POSITION marker, naming the symbol in the label', () => {
+      const route = withResearchReturnParam('/research/AAPL/compare/MSFT', 'position', 'aapl')
+      renderWithProviders(<ResearchComparePage />, { route })
+      const link = screen.getByTestId('compare-return-link')
+      expect(link).toHaveTextContent('Back to AAPL Position')
+      expect(link.getAttribute('href')).toBe('/journal-2-0/position/AAPL')
+    })
+
+    it('renders NO link when the param is absent — the ordinary entry path', () => {
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      expect(screen.getByTestId('research-compare-page')).toBeInTheDocument()
+      expect(screen.queryByTestId('compare-return-link')).toBeNull()
+    })
+
+    it('renders NO link for a malformed marker rather than a link to nowhere', () => {
+      // researchReturnTarget() returns null for an unknown kind; rendering the
+      // link anyway would give the member a dead <a href="null">.
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT?from=wat:1' })
+      expect(screen.queryByTestId('compare-return-link')).toBeNull()
+    })
+
+    it('keeps the way back on the ERROR branch — the state most likely to strand', () => {
+      mockComparisonReturn = { data: { error: 'Comparison unavailable.' }, isLoading: false }
+      const route = withResearchReturnParam('/research/AAPL/compare/MSFT', 'trade', '42')
+      renderWithProviders(<ResearchComparePage />, { route })
+      expect(screen.getByText('Comparison unavailable.')).toBeInTheDocument()
+      expect(screen.getByTestId('compare-return-link')).toHaveTextContent('Back to Trade')
     })
   })
 })

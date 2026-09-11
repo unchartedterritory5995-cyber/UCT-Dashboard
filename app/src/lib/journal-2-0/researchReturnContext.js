@@ -3,9 +3,10 @@
  * Convergence V1 Phase A). Clicking Full Research / Ask AI / Compare from
  * TradeDetailPage.jsx / TradeDrawer.jsx / PositionDetailPage.jsx navigates
  * away with no way back except browser Back. This is the ONE shared
- * build/parse pair both the writers (those three surfaces) and the one
- * reader (ResearchPage.jsx's "Back to Trade/Position" link) use, so the
- * format can never drift between them.
+ * build/parse pair both the writers (those three surfaces) and BOTH
+ * readers use, so the format can never drift between them. The readers are
+ * ResearchPage.jsx and ResearchComparePage.jsx (Seam 22 -- Compare was the
+ * one writer destination that ignored the marker and still dead-ended).
  *
  * Deliberately NOT a full return-to-exact-state contract (a trade opened via
  * TradeDrawer's slide-over has no route of its own to reopen) -- `trade:{id}`

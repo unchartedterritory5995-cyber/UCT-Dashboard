@@ -4,6 +4,11 @@
 .errorBox { color: var(--text); background: var(--bg-elevated); border-radius: 8px; }
 .backLink { margin-top: 12px; background: none; border: none; color: var(--ut-gold); cursor: pointer; font-size: var(--text-sm); padding: 0; }
 
+/* Seam 22: same affordance and same gold as ResearchPage's return link --
+   one member-visible convention for 'here is the way back', two pages. */
+.returnLink { display: inline-block; margin-bottom: 10px; color: var(--ut-gold); text-decoration: none; font-size: var(--text-sm); }
+.returnLink:hover { text-decoration: underline; }
+
 .hdr { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; margin-bottom: 16px; }
 .hdrTitle { font-size: 18px; font-weight: 800; color: var(--text-heading); }
 .vs { color: var(--text-muted); font-weight: 500; margin: 0 4px; }

@@ -430,15 +430,44 @@ describe('the fan — attached now, reachable when the Director flips PREVIEW_MO
   it('Close is flickable:false and every write action requires a position', () => {
     const close = modesById.journal.fan.find((a) => a.id === 'journal.close')
     expect(close.flickable).toBe(false)
-    expect(positionRequiredActionIds()).toEqual(['journal.moveStop', 'journal.breakeven', 'journal.close'])
+    // ⚰️ WAS THREE. R-10 landed `journal.planTrade` with `requires:['position']`, and this list is
+    // DERIVED from the registry rather than typed, so it grew on the day that action landed —
+    // which is the property R-10 said it had. The expectation here is still hand-typed on purpose:
+    // it is the claim, and `positionRequiredActionIds()` is the check on it.
+    expect(positionRequiredActionIds()).toEqual([
+      'journal.moveStop', 'journal.breakeven', 'journal.close', 'journal.planTrade',
+    ])
   })
 
-  it('the Journal’s Plan-trade door opens the sheet PREFILLED from the selected position', async () => {
+  it('⛔ the chip that says "Plan trade" is the one that opens the Plan-trade sheet (R-10)', async () => {
+    // ⚰️ THIS DROVE `journal.addTrade`, because no `journal.planTrade` existed and the section
+    // wired the Plan-trade sheet to the only unclaimed `run` on the fan. The behaviour was right
+    // and the LABEL was wrong: the bubble read "Add trade" and opened this sheet. Driving the
+    // action by its real id is what makes the assertion about the member's experience rather than
+    // about an internal handler map.
     openTab()
-    act(() => { cfg().fan.find((a) => a.id === 'journal.addTrade').run() })
+    const planTrade = cfg().fan.find((a) => a.id === 'journal.planTrade')
+    expect(planTrade, 'the Journal fan has no journal.planTrade — A5 has no door to hang on')
+      .toBeTruthy()
+    expect(planTrade.label, 'the label and the sheet disagree again').toBe('Plan trade')
+    expect(cfg().fan.map((a) => a.id), 'journal.addTrade is back, and it has no body of its own')
+      .not.toContain('journal.addTrade')
+
+    act(() => { planTrade.run() })
     expect(await screen.findByTestId('hub-plan-entry')).toHaveValue(178.1)
     expect(screen.getByTestId('hub-plan-stop')).toHaveValue(176)
     expect(screen.getByTestId('hub-plan-size')).toHaveValue(100)
+  })
+
+  it('⛔ Note SURVIVED the swap — R-10\'s proposed diff would have dropped it from the fan', () => {
+    // The proposal replaced `note('journal', 1)`. Taking `addTrade` instead keeps the Notebook
+    // door on the Journal AND keeps both rings legal, so nothing had to be traded away.
+    const ids = modesById.journal.fan.map((a) => a.id)
+    expect(ids, 'the Journal lost its Note door').toContain('journal.note')
+    const inner = modesById.journal.fan.filter((a) => a.ring === 1).map((a) => a.id)
+    expect(inner).toEqual([
+      'journal.planTrade', 'journal.note', 'journal.voice', 'journal.home',
+    ])
   })
 })
 
