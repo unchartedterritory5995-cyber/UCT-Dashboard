@@ -16,6 +16,7 @@
  * tidy queue.
  */
 import { clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import { diag, shape } from './diag'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { sameAuthoredContent } from './recoverLocalState'
@@ -43,6 +44,14 @@ const isTransient = (e) => !e?.status || e.status >= 500
 async function settleSent(db, entry, saved) {
   const rec = await getNote(db, entry.noteId)
   const caughtUp = !rec || sameAuthoredContent(rec, entry.patch)
+  // ⛔ INSTRUMENT ONLY — inert unless armed. `caughtUp` decides whether a queued
+  // entry is DISCARDED or REBASED, which is the owner's one invariant.
+  diag('drain.caughtUp', () => ({
+    noteId: entry?.noteId, mutationId: entry?.mutationId,
+    recordMissing: !rec, caughtUp,
+    record: shape(rec), patch: shape(entry?.patch),
+    entryBase: typeof entry?.baseUpdatedAt === 'string' ? entry.baseUpdatedAt : null,
+  }))
   const baseUpdatedAt = usableBaseline(saved?.updatedAt, entry.baseUpdatedAt)
   const next = {
     noteId: entry.noteId,

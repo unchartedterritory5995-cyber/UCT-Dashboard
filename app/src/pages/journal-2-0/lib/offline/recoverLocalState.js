@@ -20,6 +20,7 @@
  */
 
 import { usableBaseline } from './baseline'
+import { diag, shape } from './diag'
 
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
@@ -46,10 +47,16 @@ const authored = (o) => ({
  * with what the member has typed since. Two answers to that would let a note be
  * marked "synced" while the editor holds newer words.
  */
-export const sameAuthoredContent = (a, b) =>
-  (a?.title ?? '') === (b?.title ?? '')
-  && (a?.subtitle ?? '') === (b?.subtitle ?? '')
-  && JSON.stringify(a?.bodyJson ?? null) === JSON.stringify(b?.bodyJson ?? null)
+export const sameAuthoredContent = (a, b) => {
+  const answer = (a?.title ?? '') === (b?.title ?? '')
+    && (a?.subtitle ?? '') === (b?.subtitle ?? '')
+    && JSON.stringify(a?.bodyJson ?? null) === JSON.stringify(b?.bodyJson ?? null)
+  // ⛔ INSTRUMENT ONLY — inert unless armed, and the ANSWER above is computed
+  // first and returned unchanged. This function decides discard-vs-rebase
+  // (`outboxDrain.js`), so what it compared is the evidence round 3 needs.
+  diag('sameAuthoredContent', () => ({ a: shape(a), b: shape(b), answer }))
+  return answer
+}
 
 /**
  * @param server    the note as the server has it: {title, subtitle, bodyJson, updatedAt}
