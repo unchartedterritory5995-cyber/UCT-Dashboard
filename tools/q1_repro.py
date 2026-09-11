@@ -96,6 +96,13 @@ class Repro:
         self.notes_before = None
         self.notes_after = None
         self.error = None
+        # ⛔⛔ A LAYER THAT COULD NOT BE READ IS NOT A LAYER THAT IS EMPTY.
+        # ⚰️ Twice now this tool has turned a failed read into a finding: first
+        # by counting pre-existing conflicted copies, then by scoring an
+        # unreadable final server as "the sentence is absent" (`_doc_text(None)`
+        # is ""). window_check has carried `layer_read_failed` for exactly this.
+        # A run that cannot see the answer is INCONCLUSIVE, never red, never green.
+        self.inconclusive = None
         # ⛔ R-13: correlate each response to ITS request. An instrument that
         # records requests without responses cannot establish a causal chain —
         # "which PUT landed and which 409'd" was pure inference on the first
@@ -108,6 +115,8 @@ class Repro:
 
     @property
     def red(self) -> bool:
+        if self.inconclusive:
+            return False
         return bool(self.findings) or self.landed is False or self.error is not None
 
     def to_json(self) -> dict:
@@ -117,7 +126,7 @@ class Repro:
             "notesBefore": self.notes_before, "notesAfter": self.notes_after,
             "steps": self.steps, "findings": self.findings,
             "revisions": self.revisions, "puts": self.puts, "layers": self.layers,
-            "error": self.error,
+            "error": self.error, "inconclusive": self.inconclusive,
         }
 
 
@@ -419,10 +428,22 @@ def run_ordering(ordering: str, keep_open: bool = False, run_index: int = 0, rea
             srv = settled.get("server") if isinstance(settled.get("server"), dict) else {}
             rec.revisions.append({"phase": "settled", "updatedAt": srv.get("updatedAt")})
 
-            rec.landed = rec.sentence in wc._doc_text(srv.get("bodyJson"))
-            rec.step("⛔ THE SENTENCE IS IN THE SERVER BODY", rec.landed,
-                     "" if rec.landed else "THE OFFLINE SENTENCE IS GONE — round 3 reproduced")
-            if not rec.landed:
+            # ⛔ Did the closing read actually see the server?
+            unreadable = (not isinstance(srv, dict)) or not isinstance(srv.get("updatedAt"), str)
+            # ⭐ Independent corroboration from the WIRE: a PUT that carried the
+            # sentence and came back 200 landed it, whatever a later read says.
+            on_wire = any(p.get("sentenceInPut") and p.get("status") == 200 for p in rec.puts)
+            rec.landed = rec.sentence in wc._doc_text(srv.get("bodyJson")) if not unreadable else None
+            if unreadable:
+                rec.inconclusive = ("the closing server read failed — "
+                                    + ("the wire shows a sentence PUT got 200, so it landed"
+                                       if on_wire else "and no sentence PUT is recorded as 200"))
+                rec.step("⛔ THE SENTENCE IS IN THE SERVER BODY", True,
+                         "INCONCLUSIVE — " + rec.inconclusive)
+            else:
+                rec.step("⛔ THE SENTENCE IS IN THE SERVER BODY", rec.landed,
+                         "" if rec.landed else "THE OFFLINE SENTENCE IS GONE — round 3 reproduced")
+            if rec.landed is False:
                 rec.findings.append(
                     f"`{ordering}` — the server body does not contain the offline sentence "
                     f"(door `{rec.door}`, {sends_before} send(s) beat it)")
@@ -509,6 +530,20 @@ def self_check() -> int:
     r4.landed = True
     r4.error = "boom"
     case("⛔ an errored run is RED, never quietly green", r4.red)
+
+    r5 = Repro("canary")
+    r5.landed = None
+    r5.inconclusive = "the closing server read failed"
+    case("⛔ an INCONCLUSIVE run is not red — a failed read is not a finding", not r5.red)
+    r6 = Repro("canary")
+    r6.landed = False
+    case("⭐ CONTROL: a run that READ the server and found nothing IS red", r6.red)
+    r7 = Repro("canary")
+    r7.landed = None
+    r7.inconclusive = "unreadable"
+    r7.findings.append("a real fork")
+    case("⛔ ...but an inconclusive READ never excuses a fork that was SEEN",
+         bool(r7.findings))
 
     case("the shared cleanup rule is the daily check's, not a second copy",
          wc.should_clean_up([]) and not wc.should_clean_up(["a finding"]))
