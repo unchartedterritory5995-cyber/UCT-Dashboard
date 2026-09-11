@@ -35,11 +35,32 @@ const vcp = {
 import TechnicalTab from './TechnicalTab'
 
 describe('TechnicalTab', () => {
-  it('shows an honest empty state when no setups are confirmed', () => {
-    mockReturn = { data: { verdicts: [] }, isLoading: false }
+  it('shows an honest empty state when nothing was ever evaluated', () => {
+    mockReturn = { data: { verdicts: [], evaluated: 0 }, isLoading: false }
     renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
     expect(screen.getByTestId('technical-empty-state')).toHaveTextContent('No confirmed technical setups on AAPL right now.')
     expect(screen.queryByTestId('technical-chart')).not.toBeInTheDocument()
+  })
+
+  it('SEAM 24 — an empty tab says how many setups were LOOKED AT', () => {
+    // A member could not previously tell "we evaluated four and none
+    // qualified" from "nothing was ever looked at". ~80% of judged tickers
+    // showed the empty state on 2026-09-10, and some of those had REJECTED
+    // verdicts in the table that no non-admin surface could read.
+    mockReturn = { data: { verdicts: [], evaluated: 4 }, isLoading: false }
+    renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
+    const el = screen.getByTestId('technical-empty-state')
+    expect(el).toHaveTextContent('4 setups evaluated on AAPL in the last 7 days')
+    expect(el).toHaveTextContent('none confirmed')
+    // ⛔ THE COUNT ONLY. No rejection reason may reach a member here.
+    expect(el.textContent).not.toMatch(/rationale|rejected because|judge said/i)
+  })
+
+  it('SEAM 24 — one evaluated setup is singular, not "1 setups"', () => {
+    mockReturn = { data: { verdicts: [], evaluated: 1 }, isLoading: false }
+    renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL' })
+    expect(screen.getByTestId('technical-empty-state'))
+      .toHaveTextContent('1 setup evaluated on AAPL')
   })
 
   it('renders a confirmed setup with its narrative, confidence, and checklist', () => {

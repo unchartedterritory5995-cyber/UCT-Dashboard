@@ -28,8 +28,11 @@ import {
   DEFAULT_DEBOUNCE_MS, DURABLE, FAILED, IDLE, createDurableWriter,
 } from './durableWriter'
 import {
-  getNote, offlineStorageAvailable, openNotebookDb, putNoteWithIntent, storagePosture,
+  getMeta, getNote, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent, storagePosture,
 } from './notebookDb'
+import {
+  markerFor, holdSessionLock, markerKeyFor, landedKeyFor, withLanded,
+} from './inFlight'
 import { offlineEnabled } from './offlineFlag'
 import { chooseLocalRecovery, newSessionId, sameAuthoredContent } from './recoverLocalState'
 import { usableBaseline, isUsableBaseline } from './baseline'
@@ -43,6 +46,11 @@ export const UNAVAILABLE = 'unavailable'
  * session, so this travels with every record the tab writes.
  */
 export const SESSION_ID = newSessionId()
+
+// ⛔ Held for the life of the tab, so `liveSessionIds()` can tell a marker
+// left by a LIVE save from one left by a tab that is gone. Web Locks are
+// released by the browser on crash or kill, which no unload handler covers.
+holdSessionLock(SESSION_ID)
 
 /** One queued update per note, by construction: a newer edit REPLACES the
  *  pending intent instead of queuing a second one. The outbox holds what we
@@ -78,6 +86,96 @@ export function connectNotebookDb(accountId, { open = openNotebookDb } = {}) {
 export function __resetNotebookConnections() { _conns.clear() }
 
 /**
+ * Stamp "a PUT for this note is on the wire", BEFORE issuing it.
+ *
+ * ⛔ STORE-DIRECT AND MOUNT-INDEPENDENT, for the same reason `settleLandedSave`
+ * is: the whole point is that this survives the component. It must be AWAITED
+ * by the caller before the PUT goes out — a marker written after the request is
+ * a marker the drain can miss, which is the entire defect in miniature.
+ *
+ * ⛔ Never throws into a save path. A save must not fail because bookkeeping
+ * did; if the marker cannot be written the 409 self-supersede still covers the
+ * outcome, which is why that guard is terminal and this one is an optimisation.
+ */
+export async function beginInFlightSave({
+  accountId, noteId, baseUpdatedAt, connect = connectNotebookDb, now = Date.now(),
+} = {}) {
+  // ⛔⛔ §21 — SWITCHING THE WAVE OFF MUST WRITE NOTHING. The one-line rollback
+  // is only real if every store-direct entry point honours it. These three are
+  // mount-independent by design, so they are exactly the ones that would keep
+  // writing after the flag went false, and the §21 rail caught it the moment
+  // the settle was wired into the autosave path.
+  // ⛔ OFF STOPS PROCESSING — it has never been permission to delete or alter
+  // what a member already wrote, so this returns without touching the store.
+  if (!offlineEnabled()) return null
+  // ⛔ NO STORE, NO MARKER, AND NO WAITING FOR ONE. A private window or an old
+  // browser has nowhere to write this, and without the check the save would pay
+  // the full write budget on every keystroke-debounced attempt while waiting for
+  // a connection that can never open. Cheap, and it is the honest answer: the
+  // marker is an optimisation, and the 409 check still covers the outcome.
+  if (!offlineStorageAvailable()) return null
+  if (!accountId || !noteId) return null
+  const marker = markerFor({ sessionId: SESSION_ID, baseUpdatedAt, now })
+  if (!marker) return null
+  // ⛔⛔ BOUNDED. THE MARKER MUST PRECEDE THE PUT — BUT A SAVE MUST NEVER WAIT
+  // ON BOOKKEEPING, AND THIS IS THE ONE PLACE THOSE TWO RULES COLLIDE.
+  //
+  // ⚰️ Found by the existing rails, not by reading: awaiting this unbounded put
+  // the member's ability to save behind IndexedDB being responsive. A blocked
+  // upgrade, a stalled store, a browser under memory pressure — any of them
+  // would have stopped saves outright, and the failure would have looked like
+  // "the network is down" to a member whose network was fine.
+  //
+  // ⭐ SO THE MARKER IS BEST-EFFORT AND THE 409 CHECK IS TERMINAL. If the write
+  // does not land inside the budget the save proceeds without it; the worst
+  // case is that the drain claims the note and guard 2 recognises the server
+  // copy as ours. That is exactly why guard 2 asks the SERVER rather than
+  // trusting local state — it is the one guard that needs nothing to have
+  // worked beforehand.
+  //
+  // ⛔ The budget is a fraction of IN_FLIGHT_TTL_MS on purpose: a marker that
+  // took longer than this to write is already useless to a drain reading it.
+  try {
+    const db = await connect(accountId)
+    await putMeta(db, markerKeyFor(noteId), marker)
+    return marker
+  } catch { return null }
+}
+
+/**
+ * Clear the marker. ⛔ ON SUCCESS **AND** ON FAILURE — a save that 500s or is
+ * abandoned must not leave the note unsweepable until the TTL expires. The
+ * caller puts this in a `finally`, and this repo has already paid twice for a
+ * cleanup that lived only on the success branch.
+ */
+export async function endInFlightSave({ accountId, noteId, connect = connectNotebookDb } = {}) {
+  // ⛔⛔ §21 — SWITCHING THE WAVE OFF MUST WRITE NOTHING. The one-line rollback
+  // is only real if every store-direct entry point honours it. These three are
+  // mount-independent by design, so they are exactly the ones that would keep
+  // writing after the flag went false, and the §21 rail caught it the moment
+  // the settle was wired into the autosave path.
+  // ⛔ OFF STOPS PROCESSING — it has never been permission to delete or alter
+  // what a member already wrote, so this returns without touching the store.
+  if (!offlineEnabled()) return false
+  // ⛔ NO STORE, NO MARKER, AND NO WAITING FOR ONE. A private window or an old
+  // browser has nowhere to write this, and without the check the save would pay
+  // the full write budget on every keystroke-debounced attempt while waiting for
+  // a connection that can never open. Cheap, and it is the honest answer: the
+  // marker is an optimisation, and the 409 check still covers the outcome.
+  if (!offlineStorageAvailable()) return false
+  if (!accountId || !noteId) return false
+  try {
+    const db = await connect(accountId)
+    const current = await getMeta(db, markerKeyFor(noteId))
+    // ⛔ Only clear OUR OWN marker. Another session's in-flight save is not ours
+    // to declare finished, and clearing it would hand its note to the drain.
+    if (!current || current.sessionId !== SESSION_ID) return false
+    await putMeta(db, markerKeyFor(noteId), null)
+    return true
+  } catch { return false }
+}
+
+/**
  * ⭐⭐ A LANDED SAVE SETTLES THE QUEUE — AND IT MUST WORK AFTER UNMOUNT.
  *
  * ⚰️ WHY THIS IS NOT `markSynced`. `markSynced` routes through
@@ -105,9 +203,53 @@ export function __resetNotebookConnections() { _conns.clear() }
  *
  * @returns the landed baseline it settled on, or null if it could not
  */
+/**
+ * ⛔⛔ RECORDING A REVISION AS OURS IS NOT THE SAME ACT AS SETTLING THE QUEUE.
+ *
+ * ⚰️ Found by the property rail, 2026-09-10, in 12 of 18 door × ordering cases
+ * that every mechanism-level rail passed. When a door (folder/ticker/tags)
+ * cannot settle -- because the editor could not report local state, and
+ * refusing is the SAFE answer there -- the door's PUT has still moved the
+ * server revision. Nothing recorded that revision, so guard 2 later answered
+ * "not ours", and the drain forked the member's own note.
+ *
+ * ⭐ The two acts have different preconditions and must be callable separately:
+ *   · settling the queue needs EVIDENCE about local content
+ *   · recording a landing needs only that WE made the request
+ * Conflating them meant the safe answer to the first silently withheld the
+ * second.
+ */
+export async function recordLandedRevision({
+  accountId, noteId, updatedAt, connect = connectNotebookDb,
+} = {}) {
+  if (!offlineEnabled()) return null
+  if (!offlineStorageAvailable()) return null
+  const landed = usableBaseline(updatedAt)
+  if (!accountId || !noteId || !landed) return null
+  try {
+    const db = await connect(accountId)
+    await putMeta(db, landedKeyFor(noteId), withLanded(await getMeta(db, landedKeyFor(noteId)), landed))
+    return landed
+  } catch { return null }
+}
+
 export async function settleLandedSave({
   accountId, noteId, acked, current, updatedAt, connect = connectNotebookDb,
 } = {}) {
+  // ⛔⛔ §21 — SWITCHING THE WAVE OFF MUST WRITE NOTHING. The one-line rollback
+  // is only real if every store-direct entry point honours it. These three are
+  // mount-independent by design, so they are exactly the ones that would keep
+  // writing after the flag went false, and the §21 rail caught it the moment
+  // the settle was wired into the autosave path.
+  // ⛔ OFF STOPS PROCESSING — it has never been permission to delete or alter
+  // what a member already wrote, so this returns without touching the store.
+  if (!offlineEnabled()) return null
+  // ⛔ NO STORE, NO MARKER, AND NO WAITING FOR ONE. A private window or an old
+  // browser has nowhere to write this, and without the check the save would pay
+  // the full write budget on every keystroke-debounced attempt while waiting for
+  // a connection that can never open. Cheap, and it is the honest answer: the
+  // marker is an optimisation, and the 409 check still covers the outcome.
+  if (!offlineStorageAvailable()) return null
   const landed = usableBaseline(updatedAt)
   if (!accountId || !noteId || !landed) return null
   try {
@@ -137,6 +279,21 @@ export async function settleLandedSave({
       queuedAt: Date.now(),
     }
     await putNoteWithIntent(db, record, intent)
+    // ⛔ The save this marker was raised for has landed, so the marker comes
+    // down. A separate write, in a separate store — and the ordering is safe in
+    // the only direction that matters: the record is settled FIRST, so a drain
+    // reading in between sees a note that is still marked in-flight, declines,
+    // and picks it up next pass. The reverse order would open a window where
+    // the marker is down and the record not yet settled.
+    // ⛔ Only ours, for the same reason endInFlightSave checks.
+    const held = await getMeta(db, markerKeyFor(noteId))
+    if (held && held.sessionId === SESSION_ID) await putMeta(db, markerKeyFor(noteId), null)
+    // ⛔ RECORD THE LANDING. This is the only place that knows a revision came
+    // back from the server as ours, and guard 2's second arm is unable to fire
+    // without it — a member who kept typing after the save landed has a body
+    // that no longer matches the server's, so the revision is the only remaining
+    // evidence that nobody else wrote.
+    await putMeta(db, landedKeyFor(noteId), withLanded(await getMeta(db, landedKeyFor(noteId)), landed))
     return landed
   } catch {
     // ⛔ Never throws into a save path. A queue that could not be settled is

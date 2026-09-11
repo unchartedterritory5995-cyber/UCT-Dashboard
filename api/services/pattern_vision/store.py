@@ -88,8 +88,22 @@ def init_db() -> None:
             active_set_n INTEGER, judged INTEGER, skipped INTEGER, capped INTEGER,
             render_failed INTEGER, errored INTEGER,
             aborted INTEGER, abort_ticker TEXT,
-            paid_calls INTEGER, spend_usd REAL)""")
+            paid_calls INTEGER, spend_usd REAL,
+            dropped_stale INTEGER, truncated INTEGER, hygiene_skipped TEXT,
+            dropped_no_bars INTEGER, evidence_hist TEXT)""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_vsl_slot ON vision_slot_log(slot_start)")
+        # Migrate the slot table already live on the prod volume: CREATE TABLE
+        # IF NOT EXISTS cannot add a column to a table that already exists, so
+        # without this the hygiene columns would silently never be written --
+        # the same class of invisibility the table was built to remove.
+        # Idempotent by the `not in` guard: ADD COLUMN would raise "duplicate
+        # column name" on the second boot, and init_db runs on EVERY judge run.
+        slot_cols = {r[1] for r in c.execute("PRAGMA table_info(vision_slot_log)").fetchall()}
+        for _c, _type in (("dropped_stale", "INTEGER"), ("truncated", "INTEGER"),
+                          ("hygiene_skipped", "TEXT"),
+                          ("dropped_no_bars", "INTEGER"), ("evidence_hist", "TEXT")):
+            if _c not in slot_cols:
+                c.execute(f"ALTER TABLE vision_slot_log ADD COLUMN {_c} {_type}")
         # Per-ticker detail for the two paths that are otherwise invisible.
         # Bounded on purpose: only render_failed and errored rows land here, so
         # a healthy slot writes none. asof_date is recorded per ticker because
@@ -187,6 +201,38 @@ def get_confirmed(ticker, tf="D", today: str | None = None) -> list[dict]:
         return [_decode(r) for r in rows]
 
 
+def count_evaluated(ticker, tf="D", today: str | None = None) -> int:
+    """How many setups were EVALUATED for this ticker inside D1's window --
+    confirmed and rejected alike (Seam 24).
+
+    ⛔ DELIBERATELY THE SAME WINDOW AND THE SAME LATEST-PER-KEY RULE AS
+    `get_confirmed`, minus only its `confirmed=1` clause. If the two diverged,
+    a surface could say "4 setups evaluated, none confirmed" while
+    get_confirmed was serving one -- two authorities over one population, which
+    is the defect this file has already paid for. Keep them edited together.
+
+    Why it exists: a member seeing an empty Technical tab cannot tell
+    "we looked and nothing qualified" from "nothing was ever looked at". About
+    80% of judged tickers showed the empty state on 2026-09-10, and some of
+    those had REJECTED verdicts sitting in the table with a full Opus rationale
+    that no non-admin surface can read. This exposes the COUNT only -- never the
+    rejection reasons, which stay admin-only.
+    """
+    floor = confirmed_window_floor(today)
+    with connect() as c:
+        r = c.execute(
+            "SELECT COUNT(*) FROM pattern_verdicts v "
+            "WHERE v.ticker=? AND v.tf=? "
+            "  AND v.asof_date = (SELECT MAX(v2.asof_date) FROM pattern_verdicts v2 "
+            "                     WHERE v2.ticker=v.ticker AND v2.tf=v.tf "
+            "                       AND v2.setup=v.setup) "
+            "  AND v.asof_date >= ?",
+            (ticker.upper(), tf, floor)).fetchone()
+        return int(r[0] or 0)
+
+
+
+
 def cost_today(day: str) -> float:
     with connect() as c:
         r = c.execute("SELECT COALESCE(SUM(cost_usd),0) FROM vision_cost_log WHERE day=?",
@@ -221,6 +267,8 @@ SLOT_COLUMNS = [
     "evidence_min", "evidence_max", "evidence_distinct", "active_set_n",
     "judged", "skipped", "capped", "render_failed", "errored",
     "aborted", "abort_ticker", "paid_calls", "spend_usd",
+    "dropped_stale", "truncated", "hygiene_skipped",
+    "dropped_no_bars", "evidence_hist",
 ]
 
 

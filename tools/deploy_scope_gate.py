@@ -240,6 +240,32 @@ def main() -> int:
         return self_check()
 
     old, new = sys.argv[1], sys.argv[2]
+
+    # ⛔ R-J — THE CHECKLIST IS MEASURED ON THE SHA THAT IS PUSHED.
+    #
+    # Deploys #4 and #4b each shipped a tip the full suite had not run on. Both
+    # deltas were genuinely inert -- two Python tool files no JS test imports,
+    # then one comment block -- and both times the argument that they were inert
+    # was PROSE, in the deploy record, written by the party who wanted them to be
+    # inert. `--measured <sha>` turns that argument into a check, and prints the
+    # verdict in the same output as the tier so it cannot be reported separately
+    # from the decision it licenses.
+    if "--measured" in sys.argv:
+        import gate_comment_only
+        measured = sys.argv[sys.argv.index("--measured") + 1]
+        ok, offenders, changed = gate_comment_only.prove(measured, new)
+        code = [f for f in changed if f.endswith(gate_comment_only.CODE_SUFFIXES)]
+        print("")
+        print(f"⭐ R-J — delta between the MEASURED sha {measured[:9]} and {new[:9]}:")
+        print(f"   {len(changed)} file(s) changed, {len(code)} of them code")
+        for f in offenders:
+            print(f"     ⛔ CODE DIFFERS  {f}")
+        if ok:
+            print("   ✅ comment/doc-only — the measurement at the older sha stands.")
+        else:
+            print("   ⛔ NOT comment-only — re-run journal-2-0 at rest AND the Wave Q1")
+            print("      rails on the PUSHED sha, at minimum.")
+
     files = [f for f in sh("git", "diff", "--name-only", f"{old}..{new}").splitlines() if f.strip()]
 
     print(f"=== {old[:9]}..{new[:9]} — {len(files)} file(s) ===")

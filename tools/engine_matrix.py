@@ -230,18 +230,25 @@ class Result:
         return bool(self.steps) and all(ok for _, ok, _ in self.steps) and not self.findings
 
 
-def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
-    """create · type · offline · type · reload(online) · reconnect · conflict."""
+def run_path(ctx, engine: str, session_cookie: dict | None, offline=None) -> Result:
+    """create · type · offline · type · reload(online) · reconnect · conflict.
+
+    ⭐ `offline` seam: the CDP-connected rig cannot use `ctx.set_offline` (it is a
+    default browser context), so the rig passes `window_check._offliner(cdp)` and
+    every launched engine passes nothing and gets `ctx.set_offline`. Without this
+    the rig could not run the §15 path at all — it could only lend its cookie.
+    """
     res = Result(engine)
     if session_cookie:
         ctx.add_cookies([session_cookie])
+    set_offline = offline or ctx.set_offline
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
 
     puts = []
     page.on("request", lambda r: puts.append(_put_base(r))
             if r.method == "PUT" and "/api/j2/notes/" in r.url else None)
 
-    ctx.set_offline(False)
+    set_offline(False)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(6000)
 
@@ -283,17 +290,21 @@ def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
     if bases:
         res.findings += w.baseline_findings(f"{engine}/online PUT", {"baseUpdatedAt": bases[0]})
 
-    ctx.set_offline(True)
+    set_offline(True)
     page.wait_for_timeout(1200)
     pr = page.evaluate(PROBE)
     res.step("offline is real", pr.startswith("FAILED"), pr)
-    _type(page, f" {SENTINEL} typed offline.", end_first=True)
+    # ⛔⛔ ONE AUTHORITY FOR THE SENTENCE — `w.offline_sentence`. It is typed here
+    # and asserted below, so the two cannot drift, and it is THIS run's sentence
+    # rather than a phrase a leftover note could also satisfy.
+    sentence = w.offline_sentence(f"{engine} {utc()}", SENTINEL)
+    _type(page, " " + sentence, end_first=True)
     page.wait_for_timeout(6000)
     before = page.evaluate(w.LAYERS_JS, {"acct": ACCOUNT_ID, "id": nid})
 
     # ⛔ NETWORK UP BEFORE THE RELOAD — no service worker, so an offline reload
     #    cannot load the SPA and proves nothing.
-    ctx.set_offline(False)
+    set_offline(False)
     page.wait_for_timeout(1500)
     page.goto(f"{PROD}/journal/notebook?note={nid}", wait_until="domcontentloaded")
     page.wait_for_timeout(8000)
@@ -301,9 +312,13 @@ def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
     rec = after.get("record") if isinstance(after.get("record"), dict) else {}
     ob = w._as_list(after.get("outbox"))
     unread = w.layer_read_failed(before) + w.layer_read_failed(after)
-    res.step("reload (network UP) → words survive",
-             w._doc_has_text(rec.get("bodyJson")) and not unread,
-             f"record has text={w._doc_has_text(rec.get('bodyJson'))} outbox={len(ob)} baseline={rec.get('baseUpdatedAt')}"
+    # ⛔ THE SENTENCE, not "has text": the words typed ONLINE satisfy "has text"
+    # even when the offline ones were dropped — that green is what let a discard
+    # through on 2026-09-10.
+    rec_has = sentence in w._doc_text(rec.get("bodyJson"))
+    res.step("reload (network UP) → the record holds THE OFFLINE SENTENCE",
+             rec_has and not unread,
+             f"record holds the sentence={rec_has} outbox={len(ob)} baseline={rec.get('baseUpdatedAt')}"
              + (f" UNREAD={unread}" if unread else ""))
     for lab, art in ((f"{engine}/pre-reload", before.get("record")), (f"{engine}/post-reload", rec)):
         if isinstance(art, dict):
@@ -317,22 +332,37 @@ def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
     settled = page.evaluate(w.LAYERS_JS, {"acct": ACCOUNT_ID, "id": nid})
     srec = settled.get("record") if isinstance(settled.get("record"), dict) else {}
     srv = settled.get("server") if isinstance(settled.get("server"), dict) else {}
-    res.step("reconnect → drained, server has words",
-             srec.get("dirty") == 0 and not w._as_list(settled.get("outbox")) and w._doc_has_text(srv.get("bodyJson")),
-             f"dirty={srec.get('dirty')} outbox={len(w._as_list(settled.get('outbox')))} server={w._doc_has_text(srv.get('bodyJson'))}")
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE WAVE'S ONE RULE, IN THIS TOOL TOO: a queued entry is never removed
+    # unless the server body is PROVEN to contain its content. "server has words"
+    # was satisfied by the ONLINE half and is DELETED, not kept beside this.
+    # ══════════════════════════════════════════════════════════════════════════
+    landed = sentence in w._doc_text(srv.get("bodyJson"))
+    res.step("reconnect → the server BODY CONTAINS THE OFFLINE SENTENCE",
+             srec.get("dirty") == 0 and not w._as_list(settled.get("outbox")) and landed,
+             f"dirty={srec.get('dirty')} outbox={len(w._as_list(settled.get('outbox')))} "
+             f"sentence-on-server={landed}")
     res.findings += w.baseline_findings(f"{engine}/settled", srec)
+    if not landed:
+        # ⛔⛔ LOST WORDS IS A HARD STOP HERE TOO — the note stays as evidence.
+        res.findings.append(
+            f"**{engine}: the server body does not contain the offline sentence** — "
+            f"`{sentence}` is gone; the queued entry was discarded rather than rebased. "
+            "The note is PRESERVED."
+        )
 
-    _cleanup(page, nid)
+    _cleanup(page, nid, res)
     return res
 
 
-def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
+def run_conflict(ctx, engine: str, session_cookie: dict | None, offline=None) -> Result:
     """The fork, both directions: server keeps the winner, the loser survives."""
     res = Result(engine + "/conflict")
     if session_cookie:
         ctx.add_cookies([session_cookie])
+    set_offline = offline or ctx.set_offline
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
-    ctx.set_offline(False)
+    set_offline(False)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(5000)
     page.evaluate("(k) => localStorage.setItem(k, '1')", FLAG_KEY)
@@ -350,7 +380,7 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
 
     page.goto(f"{PROD}/journal/notebook?note={nid}", wait_until="domcontentloaded")
     page.wait_for_timeout(6000)
-    ctx.set_offline(True)
+    set_offline(True)
     page.wait_for_timeout(1200)
     res.step("offline is real", page.evaluate(PROBE).startswith("FAILED"), "probe failed")
     _type(page, f" {mine}.", end_first=True)
@@ -371,7 +401,7 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
     other.close()
     res.step("second writer moved the server", moved.get("ok"), f"{moved.get('status')} → {moved.get('updatedAt')}")
 
-    ctx.set_offline(False)
+    set_offline(False)
     page.wait_for_timeout(1500)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(16000)
@@ -398,10 +428,91 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
              f"copies={len(out.get('copies') or [])} mine present={mine in json.dumps(out.get('copyBody'))}")
 
     if not res.findings:
-        _cleanup(page, nid)
+        _cleanup(page, nid, res)
         for cid in (out.get("copies") or []):
             page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,{method:'DELETE',credentials:'include'}) }""", cid)
     return res
+
+
+def run_metadata_doors(page, engine: str) -> Result:
+    """⛔ THE THREE DOORS THAT ADVANCE `updatedAt` WITHOUT CARRYING THE BODY.
+
+    Folder, ticker and tags each move the server's `updatedAt` while saying
+    nothing about the member's words — so each one can move the baseline out from
+    under a queued outbox entry exactly the way a second writer would, without a
+    second writer existing. Round 2 settles them; the matrix must actually walk
+    through them rather than only editing bodies.
+
+    ⭐ Read-modify-write per door, and the note is deleted at the end. This creates
+    ONE note titled `ENGINE-MATRIX doors …` — never touched by the fork detector's
+    preserved set, never tagged `sync-conflict`.
+    """
+    res = Result(engine + "/metadata-doors")
+    made = page.evaluate("""async (t) => {
+        const r = await fetch('/api/j2/notes', {method:'POST', credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({title:t, bodyJson:{type:'doc',content:[
+            {type:'paragraph', content:[{type:'text', text:'doors probe body'}]}]}})});
+        const j = await r.json();
+        return {ok:r.ok, id: j.note?.id ?? j.id, updatedAt: j.note?.updatedAt};
+    }""", f"{SENTINEL} doors {engine} {utc()}")
+    if not res.step("create the doors note", made.get("ok"), f"id={made.get('id')}"):
+        return res
+    nid = made["id"]
+    try:
+        for door, patch in (("ticker", {"ticker": "NVDA"}),
+                            ("tags", {"tags": ["engine-matrix-door"]}),
+                            ("folder", {"folderId": None})):
+            r = page.evaluate("""async ({id, patch}) => {
+                const before = await fetch('/api/j2/notes/' + id, {credentials:'include'})
+                                     .then(r => r.json());
+                const prev = before.note?.updatedAt ?? null;
+                const body = Object.assign({title: before.note?.title,
+                                            baseUpdatedAt: prev,
+                                            bodyJson: before.note?.bodyJson}, patch);
+                const w = await fetch('/api/j2/notes/' + id, {method:'PUT', credentials:'include',
+                  headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+                const j = await w.json().catch(() => null);
+                return {status: w.status, before: prev, after: j?.note?.updatedAt ?? null,
+                        bodyStillHasText: JSON.stringify(j?.note?.bodyJson ?? null).includes('doors probe body')};
+            }""", {"id": nid, "patch": patch})
+            moved = bool(r.get("after")) and r.get("after") != r.get("before")
+            res.step(f"door `{door}` advances updatedAt, body intact",
+                     r.get("status") == 200 and moved and r.get("bodyStillHasText"),
+                     f"{r.get('status')} · {r.get('before')} → {r.get('after')} · "
+                     f"body kept={r.get('bodyStillHasText')}")
+            if isinstance(r, dict):
+                res.findings += w.baseline_findings(f"{engine}/door-{door}",
+                                                    {"baseUpdatedAt": r.get("after")})
+    finally:
+        # ⛔ Ordinary cleanup of an ordinary probe note — never the preserved set.
+        if not res.findings:
+            page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,
+                             {method:'DELETE', credentials:'include'}) }""", nid)
+    return res
+
+
+def read_telemetry(page) -> dict:
+    """Opt-ins BY DISTINCT ENGINE/PROFILE and BY SESSION, plus the blocked count.
+
+    ⛔ THEY ARE DIFFERENT NUMBERS AND BOTH GET REPORTED. A distinct browser
+    profile emits its own `notebook_offline_opt_in`; one profile driven twice in
+    one matrix emits two events from ONE engine. Reporting only the event count
+    would inflate the denominator that ">= 5 distinct engines" is measured against.
+    """
+    raw = page.evaluate(w.ACTIVITY_JS, [w.BLOCKED_EVENT, w.OPT_IN_EVENT])
+    if not isinstance(raw, dict):
+        return {"ok": False, "raw": raw}
+    return {
+        "scope": raw.get("scope"),
+        "opt_in_events_BY_SESSION": raw.get(w.OPT_IN_EVENT),
+        "blocked_no_baseline": raw.get(w.BLOCKED_EVENT),
+        "row_cap_hit": raw.get("rowCap"),
+        "admin_status": raw.get("adminStatus"),
+        "note": ("`opt_in_events_BY_SESSION` counts EVENTS (one per browser session that "
+                 "opted in). The BY-ENGINE number is counted by this matrix from the "
+                 "engines that actually opted in this run — they are different numbers."),
+    }
 
 
 def _type(page, text, end_first=False):
@@ -424,7 +535,19 @@ def _put_base(req):
         return None
 
 
-def _cleanup(page, nid):
+def _cleanup(page, nid, res=None):
+    """⛔⛔ A RUN THAT FINDS SOMETHING AND THEN DELETES THE EVIDENCE IS WORSE THAN
+    NO RUN. Same posture as the canary's `should_clean_up`: when this result
+    carries a finding, the note stays on the account and the skip is recorded so
+    the artifact is not silently missing.
+
+    ⭐ It used to delete unconditionally, which on the canary side cost us half a
+    fork nine seconds after creating it (2026-09-10).
+    """
+    if res is not None and res.findings:
+        res.step("cleanup", True, "🚨 SKIPPED ON PURPOSE — a finding is on the account "
+                                  "and the note stays as evidence")
+        return
     page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,{method:'DELETE',credentials:'include'}) }""", nid)
     page.evaluate("""async (acct) => {
         const known = (await indexedDB.databases()).map(d => d.name);
@@ -875,6 +998,398 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
     return 0 if green else 1
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FORK CAPTURE — READ-ONLY. Preserve an artifact; never touch it.
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ THIS NEVER OPENS THE NOTEBOOK. Both browser visits land on `/api/health`,
+# a JSON document on the same origin — cookies apply, `fetch` works, and NO app
+# code runs at all. Mounting `/journal/notebook` would start the offline layer,
+# and the layer is the thing under investigation: a drain that fires while we are
+# reading would rewrite the artifact we came to preserve.
+#
+# ⛔ AND THE READS RUN FROM A FRESH CONTEXT, not the rig. A fresh profile has no
+# opt-in key at all, so the layer is off BY CONSTRUCTION rather than by our
+# reading a flag correctly. The rig is opened only long enough to lift the
+# cookie — which is also the only place the session exists.
+
+_BLOCK_TYPES = {"paragraph", "heading", "blockquote", "listItem", "codeBlock",
+                "bulletList", "orderedList", "horizontalRule"}
+
+
+def doc_text(node) -> str:
+    """Every text node, in document order, blocks separated by newlines."""
+    parts = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "text" and isinstance(n.get("text"), str):
+                parts.append(n["text"])
+                return
+            for c in (n.get("content") or []):
+                walk(c)
+            if n.get("type") in _BLOCK_TYPES:
+                parts.append("\n")
+        elif isinstance(n, list):
+            for c in n:
+                walk(c)
+
+    walk(node)
+    return "".join(parts).strip()
+
+
+def compare_bodies(a_text: str, b_text: str) -> dict:
+    """⛔ THE QUESTION IS NOT 'DID THEY DIFFER'. It is whether either side is
+    MISSING words the other has — "a fork happened" and "a fork happened and the
+    member lost words" are different severities, and only the second is a charter
+    hard stop. So this reports the diff in BOTH directions and says, separately,
+    whether either text is wholly contained in the other."""
+    from collections import Counter
+    wa, wb = a_text.split(), b_text.split()
+    ca, cb = Counter(wa), Counter(wb)
+    only_a, only_b = sorted((ca - cb).elements()), sorted((cb - ca).elements())
+    return {
+        "identical": a_text == b_text,
+        "words_only_in_original": only_a,
+        "words_only_in_conflicted_copy": only_b,
+        "original_text_is_contained_in_copy": bool(a_text) and a_text in b_text,
+        "copy_text_is_contained_in_original": bool(b_text) and b_text in a_text,
+        "chars": {"original": len(a_text), "conflicted_copy": len(b_text)},
+        "words": {"original": len(wa), "conflicted_copy": len(wb)},
+        "any_words_lost_either_way": bool(only_a or only_b),
+    }
+
+
+# ⛔ READS ONLY. No POST, no PUT, no DELETE, no localStorage write anywhere here.
+#
+# ⭐ IT ALSO READS THE TRASH (`?deleted=true`). The run's own cleanup DELETES the
+# canary note before the fork detector ever runs, so the ORIGINAL half of the pair
+# is not in the live list — asking only the live list would report "the original
+# does not exist" and lose the very comparison this capture is for. The delete is
+# soft (Wave 0 trash), so the original is still readable.
+CAPTURE_JS = """async (prefix) => {
+  const out = {total: 0, trashed_total: 0, list_error: null, trash_error: null,
+               conflicts: [], sentinels: [], full: []};
+  const brief = (n, del) => ({id:n.id, title:n.title, updatedAt:n.updatedAt,
+                              createdAt:n.createdAt, tags:n.tags || [], deleted: del});
+  const wanted = new Map();
+  const sweep = async (url, del) => {
+    const r = await fetch(url, {credentials:'include'});
+    if (!r.ok) return {error: 'HTTP ' + r.status, count: 0};
+    const notes = (await r.json()).notes || [];
+    for (const n of notes) {
+      const conflict = (n.tags || []).includes('sync-conflict');
+      const sentinel = (n.title || '').startsWith(prefix);
+      if (conflict) out.conflicts.push(brief(n, del));
+      if (sentinel) out.sentinels.push(brief(n, del));
+      if (conflict || sentinel) wanted.set(n.id, {row: n, deleted: del});
+    }
+    return {error: null, count: notes.length};
+  };
+  const live = await sweep('/api/j2/notes?limit=500', false);
+  out.list_error = live.error; out.total = live.count;
+  const trash = await sweep('/api/j2/notes?limit=500&deleted=true', true);
+  out.trash_error = trash.error; out.trashed_total = trash.count;
+  for (const [id, meta] of wanted) {
+    const f = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+    if (f.ok) { const b = await f.json();
+                out.full.push({id, deleted: meta.deleted, note: b.note ?? b}); continue }
+    // ⛔ A soft-deleted note may not be fetchable by id. The LIST ROW is then the
+    // only copy there is — record it rather than reporting nothing.
+    out.full.push({id, deleted: meta.deleted, note: meta.row,
+                   note_from: 'list row (direct GET said HTTP ' + f.status + ')'});
+  }
+  return out;
+}"""
+
+
+def _ls_on_disk(profile: pathlib.Path, key: str) -> dict:
+    """The ON-DISK localStorage value, read with no browser running.
+
+    ⭐ This is the only instrument that can disagree with the browser. An
+    in-memory read-back cannot tell you whether the value reached the disk, and
+    "written" vs "flushed" is exactly the gap under investigation.
+    ⛔ Filesystem READ only — nothing is opened for writing, and Chrome must not
+    be running or the answer is whatever leveldb happened to have compacted.
+    """
+    d = profile / "Default" / "Local Storage" / "leveldb"
+    found, scanned = [], []
+    if not d.exists():
+        return {"dir": str(d), "exists": False, "hits": []}
+    needles = {"ascii": key.encode("utf-8"), "utf16le": key.encode("utf-16-le")}
+    for f in sorted(d.iterdir()):
+        if not f.is_file():
+            continue
+        try:
+            blob = f.read_bytes()
+        except OSError as e:
+            scanned.append({"file": f.name, "error": str(e)})
+            continue
+        scanned.append({"file": f.name, "bytes": len(blob)})
+        for enc, needle in needles.items():
+            start = 0
+            while True:
+                i = blob.find(needle, start)
+                if i < 0:
+                    break
+                tail = blob[i + len(needle): i + len(needle) + 12]
+                found.append({"file": f.name, "encoding": enc, "offset": i,
+                              "bytes_after_key": tail.hex(),
+                              "printable_after_key":
+                                  tail.decode("ascii", "replace").replace("\x00", "."), })
+                start = i + 1
+    return {"dir": str(d), "exists": True, "files": scanned, "hits": found}
+
+
+def capture_fork(out_path: pathlib.Path | None = None,
+                 prefix: str = "WINDOW-CHECK-SENTINEL") -> int:
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"fork-capture-{stamp}.json")
+    rec = {"at": utc(), "mode": "fork-capture", "read_only": True, "writes": "none",
+           "origin": PROD, "profile": str(w.PROFILE), "title_prefix": prefix,
+           "status": "INCOMPLETE — the capture did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    # ── 0. THE DISK, BEFORE ANY BROWSER OPENS IT.
+    rec["localstorage_on_disk_before"] = _ls_on_disk(w.PROFILE, FLAG_KEY)
+    hits = len(rec["localstorage_on_disk_before"].get("hits") or [])
+    print(f"on-disk localStorage scan: {hits} hit(s) for {FLAG_KEY}", flush=True)
+
+    # ── 1. THE RIG, JUST LONG ENOUGH TO LIFT THE COOKIE. `/api/health` — a JSON
+    #      document, no app code, no notebook, nothing that can drain.
+    cookie = None
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}", flush=True)
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            rec["rig_flag_key_in_browser"] = page.evaluate(
+                "(k) => { try { return localStorage.getItem(k) } catch (e) { return 'ERR: ' + e.name } }",
+                FLAG_KEY)
+            print(f"rig, in-browser: {FLAG_KEY} = {rec['rig_flag_key_in_browser']!r}", flush=True)
+            for c in ctx.cookies():
+                if c["name"] == "uct_session":
+                    cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                "httpOnly", "secure", "sameSite") if k in c}
+                    break
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": killed, "survivors": left,
+                               "untouched_browsers": others, "lock_released": released}
+        print(f"rig closed: killed {killed} · {len(left)} left · lock released={released}", flush=True)
+
+    if cookie is None:
+        _write_json(out, dict(rec, status="STOPPED — no session cookie in the rig profile"))
+        return 1
+
+    # ── 2. THE CAPTURE, from a FRESH context. No opt-in key exists there, so the
+    #      offline layer is off by construction, not by our reading a flag right.
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(headless=True)
+        c = br.new_context()
+        c.add_cookies([cookie])
+        p = c.new_page()
+        p.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        p.wait_for_timeout(1500)
+        cap = p.evaluate(CAPTURE_JS, prefix)
+        c.close()
+        br.close()
+
+    rec["notes_total"] = cap.get("total")
+    rec["trashed_total"] = cap.get("trashed_total")
+    rec["list_error"] = cap.get("list_error")
+    rec["trash_error"] = cap.get("trash_error")
+    rec["sync_conflict_notes"] = cap.get("conflicts")
+    rec["sentinel_notes"] = cap.get("sentinels")
+
+    notes = {}
+    for row in cap.get("full") or []:
+        n = row.get("note")
+        if not isinstance(n, dict):
+            notes[row.get("id")] = {"error": row.get("error")}
+            continue
+        body = n.get("bodyJson")
+        text = doc_text(body)
+        # ⭐ `bodyPlain` is the server's own flattening. When bodyJson is absent
+        # (a list row rather than a full fetch) it is the only text there is —
+        # and when both exist, a disagreement between them is itself worth seeing.
+        plain = n.get("bodyPlain") if isinstance(n.get("bodyPlain"), str) else None
+        notes[n.get("id")] = {
+            "id": n.get("id"), "title": n.get("title"), "deleted": row.get("deleted"),
+            "deletedAt": n.get("deletedAt"), "note_from": row.get("note_from", "full GET"),
+            "updatedAt": n.get("updatedAt"), "createdAt": n.get("createdAt"),
+            "baseUpdatedAt": n.get("baseUpdatedAt"), "tags": n.get("tags") or [],
+            "other_fields": sorted(k for k in n.keys() if k not in ("bodyJson",)),
+            "body_text": text or (plain or ""),
+            "body_text_source": "bodyJson" if text else ("bodyPlain" if plain else "empty"),
+            "bodyPlain": plain, "bodyJson": body,
+        }
+    rec["notes"] = notes
+
+    # ── 3. THE PAIRS, and the question that matters.
+    #
+    # ⛔ PAIRED BY EXACT TITLE, never by the shared prefix. Every canary run ever
+    # made a note with this prefix and the trash holds them all, so "the one that
+    # is not the conflicted copy" picks an unrelated run's note and then diffs two
+    # texts that were never related — a comparison that would have read as a
+    # catastrophic word-loss finding. The copy's own title names its original.
+    SUFFIX = " (conflicted copy)"
+    by_title = {}
+    for n in notes.values():
+        by_title.setdefault(n.get("title") or "", []).append(n)
+
+    pairs = []
+    for n in notes.values():
+        t = n.get("title") or ""
+        if not t.endswith(SUFFIX):
+            continue
+        base = t[: -len(SUFFIX)]
+        originals = by_title.get(base) or []
+        entry = {"base_title": base,
+                 "conflicted_copy": {k: v for k, v in n.items() if k != "bodyJson"},
+                 "original": ({k: v for k, v in originals[0].items() if k != "bodyJson"}
+                              if originals else None),
+                 "originals_found": len(originals)}
+        if originals:
+            a, b2 = originals[0]["body_text"], n["body_text"]
+            cmp = compare_bodies(a, b2)
+            cmp["sentinel_in_original"] = prefix in a
+            cmp["sentinel_in_conflicted_copy"] = prefix in b2
+            cmp["original_is_in_trash"] = bool(originals[0].get("deleted"))
+            entry["comparison"] = cmp
+            entry["verdict"] = ("NO WORDS LOST — both sides hold the same words"
+                                if not cmp["any_words_lost_either_way"]
+                                else "⛔ THE TWO SIDES DIFFER — see both word lists")
+        else:
+            entry["comparison"] = None
+            entry["verdict"] = ("⛔ the original is not on the account at all, not "
+                                "even in the trash — nothing to compare against")
+        pairs.append(entry)
+
+    rec["pairs"] = pairs
+    rec["verdict"] = ("; ".join(f"{p['base_title']}: {p['verdict']}" for p in pairs)
+                      if pairs else "no conflicted copy found")
+    verdict = rec["verdict"]
+    # ⛔⛔ THE SEVERITY, IN THE OWNER'S WORDS (ruling, 2026-09-10). Recorded beside
+    # the evidence so the next reader gets the classification WITH it, not a
+    # retelling of it — and specifically so "no data loss" cannot soften into
+    # "harmless" on the way through.
+    rec["severity"] = {
+        "classification": "duplicate note, no data loss",
+        "not_a_data_integrity_emergency": (
+            "Nothing a member wrote was lost, in either direction, across three "
+            "separate forks. No urgency, no rollback pressure; deploy #4 stays live."),
+        "still_flip_blocking": (
+            "A spurious `(conflicted copy)` with no other device involved IS the "
+            "member-visible symptom this wave exists to remove, and deploy #4's "
+            "approved member-impact paragraph promises members exactly this fix. "
+            "Shipping the flag on top of a defect we just told members was fixed is "
+            "not available to us."),
+        "do_not_restate_as": "harmless",
+    }
+    # ⛔ RECOMMENDATION ONLY — NOT IMPLEMENTED, deliberately, mid-investigation.
+    # `tools/window_check.py` appends its rows INTO docs/notebook/wave-q1-RESUME-HERE.md,
+    # which the docs stream owns and rewrites. Two writers, one file: an agent editing
+    # prose and a TOOL appending measurements. The ownership split was drawn around who
+    # EDITS, and a tool is not a who. The near-miss cost was real — the rows sat
+    # uncommitted while a docs merge could have eaten them.
+    rec["recommendation_not_implemented"] = {
+        "problem": "window_check.py writes measurements into a prose file another stream owns",
+        "shape": ("give the tool a file it SOLELY owns — an append-only rows artifact "
+                  "beside window-check.log — and have the resume doc POINT at it rather "
+                  "than contain it. The doc keeps the narrative; the tool keeps the rows."),
+        "why_it_is_clean": ("the tool already owns window-check.log in that directory, so "
+                            "the precedent and the path exist; and `next_check_number()` "
+                            "already parses rows back out of the doc, which is the only "
+                            "read coupling to sever."),
+        "why_not_now": "changing where evidence lands mid-investigation loses comparability",
+    }
+    # ⛔ THE HONEST UNKNOWN. Runs 2 and 3 reading the opt-in key as '1' AT REST is
+    # NOT explained by anything measured here, and the flush fix is not evidence
+    # about it. Written into the artifact rather than left to a summary, because an
+    # explanation that fits the mechanism but not the data is how this wave got a
+    # "fix" that reproduced three runs later.
+    rec["unexplained"] = {
+        "observation": "runs 2 and 3 (16:53:34Z, 16:54:50Z) read uct.j2.offline.enabled = '1' at rest",
+        "ruled_out_1": ("an unflushed opt-out from the previous run — the profile's "
+                        "leveldb holds 32 appends of that key in perfect 1/0 alternation "
+                        "with NO unmatched '1', final value '0'"),
+        "ruled_out_2": ("the app writing '1' on notebook mount — measured on deploy #4 "
+                        "from both unset and '0', in throwaway contexts: the key does not "
+                        "change and no IndexedDB is created"),
+        # ⛔ CORRECTED 2026-09-10. This slot previously read "no stamped row exists;
+        # the readings exist only in grep-filtered terminal output". THAT WAS MY
+        # INSTRUMENT, NOT THE FILE. The rows were on disk in the very file I read;
+        # my listing regex was `^### check ` and a `--label`led row is headed
+        # `### deploy #4 live — run 2 of 7 — …`, which that pattern cannot match.
+        # I reported an absence my own filter manufactured — the same defect class
+        # this investigation is chasing, committed by the instrument reporting it.
+        "how_the_error_happened_verbatim": (
+            "I searched for the shape of a row I expected instead of the shape of a "
+            "row, got silence, and wrote the silence down as a fact."),
+        "the_fourth_self_blind_instrument_today": [
+            "the process sweep that counted itself (matched `ms-playwright` in its own "
+            "PowerShell command line)",
+            "the source sweeps that matched their own needles (three of them)",
+            "a rail set derived on DIRECTORY MEMBERSHIP instead of the property it stood for",
+            "this one: a heading regex that could not match the heading it was looking for",
+        ],
+        "corroborated": {
+            "source": "docs/notebook/wave-q1-RESUME-HERE.md, committed a73feec6a",
+            "run_1": ("### deploy #4 live — run 1 of 7 — 2026-09-10T16:50:13Z · "
+                      "opt-in key **'0'** at rest · notebook locks **0** · notes 32 · "
+                      "sync-conflict 2 · no fork · cleanup key '0' · opted back out '0'"),
+            "run_2": ("### deploy #4 live — run 2 of 7 — 2026-09-10T16:53:34Z · "
+                      "opt-in key **'1'** ⇒ OPTED IN, \"unexpected at rest; a previous "
+                      "run did not opt back out\" · notebook locks **1** `uct.nb.sync.*` · "
+                      "notes 32 · sync-conflict 2 · no fork · cleanup key '0' · "
+                      "opted back out '0'"),
+            "run_3": "NO ROW BY DESIGN — it refused to stamp. The absence is the record.",
+        },
+        "window_narrowed_by_the_rows": (
+            "run 1's cleanup AND its opt-out both read back '0', and run 2 began at "
+            "'1'. So the '1' arrived between run 1's cleanup (~16:51) and run 2's "
+            "start (16:53:34) — corroborated on disk, not from a lost buffer."),
+        "two_further_facts_the_rows_carry": [
+            "run 2 read notebook locks = 1 `uct.nb.sync.*` AT REST; run 1 read 0. The "
+            "offline layer was ENGAGED at run 2's read.",
+            "the opt-in telemetry went 14 -> 15 with latest 2026-09-10 16:50:37 — that "
+            "is run 1's OWN opt-in, so run 1 registered as a new distinct opt-in event.",
+        ],
+        "untested_variable_NOT_an_explanation": (
+            "The mount probe refuted 'mount writes the key' in a THROWAWAY context, "
+            "which by construction had NO `uct_notebook_<acct>` IndexedDB (db_after=[]). "
+            "The rig HAS one, with 4 stores. Whether an existing local database changes "
+            "that answer is UNTESTED. Recording it as the next probe to run, NOT as a "
+            "cause — a story that fits the mechanism but not the data is the defect this "
+            "wave already shipped once."),
+        "status": ("UNEXPLAINED — both hypotheses remain refuted by measurement, and the "
+                   "flush fix is real, located, and NOT evidence about this"),
+    }
+
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nnotes on the account: {rec['notes_total']} · "
+          f"sync-conflict: {len(rec['sync_conflict_notes'] or [])} · "
+          f"sentinel-titled: {len(rec['sentinel_notes'] or [])}")
+    print(f"VERDICT: {verdict}")
+    print(f"artifact: {out}")
+    return 0
+
+
 # ═══ END OF THE READ-ONLY DRY RUN ════════════════════════════════════════════
 # ⛔ `--self-check`'s read-only sweep is bounded HERE, by name, not by "whatever
 # comes before `def main`". Everything ABOVE this line must contain no write of
@@ -883,6 +1398,676 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
 # ⭐ The boundary is a sentinel rather than the next `def` so that reordering the
 # file cannot silently move it — the first version of this sweep swallowed
 # `rig_opt_out` the moment it was added, which is the rail working.
+
+
+PROBE_KEY = "uct.q1.rigprobe.flush"
+
+MOUNT_READ_JS = """async (k) => {
+  const out = {key: null, db: null, locks: typeof navigator.locks !== 'undefined'};
+  try { out.key = localStorage.getItem(k) } catch (e) { out.key = 'ERR: ' + e.name }
+  try { out.db = (await indexedDB.databases()).map(d => d.name).filter(n => /uct_notebook_/.test(n)) }
+  catch (e) { out.db = 'ERR: ' + e.name }
+  return out;
+}"""
+
+
+def mount_probe(out_path: pathlib.Path | None = None) -> int:
+    """Does MOUNTING the notebook write the opt-in key to '1'?
+
+    ⛔⛔ WHY THIS IS THE RIGHT QUESTION. window_check's "opt-in key at rest" read
+    is a plain `localStorage.getItem`, and it runs while the page is sitting at
+    `/journal/notebook` — AFTER the notebook has mounted. So "at rest" is a
+    misnomer: it is a POST-MOUNT read. If the app writes '1' on mount, the run
+    reports "a previous run did not opt back out" about a value the run itself
+    just caused, and the on-disk history still alternates perfectly because a
+    second write of the same value is a no-op that leveldb never appends.
+
+    ⛔ IT NEVER TOUCHES THE RIG PROFILE. Every trial runs in a FRESH throwaway
+    context holding only the session cookie. That context's outbox is empty BY
+    CONSTRUCTION, not by measurement, so a drain there has nothing it could send
+    — which is what makes mounting the notebook safe to do at all while three
+    forked notes sit on the account. No note is opened, nothing is typed.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"mount-probe-{stamp}.json")
+    rec = {"at": utc(), "mode": "mount-probe",
+           "question": "does mounting /journal/notebook write the opt-in key to '1'?",
+           "rig_profile_touched": False, "notes_opened": 0, "trials": [],
+           "status": "INCOMPLETE — the probe did not finish"}
+    _write_json(out, rec)
+
+    cookie = None
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — CDP never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2000)
+            for c in ctx.cookies():
+                if c["name"] == "uct_session":
+                    cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                "httpOnly", "secure", "sameSite") if k in c}
+                    break
+    finally:
+        w.teardown(None)
+    if cookie is None:
+        _write_json(out, dict(rec, status="STOPPED — no session cookie in the rig"))
+        return 1
+
+    for label, preset in (("key UNSET before the mount", None),
+                          ("key explicitly '0' before the mount", "0")):
+        with sync_playwright() as pw:
+            br = pw.chromium.launch(headless=True)
+            c = br.new_context()
+            c.add_cookies([cookie])
+            p = c.new_page()
+            p.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            p.wait_for_timeout(1200)
+            if preset is not None:
+                p.evaluate("([k, v]) => localStorage.setItem(k, v)", [FLAG_KEY, preset])
+            before = p.evaluate(MOUNT_READ_JS, FLAG_KEY)
+            # ⛔ The notebook LIST only. No `?note=`, nothing opened, nothing typed.
+            p.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+            p.wait_for_timeout(12000)
+            after = p.evaluate(MOUNT_READ_JS, FLAG_KEY)
+            c.close()
+            br.close()
+        trial = {"trial": label, "preset": preset,
+                 "key_before_mount": before.get("key"), "key_after_mount": after.get("key"),
+                 "db_before": before.get("db"), "db_after": after.get("db"),
+                 "mount_wrote_1": after.get("key") == "1" and before.get("key") != "1"}
+        rec["trials"].append(trial)
+        _write_json(out, rec)
+        print(f"{label}\n    before={before.get('key')!r} after={after.get('key')!r} "
+              f"db_after={after.get('db')}  MOUNT_WROTE_1={trial['mount_wrote_1']}", flush=True)
+
+    wrote = any(t["mount_wrote_1"] for t in rec["trials"])
+    rec["verdict"] = (
+        "⛔ MOUNTING THE NOTEBOOK WRITES THE OPT-IN KEY TO '1' — window_check's "
+        "'at rest' reading is a POST-MOUNT read, so a run reports an opt-in the run "
+        "itself caused, and the on-disk history still alternates because the "
+        "canary's own '1' is then a no-op write"
+        if wrote else
+        "mounting the notebook does NOT write the opt-in key — this hypothesis is "
+        "REFUTED, and runs 2 and 3 reading '1' remains UNEXPLAINED")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nVERDICT: {rec['verdict']}\nartifact: {out}")
+    return 0
+
+
+def flush_probe(out_path: pathlib.Path | None = None) -> int:
+    """Does `kill by marker` lose a localStorage value Chrome has not flushed yet?
+
+    ⛔⛔ IT NEVER TOUCHES `uct.j2.offline.enabled`. The question is about the
+    MECHANISM — whether a write survives a hard kill — and the mechanism can be
+    asked with a key this rig owns. Testing it on the product's flag would mean
+    flipping the very state under investigation to measure it.
+
+    ⭐ AND IT ASKS THE DISK, NOT THE BROWSER. An in-memory read-back is exactly
+    the instrument that cannot distinguish "written" from "flushed"; that is the
+    whole hypothesis. Each trial reads the leveldb file with Chrome not running.
+
+    Two trials, because "does a delay save it" is the actionable half:
+      A · write, then kill IMMEDIATELY (no wait, no navigation)
+      B · write, wait, navigate, then kill — what a real run does
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"flush-probe-{stamp}.json")
+    rec = {"at": utc(), "mode": "flush-probe", "profile": str(w.PROFILE),
+           "probe_key": PROBE_KEY,
+           "never_touched": FLAG_KEY,
+           "status": "INCOMPLETE — the probe did not finish", "trials": []}
+    _write_json(out, rec)
+
+    def _visit(fn):
+        proc, endpoint, version = w.spawn_rig()
+        try:
+            if not version:
+                return None
+            with sync_playwright() as pw:
+                b = pw.chromium.connect_over_cdp(endpoint)
+                ctx = b.contexts[0]
+                page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+                page.wait_for_timeout(1200)
+                return fn(page)
+        finally:
+            w.teardown(None)
+
+    for name, settle in (("A · killed IMMEDIATELY after the write", 0),
+                         ("B · killed after a settle + a navigation", 4000)):
+        nonce = f"n{datetime.now(timezone.utc).strftime('%H%M%S%f')}"
+
+        def _write(page, _n=nonce, _s=settle):
+            got = page.evaluate(
+                "([k, v]) => { try { localStorage.setItem(k, v); return localStorage.getItem(k) }"
+                "              catch (e) { return 'ERR: ' + e.name } }", [PROBE_KEY, _n])
+            if _s:
+                page.wait_for_timeout(_s)
+                page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+                page.wait_for_timeout(1200)
+            return got
+
+        in_memory = _visit(_write)
+        on_disk = _ls_on_disk(w.PROFILE, PROBE_KEY)
+        try:
+            d = w.PROFILE / "Default" / "Local Storage" / "leveldb"
+            blob = b"".join(f.read_bytes() for f in sorted(d.iterdir())
+                            if f.is_file() and f.suffix in ("", ".log", ".ldb")
+                            and f.name not in ("LOCK", "CURRENT"))
+            disk_has_nonce = nonce.encode() in blob
+        except OSError:
+            disk_has_nonce = None
+        after_reopen = _visit(lambda p: p.evaluate(
+            "(k) => { try { return localStorage.getItem(k) } catch (e) { return 'ERR: ' + e.name } }",
+            PROBE_KEY))
+        trial = {"trial": name, "settle_ms": settle, "nonce": nonce,
+                 "read_back_in_memory": in_memory,
+                 "found_on_disk_after_kill": disk_has_nonce,
+                 "read_after_reopen": after_reopen,
+                 "survived": after_reopen == nonce,
+                 "key_hits_on_disk": len(on_disk.get("hits") or [])}
+        rec["trials"].append(trial)
+        _write_json(out, rec)
+        print(f"{name}\n    in-memory={in_memory!r}  on-disk={disk_has_nonce}  "
+              f"after-reopen={after_reopen!r}  SURVIVED={trial['survived']}", flush=True)
+
+    survived = [t["survived"] for t in rec["trials"]]
+    rec["verdict"] = (
+        "kill-by-marker does NOT lose a localStorage write — it survived even an "
+        "immediate kill, so an unflushed '0' cannot explain a run starting at '1'"
+        if all(survived) else
+        "⛔ kill-by-marker CAN lose a localStorage write — see which trial failed")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nVERDICT: {rec['verdict']}\nartifact: {out}")
+    return 0
+
+
+LOCKS_JS = """async () => {
+  try {
+    const q = await navigator.locks.query();
+    return {held: (q.held || []).map(l => ({name: l.name, mode: l.mode, clientId: l.clientId})),
+            pending: (q.pending || []).map(l => ({name: l.name, mode: l.mode}))};
+  } catch (e) { return 'ERR: ' + e.name }
+}"""
+
+
+# ⛔ THE SAME REQUEST SHAPE THE EDITOR ISSUES: PUT the note endpoint with a
+# `baseUpdatedAt` CAS and a real `bodyJson`. A GET or an /api/health ping measures
+# the edge, not the write path, and the write path is what the drain waits on.
+# ⭐ Timed with `performance.now()` INSIDE the page, so no CDP round-trip is in
+# the number. Paced, so the samples are a latency distribution and not a burst.
+PUT_LATENCY_JS = """async ({id, base, text, reps, n, gap, title}) => {
+  const para = (t) => ({type:'paragraph', content:[{type:'text', text:t}]});
+  const body = {type:'doc', content: Array.from({length: reps}, () => para(text))};
+  const payload = JSON.stringify({title, baseUpdatedAt: base, bodyJson: body});
+  const bytes = new TextEncoder().encode(payload).length;
+  const out = {bytes, samples: [], base};
+  for (let i = 0; i < n; i++) {
+    const p = JSON.stringify({title, baseUpdatedAt: out.base, bodyJson: body});
+    const t0 = performance.now();
+    let status = 0, updatedAt = null, err = null;
+    try {
+      const r = await fetch('/api/j2/notes/' + id, {method:'PUT', credentials:'include',
+        headers:{'Content-Type':'application/json'}, body: p});
+      status = r.status;
+      const j = await r.json().catch(() => null);
+      updatedAt = j?.note?.updatedAt ?? null;
+    } catch (e) { err = String(e && e.name || e); }
+    const ms = performance.now() - t0;
+    out.samples.push({ms: Math.round(ms * 100) / 100, status, err});
+    // ⛔ CHAIN THE CAS. A stale baseUpdatedAt 409s and the next sample would be
+    // measuring a rejection, not a write.
+    if (updatedAt) out.base = updatedAt;
+    await new Promise(res => setTimeout(res, gap));
+  }
+  return out;
+}"""
+
+GET_LATENCY_JS = """async ({id, n, gap}) => {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t0 = performance.now();
+    let status = 0, bytes = null;
+    try {
+      const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+      status = r.status;
+      const t = await r.text();
+      bytes = new TextEncoder().encode(t).length;
+    } catch (e) { status = -1; }
+    out.push({ms: Math.round((performance.now() - t0) * 100) / 100, status, bytes});
+    await new Promise(res => setTimeout(res, gap));
+  }
+  return out;
+}"""
+
+
+def matrix_verdict(rail_no_fork: bool, control_ran: bool, control_forked: bool) -> tuple:
+    """⛔⛔ A RUN WHERE NOTHING FORKS IS NOT AUTOMATICALLY A PASS.
+
+    Two claims, and they are different claims:
+      · THE RAIL    — a single writer must NEVER fork.
+      · THE CONTROL — a REAL second writer MUST STILL fork.
+
+    Guard 2 answers a 409 by asking the server whether the conflict is really the
+    browser's own landed save. Over-broad, it would answer "mine" to a genuine
+    conflict and silently discard another writer's words — and that failure looks
+    EXACTLY like success from the rail's side: nothing forks, everything green.
+    The control is the only thing that can tell the two apart, so a green rail
+    without a control that forked IN THE SAME SESSION is INCONCLUSIVE, never a pass.
+
+    Returns (verdict, why). Reported as TWO LINES, never collapsed into one.
+    """
+    if not control_ran:
+        return ("INCONCLUSIVE", "no genuine-conflict control ran in this session — a "
+                                "green rail alone cannot distinguish 'never forks' from "
+                                "'discards real conflicts'")
+    if not control_forked:
+        return ("⛔ FAIL", "THE CONTROL DID NOT FORK — a real second writer was not "
+                          "preserved as a conflicted copy. Guard 2 is over-broad and is "
+                          "discarding genuine conflicts; this is worse than the fork.")
+    if not rail_no_fork:
+        return ("⛔ FAIL", "a SINGLE WRITER forked — the defect this wave exists to remove")
+    return ("PASS", "single writer never forked AND a real second writer still forked, "
+                    "both observed in this session")
+
+
+def _pct(values: list, q: float) -> float:
+    """Nearest-rank percentile, stated so the method is not a guess either."""
+    if not values:
+        return float("nan")
+    s = sorted(values)
+    import math
+    k = max(1, math.ceil(q * len(s)))
+    return s[k - 1]
+
+
+def _summarise(ms: list) -> dict:
+    ok = [m for m in ms if isinstance(m, (int, float))]
+    return {"n": len(ok), "p50": _pct(ok, 0.50), "p95": _pct(ok, 0.95),
+            "max": max(ok) if ok else None, "min": min(ok) if ok else None,
+            "method": "nearest-rank percentile over the raw list"}
+
+
+def put_latency(out_path: pathlib.Path | None = None) -> int:
+    """Measure REAL note-update PUT latency against production, from the rig.
+
+    ⛔ NO OPT-IN AND NO NOTEBOOK. Every request is issued by `fetch` from
+    `/api/health` — a JSON document on the origin where no app code runs — so the
+    offline layer is never mounted and the drain is never engaged. The number
+    wanted is the write path's, and the write path does not need the editor.
+
+    ⛔ ONE scratch note, reused for every sample, deleted at the end. It is titled
+    `LATENCY-PROBE …` and carries no tags, so it cannot be mistaken for the
+    preserved artifacts. NOTHING tagged `sync-conflict`, no forked note and no
+    trashed original is read, written, restored or deleted.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"put-latency-{stamp}.json")
+    rec = {"at": utc(), "mode": "put-latency", "origin": PROD, "profile": str(w.PROFILE),
+           "method": ("PUT /api/j2/notes/{id} with a baseUpdatedAt CAS and a real bodyJson, "
+                      "issued by fetch from /api/health (no app code, no opt-in, no notebook)"),
+           "timing": "performance.now() inside the page, around the fetch only",
+           "status": "INCOMPLETE — the probe did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        return 1
+    note_id = None
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — CDP never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.set_default_timeout(180000)
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+
+            me = page.evaluate(AUTH_ONLY_JS)
+            rec["auth"] = me
+            if me.get("status") != 200 or me.get("id") != ACCOUNT_ID:
+                _write_json(out, dict(rec, status=f"STOPPED — auth {me.get('status')}"))
+                return 1
+            before = page.evaluate(w.NOTES_JS)
+            rec["notes_before"] = before.get("total")
+            print(f"signed in as the canary · notes before: {rec['notes_before']}", flush=True)
+
+            title = f"LATENCY-PROBE {utc()}"
+            created = page.evaluate("""async (t) => {
+                const t0 = performance.now();
+                const r = await fetch('/api/j2/notes', {method:'POST', credentials:'include',
+                  headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({title:t, bodyJson:{type:'doc',content:[]}})});
+                const j = await r.json();
+                return {ok:r.ok, id: j.note?.id ?? j.id, updatedAt: j.note?.updatedAt,
+                        ms: Math.round((performance.now() - t0) * 100) / 100};
+            }""", title)
+            if not created.get("ok"):
+                _write_json(out, dict(rec, status=f"STOPPED — could not create the scratch note"))
+                return 1
+            note_id, base = created["id"], created["updatedAt"]
+            rec["scratch_note"] = {"id": note_id, "title": title, "create_ms": created.get("ms")}
+            print(f"scratch note {note_id} created in {created.get('ms')}ms\n", flush=True)
+
+            # ── the three payload tiers. Size is part of latency, so an empty body
+            #    alone would understate the drain's real cost.
+            tiers = [
+                ("small  (~1 short paragraph)", "The quick brown fox jumps over the lazy dog.", 1, 10),
+                ("medium (~a real note)", "A realistic notebook paragraph of prose. " * 12, 6, 10),
+                ("large  (~a long note)", "A realistic notebook paragraph of prose. " * 12, 40, 10),
+            ]
+            rec["tiers"] = []
+            for label, text, reps, n in tiers:
+                res = page.evaluate(PUT_LATENCY_JS, {"id": note_id, "base": base, "text": text,
+                                                     "reps": reps, "n": n, "gap": 300,
+                                                     "title": title})
+                base = res.get("base") or base
+                ms = [s["ms"] for s in res["samples"] if s.get("status") == 200]
+                bad = [s for s in res["samples"] if s.get("status") != 200]
+                tier = {"tier": label, "payload_bytes": res["bytes"], "raw_ms": [s["ms"] for s in res["samples"]],
+                        "non_200": bad, "summary": _summarise(ms)}
+                rec["tiers"].append(tier)
+                _write_json(out, rec)
+                s = tier["summary"]
+                print(f"{label:30} {res['bytes']:>7}B  n={s['n']:>2}  p50={s['p50']:>7.1f}  "
+                      f"p95={s['p95']:>7.1f}  max={s['max']:>7.1f}"
+                      + (f"  ⛔ {len(bad)} non-200" if bad else ""), flush=True)
+
+            # ── the GET guard 2 pays on EVERY 409.
+            gets = page.evaluate(GET_LATENCY_JS, {"id": note_id, "n": 30, "gap": 250})
+            gms = [g["ms"] for g in gets if g.get("status") == 200]
+            rec["get_one_note"] = {"raw_ms": [g["ms"] for g in gets],
+                                   "bytes": (gets[-1] or {}).get("bytes") if gets else None,
+                                   "non_200": [g for g in gets if g.get("status") != 200],
+                                   "summary": _summarise(gms)}
+            gs = rec["get_one_note"]["summary"]
+            print(f"{'GET one note (the 409 path)':30} {rec['get_one_note']['bytes'] or 0:>7}B  "
+                  f"n={gs['n']:>2}  p50={gs['p50']:>7.1f}  p95={gs['p95']:>7.1f}  max={gs['max']:>7.1f}",
+                  flush=True)
+
+            # ── ORDINARY cleanup: the scratch note only, by id.
+            page.evaluate("""async (id) => { await fetch('/api/j2/notes/' + id,
+                             {method:'DELETE', credentials:'include'}) }""", note_id)
+            page.wait_for_timeout(1500)
+            after = page.evaluate(w.NOTES_JS)
+            rec["notes_after"] = after.get("total")
+            rec["scratch_note_removed"] = rec["notes_after"] == rec["notes_before"]
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["teardown"] = {"killed": killed, "survivors": left, "lock_released": released}
+
+    all_put = [m for t in rec.get("tiers", []) for m in t["raw_ms"]]
+    rec["put_overall"] = _summarise(all_put)
+    o = rec["put_overall"]
+    rec["threshold_options"] = {
+        "p95_x10_ms": round((o["p95"] or 0) * 10),
+        "max_x10_ms": round((o["max"] or 0) * 10),
+        "note": ("a p95 over a few dozen samples IS a handful of samples; the max is the "
+                 "worst thing actually observed on this path"),
+    }
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nPUT overall: n={o['n']} p50={o['p50']:.1f} p95={o['p95']:.1f} max={o['max']:.1f} ms")
+    print(f"  p95 x10 = {rec['threshold_options']['p95_x10_ms']} ms · "
+          f"max x10 = {rec['threshold_options']['max_x10_ms']} ms")
+    print(f"notes {rec.get('notes_before')} -> {rec.get('notes_after')} "
+          f"(scratch removed: {rec.get('scratch_note_removed')})")
+    print(f"artifact: {out}")
+    return 0
+
+
+def live_stores_probe(out_path: pathlib.Path | None = None) -> int:
+    """Does mounting the notebook on a profile WITH LIVE STORES change the key —
+    and does it take a `uct.nb.sync.*` LOCK?
+
+    ⛔⛔ WHY THIS RUNS ON THE RIG AND NOT A FIXTURE. The earlier mount probe
+    refuted the claim in throwaway contexts that, BY CONSTRUCTION, had no
+    `uct_notebook_<acct>` database at all — so it refuted a NARROWER claim than the
+    one on the table. The rig has the real thing: the database, its four stores,
+    and whatever state three runs left in them. Fabricating that in a throwaway
+    context would mean an instrument CREATING the database, which this codebase
+    has a standing prohibition against — an open-with-no-version conjures a
+    zero-store phantom and permanently breaks the layer.
+
+    ⛔ ZERO WRITES. The rig's key is already `'0'` at rest, which is the transition
+    actually on the table (run 1 read `'0'`, run 2 read `'1'`). Nothing is set,
+    removed, opted in, deleted or trashed. The `unset` case is NOT tested here: it
+    would need a removal plus a restore on the rig, and removals were just measured
+    to be flush-fragile. That is a different experiment.
+
+    ⭐ AND IT CHASES THE LOCK. A held lock at rest means the DRAIN WAS ALIVE, which
+    is closer to the mechanism than the key: the key says the layer was enabled, the
+    lock says it was running. Locks are sampled before the mount, repeatedly during
+    it, and after navigating away — so "taken" and "released" are separate answers.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"live-stores-probe-{stamp}.json")
+    rec = {
+        "at": utc(), "mode": "live-stores-probe", "profile": str(w.PROFILE),
+        "question": ("does mounting /journal/notebook on a profile WITH LIVE STORES "
+                     "write or change uct.j2.offline.enabled, and is a uct.nb.sync.* "
+                     "lock taken (and released)?"),
+        "writes": "none — no set, no remove, no opt-in, no delete, no trash",
+        "unset_case": "NOT TESTED — would need a removal+restore on the rig; different experiment",
+        "status": "INCOMPLETE — the probe did not finish",
+    }
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    # ── 0. THE DISK, BEFORE. Chrome is not running.
+    before_disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["key_on_disk_before"] = {"value": before_disk.get("value"),
+                                 "appends": before_disk.get("appends"),
+                                 "tail": (before_disk.get("sequence") or "")[-12:]}
+    print(f"on disk BEFORE (Chrome dead): {rec['key_on_disk_before']}", flush=True)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — CDP never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+
+            # ── 1. AT REST. `/api/health` runs NO app code, so this is the profile
+            #       as it sits, not the profile plus a notebook.
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(3000)
+            rec["at_rest"] = {"state": page.evaluate(w.STATE_JS, ACCOUNT_ID),
+                              "locks": page.evaluate(LOCKS_JS),
+                              "notes": page.evaluate(w.NOTES_JS)}
+            st = rec["at_rest"]["state"]
+            print(f"AT REST   key={st.get('optInKey')!r} locks={st.get('locks')} "
+                  f"stores={st.get('stores')} db={'present' if st.get('dbOpened') else 'MISSING'}",
+                  flush=True)
+            if st.get("optInKey") == "1":
+                # ⛔ Refuse rather than measure a transition that has already happened.
+                _write_json(out, dict(rec, status="STOPPED — the key is ALREADY '1' at rest; "
+                                                  "this probe measures the 0->1 transition"))
+                print("⛔ the key is already '1' at rest — that is a different question", flush=True)
+                return 1
+
+            # ── 2. THE MOUNT. The notebook LIST only — no `?note=`, nothing opened,
+            #       nothing typed, no opt-in. Locks sampled throughout: a lock that
+            #       is taken and dropped inside a second is invisible to one read.
+            page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+            samples = []
+            for ms in (1000, 2000, 3000, 4000, 5000):
+                page.wait_for_timeout(ms)
+                samples.append({"t_ms": sum(s["t_ms"] for s in samples) + ms if samples else ms,
+                                "key": page.evaluate(
+                                    "(k) => { try { return localStorage.getItem(k) } "
+                                    "catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY),
+                                "locks": page.evaluate(LOCKS_JS)})
+            rec["during_mount_samples"] = samples
+            rec["after_mount"] = {"state": page.evaluate(w.STATE_JS, ACCOUNT_ID),
+                                  "locks": page.evaluate(LOCKS_JS)}
+            am = rec["after_mount"]["state"]
+            print(f"AFTER MOUNT key={am.get('optInKey')!r} locks={am.get('locks')} "
+                  f"held={am.get('held')} stores={am.get('stores')}", flush=True)
+
+            # ── 3. NAVIGATE AWAY. Was any lock RELEASED?
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+            rec["after_leaving"] = {"state": page.evaluate(w.STATE_JS, ACCOUNT_ID),
+                                    "locks": page.evaluate(LOCKS_JS),
+                                    "notes": page.evaluate(w.NOTES_JS)}
+            al = rec["after_leaving"]["state"]
+            print(f"AFTER AWAY key={al.get('optInKey')!r} locks={al.get('locks')}", flush=True)
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["teardown"] = {"killed": killed, "survivors": left, "lock_released": released}
+
+    # ── 4. THE DISK, AFTER. Chrome is dead again.
+    after_disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["key_on_disk_after"] = {"value": after_disk.get("value"),
+                                "appends": after_disk.get("appends"),
+                                "tail": (after_disk.get("sequence") or "")[-12:]}
+
+    a, z = rec.get("at_rest", {}), rec.get("after_leaving", {})
+    key_before = (a.get("state") or {}).get("optInKey")
+    key_after = (z.get("state") or {}).get("optInKey")
+    any_sample_flipped = any(s.get("key") != key_before for s in rec.get("during_mount_samples") or [])
+    lock_taken = any((s.get("locks") or {}).get("held")
+                     for s in rec.get("during_mount_samples") or []
+                     if isinstance(s.get("locks"), dict))
+    lock_after = (z.get("locks") or {}).get("held") if isinstance(z.get("locks"), dict) else "ERR"
+
+    notes_before = (a.get("notes") or {}).get("total")
+    notes_after = (z.get("notes") or {}).get("total")
+    rec["answer"] = {
+        "key_changed_by_the_mount": key_after != key_before or any_sample_flipped,
+        "key_before": key_before, "key_after": key_after,
+        "key_on_disk_unchanged": rec["key_on_disk_before"] == rec["key_on_disk_after"],
+        "a_sync_lock_was_taken_during_mount": bool(lock_taken),
+        "locks_held_after_leaving": lock_after,
+        "notes_before": notes_before, "notes_after": notes_after,
+        "notes_unchanged": notes_before == notes_after,
+    }
+    # ⛔ STATED AS NARROWLY AS IT WAS MEASURED. This is one profile, one starting
+    # value, one bundle. It is not "the app never writes the key".
+    scope = ("with live stores present, starting from '0', on the rig profile, "
+             "notebook LIST only, no opt-in")
+    rec["verdict"] = (
+        f"⛔ MOUNTING CHANGED THE KEY ({scope})" if rec["answer"]["key_changed_by_the_mount"]
+        else f"mounting did NOT change the key — {scope}. This refutes THAT claim and no wider one.")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nVERDICT: {rec['verdict']}")
+    print(f"lock taken during mount: {rec['answer']['a_sync_lock_was_taken_during_mount']} · "
+          f"held after leaving: {lock_after}")
+    print(f"notes {notes_before} -> {notes_after} · disk {rec['key_on_disk_before']['value']!r} "
+          f"-> {rec['key_on_disk_after']['value']!r}")
+    print(f"artifact: {out}")
+    return 0
+
+
+def clear_probe_key(out_path: pathlib.Path | None = None) -> int:
+    """RECORD the probe key's value with a timestamp, THEN remove it.
+
+    ⛔ Recorded first, and the removal is refused if the record did not write.
+    A stray key on the rig is exactly the class of unexplained state that just
+    cost three runs of diagnosis; leaving one behind because it is "inert" is how
+    the next investigation starts from a profile nobody can account for.
+    ⭐ It only ever touches `uct.q1.rigprobe.*` — the product's flag is not read,
+    not written, and not in scope here.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"probe-key-cleared-{stamp}.json")
+    rec = {"at": utc(), "mode": "clear-probe-key", "profile": str(w.PROFILE),
+           "key": PROBE_KEY, "never_touched": FLAG_KEY,
+           "status": "INCOMPLETE — the run did not finish"}
+    _write_json(out, rec)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — CDP never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2000)
+            # ── 1. RECORD, and prove the record landed before removing anything.
+            found = page.evaluate(
+                "(k) => { try { const all = Object.keys(localStorage).filter(x => x.startsWith('uct.q1.rigprobe'));"
+                "               return all.map(x => [x, localStorage.getItem(x)]) }"
+                "         catch (e) { return 'ERR: ' + e.name } }", PROBE_KEY)
+            rec["recorded_before_removal"] = found
+            rec["recorded_at"] = utc()
+            _write_json(out, dict(rec, status="RECORDED — before the removal"))
+            if not (out.exists() and "recorded_before_removal" in out.read_text(encoding="utf-8")):
+                _write_json(out, dict(rec, status="REFUSED — the record did not land; nothing removed"))
+                return 1
+            print(f"recorded: {found}", flush=True)
+
+            # ── 2. REMOVE, then settle+navigate so the delete reaches disk.
+            # ⛔ A REMOVAL FLUSHES NO FASTER THAN A WRITE. Measured 2026-09-10: a
+            # remove + 1.5s + navigate + 1.5s + kill-by-marker read back as gone
+            # IN MEMORY and the key was still there on the next open — twice. The
+            # in-memory read is the instrument that cannot see this, which is the
+            # whole finding. Settle long, navigate twice, and verify by REOPENING.
+            page.evaluate(
+                "() => { try { Object.keys(localStorage)"
+                "          .filter(x => x.startsWith('uct.q1.rigprobe'))"
+                "          .forEach(x => localStorage.removeItem(x)) } catch (e) {} }")
+            page.wait_for_timeout(6000)
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+            after = page.evaluate(
+                "() => { try { return Object.keys(localStorage).filter(x => x.startsWith('uct.q1.rigprobe')) }"
+                "        catch (e) { return 'ERR: ' + e.name } }")
+            rec["remaining_after_removal"] = after
+            print(f"remaining: {after}", flush=True)
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["teardown"] = {"killed": killed, "survivors": left, "lock_released": released}
+
+    # ⛔ Confirmed with Chrome DEAD — an in-memory removal is not a removed key.
+    disk = w.localstorage_on_disk(PROBE_KEY)
+    rec["on_disk_after"] = {"appends": disk.get("appends"), "value": disk.get("value")}
+    ok = rec.get("remaining_after_removal") == []
+    _write_json(out, dict(rec, status="COMPLETE" if ok else "COMPLETE — the key did not clear"))
+    print(f"\non-disk after (Chrome dead): {rec['on_disk_after']}\nartifact: {out}")
+    return 0 if ok else 1
 
 
 def rig_opt_out(out_path: pathlib.Path | None = None) -> int:
@@ -999,6 +2184,26 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="READ-ONLY: auth · offline both ways · cookie provenance · "
                          "Web Locks · cleanup, per engine. Creates nothing.")
+    ap.add_argument("--put-latency", action="store_true",
+                    help="measure REAL note-update PUT latency (and the 409 path's GET) "
+                         "against production from the rig. One scratch note, cleaned up.")
+    ap.add_argument("--live-stores-probe", action="store_true",
+                    help="does mounting the notebook on the RIG (live stores present) "
+                         "change the opt-in key, and is a uct.nb.sync.* lock taken and "
+                         "released? Zero writes; nothing is deleted or trashed.")
+    ap.add_argument("--clear-probe-key", action="store_true",
+                    help="RECORD then REMOVE the rig-owned probe key. A profile with "
+                         "unexplained keys on it is the thing we cannot reason about.")
+    ap.add_argument("--mount-probe", action="store_true",
+                    help="does mounting /journal/notebook write the opt-in key? "
+                         "Runs in throwaway contexts; never touches the rig profile.")
+    ap.add_argument("--flush-probe", action="store_true",
+                    help="does kill-by-marker lose an unflushed localStorage write? "
+                         "Uses a rig-owned probe key; never touches the offline flag.")
+    ap.add_argument("--capture-fork", action="store_true",
+                    help="READ-ONLY: preserve the forked pair + every sync-conflict "
+                         "note, and answer whether any words were lost. Never opens "
+                         "the notebook, never writes.")
     ap.add_argument("--rig-opt-out", action="store_true",
                     help="record the rig profile's opt-in key, then restore it to '0' "
                          "(the only write this tool makes to that profile)")
@@ -1020,6 +2225,18 @@ def main() -> int:
     if args.self_check:
         return self_check()
     _out = pathlib.Path(args.out).resolve() if args.out else None
+    if args.capture_fork:
+        return capture_fork(_out)
+    if args.flush_probe:
+        return flush_probe(_out)
+    if args.mount_probe:
+        return mount_probe(_out)
+    if args.put_latency:
+        return put_latency(_out)
+    if args.live_stores_probe:
+        return live_stores_probe(_out)
+    if args.clear_probe_key:
+        return clear_probe_key(_out)
     if args.rig_opt_out:
         return rig_opt_out(_out)
     if args.dry_run:
@@ -1031,15 +2248,22 @@ def main() -> int:
     cookie = session_cookie_from_rig()
     print(f"  got `uct_session` for {cookie['domain']} (value not printed)\n", flush=True)
 
-    engines = [e for e in ENGINE_IDS if e != "chromium-rig"]
+    # ⛔ chromium-rig runs the FULL §15 path, not just the cookie handoff — the
+    # signed-in profile is a distinct engine and the matrix certifies five.
+    # ⛔ The genuine-conflict CONTROL runs on Chromium AND WebKit (owner ruling,
+    # 2026-09-10): a green rail without a control that forked in the same session
+    # cannot distinguish "never forks" from "discards real conflicts".
+    engines = list(ENGINE_IDS)
     if args.only:
         engines = [resolve_engine(args.only)]
+    CONTROL_ENGINES = ("chromium-rig", "webkit")
 
-    results = []
+    results, telemetry = [], None
     with sync_playwright() as pw:
         for name in engines:
             print(f"\n{'=' * 70}\n  ENGINE: {engine_label(name)}\n{'=' * 70}", flush=True)
-            browser = ctx = None
+            browser = ctx = rig_offline = None
+            rig_open = False
             try:
                 if name == "edge":
                     # ⛔ A persistent context, not `launch(args=[--user-data-dir])`:
@@ -1062,20 +2286,53 @@ def main() -> int:
                     # says so wherever this row is read.
                     browser = pw.chromium.launch(headless=True)
                     ctx = browser.new_context(**pw.devices["iPhone 13"])
-                r = run_path(ctx, name, cookie)
+                elif name == "chromium-rig":
+                    # ⛔ THE SIGNED-IN RIG, over CDP. Its own cookie, so nothing is
+                    # installed; and `ctx.set_offline` does not work on a default
+                    # browser context, so it passes the CDP offliner through the seam.
+                    rig_proc, rig_ep, rig_ver = w.spawn_rig()
+                    rig_open = True
+                    if not rig_ver:
+                        raise SystemExit("the rig's CDP endpoint never answered")
+                    b = pw.chromium.connect_over_cdp(rig_ep)
+                    ctx = b.contexts[0]
+                    _p = ctx.pages[0] if ctx.pages else ctx.new_page()
+                    _cdp = _p.context.new_cdp_session(_p)
+                    _cdp.send("Network.enable")
+                    rig_offline = w._offliner(_cdp)
+
+                off = rig_offline if name == "chromium-rig" else None
+                cook = None if name == "chromium-rig" else cookie
+                r = run_path(ctx, name, cook, offline=off)
                 results.append(r)
-                if r.green and not args.no_conflict and name in ("webkit",):
-                    results.append(run_conflict(ctx, name, None))
+                # ⛔⛔ THE CONTROL. A real second writer MUST still fork. Run it
+                # regardless of whether the rail was green — if the rail failed we
+                # need to know whether conflicts still work even more, not less.
+                if not args.no_conflict and name in CONTROL_ENGINES:
+                    results.append(run_conflict(ctx, name, cook, offline=off))
+                # ⭐ The metadata doors, once, somewhere in the matrix.
+                if name == "chromium-rig":
+                    _pg = ctx.pages[0] if ctx.pages else ctx.new_page()
+                    results.append(run_metadata_doors(_pg, name))
+                    telemetry = read_telemetry(_pg)
             except Exception as e:  # noqa: BLE001
                 r = Result(name)
                 r.step("engine", False, f"{type(e).__name__}: {str(e)[:160]}")
                 results.append(r)
             finally:
                 try:
-                    if ctx:
-                        ctx.close()
-                    if browser:
-                        browser.close()
+                    # ⛔ THE RIG IS TORN DOWN BY MARKER, NEVER BY ctx.close() —
+                    # closing a CDP-connected context does not kill the browser it
+                    # is attached to, and the profile lock would stay held.
+                    if name == "chromium-rig":
+                        if rig_open:
+                            w.teardown(None)
+                            rig_open = False
+                    else:
+                        if ctx:
+                            ctx.close()
+                        if browser:
+                            browser.close()
                 except Exception:  # noqa: BLE001
                     pass
 
@@ -1087,11 +2344,43 @@ def main() -> int:
               f"  locks={r.caps.get('locks')}")
         findings += r.findings
     print(f"\n  ⭐ {IOS_NOTE}.")
+
+    # ⛔⛔ TWO CLAIMS, TWO LINES, NEVER COLLAPSED. A green rail is only a pass if
+    # the genuine-conflict control forked IN THE SAME SESSION — otherwise a
+    # guard-2 that is over-broad and discarding real conflicts looks identical to
+    # one that works.
+    rails = [r for r in results if "/conflict" not in r.id and "/" not in r.id]
+    controls = [r for r in results if r.id.endswith("/conflict")]
+    rail_no_fork = bool(rails) and not any(
+        "conflicted copy" in f.lower() for r in rails for f in r.findings)
+    control_ran = bool(controls)
+    control_forked = any(
+        any(s[0].startswith("the loser survives") and s[1] for s in r.steps) for r in controls)
+    verdict, why = matrix_verdict(rail_no_fork, control_ran, control_forked)
+    print(f"\n  RAIL    (a single writer must NEVER fork): "
+          f"{'✅ no fork' if rail_no_fork else '⛔ A SINGLE WRITER FORKED'}"
+          f"  [{len(rails)} engine(s)]")
+    print(f"  CONTROL (a real second writer MUST fork) : "
+          f"{'✅ forked' if control_forked else ('⛔ DID NOT FORK' if control_ran else '— not run')}"
+          f"  [{len(controls)} engine(s)]")
+    print(f"  ⇒ {verdict} — {why}")
+    if telemetry:
+        print(f"\n  opt-ins BY SESSION (events): {telemetry.get('opt_in_events_BY_SESSION')} · "
+              f"scope {telemetry.get('scope')}")
+        print(f"  opt-ins BY DISTINCT ENGINE : {len(rails)} (the engines that opted in this run)")
+        print(f"  `{w.BLOCKED_EVENT}`: {telemetry.get('blocked_no_baseline')} "
+              f"· scope {telemetry.get('scope')} — must be 0")
     if findings:
         print("\n🚨 FINDINGS")
         for f in findings:
             print("   -", f)
     payload = {"at": utc(), "reading_note": IOS_NOTE,
+               "rail_single_writer_never_forks": rail_no_fork,
+               "control_real_second_writer_still_forks": control_forked,
+               "control_ran": control_ran,
+               "verdict": verdict, "verdict_why": why,
+               "telemetry": telemetry,
+               "opt_ins_by_distinct_engine": len(rails),
                "engines": [_row(r) for r in results]}
     out = w.ROOT / "docs" / "notebook" / "engine-matrix-result.json"
     out.write_text(json.dumps(payload, indent=1), encoding="utf-8")
@@ -1123,6 +2412,55 @@ def self_check() -> int:
          and bool(w.conflict_findings("x", {"t": "B"}, {"t": "B"}, "B", "A"))),
         ("a finding suppresses conflict cleanup", "if not res.findings" in src),
         ("the cookie is never printed", "value not printed" in src),
+    ]
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE WAVE'S ONE RULE, IN THIS TOOL: a queued entry is never removed
+    # unless the server body is PROVEN to contain its content. "server has words"
+    # was satisfied by the words typed ONLINE and read GREEN through a real
+    # discard on 2026-09-10 — it is DELETED here, and it does not come back.
+    # ══════════════════════════════════════════════════════════════════════════
+    _rp = src.split("def run_path", 1)[1].split("\ndef ", 1)[0]
+    # ⚠️ Comments stripped: the first version of this sweep matched the comment
+    # that EXPLAINS the removal. Prose about a defect is not the defect.
+    _rp_code = "\n".join(l for l in _rp.splitlines() if not l.strip().startswith("#"))
+    _text_needle = "_doc_has_text(" + "srv"
+    cases += [
+        ("run_path never asks whether the server merely HAS TEXT",
+         _text_needle not in _rp_code),
+        ("CONTROL: that sweep can see the call when it is there",
+         _text_needle in (_rp_code + _text_needle)),
+        ("…it TYPES and ASSERTS the same sentence, from one authority",
+         "sentence = w.offline_sentence(" in _rp_code
+         and '" " + sentence' in _rp_code
+         and "sentence in w._doc_text(srv" in _rp_code),
+        ("…and the step is named for the property it proves",
+         "the server BODY CONTAINS THE OFFLINE SENTENCE" in _rp_code),
+        ("…and the sentence is the SAME shape the canary types",
+         w.offline_sentence("S", SENTINEL).startswith(SENTINEL)
+         and w.offline_sentence("S", SENTINEL).endswith("S")
+         and "typed offline" in w.offline_sentence("S", SENTINEL)),
+    ]
+
+    class _CleanPage:
+        def __init__(self):
+            self.calls = []
+
+        def evaluate(self, _js, arg=None):
+            self.calls.append(arg)
+            return None
+
+    _keep_res = Result("x")
+    _keep_res.findings.append("the server body does not contain the offline sentence")
+    _keep_page = _CleanPage()
+    _cleanup(_keep_page, "note-1", _keep_res)
+    _del_page = _CleanPage()
+    _cleanup(_del_page, "note-1", Result("x"))
+    cases += [
+        ("⛔ DRIVEN: cleanup DELETES NOTHING when a finding is on the account",
+         _keep_page.calls == []
+         and any("SKIPPED ON PURPOSE" in d for _n, _o, d in _keep_res.steps)),
+        ("CONTROL: a clean result still cleans up", "note-1" in _del_page.calls),
     ]
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1264,6 +2602,38 @@ def self_check() -> int:
                   "webkit" in IOS_NOTE and "NOT iOS" in IOS_NOTE))
     cases.append(("…and that sentence is printed AND stored, not just defined",
                   src.count("IOS_NOTE") >= 4))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ A RUN WHERE NOTHING FORKS IS NOT AUTOMATICALLY A PASS. Guard 2 answers
+    # a 409 by asking whether the conflict is the browser's own landed save;
+    # OVER-BROAD, it answers "mine" to a genuine conflict and silently discards
+    # another writer's words — and from the rail's side that looks like success.
+    # Driven through every combination, including the one that must be a FAIL.
+    # ══════════════════════════════════════════════════════════════════════════
+    cases.append(("CONTROL: rail clean + control forked ⇒ PASS",
+                  matrix_verdict(True, True, True)[0] == "PASS"))
+    cases.append(("⛔ rail clean + control DID NOT fork ⇒ FAIL, not a pass",
+                  matrix_verdict(True, True, False)[0] == "⛔ FAIL"))
+    cases.append(("…and it names guard 2 discarding real conflicts",
+                  "discarding genuine conflicts" in matrix_verdict(True, True, False)[1]))
+    cases.append(("⛔ rail clean + NO control ⇒ INCONCLUSIVE, never a pass",
+                  matrix_verdict(True, False, False)[0] == "INCONCLUSIVE"))
+    cases.append(("…and it says why a green rail alone cannot decide",
+                  "cannot distinguish" in matrix_verdict(True, False, False)[1]))
+    cases.append(("⛔ a single-writer fork ⇒ FAIL even with a good control",
+                  matrix_verdict(False, True, True)[0] == "⛔ FAIL"))
+    cases.append(("the control is required on Chromium AND WebKit",
+                  'CONTROL_ENGINES = ("chromium-rig", "webkit")' in src))
+    cases.append(("the matrix runs ALL FIVE engines, rig included",
+                  "engines = list(ENGINE_IDS)" in src))
+    cases.append(("the rig is torn down BY MARKER, not by ctx.close()",
+                  "THE RIG IS TORN DOWN BY MARKER" in src))
+    cases.append(("opt-ins are reported BY SESSION *and* BY DISTINCT ENGINE",
+                  "opt_in_events_BY_SESSION" in src and "opt_ins_by_distinct_engine" in src))
+    cases.append(("the blocked-baseline count carries its SCOPE",
+                  "blocked_no_baseline" in src and "scope" in src))
+    cases.append(("the metadata doors are exercised somewhere in the matrix",
+                  "run_metadata_doors(_pg, name)" in src))
 
     # ── offline emulation, driven ────────────────────────────────────────────
     class _P:

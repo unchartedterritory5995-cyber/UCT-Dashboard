@@ -33,7 +33,9 @@ def _capture_run(monkeypatch, active, judge):
     import api.main as main
     from api.services.pattern_vision import orchestrator as pv_orch
     monkeypatch.setenv("PATTERN_VISION_ENABLED", "1")
-    monkeypatch.setattr(main, "_resolve_active_set_for_patterns", lambda: list(active))
+    # `**kw` because the resolver takes an optional `diagnostics` out-param that
+    # the job now passes; these tests exercise paths where nothing is dropped.
+    monkeypatch.setattr(main, "_resolve_active_set_for_patterns", lambda **kw: list(active))
     monkeypatch.setattr(pv_orch, "judge_ticker", judge)
     sched = _StubScheduler()
     assert main.register_pattern_vision_jobs(sched) is True
@@ -127,6 +129,45 @@ def test_cost_cap_is_recorded(tmp_path, monkeypatch):
                        lambda t, *a, **k: _ok(judged=0, cost_capped=True))
     run()
     assert _slots(s)[0]["capped"] == 2
+
+
+def test_the_cap_tripping_PARTWAY_records_both_halves(tmp_path, monkeypatch):
+    """⛔ THE FIXTURE ABOVE CANNOT MODEL THE REAL SHAPE. It has every ticker
+    return `cost_capped`, i.e. a slot that was already over budget before it
+    started. The cap does not work that way: spend accumulates, the cap trips on
+    some ticker partway down the active set, and everything after it is capped
+    while everything before it was judged and PAID FOR.
+
+    That distinction is the whole reason the slot row carries `judged`,
+    `capped` and `spend_usd` side by side -- a row showing capped=N and judged=0
+    describes a slot that spent nothing, and a row showing both describes one
+    that spent up to its ceiling and stopped. Reading the second as the first is
+    how a budget looks unspent.
+    """
+    s = _fresh_store(tmp_path, monkeypatch)
+    active = ["NVDA", "AAPL", "MSFT", "AMD", "META"]
+    TRIP_AT = 2                      # first two judge, the rest are capped
+
+    def judge(t, *a, **k):
+        if active.index(t) < TRIP_AT:
+            return _ok(judged=1)
+        return _ok(judged=0, cost_capped=True)
+
+    run = _capture_run(monkeypatch, active, judge)
+    run()
+    row = _slots(s)[0]
+
+    assert row["judged"] == TRIP_AT, "work done BEFORE the cap must still be counted"
+    assert row["capped"] == len(active) - TRIP_AT
+    assert row["judged"] + row["capped"] == len(active), (
+        "every ticker in the active set must land in exactly one bucket"
+    )
+    # ⭐ NON-VACUITY: the all-capped fixture would satisfy a naive
+    # `capped > 0` assertion too. This one only holds if BOTH halves are
+    # recorded, which is what the existing fixture cannot show.
+    assert row["judged"] > 0 and row["capped"] > 0
+    assert row["active_set_n"] == len(active)
+    assert row["aborted"] == 0, "the cap is a budget stop, never an abort"
 
 
 def test_render_failure_names_the_ticker(tmp_path, monkeypatch):

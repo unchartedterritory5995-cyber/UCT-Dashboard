@@ -28,7 +28,10 @@ import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
-import { useDurableNote, settleLandedSave, SESSION_ID } from '../../lib/offline/useDurableNote'
+import {
+  useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
+  recordLandedRevision, SESSION_ID,
+} from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
@@ -1527,6 +1530,44 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (isUsableBaseline(last.updatedAt)) patch.baseUpdatedAt = last.updatedAt
 
     setSaveStatus(retryAttemptsRef.current === 0 ? 'saving' : 'reconnecting')
+    // ⛔⛔ RAISE THE IN-FLIGHT MARKER BEFORE THE PUT, AND AWAIT IT.
+    //
+    // ⚰️ 2026-09-10: the self-fork fix shipped `settleLandedSave` into
+    // `restoreDraft` and NOT into this function — the debounced autosave every
+    // keystroke reaches, and the only path the defect actually rides. Eleven
+    // rails and four mutations exercised the FUNCTION; nothing exercised the
+    // WIRE, so the suite was green and the fix was not on the path. It
+    // reproduced on the rig eight minutes after going live.
+    //
+    // The marker is what lets the drain decline a note whose answer has not come
+    // back yet — the one fact it could never derive, because it lived in this
+    // promise, inside a component the member may already have navigated away
+    // from. ⛔ Awaited: a marker written after the request is one the drain can
+    // miss, which is the whole defect in miniature.
+    // ⛔ ISSUED BEFORE THE PUT, AND DELIBERATELY NOT AWAITED.
+    //
+    // ⚰️ It WAS awaited, and the existing rails rejected it — correctly. Awaiting
+    // couples the member's ability to save to IndexedDB being responsive: a
+    // blocked upgrade or a stalled store would stop saves outright, and to a
+    // member whose network is fine it would look like the network was down.
+    // "A save must not wait on bookkeeping" is a rule this file already lives
+    // by, and it does not stop applying because the bookkeeping is mine.
+    //
+    // ⭐ ORDER IS WHAT MATTERS, NOT COMPLETION. The put is issued first and
+    // commits in ~1 ms; the PUT it precedes takes ~111 ms at p50 (measured
+    // 2026-09-10, n=30). So the marker is in the store long before a 409 could
+    // come back, in every ordering anyone has observed.
+    // ⛔ AND WHERE IT IS NOT, THAT IS GUARD 2's JOB — the 409 self-supersede
+    // asks the SERVER and needs nothing to have worked beforehand. The marker
+    // is an optimisation that saves a round trip; it was never the guarantee.
+    beginInFlightSave({ accountId: user?.id, noteId, baseUpdatedAt: patch.baseUpdatedAt })
+    // ⛔ WHO LOWERS THE MARKER. On success `settleLandedSave` lowers it after it
+    // has settled the record — that order matters: a drain reading in between
+    // sees a note still marked in-flight, declines, and takes it next pass,
+    // whereas the reverse order opens a window with the marker down and the
+    // record not yet settled. On failure nothing settles, so the fallback below
+    // lowers it instead. Hence the flag rather than an unconditional `finally`.
+    let settleStarted = false
     try {
       const saved = await update(patch)
       lastSavedRef.current = {
@@ -1538,9 +1579,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // PUT, the durable copy is ahead of this ack and its sync intent must
       // SURVIVE — an acknowledgement of older words has never been permission
       // to forget newer ones.
+      const ackedNow = { title, subtitle, bodyJson }
+      const currentNow = captureLocalState() || ackedNow
       durableRef.current.markSynced({
-        acked: { title, subtitle, bodyJson },
-        current: captureLocalState() || { title, subtitle, bodyJson },
+        acked: ackedNow, current: currentNow, updatedAt: lastSavedRef.current.updatedAt,
+      })
+      // ⛔⛔ AND THE MOUNT-INDEPENDENT SETTLE — THE LINE THAT WAS MISSING HERE.
+      // `markSynced` routes through the hook's writer ref and does nothing once
+      // this component is gone, and this promise resolves after the member has
+      // navigated away often enough to matter. Navigating away is exactly when
+      // the note leaves `excludeNoteId` and becomes the sweep's.
+      // ⛔ Not awaited: a save must not wait on bookkeeping, and it never throws.
+      // Idempotent with `markSynced` — both settle to the same landed baseline,
+      // and this one also lowers the in-flight marker in the same write.
+      settleStarted = true
+      settleLandedSave({
+        accountId: user?.id, noteId,
+        acked: ackedNow, current: currentNow,
         updatedAt: lastSavedRef.current.updatedAt,
       })
       conflictRetriedRef.current = false
@@ -1587,6 +1642,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       setSaveStatus('reconnecting')
       setSaveErrorMsg(friendlySaveError(e, status, { retrying: true }))
       retryTimerRef.current = setTimeout(() => commitSaveRef.current(), delay)
+    } finally {
+      // ⛔ A FAILED SAVE MUST NOT LEAVE THE NOTE UNSWEEPABLE. Without this a
+      // 500, a dropped connection or a non-retryable 4xx would pin the marker
+      // up until the TTL expires, and the member's queued work would sit there
+      // for that whole span. `finally`, not the catch tail, because this
+      // function returns early from four places inside it.
+      // ⛔ This repo has twice shipped a cleanup that lived only on the success
+      // branch; the second one was found this morning, in the rig.
+      if (!settleStarted) endInFlightSave({ accountId: user?.id, noteId })
     }
   }
 
@@ -1623,15 +1687,65 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await refresh()
   }
 
+  /**
+   * ⛔⛔ A METADATA CHANGE MOVES `updatedAt` TOO — AND THAT INVALIDATES A
+   * QUEUED BASELINE JUST AS A BODY SAVE DOES.
+   *
+   * ⚰️ Found 2026-09-10 by the derived wire rail, not by reading: changing a
+   * folder, ticker or tag while offline work sits in the outbox advances the
+   * server revision, so the queued entry's baseline goes stale and its next
+   * send 409s. Same mechanism as the self-fork, reached by a different door —
+   * and it is precisely the door a hand-written list of "save paths" misses,
+   * because these three do not look like saves.
+   *
+   * ⛔ `acked` IS THE SERVER'S COPY, NOT THE LOCAL ONE. Passing the local state
+   * as both sides would read as "caught up" and DELETE the member's queued
+   * work — the metadata PUT never carried their body. Server-as-acked means:
+   * still ahead ⇒ REBASE onto the new revision; genuinely caught up ⇒ clear.
+   */
+  const settleMetadataRevision = async (saved) => {
+    if (!saved?.updatedAt) return
+    // ⛔ ALWAYS record the landing FIRST. This PUT was ours, so its revision is
+    // ours, and that is true whether or not we can settle the queue. Withholding
+    // it made guard 2 answer "not ours" about our own write and fork the note.
+    await recordLandedRevision({ accountId: user?.id, noteId, updatedAt: saved.updatedAt })
+    const current = captureLocalState()
+    // ⛔⛔ NULL IS "NO EVIDENCE", NOT "CAUGHT UP" — AND THE DIFFERENCE COST A
+    // MEMBER'S WORDS.
+    //
+    // ⚰️ 2026-09-10, streak run 1, door `folder`. This read
+    // `current: captureLocalState() || saved`. When the editor could not report
+    // its local state, `current` fell back to `saved` — which IS `acked` — so
+    // `sameAuthoredContent` read "caught up", the intent became null, and
+    // `putNoteWithIntent` DELETED every queued entry for the note. The offline
+    // sentence was gone. The drain's own step stayed green throughout, because
+    // "the server holds text" is satisfied by the words typed ONLINE.
+    //
+    // ⛔ THE INVARIANT: a queued entry is never removed unless the server body
+    // is PROVEN to contain its content. Absence of local state proves nothing.
+    //
+    // ⭐ REFUSING IS SAFE, and that is why it is the right answer: the entry
+    // stays queued on its own baseline, the drain picks it up, and guard 2
+    // rebases it onto the revision this door just created. Doing nothing here
+    // costs one drain cycle; guessing here costs the member their work.
+    if (!current) return
+    await settleLandedSave({
+      accountId: user?.id, noteId,
+      acked: saved,
+      current,
+      updatedAt: saved.updatedAt,
+    })
+  }
+
   const onFolderChange = async (folderId) => {
-    await update({ folderId: folderId || null })
+    await settleMetadataRevision(await update({ folderId: folderId || null }))
   }
   const onTickerChange = async (ticker) => {
-    await update({ ticker: ticker || null })
+    await settleMetadataRevision(await update({ ticker: ticker || null }))
   }
   const onTagsChange = async (tagsCsv) => {
     const tags = tagsCsv.split(',').map((t) => t.trim()).filter(Boolean)
-    await update({ tags })
+    await settleMetadataRevision(await update({ tags }))
   }
 
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —

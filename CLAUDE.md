@@ -107,6 +107,8 @@ the second-authority-over-one-value defect that has caused three separate outage
 | `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
 | `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
 
+| `journal-2-0/lib/offline/patchNote` — mentioned in Wave Q1 round-2 working notes | ⚰️ **REMOVED, NOT ORPHANED (2026-09-10).** It was ADDED by the Wave Q1 round-2 work and deleted again when the in-flight marker moved to the meta store; it is absent from `lib/offline/**`, not merely unreferenced. Recorded here so nobody files it as a dead export and goes looking for the file. Wave Q1 ruling **R-H** (`docs/notebook/wave-q1-RESUME-HERE.md`). |
+
 **Also mid-audit, unfixed, and NOT this doc's to fix** — recorded so nobody trusts
 them: `scan_evaluator.enabled()`'s docstring and the comment above the sweep's
 `add_job` in `api/main.py` **both** assert *"E-4 has not wired a surface to these
@@ -1478,6 +1480,58 @@ flattering direction: fewer files run, fewer failures found. Count the files, no
 ```sh
 find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
 ```
+
+### ⛔ Run the suite in its OWN tool call, before `git commit` — never in the same one (Testing)
+
+> **The verification and the commit are two separate acts, in that order. Chaining them into one
+> shell invocation means the commit lands whatever the tests said.**
+
+Owner ruling, 2026-09-10, from the model's own slip an hour earlier. Adding a `@typedef` to
+`hub/contracts.js` broke `hub/phase3Contracts.test.jsx` — the rail that pairs every Phase 3 typedef
+with a `validate*` export, on the grounds that *"a @typedef is a comment; it enforces nothing."*
+The run and the `git commit` were in a single Bash call, so the failure printed and the red commit
+landed in the same breath.
+
+⭐ **The mistake is not "forgot to run the tests" — they DID run.** The output was right there. What
+failed is that nothing in the sequence could act on it: `npx vitest run … ; git commit …` commits on
+a non-zero exit exactly as happily as on a zero one, and by the time a human or a model reads the
+combined output the commit already exists. Two calls, and the second one is only issued after
+reading the first.
+
+⚠️ Corollary, same disease: this is why `scripts/gate_shards.py` refuses a dirty tree and records
+the tree hash at start AND end rather than trusting that the caller checked. A verification that
+cannot block the thing it verifies is decoration.
+
+### ⛔ An empty result is a failed invocation until proven otherwise (Testing)
+
+> **Any rail that shells out — git, a subprocess, the network — carries a NON-VACUITY CONTROL: a
+> case proving the command returned something before any assertion over its output means anything.
+> Its mutation proof is run BEFORE the rail is called done, not after.**
+
+Owner ruling, 2026-09-10 (rule 14). Same disease as the totals-line rule above, different organ: a
+command that returns nothing produces an assertion that passes over an empty set, and an empty set
+satisfies almost every check anyone writes.
+
+**Three instances in two days, each caught only by the mutation proof, never by review:**
+
+| Rail | What the command actually returned | Why it read green |
+|---|---|---|
+| `hub/rule12Paths.test.js` v1 | `git status --porcelain` sliced at a fixed offset, eating the first character of every MODIFIED path — `pp/src/pages/...` | the forbidden-prefix filter matched nothing, so a real violation passed |
+| `hub/rule12Paths.test.js` v2 | `git diff -- app/src/...` run from vitest's cwd (`app/`), so the PATHSPEC resolved to `app/app/src/...` | zero added lines compared against zero removed lines: `0 === 0` |
+| `scripts/deploy_watch.py` v1 | `subprocess.run(["railway", ...])` cannot resolve a `.cmd`/`.exe` shim on Windows without `shutil.which` | forty consecutive `FileNotFoundError`s, then **exit 0** |
+
+⭐ **The three fixes generalise.** Pin the working directory (`git -C $(git rev-parse
+--show-toplevel)`) rather than trusting the caller's cwd — git resolves pathspecs relative to the
+cwd and `--porcelain` paths relative to the repo, and the two disagreeing is invisible. Resolve
+executables with `shutil.which` and exec the resolved path, never `shell=True`, which fixes the
+symptom by handing an interpolated string to a shell. Parse nothing you can avoid parsing: prefer
+commands whose output needs no offset arithmetic (`git ls-files --others --exclude-standard` over
+slicing status codes).
+
+⚠️ **The control must be able to fail.** `expect(files.length).toBeGreaterThan(0)` is only a control
+if a broken invocation would actually make it zero — assert on something the command CANNOT
+legitimately return empty (this repo's branch always changes at least its own resume file), and
+prefer naming a specific expected member (`expect(files).toContain('HubRoot.jsx')`) over a count.
 
 ### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
 

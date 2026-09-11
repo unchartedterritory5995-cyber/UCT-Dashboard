@@ -60,6 +60,7 @@ export default function HubChip({
   return (
     <div
       className={styles.chip}
+      data-testid="hub-chip"
       role="status"
       aria-live="polite"
       style={{

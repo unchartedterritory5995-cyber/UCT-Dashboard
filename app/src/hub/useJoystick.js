@@ -118,6 +118,18 @@ export default function useJoystick({
   onScrub,
   onScrubCommit,
   onHome,
+  // ⛔ TAP AND DOUBLE-TAP ARE THE CALLER'S TO DISPATCH, exactly as onScrub/onScrubCommit are.
+  // They used to be read straight off `mode` and invoked with NO ARGUMENTS, which is why a
+  // registry-declared mode could never act: this hook has no `ctx` and never will. HubRoot owns
+  // ctx, so HubRoot dispatches — one rule for all four mode callbacks instead of two rules.
+  onTap,
+  onDoubleTap,
+  // §C1 / §2c — the two-finger tap that opens Peek. ⛔ IT IS NEVER PEEK'S ONLY DOOR: §C2 is
+  // explicit that VoiceOver and TalkBack both consume two-finger single-tap before the page sees
+  // it, and that two pointers is not a single-pointer alternative under WCAG 2.5.1 — the Actions
+  // button is the compliant door and ships regardless. This is an additional affordance for
+  // members who can perform it, not an accessibility mechanism.
+  onPeek,
 } = {}) {
   const travelPx = settings.travelPx ?? TRAVEL_PX
   const holdMs = settings.holdMs ?? HOLD_MS
@@ -144,6 +156,16 @@ export default function useJoystick({
   const openFiredRef = useRef(false) // the "open" haptic fires once per gesture
   const holdReachedRef = useRef(false)
   const holdTimerRef = useRef(null)
+  /**
+   * Every pointer currently down ON THE PAD, and whether this gesture became a two-finger Peek.
+   *
+   * ⛔ THE SAFETY PROPERTY: with only ONE pointer, `activePointersRef.size` never reaches 2, so
+   * `peekArmedRef` stays false and every branch below is the code that shipped in Phase 2, byte
+   * for byte. A second finger is the ONLY thing that can change behaviour here — which is what
+   * makes this safe to add to the most delicate file in the hub.
+   */
+  const activePointersRef = useRef(new Set())
+  const peekArmedRef = useRef(false)
   const pointerIdRef = useRef(null)
   const edgeGuardRef = useRef({ active: false, startX: 0, startY: 0 })
   // Double-tap disambiguation timer. Deliberately OUTSIDE resetGesture — it spans two separate
@@ -243,6 +265,19 @@ export default function useJoystick({
   }
 
   const onPointerDown = (e) => {
+    activePointersRef.current.add(e.pointerId)
+    // ⛔⛔ A SECOND FINGER IS NOT A DRAG, so the first finger's gesture must be UNWOUND, not left
+    // running underneath. Without this the pad would still be `pressing`, the hold-to-home timer
+    // would still be counting toward a navigation the member did not ask for, and any fan the
+    // first finger opened would stay on screen behind the sheet.
+    //
+    // ⭐ Returning here also means the second pointer never runs the single-pointer setup, so it
+    // cannot overwrite `pointerIdRef` and strand the capture on a finger that is about to lift.
+    if (activePointersRef.current.size >= 2) {
+      peekArmedRef.current = true
+      onPointerCancel()
+      return
+    }
     const el = padRef && padRef.current
     if (el && typeof el.setPointerCapture === 'function') {
       // Load-bearing, not a nicety (spec §5): travel is 24px but the fan reaches 150px, so every
@@ -360,6 +395,20 @@ export default function useJoystick({
   }
 
   const onPointerUp = (e) => {
+    activePointersRef.current.delete(e.pointerId)
+    if (peekArmedRef.current) {
+      // ⛔ FIRE ONCE, ON THE LAST FINGER UP. Firing on the first would open the sheet while a
+      // finger is still on the pad, and the next lift would then read as a fresh single-finger
+      // tap against a mode whose sheet is already open.
+      if (activePointersRef.current.size === 0) {
+        peekArmedRef.current = false
+        onPeek?.()
+      }
+      // Suppressed deliberately: this gesture was never a tap, a flick or a scrub, so none of the
+      // paths below should see it. `onPointerCancel` already reset the state when the second
+      // finger landed.
+      return
+    }
     const el = padRef && padRef.current
     if (el && typeof el.releasePointerCapture === 'function' && pointerIdRef.current != null) {
       try {
@@ -442,17 +491,21 @@ export default function useJoystick({
     if (pendingTapRef.current != null) {
       clearTimeout(pendingTapRef.current)
       pendingTapRef.current = null
-      mode?.onDoubleTap?.()
+      onDoubleTap?.()
     } else {
       pendingTapRef.current = setTimeout(() => {
         pendingTapRef.current = null
-        mode?.onTap?.()
+        onTap?.()
       }, doubleTapMs)
     }
     resetGesture()
   }
 
-  const onPointerCancel = () => {
+  function onPointerCancel() {
+    // ⚠️ NOT cleared here: `activePointersRef`. `onPointerCancel` is called BY the two-finger
+    // branch above while both fingers are still down, so emptying the set here would immediately
+    // un-arm the gesture it was just armed for. The set is owned by up/cancel of each individual
+    // pointer, and `resetPointers` below is the only place it is emptied wholesale.
     if (phaseRef.current === 'scrubbing') {
       onScrubCommit?.()
     }

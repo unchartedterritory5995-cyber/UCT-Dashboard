@@ -303,15 +303,54 @@ Home fan until it ships, because it has no route to navigate to (recorded in
 
 ### 3.7 Notebook (`notebook`) — route `/journal/notebook`
 
-Selection is **URL-driven**: `noteId = searchParams.get('note')` (`NotebookTab.jsx:59`), with
-`clearNoteParam()` at `:353-366`. ⭐ That makes the cursor's identity key the search params
+Selection is **URL-driven**: `const noteId = searchParams.get('note')` (`NotebookTab.jsx:63`,
+under `const [searchParams, setSearchParams] = useSearchParams()` at `:62`), with
+`clearNoteParam()` at `:365-369`. ⭐ That makes the cursor's identity key the search params
 themselves, and means the hub must write through the router, not component state — otherwise
 the back button and the hub disagree about which note is open.
 
+⚰️ **Citations corrected 2026-09-10 (R-E).** This read `:59` and `:353-366`. Line 59 is the closing
+brace of a telemetry `fetch().catch()`; `:353-357` is `closeNote`, a different function with the
+same shape plus three refreshes. Both were quote-verified against `febe8ee67` before correction, per
+CLAUDE.md's "a citation you cannot quote is struck".
+
+⭐ **The seam is `applyTargetToParams(params, target)`** (`journal-2-0/lib/searchNavigation.js:86`) —
+a pure exported builder that deletes `PARAM_DOC`/`PARAM_PAGE`/`PARAM_EXCERPT`/`PARAM_REVIEW` before
+setting `PARAM_NOTE`, so a hub-driven note change cannot leave a stale `?doc=&page=` pointing into a
+different note. The hub imports it; it does not hand-roll `params.set('note', id)`.
+
+⚠️ **A hub-driven selection also changes what the capture doors see, and that is intended.**
+`journal-2-0/lib/captureContext.js:26` (`noteIdFromLocation`) reads the same `?note=` param, so
+moving the hub's cursor moves "which note am I looking at" for capture as well. That is the correct
+behaviour — one URL, one answer — and it is recorded here so the coupling is a decision rather than
+a surprise.
+
 ### 3.8 Home (`home`) — route `/dashboard`
 
-Tap → Screener, double-tap → Journal (already true in the preview). Phase 3 adds the scrub
-(recent sections) and restores `Calendar` to the inner ring alongside `Wire`.
+⚰️ **STRUCK — three of this line's four claims were measurably false.** It read:
+
+> ~~Tap → Screener, double-tap → Journal (already true in the preview). Phase 3 adds the scrub
+> (recent sections) and restores `Calendar` to the inner ring alongside `Wire`.~~
+
+The spec is the authority and it says something else. **§C3:905: "Primary: last-used section.
+Reverse: Morning Wire."** Not Screener, and not Journal — and the difference is not cosmetic:
+§C3 goes on to REJECT defaulting Primary, on the stated grounds that a new account would have
+Primary and Reverse firing the same destination, "which reads as a bug rather than a design".
+
+⭐ **The parenthetical was the worst of the three.** "(already true in the preview)" described a
+gesture that could not exist: `homeSection.js`'s own header said `TAP IS DELIBERATELY NOT WIRED`,
+and `useJoystick` invoked `mode.onTap` with NO ARGUMENTS, so a registry-declared mode structurally
+could not reach `ctx.navigate` from a tap. Nothing was already true. A plan claiming a behaviour
+already ships is the citation defect one level up — nobody re-checks a box someone has ticked
+(`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+
+**What actually shipped, against the spec:** `onTap` → the last-used section, inert on a first-ever
+visit with nothing stored; `onDoubleTap` → Morning Wire, never inert. Rails in
+`homePrimaryReverse.test.jsx`, including the `items[0]` trap that makes the inert case a real
+decision rather than an accident.
+
+**The fourth claim was TRUE and stands:** Phase 3 adds the scrub (recent sections) and restores
+`Calendar` to the inner ring alongside `Wire`. Both shipped.
 
 ### 3.9 Flow (`flow`) — route `/options-flow` — **verify only**
 

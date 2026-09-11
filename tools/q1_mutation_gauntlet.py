@@ -133,11 +133,11 @@ MUTATIONS = [
          repl="const landed = landedBaseline(noteRec) || '9999-01-01T00:00:00.000Z'",
          note="M12 -- widened, it deletes every queued entry unsent"),
 
-    dict(id="M9", guard="settleLandedSave writes at all",
+    dict(id="M9", guard='settleLandedSave writes at all',
          file=f"{OFF}/useDurableNote.js",
-         find="  const landed = usableBaseline(updatedAt)",
-         repl="  const landed = usableBaseline(updatedAt); if (landed) return null",
-         note="M10 -- the store-direct settle that survives unmount"),
+         find='  const landed = usableBaseline(updatedAt)\n  if (!accountId || !noteId || !landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
+         repl='  const landed = usableBaseline(updatedAt)\n  if (landed) return null\n  if (!accountId || !noteId || !landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
+         note='M10 -- the store-direct settle that survives unmount'),
 
     dict(id="M10", guard="settleLandedSave REBASES when still ahead",
          file=f"{OFF}/useDurableNote.js",
@@ -147,11 +147,118 @@ MUTATIONS = [
               "    const state = caughtUp ? (acked || current) : current",
          note="clearing on an ack for OLDER words is how offline systems lose the newest"),
 
-    dict(id="M11", guard="settleLandedSave needs an account AND a note",
+    dict(id="M11", guard='settleLandedSave needs an account AND a note',
          file=f"{OFF}/useDurableNote.js",
-         find="if (!accountId || !noteId || !landed) return null",
-         repl="if (!landed) return null",
+         find='  if (!accountId || !noteId || !landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
+         repl='  if (!landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
          note="a settle without an identity writes into the wrong account's store"),
+
+    dict(id="M13", guard="the in-flight marker is WRITTEN at all",
+         file=f"{OFF}/useDurableNote.js",
+         find="    await putMeta(db, markerKeyFor(noteId), marker)",
+         repl="    void db  // mutated: marker never written",
+         note="without it the drain claims a note whose save is on the wire"),
+
+    dict(id="M14", guard="guard 2 asks the server AT ALL (both passes)",
+         file=f"{OFF}/outboxDrain.js",
+         find='  if (!serverCopyIsOurs) return null',
+         repl="  return null  // mutated: never ask the server",
+         note="the shared helper -- with it dark, every 409 forks blind"),
+
+    dict(id="M15", guard='the 409 check is NARROW — only a PROVEN-identical body is removed',
+         file=f"{OFF}/outboxDrain.js",
+         find='          if (mine?.ours && mine.identical) {',
+         repl='          if (mine?.ours || true) {',
+         note='widened, it discards a genuine second writer AND any entry whose words the server never got'),
+
+    dict(id="M16", guard="the staleness threshold is a real duration",
+         file=f"{OFF}/inFlight.js",
+         find="export const IN_FLIGHT_TTL_MS = 10_000",
+         repl="export const IN_FLIGHT_TTL_MS = 0",
+         note="a threshold of 0 expires every live marker and sends mid-flight"),
+
+    # ── R-B: three more doors to one defect. Each gets its own mutation, even
+    # though all three route through `settleMetadataRevision`, because each is a
+    # separate call site and a future edit can break one without the others.
+    dict(id="M17", guard="the FOLDER door settles the revision it just advanced",
+         file=f"{NB}/NoteEditorPage.jsx",
+         find="    await settleMetadataRevision(await update({ folderId: folderId || null }))",
+         repl="    await update({ folderId: folderId || null })",
+         note="a metadata PUT moves updatedAt without carrying the member's body"),
+
+    dict(id="M18", guard="the TICKER door settles the revision it just advanced",
+         file=f"{NB}/NoteEditorPage.jsx",
+         find="    await settleMetadataRevision(await update({ ticker: ticker || null }))",
+         repl="    await update({ ticker: ticker || null })",
+         note="same door, different handle"),
+
+    dict(id="M19", guard="the TAGS door settles the revision it just advanced",
+         file=f"{NB}/NoteEditorPage.jsx",
+         find="    await settleMetadataRevision(await update({ tags }))",
+         repl="    await update({ tags })",
+         note="same door, different handle"),
+
+    # ── R-F: §21 inertness. ⛔ The one-line rollback is only real if every
+    # store-direct entry point honours the flag.
+    # ⛔ Mutates the SETTLE's gate specifically: it is the entry point that
+    # writes the record, the outbox AND the landed ring, so with the gate gone
+    # the flag-off case sees three kinds of write the rollback promised would
+    # not happen. `offlineStorageAvailable` is left intact so the mutation
+    # isolates the FLAG rather than storage detection.
+    # ⛔ Mutates the SETTLE's flag gate specifically: it is the entry point
+    # that writes the record, the outbox AND the landed ring, so with the gate
+    # gone the flag-off case sees three kinds of write the rollback promised
+    # would not happen. The storage gate is left intact so this isolates the
+    # FLAG rather than storage detection.
+    # ⛔ The find string carries the whole gate block because
+    # `if (!offlineEnabled()) return null` alone appears in THREE functions —
+    # and an ambiguous mutation is a guess about which call site was hit.
+    dict(id="M20", guard="§21 — the settle honours offlineEnabled()",
+         file=f"{OFF}/useDurableNote.js",
+         find='  if (!offlineEnabled()) return null\n  // ⛔ NO STORE, NO MARKER, AND NO WAITING FOR ONE. A private window or an old\n  // browser has nowhere to write this, and without the check the save would pay\n  // the full write budget on every keystroke-debounced attempt while waiting for\n  // a connection that can never open. Cheap, and it is the honest answer: the\n  // marker is an optimisation, and the 409 check still covers the outcome.\n  if (!offlineStorageAvailable()) return null\n  const landed = usableBaseline(updatedAt)',
+         repl='  // ⛔ NO STORE, NO MARKER, AND NO WAITING FOR ONE. A private window or an old\n  // browser has nowhere to write this, and without the check the save would pay\n  // the full write budget on every keystroke-debounced attempt while waiting for\n  // a connection that can never open. Cheap, and it is the honest answer: the\n  // marker is an optimisation, and the 409 check still covers the outcome.\n  if (!offlineStorageAvailable()) return null\n  const landed = usableBaseline(updatedAt)',
+         note="with the flag off, a write is a write the rollback promised not to make"),
+
+    # ⛔ M21 disables ONLY the post-409 pass, leaving the pre-send one intact.
+    # That is the slow-PUT ordering exactly: the pre-send answer was a truthful
+    # "no" and the ONLY thing standing between the member and a duplicate is
+    # asking again after the send.
+    dict(id="M21", guard="guard 2 is asked AGAIN on the 409, not only before the send",
+         file=f"{OFF}/outboxDrain.js",
+         find='          const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)',
+         repl="          const mine = null  // mutated: skip the second pass",
+         note="the server answer CHANGES across the send; one pass gets one case wrong"),
+
+    # ── the two defects that lost a member's words, 2026-09-10 ───────────────
+    # ⛔ Both of these SHIPPED. Neither was visible to any mechanism-level rail;
+    # both are visible to the property rail, which is why it exists.
+    dict(id="M22", guard="a door treats NO LOCAL STATE as no evidence, not as caught-up",
+         file=f"{NB}/NoteEditorPage.jsx",
+         find="    const current = captureLocalState()",
+         repl="    const current = captureLocalState() || saved",
+         note="the exact shipped line: `|| saved` makes acked === current, reads as "
+              "caught up, and DELETES the queued entry with the member's words in it"),
+
+    dict(id="M23", guard='"ours" alone is NEVER a reason to remove a queued entry',
+         file=f"{OFF}/outboxDrain.js",
+         find="          if (mine?.ours && mine.identical) {",
+         repl="          if (mine?.ours) {",
+         note="the shipped rule. A door moves the revision, the ring says ours, and "
+              "the entry is dropped though the server body never held its words"),
+
+    # ⛔⛔ THE SHIPPED DEFAULT ITSELF. This mutation INVERTS WITH THE FLIP, in the
+    # same commit: while the wave ships OFF it proves false→true reddens the
+    # unset-branch rails; after the flip it becomes true→false and must redden
+    # the post-flip unset-branch rails, which by then assert ON.
+    # ⛔ Without it, the one value that decides what an UNSET key MEANS for every
+    # member is the only constant in this layer with no mutation behind it — and
+    # "off and unset" is indistinguishable from "off on purpose" precisely
+    # because nothing forces the distinction.
+    dict(id="M24", guard="the SHIPPED DEFAULT is what the unset-branch rails assert",
+         file=f"{OFF}/offlineFlag.js",
+         find="export const OFFLINE_DEFAULT_ON = false",
+         repl="export const OFFLINE_DEFAULT_ON = true",
+         note="flipping it silently changes what an unset key means for every member"),
 
     dict(id="M12", guard="the editor emits NOTHING when it sets content itself",
          file=f"{NB}/NoteEditorPage.jsx",

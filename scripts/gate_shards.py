@@ -179,7 +179,7 @@ def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) ->
     return (proc.stdout or "") + (proc.stderr or "")
 
 
-def _run_shard(index: int, shards: int, out_dir: pathlib.Path) -> str:
+def _run_shard(index: int, shards: int, out_dir: pathlib.Path, max_workers: int = 2) -> str:
     log = out_dir / f"shard-{index}.log"
     # ⛔⛔ `encoding="utf-8"` IS THE WHOLE POINT OF THIS LINE. Shipped without it, `text=True`
     # decoded vitest's UTF-8 output as cp1252, the reader thread died on the first check mark
@@ -188,7 +188,7 @@ def _run_shard(index: int, shards: int, out_dir: pathlib.Path) -> str:
     # `errors="replace"` means a stray undecodable byte degrades one character instead of
     # destroying an entire run.
     text = _capture(
-        ["npx", "vitest", "run", f"--shard={index}/{shards}", "--maxWorkers=2"], APP)
+        ["npx", "vitest", "run", f"--shard={index}/{shards}", f"--maxWorkers={max_workers}"], APP)
     log.write_text(text, encoding="utf-8")
     return text
 
@@ -221,13 +221,13 @@ class GateError(RuntimeError):
 
 
 def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
-             run_shard_fn=None, file_count_fn=count_test_files) -> dict:
+             run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2) -> dict:
     """Run the gate, or refuse. Returns the manifest dict.
 
     Every failure mode raises `GateError` naming itself, so a caller can never mistake one for
     another — and so the test can assert WHICH one fired.
     """
-    run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir))
+    run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir, max_workers))
 
     # ⛔ THE WRAPPER'S OWN OUTPUT IS NOT TREE DRIFT, AND THIS COST A SECOND RUN.
     #
@@ -386,10 +386,16 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--shards", type=int, default=6)
     ap.add_argument("--out", default=str(REPO / "docs" / "plans" / "joystick" / "gate-runs"))
+    # ⛔ DEFAULT UNCHANGED AT 2. This exists because this box runs several
+    # sessions at once: three worktrees had full suites in flight and the host
+    # OOM-killed mine twice. Lowering MY footprint is the only lever that does
+    # not require destroying somebody else's 13-minute run.
+    ap.add_argument("--max-workers", type=int, default=2,
+                    help="vitest workers per shard; lower it when the box is contended")
     args = ap.parse_args(argv)
     out_dir = pathlib.Path(args.out)
     try:
-        manifest = run_gate(args.shards, out_dir)
+        manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers)
     except GateError as e:
         # ⛔ A REFUSED RUN LEAVES NO ARTIFACT THAT LOOKS LIKE A RUN. The first failure of this
         # wrapper left six 0-byte `shard-*.log` files behind, and a directory of empty logs reads
@@ -415,10 +421,53 @@ def main(argv=None) -> int:
     (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     (out_dir / f"{stamp}.md").write_text(render(manifest), encoding="utf-8")
     say(render(manifest))
-    # ⚠️ Exit 0 means THE RUN IS VALID, not that the suite is green — this branch gates on "no NEW
-    # failures against a measured baseline", which is a judgement the manifest supports and this
-    # script deliberately does not make.
-    return 0
+    return verdict_exit_code(manifest, say=say)
+
+
+# Exit codes. 2 is the refused/invalid run above; these two are the verdict of a VALID run.
+EXIT_NO_NEW = 0
+EXIT_NEW_FAILURES = 1
+
+
+def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
+    """The exit code, derived from the SAME `vs_baseline` block the manifest publishes.
+
+    ⛔ WHY THIS EXISTS. This function used to be `return 0`, under a comment saying the verdict was
+    "a judgement the manifest supports and this script deliberately does not make". That produced a
+    wrapper which exited 0 while printing **"The failing set DIFFERS from the baseline"** — and it
+    did exactly that on Increment 3's 2026-09-10 run. A caller reading `$?`, a CI step, or a `&&`
+    chain all saw success on a run whose own report said otherwise. An exit code that disagrees
+    with the artifact beside it is worse than no exit code: it is a green light nobody audited.
+
+    ⭐ THE VERDICT IS `new`, NOT SET EQUALITY. `compare_failures` already says so in its own
+    docstring — *"`new` is the only one that can block a merge"*. The other direction,
+    `no_longer_failing`, is a baseline entry that stopped failing: master fixed something, or the
+    test stopped running. The repo's three-direction protocol
+    (`scripts/gate_baseline_diff.py`, railed in `test_gate_baseline_diff.py`) is explicit that this
+    direction **never blocks**, and exiting non-zero on it would fail a branch for making things
+    better — which is precisely how a gate teaches people to stop reading it.
+
+    So `matches_baseline` is what gets REPORTED, and `new` is what gets ENFORCED. When they
+    disagree — a stale baseline in the harmless direction — that is said out loud rather than
+    silently collapsed into either answer.
+    """
+    v = manifest.get("vs_baseline") or {}
+    new = v.get("new") or []
+    stale = v.get("no_longer_failing") or []
+    if new:
+        say(f"\n  GATE: {len(new)} NEW failure(s) against the baseline — exit {EXIT_NEW_FAILURES}.\n"
+            f"  Classify each by direction before treating it as a regression: a failure the BASE\n"
+            f"  also has is master's (ADD to the baseline, cite the base hash); one only this\n"
+            f"  branch has BLOCKS. Re-run a load-sensitive name ALONE before classifying it.\n",
+            err=True)
+        return EXIT_NEW_FAILURES
+    if stale:
+        # Not a regression, and deliberately not a failure: say why the sets differ anyway, so
+        # "matches_baseline: false" in the manifest is never mistaken for a blocked gate.
+        say(f"\n  GATE: no NEW failures — exit {EXIT_NO_NEW}. {len(stale)} baseline entr(ies) no\n"
+            f"  longer fail, so the failing set DIFFERS from the baseline in the direction that\n"
+            f"  never blocks. The baseline is stale; refresh it, but nothing here stops a merge.\n")
+    return EXIT_NO_NEW
 
 
 if __name__ == "__main__":

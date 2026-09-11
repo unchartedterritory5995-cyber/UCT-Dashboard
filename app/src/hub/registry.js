@@ -406,23 +406,14 @@ export const modes = [
         color: '--hub-mode-notebook',
         kind: 'run',
       },
-      {
-        id: 'notebook.linkTicker',
-        label: 'Set ticker',
-        icon: 'link',
-        ring: 0,
-        color: '--hub-mode-notebook',
-        kind: 'run',
-        requires: ['symbol'],
-      },
-      {
-        id: 'notebook.templates',
-        label: 'Templates',
-        icon: 'library',
-        ring: 0,
-        color: '--hub-mode-notebook',
-        kind: 'run',
-      },
+      // ⚰️ `notebook.linkTicker` REMOVED (R-17) and `notebook.templates` REMOVED (R-19), both when
+      // §3.7 shipped. Neither had a seam, and an action with no seam is worse live than absent:
+      //   linkTicker `requires: ['symbol']` and the Notebook route carries no symbol, so it would
+      //     render permanently DISABLED (spec §2e — disabled, never hidden).
+      //   templates needs the member to CHOOSE one, and the only surface for that is the confirm
+      //     sheet's `fields`, which is unreachable (D-35 / R-14). With no run body it would be a
+      //     dead bubble: the fan closes and nothing happens, the exact R-09 defect.
+      // Both return the day their seam exists. Ring layout after removal: outer 1, inner 4 — legal.
       {
         id: 'notebook.dailyPlan',
         label: 'Daily plan',
@@ -455,14 +446,19 @@ export const modes = [
     tapHint: 'tap: next day',
     cursor: { listId: 'calendar' },
     fan: [
-      {
-        id: 'calendar.earnings',
-        label: 'Earnings',
-        icon: 'earnings',
-        ring: 0,
-        color: '--hub-mode-calendar',
-        kind: 'run',
-      },
+      // ⚰️ `calendar.earnings` IS REMOVED, NOT DEFERRED — the page LOCKS that event type.
+      //
+      // It was `kind: 'run'` with no `run`, and unlike the others it could never be given one:
+      // `CalendarHeader.jsx:347` reads `const locked = type === 'earnings'; if (locked) return`.
+      // An earnings calendar showing earnings is the product, so the toggle is deliberately
+      // one-way — which means an "Earnings" bubble had exactly one possible behaviour, silence.
+      //
+      // `HubRoot` does `Promise.resolve(action.run?.(ctx))`, and on `undefined` that resolves with
+      // no throw, no warn and no toast: the member drags to it, the fan closes, nothing happens.
+      // Invisible while `calendar` sat in PREVIEW_MODES; live the moment it left, which is this
+      // commit. Dropped on the `breadth.sizeRule` / `breadth.snapshot` precedent (B2) rather than
+      // shipped inert — a bubble that answers a deliberate gesture with silence teaches the member
+      // the product is broken, which is worse than an absent action telling the truth.
       {
         id: 'calendar.macro',
         label: 'Macro',
@@ -492,6 +488,14 @@ export const modes = [
     color: '--hub-mode-home',
     route: '/dashboard',
     tapHint: 'tap: last section',
+    // ⭐ §3.8a — Home's scrub walks the RECENT-SECTION list, so it is list-bearing like every other
+    // cursor mode and declares its listId here rather than letting the controller hand-type one
+    // (`homeSection.js` derives `LIST_ID` from this field, the same way wire/scan/journal/notebook
+    // derive theirs). ⚠️ Its list is SYNTHETIC — the registry's own route-backed section order with
+    // `lastSection` promoted — so unlike the others it has no rendered rows and therefore no
+    // `listAdapter`; the chip is the whole surface. `flow` still declares no cursor, which is what
+    // `flowNavigateOnly.test.js` pins: "flow has no list, so it must declare no cursor".
+    cursor: { listId: 'home' },
     fan: [
       { id: 'home.scan', label: 'Scan', icon: 'screener', ring: 0, color: '--hub-mode-scan', kind: 'navigate', to: 'scan' },
       { id: 'home.chart', label: 'Chart', icon: 'chart', ring: 0, color: '--hub-mode-chart', kind: 'navigate', to: 'chart' },
@@ -549,7 +553,27 @@ export const PREVIEW_MODES = new Set([
   // ⛔ THE REMAINING SIX STAY, and each still returns [Voice, Home] until its own increment.
   // A mode removed from this set gets its FULL fan the same render — which is how `calendar`
   // shipped a five-action fan into a navigation-only preview on the first attempt.
-  'chart', 'catalysts', 'notebook', 'calendar', 'home', 'flow',
+  // ⭐ INCREMENT 4 FLIPPED ONE: notebook. Alone, unlike Increment 2's four, because its fan
+  // shares no action with any other section — `newNote` is its own, and the two navigate
+  // actions were already live. Nothing half-finished leaks into a neighbour's fan.
+  // ⭐ INCREMENT 5 FLIPPED ONE: calendar. Its controller (`sections/calendarSection.js`)
+  // ships the `tap: next day` its chip has promised since Phase 2, a day scrub, and a real
+  // body for `calendar.macro`; `calendar.earnings` was REMOVED above rather than shipped
+  // inert. Alone, because its fan shares no action with any other section.
+  // ⭐ INCREMENT 5 ALSO FLIPPED `chart`: `sections/chartSection.js` ships the
+  // `tap: next timeframe` its chip has promised since Phase 2, plus real bodies for Flag,
+  // Note and Plan trade. `chart.compare` and `chart.logTrade` are DROPPED BY THE CONTROLLER
+  // (not deleted from the registry) — compare's only write path cannot mount on a hub
+  // viewport, and logging an executed trade lives under a rule-12 path.
+  // ⭐ INCREMENT 5 ALSO FLIPPED `catalysts` — the LAST section controller. `home` and `flow`
+  // are the only two left, and NEITHER is an unfinished build:
+  //   · `home` has a controller and zero run actions; it keeps a CURATED preview fan
+  //     (`PREVIEW_HOME`, owner ruling 2026-09-09). Flipping it shows eight bubbles instead
+  //     of seven — a product decision about how many doors Home offers, not a missing wire.
+  //   · `flow` is navigate-only BY DESIGN (3.9; OptionsFlow.jsx is partner-owned and a hard
+  //     no). Its real fan IS [Voice, Home], which is byte-identical to what the preview
+  //     projection returns for it — so the flag changes no bubble, only the chip.
+  'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */
@@ -565,26 +589,48 @@ export const PREVIEW = PREVIEW_MODES.size > 0;
 export const isPreviewMode = (modeId) => PREVIEW_MODES.has(modeId);
 
 /**
- * Home's preview fan (owner ruling, 2026-09-09).
+ * Home's preview fan (owner ruling, 2026-09-09; Calendar restored 2026-09-10 under R-C).
  *
- *   outer — Screener · Charts · Flow · Breadth
- *   inner — Journal · Notebook · Wire · Voice
+ *   outer — Screener · Charts · Flow · Breadth · Journal
+ *   inner — Notebook · Wire · Calendar · Voice
  *
- * ⚠️ Two deliberate differences from the full Home fan above, both owner decisions:
- * **Wire moves outer -> inner** (`/morning-wire` is a real route; this is placement, not
- * scope), and **Calendar is dropped from the preview** — still reachable through ordinary nav,
- * and it returns in Phase 3 with its in-section actions.
+ * ⚠️ Three deliberate differences from the full Home fan above:
+ * 1. **Wire sits inner, not outer** (`/morning-wire` is a real route; this is placement, not
+ *    scope) — owner, 2026-09-09. Unchanged.
+ * 2. **Calendar is back, on the inner ring beside Wire** — R-C (`RESUME-inc3.md:24-26`:
+ *    "Calendar is a §6 omission, not a §7 error … §6 is amended to add calendar after 3.8
+ *    Home. **It stays dark until its own increment.**"). ⛔ THIS RESTORES A DOOR, NOT A MODE:
+ *    `calendar` stays in `PREVIEW_MODES`, so arriving there still gets `[Voice, Home]`. The
+ *    bubble is how you REACH the dark section, which is what "reachable through ordinary nav"
+ *    already meant everywhere except the hub.
+ * 3. **Journal moves inner -> outer**, and it is the ring cap that forces a third difference at
+ *    all: `INNER_MAX` is 4, and Wire + Calendar + Voice + one more is the whole inner budget.
+ *    ⭐ JOURNAL RATHER THAN NOTEBOOK, on an accessibility reading, not a taste one. The master
+ *    spec's own contrast analysis (`00-master-spec-v1.6.md:152-156`) says the pair that
+ *    actually co-occurs is "Wire (outer ring) beside Journal (inner ring) in Home's fan, and
+ *    their luminance separation from each other is only **1.74** — weak for a hue-blind
+ *    viewer", mitigated by "ring radius, by bubble size (46px vs 36px) and by icon". This
+ *    preview had put BOTH on the inner ring, which spends that mitigation; demoting Notebook
+ *    instead would have kept them together. Journal out restores the two-ring separation the
+ *    spec's 1.74 finding depends on.
  * **Catalysts is absent because it has no route at all** (Wave 0: an in-place dashboard tile
  * mode), so it could not be a navigate target even if it were wanted.
+ *
+ * ⚠️ This projection and `home.fan` above now disagree on Wire's and Journal's rings, which is
+ * what a projection is for — but it means Home's eventual `PREVIEW_MODES` exit MOVES two
+ * bubbles unless §C3 is amended first. Flagged for the owner rather than silently changing the
+ * declared fan, which §C3 owns ("Outer: Scan · Chart · Breadth · Wire · Flow. Inner: Journal ·
+ * Notebook · Calendar · Voice" — `00-master-spec-v1.6.md:890`).
  */
 const PREVIEW_HOME = [
   { id: 'home.scan', ring: 0 },
   { id: 'home.chart', ring: 0 },
   { id: 'home.flow', ring: 0 },
   { id: 'home.breadth', ring: 0 },
-  { id: 'home.journal', ring: 1 },
+  { id: 'home.journal', ring: 0 },
   { id: 'home.notebook', ring: 1 },
   { id: 'home.wire', ring: 1 },
+  { id: 'home.calendar', ring: 1 },
   { id: 'home.voice', ring: 1 },
 ];
 
@@ -665,14 +711,42 @@ export function validateRegistry(list = modes, opts = {}) {
     if (seenModeIds.has(mode.id)) problems.push(`duplicate mode id: ${mode.id}`);
     seenModeIds.add(mode.id);
 
+    // ⛔ R-H — THE CAPS ARE CHECKED ON WHAT THE MEMBER SEES, AND ON WHAT IS DECLARED.
+    //
+    // This read `mode.fan` only, which means the ring caps — the registry's one structural
+    // invariant — had NEVER been applied to the projection `fanFor()` returns. For a preview mode
+    // the two are different objects entirely, and Stream D's homeFanCalendar rail is what surfaced
+    // it: `PREVIEW_HOME` is a hand-written second ring layout that nothing was checking.
+    //
+    // Both are checked, with distinct messages, because they fail for different reasons:
+    //   PROJECTED  is what is on screen today. Over the cap = bubbles a thumb cannot separate.
+    //   DECLARED   is what ships the day that mode leaves the preview. Checking only the
+    //              projection would let an over-cap declared fan sit dormant and break on the flip,
+    //              which is precisely how `calendar` shipped a five-action fan into a
+    //              navigation-only preview.
+    // ⚠️ `outer` / `inner` stay the DECLARED fan, because every invariant below them is about the
+    // declaration: "the inner ring ends with Home" is a rule about what this mode SAYS, and the
+    // projection strips it away. Pointing these two at `fanFor()` made the Home invariant read the
+    // real registry's projection instead of the fan it was handed — a synthetic mode in a test got
+    // someone else's rings. Caught by `registry.test.js`'s "rejects a Home action inside the home
+    // mode itself".
     const outer = mode.fan.filter((a) => a.ring === 0);
     const inner = mode.fan.filter((a) => a.ring === 1);
+    const projected = fanFor(mode);
+    const projectedOuter = projected.filter((a) => a.ring === 0);
+    const projectedInner = projected.filter((a) => a.ring === 1);
 
+    if (projectedOuter.length > OUTER_MAX) {
+      problems.push(`${mode.id}: PROJECTED outer ring has ${projectedOuter.length}, max ${OUTER_MAX} — this is what a member sees`);
+    }
+    if (projectedInner.length > INNER_MAX) {
+      problems.push(`${mode.id}: PROJECTED inner ring has ${projectedInner.length}, max ${INNER_MAX} — this is what a member sees`);
+    }
     if (outer.length > OUTER_MAX) {
-      problems.push(`${mode.id}: outer ring has ${outer.length}, max ${OUTER_MAX}`);
+      problems.push(`${mode.id}: DECLARED outer ring has ${outer.length}, max ${OUTER_MAX} — breaks the day it leaves the preview`);
     }
     if (inner.length > INNER_MAX) {
-      problems.push(`${mode.id}: inner ring has ${inner.length}, max ${INNER_MAX}`);
+      problems.push(`${mode.id}: DECLARED inner ring has ${inner.length}, max ${INNER_MAX} — breaks the day it leaves the preview`);
     }
 
     // Inner ring ends with Home — every mode but home, which is already there.

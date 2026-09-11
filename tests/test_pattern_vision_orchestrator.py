@@ -101,6 +101,11 @@ def _freeze_today(monkeypatch, orch, y, m, d):
     frozen = type("_Frozen", (datetime.date,), {})
     frozen.today = classmethod(lambda cls, _y=y, _m=m, _d=d: cls(_y, _m, _d))
     monkeypatch.setattr(orch.datetime, "date", frozen)
+    # _evidence_bar asks "has bars[-1] already closed?", which needs the ET
+    # SESSION date -- it reads datetime.datetime.now(_ET), which the line above
+    # deliberately does not touch. Freeze it here too or every simulated date
+    # below silently resolves against the real wall clock.
+    monkeypatch.setattr(orch, "_today_ymd_et", lambda _y=y, _m=m, _d=d: _y * 10000 + _m * 100 + _d)
 
 
 def _bar(ts, c=100.0):
@@ -114,9 +119,15 @@ def test_evidence_date_normal_day_uses_last_closed_bar_not_wallclock(monkeypatch
     from api.services.pattern_vision import orchestrator as orch
     _freeze_today(monkeypatch, orch, 2026, 9, 8)  # wall-clock says Tue
 
+    # No 2026-09-08 bar has been ingested yet, so bars[-1] (Friday 09-04) has
+    # ALREADY CLOSED and is itself the evidence bar.
+    # ⚠️ CORRECTED 2026-09-10: this asserted bars[-2] / "2026-09-03" while the
+    # function's own contract says "the last CLOSED bar". That off-by-one was
+    # measured in production -- the 09:00 slot recorded 2026-09-08 evidence on
+    # 2026-09-10 for all 43 of its paid calls.
     bars = [_bar(20260901), _bar(20260902), _bar(20260903), _bar(20260904)]
-    assert orch._evidence_bar(bars) == bars[-2]
-    assert orch._evidence_date(bars) == "2026-09-03"  # bars[-2]'s own date, not "2026-09-08"
+    assert orch._evidence_bar(bars) == bars[-1]
+    assert orch._evidence_date(bars) == "2026-09-04"  # the closed bar's date, not "2026-09-08"
 
 
 def test_evidence_date_stable_across_a_weekday_holiday_with_no_new_session(monkeypatch):
@@ -130,18 +141,28 @@ def test_evidence_date_stable_across_a_weekday_holiday_with_no_new_session(monke
 
     bars = [_bar(20260901), _bar(20260902), _bar(20260903), _bar(20260904)]  # unchanged by the holiday
 
-    _freeze_today(monkeypatch, orch, 2026, 9, 4)  # Friday afternoon run
-    friday_date = orch._evidence_date(bars)
-    friday_hash = orch._signals_hash("NVDA", "vcp", bars)
-
-    _freeze_today(monkeypatch, orch, 2026, 9, 7)  # Labor Day run, same unchanged bars
+    # ⚠️ SCENARIO CORRECTED 2026-09-10 -- read this before "restoring" it.
+    # It used to compare a FRIDAY-AFTERNOON run against the Monday holiday run.
+    # Friday's own session closes between those two points, so the evidence bar
+    # SHOULD advance across that boundary (in-session Friday can only see
+    # Thursday's close; Monday can see Friday's). Asserting they were equal
+    # asserted that a closed session is invisible for a further trading day --
+    # which is the very off-by-one being fixed.
+    # The defect this test actually guards is unchanged and still pinned below:
+    # with NO new bar, consecutive runs must agree, so the dedup hash holds and
+    # no paid re-judge fires. Both runs now sit AFTER Friday's close.
+    _freeze_today(monkeypatch, orch, 2026, 9, 7)  # Labor Day: no new session
     monday_date = orch._evidence_date(bars)
     monday_hash = orch._signals_hash("NVDA", "vcp", bars)
 
-    assert friday_date == monday_date == "2026-09-03", (
-        "evidence date must not move on a holiday with no new session"
+    _freeze_today(monkeypatch, orch, 2026, 9, 8)  # Tuesday, before its own bar lands
+    tuesday_date = orch._evidence_date(bars)
+    tuesday_hash = orch._signals_hash("NVDA", "vcp", bars)
+
+    assert monday_date == tuesday_date == "2026-09-04", (
+        "evidence date must not move while no new session has closed"
     )
-    assert friday_hash == monday_hash, "dedup hash must not move either -- this is what stops the re-judge"
+    assert monday_hash == tuesday_hash, "dedup hash must not move either -- this is what stops the re-judge"
 
 
 def test_evidence_date_advances_when_a_new_bar_actually_closes(monkeypatch):
@@ -151,7 +172,16 @@ def test_evidence_date_advances_when_a_new_bar_actually_closes(monkeypatch):
     dedup hash together (they must never disagree about which bar is being
     judged)."""
     from api.services.pattern_vision import orchestrator as orch
-    _freeze_today(monkeypatch, orch, 2026, 9, 8)  # same wall-clock date both times
+    # ⚠️ FIXTURE CORRECTED 2026-09-10. This froze today to 2026-09-08 and then
+    # appended a 2026-09-08 bar calling it "a genuinely new session closed" --
+    # but a bar dated today is the LIVE developing candle, not a closed session,
+    # and under the corrected evidence rule it must move neither the date nor
+    # the hash (that is precisely what stops the duplicate re-judge, and it is
+    # pinned in tests/test_pattern_vision_evidence_bar.py). Today is now held at
+    # 2026-09-09 so the appended bar is genuinely closed and the property this
+    # test exists for -- a real new session advances date AND hash together --
+    # is still what gets asserted.
+    _freeze_today(monkeypatch, orch, 2026, 9, 9)  # same wall-clock date both times
 
     before = [_bar(20260901), _bar(20260902), _bar(20260903), _bar(20260904)]
     after = before + [_bar(20260908)]  # a genuinely new session closed
@@ -159,7 +189,7 @@ def test_evidence_date_advances_when_a_new_bar_actually_closes(monkeypatch):
     date_before, hash_before = orch._evidence_date(before), orch._signals_hash("NVDA", "vcp", before)
     date_after, hash_after = orch._evidence_date(after), orch._signals_hash("NVDA", "vcp", after)
 
-    assert date_before == "2026-09-03" and date_after == "2026-09-04"
+    assert date_before == "2026-09-04" and date_after == "2026-09-08"
     assert hash_before != hash_after
 
 
@@ -208,7 +238,7 @@ def test_stale_provider_data_across_simulated_holiday_yields_zero_paid_judge_cal
     # for paths that previously wrote nothing anywhere.
     assert out == {"judged": 0, "confirmed": 0, "skipped": 1, "cost_capped": False,
                    "render_failed": 0, "errored": 0, "problems": [],
-                   "asof_dates": ["2026-09-03"]}
+                   "asof_dates": ["2026-09-04"]}  # corrected: last CLOSED bar
 
 
 def test_persisted_verdict_asof_date_reflects_evidence_and_cost_day_stays_wallclock(tmp_path, monkeypatch):
@@ -221,7 +251,7 @@ def test_persisted_verdict_asof_date_reflects_evidence_and_cost_day_stays_wallcl
     it under the wrong evidence date."""
     s, orch = _setup(tmp_path, monkeypatch)
     bars = [_bar(20260901), _bar(20260902), _bar(20260903), _bar(20260904)]
-    asof = orch._evidence_date(bars)  # "2026-09-03", computed before freezing "today"
+    asof = orch._evidence_date(bars)  # "2026-09-04" -- the last CLOSED bar
 
     monkeypatch.setattr(orch, "_read_bars", lambda t, tf: bars)
     monkeypatch.setattr(orch, "candidates_for",
@@ -239,7 +269,7 @@ def test_persisted_verdict_asof_date_reflects_evidence_and_cost_day_stays_wallcl
 
     verdict = s.get_verdict("NVDA", "D", "vcp", asof)
     assert verdict is not None, "verdict must be persisted under the EVIDENCE date, not wall-clock today"
-    assert verdict["asof_date"] == "2026-09-03"
+    assert verdict["asof_date"] == "2026-09-04"
 
     # The cost-cap/spend ledger is a distinct concern keyed on the real calendar
     # day the judge call was actually billed on -- must remain "2026-09-07",
@@ -269,6 +299,6 @@ def test_candidates_for_itself_wires_evidence_date_not_wallclock(tmp_path, monke
     _freeze_today(monkeypatch, orch, 2026, 9, 7)  # Labor Day: wall-clock disagrees with the evidence bar
     cands = orch.candidates_for("NVDA")
     assert len(cands) == 1
-    assert cands[0]["asof_date"] == "2026-09-03", (
+    assert cands[0]["asof_date"] == "2026-09-04", (
         "candidates_for must derive asof_date from the evidence bar, not datetime.date.today()"
     )

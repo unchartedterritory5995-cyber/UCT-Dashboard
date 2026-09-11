@@ -38,13 +38,34 @@ const SHIPPED = {
   wire: { symbol: false, position: false },
   // Sets nothing, and needs nothing — see the assertion below.
   breadth: { symbol: false, position: false },
+  // ⚰️ ADDED BY INCREMENT 4 (B10). Notebook left the preview when §3.7 shipped. It sets nothing and
+  // needs nothing: `newNote` requires no context, and `dailyPlan`/`postMortem` are navigations.
+  // The one action that DID require a symbol — `linkTicker` — was removed rather than shipped
+  // permanently disabled, because the route carries no symbol (R-17).
+  notebook: { symbol: false, position: false },
+  // ⚰️ ADDED BY INCREMENT 5. Calendar left the preview when its controller shipped (R-C — it was a
+  // §6 omission, never a §7 error). It needs NEITHER: the fan is a macro toggle plus a navigation
+  // to /calendar/mystocks, and the day it acts on comes from the page's own week, not from ctx.
+  calendar: { symbol: false, position: false },
+  // ⚰️ ADDED BY INCREMENT 5 (§3.5). Chart needs the SYMBOL — Flag, Note and Plan trade all act on
+  // the chart's current ticker — and no position: the chart holds a price series, not a trade.
+  chart: { symbol: true, position: false },
+  // ⚰️ ADDED BY INCREMENT 5 (§3.6) — the LAST section. Catalysts needs the SYMBOL: Chart it, Why,
+  // Flag and Note all act on the cursor's row ticker. No position; the tile is a read of the tape.
+  catalysts: { symbol: true, position: false },
 }
 
 describe('every shipped mode ships the fan it means to', () => {
-  it('CONTROL: exactly the four Increment 2 modes have left the preview', () => {
+  it('CONTROL: exactly the shipped modes have left the preview', () => {
     // If this drifts, every expectation below is describing a different product.
+    //
+    // ⚰️ WAS "exactly the four Increment 2 modes", listing wire/breadth/scan/journal. B10 flipped
+    // `notebook` live and this control went red — correctly. It is the FIXTURE that became
+    // unrepresentative, not the product: a control that pins a count of four is a control that has
+    // to be edited by every increment that ships a section, which is the point of it.
     const shipped = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id)).sort()
-    expect(shipped).toEqual(['breadth', 'journal', 'scan', 'wire'])
+    expect(shipped).toEqual(
+      ['breadth', 'calendar', 'catalysts', 'chart', 'journal', 'notebook', 'scan', 'wire'])
     expect(Object.keys(SHIPPED).sort()).toEqual(shipped)
   })
 

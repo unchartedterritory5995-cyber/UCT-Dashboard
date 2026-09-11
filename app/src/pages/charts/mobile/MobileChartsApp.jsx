@@ -12,6 +12,7 @@ import ReviewFeed from '../review/ReviewFeed'
 import MobileChartToolbar from './MobileChartToolbar'
 import MobileSymbolSheet from './MobileSymbolSheet'
 import MobileTfSheet from './MobileTfSheet'
+import useChartHubSection from '../../../hub/sections/chartSection'
 import MobileChartTypeSheet, { selectedTypeKey, chartTypePatch } from './MobileChartTypeSheet'
 import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
@@ -187,6 +188,19 @@ export default function MobileChartsApp({
     if (!chartWidget || code === tf) return
     onOptsChange(chartWidget.id, { ...(chartWidget.opts || {}), tf: code })
   }, [chartWidget, tf, onOptsChange])
+
+  // ── The joystick hub's Chart controller (§3.5) ───────────────────────────
+  // Mounted HERE, right after `handleTf`, because that is the setter it drives: the hub's tap,
+  // double-tap and timeframe scrub all resolve through the page's own writer rather than a second
+  // path into `opts.tf`. `customTfs` is the SAME expression MobileTfSheet is given below, so the
+  // gesture and the picker step the same ladder. Everything it mounts is gated on
+  // `useHubEligible` inside `hubMount`, so on a desktop or in a bare test render it is nothing.
+  const chartHub = useChartHubSection({
+    tf,
+    symbol: sym,
+    customTfs: Array.isArray(cs?.header?.customTimeframes) ? cs.header.customTimeframes : [],
+    onTf: handleTf,
+  })
 
   const handleSymbolPick = useCallback((s) => {
     const raw = String(s || '').trim()
@@ -376,6 +390,7 @@ export default function MobileChartsApp({
       data-shell-mode={tablet ? 'tablet' : 'phone'}
       data-charts-theme={chartsTheme}
     >
+      {chartHub.hubMount}
       {chartWidget ? (
         <>
           <div className={styles.chartCol}>

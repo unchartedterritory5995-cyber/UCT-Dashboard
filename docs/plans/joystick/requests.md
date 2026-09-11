@@ -4,6 +4,81 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## R-19 — `notebook.templates` needs a picker, and the confirm sheet cannot carry one
+
+**Status:** filed 2026-09-10, DEFERRED by the same reasoning as R-17. · **Owner:** this build, once
+a field-bearing surface exists.
+
+"Templates" means *choose one*. `createNoteFromTemplateViaApi(templateKey, …)`
+(`journal-2-0/lib/noteCreation.js:50`) requires a key, and the hub has no surface that can ask for
+one: `HubConfirmPayload.fields` is unreachable (**D-35 / R-14** — `HubRoot`'s confirm branch builds
+its own payload and never asks the section for one), and there is no other picker.
+
+Shipping it anyway had two bad shapes and no good one. With **no run body** it is a dead bubble —
+the fan closes, nothing happens, the exact R-09 defect. With a **hardcoded key** the label lies:
+"Templates" that always makes the same one.
+
+**Removed from the fan when §3.7 shipped**, with the reason in the registry beside the removal.
+The two template-shaped actions that DO have a seam stayed live — `notebook.dailyPlan` and
+`notebook.postMortem` navigate to `?new=daily-prep` / `?new=trade-review`, both stable keys
+(`lib/notebookTemplates.js:19`).
+
+**Returns when** either D-35 is closed (the confirm sheet carries fields, and Templates becomes a
+`confirm` with a select) or the Notebook gains a template-picker route the hub can navigate to.
+
+---
+
+## R-18 — `NoteCard` renders no note identity, so the hub cannot say WHICH card the cursor is on
+
+**Status:** filed 2026-09-10, blocking Increment 4's §3.7. · **Owner:** the Notebook workstream
+(`app/src/pages/journal-2-0/components/notebook/NoteCard.jsx`).
+
+**The ask — one additive attribute on the card root:**
+
+```jsx
+data-note-card-id={note.id}
+```
+
+⛔ **NOT `data-note-id`.** That name already belongs to TipTap's inline note-LINK node inside note
+bodies (`journal-2-0/lib/noteLinkNode.jsx:36-37` renders `{ 'data-note-id': attrs.noteId }` and
+parses `span[data-note-id]`). A hub selector on `[data-note-id]` would match every inline link in an
+open note as well as every grid card — ambiguous the day it was written, and over-counting on
+exactly the screen where the cursor matters.
+
+**Why.** `NoteCard.jsx` renders `<div className={styles.card}>`; the only per-note identity is
+`key={n.id}` at `NotebookTab.jsx:848`, and a React key does not reach the DOM. The hub can PAINT a
+cursor over cards — `useHubCursor.paintCursor`, the same imperative path Morning Wire uses for
+markup the hub does not own — but cannot learn which note a card is. §3.7 requires selection to
+write `?note=<id>` through `applyTargetToParams` (`lib/searchNavigation.js:86`), and `useHubCursor`
+requires an explicit identity key.
+
+**Rejected alternatives, so this is not re-proposed:** deriving identity from the card's title text
+needs a hub-side fetch of the notebook's own list to map back to an id — a second authority over
+that list, and titles are not unique. Dispatching a synthetic click on the card works but bypasses
+`applyTargetToParams`, which is the thing that ruling exists to guarantee.
+
+**Cost to that side:** one attribute, renders nothing, changes no behaviour, no test should move.
+
+---
+
+## R-17 — `notebook.linkTicker` has no symbol source on `/journal/notebook`
+
+**Status:** filed 2026-09-10, DEFERRED by owner ruling (Q3/Q8). · **Owner:** this build, when a
+symbol reaches the route.
+
+`notebook.linkTicker` declares `requires: ['symbol']`, and the Notebook route carries no symbol —
+`?ticker=` exists only on the `?new=` seed deep link. An action whose `requires` cannot be satisfied
+renders DISABLED and never hidden (spec §2e, `HubRoot.jsx:275-278`), so shipping it live would put a
+permanently dimmed bubble in the fan.
+
+**Ruled:** deferred, not removed from the registry — Increment 3 dropped 3.7 entirely (H1), so the
+notebook fan does not ship live and `linkTicker` stays exactly as it is on master. When Increment 4
+wires §3.7, the decision is: **either** the route gains a symbol (and the action ships), **or** the
+entry is removed with a comment citing this request. Ring layout if removed: outer 3 → 2, inner
+stays 4. Both remain legal (`OUTER_MAX` 5, `INNER_MAX` 4).
+
+---
+
 ## R-16 — `scan.planTrade` is `kind:'confirm'`, so Plan trade opens TWO sheets
 
 **Filed by:** the 3.3 Screener integrator. **Not blocking** (`scan` is still in `PREVIEW_MODES`) —
