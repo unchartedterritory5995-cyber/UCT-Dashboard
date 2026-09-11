@@ -7,13 +7,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { diag, diagEnabled, shape, hash32, DIAG_KEY, DIAG_MAX } from './diag'
+import { diag, diagEnabled, shape, hash32, DIAG_KEY, DIAG_MAX, DIAG_POST_CAP, __resetDiagPosts } from './diag'
+import { OFFLINE_FLAG_KEY } from './offlineFlag'
+
+/** ⛔ R-14: BOTH keys, always. A helper so no case can arm one and forget the
+ *  other and then believe it proved something about the gate. */
+const armBoth = () => { localStorage.setItem(OFFLINE_FLAG_KEY, '1'); localStorage.setItem(DIAG_KEY, '1') }
 
 const buf = () => globalThis.__uctNbDiag
 
 beforeEach(() => {
   localStorage.clear()
   delete globalThis.__uctNbDiag
+  __resetDiagPosts()
+  globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
 })
 afterEach(() => {
   localStorage.clear()
@@ -38,6 +45,7 @@ describe('⛔⛔ disarmed means ABSENT, not quiet', () => {
   })
 
   it('⛔ only the exact string arms it — a truthy value is not an opt-in', () => {
+    localStorage.setItem(OFFLINE_FLAG_KEY, '1')
     for (const v of ['0', 'true', 'yes', '', 'on']) {
       localStorage.setItem(DIAG_KEY, v)
       expect(diagEnabled(), `"${v}" must not arm the channel`).toBe(false)
@@ -45,10 +53,34 @@ describe('⛔⛔ disarmed means ABSENT, not quiet', () => {
     localStorage.setItem(DIAG_KEY, '1')
     expect(diagEnabled()).toBe(true)
   })
+
+  // ⛔⛔ R-14 — THE GATE IS BOTH KEYS. Either one alone is silence. One key would
+  // mean a member who opted into offline editing silently gained a diagnostic,
+  // and a diagnostic nobody asked for is collection, not instrumentation.
+  it('⛔ the DIAG key alone does not arm it — the offline layer must be on too', () => {
+    localStorage.setItem(DIAG_KEY, '1')
+    expect(diagEnabled()).toBe(false)
+    diag('x', () => ({ a: 1 }))
+    expect(buf()).toBeUndefined()
+  })
+
+  it('⛔ the OFFLINE key alone does not arm it — the diagnostic is opted into separately', () => {
+    localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+    expect(diagEnabled()).toBe(false)
+    diag('x', () => ({ a: 1 }))
+    expect(buf()).toBeUndefined()
+  })
+
+  it('⭐ CONTROL — with BOTH keys the same call records', () => {
+    armBoth()
+    expect(diagEnabled()).toBe(true)
+    diag('x', () => ({ a: 1 }))
+    expect(buf()).toHaveLength(1)
+  })
 })
 
 describe('⭐ armed, it records the decision', () => {
-  beforeEach(() => localStorage.setItem(DIAG_KEY, '1'))
+  beforeEach(armBoth)
 
   it('CONTROL — the same call that recorded nothing above now records', () => {
     const build = vi.fn(() => ({ a: 1 }))
@@ -68,6 +100,27 @@ describe('⭐ armed, it records the decision', () => {
 
   it('⛔ a throwing builder cannot break the thing it is diagnosing', () => {
     expect(() => diag('e', () => { throw new Error('boom') })).not.toThrow()
+  })
+
+  // ⛔ The telemetry emit is BOUNDED. /api/j2/telemetry writes to the shared
+  // member-facing activity_log and truncates props at 500 chars, so an uncapped
+  // diagnostic would flood a log people actually read.
+  it('⛔ posts at most DIAG_POST_CAP times per session, however many it records', () => {
+    for (let i = 0; i < DIAG_POST_CAP + 15; i += 1) diag('e', () => ({ i }))
+    const posts = globalThis.fetch.mock.calls.filter(
+      ([url]) => String(url).includes('/api/j2/telemetry'))
+    expect(posts).toHaveLength(DIAG_POST_CAP)
+    // ...and it kept recording locally past the post cap — the buffer is the rig's read
+    expect(buf().length).toBeGreaterThan(DIAG_POST_CAP)
+  })
+
+  it('⛔ the event it posts is the allow-listed one, and carries no member text', () => {
+    diag('settleMetadataRevision', () => shape({ title: 'NVDA thesis', bodyJson: { t: 'SECRET' } }))
+    const [, init] = globalThis.fetch.mock.calls.find(
+      ([url]) => String(url).includes('/api/j2/telemetry'))
+    expect(JSON.parse(init.body).event).toBe('notebook_diag_decision')
+    expect(init.body).not.toContain('SECRET')
+    expect(init.body).not.toContain('NVDA thesis')
   })
 })
 
