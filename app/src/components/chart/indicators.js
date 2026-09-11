@@ -1344,23 +1344,34 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     throw new Error('unknown barstate mode ' + barstateMode)
   }
   const confirmedIn = (opts && opts.confirmed !== undefined) ? opts.confirmed : null
-  // @@@ `datasetLive` IS THE THIRD INPUT, AND TIMELINE ROW 7 IS WHY IT EXISTS.
-  // This branch used to hard-code "the newest bar is the realtime one". Row 7
-  // falsified that: at 23:57 ET the SAME daily bar that had read isrealtime=1 for
-  // seven and a half hours -- across three separate page loads, so not a fetch
-  // artifact -- read isrealtime=0, ishistory=1, islastconfirmedhistory=1. The
-  // dataset had stopped being live and the POSITION axis moved with it.
+  // @@@ VENDOR MODE HAS **TWO** TIME AXES AND THIS ENGINE PINS NEITHER.
   //
-  // !! THE INSTANT IS NOT IN HERE AND MUST NOT BE GUESSED INTO IT. It is
-  // bracketed (20:55, 23:57) ET, three hours wide, with no proposed mechanism at
-  // all -- weaker footing than even the 20:00 confirmation hypothesis. Liveness
-  // arrives as an INPUT the caller observes, exactly as `confirmed` does.
-  const liveIn = (opts && opts.datasetLive !== undefined) ? opts.datasetLive : true
+  //   instant A -- `confirmed`:  the closing update happened.
+  //                Bracketed (19:22, 20:55) ET. Hypothesis: 20:00, the
+  //                extended-hours close.
+  //   instant B -- `historical`: the bar stopped being the live one.
+  //                Bracketed (20:55, 23:57) ET. NO hypothesis at all.
+  //
+  // @@ THEY ARE DIFFERENT INSTANTS, HOURS APART, ON ONE BAR -- measured across
+  // timeline rows 1-7. That is the finding: a tri-state cannot express two flags
+  // that flip at different times, so this is a different NUMBER OF AXES.
+  //
+  // !! BOTH ARRIVE AS INPUTS AND BOTH FAIL CLOSED. `null`/absent means nobody
+  // told us and the four columns blank rather than guess -- the rule
+  // `newestBarIsForming` has always had. Defaulting `historical` to "still live"
+  // would be this function quietly asserting instant B had not passed, which is
+  // exactly the guess the ruling forbids.
+  //
+  // ~~ ROW 7 IS WHY `historical` EXISTS: the same daily bar that read
+  // isrealtime=1 for seven and a half hours, across three separate page loads,
+  // read isrealtime=0 / ishistory=1 / islastconfirmedhistory=1 at 23:57 ET.
+  const historicalIn = (opts && opts.historical !== undefined) ? opts.historical : null
   if (barstateMode === BARSTATE_MODE_VENDOR) {
     if ((newestBarIsForming === true || newestBarIsForming === false)
-        && (confirmedIn === true || confirmedIn === false)) {
+        && (confirmedIn === true || confirmedIn === false)
+        && (historicalIn === true || historicalIn === false)) {
       const lastI = length - 1
-      const live = liveIn !== false
+      const live = historicalIn !== true
       const rtI = live ? lastI : -1
       const lchI = live ? lastI - 1 : lastI
       for (let i = 0; i < length; i++) {

@@ -45,25 +45,8 @@ def _bars_for(row, count=3):
              "l": 0.0, "c": 1.0, "v": 10.0} for i in range(count)]
 
 
-def _live_rows():
-    """The rows taken while the dataset was still live.
-
-    ⛔ PARTITIONED ON THE VENDOR'S OWN `isrealtime`, WHICH IS NOT CIRCULAR HERE
-    AND IS CIRCULAR ONE LINE LATER. Liveness is a property of the PAGE, not of the
-    clock -- there is no instant in any calendar that says "the socket stopped
-    delivering". So the replay below is scoped to the regime it models, and the
-    row outside that regime gets its own test, which asserts the LIMIT rather
-    than quietly widening the model to cover it.
-    """
-    return [r for r in _rows() if int(r["vendor"]["isrealtime"]) == 1]
-
-
-def _dead_rows():
-    return [r for r in _rows() if int(r["vendor"]["isrealtime"]) == 0]
-
-
 def _clock_inputs(row):
-    """`forming` and `confirmed`, derived from the INSTANT and nothing else."""
+    """`forming` and `confirmed` (instant A), derived from the INSTANT alone."""
     bars = _bars_for(row)
     now = float(row["session"]["scheduledCloseUnix"]) + \
         float(row["session"]["secondsPastScheduledClose"])
@@ -71,60 +54,82 @@ def _clock_inputs(row):
     return bars, forming, confirmed
 
 
-@pytest.mark.parametrize("row", _live_rows(), ids=lambda r: r["instantET"][11:19])
-def test_vendor_mode_reproduces_every_LIVE_timeline_reading(row):
-    """Every column the vendor showed, back out of our own derivation."""
+def _historical_of(row):
+    """Instant B, OBSERVED -- there is no clock that answers it.
+
+    ⛔ READ OFF THE PAGE'S OWN `isrealtime`, and that is not circular. The engine
+    is asked to reproduce FOUR columns from TWO axes, and this supplies one axis;
+    it would be circular only if the derivation then echoed it straight back.
+    `ishistory` and `islastconfirmedhistory` are checked too, and both are DERIVED
+    from this axis and the bar's position rather than restated -- which is what
+    makes the replay a test and not a mirror.
+    """
+    return int(row["vendor"]["isrealtime"]) == 0
+
+
+@pytest.mark.parametrize("row", _rows(), ids=lambda r: r["instantET"][11:19])
+def test_vendor_mode_reproduces_EVERY_timeline_reading(row):
+    """All seven rows, both regimes, from the two axes the producer supplies."""
     bars, forming, confirmed = _clock_inputs(row)
 
-    # ⭐ THE TWO INPUTS COME FROM THE PRODUCER, NOT FROM THE ROW'S OWN ANSWERS.
-    # Reading the vendor's `isconfirmed` and feeding it back in would make this
-    # test a tautology; both are derived from the INSTANT instead.
+    # ⭐ INSTANT A COMES FROM THE PRODUCER, NOT FROM THE ROW'S OWN ANSWER.
+    # Reading the vendor's `isconfirmed` and feeding it back would make this a
+    # tautology; it is derived from the INSTANT instead.
     assert forming is False, "every row is past the scheduled close"
     assert confirmed is not None, "the confirmation instant must resolve for D"
 
     cols = ic.compute_clock(bars, "D", newest_bar_is_forming=forming,
-                            confirmed=confirmed, mode=ic.BARSTATE_MODE_VENDOR)
+                            confirmed=confirmed, historical=_historical_of(row),
+                            mode=ic.BARSTATE_MODE_VENDOR)
     got = {c: cols[c][-1] for c in COLS}
     want = {c: float(row["vendor"][c]) for c in COLS}
     assert got == want, (
         f"{row['instantET']}: vendor mode produced {got}, the chart showed {want}")
 
 
-@pytest.mark.parametrize("row", _dead_rows(), ids=lambda r: r["instantET"][11:19])
-def test_the_CLOCK_ALONE_CANNOT_REACH_a_row_where_the_dataset_went_cold(row):
-    """⭐⭐ THE LIMIT, ASSERTED SO NOBODY CAN GUESS IT AWAY.
+def test_the_replay_spans_BOTH_regimes_of_instant_B():
+    """⛔ THE CONTROL ON THE PARAMETRISED TEST ABOVE.
 
-    Row 7 read isrealtime=0 on a bar that had read 1 for seven and a half hours,
-    across three separate page loads. Nothing in any calendar predicts that
-    instant -- it is bracketed (20:55, 23:57) ET, three hours wide, with no
-    proposed mechanism. So the derivation is given liveness as an INPUT, and this
-    test pins BOTH halves of that decision:
-
-    ⛔ with only clock-derived inputs, vendor mode gets this row WRONG -- and
-    that is asserted, not tolerated, because a later "fix" that hard-codes an
-    instant would make this test pass for exactly the wrong reason.
-    ⭐ given the observation, it reproduces the row exactly -- so the gap is the
-    INSTANT, not the derivation.
+    If every row sat on one side of instant B, supplying `historical` would be a
+    constant and the replay would prove nothing about that axis.
     """
+    seen = {_historical_of(r) for r in _rows()}
+    assert seen == {False, True}, (
+        f"the timeline no longer spans instant B: {seen}. Rows 1-6 read "
+        f"isrealtime=1 and row 7 reads 0; without both, the `historical` axis is "
+        f"untested.")
+
+
+@pytest.mark.parametrize("missing", ["confirmed", "historical"])
+def test_vendor_mode_FAILS_CLOSED_when_either_axis_is_unknown(missing):
+    """⛔⛔ NEITHER INSTANT IS PINNED, SO NEITHER MAY BE GUESSED.
+
+    `None` means nobody told us. A default would be this function quietly
+    asserting an instant it cannot know, and a confident wrong column is the one
+    outcome these four exist to prevent.
+    """
+    row = _rows()[-1]
     bars, forming, confirmed = _clock_inputs(row)
-    want = {c: float(row["vendor"][c]) for c in COLS}
+    kwargs = {"newest_bar_is_forming": forming, "confirmed": confirmed,
+              "historical": _historical_of(row), "mode": ic.BARSTATE_MODE_VENDOR}
+    kwargs[missing] = None
+    cols = ic.compute_clock(bars, "D", **kwargs)
+    for c in COLS:
+        assert all(v is None for v in cols[c]), (
+            f"{c} answered while {missing} was unknown: {cols[c]}")
 
-    blind = ic.compute_clock(bars, "D", newest_bar_is_forming=forming,
-                             confirmed=confirmed, mode=ic.BARSTATE_MODE_VENDOR)
-    got_blind = {c: blind[c][-1] for c in COLS}
-    assert got_blind != want, (
-        f"{row['instantET']}: the clock alone now reproduces a row it cannot "
-        f"know about. If an instant for the isrealtime flip has been MEASURED, "
-        f"this test should be replaced by a real one -- and if it has been "
-        f"GUESSED, that guess is now shipping inside a derivation.")
 
-    told = ic.compute_clock(bars, "D", newest_bar_is_forming=forming,
-                            confirmed=confirmed, mode=ic.BARSTATE_MODE_VENDOR,
-                            dataset_live=False)
-    got_told = {c: told[c][-1] for c in COLS}
-    assert got_told == want, (
-        f"{row['instantET']}: told the dataset was cold, vendor mode produced "
-        f"{got_told}, the chart showed {want}")
+def test_instant_B_HAS_NO_VALUE_AND_SAYS_SO():
+    """⭐ `historical_instant` is always None, and that IS the measurement.
+
+    Instant A at least has a candidate that fits its bracket -- 20:00, the
+    extended-hours close. Instant B has none: bracketed (20:55, 23:57) ET with no
+    proposed mechanism at all. The day somebody pins it, this goes red and the
+    ruling gets revisited instead of the guess quietly shipping.
+    """
+    bars = _bars_for(_rows()[-1])
+    assert ic.historical_instant(bars, "D") is None
+    assert ic.historical_instant(bars, "5") is None
 
 
 def test_the_replay_is_not_vacuous_the_two_regimes_DIFFER():
@@ -150,7 +155,7 @@ def test_the_TWO_AXES_MOVE_AT_DIFFERENT_INSTANTS_which_is_the_whole_finding():
     assert both, (
         "no row shows isconfirmed=1 WITH isrealtime=1, so the timeline no longer "
         "witnesses the state our tri-state cannot spell")
-    assert _dead_rows(), (
+    assert [r for r in rows if int(r["vendor"]["isrealtime"]) == 0], (
         "no row shows isrealtime=0, so the timeline no longer witnesses the "
         "position axis moving at all")
 
@@ -180,8 +185,11 @@ def test_the_two_modes_DISAGREE_where_the_vendor_and_we_disagree():
     """
     bars = _bars_for(_rows()[-1])
     cal = ic.compute_clock(bars, "D", newest_bar_is_forming=False)
+    # historical=False -- the POST-CONFIRM, PRE-OPEN window this test is about,
+    # where instant A has passed and instant B has not. Supplying it is required:
+    # neither axis has a default (G5), because neither instant is pinned.
     ven = ic.compute_clock(bars, "D", newest_bar_is_forming=False, confirmed=True,
-                           mode=ic.BARSTATE_MODE_VENDOR)
+                           historical=False, mode=ic.BARSTATE_MODE_VENDOR)
     triple = lambda c: (c["isrealtime"][-1], c["isconfirmed"][-1], c["ishistory"][-1])
     assert triple(cal) == (0.0, 1.0, 1.0)
     assert triple(ven) == (1.0, 1.0, 0.0)

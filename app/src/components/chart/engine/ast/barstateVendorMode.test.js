@@ -41,19 +41,23 @@ const confirmedAt = (row) => {
   return now >= close + 4 * 3600
 }
 
-/** ⛔ PARTITIONED ON THE VENDOR'S OWN `isrealtime` — not circular here, circular
- *  one line later. Liveness is a property of the PAGE, not of the clock: no
- *  calendar carries an instant meaning "the socket stopped delivering". So the
- *  replay is scoped to the regime it models, and the row outside that regime gets
- *  its own test asserting the LIMIT instead of widening the model to cover it. */
-const LIVE_ROWS = TIMELINE.rows.filter((r) => Number(r.vendor.isrealtime) === 1)
-const COLD_ROWS = TIMELINE.rows.filter((r) => Number(r.vendor.isrealtime) === 0)
+/** Instant B, OBSERVED — there is no clock that answers it.
+ *
+ *  ⛔ Read off the page's own `isrealtime`, and that is not circular: the engine
+ *  reproduces FOUR columns from TWO axes and this supplies one. `ishistory` and
+ *  `islastconfirmedhistory` are checked too, and both are DERIVED from this axis
+ *  and the bar's position rather than restated — which is what makes the replay a
+ *  test rather than a mirror. */
+const historicalOf = (row) => Number(row.vendor.isrealtime) === 0
 
 describe('vendor barstate mode reproduces the chart, in the JS lane', () => {
-  for (const row of LIVE_ROWS) {
+  for (const row of TIMELINE.rows) {
     it(`⭐ ${row.instantET.slice(11, 19)} — every column back out of our own derivation`, () => {
-      const cols = computeClock(barsFor(row), 'D', false,
-        { mode: BARSTATE_MODE_VENDOR, confirmed: confirmedAt(row) })
+      const cols = computeClock(barsFor(row), 'D', false, {
+        mode: BARSTATE_MODE_VENDOR,
+        confirmed: confirmedAt(row),
+        historical: historicalOf(row),
+      })
       const last = cols.isrealtime.length - 1
       for (const c of COLS) {
         expect(cols[c][last], `${c} at ${row.instantET}`).toBe(Number(row.vendor[c]))
@@ -61,30 +65,29 @@ describe('vendor barstate mode reproduces the chart, in the JS lane', () => {
     })
   }
 
-  for (const row of COLD_ROWS) {
-    it(`⭐⭐ ${row.instantET.slice(11, 19)} — THE LIMIT: the clock alone cannot reach it`, () => {
-      // Row 7 read isrealtime=0 on a bar that had read 1 for seven and a half
-      // hours across three separate page loads. No calendar predicts that
-      // instant — it is bracketed (20:55, 23:57) ET with no proposed mechanism —
-      // so liveness is an INPUT, and both halves of that decision are pinned:
-      //
-      // ⛔ blind, the mode gets this row WRONG, and that is ASSERTED. A later
-      // "fix" that hard-codes an instant would make this pass for the wrong
-      // reason, which is the failure this test exists to make loud.
-      // ⭐ told, it reproduces the row exactly — so the gap is the INSTANT, not
-      // the derivation.
-      const opts = { mode: BARSTATE_MODE_VENDOR, confirmed: confirmedAt(row) }
-      const blind = computeClock(barsFor(row), 'D', false, opts)
-      const last = blind.isrealtime.length - 1
-      const want = Object.fromEntries(COLS.map((c) => [c, Number(row.vendor[c])]))
-      const got = Object.fromEntries(COLS.map((c) => [c, blind[c][last]]))
-      expect(got, 'the clock alone now reproduces a row it cannot know about — if '
-        + 'an instant was MEASURED replace this test; if GUESSED, it is shipping')
-        .not.toEqual(want)
+  it('⛔ THE CONTROL — the replay spans BOTH regimes of instant B', () => {
+    // If every row sat on one side of instant B, `historical` would be a constant
+    // and the replay above would prove nothing about that axis.
+    const seen = new Set(TIMELINE.rows.map(historicalOf))
+    expect([...seen].sort()).toEqual([false, true])
+  })
 
-      const told = computeClock(barsFor(row), 'D', false, { ...opts, datasetLive: false })
+  for (const missing of ['confirmed', 'historical']) {
+    it(`⛔⛔ FAILS CLOSED when \`${missing}\` is unknown`, () => {
+      // Neither instant is pinned, so neither may be guessed. `null` means nobody
+      // told us, and a confident wrong column is what these four exist to prevent.
+      const row = TIMELINE.rows[TIMELINE.rows.length - 1]
+      const opts = {
+        mode: BARSTATE_MODE_VENDOR,
+        confirmed: confirmedAt(row),
+        historical: historicalOf(row),
+      }
+      opts[missing] = null
+      const cols = computeClock(barsFor(row), 'D', false, opts)
       for (const c of COLS) {
-        expect(told[c][last], `${c} at ${row.instantET}`).toBe(Number(row.vendor[c]))
+        for (const v of cols[c]) {
+          expect(Number.isNaN(v), `${c} answered while ${missing} was unknown`).toBe(true)
+        }
       }
     })
   }
@@ -96,8 +99,8 @@ describe('vendor barstate mode reproduces the chart, in the JS lane', () => {
       (r) => Number(r.vendor.isconfirmed) === 1 && Number(r.vendor.isrealtime) === 1)
     expect(both.length, 'no row witnesses isconfirmed=1 WITH isrealtime=1 — the '
       + 'state our tri-state cannot spell').toBeGreaterThan(0)
-    expect(COLD_ROWS.length, 'no row witnesses the position axis moving at all')
-      .toBeGreaterThan(0)
+    expect(TIMELINE.rows.filter(historicalOf).length,
+      'no row witnesses the position axis moving at all').toBeGreaterThan(0)
   })
 
   it('⛔⛔ THE CONTROL — the rows span the transition', () => {
@@ -123,8 +126,11 @@ describe('vendor barstate mode reproduces the chart, in the JS lane', () => {
     const bars = barsFor(TIMELINE.rows[TIMELINE.rows.length - 1])
     const last = bars.length - 1
     const cal = computeClock(bars, 'D', false)
+    // historical: false -- the POST-CONFIRM, PRE-OPEN window this test is about,
+    // where instant A has passed and instant B has not. Supplying it is required:
+    // neither axis has a default, because neither instant is pinned.
     const ven = computeClock(bars, 'D', false,
-      { mode: BARSTATE_MODE_VENDOR, confirmed: true })
+      { mode: BARSTATE_MODE_VENDOR, confirmed: true, historical: false })
     expect([cal.isrealtime[last], cal.isconfirmed[last], cal.ishistory[last]]).toEqual([0, 1, 1])
     expect([ven.isrealtime[last], ven.isconfirmed[last], ven.ishistory[last]]).toEqual([1, 1, 0])
   })

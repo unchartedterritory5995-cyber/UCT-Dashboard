@@ -1636,6 +1636,26 @@ def confirmation_instant(bars: List[dict], tf, holidays=None, early_closes=None,
     return _et_close_at(close, zone, hour)
 
 
+def historical_instant(bars: List[dict], tf, holidays=None, early_closes=None):
+    """Instant B — when the newest bar stops being the vendor's LIVE bar.
+
+    ⛔⛔ ALWAYS ``None``, AND THAT IS THE MEASUREMENT, NOT A STUB. The flip was
+    observed between 20:55 and 23:57 ET on 2026-09-10 (timeline rows 6 and 7) and
+    nothing narrows it further: unlike instant A, which at least has 20:00 — the
+    extended-hours close — as a candidate that fits its bracket, **no mechanism has
+    been proposed for this one at all**.
+
+    ⭐ IT EXISTS SO THE ANSWER HAS A HOME. When rows through 21:00-00:00 ET pin it,
+    this is the single place that learns the rule, and `compute_clock`'s `historical`
+    input is what it would feed. Until then the honest answer is "nobody knows", and
+    a caller that needs the column must OBSERVE it rather than compute it.
+
+    ⚠️ Returning a guess here would be worse than returning nothing: it would make
+    every barstate column downstream confident on a three-hour-wide bracket.
+    """
+    return None
+
+
 def bar_close_state_full(bars: List[dict], tf, now: Optional[float] = None,
                          holidays=None, early_closes=None):
     """``(forming, confirmed)`` — the tri-state, and whether the closing update
@@ -1697,7 +1717,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
                   newest_bar_is_forming: Optional[bool] = None,
                   confirmed: Optional[bool] = None,
                   mode: str = BARSTATE_MODE_CALENDAR,
-                  dataset_live: bool = True,
+                  historical: Optional[bool] = None,
                   ) -> Dict[str, List[MaybeNum]]:
     """The clock columns for a bar series, aligned to ``bars``.
 
@@ -1787,23 +1807,34 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         # ⛔ AND IT STILL FAILS CLOSED: without the tri-state we do not know the
         # dataset is live; without `confirmed` we do not know the instant. Either
         # missing blanks all four rather than guessing.
-        if newest_bar_is_forming is not None and confirmed is not None:
-            # ⛔⛔ `dataset_live` IS THE THIRD INPUT, AND ROW 7 IS WHY IT EXISTS.
-            # This branch used to hard-code "the newest bar is the realtime one".
-            # Timeline row 7 falsified that: at 23:57 ET the SAME daily bar that
+        if (newest_bar_is_forming is not None and confirmed is not None
+                and historical is not None):
+            # ⛔⛔ VENDOR MODE HAS **TWO** TIME AXES AND THIS ENGINE PINS NEITHER.
+            #
+            #   instant A — `confirmed`: the closing update happened.
+            #               Bracketed (19:22, 20:55) ET. Hypothesis: 20:00, the
+            #               extended-hours close (`nyse_calendar.EXTENDED_CLOSE_HOUR`).
+            #   instant B — `historical`: the bar stopped being the live one.
+            #               Bracketed (20:55, 23:57) ET. NO hypothesis at all.
+            #
+            # ⭐⭐ THEY ARE DIFFERENT INSTANTS, HOURS APART, ON ONE BAR — measured
+            # across timeline rows 1-7 on 2026-09-10/11. That is the whole finding:
+            # a tri-state cannot express two flags that flip at different times, so
+            # this is a different NUMBER OF AXES, not a calibration difference.
+            #
+            # ⛔ BOTH ARRIVE AS INPUTS AND BOTH FAIL CLOSED. `None` means nobody
+            # told us, and the four columns blank rather than guess — the same rule
+            # `newest_bar_is_forming` has always had. A default of "live" would be
+            # this function quietly asserting instant B had not passed, which is
+            # precisely the guess the ruling forbids.
+            #
+            # ⚰️ ROW 7 IS WHY `historical` EXISTS. This branch hard-coded "the
+            # newest bar is the realtime one". At 23:57 ET the SAME daily bar that
             # had read isrealtime=1 for seven and a half hours — across three
             # separate page loads, so not a fetch artifact — read isrealtime=0,
-            # ishistory=1, islastconfirmedhistory=1. The dataset had stopped
-            # being live, and the position axis moved with it.
-            #
-            # ⛔ THE INSTANT AT WHICH THAT HAPPENS IS NOT IN HERE, AND MUST NOT BE
-            # GUESSED INTO IT. It is bracketed (20:55, 23:57) ET — three hours
-            # wide — with no proposed mechanism at all, which is a weaker footing
-            # than even the 20:00 confirmation hypothesis. So liveness arrives as
-            # an INPUT the caller observes, exactly as `confirmed` does; what this
-            # function owns is the derivation, never the clock behind it.
+            # ishistory=1, islastconfirmedhistory=1.
             last_i = n - 1
-            live = bool(dataset_live)
+            live = not bool(historical)
             rt_i = last_i if live else -1
             cols["isrealtime"] = [1.0 if i == rt_i else 0.0 for i in range(n)]
             cols["ishistory"] = [1.0 - v for v in cols["isrealtime"]]
