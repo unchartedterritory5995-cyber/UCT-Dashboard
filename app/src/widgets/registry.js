@@ -289,6 +289,75 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: (p) => !!(p?.row && typeof p.row === 'object'),
     liveCapable: false,
   },
+  indexes: {
+    labels: { header: 'Indexes', menu: 'Indexes', tab: 'Indexes' },
+    defaults: { w: 6, h: 6, minW: 3, minH: 3 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'hiddenSymbols', type: 'json', default: [] },
+      // The captured READINGS as they stood: {sym, price, chg} per index.
+      // ⛔ The tint is NOT stored beside them — direction derives from `chg`
+      // in one shared helper, so a frozen row's colour can never disagree
+      // with its own number (lesson_a_second_authority_over_one_value).
+      { key: 'rows', type: 'json' },
+      { key: 'updated', type: 'string' },        // ET clock at capture
+    ],
+    plainText: (p) => {
+      const rows = Array.isArray(p?.rows) ? p.rows : []
+      const body = rows.length
+        ? rows.map(r => [r?.sym, r?.price, r?.chg].filter(Boolean).join(' ')).join(' · ')
+        : 'no readings'
+      return `[indexes: ${body}${p?.updated ? ` — ${p.updated}` : ''}]`
+    },
+    // ⛔ PAYLOAD FREEZE, and the test the architecture doc sets is failed
+    // squarely: `/api/snapshot` answers ONE question — "what are the indexes
+    // right now" — and accepts no date. Nothing in this app can return SPY's
+    // level as it stood at 1:26 PM on a past Thursday. The daily bar store is
+    // date-addressable but answers a DIFFERENT question (that session's
+    // CLOSE), and a member who captured an intraday reading captured it on
+    // purpose. Re-fetching would quietly substitute one number for another
+    // under the same caption. The frozen rows are the only honest record.
+    reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length > 0,
+    liveCapable: false,
+  },
+  marketcontext: {
+    labels: { header: 'Market Context', menu: 'Market Context', tab: 'Context' },
+    defaults: { w: 5, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      // The captured market state: {marketPhase, exposureScore, exposureDelta,
+      // breadthScore, distributionDays, pctAbove50, pctAbove200, powerTrend}.
+      // ⛔ powerTrend is null BY OWNER DIRECTION (2026-04-17, "rule not yet
+      // defined") and renders as an em dash. It is stored so the note records
+      // that the reading was undefined at capture, not merely absent.
+      { key: 'readings', type: 'json' },
+      { key: 'wireDate', type: 'string' },       // the wire run the readings came from
+      { key: 'updated', type: 'string' },        // ET clock at capture
+    ],
+    plainText: (p) => {
+      const r = (p?.readings && typeof p.readings === 'object') ? p.readings : {}
+      const bits = []
+      if (r.marketPhase) bits.push(String(r.marketPhase))
+      if (r.exposureScore != null) bits.push(`exposure ${r.exposureScore}`)
+      if (r.breadthScore != null) bits.push(`breadth ${r.breadthScore}`)
+      return `[market context: ${bits.length ? bits.join(' · ') : 'no readings'}${p?.wireDate ? ` — ${p.wireDate}` : ''}]`
+    },
+    // ⛔ PAYLOAD FREEZE, and a harder case than breadth's. `/api/breadth` takes
+    // no date: it serves the CURRENT wire payload only. `wire_data.json` is
+    // OVERWRITTEN by each morning's run, so yesterday's exposure score and
+    // market phase exist nowhere — there is no archive to query even in
+    // principle. (`/api/breadth-monitor?end=` IS date-addressable, but it is a
+    // DIFFERENT store — the 4:15 collector's row — whose breadth number is not
+    // the wire's. Re-fetching from it would answer a similar question with a
+    // different answer and call it the same reading, which is worse than
+    // showing the archive.) The frozen readings are the only record.
+    reconstructable: (p) => !!(p?.readings && typeof p.readings === 'object' && !Array.isArray(p.readings)),
+    liveCapable: false,
+  },
   aisearch: {
     labels: { header: 'AI Search', menu: 'AI Search', tab: 'AI Search' },
     defaults: { w: 7, h: 10, minW: 3, minH: 3 },
@@ -548,7 +617,7 @@ export const WIDGET_CATEGORIES = [
   { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
-  { key: 'internals', label: 'Market Internals',       items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
+  { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
   { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar', 'notebook'] },
   { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
@@ -567,6 +636,8 @@ export const WIDGET_CATALOG = {
   scanner:      { icon: 'screener', blurb: 'Build & run scans on your own criteria.' },
   fundamentals: { icon: 'scale',    blurb: 'Earnings, valuation & key financials.' },
   breadth:      { icon: 'breadth',  blurb: 'Market breadth & participation monitor.', live: true },
+  indexes:      { icon: 'equity',   blurb: 'Index levels and the day’s move, live.', live: true },
+  marketcontext:{ icon: 'compass',  blurb: 'Phase, exposure and breadth in one read.' },
   aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },

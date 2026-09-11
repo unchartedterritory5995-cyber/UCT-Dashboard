@@ -1,0 +1,112 @@
+/* Market Context widget — a stacked list of the market's readings. Token-driven
+   so the widget follows its PLACED theme and renders identically inside a note
+   under the frozen workspace host. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.title {
+  font-size: var(--fs-xs, 11px);
+  letter-spacing: var(--ls-label, 1.5px);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.spacer { flex: 1 1 auto; }
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.iconBtn:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
+
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: 0; }
+
+.rowLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-sm, 12px);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowValue {
+  flex: 0 0 auto;
+  font-size: var(--fs-sm, 13px);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright);
+  text-align: right;
+}
+
+.rowDelta {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.pos { color: var(--gain); }
+.neg { color: var(--loss); }
+
+/* The em dash a deliberately-unknowable reading renders as. It is NOT a
+   loading state and NOT an error — `powerTrend` has no derivation rule by
+   owner direction (2026-04-17) and is null on purpose. */
+.dash { color: var(--text-muted); }
+
+.hint {
+  padding: 14px;
+  font-size: var(--fs-sm, 12px);
+  color: var(--text-muted);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.footerUpdated { flex: 1 1 auto; }
