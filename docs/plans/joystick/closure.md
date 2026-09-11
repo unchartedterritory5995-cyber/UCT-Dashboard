@@ -44,6 +44,85 @@ could not, so nobody re-derives the stop from scratch.
 | **D-16 — Notebook double-tap search** | The only fix is inside `NotebookTab.jsx`, under a standing zero-edit rule. |
 | **D-30 — one `data_root()` helper** | Not this programme's, and a live PRODUCTION risk. See §1.
 
+### ⛔⛔ THE REGISTER ABOVE WAS RE-EXAMINED — L3, member-launch charter, 2026-09-11
+
+The owner widened the authority: `api/routers/auth.py` was waived **for that one file, on proof**,
+as a maintenance deploy. That re-opened exactly one row (**P6**) and **changed the reason on every
+other row without changing any verdict**. The re-examination's rule was: re-measure the stop at its
+source, never re-litigate the ruling.
+
+| Item | New verdict | Why |
+|---|---|---|
+| **P6** | ✅ **BUILT** — `60cbe8919` | The waived file. Allow-list + `joystick_hub` schema; rail `tests/test_preference_key_validation.py` (24). See `71-open-items-proposals.md` §1 for the design and what was deliberately NOT built. |
+| **D-32** | **CLOSED — product decision (OWNER)** | The `api/` stop is now a priced deploy, not a bar — but the fix lives in `live_tier.py`'s serialiser, which the one-file waiver does not name, AND the row already carried an owner ruling ("do not add an endpoint for this now") that no file-list widening reaches. |
+| **D-20** | **CLOSED — product decision (OWNER)** | Never an `api/` row. Half (1) is one line; half (2) asks whether the joystick outranks a modal **app-wide** (`hub.module.css:306-312` says the ladder split is deliberate). One ruling, not a calendar fix. |
+| **D-06** | **CLOSED — product decision (OWNER, breadth customize)** | Never an `api/` row. Re-measure found the writer guard **three** times (`:112`, `:123`, `:185`) plus the reader guard (`:100-103`). The fix changes what a preset MEANS. |
+| **R-08** | **CLOSED — dependency (Journal 2.0)** | The waiver is `auth.py` only; all three holes are in `positions.py`. There is no zero-`api/` implementation — every hole is a server-side acceptance rule. |
+| **R-11** | **CLOSED — product decision (Journal 2.0)** | L3 widened `api/`; the zero-edit rule on `app/src/pages/journal-2-0/**` is a different rule and was not widened. |
+
+#### The three proofs the `auth.py` waiver was granted on
+
+1. **Not on `flow-worker`'s watch list.** The in-repo mirror (`api/flow_worker_main.py` header)
+   enumerates its watched top-level modules: `massive_ws_worker, massive_processor, flow_db, bs_iv,
+   flow_worker_main, live_massive_router, flow_router, flow_router_mount, flow_heal_enrich,
+   flow_gap_autofill, massive_flatfiles_worker, flow_watchdog, oi_snapshots, massive_stream,
+   flow_tape_spool, flow_backup, dealer_positioning, flow_rest_backfill, alpha_gold_eod,
+   weekly_flow, flow_opt_aggregate`. No `routers/` path, and no `auth`.
+   ⚰️ **The count in the register above says 20. Counted from the file, it is 21.** Off by one,
+   harmlessly — but the register restates a number it does not derive, so it drifted. The header
+   also carries two standing ⚠️ TODOs that `confluence_flow.py`, `oi_massive_snapshots.py` and
+   `oi_morning.py` are flow-worker modules that are NOT watched.
+2. **Not imported by `flow_worker_main`.** An `ast` walk of the transitive in-repo `api.*` import
+   graph from that root reaches **228** modules; `api.routers.auth` is not one of them.
+   **Control:** the same walk DOES reach `api.routers.ticker_search`, so "not reachable" is a
+   measurement and not a resolver blind spot. (The walk's first run returned 1 module — a
+   misjoined root path — and the control is what caught it.)
+3. **The restart cost, measured.** Below.
+
+#### What an `api/routers/auth.py` push actually costs — measured, for the member-impact paragraph
+
+⛔ **THREE services restart, not one.** `web` (every master push rebuilds it, docs-only included),
+`worker` (`/api/**`) and `bars-api` (`api/**`). `flow-worker` does **not** — which matters most,
+because its gap is the only PERMANENT one ("a push touching a flow-worker watched file bounces the
+OPRA tape, and that gap is PERMANENT until the overnight T+1 flat file"). The OPRA tape is untouched.
+
+- **`web`** — ~1 min `/api/*` blip. **This is where the APScheduler class lands.** Its job store is
+  in memory, so any scheduled slot whose time passes during the swap is never scheduled at all —
+  lost outright, not run late, and `misfire_grace_time` cannot see it.
+- **`worker`** — ⭐ **runs NO APScheduler.** Grepping `api/worker_main.py` for
+  `scheduler|BackgroundScheduler|add_job|cron` returns two COMMENT lines (`:552`, `:558`) that
+  refer to the *web* pod's scheduler being kept alive by the keep-warm ping. Every worker job is a
+  `while True: … time.sleep(N)` daemon thread, so a restart loses loop PHASE, not a slot. What it
+  actually drops:
+  - the in-flight **prewarm pass, from zero** — the product says so itself in
+    `_bars_alert_text`: "the most common way to see this alert is DURING the boot pass, and a
+    redeploy restarts that pass from zero";
+  - the **down-alert state machine** (`_alert_state = {"fails": 0, "down": False,
+    "last_alert_at": None}`, in-process only). If the site is DOWN across the swap, the recovery
+    ping is never sent, the 30-min re-nag cooldown resets, and DOWN must be re-detected from zero —
+    `DOWN_ALERT_FAILS = 2` probes at a 60 s interval, so **~2 minutes blind**;
+  - the **bars-freshness watchdog** state, same class (can re-page);
+  - `_uploader_state`, so `/internal/health` reports no upload attempt until the first loop ends;
+  - **R2 snapshots pause** until the blocking weekly-key purge finishes — its `DISTINCT` scan "has
+    no tf-leading index and takes minutes on the worker's multi-GB ohlcv table", and the uploader
+    starts from the same thread strictly after it.
+  - **NOT dropped, by design:** the R2 base-snapshot day marker (a volume marker added precisely
+    because "on busy deploy nights the in-process-only tracker re-uploaded a ~2.4 GB base per
+    push"), the breadth-backfill floor marker, the deep-history-warm done-marker, the wick sweep's
+    resume, and `bars.db` itself.
+- **`bars-api`** — ⛔ **the member-visible one, and the one the register never priced.** It is the
+  dedicated chart-data serving tier (`/api/bars` + `/api/bars-history`). Its own header says it
+  exists "so app/partner deploys can NEVER restart chart serving" — but its watch paths were never
+  narrowed (that sentence is still conditional: "once its Railway watch paths are narrowed"), so an
+  `api/**` edit restarts exactly the thing it was built to protect. On boot it **serves cold-fetches
+  until the R2 `bars.db` install thread completes**; charts are correct throughout, just slower
+  until it lands.
+- **Timing** — push → container start was measured at **~4-7 minutes** on this repo's services.
+
+⛔ **The honest summary for a member-impact paragraph:** no data is lost and nothing members own is
+touched; for a few minutes charts serve cold, one prewarm pass restarts, R2 snapshots pause, and any
+`web` scheduler slot falling inside the swap is skipped. The options tape is not affected.
+
 ---
 
 ## 1. What is actually open
