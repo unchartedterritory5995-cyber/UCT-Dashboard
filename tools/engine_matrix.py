@@ -1585,6 +1585,151 @@ def capture_fork(out_path: pathlib.Path | None = None,
 # `rig_opt_out` the moment it was added, which is the rail working.
 
 
+STORE_KEY_PATHS = {"notes": "noteId", "meta": "name", "outbox": "id", "conflicts": "id"}
+
+STORES_CLEAR_JS = """async ({acct, plan}) => {
+""" + w.OPEN_IF_EXISTS + """
+  const out = {deleted: {}, remaining: {}, missing: []};
+  const h = await openIfExists('uct_notebook_' + acct);
+  if (h.missing || h.phantom) return Object.assign(out, {noDb: true});
+  for (const [store, keys] of Object.entries(plan)) {
+    if (!h.stores.includes(store)) { out.missing.push(store); continue }
+    const tx = h.db.transaction(store, 'readwrite');
+    const os = tx.objectStore(store);
+    // ⛔ BY KEY, one row at a time — never `os.clear()`. A row that arrived after
+    // the capture is not in the record, and clearing the store would destroy
+    // something nobody has read.
+    for (const k of keys) os.delete(k);
+    await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
+    out.deleted[store] = keys.length;
+  }
+  for (const s of h.stores) {
+    const all = await new Promise(res => {
+      const t = h.db.transaction(s, 'readonly').objectStore(s).getAll();
+      t.onsuccess = () => res(t.result || []); t.onerror = () => res('ERR');
+    });
+    out.remaining[s] = Array.isArray(all) ? all.length : all;
+  }
+  return out;
+}"""
+
+
+def clear_plan(dump: dict) -> dict:
+    """{store: [primary key, …]} — EXACTLY the rows the record holds."""
+    plan = {}
+    for store, rows in (((dump or {}).get("dump") or {}).get("rows") or {}).items():
+        kp = STORE_KEY_PATHS.get(store)
+        if not kp or not isinstance(rows, list):
+            continue
+        keys = [r.get(kp) for r in rows if isinstance(r, dict) and r.get(kp) is not None]
+        if keys:
+            plan[store] = keys
+    return plan
+
+
+def clear_refusal(dump: dict, live_counts: dict) -> str | None:
+    """⛔ CAPTURE THEN CLEAR — the same rule as the notes, one layer down.
+
+    The dump must be finished, must name rows, and the stores must hold EXACTLY
+    what it recorded. A count that moved since the capture means a row exists
+    that nobody has read, and clearing then destroys an unread artifact.
+    """
+    if not isinstance(dump, dict) or not dump.get("dump"):
+        return "no stores dump: nothing has been recorded, so nothing may be cleared"
+    if str(dump.get("status") or "").startswith(("INCOMPLETE", "STOPPED", "REFUSED")):
+        return f"the dump did not finish ({dump.get('status')!r}) — a partial record is not a record"
+    plan = clear_plan(dump)
+    if not plan:
+        return "the dump names no rows to clear"
+    recorded = dump.get("counts") or {}
+    for store, n in (live_counts or {}).items():
+        if not isinstance(n, int):
+            return f"store `{store}` could not be counted ({n!r})"
+        if n != recorded.get(store):
+            return (f"store `{store}` holds {n} row(s), the record has "
+                    f"{recorded.get(store)} — the record is not of this state")
+    return None
+
+
+def stores_clear(dump_path: pathlib.Path | None = None,
+                 out_path: pathlib.Path | None = None) -> int:
+    """Clear the captured IndexedDB rows from the rig — and ONLY those.
+
+    ⛔ The ONE write this tool makes to the rig profile's stores, and it refuses
+    unless a finished dump already holds every row it would remove.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"stores-clear-{stamp}.json")
+    rec = {"at": utc(), "mode": "stores-clear", "profile": str(w.PROFILE),
+           "account": ACCOUNT_ID, "status": "INCOMPLETE — the clear did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    d = dump_path
+    if d is None:
+        found = sorted((w.ROOT / ".worktrees" / "q1-dry-run").glob("stores-dump-*.json"))
+        d = found[-1] if found else None
+    if d is None or not pathlib.Path(d).exists():
+        _write_json(out, dict(rec, status="REFUSED — no stores dump on disk"))
+        print("⛔ REFUSED: no stores dump — capture the rows before clearing them")
+        return 1
+    dump = json.loads(pathlib.Path(d).read_text(encoding="utf-8"))
+    plan = clear_plan(dump)
+    rec["dump_file"], rec["dump_at"], rec["plan"] = str(d), dump.get("at"), plan
+    print(f"record: {pathlib.Path(d).name} ({dump.get('at')}) — "
+          f"{sum(len(v) for v in plan.values())} row(s) across {len(plan)} store(s)")
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            before = page.evaluate(STORES_DUMP_JS, ACCOUNT_ID)
+            rec["counts_before"] = before.get("stores")
+            refusal = clear_refusal(dump, before.get("stores") or {})
+            rec["gate"] = refusal or "PASSED — the record holds every row to be cleared"
+            if refusal:
+                _write_json(out, dict(rec, status=f"REFUSED — {refusal}"))
+                print(f"⛔ REFUSED: {refusal}")
+                return 1
+            res = page.evaluate(STORES_CLEAR_JS, {"acct": ACCOUNT_ID, "plan": plan})
+            rec["cleared"] = res.get("deleted")
+            rec["counts_after"] = res.get("remaining")
+            rec["missing_stores"] = res.get("missing")
+            rec["rig_after"] = _rig_read(page)
+    finally:
+        k, left, others, rel, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": k, "survivors": left, "lock_released": rel,
+                               "untouched_browsers": others}
+    disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["opt_in_key_on_disk"] = disk.get("value")
+    counts = rec.get("counts_after") or {}
+    at_rest = bool(counts) and all(v == 0 for v in counts.values())
+    rec["stores_at_rest"] = at_rest
+    rec["status"] = "COMPLETE" if at_rest else "⛔ STORES STILL NOT AT REST"
+    _write_json(out, rec)
+    print(f"cleared: {rec['cleared']}")
+    print(f"stores after: {counts}")
+    print(f"locks {rec['rig_after'].get('locks')} · key in-browser "
+          f"{rec['rig_after'].get('opt_in_key_in_browser')!r} · on disk {disk.get('value')!r}")
+    print(f"VERDICT: {'✅ STORES AT REST' if at_rest else '⛔ rows remain'}")
+    print(f"artifact: {out}")
+    return 0 if at_rest else 1
+
+
 def preserve_clean(capture_path: pathlib.Path | None = None,
                    out_path: pathlib.Path | None = None,
                    expect_notes: int = 32,
@@ -2656,6 +2801,13 @@ def main() -> int:
                     help="soft-delete the preserved canary artifacts and prove the "
                          "baseline TWO WAYS. ⛔ REFUSES unless a finished capture on "
                          "disk already holds the words of every note it would remove.")
+    ap.add_argument("--stores-clear", action="store_true",
+                    help="clear the CAPTURED IndexedDB rows from the rig, by primary "
+                         "key. ⛔ REFUSES unless a finished stores dump already holds "
+                         "every row it would remove, and the stores still match it.")
+    ap.add_argument("--dump", default=None,
+                    help="the stores dump --stores-clear must answer to "
+                         "(default: the newest stores-dump-*.json)")
     ap.add_argument("--stores-dump", action="store_true",
                     help="READ-ONLY: dump every row in the rig's per-account "
                          "IndexedDB — the LOCAL half of a fork's evidence.")
@@ -2688,6 +2840,8 @@ def main() -> int:
     _out = pathlib.Path(args.out).resolve() if args.out else None
     if args.capture_fork:
         return capture_fork(_out)
+    if args.stores_clear:
+        return stores_clear(pathlib.Path(args.dump).resolve() if args.dump else None, _out)
     if args.stores_dump:
         return stores_dump(_out)
     if args.verify_baseline:
@@ -3031,6 +3185,32 @@ def self_check() -> int:
     cases.append(("the rig is only ever READ by the cleanup — the deletes use a fresh context",
                   "THE RIG NEVER WRITES HERE" in src))
 
+    # ⛔⛔ CAPTURE THEN CLEAR — the notes rule, one layer down, driven.
+    _clear_code = "\n".join(l for l in STORES_CLEAR_JS.splitlines()
+                            if not l.strip().startswith("//"))
+    _dump = {"status": "COMPLETE", "counts": {"notes": 1, "meta": 2, "outbox": 0},
+             "dump": {"rows": {"notes": [{"noteId": "n1"}],
+                               "meta": [{"name": "inflight:n1"}, {"name": "landed:n1"}],
+                               "outbox": []}}}
+    cases += [
+        ("the clear plan names rows by PRIMARY KEY, never a whole store",
+         clear_plan(_dump) == {"notes": ["n1"], "meta": ["inflight:n1", "landed:n1"]}),
+        # ⚠️ COMMENTS STRIPPED — for the THIRD time tonight the first version of a
+        # sweep matched the comment that EXPLAINS the property (here, the line
+        # saying "never `os.clear()`"). Prose about a defect is not the defect.
+        ("…and it never uses a blanket store clear",
+         ".clear()" not in _clear_code and "os.delete(k)" in _clear_code),
+        ("the gate PASSES when the stores still match the record",
+         clear_refusal(_dump, {"notes": 1, "meta": 2, "outbox": 0}) is None),
+        ("⛔ REFUSES with no dump at all", "no stores dump" in (clear_refusal({}, {}) or "")),
+        ("⛔ REFUSES on an unfinished dump",
+         "did not finish" in (clear_refusal(dict(_dump, status="INCOMPLETE — x"), {}) or "")),
+        ("⛔ REFUSES when a store gained a row since the capture",
+         "not of this state" in (clear_refusal(_dump, {"notes": 2, "meta": 2, "outbox": 0}) or "")),
+        ("⛔ REFUSES when a store could not be counted",
+         "could not be counted" in (clear_refusal(_dump, {"notes": "ERR"}) or "")),
+    ]
+
     # ══════════════════════════════════════════════════════════════════════════
     # THE PROFILE-PATH OVERRIDE. ⛔ The bug it exists for: the default resolves
     # against THIS COPY's repo root, so a second worktree points both rigs at its
@@ -3127,6 +3307,8 @@ def self_check() -> int:
                   "def preserve_clean" in src and "def preserve_clean" not in dry_src))
     cases.append(("CONTROL: the region sweep can see a def that IS inside it",
                   "def capture_fork" in dry_src))
+    cases.append(("`stores_clear` is OUTSIDE the read-only region too",
+                  "def stores_clear" in src and "def stores_clear" not in dry_src))
     opt_src = src.split("def rig_opt_out", 1)[1].split("\ndef _row", 1)[0]
     cases.append(("the ONE deliberate write is the flag key, and nothing else",
                   opt_src.count("localStorage.setItem") == opt_src.count("(k, '0')")))
