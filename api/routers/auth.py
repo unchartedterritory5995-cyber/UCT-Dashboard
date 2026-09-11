@@ -104,6 +104,7 @@ class LoginRequest(BaseModel):
 ADMIN_EMAILS = set(filter(None, os.environ.get("ADMIN_EMAILS", "").split(",")))
 ADMIN_EMAILS.add("unchartedterritory5995@gmail.com")  # Owner always admin
 ADMIN_EMAILS.add("blake.bracco67@gmail.com")  # Admin
+ADMIN_EMAILS.add("kretosstechuct@gmail.com")  # Admin (KRETOSSTECHUCT)
 
 
 def _access_payload(user: dict, plan: str) -> dict:
