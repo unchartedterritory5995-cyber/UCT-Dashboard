@@ -59,7 +59,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import useHubMode from '../useHubMode'
 import useHubCursor from '../useHubCursor'
-import { useHub } from '../HubContext'
+import { useHubSetters } from '../HubContext'
 import { modesById } from '../registry'
 import { activeStop, realStop, rAtStop } from '../../lib/journal-2-0'
 // D-31: the tick table lives beside the price formatter. The hub is a caller.
@@ -445,7 +445,10 @@ export default function useJournalHubSection({
   j2Client = defaultJ2Client,
   doc,
 } = {}) {
-  const { setSymbol, setSelectedPosition } = useHub()
+  // ⛔ SETTERS ONLY, so from the setters context — NOT `useHub()`. Reading them off the main
+  // context subscribed this section to every hub state change including its own registration,
+  // which cost its host one extra render per mount. See `HubSettersContext`.
+  const { setSymbol, setSelectedPosition } = useHubSetters()
 
   // ⛔⛔ THE CALLERS' CALLBACKS ARE HELD IN A REF, AND THAT IS A CORRECTNESS FIX, NOT TIDINESS.
   //

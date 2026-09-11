@@ -95,6 +95,32 @@ const HubContext = createContext({
  */
 const HubRegistrarContext = createContext(() => () => {})
 
+/**
+ * ⛔⛔ THE SETTERS, ON A CONTEXT THAT NEVER CHANGES — the same shape as `HubRegistrarContext`,
+ * and added for the same reason one leg further along.
+ *
+ * `useState` setters and refs are permanently stable, but riding them on the main `value` memo
+ * made them change identity whenever ANY hub state moved. A section that needs only a setter —
+ * `journalSection` wants `setSymbol`/`setSelectedPosition`, `screenerSection` wants `setSymbol` —
+ * had to subscribe to the whole volatile context to get one, and then re-rendered on its OWN
+ * registration.
+ *
+ * ⭐ MEASURED, NOT ASSUMED: `hubInertWhenIneligible.test.jsx` caught both sections rendering their
+ * host 8 times with a provider against 7 without. One extra render is not a freeze — it is the
+ * 2026-09-10 navigation-freeze shape one leg short, and it was being charged to members who
+ * could never see the hub at all.
+ *
+ * ⛔ A section that needs hub STATE (`homeSection` reads `lastSection`) still uses `useHub()` and
+ * should: it genuinely wants to re-render when that value moves. This context is for callers who
+ * want to WRITE, never to read.
+ */
+const NO_OP = () => {}
+const NO_SETTERS = Object.freeze({
+  setMode: NO_OP, setSymbol: NO_OP, setTimeframe: NO_OP, setActiveScan: NO_OP,
+  setSelectedPosition: NO_OP, chartRef: { current: null },
+})
+const HubSettersContext = createContext(null)
+
 const LAST_SECTION_STORAGE_KEY = 'hub.lastSection'
 
 function readLastSection() {
@@ -246,15 +272,37 @@ export function HubProvider({ children }) {
     selectedPosition, livePrice, isStreaming, lastSection,
   ])
 
+  // ⛔ EMPTY DEP LIST, AND EVERY MEMBER MUST BE STABLE FOR THAT TO BE HONEST. All five are
+  // `useState` setters and `chartRef` is a ref — React guarantees the identity of both for the
+  // life of the component. If a non-stable value is ever added here, this memo starts lying and
+  // `hubInertWhenIneligible.test.jsx` is what goes red.
+  const setters = useMemo(() => ({
+    setMode, setSymbol, setTimeframe, setActiveScan, setSelectedPosition, chartRef,
+  }), [])
+
   return (
     <HubRegistrarContext.Provider value={registerHubMode}>
-      <HubContext.Provider value={value}>{children}</HubContext.Provider>
+      <HubSettersContext.Provider value={setters}>
+        <HubContext.Provider value={value}>{children}</HubContext.Provider>
+      </HubSettersContext.Provider>
     </HubRegistrarContext.Provider>
   )
 }
 
 export function useHub() {
   return useContext(HubContext)
+}
+
+/**
+ * The hub's SETTERS alone, on a context whose value never changes.
+ *
+ * ⭐ Use this instead of `useHub()` whenever a caller only WRITES. Reading a setter off the main
+ * context subscribes you to every hub state change, including your own registration — see
+ * `HubSettersContext`. Outside a provider this returns a frozen no-op set, so a section remains
+ * callable in a bare render exactly as `useHub()` is.
+ */
+export function useHubSetters() {
+  return useContext(HubSettersContext) ?? NO_SETTERS
 }
 
 /** The registration function alone — see `HubRegistrarContext`. `useHubMode` is its consumer. */
