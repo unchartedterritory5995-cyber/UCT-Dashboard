@@ -40,8 +40,39 @@ describe('HUB_SETTINGS_DEFAULTS — the one authority for "what a fresh account 
       doubleTapMs: 280,
       stickyFan: true,
       highContrast: false,
+      // ⛔ The G0 gesture trace ships OFF. It is a diagnostic, and a diagnostic that is on because
+      // nobody chose is the shape `project_feature_flag_ledger` exists to prevent.
+      traceGestures: false,
       overrides: {},
     })
+  })
+})
+
+describe('⛔ traceGestures — the G0 diagnostic is admin-only at the ONE authority', () => {
+  // ⚠️ These are here, beside the five enable-gate scenarios, because this is the file that owns
+  // "what does settings.X resolve to" — the Settings card only decides what to RENDER.
+  it('a non-admin who stored traceGestures:true still resolves to false', async () => {
+    mockPrefsFetch({ [JOYSTICK_HUB_PREF_KEY]: JSON.stringify({ enabled: true, traceGestures: true }) })
+    const { result } = renderHook(() => useHubSettings(), { wrapper: wrapper({ role: 'user' }) })
+    await waitFor(() => expect(result.current.storedEnabled).toBe(true))
+    expect(
+      result.current.settings.traceGestures,
+      'a member wrote the trace flag straight to the unvalidated preferences endpoint and got it — '
+      + 'the card hiding the control is an exposure default, not a boundary',
+    ).toBe(false)
+  })
+
+  it('CONTROL: an admin with the SAME stored blob does get it — so the case above is not vacuous', async () => {
+    mockPrefsFetch({ [JOYSTICK_HUB_PREF_KEY]: JSON.stringify({ enabled: true, traceGestures: true }) })
+    const { result } = renderHook(() => useHubSettings(), { wrapper: wrapper({ role: 'admin' }) })
+    await waitFor(() => expect(result.current.settings.traceGestures).toBe(true))
+  })
+
+  it('an admin who never chose resolves to false — unset is never ON', async () => {
+    mockPrefsFetch({})
+    const { result } = renderHook(() => useHubSettings(), { wrapper: wrapper({ role: 'admin' }) })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.settings.traceGestures).toBe(false)
   })
 })
 
@@ -127,6 +158,11 @@ describe('useHubSettings — updateHubSettings is a JSON-patch merge, not a repl
       doubleTapMs: 280,
       stickyFan: true,
       highContrast: false,
+      // ⭐ Written as the DEFAULT, not as the resolved value. This user is a member, so
+      // `settings.traceGestures` reads false for them either way — but the blob must carry the
+      // stored intent, never the admin-resolved answer, or an admin toggling handedness on a
+      // member-shaped blob would silently stamp a diagnostic into it.
+      traceGestures: false,
       overrides: {},
     })
   })

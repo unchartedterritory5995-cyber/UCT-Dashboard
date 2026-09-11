@@ -9,17 +9,24 @@
 // hide has a real re-enable path sitting beside it, which is the condition for allowing a
 // persistent hide at all.
 
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 
 import { AuthContext } from '../../context/AuthContext'
 import TileCard from '../../components/TileCard'
 import useHubSettings from '../../hub/useHubSettings'
 import { clearSessionOverride } from '../../hub/hubSessionVisibility'
+import { clearGestureTrace, gestureTraceJson, readGestureTrace } from '../../hub/gestureTrace'
 import styles from '../Settings.module.css'
 
 export default function JoystickSettingsCard() {
   const { settings, storedEnabled, updateHubSettings } = useHubSettings()
   const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  // ⛔ THE STATUS LINE LIVES HERE, ABOVE THE BUTTONS THAT WRITE IT, and neither button unmounts
+  // this card. CLAUDE.md, "Assert user-facing feedback by RENDERED TEXT": the hub has already
+  // shipped two toasts that were destroyed in the same commit that set them and rendered for zero
+  // frames, with every structural assertion green.
+  const [traceStatus, setTraceStatus] = useState('')
+  const [traceFallback, setTraceFallback] = useState('')
 
   // ⛔ B6 — EXPOSURE, AND THE STRAND CASE THAT SHAPES IT.
   //
@@ -65,6 +72,54 @@ export default function JoystickSettingsCard() {
   }
 
   const overrideCount = Object.keys(settings.overrides || {}).length
+
+  /**
+   * "Copy trace" — the ONE export path for the G0 buffer.
+   *
+   * ⛔ NO SINK. It reaches the clipboard and nowhere else: no endpoint, no upload, no beacon. Master
+   * spec §8's "no analytics" is not suspended for a diagnostic.
+   *
+   * ⭐ AN EMPTY BUFFER SAYS SO, IN WORDS. Absence is not a pass (`glass-acceptance.md`'s own first
+   * rule): a "Copied." message over zero rows would hand the owner an empty file that looks like a
+   * clean device. The message also carries the window bounds, so a capture that overflowed the ring
+   * cannot read as "that is everything that happened"
+   * (`lesson_a_saturated_instrument_reports_zero`).
+   */
+  const onCopyTrace = async () => {
+    const t = readGestureTrace()
+    if (t.kept === 0) {
+      setTraceFallback('')
+      setTraceStatus(
+        'Nothing recorded. Either "Record gesture trace" is off, or no pointer event has reached '
+        + 'the joystick pad since the last clear.',
+      )
+      return
+    }
+    const summary = `${t.kept} event${t.kept === 1 ? '' : 's'}, seq ${t.firstSeq}-${t.lastSeq}`
+      + (t.dropped > 0
+        ? `, ${t.dropped} older dropped (the ring holds ${t.capacity})`
+        : '')
+    const json = gestureTraceJson()
+    try {
+      await navigator.clipboard.writeText(json)
+      setTraceFallback('')
+      setTraceStatus(`Copied ${summary}.`)
+    } catch {
+      // ⛔ THE RECOVERY PATH SHIPS IN THE SAME COMMIT. `navigator.clipboard` is
+      // secure-context-only (`lesson_a_device_red_can_be_the_transport_not_the_product`), and a
+      // capture the owner cannot get off the device is a run they have to perform again.
+      setTraceFallback(json)
+      setTraceStatus(
+        `Could not reach the clipboard — select the box below and copy it by hand. ${summary}.`,
+      )
+    }
+  }
+
+  const onClearTrace = () => {
+    clearGestureTrace()
+    setTraceFallback('')
+    setTraceStatus('Trace cleared. 0 events recorded.')
+  }
 
   return (
     <TileCard icon="moveStop" title="Joystick">
@@ -176,6 +231,59 @@ export default function JoystickSettingsCard() {
           )}
         </div>
       </div>
+
+      {/* ⛔⛔ ADMIN ONLY, AND OFF BY DEFAULT — the G0-1 gesture trace.
+          `isAdmin` here decides what RENDERS. It is not the boundary: `useHubSettings` resolves
+          `traceGestures` against `isAdmin` too, so a member who writes the key straight to the
+          unvalidated preferences endpoint still records nothing. Two independent reasons, because
+          an exposure default is not a security boundary and this file already says so about B6. */}
+      {isAdmin && (
+        <div
+          data-testid="joystick-trace-section"
+          style={{ marginTop: 14, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}
+        >
+          <div className={styles.voiceRow}>
+            <label className={styles.voiceLabel}>
+              <input
+                type="checkbox"
+                data-testid="joystick-trace-toggle"
+                checked={!!settings.traceGestures}
+                onChange={(e) => set('traceGestures')(e.target.checked)}
+              />
+              {' '}Record gesture trace
+            </label>
+          </div>
+          <div style={{ opacity: 0.7, fontSize: 12 }}>
+            Diagnostic for the G0-1 flick question (docs/plans/joystick/g0-flick-trace-plan.md).
+            While on, every pointer event on the pad is kept in memory — the last 500 — with both
+            clocks, the travel, and the decision the engine reached. Nothing is sent anywhere; the
+            only way it leaves this device is the button below. Leave it off when you are not
+            capturing.
+          </div>
+          <div className={styles.voiceRow}>
+            <button type="button" data-testid="joystick-trace-copy" onClick={onCopyTrace}>
+              Copy trace
+            </button>
+            <button type="button" data-testid="joystick-trace-clear" onClick={onClearTrace}>
+              Clear
+            </button>
+          </div>
+          {traceStatus && (
+            <div data-testid="joystick-trace-status" style={{ fontSize: 12, marginTop: 4 }}>
+              {traceStatus}
+            </div>
+          )}
+          {traceFallback && (
+            <textarea
+              data-testid="joystick-trace-fallback"
+              readOnly
+              rows={8}
+              value={traceFallback}
+              style={{ width: '100%', marginTop: 6, fontFamily: 'monospace', fontSize: 11 }}
+            />
+          )}
+        </div>
+      )}
     </TileCard>
   )
 }
