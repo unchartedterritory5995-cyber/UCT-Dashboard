@@ -114,10 +114,42 @@ def chunk(items: list[str], n: int, i: int) -> list[str]:
     return items[start:end]
 
 
+#: pytest's final line, wherever it ended up. The ``in <n>s`` clause is what
+#: makes it the SUMMARY rather than any other line that mentions "3 failed".
+SUMMARY_LINE = re.compile(
+    r"^.*?\b\d+\s+(?:passed|failed|error|errors)\b.*?\bin\s+[\d.]+s.*$",
+    re.MULTILINE,
+)
+
+
+def summary_line(text: str):
+    """The LAST summary pytest printed, searched over the WHOLE log.
+
+    ⚰️⚰️ THIS USED TO READ ``text[-4000:]`` AND IT LOST A WHOLE CHUNK.
+    Measured 2026-09-10 on the first full run: chunk 11 printed
+    ``6 failed, 1870 passed`` at line 407, and then a **daemon thread started by
+    an imported ``api.main``** logged 4 MB after it, pushing the summary far
+    outside the tail. The chunk reported ``(no counts)``, so its 1,870 passes
+    and 6 failures contributed NOTHING to TOTALS — the run under-reported itself
+    and looked tidy doing it.
+
+    ⛔ SAME DEFECT CLASS AS THE ONE R7 EXISTS FOR. A killed chunk lies by
+    printing nothing; this one lied by printing too much. An instrument that
+    quietly drops a number is worse than one that fails outright, because the
+    total still looks like a total.
+    """
+    hits = SUMMARY_LINE.findall(text)
+    return hits[-1] if hits else None
+
+
 def parse_counts(text: str) -> dict:
-    tail = text[-4000:]
+    #: Parse the located summary line ONLY — counting over a whole log would sum
+    #: every "N passed" pytest printed along the way.
+    line = summary_line(text)
+    if line is None:
+        line = text[-4000:]
     got: dict[str, int] = {}
-    for m in COUNT.finditer(tail):
+    for m in COUNT.finditer(line):
         k = m.group(2).rstrip("s") if m.group(2) != "passed" else "passed"
         got[k] = max(got.get(k, 0), int(m.group(1)))
     return got
@@ -175,6 +207,12 @@ def main() -> int:
         })
         print(f"  chunk {i + 1:02d}/{args.chunks}  {len(part):4d} files  "
               f"exit={proc.returncode:<6} {state:<6} {counts if counts else '(no counts)'}")
+        if has_summary and not counts:
+            # ⛔ A CHUNK THAT RAN BUT WHOSE NUMBERS DID NOT PARSE MUST SHOUT.
+            # Contributing 0 to TOTALS in silence is how a run under-reports
+            # itself while still printing something that looks like a total.
+            print("     ⛔ SUMMARY FOUND BUT COUNTS UNPARSED — this chunk's numbers "
+                  f"are MISSING from TOTALS. Read it by hand: {log}")
         if killed:
             print(f"     ⛔ NO SUMMARY LINE and/or a non-pytest exit code — treat as an "
                   f"OOM kill. Log is {len(text)} bytes: {log}")
