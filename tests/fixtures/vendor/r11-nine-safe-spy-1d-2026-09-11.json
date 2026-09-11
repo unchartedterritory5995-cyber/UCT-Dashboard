@@ -1,0 +1,58 @@
+{
+  "_": "⭐⭐ ITEM 8 — FOUR OF THE NINE, READ OFF THE VENDOR. math.pi, math.ceil, math.floor and `year`'s clock.",
+  "_probe": "tools/visual_conformance/probes/r11-nine-safe.pine",
+  "_probeSha256": "5af1e7b205001f9915907aa0cb1cd27c79fb9a4780571cb148466385a0b06ed6",
+  "_probeBytes": 3067,
+  "_studyName": "UCTPROBE_R11_NINE_SAFE",
+  "_capturedUTC": "2026-09-11T12:05:00Z",
+  "_capturedET": "2026-09-11T08:05:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "D",
+  "chartSession": "regular",
+  "bars": 400,
+  "_compiles": true,
+  "_vendorRoster": 10,
+  "_committedRoster": 10,
+
+  "_grouping": "⭐ FOUR NAMES IN ONE ADD, under item 7's split rule. That rule says separate a RISKY arity so it cannot take the others down — `math.pi` is a constant and `math.ceil`/`math.floor`/`year` are names that certainly exist, so none of these four could sink the others. `alma` (a v3-era bare spelling that may not exist in v6), `ta.nvi`, `ta.correlation` and `ta.percentile_linear_interpolation` were deliberately EXCLUDED for that reason.",
+
+  "readings": {
+    "math.pi": {
+      "value": 3.141592653589793,
+      "distinctAcrossAllBars": [3.141592653589793],
+      "verdict": "IEEE-754 double π, constant on every one of the 400 bars.",
+      "_": "⭐ There was no vendor QUESTION here — it is π — but there was a vendor CONFIRMATION, which is different. A table row is now backed by the vendor's own constant rather than by arithmetic we already believed."
+    },
+    "math.ceil": {
+      "at_negative_2p5": -2,
+      "at_positive_2p5": 3,
+      "verdict": "toward +∞",
+      "_": "⚠️ THE NEGATIVE IS THE ONLY INFORMATIVE READ, and it happens to AGREE with toward-zero: both give -2. So `ceil` alone cannot separate the two rules — it is `floor` below that does, and the two must be pinned as a PAIR from one reading."
+    },
+    "math.floor": {
+      "at_negative_2p5": -3,
+      "at_positive_2p5": 2,
+      "verdict": "toward -∞, NOT toward zero",
+      "_": "⭐⭐ THE DISCRIMINATING READ OF THE PAIR. Toward-zero would have answered -2. -3 settles it: both functions go toward ±∞, which is what JS `Math.ceil`/`Math.floor` and Python `math.ceil`/`math.floor` do natively — so neither needs the hand-written correction `round` does (Pine rounds a half AWAY FROM ZERO, which is neither lane's default)."
+    },
+    "year": {
+      "lastBar": { "year": 2026, "month": 9, "dayofmonth": 10, "hour": 9, "minute": 30 },
+      "lastBarUnix": 1789047000,
+      "distinctYearsAcross400Bars": [2025, 2026],
+      "verdict": "EXCHANGE time, not UTC",
+      "_": "⭐⭐ SETTLED BY `hour`, NOT BY `year`, AND THE PROBE SAYS SO IN ITS OWN COMMENT. `year` disagrees between the two clocks only across a New Year boundary, so on 11 September it cannot answer its own question. `hour` disagrees EVERY day and reads the SAME clock. The daily bar stamped 1789047000 is 09:30 ET / 13:30 UTC, and `hour` read 9 — so the clock is the exchange's, and `year` rides on that. The 400 bars spanning 2025 and 2026 are the sanity check that `year` varies at all."
+    }
+  },
+
+  "_what_the_door_did_before_this_capture": {
+    "math.pi": "pine:function — refused",
+    "math.ceil": "pine:function — refused",
+    "math.floor": "pine:function — refused",
+    "year": "⭐ ok=true ALREADY — it translates today",
+    "month": "ok=true already",
+    "hour": "ok=true already",
+    "_": "⛔ MEASURED THROUGH `translatePine(src, {strict:true})`, not assumed. `r11-remaining-nine.md` lists `year` as one of the nine needing a vendor read before it can be added — but it is ALREADY SERVED: the closed table declares it in its `clock` section and `clockLeaf` binds it. So item 8's row 3 needs no engine work at all; what the capture bought there is the TIMEZONE, which the backlog correctly said was unknown."
+  },
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE DAY. AMEX:SPY, 1D, chart session `regular`, 2026-09-11. `math.ceil`/`math.floor` were read at two literal inputs (-2.5 and 2.5); a half-integer is the case that separates the rounding rules, but nothing here reads a non-half fraction, an infinity, or `na`. The `year` timezone is inferred from `hour` on the same clock family rather than observed across a New Year boundary — which is the only direct test and is four months away."
+}

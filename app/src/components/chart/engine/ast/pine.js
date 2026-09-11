@@ -930,6 +930,24 @@ const BUILTIN_SERIES_TREE = Object.freeze({
  *  A boolean is a `number` 1/0 in this table (see the `true` literal in `atom`),
  *  so all four cost the closed table exactly zero new names.
  */
+/** ⭐⭐ PURE MATHEMATICAL CONSTANTS — AND THEY ARE NOT IN `BUILTIN_CONSTANT_TREE`.
+ *
+ *  ⛔ THAT TABLE IS STRICT-GATED, and correctly: it folds `barstate.*`, whose
+ *  value depends on HOW THIS ENGINE FETCHED — so the pane contract must not
+ *  accept the fold the screener contract can. π depends on nothing. Folding it
+ *  under one contract and refusing it under the other would be a refusal with no
+ *  reason behind it, so it lives here and is consulted in BOTH modes.
+ *
+ *  ⭐ Confirmed against the vendor 2026-09-11 as the IEEE-754 double
+ *  3.141592653589793, constant across all 400 bars
+ *  (`tests/fixtures/vendor/r11-nine-safe-spy-1d-2026-09-11.json`). There was no
+ *  vendor QUESTION here — it is π — but there was a vendor CONFIRMATION, which is
+ *  a different thing: the row is backed by their constant rather than by
+ *  arithmetic we already believed. 8 sites in 1 script. */
+export const PINE_MATH_CONSTANTS = Object.freeze({
+  'math.pi': () => cNum(Math.PI),
+})
+
 export const BUILTIN_CONSTANT_TREE = Object.freeze({
   'barstate.isconfirmed': () => cNum(1),
   'barstate.ishistory': () => cNum(1),
@@ -5706,6 +5724,12 @@ export class Resolver {
         // name a script can bind, so there is nothing to lose to and no order to
         // get wrong.
         if (own(BUILTIN_SERIES_TREE, short)) return BUILTIN_SERIES_TREE[short]()
+        // ⭐ A NAMESPACED CONSTANT IS A VALUE, NOT A ZERO-ARGUMENT CALL. `math.pi`
+        // reached `resolveTableCall` and was told "this Pine function maps to
+        // nothing the engine grammar declares" — a true sentence about functions,
+        // asked of something that is not one. Unconditional: see
+        // `PINE_MATH_CONSTANTS` for why this one is not strict-gated.
+        if (own(PINE_MATH_CONSTANTS, name)) return PINE_MATH_CONSTANTS[name]()
         return this.resolveTableCall(name, short, [], node.tok)
       }
       throw new PineRefusal('pine:builtin',
