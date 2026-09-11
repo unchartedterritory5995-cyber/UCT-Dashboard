@@ -1595,6 +1595,54 @@ if a broken invocation would actually make it zero — assert on something the c
 legitimately return empty (this repo's branch always changes at least its own resume file), and
 prefer naming a specific expected member (`expect(files).toContain('HubRoot.jsx')`) over a count.
 
+### ⛔⛔ H14 — A HAZARD CLASS FOUND WHILE THE CODE IS LIVE IS A HARD STOP, NOT A FOOTNOTE
+
+> **The moment you name a hazard class, ask whether code exhibiting it is in production right
+> now. If it is: check the live build immediately, and the NEXT deploy is blocked until that
+> check is done. It is never a line in a report.**
+
+Owner ruling, 2026-09-11, and it is written from a case where every other rule in this file was
+followed and the outcome was still four and a half hours of broken navigation.
+
+**What happened.** On the evening of 2026-09-10 a subagent finishing unrelated chart work hit an
+out-of-memory kill in its own test harness, diagnosed it, and reported this sentence:
+
+> "`useHubMode` re-registration is identity-driven, so any host passing an unmemoized callback
+> loops."
+
+That is a complete, correct description of a hazard class. It was reported as a curiosity —
+"worth knowing" — and relayed to the owner the same way. **At that moment the class was already
+live in production**: `catalystsSection` keyed its config memo on the object `useHubCursor`
+returned, a fresh literal every render, and had been shipping since the 19:45 ET deploy. Clicking
+any nav entry on `/dashboard` changed the URL and left the screen where it was, app-wide. It was
+found by a member, and fixed by a different session hours later.
+
+**Why nothing else caught it, and why this rule is about ATTENTION rather than tooling.** The
+gate was green (1,261 files, 18,708 tests, 0 NEW). `/api/health` returned 200 throughout. The
+first-hour watch recorded five clean samples while the defect was live, because it polled the
+server and the server was never unwell. ⭐ **A green suite, a 200 and a rising uptime are all
+compatible with a browser that cannot change pages.** The one instrument that would have caught
+it did not exist; it does now (`tools/hub_nav_smoke.py`). But the *information* was already in
+hand before the tooling gap mattered — somebody had described the exact mechanism in prose.
+
+**What H14 requires, in order:**
+
+1. **Name the class**, not the instance. "This host loops" is an instance; "re-registration is
+   identity-driven" is the class.
+2. **Enumerate what exhibits it, from source.** A grep for callers, not a memory of which ones
+   exist. The freeze's host was not the one the finding came from.
+3. **Check the live build now.** Not the branch, not the suite — the deployed thing, at the layer
+   the hazard would show up in. A render loop shows in a browser, never in `/api/health`.
+4. **Block the next deploy** until 1–3 are done. A deploy that ships while a live hazard class is
+   un-checked is a second bet on the same coin.
+
+⛔ **The tell to watch for in your own writing is the word "interesting".** A hazard class
+reported as interesting has already been demoted. If it is real enough to write down, it is real
+enough to ask whether it is running.
+
+⚠️ This is deliberately stricter than "add a rail". A rail protects the next change; H14 is about
+the change that already shipped.
+
 ### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
 
 > **A contract is verified against the runtime call site, never against a harness that restates
