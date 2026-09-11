@@ -1,0 +1,47 @@
+{
+  "_": "⭐⭐⭐ ITEM 7, THE `ta.valuewhen` HALF — ALL FOUR QUESTIONS ANSWERED. 381 corpus sites ride on question 4, and it is INCLUSIVE.",
+  "_probe": "tools/visual_conformance/probes/r11-valuewhen.pine",
+  "_probeSha256": "064e91e7c8635de837d39ec381f7545924333d69ef536c34af22cd83688a36d3",
+  "_probeBytes": 3418,
+  "_studyName": "UCTPROBE_R11_VALUEWHEN",
+  "_capturedET": "2026-09-11T08:35:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "D",
+  "bars": 610,
+  "_compiles": true,
+  "_vendorRoster": 12,
+  "_committedRoster": 12,
+
+  "Q4_occurrence_zero_includes_the_current_bar": {
+    "verdict": "INCLUSIVE — occurrence 0 is the most recent firing COUNTING THIS BAR",
+    "discriminatingBars": 122,
+    "occ0_matched_INCLUSIVE": 122,
+    "occ0_matched_EXCLUSIVE": 0,
+    "_": "⭐⭐ A PERFECT SPLIT ON THE ONLY BARS THAT CAN SETTLE IT. Inclusive and exclusive AGREE on every bar where the condition is false — so those bars are worthless as evidence, and a naive comparison across all 610 would have looked like agreement with both. The probe computes both oracles itself and marks the 122 bars where they DIFFER (`N05_DISCRIMINATING_BAR_only_here`); on every one of them the vendor answered the inclusive value and never the exclusive one.",
+    "witnesses": [
+      { "barIndex": 7855, "conditionTrue": 1, "inclusiveOracle": 7855, "exclusiveOracle": 7850, "vendor_occ0": 7855 },
+      { "barIndex": 7860, "conditionTrue": 1, "inclusiveOracle": 7860, "exclusiveOracle": 7855, "vendor_occ0": 7860 },
+      { "barIndex": 7865, "conditionTrue": 1, "inclusiveOracle": 7865, "exclusiveOracle": 7860, "vendor_occ0": 7865 }
+    ],
+    "_whyThisWasTheExpensiveOne": "`r11-time-and-valuewhen.md`: 'This is the single most likely place to be off by one, and 381 sites ride on it.' An off-by-one here produces a plausible-looking series that is wrong everywhere — the failure a green suite cannot see."
+  },
+
+  "Q2_Q3_occurrences_count_FIRINGS": {
+    "verdict": "occurrence N is the Nth most recent FIRING, one per firing",
+    "occ0_minus_occ1_distinctValues": [5],
+    "occ1_minus_occ2_distinctValues": [5],
+    "_": "⭐ THE CONDITION FIRES EVERY 5th BAR BY CONSTRUCTION (`bar_index % 5 == 0`), so if occurrences count firings the step is EXACTLY 5 — and 5 is the ONLY value either delta takes across 610 bars. Not 1 (which would mean occurrence counts bars), not a mixture (which would mean it counts something else). ⛔ The deltas are computed from the RAW occurrence values rather than plotted directly, because a delta compared against the wrong oracle hides a two-step error."
+  },
+
+  "Q1_never_fired": {
+    "verdict": "na",
+    "isNa_distinctValues": [1],
+    "raw_distinctValues": [-1],
+    "bars": 610,
+    "_": "⛔ `na`, NOT 0 — on every one of 610 bars. 0 would be the dangerous answer: a screen reading `valuewhen(cond, x, 0) > 0` would silently treat 'never happened' as a real value of zero. ⭐ The probe uses `bar_index < 0` rather than the literal `false` deliberately: it is ARITHMETIC, so it cannot be folded away before it is ever evaluated, which a literal might be."
+  },
+
+  "_notPinned": "⛔ `ta.valuewhen` is a table function and carries the same corpus-case price that stopped `ceil`/`floor` this morning. The reading is banked; the pin is routed. ⭐ When it lands, occurrence 0 must be INCLUSIVE and never-fired must be `na` — those are now measurements, not choices.",
+
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE CONDITION SHAPE. The condition fires on a fixed period (every 5th bar), which is what makes the oracle computable — but it means nothing here reads an IRREGULAR condition, two firings on consecutive bars, or an occurrence index beyond 2."
+}
