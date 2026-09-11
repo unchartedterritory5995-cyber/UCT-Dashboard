@@ -1570,6 +1570,94 @@ def scheduled_close_seconds(t: float, tf, holidays=None, early_closes=None):
     return day
 
 
+#: The two ways the six barstate columns can be derived from one fetch.
+#:
+#: ⭐⭐ ``calendar`` IS WHAT SHIPS AND THIS FLAG DOES NOT CHANGE THAT. It is the
+#: engine's own reading: a bar is realtime while its period is open, confirmed
+#: once the period has ended, and ``ishistory`` is an alias of ``isconfirmed``
+#: because a static fetch has no way to distinguish a bar it LOADED from one it
+#: WATCHED.
+#:
+#: ⭐ ``vendor`` REPRODUCES WHAT TRADINGVIEW WAS MEASURED DOING, on three axes that
+#: are INDEPENDENT rather than a tri-state:
+#:   isrealtime  := this is the last bar of a LIVE dataset  (position, not time)
+#:   ishistory   := the complement of that
+#:   isconfirmed := the bar's closing update has happened   (time, not position)
+#: which is why the vendor can and does read ``isrealtime = 1`` and
+#: ``isconfirmed = 1`` on the same bar — a state our tri-state cannot spell.
+#:
+#: ⛔ THE FLAG EXISTS TO BE REPLAYED, NOT FLIPPED. Switching it is a member-visible
+#: change to every barstate column and needs the confirmation instant MEASURED
+#: rather than hypothesised — see ``nyse_calendar.EXTENDED_CLOSE_HOUR``.
+BARSTATE_MODE_CALENDAR = "calendar"
+BARSTATE_MODE_VENDOR = "vendor"
+BARSTATE_MODES = (BARSTATE_MODE_CALENDAR, BARSTATE_MODE_VENDOR)
+
+
+def confirmation_instant(bars: List[dict], tf, holidays=None, early_closes=None,
+                         extended_hour=None, early_extended_hour=None
+                         ) -> Optional[float]:
+    """WHEN THE NEWEST BAR'S CLOSING UPDATE IS EXPECTED, or ``None``.
+
+    ⚠️ HYPOTHESISED, NOT MEASURED — the hours come from
+    ``nyse_calendar.EXTENDED_CLOSE_HOUR`` / ``EARLY_EXTENDED_CLOSE_HOUR`` and the
+    only thing established about them is a bracket: the vendor had not confirmed
+    at 19:22 ET and had by 20:55 ET on 2026-09-10.
+
+    ⛔ INTRADAY HAS NO SEPARATE CONFIRMATION INSTANT. A 5-minute bar's closing
+    update is its period ending, which ``scheduled_close_seconds`` already answers;
+    returning something different here would invent a second clock for a question
+    that has one. ``None`` for every intraday timeframe is the honest answer, and
+    it is what makes ``vendor`` mode fall back to the scheduled close there.
+    """
+    from api.services import nyse_calendar
+    if not bars or tf not in ("D", "W", "M"):
+        return None
+    newest = bars[-1].get("t") if isinstance(bars[-1], dict) else None
+    if not isinstance(newest, (int, float)) or isinstance(newest, bool):
+        return None
+    if newest < VWAP_MIN_INSTANT:
+        return None
+    close = scheduled_close_seconds(newest, tf, holidays, early_closes)
+    if close is None:
+        return None
+    hour = (nyse_calendar.EXTENDED_CLOSE_HOUR if extended_hour is None
+            else extended_hour)
+    early = (nyse_calendar.EARLY_EXTENDED_CLOSE_HOUR if early_extended_hour is None
+             else early_extended_hour)
+    zone = _et_zone()
+    if zone is None:
+        return None
+    # ⭐ THE HOUR IS DECIDED ON THE DAY THE CLOSE WALK LANDED ON, exactly as
+    # `scheduled_close_seconds` decides its own: deciding it earlier would apply
+    # the wrong day's hour to a week or a month.
+    if early_closes and _et_ymd(close, zone) in early_closes:
+        return _et_close_at(close, zone, early)
+    return _et_close_at(close, zone, hour)
+
+
+def bar_close_state_full(bars: List[dict], tf, now: Optional[float] = None,
+                         holidays=None, early_closes=None):
+    """``(forming, confirmed)`` — the tri-state, and whether the closing update
+    is expected to have happened by ``now``.
+
+    ⭐⭐ THE SECOND OUTPUT IS WHY THIS EXISTS. ``vendor`` mode needs a fact the
+    tri-state cannot carry: the vendor's ``isconfirmed`` is about TIME and its
+    ``isrealtime`` is about POSITION, so one boolean cannot serve both. Producing
+    it HERE keeps the rule that the calendar never crosses the JS seam — the
+    browser is handed two booleans and still never a date set.
+
+    ⛔ ``confirmed`` IS ``None`` WHENEVER THE INSTANT IS UNKNOWN, and ``None`` is an
+    answer: it is what makes ``vendor`` mode blank rather than guess, the same way
+    the tri-state's ``None`` does.
+    """
+    forming = bar_close_state(bars, tf, now, holidays, early_closes)
+    at = confirmation_instant(bars, tf, holidays, early_closes)
+    if at is None or not isinstance(now, (int, float)) or isinstance(now, bool):
+        return forming, None
+    return forming, bool(now >= at)
+
+
 def bar_close_state(bars: List[dict], tf, now: Optional[float] = None,
                     holidays=None, early_closes=None) -> Optional[bool]:
     """IS THE NEWEST BAR STILL FORMING? ``True`` / ``False`` / ``None``.
@@ -1607,6 +1695,8 @@ def bar_close_state(bars: List[dict], tf, now: Optional[float] = None,
 
 def compute_clock(bars: List[dict], tf: Optional[str] = None,
                   newest_bar_is_forming: Optional[bool] = None,
+                  confirmed: Optional[bool] = None,
+                  mode: str = BARSTATE_MODE_CALENDAR,
                   ) -> Dict[str, List[MaybeNum]]:
     """The clock columns for a bar series, aligned to ``bars``.
 
@@ -1677,7 +1767,41 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     # seam carries the tri-state; the calendar does not cross it.
     for name in CLOCK_REALTIME:
         cols[name] = [None] * n
-    if newest_bar_is_forming is not None:
+
+    # ⭐⭐ THE SECOND DERIVATION, AND IT IS OFF BY DEFAULT. `vendor` reproduces
+    # what TradingView was measured doing on 2026-09-10; `calendar` is what ships
+    # and is what every caller gets unless it asks otherwise. Both live HERE, in
+    # one place — a second function would drift, and the whole reason this exists
+    # is that two engines disagreed about one bar.
+    if mode not in BARSTATE_MODES:
+        raise ValueError("unknown barstate mode %r" % (mode,))
+
+    if mode == BARSTATE_MODE_VENDOR:
+        # ⛔ THREE INDEPENDENT AXES, NOT A TRI-STATE. `isrealtime` is POSITION
+        # (the last bar of a live dataset), `isconfirmed` is TIME (the closing
+        # update has happened), `ishistory` is the complement of the first. That
+        # is why the vendor reads 1/1/0 in the post-confirm, pre-open window — a
+        # combination `calendar` cannot spell, because there `isconfirmed` is
+        # `1 - isrealtime` by construction.
+        # ⛔ AND IT STILL FAILS CLOSED: without the tri-state we do not know the
+        # dataset is live; without `confirmed` we do not know the instant. Either
+        # missing blanks all four rather than guessing.
+        if newest_bar_is_forming is not None and confirmed is not None:
+            last_i = n - 1
+            cols["isrealtime"] = [1.0 if i == last_i else 0.0 for i in range(n)]
+            cols["ishistory"] = [1.0 - v for v in cols["isrealtime"]]
+            done = bool(confirmed)
+            cols["isconfirmed"] = [1.0 if (i < last_i or done) else 0.0
+                                   for i in range(n)]
+            # ⚠️ `islastconfirmedhistory` IS THE BAR BEFORE THE REALTIME ONE, not
+            # the newest confirmed bar. Measured: it read 0 on the newest bar in
+            # all six timeline rows INCLUDING the one where that bar was already
+            # confirmed — so it cannot be "the newest confirmed bar", which would
+            # have put it there.
+            lch = last_i - 1
+            cols["islastconfirmedhistory"] = [1.0 if (lch >= 0 and i == lch) else 0.0
+                                              for i in range(n)]
+    elif newest_bar_is_forming is not None:
         forming = bool(newest_bar_is_forming)
         last_i = n - 1
         cols["isrealtime"] = [1.0 if (forming and i == last_i) else 0.0

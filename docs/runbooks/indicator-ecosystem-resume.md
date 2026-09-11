@@ -164,6 +164,31 @@ and in the last report; say the word and the screener fold is restored.
   commit with a conflict summary.
 * Deploy checklist: `docs/runbooks/indicator-ecosystem-deploy.md`.
 
+## R8 — COMMIT MESSAGES VIA `-F <file>`, NEVER INLINE (owner, 2026-09-11)
+
+> Commit messages via `-F <file>`, never inline — `12d8ac77c` lost a backticked
+> clause to shell substitution. Record it.
+
+**What it cost, exactly.** `12d8ac77c`'s message explains a revert by quoting the
+line that caused it:
+
+    carriedTarget both open with `if (tree[name]) return null`, so membership …
+
+Written inline through `printf`, the shell read the backticks as command
+substitution, tried to run `if (tree[name]) return null`, printed a syntax error to
+stderr, and substituted **the empty string**. The commit succeeded. The sentence in
+the permanent record reads *"both open with , so membership"* — the clause naming
+the exact mechanism, gone, in the one artifact written to explain it.
+
+⛔ **AND IT CANNOT BE FIXED.** Amending a pushed commit needs a force push, which
+H2 forbids. The message is wrong forever; the snippet survives only because it is
+also in `pine.js` and `requests.md`.
+
+⭐ **`-F` IS IMMUNE BY CONSTRUCTION** — the file is read as bytes, never parsed by a
+shell — and it costs one extra write. Backticks, `$(…)`, `$VAR`, `!`, and a stray
+`"` are all live ammunition in an inline message, and a message is exactly where
+code fragments belong.
+
 ## R7 — PYTHON LANE DISCIPLINE (owner, 2026-09-10, verbatim)
 
 > Never run a bare `pytest tests/`. The full Python lane runs ONLY via the repo's

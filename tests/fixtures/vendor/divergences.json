@@ -382,6 +382,45 @@
         "what_would_reopen_it": "⭐ A bound the engine could afford on an unbounded count — a streaming or incremental state that does not have to be warmed per bar — would make Pine's semantics reproducible and this a difference we should simply match. ⚠️ So would a measurement showing `contextBoundedPlan`'s rewrite is NOT exact: its licence is that every count the cap destroys is one the comparison answers identically, and a counterexample retires the rewrite along with this row."
       },
       "bounds": "⚠️ ONE SYMBOL, ONE SESSION, AND THE ARITY IS THE STRONGER HALF. `CE10115` is the vendor stating its own signature, so it generalises. The `na` reading is one condition on one series: it establishes that a never-true condition CAN answer `na`, not that every unmatched case does. ⛔ And it says nothing about what Pine answers when the condition IS true beyond some horizon — the case our sentinel exists for — because an unbounded count has no such horizon to test."
+    },
+    {
+      "id": "barstate-three-axes-not-a-tristate",
+      "shape": "stateless",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "THREE COLUMNS OFF ONE TRI-STATE. `bar_close_state` answers is-the-newest-bar-still-forming as True/False/None, and `compute_clock` derives the rest from it: `isrealtime` is that boolean on the last bar, `isconfirmed` is its complement, and `ishistory` is an ALIAS of `isconfirmed` because a static fetch cannot distinguish a bar it loaded from one it watched. One axis, three readings.",
+      "theirs": "⭐⭐ THREE INDEPENDENT AXES. Measured across 2026-09-10 on AMEX:SPY 1D: `isrealtime` tracks POSITION — the last bar of a live dataset — and stayed 1 through every reading. `ishistory` was its complement and stayed 0. `isconfirmed` tracks TIME — whether the bar's closing update has happened — and flipped 0 to 1 on its own, with `isrealtime` unchanged at 1. That combination, isrealtime=1 AND isconfirmed=1 on one bar, is a state our derivation cannot spell, because ours defines the second as the negation of the first.",
+      "why_it_matters": "⛔⛔ THE EXACT COLUMN DIFF, IN THE WINDOW WHERE IT BITES. Between the vendor's confirmation and the next open — for SPY on 2026-09-10, some instant in (19:22, 20:55) ET through to 09:30 the next session — a member reading the same newest daily bar sees:\n    isrealtime / isconfirmed / ishistory\n    vendor:  1 / 1 / 0\n    ours:    0 / 1 / 1\nTwo of the three disagree. A script branching on `barstate.isrealtime` takes the OTHER arm here, and one branching on `ishistory` does too — and both engines answer confidently, which is what makes it expensive. ⭐ `isconfirmed` AGREES in this window, which is the part worth knowing: the column a screener most often means by \"this bar is settled\" is the one that matches.",
+      "ours_is_deliberate": "⭐ THE ALIAS IS DECLARED, NOT ACCIDENTAL. `closedTable.json::_barstate` says `barstate.ishistory` here means exactly `barstate.isconfirmed`, because this engine evaluates a STATIC FETCH where every closed bar arrived the same way and the vendor's loaded-vs-watched distinction has no referent. ⚠️ What was NOT deliberate is `isrealtime` disagreeing: we read it as \"the period is open\" and the vendor reads it as \"this is the newest bar of live data\". Those coincide during the session and part company the moment it closes.",
+      "code": "`api/services/indicator_compute.py::compute_clock` and its JS mirror `app/src/components/chart/indicators.js::computeClock` — both now carry a second derivation, `BARSTATE_MODE_VENDOR`, that reproduces the vendor's three axes. ⛔ IT IS OFF: the default is `calendar` and nothing member-facing selects it. Replayed against the timeline by `tests/test_barstate_vendor_mode.py` and `app/src/components/chart/engine/ast/barstateVendorMode.test.js`.",
+      "probe": {
+        "case": "Read `barstate.*` off the newest DAILY bar of a live chart, repeatedly, from before the regular close through past the extended-hours close.",
+        "under_ours": "isrealtime flips 1 to 0 AT the 16:00 scheduled close, and isconfirmed and ishistory flip 0 to 1 with it — all three move together, once, on the calendar.",
+        "under_tradingview": "isrealtime does NOT move at 16:00 and was still 1 at 20:55 ET. isconfirmed moved on its own, later, somewhere in (19:22, 20:55) ET. Six readings: `tests/fixtures/vendor/barstate-daily-timeline.json` rows 1-6.",
+        "discriminates": "⭐ THE SAME PAGE LOAD SAW BOTH SIDES OF IT. Rows 5 and 6 share a `performance.timeOrigin`, so the change is the vendor pushing an update into a live session rather than a difference between two sessions — which is the one alternative reading a series of separate visits could not rule out. ⛔ Five rows spanning 16:17 to 19:22 ET all read isconfirmed=0, so it is not confirming at the close; that is what makes this a divergence rather than a latency."
+      },
+      "observation_ids": [
+        "barstate-daily-timeline",
+        "barstate-realtime-spy-2026-09-09"
+      ],
+      "measured": {
+        "by": "live TradingView chart, AMEX:SPY 1D, chart session `regular`",
+        "on": "2026-09-10",
+        "how": "Six appended rows from UCTPROBE_BARSTATE_FULL, each recording the instant, the chart's session setting, the arrival (watched-form or late), and all six vendor flags. Session state derived through `scheduled_close_seconds`, the same function `bar_close_state` uses, so the file and the engine cannot disagree about when the close was.",
+        "timeline_rows": 6,
+        "rows_reading_isrealtime_1": 6,
+        "rows_reading_isconfirmed_0": 5,
+        "rows_reading_isconfirmed_1": 1,
+        "longest_minutes_past_close_still_unconfirmed": 202,
+        "minutes_past_close_when_first_seen_confirmed": 295,
+        "transition_bracket_et": "(19:22, 20:55)"
+      },
+      "decision": {
+        "ruled": "This session, 2026-09-11, on the six readings",
+        "why_keep_ours": "⭐ THE HYPOTHESIS IS NOT MEASURED YET, AND SWITCHING ON ONE WOULD BE THE WRONG TRADE. Reproducing the vendor needs a CONFIRMATION INSTANT, and all six rows establish about it is a 93-minute bracket. 20:00 ET — the extended-hours close — fits, and an early-close day would then be 17:00, but neither is observed. Shipping a column that is right for a guessed reason is worse than shipping one that is wrong for a stated reason, because only the second is legible. ⛔ So the switch is BUILT and OFF: both lanes carry `vendor` mode, both replay all six rows, and the flag stays `calendar` until an instant is pinned.",
+        "what_would_reopen_it": "⭐ A row taken between 19:30 and 20:30 ET, which would narrow the bracket to either side of 20:00 and turn the hypothesis into a measurement. A pre-open row would settle the other half — whether `isrealtime` ever drops before the next session opens, or stays 1 right through. ⚠️ And an early-close day is the one that tests the derived 17:00, which is currently a guess about a guess."
+      },
+      "bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE SESSION, AND A REGULAR-HOURS CHART. Every row is AMEX:SPY on 1D with the chart's session setting on `regular`; `extended` is a different question about the same symbol and was not asked. ⛔ NOTHING HERE COVERS INTRADAY: a 5-minute bar's closing update is its period ending, and this divergence is specifically about a DAILY bar outliving its session. ⛔ And the mechanism is unidentified — 20:00 ET is a hypothesis that fits a bracket, not an observed event."
     }
   ]
 }

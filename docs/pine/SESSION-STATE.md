@@ -241,6 +241,35 @@ is ONE root cause:
 
 ### Open product questions
 
+**Should the barstate columns follow the VENDOR's three axes instead of our
+tri-state?** The switch is BUILT and OFF. `compute_clock` and its JS mirror both
+carry `BARSTATE_MODE_VENDOR`; both replay all six timeline rows exactly; the
+default is `calendar` and nothing member-facing selects the other.
+
+⭐ **What the vendor does**, measured 2026-09-10 on AMEX:SPY 1D: three INDEPENDENT
+axes — `isrealtime` is POSITION (the newest bar of a live dataset), `ishistory` its
+complement, `isconfirmed` is TIME (the closing update happened). Ours derives all
+three from one boolean, so `isconfirmed` is `1 - isrealtime` by construction and the
+vendor's observed 1/1/0 is a state we cannot spell. In the post-confirm, pre-open
+window a member reading the same bar sees **vendor 1/1/0 vs ours 0/1/1** — two of
+three columns disagree, both engines confident.
+
+⛔ **WHAT WOULD HAVE TO BE TRUE TO FLIP IT:**
+1. **The confirmation instant measured, not hypothesised.** All six rows establish
+   is a 93-minute bracket, (19:22, 20:55) ET. `nyse_calendar.EXTENDED_CLOSE_HOUR`
+   guesses 20:00 — the extended-hours close — and derives 17:00 for a half-day,
+   which is a guess about a guess. **One row between 19:30 and 20:30 ET settles it.**
+2. **A pre-open row**, to see whether `isrealtime` ever drops before the next
+   session or stays 1 straight through.
+3. **An early-close day**, which is the only thing that tests the derived 17:00.
+4. **A decision about which is RIGHT FOR A SCREEN**, which is not the same question
+   as which matches TradingView. Ours answers "is this bar's period over"; theirs
+   answers "is this the live bar". A screener almost always means the first.
+
+⚠️ Flipping it changes every barstate column a member can read, so it is a
+member-visible change, not a fix.
+
+
 **Should the door supply a default bound for the vendor's 1-arg `ta.barssince(cond)`
 so imported scripts run instead of refusing?** Today it refuses by name:
 `PINE_INEXPRESSIBLE.barssince` declines the bare call because mapping it onto ours
@@ -305,6 +334,31 @@ boundary and record conflicts touched.
 **Pause on:** member data · a vendor contradiction (Aroon, valuewhen, the fold probe) · the
 other session's files · the calendar census contradicting the screener's session logic · a real
 blocker.
+
+### R8 — COMMIT MESSAGES VIA `-F <file>`, NEVER INLINE (owner, 2026-09-11)
+
+> Commit messages via `-F <file>`, never inline — `12d8ac77c` lost a backticked
+> clause to shell substitution. Record it.
+
+**What it cost, exactly.** `12d8ac77c`'s message explains a revert by quoting the
+line that caused it:
+
+    carriedTarget both open with `if (tree[name]) return null`, so membership …
+
+Written inline through `printf`, the shell read the backticks as command
+substitution, tried to run `if (tree[name]) return null`, printed a syntax error to
+stderr, and substituted **the empty string**. The commit succeeded. The sentence in
+the permanent record reads *"both open with , so membership"* — the clause naming
+the exact mechanism, gone, in the one artifact written to explain it.
+
+⛔ **AND IT CANNOT BE FIXED.** Amending a pushed commit needs a force push, which
+H2 forbids. The message is wrong forever; the snippet survives only because it is
+also in `pine.js` and `requests.md`.
+
+⭐ **`-F` IS IMMUNE BY CONSTRUCTION** — the file is read as bytes, never parsed by a
+shell — and it costs one extra write. Backticks, `$(…)`, `$VAR`, `!`, and a stray
+`"` are all live ammunition in an inline message, and a message is exactly where
+code fragments belong.
 
 ### R7 — PYTHON LANE DISCIPLINE (owner, 2026-09-10, verbatim)
 

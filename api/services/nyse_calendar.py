@@ -56,3 +56,29 @@ NYSE_EARLY_CLOSES_YYYYMMDD: frozenset[int] = frozenset({
     20261127, 20261224,             # 2026
     20271126,                       # 2027 (Dec 24 2027 is a FULL closure)
 })
+
+
+#: ⚠️⚠️ HYPOTHESIS, NOT A MEASUREMENT — the hour TradingView appears to CONFIRM a
+#: daily bar at. Kept here because it is a property of the trading calendar and
+#: this module is where calendar literals live, NOT because it is established.
+#:
+#: ⭐ WHAT IS MEASURED: on 2026-09-10 the vendor's daily SPY bar read
+#: ``isconfirmed = 0`` at 19:22 ET and ``isconfirmed = 1`` at 20:55 ET, in the SAME
+#: page load. Five earlier rows from 16:17 to 19:22 all read 0, so it does not
+#: confirm at the 16:00 regular close. The transition is bracketed to
+#: **(19:22, 20:55) ET** and nothing narrower. See
+#: ``tests/fixtures/vendor/barstate-daily-timeline.json``.
+#:
+#: ⛔ 20:00 IS THE GUESS THAT FITS THE BRACKET — the end of the extended-hours
+#: session — and 17:00 is the same guess transposed onto a half-day (13:00 regular
+#: close + the same four hours). NEITHER IS OBSERVED. The half-day figure is a
+#: guess about a guess and is the first thing to check on the next early-close day.
+#:
+#: ⛔⛔ NOTHING MEMBER-FACING READS THESE YET. They exist so ``vendor`` mode can be
+#: BUILT and replayed against the timeline; the shipped derivation is unchanged and
+#: the flag defaults to ``calendar``. A reader who finds these and assumes the
+#: product follows them is reading a switch that is off.
+EXTENDED_CLOSE_HOUR = 20
+
+#: The same hypothesis on an early-close day. See above: a guess about a guess.
+EARLY_EXTENDED_CLOSE_HOUR = 17

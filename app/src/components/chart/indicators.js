@@ -1272,7 +1272,21 @@ export const CLOCK_COLUMNS = Object.freeze([
  *                      language.
  * @returns {object} `{<name>: Float64Array}` — one entry per `CLOCK_COLUMNS`
  */
-export function computeClock(bars, tf, newestBarIsForming = null) {
+/** The two ways the six barstate columns can be derived from one fetch.
+ *
+ *  @@ `calendar` IS WHAT SHIPS. `vendor` reproduces what TradingView was measured
+ *  doing on 2026-09-10, on three axes that are INDEPENDENT rather than a
+ *  tri-state. Mirrors `indicator_compute.BARSTATE_MODE_*` value for value.
+ *
+ *  !! THE CALENDAR STILL DOES NOT CROSS THIS SEAM. `vendor` needs to know whether
+ *  the closing update has happened, which is a calendar question -- so it arrives
+ *  as a BOOLEAN from the producer, exactly as `newestBarIsForming` does. This file
+ *  gains a mode, not a date set. */
+export const BARSTATE_MODE_CALENDAR = 'calendar'
+export const BARSTATE_MODE_VENDOR = 'vendor'
+export const BARSTATE_MODES = Object.freeze([BARSTATE_MODE_CALENDAR, BARSTATE_MODE_VENDOR])
+
+export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   const length = bars && bars.length ? bars.length : 0
   const cols = {}
   for (const name of CLOCK_COLUMNS) cols[name] = new Float64Array(length)
@@ -1318,7 +1332,33 @@ export function computeClock(bars, tf, newestBarIsForming = null) {
   // agree bar for bar, and a function that read `Date.now()` could not be asked
   // the same question twice — which is exactly what the stability rails ask it.
   for (const name of CLOCK_REALTIME) cols[name].fill(NA)
-  if (newestBarIsForming === true || newestBarIsForming === false) {
+  // @@ THE SECOND DERIVATION, AND IT IS OFF BY DEFAULT.
+  // !! THREE INDEPENDENT AXES, NOT A TRI-STATE. `isrealtime` is POSITION (the last
+  // bar of a live dataset), `isconfirmed` is TIME (the closing update happened),
+  // `ishistory` is the complement of the first. The vendor reads 1/1/0 in the
+  // post-confirm, pre-open window -- a combination `calendar` cannot spell,
+  // because there `isconfirmed` is `1 - isrealtime` by construction.
+  // !! FAILS CLOSED the same way: either input missing blanks all four.
+  const barstateMode = (opts && opts.mode) ? opts.mode : BARSTATE_MODE_CALENDAR
+  if (!BARSTATE_MODES.includes(barstateMode)) {
+    throw new Error('unknown barstate mode ' + barstateMode)
+  }
+  const confirmedIn = (opts && opts.confirmed !== undefined) ? opts.confirmed : null
+  if (barstateMode === BARSTATE_MODE_VENDOR) {
+    if ((newestBarIsForming === true || newestBarIsForming === false)
+        && (confirmedIn === true || confirmedIn === false)) {
+      const lastI = length - 1
+      for (let i = 0; i < length; i++) {
+        cols.isrealtime[i] = i === lastI ? 1 : 0
+        cols.ishistory[i] = 1 - cols.isrealtime[i]
+        cols.isconfirmed[i] = (i < lastI || confirmedIn === true) ? 1 : 0
+        // !! the bar BEFORE the realtime one, not the newest confirmed bar --
+        // measured 0 on the newest bar in all six timeline rows, including the
+        // one where that bar was already confirmed.
+        cols.islastconfirmedhistory[i] = (lastI - 1 >= 0 && i === lastI - 1) ? 1 : 0
+      }
+    }
+  } else if (newestBarIsForming === true || newestBarIsForming === false) {
     const forming = newestBarIsForming === true
     const lastI = length - 1
     for (let i = 0; i < length; i++) {
