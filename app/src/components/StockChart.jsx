@@ -6,6 +6,7 @@ import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
 import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
+import { volumeOverlayKeys } from './chart/engine/displayTarget'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -3386,6 +3387,11 @@ export default function StockChart({
   const volMaSeriesRef = useRef(null)  // 50-MA line on the volume pane
   const volMaDataRef = useRef([])      // latest volMaData (avg-volume series) for the crosshair legend
   const volLegendRef = useRef(null)    // volume-pane top-left legend ($ vol + avg vol) — positioned live
+  /** Definition ids currently drawing INSIDE the volume pane, resolved by
+   *  `displayTarget.js`. A REF because the set is computed in `updateChart`
+   *  (it needs `engineInstances`, a local there) and read during RENDER by the
+   *  volume strip, which prints their readouts. */
+  const volOverlayKeysRef = useRef(NO_PANE_KEYS)
   const legendRef = useRef(null)       // main OHLC/MA legend — captured into the PNG screenshot
   // Volume-pane height % last APPLIED via setStretchFactor. Gate re-applies on it
   // so a 30s data poll can't reset the pane and fight a user's separator drag; the
@@ -10142,9 +10148,47 @@ export default function StockChart({
     // Chosen oscillators render INSIDE the volume pane on its left axis (volume
     // keeps the right axis) instead of their own stacked band. This requires a
     // real volume pane, so any overlay forces separate-pane mode.
-    const volOverlaySet = new Set(
-      (showVolume && Array.isArray(cs.volumeOverlayIndicators)) ? cs.volumeOverlayIndicators : [],
-    )
+    // ⭐ RESOLVED THROUGH THE ONE SEAM, not read off the legacy list.
+    // `placement.target` is canonical for anything the new Display-In control has
+    // touched; `cs.volumeOverlayIndicators` is the legacy answer for everything it
+    // has not. `displayTarget.js` owns that precedence — this is a consumer of it,
+    // and so are `placement.js` (which reads the set back out of the resolver
+    // context) and the pane layout (`excludeKeys`, below).
+    const volOverlaySet = showVolume
+      ? volumeOverlayKeys(engineInstances, cs)
+      : new Set()
+
+    volOverlayKeysRef.current = volOverlaySet
+
+    // ⭐⭐ THE OSCILLATOR'S OWN AXIS, ON THE OPPOSITE SIDE FROM VOLUME'S.
+    //
+    // ⛔ SERIES-LEVEL `visible: true` IS NOT ENOUGH, which is the whole reason
+    // this call exists. `placement.js` puts an overlaid oscillator on
+    // `scaleId: 'left'` with `visible: true`, the binder applies it to the
+    // series' own price scale, and the left column still rendered as a 25px stub
+    // with no numbers in it — measured, cells `25 / 1519 / 76`. The scale was
+    // genuinely independent (the RSI line spans the pane instead of lying flat on
+    // volume's hundred-millions), but nobody could read a value off it. That is
+    // Option C by accident rather than by choice.
+    //
+    // ⚠️ APPLIED HERE AND NOT IN THE OPTIONS OBJECT ABOVE, because
+    // `engineInstances` is a LOCAL declared further down this function and the
+    // options are built before it exists — hoisting the set past it is a TDZ
+    // ReferenceError that takes the whole page to the error boundary (measured).
+    //
+    // ⚠️ AND ONLY WHEN SOMETHING IS ACTUALLY OVERLAID. The left axis is ONE
+    // COLUMN for the whole table, so switching it on takes its width out of the
+    // PRICE pane's plot too. A chart with no overlay is asked for `visible: false`
+    // — what it has today — so it pays nothing.
+    try {
+      chart.applyOptions({
+        leftPriceScale: {
+          visible: volOverlaySet.size > 0,
+          borderVisible: false,
+          minimumWidth: _axisMinWidth,
+        },
+      })
+    } catch { /* disposed mid-update */ }
 
     // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
     // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
@@ -10221,11 +10265,20 @@ export default function StockChart({
     // ⚠️ HIDDEN INSTANCES ARE EXCLUDED for the same reason `orderedPaneKeys`
     // excludes them: a hidden indicator gets no pane at all, so reserving a slot
     // above the candles for one would leave a gap the renderer refuses to hold.
+    // ⛔ AND AN INDICATOR OVERLAID ONTO VOLUME RESERVES NO TOP PANE. `position`
+    // and `target` are independent by design (see `setInstanceDisplayTarget`), so
+    // an RSI the user had placed ABOVE Price and then sent to the volume pane
+    // still carries `position: 'above'` — deliberately, so it comes back above
+    // when they send it home. Counting it here would carve a top slice off the
+    // budget for a pane the binder never creates, and every index below it would
+    // be one out: the same off-by-one `orderedPaneKeys` skips hidden instances to
+    // avoid. `volOverlaySet` is already the resolved answer, so this is a lookup
+    // rather than a second opinion.
     const _topKeys = new Set(
       (engineInstances || [])
         .filter((i) => i && i.hidden !== true && i.placement && i.placement.position === 'above')
         .map((i) => i.defId)
-        .filter((id) => typeof id === 'string' && id),
+        .filter((id) => typeof id === 'string' && id && !volOverlaySet.has(id)),
     )
     const paneLayout = computePaneLayout(engineInstances, {
       chartHeight: paneStackHeightPx(chart),
@@ -16607,6 +16660,38 @@ export default function StockChart({
               <span className={styles.volLegVal} style={legBaseVol}>{formatVolume(crosshairData.volAvg)}</span>
             </span>
           )}
+          {/* ⭐⭐ AN OSCILLATOR SHARING THIS PANE READS OUT IN THIS STRIP, because
+              this strip IS the pane's label and the oscillator is in the pane.
+              Sending RSI to Volume otherwise left its value printable only in the
+              main legend — a line in one pane and its number in another.
+
+              ⛔ THE SAME `LegendRow` THE INDICATOR PANES USE, and the same chips
+              (`crosshairData.chips`, already carrying the label, colour and
+              decimals from `readout.legendChips`). Reused rather than restyled:
+              a second spelling of `RSI(14)` here is the first place it could
+              disagree with the one six pixels above it, and the hover verbs come
+              along for free. `paneReadoutRows` cannot do it — it walks
+              `layout.panes`, and an overlaid indicator deliberately has no pane. */}
+          {Array.isArray(crosshairData.chips) && crosshairData.chips
+            .filter((c) => c && c.hidden !== true && typeof c.defId === 'string'
+              && volOverlayKeysRef.current.has(c.defId))
+            .map((c) => (
+              <LegendRow
+                key={`volov::${c.instanceId}::${c.plotKey}`}
+                rowId={c.instanceId}
+                label={c.label}
+                value={c.value != null ? c.value.toFixed(c.decimals) : ''}
+                color={c.color}
+                baseColor={legendColor || undefined}
+                controlLabel={c.label}
+                hidden={!!c.hidden}
+                {...(chipHandlers ? {
+                  onToggleHidden: chipHandlers.onToggleHidden,
+                  onOpenSettings: chipHandlers.onOpenSettings,
+                  onRemove: chipHandlers.onRemove,
+                } : null)}
+              />
+            ))}
           {/* ⭐ THE SAME THREE VERBS THE INDICATOR PANES GOT — hide · settings ·
               remove, revealed on hover at the right of the strip (owner: *"when I
               hover over this with my mouse the buttons should pop up on the right

@@ -60,8 +60,8 @@ import {
 import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
-  setInstancePanePosition,
-} from './engine/instanceControls'
+  setInstancePanePosition, setInstanceDisplayTarget } from './engine/instanceControls'
+import { resolveDisplayTarget } from './engine/displayTarget'
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
@@ -390,31 +390,68 @@ export default function ChartSettingsIndicators({
    * DELETES the key rather than writing `'below'`, so the two halves agree that
    * there is exactly one representation of the default.
    */
-  const panePositionControl = useCallback((row) => {
+  /**
+   * The DISPLAY section of an engine indicator's expanded settings.
+   *
+   * ⭐ PROGRESSIVE DISCLOSURE IS THE POINT, NOT DECORATION. "Pane position" is a
+   * property of HAVING a pane, so it is not merely disabled while the indicator
+   * is overlaid onto Volume — it is not there. A control that is visible but
+   * inert invites the reading "this should work and is broken"; one that appears
+   * when it becomes meaningful teaches the shape of the model instead.
+   *
+   * ⚠️ AND THE PREFERENCE SURVIVES ITS OWN CONTROL DISAPPEARING. Sending RSI to
+   * Volume hides this row but does not clear `placement.position`, so bringing it
+   * home returns it ABOVE Price if that is where it was — see
+   * `setInstanceDisplayTarget`. Hiding a control must not be a way of deleting
+   * what it holds.
+   *
+   * Only `pane`-target definitions get any of this: a price overlay has nowhere
+   * else to go, and offering it a destination it cannot reach would be a menu
+   * entry for something that does not work.
+   */
+  const displayControls = useCallback((row) => {
     if (!row || !row.engineOwned || !row.instanceId) return null
     const def = registry && typeof registry.getDefinition === 'function'
       ? registry.getDefinition(row.defId)
       : null
-    const target = def && def.placement && def.placement.target
-    if (target && target !== 'pane') return null
+    const declared = def && def.placement && def.placement.target
+    if (declared && declared !== 'pane') return null
     const inst = findInstance(settings, row.instanceId)
-    const cur = inst && inst.placement && inst.placement.position === 'above' ? 'above' : 'below'
+    // The one seam decides where it draws — the settings UI reads that answer, it
+    // does not compute its own. (`displayTarget.js`: four places used to.)
+    const where = resolveDisplayTarget(inst || { defId: row.defId }, settings, declared || 'pane')
+    const onOwnPane = where !== 'volume'
+    const pos = inst && inst.placement && inst.placement.position === 'above' ? 'above' : 'below'
+    const commit = (next) => { if (next !== settings) onChange?.({ ...next, preset: 'custom' }) }
     return (
-      <div className={styles.indRow}>
-        <span className={styles.indLabel}>Pane position</span>
-        <select
-          className={styles.indSelect}
-          value={cur}
-          aria-label={`${row.label} pane position`}
-          onChange={(e) => {
-            const next = setInstancePanePosition(settings, row.instanceId, e.target.value, registry)
-            if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-          }}
-        >
-          <option value="below">Below price</option>
-          <option value="above">Above price</option>
-        </select>
-      </div>
+      <>
+        <div className={styles.indRow}>
+          <span className={styles.indLabel}>Display in</span>
+          <select
+            className={styles.indSelect}
+            value={onOwnPane ? 'pane' : 'volume'}
+            aria-label={`${row.label} display in`}
+            onChange={(e) => commit(setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry))}
+          >
+            <option value="pane">Own pane</option>
+            <option value="volume">Volume</option>
+          </select>
+        </div>
+        {onOwnPane ? (
+          <div className={styles.indRow}>
+            <span className={styles.indLabel}>Pane position</span>
+            <select
+              className={styles.indSelect}
+              value={pos}
+              aria-label={`${row.label} pane position`}
+              onChange={(e) => commit(setInstancePanePosition(settings, row.instanceId, e.target.value, registry))}
+            >
+              <option value="below">Below price</option>
+              <option value="above">Above price</option>
+            </select>
+          </div>
+        ) : null}
+      </>
     )
   }, [settings, registry, onChange])
 
@@ -542,7 +579,7 @@ export default function ChartSettingsIndicators({
                 inputs and feed the calculation; this writes PLACEMENT, which the
                 calculation never sees. Keeping them apart at the seam is the
                 whole point of the calculation/presentation split. */}
-            {panePositionControl(row)}
+            {displayControls(row)}
             {row.fields.map((f) => {
               if (f.showIf && !f.showIf(row.values)) return null
               const val = row.values?.[f.key]

@@ -358,28 +358,66 @@ export function resolvePlacement(instance, def, ctx) {
   if (typeof def.id !== 'string' || !def.id) return null
   const key = def.id
 
-  // ── Overlaid into the volume pane, on its left axis ──
-  if (c.volSeparatePane && asSet(c.volOverlaySet).has(key)) {
-    return {
-      paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
-      scaleId: 'left',
-      // Rebuilt, not shared: a caller that mutated the returned object would
-      // otherwise poison every later resolve. No fixed range here even for RSI —
-      // the left axis is shared with everything else overlaid onto it, which is
-      // exactly why the shipped branch autoscales it.
-      scaleOptions: { ...LEFT_AXIS_OPTIONS, scaleMargins: { ...LEFT_AXIS_OPTIONS.scaleMargins } },
-      // The left axis is autoscaled BY the things overlaid onto it — that branch
-      // sets `autoScale: true` precisely so they drive it — and the shipped code
-      // passes no provider at all. Excluding here would leave the shared axis
-      // with nothing to size itself from.
-      autoscale: 'default',
-    }
-  }
-
   const scale = def.placement && def.placement.scale
   const range = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max))
     ? { autoScale: false, minimum: scale.min, maximum: scale.max }
     : { autoScale: true }
+
+  // ── Overlaid into the volume pane, on its left axis ──
+  //
+  // ⭐ THE CANONICAL TARGET RESOLVES ON ITS OWN. `target === 'volume'` is the
+  // instance's stored placement and needs no corroboration from the live list;
+  // `volOverlaySet` is the same answer arriving by the legacy route, and
+  // `displayTarget.js` is where the two are reconciled once. Checking both here
+  // is belt-and-braces, not a second opinion — the set is BUILT from this rule.
+  if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))) {
+    return {
+      paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
+      scaleId: 'left',
+      // Rebuilt, not shared: a caller that mutated the returned object would
+      // otherwise poison every later resolve.
+      //
+      // ⛔⛔ AND IT AUTOSCALES — I TRIED TO GIVE IT THE DEFINITION'S 0-100 LADDER
+      // AND THAT WAS WRONG, for a reason this file already records as TRAP #2 and
+      // `binder.js`'s header states outright: **`minimum` / `maximum` are not
+      // lightweight-charts 5.2.0 price-scale options and pin nothing.** Passing
+      // them changes only one thing that works — `autoScale: false` — and that
+      // FREEZES the scale at whatever range it happens to be holding. On a scale
+      // the pool can hand to another tenant that is the "an ATR of 2.7 draws as a
+      // flat line at the bottom" bug, bought in exchange for a ladder that never
+      // arrives. Measured in the browser: the left axis read 40/60 on a 132px
+      // pane, i.e. still autoscaled, with `autoScale:false, minimum:0,
+      // maximum:100` demonstrably applied.
+      //
+      // ⭐ AND AUTOSCALE IS ALREADY HONEST HERE. What the owner asked for is an
+      // INDEPENDENT scale — RSI must not be distorted by volume and must not
+      // distort it — and independence comes from being on the LEFT scale while
+      // volume owns the right, not from the numbers being nailed to 0 and 100.
+      // A true fixed ladder needs `autoscaleInfoProvider` on the series; it is a
+      // real gap, it applies to an oscillator's OWN pane identically, and it is
+      // not POC C's to fix quietly.
+      scaleOptions: { ...LEFT_AXIS_OPTIONS, scaleMargins: { ...LEFT_AXIS_OPTIONS.scaleMargins } },
+      // ⭐⭐ GUIDES OFF ON A SHARED PANE — AN OWNER DECISION, LOCKED 2026-09-11.
+      //
+      // RSI's 70 / 50 / 30 are the whole point of RSI in its OWN pane: three
+      // reference lines across an empty rectangle. Drawn across the VOLUME pane
+      // they are three more horizontal lines over a histogram that already has a
+      // moving average through it, at levels that mean nothing to volume — noise
+      // charged to the pane the user was trying to economise on by sharing it.
+      //
+      // ⛔ NOT DELETED, AND THAT IS THE POINT OF SPELLING IT AS A FIELD. `guides`
+      // is a PRESENTATION property carried by the placement, exactly like
+      // `lastValue`, so "show guides on shared panes" becomes a setting that
+      // flips this value rather than a feature that has to be rebuilt. The
+      // definition still declares its `hlines`; this says whether THIS placement
+      // draws them.
+      guides: false,
+      // The left axis is sized by what is overlaid onto it, and the shipped code
+      // passes no provider at all. Excluding here would leave it with nothing to
+      // size itself from on the autoscaling path.
+      autoscale: 'default',
+    }
+  }
 
   // ── FLIP C: its own REAL PANE ───────────────────────────────────────────────
   //

@@ -74,8 +74,15 @@ export function currentTargetOf(chip, def) {
 export function moveTargetRefusal(def, target, current) {
   if (target === current) return 'it is already here'
   if (target === 'volume') {
-    return 'the volume overlay is a chart-wide toggle (right-click → Overlay on volume), '
-      + 'not an instance placement'
+    // ⚠️ THE REASON CHANGED EVEN THOUGH THE REFUSAL DID NOT. It used to be that
+    // `placement.target: 'volume'` was INERT — `resolvePlacement` read the
+    // overlay decision only from `cs.volumeOverlayIndicators`, so ticking it here
+    // persisted a no-op. POC C made the instance target canonical, so the row is
+    // now perfectly bindable; what it lacks is a WRITER. Chart Settings →
+    // Display in goes through `setInstanceDisplayTarget`, which also keeps the
+    // legacy list in step, and wiring a second path that skipped that is how the
+    // two controls would start disagreeing. Refused until this menu can call it.
+    return 'move it in Chart Settings → Display in'
   }
   const declared = (def && def.placement && def.placement.target) || 'pane'
   if (target === 'pane' && declared !== 'pane') {

@@ -236,22 +236,29 @@ describe('⛔ the Move refusals are DERIVED from the renderer, not asserted abou
       .toBeLessThan(DEFS.length)
   })
 
-  it('⭐ "volume" is INERT as an instance placement — measured, both ways round', () => {
-    // The reason the Volume row is refused for every definition. It is not that
-    // it is unbindable — for a pane definition it binds perfectly — it is that it
-    // binds to the SAME PLACE `pane` does, because `resolvePlacement` reads the
-    // overlay decision from `cs.volumeOverlayIndicators` and never from the
-    // instance's target. A persisted no-op with a tick beside it.
+  it('⭐ "volume" resolves to the SAME PLACEMENT as "pane" — and is no longer inert', () => {
+    // ⚰️ THIS CASE USED TO BE NAMED "volume is INERT", and the equalities below
+    // are unchanged — `resolvePlacement` really does hand the renderer the same
+    // object either way, because the volume pane's left axis autoscales for both
+    // (see `placement.js`: `minimum`/`maximum` pin nothing in 5.2.0, so there is
+    // no ladder to differ about).
+    //
+    // ⭐ WHAT CHANGED IS WHERE THE TARGET MATTERS. POC C made
+    // `placement.target: 'volume'` canonical in `displayTarget.js`, and that
+    // answer drives the LAYOUT — `volumeOverlayKeys` feeds `excludeKeys`,
+    // `volSeparatePane` and the top-pane set, i.e. WHICH PANES EXIST. Two panes
+    // versus three is not something this resolver's return value can show, which
+    // is exactly why asserting inertness HERE stopped being the same claim as
+    // asserting it about the feature. `displayTarget.test.js` holds that half.
     const paneDefs = DEFS.filter(d => (d.placement && d.placement.target) === 'pane')
     expect(paneDefs.length, 'no pane definitions — this case is vacuous').toBeGreaterThan(3)
     for (const def of paneDefs) {
       expect(resolveAt(def, 'volume'), `${def.id}: 'volume' resolved differently from 'pane' with `
-        + 'the chart-wide overlay list EMPTY — the instance target has become meaningful and the '
-        + 'Volume row can be enabled')
+        + 'the chart-wide overlay list EMPTY')
         .toEqual(resolveAt(def, 'pane'))
       expect(resolveAt(def, 'volume', { overlaid: true }),
-        `${def.id}: 'volume' resolved differently from 'pane' with the definition IN the '
-        + 'chart-wide overlay list`)
+        `${def.id}: 'volume' resolved differently from 'pane' with the definition IN the `
+        + 'chart-wide overlay list')
         .toEqual(resolveAt(def, 'pane', { overlaid: true }))
     }
     // …and the control: the two contexts really do produce different answers, so
@@ -260,7 +267,8 @@ describe('⛔ the Move refusals are DERIVED from the renderer, not asserted abou
     expect(resolveAt(probe, 'pane', { overlaid: true }),
       'the overlay context changed nothing — the pair of equalities above is one equality')
       .not.toEqual(resolveAt(probe, 'pane'))
-    // …and every definition therefore refuses it, in one place.
+    // …and the menu still refuses it — now for want of a WRITER, not a binding.
+    // Chart Settings owns the only path that also keeps the legacy list in step.
     for (const def of DEFS) {
       expect(moveTargetRefusal(def, 'volume', currentTargetOf({}, def)), def.id).toBeTruthy()
     }

@@ -471,6 +471,12 @@ describe('mfi transcription — what the shipped block hands the renderer', () =
     }
     expect(resolvePlacement({ defId: 'mfi' }, engineRegistry.getDefinition('mfi'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: { ...LEGACY_LEFT_AXIS, scaleMargins: { ...LEGACY_LEFT_AXIS.scaleMargins } },
     })
     const { F } = sync(MFI_INSTANCE, MFI_CS, null,
@@ -568,6 +574,12 @@ describe('cci transcription — the AUTOSCALED band with two guide styles', () =
     }
     expect(resolvePlacement({ defId: 'cci' }, engineRegistry.getDefinition('cci'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: { ...LEGACY_LEFT_AXIS, scaleMargins: { ...LEGACY_LEFT_AXIS.scaleMargins } },
     })
     const { F } = sync(CCI_INSTANCE, CCI_CS, null,
@@ -684,6 +696,12 @@ describe('williamsR transcription — the NEGATIVE scale and the snake_case key'
     }
     expect(resolvePlacement({ defId: 'williamsR' }, engineRegistry.getDefinition('williamsR'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: { ...LEGACY_LEFT_AXIS, scaleMargins: { ...LEGACY_LEFT_AXIS.scaleMargins } },
     })
     const { F } = sync(WILLIAMS_INSTANCE, WILLIAMS_CS, null,

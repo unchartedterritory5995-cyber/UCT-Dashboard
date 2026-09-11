@@ -313,6 +313,12 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
     }
     expect(resolvePlacement({ defId: 'stoch' }, engineRegistry.getDefinition('stoch'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: { ...LEGACY_LEFT_AXIS, scaleMargins: { ...LEGACY_LEFT_AXIS.scaleMargins } },
     })
     // …and it reaches the RENDERER, not only the resolver: pane index 1 on both
@@ -423,6 +429,12 @@ describe('atr transcription — the AUTOSCALED band, which stoch is not', () => 
     }
     expect(resolvePlacement({ defId: 'atr' }, engineRegistry.getDefinition('atr'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: {
         borderVisible: false, visible: true, autoScale: true,
         scaleMargins: { top: 0.12, bottom: 0.04 },

@@ -720,7 +720,7 @@ export function createBinder({ chart, LWC }) {
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, ownPane } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, ownPane, guides: showGuides } = placement.value
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
@@ -902,13 +902,13 @@ export function createBinder({ chart, LWC }) {
         attempt(() => series.applyOptions(options))
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, ownPane })
+      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, ownPane, showGuides })
     }
 
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
     const next = []
     for (const p of prepared) {
-      const { b, paneIndex, scaleId, scaleOptions, series } = p
+      const { b, paneIndex, scaleId, scaleOptions, series, showGuides } = p
       let { guideHandles } = p
 
       // ── TRAP #2: the FULL set, every SYNC, create branch or not ──
@@ -964,15 +964,35 @@ export function createBinder({ chart, LWC }) {
       // spec itself did. LWC has no "update this price line" — changing one means
       // removing and recreating it — so a signature comparison is what keeps this
       // from churning three price lines on every tick.
-      const guidesChanged = b.source !== 'same' || b.guideSig !== (b.prevGuideSig || '')
+      // ⭐ THE PLACEMENT DECIDES WHETHER GUIDES DRAW, not the definition. A
+      // placement that answers `guides: false` — today, a shared pane — declares
+      // none; any other answer, including absent, declares exactly what it always
+      // did, which is what keeps every own-pane and bands-mode binding unchanged.
+      const wantSpecs = []
+      if (showGuides !== false) {
+        for (const plot of b.guides) {
+          for (const spec of guideSpecs(plot, LWC.LineStyle)) wantSpecs.push(spec)
+        }
+      }
+      // ⛔⛔ AND THE COUNT IS PART OF "CHANGED", WHICH IT DID NOT USED TO BE.
+      // The tenant and the guide SIGNATURE are both unchanged when an oscillator
+      // moves between its own pane and a shared one — the definition still
+      // declares the same `hlines` — so a visibility flip is invisible to both.
+      // Measured: RSI sent to Volume lost its guides correctly and then came home
+      // WITHOUT them, permanently, because nothing ever asked for them again
+      // (`stockChartWiring`: *"the guide came back with them"* went `[25]` → `[]`).
+      // Reconciling against what is actually DRAWN catches the flip in both
+      // directions and still churns nothing on a tick, because the count only
+      // moves when the answer does.
+      const guidesChanged = b.source !== 'same'
+        || b.guideSig !== (b.prevGuideSig || '')
+        || guideHandles.length !== wantSpecs.length
       if (guidesChanged) {
         for (const handle of guideHandles) attempt(() => series.removePriceLine(handle))
         guideHandles = []
-        for (const plot of b.guides) {
-          for (const spec of guideSpecs(plot, LWC.LineStyle)) {
-            const made = attempt(() => series.createPriceLine(spec))
-            if (made.ok && made.value) guideHandles.push(made.value)
-          }
+        for (const spec of wantSpecs) {
+          const made = attempt(() => series.createPriceLine(spec))
+          if (made.ok && made.value) guideHandles.push(made.value)
         }
       }
 

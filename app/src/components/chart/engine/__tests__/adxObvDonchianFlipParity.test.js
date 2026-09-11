@@ -465,6 +465,12 @@ describe('adx — three lines, one scale, one guide', () => {
     }
     expect(resolvePlacement({ defId: 'adx' }, engineRegistry.getDefinition('adx'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: { ...LEGACY_LEFT_AXIS, scaleMargins: { ...LEGACY_LEFT_AXIS.scaleMargins } },
     })
     const { F } = sync(ADX_INSTANCE, ADX_CS, null,
@@ -614,6 +620,12 @@ describe('obv — the autoscale seam, on values that are actually large', () => 
     }
     expect(resolvePlacement({ defId: 'obv' }, engineRegistry.getDefinition('obv'), ctx)).toEqual({
       paneIndex: 1, scaleId: 'left', autoscale: 'default',
+      // ⭐ POC C ADDED THIS KEY, deliberately: guides are OFF on a shared pane
+      // (owner decision, locked 2026-09-11). It is a PRESENTATION property the
+      // placement carries, not a deletion — `placement.js` explains why it is a
+      // field rather than a branch. The own-pane transcriptions above are
+      // untouched, which is the half of the parity that still has to hold.
+      guides: false,
       scaleOptions: { ...LEGACY_LEFT_AXIS, scaleMargins: { ...LEGACY_LEFT_AXIS.scaleMargins } },
     })
     const { F } = sync(OBV_INSTANCE, OBV_CS, null,

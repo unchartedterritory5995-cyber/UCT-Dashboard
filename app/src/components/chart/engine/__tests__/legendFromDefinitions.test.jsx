@@ -1494,7 +1494,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
       .toBe(true)
     expect(volume.textContent,
       'the refusal reason is not on screen — the user is left clicking a grey line')
-      .toMatch(/chart-wide toggle/)
+      .toMatch(/Chart Settings/)
     // The CURRENT placement is refused too, and for a different reason.
     expect(byLabel('Its own pane').disabled, 'the CURRENT target is offered as a destination')
       .toBe(true)

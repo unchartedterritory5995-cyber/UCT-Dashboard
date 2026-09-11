@@ -67,6 +67,7 @@
 
 import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
+import { resolveDisplayTarget, DISPLAY_TARGETS } from './displayTarget'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
@@ -443,10 +444,65 @@ export function addInstance(cs, defId, registry) {
  * exists to catch drifting.
  */
 function placementFor(def, defId, cs) {
-  const target = def.placement?.target
-  if (typeof target !== 'string' || !target) return null
-  const overlaid = Array.isArray(cs?.volumeOverlayIndicators) && cs.volumeOverlayIndicators.includes(defId)
-  return { target: target === 'pane' && overlaid ? 'volume' : target }
+  const declared = def.placement?.target
+  if (typeof declared !== 'string' || !declared) return null
+  // ⭐ THE RULE IS NO LONGER SPELLED OUT HERE. It used to be, with a comment
+  // saying so and a byte-identity test to catch this copy drifting from the
+  // migrator's — see `displayTarget.js` for why one function replaced four.
+  // A brand-new instance has no stored placement, so this resolves through the
+  // legacy list exactly as the duplicated rule did.
+  const target = resolveDisplayTarget({ defId, placement: null }, cs, declared)
+  return { target: target || declared }
+}
+
+/**
+ * Move ONE instance to a different display target.
+ *
+ * ⭐⭐ TARGET AND OWN-PANE POSITION ARE SEPARATE CONCEPTS, AND THIS IS WHERE THAT
+ * IS ENFORCED. `placement.position` ('above' / absent) says where the indicator
+ * sits WHEN IT HAS ITS OWN PANE; `placement.target` says whether it has one at
+ * all. Overlaying RSI onto Volume must not erase the fact that the user had put
+ * it above Price, or sending it back to its own pane would silently demote it to
+ * the default — a preference destroyed by a round trip nobody thought of as
+ * destructive. So this function touches `target` and nothing else.
+ *
+ * ⛔ `'pane'` DELETES THE KEY rather than writing it, for the same reason
+ * `setInstancePanePosition` deletes `position` for `'below'`: the default must
+ * have exactly one representation, or two charts that look identical stop
+ * comparing equal.
+ *
+ * ⚠️ THE LEGACY LIST IS KEPT IN STEP — on this explicit action ONLY. The toolbar
+ * checkbox still reads and writes `cs.volumeOverlayIndicators`, so leaving it
+ * behind would give the same chart two visible controls that disagree. This is
+ * not the "migrate on load" that `displayTarget.js` forbids: nothing is written
+ * unless a user moves an indicator.
+ */
+export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!DISPLAY_TARGETS.includes(target)) return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const defId = inst.defId
+
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const placement = { ...(i.placement || {}) }
+    if (target === 'pane') delete placement.target
+    else placement.target = target
+    return Object.keys(placement).length ? { ...i, placement } : (() => {
+      const { placement: _drop, ...rest } = i
+      return rest
+    })()
+  })
+
+  const legacy = Array.isArray(cs.volumeOverlayIndicators) ? cs.volumeOverlayIndicators : []
+  const wantsVolume = target === 'volume'
+  const inLegacy = legacy.includes(defId)
+  let volumeOverlayIndicators = legacy
+  if (wantsVolume && !inLegacy) volumeOverlayIndicators = [...legacy, defId]
+  else if (!wantsVolume && inLegacy) volumeOverlayIndicators = legacy.filter((x) => x !== defId)
+
+  return { ...withInstances(cs, next, registry), volumeOverlayIndicators }
 }
 
 /**
