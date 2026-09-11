@@ -1,7 +1,18 @@
 # Joystick hub — closure
 
-> ## ✅ FEATURE COMPLETE at `f7ec5d5dd` + the Peek removal (`ccd661051`).
+> ## ✅ FEATURE COMPLETE — with one incident on the record.
+> at `f7ec5d5dd` + the Peek removal (`ccd661051`) + Increment 8's class rails.
 > **The programme is closed. No further deploys are authorized.**
+>
+> ⛔⛔ **READ `postmortem-nav-freeze.md` BEFORE TREATING THIS AS A CLEAN CLOSE.** On 2026-09-10
+> this programme shipped a render loop that **froze navigation app-wide for about four and a half
+> hours** — clicking any nav entry changed the URL and left the screen where it was. It was found
+> by a member and fixed by another session. Three of the four links in the chain were this
+> programme's code.
+>
+> "Feature complete" is written above on the basis that the defect CLASS is now railed
+> (Increment 8: C1 every host, C2 every ineligible member, C3 every width, C4 a real browser
+> against production, C5 charter rule H14) — **not** on the basis that nothing went wrong.
 >
 > Every row in `deferred.md` and every request in `requests.md` carries a final-state verdict,
 > including the four owner decisions, all now DECIDED. What remains is not engineering:

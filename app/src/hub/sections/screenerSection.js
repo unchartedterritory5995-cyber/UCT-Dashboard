@@ -96,7 +96,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, createElement, Fragment } from 'react'
 import useHubCursor from '../useHubCursor'
 import useHubMode from '../useHubMode'
-import { useHub } from '../HubContext'
+import { useHubSetters } from '../HubContext'
 import { useHubEligible } from '../useHubActive'
 import PlanTradeSheet from '../PlanTradeSheet'
 import { modesById } from '../registry'
@@ -579,7 +579,9 @@ export default function useScreenerHubSection({
   const cursor = useHubCursor(LIST_ID, rows, { key: identityKey })
   const { index, count, next, prev, scrubTo } = cursor
 
-  const { setSymbol } = useHub()
+  // ⛔ SETTER ONLY — see `HubSettersContext`. `useHub()` here re-rendered this section's host
+  // on its own registration.
+  const { setSymbol } = useHubSetters()
   // Flag + Alert arrive through the bridge below, never through a hook call here. See
   // `ScreenerActionsBridge`: both hooks require an `AuthProvider` that this shell does not.
   const actionsRef = useRef(NO_ACTIONS)
