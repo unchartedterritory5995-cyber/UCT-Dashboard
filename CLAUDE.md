@@ -1780,14 +1780,45 @@ comm -12 <(git diff --name-only $BASE..origin/master | sort -u)          <(git d
 
 Empty overlap and fewer than six behind ⇒ push and open the PR as-is.
 
-### ⛔⛔ NO PUSH TO MASTER, Mon-Fri 09:00-16:00 ET — THIS BINDS EVERY SESSION
+### ⚰️ RESCINDED 2026-09-11 — THE MARKET-HOURS PUSH WINDOW IS GONE. PUSH ANY TIME.
+
+> **Owner ruling, 2026-09-11, verbatim: "Ignore the no push window we can push anytime
+> anyday forever going forward."** There is no longer any time-of-day restriction on
+> pushing to master. Do not delay a deploy for the clock, and do not ask.
+
+⛔ **Do not re-derive the old rule from the mechanism below.** The mechanism is real and is
+kept because it still explains a class of missing-data bug. It is no longer a reason to
+wait — it is a reason to know where to look when a scheduled row is absent. This is the
+second time a rescinded restriction in this file has been re-applied by a later reader
+from its surviving rationale; the rationale is not the rule.
+
+⚠️ **The accepted cost, stated once so it is a known trade and not a forgotten one:** a
+push during market hours can still drop a scheduled slot, per the mechanism below. The
+owner has accepted that. Record which slots a restart landed on if you happen to know;
+never hold the push for it.
+
+#### Condition 5 of the standing deploy authorization, as it now reads
+
+> **5. At push time: master tip unchanged since the gate, nothing BUILDING, `/api/health`
+> stable. Nothing else.**
+
+⚰️ **STRUCK from condition 5, permanently:** the 09:00-16:00 ET no-push rule; the
+15:45-16:15 ET avoidance; and the "leave room for a second blip" clause. Owner ruling
+2026-09-11: *"We are building; there is no closed window for pushes, now or later."*
+
+⭐ **Soft preference, never blocking.** When it costs nothing, don't START a restart that
+spans a **:00 minute during 09:00-16:00 ET** — that is the one minute a UCT Terminal slot can
+be lost. If it happens anyway, note it in the report and move on. **This never delays a
+push and is never a reason to ask.**
+
+**The mechanism, still true:**
 
 > **A push to master is a production deploy. It rebuilds and RESTARTS the web
 > pod. APScheduler's job store is IN MEMORY, so a scheduled slot whose time
 > passes during the swap is never scheduled at all — lost outright, not merely
 > run late, and `misfire_grace_time` cannot see it.**
 
-A repo-wide rule, not one workstream's preference:
+Facts that remain useful for DIAGNOSIS (none of them gate a push any more):
 
 - **Docs-only pushes are included.** A three-file docs push rebuilds web and
   deploys (`f321e5e7b`, 2026-09-10). "It's only markdown" is not an exemption.
@@ -1811,9 +1842,10 @@ A repo-wide rule, not one workstream's preference:
   are relying on one to record an aborted run, a deploy is the case it cannot
   cover.
 
-If a push inside the window is genuinely urgent, that is an owner decision, and
-the cost to state is WHICH scheduled slots are lost — not whether a restart
-happens. It does.
+⚰️ This paragraph used to read: *"If a push inside the window is genuinely urgent, that
+is an owner decision, and the cost to state is WHICH scheduled slots are lost."* There is
+no window and no such decision to escalate. A restart still happens and can still cost a
+slot; that is now a diagnostic note, not a gate.
 
 ### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
 
