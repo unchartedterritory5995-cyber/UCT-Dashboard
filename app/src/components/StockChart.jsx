@@ -3369,6 +3369,8 @@ export default function StockChart({
   // The DOM "Pre"/"Post" word that sits ABOVE the orange ext price label, ON the
   // price scale (positioned by the rAF effect next to the tag applier below).
   const sessionExtChipRef = useRef(null)
+  // Offscreen 2D context for measuring the label's price text in the axis font.
+  const sessionExtMeasureRef = useRef(null)
   // Identity of the marker array last handed to the controller — see the guard in
   // updateChart. Reset with the chart, since a new chart has no marker layer.
   const lastMarkersSrcRef = useRef(undefined)
@@ -11696,21 +11698,44 @@ export default function StockChart({
       try {
         const price = line.options().price
         const y = series.priceToCoordinate(price)
-        let aw = 0; try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+        const tw = chart.timeScale().width() || 0
+        let lw = 0; try { lw = chart.priceScale('left').width() || 0 } catch { /* no left axis */ }
         let paneH = 0
         try { paneH = chart.paneSize(series.getPane().paneIndex()).height || 0 } catch { /* single pane */ }
         if (!paneH) { try { paneH = chart.paneSize(0).height || 0 } catch { /* noop */ } }
-        if (Number.isFinite(y) && y >= 0 && (paneH <= 0 || y <= paneH) && aw > 0) {
-          // LWC axis label box = fontSize + 2 × (3·fontSize/12) tall, centred on y.
+        if (Number.isFinite(y) && y >= 0 && (paneH <= 0 || y <= paneH) && tw > 0) {
+          // Mirror lightweight-charts' PriceAxisViewRenderer geometry EXACTLY, so the
+          // chip is the same box as the orange price label under it (owner ask —
+          // a scale-wide chip ran off the right edge of the phone):
+          //   height = fontSize + 2 × (2.5·fontSize/12), centred on y
+          //   width  = border(1) + paddingInner + paddingOuter + ceil(textWidth) + tick(5)
+          //            where paddingInner = paddingOuter = fontSize/12 × 5
+          //   x      = the axis cell's left edge (plot width) + border(1), drawn rightward.
           const fs = cs.textSize ?? 11
-          const labelHalf = (fs * 1.5) / 2
-          const chipH = el.offsetHeight || fs * 1.5
+          const labelH = fs + 2 * (2.5 / 12) * fs
+          const pad = (fs / 12) * 5
+          let text = ''
+          try { text = String(series.priceFormatter().format(price)) } catch { text = String(price) }
+          let ctx = sessionExtMeasureRef.current
+          if (!ctx) {
+            try { ctx = document.createElement('canvas').getContext('2d') } catch { ctx = null }
+            sessionExtMeasureRef.current = ctx
+          }
+          let textW = text.length * fs * 0.6
+          if (ctx) {
+            ctx.font = `${fs}px 'Instrument Sans Tab', 'Instrument Sans', sans-serif`
+            const m = ctx.measureText(text)
+            if (m && Number.isFinite(m.width) && m.width > 0) textW = m.width
+          }
+          const width = Math.round(1 + pad + pad + Math.ceil(textW) + 5)
+          const left = Math.round(lw + tw + 1)
+          const chipH = Math.round(labelH)
           const paneTop = overlayBounds?.top || 0
-          let top = Math.round(paneTop + y - labelHalf - chipH - 1)
+          let top = Math.round(paneTop + y - labelH / 2 - chipH - 1)
           // Pinned at the very top of the pane → stack it under the label instead.
-          if (top < paneTop) top = Math.round(paneTop + y + labelHalf + 1)
-          style = { top, width: Math.round(aw) }
-          key = `${top}|${style.width}`
+          if (top < paneTop) top = Math.round(paneTop + y + labelH / 2 + 1)
+          style = { top, left, width, height: chipH }
+          key = `${top}|${left}|${width}|${chipH}`
         }
       } catch { /* chart mid-swap */ }
       if (key === last) return
@@ -11718,7 +11743,10 @@ export default function StockChart({
       if (!style) { el.style.display = 'none'; return }
       el.style.display = 'block'
       el.style.top = `${style.top}px`
+      el.style.left = `${style.left}px`
       el.style.width = `${style.width}px`
+      el.style.height = `${style.height}px`
+      el.style.lineHeight = `${style.height}px`
     }
     raf = requestAnimationFrame(tick)
     return () => { if (raf) cancelAnimationFrame(raf) }
@@ -15615,12 +15643,13 @@ export default function StockChart({
           aria-hidden="true"
           style={{
             position: 'absolute',
-            right: 0,
+            left: 0,
             top: 0,
             display: 'none',
             boxSizing: 'border-box',
-            padding: '1px 0 0',
-            lineHeight: `${(cs.textSize ?? 11) * 1.5 - 1}px`,
+            padding: 0,
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
             fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
             fontSize: cs.textSize ?? 11,
             fontWeight: 600,
