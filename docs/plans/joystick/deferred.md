@@ -4,6 +4,37 @@ Everything cut from the spec, with the smallest change that would enable it. Not
 each row is a decision to make later with a known price. Evidence for every claim is in
 `10-wave0-discovery.md`.
 
+## FINAL STATE — Increment 7 (BACKLOG ZERO), part 1: rows closed without new code
+
+Every row below is closed by a line already written in this file or in a ruling — not by a
+decision made tonight to be rid of it. The quoted fragment is the closing evidence. Rows
+closed by Increment 7's own work are in part 2, at the bottom, beside their commits.
+
+⛔ **The `api/` stop, quoted once and referenced by every row that needs it.** Read live from
+the Railway service manifest (`railway status --json`, read-only), 2026-09-10: the **`worker`**
+service's watch list is `['/api/**', '/requirements.txt', '/railway.json', '/nixpacks.toml',
+'/Procfile', '/runtime.txt']`, and **`bars-api`**'s is `['api/**', …]`. So **any** edit under
+`api/` redeploys both. (`flow-worker`'s list is 20 enumerated top-level `api/*.py` modules and
+contains no `routers/` path, so it is NOT implicated — but the other two are enough.)
+
+| # | Final state | Closing evidence |
+|---|---|---|
+| D-04 · D-05 · D-11 | **SHIPPED** in Wave 0.5. | struck through in the table below |
+| D-33 · D-34 | **SHIPPED** — verified by measurement, not by report. | `disciplineGuards.js`, `calculations.js:251` |
+| D-07 | **CLOSED-BY-SPEC** — "Each needs a destination built first. **Not a hub problem**." There is no `/sectors` route to navigate to. | this file, D-07 |
+| D-12 | **CLOSED-BY-SPEC** — "Each needs a per-position affordance built first." | this file, D-12 |
+| D-13 | **CLOSED-BY-SPEC** — "**Genuinely new product surface.**" No read/unread concept exists anywhere in the product; `is_new` is server-computed and global. ⭐ A client-only seen-set would be buildable, and is deliberately NOT being built: it would not follow a member between devices, so it would answer "have I seen this?" wrongly for the first member who owns two. | this file, D-13 |
+| D-14 | **CLOSED-BLOCKED** — needs "an append-only log" of intraday history, i.e. `api/`. See the stop above. Its own row also says "**Large**". | this file, D-14 |
+| D-15 | **CLOSED-BLOCKED** — "New column + **endpoint** + filter application". `api/`. | this file, D-15 |
+| D-16 | **CLOSED-BLOCKED** — the fix is "Add a `?q=` read in **`NotebookTab.jsx`**", and this build has a standing zero-edit rule on that file. Nothing else reaches it. | this file, D-16 |
+| D-18 | **CLOSED-BY-SPEC** — "**Nothing to build.** The hub branches on `providers.obsidian.connected` and deep-links `/settings?section=connections` when false." Obsidian is a device-push connector; there is no "sync now" to fire. | this file, D-18 |
+| D-19 | **CLOSED-BLOCKED** — "A per-event subscription **endpoint** + UI". `api/`. | this file, D-19 |
+| D-22 | **CLOSED-BY-SPEC** — "**Explicitly out of scope by gate decision** — one `// TODO(hub-analytics): emit here` marks the call site." No authenticated in-app event sink exists. | this file, D-22 |
+| D-23 | **CLOSED-BY-SPEC** — "**Removed, not deferred** (owner ruling, Wave 0.5 gate): there are no tiers — one product, one price… do not carry a dead one now." | this file, D-23 |
+| D-26 | **OWNER DECISION, not engineering** — "One new method on `ChartPane`'s ref returning pane rects — **needs an owner decision, not an engineering one**." The scrim ships its stated `calc(22% + 32px)` approximation meanwhile, labelled as an approximation. | this file, D-26 |
+| D-28 | **CLOSED-BY-SPEC** — "**Nothing web-level exists.** A PWA/standalone display could suppress it; that is a different product decision." Android 10+ claims both edge swipes and a browser tab cannot opt out. | this file, D-28 |
+| D-30 | **CLOSED-BY-SPEC — NOT A HUB TASK**, and it says so in its own title. "⛔ **Must be its own task** — it must not ride along with a UI feature branch." ~68 call sites across `api/**`, which is also behind the stop above. It remains a live PRODUCTION risk and should be scheduled on its own. | this file, D-30 |
+
 | # | Item | Section | Why it is deferred | Smallest enabling change |
 |---|---|---|---|---|
 | D-01 | Draw (trendline tool) | chart | `expandDrawToolbar()` reveals the bar but selects no tool; `activeTool` is private `useState` (`StockChart.jsx:3911-3913`) | Add `selectTool(name)` to the existing `toolbarApiRef` surface, mirroring `expandDrawToolbar` |
