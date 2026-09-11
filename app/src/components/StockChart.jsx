@@ -8,6 +8,7 @@ import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import { verticalBand, isStorableVerticalBand } from './chart/viewLock'
 import {
   volumeOverlayKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
+  derivedTargetOf,
 } from './chart/engine/displayTarget'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
@@ -10815,6 +10816,11 @@ export default function StockChart({
         // `displayTarget`'s answer is what keeps ONE module deciding where an
         // indicator draws, which is the same rule Volume already follows.
         targetOf: (inst) => resolveDisplayTarget(inst, cs),
+        // ⭐ …AND WHERE THAT ANSWER CAME FROM. A guest in a shared pane needs one
+        // more fact than its address: whether its SOURCE put it there. `MA(Volume)`
+        // reads in shares and belongs on volume's own ladder; RSI parked on Volume
+        // does not. See the volume branch in `placement.js`.
+        derivedTargetOf: (inst) => derivedTargetOf(inst, cs),
         resolvePlacement,
         resolvePreset,
       })

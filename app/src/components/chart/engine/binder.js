@@ -258,6 +258,30 @@ function attempt(fn) {
  *  numbers: a recomputed column is a new object and gets a new id. */
 let SOURCE_SERIAL = 0
 
+/**
+ * A bar field as a numeric series — cached per BARS OBJECT.
+ *
+ * ⭐⭐ SO THE IDENTITY RULE HOLDS FOR MARKET DATA TOO. `sourceSig` is built from
+ * `__srcId`, which is stamped on the array: a source that did not change hands
+ * back the SAME array, the consumer's memo hits, and nothing recomputes. An
+ * indicator column already behaved that way because it comes out of a memo —
+ * `barFieldSeries` allocated a fresh array on every pass, so `MA(Close)`
+ * recomputed on every settings write in the chart, including ones about somebody
+ * else's pane. Measured: moving RSI recomputed `movingAverage` twice.
+ *
+ * ⛔ KEYED ON THE BARS OBJECT, NOT ON ITS LENGTH OR ITS LAST TIME. New bars are
+ * a new array (`applyData` never mutates in place), so the cache misses exactly
+ * when the numbers changed, which is the whole point. One field at a time, and
+ * at most eight of them.
+ */
+let barFieldCache = null
+function barFieldFor(bars, field) {
+  if (!barFieldCache || barFieldCache.bars !== bars) barFieldCache = { bars, map: new Map() }
+  let series = barFieldCache.map.get(field)
+  if (!series) { series = barFieldSeries(bars, field); barFieldCache.map.set(field, series) }
+  return series
+}
+
 function inputsSignature(inputs) {
   if (!inputs || typeof inputs !== 'object') return ''
   const keys = Object.keys(inputs).sort()
@@ -470,6 +494,60 @@ export function createBinder({ chart, LWC }) {
     return owed > 1
   }
 
+  /**
+   * Put every FOLLOWER in the pane its owner actually occupies.
+   *
+   * ⭐⭐ THE SECOND HALF OF "A FOLLOWER FOLLOWS". The create branch joins the
+   * owner's live pane, which is right on the frame the follower is bound. But
+   * `reconcilePaneOrder` moves PANES, one per frame, and `PaneApi.moveTo` is
+   * remove-and-insert: moving RSI's pane to the top pushes the candles' pane from
+   * 0 to 1 and carries every series in it along. A follower bound before that
+   * move is left behind — it is still in the pane it joined, which is now
+   * somebody else's.
+   *
+   * ⛔ AND NOTHING ELSE WOULD EVER CORRECT IT. From the next pass on the
+   * binding's `from.paneIndex` equals the layout's `paneIndex`, so the relocation
+   * branch does not fire: `MA(RSI)` draws across the candles at 56 on a 0–500
+   * price axis until the chart is rebuilt. Measured live, which is how this was
+   * found — the unit cases all bind a settled stack in one pass and could not
+   * see it.
+   *
+   * Asked of the SERIES, never of the layout: the layout is the intention, and
+   * this pass exists precisely because the renderer lags it.
+   */
+  function reconcileTenants(entries) {
+    if (!Array.isArray(entries) || !entries.length) return false
+    /** defId → a series living in that indicator's own pane. */
+    const owners = new Map()
+    for (const e of entries) {
+      if (!e || !e.ownPane || !e.series) continue
+      const defId = e.b && e.b.defId
+      if (typeof defId === 'string' && defId && !owners.has(defId)) owners.set(defId, e.series)
+    }
+    let moved = false
+    for (const e of entries) {
+      if (!e || !e.series || e.ownPane) continue
+      let want = null
+      if (e.follows) {
+        // ⭐ IDENTITY. Where the owner IS, not where the layout says its pane will
+        // be — the two differ for exactly one frame per pane move.
+        const owner = owners.get(e.follows)
+        if (!owner) continue
+        const at = attempt(() => owner.getPane().paneIndex())
+        if (!at.ok || !Number.isInteger(at.value)) continue
+        want = at.value
+      } else {
+        if (!Number.isInteger(e.paneIndex)) continue
+        want = e.paneIndex
+      }
+      const have = attempt(() => e.series.getPane().paneIndex())
+      if (!have.ok || !Number.isInteger(have.value) || have.value === want) continue
+      attempt(() => e.series.moveToPane(want))
+      moved = true
+    }
+    return moved
+  }
+
   /** Re-run the reconcile on later frames until the stack matches, or we run out
    *  of attempts. Bounded because a layout the renderer will never honour must
    *  not spin a rAF loop for the life of the chart — the same refusal
@@ -479,8 +557,12 @@ export function createBinder({ chart, LWC }) {
     requestAnimationFrame(() => {
       let more = false
       try { more = reconcilePaneOrder(layout, entries) } catch { return }
+      // AFTER the moves, not before: a tenant has to be told where its pane
+      // ended UP.
+      let movedTenant = false
+      try { movedTenant = reconcileTenants(entries) } catch { /* a tenant left behind is not worth losing the stretch pass */ }
       applyPaneStretch(layout)
-      if (more) settlePaneOrder(layout, entries, attemptsLeft - 1)
+      if (more || movedTenant) settlePaneOrder(layout, entries, attemptsLeft - 1)
     })
   }
 
@@ -657,7 +739,7 @@ export function createBinder({ chart, LWC }) {
       for (const [key, value] of sourceInputsOf(def, inst)) {
         const parsed = parseSource(value)
         let series = null
-        if (parsed && parsed.kind === 'bar') series = barFieldSeries(bars, parsed.field)
+        if (parsed && parsed.kind === 'bar') series = barFieldFor(bars, parsed.field)
         else if (parsed && parsed.kind === 'instance') {
           series = columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
         }
@@ -803,7 +885,7 @@ export function createBinder({ chart, LWC }) {
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, ownPane, guides: showGuides } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, ownPane, follows, guides: showGuides } = placement.value
 
       // ⭐ PRESENTATION, RESOLVED BESIDE PLACEMENT AND SEPARATELY FROM IT. The
       // style says HOW this output draws; the placement says WHERE. Neither
@@ -874,6 +956,20 @@ export function createBinder({ chart, LWC }) {
         // being correct rather than accidental: MACD's signal line belongs in
         // MACD's pane.
         let createAt = paneIndex
+        // ⭐⭐ A FOLLOWER JOINS THE PANE ITS OWNER IS ACTUALLY IN. `paneIndex` is
+        // where the LAYOUT says that pane will be; `ownPaneSeries` knows where it
+        // IS. They differ for exactly one frame per pane move, and a series that
+        // joins on that frame is stuck there for good — nothing moves it back,
+        // because from then on `b.from.paneIndex === paneIndex` and the relocation
+        // branch never fires. `reconcileFollowers` closes the other half: the
+        // owner's pane can move AFTER the follower joined.
+        if (follows) {
+          const owner = ownPaneSeries.get(follows)
+          if (owner) {
+            const at = attempt(() => owner.getPane().paneIndex())
+            if (at.ok && Number.isInteger(at.value)) createAt = at.value
+          }
+        }
         if (ownPane) {
           // ⛔ PER INDICATOR, NOT PER SERIES. MACD is three series in ONE pane;
           // asking for a new pane on each of them produced SEVEN panes where four
@@ -981,7 +1077,16 @@ export function createBinder({ chart, LWC }) {
         // the same pass. It is a `moveToPane(chart.panes().length)` when it lands.
         if (b.from && b.from.paneIndex !== paneIndex) {
           if (!ownPane) {
-            attempt(() => series.moveToPane(paneIndex))
+            // Same identity rule as the create branch: a follower goes where its
+            // owner IS, and falls back to the layout's index only when the owner
+            // has not been bound this pass.
+            let to = paneIndex
+            if (follows) {
+              const owner = ownPaneSeries.get(follows)
+              const at = owner ? attempt(() => owner.getPane().paneIndex()) : null
+              if (at && at.ok && Number.isInteger(at.value)) to = at.value
+            }
+            attempt(() => series.moveToPane(to))
           } else {
             // ⛔ AN OWN-PANE INDICATOR IS RE-ORDERED BY MOVING ITS PANE, AND THE
             // TEST IS WHETHER IT ALREADY HAS ONE. If the pane it sits in holds
@@ -1011,7 +1116,7 @@ export function createBinder({ chart, LWC }) {
         attempt(() => series.applyOptions(options))
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, lvhHandle, ownPane, showGuides, plotStyle, historyDrawn, lastValue, options })
+      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, lvhHandle, ownPane, follows, showGuides, plotStyle, historyDrawn, lastValue, options })
     }
 
     // ── PASS TWO: freeze the scale, hang the guides, feed the data ──
@@ -1206,11 +1311,22 @@ export function createBinder({ chart, LWC }) {
     // and never repair them.
     if (paneMode() === 'panes' && ctx.paneLayout) {
       const moreToOrder = reconcilePaneOrder(ctx.paneLayout, prepared)
+      const movedTenant = reconcileTenants(prepared)
       applyPaneStretch(ctx.paneLayout)
       // A stack needing more than one move finishes on later frames. Bounded by
       // the number of panes: every pass places at least one, so that many frames
       // is a ceiling, not a guess.
-      if (moreToOrder) settlePaneOrder(ctx.paneLayout, prepared, ctx.paneLayout.panes.length + 1)
+      //
+      // ⭐⭐ AND A TENANT IS ALWAYS RE-CHECKED ON A LATER FRAME, whether or not the
+      // ORDER still owes a move. A guest's destination is a layout INDEX, and a
+      // pane the layout has already dropped is still in the stack until the
+      // series standing in it leave — so the index it is told to move to is
+      // measured against a stack with an extra pane in it. Sending RSI from its
+      // own top pane to Volume put it in the CANDLES' pane and left it there:
+      // measured live, 8 series in pane 0, RSI and `MA(RSI)` drawn on the
+      // candles' left axis. The move empties the old pane, the renderer drops it,
+      // and this pass — running once the stack has settled — finishes the journey.
+      if (moreToOrder || movedTenant) settlePaneOrder(ctx.paneLayout, prepared, ctx.paneLayout.panes.length + 2)
     }
 
     return { ok: true, bound: next.length, released: release.length }

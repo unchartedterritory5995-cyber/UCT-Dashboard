@@ -354,7 +354,15 @@ export function resolvePlacement(instance, def, ctx) {
   // stretching their RANGE — a Bollinger band that runs off the top of the window
   // would reframe the candles the engine is supposed to be pixel-identical to.
   if (target === 'price') {
-    return { paneIndex: 0, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
+    // ⛔⛔ PANE 0 IS NOT THE CANDLES ONCE SOMETHING SITS ABOVE THEM. This said
+    // `paneIndex: 0` from the first pass, which was the same sentence until POC B
+    // made a TOP pane possible — with RSI above Price the candles are at 1 and
+    // pane 0 is RSI's, so every engine price overlay drew into the oscillator's
+    // 0–100 rectangle. Measured live: `MA(Close)` at 494.69 inside RSI's pane.
+    // The layout has always known which pane holds the candles; this asks it.
+    const main = c.paneLayout && Number.isInteger(c.paneLayout.mainPaneIndex)
+      ? c.paneLayout.mainPaneIndex : 0
+    return { paneIndex: main, scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
   }
 
   // 'volume' is the migrator's record of "this oscillator is in
@@ -378,6 +386,20 @@ export function resolvePlacement(instance, def, ctx) {
     if (!pane || !Number.isInteger(pane.index)) return null
     return {
       paneIndex: pane.index,
+      // ⭐⭐ AND THE OWNER'S PANE BY **IDENTITY**, NOT BY THAT INDEX. The index
+      // is what the layout WANTS the stack to look like; the renderer may not
+      // have got there yet. `PaneApi.moveTo` lands ONE move per frame, so on the
+      // frame RSI's pane is created above Price the pane actually sitting at
+      // index 0 is still the CANDLES' — and a follower that joined "index 0"
+      // joined that pane OBJECT, which the later move leaves behind. Measured
+      // live: flipping RSI to Above Price drew `MA(RSI)` across the candles
+      // (pane 0 recorded, pane 1 inhabited, a value of 56 on a 0–500 axis).
+      //
+      // So the follower NAMES WHO IT FOLLOWS and the binder joins that series'
+      // live pane — the same trick `ownPaneSeries` already plays for MACD's
+      // three outputs, one level out. The index stays as the first-frame
+      // fallback, for when the owner has no series yet.
+      follows,
       // ⭐ THE OWNER'S SCALE, BY NAME. Sharing `'right'` with the pane's owner is
       // the whole point of following it — `MA(RSI)` has to be read against RSI's
       // ladder, not against a second axis of its own that happens to overlap.
@@ -413,6 +435,36 @@ export function resolvePlacement(instance, def, ctx) {
   // `displayTarget.js` is where the two are reconciled once. Checking both here
   // is belt-and-braces, not a second opinion — the set is BUILT from this rule.
   if (c.volSeparatePane && (target === 'volume' || asSet(c.volOverlaySet).has(key))) {
+    // ⭐⭐ A GUEST THAT CAME HERE *FROM* VOLUME SHARES VOLUME'S LADDER.
+    //
+    // The left axis exists because a guest usually reads in different units — RSI
+    // is 0–100 and volume is tens of millions, and independence is what stops each
+    // flattening the other. `MA(Volume)` is the opposite case: it is an average of
+    // the very histogram it is drawn over, in shares, and putting it on a second
+    // self-scaled axis draws a line that tracks the bars' SHAPE while agreeing
+    // with none of their VALUES — the readout says 14,446,372 beside a bar of 6.4M.
+    // Measured live, which is how it was caught.
+    //
+    // ⛔ AND THE TEST IS WHERE THE TARGET CAME FROM, NOT WHAT THE INDICATOR IS.
+    // `derivedTargetOf` says "volume" only when THIS instance's own SOURCE put it
+    // here. RSI dragged onto Volume, or `MA(RSI)` parked there deliberately, did
+    // not come from volume and keeps its own axis — which is what keeps SOURCE and
+    // DISPLAY TARGET separable instead of quietly coupled through the scale.
+    const fromHost = (typeof c.derivedTargetOf === 'function'
+      ? c.derivedTargetOf(instance) : null) === 'volume'
+    if (fromHost) {
+      return {
+        paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
+        scaleId: 'right',
+        // The host's axis is the host's: assert nothing on it, and do not stretch
+        // it either. Same reasoning as a price overlay on the candles' scale and
+        // as a follower in an oscillator's pane — one rule, three hosts.
+        scaleOptions: null,
+        autoscale: 'default',
+        lastValue: false,
+        guides: false,
+      }
+    }
     return {
       paneIndex: Number.isInteger(c.VOL_PANE_INDEX) ? c.VOL_PANE_INDEX : 1,
       scaleId: 'left',

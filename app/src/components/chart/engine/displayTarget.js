@@ -144,6 +144,28 @@ export function paneOwnerOf(instance, cs) {
   return instance && typeof instance.defId === 'string' ? instance.defId : null
 }
 
+/**
+ * Where this instance would go if nobody had moved it — its SOURCE's home, or
+ * null when it has no source reference at all.
+ *
+ * ⭐ IT ANSWERS A UNITS QUESTION, not only a position one. A guest in a shared
+ * pane whose target came from HERE is reading the same numbers the host is:
+ * `MA(Volume)` in the volume pane is in shares, and belongs on volume's own
+ * ladder. A guest that was PARKED there — RSI dragged onto Volume — is not, and
+ * needs an axis of its own. `placement.js` asks this to tell them apart, which is
+ * why the distinction stays metadata rather than a list of indicator names.
+ */
+export function derivedTargetOf(instance, cs) {
+  if (!instance || !cs) return null
+  return derivedTargetFor(
+    instance,
+    getDefinition(instance.defId),
+    Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [],
+    getDefinition,
+    (other) => resolveDisplayTarget(other, cs),
+  )
+}
+
 /** Definition ids that FOLLOW somebody else's pane rather than owning one. */
 export function paneFollowerKeys(instances, cs) {
   const out = new Set()
