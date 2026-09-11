@@ -384,6 +384,33 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     return (random.random() * 100.0) < pct
 
 
+@router.get("/api/bars-today-pack")
+def get_today_pack():
+    """Today's developing daily bar for the WHOLE market, in one small payload.
+
+    ⚠️ A SIBLING PATH, NOT `/api/bars/today-pack`, AND THAT IS NOT COSMETIC. FastAPI
+    matches in declaration order and `/api/bars/{ticker}` is declared right below —
+    a nested path would be captured as `ticker="today-pack"` and served as a symbol
+    lookup. `/api/bars-history/` already sets this precedent.
+
+    Edge-cacheable: every browser wants the same object, and it changes on a ~20s
+    clock, so Cloudflare absorbs the fan-out and the origin builds it once per
+    window. `no-store` would put 200+ members' polling straight onto the pod.
+    """
+    try:
+        from api.services import todaypack
+        pack = todaypack.build_today_pack()
+    except Exception:
+        _bars_log.exception("[bars] today-pack build failed")
+        pack = {"d": "", "n": 0, "bars": {}}
+    out = JSONResponse(content=pack)
+    # A pack with no open session is EMPTY and cheap; don't cache it long enough to
+    # survive the open (the first post-open request must get real bars).
+    out.headers["Cache-Control"] = ("public, max-age=20, stale-while-revalidate=40"
+                                    if pack.get("bars") else "public, max-age=10")
+    return out
+
+
 @router.get("/api/bars/{ticker}")
 async def get_bars(
     ticker: str,
@@ -449,6 +476,37 @@ def _augment_daily_with_today(response, ticker: str):
         # Already carries today, or somehow ahead of it → don't touch the tail.
         if isinstance(last_t, str) and last_t >= today_t:
             return response
+        # ── LAYER 2: RE-DATED STALE SNAPSHOT ────────────────────────────────
+        # 🔴 THE DUPLICATE-CANDLE CLASS, CAUGHT WITHOUT A CLOCK. Twice now the
+        # provider's `day` object has held the PRIOR session's OHLC while we stamped
+        # the CURRENT date on it: 2026-09-04 (phantom Saturday bar, byte-for-byte
+        # Friday's) and 2026-09-11 (duplicate of yesterday's candle, seen after
+        # midnight and again pre-market). Both were fixed upstream by tightening WHEN
+        # we ask — first a calendar check, then a clock check. Both fixes were correct
+        # and neither is a GUARANTEE: they encode our belief about when the provider
+        # rolls that object, and that belief has now been wrong twice.
+        #
+        # ⭐ SO ALSO CHECK THE ONLY THING THAT CANNOT LIE — THE VALUES. A developing
+        # bar whose o/h/l/c AND cumulative volume are all identical to the previous
+        # session's is not a new session; it is the previous session wearing a new
+        # date. Refuse it. This is time-agnostic and source-agnostic, so it holds for
+        # the next provider quirk we have not met yet.
+        #
+        # ⚠️ VOLUME IS WHAT MAKES THIS SAFE TO ENFORCE. Intraday volume is a
+        # monotonically rising counter, so a genuine session matching yesterday's OHLC
+        # *and* its exact volume is not a thing that happens; a zero-volume day is
+        # already refused upstream by the `o <= 0` gate. The cost of being wrong is one
+        # symbol's developing candle arriving a tick later — strictly cheaper than
+        # painting a phantom.
+        try:
+            _last = bars[-1]
+            if all(_last.get(k) == today_bar.get(k) for k in ("o", "h", "l", "c", "v")):
+                _bars_log.warning(
+                    "[bars] %s: refused a re-dated stale developing bar — %s carries "
+                    "the same OHLCV as %s", ticker, today_t, last_t)
+                return response
+        except Exception:                                          # noqa: BLE001
+            pass  # a shape surprise must never block a good serve
     payload["bars"] = bars + [today_bar]
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 

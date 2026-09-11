@@ -11,6 +11,7 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // to freeze an error card or a loading skeleton as the snapshot. Inert on every
 // other surface — it is a data attribute nothing styles.
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
+import { getTodayBar, touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -3645,6 +3646,17 @@ export default function StockChart({
   // 5th writer-ownership condition alongside barsPushActive. Writers A + D read
   // this ref to yield the D/W/M last bar to the memo-driven setData.
   const sessionOwnsDailyRef = useRef(false)
+
+  // ── Today-pack: keep today's whole-market developing bar warm ─────────────
+  // Keyed on `sym` — NOT a mount-only effect and NOT a timer. The seed runs during
+  // the FIRST render for a newly typed symbol, so a fetch started then lands far too
+  // late to help THAT symbol; what makes the seed work is the pack already being in
+  // memory. Refreshing on every symbol change is what keeps it there while a member
+  // scans, and costs nothing while a chart sits idle (the pack is ~200KB gzipped —
+  // on a background interval that would be ~16MB/hour for a tab left open).
+  // Shared + de-duplicated across every mounted chart; failures degrade to the
+  // reserved whitespace slot.
+  useEffect(() => { touchTodayPack() }, [sym])
   const sessionViewRef = useRef(sessionView)  // latest sessionView, read by live-tick writers
 
   // ── Extended hours (single toggle: pre/post shading AND price data) ──
@@ -7516,6 +7528,28 @@ export default function StockChart({
                 const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
                 const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
                 _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
+              }
+            } catch { /* fall back to whitespace */ }
+          }
+          // ── COLD SYMBOL: seed today from the TODAY-PACK ────────────────────
+          // The live-price store above is EMPTY for a symbol just typed — its first
+          // poll is still in flight — so the seed missed exactly when it was needed
+          // most, and today's candle waited on /api/bars (300-500ms of pure network;
+          // server compute is 0.8ms). The today-pack is prefetched for the WHOLE
+          // market, so this symbol's bar is already here. A warm symbol never reaches
+          // this line; the live store answers first and is fresher.
+          //
+          // ⚠️ DAILY ONLY. `_dev` for W/M is the start of the WEEK/MONTH, whose open
+          // is Monday's (or the 1st's) and whose high/low span the whole period —
+          // today's OHLC is not that bar, and seeding it there would paint a visibly
+          // wrong candle that the fetch then corrects.
+          if (!_pt && resolvedTf === 'D') {
+            try {
+              const _tb = getTodayBar(sym)
+              // Same sanity chokepoint as the live path — a bad pack row must not
+              // reach the chart just because it came from a different door.
+              if (_tb && isSaneLivePrice(_tb.c, lastBarRef.current?.close, lastServerCloseRef.current)) {
+                _pt = { time: adjustTime(_dev), open: _tb.o, high: _tb.h, low: _tb.l, close: _tb.c }
               }
             } catch { /* fall back to whitespace */ }
           }

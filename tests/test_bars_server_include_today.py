@@ -331,3 +331,40 @@ def test_post_market_still_gets_todays_settled_bar(monkeypatch):
     bar = massive.todays_daily_bar("AAPL")
     assert bar is not None and bar["t"] == "2026-09-10"
     cache.invalidate("today_daily_bar_AAPL")
+
+
+# ── LAYER 2: the re-dated stale snapshot, caught without a clock ─────────────
+# Both duplicate incidents (2026-09-04 Saturday phantom, 2026-09-11 pre-open
+# duplicate) were the provider's `day` object holding the PRIOR session while we
+# stamped the CURRENT date on it. Both were fixed by tightening WHEN we ask. This
+# layer checks the VALUES instead, so it survives the next provider quirk.
+
+def test_a_today_bar_identical_to_yesterday_is_refused(monkeypatch):
+    """The exact shape of both incidents: same o/h/l/c AND same cumulative volume,
+    a new date. That is the previous session wearing a new date — refuse it."""
+    yday = {"t": "2026-09-09", "o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 8451583}
+    monkeypatch.setattr(
+        massive, "todays_daily_bar",
+        lambda tk: {"t": "2026-09-10", "o": 353.63, "h": 356.83, "l": 337.11,
+                    "c": 337.18, "v": 8451583})
+    out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
+    assert _bars_of(out) == [yday], "a re-dated copy of yesterday must never be appended"
+
+
+def test_a_genuine_new_session_is_still_appended(monkeypatch):
+    """⛔ The guard must not cost a real developing bar. Volume alone differing is
+    enough to prove a live session — that is why it is in the comparison."""
+    yday = {"t": "2026-09-09", "o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 8451583}
+    today = {"t": "2026-09-10", "o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 12}
+    monkeypatch.setattr(massive, "todays_daily_bar", lambda tk: dict(today))
+    out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
+    assert _bars_of(out) == [yday, today]
+
+
+def test_the_guard_survives_a_missing_field(monkeypatch):
+    """A shape surprise must never block a good serve — the serve is what matters."""
+    yday = {"t": "2026-09-09", "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5}   # no volume key
+    today = {"t": "2026-09-10", "o": 9.0, "h": 9.0, "l": 9.0, "c": 9.0, "v": 7}
+    monkeypatch.setattr(massive, "todays_daily_bar", lambda tk: dict(today))
+    out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
+    assert _bars_of(out) == [yday, today]
