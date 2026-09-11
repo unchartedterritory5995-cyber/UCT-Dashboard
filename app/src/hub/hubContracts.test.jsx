@@ -170,7 +170,10 @@ describe('HubActionsButton — the contract', () => {
     // Picking an action CLOSES the sheet, so it has to be reopened to reach Feedback. (This
     // tripped the first draft of this test — worth keeping as a note rather than a silent fix.)
     fireEvent.click(screen.getByRole('button', { name: /actions/i }))
-    fireEvent.click(screen.getByRole('button', { name: /feedback/i }))
+    // ⭐ `^feedback$`, not `/feedback/i`: since D-25 there are TWO doors to the same destination —
+    // this row, and the one-tap "Send feedback" button at rest. This assertion is about the
+    // SHEET's entry (the screen-reader path), so it must not match the other one.
+    fireEvent.click(screen.getByRole('button', { name: /^feedback$/i }))
     // ⛔ Not optional: with the hub active, Layout stops mounting FeedbackWidget, so an unwired
     // Feedback entry would DELETE the only feedback path a mobile member has.
     expect(onFeedback).toHaveBeenCalled()

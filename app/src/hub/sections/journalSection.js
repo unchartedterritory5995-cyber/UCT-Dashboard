@@ -62,6 +62,8 @@ import useHubCursor from '../useHubCursor'
 import { useHub } from '../HubContext'
 import { modesById } from '../registry'
 import { activeStop, realStop, rAtStop } from '../../lib/journal-2-0'
+// D-31: the tick table lives beside the price formatter. The hub is a caller.
+import { tickSizeFor, roundToTick, formatPrice } from '../../components/chart/drawingLabels'
 
 /** This section's mode id. Everything else about the mode is READ from the registry. */
 export const JOURNAL_MODE_ID = 'journal'
@@ -79,14 +81,25 @@ export const JOURNAL_MODE_ID = 'journal'
 export const LIST_ID = modesById[JOURNAL_MODE_ID]?.cursor?.listId ?? JOURNAL_MODE_ID
 
 /**
- * The tick. ⛔ A STATED SIMPLIFICATION, NOT A DISCOVERED RULE (plan §4 / D-31): this app has no
- * tick table — `tickSize`/`minTick`/`priceStep` appear nowhere and prices are `.toFixed(2)`
- * throughout. A cent is therefore the step at every price. If that proves wrong in use the fix
- * is a real tick table beside the price formatter, NEVER a scaling hack in a gesture handler:
- * a second opinion about what a price step means would be invisible, because a wrong step still
+ * The tick.
+ *
+ * ⭐ D-31 IS SHIPPED AND THIS LINE IS NOW A CALL, NOT AN OPINION. It used to read "a stated
+ * simplification, not a discovered rule — a cent is the step at every price", with the fix named:
+ * "a real tick table beside the price formatter, NEVER a scaling hack in a gesture handler". The
+ * table now exists in `components/chart/drawingLabels.js`, beside `formatPrice` — the one place
+ * that already knew how a price is rendered — and this section consumes it like any other caller.
+ *
+ * ⛔ NOTHING IN THE HUB DECIDES WHAT A PRICE STEP IS. `stopTickFor` forwards; it does not scale,
+ * clamp or special-case. A second opinion here would be invisible, because a wrong step still
  * produces a plausible number.
  */
-export const STOP_TICK = 0.01
+export const stopTickFor = (price) => tickSizeFor(price)
+
+/**
+ * The step for a caller that has no price in hand — DERIVED from the table (the row a $1+ equity
+ * lands in), never a restated `0.01`. Retiring the cent from the table retires it from here.
+ */
+export const STOP_TICK = tickSizeFor(1)
 
 /**
  * How many ticks one full pad travel is worth.
@@ -146,13 +159,16 @@ export function surfaceOf(raw) {
  * @param {{stop: *, entry: *, side: 'Long'|'Short', tick?: number}} args
  * @returns {number|null} null when there is no candidate to clamp
  */
-export function clampStopToSide({ stop, entry, side, tick = STOP_TICK }) {
+export function clampStopToSide({ stop, entry, side, tick = stopTickFor(entry ?? stop) }) {
   const s = finite(stop)
   const e = finite(entry)
+  // ⛔ ROUNDED TO THE TICK, NOT TO 2dp. `round2` was correct only while the tick was always a
+  // cent: on a sub-dollar name it would snap a $0.0001-tick stop back to the cent the table just
+  // said was too coarse, so the clamp would quietly undo the tick it was handed.
   if (s === null) return null
-  if (e === null || (side !== 'Long' && side !== 'Short')) return round2(Math.max(s, tick))
+  if (e === null || (side !== 'Long' && side !== 'Short')) return roundToTick(Math.max(s, tick), tick)
   const bounded = side === 'Long' ? Math.min(s, e - tick) : Math.max(s, e + tick)
-  return round2(Math.max(bounded, tick))
+  return roundToTick(Math.max(bounded, tick), tick)
 }
 
 /**
@@ -169,7 +185,9 @@ export function clampStopToSide({ stop, entry, side, tick = STOP_TICK }) {
  */
 export function candidateStopFor({
   current, entry, side, delta,
-  tick = STOP_TICK, ticksPerTravel = SCRUB_TICKS_PER_TRAVEL,
+  // ⭐ The scrub becomes proportionate for free: 50 ticks of travel is $0.50 on a $178 name and
+  // $0.005 on a $0.30 one, because the TICK moved — not because anything here scales by price.
+  tick = stopTickFor(entry ?? current), ticksPerTravel = SCRUB_TICKS_PER_TRAVEL,
 }) {
   const cur = finite(current)
   const d = finite(delta)
@@ -193,7 +211,11 @@ export function sideFlipRefusal({ stop, entry, side }) {
   const s = finite(stop)
   const e = finite(entry)
   if (s === null || e === null) return null
-  const price = (n) => n.toFixed(2)
+  // ⛔ FORMATTED AT THE INSTRUMENT'S TICK, NOT AT 2dp. A hard-coded `.toFixed(2)` here would print
+  // a sub-dollar refusal as "a stop at 0.30 is above your entry of 0.30" — two identical numbers
+  // in the sentence that exists to explain how they differ.
+  const tick = stopTickFor(e)
+  const price = (n) => formatPrice(n, { tick })
   if (side === 'Long' && s >= e) {
     return `A stop at ${price(s)} is above your entry of ${price(e)}. `
       + 'For a long position the stop goes below the entry — that is what makes it a stop.'
@@ -212,7 +234,9 @@ export function sideFlipRefusal({ stop, entry, side }) {
  * @returns {{stopPrice: number}}
  */
 export function stopPatchFor(price) {
-  return { stopPrice: round2(price) }
+  // The value WRITTEN is snapped to the same tick the gesture and the sheet stepped by — a 2dp
+  // round here would send the cent back to the server after the table said a finer step was legal.
+  return { stopPrice: roundToTick(price, stopTickFor(price)) }
 }
 
 /**
@@ -230,7 +254,9 @@ export function formatR(r, opts = {}) {
 /** `stop 178.10 → 1.6R`, or `stop 178.10 · R —` when R is not computable. */
 export function formatScrubReadout({ stop, r }) {
   const price = finite(stop)
-  const shown = price === null ? '—' : price.toFixed(2)
+  // The chip is the ONLY feedback between press and release, so it must show the step the drag is
+  // actually taking: at a cent it would sit still through three sub-penny ticks and read as dead.
+  const shown = price === null ? '—' : formatPrice(price, { tick: stopTickFor(price) })
   if (r === null || r === undefined || !Number.isFinite(r)) return `stop ${shown} · R —`
   return `stop ${shown} → ${formatR(r)}`
 }
@@ -241,7 +267,7 @@ export function restChipText({ symbol, r, stop }) {
   return [
     String(symbol ?? '').trim() || '—',
     formatR(r, { signed: true }),
-    `stop ${price === null ? '—' : price.toFixed(2)}`,
+    `stop ${price === null ? '—' : formatPrice(price, { tick: stopTickFor(price) })}`,
   ].join(' · ')
 }
 
@@ -541,7 +567,10 @@ export default function useJournalHubSection({
     scrubRef.current = null
     if (!held || !stopCtx || held.id !== stopCtx.id) return
     // A hold-and-release that never moved writes nothing and opens nothing.
-    if (round2(held.stop) === round2(stopCtx.stop)) return
+    // ⛔ COMPARED AT THE TICK. At a fixed 2dp a member who moved a $0.30 stop by three ticks got
+    // "nothing happened" — the gesture worked, the sheet never opened, and there was no error.
+    const moveTick = stopTickFor(stopCtx.entry ?? stopCtx.stop)
+    if (roundToTick(held.stop, moveTick) === roundToTick(stopCtx.stop, moveTick)) return
     setStopSheet({ ctx: stopCtx, stop: held.stop, title: 'Set stop' })
   }, [stopCtx])
 
@@ -579,10 +608,13 @@ export default function useJournalHubSection({
       // Breakeven is the same PUT with a different seed — never a second write path.
       'journal.breakeven': () => openStopSheet(stopCtx?.entry, 'Set stop'),
       'journal.close': () => { if (stopCtx) cbRef.current.onRequestClose?.(stopCtx.position) },
-      // ⚠️ SEE R-10. The registry's inner ring has no `journal.planTrade`, and the registry is
-      // Director-owned. `journal.addTrade` is the only unclaimed `run` on this fan, so it is
-      // wired to the Plan-trade sheet — which is the door A5 requires the Journal to have.
-      'journal.addTrade': () => openPlanSheet(),
+      // ⭐ R-10 RESOLVED. This read `'journal.addTrade': () => openPlanSheet()`, because the
+      // registry's inner ring had no `journal.planTrade` and `addTrade` was the only unclaimed
+      // `run` on the fan. The chip therefore said "Add trade" and opened the PLAN-TRADE sheet —
+      // a label that lies, which this program treats as a shipped defect. The registry now
+      // carries the right identity (`journal.planTrade`, built from the shared `planTrade`
+      // builder) and `journal.addTrade` is gone rather than left inert.
+      'journal.planTrade': () => openPlanSheet(),
     }
     return base.map((a) => (handlers[a.id] ? { ...a, run: handlers[a.id] } : a))
   }, [stopCtx, openStopSheet, openPlanSheet])
@@ -622,7 +654,8 @@ export default function useJournalHubSection({
     const { j2Client: client, onToast: toast, onWritten: written } = cbRef.current
     try {
       await client.setStop(target.id, price)
-      toast?.(`Stop on ${target.symbol} set to ${round2(price).toFixed(2)}`, 'success')
+      const tick = stopTickFor(target.entry ?? price)
+      toast?.(`Stop on ${target.symbol} set to ${formatPrice(roundToTick(price, tick), { tick })}`, 'success')
       written?.()
     } catch (e) {
       // The server's own message, verbatim — its 422s name the field a member can fix.

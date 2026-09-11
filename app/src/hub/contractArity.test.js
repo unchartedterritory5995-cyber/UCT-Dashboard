@@ -74,6 +74,13 @@ const CALLBACKS = [
   { name: 'onDoubleTap', source: HUB_ROOT, where: 'HubRoot.jsx' },
   { name: 'onScrub', source: HUB_ROOT, where: 'HubRoot.jsx' },
   { name: 'onScrubCommit', source: HUB_ROOT, where: 'HubRoot.jsx' },
+  // ⭐ NOT on HubSectionConfig — `confirmPayload` is declared on the ACTION (`HubActionRef`), and
+  // it is the R-14 seam: the only route `HubConfirmPayload.fields` has to the sheet. It belongs
+  // here for exactly the reason the four above do — `validateSectionConfig` checks that it is a
+  // FUNCTION, and a function of the wrong arity is still a function. A section that read a
+  // payload-shaped first argument instead of `ctx` would return a sheet built from `undefined`
+  // with nothing thrown and nothing logged.
+  { name: 'confirmPayload', source: HUB_ROOT, where: 'HubRoot.jsx' },
 ]
 
 /** The arguments a call site passes, e.g. `onScrub?.(ctx, scrub)` -> ['ctx', 'scrub']. */

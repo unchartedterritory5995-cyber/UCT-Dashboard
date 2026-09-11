@@ -195,11 +195,27 @@ export default function MobileChartsApp({
   // path into `opts.tf`. `customTfs` is the SAME expression MobileTfSheet is given below, so the
   // gesture and the picker step the same ladder. Everything it mounts is gated on
   // `useHubEligible` inside `hubMount`, so on a desktop or in a bare test render it is nothing.
+  // ⭐ D-01 — the hub's Draw bubble, through `StockChart`'s own toolbar API.
+  //
+  // ⛔ NOT `expandDrawToolbar()`. That door (the Tools sheet's "Draw on chart", below) REVEALS the
+  // drawbar and arms nothing, which is the whole reason D-01 was deferred: on a fan, a bubble that
+  // opens a toolbar is not the action "Draw". `selectTool` is the same door with the arm attached
+  // and it RETURNS FALSE rather than no-opping (unknown tool id, or a read-only mount), so the
+  // seam can say it did nothing instead of appearing to work.
+  //
+  // ⛔ TRENDLINE IS THE TOOL THE ROW NAMES — deferred.md D-01 is titled "Draw (trendline tool)"
+  // and master-spec v1.1 §241 reads "Draw (trendline tool active)". It is not a default chosen
+  // here.
+  const drawTrendline = useCallback(() => (
+    toolbarApiRef.current?.selectTool?.('trendline') === true
+  ), [])
+
   const chartHub = useChartHubSection({
     tf,
     symbol: sym,
     customTfs: Array.isArray(cs?.header?.customTimeframes) ? cs.header.customTimeframes : [],
     onTf: handleTf,
+    onDraw: drawTrendline,
   })
 
   const handleSymbolPick = useCallback((s) => {

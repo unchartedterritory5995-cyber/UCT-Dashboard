@@ -27,6 +27,7 @@ import HubActionsButton from './HubActionsButton'
 import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
 import HubConfirmSheet from './HubConfirmSheet'
+import { validateConfirmPayload } from './contracts'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
 import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
@@ -179,11 +180,60 @@ function HubShell({ setToastMsg }) {
       // primary button performs the write — the same WCAG 2.5.1 equal-path rule the Journal's
       // stop sheet follows, and the reason `confirmText` is REQUIRED on this kind
       // (`registry.js:32`). `HubConfirmSheet` latches `onConfirm` so a double-tap fires once.
+      //
+      // ⛔ R-14 / D-35 — A SECTION MAY SUPPLY ITS OWN PAYLOAD, AND THAT IS THE ONLY ROUTE
+      // `HubConfirmPayload.fields` HAS TO THE SHEET.
+      //
+      // Until this branch existed, the generic payload below was the only one that could ever
+      // render: `runAction` never asked a section for a payload, so the `fields` array
+      // `contracts.js` calls "the EQUAL path, not a fallback: steppers and a numeric input ...
+      // for a member who cannot perform a fine drag" was unreachable code, and `HubConfirmSheet`
+      // rendered its ± steppers for nobody. The Screener's Alert is what it cost: the section had
+      // `alertConfirmPayload()` written, exported and tested, and the member still had no way to
+      // say a price — the alert landed at whatever was on screen and fired on the next tick.
+      //
+      // ⭐ A generic yes/no confirm keeps the fallback UNCHANGED. `confirmPayload` is optional by
+      // design: a section that has nothing to add says nothing, and `null` is a legal answer from
+      // one that normally does (the Screener returns it when no price is known, rather than
+      // opening a sheet around a fabricated level).
+      const own = action.confirmPayload?.(ctx)
+      if (own) {
+        // Belt and braces — `HubConfirmSheet` validates on render too (its own boundary). This
+        // call names the ACTION, so a section that ships a malformed payload is reported against
+        // the section that built it rather than against the hub's sheet, which is the same
+        // call-site-label convention every other validator call in this feature uses.
+        validateConfirmPayload(own, `${action.id} confirmPayload`)
+        // ⛔⛔ `escalate` IS THE ACTION'S, NOT THE SECTION'S — and this line exists because two
+        // correct changes merged into a defect. R-14's branch (above) sets the section's payload
+        // verbatim; the iOS visible-escalation work put `escalate` on the FALLBACK payload only.
+        // `scan.alert` declares `escalate: true` and is the ONLY action that takes the section
+        // path — so Screener's Alert, the exact action R-14 existed to fix, was the one confirm
+        // sheet that rendered no commit notice. On an iPhone, where `navigator.vibrate` does not
+        // exist either, that member got NO escalation signal at all.
+        //
+        // ⭐ APPLIED HERE RATHER THAN ASKED OF EACH SECTION. The registry already requires
+        // `escalate` on every `kind:'confirm'` (`validateRegistry`), so the action is the one
+        // authority; making sections restate it would be a second one, and the next section to
+        // ship a payload would drop it exactly the way this one did.
+        setConfirmPayload({ ...own, escalate: action.escalate === true })
+        return
+      }
       setConfirmPayload({
         title: action.label,
         body: action.confirmText?.(ctx) ?? `${action.label}?`,
         primaryLabel: action.label,
-        onConfirm: () => Promise.resolve(action.run?.(ctx)).catch((err) => {
+        // ⛔ THE VISIBLE HALF OF THE ESCALATION. `useJoystick.js:197` reads this same flag to pick
+        // `haptics.warn()` over `haptics.impact()` — and that is a VIBRATION, which iOS Safari
+        // cannot produce (`components/mobile/haptics.js:5-10` feature-detects `navigator.vibrate`
+        // and no-ops). Read from `action.escalate` rather than from `kind`, because B5 is exactly
+        // the lesson that those were the same set only by accident. `validateRegistry` requires
+        // `escalate` on every kind:'confirm', so this is `true` for every action that can get here.
+        escalate: action.escalate === true,
+        // ⛔ `values` IS FORWARDED, and it was not. `HubConfirmSheet` hands `onConfirm` the field
+        // values it is holding; a handler that ignores them writes the default no matter what the
+        // member typed or stepped. Harmless on THIS payload (it declares no fields, so `values` is
+        // `{}`) and load-bearing the moment any section grows one.
+        onConfirm: (values) => Promise.resolve(action.run?.(ctx, values)).catch((err) => {
           setToastMsg(err?.message || 'That did not work. Try again.')
         }),
       })

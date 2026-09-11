@@ -4,10 +4,63 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## FINAL STATE — Increment 7 (BACKLOG ZERO)
+
+Every request gets a verdict. **These were MEASURED against shipped code, not read off the
+status lines below** — most of those lines are stale, because the request was resolved in a
+later increment and nobody came back to amend the section. Where a section's `Status:` and
+this table disagree, **this table is the authority and the section is history**.
+
+| # | Final state | Evidence |
+|---|---|---|
+| R-01 | **CLOSED — OUTSIDE OWNER.** Options Flow's `of-tip` hook, Ravi's file. Its own line says "**Blocking the hub:** no", and `OptionsFlow.jsx` is a hard no for this build. | section header |
+| R-02 | **CLOSED — resolved, no request needed.** | its own status line |
+| R-03 | **CLOSED — RESOLVED.** Orb gated, hub owns the corner. | `App.jsx:207`, `hub/useHubActive.js` |
+| R-04 (suite failures) | **CLOSED — SUPERSEDED.** "Seven standing suite failures" is now owned by `gate-baseline.json`, which is re-measured every run, carries its own provenance caveat, and has since both ADDED a row master introduced and REMOVED two master fixed. A frozen list of seven was the wrong instrument; the living baseline is the right one. | `docs/plans/joystick/gate-baseline.json` |
+| R-04 (reachable) | **CLOSED — RESOLVED.** | `reachable.test.js` AWAITING_A_DECISION |
+| R-05 | **CLOSED — RESOLVED.** `onScrub(ctx, scrub)` is the one mounted shape, and the arity is pinned by a rail that reads the real call site. | `hub/contractArity.test.js` |
+| R-06 | **CLOSED — RESOLVED.** `scrubReadout` is a real `useMemo` and is passed to the chip; it is no longer hard-coded `null`, so every section's `readout()` reaches a member. | `HubRoot.jsx:299`, `:481` |
+| R-07 | **CLOSED — RESOLVED.** The hub's two `AWAITING_A_DECISION` entries are gone; the entries remaining in that file are the cockpit-retirement set and belong to another workstream. | `reachable.test.js:279+` |
+| R-08 | **CLOSED — BLOCKED.** `PUT /api/j2/positions/{id}` is an `api/` file. The Railway `worker` service's live watch list is `['/api/**', …]`, so any `api/` edit redeploys `worker`. Not this increment's to touch. | `railway status --json` |
+| R-09 | **CLOSED — RESOLVED.** `run` and `confirm` are dispatched. | `HubRoot.jsx:171`, `:186` |
+| R-11 | **CLOSED — BLOCKED + OUTSIDE OWNER.** `OptionsBoard.jsx` lives under `app/src/pages/journal-2-0/**`, which this build does not edit; the request itself names Journal 2.0 as owner and says "**Blocking:** no". | file path; section header |
+| R-12 | **CLOSED — informational.** "Owner: none — informational, recorded so the plan line…" | its own header |
+| R-13 | **CLOSED — RESOLVED.** The scan picker ships through the page's own seam: `ScannerShell` supplies `onOpenScans`, and `screenerSection` pushes the action **only** when a seam exists — absent, never present-and-inert. | `ScannerShell.jsx:201`, `screenerSection.js:312-318` |
+| R-15 | **CLOSED — RESOLVED.** The cursor row is painted in all three renderers. | `VirtualResults.jsx:38`, `ResultCards.jsx:17` |
+| R-16 | **CLOSED — RESOLVED.** `planTrade` is `kind:'run'`, so Plan trade opens ONE sheet. | `registry.js:159-172` |
+| R-18 | **CLOSED — RESOLVED.** `data-note-card-id` carries note identity, with its own rail. | `hub/noteCardIdentity.test.jsx` |
+
+| R-10 | **SHIPPED `608721f3c`.** The Journal's chip said "Add trade" and opened the **Plan-trade** sheet — a label that lies, and a placement decision a section had made about Director-owned data. The registry now carries the right identity and the label matches the behaviour. Three artifacts described this inner ring and no two agreed; the running code is now the one they are reconciled to. | `registry.js`, `sections/journalSection.js` |
+| R-14 | **SHIPPED `124d27c6d`.** `HubRoot`'s confirm branch prefers `action.confirmPayload?.(ctx)`, validates it before it becomes state, and forwards the sheet's `values` to `run(ctx, values)`. Railed on the RENDERED sheet — a test that the payload function was *called* passes with the branch deleted. ⭐ R-14 understated it: `alertConfirmPayload` was already written, exported, tested **and attached to the action**; the single missing link really was that one branch. | `hub/confirmFieldsReachable.test.jsx` |
+| R-17 | **SHIPPED `1b8ca51d4`.** `notebook.linkTicker` returns as **Set ticker**, a `confirm` whose symbol comes from a required field on its own sheet — defaulting from `ctx` when a symbol is in scope, empty otherwise. `requires: ['symbol']` is deliberately gone: that was the thing making it a permanently dimmed bubble. Presence is gated on there being a note to file instead — absent, never present-and-inert. | `hub/linkTickerWritesTheNote.test.jsx` |
+| R-19 | **SHIPPED `33758ffed`.** Its own first return condition — "either D-35 is closed (the confirm sheet carries fields, and Templates becomes a `confirm` with a select)" — was met by R-14 the same night, so Templates returns with a real `<select>` whose options are **derived** from `lib/notebookTemplates.js`, never typed. ⛔ The second condition is still unmet and was measured, not assumed: `NotebookTab.jsx` holds `TemplatePicker` behind a private `useState` with no prop, URL param or handle, and that file is rule-12. A `text` field was considered and rejected — asking a member to type `daily-prep` is worse than the hardcoded key, not better. | `hub/notebookTemplatesPicker.test.jsx` |
+
+⭐ **Every one of the four was closed by BUILDING the thing, not by rewording the request.**
+
+---
+
 ## R-19 — `notebook.templates` needs a picker, and the confirm sheet cannot carry one
 
-**Status:** filed 2026-09-10, DEFERRED by the same reasoning as R-17. · **Owner:** this build, once
-a field-bearing surface exists.
+**Status:** ✅ **APPLIED 2026-09-10 on `inc7/p2-linkticker`** — shipped as a `confirm` with a
+select, which is this section's own first return condition. · **Owner:** this build.
+
+**What shipped, and what was checked before choosing it.** `HubConfirmPayload` gained
+`type: 'select'` with a required `options` list (`contracts.js` + `HubConfirmSheet`), and
+`notebook.templates` is back on the outer ring with a payload whose options are DERIVED from
+`lib/notebookTemplates.js` — never typed — so a template added tomorrow is in the picker the day
+it lands. Ring layout after the return: outer 3, inner 4; both legal.
+
+⛔ **The second return condition is still NOT met, and it was measured rather than assumed.**
+"a template-picker route the hub can navigate to" does not exist: `NotebookTab.jsx` renders
+`TemplatePicker` behind a private `pickerOpen` useState with no prop, no URL param and no
+imperative handle — the R-13 shape exactly — and that file is rule-12. So `navigate` was never
+available, and the two remaining shapes were the two this section refuses.
+
+⛔ **A `text` field was considered and rejected**: it would ask the member to TYPE a stable API
+key (`daily-prep`), which is worse than the hardcoded key, not better. Rail:
+`hub/notebookTemplatesPicker.test.jsx`, which drives a real gesture and asserts that two
+different picks produce two different notes — a rail that creates one note from the default
+passes against the hardcoded version this section names.
 
 "Templates" means *choose one*. `createNoteFromTemplateViaApi(templateKey, …)`
 (`journal-2-0/lib/noteCreation.js:50`) requires a key, and the hub has no surface that can ask for
@@ -63,8 +116,31 @@ that list, and titles are not unique. Dispatching a synthetic click on the card 
 
 ## R-17 — `notebook.linkTicker` has no symbol source on `/journal/notebook`
 
-**Status:** filed 2026-09-10, DEFERRED by owner ruling (Q3/Q8). · **Owner:** this build, when a
-symbol reaches the route.
+**Status:** ✅ **APPLIED 2026-09-10 on `inc7/p2-linkticker`** — the action is back, and the
+decision below ("either the route gains a symbol, or the entry is removed") was answered with a
+THIRD option that neither branch anticipated. · **Owner:** this build.
+
+**The symbol comes from the SHEET, not from the route.** `notebook.linkTicker` is now
+`kind:'confirm'` with a section-supplied payload carrying one required text field, seeded from
+`ctx.symbol` when the hub is holding one and EMPTY otherwise.
+
+⛔⛔ **`requires: ['symbol']` IS GONE, AND THAT IS THE FIX RATHER THAN A SOFTENING.** `requires`
+is answered from the CONTEXT before the gesture resolves; the symbol this action needs is one the
+member types afterwards — so the precondition disabled the only action whose purpose is to supply
+the thing it demanded. The gate moved in two pieces, and neither can be a dimmed bubble or a dead
+one: the controller DROPS the action when the grid holds no note at all (absent, never
+present-and-inert), and the field is required — an empty or unparseable value writes nothing and
+says so in rendered text.
+
+**Ring layout as shipped:** outer 3 (New note · Set ticker · Templates, with R-19 landing in the
+same increment), inner 4. Both legal (`OUTER_MAX` 5, `INNER_MAX` 4), proved on the projection
+`HubRoot` draws rather than on the declaration alone.
+
+**The write** goes through the Notebook's own client, `useJ2Note(id).update` →
+`PUT /api/j2/notes/{id}`, which also invalidates the note's SWR entry and the noteLink title
+cache. ⚠️ There is **no note PATCH client anywhere in `app/src`** — the Notebook updates a note
+with a partial PUT body (`NoteEditorPage.jsx`'s own ticker control takes the same path). Declared
+in `writePaths.test.js` as `owner: 'app'`. Rail: `hub/linkTickerWritesTheNote.test.jsx`.
 
 `notebook.linkTicker` declares `requires: ['symbol']`, and the Notebook route carries no symbol —
 `?ticker=` exists only on the `?new=` seed deep link. An action whose `requires` cannot be satisfied
@@ -171,6 +247,14 @@ this hub keeps rediscovering.
 ---
 
 ## R-14 — `HubRoot`'s confirm sheet cannot carry a section's FIELDS, so the accessible path is unreachable
+
+**Status:** ✅ APPLIED 2026-09-10 on `inc7/p1-confirm-fields` — the diff below landed as requested,
+plus the contract edit its ⚠️ note demands (`confirmPayload` documented on `HubActionRef`;
+`validateSectionConfig` refuses it on a non-function and on any kind but `confirm`) and the
+`validateConfirmPayload` call on the section-supplied payload. Railed on the RENDERED sheet in
+`app/src/hub/confirmFieldsReachable.test.jsx`, per the ⭐ warning. `screenerSection.js` needed no
+wiring — `alertConfirmPayload()` was already attached to `scan.alert`; only its two "cannot reach
+the member" comments were corrected.
 
 **Filed by:** the 3.3 Screener integrator. **Blocks the Screener's `Alert` action from being
 useful.** **Owner:** Director (`HubRoot.jsx`).
@@ -338,7 +422,8 @@ nothing ships half-wired.
 
 ## R-10 — the Journal fan has no `Plan trade`, and three artifacts name its inner ring differently
 
-**Filed by:** the 3.4 Journal integrator. **Owner:** Director (`registry.js`).
+**Status:** ✅ **APPLIED 2026-09-10 on `inc7/p2-linkticker`**, but **NOT as the diff below** — see
+the ruling under it. **Filed by:** the 3.4 Journal integrator. **Owner:** Director (`registry.js`).
 
 Three documents describe the Journal's inner ring and no two agree:
 
@@ -358,7 +443,23 @@ the only unclaimed `run` on the fan — and says so in its own header. That is a
 made by a section about Director-owned data, which is exactly the kind of thing this file exists
 to surface rather than bury.
 
-**Proposed diff** (not applied):
+⛔ **THE PROPOSED DIFF WAS EVALUATED AND NOT APPLIED AS WRITTEN.** It replaces
+`note('journal', 1)`, which DROPS Note from the Journal fan, and it leaves `journal.addTrade`
+declared with no body of its own. Measured against the caps, that trade buys nothing: replacing
+**`addTrade`** instead keeps Note, keeps the outer ring at 4 (≤ `OUTER_MAX` 5) and the inner at 4
+(≤ `INNER_MAX` 4), and removes the mislabelled action outright rather than leaving an orphan for
+someone else to resolve. Nothing is lost by dropping `addTrade`: it never had a body of its own —
+the Plan-trade sheet is what it always opened, which is the defect.
+
+The shipped entry is built from the shared `planTrade(mode)` builder, so "Plan trade" still means
+one thing everywhere, with exactly two facets overridden and both named beside the override:
+`ring: 1` (§3.4's inner ring) and `requires: ['position']` (A5 says PREFILLED FROM THE SELECTED
+POSITION — a symbol is not enough, because an option row publishes a symbol and a NULL position
+and the sheet would open with no entry, stop or size). Journal inner ring as shipped:
+**Plan trade · Note · Voice · Home**. `positionRequiredActionIds()` went 3 → 4 with no edit,
+exactly as the note below predicted.
+
+**Proposed diff** (not applied, retained as the record of what was proposed):
 
 ```diff
        {
