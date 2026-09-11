@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { contrast, composite, hexRgb, parseRgba } from './contrastMath'
 
 const read = (rel) =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
@@ -152,24 +153,11 @@ describe('tokens.css — .t-num utility (§3.2)', () => {
 // (4.5:1) on the RESULT a user actually sees, not on the flat token in
 // isolation (a translucent surface's effective color depends on what's
 // behind it).
-function srgbToLin(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) }
-function relLum([r, g, b]) { return 0.2126 * srgbToLin(r) + 0.7152 * srgbToLin(g) + 0.0722 * srgbToLin(b) }
-function contrast(a, b) { const [l1, l2] = [relLum(a), relLum(b)].sort((x, y) => y - x); return (l1 + 0.05) / (l2 + 0.05) }
-function composite(fg, alpha, bg) { return fg.map((c, i) => Math.round(c * alpha + bg[i] * (1 - alpha))) }
-
-/** #rrggbb -> [r,g,b] */
-function hexRgb(hex) {
-  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
-  if (!m) throw new Error(`not a hex color: ${hex}`)
-  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
-}
-
-/** rgba(r, g, b, a) -> { rgb: [r,g,b], alpha } */
-function parseRgba(value) {
-  const m = /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/.exec(value)
-  if (!m) throw new Error(`not an rgba() color: ${value}`)
-  return { rgb: [Number(m[1]), Number(m[2]), Number(m[3])], alpha: m[4] != null ? Number(m[4]) : 1 }
-}
+// ⭐ THE MATH MOVED OUT, IT DID NOT GET COPIED. `srgbToLin`/`relLum`/`contrast`/
+// `composite`/`hexRgb`/`parseRgba` used to be private to this file; the D-27
+// accent-separation rail (`hub/modeAccentSeparation.test.js`) needs the same
+// six, and two copies of one formula are two authorities the moment either is
+// touched. They now live in `./contrastMath.js` and both rails import them.
 
 describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => {
   it('--bg is the expected dark canvas (#101012, the catalog Graphite ramp) — sanity check on the fixture', () => {

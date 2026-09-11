@@ -109,6 +109,20 @@ Every one of these is emulated-green and has never been touched by a finger.
 | G3-12 | **The range input (no-drag scrub)** | Open Peek, use the range control instead of dragging. | It moves the same value the drag moves, and reads out the section's own readout. A member who cannot drag can still scrub. | [ ] PASS [ ] FAIL |
 | G3-13 | **linkTicker's symbol field** | On the Notebook, activate Link ticker. | The confirm sheet carries a symbol field; it is never a permanently dimmed bubble and never a label that lies. | [ ] PASS [ ] FAIL |
 | G3-14 | **Confirm-sheet fields** | Any `confirm` action supplying fields. | The steppers and numeric input operate on the same value the gesture produces, and the committed value is the adjusted one. | [ ] PASS [ ] FAIL |
+| G3-15 | **Wire vs Journal in Home's fan** (D-27) | On the Dashboard, open Home's fan. **Do not read the labels** — cover them if you can. Ask: can you tell the **Wire** bubble from the **Journal** bubble by sight alone? Then enable **high contrast** and open the same fan again. | Two answers, both recorded — this row is the only thing that can answer either: **(a)** at the shipped default, are Wire and Journal distinguishable, or do they read as the same green? **(b)** does high contrast make Wire *more* separable from Journal than the default does? ⛔ "They look fine to me" from a normally-sighted operator answers (a) only for that operator — note whether the tester is colour-blind, and which type. | (a) default: [ ] DISTINGUISHABLE [ ] CONFUSABLE · (b) high contrast: [ ] BETTER [ ] SAME [ ] WORSE |
+
+⭐ **G3-15 is a SWITCH, and it is the only row here that is.** D-27 shipped the teal-shifted
+Wire accent behind `[data-hub-contrast="high"]` precisely because no session can answer this
+question — the token is built, railed and inert unless a member turns high contrast on. What
+each answer does:
+
+| G3-15 (a) default | G3-15 (b) high contrast | What to do |
+|---|---|---|
+| DISTINGUISHABLE | anything | Nothing. D-27 is closed for good; the high-contrast token stays as the accessibility affordance it already is. |
+| CONFUSABLE | BETTER | **Promote it**: move `--hub-mode-wire: #D4FEE4` out of the `[data-hub-contrast="high"]` block and into `:root`, replacing `#9FE887`. `hub/modeAccentSeparation.test.js` will go red on the "strictly improves" rails — that is correct, and the rail is rewritten in the same commit to compare against the NEW default. Re-run the 3:1 floor cases unchanged. |
+| CONFUSABLE | SAME or WORSE | ⛔ **Do NOT promote it, and do not try another hue.** Two attempts will have failed on real glass, which says the accent is not the channel that separates these two — reopen D-27 against **icon, ring radius and bubble size**, which the row already records as load-bearing. |
+
+---
 
 ## Block G4 — FPS, as a RATIO not an absolute
 
