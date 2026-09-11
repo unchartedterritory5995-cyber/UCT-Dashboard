@@ -413,6 +413,14 @@ _BASIS_TOL_PCT = float(os.environ.get("BROKER_BASIS_TOL_PCT", "0.005"))
 _BIAS_MIN_SAMPLES = int(os.environ.get("BROKER_BIAS_MIN_SAMPLES", "6"))
 _BIAS_DOLLAR = float(os.environ.get("BROKER_BIAS_DOLLAR", "10"))
 _BIAS_PCT = float(os.environ.get("BROKER_BIAS_PCT", "0.0002"))  # 0.02%
+# Owner ruling 2026-09-10: a lean that clears the DOLLAR gate and persists
+# across this many separate sessions is reported even below _BIAS_PCT. A
+# one-off sub-percent lean still is not.
+# ⛔ N is anchored, not invented: bias_scan()'s own default window is 7
+# CALENDAR days, which contains exactly one trading week. Requiring more
+# than 5 sessions could never be satisfied inside the module's own default
+# window -- a guard that cannot pass (lesson_gate_that_cannot_fail).
+_BIAS_STEADY_SESSIONS = int(os.environ.get("BROKER_BIAS_STEADY_SESSIONS", "5"))
 
 
 def bias_scan(days: int = 7, conn=None) -> dict[str, Any]:
@@ -448,12 +456,22 @@ def bias_scan(days: int = 7, conn=None) -> dict[str, Any]:
         out = []
         for a in accounts:
             rows = conn.execute(
-                "SELECT drift_dollar, drift_pct FROM j2_broker_drift_series "
+                "SELECT drift_dollar, drift_pct, checked_at FROM j2_broker_drift_series "
                 "WHERE broker_account_id = ? AND checked_at >= datetime('now', ?)",
                 (a["id"], f"-{int(days)} days"),
             ).fetchall()
             vals = [r["drift_dollar"] for r in rows if r["drift_dollar"] is not None]
             pcts = [r["drift_pct"] for r in rows if r["drift_pct"] is not None]
+            # A "session" is a distinct calendar date on which a reading was
+            # taken. ⛔ NOT consecutive CALENDAR days: a Fri->Mon gap would
+            # break that every single weekend, which is the unsatisfiable
+            # shape the constant above warns about. Consecutiveness is
+            # already enforced by the dominance test below -- a session where
+            # the lean vanished would contribute a near-zero reading, widen
+            # the spread, and fail `spread <= 2 * |mean|`. So this counts HOW
+            # MANY separate days saw it; dominance proves it never left.
+            sessions = len({str(r["checked_at"])[:10] for r in rows
+                            if r["drift_dollar"] is not None})
             rec = {"brokerAccountId": a["id"],
                    "label": f"{a['name'] or '?'} {a['mask'] or ''}".strip(),
                    "samples": len(vals), "mean": None, "meanPct": None,
@@ -462,11 +480,14 @@ def bias_scan(days: int = 7, conn=None) -> dict[str, Any]:
                 mean = sum(vals) / len(vals)
                 spread = max(vals) - min(vals)
                 mean_pct = (sum(pcts) / len(pcts)) if pcts else 0.0
-                rec.update({"mean": round(mean, 2), "spread": round(spread, 2),
+                rec.update({"mean": round(mean, 2), "spread": round(spread, 2), "sessions": sessions,
                             "meanPct": round(mean_pct, 6)})
-                systematic = (abs(mean) >= _BIAS_DOLLAR
-                              and abs(mean_pct) >= _BIAS_PCT
-                              and spread <= 2 * abs(mean))
+                big_in_both = (abs(mean) >= _BIAS_DOLLAR
+                               and abs(mean_pct) >= _BIAS_PCT)
+                steady = (abs(mean) >= _BIAS_DOLLAR
+                          and sessions >= _BIAS_STEADY_SESSIONS)
+                dominates = spread <= 2 * abs(mean)
+                systematic = (big_in_both or steady) and dominates
                 rec["verdict"] = "leaning" if systematic else "clean"
             out.append(rec)
     finally:

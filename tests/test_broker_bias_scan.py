@@ -84,10 +84,35 @@ class TestLeanVsSpike:
         _series("acc-spike", [0.0, 0.0, 900.0, 0.0, 0.0, 0.0, 0.0])
         assert mc.bias_scan(days=3650)["leaning"] == []
 
-    def test_a_lean_too_small_in_PERCENT_is_noise_on_a_big_book(self, env):
-        # $12 on a $1.6M account is nothing; the dollar test alone would flag it.
-        _series("acc-whale", [12.0] * 8, pcts=[0.0000075] * 8)
-        assert mc.bias_scan(days=3650)["leaning"] == []
+    # ── Owner ruling 2026-09-10: BOTH ARMS of the percent gate ──────────────
+    #
+    # The percent gate used to be absolute, so a small-but-permanent lean on a
+    # big book was silent forever. That is the exact shape this module was
+    # built for -- the owner's own hero sat $19.96 off EVERY DAY FOR WEEKS --
+    # and the gate that was supposed to suppress noise was suppressing it.
+    # A lean that clears the DOLLAR gate and persists across
+    # _BIAS_STEADY_SESSIONS separate sessions is now reported regardless of
+    # percent. A one-off is not. Both arms are asserted, because a rule with
+    # only its positive arm tested will happily report everything.
+
+    def test_a_sub_percent_lean_seen_on_TOO_FEW_sessions_is_still_noise(self, env):
+        # Same $12 on a $1.6M book, same 8 readings -- but packed onto TWO days.
+        # Plenty of samples, not enough SESSIONS: a one-off stays unreported.
+        _series("acc-whale-burst", [12.0] * 8, pcts=[0.0000075] * 8, sessions=2)
+        out = mc.bias_scan(days=3650)
+        assert out["leaning"] == []
+        assert out["accounts"][0]["verdict"] == "clean"
+        assert out["accounts"][0]["sessions"] == 2, "the session count is the whole rule"
+
+    def test_a_STEADY_sub_percent_lean_IS_reported(self, env):
+        # The same $12 lean, the same book, seen on EIGHT separate sessions.
+        # Below the percent gate in every single reading, and reported anyway.
+        _series("acc-whale-steady", [12.0] * 8, pcts=[0.0000075] * 8)
+        out = mc.bias_scan(days=3650)
+        assert [r["brokerAccountId"] for r in out["leaning"]] == ["acc-whale-steady"]
+        r = out["leaning"][0]
+        assert r["sessions"] >= 5
+        assert abs(r["meanPct"]) < 0.0002, "this must still be BELOW the percent gate"
 
     def test_a_lean_too_small_in_DOLLARS_is_noise_on_a_tiny_book(self, env):
         # 0.5% of a $400 account is $2 — real in percent, immaterial in money.
