@@ -58,7 +58,7 @@ import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
-import ChartToolbar from './chart/ChartToolbar'
+import ChartToolbar, { TOOLS as DESKTOP_TOOLS } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
@@ -199,6 +199,28 @@ function chipMenuRowToPopoverRow(it) {
 // `StockChart.jsx` as its home, and `flipState.js` is where it can actually live
 // without `ChartToolbar` importing from the component that renders it.
 export { ENGINE_OWNED }
+
+/**
+ * Every drawing-tool id `selectTool()` will arm, DERIVED from the desktop
+ * toolbar's own roster rather than retyped.
+ *
+ * ⛔ THE VALIDATION IS THE POINT, NOT DECORATION. `setActiveTool` is a plain
+ * `useState` setter that accepts any string, and a tool id that no button owns
+ * arms nothing, draws nothing and throws nothing — the caller gets an armed
+ * chart that ignores every click. Refusing an unknown name is what turns a
+ * caller's typo into a `false` it can act on. `TOOLS` is the same array
+ * `MobileDrawBar.roster.test.js` already pins the phone drawbar against, so
+ * there is ONE answer to "what is a real tool" on both shells.
+ *
+ * ⚠️ `eraser` is deliberately absent from `TOOLS` (it never had a desktop
+ * button; the phone drawbar pins it outside `DRAW_TOOLS` for the same reason),
+ * so it is not selectable through this door. That matches what this door is
+ * for — arming a DRAWING tool — and a caller that wants the eraser is asking
+ * for a different thing.
+ */
+const SELECTABLE_TOOL_IDS = new Set(
+  DESKTOP_TOOLS.filter((t) => t !== 'sep').map((t) => t.id),
+)
 // ⛔ `indPoint` STOOD HERE, AND IT WENT WITH THE `indicatorData` MEMO (B5 Task
 // 8) — its only caller. It turned each NaN-padded compute output into an LWC
 // WHITESPACE item (`{time}` with no `value`), because LWC rejects `value: NaN`
@@ -2954,6 +2976,12 @@ export default function StockChart({
   const [mobileDrawOpen, setMobileDrawOpen] = useState(false)
   const mobileDrawBarRef = useRef(mobileDrawBar)
   mobileDrawBarRef.current = mobileDrawBar
+  // Same mirror, same reason, for `selectTool`'s refusal: on a read-only mount
+  // (`showDrawingTools={false}`) BOTH the drawing overlay and MobileDrawBar are
+  // unrendered (`:15653`, `:15920`), so arming a tool there would set state that
+  // nothing draws with — a door that reports success and does nothing.
+  const showDrawingToolsRef = useRef(showDrawingTools)
+  showDrawingToolsRef.current = showDrawingTools
 
   const setToolbarCollapsedPersist = useCallback((v) => {
     setToolbarCollapsed(v)
@@ -4152,9 +4180,33 @@ export default function StockChart({
         setToolbarCollapsedPersist(false)
         return true
       },
+      // ⭐ D-01. `expandDrawToolbar` REVEALS the bar and arms nothing — a host
+      // that wants "draw a trendline" then needs the member to find the tile
+      // themselves, which on the hub's fan is a bubble that opens a toolbar
+      // rather than a bubble that draws. This is that same door with the arm
+      // attached: it mirrors `expandDrawToolbar`'s reveal EXACTLY (the phone
+      // drawer, else the desktop strip through the persisting setter) and then
+      // sets the one `activeTool` both presentations already share.
+      //
+      // ⛔ NOT A SECOND ARMING PATH. `setActiveTool` is the state MobileDrawBar's
+      // own `arm()` and the desktop buttons write; this writes the same state
+      // and nothing else, so the drawbar tile lights up and the overlay listens
+      // for exactly the reason it does when a thumb taps the tile.
+      //
+      // Returns FALSE — never a silent no-op — on an unknown tool id or on a
+      // read-only mount, so a caller can disable its control instead of
+      // offering one that opens nothing.
+      selectTool: (name) => {
+        if (!SELECTABLE_TOOL_IDS.has(name)) return false
+        if (!showDrawingToolsRef.current) return false
+        if (mobileDrawBarRef.current) setMobileDrawOpen(true)
+        else setToolbarCollapsedPersist(false)
+        setActiveTool(name)
+        return true
+      },
     }
     return () => { toolbarApiRef.current = null }
-  }, [toolbarApiRef, setToolbarCollapsedPersist])
+  }, [toolbarApiRef, setToolbarCollapsedPersist, setActiveTool])
 
   // ── "Back to live" chip (showGoLive surfaces) ────────────────────────────
   // No state of its own: the pill renders off `lastBarOff` — the SAME

@@ -254,7 +254,7 @@ export const modes = [
     ],
   }),
 
-  // 4 ── chart. Compare and pan both ship (Wave 0.5 feasibility). Draw/Indicator deferred.
+  // 4 ── chart. Compare and pan both ship (Wave 0.5 feasibility). Indicator stays deferred (D-02).
   defineMode({
     id: 'chart',
     label: 'Chart',
@@ -265,6 +265,24 @@ export const modes = [
       planTrade('chart'),
       alert('chart'),
       flag('chart'),
+      {
+        // ⭐ D-01, UN-DEFERRED. It was deferred because `expandDrawToolbar()` opened the drawbar
+        // and armed nothing, and `activeTool` is private `useState` — so the bubble could only
+        // ever have been "open a toolbar", not "draw". `StockChart`'s `toolbarApiRef` now carries
+        // `selectTool(name)` beside `expandDrawToolbar`, and `chartSection` drives it.
+        //
+        // ⛔⛔ THIS TAKES THE FIFTH AND LAST OUTER SLOT (`OUTER_MAX` = 5, and the inner ring is
+        // already at `INNER_MAX` = 4). Chart's fan is now STRUCTURALLY FULL in both rings: the
+        // next action this mode wants displaces one of these, which is a product ruling and not
+        // an engineering one. D-02's Indicator bubble is the first to hit that wall.
+        id: 'chart.draw',
+        label: 'Draw',
+        icon: 'edit',
+        ring: 0,
+        color: '--hub-mode-chart',
+        kind: 'run',
+        requires: ['chart'],
+      },
       {
         id: 'chart.compare',
         label: 'Compare',
