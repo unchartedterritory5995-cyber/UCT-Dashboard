@@ -384,7 +384,16 @@
      purpose: on a dense result row the 2px outline is what IDENTIFIES the
      cursor, and a pressed-strength wash over the row's own tone chips made
      the fill compete with it. */
-  --hub-cursor-outline: var(--hub-rim-highlight);
+  /* ⛔ D-37 — 50%, AND IT IS DECOUPLED FROM --hub-rim-highlight ON PURPOSE.
+     The cursor outline is the WCAG 1.4.11 carrier for "you are here": non-text
+     state information needs 3:1 against adjacent colour. Borrowing the knob's
+     rim (35% of --text-heading) gave 2.202:1 against a WHITE row in the light
+     theme — the knob's rim sits on glass, the cursor's sits on a page the hub
+     does not own, so one value could not serve both. 50% clears 3:1 in every
+     theme (light 3.353, dark 5.331, oled 5.281) and is the smallest step that
+     does. Declared at :root with NO [data-theme] variant, so no theme island
+     needs a new pin. Floors railed in styles/tokens.test.js. */
+  --hub-cursor-outline: color-mix(in srgb, var(--text-heading) 50%, transparent);
   --hub-cursor-outline-width: 2px;
   --hub-cursor-outline-offset: -1px;
   --hub-cursor-fill: color-mix(in srgb, var(--text-heading) 12%, transparent);

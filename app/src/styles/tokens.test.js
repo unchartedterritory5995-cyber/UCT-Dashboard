@@ -215,11 +215,18 @@ describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => 
 //      file — deliberate ... not an oversight for a later sweep to 'fix'."
 //
 // ⚠️ ONE PAIR IS BELOW AA ON LIGHT AND IT IS NAMED, NOT ROUNDED AWAY: `--text-muted` on
-// `--hub-glass-tint-strong` composites to 4.18:1 on white (it is 6.34:1 on the dark default). That
-// surface is the CURSOR HIGHLIGHT — `[data-hub-cursor="active"]` paints it onto rows the hub does
-// not own, and the Screener's phone card colours `.cardCompany` / `.cardStatLabel` with exactly
-// that ink. 4.18 clears AA-Large (3.0) and misses AA (4.5). It is recorded as a bounded exception
-// with a floor rather than waved through, so a future retune that makes it WORSE goes red here.
+// `--hub-glass-tint-strong` composites to 4.18:1 on white (6.34:1 on the dark default). 4.18
+// clears AA-Large (3.0) and misses AA (4.5), and it is pinned from both sides below rather than
+// waved through.
+//
+// ⚰️ CORRECTED AT INTEGRATION (D-37): an earlier version of this comment said that surface was
+// "the CURSOR HIGHLIGHT". **It is not, and it was already not when the sentence was written.**
+// `[data-hub-cursor="active"]` paints `--hub-cursor-fill` (D-29 gave the cursor its own dial in
+// this same increment and moved it off the pressed tier, 20% -> 12%). `--hub-glass-tint-strong` is
+// the ACTIONS BUTTON (`hub.module.css`), whose ink is `--text`, not `--text-muted` — that pair
+// measures 10.354:1 on light. So this exception is a CROSS-PRODUCT pair, conservative by
+// construction, not a surface a member reads muted text on. The cursor's own floors are railed in
+// the D-37 block at the bottom of this file, where the real numbers are.
 describe('tokens.css — the hub\'s glass carries the light theme too (D-24, computed)', () => {
   const HUB_CSS = read('../hub/hub.module.css')
 
@@ -270,9 +277,10 @@ describe('tokens.css — the hub\'s glass carries the light theme too (D-24, com
     expect(INKS, 'no --text* ink found on hub glass — the derivation regex is broken')
       .toEqual(expect.arrayContaining(['--text', '--text-muted']))
     // ⛔ AND THE INK LIST IS NOT HYPOTHETICAL FOR THE CURSOR ROW. `[data-hub-cursor="active"]`
-    // paints --hub-glass-tint-strong onto rows the hub does not own; the Screener's phone card is
-    // one of them and colours its company line with the dimmest ink. Asserted against that file so
-    // the justification cannot rot into a comment nobody re-checked.
+    // paints `--hub-cursor-fill` onto rows the hub does not own; the Screener's phone card is one
+    // of them and colours its company line with the dimmest ink. Asserted against that file so the
+    // justification cannot rot into a comment nobody re-checked. (⚰️ This said the cursor painted
+    // --hub-glass-tint-strong; D-29 moved it to its own token in this increment. Corrected D-37.)
     expect(read('../pages/screener/shell/ScannerShell.module.css'),
       'the screener card no longer uses --text-muted — re-derive which ink the cursor row carries')
       .toMatch(/\.cardCompany\s*\{[^}]*color:\s*var\(--text-muted\)/)
@@ -304,4 +312,113 @@ describe('tokens.css — the hub\'s glass carries the light theme too (D-24, com
       }
       expect(measured).toBeGreaterThanOrEqual(4.5)
     })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// D-37 — THE CURSOR'S TWO FLOORS, AND WHY THEY NEED TWO DIFFERENT TOKENS.
+//
+// `[data-hub-cursor="active"]` has one job a member can feel: say "you are here" on a row the hub
+// does not own, without making that row's own text harder to read. Those pull in opposite
+// directions, and a single token cannot serve both — measured, not argued:
+//
+//   FLOOR A  the row's dimmest ink (`--text-muted`) on the cursor FILL  >= 4.5:1  (WCAG 1.4.3, AA)
+//   FLOOR B  the cursor OUTLINE against the plain row                  >= 3.0:1  (WCAG 1.4.11,
+//            non-text contrast — the clause that governs "information required to identify ...
+//            states". A cursor highlight is a state indicator, so 3:1 is the standard's own
+//            number for it, not one picked to be passed.)
+//
+// ⛔ THE FILL CANNOT CARRY BOTH. Sweeping `--text-heading` over a white row: Floor A holds only up
+// to 16% (4.583:1), where the fill is 1.394:1 against the row; Floor B needs ~48%, by which point
+// Floor A has collapsed to ~2.5:1. There is no opacity that satisfies both, which is why the
+// OUTLINE carries B and the fill carries A.
+//
+// ⚰️ AND THE DEFECT THIS BLOCK WAS OPENED FOR HAD ALREADY BEEN FIXED. D-37 was filed on a measured
+// 4.18:1 for muted ink on the cursor — a real number taken from `--hub-glass-tint-strong`, which
+// had stopped being the cursor's fill earlier in the same increment. On the shipped 12% fill the
+// real figure is 5.000:1 (light), 8.458 (dark), 10.142 (oled): Floor A was already met. The live
+// gap was Floor B, which nobody had measured: the outline borrowed the knob's `--hub-rim-highlight`
+// at 35%, which is 2.202:1 on a white row. The knob's rim sits on glass; the cursor's sits on a
+// page. One value could not serve both, so the cursor's outline is now its own declaration at 50%.
+describe('tokens.css — the cursor says "you are here" without dimming the row (D-37)', () => {
+  const HUB_CSS_D37 = read('../hub/hub.module.css')
+  const THEMES_D37 = { dark: ROOT, oled: OLED, light: LIGHT }
+  const resolve37 = (themeBlock, token) => decl(themeBlock, token) ?? decl(ROOT, token)
+
+  /** `color-mix(in srgb, var(--x) N%, transparent)` -> composited rgb over `bg`. Throws by name. */
+  const mixOver = (themeBlock, token, bg) => {
+    const raw = resolve37(themeBlock, token)
+    const m = /color-mix\(\s*in\s+srgb\s*,\s*var\(\s*(--[\w-]+)\s*\)\s*([\d.]+)%\s*,\s*transparent\s*\)/.exec(raw)
+    if (!m) throw new Error(`${token} is not a color-mix over transparent: ${raw}`)
+    return composite(hexRgb(resolve37(themeBlock, m[1])), Number(m[2]) / 100, bg)
+  }
+
+  // ⛔ A AND B ARE COMPUTED SEPARATELY, AND THAT IS NOT TIDINESS. The first version returned both
+  // from one function, so when `mixOver` threw on the OUTLINE (it throws by name if a token stops
+  // being a color-mix) the throw took FLOOR A down with it — and the mutation proof for B reported
+  // three FLOOR A failures. A rail whose failure message names the wrong token sends the next
+  // reader to the wrong file, which is the whole disease this suite exists to catch.
+  const row = (themeName) => hexRgb(resolve37(THEMES_D37[themeName], '--bg'))
+  const floorA = (themeName) => contrast(
+    hexRgb(resolve37(THEMES_D37[themeName], '--text-muted')),   // the dimmest ink the row carries
+    mixOver(THEMES_D37[themeName], '--hub-cursor-fill', row(themeName)),
+  )
+  const floorB = (themeName) => contrast(
+    mixOver(THEMES_D37[themeName], '--hub-cursor-outline', row(themeName)),
+    row(themeName),
+  )
+  const floors = (themeName) => ({ a: floorA(themeName), b: floorB(themeName) })
+
+  it('CONTROL: the cursor rule really reads these two tokens, and nothing else paints it', () => {
+    // ⛔ NON-VACUITY, and it is the load-bearing half: if the rule stopped using these tokens the
+    // floors below would measure something no member ever sees. Read from the CSS, not assumed.
+    const rule = /\[data-hub-cursor="active"\]\s*\{([^}]*)\}/.exec(TOKENS)
+    expect(rule, 'the [data-hub-cursor="active"] rule is gone — re-derive what paints the cursor')
+      .not.toBeNull()
+    expect(rule[1]).toMatch(/background:\s*var\(--hub-cursor-fill\)/)
+    expect(rule[1]).toMatch(/outline:[^;]*var\(--hub-cursor-outline\)/)
+    // and the ink really is the dim one, on a real row the cursor lands on
+    expect(read('../pages/screener/shell/ScannerShell.module.css'))
+      .toMatch(/\.cardCompany\s*\{[^}]*color:\s*var\(--text-muted\)/)
+  })
+
+  it('CONTROL: the three themes resolve to DIFFERENT numbers, so the loop is not measuring one', () => {
+    const all = Object.keys(THEMES_D37).map((t) => floorA(t))
+    expect(new Set(all.map((n) => n.toFixed(3))).size,
+      'every theme produced the same ratio — the theme cascade is not being applied').toBeGreaterThan(1)
+  })
+
+  it.each(Object.keys(THEMES_D37))(
+    'FLOOR A — %s: the row\'s muted ink on the cursor fill clears AA 4.5:1', (themeName) => {
+      expect(floorA(themeName),
+        'the cursor highlight has made the row\'s own text harder to read than AA allows. The fill '
+        + 'is the token to move (--hub-cursor-fill); --text-muted belongs to the product, not the '
+        + 'hub, and darkening the fill is what breaks this.').toBeGreaterThanOrEqual(4.5)
+    })
+
+  it.each(Object.keys(THEMES_D37))(
+    'FLOOR B — %s: the cursor outline clears 3:1 against the plain row (WCAG 1.4.11)', (themeName) => {
+      expect(floorB(themeName),
+        'the cursor no longer reads as "you are here": its outline is under the 3:1 the standard '
+        + 'sets for state information. Raise --hub-cursor-outline. ⛔ Do NOT raise the fill to '
+        + 'compensate — the fill cannot reach 3:1 without breaking FLOOR A, which is the whole '
+        + 'reason these are two tokens.').toBeGreaterThanOrEqual(3.0)
+    })
+
+  it('⛔ the outline is the hub\'s OWN token, not the knob\'s rim', () => {
+    // The regression this guards: reverting to `var(--hub-rim-highlight)` silently reintroduces
+    // 2.202:1 on light, because that token is tuned for a rim sitting on glass.
+    expect(decl(ROOT, '--hub-cursor-outline'),
+      'the cursor outline borrows --hub-rim-highlight again — that value is tuned for the knob, '
+      + 'which sits on glass, and gives 2.202:1 on a white row').not.toMatch(/--hub-rim-highlight/)
+  })
+
+  it('⛔ no [data-theme] variant, so no theme island needs a new pin', () => {
+    // themeIslands.test.js derives its required set from selectors containing `data-theme`. Keeping
+    // both cursor tokens theme-free is what keeps this fix narrow.
+    for (const t of ['--hub-cursor-fill', '--hub-cursor-outline']) {
+      expect(decl(LIGHT, t), `${t} gained a light-theme variant — every theme island now needs it`)
+        .toBeNull()
+      expect(decl(OLED, t), `${t} gained an oled variant — every theme island now needs it`).toBeNull()
+    }
+  })
 })
