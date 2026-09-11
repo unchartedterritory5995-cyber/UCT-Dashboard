@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { contrast, composite, hexRgb, de00, de00Lab } from '../styles/contrastMath'
+import { contrast, composite, hexRgb, de00, de00Lab } from '../styles/__tests__/contrastMath'
 import { modesById, fanFor } from './registry'
 
 // A `vitest -t` regex that matches nothing exits 0 and reads as a PASS, and every assertion

@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { contrast, composite, hexRgb, parseRgba } from './contrastMath'
+import { contrast, composite, hexRgb, parseRgba } from './__tests__/contrastMath'
 
 const read = (rel) =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
@@ -157,7 +157,12 @@ describe('tokens.css — .t-num utility (§3.2)', () => {
 // `composite`/`hexRgb`/`parseRgba` used to be private to this file; the D-27
 // accent-separation rail (`hub/modeAccentSeparation.test.js`) needs the same
 // six, and two copies of one formula are two authorities the moment either is
-// touched. They now live in `./contrastMath.js` and both rails import them.
+// touched. They now live in `./__tests__/contrastMath.js` and both rails import them.
+// ⚰️ THE PATH IS THE CLASSIFICATION, not tidiness. It sat at `styles/contrastMath.js` and
+// `reachable.test.js` correctly reported it as a module no route reaches — it is imported by
+// rails and by nothing a member can navigate to, and it never will be. `__tests__/` is what
+// that sweep's TEST_INFRA rule already recognises, so saying what the file IS beats filing an
+// exemption for what it is not.
 
 describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => {
   it('--bg is the expected dark canvas (#101012, the catalog Graphite ramp) — sanity check on the fixture', () => {

@@ -23,9 +23,13 @@ import useHubMode from '../useHubMode'
 import useHubCursor from '../useHubCursor'
 import { modesById } from '../registry'
 import { applyTargetToParams } from '../../pages/journal-2-0/lib/searchNavigation'
-import { createNoteViaApi } from '../../pages/journal-2-0/lib/noteCreation'
+// ⚰️ ONE LINE, NOT TWO. The merge of D-17 and R-19 unioned two import blocks that each named
+// `createNoteViaApi`, and a duplicate binding is a SyntaxError. Vite's transform tolerated it
+// and 932 hub tests passed; acorn — which the reachability and wake-word walkers parse with —
+// did not, and the GATE is where it surfaced. A green suite is not a parsed file.
+import { createNoteViaApi, createNoteFromTemplateViaApi }
+  from '../../pages/journal-2-0/lib/noteCreation'
 import { createVoiceNote, startVoiceRecording, VOICE_NOTE_MESSAGES } from '../voiceNote'
-import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../pages/journal-2-0/lib/noteCreation'
 import { TEMPLATES } from '../../pages/journal-2-0/lib/notebookTemplates'
 import { useJ2Note } from '../../pages/journal-2-0/hooks/useJ2Notes'
 import { JournalToast } from '../../pages/journal-2-0/lib/useJournalToast'
