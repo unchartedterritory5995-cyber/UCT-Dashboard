@@ -161,6 +161,36 @@ export default function StarterLibrary({ onPick = null, activeSource = '', consu
   const [showRefused, setShowRefused] = useState(false)
   const offered = useMemo(() => startersFor(consumerKind, STARTER_LIST), [consumerKind])
   const hiddenByCapability = STARTER_LIST.length - offered.length
+  /**
+   * ⛔⛔ TWO DIFFERENT REASONS, AND SAYING THE WRONG ONE IS WORSE THAN SAYING
+   * NOTHING. A starter can be hidden because it reads columns a chart has no
+   * history for, OR because it answers the wrong KIND of question — `Oops
+   * Reversal` runs perfectly well on a chart and is still not an info value,
+   * because an info value shows a number and that setup answers true or false.
+   *
+   * ⚰️ The first draft of this line blamed the screener columns in both cases. In
+   * INFO VALUE mode it therefore told a member that setups they could see working
+   * as conditions "read screener columns" — which is false about seven of them and
+   * beside the point for the eighth.
+   */
+  const hiddenReason = useMemo(() => {
+    const hidden = STARTER_LIST.filter((e) => !offered.includes(e))
+    const snapshot = hidden.filter((e) => !e.chartEvaluable).length
+    const wrongType = hidden.length - snapshot
+    const parts = []
+    if (snapshot) {
+      parts.push(`${snapshot} read screener columns, which have no per-bar history`)
+    }
+    if (wrongType) {
+      parts.push(consumerKind === 'infoValue'
+        ? `${wrongType} answer${wrongType === 1 ? 's' : ''} true or false — an info value shows a number`
+        : `${wrongType} produce${wrongType === 1 ? 's' : ''} a number rather than a yes-or-no answer`)
+    }
+    const lead = hidden.length === STARTER_LIST.length
+      ? `All ${hidden.length} of the firm’s setups are hidden here`
+      : `${hidden.length} of the firm’s setups are hidden here`
+    return `${lead}: ${parts.join('; ')}.`
+  }, [offered, consumerKind])
   const families = useMemo(() => {
     const seen = []
     for (const entry of offered) {
@@ -182,11 +212,7 @@ export default function StarterLibrary({ onPick = null, activeSource = '', consu
           as a broken library; naming the reason is what lets a member go and find
           the setup where it does work. */}
       {hiddenByCapability > 0 && (
-        <p className={styles.lede} data-testid="starter-hidden-note">
-          {hiddenByCapability === STARTER_LIST.length
-            ? 'None of the firm’s setups can run on a chart yet — they read screener columns, which have no per-bar history.'
-            : `${hiddenByCapability} of the firm’s setups are hidden here — they read screener columns, which have no per-bar history.`}
-        </p>
+        <p className={styles.lede} data-testid="starter-hidden-note">{hiddenReason}</p>
       )}
 
       {families.map(({ family, entries }) => (

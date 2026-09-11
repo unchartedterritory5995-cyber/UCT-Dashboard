@@ -4478,8 +4478,10 @@ export default function StockChart({
       // Settings → Indicators → "New Formula" travels down: the modal is a sibling
       // of this chart, not a child of its toolbar, so it cannot reach the sheet
       // any other way. Returns `false` on a read-only chart, like its neighbour.
-      openFormulaBuilder: () => {
-        try { return toolbarRef.current?.openFormulaBuilder?.() ?? false } catch { return false }
+      // ⭐ THE INTENT RIDES THROUGH — {consumerKind, editId}. Absent means the
+      // original indicator behaviour, so every existing caller is unchanged.
+      openFormulaBuilder: (intent = null) => {
+        try { return toolbarRef.current?.openFormulaBuilder?.(intent) ?? false } catch { return false }
       },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
