@@ -21,6 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import StopConfirmSheet from './StopConfirmSheet'
+import PlanTradeSheet from './PlanTradeSheet'
 import {
   TICK_TABLE, DEFAULT_TICK, tickSizeFor, roundToTick, formatPrice,
 } from '../components/chart/drawingLabels'
@@ -154,6 +155,34 @@ describe('⛔ RENDERED TEXT — the member reads the number at the step they are
   })
 })
 
+describe('the OTHER price inputs the row names ("and every price input")', () => {
+  it('the plan sheet\'s entry and stop step at the instrument\'s tick, and read back at it', () => {
+    render(
+      <PlanTradeSheet
+        symbol="SNDL" entry={0.3200} stop={0.2975} size={10000}
+        onClose={() => {}} client={{ create: async () => ({}) }}
+      />,
+    )
+    expect(screen.getByTestId('hub-plan-entry')).toHaveAttribute('step', '0.0001')
+    expect(screen.getByTestId('hub-plan-stop')).toHaveAttribute('step', '0.0001')
+    expect(screen.getByTestId('hub-plan-stop-shown')).toHaveTextContent('0.2975')
+  })
+
+  it('CONTROL: a $178 plan still steps in cents, and SIZE is never treated as a price', () => {
+    render(
+      <PlanTradeSheet
+        symbol="AAPL" entry={178.1} stop={176} size={100}
+        onClose={() => {}} client={{ create: async () => ({}) }}
+      />,
+    )
+    expect(screen.getByTestId('hub-plan-entry')).toHaveAttribute('step', '0.01')
+    expect(screen.getByTestId('hub-plan-entry-shown')).toHaveTextContent('178.10')
+    // Shares are not quoted on a tick. A formatter applied here would render "100.00" shares.
+    expect(screen.getByTestId('hub-plan-size-shown')).toHaveTextContent('100')
+    expect(screen.getByTestId('hub-plan-size')).not.toHaveAttribute('step')
+  })
+})
+
 // ─── one table, and it is beside the formatter ──────────────────────────────
 function jsFilesUnder(dir, out = []) {
   for (const entry of readdirSync(dir)) {
@@ -182,16 +211,38 @@ describe('one table, and the row says where it lives', () => {
 
   it('the hub\'s stop path holds no price-step opinion of its own', () => {
     const offenders = []
-    for (const f of ['hub/sections/journalSection.js', 'hub/StopConfirmSheet.jsx']) {
+    // Each file is paired with the call it MUST contain — a non-vacuity control that names an
+    // expected member rather than counting bytes, so an empty read cannot pass this as clean.
+    for (const [f, marker] of [
+      ['hub/sections/journalSection.js', 'stopTickFor'],
+      ['hub/StopConfirmSheet.jsx', 'stopTickFor'],
+      ['hub/PlanTradeSheet.jsx', 'tickSizeFor'],
+    ]) {
       const src = readFileSync(path.join(SRC, f), 'utf8')
-      expect(src, `${f} did not load`).toContain('stopTickFor')
+      expect(src, `${f} did not load, or stopped asking for a tick`).toContain(marker)
       // Comments are stripped first: this file's own prose names the literals it forbids, and so
       // does the code it guards (contractArity.test.js learned this the same way).
       const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
-      for (const [pattern, why] of [
-        [/toFixed\(2\)/, 'a 2dp display rounds a finer tick away'],
-        [/=\s*0\.01\b/, 'a restated cent is a second answer to what a step is'],
-      ]) if (pattern.test(code)) offenders.push(`${f}: ${why}`)
+      if (/=\s*0\.01\b/.test(code)) {
+        offenders.push(`${f}: a restated cent is a second answer to what a step is`)
+      }
+      // ⭐ A 2dp render is not wrong everywhere — dollars of RISK are quoted in cents whatever the
+      // instrument's tick is, and running a price formatter over shares or over $ would be its own
+      // defect. So the rule is not "never `toFixed(2)`", it is "SAY WHICH IT IS": a surviving site
+      // must carry the marker on its own line. A new one fails until its author decides.
+      // Comments are blanked IN PLACE (line count preserved) so prose that NAMES `.toFixed(2)` —
+      // this rule's own explanation, in three files — is not reported as the thing it forbids.
+      // The marker is looked for on the ORIGINAL line, because the marker is itself a comment.
+      const masked = src
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+        .replace(/(^|[^:])\/\/.*$/gm, '$1')
+        .split('\n')
+      masked.forEach((line, i) => {
+        if (!line.includes('toFixed(2)')) return
+        if (src.split('\n')[i].includes('money, not a price')) return
+        offenders.push(`${f}:${i + 1}: a 2dp display rounds a finer tick away — if this is money `
+          + 'and not a price, mark the line `money, not a price`')
+      })
     }
     expect(offenders).toEqual([])
   })
