@@ -5,6 +5,7 @@ import useTickerMeta from '../../../hooks/useTickerMeta'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import { useOpenMoreSheet } from '../../../components/mobile/MoreSheetContext'
+import { tfLabel } from '../../../components/chart/timeframes'
 import styles from './MobileCharts.module.css'
 
 const fmtPrice = (p) => (p >= 1000 ? p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p >= 1 ? p.toFixed(2) : p.toFixed(4))
@@ -17,8 +18,13 @@ const fmtPrice = (p) => (p >= 1000 ? p.toLocaleString('en-US', { minimumFraction
  * Synthetic pseudo-tickers (theme "$IDX:" indexes, UCT breadth symbols) have no
  * live feed and no company logo — the strip shows their curated name and skips
  * the quote subscription entirely (mirrors ChartPane's wantsQuote gate).
+ *
+ * The TIMEFRAME pill lives at the strip's far right (owner call, 2026-09-11):
+ * it used to lead the bottom toolbar, and the owner wants that thumb-zone row
+ * for shortcut tools instead. `tf`/`onOpenTf` are optional so the strip still
+ * renders without them (tests, or a surface with no timeframe door).
  */
-export default function MobileSymbolStrip({ sym, onOpenSearch }) {
+export default function MobileSymbolStrip({ sym, onOpenSearch, tf = null, onOpenTf = null }) {
   // The app-menu door on the chart screen. The top bar (and its hamburger)
   // hides itself while the chart shell is mounted, and the bottom tab bar is
   // gone app-wide — so this top-left button is how a member LEAVES /charts.
@@ -113,6 +119,17 @@ export default function MobileSymbolStrip({ sym, onOpenSearch }) {
             </span>
           )}
         </div>
+      )}
+      {tf != null && onOpenTf && (
+        <button
+          type="button"
+          className={styles.stripTf}
+          onClick={onOpenTf}
+          aria-label={`Timeframe — ${tfLabel(tf)}`}
+          aria-haspopup="dialog"
+        >
+          {tfLabel(tf)}
+        </button>
       )}
     </div>
   )
