@@ -12,6 +12,7 @@ conflates them is reassurance the data does not support.
 
 from __future__ import annotations
 
+import datetime as dt
 import pytest
 
 from api.services import auth_db
@@ -31,15 +32,33 @@ def env(tmp_path, monkeypatch):
     return {}
 
 
-def _series(ba, dollars, pcts=None):
+def _stamp(days_ago):
+    """A reading taken `days_ago` days before now, in the stored format."""
+    return (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days_ago)).isoformat()
+
+
+def _series(ba, dollars, pcts=None, sessions=None):
+    """Seed readings on DISTINCT RECENT DAYS, the newest one today.
+
+    ⛔ These used to pin an absolute "2026-08-30T07:40:00+00:00" while
+    run_bias_digest() scans a ROLLING 7-day window. They were green when
+    written and went red on their own about a week later, with nobody
+    touching the code -- the same date-bomb that took out nine buzz-digest
+    tests the same night. A relative stamp cannot rot that way.
+
+    `sessions` packs the readings onto that many distinct days, which is how
+    the "clears the dollar gate but is not STEADY yet" arm is expressed.
+    """
+    n = len(dollars)
     conn = auth_db.get_connection()
     try:
         for i, d in enumerate(dollars):
             pct = (pcts[i] if pcts else (d / 10000.0))
+            days_ago = (i % sessions) if sessions else (n - 1 - i)
             conn.execute(
                 "INSERT INTO j2_broker_drift_series (user_id, broker_account_id, "
                 "checked_at, drift_dollar, drift_pct, ok) VALUES (?,?,?,?,?,1)",
-                ("u1", ba, "2026-08-30T07:40:00+00:00", d, pct))
+                ("u1", ba, _stamp(days_ago), d, pct))
         conn.commit()
     finally:
         conn.close()
