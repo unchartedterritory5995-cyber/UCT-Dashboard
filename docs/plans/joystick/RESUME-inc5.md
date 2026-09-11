@@ -1,5 +1,12 @@
 # RESUME — joystick hub Increment 5
 
+> ⚰️ **SUPERSEDED — THIS FILE IS HISTORY, NOT STATE.** It was written mid-programme and its
+> open-item lists were true when written. Increment 7 closed every row in `deferred.md` and
+> every request in `requests.md`. **Read `closure.md` for what is actually open** — it is one
+> thing (`glass-acceptance.md`) plus four costed owner decisions. Nothing below should be read
+> as outstanding; it is kept because the reasoning is worth having and deleting it would erase
+> why decisions were made.
+
 **Created 2026-09-10.** Increment 3 is at its deploy window; Increment 4 is built and gate-clean
 (0 NEW) waiting for the next window. This file carries Increment 5's scope, the three scout
 reports that shaped it, and the rulings they became.
