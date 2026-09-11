@@ -96,6 +96,38 @@ right move, and the fresh pane is equally widget-less. It cost an hour.
 renders. The proof it worked: `TradingViewApi.takeClientScreenshot()` goes from composing an
 873px-wide image to the real full-width one.
 
+### ⛔⛔ …NOR A PANE WHOSE STUDY WAS *ADDED* HIDDEN (2026-09-11) — and the data is fine anyway
+
+**Measured this visit, and it contradicts the ✅ above.** `UCTPROBE_R11_TIME_SESSION`
+was added through the proven editor route on a tab with
+`document.visibilityState === 'hidden'`. It computed perfectly — 400 bars, status 2,
+6 plots, and the whole item-7 Q3 reading came out of it. Its PANE never got a widget:
+
+    model().panes().map(p => p.height())
+      before _adjustSize() : [122, 61 x10, 59, 0]      13 panes, the last is ours
+      after  _adjustSize() : [113, 57 x10, 52, 0]      the other 12 redistributed
+    [class*="sourcesWrapper"].length : 12  (== 13 panes - 1)
+
+`_adjustSize()` returned without error and visibly *did something* — every other pane
+shrank to make room — and still left ours at zero. So the ✅ above is narrower than it
+reads: it recovers a pane whose widget EXISTS and is mis-sized. It does not conjure one
+for a study added while the tab was hidden.
+
+⚠️ **The honest bound: the tab was hidden at the time of the `_adjustSize()` call too.**
+This does not prove the remedy fails on a tab that has since become visible — only that
+calling it from the same hidden state does not help. Do not record it as refuted.
+
+⭐⭐ **AND THE PART THAT MATTERS MOST: THE DATA IS UNAFFECTED.** Every reading this
+project takes comes from the MODEL — `dataLength()`, `status()`, `_study.data()` — and
+all of it was correct off a zero-height pane. The hidden-tab hazard at the top of this
+file is about what RENDERS; it costs a screenshot and the visual-conformance lane, not a
+capture. A hidden tab is a read-only visit for the *Indicators dialog*, but it can still
+ADD a study and READ it, which is what item 7's answer was taken from.
+
+⛔ So the running order stands: do not add on an UNPAINTED tab (canvases at the 300x150
+default), but a painted tab that is merely `hidden` will give you correct numbers and a
+dead pane. Budget for the dead pane; do not re-add chasing it.
+
 ### ⛔⛔ …BUT `_adjustSize()` DOES NOT SAVE A CHART THAT *LOADED* HIDDEN (2026-09-09)
 
 > ⚠️ **ANNOTATION 2026-09-10 — THIS ENTRY'S CAUSE IS UNVERIFIED, AND THE ENTRY IS LEFT

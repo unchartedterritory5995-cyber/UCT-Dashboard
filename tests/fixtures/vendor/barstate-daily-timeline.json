@@ -253,6 +253,38 @@
         "isnew": 1
       },
       "note": "⭐ THE PRE-OPEN ROW, ON THE NEXT CALENDAR DAY — 00:56 ET on 2026-09-11, 8.8 hours past the 16:00 close, still on the SAME bar (1789047000). Every flag is unchanged from row 7: isrealtime 0, ishistory 1, isconfirmed 1, islastconfirmedhistory 1. So the cold state PERSISTS through the overnight gap rather than being a momentary transition. ⭐⭐ AND IT SHARES ROW 7'S `pageLoadEpoch` (1789098797, the page loaded 23:53 ET), so rows 7 and 8 are ONE session an hour apart. That matters twice: it is the same evidence shape rows 5 and 6 used for the isconfirmed flip, and here it rules out the reading that row 7's isrealtime=0 was an artifact of how THAT page load happened to fetch — a second reading, same session, same answer. ⚠️ It does NOT narrow instant B: row 7 already showed the flag cold at 23:57, and the bracket (20:55, 23:57) is untouched by a later row. Closing it needs rows INSIDE 21:00-00:00 ET."
+    },
+    {
+      "instantUTC": "2026-09-11T11:38:55Z",
+      "instantET": "2026-09-11T07:38:55-04:00",
+      "symbol": "AMEX:SPY",
+      "tf": "D",
+      "study": "UCTPROBE_BARSTATE_FULL",
+      "chartSession": "regular",
+      "arrival": "late",
+      "pageLoadEpoch": 1789098797,
+      "newestBarUnix": 1789047000.0,
+      "newestBarET": "2026-09-10T09:30:00-04:00",
+      "session": {
+        "etDate": "2026-09-10",
+        "etClock": "07:38:55",
+        "isNyseHoliday": false,
+        "isNyseEarlyClose": false,
+        "scheduledCloseUnix": 1789070400.0,
+        "scheduledCloseET": "2026-09-10T16:00:00-04:00",
+        "secondsPastScheduledClose": 56335,
+        "ourSeamSaysForming": false
+      },
+      "agreesWithOurSeam": true,
+      "vendor": {
+        "isrealtime": 0,
+        "isconfirmed": 1,
+        "ishistory": 1,
+        "islast": 1,
+        "islastconfirmedhistory": 1,
+        "isnew": 1
+      },
+      "note": "⭐⭐ THE TRUE PRE-OPEN ROW — 07:38 ET on a TRADING DAY (Friday 2026-09-11), 1h51m before the 09:30 open, with the market about to run. Rows 7 and 8 were in the overnight gap; this one is the pre-market, which is what `_still_needed.aRowBefore0930ET` was actually asking about. ⭐ THE NEWEST DAILY BAR IS STILL 2026-09-10's. No bar exists for today yet on a `regular`-session chart, so the vendor is still describing yesterday's bar — and it describes it exactly as it did at 23:57 and 00:56: isrealtime 0, ishistory 1, isconfirmed 1, islastconfirmedhistory 1. ⭐⭐ AND ALL THREE SHARE ONE `pageLoadEpoch` (1789098797, loaded 23:53 ET). Rows 7, 8 and 9 are a SINGLE page load spanning 7h45m, so the cold state is not something a fetch decides — one session watched it hold from before midnight to the next pre-market without a reload. ⚠️ The bracket on instant B is untouched: a later row cannot move an upper edge. (20:55, 23:57) still needs rows inside it."
     }
   ],
   "_still_needed": {
@@ -261,7 +293,7 @@
     "aRowBefore0930ET": false,
     "rulingUnlocked": false,
     "_": "⛔ While any of these is true the mapping question stays OPEN and the seam stays unchanged. ⭐ THE ARRIVAL CONTROL IS THE ONE THAT WAS MISSING FROM THE ORIGINAL PLAN: time-of-day rows taken from ONE long-open chart cannot separate the hypotheses at all, because a bar that formed under your own session is already known to keep its realtime barstate. Two arrivals on the same bar is what discriminates; the clock rows then say for how long.",
-    "_aRowBefore0930ET": "✅ SATISFIED BY ROW 7 (2026-09-10T23:57 ET) — in the overnight gap, after the 20:00 extended close and before the next 09:30 open, which is the window this flag was asking about. It answered the question as posed (\"whether isrealtime ever drops before the next session opens, or stays 1 right through\"): IT DROPS. ⚠️ What it did NOT do is pin an instant — the flip is bracketed across (20:55, 23:57) ET, three hours wide.",
+    "_aRowBefore0930ET": "✅ SATISFIED TWICE. Row 7 (23:57 ET) answered the question as posed — does `isrealtime` ever drop before the next session opens, or stay 1 right through? IT DROPS. Row 9 (07:38 ET on the next TRADING day, 1h51m pre-open) is the stricter reading of the same flag: the pre-market, not merely the overnight gap. Both say the same thing, and rows 7/8/9 share one page load. ⚠️ Neither pins an instant — the flip is bracketed (20:55, 23:57) ET.",
     "anIsrealtimeInstant": true,
     "_anIsrealtimeInstant": "⭐ NEW, RAISED BY ROW 7. `isconfirmed` and `isrealtime` flip at DIFFERENT instants, so pinning one says nothing about the other. The isconfirmed bracket is 93 minutes (19:22, 20:55); the isrealtime bracket is three hours (20:55, 23:57) and has no hypothesised mechanism at all. Rows through the 21:00-00:00 ET stretch would close it."
   },
