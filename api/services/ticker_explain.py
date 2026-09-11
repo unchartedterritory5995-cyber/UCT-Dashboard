@@ -927,9 +927,6 @@ def _earnings_evidence(earnings: dict) -> list[dict]:
     return out
 
 
-_DOMAIN_FETCHERS: dict[str, tuple] = {}  # populated below _build_evidence to avoid import cycles
-
-
 def _fetch_news(sym: str) -> list[dict]:
     from api.services.research.news import get_company_news
     news = get_company_news(sym) or {}
@@ -997,6 +994,21 @@ def _fetch_earnings(sym: str) -> list[dict]:
     return _earnings_evidence(get_earnings_ai_evidence(sym) or {})
 
 
+#: domain -> the fetcher that composes its evidence.
+#:
+#: ⚰️ THIS NAME WAS BOUND TWICE (removed 2026-09-11). An empty
+#: ``_DOMAIN_FETCHERS: dict[str, tuple] = {}`` sat ~70 lines above, commented
+#: *"populated below _build_evidence to avoid import cycles"* — but nothing ever
+#: populated it: this line REBINDS the name outright, so the placeholder was dead
+#: from the day it was written. Python keeps the LAST binding, so the module
+#: worked; what did not work was the artifact an engineer reads.
+#:
+#: ⛔ AND IT WAS ACTIVELY MISLEADING IN TWO WAYS. Its annotation said the values
+#: are ``tuple``; they are functions. And a reader who believed the comment would
+#: add a fetcher with ``_DOMAIN_FETCHERS["x"] = ...`` ABOVE this line — where it
+#: would be silently discarded by the rebind, with the domain simply never
+#: fetching. ⭐ The cycle avoidance is real but it is done by the LOCAL imports
+#: inside each ``_fetch_*``, not by any placeholder.
 _DOMAIN_FETCHERS = {
     "news": _fetch_news,
     "analyst": _fetch_analyst,
