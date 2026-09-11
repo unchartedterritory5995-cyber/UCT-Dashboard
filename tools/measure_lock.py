@@ -111,21 +111,53 @@ def _alive(pid: int) -> bool:
         return True          # ⛔ unknown ⇒ assume alive; never auto-clear on a guess
 
 
-def acquire(run_id: str, repo: pathlib.Path = REPO) -> int:
+LOCK_TTL_S = 2 * 60 * 60      # a full sharded gate is ~15 min; 2h is generous and bounded
+
+
+def lock_state(held: dict, now: float | None = None) -> tuple[str, str]:
+    """LIVE / STALE, and why. ⛔ Pure, so the rule can be driven rather than
+    asserted about — this is the function the old pid check got wrong."""
+    now = time.time() if now is None else now
+    bound = held.get("bound_pid")
+    if bound and not _alive(int(bound)):
+        return "STALE", f"bound pid {bound} is gone"
+    age = now - float(held.get("heartbeat") or 0)
+    ttl = float(held.get("ttl_s") or LOCK_TTL_S)
+    if age >= ttl:
+        return "STALE", f"heartbeat is {int(age)}s old (ttl {int(ttl)}s)"
+    return "LIVE", f"heartbeat {int(age)}s ago" + (f", bound pid {bound} alive" if bound else "")
+
+
+def acquire(run_id: str, repo: pathlib.Path = REPO, bound_pid: int | None = None,
+            ttl_s: int = LOCK_TTL_S) -> int:
     lock = _lock_path(repo)
     if lock.exists():
         held = json.loads(lock.read_text(encoding="utf-8"))
-        if _alive(held.get("pid", -1)):
-            print(f"⛔ ALREADY LOCKED by run {held.get('run_id')} (pid {held.get('pid')}) "
-                  f"since {held.get('at')}. A second measurement would race the first.")
+        state, why = lock_state(held)
+        if state == "LIVE":
+            print(f"⛔ ALREADY LOCKED by run {held.get('run_id')} since {held.get('at')} "
+                  f"({why}). A second measurement would race the first.")
             return 1
-        print(f"⚠️  clearing a STALE lock from dead pid {held.get('pid')}")
+        print(f"⚠️  clearing a STALE lock from run {held.get('run_id')} — {why}")
         lock.unlink()
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True,
                           text=True, encoding="utf-8").stdout.strip()
+    # ⛔⛔ THE PID HERE IS THIS PROCESS, AND THIS PROCESS IS ABOUT TO EXIT.
+    #
+    # ⚰️ Measured 2026-09-11: every lock taken the way locks are actually taken —
+    # `python measure_lock.py acquire <id>` in one shell command, the measurement
+    # in the next — read STALE the whole time it was protecting a live run,
+    # because `acquire` recorded its OWN pid and returned. The tree was correctly
+    # read-only and `status` said the lock was dead. A `--force` on that reading
+    # would have cleared a lock guarding a 15-minute gate.
+    #
+    # ⭐ So liveness is a HEARTBEAT AGE, not a pid, because the acquiring process
+    # is never the measuring one. `--pid` optionally binds a real runner; when it
+    # is given and that process is gone, the lock is stale no matter how fresh.
     lock.write_text(json.dumps({
-        "run_id": run_id, "pid": os.getpid(), "head": head,
+        "run_id": run_id, "pid": os.getpid(), "bound_pid": bound_pid, "head": head,
         "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "heartbeat": time.time(), "ttl_s": ttl_s,
     }, indent=2), encoding="utf-8")
     n = _set_readonly(repo, True)
     print(f"🔒 LOCKED for {run_id} at {head[:9]} — {n} source files read-only.")
@@ -136,6 +168,18 @@ def acquire(run_id: str, repo: pathlib.Path = REPO) -> int:
 
 def release(repo: pathlib.Path = REPO, force: bool = False) -> int:
     lock = _lock_path(repo)
+    # ⛔ --force EXISTS TO CLEAR A DEAD LOCK, NEVER TO EVICT A LIVE ONE. Forcing
+    # past a running measurement is how a tree changes underneath a gate, which
+    # is the entire failure this lock was built for.
+    if force and lock.exists():
+        try:
+            state, why = lock_state(json.loads(lock.read_text(encoding="utf-8")))
+        except Exception:  # noqa: BLE001
+            state, why = "STALE", "unreadable lock file"
+        if state == "LIVE":
+            print(f"⛔ REFUSING --force: the lock is LIVE ({why}). "
+                  f"Wait for it, or kill the run and force after it is STALE.")
+            return 1
     n = _set_readonly(repo, False)          # ⛔ ALWAYS clear, lock file or not
     if lock.exists():
         held = json.loads(lock.read_text(encoding="utf-8"))
@@ -152,10 +196,10 @@ def status(repo: pathlib.Path = REPO) -> int:
         print("unlocked")
         return 0
     held = json.loads(lock.read_text(encoding="utf-8"))
-    alive = _alive(held.get("pid", -1))
-    print(f"{'LOCKED' if alive else 'STALE'}  run={held.get('run_id')} pid={held.get('pid')} "
-          f"head={str(held.get('head'))[:9]} at={held.get('at')}")
-    return 0 if alive else 2
+    state, why = lock_state(held)
+    print(f"{state}  run={held.get('run_id')} head={str(held.get('head'))[:9]} "
+          f"at={held.get('at')} — {why}")
+    return 0 if state == "LIVE" else 2
 
 
 def self_check() -> int:
@@ -193,6 +237,31 @@ def self_check() -> int:
         case("release with no lock file is idempotent, not an error", release(repo) == 0)
         case("a second acquire while held is REFUSED", (acquire("a", repo), acquire("b", repo))[1] == 1)
         release(repo)
+
+        # ── the liveness rule itself, driven rather than asserted about ───────
+        now = 1_000_000.0
+        fresh = {"heartbeat": now - 10, "ttl_s": 3600}
+        old = {"heartbeat": now - 7200, "ttl_s": 3600}
+        case("⛔ a lock acquired from a SHELL reads LIVE — the acquiring process is gone by design",
+             lock_state(fresh, now)[0] == "LIVE")
+        case("⭐ CONTROL: a lock past its ttl reads STALE", lock_state(old, now)[0] == "STALE")
+        case("⛔ a lock BOUND to a dead pid is STALE however fresh its heartbeat",
+             lock_state({**fresh, "bound_pid": 999_999_999}, now)[0] == "STALE")
+        case("⛔ a lock with NO heartbeat at all is STALE, never assumed live",
+             lock_state({}, now)[0] == "STALE")
+
+        # ── --force must refuse a LIVE lock ──────────────────────────────────
+        acquire("live-run", repo)
+        refused = release(repo, force=True)
+        case("⛔⛔ --force REFUSES a LIVE lock — evicting a running measurement is the bug",
+             refused == 1 and _lock_path(repo).exists())
+        # ...and clears a stale one
+        lp = _lock_path(repo)
+        h = json.loads(lp.read_text(encoding="utf-8"))
+        h["heartbeat"] = time.time() - 999_999
+        lp.write_text(json.dumps(h), encoding="utf-8")
+        cleared = release(repo, force=True)
+        case("⭐ CONTROL: --force DOES clear a stale lock", cleared == 0 and not lp.exists())
     print("self-check:", "PASS" if not bad else f"FAIL ({bad})")
     return 1 if bad else 0
 
@@ -202,7 +271,15 @@ def main() -> int:
     if not a or a[0] == "--self-check":
         return self_check()
     if a[0] == "acquire":
-        return acquire(a[1] if len(a) > 1 else "unnamed")
+        bound = None
+        ttl = LOCK_TTL_S
+        for i, tok in enumerate(a):
+            if tok == "--pid" and i + 1 < len(a):
+                bound = int(a[i + 1])
+            if tok == "--ttl" and i + 1 < len(a):
+                ttl = int(a[i + 1])
+        run = next((x for x in a[1:] if not x.startswith("--") and not x.isdigit()), "unnamed")
+        return acquire(run, bound_pid=bound, ttl_s=ttl)
     if a[0] == "release":
         return release(force="--force" in a)
     if a[0] == "status":

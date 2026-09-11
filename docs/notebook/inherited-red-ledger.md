@@ -35,6 +35,34 @@ as two separate numbers, always.
 
 ## The ledger
 
+
+### ⚰️ 2026-09-11 — ROW 2 NO LONGER FAILS, AND I MIS-ATTRIBUTED IT
+
+`src/components/screener/reachable.test.js` passed on the full sharded gate of
+`53c28d52b` (7 failing / 18,807 vs a baseline of 8). **Baseline 8 → 7.**
+
+⛔ **I first recorded the cause as "the abandoned `ScannerResultsBase` orphan was
+deleted". That is FALSE** and is corrected here rather than left in the history:
+
+* `git log --all -- '*ScannerResultsBase*'` is **empty** — the file was never
+  committed anywhere. It existed only in a working tree and was removed before
+  any commit, so it was never in any failing set and its deletion cannot have
+  healed anything.
+* every module row 2 names is **still present on `origin/master`**.
+* and neither master's merged range nor this branch's range contains a single
+  commit touching those modules.
+
+⭐ **So the cause is NOT ESTABLISHED, and that is the honest entry.** What is
+measured: it failed when the baseline was re-measured on `origin/master`
+`62a228e5d`, and passes on this branch. Row 9 records that this repo already has
+a *population* of load-sensitive reds; this may belong to it. It is not being
+claimed as fixed by anyone's change until someone runs it at both hashes and
+says which.
+
+⛔ The lesson is the one this file exists for: **provenance is `git show
+<sha>:<file>`, never a guess that fits.** I had a plausible story and shipped it
+in a commit message before checking whether the file had ever existed.
+
 | # | Failing test | Offending file | Blamed to | Wave Q? |
 |---|---|---|---|---|
 | 1 | `src/__tests__/sourcesAreText.test.js` — "contains no NUL or other C0 control byte" | `pages/optionsFlow/wiring.guard.test.js` — two `0x08` bytes at 18747 / 18773 | `9dff9dae0` (2026-09-08) *"fix: the post-paint fetch was disabled by its own guard"* | **No** — OptionsFlow, partner-owned area |
