@@ -414,7 +414,10 @@ describe('a section payload, field by field, through the same HubRoot', () => {
 describe('the generic yes/no confirm is UNCHANGED for an action with no confirmPayload', () => {
   /** The registry's own `scan.alert` with a `run` handler and NO section payload. */
   const genericFan = (run) => {
-    const { confirmPayload, ...bare } = registryAlert()
+    // Belt and braces: the registry entry carries no `confirmPayload` today, and this file would
+    // be lying about what it registers if that ever changed under it.
+    const bare = { ...registryAlert() }
+    delete bare.confirmPayload
     scene.fan = [{ ...bare, run }, ...innerRing()]
   }
 
