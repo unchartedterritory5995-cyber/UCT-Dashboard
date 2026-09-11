@@ -543,8 +543,10 @@ def main(argv=None) -> int:
             say("⚠️  UNAUTHENTICATED RUN — PUBLIC ROUTES ONLY.")
             say("    No SMOKE_EMAIL / SMOKE_PASSWORD in the environment, so this run covers "
                 f"{list(PUBLIC_ROUTES)} and NOT {list(START_ROUTES)}.")
-            say("    ⛔ /dashboard is where the 2026-09-10 freeze was reported. It is NOT covered "
-                "by this run. Create the smoke account and set the two variables.")
+            say("    ⛔ /dashboard: INCONCLUSIVE-UNPROVISIONED — not covered by this run.")
+            say("       /dashboard is paid-only, so a public-signup member cannot reach it either; "
+                "the smoke account needs a comped grant before this route can be measured at all. "
+                "This is the route the 2026-09-10 freeze was reported on.")
             say("")
 
         total_clicked = 0
@@ -590,10 +592,11 @@ def main(argv=None) -> int:
     # attached to an unmeasured deploy.
     if total_clicked == 0:
         say("")
-        say("SMOKE INCONCLUSIVE — zero nav entries were clickable in this session, so nothing "
-            "was measured. This is NOT a pass, and it is NOT a product failure either — "
-            "exit 2 says 'could not measure'. If unauthenticated, the nav renders almost "
-            "nothing; create the smoke account and re-run with --auth.", err=True)
+        say("SMOKE INCONCLUSIVE-UNPROVISIONED — zero nav entries were clickable, so nothing was "
+            "measured, and /dashboard in particular is UNPROVISIONED: it is paid-only and the "
+            "smoke account has no comped grant. This is NOT a pass and NOT a product failure — "
+            "exit 2 says 'could not measure'. ⛔ H15 does not fire on exit 2: do not roll back.",
+            err=True)
         return 2
 
     if failures:
@@ -602,6 +605,9 @@ def main(argv=None) -> int:
             say(f"  ⛔ {f}", err=True)
         return 1
     scope = "authenticated" if authed else "public-routes-only"
+    if not authed:
+        say("  ⚠️ /dashboard: INCONCLUSIVE-UNPROVISIONED (paid-only; smoke account not comped). "
+            "This run is NOT coverage of the launch.")
     if probes:
         worst = max(probes, key=lambda rp: rp[1].get("blockedFraction", 0))
         say(f"  busiest main thread: {worst[0]} at "
