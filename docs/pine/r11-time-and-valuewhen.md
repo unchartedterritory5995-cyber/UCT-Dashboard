@@ -47,8 +47,16 @@ it.
 2. Same question **on the chart's own timeframe** (`time(timeframe.period)`) — is it exactly
    `time`, or can it differ at a session edge?
 3. With a **session argument** (`time(timeframe.period, "0930-1600")`) — `na` outside the
-   session, or the session's start time? This decides whether the 52 two-arg sites are a
+   session, or the session's start time? This decides whether the two-argument sites are a
    boolean test or an arithmetic one.
+   ⭐ **MEASURED, NOT TYPED — 54 sites across 13 scripts in `corpus/committed`**
+   (2026-09-11). ⚰️ This said **52**, which was right when it was written and had
+   drifted by two; a count typed beside the list it describes is this repo's most
+   repeated defect, so re-derive rather than trust the number:
+   scan each `.pine` for `time(` and keep the calls whose BALANCED-PAREN argument
+   split has exactly two non-empty top-level arguments — never a regex on commas,
+   because `time(timeframe.period, session.regular)` and a nested call both contain
+   them. (Two more sit in `tests/fixtures/pine_oos`, and two in our own probe.)
 4. Do `time(tf)` **comparisons** fold? A `time("D") != time("D")[1]` is the classic "new day"
    idiom and would be a cheap win — but only if (1) is `na`-free.
 

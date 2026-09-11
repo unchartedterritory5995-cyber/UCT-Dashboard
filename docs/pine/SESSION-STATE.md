@@ -162,7 +162,9 @@ apart. Browser work stopped there rather than hammering it.
 
 1. ⛔ **`r11-time-session.pine` IS UNREAD.** It is the last of item 7's three probes
    and the only one that needs an INTRADAY chart — `time(timeframe.period,
-   "0930-1600")`, the form the corpus's **52 two-argument sites** ride on. It decides
+   "0930-1600")`, the form the corpus's **54 two-argument sites** ride on (re-measured
+   2026-09-11 across 13 `corpus/committed` scripts; the **52** here had drifted by two
+   — derive it, see `r11-time-and-valuewhen.md`). It decides
    whether those sites are a BOOLEAN test or an ARITHMETIC one, and a compile refusal
    would itself be the answer. The probe is committed and the route is proven; it
    needs one add on a 5m chart.
@@ -274,10 +276,21 @@ is ONE root cause:
 
 **Should the barstate columns follow the VENDOR's three axes instead of our
 tri-state?** The switch is BUILT and OFF. `compute_clock` and its JS mirror both
-carry `BARSTATE_MODE_VENDOR`; both replay all six timeline rows exactly; the
-default is `calendar` and nothing member-facing selects the other.
+carry `BARSTATE_MODE_VENDOR`; both replay the timeline; the default is `calendar`
+and nothing member-facing selects the other.
 
-⭐ **What the vendor does**, measured 2026-09-10 on AMEX:SPY 1D: three INDEPENDENT
+⭐⭐ **AND IT NOW TAKES A THIRD INPUT — `dataset_live` / `opts.datasetLive`.**
+Row 7 (2026-09-10 23:57 ET) falsified the branch's hard-coded assumption that the
+newest bar is always the realtime one: the same daily bar that read isrealtime=1
+for seven and a half hours read **0** overnight, with `ishistory` 1 and
+`islastconfirmedhistory` landing ON the last bar. ⛔ The INSTANT is deliberately
+NOT in the engine — it is bracketed three hours wide with no proposed mechanism —
+so liveness arrives as an observation the caller makes, exactly as `confirmed`
+does. The cold row is replayed by a test that asserts BOTH that the clock alone
+gets it wrong and that the observation fixes it, so a later guess cannot quietly
+become a shipped instant.
+
+⭐ **What the vendor does**, measured 2026-09-10/11 on AMEX:SPY 1D: three INDEPENDENT
 axes — `isrealtime` is POSITION (the newest bar of a live dataset), `ishistory` its
 complement, `isconfirmed` is TIME (the closing update happened). Ours derives all
 three from one boolean, so `isconfirmed` is `1 - isrealtime` by construction and the
@@ -285,17 +298,32 @@ vendor's observed 1/1/0 is a state we cannot spell. In the post-confirm, pre-ope
 window a member reading the same bar sees **vendor 1/1/0 vs ours 0/1/1** — two of
 three columns disagree, both engines confident.
 
+⭐⭐ **THE FINDING THAT SETTLES THE SHAPE: the two axes move at DIFFERENT INSTANTS.**
+`isconfirmed` flipped in (19:22, 20:55) ET and `isrealtime` in (20:55, 23:57) ET —
+hours apart, on one bar, with three intervening page loads proving it is the clock
+and not the fetch. **No tri-state can express two flags that flip at different
+times.** So this is not a calibration difference between us and the vendor; it is a
+different NUMBER OF AXES, and that is now measured rather than argued.
+
 ⛔ **WHAT WOULD HAVE TO BE TRUE TO FLIP IT:**
 1. **The confirmation instant measured, not hypothesised.** All six rows establish
    is a 93-minute bracket, (19:22, 20:55) ET. `nyse_calendar.EXTENDED_CLOSE_HOUR`
    guesses 20:00 — the extended-hours close — and derives 17:00 for a half-day,
    which is a guess about a guess. **One row between 19:30 and 20:30 ET settles it.**
-2. **A pre-open row**, to see whether `isrealtime` ever drops before the next
-   session or stays 1 straight through.
+2. ✅ **A pre-open row — DONE, and the answer is that it DROPS.** Row 7, 23:57 ET,
+   in the overnight gap: `isrealtime` 0, `ishistory` 1. It does not stay 1 straight
+   through. ⭐ **But that replaced the question rather than closing it:** the flip is
+   bracketed (20:55, 23:57) ET — three hours — and unlike the confirmation instant
+   there is **no hypothesised mechanism for it at all**, not even a bad one. Rows
+   through 21:00–00:00 ET would close it.
 3. **An early-close day**, which is the only thing that tests the derived 17:00.
 4. **A decision about which is RIGHT FOR A SCREEN**, which is not the same question
    as which matches TradingView. Ours answers "is this bar's period over"; theirs
    answers "is this the live bar". A screener almost always means the first.
+5. ⭐ **AND NOW: where `dataset_live` would come from in production.** Vendor mode
+   needs to know whether the feed is still delivering, and this engine evaluates a
+   STATIC FETCH — there may be no honest answer to give it, which is itself an
+   argument for keeping `calendar`.
 
 ⚠️ Flipping it changes every barstate column a member can read, so it is a
 member-visible change, not a fix.
