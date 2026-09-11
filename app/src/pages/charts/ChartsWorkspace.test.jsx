@@ -133,10 +133,14 @@ function toolbarButton(name) {
 }
 
 /** Click a toolbar action wherever it currently lives. */
-function clickToolbar(name) {
+// ⚠️ AWAITED. Every board-REPLACING path (New Layout, UCT Default, opening a
+// template, a dock tab) is now async: it must FLUSH the outgoing board and confirm
+// the write was accepted before the destination is applied. A synchronous click
+// would assert on state one microtask too early.
+async function clickToolbar(name) {
   const btn = toolbarButton(name)
   expect(btn, `the toolbar offers nothing matching ${name}`).toBeTruthy()
-  act(() => { btn.click() })
+  await act(async () => { btn.click() })
   return btn
 }
 
@@ -233,12 +237,12 @@ test('first visit (no saved layout) applies the frozen UCT Default arrangement o
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
 })
 
-test('clicking "UCT Default" applies the frozen layout AND writes the frozen chart settings', () => {
+test('clicking "UCT Default" applies the frozen layout AND writes the frozen chart settings', async () => {
   // Start from a corrupted/empty board, then open the locked default.
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  clickToolbar(/open layout/i)
-  act(() => { headerButton(/^UCT Default$/).click() })
+  await clickToolbar(/open layout/i)
+  await act(async () => { headerButton(/^UCT Default$/).click() })
   // Frozen arrangement is on the board.
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
   expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
@@ -303,20 +307,20 @@ function expectEngineKeysFollowTheDefault(parsed) {
   expect(mergeChartSettings(JSON.stringify(parsed)).indicatorInstances).toEqual([])
 }
 
-test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
+test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', async () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  clickToolbar(/open layout/i)
-  act(() => { headerButton(/^UCT Default$/).click() })
+  await clickToolbar(/open layout/i)
+  await act(async () => { headerButton(/^UCT Default$/).click() })
   const parsed = persistedChartSettings()
   // Still the frozen capture in every respect it was actually a capture of.
   expect(parsed.header.titleMode).toBe('both')
   expectEngineKeysFollowTheDefault(parsed)
 })
 
-test('site #22: "New Layout" persists the same engine keys (it writes the same blob)', () => {
+test('site #22: "New Layout" persists the same engine keys (it writes the same blob)', async () => {
   renderWS()
-  clickToolbar(/new layout/i)
+  await clickToolbar(/new layout/i)
   expectEngineKeysFollowTheDefault(persistedChartSettings())
 })
 
@@ -403,11 +407,11 @@ test('site #22 is real: the FROZEN capture enumerates 15 indicator sections and 
   expect(themed, 'applyUctDefault no longer branches the chart canvas on the app theme').toHaveLength(1)
 })
 
-test('Save-as-template captures the current chart settings into the saved template', () => {
+test('Save-as-template captures the current chart settings into the saved template', async () => {
   const cs = { chartType: 'candles', header: { titleMode: 'both' }, theme: 'dark' }
   mockPrefs = { chart_settings: JSON.stringify(cs) }
   renderWS()
-  clickToolbar(/save layout/i)
+  await clickToolbar(/save layout/i)
   fireEvent.change(screen.getByPlaceholderText(/template name/i), { target: { value: 'My Setup' } })
   fireEvent.click(screen.getByRole('button', { name: /^Save template$/ }))
   expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
@@ -417,7 +421,7 @@ test('Save-as-template captures the current chart settings into the saved templa
   expect(payload.groups).toBeNull()                 // tickers never baked in
 })
 
-test('opening a My-layouts template restores its saved chart settings (not leaked into the layout blob)', () => {
+test('opening a My-layouts template restores its saved chart settings (not leaked into the layout blob)', async () => {
   const cs = { chartType: 'bars', header: { titleMode: 'company' }, theme: 'dark' }
   mockLayouts.mine = [{
     id: 42,
@@ -430,8 +434,8 @@ test('opening a My-layouts template restores its saved chart settings (not leake
   }]
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  clickToolbar(/open layout/i)
-  act(() => { headerButton(/^My Setup$/).click() })
+  await clickToolbar(/open layout/i)
+  await act(async () => { headerButton(/^My Setup$/).click() })
   // Arrangement applied.
   expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
   // Saved chart settings restored.
@@ -455,7 +459,7 @@ test('Save current arrangement updates the open custom template in place (arrang
     charts_active_template: JSON.stringify({ id: 42, name: 'My Setup', scope: 'user' }),
   }
   renderWS()
-  clickToolbar(/save layout/i)
+  await clickToolbar(/save layout/i)
   await act(async () => { screen.getByRole('button', { name: /save current arrangement/i }).click() })
   expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
   const payload = mockLayouts.saveLayout.mock.calls[0][0]
@@ -464,22 +468,22 @@ test('Save current arrangement updates the open custom template in place (arrang
   expect(payload.layout.chartSettings).toEqual({ chartType: 'bars' })
 })
 
-test('Save current arrangement does NOT touch any template when none is active', () => {
+test('Save current arrangement does NOT touch any template when none is active', async () => {
   mockLayouts.mine = [{ id: 42, name: 'My Setup', scope: 'user', layout: { widgets: [], cols: 24 } }]
   mockPrefs = {
     charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }),
     charts_active_template: 'null',
   }
   renderWS()
-  clickToolbar(/save layout/i)
+  await clickToolbar(/save layout/i)
   act(() => { screen.getByRole('button', { name: /save current arrangement/i }).click() })
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })
 
-test('deleting a layout asks to confirm; Go back cancels without deleting', () => {
+test('deleting a layout asks to confirm; Go back cancels without deleting', async () => {
   mockLayouts.mine = [{ id: 42, name: 'My Setup', scope: 'user', layout: { widgets: [], cols: 24 } }]
   renderWS()
-  clickToolbar(/open layout/i)
+  await clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: '✕' }).click() })
   expect(screen.getByText('Delete?')).toBeInTheDocument()
   act(() => { screen.getByRole('button', { name: /go back/i }).click() })
@@ -497,7 +501,7 @@ test('confirming delete of the OPEN layout deletes it and falls back to UCT Defa
     charts_active_template: JSON.stringify({ id: 42, name: 'My Setup', scope: 'user' }),
   }
   renderWS()
-  clickToolbar(/open layout/i)
+  await clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: '✕' }).click() })
   await act(async () => { screen.getByRole('button', { name: /^Yes$/ }).click() })
   expect(mockLayouts.deleteLayout).toHaveBeenCalledWith(42)
@@ -572,7 +576,7 @@ test('debounced save fires setPref after layout change', () => {
   )
 })
 
-test('New Layout wipes the board to empty and persists the blank state', () => {
+test('New Layout wipes the board to empty and persists the blank state', async () => {
   mockPrefs = {
     charts_workspace_layout: JSON.stringify({
       widgets: [{ id: 's1', type: 'scanner', color: 'C', x: 0, y: 0, w: 8, h: 10, opts: {} }],
@@ -581,7 +585,7 @@ test('New Layout wipes the board to empty and persists the blank state', () => {
   }
   renderWS()
   expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
-  clickToolbar(/new layout/i)
+  await clickToolbar(/new layout/i)
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
   expect(setPref).toHaveBeenCalledWith(
     'charts_workspace_layout',
@@ -594,10 +598,10 @@ test('New Layout wipes the board to empty and persists the blank state', () => {
   )
 })
 
-test('the toolbar opens the MultiChartMenu', () => {
+test('the toolbar opens the MultiChartMenu', async () => {
   renderWS()
   expect(screen.queryByTestId('multichart-menu')).not.toBeInTheDocument()
-  clickToolbar(/multi chart/i)
+  await clickToolbar(/multi chart/i)
   expect(screen.getByTestId('multichart-menu')).toBeInTheDocument()
 })
 
@@ -642,14 +646,14 @@ function popped(fake, type) {
   return fake.document.querySelector(`[data-testid="body-${type}"]`)
 }
 
-test('popping out the layout empties the main board and moves the widgets into the window', () => {
+test('popping out the layout empties the main board and moves the widgets into the window', async () => {
   const fake = makeFakeWindow()
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
   try {
     renderWS()
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
 
-    clickToolbar(/pop out layout/i)
+    await clickToolbar(/pop out layout/i)
 
     // Main goes back to a blank board, ready for the next layout.
     expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
@@ -661,12 +665,12 @@ test('popping out the layout empties the main board and moves the widgets into t
   } finally { openSpy.mockRestore() }
 })
 
-test('closing a popped-out layout docks its widgets back into the main board', () => {
+test('closing a popped-out layout docks its widgets back into the main board', async () => {
   const fake = makeFakeWindow()
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
   try {
     renderWS()
-    clickToolbar(/pop out layout/i)
+    await clickToolbar(/pop out layout/i)
     expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
 
     act(() => { fake._fire('beforeunload') })
@@ -676,13 +680,13 @@ test('closing a popped-out layout docks its widgets back into the main board', (
   } finally { openSpy.mockRestore() }
 })
 
-test('a blocked popup leaves the board intact instead of losing the layout', () => {
+test('a blocked popup leaves the board intact instead of losing the layout', async () => {
   // window.open returns null when blocked. Without the dock-on-blocked path the
   // widgets would have been cleared off main with nowhere to have gone.
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
   try {
     renderWS()
-    clickToolbar(/pop out layout/i)
+    await clickToolbar(/pop out layout/i)
 
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(/blocked/i)
@@ -695,17 +699,17 @@ test('pop out layout is disabled while the board is empty', () => {
   expect(toolbarButton(/pop out layout/i)).toBeDisabled()
 })
 
-test('a popped-out layout is not disturbed by opening a different layout on the main tab', () => {
+test('a popped-out layout is not disturbed by opening a different layout on the main tab', async () => {
   const fake = makeFakeWindow()
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
   try {
     renderWS()
-    clickToolbar(/pop out layout/i)
+    await clickToolbar(/pop out layout/i)
     expect(popped(fake, 'chart')).toBeTruthy()
 
     // Load a fresh layout into the now-blank main tab.
-    clickToolbar(/open layout/i)
-    act(() => { headerButton(/^UCT Default$/).click() })
+    await clickToolbar(/open layout/i)
+    await act(async () => { headerButton(/^UCT Default$/).click() })
 
     // Main has its own board again...
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
@@ -781,7 +785,7 @@ function dockButton(name) {
 // the board cancelled the pending write instead of completing it. Every path
 // that replaces the board must flush first — timing must not decide whether an
 // edit survives.
-test('switching away flushes the pending auto-save into the layout you are leaving', () => {
+test('switching away flushes the pending auto-save into the layout you are leaving', async () => {
   const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
   mockPrefs = {
     charts_workspace_layout: JSON.stringify(board),
@@ -802,7 +806,7 @@ test('switching away flushes the pending auto-save into the layout you are leavi
 
   const target = dockButton('Breadth')
   expect(target, 'the dock should offer Breadth').toBeTruthy()
-  act(() => { target.click() })
+  await act(async () => { target.click() })
 
   // Flushed into the layout we LEFT — by name, since upsert is keyed on it —
   // and carrying the widget that was on screen.
@@ -814,7 +818,7 @@ test('switching away flushes the pending auto-save into the layout you are leavi
 })
 
 // The mirror of the above: a CLEAN board must not be written on every switch.
-test('switching away from an unchanged layout writes nothing', () => {
+test('switching away from an unchanged layout writes nothing', async () => {
   const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
   mockPrefs = {
     charts_workspace_layout: JSON.stringify(board),
@@ -831,12 +835,12 @@ test('switching away from an unchanged layout writes nothing', () => {
     deleteLayout: vi.fn(async () => {}),
   }
   renderWS()
-  act(() => { dockButton('Breadth').click() })
+  await act(async () => { dockButton('Breadth').click() })
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })
 
 // A prebuilt row is what every member sees — it must never be auto-written.
-test('leaving a prebuilt layout never writes to it, however dirty the board is', () => {
+test('leaving a prebuilt layout never writes to it, however dirty the board is', async () => {
   const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
   mockPrefs = {
     charts_workspace_layout: JSON.stringify(board),
@@ -850,7 +854,7 @@ test('leaving a prebuilt layout never writes to it, however dirty the board is',
     deleteLayout: vi.fn(async () => {}),
   }
   renderWS()
-  act(() => { dockButton('Breadth').click() })
+  await act(async () => { dockButton('Breadth').click() })
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })
 
@@ -867,7 +871,7 @@ test('leaving a prebuilt layout never writes to it, however dirty the board is',
 // is not written unless the user actually closed one. Auto-save turns any
 // transient bad board into permanent loss, so the failure direction must be
 // "we did not save", never "we saved the damage".
-test('auto-save refuses to shrink a layout the user did not shrink', () => {
+test('auto-save refuses to shrink a layout the user did not shrink', async () => {
   const stored = {
     widgets: [
       { i: 'w1', id: 'w1', type: 'calendar', x: 0, y: 0, w: 12, h: 10 },
@@ -895,12 +899,12 @@ test('auto-save refuses to shrink a layout the user did not shrink', () => {
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 
   // ...and switching away must not launder it through the flush either.
-  act(() => { dockButton('Breadth').click() })
+  await act(async () => { dockButton('Breadth').click() })
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })
 
 // The guard must not block ordinary work: a board that GAINED a widget saves.
-test('auto-save still persists a board that grew', () => {
+test('auto-save still persists a board that grew', async () => {
   const stored = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
   const grown = { widgets: [stored.widgets[0], { i: 'w2', id: 'w2', type: 'calendar', x: 12, y: 0, w: 12, h: 10 }], cols: 24 }
   mockPrefs = {
@@ -918,8 +922,143 @@ test('auto-save still persists a board that grew', () => {
     deleteLayout: vi.fn(async () => {}),
   }
   renderWS()
-  act(() => { dockButton('Breadth').click() })
+  await act(async () => { dockButton('Breadth').click() })
   expect(mockLayouts.saveLayout).toHaveBeenCalledWith(expect.objectContaining({ name: 'Calendar' }))
   const saved = mockLayouts.saveLayout.mock.calls.at(-1)[0]
   expect(saved.layout.widgets.map(w => w.id).sort()).toEqual(['w1', 'w2'])
+})
+
+// ─── WORKSPACE STATE INTEGRITY (2026-09-11) ─────────────────────────────────
+//
+// ⚰️ THE LOSS. The flush above was real and correctly placed, and it was gated on
+// `dockDirty` — which is `arrangementSig`, GEOMETRY ONLY. A chart-settings edit
+// moves no geometry, so the board was never "dirty", the flush was a NO-OP, and
+// `applyTemplate` then overwrote the live working copy with the destination's
+// board. Three custom Info Row formulas, an RSI period, a derived Moving Average
+// and a chart theme went with it. The test above passed throughout, because it
+// changed GEOMETRY — which is precisely the blind spot.
+//
+// A chart's settings live in `widget.opts.settings`, so "edited but not yet in the
+// template" is modelled exactly by a board whose opts differ from the stored row.
+
+const SETTINGS_BOARD = (background, extra = {}) => ({
+  widgets: [{
+    i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10,
+    opts: { tf: '1D', settings: { background, ...extra } },
+  }],
+  cols: 24,
+})
+
+function seedTwoLayouts(liveBoard, storedBoard, { saveLayout } = {}) {
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(liveBoard),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Main Trading', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Main Trading', scope: 'user', layout: storedBoard },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+      { id: 3, name: 'Swing', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: saveLayout || vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+}
+
+test('⚰️ a SETTINGS-ONLY edit survives a tab switch (the state that was lost)', async () => {
+  // Geometry identical on both sides — only the chart theme differs.
+  seedTwoLayouts(SETTINGS_BOARD('#f3efe4'), SETTINGS_BOARD('#0a0a0a'))
+  renderWS()
+  await act(async () => { dockButton('Breadth').click() })
+
+  expect(mockLayouts.saveLayout, 'the outgoing board must be flushed').toHaveBeenCalledTimes(1)
+  const flushed = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(flushed.name).toBe('Main Trading')
+  expect(flushed.layout.widgets[0].opts.settings.background).toBe('#f3efe4')
+})
+
+test('⚰️ an added Info Row formula survives a tab switch', async () => {
+  const withField = SETTINGS_BOARD('#0a0a0a', {
+    header: {
+      fields: ['mcap', 'info:a:1'],
+      infoFormulas: [{ id: 'info:a:1', label: 'ADR', formula: 'sma((high - low) / close, 21) * 100', decimals: 2 }],
+    },
+  })
+  seedTwoLayouts(withField, SETTINGS_BOARD('#0a0a0a', { header: { fields: ['mcap'], infoFormulas: [] } }))
+  renderWS()
+  await act(async () => { dockButton('Breadth').click() })
+
+  const flushed = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(flushed.layout.widgets[0].opts.settings.header.infoFormulas).toHaveLength(1)
+  expect(flushed.layout.widgets[0].opts.settings.header.infoFormulas[0].label).toBe('ADR')
+})
+
+test('⚰️ a changed indicator period survives a tab switch', async () => {
+  const inst = (period) => ({ indicatorInstances: [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period } }] })
+  seedTwoLayouts(SETTINGS_BOARD('#0a0a0a', inst(28)), SETTINGS_BOARD('#0a0a0a', inst(14)))
+  renderWS()
+  await act(async () => { dockButton('Breadth').click() })
+
+  const flushed = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(flushed.layout.widgets[0].opts.settings.indicatorInstances[0].inputs.period).toBe(28)
+})
+
+test('⛔ a FAILED flush keeps you on the current tab — it never navigates and hopes', async () => {
+  const saveLayout = vi.fn(async () => { throw new Error('network down') })
+  seedTwoLayouts(SETTINGS_BOARD('#f3efe4'), SETTINGS_BOARD('#0a0a0a'), { saveLayout })
+  renderWS()
+  await act(async () => { dockButton('Breadth').click() })
+
+  expect(saveLayout).toHaveBeenCalledTimes(1)
+  // The destination was NOT applied: no new active template was written.
+  const wroteActive = setPref.mock.calls.some(([k]) => k === 'charts_active_template')
+  expect(wroteActive, 'a failed flush must not switch the active template').toBe(false)
+  // …and the member is told, inline.
+  expect(screen.getByRole('alert').textContent).toMatch(/could not save/i)
+})
+
+test('⭐ rapid A → B → C switching flushes once per REAL change, not once per click', async () => {
+  seedTwoLayouts(SETTINGS_BOARD('#f3efe4'), SETTINGS_BOARD('#0a0a0a'))
+  renderWS()
+
+  await act(async () => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)   // Main Trading was dirty
+
+  // Breadth is empty and untouched; leaving it writes nothing.
+  await act(async () => { dockButton('Swing').click() })
+  expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
+
+  await act(async () => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout, 'no churn on unchanged boards').toHaveBeenCalledTimes(1)
+})
+
+test('⛔ the destination board is never written into the SOURCE layout', async () => {
+  seedTwoLayouts(SETTINGS_BOARD('#f3efe4'), SETTINGS_BOARD('#0a0a0a'))
+  renderWS()
+  await act(async () => { dockButton('Breadth').click() })
+
+  // One write, and it names the layout we LEFT, carrying the board we left with —
+  // not the empty Breadth board that replaced it.
+  expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
+  const flushed = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(flushed.name).toBe('Main Trading')
+  expect(flushed.layout.widgets).toHaveLength(1)
+})
+
+test('⛔ a SHRUNK board is still never auto-written, settings edit or not', async () => {
+  // Live board has one widget; the stored layout has two, and nothing was closed
+  // by hand — the pre-existing guard against persisting a bad load.
+  const stored = {
+    widgets: [
+      { i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10, opts: { settings: { background: '#0a0a0a' } } },
+      { i: 'w2', id: 'w2', type: 'watchlist', x: 12, y: 0, w: 6, h: 10, opts: {} },
+    ],
+    cols: 24,
+  }
+  seedTwoLayouts(SETTINGS_BOARD('#f3efe4'), stored)
+  renderWS()
+  await act(async () => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })

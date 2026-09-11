@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
 import LayoutDock from './LayoutDock'
-import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
+import { UCT_DEFAULT_ID, arrangementSig, fullStateSig } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -1707,7 +1707,15 @@ export default function ChartsWorkspace() {
   // gone, or the edit is lost. That is exactly what "added a widget, switched two
   // seconds later, came back and it was missing" was.
   const flushNamedSaveRef = useRef(null)
+  /** The `fullStateSig` of the last board this session actually persisted (or
+   *  applied from a template). The flush compares against THIS rather than against
+   *  the stored template, so a normalising round-trip is not mistaken for an edit. */
+  const lastFlushedSigRef = useRef(null)
 
+  /** A switch that could not persist the OUTGOING board. Shown in the dock rail;
+   *  cleared by the next successful switch. ⛔ Not a modal — this product autosaves,
+   *  and a dialog on every switch would paper over the ordering rather than fix it. */
+  const [switchErr, setSwitchErr] = useState('')
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -1715,9 +1723,19 @@ export default function ChartsWorkspace() {
   // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
   // tickers) and persist so it sticks across refreshes. Runs through parseLayout
   // so any older-shaped template is normalized to the current grid.
-  const applyTemplate = useCallback((tpl) => {
+  const applyTemplate = useCallback(async (tpl) => {
     if (!tpl?.layout?.widgets) return
-    flushNamedSaveRef.current?.()
+    // ⛔⛔ AWAITED, AND IT CAN REFUSE. The flush used to be fired and forgotten:
+    // the POST for the OUTGOING board was still in flight while the board it
+    // belonged to was replaced, and a failure was swallowed. If the outgoing state
+    // could not be persisted we stay where we are and say so — navigating away and
+    // hoping is how state is lost.
+    const flushed = await flushNamedSaveRef.current?.()
+    if (flushed && flushed.ok === false) {
+      setSwitchErr(`Could not save this layout — ${flushed.error}. Staying here so nothing is lost.`)
+      return
+    }
+    setSwitchErr('')
     userRemovedRef.current = false
     suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
@@ -1777,6 +1795,10 @@ export default function ChartsWorkspace() {
     // can update THIS template in place with later edits. Persisted so the link
     // survives a refresh.
     setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
+    // ⭐ THE DESTINATION IS NOW WHAT WE LAST "WROTE". Without this the very next
+    // switch would flush a board nobody had edited — the churn the test matrix's
+    // case 12 forbids.
+    lastFlushedSigRef.current = fullStateSig(boardLayout)
     setOpenMenuOpen(false)
     flashSaved()
   }, [setPref, setChartsTheme, flashSaved, suppressAutoSave])
@@ -1787,12 +1809,20 @@ export default function ChartsWorkspace() {
   // back, so this is the immutable restore point — any edits the user made are
   // wiped by re-opening it. Color-group tickers are left as-is (Option A: content
   // loads live/personal, only the shell + settings are frozen).
-  const applyUctDefault = useCallback(() => {
-    flushNamedSaveRef.current?.()
+  const applyUctDefault = useCallback(async () => {
+    // ⛔ SAME RULE AS `applyTemplate` — this REPLACES the board, so the outgoing
+    // one must be safely persisted first, and a failure keeps us where we are.
+    const flushed = await flushNamedSaveRef.current?.()
+    if (flushed && flushed.ok === false) {
+      setSwitchErr(`Could not save this layout — ${flushed.error}. Staying here so nothing is lost.`)
+      return
+    }
+    setSwitchErr('')
     userRemovedRef.current = false
     suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
+    lastFlushedSigRef.current = fullStateSig(normalized)
     setPref('charts_workspace_layout', JSON.stringify(normalized))
     // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
     // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
@@ -1851,11 +1881,18 @@ export default function ChartsWorkspace() {
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
   // so a returning user stays on the blank board until they add a widget or open a
   // saved layout. (Named/saved layouts are untouched — only the working board is.)
-  const handleNewLayout = useCallback(() => {
-    flushNamedSaveRef.current?.()
+  const handleNewLayout = useCallback(async () => {
+    // ⛔ SAME RULE AGAIN: blanking the board is a replacement like any other.
+    const flushed = await flushNamedSaveRef.current?.()
+    if (flushed && flushed.ok === false) {
+      setSwitchErr(`Could not save this layout — ${flushed.error}. Staying here so nothing is lost.`)
+      return
+    }
+    setSwitchErr('')
     suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
     setLayout(blank)
+    lastFlushedSigRef.current = fullStateSig(blank)
     setPref('charts_workspace_layout', JSON.stringify(blank))
     const g = { A: null, B: null, C: null, D: null }
     setGroupSymsState(g)
@@ -1938,10 +1975,21 @@ export default function ChartsWorkspace() {
         const watchlistColumns = readWatchlistColumns()
         try {
           await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
-        } catch { /* surfaced by SWR revalidate */ }
+        } catch (err) {
+          // ⛔⛔ A FAILED SAVE IS NO LONGER SILENT. It used to be swallowed here
+          // ("surfaced by SWR revalidate"), which meant a switch-away flush could
+          // fail and the destination template would be applied anyway — over state
+          // that had just failed to persist. The caller decides what to do; the
+          // only thing forbidden is carrying on as though it had worked.
+          return { ok: false, error: (err && err.message) || 'Save failed' }
+        }
       }
     }
+    // ⭐ THE SIGNATURE OF WHAT WE JUST WROTE — the flush compares against this,
+    // never against the stored template (see `fullStateSig`).
+    lastFlushedSigRef.current = fullStateSig(layout)
     flashSaved()
+    return { ok: true }
   }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
@@ -2138,6 +2186,9 @@ export default function ChartsWorkspace() {
     const stored = parseLayout(tpl.layout) || tpl.layout
     return {
       dirty: arrangementSig(layout) !== arrangementSig(stored),
+      // ⭐ The FULL signature of what the template holds — the flush's baseline.
+      // Separate from `dirty` on purpose: see `fullStateSig`.
+      storedFullSig: fullStateSig(stored),
       // Fewer widgets on screen than the layout is stored with. Either you just
       // closed one — or the board was not fully there when we looked.
       shrunk: (layout.widgets?.length || 0) < (stored.widgets?.length || 0),
@@ -2184,12 +2235,53 @@ export default function ChartsWorkspace() {
   const shrinkBlocked = !!dockCompare?.shrunk && !userRemovedRef.current
   const autoSaveOk = autoSaveReady && dockAutoSaves && dockDirty && !shrinkBlocked
 
-  const runNamedSave = useCallback(() => {
-    namedSaveRef.current?.()
+  const runNamedSave = useCallback(async () => {
+    const res = await namedSaveRef.current?.()
     userRemovedRef.current = false
+    return res || { ok: true }
   }, [])
 
-  flushNamedSaveRef.current = () => { if (autoSaveOk) runNamedSave() }
+  // ⛔⛔ THE FLUSH GATE IS DELIBERATELY NOT `autoSaveOk`. That predicate carries
+  // `dockDirty`, which is ARRANGEMENT-ONLY by design (see `arrangementSig`'s note:
+  // a false dirty lights the dot on a board nobody touched). Gating the flush on it
+  // meant a chart-settings edit — which moves no geometry — left the board "clean",
+  // so the flush was a NO-OP and `applyTemplate` then overwrote the live working
+  // copy with the destination template. That is how three Info Row formulas, an RSI
+  // period, a derived MA and a chart theme were lost on 2026-09-11.
+  //
+  // ⭐ The dot stays narrow; the flush is wide. `fullStateSig` includes every
+  // widget's `opts`, and it is compared against the LAST THING WE ACTUALLY WROTE,
+  // so a load that merely normalises the blob does not look like a change.
+  //
+  // ⛔ The two hard gates survive untouched: nothing is written before the board
+  // has hydrated, and a SHRUNK board is still never auto-written.
+  // ⭐⭐ THE BASELINE IS THE STORED TEMPLATE, until this session writes something.
+  //
+  // ⛔ NOT THE BOARD. Seeding from the board would recreate this very bug one
+  // session later: the working copy can already differ from the template — that is
+  // exactly the state that was lost, three Info Row formulas that lived in the
+  // working copy and had never reached the template — and calling that "already
+  // flushed" would mean the next switch wrote nothing again.
+  //
+  // ⚠️ The obvious objection is drift: a template blob is normalised on the way
+  // through, so comparing against it could report a difference on a board nobody
+  // touched. MEASURED against the real stored rows — template and working copy
+  // produced IDENTICAL 4,703-character signatures — so the round trip is stable. If
+  // it ever drifts the cost is one redundant save, not a lost edit.
+  //
+  // ⛔ DERIVED, NOT SEEDED IN AN EFFECT. A first attempt seeded the ref from an
+  // effect gated on `autoSaveReady`, which depends on `loadedFromPrefsRef` — a REF,
+  // whose mutation triggers no re-render, so the effect could miss its window and
+  // leave the baseline null (which reads as "everything is unflushed" and writes on
+  // every switch). Deriving it each render has no such ordering hazard.
+  const baselineSig = lastFlushedSigRef.current ?? dockCompare?.storedFullSig ?? null
+
+  const flushNeeded = autoSaveReady
+    && dockAutoSaves
+    && !shrinkBlocked
+    && baselineSig !== null
+    && fullStateSig(layout) !== baselineSig
+  flushNamedSaveRef.current = async () => (flushNeeded ? runNamedSave() : { ok: true })
 
   // Persist the arrangement into the open layout shortly after it settles.
   //
@@ -2220,6 +2312,10 @@ export default function ChartsWorkspace() {
   }, [dirtySig])
 
   // Leaving /charts entirely (SPA nav, tab close) is a switch too.
+  // ⚠️ AND IT IS THE ONE PATH THAT CANNOT AWAIT — a cleanup function has nowhere
+  // to put a promise and nothing to show a failure on. It now at least FIRES for a
+  // settings-only edit (the widened gate above), where before it was a no-op; the
+  // request is in flight as the component goes, which is the best an unmount can do.
   useEffect(() => () => { flushNamedSaveRef.current?.() }, [])
 
   // Duplicate — the COPY is made from what is STORED for that layout, not from
@@ -2739,6 +2835,16 @@ export default function ChartsWorkspace() {
             sibling of <main>, so the ResizeObserver on .workspaceBody re-tiles
             the grid for its 29px on its own — no layout math changes. Desktop
             only by construction: the phone returns above this. */}
+        {/* ⛔ A SWITCH THAT COULD NOT SAVE THE OUTGOING BOARD. Inline, above the
+            dock, not a modal: this product autosaves, and a dialog on every switch
+            would hide the ordering bug rather than fix it. It appears only when a
+            save actually failed — the tab did not change, so nothing was lost. */}
+        {switchErr && (
+          <div role="alert" className={styles.switchErr}>
+            {switchErr}
+            <button type="button" onClick={() => setSwitchErr('')} aria-label="Dismiss">✕</button>
+          </div>
+        )}
         <LayoutDock
           entries={dockEntries}
           activeId={dockActiveId}

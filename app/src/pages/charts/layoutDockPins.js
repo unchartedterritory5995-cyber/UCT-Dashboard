@@ -104,3 +104,47 @@ export function arrangementSig(layout) {
     .sort()
   return `${layout?.cols ?? ''}|${parts.join('|')}`
 }
+
+/**
+ * A stable signature of EVERYTHING a save would write — arrangement AND each
+ * widget's own `opts` (chart settings, indicator instances, conditions, the Info
+ * Row's formulas, the theme, the timeframe).
+ *
+ * ⛔⛔ THIS EXISTS BECAUSE ONE PREDICATE WAS SERVING TWO PURPOSES WITH OPPOSITE
+ * RISK. `arrangementSig` gates the dock's unsaved dot, where a FALSE POSITIVE is
+ * the expensive mistake — it lights on a board nobody touched. It also gated the
+ * FLUSH-BEFORE-SWITCH, where a FALSE NEGATIVE is the expensive mistake, and that
+ * one is not annoying, it is data loss: a chart-settings edit moves no geometry,
+ * so the board was never "dirty", the flush was a no-op, and the destination
+ * template then overwrote the live working copy. Measured 2026-09-11: three custom
+ * Info Row formulas, an RSI period, a derived Moving Average and a chart theme,
+ * gone on a tab click.
+ *
+ * ⭐ THE TWO PREDICATES NOW DIVERGE ON PURPOSE. The dot stays conservative and
+ * narrow; the flush is permissive and wide, because "saved something that had not
+ * changed" costs one request and "did not save something that had" costs the
+ * member's work.
+ *
+ * ⚠️ AND IT IS COMPARED AGAINST WHAT WE LAST WROTE, never against the stored
+ * template. The blob a template round-trips through is normalised and
+ * theme-resolved, so comparing to it would report a difference on every load —
+ * the very false-positive `arrangementSig`'s own note warns about. Comparing to
+ * the last thing this session actually persisted has no such drift.
+ *
+ * Key order is normalised so an object rebuilt with the same content hashes the
+ * same — React state is recreated constantly and JSON key order follows insertion.
+ */
+function stable(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value ?? null)
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
+  const keys = Object.keys(value).sort()
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stable(value[k])}`).join(',')}}`
+}
+
+export function fullStateSig(layout) {
+  const widgets = Array.isArray(layout?.widgets) ? layout.widgets : []
+  const parts = widgets
+    .map(w => `${w.id}:${w.type}:${w.x ?? 0},${w.y ?? 0},${w.w ?? 0},${w.h ?? 0}:${stable(w.opts)}:${w.color ?? ''}`)
+    .sort()
+  return `${layout?.cols ?? ''}|${parts.join('|')}`
+}
