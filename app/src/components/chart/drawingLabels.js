@@ -89,6 +89,82 @@ export function formatPrice(value, { tick = null, maxDecimals = 6 } = {}) {
 }
 
 /**
+ * ─── the tick table ─────────────────────────────────────────────────────────
+ *
+ * The minimum price increment, by price. It lives HERE, beside `formatPrice`, because this is
+ * already the one place in the app that knows how a price is rendered — `formatPrice` has taken a
+ * `tick` since it was written and nothing ever computed one, so every caller fell through to the
+ * magnitude branch and every price input in the app stepped by a cent (deferred D-31).
+ *
+ * ⛔ NEVER A CALLER-SIDE SCALING HACK (owner ruling, A2). A second opinion about what a price step
+ * means, living in a gesture handler, would be invisible: a wrong step still produces a plausible
+ * number. Callers ASK; they do not decide.
+ *
+ * The rule is Reg NMS Rule 612 — the sub-penny rule — which is the actual regulation this app's
+ * instruments quote under: $0.01 at or above $1.00, $0.0001 below it. So a $0.30 name stops
+ * getting cent granularity that is coarse relative to its spread.
+ *
+ * ⚠️ WHAT THIS TABLE DELIBERATELY DOES NOT MODEL, stated rather than guessed:
+ *   • The 2024 Rule 612 amendment's $0.005 tier applies to "tick-constrained" stocks named by a
+ *     periodic SEC designation — a per-SYMBOL fact, not a function of price. Inferring it from
+ *     price would be inventing a rule, which is the defect this row exists to prevent.
+ *   • Futures/FX per-contract ticks. This app charts US equities and ETFs; `priceFormatterFor`
+ *     already prefers the SERIES' own `priceFormat` wherever a chart knows better than we do.
+ * A caller that genuinely knows an instrument's tick should pass it, exactly as before.
+ *
+ * Ordered low bound first; `below: null` is the open top.
+ */
+export const TICK_TABLE = Object.freeze([
+  Object.freeze({ below: 1, tick: 0.0001 }),
+  Object.freeze({ below: null, tick: 0.01 }),
+])
+
+/** The step for a caller with no price at all. The table's top row, never a restated literal. */
+export const DEFAULT_TICK = TICK_TABLE[TICK_TABLE.length - 1].tick
+
+/**
+ * The minimum increment for a price.
+ *
+ * Reads the magnitude, so a short position quoted negative and a long one answer the same.
+ * Returns `DEFAULT_TICK` for anything that is not a usable price — a missing price must not
+ * silently become a sub-penny step.
+ *
+ * @param {*} price
+ * @returns {number} a positive tick from TICK_TABLE
+ */
+export function tickSizeFor(price) {
+  const v = Number(price)
+  if (!Number.isFinite(v) || price === null || price === undefined || price === '') return DEFAULT_TICK
+  const a = Math.abs(v)
+  for (const row of TICK_TABLE) {
+    if (row.below === null || a < row.below) return row.tick
+  }
+  return DEFAULT_TICK
+}
+
+/**
+ * Snap a value onto a tick, at the tick's own precision.
+ *
+ * ⭐ The decimal count comes from the tick the SAME way `formatPrice` derives it, so the number a
+ * caller stores and the string this module renders can never disagree about precision. Scaling by
+ * `1 / tick` instead would reintroduce the float artefact the callers' own `round2` exists to
+ * kill (178.10000000000002).
+ *
+ * @param {*} value
+ * @param {number} [tick]
+ * @returns {number|null} null when `value` is not a number
+ */
+export function roundToTick(value, tick = DEFAULT_TICK) {
+  if (value === null || value === undefined || value === '') return null
+  const v = Number(value)
+  if (!Number.isFinite(v)) return null
+  const t = Number.isFinite(Number(tick)) && Number(tick) > 0 ? Number(tick) : DEFAULT_TICK
+  const dp = Math.max(0, Math.ceil(-Math.log10(t) - 1e-9))
+  const scale = 10 ** dp
+  return Math.round((v + Number.EPSILON) * scale) / scale
+}
+
+/**
  * The price formatter to use for a label — the SERIES' own if it has one.
  *
  * ⭐ THE CHART ALREADY KNOWS THE INSTRUMENT'S PRECISION AND WE SHOULD NOT GUESS
