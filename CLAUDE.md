@@ -623,7 +623,7 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 
 Shown at ≤1024px (desktop uses the left `NavBar`). ONE piece in `Layout.jsx`:
 - **`MobileNav` top bar** — fixed header: top-left menu button + page title + movers shortcut + `AlertBell`. The menu button opens **`MoreSheet`** — the SINGLE comprehensive directory (sectioned Core/Markets/Trading/Help/Account, identity header, free/paid/admin gating, active-route highlight, Compass badge).
-- ⚰️ **`MobileTabBar` (bottom) was REMOVED 2026-09-01** (owner call: it duplicated the top-left menu route-for-route, and its 58px belonged to the chart). Its `--mobile-tabbar-h` token is gone from tokens.css and guarded against resurrection by `pages/charts/mobileShellHeight.test.js`; `navGroups.js` (the shared route taxonomy it derived from) lives on for NavBar + the route rail. On the phone chart shell — where the top bar also hides — the app-menu door is the **Menu button in the chart symbol strip** (`MobileSymbolStrip`, via `MoreSheetContext`). The old side drawer was removed 2026-06-19 for the same reason: one menu (`MoreSheet`), and every trigger opens THAT — don't reintroduce a second nav surface.
+- ⚰️ **`MobileTabBar` (bottom) was REMOVED 2026-09-01** (owner call: it duplicated the top-left menu route-for-route, and its 58px belonged to the chart). Its `--mobile-tabbar-h` token is gone from tokens.css and guarded against resurrection by `pages/charts/mobileShellHeight.test.js`; `navGroups.js` (the shared route taxonomy it derived from) lives on for NavBar + the route rail. On the phone chart shell — where the top bar also hides — the app-menu door is the **Menu button in the chart symbol strip** (`MobileSymbolStrip`, via `MoreSheetContext`). **The gold timeframe pill is the strip's far-RIGHT control** (moved up from the bottom toolbar 2026-09-11, owner call — that bottom row is being freed for shortcut tools; `MobileChartToolbar` now carries four doors and must not grow a second timeframe door; rail `pages/charts/mobile/tfDoor.wire.test.jsx`). The old side drawer was removed 2026-06-19 for the same reason: one menu (`MoreSheet`), and every trigger opens THAT — don't reintroduce a second nav surface.
 
 ### Floating buttons (FABs)
 The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedback "?" (`FeedbackWidget.jsx`, bottom-left) are `position:fixed` just above the bottom safe area (they stepped down when the tab bar was removed). Both **auto-hide on scroll-down** via `hooks/useHideOnScroll.js` and restore on scroll-up / near-top / ~1.4s idle. The orb stays put during a live call or drag; the feedback button stays put while its menu is open.
@@ -1135,6 +1135,13 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Read-only on: Breadth DrillModal, Journal TradeDrawer (contextual, symbol locked)
 - **Flag button** (⚑ Flag/Flagged) on: ThemeTrackerPage, Watchlists, CustomScan, Breadth DrillModal, TickerPopup
 - **Period tabs**: 5min / 30min / 1hr / Daily / Weekly (Journal: Daily/Weekly only)
+- **The "Pre"/"Post" word is a DOM chip ON the price scale (2026-09-11)**, stacked
+  directly above the orange ext price label (`sessionExtChipRef` + a rAF glue loop in
+  `StockChart.jsx`; rail `StockChart.sessionExtChip.test.jsx`). ⛔ Do not put it back
+  as the price line's `title` — lightweight-charts draws a title on the PANE, hugging
+  the axis from the left, and on a phone it sat over the newest candles. The session
+  tag applier blanks `title` for `_sessionTag === 'ext'` on purpose. (`ChartRender`'s
+  `?exttag=` bot path still passes a titled line through `priceLines` — different door.)
 - **TickerPopup**: click-to-open modal with StockChart, live price, flag, earnings intel, insider activity. NO Finviz hover preview, NO external links. ⚰️ This also claimed a **position calculator** — `components/PositionCalc.jsx` has zero importers and `TickerPopup.jsx` contains no calculator (see *⚰️ DOCUMENTED BUT UNREACHABLE*).
 
 ## Live Pricing
@@ -1480,6 +1487,48 @@ about whether a human ever saw the sentence.
 it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible/hidden branch,
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
+
+### ⛔ Registering a hub mode must never re-render the registrant — the 2026-09-10 navigation freeze
+
+> **A `useHubMode` config is memoized by its caller on the values it is built from, and the hook
+> reads its registrar from `HubRegistrarContext`, never from `useHub()`.**
+
+The night §3.6 Catalysts went live (`80a520cb3`), clicking any nav entry on `/dashboard` changed
+the URL and left the screen where it was; only a hard refresh recovered. Measured: Dashboard
+rendered 0/sec, the hub-owning `CatalystTable` ~4,500/sec. A passive-effect loop — React never
+throws "Maximum update depth" for one — starved React Router's transition commit, and the member
+was held on the exact page that was looping, which is why it read as app-wide.
+
+The chain: `useHubCursor` returned a fresh object every render → `catalystsSection`'s config
+memo was keyed on that object → `useHubMode` re-registered → `setPageModeConfig` changed the hub
+context value → the tile, a context consumer THROUGH `useHubMode`, re-rendered. A second leg:
+while the catalysts fetch was pending, `data?.rows || []` manufactured a new array per render, so
+the loop began on the first mount, before the API had answered at all.
+
+⚰️ It was filed as *"only when the catalysts API returns no data."* Measured under the real
+`HubProvider`, the owning tile never settled with a healthy payload, a 401, a network error OR a
+still-pending request — the API state was a coincidence of when it was noticed. And
+`useHubMode`'s own docstring asserted a fresh config per render *"costs one setState … and
+correctness never depends on it."* It was the loop.
+
+Four fixes, four rails, each mutation-proved by reverting exactly that fix:
+- `useHubCursor` returns a memoized object (`hubRegistrarLoop.test.jsx`);
+- `useHubMode` reads a SEPARATE, never-changing registrar context, so registering cannot
+  re-render the registrant — a per-render config is now wasteful, not fatal (same file);
+- `catalystsSection` keys its config on the cursor's stable parts, and `CatalystTable` derives
+  `allRows` from a frozen constant (`CatalystTable.renderLoop.test.jsx` renders the REAL tile under
+  the REAL provider across all four API states and asserts the render count stays bounded — the
+  section's unit tests stub the cursor and the Dashboard tests mock the tile, so neither could see it);
+- `Dashboard.jsx` prunes the hero out of whichever branch the stylesheet hides
+  (`useCssDisplayed`, measured from computed style, never a second breakpoint literal), so the
+  tile mounts ONCE in a browser and hub ownership follows the visible copy — the old
+  "mobile copy owns it" rule handed the hub to a `display:none` tree on every tablet
+  (`Dashboard.heroMount.test.jsx`). jsdom applies no CSS, so tests still see both branches.
+
+⭐ ESLint had already named the second leg at HEAD — *"the `allRows` logical expression could make
+the dependencies of useMemo change on every render"* — in a file whose pre-existing
+`rules-of-hooks` errors made one more red line invisible. A lint finding on a file you touch is a
+report, not noise.
 
 ### ⛔ A test run without a totals line is not a run (Testing)
 

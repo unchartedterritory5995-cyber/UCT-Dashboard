@@ -7,15 +7,41 @@
 // Because registration is mount-scoped, the hub simply falls back to the route-derived mode on
 // those days and the member sees the preview fan. Nothing pretends otherwise.
 //
-// ⛔⛔ AND THE TILE MOUNTS THREE TIMES AT ONCE. `Dashboard.jsx` renders `{hero}` TWICE (desktop
-// zone B at :224 and the mobile stack at :247) and `MorningWire.jsx:381` renders a third, compact
-// copy. So a global `document.querySelector('[data-catalyst-row-id]')` would address whichever
-// tree happened to come first in the document, which on a phone is the desktop one.
+// ⛔⛔ AND THE TILE CAN MOUNT MORE THAN ONCE. `Dashboard.jsx` renders the hero in BOTH its
+// desktop and mobile branches, and `MorningWire.jsx` renders a compact copy on its own route. So a
+// global `document.querySelector('[data-catalyst-row-id]')` would address whichever tree happened
+// to come first in the document, which on a phone is the desktop one.
+// ⚰️ This said "THREE TIMES AT ONCE". Morning Wire is a separate route, so at most two are mounted
+// concurrently — and since 2026-09-11 `Dashboard.jsx` prunes the hero out of whichever branch the
+// stylesheet is hiding (`useCssDisplayed`), so in a real browser it is ONE. jsdom applies no CSS,
+// so the tests still see both, and the ownership rule below still has to hold for that case.
 //
 // ⭐ SCOPING IS SOLVED BY NOT QUERYING GLOBALLY AT ALL. Exactly ONE instance passes `enabled`, and
 // it hands this hook a ref to its OWN root, so every node lookup is bounded by the subtree that
 // registered. There is no scope attribute to keep in sync and no way for two instances to fight
 // over the cursor — a second registration is impossible rather than merely discouraged.
+//
+// ⛔⛔ THE 2026-09-10 RENDER LOOP — READ THIS BEFORE TOUCHING THE `config` MEMO BELOW.
+// The night this section went live, every `/dashboard` visit froze navigation app-wide: the URL
+// changed and the screen did not, because the owning tile was rendering ~4,500 times a second and
+// React Router's transition never got to commit. Measured, not inferred: the tile alone under
+// `HubProvider` never settled with `enabled: true`, with a healthy API, a 401 AND a network error
+// alike — and settled in 3 renders with `enabled: false`. The chain was:
+//
+//   `useHubCursor` returned a fresh object every render (it now memoizes — see there)
+//     → the `config` memo here was keyed on that whole object, so it re-fired every render
+//     → `useHubMode` re-registered it → `setPageModeConfig` → the hub context value changed
+//     → this component, a context consumer THROUGH `useHubMode`, re-rendered → a new cursor …
+//
+// A passive-effect loop: React never throws "Maximum update depth" for it, it just runs forever.
+// Three rails now hold the line, and each one is mutation-proved against this exact chain:
+//   * `config` depends on the cursor's stable PARTS (`index`, `count`, `next`, `prev`, `scrubTo`),
+//     never the object — the same shape `screenerSection` and `wireSection` already used;
+//   * `useHubMode` reads its registrar from a SEPARATE context (`HubRegistrarContext`), so
+//     registering can no longer re-render the registrant — a per-render config is now merely
+//     wasteful instead of fatal;
+//   * `CatalystTable.renderLoop.test.jsx` renders the real tile under the real provider with the
+//     API failing and asserts the render count stays bounded.
 import { createElement, useCallback, useEffect, useMemo, useState } from 'react'
 
 import useHubMode from '../useHubMode'
@@ -35,6 +61,8 @@ const TOAST_STYLE = Object.freeze({
 })
 
 export const CATALYSTS_MODE_ID = 'catalysts'
+
+const EMPTY_ROWS = Object.freeze([])
 
 /** The row identity. `ticker` is the tile's own React key, and one ticker appears once per day. */
 export const rowKey = (r) => String(r?.ticker || '')
@@ -173,9 +201,14 @@ export default function useCatalystsHubSection({
     if (text) window.setTimeout(() => setMsg(null), 2600)
   }, [])
 
-  const list = useMemo(() => (enabled ? rows : []), [enabled, rows])
+  // A frozen constant, not a literal: `[]` here would be a NEW empty array on every change of
+  // `rows`, and the two non-owning mounts would re-run everything keyed on `list` for nothing.
+  const list = useMemo(() => (enabled ? rows : EMPTY_ROWS), [enabled, rows])
   const cursor = useHubCursor(CATALYSTS_MODE_ID, list, { key: rowKey })
-  const { index, paintCursor } = cursor
+  // ⛔ THE STABLE PARTS, NOT THE OBJECT. `index`/`count` are primitives and the three callbacks
+  // are `useCallback`s keyed on (listId, count). Keying anything below on `cursor` itself is the
+  // 2026-09-10 loop — see the file header.
+  const { index, count, next, prev, scrubTo, paintCursor } = cursor
 
   /** Row nodes, bounded by the registering instance's OWN subtree. */
   const rowNodes = useCallback(
@@ -184,9 +217,9 @@ export default function useCatalystsHubSection({
   )
 
   const reveal = useCallback(() => {
-    const node = rowNodes()[cursor.index]
+    const node = rowNodes()[index]
     node?.scrollIntoView?.({ block: 'nearest' })
-  }, [rowNodes, cursor.index])
+  }, [rowNodes, index])
 
   // Paint on every index or list change — the same contract `notebookSection` follows.
   useEffect(() => {
@@ -217,9 +250,13 @@ export default function useCatalystsHubSection({
 
   const config = useMemo(
     () => (enabled
-      ? createCatalystsSection({ rows: list, cursor, reveal, onFlag, onNote, flagged })
+      ? createCatalystsSection({
+        rows: list,
+        cursor: { index, count, next, prev, scrubTo },
+        reveal, onFlag, onNote, flagged,
+      })
       : undefined),
-    [enabled, list, cursor, reveal, onFlag, onNote, flagged],
+    [enabled, list, index, count, next, prev, scrubTo, reveal, onFlag, onNote, flagged],
   )
 
   // ⛔ CONDITIONAL REGISTRATION, NOT A CONDITIONAL HOOK. `useHubMode` is always called; it

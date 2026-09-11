@@ -7,7 +7,7 @@
 // `components/screener/reachable.test.js` per its own stated removal condition.
 
 import { useEffect } from 'react'
-import { useHub } from './HubContext'
+import { useHubRegistrar } from './HubContext'
 
 /**
  * Registers `modeConfig` (a `HubMode`-shaped object — see `registry.js`'s
@@ -21,18 +21,25 @@ import { useHub } from './HubContext'
  * Catalysts on `/dashboard`, or one that wants different behaviour than its
  * registry entry for the moment it's mounted).
  *
- * `modeConfig` is typically a fresh object literal every render — passing it
- * directly (rather than requiring the caller to `useMemo` it) keeps the call
- * site simple. That costs a re-registration (one `setState`) on every render
- * where the reference changes, which is cheap, and correctness never depends
- * on it: the effect's cleanup always unregisters the EXACT config object it
- * registered, so a fast re-render can never leave a stale or double
- * registration behind.
+ * ⛔ `modeConfig` MUST BE MEMOIZED BY THE CALLER — `useMemo` it on the values it is built from.
+ * ⚰️ This docstring used to say the opposite: that "a fresh object literal every render" merely
+ * "costs a re-registration (one `setState`) … which is cheap, and correctness never depends on
+ * it". That was false. Registering changes the hub context value, and this hook read its
+ * registrar OFF that same context, so a registrant was a subscriber to its own write: a config
+ * that changed identity every render re-rendered the caller, which built another config, which
+ * registered again — an infinite passive-effect loop (`catalystsSection`, 2026-09-10) that ran at
+ * ~4,500 renders a second and starved React Router's navigation commit app-wide.
+ *
+ * Two things now hold. The registrar comes from `HubRegistrarContext`, whose value never changes,
+ * so this hook can no longer re-render its caller by registering — a per-render config is
+ * wasteful (one provider setState per render, and a `HubRoot` re-render with it) but cannot
+ * loop. And the cleanup still unregisters the EXACT object it registered, so a fast re-render can
+ * never leave a stale or double registration behind. Rail: `hubRegistrarLoop.test.jsx`.
  *
  * @param {import('./registry').HubMode} [modeConfig]
  */
 export default function useHubMode(modeConfig) {
-  const { registerHubMode } = useHub()
+  const registerHubMode = useHubRegistrar()
 
   useEffect(() => {
     if (!modeConfig) return undefined

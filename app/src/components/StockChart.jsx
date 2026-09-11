@@ -3366,6 +3366,9 @@ export default function StockChart({
   // rebuild instead of applyOptions-ing handles that belong to a dead series.
   const sessionTagRefs = useRef([])
   const sessionTagSeriesRef = useRef(null)
+  // The DOM "Pre"/"Post" word that sits ABOVE the orange ext price label, ON the
+  // price scale (positioned by the rAF effect next to the tag applier below).
+  const sessionExtChipRef = useRef(null)
   // Identity of the marker array last handed to the controller — see the guard in
   // updateChart. Reset with the chart, since a new chart has no marker layer.
   const lastMarkersSrcRef = useRef(undefined)
@@ -11607,7 +11610,11 @@ export default function StockChart({
       lineStyle: t.lineStyle ?? 2,
       axisLabelVisible: t.axisLabelVisible ?? true,
       lineVisible: t.lineVisible ?? true,   // ext tag = axis chip only, no line
-      title: t.title || '',
+      // The ext tag's "Pre"/"Post" word is NOT the price line's `title`: LWC draws a
+      // title on the PANE, hugging the axis from the left, so it drifted over the
+      // newest candles on a phone. The word is a DOM chip stacked ABOVE the orange
+      // price label on the price scale instead (sessionExtChipRef, below).
+      title: t._sessionTag === 'ext' ? '' : (t.title || ''),
     })
     // Same tag count = same tags in the same roles (daily = [locked close, ext],
     // intraday = [ext]); only their prices/titles move. Update in place.
@@ -11659,6 +11666,63 @@ export default function StockChart({
     raf = requestAnimationFrame(tick)
     return () => { if (raf) cancelAnimationFrame(raf) }
   }, [sessionTagsIntraday, showExtended])
+
+  // ── The "Pre"/"Post" word, stacked ABOVE the orange price label, ON the scale ──
+  // Owner ask (2026-09-11): LWC's price-line `title` is drawn on the pane, to the
+  // LEFT of the axis label, and on a phone that put "Post" over the newest candles.
+  // So the ext tag carries no title, and this chip is a DOM element positioned
+  // over the right price scale, directly above the label: same width as the
+  // scale, the label's own font, the tag's orange. A rAF loop keeps it glued —
+  // the label's y moves on every pan / zoom / autoscale / live tick, and this is
+  // the same cadence the intraday glue effect above already runs at. Style is
+  // written straight to the node (no React state per frame); writes are skipped
+  // when nothing moved.
+  const sessionExtTagIdx = (cs.showPriceLabels === false || lastBarOff || !activeSessionTags)
+    ? -1 : activeSessionTags.findIndex((t) => t._sessionTag === 'ext')
+  const sessionExtChipOn = chartReady && sessionExtTagIdx >= 0
+  useEffect(() => {
+    if (!sessionExtChipOn) return undefined
+    let raf = 0
+    let last = ''
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const el = sessionExtChipRef.current
+      const chart = chartRef.current
+      const series = candleSeriesRef.current
+      const line = sessionTagRefs.current?.[sessionExtTagIdx]
+      if (!el || !chart || !series || !line) return
+      let key = 'hide'
+      let style = null
+      try {
+        const price = line.options().price
+        const y = series.priceToCoordinate(price)
+        let aw = 0; try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+        let paneH = 0
+        try { paneH = chart.paneSize(series.getPane().paneIndex()).height || 0 } catch { /* single pane */ }
+        if (!paneH) { try { paneH = chart.paneSize(0).height || 0 } catch { /* noop */ } }
+        if (Number.isFinite(y) && y >= 0 && (paneH <= 0 || y <= paneH) && aw > 0) {
+          // LWC axis label box = fontSize + 2 × (3·fontSize/12) tall, centred on y.
+          const fs = cs.textSize ?? 11
+          const labelHalf = (fs * 1.5) / 2
+          const chipH = el.offsetHeight || fs * 1.5
+          const paneTop = overlayBounds?.top || 0
+          let top = Math.round(paneTop + y - labelHalf - chipH - 1)
+          // Pinned at the very top of the pane → stack it under the label instead.
+          if (top < paneTop) top = Math.round(paneTop + y + labelHalf + 1)
+          style = { top, width: Math.round(aw) }
+          key = `${top}|${style.width}`
+        }
+      } catch { /* chart mid-swap */ }
+      if (key === last) return
+      last = key
+      if (!style) { el.style.display = 'none'; return }
+      el.style.display = 'block'
+      el.style.top = `${style.top}px`
+      el.style.width = `${style.width}px`
+    }
+    raf = requestAnimationFrame(tick)
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
   // custom-TF live developing bar ──
@@ -15542,6 +15606,37 @@ export default function StockChart({
                 : themeColors.background),
         }}
       />
+      {/* The "Pre"/"Post" word above the orange ext price label, on the price scale.
+          Positioned by the rAF effect (sessionExtChipRef); hidden until measured. */}
+      {sessionExtChipOn && !showFatalError && (
+        <div
+          ref={sessionExtChipRef}
+          data-testid="session-ext-chip"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            display: 'none',
+            boxSizing: 'border-box',
+            padding: '1px 0 0',
+            lineHeight: `${(cs.textSize ?? 11) * 1.5 - 1}px`,
+            fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
+            fontSize: cs.textSize ?? 11,
+            fontWeight: 600,
+            textAlign: 'center',
+            letterSpacing: 0.2,
+            color: '#111',
+            background: SESSION_EXT_COLOR,
+            borderRadius: 2,
+            pointerEvents: 'none',
+            zIndex: 3,
+            userSelect: 'none',
+          }}
+        >
+          {marketSession === 'post' ? 'Post' : 'Pre'}
+        </div>
+      )}
       {/* ── Dark Pool volume profile bars — uses series.priceToCoordinate() to
           stay aligned with candles at any zoom/pan level. Updates every frame
           via rAF (see darkPoolBarsLayout effect above). The container is

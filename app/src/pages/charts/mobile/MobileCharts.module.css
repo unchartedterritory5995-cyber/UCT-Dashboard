@@ -167,6 +167,33 @@
 .chgUp { color: var(--gain); }
 .chgDown { color: var(--loss); }
 
+/* The timeframe pill — top-right of the strip (moved up from the bottom
+   toolbar 2026-09-11 so that row can carry shortcut tools). The primary
+   control, so it reads as one: gold, mono, a real thumb target. */
+.stripTf {
+  flex: 0 0 auto;
+  min-width: 56px;
+  min-height: 38px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stripTf:active { background: color-mix(in srgb, var(--ut-gold) 20%, transparent); }
+
 /* ── Chart area ────────────────────────────────────────────────────────── */
 
 .chartArea {
@@ -225,22 +252,6 @@
   -webkit-user-select: none;
 }
 .tbBtn:active { background: var(--bg-hover); }
-
-/* The timeframe pill — the primary control, so it reads as one. */
-.tbTf {
-  flex: 0 0 auto;
-  min-width: 64px;
-  padding: 0 14px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--ut-gold);
-  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
-  border-radius: var(--radius-pill);
-}
-.tbTf:active { background: color-mix(in srgb, var(--ut-gold) 20%, transparent); }
 
 /* ── Full-screen widget page (over the chart) ──────────────────────────── */
 
@@ -699,14 +710,8 @@
     border-radius: 26px;
   }
   :global(html[data-mobile-chart-shell]) .toolbar .tbBtn { min-height: var(--tap-min); }
-  /* The gold timeframe pill is a TEXT control sized for a horizontal row; in the
-     rail it takes the rail's width instead of forcing it 64px wide. */
-  :global(html[data-mobile-chart-shell]) .toolbar .tbTf {
-    min-width: 0;
-    padding: 0 2px;
-    font-size: 12px;
-    letter-spacing: 0;
-  }
+  /* The strip is slimmer rotated; the gold timeframe pill at its right slims with it. */
+  :global(html[data-mobile-chart-shell]) .stripTf { min-height: 32px; font-size: 13px; padding: 0 10px; }
 }
 
 /* ── Empty board state ─────────────────────────────────────────────────── */
@@ -745,11 +750,11 @@
    fake it. Coarse-pointer only — a mouse click never squishes. The bg-change
    :active rules above still apply; this adds the motion. */
 @media (pointer: coarse) {
-  .tbBtn, .tbTf, .tfCell, .typeCell, .alertBtn,
+  .tbBtn, .stripTf, .tfCell, .typeCell, .alertBtn,
   .screenBack, .screenAction, .emptyBtn, .cancelBtn, .switch {
     transition: transform 90ms ease, background-color 90ms ease;
   }
-  .tbBtn:active, .tbTf:active, .tfCell:active, .typeCell:active,
+  .tbBtn:active, .stripTf:active, .tfCell:active, .typeCell:active,
   .alertBtn:active, .screenBack:active, .screenAction:active,
   .emptyBtn:active, .cancelBtn:active {
     transform: scale(0.94);

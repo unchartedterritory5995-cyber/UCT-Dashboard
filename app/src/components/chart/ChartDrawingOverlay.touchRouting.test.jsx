@@ -47,7 +47,36 @@ const X_OF_IDX = (i) => 100 + i * 100
 const Y_OF_PRICE = (p) => 400 - p * 10
 const PRICE_OF_Y = (y) => (400 - y) / 10
 const SCROLL = { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }
-const SCALE = { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
+const SCALE = {
+  axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: { time: true, price: true },
+  mouseWheel: true, pinch: true,
+}
+const ALL_OFF = (o) => Object.values(o).every(v => (typeof v === 'object' ? ALL_OFF(v) : v === false))
+
+/** lightweight-charts' own semantics, which the shipped defect depended on:
+ *  `options()` hands back the LIVE internal object, and `applyOptions` expands a
+ *  boolean `handleScroll`/`handleScale` into the object form and then merges it
+ *  INTO that live object in place (`merge(dst, src)` in the library). A fake that
+ *  returned fresh objects let a restore-from-a-mutated-reference pass green. */
+function lwcMerge(dst, src) {
+  for (const k of Object.keys(src)) {
+    if (src[k] === undefined) continue
+    if (typeof src[k] !== 'object' || src[k] === null || dst[k] === undefined) dst[k] = src[k]
+    else lwcMerge(dst[k], src[k])
+  }
+}
+function expandBooleans(o) {
+  const n = { ...o }
+  if (typeof n.handleScroll === 'boolean') {
+    const b = n.handleScroll
+    n.handleScroll = { mouseWheel: b, pressedMouseMove: b, horzTouchDrag: b, vertTouchDrag: b }
+  }
+  if (typeof n.handleScale === 'boolean') {
+    const b = n.handleScale
+    n.handleScale = { axisPressedMouseMove: { time: b, price: b }, axisDoubleClickReset: { time: b, price: b }, mouseWheel: b, pinch: b }
+  }
+  return n
+}
 
 function fakeChart() {
   const panes = [400, 100].map(h => ({ getHeight: () => h, getHTMLElement: () => null }))
@@ -60,11 +89,12 @@ function fakeChart() {
     subscribeVisibleLogicalRangeChange: () => {},
     unsubscribeVisibleLogicalRangeChange: () => {},
   }
+  const live = { layout: { background: { color: '#0f0f0f' } }, handleScroll: structuredClone(SCROLL), handleScale: structuredClone(SCALE) }
   const chart = {
     panes: () => panes,
     timeScale: () => timeScale,
-    options: () => ({ layout: { background: { color: '#0f0f0f' } }, handleScroll: { ...SCROLL }, handleScale: { ...SCALE } }),
-    applyOptions: vi.fn(),
+    options: () => live,                                   // LIVE, as the library does
+    applyOptions: vi.fn((o) => { lwcMerge(live, expandBooleans(o)) }),
     priceScale: () => ({ width: () => 56 }),
   }
   const series = {
@@ -186,11 +216,17 @@ describe('⛔ a finger on a drawing never reaches the chart', () => {
     const rig = mount({ drawings: [HLINE] })
     fingerDown(rig.chartEl, ON_HLINE)
     expect(rig.chart.applyOptions).toHaveBeenCalledWith({ handleScroll: false, handleScale: false })
+    expect(ALL_OFF(rig.chart.options().handleScroll), 'locked for the drag').toBe(true)
+    expect(ALL_OFF(rig.chart.options().handleScale)).toBe(true)
     fingerMove(rig.chartEl, { x: 200, y: 320 })
     const up = fingerUp(rig.chartEl, { x: 200, y: 320 })
-    // Restored to what the chart HAD — the option objects, not a bare `true`,
-    // so a frozen chart (all false) comes back frozen.
-    expect(rig.chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: SCROLL, handleScale: SCALE })
+    // ⛔⛔ THE LIVE STATE, not the call arguments. The library mutates its
+    // options object in place, so a restore built from a REFERENCE to the
+    // pre-lock objects re-applied the lock. That shipped: one drag, then the
+    // chart could never pan, pinch or price-scale again. Read what the chart
+    // is actually left with.
+    expect(rig.chart.options().handleScroll, 'the chart must pan again after the drag').toEqual(SCROLL)
+    expect(rig.chart.options().handleScale, 'the chart must pinch and price-scale again').toEqual(SCALE)
     // …and the browser is told not to synthesise a click out of a touch the
     // overlay owned, so the chart's own click subscribers never see it.
     expect(up.defaultPrevented, 'a claimed touchend must suppress the compat click').toBe(true)
@@ -227,7 +263,29 @@ describe('⛔ a finger on a drawing never reaches the chart', () => {
     touch(rig.chartEl, 'touchstart', { x: 300, y: 200, fingers: 2 })
     expect(rig.chartSaw.pointerdown, 'the 2nd finger must reach the chart').toHaveBeenCalledTimes(1)
     expect(rig.chartSaw.touchstart, 'the pinch touchstart must reach the chart').toHaveBeenCalledTimes(1)
-    expect(rig.chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: SCROLL, handleScale: SCALE })
+    expect(rig.chart.options().handleScale, 'pinch must be enabled again for the 2nd finger').toEqual(SCALE)
+    expect(rig.chart.options().handleScroll).toEqual(SCROLL)
+  })
+
+  it('⚰️ REGRESSION · a SECOND drag still locks and restores — the first did not poison the snapshot', () => {
+    const rig = mount({ drawings: [HLINE] })
+    fingerDown(rig.chartEl, ON_HLINE); fingerMove(rig.chartEl, { x: 200, y: 320 }); fingerUp(rig.chartEl, { x: 200, y: 320 })
+    expect(rig.chart.options().handleScroll).toEqual(SCROLL)
+    // `updateDrawing` is a spy, so the line is still painted at y=280 — grab it there again.
+    fingerDown(rig.chartEl, ON_HLINE)
+    expect(ALL_OFF(rig.chart.options().handleScroll), 'second drag must lock too').toBe(true)
+    fingerMove(rig.chartEl, { x: 200, y: 300 }); fingerUp(rig.chartEl, { x: 200, y: 300 })
+    expect(rig.chart.options().handleScroll, 'and release again').toEqual(SCROLL)
+    expect(rig.chart.options().handleScale).toEqual(SCALE)
+  })
+
+  it('a chart that was FROZEN before the drag comes back frozen, not unlocked', () => {
+    const rig = mount({ drawings: [HLINE] })
+    rig.chart.applyOptions({ handleScroll: false, handleScale: false })   // the Setup Library / frozen surface
+    rig.chart.applyOptions.mockClear()
+    fingerDown(rig.chartEl, ON_HLINE); fingerMove(rig.chartEl, { x: 200, y: 320 }); fingerUp(rig.chartEl, { x: 200, y: 320 })
+    expect(ALL_OFF(rig.chart.options().handleScroll), 'frozen stays frozen').toBe(true)
+    expect(ALL_OFF(rig.chart.options().handleScale)).toBe(true)
   })
 
   it('the wrapper listeners are removed on unmount and a chart frozen mid-drag is released', () => {
@@ -235,7 +293,8 @@ describe('⛔ a finger on a drawing never reaches the chart', () => {
     fingerDown(rig.chartEl, ON_HLINE)
     rig.chart.applyOptions.mockClear()
     rig.unmount()
-    expect(rig.chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: SCROLL, handleScale: SCALE })
+    expect(rig.chart.options().handleScroll).toEqual(SCROLL)
+    expect(rig.chart.options().handleScale).toEqual(SCALE)
   })
 })
 

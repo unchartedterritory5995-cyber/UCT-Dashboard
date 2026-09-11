@@ -36,7 +36,7 @@
 // `components/screener/reachable.test.js`'s AWAITING_A_DECISION. A signpost is
 // not a duplicate; it is a link with a number on it, at ~90px instead of the
 // ~4,000px the previews cost.
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
@@ -49,6 +49,7 @@ import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import UIcon from '../components/ui/UIcon'
 import useSessionState, { useNextBoundary } from './dashboard/useSessionState'
+import useCssDisplayed from './dashboard/useCssDisplayed'
 import ZoneRead from './dashboard/ZoneRead'
 import TheWeek from './dashboard/TheWeek'
 import ZoneDoors from './dashboard/ZoneDoors'
@@ -184,20 +185,41 @@ export default function Dashboard() {
   // 260 — including every session day, where the wait buys nothing at all.
   const boundary = useNextBoundary()
   const heroState = boundary.holidayToday === true ? 'WEEKEND' : session
-  // ⛔ TWO RENDERS, ONE HUB OWNER. `{hero}` appears TWICE below — Zone B (desktop) and the
-  // mobile stack — and both are in the document at once. The joystick hub only exists on a
-  // coarse-pointer viewport under 1024px, which is the mobile stack, so THAT copy is the one
-  // that registers the hub's Catalysts controller. Passing it to both would give the cursor two
-  // candidate trees and it would address whichever came first in the document.
+  // ⛔ TWO BRANCHES, ONE MOUNTED HERO, ONE HUB OWNER. The hero is rendered from BOTH the desktop
+  // cockpit and the mobile stack below, and both branches are in the document at once — CSS
+  // hides one, and `display: none` hides without unmounting. Until 2026-09-11 that meant TWO live
+  // `CatalystTable`s on every visit (poll, live prices, flagged sync, logos, hub hook — twice),
+  // which doubled the cost of the hub render loop that froze navigation the night before.
+  //
+  // ⭐ SO THE HIDDEN BRANCH RENDERS NO HERO AT ALL. `useCssDisplayed` reads each branch's computed
+  // `display` — the stylesheet's own verdict, not a second breakpoint literal — and the hero is
+  // pruned from whichever one the CSS is hiding. In a browser that is exactly one mount. jsdom
+  // applies no stylesheets, so under vitest both stay shown and the tests see both, as before.
+  //
+  // ⛔ OWNERSHIP FOLLOWS VISIBILITY. The copy the member can see owns the joystick hub; when both
+  // are shown (jsdom, or a stylesheet that failed to load) the MOBILE copy owns it, as it always
+  // did — the hub is coarse-pointer-only. Two owners would give the cursor two candidate trees.
+  // ⚰️ The previous rule — "the mobile copy owns it, full stop" — handed the hub to a
+  // `display: none` tree on every tablet (641–1024px shows the DESKTOP branch; the mobile stack
+  // only appears at ≤640px), so a tablet's tap painted a cursor onto rows nobody could see.
   //
   // ⭐ A FACTORY, NOT A SHARED ELEMENT, so the two renders can differ by exactly this one prop.
-  const heroFor = (owns) => (heroState === 'WEEKEND' ? <TheWeek /> : <CatalystTable hubScope={owns} />)
+  const desktopRef = useRef(null)
+  const mobileRef = useRef(null)
+  const desktopShown = useCssDisplayed(desktopRef)
+  const mobileShown = useCssDisplayed(mobileRef)
+  const heroFor = (branch) => {
+    const shown = branch === 'mobile' ? mobileShown : desktopShown
+    if (!shown) return null
+    const owns = branch === 'mobile' ? true : !mobileShown
+    return heroState === 'WEEKEND' ? <TheWeek /> : <CatalystTable hubScope={owns} />
+  }
 
   return (
     <div className={styles.page}>
       <div className={styles.content}>
         {/* ── Desktop: the four-zone cockpit ────────────────────────────── */}
-        <div className={styles.desktopOnly}>
+        <div ref={desktopRef} className={styles.desktopOnly}>
           <div className={styles.cockpit}>
             <div className={styles.main}>
               {/* Zone A · THE READ — session pill + UCT exposure + a compact
@@ -228,7 +250,7 @@ export default function Dashboard() {
                 />
               </div>
               {/* Zone B · THE DECISION — the only zone that varies. */}
-              <div className={styles.zoneB}>{heroFor(false)}</div>
+              <div className={styles.zoneB}>{heroFor('desktop')}</div>
               {/* Zone C · YOUR RISK */}
               <div className={styles.zoneC}><JournalSnapshotTile /></div>
             </div>
@@ -239,7 +261,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Mobile: triaged, decision-first stack (spec §5) ────────────── */}
-        <div className={styles.mobileOnly}>
+        <div ref={mobileRef} className={styles.mobileOnly}>
           <PullToRefresh onRefresh={handleRefresh}>
             {/* 1. Journal snapshot — open positions, balance & performance */}
             <JournalSnapshotTile />
@@ -251,7 +273,7 @@ export default function Dashboard() {
             {/* 2. Breadth snapshot — always visible */}
             <MarketBreadth />
             {/* 3. The session hero — the same decision as Zone B above */}
-            {heroFor(true)}
+            {heroFor('mobile')}
             {/* 4. Movers (which now carries the tape) */}
             <MobileSection
               title="Movers at the Open"
