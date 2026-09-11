@@ -19,8 +19,6 @@ import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
 import MobileLayoutsSheet from './MobileLayoutsSheet'
 import MobileBoardsSheet from './MobileBoardsSheet'
-import MobileObjectsSheet from './MobileObjectsSheet'
-import useChartDrawings from '../../../components/chart/useChartDrawings'
 // The ACTIVE board's name for the Tools row's subtitle. Read here rather than
 // inside the row so the sheet stays the only thing that mounts the manager.
 import useTracings from '../../../components/chart/useTracings'
@@ -124,10 +122,6 @@ export default function MobileChartsApp({
 
   const color = chartWidget?.color || 'A'
   const sym = groupSyms[color] || 'SPY'
-  // The objects on THIS symbol — the recovery surface's data, straight from the
-  // store the canvas draws from.
-  const _objDrawings = useChartDrawings(sym)
-  const _hiddenObjects = _objDrawings.drawings.reduce((n, d) => n + (d.hidden ? 1 : 0), 0)
 
   // Every page-open records the chart's symbol at that moment.
   const openWidgetScreen = useCallback((id) => {
@@ -567,8 +561,6 @@ export default function MobileChartsApp({
         onOpenLayouts={() => setSheet('layouts')}
         activeLayoutName={layoutsActive?.name || null}
         onOpenBoards={() => setSheet('boards')}
-        onOpenObjects={() => setSheet('objects')}
-        hiddenObjectCount={_hiddenObjects}
         activeBoardName={_activeBoard ? tracingLabel(_activeBoard) : null}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
@@ -580,22 +572,6 @@ export default function MobileChartsApp({
         open={sheet === 'boards'}
         onClose={closeSheet}
         sym={sym}
-        className={sheetTheme}
-      />
-      {/* The recovery surface. ⛔ It reads the SAME store the canvas draws from
-          (`useChartDrawings(sym)`), never a copy — a manager that could disagree
-          with the chart about what exists is worse than none. */}
-      <MobileObjectsSheet
-        open={sheet === 'objects'}
-        onClose={closeSheet}
-        sym={sym}
-        drawings={_objDrawings.drawings}
-        onToggleHidden={(id, hidden) => _objDrawings.updateDrawing(id, { hidden })}
-        onToggleLocked={(id, locked) => _objDrawings.updateDrawing(id, { locked })}
-        onDelete={(id) => _objDrawings.removeDrawing(id)}
-        onShowAll={() => {
-          for (const d of _objDrawings.drawings) if (d.hidden) _objDrawings.updateDrawing(d.id, { hidden: false })
-        }}
         className={sheetTheme}
       />
     </div>
