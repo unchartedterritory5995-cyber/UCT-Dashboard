@@ -24,11 +24,12 @@ vi.mock('lightweight-charts', async (importOriginal) => {
     createPriceLine: mkLine, removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
     detachPrimitive: () => {}, priceToCoordinate: () => 120, coordinateToPrice: () => 0, options: () => ({}),
     getPane: () => ({ paneIndex: () => 0 }),
+    priceFormatter: () => ({ format: (p) => Number(p).toFixed(2) }),
   }
   const chart = {
     addSeries: () => series, addCandlestickSeries: () => series, addHistogramSeries: () => series,
     addLineSeries: () => series, addAreaSeries: () => series, addBarSeries: () => series,
-    removeSeries: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {}, width: () => 58 }),
+    removeSeries: () => {}, applyOptions: () => {}, priceScale: (id) => ({ applyOptions: () => {}, width: () => (id === 'left' ? 0 : 58) }),
     paneSize: () => ({ width: 600, height: 300 }),
     timeScale: () => ({
       applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: () => {}, getVisibleLogicalRange: () => null,
@@ -92,17 +93,23 @@ describe('the Pre/Post word sits on the price scale, not on the pane', () => {
     expect(ext[0].options().axisLabelVisible).toBe(true)
   })
 
-  it('renders "Post" as a chip glued above the label, spanning the price scale', async () => {
+  it('renders "Post" as a chip the SAME BOX as the price label, stacked above it', async () => {
     render(<StockChart sym="AAPL" tf="5" sessionView="regular" />)
     const chip = await screen.findByTestId('session-ext-chip', {}, { timeout: 4000 })
     expect(chip.textContent).toBe('Post')
-    // Positioned by the rAF loop: shown, on the right edge, as wide as the scale.
     await vi.waitFor(() => expect(chip.style.display).toBe('block'), { timeout: 4000 })
-    expect(chip.style.right).toBe('0px')
-    expect(chip.style.width).toBe('58px')
-    // priceToCoordinate → 120; axis label = 11 × 1.5 tall, centred on it; the chip
-    // sits ABOVE that box (jsdom reports offsetHeight 0 → the 16.5px fallback).
-    expect(parseFloat(chip.style.top)).toBeLessThan(120 - 8)
+    // Mirrors lightweight-charts' label geometry at fontSize 11 (the default):
+    //   x = plot width (600) + the 1px axis border
+    expect(chip.style.left).toBe('601px')
+    //   width = border 1 + padding 2×(11/12×5) + ceil(text "101.25" = 6 chars × 6px stub) + tick 5
+    const expectedW = Math.round(1 + 2 * (11 / 12) * 5 + 36 + 5)
+    expect(chip.style.width).toBe(`${expectedW}px`)
+    // NOT the whole price-scale column (58px in this harness) — that ran off the phone.
+    expect(parseFloat(chip.style.width)).toBeLessThan(58)
+    //   height = 11 + 2 × (2.5/12 × 11), i.e. the label's own height
+    expect(chip.style.height).toBe(`${Math.round(11 + 2 * (2.5 / 12) * 11)}px`)
+    // priceToCoordinate → 120: the label is centred on 120 and the chip sits ABOVE it.
+    expect(parseFloat(chip.style.top) + parseFloat(chip.style.height)).toBeLessThanOrEqual(120 - 7)
     // It must never intercept the member's finger — the scale under it drags.
     expect(chip.style.pointerEvents).toBe('none')
   })
