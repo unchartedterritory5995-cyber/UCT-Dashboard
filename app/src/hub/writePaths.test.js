@@ -186,6 +186,13 @@ const WRITE_PATHS = [
     owner: 'app',
     what: 'Alert. Plan §3.3 lists the action; the hub calls the app\'s own `createAlert`.',
   },
+  {
+    endpoint: '/api/voice/transcribe',
+    method: 'POST',
+    via: 'hub/voiceNote.js',
+    owner: 'hub',
+    what: "Voice note (D-17). ⛔ owner:'hub' AND THAT IS THE HONEST ANSWER, not a slip: the app's own caller of this endpoint is `pages/journal-2-0/components/VoiceInputButton.jsx`, which is a COMPONENT, not a client — it owns MediaRecorder state, a Web Speech fallback and a text field to stream into, none of which a fan gesture has. So the hub posts the blob itself (`hub/voiceNote.js`), and the manifest says so rather than borrowing a `via` that would make this read like a reuse. The note it produces is still written through the app's `createNoteViaApi` — see the `/api/j2/notes` entry above; this path adds a transcription, never a second note write.",
+  },
 ]
 
 const key = (p) => `${p.method} ${p.endpoint}`
@@ -246,13 +253,14 @@ describe('the hub write-path manifest', () => {
     }
   })
 
-  it('the manifest is five paths — two hub-owned, three through pre-existing app clients', () => {
+  it('the manifest is six paths — three hub-owned, three through pre-existing app clients', () => {
     // The count, kept LAST and deliberately weakest: it is a tripwire on the shape of the claim, not
     // the claim itself. The three assertions above are what actually hold.
-    expect(WRITE_PATHS).toHaveLength(5)
+    expect(WRITE_PATHS).toHaveLength(6)
     expect(WRITE_PATHS.filter((p) => p.owner === 'hub').map(key)).toEqual([
       'PUT /api/j2/positions/{param}',
       'POST /api/hub/planned-trades',
+      'POST /api/voice/transcribe',
     ])
     expect(WRITE_PATHS.filter((p) => p.owner === 'app').map(key)).toEqual([
       'POST /api/watchlists/flagged/sync',

@@ -207,3 +207,113 @@ describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => 
     expect(contrast(inkRgb, composited)).toBeGreaterThanOrEqual(4.5)
   })
 })
+
+// ─── D-24: the hub's glass on a LIGHT theme, measured ──────────────────────
+//
+// ⛔⛔ THIS FILE ALREADY ASSERTS THE ABSENCE ("does NOT define glass on the light theme — §3.2
+// defers it, deliberately"), and `deferred.md` D-24 asks whether that omission leaves the joystick
+// hub illegible on white. The answer is a MEASUREMENT, and it is not the one the row's wording
+// implies:
+//
+//   1. THE HUB USES NO `--glass-*` TOKEN AT ALL. Measured across `app/src/hub/**` — every surface
+//      it paints is a `--hub-*` token. So the light theme's deliberate `--glass-*` omission, which
+//      is what D-24 cites (`tokens.css:432-436` in the row's numbering), cannot reach the hub.
+//      The case below asserts that, because it is the whole premise.
+//
+//   2. THE `--hub-*` TOKENS ADAPT ON THEIR OWN. Each is `color-mix(in srgb, var(--text-heading) N%,
+//      transparent)` over a canvas of `--bg`, and the light theme redefines BOTH — so the resting
+//      glass composites to a light grey on white exactly as it composites to a dark grey on black.
+//      That is why `tokens.css` says of them: "No [data-theme='light'] --hub-* set anywhere in this
+//      file — deliberate ... not an oversight for a later sweep to 'fix'."
+//
+// ⚠️ ONE PAIR IS BELOW AA ON LIGHT AND IT IS NAMED, NOT ROUNDED AWAY: `--text-muted` on
+// `--hub-glass-tint-strong` composites to 4.18:1 on white (it is 6.34:1 on the dark default). That
+// surface is the CURSOR HIGHLIGHT — `[data-hub-cursor="active"]` paints it onto rows the hub does
+// not own, and the Screener's phone card colours `.cardCompany` / `.cardStatLabel` with exactly
+// that ink. 4.18 clears AA-Large (3.0) and misses AA (4.5). It is recorded as a bounded exception
+// with a floor rather than waved through, so a future retune that makes it WORSE goes red here.
+describe('tokens.css — the hub\'s glass carries the light theme too (D-24, computed)', () => {
+  const HUB_CSS = read('../hub/hub.module.css')
+
+  /** `color-mix(in srgb, var(--x) N%, transparent)` -> { ref, alpha }. Throws by name rather than
+   *  returning a default, so a token that stops being a color-mix fails loudly instead of silently
+   *  being measured as something else. */
+  function parseColorMix(value) {
+    const m = /color-mix\(\s*in\s+srgb\s*,\s*var\(\s*(--[\w-]+)\s*\)\s*([\d.]+)%\s*,\s*transparent\s*\)/.exec(value)
+    if (!m) throw new Error(`not a color-mix over transparent: ${value}`)
+    return { ref: m[1], alpha: Number(m[2]) / 100 }
+  }
+
+  const resolve = (themeBlock, token) => decl(themeBlock, token) ?? decl(ROOT, token)
+  const THEMES = { dark: ROOT, oled: OLED, light: LIGHT }
+
+  /** Every `--hub-glass-*` token the hub actually paints a background with — derived from the CSS,
+   *  plus the one global cursor rule, which lives in tokens.css rather than the module. */
+  const SURFACES = [...new Set([
+    ...[...HUB_CSS.matchAll(/background:\s*var\((--hub-glass-[\w-]+)\)/g)].map((m) => m[1]),
+    ...[...TOKENS.matchAll(/background:\s*var\((--hub-glass-[\w-]+)\)/g)].map((m) => m[1]),
+  ])].sort()
+
+  /** Every `--text*` ink the hub colours text with on those surfaces — also derived. */
+  const INKS = [...new Set(
+    [...HUB_CSS.matchAll(/color:\s*var\((--text[\w-]*)\)/g)].map((m) => m[1]),
+  )].sort()
+
+  const pairContrast = (themeName, surfaceToken, inkToken) => {
+    const themeBlock = THEMES[themeName]
+    const bg = hexRgb(resolve(themeBlock, '--bg'))
+    const ink = hexRgb(resolve(themeBlock, inkToken))
+    const { ref, alpha } = parseColorMix(resolve(themeBlock, surfaceToken))
+    return contrast(ink, composite(hexRgb(resolve(themeBlock, ref)), alpha, bg))
+  }
+
+  it('⛔ THE PREMISE: the hub paints no --glass-* surface, so the light omission cannot reach it', () => {
+    // If this ever stops being true, D-24 becomes a real gap and this whole block is measuring the
+    // wrong family. Named here rather than assumed in prose.
+    expect(HUB_CSS, 'the hub now uses a --glass-* token, which the light theme deliberately omits')
+      .not.toMatch(/var\(\s*--glass-/)
+  })
+
+  it('the derivation found real surfaces and real inks — the non-vacuity control', () => {
+    // Every assertion below is a loop over these two lists; empty lists would pass everything.
+    expect(SURFACES, 'no --hub-glass-* background found — the derivation regex is broken')
+      .toContain('--hub-glass-tint')
+    expect(SURFACES).toContain('--hub-glass-tint-strong')
+    expect(INKS, 'no --text* ink found on hub glass — the derivation regex is broken')
+      .toEqual(expect.arrayContaining(['--text', '--text-muted']))
+    // ⛔ AND THE INK LIST IS NOT HYPOTHETICAL FOR THE CURSOR ROW. `[data-hub-cursor="active"]`
+    // paints --hub-glass-tint-strong onto rows the hub does not own; the Screener's phone card is
+    // one of them and colours its company line with the dimmest ink. Asserted against that file so
+    // the justification cannot rot into a comment nobody re-checked.
+    expect(read('../pages/screener/shell/ScannerShell.module.css'),
+      'the screener card no longer uses --text-muted — re-derive which ink the cursor row carries')
+      .toMatch(/\.cardCompany\s*\{[^}]*color:\s*var\(--text-muted\)/)
+  })
+
+  const CASES = Object.keys(THEMES).flatMap((t) =>
+    SURFACES.flatMap((s) => INKS.map((i) => [t, s, i])))
+
+  it.each(CASES)('%s theme: %s clears the 3:1 floor for %s', (themeName, surfaceToken, inkToken) => {
+    // ⛔ THE FLOOR THE HUB MUST NEVER DROP BELOW, on any theme. Below this the chip and the cursor
+    // row stop being readable rather than merely dim, which is the question D-24 actually asks.
+    expect(pairContrast(themeName, surfaceToken, inkToken)).toBeGreaterThanOrEqual(3.0)
+  })
+
+  // ⛔ THE ONE EXCEPTION, BY NAME AND NUMBER. Anything not on this list must clear full AA.
+  const BELOW_AA = new Set(['light|--hub-glass-tint-strong|--text-muted'])
+
+  it.each(CASES)('%s theme: %s meets AA 4.5:1 for %s, or is the one named exception',
+    (themeName, surfaceToken, inkToken) => {
+      const measured = pairContrast(themeName, surfaceToken, inkToken)
+      if (BELOW_AA.has(`${themeName}|${surfaceToken}|${inkToken}`)) {
+        // Pinned from BOTH sides: it must still be the sub-AA case (so a fix deletes this entry
+        // rather than leaving a stale exemption behind) and it must not get any worse.
+        expect(measured, 'this pair now CLEARS AA — delete it from BELOW_AA rather than leaving an '
+          + 'exemption that has stopped describing anything').toBeLessThan(4.5)
+        expect(measured, 'the one sub-AA hub pair got WORSE — 4.18:1 was the recorded limit')
+          .toBeGreaterThanOrEqual(4.1)
+        return
+      }
+      expect(measured).toBeGreaterThanOrEqual(4.5)
+    })
+})
