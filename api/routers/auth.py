@@ -167,6 +167,19 @@ def _access_payload(user: dict, plan: str) -> dict:
         "research_technical_tab_enabled": os.environ.get(
             "RESEARCH_TECHNICAL_TAB_ENABLED", "0"
         ).strip().lower() in ("1", "true", "yes", "on"),
+        # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
+        # Same request-time read and the same ENABLEMENT polarity as the
+        # Technical tab above: unset means "not turned on yet", so a forgotten
+        # variable can never expose a surface nobody decided to release.
+        #
+        # ⛔ THIS BRANCH SHIPPED WITH NO FLAG AT ALL. Its own commit message
+        # said "(dark, unmerged)" while the diff contained no env read, no
+        # gate and no payload field -- being UNMERGED was the only thing
+        # hiding it. Merging it in that state would have exposed member UI on
+        # three surfaces at once, with revert-and-deploy as the only rollback.
+        "s7_filing_watch_enabled": os.environ.get(
+            "S7_FILING_WATCH_ENABLED", "0"
+        ).strip().lower() in ("1", "true", "yes", "on"),
     }
 
 

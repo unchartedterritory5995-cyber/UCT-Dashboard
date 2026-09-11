@@ -6,8 +6,13 @@ import { renderHook, waitFor, cleanup, act } from '@testing-library/react'
 // and the Settings management panel all come from this ONE hook/cache key
 // (Part F: reuse the existing owner-scoped predicate list, no new endpoint).
 
-const H = vi.hoisted(() => ({ user: { id: 'u1' } }))
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: H.user }) }))
+const H = vi.hoisted(() => ({ user: { id: 'u1' }, enabled: true }))
+vi.mock('../context/AuthContext', () => ({
+  // H.enabled defaults true below: these tests exercise the hook's fetch and
+  // state machine, which only exist when the feature is on. The OFF case is
+  // asserted explicitly in its own test.
+  useAuth: () => ({ user: H.user, s7FilingWatchEnabled: H.enabled }),
+}))
 
 import useFilingWatch from './useFilingWatch'
 

@@ -310,6 +310,8 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
                   <SymbolSearch sym={activeSym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
                 </span>
+                {/* Dark until S7_FILING_WATCH_ENABLED; the gate is owned by useFilingWatch. */}
+                {filingWatch.enabled && (
                 <button
                   className={styles.actionBtn}
                   onClick={onFilingWatchClick}
@@ -320,6 +322,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 >
                   <UIcon name="document" size={14} gold={filingWatchState === 'ACTIVE'} />
                 </button>
+                )}
                 <button
                   className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}

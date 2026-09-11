@@ -17,8 +17,16 @@ const LIST_KEY = '/api/alerts/taxonomy/document-arrival?active_only=false'
 const revalidate = () => globalMutate(LIST_KEY)
 
 export default function useFilingWatch() {
-  const { user } = useAuth()
-  const { data, isLoading } = useSWR(user ? LIST_KEY : null, fetcher, {
+  // ⛔ ONE AUTHORITY for whether this feature exists at all. Every surface
+  // (TickerPopup, TickerHubSheet, ResearchHeader, Settings) already shares this
+  // hook, so the gate lives HERE and the surfaces merely ask `enabled`. Four
+  // copies of an env check could not be mutation-proved
+  // (lesson_a_guard_repeated_is_a_guard_unproved).
+  const { user, s7FilingWatchEnabled } = useAuth()
+  // Gating the KEY, not just the render: a dark feature must make no network
+  // calls. A null key means SWR never fetches and never polls.
+  const { data, isLoading } = useSWR(
+    user && s7FilingWatchEnabled ? LIST_KEY : null, fetcher, {
     refreshInterval: 30000,
     dedupingInterval: 10000,
   })
@@ -88,5 +96,6 @@ export default function useFilingWatch() {
     }
   }, [])
 
-  return { predicates, getWatch, watchState, createOrReactivate, suspend, isLoading, revalidate }
+  return { enabled: !!s7FilingWatchEnabled, predicates, getWatch, watchState,
+           createOrReactivate, suspend, isLoading, revalidate }
 }

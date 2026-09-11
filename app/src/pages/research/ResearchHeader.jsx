@@ -23,6 +23,9 @@ const FILING_WATCH_COPY = {
 
 function FilingWatchAction({ sym }) {
   const filingWatch = useFilingWatch()
+  // Dark until S7_FILING_WATCH_ENABLED. Absence, not a disabled control:
+  // a greyed button advertises a feature nobody has released.
+  if (!filingWatch.enabled) return null
   const state = filingWatch.watchState(sym)
   const busy = state === 'CREATING' || state === 'SUSPENDING' || state === 'LOADING'
   const copy = FILING_WATCH_COPY[state] || FILING_WATCH_COPY.LOADING

@@ -14,6 +14,9 @@ import styles from '../../pages/Settings.module.css'
 // so it's unit-testable in isolation.
 export default function FilingWatchesPanel() {
   const filingWatch = useFilingWatch()
+  // Dark until S7_FILING_WATCH_ENABLED — the Settings card disappears
+  // entirely rather than rendering an empty management surface.
+  if (!filingWatch.enabled) return null
   const watches = [...filingWatch.predicates].sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
 
   if (filingWatch.isLoading) {

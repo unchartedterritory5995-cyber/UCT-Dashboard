@@ -47,6 +47,11 @@ vi.mock('./chart/SymbolSearch', () => ({
 // deterministically (renderWithProviders' real AuthProvider has no logged-in
 // user by default, so the real hook would never fetch anyway).
 const filingWatchMock = vi.hoisted(() => ({
+  // The S7 gate now lives in useFilingWatch itself, so a mock of that hook
+  // must say whether the feature exists. These suites are about the
+  // control's BEHAVIOUR, so they run with it on; absence-when-off has its
+  // own dedicated tests.
+  enabled: true,
   watchState: vi.fn(() => 'NOT_WATCHING'),
   getWatch: vi.fn(() => null),
   createOrReactivate: vi.fn(),
@@ -238,6 +243,7 @@ describe('S7 filing-watch action (Stage 4, owner authorization)', () => {
   beforeEach(() => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
     filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.enabled = true   // an OFF test must not leak forward
     filingWatchMock.getWatch.mockReset().mockReturnValue(null)
     filingWatchMock.createOrReactivate.mockReset()
     filingWatchMock.suspend.mockReset()
@@ -280,5 +286,16 @@ describe('S7 filing-watch action (Stage 4, owner authorization)', () => {
     await user.click(screen.getByTestId('ticker-NVDA'))
     const btn = screen.getByRole('button', { name: /Setting up filing watch/ })
     expect(btn).toBeDisabled()
+  })
+
+  test('DARK: with S7_FILING_WATCH_ENABLED off the action is ABSENT, not disabled', async () => {
+    // Absence, not a greyed control. A disabled button advertises a feature
+    // nobody has decided to release, and members ask about it.
+    filingWatchMock.enabled = false
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    expect(screen.queryByRole('button', { name: /SEC filings/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /filing watch/i })).toBeNull()
   })
 })

@@ -22,6 +22,9 @@ export function AuthProvider({ children }) {
   // an unset flag, a failed fetch, or the pre-settle first render must all
   // read as "not enabled" so the tab can never flash into view unreleased.
   const [researchTechnicalTabEnabled, setResearchTechnicalTabEnabled] = useState(false)
+  // S7 filing watch. Default FALSE like the Technical tab: an enablement
+  // gate must never default to exposed while the payload is still loading.
+  const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
   // (5xx, or the fetch itself threw) must never read as "logged out" — only a
@@ -61,6 +64,7 @@ export function AuthProvider({ children }) {
         setAnnualAvailable(!!(data.billing && data.billing.annual_available))
         setHubPreviewEnabled(data.hub_preview_enabled !== false)
         setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
+        setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
         setAuthTransient(false)
         return { plan: data.plan, role: data.user?.role }
       } else if (res.status >= 500) {
@@ -104,6 +108,7 @@ export function AuthProvider({ children }) {
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     setHubPreviewEnabled(data.hub_preview_enabled !== false)
     setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
+    setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
     return data
   }
 
@@ -128,6 +133,7 @@ export function AuthProvider({ children }) {
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     setHubPreviewEnabled(data.hub_preview_enabled !== false)
     setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
+    setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
     return data
   }
 
@@ -150,6 +156,7 @@ export function AuthProvider({ children }) {
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     setHubPreviewEnabled(data.hub_preview_enabled !== false)
     setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
+    setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
     return data
   }
 
@@ -191,7 +198,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, s7FilingWatchEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -4,6 +4,11 @@ import { render, screen, fireEvent } from '@testing-library/react'
 // S7 Stage 5 — minimal Settings management panel. Controlled mock of the
 // shared hook so list/suspend/reactivate/state-refresh are deterministic.
 const filingWatchMock = vi.hoisted(() => ({
+  // The S7 gate now lives in useFilingWatch itself, so a mock of that hook
+  // must say whether the feature exists. These suites are about the
+  // control's BEHAVIOUR, so they run with it on; absence-when-off has its
+  // own dedicated tests.
+  enabled: true,
   predicates: [],
   isLoading: false,
   watchState: vi.fn(() => 'ACTIVE'),

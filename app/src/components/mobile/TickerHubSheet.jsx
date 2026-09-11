@@ -143,6 +143,8 @@ function TickerHubBody({ sym, onClose }) {
           >
             <span className={styles.aicon} aria-hidden="true"><UIcon name="bell" size={14} /></span>Alert
           </button>
+          {/* Dark until S7_FILING_WATCH_ENABLED; gate owned by useFilingWatch. */}
+          {filingWatch.enabled && (
           <button
             type="button"
             className={`${styles.action} ${filingWatchState === 'ACTIVE' ? styles.on : ''}`}
@@ -154,6 +156,7 @@ function TickerHubBody({ sym, onClose }) {
           >
             <span className={styles.aicon} aria-hidden="true"><UIcon name="document" size={14} /></span>Filings
           </button>
+          )}
           <button
             type="button"
             className={`${styles.action} ${flagged ? styles.on : ''}`}

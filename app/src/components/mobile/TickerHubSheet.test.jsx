@@ -15,6 +15,11 @@ vi.mock('../../hooks/useTickerTweets', () => ({ default: () => ({ data: [] }) })
 // (they don't exercise it); a dedicated block further down drives the real
 // hook shape to prove the Filings action itself.
 const filingWatchMock = vi.hoisted(() => ({
+  // The S7 gate now lives in useFilingWatch itself, so a mock of that hook
+  // must say whether the feature exists. These suites are about the
+  // control's BEHAVIOUR, so they run with it on; absence-when-off has its
+  // own dedicated tests.
+  enabled: true,
   watchState: vi.fn(() => 'NOT_WATCHING'),
   getWatch: vi.fn(() => null),
   createOrReactivate: vi.fn(),
@@ -143,6 +148,7 @@ test('picking a comparator navigates to the exact canonical compare route (upper
 describe('S7 filing-watch action — distinct from the price Alert button', () => {
   beforeEach(() => {
     filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.enabled = true   // an OFF test must not leak forward
     filingWatchMock.getWatch.mockReset().mockReturnValue(null)
     filingWatchMock.createOrReactivate.mockReset()
     filingWatchMock.suspend.mockReset()
@@ -183,6 +189,16 @@ describe('S7 filing-watch action — distinct from the price Alert button', () =
     fireEvent.click(btn)
     expect(filingWatchMock.createOrReactivate).not.toHaveBeenCalled()
   })
+
+  test('DARK: with S7_FILING_WATCH_ENABLED off the Filings action is ABSENT', () => {
+    // The price Alert button must survive: these are two different features
+    // and the gate must not take the neighbour with it.
+    filingWatchMock.enabled = false
+    render(<Harness />)
+    fireEvent.click(screen.getByText('open AAPL'))
+    expect(screen.queryByText('Filings')).toBeNull()
+    expect(screen.getByText('Alert')).toBeInTheDocument()
+  })
 })
 
 test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form, unconverted', () => {
@@ -197,4 +213,5 @@ test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form
   fireEvent.click(screen.getByText('open BRK-B'))
   fireEvent.click(screen.getByText('Research'))
   expect(navigateMock).toHaveBeenCalledWith('/research/BRK-B')
+
 })
