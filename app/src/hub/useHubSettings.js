@@ -4,6 +4,7 @@
 import { useCallback, useContext, useMemo } from 'react'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import { AuthContext } from '../context/AuthContext'
+import { unsetDefault } from './rolloutStage'
 
 /**
  * Parse a stored preference value — `usePreferences`' own `parsePref`, plainly
@@ -142,8 +143,15 @@ export default function useHubSettings() {
    */
   const storedEnabled = stored && typeof stored === 'object' ? stored.enabled : undefined
 
+  // ⛔ THE UNSET DEFAULT IS THE ROLLOUT'S, NOT THIS FILE'S. It used to read `isAdmin` inline,
+  // which was correct and was also one of TWO places a rollout stage has to move at once (the
+  // other is the Settings card's own visibility). Both now ask `hub/rolloutStage.js`, so a stage
+  // cannot half-ship. An explicit boolean never reaches `unsetDefault` — "never chosen" and
+  // "explicitly false" stay opposite things, which is the distinction this whole block exists for.
   const resolveEnabled = useCallback(
-    (explicitEnabled) => (explicitEnabled === undefined ? isAdmin : !!explicitEnabled),
+    (explicitEnabled) => (
+      explicitEnabled === undefined ? unsetDefault({ isAdmin }) : !!explicitEnabled
+    ),
     [isAdmin],
   )
 

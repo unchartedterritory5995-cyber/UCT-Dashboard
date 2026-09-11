@@ -14,6 +14,7 @@ import { useContext } from 'react'
 import { AuthContext } from '../../context/AuthContext'
 import TileCard from '../../components/TileCard'
 import useHubSettings from '../../hub/useHubSettings'
+import { cardVisible } from '../../hub/rolloutStage'
 import { clearSessionOverride } from '../../hub/hubSessionVisibility'
 import styles from '../Settings.module.css'
 
@@ -45,8 +46,12 @@ export default function JoystickSettingsCard() {
   // (`api/routers/auth.py:1707-1711`) accepts any `{key, value}` from any authenticated user with
   // no validation, so a member can still set `joystick_hub.enabled` directly. Filed as an open
   // item; it is not this branch's to fix.
+  // ⛔ THE VISIBILITY RULE MOVED TO `hub/rolloutStage.js`, unchanged in meaning at stage 1.
+  // `cardVisible` keeps `isAdmin || everChose` stage-INDEPENDENT for exactly the strand reason
+  // argued above: no rollout stage may take away the only way back for a member who already
+  // turned the hub on with this card.
   const everChose = typeof storedEnabled === 'boolean'
-  if (!isAdmin && !everChose) return null
+  if (!cardVisible({ isAdmin, everChose })) return null
 
   // ⛔ WRITES ONLY ON CHANGE, NEVER ON MOUNT. `hubHideRestore.test.jsx:205` asserts
   // `setPrefMerged` is called exactly once after a single toggle click; anything that wrote while
