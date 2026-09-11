@@ -15,6 +15,7 @@ import SymbolSearch from './chart/SymbolSearch'
 import { buildWidgetEmbedAttrs } from '../pages/journal-2-0/lib/widgetEmbedCore'
 import { targetsFor } from '../pages/journal-2-0/lib/captureTargets'
 import { sendCaptureToJournal } from '../pages/journal-2-0/lib/sendToJournal'
+import { captureEnabled } from '../widgets/captureRelease'
 import styles from './TickerActions.module.css'
 
 // ─── Wave R (R-2e): "Send chart to note" ─────────────────────────────────────
@@ -141,6 +142,10 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   //   null            → the entry is collapsed
   //   {capture,targets} → open, holding the capture FROZEN at the moment it opened
   const [sendNote, setSendNote] = useState(null)
+  // Wave R release gate, read AT RENDER (never captured at module scope) so a
+  // per-browser opt-in takes effect on this menu's next open rather than on a
+  // deploy. With it off this door does not exist for a member.
+  const captureOn = captureEnabled()
   const [sending, setSending] = useState(false)
   // ⛔ The result sentence is owned by the section that stays mounted, and the menu
   // does NOT close on send. This repo has shipped two toast defects where the
@@ -322,7 +327,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
 
         {/* Send chart to note (Wave R R-2e) — same bespoke-toggle pattern as
             Add to list / Compare / Set alert. */}
-        {!sendNote ? (
+        {!captureOn ? null : !sendNote ? (
           <button className={styles.item} onClick={openSendNote}>
             <UIcon name="journal" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Send {sym} chart to note
           </button>

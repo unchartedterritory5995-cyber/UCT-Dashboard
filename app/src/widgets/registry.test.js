@@ -13,10 +13,13 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { describe, it, expect } from 'vitest'
+import { UNRELEASED_CAPTURE_WIDGETS } from './captureRelease'
 import {
   WIDGET_REGISTRY,
   WIDGET_IDS,
   WORKSPACE_MENU_TYPES,
+  WORKSPACE_MENU_TYPES_ALL,
+  TAB_MENU_TYPES_ALL,
   TAB_MENU_TYPES,
   MOBILE_MENU_TYPES,
   JOURNAL_MENU_TYPES,
@@ -120,12 +123,26 @@ describe('widget registry — metadata pins', () => {
   })
 
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
-    expect(WORKSPACE_MENU_TYPES).toEqual([
+    // ⭐ WHAT EXISTS. The registry's own answer, before any release gate — this
+    // is the pin that catches a widget added without a menu decision.
+    expect(WORKSPACE_MENU_TYPES_ALL).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
       'indexes', 'marketcontext',
       'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
     ])
+    expect(TAB_MENU_TYPES_ALL).toEqual(WORKSPACE_MENU_TYPES_ALL)
+  })
+
+  it('⛔ and what THIS RELEASE offers is that set minus the Wave R capture widgets', () => {
+    // The gate itself (both directions, plus menuGroups) is owned by
+    // ./captureRelease.test.js. This is the pin that the registry's own exported
+    // menus are the GATED ones — i.e. that the gate is actually applied here,
+    // rather than being a helper nobody calls.
+    expect(WORKSPACE_MENU_TYPES).toEqual(
+      WORKSPACE_MENU_TYPES_ALL.filter(id => !UNRELEASED_CAPTURE_WIDGETS.includes(id)),
+    )
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
+    expect(WORKSPACE_MENU_TYPES.length).toBeLessThan(WORKSPACE_MENU_TYPES_ALL.length)
   })
 
   it('mobile offers exactly the 5 phone-usable types', () => {
@@ -141,7 +158,7 @@ describe('widget registry — metadata pins', () => {
   })
 
   it('every workspace-menu widget has a catalog card (icon + blurb) so the gallery is never blank', () => {
-    for (const id of WORKSPACE_MENU_TYPES) {
+    for (const id of WORKSPACE_MENU_TYPES_ALL) {
       const c = WIDGET_CATALOG[id]
       expect(c, `${id} is missing a WIDGET_CATALOG entry`).toBeTruthy()
       expect(typeof c.icon === 'string' && c.icon.length > 0, `${id}.icon`).toBe(true)
@@ -150,7 +167,7 @@ describe('widget registry — metadata pins', () => {
     }
     // No catalog cards for ids that aren't in the workspace add-menu (e.g. periodsort).
     for (const id of Object.keys(WIDGET_CATALOG)) {
-      expect(WORKSPACE_MENU_TYPES, `catalog has a card for non-menu id '${id}'`).toContain(id)
+      expect(WORKSPACE_MENU_TYPES_ALL, `catalog has a card for non-menu id '${id}'`).toContain(id)
     }
     // catalogMeta never returns undefined (safe fallback for unknown ids).
     expect(catalogMeta('nope')).toEqual({ icon: 'sparkle', blurb: '' })
@@ -161,7 +178,7 @@ describe('widget registry — metadata pins', () => {
     expect(new Set(catItems).size, 'a widget is listed in two categories').toBe(catItems.length)
     // The categorized set IS the workspace add-menu set — a new widget without a
     // category would vanish from the grouped menu; this catches that.
-    expect([...new Set(catItems)].sort()).toEqual([...WORKSPACE_MENU_TYPES].sort())
+    expect([...new Set(catItems)].sort()).toEqual([...WORKSPACE_MENU_TYPES_ALL].sort())
     // menuGroups filters to a surface + drops empty groups, preserving coverage.
     const flat = menuGroups('workspace').flatMap(g => g.items)
     expect(new Set(flat)).toEqual(new Set(WORKSPACE_MENU_TYPES))

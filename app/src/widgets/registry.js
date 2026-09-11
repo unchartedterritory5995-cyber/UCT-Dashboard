@@ -83,12 +83,15 @@
 // the insertion-workflow phase), and normalizeParams() below is the shared
 // normalizer that turns that loose read-out into schema-shaped frozen params.
 
+import { releasedTypes } from './captureRelease'
+
 // ⚠️ DELIBERATE MIRROR of the server's intraday fetch ceilings —
 // api/services/bars_fetch.py:684 `max_lookback` — the authority on how far
 // back each intraday timeframe can be fetched. If the server WIDENS a
 // ceiling, this mirror only under-promises (an embed shows its archived image
 // where a live re-render had become possible); it can never break an entry.
 // Daily/weekly/monthly are effectively unbounded (30y + yfinance to IPO).
+
 const CHART_TF_CEILING_DAYS = { 1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200 }
 
 // Search-index text for a timeframe code. Deliberately LOCAL and minimal:
@@ -599,10 +602,26 @@ export const WIDGET_REGISTRY = deepFreeze({
 export const WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 
 // Derived membership views (computed once; the registry is frozen).
-export const WORKSPACE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.workspace)
-export const TAB_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.tab)
-export const MOBILE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.mobile)
-export const JOURNAL_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.journal)
+// -- What EXISTS (the registry's own answer, ungated) -----------------------
+// These describe the catalogue. Rails about categories, catalog cards and
+// params coverage read THESE, because an unreleased widget is still a widget
+// and a stored embed of one must still render.
+export const WORKSPACE_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.workspace)
+export const TAB_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.tab)
+export const MOBILE_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.mobile)
+export const JOURNAL_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.journal)
+
+// -- What this release OFFERS (the gated answer every menu surface renders) --
+// [STOP] ONE gate, seven surfaces: the workspace add-menu, ChartWidget's
+// add-menu, the add-tab menu, the phone sheet, the slash menu, the insert
+// palette, and menuGroups() (which reads these arrays through
+// _MENU_TYPE_SETS). Gating here rather than at each menu is deliberate --
+// lesson_a_guard_repeated_is_a_guard_unproved: seven copies cannot be
+// mutation-proved, one can.
+export const WORKSPACE_MENU_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
+export const TAB_MENU_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
+export const MOBILE_MENU_TYPES = releasedTypes(MOBILE_MENU_TYPES_ALL)
+export const JOURNAL_MENU_TYPES = releasedTypes(JOURNAL_MENU_TYPES_ALL)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
 
 // ── Add-menu categories ──────────────────────────────────────────────────────

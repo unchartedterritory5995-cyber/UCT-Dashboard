@@ -53,6 +53,10 @@ const inboxPost = () => posted.find(p => p.url.includes('/api/j2/inbox'))
 
 beforeEach(() => {
   localStorage.clear()
+  // Wave R ships this door DARK. Every test below is about how the door
+  // BEHAVES, which is only reachable once released, so the suite arms the
+  // release flag for itself. The gate's own proof is the last test in the file.
+  localStorage.setItem('uct.nb.capture.enabled', '1')
   vi.useRealTimers()
   stubFetch()
 })
@@ -173,4 +177,24 @@ test('the pre-existing menu actions still work beside the new entry', () => {
   expect(screen.getByRole('button', { name: /flag/i })).toBeTruthy()
   expect(screen.getByRole('button', { name: /compare nvda with/i })).toBeTruthy()
   expect(screen.getByRole('button', { name: /set alert/i })).toBeTruthy()
+})
+
+// ─── The release gate ───────────────────────────────────────────────────────
+test('⛔ WITH THE WAVE R FLAG OFF THE DOOR DOES NOT EXIST — not disabled, ABSENT', () => {
+  // The release note for this deploy tells members the new capture tools are
+  // switched off. This is that sentence, as an assertion. `localStorage.clear()`
+  // drops the arming the other tests rely on, so the module default decides —
+  // which is exactly what a member's browser does.
+  localStorage.clear()
+  render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
+  expect(screen.queryByRole('button', { name: ENTRY })).toBeNull()
+  // ⭐ CONTROL: the menu still rendered. Without this, a crash that produced an
+  // empty tree would satisfy the assertion above and read as a working gate.
+  expect(screen.getByRole('button', { name: /add to list/i })).toBeTruthy()
+})
+
+test('⭐ and comes back when the flag is on — a gate proved in one direction is not a gate', () => {
+  localStorage.setItem('uct.nb.capture.enabled', '1')
+  render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
+  expect(screen.getByRole('button', { name: ENTRY })).toBeTruthy()
 })

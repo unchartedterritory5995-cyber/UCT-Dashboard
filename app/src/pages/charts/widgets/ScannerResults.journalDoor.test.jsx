@@ -138,6 +138,8 @@ const inboxPost = () => posted.find(p => p.url.includes('/api/j2/inbox'))
 
 beforeEach(() => {
   localStorage.clear()
+  // Wave R ships this door DARK — see the gate test at the foot of this file.
+  localStorage.setItem('uct.nb.capture.enabled', '1')
   scanPayload = {
     as_of: '2026-09-10T13:26:00-04:00',
     results: [{ sym: 'AAA' }, { sym: 'BBB' }],
@@ -279,5 +281,27 @@ describe('⛔ the host actually gives the door a home', () => {
 
   test('⛔ and RENDERS it, gated on scan mode — a declared-but-unrendered prop is the orphan shape', () => {
     expect(wlSrc).toMatch(/\{\s*scanMode\s*&&\s*scanActions\s*\}/)
+  })
+})
+
+// ─── The release gate ───────────────────────────────────────────────────────
+describe('⛔ the Wave R release gate', () => {
+  test('with the flag OFF the header carries NO door — the release note, as an assertion', () => {
+    localStorage.clear()
+    renderScan()
+    expect(screen.queryByLabelText(DOOR)).toBeNull()
+    expect(screen.queryByLabelText(DOOR_MENU)).toBeNull()
+    // ⭐ CONTROL: the host still mounted. This harness's Watchlists mock renders
+    // ONLY `scanActions`, so an empty host is the honest reading of "the widget
+    // offered no door" — and proves the absence above is the gate, not a crash
+    // that produced an empty tree.
+    expect(screen.getByTestId('watchlists-host')).toBeTruthy()
+  })
+
+  test('⭐ and both doors return with the flag ON — both directions, or it is not a gate', () => {
+    localStorage.setItem('uct.nb.capture.enabled', '1')
+    renderScan()
+    expect(screen.getByLabelText(DOOR)).toBeTruthy()
+    expect(screen.getByLabelText(DOOR_MENU)).toBeTruthy()
   })
 })

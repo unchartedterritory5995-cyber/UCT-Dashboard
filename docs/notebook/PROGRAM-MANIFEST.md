@@ -209,6 +209,56 @@ Measured state of the three layers:
 trading-journal-moat example in the master architecture doc, and its door does not
 exist. *"wire this door explicitly, don't assume it exists."*
 
+### R-0 · THE RELEASE GATE — added 2026-09-11, during the deploy checklist
+
+⛔⛔ **Wave R was built with NO gate at all.** All four doors — the Scanner
+header door (R-1a), the ticker-menu "Send chart to note" (R-2e), and the
+`indexes` / `marketcontext` widgets — rendered unconditionally. The widgets were
+in `WORKSPACE_MENU_TYPES` and `TAB_MENU_TYPES`; the two buttons had no condition
+on them whatsoever.
+
+⚰️ **This was found by checking the deploy's own member-impact paragraph against
+the code, not by a test.** The paragraph reads *"Nothing changes for members …
+the new Notebook capture tools in this release are switched off until a later
+update turns them on."* On the branch as built, that sentence was **false for at
+least three of the four doors** — the same defect shape as the round-3 claim that
+the doors PUT with no `baseUpdatedAt`, which was read off a call site instead of
+the wire. A member-impact paragraph is a claim about the product and gets
+measured like any other.
+
+**The gate** is `app/src/widgets/captureRelease.js`, mirroring `offlineFlag.js`:
+
+| | |
+|---|---|
+| switch | `WAVE_R_CAPTURE_ON = false` (source constant; flip in ONE commit) |
+| per-browser opt-in | `localStorage['uct.nb.capture.enabled'] = '1'` |
+| applied at | the four derived menu arrays in `registry.js` — **one gate, seven surfaces** (workspace add-menu, ChartWidget add-menu, add-tab, phone sheet, slash menu, insert palette, `menuGroups()`) |
+| plus | a render-time `captureEnabled()` read in each of the two capture buttons |
+
+⛔ **OFF IS NOT DELETED.** `WIDGET_REGISTRY` still describes both widgets with
+their `paramsSchema` intact, so a note that already stores such an embed still
+renders and still search-indexes. Turning a door off has never been permission to
+stop honouring what a member already saved. `WORKSPACE_MENU_TYPES_ALL` (ungated)
+is what the catalogue rails read; `WORKSPACE_MENU_TYPES` (gated) is what menus
+render.
+
+**Rails**, each mutation-proved in both directions (4 mutations, all red, all
+restored byte-identical):
+
+- `app/src/widgets/captureRelease.test.js` — the switch, the menu withholding,
+  `menuGroups()` not leaking, both directions, and the "off is not deleted" pin.
+- `TickerActions.sendNote.test.jsx` / `ScannerResults.journalDoor.test.jsx` — the
+  two buttons, **by rendered DOM**, absent with the flag off and present with it
+  on, each with a control proving the absence is the gate and not a crash.
+
+⚠️ Deliberate asymmetry, stated rather than papered over: the menu arrays are
+derived at module import, so a per-browser opt-in reaches the **menus** on the
+next page load; the two buttons read at render and follow immediately.
+
+⛔ Not in `docs/feature_flags.json` — that ledger's 124 entries are Railway env
+vars, and `OFFLINE_DEFAULT_ON` is deliberately absent from it too. This is the
+wave's own source-constant idiom, recorded here.
+
 ### R-2 · Right-click a symbol → insert a chart widget at a timeframe and spot, 5m/15m/30m switching
 
 | id | feature | status |

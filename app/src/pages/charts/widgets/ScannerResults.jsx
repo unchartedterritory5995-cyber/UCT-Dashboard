@@ -136,6 +136,7 @@ import useLivePrices from '../../../hooks/useLivePrices'
 // artifact and wins. So it comes back in the HEADER action row, one-click +
 // choose-where, exactly like Breadth/News/Fundamentals — not in the footer.
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { captureEnabled } from '../../../widgets/captureRelease'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 
@@ -250,7 +251,9 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // `rows` fails the registry's own `reconstructable` predicate, so such a capture
   // could only ever render as a placeholder chip. An offer to freeze nothing is
   // worse than no offer.
-  const scanActions = symbols.length > 0 ? (
+  // Wave R release gate, read AT RENDER. Off => the header carries no door at
+  // all, which is what the release note promises a member.
+  const scanActions = (captureEnabled() && symbols.length > 0) ? (
     <>
       <button
         type="button"
