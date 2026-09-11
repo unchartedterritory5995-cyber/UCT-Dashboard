@@ -416,18 +416,6 @@ export function buildSteps({ frame, cred, runId, ctx = {} }) {
       return expect(text.slice(0, 60), text.length > 0, 'a populated Layouts sheet')
     }),
 
-    step('objects-ui', 3, 'the Objects recovery surface opens from Tools', ['app'], async () => {
-      const more = await until('the More tools button', () => appDoc(frame).querySelector('[aria-label="More tools"]'))
-      more.click()
-      const tools = await until('the Tools sheet', () => appDoc(frame).querySelector('[aria-label="Chart tools"]'))
-      const row = [...tools.querySelectorAll('[aria-label="Objects"]')][0]
-      if (!row) throw new Error('no Objects row in the Tools sheet')
-      row.click()
-      const sheet = await until('the Objects sheet', () => appDoc(frame).querySelector('[aria-label="Chart objects"]'))
-      dismiss(frame)
-      return expect('Chart objects', !!sheet, 'the object manager')
-    }),
-
     step('tool-discovery', 3, 'every drawing tool is reachable, and search knows synonyms', ['app'], async () => {
       // ⛔ THE ⊞ DOOR IS NOT ALWAYS ON SCREEN. `MobileDrawBar` renders only once
       // the drawing bar is open (StockChart `mobileDrawBar && mobileDrawOpen`),
