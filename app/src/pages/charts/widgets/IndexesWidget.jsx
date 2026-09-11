@@ -31,7 +31,18 @@ import styles from './IndexesWidget.module.css'
 // reading one in an effect costs a cascading render. Stamping here does
 // neither, and it is strictly more correct: the instant travels WITH the
 // payload it describes, so it can never end up attached to a different one.
-const fetcher = (url) => fetch(url).then((r) => r.json()).then((d) => ({ ...d, _fetchedAt: Date.now() }))
+// ⛔ CHECK BEFORE PARSING. `jsonFetcher.test.js` caught this one, and only in the
+// FULL suite: parsing a response nobody checked feeds a 500's error body — or an
+// SPA catch-all's HTML — into the widget as if it were data.
+//
+// ⛔ AND FAIL HONESTLY, which is two separate things:
+//   · a failed fetch returns a TRUTHY marker, so the empty state reads "No index
+//     readings yet." instead of spinning on "Loading indexes…" forever;
+//   · it carries NO `_fetchedAt`, because that value is the "as of" stamp and a
+//     timestamp on data that never arrived is a lie the member would act on.
+const fetcher = (url) => fetch(url)
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => (d ? { ...d, _fetchedAt: Date.now() } : { _failed: true }))
 
 const SNAPSHOT_URL = '/api/snapshot'
 
