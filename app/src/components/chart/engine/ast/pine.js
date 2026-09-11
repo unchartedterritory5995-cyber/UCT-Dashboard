@@ -598,6 +598,34 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * are reconciled. Same reasoning holds for `ta.cci`, whose Pine definition is
  * built on an arbitrary `source` rather than on the typical price.
  */
+/** ⭐⭐ PINE SPELLINGS THAT MAY OMIT A LEADING SOURCE, AND THE SERIES THAT FILLS IT.
+ *
+ *  Pine lets `ta.highest(20)` stand for `ta.highest(high, 20)` and `ta.lowest(20)`
+ *  for `ta.lowest(low, 20)`. MEASURED, not assumed — the 1-arg form was read off a
+ *  live chart on 2026-09-10 and agreed with the explicit `high`/`low` form on 397
+ *  of 397 usable bars, with ZERO agreeing with `close` or `hl2`:
+ *  `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json`.
+ *
+ *  ⛔⛔ THE ASYMMETRY IS THE WHOLE RISK. `highest` defaults to `high` and `lowest`
+ *  to `low`; reading BOTH off `close` — the obvious guess — would have been
+ *  silently wrong on 97 corpus sites across 33 files. Wrong numbers, right shape,
+ *  no refusal to notice.
+ *
+ *  ⚰️⚰️ AND IT DOES NOT BELONG IN `PINE_NAMESPACED_TREE`, WHICH IS WHERE IT WAS
+ *  PUT FIRST AND REVERTED FROM. Membership of that map is itself a signal:
+ *  `pineRuntimeFrontend.js`'s `windowTarget` and `carriedTarget` both open with
+ *  `if (tree[name]) return null`, so a name rewritten there is by definition NOT a
+ *  carried/windowed builtin — and `highest`/`lowest` are both. Adding them broke
+ *  the TWO-argument form in the runtime lane, which had always worked.
+ *
+ *  ⭐ THIS FILLS A SLOT INSTEAD, through the same `{series: …}` plan entries
+ *  `ta.atr(14)` → `atr(high, low, close, 14)` has always used. The two-argument
+ *  form takes the identical path it did before this existed. */
+export const PINE_SHORT_FORM = Object.freeze({
+  highest: Object.freeze({ fills: Object.freeze(['high']) }),
+  lowest: Object.freeze({ fills: Object.freeze(['low']) }),
+})
+
 export const PINE_CALL_SHAPES = Object.freeze({
   // Two series, and the ORDER MEANS SOMETHING: `ta.crossover(a, b)` is "a crossed
   // above b", and so is this table's `crossOver(a, b)`. Railed.
@@ -6952,7 +6980,24 @@ export class Resolver {
           + `(${signatureOf(key, spec)}) and no measured order maps \`${pineName}\` onto them`,
           locate(tok))
       }
-      if (args.length !== declaredArgs.length) {
+      // ⭐⭐ THE SHORT FORM, FILLED BEFORE THE COUNT IS JUDGED. `ta.highest(20)` is
+      // a legal Pine call and this table declares two arguments, so without this
+      // the member meets `pine:arity` for a script that is correct — measured on
+      // 97 corpus sites. The fill is a `{series: …}` plan entry, the same one
+      // `ta.atr(14)` rides, so everything downstream is unchanged.
+      // ⛔ NAMED ARGUMENTS ARE NOT ELIGIBLE. `ta.highest(length = 20)` names the
+      // slot it fills, and `PINE_ARG_NAMES` deliberately carries no evidenced
+      // names for these — so a named call still meets the refusal it met before,
+      // rather than being quietly given a source the member did not ask for.
+      const shortForm = own(PINE_SHORT_FORM, key) ? PINE_SHORT_FORM[key] : null
+      if (shortForm
+          && args.length === declaredArgs.length - shortForm.fills.length
+          && !args.some((a) => a && a.name)) {
+        plan = [
+          ...shortForm.fills.map((series) => ({ series })),
+          ...args.map((_, i) => ({ pine: i })),
+        ]
+      } else if (args.length !== declaredArgs.length) {
         // ⭐⭐ A COUNT MISMATCH WITH A KNOWN WAY ROUND IT SAYS SO. `ta.change(src)`
         // is declared and `ta.change(src, n)` is not — recorded in
         // `pine.derived.test.js::TA_VETTED` as *"the n-arg form is refused by
@@ -6968,8 +7013,9 @@ export class Resolver {
           + args.length + ' argument' + (args.length === 1 ? '' : 's')
           + '; this table takes ' + declaredArgs.length + ' — '
           + signatureOf(key, spec) + hint, locate(tok))
+      } else {
+        plan = declaredArgs.map((_, i) => ({ pine: i }))
       }
-      plan = declaredArgs.map((_, i) => ({ pine: i }))
     }
 
     const out = []

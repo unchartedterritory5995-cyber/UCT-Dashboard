@@ -1,8 +1,8 @@
 // app/src/components/chart/engine/ast/pine.hiloDefault.test.js
 //
-// ⭐⭐ THE 81-SITE ASYMMETRY IS MEASURED. THE DOOR DOES NOT SERVE IT YET.
-// This file pins BOTH facts, and the second one is a recorded gap rather than a
-// hidden one.
+// ⭐⭐ THE ASYMMETRY IS MEASURED AND THE DOOR NOW SERVES IT.
+// The capture says what the 1-argument form defaults to; this file requires the
+// door to agree, and requires the two-argument form to be untouched.
 //
 // `docs/pine/r11-group-b-arity.md` named the risk in the shape it turned out to
 // have: "does `ta.highest(20)` default the source to `high` (and `ta.lowest` to
@@ -21,9 +21,11 @@
 // script went red. The fix belongs where ARITY is resolved, not in a tree rewrite;
 // `requests.md` carries it.
 //
-// ⛔ SO THE `refuses` TEST BELOW IS PINNING A DEFECT, NOT BLESSING ONE. When the
-// default lands at the right layer, that test goes red — INVERT it then, and the
-// two `matches the capture` assertions beside it stop being `.skip`.
+// ⭐ IT LANDED AT THE RIGHT LAYER ON 2026-09-11: `PINE_SHORT_FORM` fills the
+// missing slot where ARITY is resolved — the same `{series: …}` plan entry
+// `ta.atr(14)` has always ridden — so the names never enter
+// `PINE_NAMESPACED_TREE` and the runtime classifiers still see them. The four
+// `finiteWindow` tests and `executionShapeCensus` are the control, and they pass.
 
 import { describe, it, expect } from 'vitest'
 
@@ -75,21 +77,30 @@ describe('the 1-argument ta.highest / ta.lowest default their SOURCE', () => {
     expect(c.lowest_1arg_equals_lowest_HL2).toBe(0)
   })
 
-  it('⚰️ THE GAP, PINNED: the door still REFUSES the 1-arg form', () => {
-    // ⛔ This asserts what the engine does TODAY, which is not what the vendor
-    // does. It is here so the gap cannot be forgotten, and so that closing it is
-    // announced by a red test rather than discovered by a member.
-    // ⭐ WHEN THE DEFAULT LANDS: delete this test, and un-skip the two below.
+  it('⭐⭐ the DOOR matches the capture, source for source', () => {
+    // ⚰️ THIS WAS `it.skip` FOR ONE NIGHT, beside a test pinning the refusal it
+    // replaced. The gap is closed: `PINE_SHORT_FORM` fills the missing slot where
+    // ARITY is resolved, so the name never enters `PINE_NAMESPACED_TREE` and the
+    // runtime's carried/windowed classifiers still see it.
+    expect(formulaOf('ta.highest(20)').formula).toBe(`highest(${vendorDefault('highest')}, 20)`)
+    expect(formulaOf('ta.lowest(20)').formula).toBe(`lowest(${vendorDefault('lowest')}, 20)`)
+  })
+
+  it('⭐ and it TRANSLATES — the refusal that stood on 97 sites is gone', () => {
     for (const src of ['ta.highest(20)', 'ta.lowest(20)']) {
       const r = formulaOf(src)
-      expect(r.ok).toBe(false)
-      expect(r.refusals).toContain('pine:arity')
+      expect(r.ok).toBe(true)
+      expect(r.refusals).not.toContain('pine:arity')
     }
   })
 
-  it.skip('⭐⭐ the DOOR matches the capture, source for source (blocked: see above)', () => {
-    expect(formulaOf('ta.highest(20)').formula).toBe(`highest(${vendorDefault('highest')}, 20)`)
-    expect(formulaOf('ta.lowest(20)').formula).toBe(`lowest(${vendorDefault('lowest')}, 20)`)
+  it('⛔ a NAMED short-form call is still refused, not quietly filled', () => {
+    // `PINE_ARG_NAMES` carries no evidenced parameter names for these — the v5
+    // migration guide lists them with empty parentheses — so a member writing
+    // `ta.highest(length = 20)` has named a slot nobody measured. Filling the
+    // OTHER slot for them would be a guess wearing a measurement's clothes.
+    const r = formulaOf('ta.highest(length = 20)')
+    expect(r.ok).toBe(false)
   })
 
   it('⛔ an EXPLICIT source is honoured, and the TWO-arg form is untouched', () => {

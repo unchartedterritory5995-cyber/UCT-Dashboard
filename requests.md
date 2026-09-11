@@ -400,7 +400,7 @@ re-run a candidate alone before filing it.
 
 ---
 
-## OPEN · 2026-09-11 · the 1-arg `ta.highest`/`ta.lowest` default needs an ARITY layer, not a tree rewrite
+## ✅ CLOSED 2026-09-11 · the 1-arg `ta.highest`/`ta.lowest` default needs an ARITY layer, not a tree rewrite
 
 **Raised by:** the `indicator-r0r1` session, which wrote the fix, shipped it, and reverted it the same night.
 **Territory:** `pine.js` ↔ `pineRuntimeFrontend.js` — the boundary is the point.
@@ -450,3 +450,30 @@ there would be at least three callers on day one.
 
 ⛔ **Do not close this by editing `finiteWindow.test.js`.** Those four tests are the
 runtime differential and they were right.
+
+> ### ✅ CLOSED — the layer existed already
+>
+> `PINE_SHORT_FORM` (2026-09-11). The facility this note asked for — *"somewhere to
+> declare: this Pine spelling may be called with n−1 arguments; here is the node that
+> fills slot 0"* — turned out to be **half-built already**: the `{series: …}` plan
+> entry that turns `ta.atr(14)` into `atr(high, low, close, 14)` is exactly that node,
+> and all that was missing was a way to reach it when the member's arity is short.
+> Consulted where arity is resolved, invisible to `PINE_NAMESPACED_TREE`, so the
+> runtime classifiers are untouched. The four `finiteWindow` tests and
+> `executionShapeCensus` pass and are kept as the control.
+>
+> ⛔ **Named calls are deliberately NOT eligible.** `ta.highest(length = 20)` names a
+> slot nobody measured — `PINE_ARG_NAMES` carries no evidenced parameter names for
+> these, the v5 migration guide lists them with empty parentheses — so it still meets
+> the refusal it met before rather than being handed a source it did not ask for.
+>
+> ⚠️ **`ta.vwap` IS STILL OPEN and is a different problem.** It is the MIRROR image:
+> Pine passes a source (`ta.vwap(hlc3)`) that our zero-argument `vwap` does not take,
+> so the fix is a DROP rather than a fill. The identity is measured — `ta.vwap(hlc3)`
+> minus bare `ta.vwap` was 0 across 40 bars while `ta.vwap(close)` ranged
+> −4.29..+2.91 — but the one-argument spelling is refused UPSTREAM, in the
+> value-namespace path, before any arity layer is reached. `PINE_CALL_SHAPES` already
+> carries a comment saying exactly why it is not there: *"a shape carries ONE
+> `pineArity`, and bare `ta.vwap` is a zero-argument VARIABLE that reaches the table
+> and works today"*. A drop mechanism was written, measured to be inert at that
+> position, and REMOVED rather than left as dead code.
