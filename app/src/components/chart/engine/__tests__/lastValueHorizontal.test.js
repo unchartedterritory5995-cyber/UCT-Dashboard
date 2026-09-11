@@ -92,11 +92,15 @@ describe('resolvePlotStyle', () => {
   it('⛔ an UNKNOWN style reads as the default rather than as a guess', () => {
     // Data that bypassed validation must not reach the binder as a style it will
     // try to draw — the same fail-safe direction `resolvePlacement` takes.
-    for (const bad of ['histogram', 'Line', '', null, 42, {}]) {
+    // ⚰️ `'histogram'` AND `'dots'` USED TO BE IN THIS LIST. POC E made them real
+    // styles, so the case now probes values that are still not: a DEFINITION-only
+    // shape the user vocabulary deliberately excludes (`hlines`, `band`), a
+    // mis-cased name, and the non-strings.
+    for (const bad of ['hlines', 'band', 'stepline', 'Line', '', null, 42, {}]) {
       expect(resolvePlotStyle(inst('rsi', { presentation: { plotStyle: bad } })))
         .toBe(DEFAULT_PLOT_STYLE)
     }
-    expect(PLOT_STYLES).not.toContain('histogram')   // …not yet
+    expect(PLOT_STYLES).not.toContain('hlines')   // a guide is not a user style
   })
 })
 
@@ -123,7 +127,7 @@ describe('setInstancePlotStyle', () => {
 
   it('refuses a style it cannot draw, and an instance it cannot find', () => {
     const cs = base()
-    expect(setInstancePlotStyle(cs, 'legacy:rsi', 'dots', registry)).toBe(cs)
+    expect(setInstancePlotStyle(cs, 'legacy:rsi', 'hlines', registry)).toBe(cs)
     expect(setInstancePlotStyle(cs, 'inst:nope:9', 'lastValueHorizontal', registry)).toBe(cs)
   })
 })

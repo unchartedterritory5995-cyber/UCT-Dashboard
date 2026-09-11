@@ -548,7 +548,10 @@ const LINE_SHAPE_KEYS = [
 /** The key set each pool key must ALWAYS produce, whatever the plot says. */
 const COMPLETE_KEYS = {
   line: [...BASE_KEYS, ...LINE_SHAPE_KEYS, 'color'],
-  histogram: [...BASE_KEYS, 'color'],
+  // POC E adds `base` — where the bars grow from. Always emitted so a pooled
+  // histogram cannot inherit the previous tenant's baseline; `0` is LWC's own
+  // default, so a shipped histogram is unchanged by the key existing.
+  histogram: [...BASE_KEYS, 'color', 'base'],
   area: [...BASE_KEYS, ...LINE_SHAPE_KEYS, 'lineColor', 'topColor', 'bottomColor'],
   baseline: [
     ...BASE_KEYS, ...LINE_SHAPE_KEYS,

@@ -68,7 +68,7 @@
 import { validateInputValue } from './defSchema'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { resolveDisplayTarget, DISPLAY_TARGETS } from './displayTarget'
-import { PLOT_STYLES, DEFAULT_PLOT_STYLE } from './presentation'
+import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE } from './presentation'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
@@ -325,15 +325,80 @@ export function setInstancePanePosition(cs, instanceId, position, registry) {
  * left, so a chart that has never touched the control is byte-identical to one
  * that set the style back.
  */
-export function setInstancePlotStyle(cs, instanceId, style, registry) {
+export function setInstancePlotStyle(cs, instanceId, style, registry, plotKey) {
   if (!cs || typeof cs !== 'object') return cs
   if (!PLOT_STYLES.includes(style)) return cs
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+
+  // ⭐⭐ THE DEFAULT IS THE DEFINITION'S, NOT `'line'`, AND THAT IS WHY "DELETE
+  // TO RESET" HAS TO ASK. MACD's histogram output ships as a HISTOGRAM; deleting
+  // its override must return it to a histogram, not flatten it to a line. So
+  // "back to default" is "what `resolvePlotStyle` says with this entry removed",
+  // which is the definition's shape — and the key is deleted only when the value
+  // asked for IS that shape. One representation of the default, per output,
+  // without a second table saying what each default is.
+  const defaultFor = (key) => {
+    const def = resolveRegistry(registry)(inst.defId)
+    const plots = (def && Array.isArray(def.plots)) ? def.plots : []
+    const plot = key ? plots.find((p) => p && p.key === key) : null
+    const bare = { ...inst, presentation: undefined }
+    return resolvePlotStyle(bare, plot || null)
+  }
+
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const presentation = { ...(i.presentation || {}) }
+
+    if (typeof plotKey === 'string' && plotKey) {
+      // ── ONE OUTPUT ──
+      const plots = { ...(presentation.plots || {}) }
+      const entry = { ...(plots[plotKey] || {}) }
+      if (style === defaultFor(plotKey)) delete entry.style
+      else entry.style = style
+      if (Object.keys(entry).length) plots[plotKey] = entry
+      else delete plots[plotKey]
+      if (Object.keys(plots).length) presentation.plots = plots
+      else delete presentation.plots
+    } else {
+      // ── THE WHOLE INSTANCE ── the single-output shape POC D shipped, kept so
+      // an RSI that stored `plotStyle` keeps meaning what it meant.
+      if (style === defaultFor(null)) delete presentation.plotStyle
+      else presentation.plotStyle = style
+    }
+
+    return Object.keys(presentation).length ? { ...i, presentation } : (() => {
+      const { presentation: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * Set ONE output's dot size (or the instance's, with no `plotKey`).
+ *
+ * Same delete-the-default rule as every other optional key here, and the same
+ * per-output-over-instance shape as the style — one seam, two properties.
+ */
+export function setInstanceDotSize(cs, instanceId, size, registry, plotKey) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!Object.prototype.hasOwnProperty.call(DOT_SIZES, size)) return cs
   if (!findInstance(cs, instanceId)) return cs
   const next = cs.indicatorInstances.map((i) => {
     if (!i || i.instanceId !== instanceId) return i
     const presentation = { ...(i.presentation || {}) }
-    if (style === DEFAULT_PLOT_STYLE) delete presentation.plotStyle
-    else presentation.plotStyle = style
+    if (typeof plotKey === 'string' && plotKey) {
+      const plots = { ...(presentation.plots || {}) }
+      const entry = { ...(plots[plotKey] || {}) }
+      if (size === DEFAULT_DOT_SIZE) delete entry.dotSize
+      else entry.dotSize = size
+      if (Object.keys(entry).length) plots[plotKey] = entry
+      else delete plots[plotKey]
+      if (Object.keys(plots).length) presentation.plots = plots
+      else delete presentation.plots
+    } else if (size === DEFAULT_DOT_SIZE) delete presentation.dotSize
+    else presentation.dotSize = size
     return Object.keys(presentation).length ? { ...i, presentation } : (() => {
       const { presentation: _drop, ...rest } = i
       return rest

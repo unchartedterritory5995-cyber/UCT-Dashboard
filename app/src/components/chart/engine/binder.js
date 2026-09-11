@@ -740,7 +740,11 @@ export function createBinder({ chart, LWC }) {
       // style says HOW this output draws; the placement says WHERE. Neither
       // touches what was computed — `b.plot` and its column are already in hand
       // and are not consulted here.
-      const plotStyle = resolvePlotStyle(b.inst)
+      // ⚠️ `b.plot` IS ALREADY THE RESTYLED ONE (`planBindings` → `presentedPlot`),
+      // so this re-resolution agrees with the series type the plan chose. Passing
+      // the plot is what makes it PER-OUTPUT: MACD's three bindings each ask about
+      // their own key.
+      const plotStyle = resolvePlotStyle(b.inst, b.plot)
       const historyDrawn = drawsHistory(plotStyle)
 
       const options = seriesOptionsForPlot(b.plot, {

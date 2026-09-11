@@ -52,6 +52,7 @@
 // complete option set can name `priceScaleId` even when a caller supplies no
 // placement at all.
 import { ALPHA, withAlpha } from '../designTokens'
+import { presentedPlot, histogramBaseline } from './presentation'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 
 /** The four LWC series constructors any v1 plot can need. */
@@ -596,6 +597,12 @@ export function seriesOptionsForPlot(plot, ctx) {
     // histogram can only ever be re-purposed by another histogram, there is
     // nothing of that kind for it to inherit.
     base.color = effectiveColor(plot, LWC_DEFAULTS.histogram.color)
+    // ⭐ WHERE THE BARS GROW FROM — metadata, never the visible minimum. RSI's
+    // bars start at 0 because 0 is the floor of its declared ladder; MACD's start
+    // at 0 because that is what its histogram MEANS. Always emitted, because a
+    // pooled histogram must not inherit the previous tenant's base (LWC's own
+    // default is 0, so a dynamic indicator is unchanged by this being here).
+    base.base = histogramBaseline(plot, c.scaleDomain)
     return base
   }
 
@@ -724,6 +731,9 @@ function guidePlots(def) {
  * thing the binder has to do extra work for (drop the previous tenant's guides,
  * re-assert the scale, force a setData), so it gets its own list.
  */
+// ⚠️ ONE-WAY: `presentation.js` imports nothing from here, so this is not a
+// cycle. The plan needs it because `poolKey` — which decides the SERIES TYPE —
+// must see the RESTYLED plot, not the definition's.
 export function planBindings(instances, registry, prevBindings, opts) {
   const get = resolveGet(registry)
   const hasData = opts && typeof opts.hasData === 'function' ? opts.hasData : null
@@ -746,7 +756,11 @@ export function planBindings(instances, registry, prevBindings, opts) {
     let first = true
 
     for (const rawPlot of dataPlots(def)) {
-      const plot = resolvePlotForInstance(rawPlot, inst.inputs)
+      // ⭐ INPUTS FIRST, THEN PRESENTATION. `resolvePlotForInstance` answers "what
+      // did the user set for colour and width"; `presentedPlot` answers "what
+      // SHAPE did they ask this output to be". The second reads the first's
+      // output so a restyled plot keeps the instance's colour.
+      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst)
       const pk = poolKey(plot)
       if (!pk) continue                       // unmappable style: bind nothing
       const key = bindingKey(inst.instanceId, plot.key)

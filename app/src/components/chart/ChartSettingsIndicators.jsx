@@ -61,12 +61,19 @@ import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
   setInstancePanePosition, setInstanceDisplayTarget,
-  setInstancePlotStyle } from './engine/instanceControls'
+  setInstancePlotStyle, setInstanceDotSize } from './engine/instanceControls'
 import { resolveDisplayTarget } from './engine/displayTarget'
-import { resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/presentation'
+import {
+  resolvePlotStyle, resolveDotSize, availableStyles, styleIrrelevantInputs,
+  PLOT_STYLE_CHOICES, DOT_SIZE_CHOICES,
+} from './engine/presentation'
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
+
+/** A stable identity for "this row hides nothing", so a non-engine row does not
+ *  allocate a Set per render. */
+const EMPTY_KEY_SET = new Set()
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -393,6 +400,92 @@ export default function ChartSettingsIndicators({
    * there is exactly one representation of the default.
    */
   /**
+   * PLOT STYLE — one control for a single-output indicator, a section for MACD.
+   *
+   * ⭐⭐ THE SHAPE OF THE UI IS THE SHAPE OF THE MODEL. RSI has one output, so it
+   * gets one "Plot style" row that writes the INSTANCE-level value — the same key
+   * POC D shipped, so a chart saved then still reads the same way. MACD has
+   * three, so it gets a row PER OUTPUT writing `presentation.plots[key].style`,
+   * because "the MACD line is a line, the signal is dots, the histogram is a
+   * histogram" is not a sentence one value can hold.
+   *
+   * ⛔ ONLY OUTPUTS THAT CAN ACTUALLY BE RE-STYLED APPEAR. `availableStyles`
+   * answers empty for a guide (`hlines`) and for a band, and an output with no
+   * answers gets no row — rather than a dropdown listing five choices and
+   * honouring none of them. It also drops Histogram and Area while the indicator
+   * is sharing the VOLUME pane, where a second histogram or an opaque fill sits
+   * on top of the bars it is meant to be read against.
+   *
+   * ⚠️ DOT SIZE APPEARS ONLY UNDER DOTS. That is the progressive-disclosure rule
+   * this section starts: the STYLE decides which properties are real, so a
+   * control for a property the current style does not have is not disabled, it is
+   * absent.
+   */
+  const styleControls = useCallback((row, def, target) => {
+    if (!row || !row.instanceId) return null
+    const inst = findInstance(settings, row.instanceId)
+    const plots = (def && Array.isArray(def.plots)) ? def.plots : []
+    const restyleable = plots.filter((p) => availableStyles(p, { target }).length > 0)
+    if (!restyleable.length) return null
+    const commit = (next) => { if (next !== settings) onChange?.({ ...next, preset: 'custom' }) }
+
+    // ⭐ ONE OUTPUT ⇒ NO SECTION HEADER AND NO OUTPUT NAME. Printing "RSI" above a
+    // single control, inside a panel already titled "RSI", is furniture.
+    const single = restyleable.length === 1
+
+    const styleRow = (plot) => {
+      const style = resolvePlotStyle(inst, plot)
+      const choices = availableStyles(plot, { target })
+      return (
+        <div key={`style-${plot.key}`}>
+          <div className={styles.indRow}>
+            <span className={styles.indLabel}>{single ? 'Plot style' : (plot.label || plot.key)}</span>
+            <select
+              className={styles.indSelect}
+              value={style}
+              aria-label={single ? `${row.label} plot style` : `${row.label} ${plot.key} plot style`}
+              onChange={(e) => commit(setInstancePlotStyle(
+                settings, row.instanceId, e.target.value, registry, single ? undefined : plot.key,
+              ))}
+            >
+              {PLOT_STYLE_CHOICES.filter((c) => choices.includes(c.value)).map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+          {style === 'dots' ? (
+            <div className={styles.indRow}>
+              <span className={styles.indLabel}>Dot size</span>
+              <select
+                className={styles.indSelect}
+                value={resolveDotSize(inst, plot)}
+                aria-label={single ? `${row.label} dot size` : `${row.label} ${plot.key} dot size`}
+                onChange={(e) => commit(setInstanceDotSize(
+                  settings, row.instanceId, e.target.value, registry, single ? undefined : plot.key,
+                ))}
+              >
+                {DOT_SIZE_CHOICES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
+      )
+    }
+
+    if (single) return styleRow(restyleable[0])
+    return (
+      <>
+        <div className={styles.indRow}>
+          <span className={styles.indLabel}>Outputs</span>
+        </div>
+        {restyleable.map(styleRow)}
+      </>
+    )
+  }, [settings, registry, onChange])
+
+  /**
    * The DISPLAY section of an engine indicator's expanded settings.
    *
    * ⭐ PROGRESSIVE DISCLOSURE IS THE POINT, NOT DECORATION. "Pane position" is a
@@ -453,32 +546,20 @@ export default function ChartSettingsIndicators({
             </select>
           </div>
         ) : null}
-        {/* ⭐ PLOT STYLE IS NOT CONDITIONAL ON WHERE IT DRAWS, and that asymmetry
-            with Pane position is the model showing through: PRESENTATION is
-            independent of PLACEMENT, so the same styles are available in its own
-            pane and on Volume. Pane position is conditional because it is a
-            property of HAVING a pane; this is a property of the output. */}
-        <div className={styles.indRow}>
-          <span className={styles.indLabel}>Plot style</span>
-          <select
-            className={styles.indSelect}
-            value={resolvePlotStyle(inst)}
-            aria-label={`${row.label} plot style`}
-            onChange={(e) => commit(setInstancePlotStyle(settings, row.instanceId, e.target.value, registry))}
-          >
-            {PLOT_STYLE_CHOICES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-        </div>
+        {styleControls(row, def, where)}
       </>
     )
-  }, [settings, registry, onChange])
+  }, [settings, registry, onChange, styleControls])
 
   // ─── ONE ROW, COLLAPSED (§9 option B: toggle · name · colour · chevron) ────
   const renderActiveRow = (row) => {
     const on = rowVisible(row)
     const isOpen = expanded === row.id
+    const rowDef = (row.engineOwned && registry && typeof registry.getDefinition === 'function')
+      ? registry.getDefinition(row.defId) : null
+    const hiddenInputs = rowDef
+      ? styleIrrelevantInputs(rowDef, findInstance(settings, row.instanceId))
+      : EMPTY_KEY_SET
     const colorFields = mainColorFields(row)
     const badge = typeBadge(row)
     return (
@@ -602,6 +683,13 @@ export default function ChartSettingsIndicators({
             {displayControls(row)}
             {row.fields.map((f) => {
               if (f.showIf && !f.showIf(row.values)) return null
+              // ⭐ PROGRESSIVE DISCLOSURE REACHES THE DEFINITION'S OWN INPUTS TOO.
+              // A width or dash-pattern control is meaningless once every output
+              // it feeds is drawn as a histogram or as dots, so it is not shown —
+              // not shown DISABLED, which reads as "should work, is broken".
+              // `styleIrrelevantInputs` derives this from `plot.$refs`, so it is
+              // metadata rather than a guess about what an input is named.
+              if (hiddenInputs.has(f.key)) return null
               const val = row.values?.[f.key]
               const dis = !!f.disabled
               // The reason has to reach a screen reader, not just a pointer — the

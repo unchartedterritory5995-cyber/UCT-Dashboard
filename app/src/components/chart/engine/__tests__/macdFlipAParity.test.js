@@ -54,6 +54,11 @@ const LEGACY_SIGNAL = { ...LEGACY_LINE, color: '#FF9800' }
  * 'sign'` expresses in the definition.
  */
 const LEGACY_HIST = {
+  // ⭐ POC E: MACD's histogram grows from ZERO, which is what it always did —
+  // LWC's default base is 0 and `histogramBaseline` answers 0 for a dynamic
+  // definition. The key is now stated rather than defaulted, so a pooled
+  // histogram cannot inherit someone else's baseline. Same pixels.
+  base: 0,
   priceScaleId: 'macd',
   priceFormat: { type: 'price', precision: 5 },
   priceLineVisible: false,
