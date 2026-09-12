@@ -230,6 +230,72 @@ def open_aliases_with_lifecycle(db_path: str | None = None) -> dict[str, list[tu
     return out
 
 
+def status_counts(db_path: str | None = None) -> dict:
+    """Every count the admin status route reports, in ONE place, read off the
+    ROWS — never off a counter kept beside them.
+
+    Added for `api/routers/entity_master_admin.py`. It lives here rather than in
+    the router for the same reason every other read primitive above does: this
+    module is the storage layer, and SQL in a router is a second place the
+    schema has to be known. Purely additive — it reads, it locks nothing, it
+    writes nothing, and no existing caller changes.
+
+    `last_seed_at` / `last_reconcile_at` are `MAX(applied_at)` over
+    `entity_events` by `source`, because the store keeps no separate run
+    ledger and the event trail is the only durable record either operation
+    leaves. `'admin_manual'` is the source `scripts/entity_master_seed.py`
+    stamps; `'reconciliation'` is `reconciliation.run_reconciliation`'s.
+
+    `ambiguous_open_aliases` is the count of ALIASES currently held open by
+    more than one entity — PRD §13.1's defect signal, the same condition
+    `open_alias_candidates` returns as a `len > 1` list rather than silently
+    collapsing. It counts aliases, not entities: two entities colliding on one
+    alias is ONE ambiguity.
+
+    Cheap at this store's scale (the same ~15-20K-row reasoning §8.3 gives for
+    the full cache rebuild) — but these ARE table scans, so this belongs on an
+    admin ops route and not on a member request path.
+    """
+    conn = _conn(db_path)
+
+    def _scalar(sql: str, params: tuple = ()):  # noqa: ANN202
+        row = conn.execute(sql, params).fetchone()
+        return row[0] if row else None
+
+    lifecycle_states = {
+        state: count
+        for state, count in conn.execute(
+            "SELECT lifecycle_state, COUNT(*) FROM entities GROUP BY lifecycle_state"
+        ).fetchall()
+    }
+    return {
+        "entities": _scalar("SELECT COUNT(*) FROM entities") or 0,
+        "aliases": _scalar("SELECT COUNT(*) FROM entity_aliases") or 0,
+        "open_aliases": _scalar(
+            "SELECT COUNT(*) FROM entity_aliases WHERE valid_to IS NULL") or 0,
+        "delisted_entities": lifecycle_states.get("delisted", 0),
+        "lifecycle_states": lifecycle_states,
+        "figi_rows": _scalar("SELECT COUNT(*) FROM entity_figi") or 0,
+        "entities_with_composite_figi": _scalar(
+            "SELECT COUNT(*) FROM entity_figi WHERE composite_figi IS NOT NULL") or 0,
+        "vendor_symbols": _scalar("SELECT COUNT(*) FROM entity_vendor_symbols") or 0,
+        "relations": _scalar("SELECT COUNT(*) FROM entity_relations") or 0,
+        "events": _scalar("SELECT COUNT(*) FROM entity_events") or 0,
+        "rejected_events": _scalar(
+            "SELECT COUNT(*) FROM entity_events WHERE rejected_reason IS NOT NULL") or 0,
+        "ambiguous_open_aliases": _scalar(
+            "SELECT COUNT(*) FROM (SELECT alias FROM entity_aliases "
+            "WHERE valid_to IS NULL GROUP BY alias "
+            "HAVING COUNT(DISTINCT entity_id) > 1)") or 0,
+        "last_seed_at": _scalar(
+            "SELECT MAX(applied_at) FROM entity_events WHERE source = ?",
+            ("admin_manual",)),
+        "last_reconcile_at": _scalar(
+            "SELECT MAX(applied_at) FROM entity_events WHERE source = ?",
+            ("reconciliation",)),
+    }
+
+
 # ── Write helpers (Checkpoint 3) ────────────────────────────────────────────
 # Every function below MUST be called while holding `_WRITE_LOCK` (enforced
 # by convention at the api.py call site, exactly mirroring bars_sqlite.py's
