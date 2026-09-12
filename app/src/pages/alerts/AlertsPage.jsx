@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import {
   buildRows, countByKind, fireLine, defIdOf, KIND_LABEL,
-  KIND_CONDITION, KIND_DRAWING, KIND_PRICE,
+  KIND_DRAWING, KIND_PRICE,
 } from './alertRows'
 import { chartsLinkPath } from '../../lib/chartDeepLink'
 import { formatET } from '../../utils/timeAgo'
@@ -52,7 +52,13 @@ const MUTE_CHOICES = [
   { minutes: 60 * 24 * 7, label: '1 week' },
 ]
 
-const FILTERS = ['all', KIND_CONDITION, KIND_PRICE, KIND_DRAWING]
+// ⛔ DERIVED FROM `KIND_LABEL`, NOT RESTATED. Hand-listing the kinds here is
+// how the Alert Center shipped with no Indicators tab: `alertRows` classified
+// every builtin-indicator alert as its own kind, `countByKind` counted it, and
+// this list forgot it — so a member with nothing but RSI alerts read
+// "All 3 · Conditions 0 · Price 0 · Drawings 0" and could reach them from no tab.
+// Reading the labels means a fifth kind cannot be added without a tab.
+const FILTERS = ['all', ...Object.keys(KIND_LABEL)]
 
 export default function AlertsPage() {
   const { user } = useAuth()

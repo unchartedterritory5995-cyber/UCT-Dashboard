@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import AlertsPage from './AlertsPage'
 import { AuthContext } from '../../context/AuthContext'
+import { KIND_LABEL } from './alertRows'
 
 const navigate = vi.fn()
 vi.mock('react-router-dom', async (orig) => ({
@@ -284,5 +285,45 @@ describe('⭐⭐ DELIVERY IS A CHOICE, AND IT IS NOT TRUTH', () => {
     mount()
     fireEvent.click(screen.getByRole('button', { name: /Also email Trend Up/ }))
     expect(api.calls.map((c) => c[0])).toEqual(['channels'])
+  })
+  // ── THE FILTER MUST REACH EVERY KIND ──────────────────────────────────────
+  //
+  // ⛔⛔ FOUND LIVE, ON THE REAL BACKEND, AT RELEASE HARDENING. `alertRows`
+  // classifies an alert on a BUILTIN indicator as its own kind, `countByKind`
+  // counted it, and `FILTERS` was hand-written with only three of the four —
+  // so three live RSI alerts rendered as "All 3 · Conditions 0 · Price 0 ·
+  // Drawings 0" and were reachable from no tab. The counts visibly did not sum.
+  //
+  // ⭐ THE ASSERTION IS ABOUT THE CLASS, NOT THE INSTANCE: every kind the row
+  // builder can emit must have a tab. Adding a fifth kind without a tab fails
+  // here rather than shipping a filter that silently hides alerts.
+  it('⛔⛔ EVERY KIND `alertRows` CAN EMIT HAS A TAB', () => {
+    api.indicator = [
+      ind({ id: 1 }),                                    // condition (user address)
+      ind({ id: 2, indicator: 'rsi', instance_label: 'RSI(14)' }), // builtin indicator
+    ]
+    api.watchlist = [wl(), wl({ id: 'w2', alert_type: 'trendline', drawing_id: 'd1' })]
+    mount()
+    for (const label of Object.values(KIND_LABEL)) {
+      expect(screen.getByRole('tab', { name: new RegExp(`^${label}`) })).toBeTruthy()
+    }
+  })
+
+  it('⛔ the tab counts SUM to the All count', () => {
+    api.indicator = [
+      ind({ id: 1 }),
+      ind({ id: 2, indicator: 'rsi', instance_label: 'RSI(14)' }),
+      ind({ id: 3, indicator: 'macd', instance_label: 'MACD' }),
+    ]
+    api.watchlist = [wl()]
+    mount()
+    const numOf = (label) => {
+      const btn = screen.getByRole('tab', { name: new RegExp(`^${label}`) })
+      return Number(btn.textContent.replace(/[^0-9]/g, '')) || 0
+    }
+    const all = numOf('All')
+    const parts = Object.values(KIND_LABEL).reduce((n, l) => n + numOf(l), 0)
+    expect(all).toBe(4)
+    expect(parts).toBe(all)
   })
 })
