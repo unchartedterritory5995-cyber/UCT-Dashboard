@@ -18,7 +18,10 @@
 export const NAV_GROUPS = [
   // routes[0] = the group's primary navigable target; home also contributes
   // routes[1] as the free-tier Wire entry (/morning-wire) — see navigableTargets().
-  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/calendar', '/morning-wire', '/charts'] },
+  // ⭐ `/alerts` SITS IN HOME, BESIDE `/charts` — an alert is created on a
+  // chart and is about a chart, so it belongs with the daily surfaces rather
+  // than with the MARKETS research pages.
+  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/calendar', '/morning-wire', '/charts', '/alerts'] },
   { key: 'markets', label: 'Markets', icon: 'markets',
     routes: ['/dashboard', '/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
              '/post-market', '/screener', '/catalysts', '/ai-search', '/uct-20'] },

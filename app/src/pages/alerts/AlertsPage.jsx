@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import useSWR, { mutate as globalMutate } from 'swr'
+import { mutate as globalMutate } from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import {
   useIndicatorAlerts, useAlertFires,
   toggleIndicatorAlert, deleteIndicatorAlert,
@@ -58,8 +59,14 @@ export default function AlertsPage() {
   const [params, setParams] = useSearchParams()
 
   const { alerts: indicatorAlerts, refresh } = useIndicatorAlerts()
-  const { data: wl } = useSWR(user ? WL_KEY : null, wlFetcher,
-    { refreshInterval: 30000, dedupingInterval: 10000 })
+  // ⭐⭐ `useMobileSWR`, NOT BARE `useSWR` — the choice the polling rail exists to
+  // force. This screen is one a trader leaves OPEN, so the wrapper's two
+  // behaviours are exactly what it needs: it stops polling entirely on a hidden
+  // tab, and it halves the tick on a touch client. `marketHoursOnly` further
+  // slows it 10× when the market is fully closed, which is when an alert list is
+  // least likely to change.
+  const { data: wl } = useMobileSWR(user ? WL_KEY : null, wlFetcher,
+    { refreshInterval: 30000, dedupingInterval: 10000, marketHoursOnly: true })
 
   const [kind, setKind] = useState('all')
   const [openHistory, setOpenHistory] = useState(null)
