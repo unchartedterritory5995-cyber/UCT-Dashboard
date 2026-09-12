@@ -9,6 +9,15 @@ flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_ro
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
 oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning,
 flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
+PLUS three non-.py paths on the same list: `railway.json`, `requirements.txt`, and
+`api/flow_worker_deploy_marker.txt` (added 2026-09-12; Railway readback = 24 patterns).
+The marker is read by NOTHING — appending a dated line to it is the only way a
+non-flow-worker program can force this service to rebuild from master's tip and pick
+up an ADDITIVE strand. ⛔ `railway redeploy` CANNOT do that: it re-runs the last ACTUAL
+deployment, proved 2026-09-12 04:07 when it returned SUCCESS on the same commit it
+started from. See docs/runbooks/deploy-windows.md. The three non-.py paths live in
+`tools/flow_worker_watch_coverage.py::_EXTRA_WATCHED`, not in the brace list above —
+that list is expanded as `api/<name>.py`.
 ✅ DONE (2026-09-12): `confluence_flow.py` IS now on the dashboard watch list, and
 `bs_iv.py` came OFF it in the same edit — bs_iv is not reachable from this module's
 import closure, so watching it only bought tape gaps for a file flow-worker never

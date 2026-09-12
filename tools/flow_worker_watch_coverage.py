@@ -55,7 +55,12 @@ import shutil
 _WATCH_RE = re.compile(r"api/\{([^}]*)\}\.py", re.S)
 
 # Watched alongside the module list, per the same header.
-_EXTRA_WATCHED = ("railway.json", "requirements.txt")
+# `api/flow_worker_deploy_marker.txt` added 2026-09-12 when it was registered in
+# Railway (readback: 24 patterns). It CANNOT live in the header's `api/{...}.py`
+# brace list — that list is expanded as `api/<name>.py`, so a .txt there would
+# become `api/flow_worker_deploy_marker.txt.py` and silently watch nothing.
+_EXTRA_WATCHED = ("railway.json", "requirements.txt",
+                  "api/flow_worker_deploy_marker.txt")
 
 ENTRY = "api/flow_worker_main.py"
 

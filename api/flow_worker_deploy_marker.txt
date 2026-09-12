@@ -12,3 +12,4 @@
 # Append one dated line per deploy. Never rewrite history here.
 
 2026-09-12 23:15 CDT - marker created; pending watch-list registration. Strands awaiting discharge: 1667fc64d (S3 admin routes), 1a3668eaf (D1 adapter gaps G2/G4), both ADDITIVE.
+2026-09-12 23:27 CDT - marker bump #1. Discharges ADDITIVE strands 1667fc64d (S3 admin routes: entity_master/store.py status_counts) and 1a3668eaf (D1 adapter gaps G2/G4: 12 new fmp_client functions). Both add functions flow-worker never calls. Market closed.
