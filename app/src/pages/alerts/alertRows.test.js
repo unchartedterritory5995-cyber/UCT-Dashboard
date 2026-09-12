@@ -37,7 +37,13 @@ describe('one list, three backends — and it does not pretend they are one', ()
     // `watchlist_alerts` is one-shot: no state column, no snooze, no re-arm, no
     // fire history. Four controls that cannot work is worse than four absences.
     const p = priceRow(wl()).can
-    expect(p).toEqual({ pause: false, mute: false, rearm: false, history: false, delete: true })
+    expect(p).toEqual({
+      pause: false, mute: false, rearm: false, history: false, delete: true,
+      // ⛔ AND NO CHANNEL SELECTOR EITHER — `watchlist_alerts` has no channels
+      // column, so offering one would be a control with nothing behind it.
+      channels: false,
+    })
+    expect(priceRow(wl()).channels).toEqual([])
   })
 
   it('⭐ a condition alert offers the controls its engine actually has', () => {

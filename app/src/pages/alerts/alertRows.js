@@ -118,6 +118,15 @@ export function conditionRow(a, { nameOf = null } = {}) {
     lastFired: a.triggered_at ? a.triggered_at * 1000 : null,
     fireCount: a.trigger_count || 0,
     scope: a.scope || null,
+    // ⭐⭐ WHERE IT GOES — the SERVER's resolution, never re-derived here. NULL in
+    // the column means LEGACY (in-app + email, what pre-C4 rows have always done)
+    // and the API has already turned that into a list. A client that re-derived
+    // it would be a second authority on a question the row already answers.
+    channels: Array.isArray(a.channels) ? a.channels : [],
+    // ⚠️ "never chosen" and "chose in-app + email" RESOLVE IDENTICALLY and MEAN
+    // differently. The UI needs the difference so opening a legacy row does not
+    // silently convert it into an explicit one.
+    channelsExplicit: a.channels_explicit === true,
     // ⭐ WHAT THIS ROW CAN ACTUALLY DO. The UI offers exactly this.
     can: {
       pause: true,
@@ -128,6 +137,7 @@ export function conditionRow(a, { nameOf = null } = {}) {
       rearm: a.state === 'fired' || a.state === 'snoozed',
       history: true,
       delete: true,
+      channels: true,
     },
     raw: a,
   }
@@ -165,9 +175,14 @@ export function priceRow(a) {
     lastFired: a.triggered_at ? Date.parse(a.triggered_at) || null : null,
     fireCount: done ? 1 : 0,
     scope: null,
+    // ⛔ A PRICE ALERT HAS NO CHANNEL COLUMN. Its delivery is whatever
+    // `_deliver_alert` does, and inventing a selector here would be a control
+    // with nothing behind it.
+    channels: [],
+    channelsExplicit: false,
     // ⛔ NO PAUSE, NO MUTE, NO RE-ARM, NO HISTORY — because the backend has none.
     // Offering them would be four controls that cannot work.
-    can: { pause: false, mute: false, rearm: false, history: false, delete: true },
+    can: { pause: false, mute: false, rearm: false, history: false, delete: true, channels: false },
     raw: a,
   }
 }

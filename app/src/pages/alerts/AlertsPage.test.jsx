@@ -37,6 +37,9 @@ vi.mock('../../hooks/useIndicatorAlerts', async (orig) => {
     deleteIndicatorAlert: vi.fn(async (id) => { api.calls.push(['delete', id]) }),
     snoozeIndicatorAlert: vi.fn(async (id, m) => { api.calls.push(['snooze', id, m]); return { ok: true } }),
     rearmIndicatorAlert: vi.fn(async (id) => { api.calls.push(['rearm', id]); return { ok: true } }),
+    setIndicatorAlertChannels: vi.fn(async (id, ch) => {
+      api.calls.push(['channels', id, ch]); return { ok: true, channels: ch }
+    }),
   }
 })
 
@@ -51,8 +54,8 @@ const wl = (over = {}) => ({
   is_active: 1, triggered_at: null, alert_type: 'price', ...over,
 })
 
-const mount = () => render(
-  <AuthContext.Provider value={{ user: { id: 'u1' } }}>
+const mount = (user = { id: 'u1', email: 'me@example.com' }) => render(
+  <AuthContext.Provider value={{ user }}>
     <MemoryRouter><AlertsPage /></MemoryRouter>
   </AuthContext.Provider>,
 )
@@ -230,5 +233,56 @@ describe('the empty state teaches the gesture', () => {
     mount()
     expect(screen.getByText(/No alerts yet/)).toBeTruthy()
     expect(screen.getByText(/click its bell/)).toBeTruthy()
+  })
+})
+
+
+describe('⭐⭐ DELIVERY IS A CHOICE, AND IT IS NOT TRUTH', () => {
+  it('the row says "emailing you" only when it is true', () => {
+    api.indicator = [ind({ channels: ['in_app'] })]
+    const a = mount()
+    expect(a.container.textContent).not.toMatch(/emailing you/)
+    a.unmount()
+    api.indicator = [ind({ channels: ['in_app', 'email'] })]
+    expect(mount().container.textContent).toMatch(/emailing you/)
+  })
+
+  it('turning email ON sends the FULL list, not a delta', () => {
+    api.indicator = [ind({ channels: ['in_app'] })]
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: /Also email Trend Up/ }))
+    expect(api.calls).toContainEqual(['channels', 1, ['in_app', 'email']])
+  })
+
+  it('turning email OFF keeps in-app — it never empties the list', () => {
+    // ⛔ "stop emailing me" must not become "stop telling me", which is what a
+    // careless toggle that replaced the list would do.
+    api.indicator = [ind({ channels: ['in_app', 'email'] })]
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: /Stop emailing Trend Up/ }))
+    expect(api.calls).toContainEqual(['channels', 1, ['in_app']])
+  })
+
+  it('⛔⛔ NO ADDRESS ⇒ NO TOGGLE', () => {
+    api.indicator = [ind({ channels: ['in_app'] })]
+    mount({ id: 'u1' })
+    expect(screen.queryByRole('button', { name: /email Trend Up/i })).toBeNull()
+  })
+
+  it('⛔ a PRICE alert has no email toggle — its backend has no channels', () => {
+    api.watchlist = [wl()]
+    mount()
+    const row = document.querySelector('[data-kind="price"]')
+    const labels = [...row.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')).join(' ')
+    expect(labels).not.toMatch(/email/i)
+  })
+
+  it('⛔⛔ CHANGING DELIVERY TOUCHES NO PART OF THE FIRING LIFECYCLE', () => {
+    // The UI half of the guarantee: the only call it makes is the channels one.
+    // No toggle, no rearm, no snooze, no delete rides along.
+    api.indicator = [ind({ channels: ['in_app'] })]
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: /Also email Trend Up/ }))
+    expect(api.calls.map((c) => c[0])).toEqual(['channels'])
   })
 })

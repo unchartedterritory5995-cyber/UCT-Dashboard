@@ -330,3 +330,31 @@ export function useAlertFires(alertId, limit = 25) {
     error: error || null,
   }
 }
+
+/**
+ * Where this alert is delivered.
+ *
+ * ⛔ DELIVERY IS NOT TRUTH. The server writes ONE column — no re-arm, no baseline
+ * reset, no catch-up, no revision — so a member turning email on is not editing
+ * their formula.
+ *
+ * ⚠️ IT RETURNS WHAT LANDED, NOT WHAT WAS ASKED. An unknown channel is dropped
+ * server-side rather than 400'd (a client sending `discord` is ahead of V1, not
+ * malformed), so the caller must re-render from this answer instead of from its
+ * own optimistic guess.
+ */
+export async function setIndicatorAlertChannels(id, channels) {
+  try {
+    const r = await fetch(`${KEY}/${id}/channels`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channels }),
+    })
+    revalidateListings()
+    if (r.ok) return { ok: true, ...(await r.json()) }
+    return { ok: false, error: `Could not change delivery for this alert (${r.status}).` }
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+}

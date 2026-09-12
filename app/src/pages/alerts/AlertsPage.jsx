@@ -5,7 +5,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import {
   useIndicatorAlerts, useAlertFires,
   toggleIndicatorAlert, deleteIndicatorAlert,
-  snoozeIndicatorAlert, rearmIndicatorAlert,
+  snoozeIndicatorAlert, rearmIndicatorAlert, setIndicatorAlertChannels,
 } from '../../hooks/useIndicatorAlerts'
 import { useAuth } from '../../context/AuthContext'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
@@ -126,6 +126,23 @@ export default function AlertsPage() {
     say('ok', `${row.what} is watching again.`)
   }, [refresh])
 
+  /**
+   * Turn a channel on or off for one alert.
+   *
+   * ⛔ THE SERVER'S ANSWER IS WHAT RENDERS. It drops a channel it cannot honour
+   * rather than refusing the request, so re-rendering from an optimistic local
+   * guess would show a member a delivery they are not getting.
+   */
+  const onChannel = useCallback(async (row, name, on) => {
+    const next = on
+      ? [...new Set([...row.channels, name])]
+      : row.channels.filter((c) => c !== name)
+    const res = await setIndicatorAlertChannels(row.id, next)
+    if (!res.ok) { say('error', res.error); return }
+    refresh()
+    say('ok', on ? `${row.what} will also email you.` : `${row.what} will not email you.`)
+  }, [refresh])
+
   const onDelete = useCallback(async (row) => {
     if (row.kind === KIND_PRICE || row.kind === KIND_DRAWING) {
       await fetch(`/api/watchlist-alerts/${row.id}`, { method: 'DELETE', credentials: 'same-origin' })
@@ -204,6 +221,8 @@ export default function AlertsPage() {
               onToggle={onToggle}
               onRearm={onRearm}
               onDelete={onDelete}
+              onChannel={onChannel}
+              emailAvailable={!!user?.email}
               onOpenChart={onOpenChart}
               onClearFocus={() => { params.delete('focus'); setParams(params, { replace: true }) }}
             />
@@ -215,13 +234,14 @@ export default function AlertsPage() {
 }
 
 function Row({
-  row, focused, historyOpen, muteOpen,
-  onHistory, onMuteMenu, onMute, onToggle, onRearm, onDelete, onOpenChart, onClearFocus,
+  row, focused, historyOpen, muteOpen, emailAvailable,
+  onHistory, onMuteMenu, onMute, onToggle, onRearm, onDelete, onChannel, onOpenChart, onClearFocus,
 }) {
   const toneClass = {
     ok: styles.toneOk, muted: styles.toneMuted, fired: styles.toneFired, fault: styles.toneFault,
   }[row.status.tone] || styles.toneOk
   const paused = row.raw && row.raw.active === false
+  const emailOn = row.channels.includes('email')
 
   return (
     <div
@@ -255,6 +275,15 @@ function Row({
               <span>{`last fired ${formatET(row.lastFired)}`}</span>
             </>
           )}
+          {/* ⭐ SAID ONLY WHEN IT IS TRUE. "In UCT" is every alert's baseline and
+              printing it on every row would be noise; email is the exception and
+              therefore the thing worth a word. */}
+          {emailOn && (
+            <>
+              <span className={styles.sep}>·</span>
+              <span>emailing you</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -272,6 +301,22 @@ function Row({
             aria-expanded={historyOpen}
             onClick={onHistory}
           ><UIcon name="clock" size={13} /></button>
+        )}
+
+        {/* ⭐ EMAIL IS A TOGGLE ON THE ROW, because it is the one delivery choice
+            V1 exposes and burying it behind an edit screen would make a two-state
+            switch feel like a settings trip. In UCT is not shown: it is always on,
+            and a control that cannot be turned off is not a control.
+            ⚠️ ABSENT WHEN THE ACCOUNT HAS NO ADDRESS — an enabled toggle that
+            silently never delivers is the defect this lane exists to prevent. */}
+        {row.can.channels && emailAvailable && (
+          <button
+            type="button" className={styles.rowBtn}
+            aria-pressed={emailOn}
+            aria-label={emailOn ? `Stop emailing ${row.what}` : `Also email ${row.what}`}
+            title={emailOn ? 'Email on' : 'Email off'}
+            onClick={() => onChannel(row, 'email', !emailOn)}
+          ><UIcon name="document" size={13} /></button>
         )}
 
         {/* ⚠️ RE-ARM IS NOT GIVEN EQUAL WEIGHT TO PAUSE. An alert comes back BY

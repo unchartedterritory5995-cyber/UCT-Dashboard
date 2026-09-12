@@ -7,6 +7,7 @@ import { alertPayloadFor } from './engine/conditionAlerts'
 import { bellState } from './engine/conditionBell'
 import { promotionStore } from './builder/promotionStore'
 import { conditionsOf } from './engine/conditionControls'
+import { useAuth } from '../../context/AuthContext'
 import {
   useIndicatorAlerts, createIndicatorAlert, deleteIndicatorAlert, toggleIndicatorAlert,
 } from '../../hooks/useIndicatorAlerts'
@@ -31,6 +32,10 @@ export default function ConditionAlertsTab({
 }) {
   const { alerts, refresh } = useIndicatorAlerts(chartId)
   const navigate = useNavigate()
+  // ⭐ THE ACCOUNT'S OWN ADDRESS, from the session the app already holds. The
+  // sheet needs it to decide between offering Email and saying there is none —
+  // no new endpoint, and no guess about whether delivery would work.
+  const { user } = useAuth()
   const [busyId, setBusyId] = useState(null)
   const [open, setOpen] = useState(null)      // {condId, rect}
   const [notice, setNotice] = useState(null)
@@ -51,7 +56,7 @@ export default function ConditionAlertsTab({
    * it from the registry; re-asking a probe here would be a second authority on
    * one fact, and asserting `() => true` would defeat the check entirely.
    */
-  const onCreate = useCallback(async ({ cond, definition, policyId }) => {
+  const onCreate = useCallback(async ({ cond, definition, policyId, channels }) => {
     setNotice(null)
     setBusyId(cond.id)
     try {
@@ -60,7 +65,11 @@ export default function ConditionAlertsTab({
         hasDefinition: (id) => !!definition && (definition.id === id || definition.def_id === id),
       })
       if (!built.ok) { setNotice({ kind: 'error', text: built.reason }); return }
-      const res = await createIndicatorAlert(built.payload)
+      // ⭐ THE CHOICE TRAVELS WITH THE CREATE, so the alert is stored with the
+      // member's delivery rather than created and then patched — which would
+      // leave a window in which it existed with the wrong one.
+      const payload = channels ? { ...built.payload, channels } : built.payload
+      const res = await createIndicatorAlert(payload)
       // ⛔ THE SERVER'S OWN SENTENCE, NOT A RESTATEMENT. The count cap, the
       // admission refusals and a transport failure all arrive here already
       // worded by whoever refused; re-phrasing them would be a second authority
@@ -159,6 +168,8 @@ export default function ConditionAlertsTab({
           state={openState}
           sym={sym}
           tf={tf}
+          email={user?.email || null}
+          onManageEmail={() => { close(); onClose?.(); navigate('/settings') }}
           anchorRect={open.rect}
           busy={busyId === openCond.id}
           notice={notice}

@@ -210,11 +210,47 @@ describe('the sheet — the common case is one click', () => {
     expect(onCreate).not.toHaveBeenCalled()
   })
 
-  it('⛔ delivery is a SENTENCE, not a checkbox that does nothing', () => {
-    sheet('cond:durable')
+  it('⭐⭐ IN UCT IS STATED; EMAIL IS A CHOICE, AND IT IS OFF', () => {
+    // ⛔ In UCT is not a checkbox: it is always on, and a control that cannot be
+    // unticked is a lie about who is in control. Email is a real choice and
+    // starts OFF — creating an alert and subscribing to email are separate
+    // member decisions, and one click must not make the second one.
+    sheet('cond:durable', { email: 'me@example.com' })
     const dlg = screen.getByRole('dialog')
-    expect(dlg).toHaveTextContent(/notified in UCT/)
+    expect(dlg).toHaveTextContent(/Notify me/)
+    expect(dlg).toHaveTextContent(/In UCT/)
+    const boxes = dlg.querySelectorAll('input[type="checkbox"]')
+    expect(boxes).toHaveLength(1)
+    expect(boxes[0].checked).toBe(false)
+  })
+
+  it('⭐ the email choice travels WITH the create', () => {
+    const onCreate = vi.fn()
+    sheet('cond:durable', { email: 'me@example.com', onCreate })
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    expect(onCreate.mock.calls[0][0].channels).toEqual(['in_app', 'email'])
+  })
+
+  it('⭐ unticked, it creates in-app only', () => {
+    const onCreate = vi.fn()
+    sheet('cond:durable', { email: 'me@example.com', onCreate })
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    expect(onCreate.mock.calls[0][0].channels).toEqual(['in_app'])
+  })
+
+  it('⛔⛔ NO ADDRESS ⇒ NO TOGGLE, and it says why', () => {
+    // An enabled control that silently never delivers is the defect this whole
+    // lane exists to prevent, one layer up.
+    sheet('cond:durable', { email: null })
+    const dlg = screen.getByRole('dialog')
     expect(dlg.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+    expect(dlg).toHaveTextContent(/no email address on your account/)
+  })
+
+  it('⛔ Discord is not offered at all', () => {
+    sheet('cond:durable', { email: 'me@example.com' })
+    expect(screen.getByRole('dialog').textContent).not.toMatch(/discord/i)
   })
 })
 

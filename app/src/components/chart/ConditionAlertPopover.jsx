@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   LOCAL_ONLY, PROMOTABLE, DURABLE, SOURCE_UNAVAILABLE, INVALID,
 } from './engine/conditionCapability'
@@ -23,10 +23,15 @@ import styles from './ConditionAlertPopover.module.css'
 // verb. A dropdown per field would be a form asking a member to re-enter what
 // they are already looking at.
 //
-// ⛔ AND IT SHOWS NO CONTROL THAT DOES NOTHING. There is no per-alert channel
-// storage yet (the `channels` column is C4), so delivery is one honest sentence
-// rather than a checkbox that silently ignores itself. The line is written so the
-// selector drops into its place without the surface changing shape.
+// ⛔ AND IT SHOWS NO CONTROL THAT DOES NOTHING. In UCT is stated rather than
+// offered, because it is always on and a checkbox that cannot be unticked is a
+// lie about who is in control. Email is a real choice and is OFF by default —
+// creating an alert and subscribing to email are separate member decisions, and
+// a one-click create must not quietly make the second one.
+//
+// ⚠️ AND AN ACCOUNT WITH NO ADDRESS GETS A SENTENCE, NOT A DEAD TOGGLE. An
+// enabled control that silently never delivers is the defect this whole lane
+// exists to prevent, one layer up.
 //
 // ⚠️ IT IS A LAUNCHER FOR EVERYTHING EXCEPT THE CREATE. Promotion, the Builder
 // handoff and alert management all belong to the host; this sheet decides what to
@@ -73,8 +78,12 @@ export default function ConditionAlertPopover({
   cond, state, sym, tf, anchorRect, onClose,
   onCreate = null, onPromote = null, onBuild = null,
   onManage = null, onToggle = null, onDelete = null,
-  busy = false, notice = null,
+  busy = false, notice = null, email = null, onManageEmail = null,
 }) {
+  // ⛔ OFF BY DEFAULT, AND IT IS LOCAL STATE — the member's choice for THIS
+  // create, not a remembered preference. There is no per-member channel default
+  // to read, and inventing one here would be a preference nobody set.
+  const [alsoEmail, setAlsoEmail] = useState(false)
   const pos = useMemo(() => anchoredPosition(anchorRect), [anchorRect])
   const ref = useRef(null)
   const firstRef = useRef(null)
@@ -208,10 +217,34 @@ export default function ConditionAlertPopover({
         </div>
       )}
 
-      {/* ⛔ A SENTENCE, NOT A CHECKBOX — see the header. */}
-      <div className={styles.delivery}>
-        <UIcon name="bell" size={11} />
-        <span>You&rsquo;ll be notified in UCT</span>
+      {/* ── NOTIFY ME ─────────────────────────────────────────────────────── */}
+      <div className={styles.notify}>
+        <div className={styles.notifyHead}>Notify me</div>
+        {/* ⛔ IN UCT IS STATED, NOT OFFERED. It is always on; a checkbox that
+            cannot be unticked would be a lie about who is in control. */}
+        <div className={styles.channelFixed}>
+          <UIcon name="bell" size={11} />
+          <span>In UCT</span>
+        </div>
+        {email ? (
+          <label className={styles.channel}>
+            <input
+              type="checkbox"
+              checked={alsoEmail}
+              onChange={(e) => setAlsoEmail(e.target.checked)}
+            />
+            <span>Email</span>
+            <span className={styles.channelHint}>{email}</span>
+          </label>
+        ) : (
+          <div className={styles.channelOff}>
+            <span>Email</span>
+            <span className={styles.channelHint}>no email address on your account</span>
+            {onManageEmail && (
+              <button type="button" className={styles.link} onClick={onManageEmail}>Add one</button>
+            )}
+          </div>
+        )}
       </div>
 
       {canPromote && (
@@ -233,8 +266,12 @@ export default function ConditionAlertPopover({
           className={styles.create}
           disabled={busy || (!canCreate && !canPromote)}
           onClick={() => {
-            if (canCreate) onCreate?.({ cond, definition, policyId: DEFAULT_POLICY })
-            else if (canPromote) onPromote?.({ cond })
+            // ⭐ THE CHANNELS TRAVEL WITH THE CREATE, so the alert is stored with
+            // the member's choice rather than saved and then patched — which would
+            // leave a window in which it existed with the wrong delivery.
+            const channels = alsoEmail ? ['in_app', 'email'] : ['in_app']
+            if (canCreate) onCreate?.({ cond, definition, policyId: DEFAULT_POLICY, channels })
+            else if (canPromote) onPromote?.({ cond, channels })
           }}
         >
           {busy ? 'Working…' : (armed.length ? 'Create another' : 'Create alert')}
