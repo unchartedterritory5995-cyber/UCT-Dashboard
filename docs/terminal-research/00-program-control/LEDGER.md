@@ -134,6 +134,39 @@ convergence); **`scripts/entity_master_seed.py`** (Seam 1 dot-form alias seeding
 **`ticker_explain.py`** + its eval harness (I1's Ask AI, extended by Seam 29 and Slice 3);
 **`research/analyst_ratings.py`** (A4, extended by attention source-integrity hardening).
 
+## ⛔⛔ OWNERSHIP RULING — `alert_taxonomy` (owner, 2026-09-11)
+
+**Terminal-Next OWNS `api/services/alert_taxonomy/` and `api/routers/alert_taxonomy.py`.** It built
+them (`e994f5337`). The convergence program is closed, so there is no second owner to sign off.
+
+**The convergence program's FILING WATCH is a PROTECTED CONSUMER of this package** — implemented
+inside it by `d71326261`, `8ec29b457`, `ca9093c00`, `5f4597ae0` (Section 3 above). It is live to
+members since 2026-09-11 12:07:29 ET. Three binding rules:
+
+1. **Any change to predicate or receipt shape ships with a parity test** proving filing watch's
+   observable behaviour — **fires, delivery, receipts** — is unchanged. ⛔ **The test goes in
+   BEFORE the change and must fail on regression.** A parity test written after the change, or one
+   that has never been seen to fail, proves nothing.
+2. **Any change that alters what a member sees from filing watch is a SEPARATE PR, flagged to the
+   owner by name.** Never bundled with S7 Alerts work.
+3. This ruling is recorded here and in both S7 blocks (`product-architecture.md`,
+   `alerts-monitoring-spec.md`) so the shared-code fact and the rule live where the next session
+   actually reads them.
+
+⭐ Ownership resolves the blocker; it does not authorize the work. S7 Alerts completion is **Wave 2,
+plan-only** until the owner authorizes trigger types individually.
+
+## Member-facing copy shipped by this program
+
+Recorded so the owner can find and reword it without reading a diff.
+
+| surface | exact string | shipped by | condition |
+|---|---|---|---|
+| Calendar header (`app/src/pages/calendar/CalendarHeader.jsx`) | **"Some earnings/economic data may be incomplete this week (a provider was unavailable)."** | `1214dc246` (A5 modernization) | renders only when `earningsProvenance.degraded` or `econProvenance.degraded`; desktop only (`!isPhone`); a healthy week shows nothing |
+
+⛔ This is the one row from the A5 Terminal-Current change set that a member can see on an otherwise
+healthy day. Owner ruling 2026-09-11: **KEEP.** Reword freely — it is a string, not a contract.
+
 ## Method note — why the PASS condition uses CREATED paths, not touched paths
 
 A first attempt defined the program's footprint as **every file the 50 commits touched** (209

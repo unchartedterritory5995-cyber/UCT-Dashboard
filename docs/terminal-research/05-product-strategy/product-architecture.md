@@ -475,10 +475,25 @@ The convergence program's **filing watch** is implemented **inside this package*
 (Stage 4 creation UI + Stage 5 settings). See [`LEDGER.md`](../../00-program-control/LEDGER.md) §3.
 
 **Both programs documented this as a vocabulary hazard. Neither documented that one is built on the
-other.** A change to `alert_taxonomy`'s predicate or receipt shape is now a change to a
-member-visible convergence feature that went live 2026-09-11 12:07:29 ET. **Treat this package as
-jointly owned until the owner rules otherwise; do not refactor it as if S7 Alerts were its only
-consumer.**
+other.**
+
+### ✅ OWNERSHIP RULED, 2026-09-11 — Terminal-Next owns it; filing watch is a protected consumer
+
+**Terminal-Next OWNS `api/services/alert_taxonomy/` and `api/routers/alert_taxonomy.py`.** It built
+them. The convergence program is closed, so there is no second owner to sign off. Filing watch is a
+**PROTECTED CONSUMER**, live to members since 2026-09-11 12:07:29 ET.
+
+1. ⛔ **Any change to predicate or receipt shape ships with a parity test** proving filing watch's
+   observable behaviour — **fires, delivery, receipts** — is unchanged. **The test goes in BEFORE
+   the change and must fail on regression.** A parity test that has never been seen to fail proves
+   nothing (`lesson_gate_that_cannot_fail`).
+2. ⛔ **Any change that alters what a member sees from filing watch is a SEPARATE PR, flagged to the
+   owner by name** — never bundled with S7 Alerts work.
+3. Recorded in [`LEDGER.md`](../../00-program-control/LEDGER.md) and in `alerts-monitoring-spec.md`
+   as well as here.
+
+⭐ **This unblocks S7 Alerts. It does not authorize it** — completion is Wave 2, plan-only, with
+trigger types authorized individually by the owner.
 
 ### S7 — Alerts & Monitoring
 

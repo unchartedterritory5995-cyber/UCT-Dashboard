@@ -20,6 +20,30 @@ depends_on: PRD-S7-ALERTS (this document does not restate its user stories, acce
   D13 (closed for S7's purposes, per PRD §6.3)
 ---
 
+
+> ## ⛔⛔ OWNERSHIP + PROTECTED CONSUMER (owner ruling, 2026-09-11)
+>
+> **Terminal-Next OWNS `api/services/alert_taxonomy/` and `api/routers/alert_taxonomy.py`.** This
+> program built them (`e994f5337`). The convergence program is closed — there is no second owner.
+>
+> **The convergence program's FILING WATCH is a PROTECTED CONSUMER implemented INSIDE this package**
+> (`d71326261`, `8ec29b457`, `ca9093c00`, `5f4597ae0`), live to members since 2026-09-11 12:07:29 ET.
+> Both programs had recorded only a *naming* collision; they share code.
+>
+> 1. ⛔ **Any change to predicate or receipt shape ships with a parity test** proving filing watch's
+>    observable behaviour — **fires, delivery, receipts** — is unchanged. **The test goes in BEFORE
+>    the change and must fail on regression.**
+> 2. ⛔ **Any change that alters what a member sees from filing watch is a SEPARATE PR, flagged to
+>    the owner by name** — never bundled with S7 Alerts work.
+>
+> **Shipped status: 1 of the 8 trigger types below is built** — `document-arrival`, which this spec
+> itself sequenced first. The registry (`registry.py`, implementing §5.1 by name), predicate store,
+> delivery seam and receipts are generic, so the remaining seven are extensions of a working
+> substrate rather than a rewrite. ✅ The `alert_fires` ruling holds in the shipped code: 25
+> occurrences of `alert_fires`, **zero** of `user_alerts`.
+>
+> Completion is **Wave 2, plan-only** until the owner authorizes trigger types individually.
+
 # S7 — Alerts & Monitoring: Technical Specification
 
 ## 0. How to read this document
