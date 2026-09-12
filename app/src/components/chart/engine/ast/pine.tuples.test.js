@@ -266,3 +266,90 @@ describe('a switch on a fixed subject picks exactly one arm', () => {
     }
   })
 })
+
+// ─── ⭐⭐ A DESTRUCTURE INSIDE AN `if` BRANCH (2026-09-11) ────────────────────
+//
+// `uncharted-volume.pine` 247-261 destructures a daily bundle inside a branch and
+// assigns the parts to outer `var`s. Both walks of this engine read destructures
+// now; before this they disagreed — the TOP-LEVEL walk read one and
+// `foldStatements` (the folder for the inside of an `if`) did not, so the
+// statement fell through to the bare-expression arm, the chain refused, and every
+// outer `var` the branch touched was forced opaque as `pine:reassign` naming a
+// name whose own statement was perfectly fine.
+//
+// ⛔ THE CONTROLS ARE THE POINT. Teaching a folder to read destructures is only
+// safe while the things it CANNOT take apart keep refusing, so the
+// `request.security` and arity cases below matter more than the two that pass.
+describe('a tuple destructure inside an `if` branch', () => {
+  const tupleFn = 'f() =>\n    [close, high]\n'
+
+  const inBranch = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b] = f()\n    v := a\nplot(v)\n`
+
+
+  it('translates, where it used to refuse as `pine:reassign`', () => {
+    const r = one(inBranch)
+    expect(r.guard).toBe(null)
+    expect(r.ok).toBe(true)
+  })
+
+  it('⭐ THE DESTRUCTURE IS THE ONLY DIFFERENCE — same branch, read the same way', () => {
+    // ⚰️ THE FIRST VERSION OF THIS TEST WAS WRONG AND THE ENGINE WAS RIGHT. It
+    // compared the in-branch form against the SAME assignment at top level and
+    // expected one formula:
+    //     in a branch -> accum(0 / 0, barindex > 0 ? close : self, 250)
+    //     at top level -> accum(0 / 0, close, 250)
+    // Those are two different PROGRAMS. The branch version carries the var when
+    // the condition is false, which is exactly what Pine means; flattening them
+    // into one claim would have asserted that the `if` may be dropped. An
+    // "agreement" test has to hold everything but the construct under test.
+    //
+    // So the branch is held constant and only the destructure varies: `f()`
+    // answers `[close, high]`, so `[a, b] = f(); v := a` must read identically to
+    // `v := close` in the same branch.
+    const direct = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    v := close\nplot(v)\n`
+    expect(one(inBranch).formula).toEqual(one(direct).formula)
+  })
+
+  it('⛔ CONTROL: the fold does NOT flatten the branch away', () => {
+    // The companion to the test above: if the folder ever dropped the condition,
+    // the test above would still pass (both sides flattened) while every script
+    // with a conditional assignment silently changed meaning. So the conditional
+    // form must NOT equal the unconditional one.
+    const unconditional = `${head}${tupleFn}var float v = na\n[a, b] = f()\nv := a\nplot(v)\n`
+    expect(one(inBranch).formula).not.toEqual(one(unconditional).formula)
+  })
+
+  it('folds across BOTH arms of an if/else, not just the first', () => {
+    const both = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b] = f()\n    v := a\nelse\n    [a, b] = f()\n    v := b\nplot(v)\n`
+    expect(one(both).ok).toBe(true)
+  })
+
+  it('survives a history read of the reassigned name', () => {
+    const hist = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b] = f()\n    v := a\nplot(nz(v[1]))\n`
+    expect(one(hist).ok).toBe(true)
+  })
+
+  it('⛔ CONTROL: `request.security` inside a branch still REFUSES', () => {
+    // 42 of 63 corpus destructures are this call. If the folder ever hands out
+    // its parts by position, a name expecting the third element gets the first
+    // and the script is silently wrong. It must stay a refusal until the tuple
+    // form is actually built.
+    const rs = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b] = request.security(syminfo.tickerid, 'D', f(), lookahead = barmerge.lookahead_off)\n    v := a\nplot(v)\n`
+    const r = one(rs)
+    expect(r.ok).toBe(false)
+    expect(r.guard).not.toBe(null)
+  })
+
+  it('⛔ CONTROL: too many names for the tuple still REFUSES inside a branch', () => {
+    // `f()` answers two values; three names must not silently bind `na`.
+    const arity = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b, c] = f()\n    v := c\nplot(v)\n`
+    const r = one(arity)
+    expect(r.ok).toBe(false)
+    expect(r.guard).not.toBe(null)
+  })
+
+  it('⛔ CONTROL: a non-call right-hand side still REFUSES inside a branch', () => {
+    const notACall = `${head}var float v = na\nif bar_index > 0\n    [a, b] = close\n    v := a\nplot(v)\n`
+    expect(one(notACall).ok).toBe(false)
+  })
+})

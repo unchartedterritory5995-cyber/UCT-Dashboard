@@ -8041,6 +8041,69 @@ function rulingLead(text) {
   return stop > 0 ? body.slice(0, stop + 1) : body.slice(0, 220)
 }
 
+/** ⭐⭐ `[a, b] = rhs` — ONE DESTRUCTURE READER FOR BOTH WALKS (2026-09-11).
+ *
+ *  Returns `{ names, bindings }` when the parts can be handed out, or
+ *  `{ names, why }` when they cannot, or `null` when this is not a destructure
+ *  at all. The CALLER decides what a refusal looks like, because the two walks
+ *  spell it differently: the top-level walk marks each name opaque and carries
+ *  on, a block folder throws so the whole chain stays unfolded.
+ *
+ *  ⚰️ WHY THIS IS A FUNCTION AND NOT A SECOND COPY. The top-level walk has read
+ *  destructures since Kind 4; `foldStatements` — the folder for the INSIDE of an
+ *  `if` — never learned them at all, so `[a, b] = f()` within a branch fell
+ *  through to "a bare expression", `parseWholeExpression` choked on the `=`, the
+ *  chain refused, and every outer `var` the branch assigned was forced opaque as
+ *  `pine:reassign`. That is `uncharted-volume.pine` lines 247-261 exactly, and
+ *  the refusal named `volD` — a name whose own statement is fine. Measured:
+ *    destructure inside `if` then reassign  -> pine:reassign   (refused)
+ *    same destructure at TOP level          -> ok
+ *    reassign from a plain call inside `if` -> ok
+ *  Two walks disagreeing about one construct is the defect this repo has paid
+ *  for three times in a week; one reader is the fix, not a second branch.
+ *
+ *  ⛔ THE `kind === 'tuple'` CHECK IS CARRIED OVER UNCHANGED AND IS THE WHOLE
+ *  SAFETY OF THE FEATURE. `request.security` is 42 of the 63 destructures in
+ *  this corpus; without that check it would hand its FIRST element to a name
+ *  expecting its third — a translation that parses, lints, saves, scans and is
+ *  silently WRONG. Anything this engine cannot take apart keeps refusing by name.
+ */
+function destructureBindings(toks, env, first) {
+  if (!isPunct(toks[0], '[')) return null
+  const close = toks.findIndex((t) => isPunct(t, ']'))
+  if (close < 0) return null
+  const names = toks.slice(1, close)
+    .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
+
+  const dmi = eqAtDmi(toks, close) >= 0 ? dmiParts(toks, close, names, env, first) : null
+  if (dmi) return { names, bindings: dmi }
+
+  const builtin = builtinTupleParts(toks, close, names, env, first)
+  if (builtin) return { names, bindings: builtin }
+
+  const eq = close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '='))
+  let parsedRhs = null
+  if (eq > close && names.length > 0) {
+    const rhs = toks.slice(eq + 1)
+    let call = null
+    try { call = parseWholeExpression(rhs) } catch { call = null }
+    parsedRhs = call
+    const callee = call && call.type === 'call' ? env.get(call.name) : null
+    const value = callee && callee.kind === 'fn' ? callee.value : null
+    if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
+      const callerEnv = new Map(env)
+      return {
+        names,
+        bindings: names.map((n, k) => ({
+          kind: 'tuplePart', fn: callee, args: call.args, index: k,
+          env: callerEnv, at: locate(n),
+        })),
+      }
+    }
+  }
+  return { names, why: tupleRefusalTail(parsedRhs, names, env) }
+}
+
 function tupleRefusalTail(call, names, env) {
   if (!call) return 'the right-hand side is not an expression this engine could read'
   if (call.type !== 'call') {
@@ -8171,6 +8234,28 @@ function foldStatements(stmts, ctx, env) {
     }
     if (findTop(toks, (t) => isPunct(t, '=>')) >= 0) {
       throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(first))
+    }
+
+    // ⭐⭐ A TUPLE DESTRUCTURE INSIDE A BRANCH (2026-09-11). `[a, b] = f()` is
+    // ordinary inside an `if`, and this folder could not read one: it fell to the
+    // bare-expression arm, `parseWholeExpression` met the `=`, the chain refused,
+    // and every outer `var` the branch assigned came out `pine:reassign` naming a
+    // name whose own statement was fine. Same reader as the top-level walk.
+    //
+    // ⛔ A REFUSAL HERE MUST THROW, not mark-and-continue. The caller is a fold;
+    // carrying on would leave the branch half-read and hand the chain an
+    // environment in which some names silently kept their pre-branch value.
+    if (isPunct(first, '[') && findTop(toks, (t) => isPunct(t, '=')) > 0) {
+      const d = destructureBindings(toks, env, first)
+      if (d && d.bindings) {
+        d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
+        i += 1
+        continue
+      }
+      if (d) {
+        throw new PineRefusal('pine:tuple',
+          `${REFUSALS['pine:tuple']} — ${d.why}`, locate(first))
+      }
     }
 
     const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
@@ -8984,73 +9069,21 @@ export function translatePine(source, opts = {}) {
     const toks = stmt.header
     const first = toks[0]
 
-    // `[a, b] = f()` — a tuple destructure.
+    // `[a, b] = f()` — a tuple destructure, read by the SHARED reader so this
+    // walk and `foldStatements` can never disagree about one construct.
     if (isPunct(first, '[')) {
-      const close = toks.findIndex((t) => isPunct(t, ']'))
-      const names = toks.slice(1, close < 0 ? toks.length : close)
-        .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
-
-      // ⭐⭐ `ta.dmi(diLen, adxLen)` — THE ONE BUILTIN TUPLE IN THE CORPUS, and it
-      // is an exact mapping rather than a judgement: Pine answers
-      // `[+DI, -DI, ADX]` and this table declares all three by name.
-      //
-      // ⛔ THE TWO PERIODS MUST MATCH. Pine smooths the ADX over its SECOND
-      // argument while the DI legs use the first; this table's `adx` takes one
-      // period for both. `ta.dmi(14, 20)` therefore refuses rather than quietly
-      // returning a 14/14 ADX — the identical decision `ADX14.20` already makes
-      // on the TC2000 side, and the same reason: a member who asked for 14/20
-      // must not be shown a number that is not the indicator they asked for.
-      const dmi = close >= 0 && eqAtDmi(toks, close) >= 0
-        ? dmiParts(toks, close, names, env, first)
-        : null
-      // ⭐ AND THE OTHER BUILT-IN TUPLES, ASKED THE SAME WAY. `ta.bb` and
-      // `ta.macd` are the two a screener actually destructures.
-      const builtinTuple = close >= 0 && !dmi
-        ? builtinTupleParts(toks, close, names, env, first)
-        : null
-      if (builtinTuple) {
-        names.forEach((n, k) => env.set(n.value, builtinTuple[k]))
+      const d = destructureBindings(toks, env, first)
+      if (d && d.bindings) {
+        d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
         continue
       }
-      if (dmi) {
-        names.forEach((n, k) => env.set(n.value, dmi[k]))
-        continue
-      }
-
-      // ⭐ A TUPLE-RETURNING USER FUNCTION HANDS OUT ITS PARTS BY POSITION.
-      // `[a, b] = f(x)` makes `a` element 0 of that call and `b` element 1; the
-      // call itself is inlined per part by `resolveBinding`'s `tuplePart` arm.
-      //
-      // ⛔⛔ THE `kind === 'tuple'` CHECK IS THE WHOLE SAFETY OF THIS FEATURE.
-      // Without it `request.security` — 42 of the 63 destructures in this corpus
-      // — would hand its FIRST element to a name expecting its third: a
-      // translation that parses, lints, saves, scans and is silently WRONG.
-      // Anything this engine cannot take apart must keep refusing by name.
-      const eq = close >= 0 ? close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '=')) : -1
-      let parsedRhs = null
-      if (close >= 0 && eq > close && names.length > 0) {
-        const rhs = toks.slice(eq + 1)
-        let call = null
-        try { call = parseWholeExpression(rhs) } catch { call = null }
-        parsedRhs = call
-        const callee = call && call.type === 'call' ? env.get(call.name) : null
-        const value = callee && callee.kind === 'fn' ? callee.value : null
-        if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
-          const callerEnv = new Map(env)
-          names.forEach((n, k) => env.set(n.value, {
-            kind: 'tuplePart', fn: callee, args: call.args, index: k,
-            env: callerEnv, at: locate(n),
-          }))
-          continue
+      if (d) {
+        for (const n of d.names) {
+          markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\` — ${d.why}`)
         }
+        notes.push(noteOf('pine:tuple', `${REFUSALS['pine:tuple']} — ${d.why}`, first))
+        continue
       }
-
-      const why = tupleRefusalTail(parsedRhs, names, env)
-      for (const n of names) {
-        markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\` — ${why}`)
-      }
-      notes.push(noteOf('pine:tuple', `${REFUSALS['pine:tuple']} — ${why}`, first))
-      continue
     }
 
     if (first.kind !== 'ident') {

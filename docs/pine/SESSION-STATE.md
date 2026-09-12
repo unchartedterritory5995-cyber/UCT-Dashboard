@@ -33,6 +33,78 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 
 ---
 
+## ✅ ITEM 2/3 — THE REASSIGN FOLD, AND VOLUME'S REFUSAL MOVED TO ITS NEXT LINE
+
+**The gap was never "reassignment". This engine has TWO walks and only one of them
+could read a tuple destructure.**
+
+- the TOP-LEVEL walk has read `[a, b] = f()` since Kind 4
+- `foldStatements` — the folder for the INSIDE of an `if` — never learned it at
+  all, so the statement fell through to the bare-expression arm,
+  `parseWholeExpression` met the `=`, `foldIfChain` threw, and every outer `var`
+  the branch assigned was forced opaque as `pine:reassign`
+
+That is `uncharted-volume.pine` 247-261, and the refusal named `volD` — a name
+whose own statement is perfectly fine. Isolated before a line was written:
+
+```
+A  destructure inside `if`, then reassign outer var   -> pine:reassign   REFUSED
+B  same destructure at TOP level, then reassign       -> ok
+C  two branches, both reassign                        -> pine:reassign   REFUSED
+D  reassign then read v[1]                            -> pine:reassign   REFUSED
+E  reassign from a plain call inside `if`             -> ok
+```
+
+⭐ **Fixed by EXTRACTING one reader (`destructureBindings`), not by adding a second
+branch.** Two walks disagreeing about one construct is the defect this repo has
+paid for three times in a week; a copy in the folder would have been a fourth.
+The `kind === 'tuple'` check carried over unchanged — it is the whole safety of
+the feature, because `request.security` is 42 of the corpus's 63 destructures.
+
+### ⭐⭐ THE REFUSAL MOVED, WHICH IS THE METRIC THE LINEMAP ASKED FOR
+
+```
+before   VOLUME [host] ok=false refusals=1   pine:reassign@250  volD
+after    VOLUME [host] ok=false refusals=1   pine:reassign@260  volD
+```
+
+Line 250 is the `isDaily` branch — `f_getDailyData()`, a user tuple function,
+now folds. **Line 260 is the `else` branch, whose right-hand side is the 8-tuple
+`request.security` at line 259.** `linemap-volume.md` predicted exactly this:
+*"The refusal list will grow as earlier blockers clear — a shrinking list is not
+the metric here, a changing one is."* Blocker 1 of 3 cleared; blocker 2 is now
+named at its own line and is item 4.
+
+Screener lane unchanged: `ok=true`, 4 × `ta.cum@225`.
+`buildRuntimeIr` unchanged: `pine:text-value`, line `null`, 0 columns — item 7/R5.
+
+### Evidence
+
+- engine suite **5,126 passed · 2 failed · 32 skipped** (the 2 are the census
+  floors); baseline before the change was 5,116/2 — **zero new failures**
+- 8 new tests in `pine.tuples.test.js` (26 → 34), of which **3 are refusal
+  controls**: `request.security` in a branch still refuses, a names-vs-arity
+  mismatch still refuses, a non-call right-hand side still refuses
+- **mutation-proved by hand, never by `git checkout`**: disabling the fold branch
+  turns exactly 4 of the 8 red and leaves all 3 controls green — the controls
+  refuse either way, which is what makes them controls rather than coverage
+- ⚰️ **my own agreement test was wrong first, and the engine was right.** It
+  compared the in-branch form against the same assignment at TOP level and
+  expected one formula: `accum(0/0, barindex > 0 ? close : self, 250)` against
+  `accum(0/0, close, 250)`. Those are two different PROGRAMS — the branch version
+  carries the var when the condition is false, which is what Pine means. The test
+  now holds the branch constant and varies only the destructure, with a companion
+  control asserting the conditional form does NOT equal the unconditional one, so
+  a folder that flattened the `if` away could not pass both.
+- **No Python mirror exists** — the Pine translator is JS-only (`pine.js`), so
+  nothing Python was touched and no `py_compile` was owed by this change.
+
+⚠️ **A stale claim found next door, not fixed here:**
+`api/services/user_definitions.py:274` says *"translatePine refuses ta.cum in
+BOTH modes today"*. Measured tonight: the HOST lane does not refuse it at all
+(0 refusals); only the screener does, 4 times. A decision record resting on a
+number that has moved.
+
 ## ⛔⛔ 2026-09-11 EVENING — THE RE-PLAN TRIGGER FIRED: NO BROWSER RIG
 
 **`ta.tr(true)` could not be read tonight, and it is on Volume's OWN critical path.**
