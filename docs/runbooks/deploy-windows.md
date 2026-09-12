@@ -44,6 +44,58 @@ It prints what flow-worker reaches, what it watches, and what this branch change
 Exit 1 means a change is stranded. It does not decide the tier for you — read its
 output against the watch list.
 
+## Interpretation — what a red from the coverage rail requires
+
+Owner ruling, 2026-09-11. **The coverage rail is a REVIEW GATE. A red does not block a
+merge — it requires a written classification before the push.** The classification goes
+in the pushing program's ledger row (for Terminal-Next:
+`docs/terminal-research/00-program-control/LEDGER.md`), never only in a commit message.
+
+⭐ **Why a classification rather than a block.** The scale makes a hard block unworkable
+and a silent skip dishonest: **flow-worker reaches 154 files and 23 are watched, so 133
+are reachable-but-unwatched** — 83 of them in `api/services/`. A rule that blocked every
+one would stop most backend work in this repo; a rule that ignored them would make the
+rail decorative. Writing down *which kind* of strand this is keeps the signal alive and
+puts the judgement on the record.
+
+### ADDITIVE — merge, and say so
+
+The stranded change **adds** functions, routes, tables or constants that flow-worker does
+not call. Flow-worker keeps running the older file, which simply lacks something it never
+invokes.
+
+- **Merge it.** The ledger row records: *"flow-worker stranded: ADDITIVE, safe; redeploy
+  at next window,"* plus one line naming **which** additions and **that flow-worker does
+  not call them**.
+- Flow-worker is redeployed at the next weekend/after-hours window regardless, **so stale
+  never exceeds a week.**
+- ⛔ **"Additive" is a claim about the diff, so check the diff, not the intent.** The
+  practical test is `git diff <merge-base>..HEAD -- api/ | grep -cE '^-[^-]'` — zero
+  deletions is strong evidence; a non-zero count means read every one before claiming it.
+  An added import line is additive; an altered default is not.
+
+### BEHAVIOUR-CHANGING — window only, with a confirmed redeploy
+
+Anything that alters a function flow-worker actually executes, a shared schema, or a
+default value.
+
+- **Merge only inside a weekend/after-hours window, with a flow-worker redeploy confirmed
+  BY ARTIFACT in the same session** — its uptime reset, not a CLI exit code and not the
+  absence of an error.
+- ⛔ A behaviour-changing strand merged outside a window leaves flow-worker executing
+  *different logic from the rest of the estate* until the next redeploy, with every test
+  green. That is the exact condition this rail exists to make visible.
+
+### Both cases
+
+⛔ **Neither classification licenses editing flow-worker's own files or widening its watch
+list** to dodge the red. The watch list is deliberately narrow — the workflow's own header
+explains that a wider list means more restarts and more permanently-lost tape — and this
+Interpretation does not change it.
+
+⚠️ A red with **no** classification in the ledger is the one unacceptable state. It is
+indistinguishable from nobody having looked.
+
 Or measure after the fact: `railway deployment list --service flow-worker --json`
 reports **`SKIPPED`** for a push that touched no watched file. Over the 14 master
 pushes to 2026-09-11, flow-worker was SKIPPED on **14 of 14**.
