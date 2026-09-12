@@ -2,7 +2,7 @@
 id: GATE-S7-PRICE-LEVEL
 title: S7 Alerts — `price-level` trigger type — Pre-Implementation Gate
 role: gates the FIRST ABSORPTION. `document-arrival` is already live and is NOT gated by this packet.
-status: ✅ APPROVED 2026-09-12 for CHECKPOINTS 1-2 only. CP3+ needs a new approval line.
+status: ✅ APPROVED 2026-09-12 — line 1 CP1-2, line 2 CP3. CP4 / flip / legacy switch-off each need a new line.
 pairs_with: PRD-S7, SPEC-S7, s7-alerts-completion-plan.md
 date: 2026-09-12
 ---
@@ -31,6 +31,51 @@ SCOPE APPROVED:   [ ] all of §4   [x] only: CHECKPOINTS 1-2.
 point: the author's own directive-transcription is not a signature, and this program's binding
 constraint has always been *a second party recording approval*, never date ordering. This line is
 that second party.
+
+---
+
+## ⛔ APPROVAL — LINE 2 (CP3). The CP1–2 block above stands as granted.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  644497c6a   (this packet as it stood at approval)
+SCOPE APPROVED:   CP3 — wire register(); the dark evaluator reads REAL `watchlist_alerts`
+                  rows for ADMIN-ROLE accounts only, via a READ-ONLY PROJECTION; writes
+                  `alert_fires` + receipts; no delivery import (the test stays); no legacy
+                  change; the comparison harness runs against the projected predicates
+                  under the forward-only rule and the anchor-move reset. Verdict gate =
+                  five full trading sessions.
+
+                  ⛔ CP4 (all members), the FLIP, and the LEGACY SWITCH-OFF each need a
+                     new line.
+```
+
+### ⛔ CP3 RULINGS (owner, 2026-09-12)
+
+**1. PROJECTION, NOT MIRROR.** The dark evaluator derives its predicates from `watchlist_alerts`
+**read-only, at evaluation time**. ⛔ No second table of member alerts. No sync job. The new
+predicate store holds only harness-armed predicates and the **comparison bookkeeping**
+(`anchor_version`, `anchors_set_at`, spans) **keyed by the legacy row id**.
+
+⭐ **If `watchlist_alerts` changes under it, the projection sees it next tick — that is the point.**
+A mirror would put a second authority on a member's armed alerts, and the drift between the two
+would be invisible until it produced a wrong alert. A projection cannot drift because it holds
+nothing to drift.
+
+**2. COHORT: ADMIN ACCOUNTS ONLY** — the owner and any team member with the admin role. ⛔ Gated on
+**the existing role check**, never a hardcoded user list: a typed list is a second authority over
+who is an admin, and it goes stale silently the day someone's role changes. All members is **CP4**
+and needs its own line after five sessions of admin-cohort data.
+
+**3. WINDOW: this weekend.** CP3 makes `price_level.py` **reachable**, so it merges with a marker
+bump in-window, both artifacts.
+
+⛔⛔ **FROM CP3 ONWARD THE MODULE IS BEHAVIOUR-CHANGING UNDER THE RAIL.** Recorded here and in the
+ledger so nobody classifies a later change to it as ADDITIVE **by habit**. The two prior checkpoints
+were honestly ADDITIVE *because nothing imported the module*; wiring `register()` ends that, and the
+classification that was true twice in a row is the one most likely to be copied forward without
+re-measuring.
 
 ---
 
@@ -182,7 +227,8 @@ member predicates, no shadowing of real member rows, and **no replay of any kind
 
 ## 7. Final gate
 
-# ✅ APPROVED — IMPLEMENT CHECKPOINTS 1 AND 2. CP1 merges; CP2 is dark, forward-only, harness-armed predicates ONLY.
+# ✅ APPROVED — CHECKPOINTS 1, 2 AND 3. CP3 projects REAL member rows, admin-role cohort ONLY, still dark.
 
-⛔ **F-S7-3 IS ANSWERED (§3a): no replay, ever; forward-only.** The open question is now CP3 —
-shadowing real member `watchlist_alerts` rows — which is explicitly outside this approval.
+⛔ **F-S7-3 IS ANSWERED (§3a): no replay, ever; forward-only.** CP3 is approved on line 2 and is
+a **read-only projection** of real member rows, admin cohort only. The open questions are now CP4
+(all members), the flip, and the legacy switch-off — each needing its own line.
