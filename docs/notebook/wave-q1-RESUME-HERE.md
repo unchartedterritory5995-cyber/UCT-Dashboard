@@ -13,10 +13,10 @@
 | Sunday canary + gate are SCHEDULED TASKS | **TRUE** | both `Ready`; detached runner retired |
 | Gate rails green | **TRUE** | 27/27 |
 | Sweep audited, fifth-pattern detectors added | **TRUE** | — |
-| CaptureHost resolved | **TRUE (gate 1)** | gate 2 in flight; 0 NEW on gate 1 |
+| CaptureHost resolved | **TRUE** | two clean gates, 0 NEW each; load-sensitive by name, no fix |
 | Q2 PRD, decisions, kill-switch recommendation | **TRUE** | before Q2-C, not before A/B |
-| GitHub PAT persisted / MCP next session | **FALSE** | not created — merges landed without it; see below |
-| First non-rig member opt-in event | **FALSE** | ⛔ **no independent member exists yet** — see below |
+| GitHub PAT / MCP next session | **DECIDED — not created** | owner ruling; merges landed via `git push`, rollback is one click from the branch page |
+| First INDEPENDENT member opt-in | **FALSE** | every opt-in is the owner's account or the internal smoke account; arrives with real traffic |
 | 7-day window closed (2026-09-19 00:45 ET) | **FALSE** | time |
 | Sunday verdict, KEEP | **FALSE** | regenerates Sunday 18:05 ET |
 
@@ -57,6 +57,29 @@ recovered the moment it finished.
 
 ⛔ **Batch merges, or let each reach SUCCESS before pushing the next.** The
 runbook's "~1 min `/api/*` blip" is per push and does not compose.
+
+## ✅ CaptureHost — LOAD-SENSITIVE BY NAME, NO FIX NEEDED
+
+Two full 6-shard gates with the flag true, nothing else running:
+
+| gate | result | shard 6 (CaptureHost's shard) |
+|---|---|---|
+| 1 | **0 NEW failures**, set matches baseline | 0 failed / 3984 |
+| 2 | **0 NEW failures**, set matches baseline | 0 failed / 3984 |
+
+Its single observed failure was in one flip-gate run; it passed alone, passed
+paired against all four offline-layer neighbours in its shard, and has now passed
+two clean full gates. **That is the repo's own definition of a load-sensitive
+name, and it needs no product or teardown fix.** `fix/capturehost-isolation`
+contains nothing beyond `master` and was therefore not pushed.
+
+⛔ **The `load_sensitive` list lives in `docs/plans/joystick/gate-baseline.json`,
+which is the joystick workstream's file and out of bounds for this wave.** Adding
+`CaptureHost.test.jsx > closing returns the dialog to nothing` to it — with the
+evidence above — is a **joystick-session follow-up**, alongside the B7
+branch-identity fix. ⛔ It must be added to `load_sensitive`, **never banked into
+the baseline**: the baseline's own instruction says a banked slot is one a real
+failure can occupy unnoticed.
 
 ## ⛔ DECIDED — the GitHub PAT was deliberately NOT created
 
