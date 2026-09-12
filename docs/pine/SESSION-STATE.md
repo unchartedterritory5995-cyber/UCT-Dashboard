@@ -33,6 +33,37 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 
 ---
 
+## ✅ R2 — THE KIND-4 TEXT TRIO: THE RULING ALREADY EXISTED, ON THE OTHER LANE
+
+⚰️ **SESSION-STATE said this wanted a product ruling. It did not — one was already
+written, in Python, and this was a lane that had not been told.**
+`definition_concierge._OPERAND_ONLY` already describes `str` and `symtext`, and
+`ast_lint.py` / `ast_interpret.py` already carry all three names (`ast_lint.py:418`
+dates it 2026-09-11). What was still red was ONE rail in the other language:
+`criteria.nodeTypes.test.js`, which asks that every entry in `parse.js::NODE_TYPES`
+either OPEN in a formula a member can type or be NAMED in an exempt map.
+
+⭐ **So the JS entries MIRROR the Python ruling rather than inventing a second
+one** — the defect this week's `_parse_mdy`, `barstate` and `ta.cum` incidents all
+share is two authorities over one value.
+
+**And the three do NOT get one shared ruling, because they are not one thing:**
+
+| type | ruling | lifetime |
+|---|---|---|
+| `textop` | **a missing picker ROW.** `text_contains`/`text_length` answer a NUMBER (1/0, a count), so it sits wherever a number sits and every walker already prices it as one. A picker row is a DESIGN task of the same class as `tf`/`sym` — what a text row compares, against which field vocabulary. | ends when the picker gets a text row |
+| `str` | **structurally unpickable, not a missing row.** `closedTable.json` rules these may appear nowhere except directly under a `textop`, and `parse.js::astHash` THROWS otherwise — *"Text is not a value in this engine; a text question answers with a number and the text never leaves it."* | outlives `textop`'s entry: giving `textop` a row gives `str` an OPERAND slot, not a row |
+| `symtext` | same containment, symbol-supplied. The Python ruling says it best and is quoted rather than paraphrased: *`syminfo.ticker` is not a screen condition, `contains(syminfo.ticker, "/")` is.* | as `str` |
+
+⛔ Three entries, not one shared "text" exemption — the file's own rule about
+`tf`/`sym`: one entry covering both keeps excusing the second after the first
+stops needing it. And all three are exempt from the PICKER census ONLY; none is
+exempt from the bind-time fold that is the whole reason they exist
+(`uncharted-volume.pine:222` is `str.contains(syminfo.ticker, "/")`, and it folds).
+
+`criteria.nodeTypes.test.js` 13 → 16 tests, green. Builder suite 10 failing files
+→ 9, 22 → 14 failing tests.
+
 ## ✅ ITEM 2/3 — THE REASSIGN FOLD, AND VOLUME'S REFUSAL MOVED TO ITS NEXT LINE
 
 **The gap was never "reassignment". This engine has TWO walks and only one of them
