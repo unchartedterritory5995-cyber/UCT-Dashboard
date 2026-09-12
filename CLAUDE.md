@@ -1374,6 +1374,31 @@ them:**
   (a bare `python tools/...` run, a `railway ssh`-less local script) hit the live
   files. The guard is a *test-suite* rail only.
 
+  ⚰️ **AND SETTING `DATA_DIR` IS NOT THE REMEDY — that is root cause 1 above,
+  re-committed 2026-09-12.** A bare probe of the fundamentals widget set
+  `DATA_DIR` to a scratchpad, looked sandboxed, and wrote
+  `C:\data\fundamentals_estimates.db` and `C:\data\fundamentals_tables.db`
+  anyway. Both resolve through their OWN vars (`FUNDAMENTALS_ESTIMATES_DB_PATH`,
+  `FUNDAMENTALS_TABLES_DB_PATH`), which `DATA_DIR` does not reach. The writes
+  were benign — correct current rows into two snapshot caches, both
+  `quick_check = ok`, no member data — and they were benign by luck, not by
+  design.
+
+  ⭐ **The remedy is to apply the CENSUS, never a hand-picked var.** The pins are
+  derived, `unpinnable` is currently **0**, so nothing needs guessing:
+
+  ```python
+  import conftest, os
+  _, pins, _ = conftest.shared_data_root_census()
+  for env, literal in pins.items():
+      os.environ[env] = literal.replace("/data", r"C:\some\sandbox")
+  # ...only now import anything from api.**
+  ```
+
+  Order is load-bearing: these paths are captured at MODULE IMPORT, so a pin set
+  after the import reaches nothing. `scripts/hub_sandbox_boot.py` already does
+  this properly for a full boot — prefer it over a hand-rolled probe.
+
 ## ⛔ Sandbox boots — the 2026-09-08 incident, and the two rails that make a sandbox trustworthy
 
 **The section above is a *test-suite* rail. This one is about everything else that
