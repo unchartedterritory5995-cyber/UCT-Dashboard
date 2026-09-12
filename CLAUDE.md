@@ -3938,6 +3938,22 @@ this closes that gap.
   the full TTL, persisted to the snapshot store, and was served as current. The
   payload now carries `reported_through` + `stale_quarters` and the widget says
   so. Threshold is 2 quarters: one behind is an ordinary late filer.
+  ⛔⛔ **THE MONITOR'S FLAG IS CONFIRMED AGAINST SEC EDGAR; THE DISPLAY IS NOT.**
+  `reported_staleness` compares against a GENERIC 75-day expectation, which
+  answers *"is what we hold old?"* — right for the member notice, useless as a
+  defect signal. `check_ticker` therefore consults
+  `edgar.newest_reported_quarter(sym)` and raises `stale_reported` ONLY when the
+  filings show a periodic report we do not have. Validated live 2026-09-12:
+  HOLX/EXAS/ACLX/FOLD/DHIL/BRY → **no flag** (SEC agrees with what we serve;
+  the companies have not reported), MMC's pre-fix state → **flag** (SEC showed
+  2026 Q2 against our 2025 Q4). ⭐ Display asks "is what we hold old?"; the
+  monitor asks "has the company filed something we lack?" — only the second is
+  actionable and only the filings can answer it. ⚠️ SEC is consulted only for an
+  already-stale strip (a healthy ticker spends no round-trip), cached per ticker
+  per UTC day, and a `None` answer does NOT flag — unknown and current must stay
+  distinguishable or an SEC outage manufactures findings for the universe.
+  ⛔ Tests that exercise a stale fixture MUST stub `sec_newest_reported_quarter`;
+  without it `check_ticker` makes two live HTTP calls to sec.gov.
   Measurement and the three upstream failure modes:
   **`docs/fundamentals-provider-gaps-2026-09-12.md`**.
   ⛔⛔ **THAT DOC'S FMP TICKET IS WITHDRAWN — DO NOT SEND IT.** It accused FMP of

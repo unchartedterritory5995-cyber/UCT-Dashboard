@@ -122,3 +122,102 @@ def fetch_edgar_news(hours: int = 24) -> list[dict]:
         })
 
     return results
+
+
+# ── Newest periodic filing, for confirming a staleness flag ───────────────────
+# Cached per ticker per UTC day: SEC asks for under 10 req/s, and a company's
+# newest 10-Q does not change hourly.
+_newest_q_cache: dict[str, tuple[str, str | None]] = {}
+
+_PERIODIC_FORMS = ("10-Q", "10-K", "10-Q/A", "10-K/A", "20-F", "40-F")
+
+
+def _resolve_cik(ticker: str) -> str | None:
+    """Ticker -> zero-padded CIK via EDGAR's browse endpoint.
+
+    ⛔ NOT via `sec.gov/files/company_tickers.json`. That file is PARTIAL — 10,426
+    entries on 2026-09-12, missing `MMC` and `BK`, both certain filers — so a
+    resolver built on it answers "not a US filer" for real companies. The first
+    version of this probe did exactly that and printed a fabricated explanation
+    for its own limitation. `browse-edgar?action=getcompany&CIK=<ticker>`
+    resolves a ticker directly and worked for every name tried.
+    """
+    t = (ticker or "").upper().strip()
+    if not t or _requests is None:
+        return None
+    try:
+        r = _requests.get(
+            "https://www.sec.gov/cgi-bin/browse-edgar",
+            params={"action": "getcompany", "CIK": t, "type": "10-Q",
+                    "count": "1", "output": "atom"},
+            headers={"User-Agent": "UCTDashboard contact@unchartedterritory.com"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        m = re.search(r"CIK=(\d{10})", r.text) or re.search(r"<cik>(\d+)</cik>", r.text)
+        return m.group(1).zfill(10) if m else None
+    except Exception:
+        return None
+
+
+def newest_reported_quarter(ticker: str) -> str | None:
+    """The newest fiscal quarter the FILINGS show a periodic report for, as a
+    'YYYY Qn' label — or None when SEC cannot answer.
+
+    This is the independent oracle behind the fundamentals monitor's
+    `stale_reported` check. `reported_staleness` can only say "what we hold is
+    old", which is useful for a member but cannot distinguish a provider that
+    dropped a filed quarter from a company that has not filed one. Measured
+    2026-09-12: six names flagged as stale had filed nothing newer than what we
+    already served, so they were not defects at all.
+
+    ⛔ Reads the SUBMISSIONS INDEX, not an XBRL concept. A filing's form and
+    reportDate are filing-level facts; picking the wrong us-gaap tag silently
+    reports an older quarter, and no tag is universal across filers.
+
+    ⚠️ Non-periodic forms are excluded because an 8-K's `reportDate` is the EVENT
+    date, not a fiscal period end — counting it invents a quarter out of a press
+    release. Labels come from the ONE shared period-end mapper, so this answer is
+    directly comparable to the widget's own labels.
+
+    Returns None rather than a guess on any failure: unknown and current must
+    stay distinguishable, or the monitor manufactures findings during an outage.
+    """
+    t = (ticker or "").upper().strip()
+    if not t or _requests is None:
+        return None
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    hit = _newest_q_cache.get(t)
+    if hit and hit[0] == today:
+        return hit[1]
+
+    label = None
+    cik = _resolve_cik(t)
+    if cik:
+        try:
+            r = _requests.get(
+                f"https://data.sec.gov/submissions/CIK{cik}.json",
+                headers={"User-Agent": "UCTDashboard contact@unchartedterritory.com"},
+                timeout=15,
+            )
+            r.raise_for_status()
+            recent = ((r.json() or {}).get("filings") or {}).get("recent") or {}
+            forms = recent.get("form") or []
+            ends = recent.get("reportDate") or []
+            best = None
+            for form, end in zip(forms, ends):
+                if form not in _PERIODIC_FORMS or not end:
+                    continue
+                if best is None or end > best:
+                    best = end
+            if best:
+                from api.services.earnings_estimates import _fiscal_q_from_period_end
+                q, y = _fiscal_q_from_period_end(best)
+                label = f"{y} Q{q}" if q else None
+        except Exception:
+            # A failed lookup is NOT cached as "no filings" — that would pin an
+            # outage for the rest of the day and silence a real gap.
+            return None
+
+    _newest_q_cache[t] = (today, label)
+    return label

@@ -37,6 +37,7 @@ from api.services.earnings_table import (
     get_earnings_table, _label_from_period_end, _next_q_label,
     expected_latest_reported_label, reported_staleness,
 )
+from api.services.edgar import newest_reported_quarter as sec_newest_reported_quarter
 
 _logger = logging.getLogger(__name__)
 
@@ -390,12 +391,33 @@ def check_ticker(sym: str, now=None) -> dict:
     #     was 2025 Q4 because FMP's feed stops at 2026-01-29, Finnhub returns
     #     nothing, and Yahoo stops earlier still. ~2.3% of the universe is in
     #     this state, including S&P 500 names (BK, HOLX).
+    #     ⛔ AND IT IS CONFIRMED AGAINST THE FILINGS BEFORE BEING CALLED A DEFECT.
+    #     `reported_staleness` compares against a GENERIC reporting expectation,
+    #     which answers "is what we hold old?" — right for the member-facing
+    #     notice, useless as a defect signal. Measured 2026-09-12 against SEC
+    #     EDGAR (control: MMC, BK and AAPL each return a 2026 Q2 10-Q, so the
+    #     oracle finds current filings): HOLX, EXAS, ACLX, FOLD, DHIL and BRY had
+    #     filed NOTHING newer than what we already served. They were not defects,
+    #     the companies had not reported, and the monitor would have digested them
+    #     daily forever — a slower version of the spam this module was fixed for.
+    #
+    #     ⭐ Display asks "is what we hold old?"; the monitor asks "has the company
+    #     filed something we do not have?". Only the second is actionable, and
+    #     only the filings can answer it.
+    #
+    #     SEC is consulted ONLY for a strip that already looks stale, so a healthy
+    #     ticker never spends the round-trip. An unanswerable lookup (None) does
+    #     NOT flag: unknown and current must stay distinguishable, or an SEC
+    #     outage manufactures findings for the whole universe.
     behind = reported_staleness(q, now=now)
     if behind >= _STALE_QUARTERS:
-        issues.append({"kind": "stale_reported",
-                       "detail": f"reported through {rep_labels[-1] if rep_labels else '?'}; "
-                                 f"expected {expected_latest_reported_label(now=now)} "
-                                 f"({behind} quarters behind)"})
+        ours = rep_labels[-1] if rep_labels else None
+        theirs = sec_newest_reported_quarter(sym)
+        if ours and theirs and theirs > ours:
+            issues.append({"kind": "stale_reported",
+                           "detail": f"reported through {ours}; SEC shows a periodic "
+                                     f"filing for {theirs} ({behind} quarters behind "
+                                     f"the generic expectation)"})
 
     blank_sales = sum(1 for r in a if r.get("eps") is not None and r.get("sales") is None)
     return {"sym": sym, "ok": not issues, "issues": issues, "blank_sales": blank_sales}

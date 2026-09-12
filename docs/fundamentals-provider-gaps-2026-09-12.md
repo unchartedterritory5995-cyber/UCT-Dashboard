@@ -206,6 +206,32 @@ companies had filed (MMC's Q2 2026 10-Q was filed 2026-07-21) and that endpoint
 did not have it. But it is fixed from inside, by reading FMP's own income
 statement, so there is nothing to ask for.
 
+## The monitor now confirms before it accuses
+
+The withdrawal above exposed a design flaw, not just a wrong document:
+`reported_staleness` answers *"is what we hold old?"*, and the monitor was
+reading that as *"we are missing something"*. Those are different questions and
+only the second is a defect.
+
+`check_ticker` now consults `edgar.newest_reported_quarter(sym)` — the SEC
+submissions index — and raises `stale_reported` **only when the filings show a
+periodic report we do not have**. Validated against live SEC on 2026-09-12:
+
+| Ticker | We serve | SEC shows | Monitor |
+|---|---|---|---|
+| HOLX, EXAS, ACLX, FOLD, DHIL | 2025 Q4 | 2025 Q4 | **no flag** |
+| BRY | 2025 Q4 | 2025 Q3 | **no flag** |
+| MMC (pre-fix state) | 2025 Q4 | **2026 Q2** | **flag — real gap** |
+
+Without this, those six would have sat in the daily digest forever — a slower
+version of the spam this whole change removed.
+
+⚠️ Cost and failure modes: SEC is consulted only for a strip that already looks
+stale, cached per ticker per UTC day, and a `None` answer does not flag — an
+outage must not manufacture findings. The member-facing notice is deliberately
+NOT gated on this: a member wants to know the figures are old whatever the
+reason.
+
 ## What the code change does and does not do
 
 **Does:** recovers the quarters `/stable/earnings` dropped, for every name where

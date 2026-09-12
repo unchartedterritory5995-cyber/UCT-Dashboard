@@ -31,6 +31,12 @@ def _mod(tmp_path, monkeypatch):
     monkeypatch.setattr(fm.cache, "invalidate", lambda k: None, raising=False)
     monkeypatch.setattr(fm.cache, "delete_prefix", lambda p: 0)
     monkeypatch.setattr(fm, "_is_fund", lambda s: False)
+    # ⛔ Stub the SEC oracle by DEFAULT. `stale_reported` is confirmed against
+    # EDGAR, so a stale-looking fixture otherwise reaches sec.gov for real — two
+    # live HTTP calls per check, which is how the MMC staleness test was passing
+    # before this line existed: slow, flaky, and dependent on a third party
+    # being up. Tests that care about the confirmation set it explicitly.
+    monkeypatch.setattr(fm, "sec_newest_reported_quarter", lambda s: None)
     return fm
 
 
@@ -154,8 +160,11 @@ def test_a_closed_end_fund_is_never_flagged(tmp_path, monkeypatch):
 
 # ── the staleness invariant reaches the monitor ───────────────────────────────
 def test_monitor_flags_the_mmc_staleness_shape(tmp_path, monkeypatch):
+    """MMC as it actually was: we served through 2025 Q4 while its Q2 2026 10-Q
+    had been filed on 2026-07-21. A CONFIRMED gap, so it flags."""
     import datetime
     fm = _mod(tmp_path, monkeypatch)
+    monkeypatch.setattr(fm, "sec_newest_reported_quarter", lambda s: "2026 Q2")
     now = datetime.datetime(2026, 9, 12, tzinfo=datetime.timezone.utc).timestamp()
     monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _payload(
         quarterly=[_rep("2025 Q3"), _rep("2025 Q4"),
@@ -165,6 +174,7 @@ def test_monitor_flags_the_mmc_staleness_shape(tmp_path, monkeypatch):
     assert "stale_reported" in kinds
     detail = [i["detail"] for i in r["issues"] if i["kind"] == "stale_reported"][0]
     assert "2025 Q4" in detail and "2026 Q2" in detail
+    assert "SEC" in detail, "the detail must name its oracle, not a generic expectation"
 
 
 def test_monitor_does_not_flag_a_current_strip_as_stale(tmp_path, monkeypatch):
