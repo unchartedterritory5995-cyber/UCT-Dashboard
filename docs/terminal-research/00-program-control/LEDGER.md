@@ -760,11 +760,24 @@ reads as an **auth** problem, not an encoding one, and is why it went unfixed ra
 
 ### ⭐ MONDAY, ~09:05 ET — ONE COMMAND, YES/NO WITH THE ROW COUNT
 
+**PowerShell / cmd:**
+
 ```
 railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
 ```
 
-Exit **0** = ticking · **1** = stalled or never started. Healthy output looks like:
+**Git Bash** — ⛔ needs `MSYS_NO_PATHCONV=1`, or MSYS rewrites `/opt/venv/bin/python` into
+`C:/Program Files/Git/opt/...` and the pod answers `sh: 1: C:/Program: not found`:
+
+```
+MSYS_NO_PATHCONV=1 railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
+```
+
+⚰️ **Verified by RUNNING it against production, not by writing it down** — the first form failed
+exactly that way. The same prefix applies to the full report command above.
+
+Exit **0** = ticking, or legitimately outside the window · **1** = stalled, or never started while
+INSIDE the window. Healthy output looks like:
 
 ```
 TICKING: YES -- last tick 43s ago, 6 ticks total
@@ -783,6 +796,21 @@ TICKING: YES -- last tick 43s ago, 6 ticks total
   detector, not a liveness one.
 - **WRITING** is spans + recorded outcomes. A sweep can tick perfectly and write nothing, and that
   is a different problem with a different cause.
+
+⛔ **AND IT KNOWS WHAT DAY IT IS.** Run before Monday and it answers:
+
+```
+TICKING: n/a -- it is Sat 11:17 ET, and the sweep only runs weekdays 09:00-16:59 ET.
+  No heartbeat yet is EXPECTED here, not a fault. Re-run after Monday's open.
+```
+
+⭐ **exit 0**, because "outside the window" and "armed but broken" leave an IDENTICAL store and call
+for OPPOSITE actions — wait, versus investigate. ⛔ The window check is only ever allowed to excuse
+the NEVER-STARTED case: a heartbeat that exists and has aged out is a stall whatever the day, and
+still exits 1. And a clock it cannot resolve fails **loud** (treated as inside the window), because
+an instrument that cannot tell the time must not be the thing that decides nothing is wrong. Both
+directions plus the unresolvable-clock case are railed in
+`test_the_weekend_case_never_swallows_a_real_stall`.
 
 ⚠️ **`0 outcome rows` at 09:05 is the NORMAL answer** and the tool says so in words — nobody's line
 has been crossed yet. ⛔ What is *not* normal is `projected=0`, which means no ACTIVE
