@@ -1,5 +1,107 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · T3 — THE MEMBER-PANE PATH, AND THE WALL IT HITS
+
+`app/src/components/chart/builder/memberPane/memberPaneDefinition.js` — the one
+function that walks the whole path without a React component in the middle:
+
+```
+source → translatePine(strict) → paneGate → rows → buildDefinition
+       → installUserDefinitions → addInstance → binder → columns
+```
+
+**What lands, measured on `uncharted-volume-v2.pine`:**
+
+| | |
+|---|---|
+| document | `validateDefinition().ok === true`, 4 data plots + chrome inputs |
+| the four rows | Volume · Avg Vol Columns · Avg Vol Line · Scale Padding |
+| the fifth output | **not drawn** — `HVE Trigger` is an `alertcondition` (ruling D1) |
+| placement | `{target:'pane', pane:{height: 0.25}}` — `defSchema` validates a FRACTION in (0,1) |
+| the alert note | emitted on the result, one sentence, the condition named |
+
+### ⚰️⚰️ AND THE SHIPPED INSTALL DOOR REFUSES IT — `resolve:window`
+
+```
+compute.trees.out2: refused at registration by "resolve:window" —
+sma argument 1 must be a whole number of at least 1, got
+{op ?: [series isweekly, num 50, num 50]}
+```
+
+That ternary is `timeframe.isweekly ? lenWeekly : lenDaily` — **the exact pattern
+`closedTable.json::_bind_time_constants` exists for.** It folds at BIND time, when a
+timeframe is known; registration has no binding.
+
+⛔⛔ **TWO AUTHORITIES OVER "HOW FAR BACK DOES THIS TREE REACH", AND THEY DISAGREE.**
+`lint.js::maxLookback` HAS the bind-foldable branch (`bindFoldableWindowMax`, taking the
+MAX of the arms — over-claiming, the safe direction). `interpret.js::maxLookback` →
+`ownLookback` → `windowLiteral` does not, and neither does the Python mirror
+`ast_interpret._own_lookback`. `lint.js`'s own comment warns about this split in the
+opposite direction: *"the door would defer, the linter would bound, and the member would
+get a number nothing produced."*
+
+⚠️ **NOT FIXED HERE — IT IS A RULING.** Teaching `ownLookback` the same fold WIDENS what
+a member may install. The direction is provably conservative (over-claim, never
+under-claim, which `maxLookback`'s own docstring calls the one direction a budget must
+never fail in) and the sibling authority already does it — but which trees a member may
+put on a chart is the owner's call, not mine.
+`memberPaneDefinition.test.js` pins the DEFECT, so the day it is ruled the case goes red
+and names itself.
+
+### ⭐ TWO PANES THAT DIFFER BY A PARAMETER — and why not by `lookbackBarsHVE`
+
+`memberPaneVariants()` produces N definitions differing on one folded parameter.
+⛔ **TWO DEFINITIONS, NOT TWO INSTANCES:** a folded `input.int` becomes an IMMUTABLE
+parameter baked into the tree with locators pointing at it, not a `defSchema` input an
+instance carries a value for. `applyParamEdit` rewrites the literal atomically and hands
+back a new definition. Verified on `__uct_param_2` (Daily Length 50 vs 10): two ids, two
+trees, both valid documents.
+
+⛔⛔ **`lookbackBarsHVE` CANNOT VARY THIS PANE, AND THAT IS RULING D1'S OWN CONSEQUENCE.**
+Measured: `__uct_param_3` appears in the HVE Trigger tree and **nowhere else**. Once the
+condition goes to Alerts the knob has no drawn series left to move, and the function says
+so by name rather than installing two identical panes.
+
+### ⭐ LWC v5 DOES RESIZE NATIVELY — and the repo already targets pixels through it
+
+`IPaneApi.setStretchFactor`; stretch factors distribute the available height, so a factor
+set to a pixel count lands on it exactly (`paneLayout.js`, measured in
+`paneSeparatorPin.test.js`). ⛔ But the heights **cannot be read in the tick they were
+written** — LWC defers layout to `requestAnimationFrame` — and one deferred frame is not
+a settle either, which is why `paneHeightMismatch` is a REPORT and `binder.js` re-applies
+and re-arms rather than throwing. A one-pixel drift is a warning; an exception on the
+paint path is a blank chart.
+
+### ⭐ THE GATE IS FLIPPED, NOT DELETED
+
+`pineRuntimeFrontendGate.test.js` said *"`pineRuntimeFrontend.js` MAY NOT BE WIRED YET"*
+because nothing produced the tri-state. T4 built the producer, so the rule becomes **a
+live importer must also reach `pineRuntimeClock`**. ⚠️ That form is VACUOUS while the
+count is zero — so the predicate is a pure function proved to fire against synthetic file
+lists before it is pointed at the real tree.
+
+⚠️ **AND THE COUNT IS STILL ZERO**, because ruling D2 (option B) drives the pane from the
+HOST lane's saved definition, not from the IR lane. That is a decision about which
+translation is authoritative, not evidence that the IR lane is safe.
+
+### ⚰️ A MEASUREMENT INSTRUMENT IS READING A FIELD THAT DOES NOT EXIST
+
+`translatePine`'s `declaration` is the STRING `"indicator"`. `visualParitySet.test.js::documentOf`
+reads `t.declaration && t.declaration.overlay`, which is `undefined` for **every script
+ever written** — so every document it builds gets `target: 'pane'` regardless of what the
+author asked for. The real field is `presentation.overlay`.
+`memberPaneDefinition.js` reads the right one and the overlay case is the rail. The parity
+test is untouched (it is already red on the pine_oos gap) and this is recorded rather than
+quietly corrected, because its numbers are a published measurement.
+
+### ⚠️ AND THE REPAINT MODE MUST COME FROM THE LINTER
+
+A hard-coded `'clean'` in the row builder declared `repaints` on a plain
+`sma(close, 20)`, and the install door refused it: *"declared \"repaints\" but the linter
+MEASURES \"non-repainting\""*. `meta.repaint` is a truth claim a member acts on, and the
+door refuses a disagreement **in both directions**. The row builder now asks
+`evaluateFormula` — the same function the door asks.
+
 ## ⭐⭐ SESSION 2 · D2 (option B) — THE SENTENCE PER LANE, AND THE PANE'S GATE
 
 ⚰️ **A REFUSAL PROMISED SOMETHING THE LANE IT FIRED IN CANNOT DELIVER.**
