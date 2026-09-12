@@ -54,9 +54,20 @@ it was pointed at a tree containing neither.
 diffed, and nothing whatsoever about any other tree.** A rail scoped to the place the work is *not*
 happening returns PASS forever, and a PASS forever reads as evidence.
 
-⚠️ Also surfaced by the re-scope and NOT yet explained: the Entity Master checkpoints run 1, 2, 3, 4,
-5, 7, 8 — **there is no Checkpoint 6 anywhere in the repository's history.** Recorded as an open
-question, not as a defect.
+⛔ **THE TABLE ABOVE IS ITSELF AN UNDERCOUNT — see `PROGRAM_STATUS.md`'s implementation ledger.** The
+first re-scoped run used a program-owned *path* manifest and a subject filter that omitted `S7`. The
+true figure is **50 commits, 207 files, 22,049 insertions** on branch `feat/entity-master`, merged as
+`ed6b1f041` on 2026-09-05, additionally covering **S1, S2 (a command palette), S7 Alerts, A6–A8 and
+I1** — and D1's full ACL boundary, not merely the hardening pass named above. The ledger is the
+authority; this table is kept as the record of what the first re-scoped run surfaced.
+
+⭐ **Two undercounts in one hour, from the same cause, and the lesson is the rail's:** a
+**path-filtered** log answers *"what touched this path,"* and a **subject-filtered** log answers
+*"what did I think to grep for."* Neither answers *"what did this program ship."* The reliable query
+is the merge itself — `git log ed6b1f041^1..ed6b1f041^2`. ⚠️ A corollary already bit once: an earlier
+revision of this file recorded "there is no Checkpoint 6 anywhere in the repository's history."
+**Checkpoint 6 exists** (`5ecdae012`, "compatibility integration"); it simply touched paths outside
+the filter. **A filtered absence is not an absence.**
 
 ---
 

@@ -1,9 +1,9 @@
 # PROGRAM STATUS
 
 **Program day:** 1 CLOSED, Phase 2 CLOSED, Phase 3 CLOSED (technical validation + PRD/spec for the four LOCKED systems).
-**Stage: BUILD PROGRAM** — declared by owner ruling 3 on 2026-09-11, and true in fact since 2026-09-02. Specification complete for four systems; **all four are implemented in whole or in part on `origin/master`, plus two application slices (A3/A4 and A5)** — see "Post-Phase-3 work" below. Program **idle since 2026-09-03**, awaiting the owner's read on the S3 gate and on the undocumented shipments.
-**Last updated:** 2026-09-11 (control-file reconciliation; no new program work).
-**Last verified against git:** `a31cacea1` (2026-09-03 07:04:50 -0500), branch `terminal-research`, in sync with `origin/terminal-research`.
+**Stage: BUILD PROGRAM** — declared by owner ruling 3 on 2026-09-11, and true in fact since 2026-09-02. ⛔ **50 commits / 207 files / 22,049 insertions are already on `origin/master`** covering S1, S2, S3, S7 Alerts, S8, S11, D1, A3–A8 and I1 — none of it recorded in any program document. See **THE IMPLEMENTATION LEDGER** below. Program **idle since 2026-09-04**, and **BLOCKED pending the owner's read of that ledger**.
+**Last updated:** 2026-09-11 (control-file reconciliation + S3 spec re-verification; no new build work).
+**Last verified against git:** docs branch `terminal-research` @ `a84b1932e`; production tree `origin/master` @ `b63cf9775` (2026-09-11 16:58).
 **Deadline health:** GREEN — Day 1, the Readiness Review, Phase 2 (architecture), and Phase 3 (technical validation + 4 PRD/spec pairs) all completed, adversarially validated, corrected, and committed/pushed this session.
 
 ## Checkpoint (Document A format)
@@ -85,8 +85,9 @@ GREEN.
 
 ## Post-Phase-3 work (2026-09-02 17:31 → 2026-09-03 07:19) — added by the 2026-09-11 reconciliation
 
-Eight docs commits and five code commits landed after the Phase 3 close above, and **no control file
-recorded any of them** until this reconciliation.
+Eight docs commits landed on `terminal-research` after the Phase 3 close above, and **no control file
+recorded any of them** until this reconciliation. The application code that landed in the same
+window is far larger and has its own section — see **THE IMPLEMENTATION LEDGER** below.
 
 **Docs, on `terminal-research`:**
 * `c46048ae6` — **Entity Master pre-implementation gate packet**, `12-decisions/gates/entity-master-pre-implementation-gate.md`, 564 lines. Status: final, presented, **awaiting explicit owner approval**.
@@ -95,25 +96,110 @@ recorded any of them** until this reconciliation.
 
 ## THE IMPLEMENTATION LEDGER — what this program has shipped to production
 
-**Seventeen commits to `origin/master`, 2026-09-02 17:51 → 2026-09-03 15:07**, all from separate
-implementation branches, never from this worktree. Thirteen of the seventeen were recorded in no
-program document until the 2026-09-11 reconciliation; the re-scoped protection rail surfaced them on
-its first run. ⛔ **This table is the manifest check (1b) validates against. A commit on a
-program-owned path that is not listed here is a FAIL.**
+⛔⛔ **FIFTY COMMITS. 207 FILES. 22,049 INSERTIONS.** Branch `feat/entity-master`, 2026-09-02 17:51
+→ 2026-09-04 13:46, merged to `origin/master` as **`ed6b1f041`** on 2026-09-05 00:50 with the
+message *"Merge feat/entity-master (50 commits: Entity Master/S3, D1, S8, S11, A3-A7 research
+modernization, Analyst Ratings, News Slice 1, Ask AI Slice 1, Security Research Q&A Slice 2, S7
+first slice, Command Palette) onto current origin/master for release reconciliation."*
 
-| system | commits | what shipped | recorded before 09-11? |
-|---|---|---|---|
-| **S3** Entity Master | `3c762d25e` `8424b8be5` `195e8e24c` `114052d2d` `f1b75e270` `baaf28906` `53b99ad5a` | `api/services/entity_master/` **created from nothing** — canonical schema, read primitives, write path, seed script (**a real seed run was executed**, Checkpoint 4), provider mapping, reconciliation, adversarial validation at real scale. 2,395 insertions, 1,174 of them tests. Checkpoints run 1,2,3,4,5,7,8 — **no Checkpoint 6 exists in history; open question** | ❌ no |
-| **D1** Provider Abstraction | `9d0b5eb26` | provenance/freshness hardening — vendor-entitlement distinction, stale detection, AI-consumable contract. ⚠️ **This is not the one-ACL-per-vendor boundary PRD-D1 specifies**; the adapter layer itself remains unbuilt, so D1 is PARTIAL, not done | ❌ no |
-| **S8** Provenance & Freshness | `7adf80bd4` `834b45df4` `8d04bf75f` `03d399a52` `48bba9614` | the `provenance/` component family, the two provenance routers, `bar_provenance.py`, `ProvenanceDemo.jsx` at `/provenance-demo` | partly — 3 of 5 |
-| **S11** Session & Market Clock | `e14a5836b` `1cf0bf028` | `app/src/lib/marketClock/`; `useMarketOpen.js` re-sourced; `sessionModel.js` holiday-aware | ✅ yes |
-| **A3/A4** vertical slice | `408f04935` | `/research/:sym`'s Estimates + Financials mounted onto S3+D1+S8+S11. Verified NOT to touch Terminal-Current | ❌ no |
-| **A5** Events & Calendar | `1214dc246` | modernization onto S3/D1/S8 — and it **modified TERMINAL-CURRENT**: `api/routers/calendar.py` (163 lines), `app/src/pages/Calendar.jsx`, `calendar/CalendarHeader.jsx`, `earningsModalRow.js`, three test files, plus a new 281-line `tests/test_calendar_a5_modernization.py` | ❌ no |
+**Not one of those fifty commits is recorded in any program-control document.** The program's own
+docs end at `a31cacea1` (2026-09-03 07:04) and describe a specification program awaiting an
+implementation gate. Reproduce the list with:
 
-⛔⛔ **THE A5 COMMIT NEEDS THE OWNER'S READ.** `1214dc246` changed the surface this entire rail is
-named after. It may well have been authorized in conversation the way S8's and S11's slices were —
-but it is recorded nowhere, and the rail that exists to catch exactly this returned PASS three times.
-Nothing further should be built on A5 until the owner confirms it was intended.
+```bash
+git log --format='%h %ci %s' ed6b1f041^1..ed6b1f041^2
+git diff --stat ed6b1f041^1...ed6b1f041^2 | tail -1
+```
+
+⛔ **This section is the manifest check (1b) validates against. A commit on a program-owned path
+that is not recorded here is a FAIL.**
+
+### What the fifty commits built
+
+| system | scope | representative commits |
+|---|---|---|
+| **S3 Entity Master** | `api/services/entity_master/` created from nothing — canonical schema, read primitives, write path, seed script (**a real seed run was executed**), provider mapping, compatibility integration, reconciliation, adversarial validation at real scale, plus a findings investigation and a root-cause correction. Checkpoints **1–8, all present** | `3c762d25e` … `53b99ad5a`, `ca3176954` |
+| **D1 Provider Abstraction** | ⚠️ **far more than "hardening" — the ACL boundary was BUILT.** Shared error taxonomy + licensing-class table, **`fmp_client.py` adapter**, then migration of `insider.py`, `fundamentals.py`, `analyst_actions.py`, `earnings_estimates.py` (6 call sites), `transcript_indexer.py`, `financial_history.py`, `analyst_grades.py`, `engine.py` onto it; a Massive adapter extending `_MassiveRestClient` in place; **AST guard census tools** (`tools/massive_guard_census.py`); `served_total` counter + FMP/Massive admin status endpoints; a real-provider validation checkpoint with two defects found and fixed | `768587e00` … `9d0b5eb26` (~20 commits) |
+| **S8 Provenance & Freshness** | the `provenance/` component family, two routers, `bar_provenance.py`, `ProvenanceDemo.jsx` | `7adf80bd4` … `48bba9614` |
+| **S11 Session & Market Clock** | `app/src/lib/marketClock/`, `useMarketOpen.js` re-sourced, holiday-aware `nextOpenHint()` | `e14a5836b` `1cf0bf028` |
+| **S7 Alerts** | **first slice — `api/services/alert_taxonomy/` package + the `document-arrival` trigger type** | `e994f5337` |
+| **S1 + S2** | ⛔ **a global Ctrl/Cmd+K command palette for security search and navigation, plus a visible search trigger and in-box `?` help** — the two systems the Phase 2 gate ruled must NOT be specified ahead of OI-06 | `0eec8343d` `0577245df` |
+| **A3–A8 applications** | `/research/:sym` Estimates + Financials onto S3+D1+S8+S11; A6/A7 research tabs (Ratings, Ownership, Filings, Calls & Transcript); **A5 Events & Calendar onto S3/D1/S8** + an empty-week-vs-provider-failure follow-up; a dedicated Analyst Ratings tab; **A8 News Slice 1** | `408f04935` `66b56ccf1` `1214dc246` `529c54987` `a1b10c498` `4605aa8dd` |
+| **I1 Intelligence Layer** | **AI-Native Research Assistant Slice 1 (contextual "Explain" tab)** and **Security Research Q&A Slice 2 (6-composer contextual assistant)** | `341bb78de` `a21518d0e` |
+
+⛔⛔ **TERMINAL-CURRENT WAS MODIFIED**: 7 files, +266/−52 — `api/routers/calendar.py` (215 lines
+changed), `app/src/pages/Calendar.jsx`, `calendar/CalendarHeader.jsx`, `earningsModalRow.js` and
+three test files. That is the surface this program's protection rail is named after, and the rail
+returned PASS throughout.
+
+⛔⛔ **THIS NEEDS THE OWNER'S READ BEFORE ANY FURTHER BUILD.** Much of it may have been authorized in
+conversation the way S8's and S11's slices were — but four things are true regardless: the work is
+recorded nowhere; it covers systems the Phase 2 gate explicitly parked (S1, S2) and systems no gate
+packet was ever written for (S7 Alerts, I1, A8); it modified Terminal-Current; and the instrument
+that existed to catch exactly this was structurally incapable of seeing it.
+
+⚠️ **Correction to this document's own first draft (2026-09-11):** an earlier revision of this
+section reported seventeen commits and said "no Checkpoint 6 exists." Both were wrong, and for the
+same reason — the query filtered by `api/services/entity_master/` and by a subject pattern that
+omitted `S7`. **Checkpoint 6 (`5ecdae012`, "compatibility integration") exists**; it simply touched
+other paths. ⭐ A path-filtered log answers "what touched this path," never "what did this program
+do," and the second question is the one that was being asked.
+
+
+## S3 SPEC RE-VERIFICATION, 2026-09-11 — result: STOP
+
+Run per the owner's Part B before any S3 build work, against `origin/master` @ `b63cf9775`.
+
+**B1 — every repo path the S3 documents name.** 64 distinct paths extracted from
+`entity-master-spec.md`, `entity-master-prd.md` and the gate packet; 36 fully qualified and checked
+directly against the master tree.
+
+| result | count | detail |
+|---|---|---|
+| **VERIFIED** | 34 / 36 | every reuse claim naming a real file still resolves at the named path — `cap_universe.py`, `delisted_registry.py`, `ticker_search.py`, `ticker_search_index.py`, `polygon_extras.py`, `massive.py`, `ticker_meta.py`, `bars_sqlite.py`, `auth_db.py`, `voice_tool_impls.py`, both `delisted_tickers*.json`, `cap_universe.json`, `main.py`, `ticker_types.py`, `cot.py`, `modelbook.py`, and the whole long tail of ticker-string call sites |
+| **GONE — planned, never built** | 1 | `api/routers/entity_master_admin.py` — the spec's admin status/ops routes (§, "new, `require_admin`, mirrors `cot.py`'s `/status`/`/reseed` shape"). **S3 shipped without its ops lever.** |
+| **not a claim** | 1 | `EntityAdminPanel.jsx` — the spec names it only to say **no such panel is proposed**. Absent, and correctly so. My extractor read a negative claim as a positive one. |
+
+**MOVED: none. CHANGED: none detected at path level.** The codebase did not move under this spec in
+the way the re-verification was designed to catch.
+
+**B2 — the shipped `api/services/entity_master/` against what the spec describes.** The premise of
+the question was wrong and that is the finding: the spec does not describe code the program
+*adopted*, it describes code the program *wrote*, hours before the sentence was written. Shipped:
+`schema.py`, `store.py`, `api.py`, `reconciliation.py`, `__init__.py` + three test modules
+(`test_entity_master.py` 810 lines, `test_reconciliation.py` 231, `test_adversarial_checkpoint8.py`
+133). `scripts/entity_master_seed.py` exists. Every module the spec names is present; the only
+absence is the admin router above.
+
+**B3 — are the gate's conditions still satisfiable?** The gate packet verified in its §12 that no
+owner decision blocked implementation, and its §15 verdict is **IMPLEMENT WITH CONDITIONS**, with
+OpenFIGI, store migrations and D5's real corporate-action feed explicitly out of scope. Those
+exclusions still hold on master. **But the gate is a PRE-implementation gate for an implementation
+that completed on 2026-09-02, twenty minutes after the gate document was written** (`c46048ae6`
+17:31 → Checkpoint 1 `3c762d25e` 17:51 → Checkpoint 8 `53b99ad5a` 18:54).
+
+### ⛔⛔ B4 VERDICT: STOP — not on a failed reuse claim, on a void premise
+
+The re-verification came back clean. **The thing it was gating did not.** Approving a
+pre-implementation gate, and then implementing against it, describes work that shipped nine days
+ago and has been serving members since `ed6b1f041` merged on 2026-09-05.
+
+Four questions now sit with the owner, and no build work proceeds until they are answered:
+
+1. **Was the 50-commit merge authorized?** Much of it plausibly was, in conversation, the way S8 and
+   S11 were. But it is recorded nowhere, and it reaches systems the Phase 2 gate explicitly parked.
+2. **S1 and S2 shipped a command palette** (`0eec8343d`, `0577245df`) while the Phase 2 gate's own
+   condition reads *"do not finalize any PRD/spec for a PROVISIONAL/OWNER-BOUND system ahead of its
+   gating input"* — OI-06, still unanswered.
+3. **S7 Alerts, I1 and A8 shipped slices with no PRD/spec and no gate packet at all** — `alert_taxonomy`,
+   two AI research-assistant slices, and company news on `/research/:sym`.
+4. **Terminal-Current was modified.** 7 files, +266/−52, including 215 changed lines in
+   `api/routers/calendar.py`.
+
+⭐ **What the re-verification actually proved, and it is worth keeping:** the spec's reuse claims are
+sound and the codebase did not drift under them. **The risk was never drift. It was that the
+document set and the production tree had been describing two different programs for nine days**, and
+only a rail pointed at the production tree could tell.
 
 ⛔ **Why the protection rail never noticed — and what changed.** The rail diffed *this worktree's*
 application paths against the start SHA. This worktree receives only docs commits, so the diff was
