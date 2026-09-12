@@ -25,7 +25,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 
 import requests
 
@@ -461,3 +461,345 @@ def get_cash_flow_statement(ticker: str, *, period: str = "quarter", limit: int)
     return _fetch("/stable/cash-flow-statement", params,
                    source_activity="fmp_client.get_cash_flow_statement", data_class="fundamentals",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=20)
+
+
+# ── 2026-09-11: D1 adapter gap G2 — typed functions for endpoints reached
+# DIRECTLY today with no adapter surface at all (owner-authorized, additive
+# only). ADDITIVE SURFACE, NOT A MIGRATION: not one call site changes in the
+# commit that adds these, so `tools/fmp_guard_census.py` is expected to report
+# IDENTICAL numbers before and after — the census counts violations at call
+# sites, and this block creates none and removes none.
+#
+# The endpoint list was DERIVED, not typed: an AST walk over `api/**` for
+# (a) every `_fmp_get(...)`-shaped call whose first argument is a string
+# literal, (b) every `financialmodelingprep.com` literal/f-string, and
+# (c) every string constant ANYWHERE whose value is FMP-path-shaped
+# (`/stable/...`, `/api/v3/...`, `/image-stock/...`), diffed against the
+# `_fetch(...)` path literal of every `def get_*` above.
+#
+# ⭐ Rule (c) exists because rules (a)+(b) alone MISSED endpoints, and the
+# miss is worth recording: `api/services/news/adapters/fmp_news.py` binds
+# `STOCK_LATEST = "/stable/news/stock-latest"` at module level and calls
+# `_get(STOCK_LATEST, ...)`, so neither the call site nor the URL carries a
+# path literal. The first pass of this very census reported that file as
+# reaching only "/" — the base URL. `index_constituents.py` hides four more
+# the same way, inside a table of tuples. An enumerator that only looks
+# where it expects the answer reproduces its own blind spot, so this list
+# is the UNION of all three rules, not rule (a)'s output.
+#
+# Endpoints found uncovered and covered HERE (one typed function each):
+#   /stable/profile · /stable/analyst-estimates · /stable/grades-news ·
+#   /stable/grades-latest-news · /stable/news/general-latest ·
+#   /stable/news/stock-latest · /stable/news/press-releases-latest ·
+#   /stable/sp500-constituent · /stable/nasdaq-constituent ·
+#   /stable/dowjones-constituent · /stable/etf/holdings
+#
+# Found uncovered and deliberately NOT covered, because an endpoint left out
+# silently is indistinguishable from one nobody noticed:
+#
+#   /stable/ratios-bulk, /stable/ratios-ttm-bulk, /stable/key-metrics-ttm-bulk,
+#   /stable/profile-bulk  — these return **CSV, not JSON** (measured live and
+#       documented in `api/services/screener/fundamentals_bulk.py`'s own
+#       header; `earnings_estimates._fmp_get` ends in `r.json()`, which is
+#       exactly why `fmp_bulk.fetch_fundamentals_bulk()` has been returning
+#       `{}` unconditionally). `_get_raw` above raises `transient(... non-JSON
+#       body)` by construction, so a typed function here would be a
+#       guaranteed-failing one. Non-JSON payload support is gap G3 and is NOT
+#       authorized.
+#   /image-stock/{sym}.png — `ticker_logos.py`; a PNG. Same G3 reason.
+#   /stable/splits — reached only from `api/services/bars_sanitize.py`.
+#   /stable/historical-chart/{interval} — reached only from
+#       `api/services/bars_fetch.py`.
+#       Both consumers are owner-excluded from this branch, so a typed
+#       function for either would be adapter surface no authorized caller
+#       could ever migrate onto. Recorded, deliberately not built.
+#
+# Also deliberately excluded: every FMP path that appears ONLY inside
+# `api/routers/earnings.py::debug_earnings_sources` (`/stable/earnings-
+# surprises`, `/stable/historical-earning-calendar`, `/stable/institutional-
+# ownership/latest`, `/stable/price-target-news`, and the legacy `/api/v3/*`
+# family that 403s on this plan). That endpoint's entire PURPOSE is to fire
+# raw, unrouted URLs and report which ones the account can still reach —
+# routing it through this adapter would destroy the diagnostic.
+#
+# ⛔ NONE of these expose a `timeout` PARAMETER. Adding one is gap G1, a
+# separate pending owner ruling. Four of the five take the module default
+# (`_DEFAULT_TIMEOUT`) because their live call sites disagree with each
+# other about how long the call may take — `/stable/profile` alone is
+# reached with 8, 8.0, 10 and two env-configured values — so there is no
+# single existing request shape to mirror the way `get_ipo_calendar` mirrors
+# `_fmp_ipo_get`'s. The one exception is `get_news_general_latest`, which
+# carries the same internal `timeout=12` as the two news-family functions
+# already above it, on the rule that typed functions in one endpoint family
+# must not disagree about their own ceiling. An internal constant is not an
+# exposed parameter; G1 is untouched either way.
+
+def get_company_profile(ticker: str) -> _pe.ProviderResult:
+    """Company profile (`/stable/profile`) — name, exchange, sector,
+    industry, description, logo URL, beta, market cap. The single
+    highest-value gap in the census: EIGHT separate modules reach this
+    endpoint directly today (`darkpool_eod.py`, `bars_sanitize.py`,
+    `company_about.py`, `earnings_growth_fmp.py`, `industry_map.py`,
+    `ir_webcast.py`, `ticker_logos.py`, `ticker_meta.py`).
+
+    ⚠️ `data_class="profile"` is DELIBERATELY UNREGISTERED in
+    `provider_licensing_class._TABLE`, so `licensing_class` stamps "U"
+    (Unknown), not "R". That is the correct answer, not an oversight: the
+    licensing register has no row for FMP company-profile/reference data,
+    and that module's own `("fmp", "ipo")` comment states the rule —
+    "no research exists for that pair, so it is left unregistered and
+    correctly falls through to `_DEFAULT` ('U' — not researched, never
+    inferred)". Re-using a registered neighbour like "fundamentals" purely
+    to obtain an "R" would be inferring a licensing class from a
+    resemblance, which is the exact move this module's own header
+    correction (spec §20 vs register row T-07) exists to refuse. Registering
+    the pair is an owner/licensing input, a one-line data change there, and
+    touches zero adapter code."""
+    return _fetch("/stable/profile", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_company_profile", data_class="profile",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_analyst_estimates(ticker: str, *, period: str = "annual",
+                          limit: Optional[int] = None) -> _pe.ProviderResult:
+    """Forward analyst estimates (`/stable/analyst-estimates`) — reached
+    directly by `annual_financials.py` (annual, limit 20),
+    `earnings_table.py` (quarter, limit 40) and
+    `screener/analyst_pass.py` (annual, limit 20).
+
+    `period` is ALWAYS sent (all three live call sites send it explicitly,
+    and the annual/quarter answer differs enough that letting FMP's own
+    default decide would make the returned rows depend on a vendor default
+    nobody here has pinned). It is NOT normalized or validated — the
+    adapter does not invent a vocabulary the vendor owns.
+
+    ⚠️ Every live call site is gated behind `FUNDAMENTALS_FMP_ANALYST_
+    ESTIMATES` (quarterly analyst-estimates is an FMP Ultimate feature);
+    that gate belongs to the callers and is deliberately NOT duplicated
+    here — an adapter that silently no-ops on an env var would be a second
+    authority over "is this capability on"."""
+    params: dict = {"symbol": ticker.upper(), "period": period}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/analyst-estimates", params,
+                   source_activity="fmp_client.get_analyst_estimates", data_class="estimates",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_grades_news(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+    """Per-firm rating actions for ONE symbol (`/stable/grades-news`) —
+    `analyst_intel.py::_fmp_recent_actions`'s endpoint. Distinct from
+    `get_grades_historical` above, which is aggregate buy/hold/sell COUNTS
+    per date with no firm attached; this one carries the
+    `gradingCompany`/`action`/`previousGrade`/`newGrade` fields.
+
+    `data_class="analyst_grades"` (not "news") because the payload IS the
+    grade action — the `newsURL`/`newsPublisher` fields are the citation
+    for it, not the content."""
+    params: dict = {"symbol": ticker.upper()}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/grades-news", params,
+                   source_activity="fmp_client.get_grades_news", data_class="analyst_grades",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_grades_latest_news(*, limit: Optional[int] = None) -> _pe.ProviderResult:
+    """The newest rating actions ACROSS THE MARKET
+    (`/stable/grades-latest-news`) — `catalyst/sources.py`'s analyst pull.
+    Market-wide, not per-symbol, so like `get_earnings_calendar` /
+    `get_economic_calendar` / `get_ipo_calendar` it does NOT take
+    `ticker: str`; the caller filters by symbol from the returned rows."""
+    params: dict = {}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/grades-latest-news", params,
+                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_grades",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_news_general_latest(*, limit: Optional[int] = None) -> _pe.ProviderResult:
+    """Market-wide headlines (`/stable/news/general-latest`) — the third
+    leg of FMP's news family, beside `get_news_stock` and
+    `get_news_press_releases` above, reached directly today from
+    `engine.py::get_news._fetch_fmp_general`.
+
+    Market-wide by construction: these rows carry `symbol: null` (verified
+    live by that call site's own comment), which is precisely why they are
+    a different content class from `news/stock`'s per-symbol tagging."""
+    params: dict = {}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/news/general-latest", params,
+                   source_activity="fmp_client.get_news_general_latest", data_class="news",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+
+
+def get_news_stock_latest(*, limit: Optional[int] = None,
+                          page: Optional[int] = None) -> _pe.ProviderResult:
+    """The GLOBAL stock-news feed (`/stable/news/stock-latest`) — every
+    symbol at once, newest first, rather than one symbol's coverage.
+
+    ⚠️ NOT the same endpoint as `get_news_stock` despite the near-identical
+    name, and the difference is the point: `news/stock` answers "what has
+    been written about THIS symbol", `news/stock-latest` answers "what has
+    just been written about anything", which is what lets an ingestor pull
+    once and fan out by symbol instead of iterating the universe.
+    `page` is exposed because the global feed is inherently paginated (the
+    caller walks it until a page predates its watermark); FMP honours
+    `limit` up to 250 and silently caps there — that ceiling is the
+    VENDOR's and is deliberately not re-asserted here."""
+    params: dict = {}
+    if limit is not None:
+        params["limit"] = limit
+    if page is not None:
+        params["page"] = page
+    return _fetch("/stable/news/stock-latest", params,
+                   source_activity="fmp_client.get_news_stock_latest", data_class="news",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+
+
+def get_news_press_releases_latest(*, limit: Optional[int] = None,
+                                   page: Optional[int] = None) -> _pe.ProviderResult:
+    """The GLOBAL press-release feed (`/stable/news/press-releases-latest`)
+    — the company-IR lane's ingest path, same global/paginated shape as
+    `get_news_stock_latest` above and the same relationship to
+    `get_news_press_releases` that that one has to `get_news_stock`."""
+    params: dict = {}
+    if limit is not None:
+        params["limit"] = limit
+    if page is not None:
+        params["page"] = page
+    return _fetch("/stable/news/press-releases-latest", params,
+                   source_activity="fmp_client.get_news_press_releases_latest", data_class="news",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+
+
+# ── Index membership (`index_constituents.py` / `etf_holdings.py`) ──────────
+# Three constituent endpoints with identical request shapes. They are three
+# FUNCTIONS rather than one `get_index_constituents(index="sp500")` on
+# purpose: an `index` argument would be a vocabulary THIS adapter invented,
+# sitting between the caller and a vendor path that is already the name of
+# the thing — and the module's own rule above is "one function per endpoint,
+# named after what it returns, not after the URL path". A typo in a string
+# argument is a runtime 404; a typo in a function name is an ImportError.
+#
+# ⚠️ All four stamp licensing_class "U" — see `get_company_profile`'s
+# docstring for why an unregistered (vendor, data_class) pair is left to
+# fall through rather than borrowed from a neighbour.
+
+def get_sp500_constituents() -> _pe.ProviderResult:
+    """S&P 500 members (`/stable/sp500-constituent`). Market-wide, no
+    `ticker` argument. Rows carry `symbol`."""
+    return _fetch("/stable/sp500-constituent", {},
+                   source_activity="fmp_client.get_sp500_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_nasdaq_constituents() -> _pe.ProviderResult:
+    """Nasdaq 100 members (`/stable/nasdaq-constituent`)."""
+    return _fetch("/stable/nasdaq-constituent", {},
+                   source_activity="fmp_client.get_nasdaq_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_dowjones_constituents() -> _pe.ProviderResult:
+    """Dow 30 members (`/stable/dowjones-constituent`)."""
+    return _fetch("/stable/dowjones-constituent", {},
+                   source_activity="fmp_client.get_dowjones_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_etf_holdings(ticker: str) -> _pe.ProviderResult:
+    """One ETF's holdings (`/stable/etf/holdings`) — how
+    `index_constituents.py` resolves the four index lists that have no
+    constituent endpoint (S&P 100 via OEF, MidCap 400 via IJH, SmallCap 600
+    via IJR, Russell 2000 via IWM), and how `etf_holdings.py` answers
+    "what is in this ETF".
+
+    ⚠️ The member ticker is in each row's `asset` field, NOT `symbol` —
+    `symbol` is the ETF that was asked about. Recorded here because the two
+    constituent-shaped answers above DO use `symbol`, and a caller moving
+    between them will reach for the wrong field."""
+    return _fetch("/stable/etf/holdings", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_etf_holdings", data_class="etf_holdings",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+# ── 2026-09-11: D1 adapter gap G4 — the multi-symbol news leg ───────────────
+# `get_news_stock` above takes ONE ticker. `engine.py::get_news._fetch_fmp_
+# stock` sends a comma-separated list of up to 40 mover symbols to the same
+# endpoint in ONE request, so it has no adapter surface to migrate onto.
+#
+# This is a SEPARATE FUNCTION rather than a widened `get_news_stock`, and
+# that is the whole point: widening would mean giving `ticker: str` a
+# `str | Sequence[str]` union, and `get_news_stock("AAPL,MSFT")` is then
+# genuinely ambiguous — one ticker or two? — against a function whose
+# current body would happily uppercase that string and send it. A separate
+# name is additive BY CONSTRUCTION: `get_news_stock`'s signature, default,
+# body and `source_activity` are untouched, so no existing caller can
+# observe anything. It also follows the precedent already set four times in
+# this module (`get_earnings_calendar`, `get_economic_calendar`,
+# `get_ipo_calendar`, `get_transcript_latest_page`) for a typed function
+# that deliberately does not take `ticker: str`.
+
+def _symbols_csv(tickers: Sequence[str]) -> str:
+    """FMP's `symbols` parameter, built from a sequence.
+
+    Order-preserving de-duplication (asking FMP for the same symbol twice
+    in one request spends a rate-limit token for nothing), `.upper()` and
+    `.strip()` exactly mirroring every single-ticker function's
+    `ticker.upper()`, blanks dropped.
+
+    ⛔ DELIBERATELY UNCAPPED. `engine.py` caps its own batch at 40 movers,
+    and that is the CALLER's policy about how many names it wants to ask
+    about. An adapter that silently truncated a symbol list would return
+    fewer rows than the caller asked for and read as a quiet news day —
+    the exact silently-capped-list failure `screener/fundamentals_bulk.py`
+    rejected `/stable/company-screener` over."""
+    seen: dict[str, None] = {}
+    for t in tickers:
+        s = str(t).strip().upper()
+        if s:
+            seen.setdefault(s, None)
+    return ",".join(seen)
+
+
+def get_news_stock_multi(tickers: Sequence[str], *,
+                         limit: Optional[int] = None) -> _pe.ProviderResult:
+    """Wire coverage naming ANY of `tickers`, in ONE request
+    (`/stable/news/stock`) — the multi-symbol sibling of `get_news_stock`.
+
+    Identical to `get_news_stock` in every respect a caller can observe
+    apart from the symbol list: same path, same `data_class="news"`, same
+    `not_found_if=_empty_list` (an empty answer for the whole batch is a
+    NotFound, exactly as it is for one ticker), same `freshness="end_of_day"`
+    and the same internal `timeout=12`. The timeout is matched to the
+    sibling ON PURPOSE rather than to the raw call site's 10s: two typed
+    functions firing the SAME endpoint must not disagree about how long it
+    is allowed to take. `source_activity` is this function's own name, so
+    provenance still says which typed function produced the value.
+
+    Raises `TypeError` for a bare `str` — `Sequence[str]` admits one, and
+    iterating it would yield CHARACTERS and quietly request `A,P,L`. A
+    single ticker belongs in `get_news_stock`. Raises `ValueError` when the
+    sequence contains no non-blank symbol, rather than firing a request
+    that cannot succeed and burning a rate-limit token to learn it. Neither
+    is a provider state, so neither is a `provider_errors` type: the typed
+    exception taxonomy classifies what the VENDOR did, and these are
+    argument bugs at the call site."""
+    if isinstance(tickers, str):
+        raise TypeError(
+            "get_news_stock_multi takes a sequence of tickers, not a str "
+            "(a str would be iterated character by character); use "
+            "get_news_stock(ticker) for a single symbol"
+        )
+    symbols = _symbols_csv(tickers)
+    if not symbols:
+        raise ValueError("get_news_stock_multi requires at least one non-blank ticker")
+    params: dict = {"symbols": symbols}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/news/stock", params,
+                   source_activity="fmp_client.get_news_stock_multi", data_class="news",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
