@@ -9,7 +9,7 @@ Read in this order: this file -> `PROGRAM_STATUS.md` -> `GOVERNING_PRINCIPLES.md
 ## Where we are
 
 * **Program day:** 1 **CLOSED**. **Phase 2 CLOSED** (product/IA/data architecture + F-09, adversarially validated). **Phase 3 CLOSED** (technical validation + PRD/spec for the four LOCKED systems).
-* **Stage:** specification complete for four systems; **two of them have been IMPLEMENTED and are live on `origin/master`** (see "Implementation status" below). The program is **idle**, awaiting the owner's sign-off on S8's completion status.
+* **Stage: BUILD PROGRAM** (owner ruling 3, 2026-09-11 — declared, not discovered: it had been one since 2026-09-02). Specification complete for four systems; **all four are implemented in whole or in part on `origin/master`, plus two application slices** (see "Implementation status" below). The program is **idle**, awaiting the owner's read on the S3 gate and on what shipped undocumented.
 * **Worktree:** `C:\Users\Patrick\uct-worktrees\terminal-research`, branch `terminal-research`, start SHA `9c3df14b9`. Never push master from here. Push this branch to `origin/terminal-research` at checkpoints.
 * **Orchestrator:** the only committer. Commit with `git add docs/terminal-research` (scoped; never `-A`).
 
@@ -34,14 +34,33 @@ Read in this order: this file -> `PROGRAM_STATUS.md` -> `GOVERNING_PRINCIPLES.md
 
 ⛔ **Implementation HAS occurred, and it is on `origin/master`.** Any statement that this program has touched no application code — including `SESSION_HANDOFF.md` §16 — is false as of 2026-09-02 evening. The code landed on separate implementation branches (never from this worktree) and is now an ancestor of `origin/master`:
 
+**Seventeen commits, 2026-09-02 17:51 → 09-03 15:07.** Found by the re-scoped rail on 2026-09-11; the first eleven and the last two were unknown to every program document until then.
+
 | system | commits | what shipped |
 |---|---|---|
-| **S8** Provenance & Freshness | `7adf80bd4`, `8d04bf75f`, `48bba9614` | `app/src/components/provenance/` (Provenance, FreshnessBadge, CoverageLine, Cited, freshnessContract, availabilityContract, sessionStale + tests), `api/routers/provenance_quote.py`, `api/routers/provenance_bar.py`, `api/services/bar_provenance.py`, `app/src/pages/ProvenanceDemo.jsx` at `/provenance-demo` |
-| **S11** Session & Market Clock | `e14a5836b`, `1cf0bf028` | `app/src/lib/marketClock/{marketClock,nyseCalendar}.js`; `useMarketOpen.js` re-sourced; `sessionModel.js` `nextOpenHint()` upgraded to skip holidays |
+| **S3** Entity Master | `3c762d25e` `8424b8be5` `195e8e24c` `114052d2d` `f1b75e270` `baaf28906` `53b99ad5a` | `api/services/entity_master/` created from nothing — canonical schema, read primitives, write path, seed script **(a real seed run was executed)**, provider mapping, reconciliation, adversarial validation at scale. 2,395 insertions, 1,174 of them tests |
+| **D1** Provider Abstraction | `9d0b5eb26` | provenance/freshness hardening — entitlement distinction, stale detection, AI-consumable contract. ⚠️ **Not the one-ACL-per-vendor boundary** the PRD specifies; that is still unbuilt |
+| **S8** Provenance & Freshness | `7adf80bd4` `834b45df4` `8d04bf75f` `03d399a52` `48bba9614` | `app/src/components/provenance/` (Provenance, FreshnessBadge, CoverageLine, Cited, freshnessContract, availabilityContract, sessionStale + tests), `api/routers/provenance_quote.py`, `provenance_bar.py`, `api/services/bar_provenance.py`, `ProvenanceDemo.jsx` at `/provenance-demo` |
+| **S11** Session & Market Clock | `e14a5836b` `1cf0bf028` | `app/src/lib/marketClock/{marketClock,nyseCalendar}.js`; `useMarketOpen.js` re-sourced; `sessionModel.js` `nextOpenHint()` skips holidays |
+| **A3/A4** vertical slice | `408f04935` | `/research/:sym`'s Estimates + Financials mounted onto S3+D1+S8+S11. Does **not** touch Terminal-Current |
+| **A5** Events & Calendar | `1214dc246` | ⛔ **modified TERMINAL-CURRENT** — `api/routers/calendar.py` (163 lines), `app/src/pages/Calendar.jsx`, `calendar/CalendarHeader.jsx`, `earningsModalRow.js` + tests, plus `tests/test_calendar_a5_modernization.py` (281 lines, new) |
 
 **S11 has no PRD/spec document** — deliberately. Its `product-architecture.md` system block was judged sufficient for a system that size; that judgement is recorded in `provenance-freshness-prd.md` §12.4 and is not a gap to be silently filled.
 
-**S3 Entity Master (`api/services/entity_master/`) is pre-existing UCT infrastructure the program adopted, not something this program built** — `provenance-freshness-spec.md` §8a confirms it satisfies what the architecture calls S3.
+⛔⛔ **CORRECTION, 2026-09-11 — S3 was BUILT BY THIS PROGRAM, not adopted.** An earlier reading of
+this file said `api/services/entity_master/` was "pre-existing UCT infrastructure the program
+adopted." **That is false.** The path **did not exist at the start SHA** (`git ls-tree 9c3df14b9 --
+api/services/entity_master` returns nothing); it was created by `3c762d25e` on 2026-09-02 17:51:55
+and built out across Checkpoints 1–8 (no Checkpoint 6 exists — open question), 2,395 insertions
+including 1,174 lines of tests. The misreading came from `provenance-freshness-spec.md` §8a calling
+Entity Master "already shipped" — written at ~23:00 that night, it meant *shipped five hours ago by
+us*, and was read as *predates us*. ⭐ **"Already shipped" names a state, never an author. Ask git
+who wrote it.**
+
+⚠️ **The full implementation ledger is in `PROGRAM_STATUS.md`** and includes two things no program
+document recorded until this reconciliation: the **A3/A4 vertical slice** (`408f04935`) and the
+**A5 Events & Calendar modernization** (`1214dc246`) — the latter having modified **Terminal-Current
+itself**. Read that section before planning any build work.
 
 ## What is blocked
 

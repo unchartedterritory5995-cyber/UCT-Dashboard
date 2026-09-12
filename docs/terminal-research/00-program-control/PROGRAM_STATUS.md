@@ -1,7 +1,7 @@
 # PROGRAM STATUS
 
 **Program day:** 1 CLOSED, Phase 2 CLOSED, Phase 3 CLOSED (technical validation + PRD/spec for the four LOCKED systems).
-**Stage:** Specification complete for four systems; **two of them (S8, S11) are IMPLEMENTED and live on `origin/master`** — see "Post-Phase-3 work" below. Program **idle since 2026-09-03**, awaiting owner sign-off on S8's completion status and on the Entity Master gate packet.
+**Stage: BUILD PROGRAM** — declared by owner ruling 3 on 2026-09-11, and true in fact since 2026-09-02. Specification complete for four systems; **all four are implemented in whole or in part on `origin/master`, plus two application slices (A3/A4 and A5)** — see "Post-Phase-3 work" below. Program **idle since 2026-09-03**, awaiting the owner's read on the S3 gate and on the undocumented shipments.
 **Last updated:** 2026-09-11 (control-file reconciliation; no new program work).
 **Last verified against git:** `a31cacea1` (2026-09-03 07:04:50 -0500), branch `terminal-research`, in sync with `origin/terminal-research`.
 **Deadline health:** GREEN — Day 1, the Readiness Review, Phase 2 (architecture), and Phase 3 (technical validation + 4 PRD/spec pairs) all completed, adversarially validated, corrected, and committed/pushed this session.
@@ -93,18 +93,36 @@ recorded any of them** until this reconciliation.
 * `a9837d71d` then `633691038` — **RG-33** filed and then corrected: the stale file is `cap_universe.json`, **not** `delisted_tickers_bulk.json`. The correction is the operative version.
 * `8935b5092`, `99e7de3b5`, `f23530a8d`, `92296aa62`, `a31cacea1` — the **S8 readiness review and implementation records**, plus the **S11 implementation record** and one factual correction: NYSE's 2026 calendar has **3 July as a full closure, not an early close** (Independence Day observed); only 27 November and 24 December are real early closes. The shipped dataset uses the corrected calendar; the prose error was recorded rather than silently fixed.
 
-**Code, on `origin/master` (from separate implementation branches, never from this worktree):**
+## THE IMPLEMENTATION LEDGER — what this program has shipped to production
 
-| system | commits | what shipped |
-|---|---|---|
-| **S8** Provenance & Freshness | `7adf80bd4`, `8d04bf75f`, `48bba9614` | `app/src/components/provenance/` (Provenance, FreshnessBadge, CoverageLine, Cited, freshnessContract, availabilityContract, sessionStale + tests), `api/routers/provenance_quote.py`, `api/routers/provenance_bar.py`, `api/services/bar_provenance.py`, `app/src/pages/ProvenanceDemo.jsx` at `/provenance-demo` |
-| **S11** Session & Market Clock | `e14a5836b`, `1cf0bf028` | `app/src/lib/marketClock/{marketClock,nyseCalendar}.js`; `useMarketOpen.js` re-sourced; `sessionModel.js` `nextOpenHint()` upgraded to skip holidays |
+**Seventeen commits to `origin/master`, 2026-09-02 17:51 → 2026-09-03 15:07**, all from separate
+implementation branches, never from this worktree. Thirteen of the seventeen were recorded in no
+program document until the 2026-09-11 reconciliation; the re-scoped protection rail surfaced them on
+its first run. ⛔ **This table is the manifest check (1b) validates against. A commit on a
+program-owned path that is not listed here is a FAIL.**
 
-⛔ **Why the protection rail never noticed.** The rail diffs *this worktree's* application paths against
-the start SHA. The implementation happened on other branches, so the diff stayed empty and the rail
-kept passing — correctly, for what it measures. **A green protection rail proves this worktree shipped
-nothing; it cannot prove the program shipped nothing.** Any future implementation slice must be
-verified against `origin/master`, not against this worktree's diff.
+| system | commits | what shipped | recorded before 09-11? |
+|---|---|---|---|
+| **S3** Entity Master | `3c762d25e` `8424b8be5` `195e8e24c` `114052d2d` `f1b75e270` `baaf28906` `53b99ad5a` | `api/services/entity_master/` **created from nothing** — canonical schema, read primitives, write path, seed script (**a real seed run was executed**, Checkpoint 4), provider mapping, reconciliation, adversarial validation at real scale. 2,395 insertions, 1,174 of them tests. Checkpoints run 1,2,3,4,5,7,8 — **no Checkpoint 6 exists in history; open question** | ❌ no |
+| **D1** Provider Abstraction | `9d0b5eb26` | provenance/freshness hardening — vendor-entitlement distinction, stale detection, AI-consumable contract. ⚠️ **This is not the one-ACL-per-vendor boundary PRD-D1 specifies**; the adapter layer itself remains unbuilt, so D1 is PARTIAL, not done | ❌ no |
+| **S8** Provenance & Freshness | `7adf80bd4` `834b45df4` `8d04bf75f` `03d399a52` `48bba9614` | the `provenance/` component family, the two provenance routers, `bar_provenance.py`, `ProvenanceDemo.jsx` at `/provenance-demo` | partly — 3 of 5 |
+| **S11** Session & Market Clock | `e14a5836b` `1cf0bf028` | `app/src/lib/marketClock/`; `useMarketOpen.js` re-sourced; `sessionModel.js` holiday-aware | ✅ yes |
+| **A3/A4** vertical slice | `408f04935` | `/research/:sym`'s Estimates + Financials mounted onto S3+D1+S8+S11. Verified NOT to touch Terminal-Current | ❌ no |
+| **A5** Events & Calendar | `1214dc246` | modernization onto S3/D1/S8 — and it **modified TERMINAL-CURRENT**: `api/routers/calendar.py` (163 lines), `app/src/pages/Calendar.jsx`, `calendar/CalendarHeader.jsx`, `earningsModalRow.js`, three test files, plus a new 281-line `tests/test_calendar_a5_modernization.py` | ❌ no |
+
+⛔⛔ **THE A5 COMMIT NEEDS THE OWNER'S READ.** `1214dc246` changed the surface this entire rail is
+named after. It may well have been authorized in conversation the way S8's and S11's slices were —
+but it is recorded nowhere, and the rail that exists to catch exactly this returned PASS three times.
+Nothing further should be built on A5 until the owner confirms it was intended.
+
+⛔ **Why the protection rail never noticed — and what changed.** The rail diffed *this worktree's*
+application paths against the start SHA. This worktree receives only docs commits, so the diff was
+empty **by construction** and PASS was guaranteed regardless of what the program shipped. **A green
+protection rail proved this worktree shipped nothing; it never could prove the program shipped
+nothing.** Per owner ruling 3 the rail now diffs `origin/master` over a program-owned path manifest,
+and PASS is no longer "empty output" but "every commit returned is in the ledger above" — a build
+program's rail cannot demand emptiness without failing on its own successful work. Full before/after
+and the re-scoped commands: `protection-rail.md`.
 
 **Deferred, recorded, not gaps:** S10 (Presentation Primitives) and the vendor-side entitlement
 taxonomy (SPEC-S8 §17a) are both formally DEFERRED and neither blocks. S11 has **no PRD/spec

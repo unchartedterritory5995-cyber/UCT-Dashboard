@@ -13,17 +13,94 @@ Document B §14A, §49 item 25. Run at every checkpoint. A failed rail halts res
 | origin/master re-checked after `git fetch origin` on 2026-09-02 05:39 UTC | still `9c3df14b9` — no drift since worktree creation |
 | Production host | `https://uctintelligence.com` (Railway service `web`, project `luminous-recreation`; Railway host `web-production-05cb6.up.railway.app`) |
 
-"Application source paths" = every path in the repository EXCEPT `docs/terminal-research/`. The rail proves that nothing outside the research tree differs from the start SHA.
+"Application source paths" = every path in the repository EXCEPT `docs/terminal-research/`.
+
+---
+
+# ⛔⛔ RAIL RE-SCOPED 2026-09-11 — IT WAS MEASURING THE WRONG TREE
+
+**Owner ruling 3, 2026-09-11: Terminal-Next is a BUILD program, and check (1) now diffs
+`origin/master`, not this worktree.**
+
+⚰️ **What the old check actually proved, and what everyone read it as.** Check (1) diffed *this
+worktree* against the start SHA. This worktree only ever receives docs commits, so the diff was
+empty by construction and the rail returned PASS at every checkpoint — three times on 2026-09-02
+alone, each recorded as evidence that "zero application code was touched."
+
+**In the same 24 hours the program shipped 17 application commits to `origin/master`** from
+separate branches this worktree cannot see. Measured on 2026-09-11:
+
+| what shipped | commits | when |
+|---|---|---|
+| **S3 Entity Master** — created from nothing: schema, read primitives, write path, seed script (with a REAL seed run), provider mapping, reconciliation, adversarial validation | `3c762d25e` `8424b8be5` `195e8e24c` `114052d2d` `f1b75e270` `baaf28906` `53b99ad5a` | 09-02 17:51 → 18:54 |
+| **D1 Provider Abstraction** — provenance/freshness hardening, entitlement distinction, stale detection | `9d0b5eb26` | 09-02 21:44 |
+| **S8 Provenance & Freshness** — Steps 1, 2 (front + back), `<Cited>` interim form (front + back) | `7adf80bd4` `834b45df4` `8d04bf75f` `03d399a52` `48bba9614` | 09-02 22:15 → 23:58 |
+| **S11 Session & Market Clock** | `e14a5836b` `1cf0bf028` | 09-03 07:03 → 07:19 |
+| **A3/A4 vertical slice** — `/research/:sym` Estimates + Financials onto S3+D1+S8+S11 | `408f04935` | 09-03 08:44 |
+| **A5 Events & Calendar modernization** onto S3/D1/S8 | `1214dc246` | 09-03 15:07 |
+
+**33 files, 5,274 insertions** across the four systems' own paths alone.
+
+⛔⛔ **The last row is why this rail exists, and it is the one the rail missed.** `1214dc246`
+modified **Terminal-Current itself** — `api/routers/calendar.py` (163 lines), `app/src/pages/Calendar.jsx`,
+`app/src/pages/calendar/CalendarHeader.jsx`, `earningsModalRow.js` and three of its test files. Those
+are the exact paths this document's own drift log was checking for when it recorded "no path under
+`app/src/pages/calendar/`, `app/src/pages/Calendar.jsx`, or `api/routers/calendar.py` appears in the
+diff — Terminal-Current itself untouched." That entry was true of `origin/master`'s *other*
+workstreams and false of this program's own work, and the rail could not tell the difference because
+it was pointed at a tree containing neither.
+
+⭐ **The general form, worth carrying past this program: a diff proves something about the tree you
+diffed, and nothing whatsoever about any other tree.** A rail scoped to the place the work is *not*
+happening returns PASS forever, and a PASS forever reads as evidence.
+
+⚠️ Also surfaced by the re-scope and NOT yet explained: the Entity Master checkpoints run 1, 2, 3, 4,
+5, 7, 8 — **there is no Checkpoint 6 anywhere in the repository's history.** Recorded as an open
+question, not as a defect.
+
+---
 
 ## The three checks (exact commands; identical at every run)
 
-### (1) PROOF — application paths unchanged from the start SHA
+### (1) PROOF — what this program has shipped to production, and whether Terminal-Current moved
+
+Three parts. **(1a) is the old check, kept and re-labelled to what it actually proves.**
+
+**(1a) This worktree has shipped no application code.** Still worth asserting — the orchestrator
+must remain docs-only — but it is NOT evidence about the program.
 
 ```bash
 git -C "C:/Users/Patrick/uct-worktrees/terminal-research" diff --stat 9c3df14b9 -- . ':(exclude)docs/terminal-research'
 ```
 
-PASS = empty output. Any line = FAIL.
+PASS = empty output. ⛔ **A PASS here says nothing about `origin/master`. Never cite it as "the
+program touched no code."**
+
+**(1b) Program-authored application code on `origin/master`.** Run against the program-owned path
+manifest; every commit returned must be one this program's documents record.
+
+```bash
+cd "C:/Users/Patrick/uct-worktrees/terminal-research" && git fetch origin master -q && \
+PROGPATHS="app/src/components/provenance app/src/lib/marketClock api/routers/provenance_quote.py api/routers/provenance_bar.py api/services/bar_provenance.py app/src/pages/ProvenanceDemo.jsx api/services/entity_master" && \
+git log --format='%h %ci %s' 9c3df14b9..origin/master -- $PROGPATHS
+```
+
+PASS = every commit listed is recorded in `PROGRAM_STATUS.md`'s implementation ledger. **An
+unrecorded commit is a FAIL** — it means code shipped that no program document knows about, which
+is precisely the 2026-09-02/03 condition. ⛔ PASS is no longer "empty output"; a build program's
+rail that demands emptiness would fail on its own successful work. Extend `PROGPATHS` whenever a
+system ships its first file — a manifest that lags the build is a blind spot with a different shape.
+
+**(1c) Did the program move Terminal-Current?** The invariant this rail is named for.
+
+```bash
+git log --format='%h %ci %s' 9c3df14b9..origin/master -- app/src/pages/calendar app/src/pages/Calendar.jsx api/routers/calendar.py
+```
+
+This returns other workstreams' commits too, which is expected and fine. **The assertion is that
+every PROGRAM-authored commit in that list is owner-authorized and recorded.** As of 2026-09-11
+exactly one qualifies — `1214dc246` — and it is recorded as authorized-but-undocumented, pending the
+owner's read.
 
 Also record `git -C ... status --porcelain -- . ':(exclude)docs/terminal-research'` (untracked or modified application files) — must be empty apart from ignored build artifacts (`app/node_modules`, `app/dist`).
 
