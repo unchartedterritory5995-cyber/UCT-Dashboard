@@ -55,10 +55,19 @@ disagreement or cry wolf on every one.
 ⛔ CP2 SCOPE — HARNESS-ARMED PREDICATES ONLY
 ──────────────────────────────────────────────────────────────────────────────
 
-The "legacy twin" here is a harness-owned descriptor, **not** a row in
-`watchlist_alerts`. This module reads no member data and writes nothing outside
-the alert-taxonomy store. Shadowing real member rows is CP3 and needs its own
-approval line. `test_the_harness_never_touches_watchlist_alerts` is the rail.
+⚰️ **CP2 said: "the legacy twin here is a harness-owned descriptor, not a row in
+`watchlist_alerts` … shadowing real member rows is CP3 and needs its own
+approval line."** CP3 was approved on 2026-09-12 and that sentence is now half
+false, so it is corrected rather than left to rot.
+
+**What is still true, and is the half that matters:** this module reads no
+member data and writes nothing outside the alert-taxonomy store. It is handed a
+twin dict; it never opens `watchlist_alerts` itself.
+`test_the_harness_never_touches_watchlist_alerts` still holds on this file.
+
+**What changed:** under CP3 that dict may be a READ-ONLY PROJECTION of a real
+member row, produced by `price_level_projection.py` — which owns the single
+`SELECT` and the admin-role gate.
 """
 from __future__ import annotations
 
@@ -133,6 +142,74 @@ def open_span(predicate_id: str, twin: dict[str, Any], *, anchor_version: int = 
             (predicate_id, int(anchor_version), now, json.dumps(twin)))
         conn.commit()
         return int(cur.lastrowid)
+    finally:
+        conn.close()
+
+
+def open_span_if_absent(predicate_id: str, twin: dict, *, now=None,
+                        db_path: str | None = None) -> dict:
+    """The open span for `predicate_id`, opening one if none is open.
+
+    ⛔ CP3's projection calls this every tick, so it must be idempotent — a
+    second span opened per tick would make every count meaningless while every
+    test still passed.
+    """
+    now = time.time() if now is None else now
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM price_level_comparison_spans WHERE predicate_id=? "
+            "AND closed_at IS NULL ORDER BY id DESC LIMIT 1", (predicate_id,)).fetchone()
+        if row is not None:
+            return dict(row)
+        conn.execute(
+            "INSERT INTO price_level_comparison_spans "
+            "(predicate_id, anchor_version, opened_at, twin) VALUES (?,?,?,?)",
+            (predicate_id, 0, now, json.dumps(twin)))
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM price_level_comparison_spans WHERE predicate_id=? "
+            "AND closed_at IS NULL ORDER BY id DESC LIMIT 1", (predicate_id,)).fetchone()
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def record_outcome(predicate_id: str, dark_fired: bool, legacy_fired: bool,
+                   price: float, *, now=None, db_path: str | None = None):
+    """Record one tick's outcome on the open span, and carry the baseline.
+
+    ⛔ Neither side firing is NOT an outcome — it is an ordinary tick. Counting
+    quiet ticks as `agreed` would drown every real disagreement in noise and
+    make the pass rate a function of how often we sample rather than of whether
+    the two paths behave alike.
+    """
+    now = time.time() if now is None else now
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM price_level_comparison_spans WHERE predicate_id=? "
+            "AND closed_at IS NULL ORDER BY id DESC LIMIT 1", (predicate_id,)).fetchone()
+        if row is None:
+            return None
+        if dark_fired and legacy_fired:
+            outcome = AGREED
+        elif dark_fired:
+            outcome = NEW_ONLY
+        elif legacy_fired:
+            outcome = LEGACY_ONLY
+        else:
+            conn.execute(
+                "UPDATE price_level_comparison_spans SET prev_legacy=?, sessions=? WHERE id=?",
+                (price, _merged_sessions(row["sessions"], now), int(row["id"])))
+            conn.commit()
+            return None
+        conn.execute(
+            "UPDATE price_level_comparison_spans SET %s=%s+1, prev_legacy=?, sessions=? "
+            "WHERE id=?" % (outcome, outcome),
+            (price, _merged_sessions(row["sessions"], now), int(row["id"])))
+        conn.commit()
+        return outcome
     finally:
         conn.close()
 

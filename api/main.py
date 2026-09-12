@@ -3108,9 +3108,17 @@ async def lifespan(app: FastAPI):
     try:
         from api.services.alert_taxonomy import db as _at_db
         from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
+        from api.services.alert_taxonomy import price_level as _at_price_level
         _at_db.init_db()
         _at_doc_arrival.register()
-        logging.getLogger(__name__).info("alert_taxonomy: document-arrival trigger type registered")
+        # GATE-S7-PRICE-LEVEL CP3. Registration ONLY -- no scheduler entry, no
+        # delivery. `price_level` writes alert_fires + receipts and stops; the
+        # projection it reads is gated to admin-role accounts. Nothing here puts
+        # a price-level alert in front of a member. The flip is a separate
+        # approval line.
+        _at_price_level.register()
+        logging.getLogger(__name__).info(
+            "alert_taxonomy: document-arrival + price-level (DARK) trigger types registered")
     except Exception as e:
         logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
 
