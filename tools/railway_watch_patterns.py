@@ -58,13 +58,61 @@ query($id:String!){
 """
 
 
+# ⛔⛔ THE API REFUSES A REQUEST WITHOUT THESE. Read from railwayapp/cli v4.35.0
+# (`src/client.rs`, `src/consts.rs`): every GraphQL call carries `x-source` AND
+# `user-agent`, both `"CLI <version>"`. Omitting them is why four earlier
+# attempts — two hosts x two auth headers — all returned 403 and were wrongly
+# filed as "the session token is not accepted by the public API". The token was
+# fine; the request was not. ⭐ A 403 says the request was refused, never WHICH
+# part of it was wrong.
+_UA = "CLI 4.35.0"
+
+
+def _session_token() -> str | None:
+    """The CLI's own OAuth access token from ~/.railway/config.json.
+
+    ⭐ THE CLI IS ALREADY AUTHENTICATED ON ANY MACHINE THAT CAN RUN `railway`,
+    so this needs no token provisioning at all. It is a ROLLING credential (the
+    CLI refreshes it; observed expiry moving forward mid-session), so read it at
+    call time and never cache it.
+
+    ⚠️ Session auth can READ everything here but cannot MINT tokens:
+    `projectTokenCreate` returns "Not Authorized" for it (measured 2026-09-12).
+    """
+    try:
+        with open(os.path.expanduser("~/.railway/config.json"), encoding="utf-8") as fh:
+            return (json.load(fh).get("user") or {}).get("accessToken") or None
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
 def _auth_headers() -> list[dict]:
+    """Auth candidates, most-scoped-first. Each is tried in order.
+
+    A project token is the tightest grant, then an account token, then the CLI's
+    own session — which is why the session is LAST rather than absent: it always
+    works on a developer machine, so putting it first would mask a broken token.
+    """
     out = []
     if os.environ.get("RAILWAY_TOKEN"):
-        out.append({"Project-Access-Token": os.environ["RAILWAY_TOKEN"]})
+        out.append({"project-access-token": os.environ["RAILWAY_TOKEN"]})
     if os.environ.get("RAILWAY_API_TOKEN"):
-        out.append({"Authorization": "Bearer " + os.environ["RAILWAY_API_TOKEN"]})
+        out.append({"authorization": "Bearer " + os.environ["RAILWAY_API_TOKEN"]})
+    tok = _session_token()
+    if tok:
+        out.append({"authorization": "Bearer " + tok})
     return out
+
+
+def auth_source() -> str:
+    """Which credential will be used — for the human, never the value."""
+    if os.environ.get("RAILWAY_TOKEN"):
+        return "RAILWAY_TOKEN (project)"
+    if os.environ.get("RAILWAY_API_TOKEN"):
+        return "RAILWAY_API_TOKEN (account)"
+    if _session_token():
+        return "railway CLI session (~/.railway/config.json)"
+    return "none"
 
 
 def fetch() -> tuple[dict | None, str]:
@@ -73,15 +121,23 @@ def fetch() -> tuple[dict | None, str]:
     can act on."""
     heads = _auth_headers()
     if not heads:
-        return None, ("no token: set RAILWAY_TOKEN (project token) or "
-                      "RAILWAY_API_TOKEN (account token)")
+        return None, ("no credential: set RAILWAY_TOKEN (project) or "
+                      "RAILWAY_API_TOKEN (account), or log the railway CLI in "
+                      "so ~/.railway/config.json carries a session")
     last = ""
-    for h in heads:
+    # ⛔ ONE RETRY PER CANDIDATE. The CLI session token ROLLS — it was observed
+    # refreshing mid-session — so a call can land in the gap and come back
+    # "Not Authorized" while the credential is perfectly good. That produces a
+    # false INCONCLUSIVE, and a check that cries wolf gets muted, which costs
+    # more than the retry. Re-reading `_auth_headers()` per attempt picks up the
+    # refreshed value rather than replaying the stale one.
+    for h in list(heads) + [h for h in _auth_headers() if h not in heads] + list(heads):
         try:
             req = urllib.request.Request(
                 API, data=json.dumps({"query": _QUERY,
                                       "variables": {"id": PROJECT_ID}}).encode(),
-                headers={"Content-Type": "application/json", **h})
+                headers={"Content-Type": "application/json",
+                         "x-source": _UA, "User-Agent": _UA, **h})
             body = json.loads(urllib.request.urlopen(req, timeout=45).read().decode())
             if body.get("errors"):
                 last = "GraphQL errors: %s" % body["errors"][:1]
@@ -132,6 +188,7 @@ def drift(header_modules: set[str], patterns: list[str]) -> tuple[set[str], set[
 
 
 def main(argv: list[str]) -> int:
+    print("[watch-patterns] auth: %s" % auth_source())
     payload, reason = fetch()
     if payload is None:
         print("[watch-patterns] INCONCLUSIVE — could not read Railway: %s" % reason)
@@ -144,7 +201,13 @@ def main(argv: list[str]) -> int:
         for p in pats:
             print("    " + p)
         if not pats:
-            print("    <none — this service rebuilds on EVERY push>")
+            # ⛔ EMPTY MEANS "NO FILTER", NOT "NEVER DEPLOYS" — and what that
+            # amounts to depends on whether the service has a repo source at
+            # all. `web` (empty + repo) rebuilds on every push; `chart-renderer`
+            # (empty + NO repo) never deploys from a push. Same field, opposite
+            # behaviour, so the field alone cannot be read as either.
+            print("    <no patterns — no filter; rebuilds on EVERY push "
+                  "IF this service has a repo source>")
     if "--check" not in argv:
         return 0
 
