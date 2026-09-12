@@ -69,18 +69,43 @@ are not implicated in that mechanism.
 |---|---|---|
 | `SMOKE_LOGIN_LINK_ENABLED` | **DONE-VERIFIED** | `4d2694a31`. Declared. ⚠️ **ARMED AND LIVE — set to `1` on web.** Admin-issued single-use login link from `35dca25fd` (another workstream). Declared to record, not to decide; the flip is theirs. |
 | `ALPHA_GOLD_EOD_ENABLED` | **DONE-VERIFIED** | `4d2694a31`. Ledger said off, flow-worker had it **set to `0`** — set-and-off is a recorded decision. |
-| Retire `api/routers/trades.py` | **PARKED** | Evidence gathered: **0 callers in `app/src`**, 1 test references it, `include_router` already commented out. Retirable — but it is an `api/**` change needing a batched push, removal of code+test+docs together, and a "route is gone" test. Not attempted today; see "not finished" below. |
+| Retire `api/routers/trades.py` | **DONE-VERIFIED** | **Already retired** by `24ee463bc` (2026-08-09, "retire the /api/trades router past its documented window"). The file is ABSENT, `data/trades.json` is ABSENT, no `api/` module imports it, and `app/src` has zero callers. The only survivors are a comment in `tests/test_earnings_router_stays_unmounted.py:32` citing it as an idiom, and two historical 2026-02-22 plan docs. **No change needed.** |
 | Retire `j2_playbook_entries` | **PARKED — DO NOT DROP** | **12 code refs**, and `api/services/journal_two/account_purge.py:40` lists it in the purge set. Dropping it breaks account deletion. Evidence overturns the retirement. |
 | Retire `GET /api/tweets/tape` | **PARKED — DO NOT RETIRE** | **It has a live caller.** `app/src/hooks/useTapeFeed.js:11` fetches it. ⚠️ **CLAUDE.md is wrong**: it states `useTapeFeed.js` was DELETED with zero callers. The file exists (507 bytes) and `reachable.test.js:420` tracks it as "in-flight, NOT mine". |
-| `bar_quarantine` D/W/M no-op | **PARKED** | Confirmed present at `api/services/bar_quarantine.py`. An `api/**` change on bars-api needing D/W/M tests mutation-proved three ways. Not attempted today. |
-| 9 pre-existing Python failures + red `gate_shards` rails | **PARKED — NOT ENUMERATED** | Not attempted. An unscoped `pytest` is forbidden here (a prior run reached 18 GB and was OOM-killed), so this needs a per-module sharded sweep, which is its own session. The only red rail found incidentally this weekend was `SMOKE_LOGIN_LINK_ENABLED`, now green. |
+| `bar_quarantine` D/W/M no-op | **PARKED — larger than described** | The module is 123 lines and every entry point takes `bar_time: int`, so the fix is not a comparison tweak: it changes the quarantine KEY SEMANTICS for D/W/M (CLAUDE.md prescribes a YYYYMMDD int on both sides). Call surface measured: `bars_disk_cache.py:236`, `bar_audit_bootstrap.py:145`, `bar_quality_score.py:27,49`, `bar_quarantine_cache.py` (60 s TTL wrapper), `bar_self_heal.py:33`, `admin_chart_health.py:110,119,127`, plus `main.py:3208`. That is a re-keying change across ~8 modules on the bars path, which carries locked invariants ("newest bar wins per (ticker, tf, ts) on EVERY path") and cannot be verified on a quiet tape. **Stopped rather than forced.** |
+| Red `gate_shards` rails | **DONE-VERIFIED** | **Already recorded** in `docs/plans/joystick/gate-baseline.json` — no re-derivation needed. 7 failures across 5 files, measured 2026-09-10 at `62a228e5d`, extracted by `gate_shards.py::parse_failures` and **corroborated twice at two different merge-bases**. Table below. |
+| 9 pre-existing Python failures | **PARKED — scope measured** | `tests/` holds **1,081 files** and there is no recorded Python baseline. An unscoped run is forbidden (a prior one reached 18 GB and was OOM-killed; `--collect-only` alone reached 6.6 GB, and `-k` cannot contain it because the cost is at collection). Enumerating means ~108 batched invocations at ~25 s each — a session of its own, not a step in one. The only red Python rail found this weekend was `SMOKE_LOGIN_LINK_ENABLED`, now green. |
 
-### Not finished today, and why
+### Not finished, and why
 
-**A4, A5 (trades router), A6** were not completed. A5's other two retirements were
-*disproven by evidence* and are correctly closed as DO-NOT-RETIRE. What remains — the
-trades router, `bar_quarantine`, and the failure enumeration — are each `api/**` or
-full-suite work requiring a batched flow-worker-restarting push plus mutation-proved
-tests. They were stopped rather than rushed, per the standing rule that a characterised
-open item beats a forced change. Each carries its evidence above so a dedicated session
-starts with the answer, not the question.
+**All three A5 retirements are resolved without a code change**: the trades router was
+already retired in `24ee463bc`, and the other two are DO-NOT-RETIRE on evidence. **No
+`api/**` push was needed this weekend at all**, so flow-worker was never restarted.
+
+What remains parked is **`bar_quarantine`** (a re-keying change across ~8 modules on the
+bars path, surface measured above) and the **Python failure enumeration** (1,081 files,
+no baseline, ~108 batched runs). Both were stopped rather than rushed, per the standing
+rule that a characterised open item beats a forced change. Each carries its measured
+scope above, so a dedicated session starts with the answer rather than the question.
+
+### The 7 recorded `gate_shards` failures (from `gate-baseline.json`, 2026-09-10)
+
+Measured at `62a228e5d`, extracted by `scripts/gate_shards.py::parse_failures` from a
+six-shard run over 1,181 files, and corroborated at two different merge-bases.
+
+| # | file | test |
+|---|---|---|
+| 1 | `ChartDrawingOverlay.surfaces.test.jsx` | the seven Model Book / surface override props still reach their decisions |
+| 2 | `engine/ast/manifestProse.test.js` | every key the product READS survives the strip |
+| 3 | `engine/ast/pine.blindCorpus.test.js` | the accepted floor moves one way only |
+| 4 | `hooks/pollingSites.rail.test.js` | no NEW bare polling site |
+| 5 | `pages/ThemeTrackerPage.chartmount.test.jsx` | passes `stored=null` with no `onStore` |
+| 6 | `pages/ThemeTrackerPage.chartmount.test.jsx` | selecting a holding mounts ChartPane with that symbol |
+| 7 | `styles/tapFloor.test.js` | the 44px touch floor covers TABLET, not just phone |
+
+⛔ **Three names are LOAD-SENSITIVE and are deliberately NOT baseline entries** —
+`flowSearchProduct`, `sharedScreen.route`, and
+`ArticlesSection.native > clearing the query brings the full archive back`. Each has
+failed a full sharded run and **passed alone**; the baseline records the evidence and
+the rule that a timeout is never banked, because banking one leaves a slot a real
+failure can occupy unnoticed. Re-run alone before classifying.

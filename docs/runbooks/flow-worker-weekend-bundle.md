@@ -1077,3 +1077,35 @@ started, while the fetch wrapper installed *above* it survived. Fetches captured
 always empty. The rig's own `_INIT` documents this exact trap; it was re-hit in a new
 file. Attach is now guarded and the tick survives a throw. **The pre-fix numbers are
 void and are not reported anywhere as results.**
+
+## Monday RTH — run order, exact invocations, expected artefact
+
+Every tool below is on master and dry-run on the quiet tape. Guards pass: 16 tests in
+`tests/test_flow_rig_swap_guard.py` (swap, cold-pod floor, login pacer, 429).
+
+| # | when | command | expected artefact |
+|---|---|---|---|
+| 1 | pre-open | `curl -s $BASE/api/flow/aggregate-health > scratchpad/monday-preopen-health.json` | `rolls_steady` array, parts `entries` count, `build_failures`, `parts_rejected_missing`, `prepare.last_ms` |
+| 2 | pre-open | `railway variables --service flow-worker --kv \| grep -c '^FLOW_FAST_DATE_SCAN=1'` | `1` |
+| 3 | pre-open | `python tools/flow_cold_paint_rig.py --path both --runs 1` | both paths labelled QUIET TAPE, harness proven, pod age printed |
+| 4 | 09:30–10:00 | re-poll item 1 every ~2 min | first non-empty `rolls_steady[]`; capture the first 10 rolls in full |
+| 5 | 09:30–10:00 | `railway logs --service flow-worker \| grep 'remainder warmed'` | one line per roll; cache stays at 10; `build_failures` 0 |
+| 6 | 09:30–10:00 | from item 4's rolls | first post-open `prepare_ms`; flag any steady roll > 30 s |
+| 7 | 09:30–10:00 | `railway logs --service web \| grep 'part=bootstrap\|data?days='` | member-session request mix; **report the RAW COUNT of distinct sessions, and a ratio only if the population supports one** |
+| 8 | 10:00–15:30 | from ≥60 rolls in item 1 | min / p50 / p95 / max `prepare_ms`, `csv_provider` share, delta vs 6,199 ms |
+| 9 | mid-session | `python tools/flow_cold_paint_rig.py --path a --runs 5 --certifying` | path-A median/worst, **intro share separated** |
+| 10 | mid-session | `python tools/flow_cold_paint_rig.py --path b --runs 5 --certifying` | **the headline**: path-B `shell_ms` + `picks_ms` median/worst |
+| 11 | mid-session | compare with the weekend warm-re-entry figures | commits + bytes vs UCT20 |
+| 12 | full session | rolls with `handoff_ms > 500` from item 1 | `blocked_by` / `blocked_pass` / `blocked_held_ms`, residual, three worst in detail |
+| 13 | mid-session | `python tools/flow_storm_probe.py --runs 8` | mount counts, dupes, `picks_lag_ms`. **Expect 0 storms** — the weekend cause is `PREHYDRATE_FALLBACK_MS=3000` on a cold pod |
+| 14 | busy stretch | Search NVDA / SPY / MU in the rig | derive time, 503-to-legacy or not; MU > 60 s? |
+| 15 | throughout | note 502s, empty panels, stale versions | timestamps |
+
+⛔ **Every published number comes from a guard-accepted run.** A run that straddles a
+deploy, starts on a pod younger than 120 s, or hits the 5/min login limiter is
+INCONCLUSIVE and is discarded, not averaged. `--certifying` is RTH-only; without it
+every row is labelled NOT A MEASUREMENT.
+
+⚠️ Items 7 and 13's member half may have **no denominator**: production holds 26 users
+and registration is closed. Report the raw session count; if none loads Options Flow,
+those halves stay UNMEASURED with that reason.
