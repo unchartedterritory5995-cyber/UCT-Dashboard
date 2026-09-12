@@ -2312,6 +2312,11 @@ def _dispatch_delivery(alert: dict, value: float, *,
             # `indicator_alert_fires` holds the row either way and the history,
             # the fire-once key and the re-arm are all upstream of this call.
             channels_wanted=_ias_channels(alert),
+            # ⛔⛔ A MEMBER'S OWN ALERT IS NOT ADMIN TRAFFIC. This is their
+            # symbol, their formula's name and the value that triggered it;
+            # `DISCORD_ALERT_WEBHOOK` is one channel shared by whoever can read
+            # it, and Discord is not offered to members at all.
+            allow_admin_discord=False,
         )
         _record_delivery_channels(alert, fire_id, outcome)
         if _delivery_failed(outcome):

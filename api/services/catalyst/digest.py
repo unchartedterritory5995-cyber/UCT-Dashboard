@@ -147,6 +147,11 @@ def send_digest(market_date: str | None = None) -> dict:
                     message=f"Top: {top}. Open Stock Catalysts for the full brief.",
                     source="catalyst_digest",
                     extra_data={"market_date": md, "count": digest["count"]},
+                    # ⛔ ONE POST PER RECIPIENT. The digest content is market-wide,
+                    # but this loop runs once per member — so the admin channel got
+                    # N identical copies and a roster of who is subscribed. Exactly
+                    # the flood the AI briefings avoided by other means.
+                    allow_admin_discord=False,
                 )
                 out["alertbell"] += 1
             except Exception:

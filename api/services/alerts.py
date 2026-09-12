@@ -263,6 +263,7 @@ def add_alert(
     data: dict | None = None,
     user_id: str | None = None,
     channels: dict | None = None,
+    allow_admin_discord: bool = True,
 ) -> dict:
     """Add an alert and optionally fire the Discord webhook.
 
@@ -324,15 +325,39 @@ def add_alert(
     except Exception:  # noqa: BLE001
         pass
 
-    # Fire Discord webhook for warning/critical
+    # ─── THE ADMIN CHANNEL ───────────────────────────────────────────────────
+    #
+    # ⛔⛔ `allow_admin_discord` IS THE PRIVACY BOUNDARY, AND IT IS DELIBERATELY
+    # NOT `severity`. `DISCORD_ALERT_WEBHOOK` is ONE global destination shared by
+    # whoever can read that channel — so "may this event go there" is a question
+    # about AUDIENCE, while severity is a question about URGENCY and also drives
+    # the member's own bell (gold border for warning, green for info).
+    #
+    # 🔴 THEY WERE THE SAME SWITCH, AND THAT WAS A PRIVACY DEFECT. Every
+    # member-private producer defaulted to `severity="warning"`, which is exactly
+    # the severity this gate fires on — so a member's own alert ("TSLA Trend Up
+    # became true") was posted to the shared admin channel although Discord is not
+    # offered to members and nobody selected it. `ai_search_briefings` had already
+    # hit this in the 2026-08-28 review and worked around it by passing
+    # `severity="info"`, i.e. by making a presentation field carry a routing
+    # decision. This parameter is that decision, said out loud.
+    #
+    # ⚠️ THE DEFAULT IS `True`, SO NOTHING EXISTING CHANGES. The genuinely
+    # admin/global producers — the wire watchdog, the exposure gate, and this
+    # module's own `alert_regime_change` / `stop_hit` / `scanner_match` /
+    # `exposure_shift` broadcast helpers — pass no `user_id` and say nothing here,
+    # and they go on reaching the channel exactly as before.
     fires_discord = alert["severity"] in (SEVERITY_WARNING, SEVERITY_CRITICAL)
+    if not allow_admin_discord:
+        fires_discord = False
     if _DISCORD_WEBHOOK and fires_discord:
         landed = _fire_discord(alert)
         if channels is not None:
             channels[CHANNEL_DISCORD] = CHANNEL_OK if landed else CHANNEL_FAILED
     elif channels is not None:
-        # Not configured, or an INFO alert this webhook deliberately does not
-        # carry. Neither is a failure and neither reached anybody.
+        # Not configured, an INFO alert this webhook deliberately does not carry,
+        # or a member-private event that may not go to a shared channel. None of
+        # the three is a failure and none reached anybody.
         channels[CHANNEL_DISCORD] = CHANNEL_SKIPPED
 
     return alert

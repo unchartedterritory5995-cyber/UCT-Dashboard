@@ -283,7 +283,13 @@ def run_due(cadence: str) -> dict:
                     r["user_id"], (r["sym"] or "AI"), f"{title}: {label}", body,
                     source="ai_briefing",
                     extra_data={"briefing_id": r["briefing_id"], "query": r["query"]},
-                    severity="info")   # info = bell+email only, never the admin Discord
+                    # ⭐ THE ROUTING DECISION, SAID OUT LOUD. This used to be
+                    # carried by `severity="info"` alone (2026-08-28 review) —
+                    # correct outcome, wrong mechanism: a presentation field was
+                    # doing an audience job, so the protection would vanish the
+                    # day somebody legitimately wanted a louder briefing.
+                    allow_admin_discord=False,
+                    severity="info")
                 delivered += 1
                 status = "delivered"
                 try:

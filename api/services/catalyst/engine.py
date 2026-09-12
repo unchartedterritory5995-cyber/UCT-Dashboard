@@ -283,6 +283,9 @@ def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
                         "gap_pct": gap,
                         "market_date": market_date,
                     },
+                    # ⛔ SENT TO A SELECTED MEMBER, naming their ticker and the
+                    # thesis chosen for them.
+                    allow_admin_discord=False,
                 )
                 fired += 1
             except Exception:
@@ -370,6 +373,8 @@ def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
                     extra_data={"ticker": ticker, "grade": grade,
                                 "catalyst_type": ctype, "gap_pct": gap,
                                 "market_date": market_date},
+                    # ⛔ SAME — a must-know is per-member.
+                    allow_admin_discord=False,
                 )
                 fired += 1
             except Exception:

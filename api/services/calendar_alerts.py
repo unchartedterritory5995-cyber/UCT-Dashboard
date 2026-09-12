@@ -321,6 +321,10 @@ def run_prereport_alerts(market_date: str | None = None) -> int:
                     message=message,
                     source="calendar_alert",
                     extra_data={"ticker": ticker, "market_date": market_date},
+                    # ⛔ WHICH TICKERS THIS MEMBER FOLLOWS. The recipient set is
+                    # their own My-Stocks list, so the fact that they were sent
+                    # this at all is private.
+                    allow_admin_discord=False,
                 )
                 fired += 1
             except Exception as e:

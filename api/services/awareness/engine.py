@@ -248,6 +248,9 @@ def _fire_candidate(user_id: str, candidate: InsightCandidate) -> bool:
                 message=candidate.body or candidate.headline,
                 source="awareness_engine",
                 extra_data={"kind": candidate.kind},
+                # ⛔ A PER-MEMBER AWARENESS CANDIDATE — their symbol and the
+                # headline chosen for them.
+                allow_admin_discord=False,
             )
         except Exception as e:  # noqa: BLE001
             _log.warning("[awareness] away-delivery failed for %s: %s", user_id, e)

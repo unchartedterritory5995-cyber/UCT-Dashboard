@@ -385,6 +385,7 @@ def deliver_alert_payload(
     extra_data: dict | None = None,
     severity: str = "warning",
     channels_wanted: list | None = None,
+    allow_admin_discord: bool = True,
 ) -> dict:
     """Public delivery hook reusable by other alert systems (e.g. indicator alerts).
 
@@ -430,6 +431,20 @@ def deliver_alert_payload(
     uses for "nothing was owed here". It cannot switch a channel ON that the
     account cannot serve: a member with no address still reports `skipped` for
     email whether or not they asked for it.
+
+    ⛔⛔ `allow_admin_discord` IS THE AUDIENCE BOUNDARY, AND EVERY CALLER OF THIS
+    FUNCTION SHOULD SAY `False`. `user_id` is this function's FIRST and REQUIRED
+    parameter — every producer that reaches here already has a real member id, so
+    everything delivered through this door is member-private by construction. The
+    global `DISCORD_ALERT_WEBHOOK` is a shared channel and is not a place any of
+    it belongs.
+    
+    ⚠️ THE DEFAULT IS STILL `True`, DELIBERATELY. Flipping it would fix the same
+    producers while making the decision INVISIBLE at the call sites, and an
+    audience decision that nobody can see at the point of delivery is how this
+    defect happened in the first place. `test_every_member_private_producer_
+    suppresses_the_admin_channel` is the rail that makes forgetting it fail
+    rather than leak.
 
     :returns: ``{"claimed", "channels", "channels_ok", "channels_failed",
         "errors"}`` — see `_delivery_report`.
@@ -513,6 +528,7 @@ def deliver_alert_payload(
                 data=data,
                 user_id=user_id,
                 channels=channels,
+                allow_admin_discord=allow_admin_discord,
             )
         else:
             channels[CHANNEL_IN_APP] = CHANNEL_SKIPPED

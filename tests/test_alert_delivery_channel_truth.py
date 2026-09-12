@@ -312,7 +312,14 @@ def test_a_PARTIAL_delivery_is_recorded_as_partial_and_is_NOT_retried(
     ev._run_one_cycle()
     row = _row(armed)
 
-    assert row["delivery_channels"] == {"in_app": "ok", "discord": "ok",
+    # ⚰️ THIS ASSERTED `discord: "ok"` AND THAT WAS THE PRIVACY DEFECT, WRITTEN
+    # DOWN AS EXPECTED BEHAVIOUR. A member's own alert reached the single shared
+    # `DISCORD_ALERT_WEBHOOK` channel although Discord is not offered to members
+    # and nobody selected it. The evaluator now passes `allow_admin_discord=False`,
+    # so the channel is `skipped` — not attempted, and correctly not a failure.
+    # Everything this case is actually ABOUT — that a partial delivery is recorded
+    # as partial and is not retried — is unchanged.
+    assert row["delivery_channels"] == {"in_app": "ok", "discord": "skipped",
                                         "email": "failed"}, row["delivery_channels"]
     assert row["delivered_at"] is not None, (
         "a partial delivery released its lease — the in-app alert the member "
@@ -447,7 +454,11 @@ def test_MANY_cycles_over_a_true_condition_deliver_exactly_once(armed,
     assert fl.count_fires(armed) == 1, "one armed episode recorded >1 fire"
     assert len(channels_up["email"]) == 1, (
         f"one armed episode sent {len(channels_up['email'])} emails")
-    assert len(channels_up["discord"]) == 1
+    # ⚰️ AND ZERO, NOT ONE, TO THE ADMIN CHANNEL. This used to assert exactly one
+    # Discord post per member fire — the defect, as a guarantee. The fire-once
+    # property this test exists for is unchanged; what changed is that a private
+    # alert no longer has an audience it was never given.
+    assert len(channels_up["discord"]) == 0
 
 
 def test_a_released_lease_is_retried_and_still_only_ONE_fire_exists(

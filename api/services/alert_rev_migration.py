@@ -262,6 +262,8 @@ def deliver_migration_notice(payload: dict) -> None:
             f"one evaluation so the change itself cannot look like a signal."
         ),
         source="indicator_alert_migration",
+        # ⛔ IT NAMES THE MEMBER'S OWN ALERT AND ITS ADDRESS.
+        allow_admin_discord=False,
         extra_data={
             "alert_id": payload.get("alert_id"),
             "indicator": address,

@@ -532,6 +532,9 @@ def _run_job(job_id: str) -> None:
                     f"{teaser} — open AI Search → Deep research on "
                     "uctintelligence.com to read the full report.",
                     source="ai_deep_report", severity="info",
+                    # ⭐ AUDIENCE, NOT URGENCY — see `ai_search_briefings`. The
+                    # member's own report teaser is not admin traffic.
+                    allow_admin_discord=False,
                     extra_data={"job_id": job_id})
             except Exception:
                 pass

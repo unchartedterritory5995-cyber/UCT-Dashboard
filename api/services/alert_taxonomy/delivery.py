@@ -61,6 +61,12 @@ def deliver(
         source=source,
         extra_data=extra_data,
         severity=severity,
+        # ⛔ THIS LANE IS MEMBER-PRIVATE BY CONSTRUCTION — a predicate belongs to
+        # one `user_id` and fires on their own watch. It was protected only as a
+        # SIDE EFFECT of `document_arrival` passing `severity="info"`, which is a
+        # presentation field doing a routing job. Said explicitly, the protection
+        # survives a future trigger type that legitimately wants `warning`.
+        allow_admin_discord=False,
     )
     _receipts.record_delivery_channels(fire_id, report.get("channels", {}))
     return report
