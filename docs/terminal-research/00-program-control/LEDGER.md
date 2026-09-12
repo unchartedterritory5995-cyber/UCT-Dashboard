@@ -865,6 +865,49 @@ has been crossed yet. ⛔ What is *not* normal is `projected=0`, which means no 
 The tool flags that separately, because a week of that would arrive next weekend looking exactly
 like a week of agreement.
 
+### ✅ PIPELINE VERIFIED AGAINST REAL BARS — 2026-09-12, projected = 12
+
+```
+MSYS_NO_PATHCONV=1 railway ssh --service web   "/opt/venv/bin/python tools/s7_price_level_dryrun.py --date 2026-09-11"
+```
+
+**`PIPELINE: VERIFIED -- a real row reached a real span.`** 12 rows projected across 11
+symbols, 10 priced, 10 spans opened, 0 anchor moves, `heartbeat stamped 0`.
+
+⛔ **THAT SENTENCE IS THE ONLY RESULT THIS RUN MAY CONTRIBUTE.** It is a REPLAY of a past
+session, and F-S7-3 is *no replay, ever* for the comparison — so its outcome counts are
+**not** comparison data and are recorded nowhere. The tool enforces the separation
+structurally: a scratch store it creates itself, a refusal on any path resolving inside
+the shared data root, and no heartbeat stamp, so a replay can never make a dead sweep
+look alive.
+
+### ⚠️ WHAT THE DRY RUN REVEALED ABOUT THE COHORT — a fact about the DATA, not a result
+
+The admin cohort's twelve rows break down as:
+
+| `alert_type` | anchors | bound to a drawing | count |
+|---|---|---|---|
+| `price` | none | no | **10** |
+| `line` | **none** | yes | **2** |
+| `trendline` | — | — | **0** |
+
+⛔⛔ **THERE ARE NO TRENDLINES IN THE ADMIN COHORT.** The hardest and most
+divergence-prone half of this type — the interpolated level, the anchor-move reset, the
+whole of F-S7-2 — will collect **nothing** over the five sessions. A verdict read next
+weekend covers **fixed levels only**, and must say so rather than read as coverage of
+the type.
+
+⚠️ **And production carries a THIRD `alert_type`, `line`**, which neither F-S7-2 nor the
+schema anticipated: bound to a drawing, carrying **no anchors**. Both level functions
+fall through to `target_price` for it, so the two sides agree — ⭐ **by luck, not by
+design.** Had either side keyed interpolation on "has a drawing_id" rather than
+`alert_type == 'trendline'`, every one of those rows would have disagreed for a reason
+that is not the migration.
+
+⭐ **The move this suggests, for the owner:** arm one admin trendline alert before
+Monday's open, or accept that CP4's authorization rests on fixed-level evidence alone.
+That is a cohort decision, not a code change, so it is recorded here rather than acted on.
+
 ### ⭐ HOW THE OWNER READS THE COMPARISON NEXT WEEKEND
 
 **One command, on the web pod, read-only:**
