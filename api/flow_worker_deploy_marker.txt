@@ -1,0 +1,15 @@
+# flow-worker deploy marker
+#
+# Read by NOTHING. Its only purpose is to sit on flow-worker's Railway watch
+# list so that appending a line here forces flow-worker to rebuild from
+# master's tip and pick up ADDITIVE strands it would otherwise skip.
+#
+# Why this exists: `railway redeploy --service flow-worker` re-runs the LAST
+# ACTUAL deployment, not master's tip, so it cannot discharge a strand. Proved
+# 2026-09-12 04:07 UTC: a redeploy came back SUCCESS on the same commit it
+# started from, having dropped the OPRA websocket for nothing.
+#
+# Append one dated line per deploy. Never rewrite history here.
+
+2026-09-12 23:15 CDT - marker created; pending watch-list registration. Strands awaiting discharge: 1667fc64d (S3 admin routes), 1a3668eaf (D1 adapter gaps G2/G4), both ADDITIVE.
+2026-09-12 23:27 CDT - marker bump #1. Discharges ADDITIVE strands 1667fc64d (S3 admin routes: entity_master/store.py status_counts) and 1a3668eaf (D1 adapter gaps G2/G4: 12 new fmp_client functions). Both add functions flow-worker never calls. Market closed.

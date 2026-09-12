@@ -5,14 +5,29 @@ Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
 watch paths set in the Railway service settings (never railway.json — that file
 is shared by all three services): api/{massive_ws_worker,massive_processor,
-flow_db,bs_iv,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
+flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
 oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning,
 flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
-⚠️ TODO (2026-08-30): add `confluence_flow.py` to the DASHBOARD watch list — it's a
-flow module (reached via live_massive_router's /confluence-flow, imports weekly_flow)
-but is NOT yet watched, so a lone edit to it won't deploy until then (touch a watched
-file meanwhile, as this note does).
+PLUS three non-.py paths on the same list: `railway.json`, `requirements.txt`, and
+`api/flow_worker_deploy_marker.txt` (added 2026-09-12; Railway readback = 24 patterns).
+The marker is read by NOTHING — appending a dated line to it is the only way a
+non-flow-worker program can force this service to rebuild from master's tip and pick
+up an ADDITIVE strand. ⛔ `railway redeploy` CANNOT do that: it re-runs the last ACTUAL
+deployment, proved 2026-09-12 04:07 when it returned SUCCESS on the same commit it
+started from. See docs/runbooks/deploy-windows.md. The three non-.py paths live in
+`tools/flow_worker_watch_coverage.py::_EXTRA_WATCHED`, not in the brace list above —
+that list is expanded as `api/<name>.py`.
+✅ DONE (2026-09-12): `confluence_flow.py` IS now on the dashboard watch list, and
+`bs_iv.py` came OFF it in the same edit — bs_iv is not reachable from this module's
+import closure, so watching it only bought tape gaps for a file flow-worker never
+runs. Applied via the Railway GraphQL API (`serviceInstanceUpdate`), re-read to
+confirm exactly one removal and one addition and nothing else changed, and verified
+against this mirror by `tools/railway_watch_patterns.py --check` (exit 0).
+⛔ THE LIST ABOVE IS A MIRROR, NOT THE AUTHORITY — the Railway dashboard is. Run that
+tool after any change; it reads the LITERAL patterns and fails on drift. It
+authenticates from the railway CLI's own session when no token is set, so it needs no
+provisioning on a machine where `railway` works.
 ⚠️ TODO (2026-09-04): SAME for `oi_massive_snapshots.py` and `oi_morning.py` — both are
 flow-worker cards (07:00 ET capture + 08:00 ET OI Update post) but NEITHER is watched,
 so an edit to them alone won't deploy. This header edit is the trigger for the

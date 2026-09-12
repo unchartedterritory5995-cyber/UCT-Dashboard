@@ -29,12 +29,15 @@ def test_quarantine_is_the_exact_pinned_set():
     test being updated) — a mutation-check on the exemption list itself,
     the thing that would make an over-broad QUARANTINE entry invisible."""
     assert set(census_mod.QUARANTINE.keys()) == {
-        "api/routers/calendar.py",
+        # 2026-09-11 (W1-A): `api/routers/calendar.py` and
+        # `api/services/econ_calendar_fmp.py` REMOVED — both are fully
+        # migrated onto fmp_client and measure zero violations, so their
+        # entries were suppressing the rail rather than tracking debt.
+        # See `test_retired_quarantine_entries_are_genuinely_clean` below.
         "api/routers/earnings.py",
         "api/services/bars_fetch.py",
         "api/services/calendar_alerts.py",
         "api/services/catalyst/sources.py",
-        "api/services/econ_calendar_fmp.py",
         "api/services/implied_store.py",
         "api/services/index_constituents.py",
         "api/services/screener/fundamentals_bulk.py",
@@ -46,6 +49,47 @@ def test_quarantine_is_the_exact_pinned_set():
     # stated "why" is indistinguishable from a silently-added skip.
     for path, why in census_mod.QUARANTINE.items():
         assert why.strip(), f"QUARANTINE entry {path!r} has no reason recorded"
+
+
+def test_retired_quarantine_entries_are_genuinely_clean():
+    """The justification for un-quarantining these two, asserted rather than
+    asserted-in-prose: each was exempted by the 10-file addendum and has
+    since been fully migrated onto `fmp_client`, so each must now measure
+    ZERO violations on its own. If a direct FMP call is ever re-added to
+    either, this fails BY NAME and says which file — the thing the stale
+    exemption was silently preventing."""
+    base = census_mod.repo_root()
+    retired = ("api/routers/calendar.py", "api/services/econ_calendar_fmp.py")
+    for path in retired:
+        assert path not in census_mod.QUARANTINE, (
+            f"{path} was re-quarantined without updating this test")
+    urls, defs = census_mod.census(base)
+    offenders = [h for h in urls if h.path in retired]
+    offender_defs = [h for h in defs if h.path in retired]
+    assert offenders == [], f"retired-from-quarantine file has a URL literal again: {offenders}"
+    assert offender_defs == [], f"retired-from-quarantine file has an _fmp_get-shaped def again: {offender_defs}"
+
+
+def test_no_quarantine_entry_is_stale():
+    """A quarantine entry for a file that has NO violation is not tracked
+    debt — it is a rail suppressed for a file that is already clean, which
+    is how `api/routers/calendar.py` and `api/services/econ_calendar_fmp.py`
+    sat un-guarded after their own migrations landed. Measured by running
+    the census with QUARANTINE emptied and checking every exempted path
+    actually still has something to exempt."""
+    base = census_mod.repo_root()
+    saved = dict(census_mod.QUARANTINE)
+    try:
+        census_mod.QUARANTINE.clear()
+        urls, defs = census_mod.census(base)
+    finally:
+        census_mod.QUARANTINE.clear()
+        census_mod.QUARANTINE.update(saved)
+    violating = {h.path for h in urls} | {h.path for h in defs}
+    stale = sorted(p for p in saved if p not in violating)
+    assert stale == [], (
+        f"QUARANTINE entries with no actual violation (migrate-then-forget "
+        f"leftovers suppressing the rail): {stale}")
 
 
 # ── Positive control: a planted violation MUST be reported by name ─────────

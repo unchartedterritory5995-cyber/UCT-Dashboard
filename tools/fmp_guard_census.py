@@ -52,13 +52,22 @@ _SKIP_DIR_PARTS = frozenset({"__pycache__", "node_modules", ".git", "external"})
 # the files that construct their OWN financialmodelingprep.com URL — the
 # import-only consumers are invisible to rule (a) by construction and are
 # NOT listed here, since there is nothing for this specific rule to exempt).
+# ── RETIRED FROM QUARANTINE (W1-A adoption sweep, 2026-09-11) ─────────────
+# `api/routers/calendar.py` and `api/services/econ_calendar_fmp.py` were
+# quarantined as part of the "10-file addendum" but have since been fully
+# migrated onto `fmp_client` (calendar.py -> `fmp_client.get_earnings_calendar`
+# via `_fmp_calendar_day`; econ_calendar_fmp.py -> `fmp_client.
+# get_economic_calendar`). Re-measured 2026-09-11 by running `census()` with
+# QUARANTINE emptied: BOTH files produce zero URL-literal hits and zero
+# `_fmp_get`-shaped defs. Their exemptions were therefore dead entries that
+# SUPPRESSED the rail for two now-clean files — a regression re-adding a
+# direct FMP call to either would have been skipped silently. Removed so the
+# census actually guards them.
 QUARANTINE: dict[str, str] = {
-    "api/routers/calendar.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/routers/earnings.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/bars_fetch.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/calendar_alerts.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/catalyst/sources.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
-    "api/services/econ_calendar_fmp.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/implied_store.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/index_constituents.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/screener/fundamentals_bulk.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",

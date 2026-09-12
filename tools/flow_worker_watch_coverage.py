@@ -17,15 +17,24 @@ restarts, and every flow-worker restart gaps the OPRA tape PERMANENTLY until the
 T+1 flat file. The point is to make "this push deploys nothing to flow-worker" a
 VISIBLE FACT at review time instead of a discovery weeks later.
 
-⛔ WORKER AND BARS-API ARE DELIBERATELY NOT COVERED. Their watch patterns look
-`api/**`-shaped, so every api change already redeploys them and there is no
-stranding to catch — a check there would be vacuous, and a vacuous check reads as
-coverage. Evidence is BEHAVIOURAL, not the literal patterns (which could not be
-read; see tools/railway_watch_patterns.py): on 2026-09-12 both SKIPPED a docs-only
-push and both rebuilt on an `api/**` push, and across the preceding 14 master
-pushes they woke only on the two commits that touched `api/`. ⚠️ Revisit if the
-real patterns ever turn out to be narrow — then they have the same trap flow-worker
-has, and this tool generalises by parameterising ENTRY and the watch source.
+⛔ WORKER AND BARS-API ARE DELIBERATELY NOT COVERED, and this is now settled
+against their LITERAL patterns rather than their behaviour. Read from Railway
+2026-09-12:
+
+    worker    ['/api/**', '/requirements.txt', '/railway.json',
+               '/nixpacks.toml', '/Procfile', '/runtime.txt']
+    bars-api  ['api/**', 'requirements.txt', 'nixpacks.toml', 'railway.json']
+
+Both match every path under `api/`, so neither has a reachable-but-unwatched set
+and a check there would be VACUOUS — and a vacuous check reads as coverage, which
+is worse than none. ⚠️ Revisit only if either list is ever narrowed to specific
+modules; then they inherit flow-worker's trap and this tool generalises by
+parameterising ENTRY and the watch source.
+
+⚠️ `worker` anchors with a leading slash and `bars-api` does not. Under gitignore
+semantics `/api/**` is root-anchored while `api/**` can match at any depth. No
+difference today — there is one `api/` — but do not assume the two lists are
+equivalent just because they read alike.
 
 ⛔ THE DASHBOARD IS THE AUTHORITY on watch patterns; `railway.json` is shared by
 all services and never carries them. The only in-repo mirror is the header of
@@ -46,7 +55,12 @@ import shutil
 _WATCH_RE = re.compile(r"api/\{([^}]*)\}\.py", re.S)
 
 # Watched alongside the module list, per the same header.
-_EXTRA_WATCHED = ("railway.json", "requirements.txt")
+# `api/flow_worker_deploy_marker.txt` added 2026-09-12 when it was registered in
+# Railway (readback: 24 patterns). It CANNOT live in the header's `api/{...}.py`
+# brace list — that list is expanded as `api/<name>.py`, so a .txt there would
+# become `api/flow_worker_deploy_marker.txt.py` and silently watch nothing.
+_EXTRA_WATCHED = ("railway.json", "requirements.txt",
+                  "api/flow_worker_deploy_marker.txt")
 
 ENTRY = "api/flow_worker_main.py"
 

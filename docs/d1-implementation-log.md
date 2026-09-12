@@ -383,3 +383,130 @@ own "measure it, don't quote it" discipline. All 11 remain untouched,
 per the explicit "do not opportunistically migrate" instruction.
 
 ---
+
+## W1-A — Adoption sweep (2026-09-11): measured surface + blocking adapter gaps
+
+Owner-authorized adoption sweep over the remaining direct-FMP surface.
+Outcome: **zero call sites were mechanically migratable.** Every remaining
+site is blocked by a missing adapter capability, an explicit in-repo "do not
+touch" directive, or an out-of-scope exclusion. Recorded here rather than
+worked around, per the sweep's own rule ("do not hack around it and do not
+extend the adapter speculatively").
+
+### Census, measured (not quoted)
+
+| | before | after |
+|---|---|---|
+| FMP unquarantined URL literals | 1 | 1 |
+| FMP unquarantined `_fmp_get`-shaped defs | 0 | 0 |
+| FMP quarantine entries | 12 | **10** |
+| FMP files with a real violation (quarantine ignored) | 11 | 11 |
+| Massive unexempted literals | 0 | 0 |
+| Massive quarantine / partner-exempt | 17 / 2 | 17 / 2 (untouched) |
+
+⚠️ **The FMP census rail is RED on origin/master @ 7fce88bd2 and stays red.**
+`test_real_repo_has_zero_unquarantined_violations` fails on
+`api/services/news/adapters/fmp_news.py:37` — neither migrated nor
+quarantined. Verified by running origin/master's own copy of the census tool
+against the tree. Not introduced by this sweep; not fixable without a
+behaviour change (gap G5 below).
+
+### The true FMP surface is NOT what the census counts
+
+The census detects (a) a `financialmodelingprep.com` literal and (b) an
+`_fmp_get`-shaped def. Both rules are blind to the dominant reach pattern:
+**`earnings_estimates._fmp_get` called through an import.** Measured this
+sweep by AST:
+
+- **21 modules, 33 call sites** reach `earnings_estimates._fmp_get`, plus one
+  indirect `ex.submit(_fmp_get, ...)` reference (`api/routers/research.py:69`,
+  fires 2 endpoints) the AST call-walk does not count as a call — **34 reaches**.
+- A second blind spot: `api/services/etf_holdings.py:62` reaches FMP via
+  `index_constituents._get(f"{ic._BASE}/stable/etf/holdings?...")` — someone
+  else's base constant, so no literal of its own.
+
+Earlier figures in this log (9, then 11 consumers) are both undercounts.
+
+### Blocking adapter gaps (D1 follow-ups)
+
+**G1 — typed functions expose no per-call `timeout`. This alone blocks all 34
+`_fmp_get` reaches.** `_fmp_get`'s default is `timeout=10`; call sites pass 4,
+6, 8, 10, 12, 20. `_fetch`/`_get_raw` accept `timeout=`, but no public typed
+function forwards it, so every typed function is pinned to one baked value
+(25 by default; 8/12/20/40 for six of them). No typed function uses 10 ⇒ every
+default-timeout call site would silently change its timeout. Worst cases:
+`screener/analyst_pass.py` (4 call sites at `timeout=4` → 25, a 6x change in
+worst-case nightly leg latency) and `fundamentals.py:264` / `routers/
+research.py:171` (request-path quote, 10 → 25).
+*Capability needed:* `timeout: Optional[int] = None` passthrough on the typed
+functions, defaulting to today's baked value. Additive and behaviour-preserving,
+but it changes the D1 public surface — not taken unilaterally.
+
+**G2 — no typed function for 9 endpoints in live use.** `/stable/profile`
+(8 modules: `darkpool_eod`, `bars_sanitize`, `company_about`,
+`earnings_growth_fmp`, `industry_map`, `ir_webcast`, `ticker_logos`,
+`ticker_meta` — the single highest-value gap), `/stable/analyst-estimates`
+(`annual_financials`, `earnings_table`, `screener/analyst_pass`),
+`/stable/splits`, `/stable/grades-news`, `/stable/grades-latest-news`
+(`catalyst/sources`), `/stable/ratios-bulk` (`fmp_bulk`),
+`/stable/news/general-latest` + `/stable/news/{stock,press-releases}-latest`
+(`engine`, `news/adapters/fmp_news`), `/stable/etf/holdings` +
+constituent endpoints (`index_constituents`, `etf_holdings`), and the
+`profile-bulk`/`ratios-bulk` CSV endpoints (`screener/fundamentals_bulk`).
+
+**G3 — the adapter is JSON-only.** `_get_raw` ends in `resp.json()`. It cannot
+serve `ticker_logos.py`'s `image-stock/{sym}.png` (PNG bytes) or
+`screener/fundamentals_bulk.py`'s 30-70MB CSV bulk endpoints (which also need
+a 300s timeout vs the adapter's 25s ceiling).
+
+**G4 — `get_news_stock` is single-ticker.** It sends `{"symbols": ticker.upper()}`.
+`engine.py:2376` sends a CSV of many symbols in one call. No typed function
+expresses a multi-symbol news pull.
+
+**G5 — no retry, no backoff, no request-ceiling integration.**
+`news/adapters/fmp_news.py` (the one unquarantined violation) has a 3-attempt
+retry with escalating backoff, a 429 sleep-and-retry, a `_MIN_GAP` pacer, a
+`RequestBudget` hard ceiling, and `httpx` connect/read/write/pool timeouts.
+The adapter raises immediately on 429 and has none of this. Migrating it would
+remove the retry and change the error class — a behaviour change, not a swap.
+
+### Exclusions and standing directives (not gaps)
+
+- `api/services/bars_fetch.py`, `api/services/bars_sanitize.py` — bars-api,
+  owner-reserved.
+- `api/services/implied_store.py`, `api/services/implied_backfill.py` — options
+  hot path.
+- `api/routers/research.py:69` (`/api/research/news/{sym}`) — **the ONE
+  timeout-exact match in the whole surface** (call site `timeout=12`;
+  `get_news_stock`/`get_news_press_releases` are both `timeout=12`; params and
+  URL identical). Blocked anyway: the route's own docstring pins it
+  "byte-for-byte untouched as a COMPATIBILITY BRIDGE for the calendar modal's
+  NewsSection.jsx, per the readiness review's explicit 'do not touch a working
+  legacy consumer' instruction."
+- `api/routers/earnings.py` — a diagnostic probe that fires 19 raw endpoint
+  variants (including legacy `/api/v3/`) to compare them. Routing it through
+  the adapter would destroy the thing it measures.
+- `api/services/earnings_estimates.py::_fmp_get` — quarantine claim
+  **re-verified and it holds, understated**: not 9 consumers but 21 modules /
+  34 reaches. Two of the nine originally named (`ipo_calendar.py`,
+  `research/financial_history.py`) have since migrated and no longer call it.
+  Left byte-for-byte unchanged.
+
+### Corrections to the briefing's file list
+
+`api/services/transcript_indexer.py` and `api/services/research/financial_history.py`
+were listed as still calling FMP directly. Both are **already fully migrated**:
+`transcript_indexer._default_fmp_get` routes through
+`fmp_client.get_transcript_latest_page`/`get_transcript_content`, and
+`financial_history` dispatches to `fmp_client.get_{income,balance-sheet,cash-flow}`.
+
+### Contradiction: the governing spec is not in this repo
+
+The adapter, `tools/fmp_guard_census.py`, and `tests/test_fmp_guard_census.py`
+all cite `provider-abstraction-spec.md` by section (§9.2, §21.1, §4.2, …).
+That file does not exist anywhere in this branch's tree or in git history —
+Section 1 of this log places it in the separate `terminal-research` worktree.
+Its claims about the codebase therefore cannot be checked from here, and this
+log's own Section 1 already records the spec undercounting the FMP surface
+(8 call sites claimed, 15 files found; `analyst_grades.py` and `engine.py`
+both mis-described). Reported, not fixed.

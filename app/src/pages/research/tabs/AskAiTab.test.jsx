@@ -138,6 +138,116 @@ describe('AskAiTab', () => {
     expect(screen.queryByText(/bullish|bearish/i)).not.toBeInTheDocument()
   })
 
+  // ── GATE-I1 slice 2: the Sources block composes S8's <Provenance> ────────
+  //
+  // ⛔ THE MANDATORY GATE CONDITION. The Sources block was rebuilt on S8's
+  // primitive; the one thing that rebuild could silently break is the [E#]
+  // mapping — a citation dropped or duplicated on the way through the new
+  // markup. `ticker_explain.py::_result` emits `citations` as exactly the
+  // evidence items whose ids `key_facts` cite, so the rendered count is a
+  // 1:1 assertion against the payload, not an eyeball.
+
+  const EIGHT_SOURCE_PAYLOAD = {
+    sym: 'AAPL', entity: null, response_state: 'answer',
+    summary: 'Several things moved at once.',
+    key_facts: [
+      { statement: 'Goldman Sachs upgraded from Hold to Buy.', evidence_id: 'E1' },
+      { statement: 'Q2 2026 revenue was $94.5B.', evidence_id: 'E4' },
+    ],
+    interpretation: '', caveat: '', clarification_question: '',
+    citations: [
+      { id: 'E1', type: 'analyst_action', date: '2026-08-30', source: 'Goldman Sachs', url: null },
+      { id: 'E2', type: 'news', date: '2026-08-29', source: 'Reuters', url: 'https://example.com/a' },
+      // Two items from the SAME source on the same day — a de-dupe that
+      // collapsed rows by source would lose one and still look plausible.
+      { id: 'E3', type: 'news', date: '2026-08-29', source: 'Reuters', url: 'https://example.com/b' },
+      { id: 'E4', type: 'financials_quarter', date: 'Q2 2026 (calendar-quarter label -- may not match fiscal)', source: 'UCT Financials (yfinance)', url: null },
+      { id: 'E5', type: 'ratings_summary', date: 'current snapshot', source: 'FMP, via UCT Analyst Ratings', url: null },
+      { id: 'E6', type: 'ownership', date: 'current snapshot', source: 'UCT Ownership (yfinance)', url: null },
+      { id: 'E7', type: 'insider', date: '2026-07-14', source: 'SEC Form 4, via UCT Ownership', url: null },
+      { id: 'E8', type: 'estimates', date: 'FY2027 (relative label, no absolute anchoring date)', source: 'UCT Estimates (yfinance)', url: null },
+    ],
+    insufficient_evidence: false, insufficient_evidence_reason: '',
+    model: 'claude-sonnet-5', error: null,
+  }
+
+  async function askAndSettle(payload, sym = 'AAPL') {
+    mockFetchOnce(200, payload)
+    render(<AskAiTab sym={sym} />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
+  }
+
+  it('renders exactly one source row per payload citation, with every evidence id once', async () => {
+    await askAndSettle(EIGHT_SOURCE_PAYLOAD)
+
+    const rows = screen.getAllByTestId('ask-ai-source')
+    expect(rows).toHaveLength(EIGHT_SOURCE_PAYLOAD.citations.length)
+
+    // Not just the count — the SET, in payload order. A count alone survives
+    // one citation dropped and another rendered twice.
+    expect(rows.map(r => r.getAttribute('data-evidence-id')))
+      .toEqual(EIGHT_SOURCE_PAYLOAD.citations.map(c => c.id))
+
+    // And the visible [E#] marks are the same ids, so the footnote a member
+    // reads still points at the fact that cites it.
+    expect(rows.map(r => within(r).getByText(/^\[E\d+\]$/).textContent))
+      .toEqual(EIGHT_SOURCE_PAYLOAD.citations.map(c => `[${c.id}]`))
+  })
+
+  it('is a real control — zero citations renders zero source rows, not an empty Sources heading', async () => {
+    // Non-vacuity for the assertion above: if `ask-ai-source` were never
+    // rendered at all, a length check against a payload that also had none
+    // would pass over nothing.
+    await askAndSettle({ ...EIGHT_SOURCE_PAYLOAD, citations: [] })
+    expect(screen.queryAllByTestId('ask-ai-source')).toHaveLength(0)
+    expect(screen.queryByTestId('ask-ai-sources')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sources')).not.toBeInTheDocument()
+  })
+
+  it('each source row shows source · date through S8 <Provenance>, and keeps its link', async () => {
+    await askAndSettle(EIGHT_SOURCE_PAYLOAD)
+    const rows = screen.getAllByTestId('ask-ai-source')
+
+    // The S8 affordance, not a locally-drawn one: every row is a
+    // <Provenance> in its present state with a real detail disclosure.
+    expect(screen.getAllByTestId('provenance-present'))
+      .toHaveLength(EIGHT_SOURCE_PAYLOAD.citations.length)
+
+    // Source and date stay VISIBLE — the affordance changed, what a member
+    // can read at a glance did not.
+    expect(within(rows[0]).getByText('Goldman Sachs · 2026-08-30')).toBeInTheDocument()
+
+    // The link survives where the payload has one, and is not invented where
+    // it does not.
+    const link = within(rows[1]).getByRole('link', { name: 'source' })
+    expect(link).toHaveAttribute('href', 'https://example.com/a')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(within(rows[0]).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('the source detail disclosure opens and names the source', async () => {
+    await askAndSettle(EIGHT_SOURCE_PAYLOAD)
+    const row = screen.getAllByTestId('ask-ai-source')[0]
+    fireEvent.click(within(row).getByTestId('provenance-detail-toggle'))
+    expect(within(row).getByTestId('provenance-detail-panel'))
+      .toHaveTextContent('Source: Goldman Sachs')
+  })
+
+  it('never turns a label-shaped evidence date into a confident wall-clock time', async () => {
+    // `date` is frequently a LABEL, not an instant ("current snapshot",
+    // "Q2 2026 (...)"). It is deliberately not passed to <Provenance> as a
+    // `timestamp`, because formatEtTime would render a date-only string as a
+    // precise ET time that is simply wrong.
+    await askAndSettle(EIGHT_SOURCE_PAYLOAD)
+    const rows = screen.getAllByTestId('ask-ai-source')
+    fireEvent.click(within(rows[0]).getByTestId('provenance-detail-toggle'))
+    expect(within(rows[0]).getByTestId('provenance-detail-panel'))
+      .not.toHaveTextContent(/Observed:/)
+    expect(within(rows[4]).getByText(/current snapshot/)).toBeInTheDocument()
+  })
+
   // ── Security Research Q&A Slice 2: the three new response states ─────────
 
   it('renders an answer_with_caveat response with the caveat text visible', async () => {

@@ -201,3 +201,136 @@ first prepare after the *bundle* boot took **110,929 ms**, while the first prepa
 after the *flag* boot took **17,503 ms** (pass 1 5,005 ms + cold CSV ~12.5 s; pass 2
 5,357 ms). Both are cold-boot cycles. The gap is unattributed — likely the OPRA
 consumer restarting concurrently — and is not evidence about steady state either way.
+
+---
+
+# Cold-first-paint rig procedure (written 2026-09-12, BEFORE first use)
+
+Written ahead of the run so it is repeatable and so its traps are known in advance
+rather than discovered inside the measurement. **Not yet executed** — it needs a live
+tape.
+
+## ⛔ BLOCKER TO RESOLVE BEFORE THE RUN: there is no synthetic MEMBER account
+
+The measurement is specified as a **member-role session, not admin**. The only
+synthetic production account is `smoke@uctintelligence.internal`, and it is **admin
+by construction**: `api/routers/auth.py` promotes from `ADMIN_EMAILS` at signup
+(`:205-211`) and RE-promotes at login (`:253-257`), and no endpoint sets a role. So
+it cannot be demoted, and every automated sign-in is an admin sign-in.
+
+That matters because it is exactly the caveat already recorded against the bootstrap
+key trace: *"measured on an ADMIN session; a plain member may render fewer regions, so
+a member-only trace could reveal deferrable keys."* An admin cold paint may render
+MORE than a member's and is therefore a pessimistic-but-not-equivalent number.
+
+Three options, all owner calls:
+1. Provision a second synthetic account NOT in `ADMIN_EMAILS`, via the same pod-side
+   `create_user` + `comp_user_access` path the smoke account used — one production
+   write, needs an explicit allow. ⛔ Door B (flipping `COMING_SOON_MODE`) stays
+   permanently refused.
+2. Run as the admin smoke account and **label every number "admin session"**, with the
+   render-surface caveat stated beside it.
+3. Skip item 8 and leave cold paint unmeasured.
+
+**Do not silently pick (2).** An admin number presented as a member number is the
+defect this runbook exists to prevent.
+
+## Procedure
+
+Preconditions, each asserted before measuring — an unasserted one is an INCONCLUSIVE
+run, never a pass:
+- **Tab VISIBLE and focused.** ⛔ A hidden tab never loads Options Flow at all:
+  `shouldFetchVersion` gates on `visibilityState === 'visible'`, so dataVersion never
+  resolves, ZERO `/api/flow/*` fire, and the page sits at `contentLen 244`. A hidden
+  tab also clamps timers and defers render.
+- Viewport PINNED (the left `NavBar` does not exist below 1025px).
+- Cache cleared between runs; state the throttling profile explicitly (none / Fast 3G
+  / 4x CPU) — a number without its profile is not comparable to anything.
+- Opt-in/opt-out per-browser keys ABSENT, not `'0'` — a key left behind by an earlier
+  run reads identically to the default today and inverts after a flip.
+
+Record per run:
+- time to **first content**, measured with a **MutationObserver**, never a timer —
+  a timer is throttled and the state SEQUENCE goes wrong under load. This is the
+  instrument error that once had byte reductions reported while members still saw a
+  full-page spinner.
+- bytes on the wire (transferSize) — ⛔ via a **streaming `PerformanceObserver`**, not
+  `getEntriesByType('resource')`, which caps at 250 entries and DROPS. It once
+  reported "no raw arrays fetched" during a run where they were.
+- which parts came from cache vs were built (`X-Flow-Part` + the ledger's `builds`
+  delta across the run).
+- `X-Flow-Version` on the served parts vs `/api/flow/version` at the moment of paint —
+  a mismatch means a stale-but-honest serve, which is a different reading from a
+  current one.
+
+Run **at least five times, positioned against the roll cycle**: immediately after a
+version roll, mid-cycle, and just before the next roll. The post-roll run is the
+worst case and is the one that decides whether decisions (a)/(b) reopen.
+
+Then **warm re-entry** separately, and compare against UCT20 on DOM commits and bytes
+— the standing claim is that warm re-entry BEATS UCT20 on both, and it should be
+re-confirmed rather than assumed.
+
+⛔ Report median AND worst case. A median alone hides the post-roll case, which is the
+one a member hits after every 60 s roll during RTH.
+
+
+## ✅ Rig account provisioned + dry-run results (2026-09-12, quiet tape)
+
+### The synthetic MEMBER account
+`member-smoke@uctintelligence.internal` — id `6b0e42a8-bd35-4358-833d-0ba4ef6c728a`.
+Exists so cold paint is measured as a MEMBER sees it; the admin smoke account may
+render more regions, so an admin number is not a member number. Monday's runs use
+this account; the admin smoke account is a **labelled secondary comparison only**.
+
+| | |
+|---|---|
+| role | **`member`** — verified in the DB and across **two** HTTP logins |
+| plan / status | `pro` / `comped`, no Stripe ids · `paid_equiv: true` · trial inactive |
+| `email_verified` | 1 — set via the app's own `create_email_verification` + `verify_email_token` |
+| `/api/flow/aggregate` | **200** for `part=bootstrap` and `part=TOP_PICKS` |
+| credentials | `MEMBER_SMOKE_EMAIL` / `MEMBER_SMOKE_PASSWORD` in the user environment |
+
+⭐ **The role survives a second login, which is the whole point.** `auth.py` re-promotes
+from `ADMIN_EMAILS` at EVERY login (`:253-257`), so "member at creation" proves nothing
+on its own. The address is not in `ADMIN_EMAILS` (4 entries, confirmed), so it stays a
+member. Re-check this if `ADMIN_EMAILS` is ever edited.
+
+⛔ **A MEMBER DOES NOT SKIP EMAIL VERIFICATION — an admin does.** The account was
+created unverified and every page load bounced to `/verify-pending`, with the
+verification mail sent to a deliberately unroutable `.internal` address that can never
+receive it. The admin smoke account never hit this because admins bypass the gate.
+Provisioning: backup first (`/data/backups/auth-2026-09-12T040750Z-pre-member-smoke.db`,
+`quick_check ok`, 27 users), then a set-difference check — `ids_added` exactly one,
+`ids_removed` empty, 27 → 28.
+
+### Dry run — the rig works end to end. **Every number below is quiet-tape, NOT a measurement.**
+
+    first content   median 9,718 ms   worst 9,744 ms   n=3   (detected_via=mutation)
+    flow wire       5,514,327 B per load
+    flow requests   3: version, aggregate (no part=), data?days=1
+    observer        attached=True     tab visible     role=member
+
+⛔ **~9.3 s of that ~9.7 s is the cinematic intro**, which plays on EVERY page load and
+gates content. It is excluded from the *detector* (a naive body-text threshold marked
+the intro itself as first content — a flattering ~470 ms that had nothing to do with
+Options Flow) but it still gates the wall clock on a DIRECT load.
+⭐ **This reframes cold paint:** a direct load (bookmark, refresh, post-deploy reload)
+is intro-dominated, so shaving the flow pipeline is invisible there. In-app navigation
+does NOT replay the intro — that is the path the earlier 74–117 ms figures measured.
+**Monday must measure BOTH and report them separately**; the rig currently does the
+direct-load path only.
+⚠️ Do NOT dismiss the intro with Escape. Tried: the rendered body dropped from 4,402
+chars to 540 and a duplicated aggregate+data round appeared. It disturbs the app rather
+than skipping an overlay.
+
+### 🔴 OPEN, and possibly the biggest finding: the member took the LEGACY path
+The three flow requests were `version`, `aggregate` **without `part=`** (whole-D), and
+`data?days=1` — **the 5.5 MB raw tape**. Not `part=bootstrap` + `part=TOP_PICKS`.
+All four build-time flags ARE set on web (`VITE_FLOW_PARTS=1`, `VITE_FLOW_DEFER_TAPE=1`,
+`VITE_FLOW_SERVER_TOPPICKS=1`, `VITE_FLOW_SERVER_SEARCH=1`), and the parts were warm
+(10 cached entries at the current version), so a cold-build fallback does not explain it.
+**If members are on the whole-D + tape path, the entire first-paint optimisation is not
+reaching them** — 5.5 MB instead of ~161 KB. NOT chased further tonight: characterising
+it means reading the client, and it needs an RTH session to see whether it also holds
+under a live tape. **Top candidate for Monday's item 11.**
