@@ -448,3 +448,75 @@ shape — no literal backslash+`n` anywhere, one line per ARG, every line but th
 ending in a continuation and the last not — and is mutation-proved by reintroducing
 this exact mangling: it goes RED while the substring test stays green, which is the
 whole point.
+
+### ✅ AFTER-STATE — verified on the deployed artifact (2026-09-12, `705ee710d`)
+
+web **SUCCESS** (`2a4c16b4`), and flow-worker / worker / bars-api all **SKIPPED** —
+`Dockerfile.web` is on no other service's watch list, so the OPRA tape was untouched.
+`/api/health` uptime 36 s; entry chunk moved `index-VW7Dk9Ft.js` → `index-cZA22Jfk.js`.
+
+⭐ **That hash move is the cleanest proof the fix worked.** Before it, four `VITE_*`
+were changed on Railway and the rebuilt entry chunk came back **byte-identical**. A
+build whose output cannot move when its inputs move is not reading those inputs; now
+it moves.
+
+#### First paint, measured on the wire as a browser asks for it
+
+| | on the wire (gzip) | decoded |
+|---|---|---|
+| `part=bootstrap` | 128,188 B (125.2 KB) | 975,017 B |
+| `part=TOP_PICKS` | 41,533 B (40.6 KB) | 246,056 B |
+| **first paint total** | **169,721 B (165.7 KB gz)** | |
+
+Against the **5,514,328 B** the pre-fix session pulled: a **32× reduction**. Both
+responses carry `X-Flow-Part`.
+
+#### Rig, direct load (path A), member account
+
+`part=bootstrap` + `part=TOP_PICKS` are the two un-versioned first-paint requests, and
+**`data?days=1` is gone** — the raw tape is replaced by four versioned deferred parts
+(`CONV`, `TICKER_DB`, `all_directional`, `all_trades`) that land after paint. Session
+wire 2,119,080 B including that remainder, stable across all three runs.
+
+⚠️ `first_content` median **9,890 ms** — and it is **NOT a page number**. It is a
+QUIET-TAPE run (the label rides on every row), and ~9.3 s of it is the intro animation
+on the direct-load path. Do not quote it. The path-B (in-app navigation) number, which
+is the one without the intro, still does not exist — see the rig runbook.
+
+⚠️ Run 1 of the first attempt showed `data?days=1` present and only 339 KB of wire,
+where runs 2 and 3 showed the deferred parts and no tape. Recorded rather than tidied
+away: the first-visit shape differs from the steady state, and Monday should expect it.
+
+#### Admin control
+
+`role=admin`, 2 runs: **identical** — same 7 requests, same parts, same 2,119,080 B.
+So the load path is a property of the BUILD, not of the account.
+
+#### ⛔ An instrument error worth carrying: a minified bundle has no identifiers
+
+The pre-fix evidence was reported as five absent markers. **Three of them could never
+have matched**: `REQUIRED_PARTS`, `planBundle` and `fetchPartsBundle` are IDENTIFIERS,
+and esbuild renames every one. Only string literals survive. The finding was correct
+but stood on one valid leg, not four:
+
+| needle | before | after | valid? |
+|---|---|---|---|
+| `TOP_PICKS` | 0 | 4 | ✅ a string literal in `SERVER_TOPPICKS_PARTS` |
+| `bootstrap` | 1 | 7 | ✅ string literal |
+| `&part=` | 1 | 2 | ✅ template fragment from `partUrlFrom` |
+| `part=bootstrap` | 0 | 0 | ❌ never emitted — the URL is built as `&part=${...}` |
+| `REQUIRED_PARTS`, `planBundle`, `fetchPartsBundle` | 0 | 0 | ❌ identifiers, renamed |
+
+⭐ **When probing a minified bundle, the needle must be a STRING the source emits, or
+a structural fold you can read.** The decisive pre-fix evidence was always the folds —
+`ComingSoon` bound to nothing, `useRealtimeBars` minified to a dead effect holding
+`!1` — and the token's value going 0 → 14 occurrences across the fix.
+
+#### The rig died mid-verification, and that is now fixed
+
+Run 1 measured the fix working and then the rig raised `UnicodeEncodeError` on
+`\u2318` in the page's own body text: a Windows console is cp1252 and the rig prints
+what it reads. It lost runs 2 and 3 and **would have taken Monday's RTH session with
+it.** `sys.stdout.reconfigure(errors="backslashreplace")` at import, for stdout and
+stderr both — one global fix rather than a guard per print site, because the next
+print site is the one you forget.

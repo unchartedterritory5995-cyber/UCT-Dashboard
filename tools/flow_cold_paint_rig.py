@@ -53,6 +53,18 @@ import statistics
 import sys
 import time
 
+# ⛔ THE PAGE'S OWN TEXT IS PRINTED, AND A WINDOWS CONSOLE IS cp1252.
+# 2026-09-12: run 1 measured the fix working, then the rig DIED on `⌘` in
+# the body head — a UnicodeEncodeError that lost runs 2 and 3 and would have
+# taken Monday's session with it. A rig that crashes on the content it is
+# reporting is not measuring; reconfigure once, globally, rather than guarding
+# each print and missing one.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except Exception:                                   # noqa: BLE001
+        pass
+
 BASE = os.environ.get("RIG_BASE", "https://uctintelligence.com")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/128.0 Safari/537.36")
