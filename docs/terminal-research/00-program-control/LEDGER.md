@@ -607,6 +607,122 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## ✅ THE ROLLOUT SEED RAN. Verified in production, read-only, 2026-09-12.
+
+⛔ **The RESUME carried this as "Monday's first check" because it was an INFERENCE** — the boot had
+happened, but the seed's own line is a `logging.info` and never appeared in the retrieved log
+window. It is now a measurement.
+
+`railway ssh --service web`, `/data/auth.db` opened `mode=ro`, **user IDs only**:
+
+```
+users total ...................... 28
+users with role='admin' .......... 6
+user_tags rows tag='rollout:s7-dark' .. 6
+
+SET EQUAL to the admin set: True
+tagged but not admin: []
+admin but not tagged: []
+
+rollout: tags present ............ rollout:s7-dark  6      (and no other)
+
+projected via COHORT (post-swap) .. 12
+projected via ROLE   (pre-swap) ... 12
+IDENTICAL: True
+```
+
+⭐ **SET EQUAL, not "same size".** A count of 6 against 6 is compatible with one admin tagged and a
+different one missed; the set difference is empty in **both** directions.
+
+### And the dry-run harness, RUN IN THE POD against production rows
+
+```
+S7 PRICE-LEVEL PIPELINE DRY RUN  (NOT comparison data)
+  session replayed ...... 2026-09-11 (tf=D)
+  projected ............. 12 rows, 11 distinct symbols
+      line / no-anchors            2
+      price / no-anchors          10
+  priced ................ 10
+  no_price .............. 1 ['UCTA5']
+  spans opened .......... 10
+  heartbeat stamped ..... 0   <- a dry run must never make a dead sweep look alive
+  PIPELINE: VERIFIED -- a real row reached a real span
+```
+
+`--self-check` PASSED in the pod first, so the scratch guard still refuses the live data root. Writes
+went to `/tmp` only.
+
+⛔ **12 = 10 `price` + 2 `line`, which is the exact cohort shape F-S7-4 found**, so the number is
+corroborated by a second reading rather than merely produced.
+
+**No fix was needed. Nothing was written by hand.** The RESUME's "Monday first check" is cleared.
+
+---
+
+## F-S7-5 FIXED IN THE LEGACY PATH — `5ff6fc04a`. MEMBER-VISIBLE.
+
+⛔ **A live production defect, fixed BEFORE `catalyst-match` absorbed it**, on the owner's approval.
+
+> **An admin who also WATCHED a name never received the must-know alert for it.**
+
+Both rules wrote `catalyst_alerts_fired` keyed `(user_id, ticker, market_date)`, watchlist first.
+⭐ The suppressed alert was the **higher-severity** one, landing exactly on the names an operator
+cared enough to watch — while a must-know alert exists to reach somebody *regardless* of their
+watchlist.
+
+**The fix is the one this codebase had already made for the same shape.** `awareness/rules.py`
+namespaces `{sym}:stop_hit` vs `{sym}:stop_near` with the comment *"an earlier 'nearing stop'
+warning must never swallow the THROUGH-the-stop escalation."* Same defect, same remedy:
+`store.mustknow_dedup_key(ticker)`, declared **once**, with a rail asserting the literal appears
+nowhere else.
+
+⛔ **THE WATCHLIST RULE'S KEY IS UNTOUCHED**, so nobody loses an alert they get today. The only
+possible direction is one more alert.
+
+⚠️ **The trade, stated:** the `ticker` column now holds a value that is not a ticker for must-know
+rows. The alternative — a `kind` column **in the primary key** — is a full table rebuild in SQLite
+for a live dedup ledger, to express the same thing.
+
+⭐ **THE CP2 MIRROR MOVED IN THE SAME PR, which is why both were done together:** the dark rule now
+mirrors the **fixed** behaviour, so dark and legacy still AGREE after the fix rather than agreeing
+on a bug. `already_fired` is PER-RULE now, and `dedup_grain_for()` declares which rule dedups how —
+a predicate naming the wrong grain would model the fixed-away collision and reintroduce it as the
+dark rule's specification. The retired test and its body are kept verbatim.
+
+**⛔ AND THE MIRROR READS `CATALYST_MUSTKNOW_GRADES` FROM THE ENVIRONMENT AT CALL TIME, AS
+PRODUCTION DOES** (`ee8bac5e9`). Production runs **`A`**, not the `A,B` code default. For one commit
+the mirror answered from the constant, which against production would have reported **every grade-B
+row as `new_only`** — a disagreement manufactured by the harness, in the column that means *"this
+member starts getting an alert they do not get today."*
+
+**Mutation:** restore the shared key (make `mustknow_dedup_key` the identity function) → the
+must-know alert **vanishes** for an admin who watches the name → **RED**.
+
+**Measured:** 9 (new suite) · 87 (catalyst-match schema + compare + dedup + filing-watch parity) ·
+39 (legacy catalyst engine/store/digest/cost-guard/must-know). PYTEST_EXIT=0. **Parity 20/20.**
+**ADDITIVE** — 6 files, 0 in flow-worker's closure. Branch `fix/catalyst-mustknow-dedup` pushed.
+
+**Artifact:** web **SUCCESS** on `5ff6fc04a`, flow-worker **SKIPPED**.
+
+**MEMBER IMPACT:** admin cohort today, and it is a **delivery** change — admins who watch a name
+start receiving must-know alerts for it. No member loses anything.
+
+---
+
+## ⛔ STANDING HAZARD RECORDED, NOT FIXED — `.gitignore`'s force-add pattern
+
+`api/data/` is excluded by `data/` on line 11, and three sets of files are tracked inside it anyway.
+⛔ **Git cannot re-include a file whose parent directory is excluded**, so the existing
+`!api/data/voice_kb/**` negation **does nothing** — those files are tracked because somebody ran
+`git add -f`. A comment naming a mechanism that is not the mechanism.
+
+⭐ The correct four-line form (re-include the directory, re-exclude its contents, then re-include
+the subtree) and the argument for keeping `git add -f` instead are in
+`01-existing-system/tech-debt-register.md` §4b. ⛔ **Not this program's file to edit** — `.gitignore`
+is shared by every workstream and a wrong step 2 would start tracking whatever `api/data/` holds.
+
+---
+
 ## WAVE 3 CONTINUED — four more merges on the owner's rulings, all ADDITIVE, 2026-09-12
 
 | what | commit | classification |

@@ -30,32 +30,50 @@ is exactly the reassurance that stops anyone reading further. ⛔ The staleness 
 DIFFER by design: 180 s for price-level, **26 h** for event-proximity. Copying the
 sibling's number would report a healthy twice-a-day sweep as stalled every time.
 
-## ⛔⛔ MONDAY, BEFORE ANYTHING ELSE — DID THE ROLLOUT SEED RUN IN PRODUCTION?
+## ✅ BOTH DARK RUNS ARE ARMED **AND VERIFIED PROJECTING > 0**
 
-S12's swap made `user_tags` the cohort for **both** dark runs, and the ruling is **empty cohort ⇒
-NO members**. The seed that makes the swap a no-op runs in `api/main.py`'s lifespan on every boot.
+⚰️ **This section was "MONDAY, BEFORE ANYTHING ELSE — did the rollout seed run?"** It was an
+inference: the boot had happened, but the seed's line is a `logging.info` that never appeared in the
+retrieved log window. **It was measured instead, and it ran.**
 
-⛔⛔ **IT IS UNVERIFIED IN PRODUCTION.** The boot happened — both `[startup] S7 … DARK comparison
-ENABLED` lines are present on `ee8bac5e9` — but the seed's own line is a `logging.info` and did not
-appear in the retrieved log window. **"The code path runs on boot" is an INFERENCE**, and this
-session was burned twice in one day by exactly that move.
+Read-only, in the pod, 2026-09-12 — user IDs only, nothing written:
 
-**If the seed did not run, both dark runs are projecting ZERO right now**, and five sessions of
-"agreement" over an empty set reads exactly like five sessions of agreement. That is the failure the
-seeding step exists to prevent, so it must be the FIRST thing checked.
+| | |
+|---|---|
+| `user_tags` rows, tag `rollout:s7-dark` | **6** |
+| production accounts with `role='admin'` | **6** |
+| the two sets | **EQUAL** — empty difference in BOTH directions |
+| other `rollout:` tags | none |
+| projected via COHORT (post-swap) | **12** |
+| projected via ROLE (pre-swap) | **12** — IDENTICAL |
 
-**How to check, cheapest first:**
+And the dry-run harness **run in the pod against production rows** (writes to `/tmp` only,
+`--self-check` PASSED first): **12 projected, 11 distinct symbols, 10 priced, 10 spans opened,
+heartbeat stamped 0.** `PIPELINE: VERIFIED — a real row reached a real span.`
 
-1. `python tools/s7_price_level_report.py --ticking` — a non-zero row count means the cohort is
-   non-empty and the sweep is writing. ⚠️ A ZERO is **not** proof of the opposite: it is also what a
-   quiet market looks like. Zero means *go to 2*.
-2. Read the seed's own log line, or the count of `user_tags` rows with tag `rollout:s7-dark`, in the
-   running pod.
-3. If the cohort is empty: `rollout.ensure_s7_dark_seeded()` is idempotent and safe to run again.
+⭐ **12 = 10 `price` + 2 `line`, the exact cohort shape F-S7-4 found** — corroborated by a second
+reading rather than merely produced.
 
-⭐ **AND THE DISTINCTION IS THE WHOLE POINT.** `NO DATA` (the sweep never ran, or the cohort is
-empty) and `QUIET` (it ran and found no disagreement) print the same four zeroes. Do not read one as
-the other.
+⛔ **`SET EQUAL`, not "same size".** 6 against 6 is compatible with one admin tagged and a different
+one missed.
+
+---
+
+## ⭐ WHERE THIS PROGRAM STANDS, end of 2026-09-12
+
+| | |
+|---|---|
+| **two dark runs** | **ARMED and VERIFIED projecting > 0** — 12 price-level rows against the 6-account cohort; event-proximity arms on the calendar |
+| **next weekend's read** | **price-level + event-proximity**, and **`legacy_only` is the deciding column** — an alert a member LOSES at the flip |
+| **F-S7-5** | ✅ **CLOSED** (`5ff6fc04a`). Do not re-raise |
+| **`catalyst-match` CP3** | ⛔ needs a line **after** that read |
+| **price-level CP4** | ⛔ needs a line **after** that read |
+| **D2 CP2** | ⛔ needs a line (the resolver + S7 as first consumer) |
+| **S10 CP2** | ⛔ needs a line (F-S10-1 — the two `formatPrice`s, probably TWO named primitives rather than one) |
+| **F-I1-2** | ⏸️ parked on the owner's browser checks |
+
+⛔ **THE OWNER-BOUND LINE IS UNTOUCHED** and the three browser checks stay on it. Not a session's to
+run, not a session's to raise.
 
 ---
 
@@ -105,14 +123,14 @@ calendar moved a lot, not that anything is wrong.
 | # | item | note |
 |---|---|---|
 | 1 | **Read both dark runs** | five sessions; `--ticking` first, then the full report |
-| 2 | **F-S7-5 — the catalyst dedup fix** | ⛔ A LIVE production bug, latent only because `CATALYST_MUSTKNOW_ALERTS_ENABLED` is OFF. Recommended: narrow fix (namespace the must-know dedup key) BEFORE absorption, while the flag is still off. Needs one line. §8b of the catalyst-match packet |
-| 3 | **S7 `catalyst-match` CP3** | needs a new line; §9 of its packet lists the five things that line must name |
+| 2 | ✅ **F-S7-5 — CLOSED** | Fixed in the legacy path `5ff6fc04a`, MEMBER-VISIBLE, mirror moved in the same PR. ⛔ Do not re-raise |
+| 3 | **S7 `catalyst-match` CP3** | ⛔ **AFTER next weekend's read.** Needs a new line; §9 of its packet lists the five things that line must name |
 | 4 | **G1 tranche 1 remainder** | `darkpool_eod`, `company_about`, `ir_webcast` are locally guarded and unmigrated — no behaviour to preserve that is not already preserved, so they are optional |
 | 5 | **D1 G3 re-scope** | measure the real call sites before authorizing anything |
-| 6 | **CP4 (price-level)** | needs the owner's line AFTER the five-session read |
+| 6 | **CP4 (price-level)** | ⛔ needs the owner's line AFTER the five-session read |
 | 7 | **S10 CP2** | F-S10-1 folded in: the two `formatPrice`s (six importers, three disagreements, one of them an EDITABLE INPUT). Plus `formatPercent`'s first consumer |
 | 8 | **D2 CP2** | the resolver + S7 as first consumer. ⛔ Needs a new line. And `indicator-condition` waits on CP1 **plus the first non-screener store** — all 137 metrics today are `screener_rows` |
-| 9 | **F-I1-2** | ⏸️ **STILL PARKED.** Do not re-raise. |
+| 9 | **F-I1-2** | ⏸️ **STILL PARKED**, on the owner's browser checks. Do not re-raise. |
 
 ---
 

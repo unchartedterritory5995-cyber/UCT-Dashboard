@@ -120,6 +120,70 @@ date: 2026-09-02
 
 ---
 
+## 4b. ⛔⛔ STANDING HAZARD — `.gitignore`'s force-add pattern under `api/data/`
+
+**Found 2026-09-12 while building D2 CP1. RECORDED, NOT FIXED — it is not this program's file.**
+
+### The hazard
+
+`.gitignore` line 11 is `data/`, which excludes **any directory named `data` at any depth** —
+including `api/data/`. Three files are nonetheless tracked in there:
+
+| tracked file | how it got in |
+|---|---|
+| `api/data/cap_universe.json`, `prebuilt_lists.json`, `leader_universe.json`, … | added before the ignore rule, or force-added |
+| `api/data/voice_kb/*.json` | **force-added** — and the file carries a `!api/data/voice_kb/**` negation that reads as the mechanism |
+| `api/data/canonical_address_book.json` (D2 CP1) | **force-added**, deliberately, with the reason in `.gitignore` |
+
+### ⛔ THE NEGATION THAT LOOKS LIKE THE FIX CANNOT WORK
+
+> **Git cannot re-include a file whose PARENT DIRECTORY is excluded.**
+
+Once `data/` matches the directory `api/data`, git does not descend into it, so **no
+`!api/data/<anything>` line inside it is ever evaluated.** The existing
+`!api/data/voice_kb/` / `!api/data/voice_kb/**` pair therefore **does nothing**; those two files are
+tracked because somebody ran `git add -f`, and the negation is a **comment that names a mechanism
+which is not the mechanism** — `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.
+
+⚠️ **WHY IT IS A HAZARD RATHER THAN A CURIOSITY.** The next person who needs a file under
+`api/data/` will copy the `voice_kb` pattern, watch `git add` refuse, and conclude the negation is
+broken *for their file* — or worse, add the negation, see the file still ignored, and quietly drop
+the requirement. **A pattern that has never worked, sitting next to files that are tracked, teaches
+the wrong lesson to everyone who reads it.**
+
+### ⭐ THE CORRECT WAY TO RE-INCLUDE A PATH UNDER AN EXCLUDED DIRECTORY
+
+Re-include **every directory on the way down**, then the file — each as its own line, in order:
+
+```gitignore
+data/                      # the broad exclusion
+!api/data/                 # 1. re-include the DIRECTORY, so git descends into it
+api/data/*                 # 2. re-exclude everything inside it
+!api/data/voice_kb/        # 3. re-include the subdirectory
+!api/data/voice_kb/**      # 4. and its contents
+```
+
+⛔ **Step 2 is the one everybody omits**, and without it step 1 un-ignores the whole directory —
+which for `api/data/` would start tracking every cache and scratch file the app writes there.
+
+**The alternative, and the one in use today: `git add -f` plus a comment saying so.** It is honest
+and it works; its only cost is that a fresh clone's `git status` will not remind anyone the file is
+special. ⭐ **Either is fine. What is not fine is a negation that reads as the mechanism while the
+force-add is doing the work.**
+
+### What a fix would look like, if one is ever authorized
+
+One `.gitignore` edit implementing the four-line form above for `api/data/`, plus a rail that asks
+**git** whether each intended file is tracked — `git ls-files --error-unmatch <path>` — rather than
+trusting a pattern. D2 CP1's
+`tests/test_canonical_address_book.py::test_the_book_is_committed_data_not_a_build_artifact`
+already does exactly that for one file and is the model.
+
+⛔ **NOT THIS PROGRAM'S TO DO.** `.gitignore` is shared by every workstream in the repo, and an edit
+that got step 2 wrong would silently start tracking whatever `api/data/` currently holds.
+
+---
+
 ## 5. Cross-reference — where each class lands
 
 | Class | IDs | Count | Leaves that found them |
