@@ -1,5 +1,77 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · PART 3 (HVE half) — AGEN, PREDICTED FROM OUR DATA, CONFIRMED ON THE VENDOR
+
+`tests/fixtures/vendor/uncharted-volume-v2-agen-1d-hve-2026-09-12.json`.
+
+⛔⛔ **THE SYMBOL WAS CHOSEN FROM OUR OWN DATA AND NAMED BEFORE THE CHART WAS
+OPENED.** That ordering is the point — a symbol picked by looking at TradingView
+would make the comparison circular.
+
+**The scan:** `C:/data/bars.db` read-only, every ticker with ≥2,800 daily bars
+(**2,749** of them), evaluating the script's own condition with an O(n)
+monotonic-deque sliding max. ⚠️ The script says **`>=`**, not `>` (line 297) —
+the scan uses the script's operator, not a paraphrase. **680 symbols** fire in the
+last 300 sessions.
+
+**AGEN won on being unambiguous, not on being biggest:** exactly **one** firing in
+300 sessions, **17.54×** margin, **6,684** bars so the 2,500 window is full, and a
+real event behind it (close 3.35 → 6.12, +83%). SOXS fires 25 times — a leveraged
+ETF setting records constantly is a weak discriminator; FER has a bigger margin
+but 11 firings and 177 bars ago.
+
+**Predicted → measured:**
+
+| | ours (before) | vendor (after) |
+|---|---|---|
+| record date | **2026-07-13** | **2026-07-13** ✅ |
+| record volume | 174,277,900 | 174,277,926 (rel **1.5e-7**) |
+| HVE Trigger on the day | expected 1 | **1** ✅ |
+
+⭐ **This is the first fixture in the project where `HVE Trigger` is not
+constant** — 0 on ordinary bars, 1 on the record day.
+
+### ⛔⛔ A REAL DIVERGENCE, RECORDED AND NOT ADJUSTED
+
+**1. Firing count — ours 8, vendor 23 over the whole series.** Cause is
+arithmetic, not a bug: the vendor's series starts **2010-07-14** (4,066 bars),
+ours **2000-02-08** (6,684). `ta.highest(volD[1], 2500)` over a window that is not
+yet full returns the max of what exists, so the vendor's running maximum is lower
+through ~2020 and the condition clears more often. **Both lanes compute the
+declared formula correctly on the history they hold.**
+
+⚠️ **The implication is worth more than the divergence:** an HVE firing is a
+statement about the **loaded window**, not about the symbol's life. On a chart
+that has not scrolled back far enough it over-reports. This capture forced 4,066
+bars — the study loaded **1,003** on add and **400** after a timeframe change,
+both under 2,500 — and a capture taken then would have carried exactly this error.
+
+**2. Volume values — ~1.8% on old bars, ~1e-6 on recent ones. Cause NOT
+established.** The vendor reports *fractional* volumes on older bars
+(`449522.45`), so some adjustment is applied; the factor is ~0.9814–0.9824 before
+2016 and ~1.0000 from 2024. ⛔ It is **not** a split ratio — a reverse split would
+be a large integer factor, and the price axis *does* show a price adjustment
+(~$56–140 in 2011-13 against a raw ~$3–5). Consolidated-vs-primary tape, or a
+provider difference, are both open. **Recorded as undetermined.**
+
+⭐ **The record day is unaffected** — 1.5e-7 — so the case this fixture exists for
+stands on both sides.
+
+### Tables, on a second symbol
+
+```
+ATR : $0.58 (8.37%)     len 19   no trailing space
+| Range: 55.11%         len 15   no
+| ATRx: 0.64            len 12   no
+Vol : 790.46K (0.16x)   len 22   TRAILING SPACE
+```
+
+⭐ The trailing space appears on the Volume cell here too — **confirmed on a
+second symbol**, so it is the script's convention and not an artifact of one read.
+
+**Teardown:** study removed, **0 indicators** asserted, editor closed, nothing
+saved.
+
 ## ⭐⭐ SESSION 2 · PART 3 (v2 half) — THE VENDOR FIXTURE, CAPTURED ON THE 0-INDICATOR RIG
 
 `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json`, AMEX:SPY 1D,
