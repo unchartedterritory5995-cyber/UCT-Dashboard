@@ -849,8 +849,16 @@ of the call site.
 
 ⭐ **What a Live mirror IS good for:** anything untimed — does it render, where is it, does it
 resolve the right target, does the label say the right thing. A deliberate press fired 10/10
-correctly in the same run. Reserve it for those, and route every timing question to a real finger
-or to a transport that owns the clock.
+correctly in the same run, and the *same* session settled a geometry question no local suite can
+answer (glass-acceptance G3-15) by reading `getBoundingClientRect` and `elementFromPoint` from
+real Safari. Reserve it for those, and route every timing question to a real finger or to a
+transport that owns the clock.
+
+⛔ **A LIVE SESSION DIES ON INACTIVITY — DO NOT START A LONG LOCAL JOB IN THE MIDDLE OF ONE.**
+Kicking off a six-shard gate (~15 min) mid-run cost the device session: *"Your remote session has
+been closed due to inactivity."* The device work and the local gate are **serialised**, not
+parallel. Finish the device, then gate — and if a gate must run first, expect to re-open the
+session and to need the owner's sign-in again.
 
 ⚠️ **A device-console `PointerEvent` probe is an ENGINE test, never a glass result.** It can prove
 a branch is reachable and that two clocks agree; it cannot say anything about the touch pipeline,

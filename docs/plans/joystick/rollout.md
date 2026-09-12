@@ -50,6 +50,22 @@ rather than drifting between what is deployed and what is configured somewhere e
 numbers land in `glass-acceptance.md` and the resume file; the stage advances when they do.
 There is nothing to ask about.
 
+### 2026-09-12 — stage 2's data was chased on a real device. It did not land, and there are now TWO reasons.
+
+`g0-1-live-device-run-2026-09-12.md` is the run. Stage 2 stays **⏸️ held**, and stage 3 with it.
+
+| stage-2 condition | state after the run |
+|---|---|
+| *"Owner reports G0 ≥ 8/10 on an iPhone 15 Pro-class device"* | ⬜ **not measured.** `INCONCLUSIVE-TRANSPORT` — a BrowserStack Live mirror cannot deliver a gesture inside the 120 ms window (measured floor 260–427 ms over ten gestures, and the shortest drag it accepts is *slower*). Not a score of 0; **no score at all.** |
+| *"the glass-acceptance rows pass on ≥1 notched iOS + ≥1 Android"* | ⛔ **now a SECOND blocker, and it is independent of G0.** `G3-15` was run and **FAILS** on iOS (a constant 40 × 28 px chip/Actions-button overlap on every mode). `G2-3`/`G2-4` are **BLOCKED** — Live's Screen Reader is unsupported on this device. No Android row has been run at all. |
+
+⭐ **The second row is the one to notice.** Before today it was reasonable to read stage 2 as
+"held behind one number". It is not: even a clean G0 score would leave a failing iOS glass row in
+front of it. G3-15's fix is a geometry change to a shipped control and therefore **the owner's
+ruling**, not a data point that arrives on its own — so *this* half of the gate does now want a
+decision, which is a change to the paragraph above and is why it is written here rather than
+edited into it.
+
 ---
 
 ## What does NOT change at any stage
