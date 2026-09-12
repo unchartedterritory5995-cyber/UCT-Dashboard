@@ -9,13 +9,15 @@ import styles from './ComingSoon.module.css'
 // Scans — linking "today's Morning Wire" would send people somewhere it isn't.
 const SUBSTACK_URL = 'https://unchartedterritoryy.substack.com'
 
-// Launch target: Sat Sep 19 2026, 9am ET (owner's date — pushed back 2 weeks
-// from the original Sep 5 target). Deliberately NOT labelled "opening bell"
-// anywhere — Sep 19 is a Saturday, so there is no session that morning;
-// members onboard over the weekend and the first live Morning Wire lands
-// Mon Sep 21.
+// Launch target: Fri Oct 16 2026, 9am ET (owner's date — pushed back from the
+// earlier Sep 19 target). Still deliberately NOT labelled "opening bell": the
+// doors open at 9am, half an hour BEFORE the 9:30 bell, so members are set up
+// in time for the session rather than arriving with it. Oct 16 is a trading
+// day whose Morning Wire has already gone out at 6:35am, so the first one
+// members receive is Mon Oct 19.
+// Still EDT on Oct 16 — DST does not end until Nov 1 — so the offset is -04:00.
 // Override without a code change via VITE_LAUNCH_DATE (ISO-8601 with offset).
-const FALLBACK_LAUNCH = '2026-09-19T09:00:00-04:00'
+const FALLBACK_LAUNCH = '2026-10-16T09:00:00-04:00'
 const LAUNCH_ISO = import.meta.env.VITE_LAUNCH_DATE || FALLBACK_LAUNCH
 
 function launchDate() {
@@ -23,7 +25,7 @@ function launchDate() {
   return Number.isNaN(d.getTime()) ? new Date(FALLBACK_LAUNCH) : d
 }
 
-// Short "SEP 5" label for the terminus annotation on the curve.
+// Short "OCT 16" label for the terminus annotation on the curve.
 function terminusLabel(d) {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', month: 'short', day: 'numeric',
@@ -226,7 +228,7 @@ function CurveMarks({ still, terminus, herePoint }) {
         <span className={styles.endLead} />
         <span className={styles.endLabel}>
           <span className={styles.endDate}>{terminus}</span>
-          {/* NOT "opening bell" — the launch date is a Saturday. */}
+          {/* NOT "opening bell" — the doors open at 9am, before the 9:30 bell. */}
           <span className={styles.endSub}>Doors open</span>
         </span>
       </div>
