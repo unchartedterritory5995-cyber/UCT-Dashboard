@@ -105,3 +105,49 @@ def test_this_branch_does_not_strand_a_change_flow_worker_runs(root):
         "deploy, so it would ship inert: %s. Touch a watched file in the same "
         "commit (the api/flow_worker_main.py header is the conventional trigger)."
         % sorted(bad))
+
+
+# ── S7 price-level: the reclassification trip-wire ────────────────────────
+
+def test_price_level_is_STILL_OUTSIDE_flow_workers_closure(root):
+    """⚰️ A PREDICTION THIS PROGRAM MADE TWICE AND MEASURED ONCE.
+
+    Marker bump #2 and the S7 ledger row both said, of Checkpoint 3:
+
+        "api/services/alerts.py (reachable) imports the taxonomy modules, so
+        wiring register() makes price_level.py reachable and unwatched."
+
+    ⛔ **It does not.** `alerts.py` imports `receipts` and `document_arrival` BY
+    NAME — not the package — and `register()` is wired in `api/main.py`, which is
+    the WEB entry and is not in flow-worker's closure at all. Measured with
+    `reachable_paths()` after the wiring landed: `price_level.py` reachable=False.
+    The premise was a generalisation from "document_arrival is reachable", never a
+    measurement, and it survived two artifacts because it sounded like one.
+
+    ⭐ So this test exists instead of a ledger sentence. The owner's ruling —
+    **from CP3 onward the module is BEHAVIOUR-CHANGING under the rail** — is
+    CONDITIONAL on reachability, and nobody should have to remember the condition.
+    The day anything in flow-worker's closure imports `price_level`, this goes RED
+    and says what to do.
+    """
+    reach = wc.reachable_paths(root)
+    watch = wc.watched_paths(root)
+    # NON-VACUITY: an empty or broken closure would pass every "not in" below.
+    assert "api/services/alert_taxonomy/document_arrival.py" in reach, (
+        "the closure does not contain a module known to be in it — this probe is "
+        "broken, not green")
+
+    newly = {p for p in (
+        "api/services/alert_taxonomy/price_level.py",
+        "api/services/alert_taxonomy/price_level_compare.py",
+        "api/services/alert_taxonomy/price_level_projection.py",
+    ) if p in reach}
+
+    assert not newly, (
+        "S7 price-level HAS ENTERED FLOW-WORKER'S CLOSURE: %s.\n"
+        "Per GATE-S7-PRICE-LEVEL's CP3 ruling the module is now "
+        "BEHAVIOUR-CHANGING under the rail, and from this commit on a change to "
+        "it needs a deploy window and a marker bump — do NOT classify it as "
+        "ADDITIVE by habit. Update the S7 ledger row, then rewrite this test to "
+        "assert the new state (%s of them are unwatched)."
+        % (sorted(newly), len(newly - watch)))

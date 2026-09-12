@@ -155,20 +155,83 @@ def test_checkpoint_1_registers_no_replay_fn():
         "honestly for a bound trendline until the geometry question is answered.")
 
 
-def test_the_registration_is_not_wired_yet():
-    """A registered type with no evaluator behind it lets a predicate be created
-    that nothing ever evaluates — an armed alert that silently never fires, which
-    is worse than no alert. `register()` exists; nothing calls it yet."""
+def test_the_registration_is_wired_ONCE_and_nowhere_else():
+    """⚰️ **THIS TEST USED TO ASSERT THE OPPOSITE**, and the sentence it carried
+    was true when it was written:
+
+        "A registered type with no evaluator behind it lets a predicate be
+        created that nothing ever evaluates — an armed alert that silently never
+        fires, which is worse than no alert. `register()` exists; nothing calls
+        it yet."
+
+    ⛔ That hazard is DISCHARGED, not waived. CP2 built the evaluator and CP3
+    wires `register()` under approval line 2 — so the condition the rule was
+    protecting (a type that can be armed and never evaluated) no longer holds,
+    and the assertion is rewritten rather than deleted. Deleting it would leave
+    the next reader with no record that the wiring is deliberate.
+
+    **What must stay true, and what this now asserts:**
+      1. an evaluator exists behind the registered type;
+      2. `register()` is called from EXACTLY ONE place, the boot path;
+      3. nothing schedules the evaluator — registration is not activation.
+
+    ⭐ Callers are DERIVED by AST from the import alias, never grepped: the old
+    version matched any file containing both "price_level" and "register", which
+    would now match `price_level_projection.py` for its prose.
+    """
+    assert callable(getattr(price_level, "evaluate", None)), (
+        "the type is registered with no evaluator behind it — that is the exact "
+        "hazard the CP1 form of this test existed to prevent")
+
     callers = []
-    for path in (_REPO / "api").rglob("*.py"):
+    for path in sorted((_REPO / "api").rglob("*.py")):
         if path == _MODULE:
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if "price_level" in text and "register" in text:
-            callers.append(str(path.relative_to(_REPO)))
-    assert callers == [], (
-        f"price_level.register() appears to be wired in {callers}. Checkpoint 1 "
-        "declares the type only; wiring lands with the evaluator, under its own approval.")
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        aliases = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for a in node.names:
+                    if a.name == "price_level" and "alert_taxonomy" in (node.module or ""):
+                        aliases.add(a.asname or a.name)
+            elif isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.name.endswith("alert_taxonomy.price_level"):
+                        aliases.add(a.asname or a.name)
+        if not aliases:
+            continue
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "register"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in aliases):
+                callers.append(str(path.relative_to(_REPO)).replace("\\", "/"))
+
+    assert callers == ["api/main.py"], (
+        f"price_level.register() is called from {callers}. CP3 approves ONE call "
+        "site, in the boot path; a second one is a second authority over whether "
+        "the type exists.")
+
+    main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
+    after = main.split("_at_price_level.register()")[1][:600]
+    assert "add_job" not in after, (
+        "a scheduler entry landed beside the registration. The DARK sweep has "
+        "its own flag-gated block further down; a second, ungated one here would "
+        "run the evaluator on every boot.")
+
+    # ⚰️ This assertion used to read "Registration is NOT activation — putting the
+    # evaluator on a tick is the flip, and the flip is its own approval line."
+    # ⛔ The second half was WRONG and it nearly cost the dark run. Putting the
+    # evaluator on a tick is exactly what approval line 2 authorised ("the
+    # comparison harness runs against the projected predicates"); the FLIP is
+    # delivery plus the legacy switch-off. Conflating the two left the module
+    # registered, tested, green and called by nothing.
+    assert 'id="alert_taxonomy_price_level_dark"' in main, (
+        "the dark comparison sweep is not wired to any tick — CP3's harness "
+        "would collect nothing, and an empty store reads like agreement")
 
 
 def test_the_type_id_is_the_spec_s_id():

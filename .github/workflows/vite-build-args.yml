@@ -1,0 +1,84 @@
+# Does every VITE_* the frontend reads actually reach the build?
+#
+# `Dockerfile.web` builds the web service (the build log says
+# `load build definition from Dockerfile.web`; the API's nominal `builder` field
+# and railway.json's `NIXPACKS` are both overridden by the dashboard's
+# dockerfilePath — read the log, not the config). A Docker stage inherits
+# nothing: Railway offers each service variable to the build as a BUILD ARG, and
+# an undeclared build arg is dropped silently.
+#
+# ⚰️ It shipped that way from af80e0b91 (2026-09-08 21:53 ET) to 2026-09-12.
+# Nine VITE_* were set on web, eight to the literal `1`, and all nine were
+# undefined in the JS members ran: the COMING SOON holding page never rendered,
+# the bars push feed never subscribed, and Options Flow fetched whole-day
+# aggregate plus the full tape instead of part=bootstrap + part=TOP_PICKS.
+#
+# ⭐ Nothing failed. Every one of those flags is read as `=== '1'`, which is
+# false when undefined — indistinguishable from "off on purpose" at every layer
+# a test or a health check can reach. The suite was green and /api/health was
+# 200 throughout. The only witness was the built artifact, so this is the
+# standing witness.
+#
+# Stdlib only, no install step, one script — so it stays fast and cannot cry
+# wolf. A workflow that cries wolf gets ignored, which would defeat the point.
+name: vite build args
+
+on:
+  push:
+    paths:
+      - 'Dockerfile.web'
+      - 'app/src/**'
+      - 'tests/test_dockerfile_vite_build_args.py'
+      - 'tests/test_vite_flag_ledger.py'
+      - 'tools/vite_flag_index.py'
+      - 'docs/feature_flags.json'
+  pull_request:
+    paths:
+      - 'Dockerfile.web'
+      - 'app/src/**'
+      - 'tests/test_dockerfile_vite_build_args.py'
+      - 'tests/test_vite_flag_ledger.py'
+      - 'tools/vite_flag_index.py'
+      - 'docs/feature_flags.json'
+
+jobs:
+  build-args:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: python -m pip install --quiet pytest
+
+      # ⛔ The rail's own non-vacuity control is the load-bearing assertion here:
+      # it fails if the frontend scan returns nothing, so a moved directory or a
+      # bad checkout can never pass this job by having nothing left to check.
+      # Two rails over ONE derived name set (tools/vite_flag_index.py): the
+      # Dockerfile must PASS every flag the frontend reads, and the ledger must
+      # DECLARE every one. They fail for different reasons and both matter --
+      # a flag that reaches the build but nobody decided is still undecided.
+      - name: Every VITE_* is a build ARG and has a ledger row
+        run: |
+          python -m pytest tests/test_dockerfile_vite_build_args.py                            tests/test_vite_flag_ledger.py -q
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::A VITE_* the frontend reads is not declared as a build ARG in Dockerfile.web — it would ship as undefined."
+          echo ""
+          echo "Railway hands each service variable to the build as a BUILD ARG. An"
+          echo "undeclared one is dropped WITHOUT AN ERROR, so the flag bakes in as"
+          echo "undefined and every `=== '1'` read turns into a disabled feature —"
+          echo "with a green suite and a 200 on /api/health."
+          echo ""
+          echo "  1. Add `ARG VITE_YOUR_FLAG` to Dockerfile.web's frontend stage,"
+          echo "     and the matching `VITE_YOUR_FLAG=\$VITE_YOUR_FLAG` to its ENV block."
+          echo "  2. Set the variable on the Railway web service if it needs a value."
+          echo "  3. Run it locally: python -m pytest tests/test_dockerfile_vite_build_args.py -q"
+          echo ""
+          echo "Do NOT satisfy this by deleting the frontend's read of the flag unless"
+          echo "removing the feature is the actual intent."

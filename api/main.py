@@ -3108,9 +3108,28 @@ async def lifespan(app: FastAPI):
     try:
         from api.services.alert_taxonomy import db as _at_db
         from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
+        from api.services.alert_taxonomy import price_level as _at_price_level
         _at_db.init_db()
         _at_doc_arrival.register()
-        logging.getLogger(__name__).info("alert_taxonomy: document-arrival trigger type registered")
+        # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
+        # Registration here; the DARK comparison sweep is wired further down
+        # under ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED.
+        #
+        # ⚰️ This comment read "Registration ONLY -- no scheduler entry" for
+        # exactly one commit. That was CP1/CP2's invariant, carried forward BY
+        # HABIT into a checkpoint whose own approval says the harness "runs
+        # against the projected predicates" -- so the module was registered,
+        # tested, green, and called by nothing. The CP3 ruling warned about
+        # classifying by habit; this is the same error pointing the other way.
+        #
+        # ⛔ What is still true, and is the half that matters: NO DELIVERY.
+        # `price_level` writes alert_fires + receipts and stops, the projection
+        # it reads is gated to admin-role accounts, and nothing here puts a
+        # price-level alert in front of a member. The FLIP is a separate
+        # approval line.
+        _at_price_level.register()
+        logging.getLogger(__name__).info(
+            "alert_taxonomy: document-arrival + price-level (DARK) trigger types registered")
     except Exception as e:
         logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
 
@@ -6607,6 +6626,50 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 document-arrival alerts PAUSED "
                   "(set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)")
+
+        # GATE-S7-PRICE-LEVEL CP3 -- the DARK forward-only comparison sweep.
+        # Owner approval line 2 (2026-09-12): the harness runs against the
+        # projected predicates, ADMIN-ROLE COHORT ONLY, five full trading
+        # sessions of forward data before a verdict is shown.
+        #
+        # ⛔ DEFAULT OFF, and the direction is deliberate. This reads REAL member
+        # rows, so an unset variable must mean NOTHING RUNS -- the same contract
+        # as DESK_TSDR_ANNOUNCE_SHOWS, where the failure direction is silence
+        # rather than exposure. Arming it is an explicit act by the owner, who is
+        # the second party to this gate.
+        #
+        # ⛔ IT DELIVERS NOTHING. It writes alert_fires + receipts and the
+        # comparison spans. No delivery import exists in any of the three modules
+        # it touches, and a rail asserts that from the SOURCE rather than from
+        # this comment.
+        if os.environ.get("ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED", "0") == "1":
+            def _price_level_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.price_level_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    # ⭐ no_price is printed EVERY tick, not only when it is
+                    # non-empty: a sweep that silently saw no price for half the
+                    # cohort would record agreement about ticks that never
+                    # happened, and read exactly like a quiet market.
+                    print(f"[alert_taxonomy] price-level DARK sweep: "
+                          f"projected={r['projected']} priced={r['priced']} "
+                          f"no_price={r['no_price']} outcomes={r['outcomes']} "
+                          f"anchor_moves={r['anchor_moves']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] price-level DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _price_level_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_price_level_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 price-level DARK comparison ENABLED (every minute, "
+                  "weekdays 09:00-16:59 ET, admin cohort, no delivery)")
+        else:
+            print("[startup] S7 price-level DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 to start the dark run)")
 
         def _compass_daily_focus_run():
             try:

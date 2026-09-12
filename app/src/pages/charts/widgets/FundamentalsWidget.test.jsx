@@ -146,3 +146,43 @@ test('the icon-only settings gear button has an accessible name', () => {
   render(<Wrap />)
   expect(screen.getByRole('button', { name: 'Fundamentals settings' })).toBeInTheDocument()
 })
+
+// ── stale reported strip ──────────────────────────────────────────────────────
+// The widget used to present an old quarter as the latest with nothing said.
+// Measured on prod 2026-09-11: MMC's newest reported quarter was 2025 Q4 because
+// FMP's earnings feed stops at 2026-01-29 and neither fallback covers it — the
+// member saw a table that looked current. ~2.3% of the universe is in this state,
+// S&P 500 names included. Assert RENDERED TEXT: a notice nobody can read is the
+// same defect as no notice at all.
+const STALE_DATA = {
+  ticker: 'MMC',
+  annual: [{ year: 2025, eps: 8.1, sales: 2.4e10, estimate: false }],
+  quarterly: [
+    { label: '2025 Q4', eps_actual: 1.87, rev_actual: 6.6e9, reported: true },
+    { label: '2026 Q2', report_date: '2026-10-15', eps_estimate: 1.97, reported: false },
+  ],
+  reported_through: '2025 Q4',
+  stale_quarters: 2,
+}
+
+test('a stale reported strip says so, and names the last quarter it actually has', () => {
+  mockData.mockReturnValue(STALE_DATA)
+  render(<Wrap sym="MMC" initialOpts={{ view: 'quarterly' }} />)
+  const notice = screen.getByTestId('fundamentals-stale-notice')
+  expect(notice).toBeTruthy()
+  expect(notice.textContent).toMatch(/2025 Q4/)
+})
+
+test('a current strip shows no staleness notice', () => {
+  mockData.mockReturnValue({ ...FULL_DATA, reported_through: '2026 Q2', stale_quarters: 0 })
+  render(<Wrap sym="AAPL" initialOpts={{ view: 'quarterly' }} />)
+  expect(screen.queryByTestId('fundamentals-stale-notice')).toBeNull()
+})
+
+test('an older payload without the staleness fields shows no notice', () => {
+  // A snapshot persisted before this shipped has neither key; it must render
+  // exactly as before rather than defaulting to an alarming notice.
+  mockData.mockReturnValue(FULL_DATA)
+  render(<Wrap sym="AAPL" initialOpts={{ view: 'quarterly' }} />)
+  expect(screen.queryByTestId('fundamentals-stale-notice')).toBeNull()
+})

@@ -95,11 +95,28 @@ Stated plainly so nobody reads this file as a description of shipped behaviour:
   run.
 - ✅ The label, the fresh context per run, the visible-tab assertion, the streaming
   response capture and the pinned ≥1025 px viewport — all implemented.
-- ⛔ **Path B (in-app navigation) is NOT implemented yet.** It needs a run mode that
-  lands on another route, waits for the app to settle, then CLICKS the Options Flow nav
-  entry and measures from the click. **This is required before the Monday RTH session
-  can report a complete result**, and a session that cannot run it must say so rather
-  than report path A alone as "the" number.
+- ✅ **Path B (in-app navigation) — implemented 2026-09-12.** `--path b` (or the
+  default `both`) lands on `--start-route` (default `/dashboard`), waits for the intro
+  to finish on THAT load, asserts the nav link exists, then CLICKS it and measures from
+  the click. It reports **two** signals, not one:
+
+  | signal | selector | what it means |
+  |---|---|---|
+  | `shell_ms` | `.of-mroot` | the page's root rendered |
+  | `picks_ms` | `.of-picks` | the TOP 10 FLOW PICKS table rendered — the PRODUCT of `part=TOP_PICKS` |
+
+  ⛔ **A body-text threshold cannot work on path B** — the page you navigate FROM
+  already exceeds any threshold, so "lots of text" is true before the click. Path B
+  keys on Options Flow's own DOM instead.
+
+  ⛔ **`url_changed` is reported SEPARATELY**, and a run with `url_changed=True` and no
+  `shell_ms` prints an explicit warning. A URL that moves while the screen does not is
+  the 2026-09-10 navigation-freeze signature; collapsing the two into one "it loaded"
+  would make that indistinguishable from a slow render.
+
+  ⚠️ **Instrument overhead is stated, not hidden:** `t0` is taken inside the injected
+  script and the click is a separate round trip a few milliseconds later. That overhead
+  is charged to the page, which is the conservative direction.
 
 ⛔ **CLICK, never `goto`, for path B.** A full page load rebuilds the world and replays
 the intro — that is path A wearing path B's label, and it is the same mistake that hid
@@ -119,3 +136,124 @@ Three outcomes, three different facts — do not collapse them:
 | a completed run with its label | a measurement of what it says it measured |
 | `INCONCLUSIVE` (no credentials, login non-200) | **not a pass** — nothing was measured |
 | parts expected and `parts_served` empty | a **FAILURE**, regardless of the timing |
+
+---
+
+## Path B dry run — 2026-09-12, quiet tape
+
+> ### ⚠️ QUIET TAPE — NOT A MEASUREMENT
+> The parts were already warm and the version never rolled. These numbers are a best
+> case no member hits during RTH. **The rig is being proven here, not the page.**
+
+Member account, `--path b --runs 3`, started on `/dashboard`:
+
+| run | `shell_ms` | `picks_ms` | flow req | wire | parts |
+|---|---|---|---|---|---|
+| 1 | — | — | — | — | **ERROR: login http 502** |
+| 2 | 614 | 15,863 | 8 | 3,536,844 B | `bootstrap`, `TOP_PICKS` |
+| 3 | 462 | **never** | 7 | 2,119,080 B | `bootstrap`, `TOP_PICKS` + 4 deferred |
+
+`url_changed=True` on both successful runs; the shell rendered both times.
+
+**shell median 538 ms**, against path A's 9,890 ms — which is the whole reason the two
+paths are reported separately. Path A's number is ~9.3 s of intro animation plus the
+page; path B is the page.
+
+### 🔴 What the dry run found, and it is a product question, not an instrument one
+
+**`.of-picks` is not reliably reached on in-app navigation.** One run took 15.9 s; the
+next never rendered it inside the 6 s settle window and finished with a body of 2,709
+chars against run 2's 3,852. The parts arrive either way — `part=bootstrap` and
+`part=TOP_PICKS` are served on every run — so this is not the transport. It is the
+TOP 10 table not consistently rendering from parts that the browser already has.
+
+⭐ **A timing-only rig would have reported run 3 as a 462 ms success.** The shell was
+up, the URL had moved, the parts had landed. Reporting the PRODUCT separately from the
+SHELL is what makes the failure visible, and it is why `picks_ms` exists.
+
+⚠️ **Run 2 also shows a duplicate-request storm**: `part=TOP_PICKS` ×3 and
+`part=bootstrap` ×3 in one navigation, plus a `data?days=1`, for 3.5 MB — against run
+3's clean 7 requests. Recorded, not chased.
+
+⚠️ **`login http 502` appeared on 1 of 3 runs here and 3 of 3 on an immediate re-run.**
+It was **not** the product: another workstream pushed five times in six minutes
+(13:54 → 14:08 ET) and every master push rebuilds web, so the rig was logging in
+through a deploy swap. `/api/health` was 502 in the same window and 200 with a 46 s
+uptime afterwards. **A rig run that overlaps someone else's deploy is INCONCLUSIVE,
+never a product failure** — check `railway deployment list --service web` before
+believing a transport error.
+
+---
+
+## ⛔⛔ HARD RULE — a run overlapping any master push is INCONCLUSIVE
+
+> **Every master push rebuilds web. A run that straddles the swap measured two
+> different pods, and it is DISCARDED, never averaged.**
+
+Owner ruling, 2026-09-12. Enforced in the rig, not left to the operator:
+
+- `_uptime()` reads `/api/health`'s `uptime_seconds` **before and after every run**,
+  on both paths.
+- `_swap_verdict(before, after, elapsed)` returns swapped when uptime went
+  **backward**, when the pod is **younger than the run** (uptime can still move
+  forward across a swap if the run is long enough — this is the subtle case), or when
+  the uptime was **unreadable at all**.
+- A swapped run prints `!! INCONCLUSIVE` and is filtered out of every median. The
+  summary **says how many were dropped** — a silent discard is as misleading as
+  averaging them in, because nobody can tell `n` fell.
+- ⛔ **An ERROR row carries the verdict too.** The error paths used to return before
+  the second uptime read, so `login http 502` — the exact symptom a swap produces —
+  came back with no verdict at all. That was the one case the rule exists for.
+
+⭐ **FAIL CLOSED on "could not tell".** During a swap `/api/health` itself 502s, so an
+unreadable uptime IS the swap case wearing a blank face. Treating `None` as fine is
+the shape `lesson_a_saturated_instrument_reports_zero` names.
+
+Rail: `tests/test_flow_rig_swap_guard.py` — five cases including a clean-run control,
+plus a source check that `main()` still filters and still counts the discards.
+Mutation-proved by inverting the backward-uptime comparison.
+
+⚰️ **Why it is a hard rule and not advice.** On 2026-09-12 the rig reported
+`login http 502` on three consecutive runs and it read exactly like a broken product.
+It was another workstream pushing five times in six minutes. Later the same afternoon
+it happened again on the rig's own verification run, and the deploy in flight was
+*this session's own commit*. Both times the honest answer was "nothing was measured".
+
+---
+
+## Path B, four runs total — the picks result is BIMODAL, and it correlates
+
+> ### ⚠️ QUIET TAPE — NOT A MEASUREMENT. Version frozen at 39819849 throughout.
+
+All four runs verified **not swapped** (uptime monotonic across each), so none of this
+is deploy churn:
+
+| run | `shell_ms` | `picks_ms` | flow req | wire | shape |
+|---|---|---|---|---|---|
+| A | 462 | **never** | 7 | 2,119,080 B | clean |
+| B | 446 | 1,329 | 7 | 2,119,080 B | clean |
+| C | 614 | 15,863 | 8 | 3,536,844 B | storm |
+| D | 719 | 30,547 | 6 | 3,367,123 B | storm |
+
+**`shell_ms` is tight: 446–719 ms.** `picks_ms` spans 1,329 ms → 30,547 ms → never, on
+an identical quiet tape. That is not a slow page; it is two different behaviours.
+
+### ⭐ The correlation that turns two Monday questions into one
+
+The **clean** runs issue 7 flow requests for 2,119,080 B — two un-versioned first-paint
+parts, then the four versioned deferred parts. The **storm** runs issue 6–8 requests
+for ~3.4 MB and spend them **re-requesting `bootstrap` and `TOP_PICKS`** rather than
+proceeding to the deferred remainder. Fast picks appear only on the clean shape.
+
+So the duplicate-request storm and the slow/absent picks table look like **one defect,
+not two**: something re-fires the first-paint fetch instead of advancing, and the table
+waits on a product that keeps being re-requested. That reframes Monday's observation:
+
+⛔ **Count MOUNTS, not requests.** A remount would produce exactly this — repeated
+first-paint parts, no progression to the deferred set, and a table whose gate never
+settles. A render gate below the shell would NOT re-issue the network calls, so the
+request pattern is the discriminator between the two hypotheses.
+
+⚠️ Run A is still the worst case and the most informative: clean shape, 7 requests,
+parts served — and the table never rendered inside the settle window. Whatever the
+storm is, it is not the only way to lose the picks table.
