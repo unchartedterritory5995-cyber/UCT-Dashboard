@@ -15,16 +15,29 @@
  * intercepted: this remembers the last state it reported and fires when the key
  * has become `'1'` and the last reported state was not `'1'`.
  *
- *   unset → '1'   fires        (the opt-in)
- *   '0'   → '1'   fires        (a genuine re-opt-in, and worth counting)
- *   '1'   → '1'   silent       (a reload, or any later mount)
- *   '1'   → '0'   silent       (records the opt-out, so a later '1' counts)
- *   unset → unset silent       (production's state: it can never fire here)
+ * ⛔⛔ REWRITTEN AT THE FLIP (2026-09-12). It used to fire on the KEY becoming
+ * `'1'`. After the flip the key is UNSET for every member and the layer is ON,
+ * so that condition would have been false for the entire population — a
+ * denominator of zero over a numerator of everyone, which is worse than no
+ * denominator because it reads as a healthy zero. It now fires on the LAYER
+ * BEING ACTIVE, which is the thing the count is a count OF.
+ *
+ *   active, not yet counted   fires        (unset-and-default-on, or an explicit '1')
+ *   active, already counted   silent       (a reload, or any later mount)
+ *   '0'                       silent       (records the opt-out, so a later on counts)
+ *   '0' → active              fires        (a genuine re-opt-in, and worth counting)
+ *
+ * ⛔ THE MARKER RECORDS THE RESOLVED STATE, NOT THE KEY. It used to mirror the
+ * key and REMOVE itself when the key was unset — which, once unset means ON,
+ * would clear the dedupe on every load and fire once per page view instead of
+ * once per browser. The payload still carries `key` and `byDefault`, so
+ * "on by default" and "explicitly on" remain distinguishable
+ * (`project_feature_flag_ledger`).
  *
  * ⛔ NO MEMBER CONTENT. A per-session id, the flag state, a timestamp. The
  * session id is a random per-tab value from `useDurableNote`, not member data.
  */
-import { OFFLINE_FLAG_KEY } from './offlineFlag'
+import { offlineEnabled } from './offlineFlag'
 import { flagState, postJ2Telemetry } from './telemetry'
 import { SESSION_ID } from './useDurableNote'
 
@@ -46,9 +59,11 @@ const read = (storage, key) => {
  * rather than one here and another at the call site.
  */
 export function shouldReportOptIn(storage = globalThis.localStorage) {
-  const key = read(storage, OFFLINE_FLAG_KEY)
-  const lastReported = read(storage, OPT_IN_REPORTED_KEY)
-  return key === '1' && lastReported !== '1'
+  // ⛔ ACTIVE, not `key === '1'`. `offlineEnabled()` is the same reader the
+  // editor and the drain gate on, so the denominator counts exactly the
+  // browsers that ran the layer — never a different population from the one
+  // the numerator is drawn from.
+  return offlineEnabled(storage) && read(storage, OPT_IN_REPORTED_KEY) !== '1'
 }
 
 export function optInProps({ sessionId = SESSION_ID, now = () => new Date().toISOString(), storage } = {}) {
@@ -69,17 +84,17 @@ export function optInProps({ sessionId = SESSION_ID, now = () => new Date().toIS
 export async function reportOptIn({ storage, post = postJ2Telemetry, sessionId, now, fetchImpl } = {}) {
   const store = storage || globalThis.localStorage
   const fire = shouldReportOptIn(store)
-  const key = read(store, OFFLINE_FLAG_KEY)
+  const active = offlineEnabled(store)
   let props = null
   if (fire) {
     props = optInProps({ sessionId, now, storage: store })
     await post(OPT_IN_EVENT, props, { fetchImpl })
   }
   try {
-    // `null` cannot be stored, and it must not read back as the string "null" —
-    // remove the marker instead, so unset stays unset.
-    if (key === null) store?.removeItem(OPT_IN_REPORTED_KEY)
-    else store?.setItem(OPT_IN_REPORTED_KEY, key)
+    // ⛔ THE RESOLVED STATE, ALWAYS WRITTEN. Mirroring the key meant REMOVING
+    // this marker whenever the key was unset — harmless while unset meant OFF,
+    // and a once-per-page-view event the moment unset meant ON.
+    store?.setItem(OPT_IN_REPORTED_KEY, active ? '1' : '0')
   } catch { /* private mode: the next mount simply re-decides */ }
   return props
 }

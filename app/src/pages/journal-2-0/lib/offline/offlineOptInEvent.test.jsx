@@ -62,17 +62,63 @@ describe('⭐ the transition, and only the transition', () => {
     expect(post).toHaveBeenCalledTimes(1)
   })
 
-  it('⛔⛔ PRODUCTION\'S STATE — flag off, key unset — NEVER reports', async () => {
-    // `OFFLINE_DEFAULT_ON` is false and the key is unset for every member. If
-    // this ever fired here, the denominator would count browsers that never ran
-    // the offline layer and the whole gate condition would be a fiction.
-    const s = store({})
-    const post = vi.fn(async () => {})
-    expect(shouldReportOptIn(s)).toBe(false)
-    expect(await reportOptIn({ storage: s, post })).toBeNull()
-    expect(post).not.toHaveBeenCalled()
-    // …and it left the key unset rather than writing the string "null".
-    expect(s.getItem(OPT_IN_REPORTED_KEY)).toBeNull()
+  // REWRITTEN AT THE FLIP. This asserted that production's state - key unset -
+  // NEVER reports, and it was right while unset meant OFF. After the flip unset
+  // means ON, so "never reports" would put the denominator at zero for the
+  // entire member population: a healthy-looking zero over everyone.
+  describe('THE DENOMINATOR COUNTS THE ACTIVE LAYER, NOT THE LITERAL KEY', () => {
+    it('unset key + default ON => reports ONCE, and the payload says it was the default', async () => {
+      const s = store({})
+      const post = vi.fn(async () => {})
+      expect(shouldReportOptIn(s)).toBe(true)
+      const props = await reportOptIn({ storage: s, post })
+      expect(post).toHaveBeenCalledTimes(1)
+      expect(props.flag).toMatchObject({ key: null, byDefault: true, enabled: true })
+      expect(s.getItem(OPT_IN_REPORTED_KEY)).toBe('1')
+    })
+
+    it('a SECOND and THIRD load of the same browser do not re-report', async () => {
+      // THE REGRESSION THIS PINS. The marker used to mirror the KEY and remove
+      // itself when the key was unset - which, once unset means ON, clears the
+      // dedupe every load and turns a once-per-BROWSER count into a
+      // once-per-PAGE-VIEW count. The denominator would inflate without bound.
+      const s = store({})
+      const post = vi.fn(async () => {})
+      await reportOptIn({ storage: s, post })
+      await reportOptIn({ storage: s, post })
+      await reportOptIn({ storage: s, post })
+      expect(post).toHaveBeenCalledTimes(1)
+    })
+
+    it("an EXPLICIT key of 0 never reports, however many loads", async () => {
+      const s = store({ [OFFLINE_FLAG_KEY]: '0' })
+      const post = vi.fn(async () => {})
+      expect(shouldReportOptIn(s)).toBe(false)
+      expect(await reportOptIn({ storage: s, post })).toBeNull()
+      expect(await reportOptIn({ storage: s, post })).toBeNull()
+      expect(post).not.toHaveBeenCalled()
+      expect(s.getItem(OPT_IN_REPORTED_KEY)).toBe('0')
+    })
+
+    it("an EXPLICIT key of 1 reports once, and says it was NOT the default", async () => {
+      const s = store({ [OFFLINE_FLAG_KEY]: '1' })
+      const post = vi.fn(async () => {})
+      const props = await reportOptIn({ storage: s, post })
+      expect(props.flag).toMatchObject({ key: '1', byDefault: false, enabled: true })
+      await reportOptIn({ storage: s, post })
+      expect(post).toHaveBeenCalledTimes(1)
+    })
+
+    it('CONTROL - off and back on counts AGAIN, so a real re-opt-in is not swallowed', async () => {
+      const s = store({})
+      const post = vi.fn(async () => {})
+      await reportOptIn({ storage: s, post })
+      s.setItem(OFFLINE_FLAG_KEY, '0')
+      await reportOptIn({ storage: s, post })
+      s.removeItem(OFFLINE_FLAG_KEY)
+      await reportOptIn({ storage: s, post })
+      expect(post).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('⛔ an explicit opt-OUT ("0") never reports', async () => {
@@ -201,8 +247,11 @@ describe('⭐⭐ THE WIRE — the Notebook actually reports it', () => {
     expect(posted.filter((p) => p.event === OPT_IN_EVENT)).toHaveLength(1)
   })
 
-  it('⛔⛔ a DEFAULT browser (key unset, flag off) reports nothing', async () => {
+  it('a DEFAULT browser (key unset) now reports EXACTLY ONCE - it IS the denominator', async () => {
+    // Was "reports nothing", correct while unset meant OFF. The flip makes the
+    // default browser THE population, so it is the one that must be counted; a
+    // wire test asserting silence here would have hidden that.
     await mountTab()
-    expect(posted.filter((p) => p.event === OPT_IN_EVENT)).toHaveLength(0)
+    expect(posted.filter((p) => p.event === OPT_IN_EVENT)).toHaveLength(1)
   })
 })

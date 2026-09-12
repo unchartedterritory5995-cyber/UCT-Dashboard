@@ -95,9 +95,22 @@ _J2_TELEMETRY_EVENTS = {
     "notebook_blocked_no_baseline",
     # Wave Q1 — THE DENOMINATOR for the line above. "Zero blocked-baseline
     # events" is not evidence unless something says how many browsers ran the
-    # offline layer at all, and with OFFLINE_DEFAULT_ON false that population
-    # may be nobody. Fires once per browser on the transition into an opted-in
-    # state (localStorage 'uct.j2.offline.enabled' becoming '1').
+    # offline layer at all.
+    #
+    # ⛔⛔ REDEFINED AT THE FLIP (2026-09-12), and the old definition would have
+    # broken here. It fired on the KEY becoming '1'. After the flip the key is
+    # UNSET for every member and the layer is ON — so the old condition was
+    # false for the entire population, and this count would have sat at zero
+    # while the numerator was drawn from everybody. A zero denominator does not
+    # read as broken; it reads as healthy, which is worse.
+    #
+    # It now fires once per browser when the LAYER IS ACTIVE (offlineEnabled()
+    # true — the same reader the editor and the drain gate on), so the
+    # denominator counts exactly the population the numerator comes from. The
+    # payload still carries `key` and `byDefault`, so "on by default" stays
+    # distinguishable from "explicitly on" (project_feature_flag_ledger).
+    # Deduped by a stored RESOLVED state, so it is once per browser, not once
+    # per page view.
     #
     # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
     "notebook_offline_opt_in",
