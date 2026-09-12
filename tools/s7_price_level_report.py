@@ -102,7 +102,7 @@ def build(db_path: str) -> dict:
 
 def render(rep: dict, db_path: str) -> str:
     out = [
-        "GATE-S7-PRICE-LEVEL — dark comparison, forward-only",
+        "GATE-S7-PRICE-LEVEL - dark comparison, forward-only",
         "store: %s" % db_path,
         "",
         "NON-VACUITY CONTROL",
@@ -113,7 +113,7 @@ def render(rep: dict, db_path: str) -> str:
 
     if rep["predicates"] == 0:
         out += ["", "NO DATA. The store holds no comparison spans at all.",
-                "This is NOT 'they agree' — nothing was ever compared. Check that",
+                "This is NOT 'they agree' - nothing was ever compared. Check that",
                 "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 on the web service and",
                 "that the sweep is printing '[alert_taxonomy] price-level DARK sweep'."]
         return "\n".join(out)
@@ -139,34 +139,112 @@ def render(rep: dict, db_path: str) -> str:
                       d["not_comparable"], n,
                       "ready" if ready else "NOT READY (%d/%d)" % (n, MIN_SESSIONS)))
         if d["anchor_version"]:
-            out.append("      ↳ anchors rewritten %d× — the pre-move spans are in "
+            out.append("      -> anchors rewritten %dx - the pre-move spans are in "
                        "not-comparable BY DESIGN, never counted as agreement"
                        % d["anchor_version"])
         if d["level_kind"] == "trendline":
-            out.append("      ↳ TRENDLINE: its level moves between ticks by "
+            out.append("      -> TRENDLINE: its level moves between ticks by "
                        "construction, so its disagreements are not the same fact "
                        "as a fixed level's")
 
     out += ["", "VERDICT GATE", "  five full trading sessions of forward data, per predicate."]
-    out.append("  status: %s" % ("READY — every predicate has five sessions"
+    out.append("  status: %s" % ("READY - every predicate has five sessions"
                                  if ready_all else
-                                 "NOT READY — do not read a flip decision out of this yet"))
+                                 "NOT READY - do not read a flip decision out of this yet"))
 
     out += ["",
-            "⚠️ KNOWN BLIND SPOT, and it points the flattering way.",
+            "!! KNOWN BLIND SPOT, and it points the flattering way.",
             "  The legacy path is ONE-SHOT (_trigger_alert sets is_active = 0) and the",
             "  projection reads only active rows, so once legacy fires, that row leaves",
             "  the comparison. This report sees the FIRST divergence per predicate and",
             "  CANNOT see a second crossing. A new-only of 0 is therefore not evidence",
-            "  that persistent-vs-one-shot is harmless — it is a thing we cannot observe."]
+            "  that persistent-vs-one-shot is harmless - it is a thing we cannot observe."]
     return "\n".join(out)
 
 
+def ticking(db_path: str) -> tuple[str, int]:
+    """The Monday-morning question, answered in one line: IS IT TICKING AND
+    WRITING ROWS?
+
+    ⛔ TWO FACTS, NOT ONE, because they fail separately and the fix differs:
+      * TICKING  — the heartbeat's wall-clock age. A sweep that died at 09:01
+        leaves a store that looks, at 15:00, exactly like one that never
+        stopped, so age is the only thing that can tell them apart.
+      * WRITING  — spans and recorded outcomes. A sweep can tick perfectly and
+        write nothing (no admin alert, or no price reaching it), and that is a
+        different problem with a different cause.
+
+    ⛔ NEITHER IS INFERRED FROM THE OTHER, and "no rows yet" is never reported
+    as a fault: on Monday at 09:05 the honest answer is usually
+    "ticking, 0 outcome rows" — nobody's line has been crossed yet.
+    """
+    import time as _t
+    beat = None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            r = conn.execute("SELECT * FROM price_level_sweep_heartbeat "
+                             "WHERE id = 1").fetchone()
+            beat = dict(r) if r else None
+        finally:
+            conn.close()
+    except sqlite3.OperationalError:
+        beat = None          # table absent = the sweep has never run once
+
+    try:
+        rep = build(db_path)
+    except sqlite3.OperationalError:
+        rep = {"predicates": 0, "spans": 0, "observed": 0}
+
+    if beat is None:
+        return ("TICKING: NO  -- no heartbeat row at all. The sweep has never run "
+                "in this store.\n"
+                "  Check ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 and the boot line "
+                "'S7 price-level DARK comparison ENABLED'.", 1)
+
+    age = _t.time() - float(beat["last_tick"])
+    # The sweep runs every minute inside the window; 3 minutes is two missed
+    # ticks, which is a stall rather than a slow one.
+    alive = age < 180
+    verdict = "YES" if alive else "NO "
+    lines = [
+        "TICKING: %s -- last tick %.0fs ago, %d ticks total"
+        % (verdict, age, int(beat["ticks"])),
+        "  WRITING: %d spans, %d recorded outcomes, %d predicates projected"
+        % (rep["spans"], rep["observed"], int(beat["projected"])),
+        "  priced %d, no_price %s" % (int(beat["priced"]), beat["no_price"]),
+    ]
+    if alive and rep["observed"] == 0:
+        lines.append("  (0 outcome rows is NORMAL early -- it means nobody's line has "
+                     "been crossed yet, not that the sweep is broken)")
+    if not alive:
+        lines.append("  STALLED. The sweep wrote once and stopped, which looks "
+                     "identical to a healthy store without this age. Check the web "
+                     "logs for 'price-level DARK sweep failed'.")
+    if int(beat["projected"]) == 0:
+        lines.append("  ! projected=0 -- no ACTIVE watchlist_alerts row belongs to an "
+                     "admin account, so there is nothing to compare. Arm one.")
+    return ("\n".join(lines), 0 if alive else 1)
+
+
 def main() -> int:
+    # ⛔ A console that cannot encode one character must not kill the report.
+    # `tools/flag_ledger_audit.py` reported "could not enumerate the project's
+    # services" for two days because cp1252 killed a reader thread on the first
+    # box-drawing byte -- which reads as an auth problem, not an encoding one.
+    # The rendered output above is ASCII by construction; this is the backstop
+    # for anything that reaches stdout another way.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--db", help="path to alert_taxonomy.db (default: $ALERT_TAXONOMY_DB_PATH "
                                  "or $DATA_DIR/alert_taxonomy.db or /data/alert_taxonomy.db)")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--ticking", action="store_true",
+                    help="one-line liveness answer: is the sweep ticking and writing rows?")
     ap.add_argument("--self-check", action="store_true",
                     help="prove this report can distinguish 'no data' from 'agreement'")
     args = ap.parse_args()
@@ -176,9 +254,13 @@ def main() -> int:
 
     db = _store_path(args.db)
     if not os.path.exists(db):
-        print("NO STORE AT %s — the dark run has not written anything here.\n"
+        print("NO STORE AT %s - the dark run has not written anything here.\n"
               "This is NOT agreement. Check the path and the sweep flag." % db)
         return 2
+    if args.ticking:
+        text, code = ticking(db)
+        print(text)
+        return code
     rep = build(db)
     if args.json:
         rep["per"] = {k: {**v, "sessions": sorted(v["sessions"])}
@@ -231,7 +313,7 @@ def _self_check() -> int:
         if "NO DATA" in text:
             print("SELF-CHECK FAIL: a populated store reported NO DATA"); ok = False
 
-    print("self-check: %s" % ("PASS — the report distinguishes no-data from agreement"
+    print("self-check: %s" % ("PASS - the report distinguishes no-data from agreement"
                               if ok else "FAIL"))
     return 0 if ok else 1
 

@@ -584,3 +584,167 @@ def test_the_sweep_is_a_no_op_with_an_empty_cohort(dbp):
     _user("member") and _alert(_user("member"), sym="X")
     out = _proj.run_dark_sweep(now=T0, db_path=dbp)
     assert out["projected"] == 0 and out["no_price"] == []
+
+
+# --- THE HEARTBEAT, AND THE MONDAY QUESTION ---------------------------------
+
+def test_the_sweep_beats_on_every_tick_including_the_empty_ones(monkeypatch, dbp):
+    """⛔ A HEARTBEAT THAT ONLY BEATS ON SUCCESS IS A SUCCESS DETECTOR.
+
+    The tick that found no admin alert and the tick that could not price one are
+    exactly the ticks whose silence would be misread as a dead sweep, so both
+    must stamp.
+    """
+    import sqlite3
+
+    def beat():
+        c = sqlite3.connect(dbp); c.row_factory = sqlite3.Row
+        try:
+            r = c.execute("SELECT * FROM price_level_sweep_heartbeat "
+                          "WHERE id=1").fetchone()
+            return dict(r) if r else None
+        finally:
+            c.close()
+
+    # 1. no cohort at all
+    _proj.run_dark_sweep(now=T0, db_path=dbp)
+    b = beat()
+    assert b is not None and b["ticks"] == 1, "the empty-cohort tick must still beat"
+    assert b["projected"] == 0
+
+    # 2. a cohort that cannot be priced
+    uid = _user("admin")
+    _alert(uid, sym="BEAT", target=100.0)
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({}, list(syms)))
+    _proj.run_dark_sweep(now=T0 + 60, db_path=dbp)
+    b = beat()
+    assert b["ticks"] == 2, "the unpriced tick must still beat"
+    assert b["projected"] == 1 and b["priced"] == 0
+    assert "BEAT" in b["no_price"]
+
+    # 3. a normal tick
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
+    _proj.run_dark_sweep(now=T0 + 120, db_path=dbp)
+    b = beat()
+    assert b["ticks"] == 3 and b["priced"] == 1
+    assert b["last_tick"] == T0 + 120, "the stamp must be the tick's own time"
+
+
+def test_a_heartbeat_failure_never_takes_the_comparison_down(monkeypatch, dbp):
+    """Best-effort by construction. A heartbeat that raised would invert its own
+    purpose — the liveness stamp killing the thing whose liveness it reports."""
+    uid = _user("admin")
+    _alert(uid, sym="SAFE", target=100.0)
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
+
+    def boom(*a, **k):
+        raise RuntimeError("store on fire")
+
+    # ⛔ The HEARTBEAT's own seam, not the shared connector: patching
+    # `_db.connect` breaks the comparison too, and the test would then be
+    # asserting a property of a system that had already failed.
+    monkeypatch.setattr(_proj, "_beat_conn", boom)
+    out = _proj.run_dark_sweep(now=T0, db_path=dbp)   # must not raise
+    assert out["projected"] == 1
+
+
+def test_the_monday_command_tells_STALLED_apart_from_HEALTHY(monkeypatch, dbp):
+    """⛔⛔ THE WHOLE REASON THE HEARTBEAT EXISTS.
+
+    A sweep that died at 09:01 leaves a store that looks, at 15:00, IDENTICAL to
+    one that never stopped — same spans, same counts. Only the stamp's age
+    separates them, so this is the assertion that makes Monday's answer worth
+    reading.
+    """
+    import importlib.util, time as _t
+    spec = importlib.util.spec_from_file_location(
+        "s7rep", str(_REPO / "tools" / "s7_price_level_report.py"))
+    rep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rep)
+
+    uid = _user("admin")
+    _alert(uid, sym="LIVE", target=100.0)
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
+
+    # A tick stamped NOW: healthy.
+    _proj.run_dark_sweep(now=_t.time(), db_path=dbp)
+    text, code = rep.ticking(dbp)
+    assert "TICKING: YES" in text, text
+    assert code == 0
+    assert "0 outcome rows is NORMAL early" in text, (
+        "an early quiet store must not read as a fault")
+
+    # The SAME store, with the stamp aged past two missed ticks: stalled.
+    _proj.run_dark_sweep(now=_t.time() - 3600, db_path=dbp)
+    text, code = rep.ticking(dbp)
+    assert "TICKING: NO" in text, text
+    assert code == 1, "a stall must exit non-zero"
+    assert "STALLED" in text
+
+
+def test_the_monday_command_flags_an_empty_cohort_separately(monkeypatch, dbp):
+    """'Ticking but projecting nobody' is its own answer — the sweep is fine and
+    there is simply no admin alert armed. Reporting that as healthy silence is
+    how a week of nothing gets mistaken for a week of agreement."""
+    import importlib.util, time as _t
+    spec = importlib.util.spec_from_file_location(
+        "s7rep2", str(_REPO / "tools" / "s7_price_level_report.py"))
+    rep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rep)
+
+    _proj.run_dark_sweep(now=_t.time(), db_path=dbp)      # no admin rows at all
+    text, code = rep.ticking(dbp)
+    assert "TICKING: YES" in text
+    assert "projected=0" in text and "Arm one" in text, text
+
+
+def test_the_report_tool_prints_only_ascii():
+    """⚰️ cp1252 KILLED A TOOL IN THIS REPO ONCE ALREADY. `flag_ledger_audit.py`
+    reported 'could not enumerate the project's services' for two days because a
+    box-drawing byte killed a reader thread — which reads as an auth problem, not
+    an encoding one, which is why it went unfixed rather than unnoticed.
+
+    ⛔ So the RENDERED output is ASCII by construction. Docstrings and comments
+    keep their marks; this asserts on what is printed, by actually rendering.
+    """
+    import importlib.util, sqlite3, tempfile, os
+    spec = importlib.util.spec_from_file_location(
+        "s7rep3", str(_REPO / "tools" / "s7_price_level_report.py"))
+    rep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rep)
+
+    d = tempfile.mkdtemp()
+    p = os.path.join(d, "x.db")
+    c = sqlite3.connect(p)
+    c.execute("CREATE TABLE price_level_comparison_spans (id INTEGER PRIMARY KEY, "
+              "predicate_id TEXT, anchor_version INTEGER, opened_at REAL, "
+              "closed_at REAL, close_reason TEXT, twin TEXT, prev_legacy REAL, "
+              "sessions TEXT, agreed INTEGER DEFAULT 0, new_only INTEGER DEFAULT 0, "
+              "legacy_only INTEGER DEFAULT 0, not_comparable INTEGER DEFAULT 0)")
+    c.execute("INSERT INTO price_level_comparison_spans (predicate_id, anchor_version, "
+              "opened_at, twin, sessions, agreed, new_only, legacy_only, not_comparable) "
+              "VALUES ('legacy:z',2,0,'{\"level_kind\":\"trendline\"}','[\"d1\"]',1,0,1,2)")
+    c.commit(); c.close()
+
+    for text in (rep.render(rep.build(p), p), rep.ticking(p)[0]):
+        assert text, "nothing rendered — this probe is broken, not green"
+        text.encode("cp1252")          # raises UnicodeEncodeError if it regresses
+
+
+def test_the_report_tool_is_read_only_about_the_store():
+    """It is handed to the owner to run against PRODUCTION. It opens the store
+    `mode=ro` and must contain no write verb at all."""
+    import ast as _ast
+    src = (_REPO / "tools" / "s7_price_level_report.py").read_text(encoding="utf-8")
+    tree = _ast.parse(src)
+    for node in _ast.walk(tree):
+        if (isinstance(node, _ast.Expr) and isinstance(node.value, _ast.Constant)
+                and isinstance(node.value.value, str)):
+            node.value.value = ""
+    code = _ast.unparse(tree)
+    assert "mode=ro" in code, "the read-only open is gone — broken, not green"
+    # The self-check builds throwaway fixtures, so writes are legitimate THERE
+    # and nowhere else. Scope to everything above it.
+    main_part = code.split("def _self_check")[0]
+    for verb in ("INSERT INTO", "UPDATE ", "DELETE FROM", "DROP "):
+        assert verb not in main_part.upper(), f"the report writes: {verb}"
