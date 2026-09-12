@@ -149,8 +149,33 @@ def verdict(changed: set[str], reachable: set[str], watched: set[str]) -> tuple[
     return False, bad
 
 
-def changed_files(root: str, base: str = "origin/master") -> list[str]:
+def _resolves(root: str, ref: str) -> bool:
     git = shutil.which("git")
+    return subprocess.run([git, "-C", root, "rev-parse", "--verify", "--quiet", ref],
+                          capture_output=True, text=True, timeout=30).returncode == 0
+
+
+def base_ref(root: str) -> str | None:
+    """The ref to diff against, first of these that actually resolves.
+
+    ⛔ CI PASSES ITS OWN BASE. On a pull_request the checkout is a merge commit and
+    `origin/master` may not be fetched at all, so a hard-coded base silently yields
+    an empty diff — the vacuous pass this rail exists to avoid. `FLOW_WATCH_BASE`
+    lets the workflow hand over `github.event.pull_request.base.sha` exactly.
+    ⛔ And it is VERIFIED, not trusted: `github.event.before` is all-zeros on a new
+    branch, which resolves to nothing and would fall through as "no changes".
+    """
+    for cand in (os.environ.get("FLOW_WATCH_BASE"), "origin/master", "HEAD~1"):
+        if cand and _resolves(root, cand):
+            return cand
+    return None
+
+
+def changed_files(root: str, base: str | None = None) -> list[str]:
+    git = shutil.which("git")
+    base = base or base_ref(root)
+    if not base:
+        return []
     mb = subprocess.run([git, "-C", root, "merge-base", base, "HEAD"],
                         capture_output=True, text=True, timeout=30)
     if mb.returncode != 0:
@@ -164,10 +189,11 @@ def changed_files(root: str, base: str = "origin/master") -> list[str]:
 def main() -> int:
     root = repo_root()
     reach, watch = reachable_paths(root), watched_paths(root)
-    changed = set(changed_files(root))
+    base = base_ref(root)
+    changed = set(changed_files(root, base))
+    print("[watch-coverage] base=%s reachable=%d watched=%d changed=%d"
+          % (base or "<none>", len(reach), len(watch), len(changed)))
     ok, bad = verdict(changed, reach, watch)
-    print("[watch-coverage] reachable=%d watched=%d changed=%d"
-          % (len(reach), len(watch), len(changed)))
     if not changed:
         print("[watch-coverage] no diff against origin/master — nothing to judge")
         return 0
