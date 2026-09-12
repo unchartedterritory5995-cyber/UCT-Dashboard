@@ -2492,6 +2492,74 @@ function containsFreeSelfSeries(node, table) {
   return walk(node)
 }
 
+/** ⭐⭐ IS THIS UPDATE A MONOTONE FOLD OVER ITS OWN PAST? (ruling R-A2, 2026-09-12)
+ *
+ *  `var x := math.max(x, y)` / `math.min` / `x + y` — the shapes a member writes for
+ *  "the highest/lowest/total ever". They are exactly the shapes this engine HAS a
+ *  bounded equivalent for, so the refusal can name it instead of just saying no.
+ *
+ *  ⛔ IT DOES NOT UNLOCK A FOLD, AND THAT IS MEASURED RATHER THAN ASSUMED. R-A2 asked
+ *  for the fold to an anchored-at-window-start form and set a stop condition: build it
+ *  only if `maxLookback` stays a plan-time constant and the repaint verdict stays
+ *  decidable. Measured 2026-09-12 on the engine's own already-shipped unbounded
+ *  accumulator:
+ *
+ *      cum(volume)            maxLookback = 0      repaint = repaints
+ *                                                  "unanalysable: `cum` declares a
+ *                                                   window this linter cannot bound"
+ *      accum(0, volume, 250)  maxLookback = 250    repaint = non-repainting, back 250
+ *      highest(volume, 5000)  maxLookback = 5000   repaint = non-repainting, back 5000
+ *
+ *  So an unbounded form is undecidable in BOTH dimensions TODAY — and it under-claims
+ *  its lookback as 0, which `maxLookback`'s own comment calls the one direction a
+ *  budget must never fail in. A STATED window is fully decidable. The only decidable
+ *  fold therefore requires choosing the window, which is choosing the member's number
+ *  for them — the exact trade the `cum` ruling refuses. The stop condition fired, so
+ *  this returns a SENTENCE, never a translation.
+ *
+ *  ⭐ AND THE GUIDANCE RIDES IN THE MESSAGE, NOT IN `suggest`, for the same reason
+ *  `cum`'s does: the member has to pick the window, so there is a hole in the text and
+ *  `suggest` means "the exact text that works" everywhere else in this door.
+ */
+function monotoneFoldOffer(update, table) {
+  const spec = table.functions && table.functions.accum
+  const bind = spec && spec.recurrence && spec.recurrence.binds
+  if (!bind) return null
+  const isSelf = (n) => !!n && n.type === 'series' && n.name === bind
+  // ⚠️ A WALK, NOT A SHAPE MATCH. Two assumptions cost a cycle each: `cOp`
+  // puts the operator on `name`, not `op`; and there is no `ternary` node type at all
+  // (`NODE_TYPES` has eleven and that is not one), so an `if`-wrapped reassignment
+  // hides the fold one level down in whatever a conditional canonicalises to. A walk
+  // is indifferent to both.
+  const stack = [update]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (Array.isArray(n)) { for (const c of n) stack.push(c); continue }
+    const args = n.args || []
+    const selves = args.filter(isSelf).length
+    const others = args.filter((a) => !isSelf(a))
+    // Exactly one self and one other: `max(self, y)`, never `max(self, self)`.
+    if (selves === 1 && others.length === 1) {
+      if (n.type === 'call' && n.name === 'max') {
+        return '`highest(<that value>, <bars>)` — the highest over a window you name'
+      }
+      if (n.type === 'call' && n.name === 'min') {
+        return '`lowest(<that value>, <bars>)` — the lowest over a window you name'
+      }
+      if (n.type === 'op' && n.name === '+') {
+        return '`cumFrom(<that value>, <anchor>, <bars>)` — the same running total '
+          + 'with the starting instant STATED'
+      }
+    }
+    for (const a of args) stack.push(a)
+    for (const k of ['test', 'yes', 'no', 'left', 'right', 'arg', 'value']) {
+      if (n[k]) stack.push(n[k])
+    }
+  }
+  return null
+}
+
 function containsSelfSeries(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
@@ -4481,7 +4549,17 @@ export class Resolver {
             REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
             + 'bar and this engine cannot tell that it ever forgets where it '
             + 'started, so folding it would draw a rolling window over the last '
-            + PINE_STATE_WARMUP + ' bars rather than a running total',
+            + PINE_STATE_WARMUP + ' bars rather than a running total'
+            // ⭐ R-A2 (owner, 2026-09-12): NAME THE BOUNDED FORM. The refusal stands
+            // — `monotoneFoldOffer`'s comment carries the decidability measurement that
+            // is why — but a member writing "the highest ever" is told which call does say
+            // it, with the window left where it belongs: with them.
+            + (monotoneFoldOffer(update, this.table)
+              ? '. THIS ENGINE DOES DECLARE A BOUNDED FORM: '
+                + monotoneFoldOffer(update, this.table)
+                + '. Stating the window is what makes the answer the same tomorrow'
+                + ' — an all-time value moves with however many bars were fetched.'
+              : ''),
             bound.at || locate(tok))
         }
         const args = []

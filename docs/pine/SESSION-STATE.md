@@ -35,6 +35,133 @@ app/src/components/screener/reachable.test.js   union the acknowledgement list, 
 four files, same shapes. So the 45-90 min estimate holds, and the re-measure was worth
 taking rather than quoting the old SHA.
 
+## ⛔⛔ R-A2 — THE STOP CONDITION FIRED, AND THE FALLBACK SHIPPED
+
+R-A2 authorised a host-lane fold **and set a stop condition**: build it only if
+`maxLookback` stays a plan-time constant and the repaint verdict stays decidable before
+the tree runs. **It does not.** The measurement, taken on this engine's own
+already-shipped unbounded accumulator rather than on a hypothetical:
+
+```
+cum(volume)             maxLookback = 0      repaint = repaints
+                                             "unanalysable: `cum` declares a window
+                                              this linter cannot bound"
+cumFrom(volume, 0, 250) maxLookback = THREW resolve:window   (needs literal args)
+accum(0, volume, 250)   maxLookback = 250    repaint = non-repainting, back 250
+highest(volume, 250)    maxLookback = 250    repaint = non-repainting, back 250
+highest(volume, 5000)   maxLookback = 5000   repaint = non-repainting, back 5000
+```
+
+⭐⭐ **An unbounded form is undecidable in BOTH dimensions TODAY, and the engine already
+ships one.** `cum` is host-served under `window_dependent`, and it answers
+`maxLookback = 0` — the one direction `maxLookback`'s own comment says a budget must
+never fail in, *"because a lookback silently guessed at 0 … hands back numbers computed
+from bars that were never fetched"* — while the repaint linter puts it in the `repaints`
+tier, whose definition is *"the forward reach is UNKNOWN or UNBOUNDED … an unanalysable
+shape"*.
+
+⛔ So R-A2's premise — *"in the host lane there is no unbounded evaluation: the fetch
+window is the data"* — is true of the RUNTIME and false of the PLAN. The fetch depth is
+not a translate-time quantity: one definition is evaluated against any number of bars,
+so "anchored at the window start" has no constant to put in the node. A **stated**
+window is decidable; the only decidable fold is therefore one that picks the member's
+window for them, which is exactly the trade the `cum` ruling refuses.
+
+⭐ **`highestFrom`/`lowestFrom` do not exist either** — `cumFrom` does, `highest`/`lowest`
+do, and declaring two new BAR names owes a corpus case and re-freezes every frozen
+per-AST digest (the gate that reverted `ceil`/`floor` within the hour).
+
+### What shipped instead: the pre-authorised hand-back
+
+The refusal stands and now **names the bounded call**, with the window left where it
+belongs. Following `cum`'s own precedent, the guidance rides in the MESSAGE and not in
+`suggest`, because the member must choose the window and `suggest` means *"the exact text
+that works"* everywhere else in this door.
+
+```
+var float s = 0.0 / s := s + volume
+  → pine:state … ". THIS ENGINE DOES DECLARE A BOUNDED FORM: `cumFrom(<that value>,
+     <anchor>, <bars>)` — the same running total with the starting instant STATED.
+     Stating the window is what makes the answer the same tomorrow — an all-time value
+     moves with however many bars were fetched."
+
+uncharted-volume.pine:284  → the same, naming `highest(<that value>, <bars>)`
+```
+
+7 tests in `pine.accumulatorOffer.test.js`, including **two creep controls**: a
+non-monotone `x := x * y` refuses with NO offer, and `max(self, self)` gets none either.
+
+⚠️ **Two assumptions of mine cost a cycle each and are written at the line:** `cOp` puts
+the operator on `name`, not `op`; and there is **no `ternary` node type at all**
+(`NODE_TYPES` has eleven and that is not one), so an `if`-wrapped reassignment hides the
+fold one level below whatever a conditional canonicalises to. A shape match missed
+Volume — the one script this ruling is about. It is a WALK now, indifferent to both.
+
+### ⚠️⚠️ AND THE RULING UNCOVERED A SHIPPED DEFECT — ROUTED, NOT CHANGED
+
+**A bare monotone `max`/`min` accumulator does not refuse. It folds, to a 250-bar rolling
+window.** Measured:
+
+```
+var float m = na / m := math.max(m, volume)
+  → accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)      ok = true
+```
+
+A member who wrote *"the highest ever"* gets *"the highest of the last 250 bars"*.
+`forgetsItsSeed` admits `min`/`max` against a self-free operand because they *"forget
+once that operand dominates"* — true about the SEED and silent about the WINDOW, since
+`accum` re-seeds `PINE_STATE_WARMUP` bars back.
+
+⛔ **This is the defect the convergence gate was built for.** Its own comment cites *"a
+250-bar ROLLING SUM presented as OBV, on every bar, drawing a line nobody would
+question"*. The gate caught `+` and admitted `max`/`min`.
+
+⚠️ **NOT changed here.** Refusing it is member-visible on every shipped definition using
+the shape, so it is the owner's call. Two tests PIN the current behaviour so the decision
+is made deliberately rather than discovered later.
+
+### Screener lane, containment, and the governance clause
+
+- **Screener (R-A2 step 3):** unchanged and already correct — `pine:state` refuses in
+  both lanes, and the offer now rides the same sentence, so the screener answer is the
+  hand-back the ruling asked for.
+- **Containment (step 4):** nothing was admitted, so no definition can carry this to a
+  comparability-sensitive consumer. `window_dependent`'s existing containment is
+  untouched and unrelied-upon.
+- **Step 6, the reserved clause:** checked FIRST, as a gate. Both roles are identified by
+  TASK — *"spec §4 / the repaint-linter task"* — in `closedTable.json` and repeated
+  verbatim in `docs/runbooks/ast-conformance-gate.md:428`; neither names a role held by
+  anyone else, so nothing tripped. The addendum is recorded in
+  `closedTable.json::_no_offset_reopened_by` with the measurement and the plain statement
+  that **this ruling does not re-open unbounded evaluation** — what shipped changes
+  nothing the linter decides.
+- **Step 7, the measurement:** the SPY 1D our-window-vs-TradingView comparison is **moot
+  under this outcome** — there is no number of ours to compare, because nothing folds.
+
+### Metric, re-derived after R-A2
+
+```
+before R-A2   host 33/266   screener 47/266
+after  R-A2   host 33/266   screener 47/266     (unchanged — a message gained a sentence)
+```
+
+
+## 📌 3.2 — DEFERRED, NOT BLOCKING: the command is on disk for the owner
+
+The prod read was **denied to this session** by the auto-mode classifier
+(`[Production Reads]`). Local box: **4 rows, 0 mentioning `barssince`** — a dev store,
+which says nothing about production.
+
+- the copyable command: **`tools/CHECK-barssince-arity-in-user-definitions.md`**
+- the read-only probe: **`tools/_probe_barssince_arity.py`** (`mode=ro`, never writes;
+  `py_compile` clean; verified against the local store)
+
+`TWO_ARG_HITS 0` → 3.2 lands. Any hits → listed by owner and **refused rather than
+silently broken**, per the ruling.
+
+
+---
+
 ## ⛔⛔ R-A — PAUSED: `ta.cum` AND VOLUME:284 ARE **NOT** THE SAME CLASS, AND THE CODE SAYS SO
 
 R-A rules that the `ta.cum` ruling "extends to it verbatim, as a CLASS". ⛔ **It does
