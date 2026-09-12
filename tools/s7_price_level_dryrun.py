@@ -106,6 +106,9 @@ def main() -> int:
     ap.add_argument("--tf", default="D")
     ap.add_argument("--keep", action="store_true",
                     help="keep the scratch store (prints its path) instead of deleting it")
+    ap.add_argument("--event-proximity", action="store_true",
+                    help="dry-run the EVENT-PROXIMITY projection instead "
+                         "(reads the calendar, not bars)")
     ap.add_argument("--self-check", action="store_true",
                     help="prove the scratch guard refuses the live data root")
     args = ap.parse_args()
@@ -114,6 +117,9 @@ def main() -> int:
         return _self_check()
     if not args.date:
         ap.error("--date is required (or pass --self-check)")
+
+    if args.event_proximity:
+        return _dryrun_event_proximity(args.date, keep=args.keep)
 
     date_key = int(args.date.replace("-", ""))
 
@@ -201,6 +207,82 @@ def main() -> int:
         return 0 if ok else 1
     finally:
         if not args.keep:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+
+def _dryrun_event_proximity(date_str: str, *, keep: bool = False) -> int:
+    """PIPELINE DRY RUN for event-proximity, into a SCRATCH store.
+
+    ⛔ Same separation as the price-level run, for the same reason: this asks
+    whether a row carries all the way through, never whether the two rules agree.
+    It writes to a temp store it creates itself, refuses any path resolving
+    inside the shared data root, and never stamps the sweep heartbeat -- so a
+    dry run can never make a dead sweep look alive.
+
+    ⭐ It reads the CALENDAR, not bars: this type's whole notion of time is a
+    date, so "Friday's data" here means Friday's reporter set.
+    """
+    import datetime as _dt
+
+    from api.services.alert_taxonomy import db as _db
+    from api.services.alert_taxonomy import event_proximity as _ep
+    from api.services.alert_taxonomy import event_proximity_compare as _cmp
+    from api.services.alert_taxonomy import event_proximity_projection as _epp
+
+    today = _dt.date.fromisoformat(date_str)
+    projected = _epp.project_admin_event_predicates(today)
+
+    print("S7 EVENT-PROXIMITY PIPELINE DRY RUN  (NOT comparison data)")
+    print("  session ............... %s" % date_str)
+    print("  projected ............. %d predicates" % len(projected))
+    by_lead: dict = {}
+    for p in projected:
+        by_lead[p["lead_days"]] = by_lead.get(p["lead_days"], 0) + 1
+    for lead in sorted(by_lead):
+        print("      lead_days=%-3s %d" % (lead, by_lead[lead]))
+    print("  distinct tickers ...... %d"
+          % len({p["entity_ref"] for p in projected}))
+    print("  distinct accounts ..... %d" % len({p["user_id"] for p in projected}))
+
+    if not projected:
+        print("")
+        print("  PROJECTED 0 -- a COHORT fact, not a pipeline result: no admin")
+        print("  account's My Stocks intersected the reporters for %s or the next" % date_str)
+        print("  session. On a quiet calendar day this is the correct answer.")
+        return 2
+
+    scratch = tempfile.mkdtemp(prefix="s7ep-dryrun-")
+    store = os.path.join(scratch, "scratch_alert_taxonomy.db")
+    _assert_scratch(store)
+    try:
+        _db.init_db(db_path=store)
+        _ep.register(db_path=store)
+        out = _epp.run_projected_comparison(today, db_path=store)
+
+        import sqlite3
+        conn = sqlite3.connect(store)
+        spans = conn.execute(
+            "SELECT COUNT(*) FROM event_proximity_comparison_spans").fetchone()[0]
+        beats = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+            "AND name='event_proximity_sweep_heartbeat'").fetchone()[0]
+        conn.close()
+
+        print("")
+        print("  spans opened .......... %d" % spans)
+        print("  reschedules observed .. %d" % out["reschedules"])
+        print("  outcomes .............. %s" % (out["outcomes"] or "{}"))
+        print("  heartbeat table ....... %d  <- a SCRATCH heartbeat; the live one is untouched"
+              % beats)
+        ok = spans > 0
+        print("")
+        print("  PIPELINE: %s" % ("VERIFIED -- a real projected row reached a real span"
+                                  if ok else "NOT VERIFIED -- rows projected but NO span opened"))
+        if keep:
+            print("  scratch store kept at: %s" % store)
+        return 0 if ok else 1
+    finally:
+        if not keep:
             shutil.rmtree(scratch, ignore_errors=True)
 
 
