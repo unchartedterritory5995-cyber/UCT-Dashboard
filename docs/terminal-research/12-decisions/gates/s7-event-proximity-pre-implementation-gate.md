@@ -2,7 +2,7 @@
 id: GATE-S7-EVENT-PROXIMITY
 title: S7 trigger type 2 — `event-proximity` pre-implementation gate
 role: the approval packet for the SECOND absorption. Nothing builds past the scope on the approval line.
-status: ✅ APPROVED 2026-09-12 — CHECKPOINTS 1–2 ONLY. CP3 needs a new approval line.
+status: ✅ APPROVED 2026-09-12 — line 1 CP1–2, line 2 CP3. CP4 / flip each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ a0c2bfee4
 ---
@@ -25,6 +25,43 @@ SCOPE APPROVED:   CP1–CP2 ONLY.
 ```
 
 ---
+
+## ⛔ APPROVAL — LINE 2 (CP3). The CP1–2 block above stands as granted.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  76529e75b   (this packet as it stood at approval)
+SCOPE APPROVED:   CP3 — read-only projection of the legacy cohort for ADMIN-ROLE
+                  accounts only; CALENDAR RE-READ PER TICK with the reschedule
+                  reset; dark evaluator writes alert_fires + receipts; no
+                  delivery import; a flag-gated sweep beside the price-level one
+                  (ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED, default OFF) with
+                  the "what calls this" rail; no legacy change.
+
+                  ⛔ CP4 (all members) and the FLIP each need a new line.
+```
+
+### ⛔⛔ THE CP3 RULING — WHO REFRESHES THE EVENT DATE
+
+CP2's mirror rail exposed that the **legacy path re-reads the calendar every run**
+while a stored `event_date` is only a snapshot. Left alone, a reschedule makes the two
+rules describe different worlds and the dark week would measure *that* instead of the rule
+difference it exists to size.
+
+**The ruling:** the projection re-reads the calendar every tick, same as legacy. The stored
+`event_date` is an **AUDIT SNAPSHOT, not the truth**. When the calendar differs from the
+snapshot, treat it as a reschedule — **reset that predicate's comparison clock, discard the
+pre-reschedule span into `not_comparable`, and update the snapshot with a version bump.**
+
+⭐ **The two worlds then converge BY CONSTRUCTION**, leaving the dark period to measure only
+genuine rule disagreement. A harness whose headline number is dominated by a data-freshness
+artefact is measuring its own plumbing.
+
+⛔ The calendar is read through **`calendar_alerts._get_reporters_for_date`** — the legacy
+module's own function, never a reimplementation. A second reader would answer differently
+the day one of them changed provider fallbacks, and the comparison would be measuring the
+two READERS instead of the two rules.
 
 ## 1. What this absorbs — read from the code, not from the type's name
 
