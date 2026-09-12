@@ -130,6 +130,54 @@ here. Do not read that change as closing this gap.
 >
 > Measured prevalence: 13 of a random 900-symbol sample of US listings.
 
+## Deploying this — the watch-coverage FAIL is accepted, and why
+
+`python tools/flow_worker_watch_coverage.py` **exits 1** on this branch:
+
+```
+FAIL — flow-worker RUNS these files but will NOT redeploy for them:
+    api/services/earnings_estimates.py
+```
+
+The tool is right as a statement about static reachability, and the honest
+answer is **accepted skew — do not trigger a flow-worker redeploy for it.**
+
+The chain it found:
+
+```
+api.flow_worker_main
+  api.flow_gap_autofill
+    api.services.liveflow_monitor
+      api.services.bars_fetch
+        api.services.bars_sanitize
+          api.services.earnings_estimates
+```
+
+`bars_sanitize` imports **exactly one symbol** from that module, function-locally
+at line 261: `from api.services.earnings_estimates import _fmp_get`. This
+branch changes `get_year_earnings`'s provider gate and adds
+`_is_foreign_shaped` / `_is_recent_year`. It does not touch `_fmp_get` or
+anything `_fmp_get` calls, so flow-worker's behaviour is identical on either
+version of the file.
+
+⭐ The trade being refused: a flow-worker restart drops the Massive OPRA
+websocket and **Massive does not replay** — that gap is permanent until the T+1
+flat file (`docs/runbooks/deploy-windows.md` Tier 2). Paying a permanent tape
+gap to synchronise a function no code in that process calls is the wrong way
+round.
+
+⛔ **This reasoning is per-push and does not generalise.** A future change to
+`earnings_estimates.py` that touches `_fmp_get`, or that adds a symbol
+`bars_sanitize` starts importing, genuinely does need the window. The tool will
+say so again — re-run it and re-do this analysis rather than citing this
+paragraph.
+
+Everything else on the branch is `api/services/**`, `tests/**`, `app/**`, docs
+and CLAUDE.md, which restarts web (plus worker and bars-api, which watch
+`api/**`) — about a minute of `/api/*` blip. Per the runbook that is Tier 1:
+push any time, but if a scheduled job is due in the next minute or two, wait
+for it.
+
 ## What the code change does and does not do
 
 Does: stops paging about it, excludes funds, detects the staleness, and tells the
