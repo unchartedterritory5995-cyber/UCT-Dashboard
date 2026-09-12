@@ -276,7 +276,7 @@ function paneHeightFor(defId) {
  * order the list is in. `legendFromDefinitions.test.jsx` pins the two together;
  * one list, two readings.
  */
-function orderedPaneKeys(instances, excluded, keep) {
+function orderedPaneKeys(instances, excluded, keep, include) {
   const paneIds = paneTargetIds()
   const keys = []
   const seen = new Set()
@@ -311,7 +311,18 @@ function orderedPaneKeys(instances, excluded, keep) {
     // see `displayTarget.paneOwnersNeeded`.
     if (inst.hidden === true && !(keep && keep.has(id0))) continue
     const id = id0
-    if (typeof id !== 'string' || !paneIds.has(id)) continue
+    // ⭐⭐ ELIGIBLE BY DEFINITION **OR** BY ACTIVE INSTANCE PLACEMENT.
+    // `paneIds` is what each DEFINITION declared; `include` is what an instance
+    // ACTUALLY resolved to (`displayTarget.paneOwnKeys`). Reading only the first
+    // made a writable placement unrealisable: a member could move a price overlay
+    // to its own pane, `resolveDisplayTarget` agreed, and the layout allocated
+    // nothing — so `resolvePlacement` failed closed and the series vanished.
+    //
+    // ⚠️ DEFAULT vs ACTIVE. The definition's declaration still decides where an
+    // instance goes when the member has chosen nothing; this only widens what a
+    // CHOICE can realise.
+    if (typeof id !== 'string') continue
+    if (!paneIds.has(id) && !(include && include.has(id))) continue
     if (excluded.has(id) || seen.has(id)) continue
     seen.add(id)
     keys.push(id)
@@ -561,7 +572,12 @@ export function computePaneLayout(instances, opts) {
     && o.mainPaneIndex >= 0 && o.mainPaneIndex < firstPaneIndex) ? o.mainPaneIndex : 0
 
   const keepKeys = o.keepKeys instanceof Set ? o.keepKeys : new Set(o.keepKeys || [])
-  const allKeys = orderedPaneKeys(instances, excluded, keepKeys)
+  // ⭐ THE ADDITIVE MIRROR OF `excludeKeys`. The caller already subtracts the
+  // definitions `displayTarget` says need no pane; this is the same answer's other
+  // half — the ones an ACTIVE instance placement says need one. Absent behaves
+  // exactly as before, so every existing caller is unchanged.
+  const includeKeys = o.includeKeys instanceof Set ? o.includeKeys : new Set(o.includeKeys || [])
+  const allKeys = orderedPaneKeys(instances, excluded, keepKeys, includeKeys)
 
   // ─── PHASE 2 · PANES ABOVE THE PRICE PANE ─────────────────────────────────
   //

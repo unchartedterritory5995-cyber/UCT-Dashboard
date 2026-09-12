@@ -179,6 +179,50 @@ export function paneFollowerKeys(instances, cs) {
 }
 
 /**
+ * The definitions an ACTIVE instance placement requires a pane for.
+ *
+ * ⭐⭐ THE SIBLING OF `paneFollowerKeys`, AND THE OTHER HALF OF THE SAME
+ * SENTENCE. That one tells the layout who needs NO pane of their own because they
+ * draw inside somebody else's; this one tells it who needs one their DEFINITION
+ * never asked for. Both read `resolveDisplayTarget`, so both CONSUME that answer
+ * rather than forming their own — which is exactly what the layout call site
+ * already says out loud about the exclusion half.
+ *
+ * ⛔⛔ WITHOUT THIS, AN INSTANCE PLACEMENT IS WRITABLE BUT NOT REALISABLE.
+ * `paneLayout.paneTargetIds()` builds the pane-eligible set from each DEFINITION's
+ * declared `placement.target === 'pane'`, so a definition that declares `price` —
+ * `movingAverage`, `bb`, `vwap`, `sar`, `ichimoku`, `donchian`, `avwap`,
+ * `atrBands` — got no pane no matter what the member chose.
+ * `isWritableDisplayTarget('pane')` accepted the move, `resolveDisplayTarget`
+ * returned it, and `resolvePlacement` then failed closed on a layout that had
+ * allocated nothing. The series vanished, silently, with no error anywhere.
+ *
+ * ⚠️ DEFINITION PLACEMENT IS THE DEFAULT; INSTANCE PLACEMENT IS THE ACTIVE
+ * STATE. This changes only what is REALISABLE, never what is DEFAULT: an instance
+ * with no stored placement resolves through its definition exactly as before, and
+ * appears here only if that definition already declared `pane`.
+ *
+ * ⚠️ HIDDEN INSTANCES ARE SKIPPED, matching `paneFollowerKeys` and
+ * `orderedPaneKeys` — a hidden series draws no ink, and `keepKeys` is the
+ * separate, deliberate mechanism for a hidden OWNER whose pane a visible follower
+ * still needs.
+ *
+ * @returns {Set<string>} defIds — the key space `computePaneLayout` uses
+ */
+export function paneOwnKeys(instances, cs) {
+  const out = new Set()
+  for (const inst of (Array.isArray(instances) ? instances : [])) {
+    if (!inst || typeof inst !== 'object' || inst.hidden === true) continue
+    if (typeof inst.defId !== 'string' || !inst.defId) continue
+    // ⛔ THE RESOLVED ANSWER, NOT `inst.placement.target`. A DERIVED instance's
+    // target is computed from its SOURCE (`MA(RSI)` follows RSI), and reading the
+    // stored field would call a follower a pane owner.
+    if (resolveDisplayTarget(inst, cs) === 'pane') out.add(inst.defId)
+  }
+  return out
+}
+
+/**
  * Every definition id currently drawing INSIDE the volume pane.
  *
  * ⚠️ KEYED BY DEFINITION, NOT BY INSTANCE, and that is a real constraint rather

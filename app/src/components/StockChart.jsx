@@ -15,8 +15,7 @@ import { normaliseInfoFields } from './chart/engine/infoFields'
 import { publishInfoValues, clearInfoValues } from '../lib/infoValueStore'
 import {
   volumeOverlayKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
-  derivedTargetOf,
-} from './chart/engine/displayTarget'
+  derivedTargetOf, paneOwnKeys } from './chart/engine/displayTarget'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -10500,6 +10499,12 @@ export default function StockChart({
       // Hiding RSI must not take `MA(RSI)` with it — the eye icon is about ink,
       // not about existence.
       keepKeys: paneOwnersNeeded(engineInstances, cs),
+      // ⭐⭐ AND THE ADDITIVE HALF: a definition whose DEFAULT is `price` still
+      // needs a pane when THIS instance's active placement resolved to `pane`.
+      // `excludeKeys` above consumes `displayTarget`'s answer subtractively; this
+      // consumes the same answer in the other direction, so a writable placement
+      // is also a realisable one.
+      includeKeys: paneOwnKeys(engineInstances, cs),
       separatorPx: SEPARATOR_PX,
       firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,
