@@ -792,6 +792,30 @@ the hub is `position: fixed`, so that is null while it is plainly on screen. Mea
 attribute, the computed `display`, and a non-zero box, and keep a fixture that must read SHOWING or
 the checker passes by answering "no" to everything.
 
+### The G0 trace mirror is LIVE — `data-hub-trace`, admin-only, since 2026-09-12
+
+`PR #108` merged as `d899489124`; `web` is serving `59388e52c`, of which that commit is an
+ancestor (`git merge-base --is-ancestor`, not inferred from the push). `/api/health` 200 on a
+fresh boot.
+
+**What it is:** on the Settings → Joystick card, while *Record gesture trace* is ON, the
+admin-only trace section carries `data-hub-trace` holding exactly the JSON the *Copy trace*
+button would produce — so it feeds `tools/hub_trace_analyze.py` unchanged.
+
+⛔ **It exists because BrowserStack LIVE is the only device path this account funds.** A Live
+session is a screen mirror: there is no automation transport to return a value through, and the
+clipboard belongs to the REMOTE device, so "Copy trace" copies where nobody watching can reach.
+The attribute is the read path.
+
+⛔ **Attribute only — no endpoint, nothing sent** (a test spies on `fetch` and asserts it is never
+called). Two gates, both already load-bearing: `isAdmin` gates the section, and
+`settings.traceGestures` itself resolves as `isAdmin && stored === true`, so a member who writes
+the preference key straight to the endpoint still gets nothing. **Absent, not empty**, when the
+toggle is off — an empty string would read as "a capture that recorded nothing".
+
+⚠️ Computed at RENDER: gesture on `/screener`, then navigate to Settings and the card reads the
+buffer as it stands. It does not live-update, and cannot need to.
+
 ### Testing → BrowserStack — WHAT IS PAID FOR, measured 2026-09-12 in the dashboard
 
 > **Live and App Live are paid. Automate and App Automate are NOT on this account at all.**
