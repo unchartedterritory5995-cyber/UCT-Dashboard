@@ -113,7 +113,10 @@ describe('⛔⛔ WHAT IS SENT — a session id, the flag, a timestamp. Nothing e
   })
 
   it('⭐ the flag state distinguishes "off by default" from "explicitly off"', () => {
-    expect(optInProps({ storage: store({}) }).flag).toMatchObject({ key: null, byDefault: true, enabled: false })
+    // ⛔⛔ FLIPPED 2026-09-12. `byDefault` still means "the key was unset" — what
+    // CHANGED is what that resolves to. An unset key is now ENABLED, and this is
+    // the assertion that proves the telemetry says so.
+    expect(optInProps({ storage: store({}) }).flag).toMatchObject({ key: null, byDefault: true, enabled: true })
     expect(optInProps({ storage: store({ [OFFLINE_FLAG_KEY]: '1' }) }).flag).toMatchObject({ key: '1', byDefault: false, enabled: true })
   })
 
