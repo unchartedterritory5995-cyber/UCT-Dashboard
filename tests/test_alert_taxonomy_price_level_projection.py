@@ -499,11 +499,88 @@ def test_the_comparison_writes_nothing_to_the_legacy_table(dbp):
     assert snapshot() == before, "the comparison edited the member's alert row"
 
 
-def test_the_registration_is_wired_exactly_once_and_carries_no_scheduler_entry():
-    """CP3 wires `register()`. ⛔ Registration ONLY — a scheduler entry beside it
-    is what would put the evaluator on every member's ticks."""
+def test_the_dark_sweep_is_actually_wired_to_a_tick():
+    """⛔⛔ THE TEST THAT WOULD HAVE CAUGHT THE ONE REAL DEFECT IN THIS
+    CHECKPOINT.
+
+    CP3 shipped for one commit with `register()` wired and `run_projected_comparison`
+    called by NOTHING — built, tested, green and unreachable, the repo's
+    most-repeated defect. Every other test in this file passed, because every
+    other test calls the evaluator itself. A dark run that never runs produces
+    five sessions of nothing and reads, next weekend, exactly like five sessions
+    of agreement.
+
+    ⭐ So this asserts the WIRE, not the parts: registration once, a scheduler
+    entry once, the job body calling the sweep, and the flag gating it.
+    """
     main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
-    assert main.count("_at_price_level.register()") == 1
+    assert main.count("_at_price_level.register()") == 1, "registered exactly once"
     assert "_at_doc_arrival.register()" in main, "control: the scan can see a sibling"
-    after = main.split("_at_price_level.register()")[1][:600]
-    assert "add_job" not in after, "registration grew a scheduler entry beside it"
+
+    assert main.count('id="alert_taxonomy_price_level_dark"') == 1, (
+        "the dark comparison has no scheduler entry — nothing will call it on "
+        "Monday, and the store will be empty next weekend")
+    assert main.count("run_dark_sweep()") == 1, (
+        "the scheduler entry exists but does not call the sweep")
+    assert 'os.environ.get("ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED", "0") == "1"' in main, (
+        "the sweep is not flag-gated, or its default is not OFF — this reads real "
+        "member rows, so an unset variable must mean nothing runs")
+
+
+def test_the_sweep_job_body_never_reaches_a_delivery_path():
+    """⛔ The scheduler entry is the one place a dark sweep could grow a delivery
+    call without touching any of the three audited modules. Scoped to the job
+    body, with a control proving the slice is not empty."""
+    main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
+    start = main.index("def _price_level_dark_sweep_job():")
+    end = main.index('id="alert_taxonomy_price_level_dark"', start)
+    body = main[start:end]
+    assert "run_dark_sweep" in body, "the slice is empty — this probe is broken"
+    for banned in ("deliver", "send_email", "webhook", "add_alert("):
+        assert banned not in body, f"the dark sweep job body mentions {banned!r}"
+
+
+def test_run_dark_sweep_evaluates_the_admin_cohort_from_a_price_source(monkeypatch, dbp):
+    """The sweep end to end with the price source stubbed: it must project the
+    admin cohort, price it, and record an outcome."""
+    uid = _user("admin")
+    _alert(uid, sym="SWEEP", target=100.0, direction="above")
+    member = _user("member")
+    _alert(member, sym="NOPE", target=100.0, direction="above")
+
+    asked: list = []
+
+    def fake_prices(symbols):
+        asked.append(list(symbols))
+        return {s: 99.0 for s in symbols}, []
+
+    monkeypatch.setattr(_proj, "_prices_for", fake_prices)
+    first = _proj.run_dark_sweep(now=T0, db_path=dbp)
+    assert asked[-1] == ["SWEEP"], (
+        f"the sweep priced {asked[-1]} — a member symbol here is a cohort leak")
+    assert first["projected"] == 1 and first["priced"] == 1
+
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 101.0 for s in syms}, []))
+    second = _proj.run_dark_sweep(now=T0 + 1, db_path=dbp)
+    assert list(second["outcomes"].values()) == [_cmp.AGREED], second
+
+
+def test_the_sweep_REPORTS_symbols_it_could_not_price(monkeypatch, dbp):
+    """⛔ A price it never saw is not a tick where nothing happened. If the sweep
+    swallowed the misses, a cohort the provider went quiet on would accumulate
+    'agreement' about ticks that never occurred."""
+    uid = _user("admin")
+    _alert(uid, sym="DARKSYM", target=100.0)
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({}, list(syms)))
+    out = _proj.run_dark_sweep(now=T0, db_path=dbp)
+    assert out["no_price"] == ["DARKSYM"], "the unpriced symbol must be reported"
+    assert out["priced"] == 0
+    assert out["outcomes"] == {}, "nothing may be recorded for a symbol with no price"
+
+
+def test_the_sweep_is_a_no_op_with_an_empty_cohort(dbp):
+    """No admin alerts at all is a normal answer, not an error — and it must not
+    reach the price source."""
+    _user("member") and _alert(_user("member"), sym="X")
+    out = _proj.run_dark_sweep(now=T0, db_path=dbp)
+    assert out["projected"] == 0 and out["no_price"] == []

@@ -218,9 +218,20 @@ def test_the_registration_is_wired_ONCE_and_nowhere_else():
     main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
     after = main.split("_at_price_level.register()")[1][:600]
     assert "add_job" not in after, (
-        "a scheduler entry landed beside the registration. Registration is NOT "
-        "activation — putting the evaluator on a tick is the flip, and the flip "
-        "is its own approval line.")
+        "a scheduler entry landed beside the registration. The DARK sweep has "
+        "its own flag-gated block further down; a second, ungated one here would "
+        "run the evaluator on every boot.")
+
+    # ⚰️ This assertion used to read "Registration is NOT activation — putting the
+    # evaluator on a tick is the flip, and the flip is its own approval line."
+    # ⛔ The second half was WRONG and it nearly cost the dark run. Putting the
+    # evaluator on a tick is exactly what approval line 2 authorised ("the
+    # comparison harness runs against the projected predicates"); the FLIP is
+    # delivery plus the legacy switch-off. Conflating the two left the module
+    # registered, tested, green and called by nothing.
+    assert 'id="alert_taxonomy_price_level_dark"' in main, (
+        "the dark comparison sweep is not wired to any tick — CP3's harness "
+        "would collect nothing, and an empty store reads like agreement")
 
 
 def test_the_type_id_is_the_spec_s_id():

@@ -211,3 +211,92 @@ def run_projected_comparison(price_map: dict[str, float], *,
 
     return {"projected": len(projected), "evaluated": len(seen),
             "outcomes": outcomes, "anchor_moves": len(moves), "at": now}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE TICK. Without this the whole checkpoint is inert.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _prices_for(symbols: list[str]) -> tuple[dict[str, float], list[str]]:
+    """Resolve a price for each symbol: the SHARED live-price cache first, one
+    bounded batch fetch for the misses.
+
+    ⭐ Cache-first is not an optimisation, it is the load argument. `live_px1_*`
+    is already populated by `/api/live-prices` on the 15 s poll, so on a weekday
+    with an admin watching the dashboard this sweep costs ZERO network calls —
+    the same read the awareness engine makes.
+
+    ⛔ The fallback is bounded and never raises. A provider hiccup must cost this
+    sweep a tick, never the scheduler thread, and never a member request.
+
+    Returns `(prices, missing)`. ⭐ `missing` is returned rather than swallowed:
+    a comparison that quietly saw no price for half the cohort would report
+    "they agree" about ticks that never happened.
+    """
+    prices: dict[str, float] = {}
+    missing: list[str] = []
+
+    try:
+        from api.routers.live_prices import cache as _px_cache, _px_key
+    except Exception:
+        _px_cache = _px_key = None
+
+    for sym in symbols:
+        px = None
+        if _px_cache is not None:
+            try:
+                hit = _px_cache.get(_px_key(sym))
+                px = (hit or {}).get("price") if hit else None
+            except Exception:
+                px = None
+        if px:
+            prices[sym] = float(px)
+        else:
+            missing.append(sym)
+
+    if missing:
+        try:
+            from api.services import massive as _massive
+            rich = _massive._get_client().get_batch_rich_snapshots(missing) or {}
+            still = []
+            for sym in missing:
+                row = rich.get(sym) or {}
+                px = row.get("price") or row.get("last") or row.get("close")
+                if px:
+                    prices[sym] = float(px)
+                else:
+                    still.append(sym)
+            missing = still
+        except Exception:
+            pass          # bounded: the misses stay missing and are REPORTED
+
+    return prices, missing
+
+
+def run_dark_sweep(*, now: Optional[float] = None,
+                   db_path: str | None = None) -> dict[str, Any]:
+    """One forward tick of the DARK comparison over the admin cohort.
+
+    ⛔ THIS IS THE ONLY THING THAT MAKES CHECKPOINT 3 MORE THAN A LIBRARY. The
+    evaluator, the projection and the harness were all built, tested and green
+    before anything called them — which is this repo's most-repeated defect
+    (`lesson_built_tested_green_and_unreachable`), and it very nearly shipped
+    again here: CP1 and CP2 were correctly "registration only, no scheduler
+    entry", and that invariant was carried into CP3 **by habit** after the owner
+    had explicitly approved a harness that "runs against the projected
+    predicates". A dark run that never runs produces five sessions of nothing and
+    reads, next weekend, exactly like five sessions of agreement.
+
+    ⛔ STILL DARK. This writes `alert_fires` + receipts and comparison rows. It
+    imports no delivery path, and the rails assert that from the source.
+    """
+    symbols = sorted({p["symbol"] for p in project_admin_alerts() if p.get("symbol")})
+    if not symbols:
+        return {"projected": 0, "evaluated": 0, "outcomes": {},
+                "anchor_moves": 0, "priced": 0, "no_price": []}
+
+    prices, missing = _prices_for(symbols)
+    out = run_projected_comparison(prices, now=now, db_path=db_path)
+    out["priced"] = len(prices)
+    out["no_price"] = missing
+    return out
