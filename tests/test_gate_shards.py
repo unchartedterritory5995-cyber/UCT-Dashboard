@@ -35,7 +35,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
 
 from gate_shards import (  # noqa: E402
-    GateError, blob_hash, parse_totals, run_gate, strip_ansi, sum_totals,
+    GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
 )
 
 # ── Fixture (a): REAL captured bytes, not a hand-written approximation ────────────────────────
@@ -601,3 +601,28 @@ def test_the_verdict_reads_the_same_block_the_manifest_publishes(tmp_path):
     assert verdict_exit_code({"vs_baseline": compare_failures([B], [B])}) == 0
     # A manifest with no comparison at all must not silently pass as "nothing new".
     assert verdict_exit_code({}) == 0, "an absent comparison is the empty-baseline case, not a block"
+
+
+def test_the_reconcile_SUBTRACTS_waived_files(tmp_path):
+    """⛔ A waived run runs fewer files than exist, and that must RECONCILE.
+
+    Before this, the blunt equality printed "DOES NOT RECONCILE" on a healthy
+    waived gate (1283 on disk vs 1282 run) and left a reader to do the
+    subtraction by hand. A check that cries wolf on its own waiver is one people
+    learn to skip — and it exists because a partial suite fails in the
+    FLATTERING direction.
+    """
+    src = tmp_path / "src"
+    (src / "hub").mkdir(parents=True)
+    (src / "hub" / "rule12Paths.test.js").write_text("x", encoding="utf-8")
+    (src / "hub" / "other.test.js").write_text("x", encoding="utf-8")
+    (src / "keep.test.jsx").write_text("x", encoding="utf-8")
+
+    assert count_waived_files(("**/rule12Paths.test.js",), root=src) == 1
+    # ⭐ CONTROL: a glob matching nothing subtracts NOTHING, so it cannot excuse
+    # a real shortfall.
+    assert count_waived_files(("**/doesNotExist.test.js",), root=src) == 0
+    # ⭐ CONTROL: no waiver at all is zero, not a crash.
+    assert count_waived_files((), root=src) == 0
+    # …and a glob CAN match more than one when it is meant to.
+    assert count_waived_files(("**/*.test.js",), root=src) == 2

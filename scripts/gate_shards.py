@@ -33,6 +33,7 @@ import argparse
 import datetime as _dt
 import hashlib
 import json
+import fnmatch
 import pathlib
 import re
 import subprocess
@@ -161,6 +162,36 @@ def count_test_files() -> int:
     """The denominator. A chunked run must be diffed against it before its total is quoted."""
     return sum(1 for p in (APP / "src").rglob("*") if p.suffix in (".js", ".jsx")
                and (".test." in p.name or ".spec." in p.name))
+
+
+def count_waived_files(exclude: tuple[str, ...], root=None) -> int:
+    """How many ON-DISK test files the exclusion globs remove from the run.
+
+    ⛔⛔ WITHOUT THIS THE RECONCILE LINE LIES BY ONE PER WAIVER. A waived run
+    legitimately executes fewer files than exist, so the blunt equality printed
+    "⛔ DOES NOT RECONCILE" on a healthy gate and left the reader to re-derive
+    `1283 on disk - 1 waived = 1282 run` by hand. A reconcile check that cries
+    wolf on its own waiver is one a reader learns to skip — and the whole reason
+    it exists is that a partial suite fails in the FLATTERING direction.
+
+    ⛔ Matched against the SAME filename shape vitest is given, and counted from
+    disk rather than trusted from the caller, so a glob that matches nothing
+    subtracts nothing instead of silently excusing a real shortfall.
+    """
+    base = pathlib.Path(root) if root is not None else (APP / "src")
+    if not exclude:
+        return 0
+    hit = set()
+    for p in base.rglob("*"):
+        if p.suffix not in (".js", ".jsx") or not (".test." in p.name or ".spec." in p.name):
+            continue
+        rel = p.relative_to(base).as_posix()
+        for pat in exclude:
+            tail = pat.rsplit("/", 1)[-1]
+            if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(p.name, tail):
+                hit.add(rel)
+                break
+    return len(hit)
 
 
 def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) -> str:
@@ -345,6 +376,7 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
 
     summed = sum_totals(per_shard)
     declared = file_count_fn()
+    waived = count_waived_files(tuple(exclude))
     base = load_baseline()
     failures = sorted(set(failures))
     return {
@@ -359,7 +391,9 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "per_shard": per_shard,
         "summed": summed,
         "test_files_on_disk": declared,
-        "file_count_reconciles": summed["files"]["total"] == declared,
+        "test_files_waived": waived,
+        # ⛔ ON DISK minus WAIVED is what a run can possibly execute.
+        "file_count_reconciles": summed["files"]["total"] == declared - waived,
         "failures": failures,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
@@ -396,8 +430,11 @@ def render(manifest: dict) -> str:
         f"| **Σ** | **{f['failed']} failed / {f['total']}** "
         f"| **{t['failed']} failed / {t['passed']} passed / {t['total']}** |",
         "",
-        f"- test files on disk: **{manifest['test_files_on_disk']}** — "
-        f"{'RECONCILES' if manifest['file_count_reconciles'] else '⛔ DOES NOT RECONCILE'} "
+        f"- test files on disk: **{manifest['test_files_on_disk']}**"
+        + (f" − **{manifest['test_files_waived']}** waived = "
+           f"**{manifest['test_files_on_disk'] - manifest['test_files_waived']}** runnable"
+           if manifest.get("test_files_waived") else "")
+        + f" — {'RECONCILES' if manifest['file_count_reconciles'] else '⛔ DOES NOT RECONCILE'} "
         f"with the summed file total ({f['total']}).",
     ]
 
