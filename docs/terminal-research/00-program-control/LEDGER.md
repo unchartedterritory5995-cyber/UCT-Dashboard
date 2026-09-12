@@ -461,13 +461,40 @@ consecutive pushes, and the ONLY variable between them is whether it was on the 
 |---|---|---|---|
 | 04:19:08 | `f42b11c65` — **creates** the marker | ❌ not yet registered | **SKIPPED** |
 | 04:25:39 | `f42b11c65` — same commit | (settings save rebuilt master tip) | SUCCESS |
-| 04:31:55 | `fd735513b` — **appends** to the marker | ✅ registered | **BUILDING → deploys** |
+| 04:31:55 | `fd735513b` — **appends** to the marker | ✅ registered | **SUCCESS** |
+| 04:34:22 | `5ec0a771f` — another workstream, no watched file | ✅ registered | SKIPPED |
+| 04:36:19 | `33e7ba497` — I1 slice 2, frontend only | ✅ registered | SKIPPED |
 
 ⛔ **Do not read the 04:25 SUCCESS as proof of the mechanism.** That build was triggered by the
 watch-pattern *settings save*, which Railway treats as a config change and rebuilds at master tip. It
 proves the registration took; it says nothing about whether appending a line triggers a deploy. Only
 the 04:31 push — whose sole claim on the watch list is the marker file itself — tests the mechanism,
 and only because the 04:19 SKIPPED row sits beside it as the negative control.
+
+⭐ **The two SKIPPED rows after registration matter as much as the SUCCESS.** They prove the watch
+list was **not accidentally widened** by the browser edit: a push touching no watched file is still
+skipped, so the marker bought a lever without buying extra tape gaps.
+
+**⛔ CONFIRMED AT THE TREE, not at the merge graph.** A green deploy proves a build ran; it does not
+prove the stranded code is in it. Measured with `git show <sha>:<file>` on both sides:
+
+| | `9efbb34a8` (what flow-worker WAS running) | `fd735513b` (what it runs now) |
+|---|---|---|
+| `entity_master/store.py` → `def status_counts` | **0** | **1** |
+| `fmp_client.py` top-level `def`s | **32** | **45** (+13) |
+
+The 13 gained are `get_analyst_estimates`, `get_company_profile`, `get_etf_holdings`,
+`get_grades_news`, `get_grades_latest_news`, `get_news_general_latest`, `get_news_stock_latest`,
+`get_news_stock_multi`, `get_news_press_releases_latest`, `get_sp500_constituents`,
+`get_nasdaq_constituents`, `get_dowjones_constituents`, `_symbols_csv`. ⭐ The **zero** in the first
+column is the load-bearing cell — without it, "the function is present now" is compatible with its
+having been present all along.
+
+⚠️ **Flow-worker is at `fd735513b`, NOT at master's tip, and that is correct.** Master moved on to
+`5ec0a771f` and `33e7ba497` within five minutes, both correctly SKIPPED. The claim to make is
+"flow-worker advanced to the tip **as of the bump**", never "flow-worker is at master tip" — the
+second sentence will be false within the hour of any marker bump and would teach the next reader to
+expect something the mechanism does not promise.
 
 **Strands discharged by the bump:**
 
