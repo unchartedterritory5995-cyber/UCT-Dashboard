@@ -64,11 +64,48 @@ The stranded change **adds** functions, routes, tables or constants that flow-wo
 not call. Flow-worker keeps running the older file, which simply lacks something it never
 invokes.
 
-- **Merge it.** The ledger row records: *"flow-worker stranded: ADDITIVE, safe; redeploy
-  at next window,"* plus one line naming **which** additions and **that flow-worker does
-  not call them**.
-- Flow-worker is redeployed at the next weekend/after-hours window regardless, **so stale
-  never exceeds a week.**
+- **Merge it.** The ledger row records: *"flow-worker stranded: ADDITIVE, safe; discharge by
+  marker bump,"* plus one line naming **which** additions and **that flow-worker does not
+  call them**.
+- **Discharge it with a MARKER BUMP at the next window** — see "How a strand is actually
+  discharged" below.
+
+⚰️ **CORRECTED 2026-09-12.** This section originally read *"flow-worker is redeployed at the
+next weekend/after-hours window regardless, so stale never exceeds a week."* **That was an
+assumption about other workstreams' commits, not a mechanism.** Flow-worker only rebuilds
+when someone pushes a file on its watch list; if nobody does, a strand sits indefinitely.
+
+## How a strand is actually discharged — the deploy marker
+
+⛔⛔ **`railway redeploy --service flow-worker` DOES NOT DO THIS. Do not use it for this.**
+
+**Measured 2026-09-12 04:07 UTC.** A CLI redeploy returned exit 0 and the deployment went
+BUILDING → DEPLOYING → **SUCCESS** — on **the same commit it started from** (`9efbb34a8`),
+while master was `b272db249`. The CLI resolves *"the latest deployment"* to the last
+**actual** deployment, and flow-worker's recent records are `SKIPPED` (17 of the last 20 —
+the strand, visible in the artifact). **It dropped the OPRA websocket and advanced nothing.**
+The cost was zero only because the market was closed; in a live window that is a permanent
+tape gap for no benefit.
+
+⭐ **And `railway` has no command that can do it.** `railway deployment` offers only `list`,
+`up`, `redeploy`; `up` uploads the *local directory*, which is not an acceptable deploy
+source for production. There is no "deploy commit X".
+
+**The mechanism: `api/flow_worker_deploy_marker.txt`.** A file read by nothing, whose only
+job is to sit on flow-worker's watch list. Appending a dated line to it and pushing forces
+flow-worker to rebuild **from master's tip**, picking up every strand accumulated since.
+
+**Rules for a marker bump:**
+
+1. **Window only** — weekend or after-hours, market closed. A bump *is* a flow-worker
+   restart and so costs a tape gap.
+2. **Append, never rewrite.** One dated line per deploy, naming the strands being discharged.
+3. **Confirm by artifact**: flow-worker's running commit must **advance to master's tip**.
+   ⛔ A `SUCCESS` status is not the artifact — the *commit hash* is. That distinction is the
+   entire lesson of the 04:07 no-op above.
+4. **Ledger the bump** with before/after running commits and the strands it discharged.
+5. ⛔ **The marker file is the ONLY flow-worker path a non-flow-worker program may touch.**
+   Every other path under flow-worker's watch list stays barred.
 - ⛔ **"Additive" is a claim about the diff, so check the diff, not the intent.** The
   practical test is `git diff <merge-base>..HEAD -- api/ | grep -cE '^-[^-]'` — zero
   deletions is strong evidence; a non-zero count means read every one before claiming it.
