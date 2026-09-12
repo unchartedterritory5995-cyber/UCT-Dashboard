@@ -228,7 +228,69 @@ The census failure is the unchanged pre-existing `fmp_news.py:37`, blocked by **
 carries a 3-attempt retry loop and a `RequestBudget` ceiling the adapter has no equivalent for). Two
 more tests pass than before, and two stale quarantine entries are gone.
 
-### ⛔ FLOW-WORKER REDEPLOY — OWED, NOT YET DONE
+### ⛔⛔ FLOW-WORKER REDEPLOY RAN — AND DID **NOT** CLEAR THE STRAND
+
+**Executed 2026-09-12 04:07 UTC (Fri 23:07 CDT, market closed) on owner authorization:**
+`railway redeploy --service flow-worker --yes`, exit 0.
+
+| artifact | value |
+|---|---|
+| deployment status | **`SUCCESS`** (watched BUILDING → DEPLOYING → SUCCESS) |
+| **running commit** | **`9efbb34a8`** — ⛔ **unchanged** |
+| master at the time | `b272db249` |
+| the strands | `1667fc64d`, `1a3668eaf` — **still not in flow-worker's running code** |
+
+⛔⛔ **`railway redeploy` RE-RUNS THE LAST *ACTUAL* DEPLOYMENT, NOT MASTER'S TIP.** Flow-worker's most
+recent deployment *records* are `SKIPPED` (17 of the last 20 — the strand, visible in the artifact),
+and the CLI resolved "latest deployment" to the last **SUCCESS**, `9efbb34a8`. It rebuilt the code
+flow-worker was already running.
+
+⭐ **So the redeploy dropped the OPRA websocket and bought nothing.** The cost was zero only because
+the market is closed. Had this been run in a window with the tape live, it would have cost a
+permanent gap for no benefit whatsoever.
+
+### ⛔ THE STANDING AUTHORIZATION NEEDS REVISING — its premise is false
+
+The owner's new standing rule reads: *"for future ADDITIVE strands, you may run the flow-worker
+redeploy yourself via CLI — weekend or after-hours only, market closed, artifact-confirmed,
+ledgered."* **A CLI redeploy cannot discharge an ADDITIVE strand**, because it does not advance the
+running commit. Verified above by artifact, not inferred.
+
+**The CLI has no command that can.** `railway deployment` offers only `list`, `up`, `redeploy`; there
+is no "deploy commit X". `railway up` uploads the *local directory* — a non-git deploy source — which
+is not an acceptable way to put code on a production service.
+
+**What actually clears a strand, as far as this session can establish:**
+
+1. **A push touching a watched file** — the conventional `api/flow_worker_main.py` header edit. ⛔
+   Barred to this program by the standing "nothing in flow-worker" rule, and it is the runbook's own
+   documented trigger.
+2. **A Railway dashboard action that builds the latest commit**, if one exists — not reachable from
+   the CLI, and untested.
+
+⚠️ **Until one of those is settled, an ADDITIVE strand stays stranded until some *other* workstream
+happens to push a watched file.** The runbook's "redeployed at the next window regardless, so stale
+never exceeds a week" is therefore an assumption about other people's commits, not a mechanism this
+program controls. **That should be corrected in the Interpretation section once the owner rules on
+which path to use.**
+
+### ✅ WATCH PATTERNS — the CLI CAN read them; RAILWAY_TOKEN item is closed
+
+`railway deployment list --service flow-worker --json` exposes
+`meta.serviceManifest.build.watchPatterns` — **23 entries**, read live. **Diffed against the
+`api/flow_worker_main.py` header mirror on current master: ZERO DRIFT, 23 = 23, both directions.**
+
+⚠️ An earlier reading in this session found the header listing 21 `.py` files with TODOs about
+`confluence_flow.py` — that was a **stale** copy. Another workstream's `ops/watch-mirror-sync` merge
+(`9efbb34a8`) synced it since. The mirror is now accurate, and this is the first time it has been
+**measured** against Railway rather than trusted.
+
+⛔ **The `RAILWAY_TOKEN` caveat is retired.** Earlier ledger text said tier verification was "reasoned
+from the committed mirror rather than measured against the Railway dashboard, which is the
+authority." It has now been measured, without a token — the authenticated CLI session is sufficient,
+exactly as `deploy-windows.md` says ("no token is needed on a machine where `railway` works").
+
+### (superseded) FLOW-WORKER REDEPLOY — OWED, NOT YET DONE
 
 Two ADDITIVE strands are now on master (`entity_master/store.py`, `fmp_client.py`). Per the
 Interpretation section, flow-worker gets redeployed at the next window so staleness never exceeds a
