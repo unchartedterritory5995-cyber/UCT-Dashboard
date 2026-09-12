@@ -63,6 +63,12 @@ const TYPE_ICONS = {
   ep_resolved: 'check',
   exposure_shift: 'breadth',
   price_alert: 'bell',
+  // Filing watch. The key is the alert's `type`, which is the `source` string
+  // `deliver_alert_payload` passes straight through as `add_alert`'s first
+  // positional argument — `document_arrival.py` sends source="document_arrival".
+  // Without this entry every filing-watch row fell back to the generic bell, so
+  // a new 10-K looked identical to a price alert in the member's list.
+  document_arrival: 'document',
 }
 
 const SEV_CLASS = {
