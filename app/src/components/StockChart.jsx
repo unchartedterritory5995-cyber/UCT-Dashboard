@@ -91,6 +91,7 @@ import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
+import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
@@ -5627,6 +5628,33 @@ export default function StockChart({
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
   const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : Math.max(fetchDepth, _fpBars)
 
+  // ⭐⭐ BARS FOR EVERY CANONICAL SYMBOL THIS CHART'S INSTANCES NAME.
+  //
+  // ⛔⛔ IT READS `cs.indicatorInstances`, NOT `engineInstancesRef`, AND THE
+  // REASON IS EFFECT ORDER. The ref is populated by `updateChart`, which runs
+  // from an effect declared BELOW this one — so on the first render the ref is
+  // still empty, no symbol is discovered, no request is made, and nothing
+  // afterwards re-triggers the lookup because `cs` has not changed. The series
+  // simply never appears. Measured in `secondarySourceLive.test.jsx`, which is
+  // exactly the class of defect a test against the real component exists to
+  // catch and a unit test against the binder never could.
+  //
+  // ⚠️ THE STORED LIST IS A SUPERSET OF THE ENGINE'S, and that is the right
+  // trade here. `symbolsNeeded` ignores every source that is not a symbol, so
+  // the only difference is a tombstoned instance that still names one — one
+  // request for an instrument the member did configure, against a first paint
+  // that would otherwise draw nothing at all.
+  //
+  // ⛔ THE MAP IS A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
+  // asynchronously, and a ref would leave the chart painted with the empty map
+  // until something unrelated triggered another paint. Its identity is stable
+  // while nothing changes, which is what stops that dependency repainting
+  // continuously — see the hook's own note.
+  const _storedInstances = useCallback(() => cs.indicatorInstances, [cs])
+  const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
+  const secondarySources = useSecondarySources(
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
@@ -10965,6 +10993,12 @@ export default function StockChart({
         // whole set several times a second.
         infoFields: infoFieldListRef.current,
         registry: engineRegistry,
+        // ⭐ THE THIRD SOURCE FAMILY'S DATA. Bars for any canonical symbol the
+        // instances name, already fetched and cached by `secondaryBars.js`. The
+        // binder never fetches — `sync` runs inside a paint — so this arrives as
+        // data, exactly as `bars` does. Absent is not an error: it is a chart
+        // with no symbol sources, and every lookup simply misses.
+        secondary: secondarySources,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
         bars: filteredBars,
@@ -11944,7 +11978,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, secondarySources])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
