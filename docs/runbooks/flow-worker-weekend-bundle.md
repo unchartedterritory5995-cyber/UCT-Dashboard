@@ -38,7 +38,7 @@ Ship as part of a bundle; do not spend a tape gap on this alone.
 | 1 | date-scan (`_resolve_dates` loose index scan) | `535311c80` | code + **flag OFF** | unset `FLOW_FAST_DATE_SCAN` (no rebuild) |
 | 2 | parts guard: "what was REQUESTED" | `f65e5ab67` | code, **always on** | `git revert f65e5ab67` |
 | 3 | roll-ledger slot attribution | `7981a46c6` | code, **always on** | `git revert 7981a46c6` |
-| 4 | `ORDER BY CreatedDate, id` | — | **NOT INCLUDED** | awaiting owner go |
+| 4 | `ORDER BY CreatedDate, id` (uncapped stream) | `7fcfcc8f2` | code, always on | `git revert 7fcfcc8f2` |
 
 Components 2 and 3 are independently revertable and touch disjoint files
 (`api/services/flow_aggregate.py` vs `api/flow_router.py`). Component 1 is a flag,
@@ -84,3 +84,58 @@ the standing rule is **no master push of any kind Mon–Fri 09:00–16:00 ET**, 
 included — a master push redeploys web, worker, bars-api and flow-worker in
 lockstep. (A CLAUDE.md line claims that window is rescinded; the owner has stated
 it is wrong and will reconcile it. Treat the freeze as in force.)
+
+
+---
+
+# Component 4 — `ORDER BY CreatedDate, id` (owner-approved 2026-09-11)
+
+## ⚠️ DECLARE THIS ONE-TIME SHIFT
+
+Pinning the order changes which prints survive `tk.topTrades`' bounded reservoir.
+Measured on the full 9/11/2026 session (94,931 rows, stocks, days=1):
+
+| artifact | change |
+|---|---|
+| **SNDK bull premium `b`** | **39,337,073 → 38,700,216 (−636,857, −1.62%)** ← the one to explain |
+| SNDK bear premium `r` | 41,624,783 → 41,245,393 (−379,390, −0.91%) |
+| SNDK trade count `n` | 2,677 → 2,671 |
+| DELL bull premium `b` | 24,163,137 → 24,173,737 (+10,600, +0.04%) |
+| AAPL trade count `n` | 297 → 298 |
+| `adCount` stocks\|All | 10,042 → 10,037 (−5, −0.05%) |
+| `adCount` stocks\|Large | 7,124 → 7,119 (−5, −0.07%) |
+| CONV | **AAPL 9/18 $335P enters at rank 198** (prem 709,975); 0 removed; 540 rows displace by exactly 1; AAPL `tickerHeat` 10 → 11 contracts, totalPrem +709,975 (+6.2%) |
+
+**TOP_PICKS: zero rank changes and zero membership changes across all 8 variants.**
+Only `adCount` moves. The member-visible TOP 10 table is unchanged.
+
+Only 3 of 1,061 TICKER_DB symbols move at all. **SNDK −1.62% is the only change
+large enough to need explaining to a member.**
+
+## Scope: the UNCAPPED path only
+`days >= FLOW_CSV_CAP_DAYS` (20) and all-data already carry
+`ORDER BY CAST(Premium AS REAL) DESC LIMIT ?`, which IS their defined order — the
+capped branch is untouched. So this affects days=1 and days=5 (and calendar picks
+narrower than the cap). Cost there: **88 → 78 ms** at days=1, **556 → 610 ms** at
+days=5. No `TEMP B-TREE` in any plan; `(CreatedDate, id)` is
+`idx_flow_source_date_id`'s own key order.
+
+⚠️ An earlier note implied days=20 would get faster under this change. It will
+not — days=20 is capped and never reaches this branch.
+
+⚠️ The capped path's `ORDER BY Premium DESC` still has an undefined TIE order.
+Pre-existing, out of scope, and recorded here so it is not mistaken for fixed.
+
+## ⛔ Instrument error to not repeat
+The first CONV diff reported APPEARED=12 / DISAPPEARED=11. That was the
+instrument: the identity key was DERIVED from "every non-measure field", which
+swept in `tickerHeat` — itself an order-dependent aggregate. AAPL's heat changed,
+so all of AAPL's rows matched nothing and counted as both new and gone at the same
+rank. The real answer (1 appeared, 0 disappeared) needs an EXPLICIT contract key:
+`(sym, exp, strike, cp, side, DTE, K)`. **A derived identity key silently includes
+whatever the thing you are measuring also changes.**
+
+## Correction for Monday's handoff reading
+`_PREPARE_POLL_S` is **2 s**, not the 5 s quoted in earlier notes. One preparer
+tick is ~11.7 s (pass 1 ~6.2 s + pass 2 ~5.5 s), so read `blocked_held_ms` against
+a ~12 s tick plus up to 2 s of poll — not 5.

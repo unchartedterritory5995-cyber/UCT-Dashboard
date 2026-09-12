@@ -481,8 +481,13 @@ class FlowDB:
         SQLite does the top-N selection in C. Leave as ``None`` (default) for
         an uncapped stream: small ranges and the delta-merge ``days=1``
         refetch MUST stay uncapped so a heavy day's low-premium tail is never
-        truncated. NOTE: the capped stream is Premium-DESC ordered, not
-        chronological/rowid order like the uncapped path.
+        truncated.
+
+        ⚰️ THIS NOTE USED TO SAY the uncapped path was "chronological/rowid
+        order". It was not — there was no ORDER BY at all, and once
+        `idx_flow_classified` landed the planner emitted rows grouped by Color.
+        BOTH orders are EXPLICIT now: capped is Premium-DESC, uncapped is
+        ``(CreatedDate, id)``. See the branch below for the measurements.
         """
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -525,11 +530,35 @@ class FlowDB:
             # under DESC, so empty-premium rows are correctly the first to be
             # dropped. SQLite selects the top-N in C over the scanned rows;
             # the router no longer collects + sorts 770K Python rows (the
-            # 14.7s "All" build). Uncapped path is unchanged: no ORDER BY, so
-            # rows still come out in rowid order for small ranges / days=1.
+            # 14.7s "All" build).
             if cap_rows and cap_rows > 0:
                 sql += " ORDER BY CAST(Premium AS REAL) DESC LIMIT ?"
                 params.append(cap_rows)
+            else:
+                # ⛔⛔ THE UNCAPPED ORDER IS PINNED, NOT LEFT TO THE PLANNER.
+                # This branch used to have no ORDER BY, and the docstring above
+                # claimed rows "come out in rowid order" — written before
+                # `idx_flow_classified (source, CreatedDate, Color, id)` landed
+                # (2026-07-09). Measured on prod 2026-09-11 the planner picks
+                # THAT index and emits rows GROUPED BY COLOR: 94,923 of 94,931
+                # positions differ from id order.
+                #
+                # It matters because `tk.topTrades` is an order-dependent bounded
+                # reservoir, so the emitted order decides which prints survive
+                # into per-ticker aggregates. Unpinned, a future ANALYZE, schema
+                # change or SQLite upgrade moves member-visible money silently —
+                # which is what happened, unnoticed, when this index was added.
+                #
+                # ⛔ `(CreatedDate, id)` AND NOT `id`. Measured on prod, a plain
+                # `ORDER BY id` makes the planner abandon the date index for
+                # `idx_flow_source` and scan the whole source:
+                #
+                #     days=1   88 ms natural ·   75 ms by id ·   78 ms by (date,id)
+                #     days=5  556 ms natural · 7,141 ms by id ·  610 ms by (date,id)
+                #
+                # `(CreatedDate, id)` is `idx_flow_source_date_id`'s own key
+                # order, so it is a covering walk — no TEMP B-TREE in any plan.
+                sql += " ORDER BY CreatedDate, id"
 
             cursor = conn.execute(sql, params)
 

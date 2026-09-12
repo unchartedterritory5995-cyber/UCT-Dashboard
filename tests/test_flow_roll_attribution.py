@@ -14,14 +14,24 @@ import pytest
 from api import flow_router as fr
 
 
-@pytest.fixture(autouse=True)
-def _clean():
+def _reset():
     fr._VERSION_FIRST_SEEN.clear()
     fr._VERSION_BLOCKED_BY.clear()
     fr._PREPARE_ROLLS.clear()
     fr._INFLIGHT_HOLDER.update({"version": None, "since": None, "pass": None})
+
+
+@pytest.fixture(autouse=True)
+def _clean():
+    """⛔ RESET ON BOTH SIDES. These are MODULE-level singletons on the real
+    router, so a roll left in `_PREPARE_ROLLS` at teardown is still there when
+    the next FILE runs — `test_flow_prepare.py::test_a_BURST_of_bumps_collapses_
+    to_ONE_roll` counts the deque and went red in the full suite while passing
+    alone. A test that leaks module state fails its NEIGHBOUR, which is the
+    hardest kind of red to attribute."""
+    _reset()
     yield
-    fr._INFLIGHT_HOLDER.update({"version": None, "since": None, "pass": None})
+    _reset()
 
 
 def _last():
