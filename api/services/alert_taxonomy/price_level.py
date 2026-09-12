@@ -103,8 +103,15 @@ PARAMS_SCHEMA = {
     # Which of the two shipped shapes this predicate is. See the module
     # docstring: both are live today, and the set is derived from the legacy
     # module by the rail rather than trusted from this comment.
-    "level_kind": "string -- 'price' (fixed level) or 'trendline' (two anchors, "
-                  "interpolated and extrapolated at evaluation time)",
+    "level_kind": "string -- one of THREE shapes the legacy table produces: "
+                  "'price' (a fixed level); 'trendline' (two anchors, interpolated "
+                  "and extrapolated at evaluation time); or 'line' (F-S7-4) -- a "
+                  "level BOUND TO A DRAWING that carries NO anchors and therefore "
+                  "resolves to its fixed `target_price`. "
+                  "⛔ 'line' is a DRAWING-BOUND FIXED LEVEL, not a degenerate "
+                  "trendline: when the member moves the line, `resync_bound_alerts` "
+                  "rewrites `target_price` and leaves the anchors null, so the "
+                  "comparison's fingerprint still sees the move",
     "direction": "string -- 'above' | 'below'; which side of the level arms the fire",
 
     # --- shape 1: fixed level -------------------------------------------------
@@ -151,6 +158,28 @@ def register(*, db_path: str | None = None) -> None:
 FIXED = "price"
 TRENDLINE = "trendline"
 
+#: ⛔ F-S7-4 (owner ruling, 2026-09-12) — THE THIRD SHAPE, MADE DESIGN.
+#:
+#: Production carries a third `watchlist_alerts.alert_type`: **`line`** — bound
+#: to a chart drawing (`drawing_id` set) and carrying **NO anchors**. It was
+#: found by the CP3 pipeline dry run, not by reading the legacy code, and
+#: neither F-S7-2 nor the schema anticipated it.
+#:
+#: ⭐ Both level functions already resolve it correctly, because both key
+#: interpolation on `== "trendline"` and fall through to `target_price`
+#: otherwise. **That was luck, not design.** Had either side keyed on "has a
+#: drawing_id" — which reads like the obvious test for a bound line — every one
+#: of those rows would have disagreed for a reason that is not the migration.
+#:
+#: Naming it makes the fall-through a DECISION with a branch of its own.
+BOUND_LINE = "line"
+
+#: Every shape the legacy table is known to produce. ⛔ A fourth value appearing
+#: in production is a SCHEMA EVENT, not a row to shrug at: the control
+#: `test_a_FOURTH_alert_type_in_production_data_fails_this_rail` exists to make
+#: it loud rather than silently fall through to the fixed-level branch.
+KNOWN_LEVEL_KINDS = (FIXED, TRENDLINE, BOUND_LINE)
+
 
 def level_at(params: dict[str, Any], now_sec: float) -> Optional[float]:
     """The predicate's level at `now_sec`.
@@ -167,15 +196,39 @@ def level_at(params: dict[str, Any], now_sec: float) -> Optional[float]:
     reach a member" must not import the module that delivers to one. The test
     does the cross-import; the product code does not.
     """
-    if params.get("level_kind") == TRENDLINE:
+    kind = params.get("level_kind")
+
+    if kind == TRENDLINE:
         t1, p1 = params.get("anchor_t1"), params.get("anchor_p1")
         t2, p2 = params.get("anchor_t2"), params.get("anchor_p2")
         if None not in (t1, p1, t2, p2) and t2 != t1:
             return p1 + (p2 - p1) * ((now_sec - t1) / (t2 - t1))
         # Legacy falls back to the fixed level when the geometry is unusable
-        # (its own `t2 != t1` guard). Mirrored deliberately — diverging here
+        # (its own `t2 != t1` guard). Mirrored deliberately: diverging here
         # would make the comparison disagree for a reason that is not the
         # migration.
+        return params.get("target_price")
+
+    if kind == BOUND_LINE:
+        # F-S7-4. A DRAWING-BOUND FIXED LEVEL, and it gets its own branch even
+        # though the answer equals FIXED's. Naming it converts a fall-through
+        # into a decision: the tempting reading is "bound to a drawing,
+        # therefore interpolate", and that reading would disagree with legacy on
+        # every one of these rows for a reason that is not the migration. The
+        # branch is here so the next person changing this function has to read
+        # the word `line` and choose, rather than land in `else` by default.
+        return params.get("target_price")
+
+    if kind == FIXED:
+        return params.get("target_price")
+
+    # UNKNOWN KIND, and it must STILL fall through to the fixed level, because
+    # that is exactly what `_alert_level_now` does for anything that is not
+    # "trendline". Raising here, or returning None, would make the dark side
+    # disagree with legacy the moment a FOURTH alert_type reaches production.
+    # The fall-through is the mirror's contract; the LOUDNESS lives in the rail
+    # (KNOWN_LEVEL_KINDS) and in the dry run, never in a runtime refusal that
+    # would break the comparison it exists to protect.
     return params.get("target_price")
 
 

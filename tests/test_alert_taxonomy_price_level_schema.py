@@ -247,3 +247,101 @@ def test_schema_fields_are_documented_not_bare(field):
     meaning into a comment nobody reads at the call site."""
     assert isinstance(price_level.PARAMS_SCHEMA[field], str)
     assert len(price_level.PARAMS_SCHEMA[field]) > 20, f"{field} has no contract text"
+
+
+# --- F-S7-4: the third shape, made design -----------------------------------
+
+def test_all_three_known_shapes_are_pinned():
+    """⛔ F-S7-4 (owner ruling, 2026-09-12). Production carries a third
+    `alert_type` — `line`, drawing-bound and carrying NO anchors — that neither
+    F-S7-2 nor the original schema anticipated. It was found by the CP3 pipeline
+    dry run, not by reading the legacy code."""
+    assert price_level.KNOWN_LEVEL_KINDS == ("price", "trendline", "line")
+    for kind in price_level.KNOWN_LEVEL_KINDS:
+        assert f"'{kind}'" in price_level.PARAMS_SCHEMA["level_kind"], (
+            f"{kind} is in KNOWN_LEVEL_KINDS but the schema text does not name it")
+
+
+def test_each_of_the_three_shapes_resolves_through_ITS_OWN_BRANCH():
+    """⛔⛔ THE POINT OF F-S7-4: LUCK BECOMES DESIGN.
+
+    `price` and `line` produce the same answer, and before this ruling they
+    reached it through the same `else` fall-through. ⭐ The tempting reading of a
+    drawing-bound row is *"bound to a drawing, therefore interpolate"* — and that
+    reading would have disagreed with legacy on every one of those rows, for a
+    reason that is not the migration.
+
+    So the branches are asserted from the SOURCE: each named shape must be
+    tested for explicitly, not land in a default.
+    """
+    src = _MODULE.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == "level_at")
+    compared = set()
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Compare) and isinstance(node.ops[0], ast.Eq):
+            rhs = node.comparators[0]
+            if isinstance(rhs, ast.Name):
+                compared.add(rhs.id)
+    assert {"TRENDLINE", "BOUND_LINE", "FIXED"} <= compared, (
+        f"level_at does not branch explicitly on every named shape; it compares "
+        f"only {sorted(compared)}. A shape that lands in the default is a "
+        "fall-through, and F-S7-4 exists because a fall-through was right by luck")
+
+
+@pytest.mark.parametrize("kind,expect_interpolated", [
+    ("trendline", True),
+    ("line", False),
+    ("price", False),
+])
+def test_the_three_shapes_resolve_to_the_right_LEVEL(kind, expect_interpolated):
+    """The branches must also produce the right answers, not merely exist."""
+    t1, t2 = 1_000_000.0, 1_000_000.0 + 86_400.0
+    params = {"level_kind": kind, "target_price": 50.0,
+              "anchor_t1": t1, "anchor_p1": 100.0,
+              "anchor_t2": t2, "anchor_p2": 200.0}
+    got = price_level.level_at(params, t1 + 43_200.0)
+    if expect_interpolated:
+        assert got == pytest.approx(150.0), "a trendline must interpolate"
+    else:
+        assert got == 50.0, f"{kind} must resolve to its fixed target_price"
+
+
+def test_a_BOUND_LINE_with_no_anchors_is_the_production_shape():
+    """⚠️ The real rows carry `drawing_id` AND NO anchors. The branch must not
+    quietly depend on anchors being present."""
+    params = {"level_kind": "line", "target_price": 42.0, "drawing_id": "d1",
+              "anchor_t1": None, "anchor_p1": None,
+              "anchor_t2": None, "anchor_p2": None}
+    assert price_level.level_at(params, 1_700_000_000.0) == 42.0
+
+
+def test_an_UNKNOWN_kind_STILL_falls_through_exactly_as_legacy_does():
+    """⛔ A FOURTH alert_type must NOT make the dark side raise or return None.
+
+    `_alert_level_now` falls through to `target_price` for anything that is not
+    `trendline`, so the mirror must too — otherwise the day a fourth type
+    reaches production the comparison starts measuring our refusal instead of
+    the migration. ⭐ The loudness belongs in the rail and the dry run, never in
+    a runtime refusal that breaks the thing it was meant to protect.
+    """
+    params = {"level_kind": "something-new", "target_price": 7.5}
+    assert price_level.level_at(params, 1_700_000_000.0) == 7.5
+
+
+def test_the_dry_run_FAILS_if_a_fourth_alert_type_appears_in_production():
+    """⛔ THE CONTROL THE RULING ASKED FOR, and it lives where production data is
+    actually read — the dry-run tool, not a unit test that can never see a real
+    row. Asserted from the SOURCE so the check cannot be quietly dropped."""
+    import ast as _ast
+    src = (_REPO / "tools" / "s7_price_level_dryrun.py").read_text(encoding="utf-8")
+    tree = _ast.parse(src)
+    for node in _ast.walk(tree):
+        if (isinstance(node, _ast.Expr) and isinstance(node.value, _ast.Constant)
+                and isinstance(node.value.value, str)):
+            node.value.value = ""
+    code = _ast.unparse(tree)
+    assert "KNOWN_LEVEL_KINDS" in code, (
+        "the dry run no longer checks projected shapes against KNOWN_LEVEL_KINDS "
+        "— a fourth alert_type would reach the comparison unannounced")

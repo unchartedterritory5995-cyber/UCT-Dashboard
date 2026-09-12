@@ -136,6 +136,22 @@ def main() -> int:
     for k in sorted(shapes):
         print("      %-28s %d" % ("%s / %s" % k, shapes[k]))
 
+    # ⛔ F-S7-4 CONTROL. A FOURTH alert_type in production is a SCHEMA EVENT.
+    # `level_at` deliberately falls it through to the fixed level (matching
+    # legacy), so it would otherwise reach the comparison silently and be scored
+    # as agreement about a shape nobody has reasoned about.
+    unknown = sorted({(p.get("level_kind") or "<none>") for p in projected}
+                     - set(_pl.KNOWN_LEVEL_KINDS))
+    if unknown:
+        print("")
+        print("  UNKNOWN LEVEL KIND(S) IN PRODUCTION: %s" % unknown)
+        print("  F-S7-4: the legacy table produces a shape the taxonomy has not pinned.")
+        print("  It falls through to the fixed level BY DESIGN (matching legacy), so it")
+        print("  is SILENT in the comparison and would be scored as agreement about a")
+        print("  shape nobody has reasoned about. Pin it in KNOWN_LEVEL_KINDS with its")
+        print("  own branch before trusting another week of data.")
+        return 3
+
     if not projected:
         print("\n  PROJECTED 0 -- nothing to run. This is a COHORT fact, not a "
               "pipeline result:\n  no ACTIVE watchlist_alerts row belongs to an "
