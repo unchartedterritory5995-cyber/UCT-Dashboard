@@ -171,6 +171,9 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart',
   'src/components/chart/builder',
   'src/components/chart/builder/editor',
+  // T3 (2026-09-12) — the member-pane path. Run green (11/11) BEFORE this
+  // line was added, which is the order this rail asks for.
+  'src/components/chart/builder/memberPane',
   'src/components/chart/engine',
   'src/components/chart/engine/__tests__',
   'src/components/chart/engine/ast',
