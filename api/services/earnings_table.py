@@ -17,7 +17,7 @@ import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from api.services import earnings_estimates as ee
 from api.services import fundamentals_snapshot_store as snap_store
@@ -68,6 +68,58 @@ def _label_from_period_end(date_str):
     source — share ONE fiscal-quarter numbering."""
     q, y = ee._fiscal_q_from_period_end(date_str)
     return f"{y} Q{q}" if q else None
+
+
+# Days after a fiscal quarter ENDS by which a typical filer has reported it.
+# 75 clears the Dec-31 quarters that land late Jan / Feb without reaching back
+# into the quarter before, so the expectation never runs a quarter hot.
+_REPORT_LAG_DAYS = 75
+
+
+def expected_latest_reported_label(now=None):
+    """The newest fiscal quarter a typical filer should ALREADY have reported.
+
+    Walks back one reporting lag from `now` and asks the shared period-end
+    mapper which quarter that lands in, so this shares the ONE fiscal numbering
+    the rest of the widget uses rather than inventing a second one."""
+    ts = time.time() if now is None else now
+    d = datetime.fromtimestamp(ts, tz=timezone.utc) - timedelta(days=_REPORT_LAG_DAYS)
+    return _label_from_period_end(d.date().isoformat())
+
+
+def _parse_q_label(label):
+    m = re.match(r"(\d{4})\s*Q([1-4])$", str(label or "").strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def _quarters_between(older, newer):
+    """How many fiscal quarters `newer` sits ahead of `older`
+    ('2025 Q4' → '2026 Q2' = 2). None if either label is not 'YYYY Qn'."""
+    a, b = _parse_q_label(older), _parse_q_label(newer)
+    if not a or not b:
+        return None
+    return (b[0] - a[0]) * 4 + (b[1] - a[1])
+
+
+def reported_staleness(quarterly, now=None):
+    """How many fiscal quarters BEHIND the newest REPORTED row is, versus what a
+    typical filer should have reported by `now`. 0 when current, ahead, absent
+    or unlabelled.
+
+    ⚠️ Deliberately 0 for a strip with NO reported rows: that is the
+    forward-only payload `_build_and_cache`'s partial guard already catches, and
+    scoring it here would both double-report it and invent a defect for a
+    genuinely pre-revenue name that has neither leg.
+
+    The newest row is taken as the MAX parsed label rather than the last element
+    so the answer does not depend on the caller's ordering."""
+    labels = [_parse_q_label(r.get("label")) for r in (quarterly or []) if r.get("reported")]
+    labels = [x for x in labels if x]
+    if not labels:
+        return 0
+    newest = "%d Q%d" % max(labels)
+    behind = _quarters_between(newest, expected_latest_reported_label(now=now))
+    return max(0, behind) if behind is not None else 0
 
 
 def _yoy_label(label):
@@ -459,9 +511,16 @@ def _build(ticker, now):
         fresh = _is_fresh_window(ticker, now)
         quarterly = _build_quarterly(ticker, now, fresh=fresh)
         annual = fut_annual.result()
+    # How far behind the REPORTED half is, carried on the payload so the widget
+    # can say so instead of presenting an 8-month-old quarter as the latest.
+    # `reported_through` is the newest reported label; `stale_quarters` is 0
+    # whenever the strip is current, ahead, unlabelled or forward-only.
+    rep = [r.get("label") for r in quarterly if r.get("reported") and r.get("label")]
     # Sanitize any non-finite float (NaN/inf) → None so the response always
     # renders (Starlette json.dumps allow_nan=False) and no poison is cached.
-    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly})
+    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly,
+                        "reported_through": rep[-1] if rep else None,
+                        "stale_quarters": reported_staleness(quarterly, now=now)})
     return result, fresh
 
 
