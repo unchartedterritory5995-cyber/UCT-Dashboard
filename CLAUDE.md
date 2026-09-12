@@ -756,8 +756,19 @@ before and after and asserted the **set difference was exactly one id — the ne
 removed**. ⭐ A count going up by one is compatible with one row added and another silently
 rewritten; a set difference is not. Result: 26 → 27 users, 21 → 22 subscriptions,
 `ids_added = [f4433528-…]`, `ids_removed = []`.
-⚠️ The backup lives on the same Railway volume as the database. That protects against a logical
-mistake, which is what this write risked; it does **not** protect against losing the volume.
+⚠️ **`/data/backups/` IS ON THE SAME RAILWAY VOLUME AS THE DATABASE IT BACKS UP.** It covers a
+logical mistake — a bad write, a wrong `UPDATE`, a migration that did more than it meant to — which
+is exactly what this write risked. It covers **nothing** about losing the volume itself: volume
+gone, backup gone with it. An off-volume copy of `auth.db` is a launch-week housekeeping item
+(`docs/plans/joystick/71-open-items-proposals.md`), deliberately not this programme's.
+
+⚰️ **AND A CREDENTIAL THAT EXISTS ONLY ON A CLIPBOARD DOES NOT EXIST.** 2026-09-12: the generated
+password was put on the clipboard for `setx`, the scratchpad copy was deleted in the same breath —
+and the clipboard was overwritten by ordinary work before anyone pasted it. The account was fine;
+the way IN to it was gone, and the next run had to stop. ⛔ **Persist first, verify it persisted,
+delete last.** Recovery, if it happens again: an admin `POST /api/auth/admin/reset-password`
+(`{email, new_password}`) sets a password directly — no email, which matters because the synthetic
+address is unroutable by design.
 
 **⛔ It must never hold a real position, note, or plan.** A smoke account that accumulates state
 stops being a control — the next run cannot tell a product change from its own leftovers.
@@ -1450,6 +1461,15 @@ the session, and overwrites it only with a real result.
 ### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
 
 ### Live-data backup (operator safety net)
+
+⛔⛔ **HOW MANY USERS ARE IN PRODUCTION: 26** (measured 2026-09-12, `railway ssh` →
+`SELECT COUNT(*) FROM users` on `/data/auth.db`; 21 subscriptions, 143 MB). The site is in
+`COMING_SOON_MODE`, so account creation is closed and the roster is admins and testers.
+⚰️ **The ~20,640-user figure elsewhere in this file is the DEV BOX's `C:\data\auth.db`, not
+production** — a local file that grew through test runs and imports. They are different databases
+and the names are identical. **A migration, a backfill or a cost estimate sized off the wrong one
+is a real risk**, and the direction of the error is the dangerous one: production is ~800x smaller
+than the number a reader would otherwise carry.
 
 **`C:\data-backup-2026-09-08\`** — 53 databases, 3.88 GB, taken before the first
 device run. Made with `VACUUM INTO`, **not** a file copy: a plain copy of a main
