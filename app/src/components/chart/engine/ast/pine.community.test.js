@@ -93,6 +93,13 @@ describe('the community corpus, by name', () => {
     // before it cleared.
     '20-cm-ultimate-ma-mtf.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
+    // ➕ ADDED 2026-09-12 by ruling 3.5 (`29d64a2ef`): it asked for
+    // `request.security(syminfo.tickerid, "D", …)`, and a literal naming the engine's
+    // own base now folds to the IDENTITY rather than refusing. — Roster 18 → 19.
+    // ⭐ THE STALENESS RAILS FOUND IT, NOT A PERSON: `doorScorecard` said "no ruling
+    // names a script that translates" and `pine.blindCorpus` said `request.security`
+    // "is listed as unserved but TRANSLATES", both within a minute of the change.
+    '23-higher-timeframe-ema.pine',
     '24-multi-timeframe-rsi.pine',
   ]
 

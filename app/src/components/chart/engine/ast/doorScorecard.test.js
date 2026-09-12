@@ -162,9 +162,18 @@ const OFFERED = {
   // ⭐⭐ TWO MORE EARNED IT on 2026-08-30, and both hand back a rewrite VERIFIED to
   // translate before the offer was written — `pine.requestOffer.test.js` applies
   // each one to the real published script and asserts it comes back `ok`.
-  '23-higher-timeframe-ema.pine': 'it asks for a literal daily rung and this engine '
-    + 'resamples only weekly and monthly from the daily bars it holds — the door hands '
-    + 'back `timeframe.period`, and SAYS that it is not the same request',
+  // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE AS **OFFERED** and it TRANSLATES now, so
+  // it belongs on neither roster: a script that works needs no offer. Removed
+  // 2026-09-12 by ruling 3.5 (`29d64a2ef`) — it asked for a literal daily rung, and a
+  // literal naming the engine's own BASE now folds to the identity instead of
+  // refusing. It moved to the TRANSLATES roster in `pine.community.test.js` (18 → 19).
+  // ⭐⭐ AND THIS FILE IS WHAT CAUGHT IT. Both its rails fired inside a minute of the
+  // change: "no ruling names a script that translates — a stale ruling hides a win",
+  // and "every OFFERED script actually OFFERS something — the label is a claim". The
+  // second one is the sharper of the two: once the script translated, the door said
+  // nothing, so an OFFERED label with no offer behind it became a false claim the
+  // moment the win landed. That is exactly the staleness this scorecard exists for,
+  // and it is why the entry is recorded-and-removed rather than quietly deleted.
   '26-spy-to-es-qqq-to-nq.pine': 'it asks for the ETF\'s EXTENDED session and this engine '
     + 'serves the regular one — the door hands back `session.regular` rather than '
     + 'answering a real but different number on every bar',

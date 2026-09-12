@@ -1,0 +1,47 @@
+{
+  "_": "⛔⛔ THE ONE SCHEMA BOTH LANES READ. Added 2026-09-12 because a row satisfied the JS rail and failed the Python one: `vendorTruth.test.js` never read `decision`, so a `decision` written as a STRING passed there and raised AttributeError in `test_vendor_truth.py`. Two rails over one artifact, each with its own idea of the contract, is the second-authority defect this repo keeps paying for — so the contract moved HERE and both rails derive from it. A row now satisfies both lanes or neither.",
+  "_how_to_extend": "Add the field or hook kind HERE FIRST, then both rails pick it up. A rail that checks something this file does not declare is the drift starting again; each lane has a test asserting it read this file and that the file declares at least the fields that lane enforces.",
+  "required_fields": [
+    "id",
+    "shape",
+    "status",
+    "confidence",
+    "ours",
+    "theirs",
+    "why_it_matters",
+    "probe"
+  ],
+  "decision_required_keys": [
+    "ruled"
+  ],
+  "_decision_is_an_object": "⚠️ NOT a string. It carries `ruled` (the dated decision) and may carry `prior_ruling`, `what_happened`, `owed_to_the_member`, `what_would_reopen_it`, `why_not_accepted_yet`. A string here is the exact shape that passed one lane and crashed the other.",
+  "probe_required_keys": [
+    "under_ours",
+    "discriminates"
+  ],
+  "_probe_also_needs": "at least one further `under_*` key naming the other convention, so a row states BOTH or neither.",
+  "status_vocabulary": [
+    "accepted",
+    "confirmed",
+    "corrected",
+    "refuted",
+    "spec-falsified",
+    "suspected"
+  ],
+  "member_hook_kinds": {
+    "vendorNote": "The divergence is about a NAMED TABLE FUNCTION, and a member meets it through `closedTable.json::functions[<name>].vendorNote`. The hook name must be that function name. This is how every row before 2026-09-12 reached a member, and the rails derived the name from `id.split('-')[0]`.",
+    "fold": "⭐ ADDED 2026-09-12. The divergence is about a TRANSLATOR-LEVEL fold with no table function to hang a note on — `request.security`, `security`, `tf` and `sym` are none of them table functions. A member meets it through the DISCLOSURE the translation emits on the definition itself. The hook name must be the disclosure channel, e.g. `baseTimeframeFolds`, and some source file must really emit it."
+  },
+  "_accepted_owes_a_member": "⛔ A row at status `accepted` must reach a member. With no explicit `member_hook` that is the legacy derivation below (a `vendorNote` on the function `id.split('-')[0]` names); with one, it is the declared kind. `accepted` means the member is TOLD — a row nobody is told about is merely KNOWN, whatever its status field says.",
+  "accepted_requires_member_hook": true,
+  "_decision_is_required_only_when": "⚠️ `decision` is required on ACCEPTED rows only — that is where the rails read `decision.ruled`. Measured 2026-09-12: `smoother-seeds-with-sma-of-first-window` carries no `decision` at all and is legitimately at another status, so requiring it everywhere would fail a row nothing is wrong with. A schema stricter than the artifact is a rail that cries wolf.",
+  "member_hook_legacy_derivation": "⭐ WHEN A ROW DECLARES NO `member_hook`, the kind is `vendorNote` and the name is `id.split('-')[0]` — the rule every row before 2026-09-12 was written against (`atr-tr-starts-at-bar-1` → `atr`). ⛔ So an explicit hook is needed only when that derivation does NOT name a real table function, which is exactly the translator-level `fold` case. Existing rows keep working untouched; new kinds must say so.",
+  "decision_required_on_status": [
+    "accepted"
+  ],
+  "decision_required_keys_when_accepted": [
+    "ruled",
+    "why_keep_ours"
+  ],
+  "_why_keep_ours": "⚠️ FOUND 2026-09-12, AND IT WAS PYTHON-ONLY. `test_vendor_truth.py` required `decision.why_keep_ours` on every accepted row and the JS rail did not know the field existed — the same split that let a `decision` string through. Declared here so both lanes ask for it. It is the ARGUMENT: why our convention stays, not merely that it was ruled."
+}

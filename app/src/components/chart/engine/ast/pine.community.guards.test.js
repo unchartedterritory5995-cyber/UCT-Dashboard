@@ -109,7 +109,13 @@ const REFUSES = Object.freeze({
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
   // in `closedTable.json` and not in `PINE_INEXPRESSIBLE` either.
   '22-daily-weekly-monthly-highs-lows.pine': ['pine:collection', 132, 'array.get'],
-  '23-higher-timeframe-ema.pine': ['pine:request', 14, 'request.security'],
+  // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE as ['pine:request', 14,
+  // 'request.security'] and it TRANSLATES now — ruling 3.5 (`29d64a2ef`, 2026-09-12):
+  // its `request.security(syminfo.tickerid, "D", …)` names the engine's own base, so it
+  // folds to the identity instead of refusing. It moved to the TRANSLATES roster in
+  // `pine.community.test.js` (18 → 19). A row removed from a refusal roster is a WIN,
+  // and it is recorded rather than deleted so the next reader can see which ruling
+  // moved it.
   '25-spy-expected-move-by-vix.pine': ['pine:function', 8, 'time'],
   // ⭐ WAS `pine:named-argument` @47 ON `source`. Two walls fell in one change —
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and

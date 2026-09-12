@@ -33,8 +33,23 @@ const DIR = path.resolve(process.cwd(), '../tests/fixtures/pine_community')
 const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8')
 
 describe('the request door names its reason and its rewrite', () => {
+  // ⚰️ THE CORPUS SUBJECT FOR THIS OFFER IS GONE, AND THAT IS A WIN, NOT A LOSS.
+  // `23-higher-timeframe-ema.pine` asked for `'D'` and refused; ruling 3.5
+  // (2026-09-12) folds a literal naming the engine's base to the IDENTITY, so it now
+  // TRANSLATES — asserted in the test below. It was the ONLY community script that
+  // refused with this offer; the one remaining `pine:request` script offers
+  // `session.regular` instead. ⛔ So the offer keeps a SYNTHETIC subject rather than
+  // losing its only exercise — which is precisely what this file's header warns
+  // about: without it the whole path would be code exercised nowhere.
+  const UNSERVABLE = [
+    '//@version=5',
+    'indicator("t")',
+    'res = input.timeframe("60")',
+    'plot(request.security(syminfo.tickerid, res, ta.ema(close, 20)))',
+  ].join('\n')
+
   it('⭐⭐ a timeframe this engine cannot resample offers `timeframe.period`', () => {
-    const out = translatePine(read('23-higher-timeframe-ema.pine'))
+    const out = translatePine(UNSERVABLE)
     expect(out.ok).toBe(false)
     expect(out.refusal.guard).toBe('pine:request')
     expect(out.refusal.suggest).toBe('timeframe.period')
@@ -47,12 +62,19 @@ describe('the request door names its reason and its rewrite', () => {
     expect(out.refusal.message).toMatch(/NOT THE SAME REQUEST/)
   })
 
-  it('⭐⭐ …and APPLYING it makes the published script translate', () => {
-    // ⛔ THE HALF THAT CANNOT BE FAKED. The rewrite is applied the way a member
-    // would apply it — to their own source — and the door must then take it.
-    const applied = read('23-higher-timeframe-ema.pine')
-      .replace(/res\s*=\s*input\.timeframe\([^)]*\)/, 'res = timeframe.period')
+  it('⭐⭐ …and APPLYING it makes the script translate', () => {
+    // ⛔ THE HALF THAT CANNOT BE FAKED. The rewrite is applied the way a member would
+    // apply it — to their own source — and the door must then take it.
+    const applied = UNSERVABLE.replace(/res = input\.timeframe\("60"\)/, 'res = timeframe.period')
     const out = translatePine(applied)
+    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    expect(out.ok).toBe(true)
+  })
+
+  it('⭐ and the published script that USED to need this offer now translates unchanged', () => {
+    // The win the staleness rails caught: a ruling said this script refuses while it
+    // had started translating. Asserted here so the claim cannot go stale again.
+    const out = translatePine(read('23-higher-timeframe-ema.pine'))
     expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
     expect(out.ok).toBe(true)
   })

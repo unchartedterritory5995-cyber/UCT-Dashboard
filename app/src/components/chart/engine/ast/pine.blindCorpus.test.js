@@ -181,7 +181,15 @@ const UNSERVED_PROBES = Object.freeze({
   'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
   'ta.valuewhen': 'plot(ta.valuewhen(close > open, close, 0) > 10 ? 1 : 0)',
   'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
-  'request.security': 'plot(request.security(syminfo.tickerid, "D", close) > 10 ? 1 : 0)',
+  // ➕ ADDENDUM 2026-09-12 (ruling 3.5, `29d64a2ef`): this probe asked for "D" and
+  // "D" now TRANSLATES — a literal naming the engine's own base folds to the identity.
+  // ⛔ So `request.security` is no longer WHOLLY unserved: it serves the base period,
+  // `W`, `M`, and another nameable symbol. What remains unserved is the
+  // UNSERVABLE-TIMEFRAME case, so the probe is re-pointed at "60" and the name's row
+  // keeps measuring a real gap.
+  // ⭐ THE RAIL CAUGHT THIS ITSELF, saying the histograms were "overstating the gap by
+  // one name" — which they were.
+  'request.security': 'plot(request.security(syminfo.tickerid, "60", close) > 10 ? 1 : 0)',
   'syminfo.mintick': 'plot(high - low > syminfo.mintick ? 1 : 0)',
 })
 const UNSERVED = Object.keys(UNSERVED_PROBES)

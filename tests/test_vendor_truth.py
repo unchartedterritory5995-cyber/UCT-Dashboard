@@ -33,6 +33,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import pathlib
 
 import pytest
 
@@ -333,9 +334,60 @@ def test_a_MALFORMED_observation_is_an_error_not_a_SKIP(tmp_path):
 
 # ─── 3. the roster cannot rot ────────────────────────────────────────────────
 
+#: ⛔⛔ THE SHARED SCHEMA, read by THIS rail and by its JS mirror
+#: (`vendorTruth.test.js`). Added 2026-09-12 because a row satisfied the JS rail and
+#: failed this one: the JS side never read `decision`, so a `decision` written as a
+#: STRING passed there and raised AttributeError here. Two rails over one artifact,
+#: each with its own idea of the contract, is the second-authority defect — so the
+#: contract lives in the file below and both lanes derive from it.
+SCHEMA_PATH = os.path.join(os.path.dirname(vt.DIVERGENCES), "divergences.schema.json")
+_SCHEMA = json.load(io.open(SCHEMA_PATH, encoding="utf-8"))
+ROOT = pathlib.Path(vt.DIVERGENCES).resolve().parents[3]
+
+
 def _rows():
     doc = json.load(io.open(vt.DIVERGENCES, encoding="utf-8"))
     return doc["rows"], doc
+
+
+def test_the_shared_schema_is_what_THIS_lane_enforces():
+    """⭐ The anti-drift rail. Both lanes must derive their contract from one file;
+    a rail that checks a field the schema does not declare is the drift starting
+    again. This asserts the schema declares everything this lane enforces."""
+    for key in ("required_fields", "decision_required_keys", "probe_required_keys",
+                "status_vocabulary", "member_hook_kinds",
+                "accepted_requires_member_hook"):
+        assert key in _SCHEMA, f"the shared schema does not declare `{key}`"
+    assert _SCHEMA["decision_required_on_status"] == ["accepted"], (
+        "`decision` is read only on accepted rows; the schema must say so rather than "
+        "requiring it everywhere — a schema stricter than the artifact cries wolf")
+    assert "ruled" in _SCHEMA["decision_required_keys"]
+    assert set(_SCHEMA["member_hook_kinds"]) == {"vendorNote", "fold"}
+
+
+def test_every_row_satisfies_the_SHARED_schema_so_both_lanes_agree():
+    """⛔ A row satisfies BOTH lanes or neither. This is the check whose absence let
+    a `decision` string through the JS rail on 2026-09-11."""
+    rows, _ = _rows()
+    for row in rows:
+        for field in _SCHEMA["required_fields"]:
+            assert field in row, f"{row.get('id')}: missing `{field}`"
+        assert row["status"] in _SCHEMA["status_vocabulary"], row["status"]
+        # ⚠️ `decision` is required on ACCEPTED rows only — that is where the rails
+        # read `decision.ruled`. A row at another status legitimately carries none.
+        if "decision" in row:
+            dec = row["decision"]
+            assert isinstance(dec, dict), (
+                f"{row['id']}: `decision` must be an OBJECT, not {type(dec).__name__} — "
+                f"a string here passed the JS rail and crashed this one")
+            for key in _SCHEMA["decision_required_keys"]:
+                assert dec.get(key), f"{row['id']}: decision names no `{key}`"
+        elif row["status"] == "accepted":
+            raise AssertionError(f"{row['id']}: ACCEPTED with no `decision`")
+        probe = row["probe"]
+        assert isinstance(probe, dict), f"{row['id']}: `probe` must be an object"
+        for key in _SCHEMA["probe_required_keys"]:
+            assert probe.get(key), f"{row['id']}: probe names no `{key}`"
 
 
 def test_every_divergence_row_carries_a_probe_that_NAMES_BOTH_ANSWERS():
@@ -506,8 +558,44 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
     for row in rows:
         if row["status"] != "accepted":
             continue
-        # The roster names the code it is about; the manifest key is the function.
-        target = row["id"].split("-")[0]
+        # ➕➕ TWO HOOK KINDS SINCE 2026-09-12, and the kinds come from the SHARED
+        # schema rather than from this file's opinion. A divergence about a named
+        # table function reaches a member through that function's `vendorNote`;
+        # a TRANSLATOR-LEVEL fold has no table function to hang one on —
+        # `request.security`, `security`, `tf` and `sym` are none of them — and
+        # reaches the member through the disclosure the translation emits on the
+        # definition itself.
+        # ⭐ NO EXPLICIT HOOK = the legacy derivation, which is what every row before
+        # 2026-09-12 was written against: kind `vendorNote`, name `id.split('-')[0]`.
+        # An explicit hook is needed only when that derivation does not name a real
+        # table function — the translator-level `fold` case.
+        hook = row.get("member_hook") or {"kind": "vendorNote"}
+        kind = hook.get("kind")
+        assert kind in _SCHEMA["member_hook_kinds"], (
+            f"{row['id']}: `member_hook.kind` is {kind!r}; declare one of "
+            f"{sorted(_SCHEMA['member_hook_kinds'])}.")
+
+        if kind == "fold":
+            # The disclosure channel must really be emitted by something.
+            name = hook.get("name") or ""
+            assert name, f"{row['id']}: fold hook names no disclosure channel"
+            roots = [ROOT / "app" / "src", ROOT / "api"]
+            found = any(
+                name in f.read_text(encoding="utf-8", errors="ignore")
+                for root in roots if root.exists()
+                for f in root.rglob("*.js")
+            ) or any(
+                name in f.read_text(encoding="utf-8", errors="ignore")
+                for root in roots if root.exists()
+                for f in root.rglob("*.py")
+            )
+            assert found, (
+                f"{row['id']}: fold hook names `{name}` and NO source emits it. A "
+                f"disclosure channel nobody writes to tells a member nothing.")
+            continue
+
+        # kind == 'vendorNote': the manifest key is the function.
+        target = hook.get("name") or row["id"].split("-")[0]
         assert target in notes, (
             f"{row['id']}: ACCEPTED with no `vendorNote`. See "
             f"`closedTable.json::functions` for `{target}`. A member "

@@ -168,7 +168,35 @@ export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M
  *  translator the base timeframe it is translating for, and `D` becomes
  *  `tf_live` at or below a daily base and `tf` above it. Until then a member
  *  gets a refusal that names the ladder instead of a column that is smooth,
- *  plausible and off by one bar forever. */
+ *  plausible and off by one bar forever.
+ *
+ *  ➕➕ ADDENDUM, 2026-09-12 — THE IDENTITY FORM IS PERMITTED; THE STEP-BACK FORM
+ *  IS STILL REFUSED. The ruling above is EXTENDED, not reversed, because the two are
+ *  not the same request:
+ *
+ *    REFUSED, per 2026-09-01 (`62f2560a7`) — declaring `D` in `TF_RESAMPLABLE`, which
+ *    makes the call a RESAMPLE. A `tf` node reads the last CLOSED period, so
+ *    `tf(close,'D')` on a daily base answers YESTERDAY: measured then as
+ *    `[null, 10, 11, 12, …]` against `close`'s `[10, 11, 12, 13, …]`. That step-back
+ *    is not optional and `D` stays OUT of the array below.
+ *
+ *    PERMITTED, per ruling 3.5 (`29d64a2ef`) — a timeframe literal EQUAL to the
+ *    engine's own base period folds to the IDENTITY: the child unwrapped, no node, no
+ *    shift. That is exactly the "two spellings of the same thing on a daily chart,
+ *    one bar apart" this comment names above — `timeframe.period` has folded to plain
+ *    `close` for months while a literal `'D'` refused beside it.
+ *
+ *  ⭐ SO THE UNBLOCKER THIS COMMENT ASKED FOR IS WHAT WAS BUILT: "give the translator
+ *  the base timeframe it is translating for". `BASE_TF` below is that input, DERIVED
+ *  rather than typed, and the rule compares against it — nothing in the translator
+ *  knows that the string `'D'` is special.
+ *
+ *  ⛔ AND THE CASE THIS COMMENT WARNED ABOUT IS GUARDED, NOT ASSUMED AWAY. On an
+ *  INTRADAY base a literal `'D'` really is the last completed SESSION, so the identity
+ *  would be off by one. `securityAsNode` refuses the fold when the base is intraday and
+ *  the newest bar is forming, with a closed-bar control proving the fold still works.
+ *  `interpret.tfDaily.test.js` carries BOTH halves: the 2026-09-01 assertion that the
+ *  step-back form refuses, kept verbatim, and the identity assertion beside it. */
 export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
 
 /** ⭐⭐ THE BARS THIS ENGINE IS ACTUALLY HANDED — the "base" the ruling above says

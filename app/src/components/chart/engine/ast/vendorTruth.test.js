@@ -137,3 +137,93 @@ describe('the divergence roster names its own probes', () => {
     expect(out.outputs[0].formula).toBe('hma(close, 55)')
   })
 })
+
+// ─── ⛔⛔ THE SHARED SCHEMA — both lanes or neither (added 2026-09-12) ────────
+//
+// ⚰️ WHY. On 2026-09-11 a row satisfied THIS rail and failed its Python mirror: the
+// row's `decision` was a STRING, this file never read `decision` at all, and
+// `tests/test_vendor_truth.py` raised `AttributeError: 'str' object has no attribute
+// 'get'`. Two rails over one artifact, each with its own private idea of the
+// contract, is the second-authority defect — so the contract moved into
+// `divergences.schema.json` and BOTH lanes derive from it.
+describe('the divergence roster satisfies the SHARED schema', () => {
+  const schema = readJson(path.join(VENDOR_DIR, 'divergences.schema.json'))
+  const doc = readJson(path.join(VENDOR_DIR, 'divergences.json'))
+
+  it('⭐ the schema declares everything THIS lane enforces', () => {
+    for (const key of ['required_fields', 'decision_required_keys', 'probe_required_keys',
+      'status_vocabulary', 'member_hook_kinds', 'accepted_requires_member_hook',
+      'decision_required_on_status']) {
+      expect(schema[key], `the shared schema does not declare \`${key}\``).toBeDefined()
+    }
+    expect(Object.keys(schema.member_hook_kinds).sort()).toEqual(['fold', 'vendorNote'])
+    expect(schema.decision_required_on_status).toEqual(['accepted'])
+  })
+
+  it('⛔ every row satisfies it — including the `decision` shape this lane used to ignore', () => {
+    for (const row of doc.rows) {
+      for (const field of schema.required_fields) {
+        expect(row[field], `${row.id}: missing \`${field}\``).toBeDefined()
+      }
+      expect(schema.status_vocabulary, `${row.id}: status ${row.status}`).toContain(row.status)
+
+      // ⚠️ The field whose absence from this lane caused the split. `decision` is read
+      // only on accepted rows, so it is required only there — but when present it must
+      // be an OBJECT in BOTH lanes.
+      if (row.decision !== undefined) {
+        expect(typeof row.decision,
+          `${row.id}: \`decision\` must be an OBJECT — a string here passed this rail `
+          + 'and crashed the Python one').toBe('object')
+        for (const key of schema.decision_required_keys) {
+          expect(row.decision[key], `${row.id}: decision names no \`${key}\``).toBeTruthy()
+        }
+      } else if (schema.decision_required_on_status.includes(row.status)) {
+        throw new Error(`${row.id}: ${row.status} with no \`decision\``)
+      }
+
+      for (const key of schema.probe_required_keys) {
+        expect((row.probe || {})[key], `${row.id}: probe names no \`${key}\``).toBeTruthy()
+      }
+    }
+  })
+
+  it('⛔ an ACCEPTED row reaches a member by a declared hook KIND', () => {
+    // ⭐ Two kinds since 2026-09-12. `vendorNote` is the original — a note on the table
+    // function the id names. `fold` is for a TRANSLATOR-LEVEL divergence with no table
+    // function to hang one on, where the member is told by the disclosure the
+    // translation emits on the definition itself.
+    for (const row of doc.rows) {
+      if (row.status !== 'accepted') continue
+      const hook = row.member_hook || { kind: 'vendorNote' }
+      // ⚠➕ AND THE ACCEPTED-ONLY DECISION KEYS, which were PYTHON-ONLY until 2026-09-12:
+      // `why_keep_ours` is the argument for our convention, and this lane did not know
+      // the field existed. Declared in the shared schema now, so both lanes ask.
+      for (const key of (schema.decision_required_keys_when_accepted || [])) {
+        expect((row.decision || {})[key],
+          `${row.id}: accepted with no \`${key}\``).toBeTruthy()
+      }
+      expect(Object.keys(schema.member_hook_kinds),
+        `${row.id}: member_hook.kind is ${hook.kind}`).toContain(hook.kind)
+      if (hook.kind === 'fold') {
+        expect(hook.name, `${row.id}: fold hook names no disclosure channel`).toBeTruthy()
+        // …and something must really emit it. A channel nobody writes to tells a
+        // member nothing, which is the whole failure `accepted` is meant to exclude.
+        const engine = path.resolve(VENDOR_DIR, '..', '..', '..', 'app', 'src', 'components', 'chart', 'engine')
+        const hits = []
+        const walk = (dir) => {
+          for (const e of fs.readdirSync(dir)) {
+            if (e === 'node_modules') continue
+            const full = path.join(dir, e)
+            if (fs.statSync(full).isDirectory()) { walk(full); continue }
+            if (!/\.[cm]?jsx?$/.test(e)) continue
+            if (fs.readFileSync(full, 'utf8').includes(hook.name)) hits.push(full)
+          }
+        }
+        walk(engine)
+        expect(hits.length,
+          `${row.id}: fold hook names \`${hook.name}\` and no engine source emits it`)
+          .toBeGreaterThan(0)
+      }
+    }
+  })
+})
