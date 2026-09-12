@@ -246,3 +246,12 @@ renormalises every JS file in the repo on the next checkout — a diff across th
 landing on top of other people's branches, in exchange for nothing a normaliser in one test does
 not already handle. If it is ever done it wants its own commit, on a quiet tree, with nothing else
 in it.
+
+**An off-volume backup of `auth.db` — LAUNCH WEEK, not this programme.** Owner ruling, 2026-09-12.
+`/data/backups/` sits on the same Railway volume as the database it protects, so it covers a
+logical mistake and nothing about losing the volume. Production `auth.db` is small (26 users, 143
+MB, vacuuming to ~110 MB), so this is cheap to do and cheap to keep — the R2 bucket the bars rail
+already uses is the obvious destination, with the same `DATA_SYNC_*` credentials. ⛔ Whoever builds
+it: a copy is not a backup of a WAL database — `VACUUM INTO`, then `PRAGMA quick_check` on the
+COPY, then upload. And it needs a restore rehearsal, because a backup nobody has restored is a
+belief, not a backup.
