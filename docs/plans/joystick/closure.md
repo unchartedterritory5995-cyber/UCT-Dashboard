@@ -1,6 +1,19 @@
 # Joystick hub — closure
 
-> ## ⬜ NOT YET LAUNCHED — this is the LAUNCHED template, and every box below is empty.
+> ## ⬜ NOT YET LAUNCHED — this is the LAUNCHED template, and **one of its six boxes is ticked.**
+>
+> ### What is live right now — read from Railway, 2026-09-11, not inferred
+>
+> | | Value | How it was read |
+> |---|---|---|
+> | `web` deployment | **`b63cf9775`** — SUCCESS, 2026-09-11T20:58:24Z (*"fix(charts): let the chart library place the Pre/Post word, not us"*) | `railway status --json` → production → `web.latestDeployment.meta.commitHash` |
+> | Kill switch | **`HUB_PREVIEW_ENABLED=true`** — hub eligible | `railway variables --service web --kv` |
+> | Rollout stage | **1 — admin only** (`ROLLOUT_STAGE = 1`, `app/src/hub/rolloutStage.js`) | read from the source at the live SHA; it is a BUILD-time constant, so the deployed bundle is its only authority — no Railway variable to check |
+>
+> ⭐ **Stage is a build constant and the kill switch is a runtime variable, and that asymmetry is
+> the design** (`rolloutStage.js`: *"a stage is a deploy, deliberately"*). So "what stage is live"
+> is answered by the SHA, and "is the hub on at all" by the variable. Neither answers the other.
+>
 > Engineering-complete at `f7ec5d5dd` + the Peek removal (`ccd661051`) + Increment 8's class
 > rails — **with one incident on the record.** Read the caveat under the boxes before reading
 > anything here as a clean close.
@@ -10,13 +23,15 @@
 >
 > ⛔ **A box is ticked only by the artifact named in its own evidence slot** — a run record, a
 > commit, a live check — never by a judgement that it is probably fine, and never ahead of the
-> run. An empty evidence slot and an unticked box say the same thing, and today that is the
-> true thing to say. ⭐ An absent result is not a pass; it is an absent result.
+> run. An empty evidence slot and an unticked box say the same thing. ⭐ An absent result is not
+> a pass; it is an absent result.
 >
-> **The programme is closed to further FEATURE work, and no further deploys are authorized**
-> for anything except the work these six boxes name.
+> **The programme is closed to further FEATURE work.** ⚰️ This line also read *"and no further
+> deploys are authorized"*; the MEMBER LAUNCH CHARTER of 2026-09-11 **re-opened deploys for the
+> launch sequence**, and Deploys A (`0c0af484a`) and B (`b9d66e0c3`) both shipped under it. See
+> `rollout.md`, which is this programme's authority on who can see the hub today.
 
-## DEFINITION OF LAUNCHED — the gate, unticked
+## DEFINITION OF LAUNCHED — the gate: **1 of 6**
 
 - [ ] **G0 resolved.** Flick scores **≥ 8/10 on an iPhone 15 Pro-class device**, measured by the
       owner on real glass; if it comes in below, the root cause is **traced and fixed** — not
@@ -24,14 +39,23 @@
       ⬜ UNEXPLAINED: *"iPhone 15 Pro scored sticky fan 0/10 and flick 0/10, while iPhone SE
       scored 10/10 on both — on the same calibrated pointer path."* `g0-flick-trace-plan.md` is
       the plan for explaining it.
-      **Evidence:**
+      **Evidence:** ⬜ OPEN — needs the owner's thumb. **Both halves of the measurement now
+      exist and are self-checked:** the phone script is the numbered top half of
+      `g0-flick-trace-plan.md` (7 steps, ~10 min, iPhone 15 Pro, production, admin), and the
+      analyser is `tools/hub_trace_analyze.py` (`--self-check` PASSES: six buckets each reached by
+      the row that means them, an intent-withheld gesture stays UNDECIDED, an overflowed buffer is
+      refused). ⛔ Nothing here is a result — an instrument that is ready is not a measurement.
 
 - [ ] **Glass acceptance passed on ≥ 1 notched iOS device and ≥ 1 Android.**
       `glass-acceptance.md`, every block, including the surfaces Increments 3–7 added.
       ⛔ Gated behind G0-1 above, in that file's own words (`:104`): *"Resolve G0-1 before
       reading any G1"* — G1 is the same measurement done by hand, so a G1 pass read while G0-1
       is unexplained proves nothing.
-      **Evidence:**
+      **Evidence:** ⬜ OPEN, and still gated behind G0-1. The step list is no longer a memory:
+      **`glass-acceptance-steps.md`, 96 rows, DERIVED** from the registry by
+      `node tools/hub_surface_matrix.mjs --glass` — every mode's Primary/Reverse/Scrub binding and
+      every fan action, plus D4 and D1 where an operator meets them, each row carrying a
+      BLOCKED-BY-G0 box so a run made too early records itself as blocked rather than as a fail.
 
 - [ ] **Post-deploy client smoke, signed in, covering every top-level route including
       `/dashboard`, and CONCLUSIVE.** ⛔ *Conclusive* is the load-bearing word, not decoration:
@@ -39,14 +63,43 @@
       rising uptime were all simultaneously true while navigation was frozen for members
       (`postmortem-nav-freeze.md`). A run that comes back empty, or that dies before it writes,
       is an INCOMPLETE — never a pass.
-      **Evidence:**
+      **Evidence:** ⬜ **RUN 2026-09-12T01:36Z against production at live SHA `b63cf9775` —
+      exit 2, INCONCLUSIVE-UNPROVISIONED. The box stays UNTICKED.** Record:
+      `smoke-runs/2026-09-12T01-36-34Z.md`. 16 nav entries were derived from `NavBar.jsx` and
+      **0 were exercised**: with no `SMOKE_EMAIL`/`SMOKE_PASSWORD` the run covered
+      `['/morning-wire']` and not `['/dashboard', '/journal', '/screener']`.
+      ⛔ H15 does not fire on exit 2 — nothing was rolled back, because nothing was measured.
+      ✅ The same session ran `--self-check`, **exit 0**: planted freeze DETECTED, planted render
+      loop DETECTED (main thread 96% blocked, 19 fps), healthy page and idle page both unflagged.
+      **The instrument is proven able to fail; what is missing is an account to point it at.**
+      ⛔ **AND A LOGIN ALONE WILL NOT CLOSE THIS BOX.** The run named the reason: `/dashboard`
+      — the very route the freeze was reported on — is **paid-only**, so a public-signup account
+      reaches it no better than an anonymous one. The signed-in run needs a synthetic account
+      (never a member's, never the owner's; `ADMIN_EMAILS` today holds three personal addresses
+      and no synthetic one) **with a comped paid grant**, and admin on top of that if the hub's
+      own surfaces are to be exercised rather than just navigation. Provisioning it is a write to
+      production and an owner decision.
 
-- [ ] **Preference-key validation live server-side.** `POST /api/auth/preferences` accepts any
-      `{key, value}` from any authenticated user with no validation, which is why §2 below
-      records B6 as an **exposure default, not a security boundary**, and §4 lists calling it a
-      gate among the things to reverse. Closing it is an `api/` edit; the `api/` stop measured
-      in §2 is why it is still open, and that stop is a reason, not a dispensation.
-      **Evidence:**
+- [x] **Preference-key validation live server-side.** ✅ **CLOSED 2026-09-11.**
+      **Evidence:** built as L3 item 1 in `60cbe8919`, shipped as **Deploy B** (`b9d66e0c3`,
+      pushed 11:01 ET) under the owner's one-file `api/routers/auth.py` waiver.
+      `POST /api/auth/preferences` now **allow-lists keys** — refusing an unknown key `400` by
+      name — and **schema-checks `joystick_hub`'s ten fields**, the tenth being `coachMarkSeen`,
+      which is NOT in `HUB_SETTINGS_DEFAULTS` (`HubRoot` writes and reads it directly) and whose
+      omission would have 400'd the coach-mark dismissal and left that hint card on screen with no
+      way to dismiss it. The accepted key set is **re-derived from `app/src/**` on every run** by
+      `tests/test_preference_key_validation.py` (24 tests, 5 mutation proofs) rather than restated,
+      so the hand-typed list in `auth.py` cannot drift away from the client silently. Unknown
+      FIELDS inside a known key stay accepted on purpose — a member's whole stored blob is spread
+      into every later write, so refusing one stale field from an older build would become a
+      permanent 400 on all their hub settings.
+      **Live at `b63cf9775`** (`web`, SUCCESS 2026-09-11T20:58:24Z): `b9d66e0c3` is an ancestor,
+      verified with `git merge-base --is-ancestor`, not inferred from the push.
+      ⛔ **Therefore §2's "B6 is an exposure default, not a security boundary" and §4.3's
+      "either fix it or stop calling it a gate" are now HISTORY, not current state** — they are
+      left in place as the record of why this was worth its own deploy, and §0's re-examination
+      table already records P6 as BUILT. The endpoint validates; the Settings card's admin-only
+      default remains a default by design, which is a product ruling and not the hole it was.
 
 - [ ] **Rollout at stage 3, with the kill switch verified on glass.** ⚠️ The plan's own ladder
       stops at two rungs — `45-phase2.5-plan.md:52` **Step 1 — ADMIN PREVIEW** and `:61`

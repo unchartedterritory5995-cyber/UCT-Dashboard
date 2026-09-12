@@ -691,6 +691,57 @@ Never the owner's account, never a colleague's, never a member.
 **Every device script names its preview URL explicitly**, as a stated precondition at the top of the
 file. A device script that does not say what it is pointed at is not a test.
 
+### Testing → Smoke — the ONE synthetic production account
+
+> **`smoke@uctintelligence.internal` is the only account any automated tool may sign in as on
+> production.** Owner ruling, 2026-09-12.
+
+**What it is for.** `tools/hub_nav_smoke.py` (the post-deploy client smoke, box 3 of
+`docs/plans/joystick/closure.md`) and any future automated production check. It exists because the
+smoke needs a signed-in session and the alternatives were both wrong: a member's account puts a
+robot inside someone's data, and the owner's account makes every automated run
+indistinguishable from a human one in the activity log.
+
+**Rules, and they are not negotiable:**
+
+- ⛔ **It must never hold a real position, a real note, a real watchlist entry or a real alert.**
+  A smoke account that accumulates state stops being a control: the next run cannot tell a
+  product change from its own leftovers. Anything it creates, it removes.
+- ⛔ **It is the ONLY account an automated production tool signs in as.** `SMOKE_EMAIL` /
+  `SMOKE_PASSWORD` in the operator's environment (`setx`, same pattern as the BrowserStack
+  credentials), never in the repo, never in a log, never in a commit.
+- ⛔ **Never a personal address in `ADMIN_EMAILS` for this purpose.** The three real entries there
+  belong to people; the synthetic one is a fourth and is the only one automation uses.
+- Its admin role comes from `ADMIN_EMAILS` because there is **no other path**: `api/routers/auth.py`
+  promotes on signup (`:205`) and on login (`:253`) from that set, and no admin endpoint sets a
+  role. Its paid access comes from `POST /api/auth/admin/comp-access` — the same endpoint the admin
+  page uses — so the subscription row is the shape the rest of the app already reads
+  (`plan='pro'`, `status='comped'`, no Stripe ids).
+- ⭐ **The domain is deliberately unroutable.** `.internal` is reserved (RFC 8375), so the address
+  can neither receive nor send mail and cannot be mistaken for a person's. It passes the signup
+  model's `EmailStr` validation — verified against the installed validator — while `*.invalid` does
+  not (the validator rejects special-use domains by name).
+
+#### ⬜ PROVISIONING STATE: NOT YET CREATED — blocked, and the block is worth reading
+
+`ADMIN_EMAILS` on `web` **already carries the address** (4 entries; the three personal ones
+untouched; the running process was verified to hold it, not just the service config). The account
+row itself does not exist yet, because **`COMING_SOON_MODE=1` on production and
+`POST /api/auth/signup` refuses every request while it is set** (`auth.py:192` — *"Accounts aren't
+open yet"*). There is no admin endpoint that creates a user.
+
+That leaves exactly two doors, and the choice is the owner's because they differ in blast radius,
+not in effort:
+
+| Door | What it costs |
+|---|---|
+| **A — create it through the app's own service layer in the pod** (`create_user` + `comp_user_access`, the exact functions the signup and comp-access endpoints call) | One write to `auth.db` from a remote shell. No member-visible change, no variable flipped, no email sent — the verification mail is in the HTTP handler, so a bounce to an unroutable domain never happens. ⛔ Blocked by this environment's permission layer, which refuses production remote-shell writes; it needs an explicit allow. |
+| **B — flip `COMING_SOON_MODE=0`, sign up over HTTP, flip it back** | Opens **public registration to the entire internet** for the length of the window, and re-opens Stripe subscriptions with it (`auth.py:1700`). Two restarts. Anyone who signs up during the window keeps their account. ⚠️ This is a site-wide state change to create one test account, and it is the larger risk of the two despite looking like the "normal path". |
+
+⛔ **Do not pick B because it is the one that runs without a permission prompt.** That is the
+reasoning to watch for: the gate that stops door A is doing its job, and routing around it through
+a change that touches every visitor is worse, not safer.
+
 ### Real-device testing — BrowserStack Live (paid)
 
 **Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no

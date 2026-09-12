@@ -12,7 +12,164 @@ guess dressed as a fix: it would also make every genuine deliberate press on a s
 a flick, which is the *opposite* failure and a far more dangerous one — a flick fires an action, so
 widening the window widens the set of gestures that fire without intent. Instrument first.
 
+
 ---
+
+# ⭐ THE PHONE SCRIPT — ten minutes, on the iPhone 15 Pro, on production
+
+**This half is for the owner, with the phone in hand. Everything below it is reference for whoever
+reads the trace afterwards.** Run it on the 15 Pro first — that is the device that scored 0/10 —
+and then, if there is time, on the SE, which is the comparison the diff is built around. Nothing
+here touches anyone else's data; step 4 flags and unflags one ticker on your own account, and that
+is the only write in the script.
+
+> **Where:** `https://uctintelligence.com` on the phone, signed in as **your own admin account**.
+> Your account is right for this one and not a shortcut: the toggle resolves as `isAdmin && stored`,
+> so only an admin can record at all, and the trace **never leaves the device** — no endpoint, no
+> upload, clipboard only. A local sandbox is not evidence; it must be production.
+>
+> **Roughly ten minutes.** Twenty-five deliberate gestures and two visits to Settings.
+
+### 1. Turn the recorder on
+
+**Settings → Charts → Joystick → "Record gesture trace"** — switch it on, then press **Clear**.
+
+> **What you should see:** the toggle goes on and two buttons appear under it, **Copy trace** and
+> **Clear**. Clear prints nothing dramatic — it empties the buffer so an earlier capture cannot
+> bleed into this one. ⛔ The card is under **Charts**, not a section of its own; searching Settings
+> for "joystick" also finds it.
+
+### 2. Go to the Screener
+
+Open **Screener** and let the results paint. Rest your thumb on the pad so the chip appears, and
+read it.
+
+> **What you should see:** the joystick pad at its resting position, and the chip naming the ticker
+> under the cursor (e.g. `NVDA`). If it says `No results`, the scan is empty — pick another scan
+> before continuing, because with no symbol the "Chart it" and "Flag" bubbles render **disabled**,
+> and a flick at a disabled bubble measures the disabled state rather than the flick.
+
+### 3. Ten flicks at **Chart it**
+
+Flick toward the **Chart it** bubble — outer ring, up and to the left — **ten times, deliberately,
+about one every two seconds.** Counting them out loud helps; the count is what makes the arithmetic
+afterwards possible.
+
+> **What you should see:** each flick either fires (you land on the chart) or opens the fan.
+> ⚠️ **"Chart it" NAVIGATES**, so a flick that works takes you to `/charts` — **come back to
+> Screener after each one.** The trip back is not part of the measurement and the recorder does not
+> care about it. If ten round trips is too much, do these ten at **Flag** instead and say so when
+> you send the trace: the analyser is told which bubble you aimed at, in order, and it will not
+> guess.
+
+### 4. Ten flicks at **Flag**
+
+Same motion, same rhythm, aimed at **Flag** — ten times.
+
+> **What you should see:** the row's flag state toggling on and off as each one fires, and the page
+> staying where it is. ⛔ This is the only step that writes anything: ten toggles of one ticker's
+> flag on your own account, which lands back where it started on an even count.
+
+### 5. Five slow drags at **Chart it** — the control
+
+Now do it **wrong on purpose**: press, drag slowly to **Chart it** over about half a second, and
+release. **Five times.**
+
+> **What you should see:** the fan opens as you drag, the bubble highlights, and releasing fires it.
+> ⭐ **These five are the control, and they are SUPPOSED to look wrong in the analysis** — they
+> should come back as *"flick window missed"*, because they were never flicks. If the control does
+> not land there, the instrument is not measuring what we think it is, and the twenty real flicks
+> above cannot be read either.
+
+### 6. Copy the trace
+
+Back to **Settings → Charts → Joystick → Copy trace**, and **read the message it prints.**
+
+> **What you should see:** a confirmation naming **how many events were copied and their sequence
+> range** — e.g. *"Copied 214 events (seq 1–214)"*. ⛔ If it says the buffer was empty, the recorder
+> was off and the run has to be repeated. If it says events were **dropped**, the buffer overflowed
+> and the beginning is gone. Either way the capture is void — that is the instrument being honest,
+> not a bug. If the clipboard is blocked, the JSON appears in a **box below the buttons**: select it
+> all and copy it by hand.
+
+Paste the whole thing back — a message, a note, a file, whatever reaches the desk. **The whole JSON,
+never an excerpt:** the analyser refuses anything that is not a complete payload, on purpose.
+
+### 7. Turn the recorder off
+
+**Settings → Charts → Joystick → "Record gesture trace"** — off.
+
+> **What you should see:** the toggle off and the two buttons gone. With it off the pointer path is
+> the uninstrumented one — not a trace branch that decides to do nothing, but the raw handlers, so
+> nothing is recorded and nothing is paid for.
+
+## The clipboard format — what lands in the paste, and what reads it
+
+`tools/hub_trace_analyze.py` takes that JSON **unchanged**. Do not reformat it and do not pull out
+"the interesting rows".
+
+```json
+{
+  "trace": "uct-joystick-g0",
+  "schema": 1,
+  "capturedAt": "2026-09-12T02:14:07.221Z",
+  "constants": { "FLICK_MS": 120, "TRAVEL_PX": 16, "OPEN_AT_RATIO": 2.5 },
+  "device": { "userAgent": "…iPhone…", "maxTouchPoints": 5, "devicePixelRatio": 3,
+              "screenWidth": 393, "screenHeight": 852, "innerWidth": 393, "innerHeight": 745 },
+  "window": { "capacity": 500, "recorded": 214, "kept": 214, "dropped": 0,
+              "firstSeq": 1, "lastSeq": 214 },
+  "rows": [
+    { "seq": 1, "type": "pointerdown", "pointerType": "touch", "clientX": 331, "clientY": 690,
+      "eventTs": 18422.7, "perfNow": 18423.1, "sinceDownEventTs": 0, "sinceDownPerfNow": 0,
+      "coalesced": 1, "flickMs": 120, "openThreshold": 40, "travelPx": 16,
+      "phase": "down", "elapsed": null, "travelled": 0, "decision": null, "target": null },
+    { "seq": 9, "type": "pointerup", "pointerType": "touch", "elapsed": 176, "travelled": 83,
+      "sinceDownEventTs": 41, "sinceDownPerfNow": 176, "coalesced": 6,
+      "decision": "press-fire",
+      "target": { "id": "scan.chartIt", "ring": 0, "index": 0, "angle": 178, "flickable": true } }
+  ]
+}
+```
+
+⭐ **The three clocks on that last row are the whole question.** `elapsed` is what the engine
+compared against `flickMs`; `sinceDownPerfNow` is the same interval by `performance.now()`; and
+`sinceDownEventTs` is it by `event.timeStamp`, which is stamped nearer the hardware. `elapsed 176`
+beside `sinceDownEventTs 41` says the finger was fast and the **events arrived late** — a different
+defect, and a different fix, from a finger that was genuinely slow.
+
+## Reading it — one command
+
+```sh
+python tools/hub_trace_analyze.py --self-check        # first: prove the classifier can fail
+
+python tools/hub_trace_analyze.py trace-15pro.json \
+    --expect scan.chartIt:10 --expect scan.flag:10 --expect scan.chartIt:5
+
+python tools/hub_trace_analyze.py trace-15pro.json --compare trace-se.json \
+    --expect scan.chartIt:10 --expect scan.flag:10 --expect scan.chartIt:5
+```
+
+One row per gesture, in one of these buckets, then one verdict line per hypothesis:
+
+| Bucket | What it means | The number it reports |
+|---|---|---|
+| **(a)** fired the intended action | the flick did what the thumb asked | `elapsed`, `travelled`, `angle` |
+| **(b)** flick window missed | the flick branch was not taken; handled as a deliberate press — **the five control drags belong here** | `elapsed` vs `FLICK_MS`, or `travelled` vs `openThreshold` |
+| **(c)** no engine transition | the pointer never completed in the engine | the first event actually seen |
+| **(d)** fired a different action | the vector resolved onto a neighbour | the measured `angle`, and which action it hit |
+| **(guard)** `flickable:false` | on Journal's **Close** this is the CORRECT outcome, not a miss | `elapsed`, and the target's `flickable` |
+
+⛔ **`--expect` is how intent enters the analysis, because intent is not in the trace.** Without it
+every fired gesture is reported as *intent not declared* rather than assumed correct — the analyser
+will not read the action that fired as the action you meant.
+
+⛔ **Order matters.** Expectations are matched to gestures **in sequence**, so a block run out of
+order, or a bubble swapped mid-run, mislabels everything after it. If step 3 was done at Flag
+instead, pass `--expect scan.flag:20` and say so.
+
+---
+
+# Reference — for whoever reads the trace
 
 ## 1. The decision, quoted, and the only three ways it can go wrong
 
@@ -188,46 +345,38 @@ declared `flickable: false` in the registry, so a row that says `flick-fire` on 
 at. That is the shape to look for — the fields disagreeing with the registry, not the trace
 disagreeing with itself.
 
-## 5. Capturing it
+## 5. Capturing it, and diffing two devices
 
-1. Sign in as an **admin** on the device, on **production** (`https://uctintelligence.com`). A local
-   sandbox shake-out is not certification evidence.
-2. **Settings → Joystick → "Record gesture trace"** on. Press **Clear** — the previous device's
-   capture must not bleed into this one.
-3. Go to the Journal with at least one open position, open the hub's fan, and run the G0-1 script
-   from `glass-acceptance.md`: ten flicks at **Close**, then one deliberate ~500ms press.
-4. Back in Settings, press **Copy trace**. Read the message it prints: it names how many events were
-   copied and their sequence range, and says so plainly if the buffer was empty or overflowed. If
-   the clipboard is unavailable the JSON appears in a box below for manual copy.
-5. Paste it back. **Turn the toggle off.**
-6. Repeat on the second device, clearing between runs.
+**The phone half is the numbered script at the top of this file.** This section used to repeat it in
+prose; a second copy of a procedure is a second authority over it, and the two would drift.
 
-## 5b. How to diff SE vs 15 Pro
+**The desk half is one command**, `tools/hub_trace_analyze.py` (see *Reading it* above). What it
+does that a person reading raw JSON cannot:
 
-1. Run the **same ten-flick script** on both devices, same build, same account, same target bubble,
-   in the same session window.
-2. Export both traces.
-3. Compare in this order — **stop at the first thing that differs**, because everything after it is
-   downstream:
-   - **`decision` histogram over the `pointerup` rows.** If the SE shows 10 × `flick-open` and the
-     15 Pro shows a mix including `press-fire`, the divergence is the flick branch and you are in
-     cause A or B.
-   - **`elapsed` distribution.** Median and max against `flickMs`. Cause A predicts the 15 Pro's
-     median sits at or above 120 while the SE's sits well below.
-   - **`elapsed` vs `sinceDownEventTs` vs `sinceDownPerfNow` — the three clocks.** Cause A's
-     *root*: if `elapsed` (the engine's `Date.now()` delta) and `sinceDownPerfNow` are large while
-     `sinceDownEventTs` is small, the events were DELIVERED late and no threshold change is the
-     right fix — the code should measure from `event.timeStamp`, which is stamped nearer the
-     hardware, rather than from a wall clock read in the handler. If all three agree, delivery is
-     honest and the finger really was slower than 120ms, which is a product decision with a
-     distribution attached rather than a bug. Cross-check with `coalesced`: batching on the 15 Pro
-     and none on the SE is the mechanism in the open.
-   - **`travelled` vs `openThreshold`.** Cause B.
-   - **`target.id` / `target.flickable` against the registry.** Cause C.
-4. ⛔ **Non-vacuity before concluding anything:** confirm both traces contain ten `pointerup` rows
-   each with `pointerType: "touch"`, and that `window.dropped` is 0. An empty, short or truncated
-   buffer is a failed invocation, not a clean device — the same rule the gate wrapper is built
-   around, and the reason the Copy button refuses to say "Copied" over nothing.
+1. **Segments the event stream into gestures** — `pointerdown` to release — and classifies each from
+   the row the ENGINE wrote. It re-derives no verdict of its own: `decision` and `target` come from
+   the branch in `useJoystick.js` that took the decision.
+2. **Matches intent by ORDER, declared with `--expect`.** Intent is not in the trace, so the tool
+   refuses to infer it; an undeclared gesture is reported as *intent not declared*, never as a
+   success. ⛔ Pairing is over gestures that reached a RELEASE, so one dropped gesture cannot slide
+   every later label by one.
+3. **Runs the non-vacuity gate first.** A capture with `window.dropped > 0`, with no rows, or with
+   no `pointerType: "touch"` is **UNREADABLE (exit 2)** and nothing is averaged over it. An
+   overflowed buffer is a failed capture, not a clean device.
+4. **Prints the three-clock comparison** — `elapsed` vs `sinceDownPerfNow` vs `sinceDownEventTs`,
+   with the largest `coalesced` count beside them — which is what separates cause A's *root* (late
+   delivery) from cause A with honest delivery (the finger really was slower than 120 ms).
+5. **`--compare` prints the second device beside the first.** Compare in this order and **stop at
+   the first thing that differs**; everything after it is downstream:
+   - the `decision` histogram over releases;
+   - `elapsed` against `flickMs` (cause **A**);
+   - the three clocks (cause **A**'s root);
+   - `travelled` against `openThreshold` (cause **B**);
+   - `target.id` / `target.flickable` against the registry (cause **C**).
+
+⛔ **Run `--self-check` before believing a run.** It proves each bucket is reached by the row that
+means it, that an intent-withheld gesture stays UNDECIDED, and that an overflowed buffer is refused
+while a healthy one is not — rule 14's non-vacuity control, applied to the analyser itself.
 
 ## 6. What each outcome licenses
 

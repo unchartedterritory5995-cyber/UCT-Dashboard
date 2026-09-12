@@ -187,6 +187,37 @@ each answer does:
 
 ---
 
+## Block G5 — the per-surface sweep, DERIVED → `glass-acceptance-steps.md`
+
+⛔ **RUN AFTER G0-1 RESOLVES. DO NOT RUN EARLY** — the same gate Block G1 carries, for the same
+reason: these are the same gestures measured by hand. Below 8/10 on the flick score every row
+there is **BLOCKED-BY-G0**, never FAIL.
+
+**96 rows, one per surface, generated from the registry** — every mode's Primary / Reverse /
+Scrub binding and every fan action, with the expected result derived from the action's own
+`kind`, `flickable`, `escalate` and `requires`, plus the two named doors (D4 and D1) restated
+where an operator will actually meet them. Regenerate, never hand-edit:
+
+```sh
+node tools/hub_surface_matrix.mjs --self-check     # prove the deriver can fail
+node tools/hub_surface_matrix.mjs --glass > docs/plans/joystick/glass-acceptance-steps.md
+```
+
+⭐ **Why a generated sheet beside the hand-written blocks above, rather than instead of them.**
+Block G3 was typed by hand from a memory of what Increments 3–7 added — and the thing that
+memory misses is not a new action, it is an OLD action that stopped being hidden. Four modes
+(`chart`, `catalysts`, `notebook`, `calendar`) left `PREVIEW_MODES` after Increment 2 and took
+**nineteen already-declared actions** onto members' glass with them, against **three** genuinely
+new actions. A member cannot tell which is which, and neither can a list written from recall.
+`surface-matrix.md` is the same derivation as a table with the Increment-2 diff in it.
+
+⛔ **What the generated sheet must NOT be used for:** G3-15 (the chip vs Actions-button overlap)
+and G3-16 (Wire vs Journal colour confusability) stay here, in the hand-written blocks, because
+they ask a human a question a generator cannot phrase — and G3-16's answer depends on **who** is
+looking. Deriving those would turn a judgement into a checkbox.
+
+---
+
 ## Recording the result
 
 Fill the rows in THIS file, in place, and commit it. The operator who ran the session is the
