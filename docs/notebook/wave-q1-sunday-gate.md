@@ -62,6 +62,38 @@ writers touched the same note. It is a **defect** when one writer produced it.
   tab/device**, i.e. a single writer forked its own note. That is the defect this
   whole wave exists to prevent.
 
+### ⛔⛔ SEVEN FAMILIES TO RULE OUT, NOT FOUR — corrected 2026-09-12
+
+⚰️ This gate was written against *"the FOUR doors — every path that advances
+`updatedAt`"*: body, folder, ticker, tags. That list came from the DERIVED WIRE
+RAIL, which can only see doors a canary actually opened — and no canary could
+reach a hero, so `hero` shipped to production **unsettled** while every artifact
+said the list was complete.
+
+Re-derived from the SQL: **SEVEN** server-side functions advance a note, through
+nine routes and sixteen client call sites.
+
+| family | reached by |
+|---|---|
+| `update_note` | the body PUT · hero set · hero remove · version restore · any property write |
+| `append_widget_embed` | Send to Journal |
+| `append_financial_fact` | Save price to Notebook |
+| `append_document_excerpt` | Save excerpt |
+| `restore_note` | Trash → Restore |
+| `import_confirm` | the import wizard |
+| `delete_folder` | deleting a folder — **one bulk UPDATE across every note in it** |
+
+⛔ **The last two are the ones an operator will not think of.** A member who
+deletes a folder moves every note inside it in a single UPDATE; a re-import
+rewrites notes that already existed. Both produce revisions in bulk, and before
+2026-09-12 neither told the browser about them at all.
+
+⭐ **The derived list is `app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js`
+(assertion ①), not this table.** That rail reads the SQL, then the router, then
+the client, and fails by name when a door appears without a settle. If this table
+and that rail ever disagree, the rail is right — a hand-typed roster beside the
+source that owns it is exactly the defect that produced the four.
+
 ## 4. The verdict
 
 Write `docs/notebook/wave-q1-gate-verdict.md`:

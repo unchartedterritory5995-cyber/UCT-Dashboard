@@ -154,4 +154,6 @@ docs/notebook/window-check.log
 docs/plans/joystick/gate-runs/*.log
 # the Notebook's own gate runs: keep the REPORT, never the multi-MB shard logs
 docs/notebook/gate-runs/*.log
+# nb_gate.py regenerates this beside itself on every run; the LOG is the record
+tools/wave-q1-gate-verdict.md
 docs/plans/joystick/gate-runs/INVALID-*.md

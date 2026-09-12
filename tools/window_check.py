@@ -296,7 +296,25 @@ def canary_should_run(suspended: bool, no_canary_flag: bool) -> bool:
 #
 # ⭐ The driver (`_fire_hero_door`) and its verdict arm in `door_survived` are
 # KEPT, so closing this is wiring, not rediscovery. Q1-F4 in the resume doc.
-DOORS = ("folder", "ticker", "tags")
+# ⛔⛔ FOUR, AND THE FOURTH IS THE REASON THIS WHOLE FILE EXISTS.
+#
+# `hero` is the door that shipped to production UNSETTLED for the whole of Wave
+# Q1 — because the door list was derived from what THIS canary drove, and no
+# canary could reach a hero. It is in the rotation now, on three measured facts:
+#   1. `HeroImagePicker` renders ONLY for a note that already has a hero, so the
+#      canary seeds one first (`_hero_seed`, SETUP) and measures a REPLACE;
+#   2. the picker's input carries `data-uct-hero-input`, a stable hook added for
+#      exactly this — the editor's hidden inline-image input has a
+#      BYTE-IDENTICAL accept list and was what the old selector matched;
+#   3. a run whose seed or picker is missing records NO door and refuses to
+#      stamp, rather than reporting its own reach as a product defect.
+#
+# ⭐ The other three families found on 2026-09-12 (`append_widget_embed`,
+# `append_financial_fact`, `append_document_excerpt`) are NOT reachable from the
+# note editor — they are opened from the charts page, a TickerPopup and a PDF
+# preview. They are INCONCLUSIVE here by construction and are named as such in
+# the sweep table, never driven by a substitute mechanism.
+DOORS = ("folder", "ticker", "tags", "hero")
 DOOR_PATCH = {
     "folder": {"folderId": None},
     "ticker": {"ticker": "NVDA"},
@@ -332,12 +350,43 @@ _HERO_PNG = bytes.fromhex(
 )
 
 
-def _fire_hero_door(page):
-    """Upload a hero image through the editor's own file input.
+def _hero_seed(page, base, note_id):
+    """SETUP, not the measurement: give the note a first hero.
 
-    ⛔ INCONCLUSIVE, NEVER A SUBSTITUTE. If the input is not on the page this
-    returns `ok: False` with the reason, and the caller records the run as not
-    having exercised a door — exactly as it does for the other three.
+    ⛔⛔ `HeroImagePicker` RENDERS ONLY WHEN THE NOTE ALREADY HAS A HERO. Read
+    from `NoteEditorPage.jsx` 2026-09-12: *"A note that already has a hero image
+    keeps showing it... Notes without one start straight at the title - no empty
+    drop-zone."* So on a fresh canary note there is NO hero control on the page
+    at all, and the first version of this driver matched the editor's hidden
+    INLINE-image input instead (byte-identical accept list), posted to `/images`,
+    and the run reported `heroImageUrl = null` as a product defect.
+
+    ⭐ THE DOOR THIS CANARY MEASURES IS A HERO *REPLACE*, driven through the
+    member's own picker. Getting the first hero on there is setup, it is done
+    before the offline window opens, and it is labelled as setup so nobody reads
+    it as the measurement.
+    """
+    return page.evaluate(
+        """async ([b, id]) => {
+             const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+               + 'AAAADUlEQVR42mP4//8/AAX+Av6nNaCbAAAAAElFTkSuQmCC'), c => c.charCodeAt(0));
+             const fd = new FormData();
+             fd.append('file', new Blob([png], {type:'image/png'}), 'seed-hero.png');
+             const r = await fetch(b + '/api/j2/notes/' + id + '/hero',
+                                   {method:'POST', credentials:'include', body: fd});
+             return {ok: r.ok, status: r.status};
+           }""", [base, note_id])
+
+
+def _fire_hero_door(page):
+    """Replace the note's hero through the member's own picker.
+
+    ⛔ INCONCLUSIVE, NEVER A SUBSTITUTE. If the picker is not on the page this
+    returns `ok: False` with the reason and the caller records the run as not
+    having exercised a door — the same posture as the other three doors. It must
+    NEVER fall back to a scripted upload: a raw multipart POST is a second-writer
+    simulation whose fork is correct, which is the artifact that cost this wave
+    three deploys.
     """
     try:
         # ⛔⛔ THE STABLE HOOK, NOT THE ACCEPT LIST. `NoteEditorPage` renders a
@@ -346,9 +395,11 @@ def _fire_hero_door(page):
         # and the hero door was never opened. Measured 2026-09-12.
         el = page.query_selector('input[type="file"][data-uct-hero-input]')
         if el is None:
-            return {"ok": False, "why": "no file input on the page — the hero picker did not render"}
+            return {"ok": False, "why": (
+                "the hero picker is not on the page. It renders ONLY for a note that "
+                "already has a hero, so the seed step must have failed")}
         el.set_input_files({"name": "canary-hero.png", "mimeType": "image/png", "buffer": _HERO_PNG})
-        return {"ok": True, "via": "input[type=file].set_input_files"}
+        return {"ok": True, "via": "input[data-uct-hero-input].set_input_files"}
     except Exception as e:  # noqa: BLE001 — the reason is the product of this function
         return {"ok": False, "why": f"{type(e).__name__}: {e}"}
 
@@ -590,7 +641,7 @@ class Check:
         # claiming there is one. A row that names its own door is falsifiable by
         # eye; "the door rotates" is not.
         if self.canary_ran and self.door:
-            lines.append(f"| door this run | **`{self.door}`** — `DOORS[{self.number} % 3]`, "
+            lines.append(f"| door this run | **`{self.door}`** — `DOORS[{self.number} % {len(DOORS)}]`, "
                          "derived from this run's own row number |")
         if self.canary_ran:
             lines.append("| **mini-canary** | " + (
@@ -1640,6 +1691,19 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
         chk.step("2 create a note", False, error=f"POST /api/j2/notes returned {created.get('status')}")
         return None
     note_id = created["id"]
+    # ⭐ SETUP FOR THE HERO DOOR, BEFORE THE OFFLINE WINDOW OPENS AND BEFORE ANY
+    # MEASUREMENT. `HeroImagePicker` renders only for a note that ALREADY has a
+    # hero, so a fresh canary note has no hero control on it at all — and the
+    # first version of this driver silently matched the editor's inline-image
+    # input instead. The door this run measures is a member-driven hero REPLACE;
+    # this line is what makes that door exist.
+    if door_for(chk.number) == "hero":
+        seeded = _hero_seed(page, PROD, note_id)
+        chk.step("1b seed a first hero (SETUP, not the measurement)",
+                 bool(seeded and seeded.get("ok")),
+                 f"`POST /hero` {seeded}",
+                 f"the hero seed failed ({seeded}) — the picker will not render and the "
+                 f"door cannot be driven; this run exercises NO door")
     puts.clear()
     page.goto(f"{PROD}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
     page.wait_for_timeout(6000)
@@ -1751,7 +1815,7 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     door_moved = (dr.get("status") == 200 and isinstance(dr.get("after"), str)
                   and dr.get("after").strip() != "" and dr.get("after") != dr.get("before"))
     chk.step(f"4 door `{door}` moved the baseline under the queued entry", door_moved,
-             f"run **#{chk.number}** ⇒ `DOORS[{chk.number} % 3]` = **`{door}`** · "
+             f"run **#{chk.number}** ⇒ `DOORS[{chk.number} % {len(DOORS)}]` = **`{door}`** · "
              f"PUT **{dr.get('status')}** in **{dr.get('attempts')}** attempt(s) · "
              f"baseline `{dr.get('before')}` → `{dr.get('after')}` · "
              f"queued sends that beat it: **{sends_before_door}**",
@@ -2700,7 +2764,7 @@ def self_check() -> int:
                   "dr.get('attempts')" in src_wc))
     _door_row = Check(label="check 10", number=10, canary_ran=True, door="ticker").row()
     cases.append(("the row STAMPS the door, so seven rows show the rotation",
-                  "`ticker`" in _door_row and "DOORS[10 % 3]" in _door_row))
+                  "`ticker`" in _door_row and f"DOORS[10 % {len(DOORS)}]" in _door_row))
     cases.append(("CONTROL: a run with no door prints no door line",
                   "DOORS[" not in Check(label="check 10", canary_ran=True).row()))
 

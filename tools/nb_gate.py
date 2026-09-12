@@ -119,8 +119,24 @@ def main() -> int:
             pass
     t2 = "PASS" if not conf else "NEEDS ATTRIBUTION"
     if conf:
-        fails.append(f"trigger 2: sync-conflict rose above {PRESERVED_CONFLICTS} at {conf[0][0]} "
-                     f"- attribute it (canary in flight? two tabs?) before calling it a defect")
+        # ⛔⛔ ATTRIBUTION NOW HAS SEVEN FAMILIES TO RULE OUT, NOT FOUR.
+        #
+        # ⚰️ This wave recorded "the FOUR doors - every path that advances
+        # updatedAt" and named body/folder/ticker/tags. Re-derived from the SQL
+        # on 2026-09-12: SEVEN server-side functions advance a note, through nine
+        # routes and sixteen client call sites. A new `sync-conflict` is not a
+        # defect until every one of them is ruled out, and the list an operator
+        # checks against has to be the derived one - that is the whole reason
+        # `hero` shipped unsettled for a wave.
+        fails.append(
+            f"trigger 2: sync-conflict rose above {PRESERVED_CONFLICTS} at {conf[0][0]} "
+            "- ATTRIBUTE IT before calling it a defect. Rule out, in order: "
+            "(1) a canary in flight; (2) two tabs on one note; (3) a SECOND WRITER - the "
+            "note-connectors background sync, whose fork is CORRECT; (4) any of the seven "
+            "advancing families - update_note (PUT / hero x2 / version restore), "
+            "append_widget_embed, append_financial_fact, append_document_excerpt, "
+            "restore_note, import_confirm, delete_folder. The derived list is "
+            "`doorEnumeration.test.js` (1); it, not this comment, is the authority.")
 
     # trigger 3 - NOT readable here, by construction
     t3 = "n/a - canary or member report only"

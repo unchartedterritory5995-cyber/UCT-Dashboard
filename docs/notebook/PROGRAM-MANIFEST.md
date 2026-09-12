@@ -586,6 +586,58 @@ Closing it requires building an instrument first — that is a task, not a looku
    "24" beside 26). **This one was not a stale count in a doc — it was a stale count
    the PRODUCT was built on.** Full entry: `docs/notebook/wave-q1-RESUME-HERE.md`.
 
+7. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
+   The fix for the four-doors trap (§10.6) was itself got wrong twice before it
+   was got right, and both failures were the same shape: **a grep answered, so
+   the search stopped.**
+   · The first enumeration grepped the service layer for `UPDATE j2_notes SET …
+     updated_at` and found **five** functions. It missed `update_note` and
+     `import_confirm`, which BUILD their SQL (`f"UPDATE j2_notes SET {', '.join(sets)}"`,
+     and a multi-line string concatenation) — so the two doors a member uses most
+     were absent from the list of doors.
+   · The second grepped the CLIENT for same-line `fetch` calls and found the
+     three `/embeds` sites. It missed every write whose URL is a VARIABLE —
+     including `delete_folder`, reached by ``fetch(`${url}/${id}`, {method:'DELETE'})``
+     where `url` is a const eleven lines above. A cascade over every note in a
+     folder was invisible to the rail meant to find it.
+   ⭐ **THE ORDER THAT WORKS: SQL → ROUTER → CLIENT.** Ask the database layer
+   which functions write `updated_at` (including the assembled form), ask the
+   router which routes reach those functions, and only then check the client
+   against THAT set. Each step is derived from the one before; no step is a
+   memory or a label. `doorEnumeration.test.js` does exactly this and fails by
+   name on a door without a settle.
+   ⛔ **AND AN ENUMERATION IS NEVER THE WHOLE ANSWER.** The landed ring is an
+   enumeration of callers; the drain's classifier reads the DIFF and needs no
+   enumeration at all. When a correctness property can be derived from data
+   instead of from a list of callers, derive it — the list goes stale silently
+   and the diff cannot.
+
+8. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
+   `hero` shipped unsettled **because no canary could reach it**, and that was
+   not bad luck. The note editor renders three file inputs, and the hero
+   picker's accept list is BYTE-IDENTICAL to the editor's hidden inline-image
+   input — so the obvious selector matched the wrong one, posted to `/images`,
+   and a later run read `heroImageUrl = null` and reported the rig's own
+   mis-selection as a product defect. Worse, `HeroImagePicker` renders **only for
+   a note that already has a hero**, so on a fresh canary note the door was not
+   on the page at all.
+   ⭐ Closed three ways on 2026-09-12: a stable `data-uct-hero-input` hook (with
+   a rail asserting it stays), a SETUP step that seeds a first hero so the
+   picker exists, and a measured verdict — the door then drove GREEN on
+   production, `heroImageUrl` surviving the drain.
+   ⛔ **THE HAZARD WHILE FIXING IT, RECORDED BECAUSE IT ALMOST SHIPPED:** adding
+   `hero` to the canary's rotation made the SCHEDULED unattended window refuse
+   to stamp every fourth run, for an instrument reason that reads as a product
+   problem to whoever finds the gap later. It was taken straight back out and
+   only restored once the door was genuinely drivable.
+   ⭐ And adding a fourth door broke SEVEN of the rig's own self-check cases,
+   every one with "three" typed into it (`(9, 10, 11)`, `range(n, n+3)`, a run
+   number commented `10 % 3 = 1`). One was not arithmetic at all: a case that
+   repeated a TWO-row fixture passed only because 2 and 3 are coprime. **A
+   self-check that needs hand-editing when the thing it checks grows is a second
+   authority over that thing's size** — they are all derived from `len(DOORS)`
+   now.
+
 ### Rows added by §10
 
 | id | feature | status |
