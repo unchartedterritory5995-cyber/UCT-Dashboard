@@ -98,3 +98,13 @@ tests/fixtures/** text eol=lf
 *.webp binary
 *.ico  binary
 *.gz   binary
+
+# ⚰️ R1 UNDER-REACHED BY TWO FILES (same evening). The rule above covers
+# `tests/fixtures/**`, and two harness-WRITTEN artifacts live under `tools/`:
+# `tests/test_chart_parity_harness.py` rewrites the first and
+# `corpusMetric.test.js` writes the second, both with `\n` only, against working
+# copies this box checks out CRLF. Named individually rather than as `tools/**`,
+# because that directory also holds PNGs and archives and a blanket text rule
+# there is the corrupt-binary hazard the top of this file exists to prevent.
+tools/chart_parity_cases.json text eol=lf
+tools/corpus_metric.json      text eol=lf
