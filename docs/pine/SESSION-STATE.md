@@ -1,5 +1,83 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⛔⛔ R-A — PAUSED: `ta.cum` AND VOLUME:284 ARE **NOT** THE SAME CLASS, AND THE CODE SAYS SO
+
+R-A rules that the `ta.cum` ruling "extends to it verbatim, as a CLASS". ⛔ **It does
+not, and implementing it as written would end an architectural invariant.** Read before
+touching anything, which is why nothing was touched.
+
+### The two are different in the one way that matters
+
+| | `ta.cum` | `priorMaxAllTimeDaily` (Volume 284/292) |
+|---|---|---|
+| has a window? | **yes** — `cumFrom(source, anchor, window)` is declared and translates today | **no** — `math.max(self, volD[1])` from bar zero, no anchor, no bound |
+| what is wrong with it | the value moves with FETCH DEPTH — window-**dependent** | there is no window to depend on |
+| cost of admitting | a disclosure: tag the definition `window_dependent`, refuse it for a screen | **static decidability itself** |
+
+`REFUSALS['pine:state']` states the cost in its own words:
+
+> *"an unbounded accumulator would end static decidability — `maxLookback` could no
+> longer be a tree sum and the repaint verdict could no longer be decided before the
+> tree runs — so it is not a backlog item."*
+
+So the `window_dependent` mechanism cannot carry this one: that tag exists to say *"this
+number moves with the request"*, and it presumes a number the linter can still reason
+about statically. An unbounded accumulator removes the reasoning, not the certainty.
+
+### And the decision is explicitly reserved — to two owners, together
+
+`closedTable.json::_no_offset_reopened_by`, verbatim:
+
+> *"Re-opening this is a SPEC decision, not an implementation one: it belongs to the
+> owner of the repaint claim (spec section 4, the phase's repaint-linter task) plus the
+> owner of this manifest, together, because it changes what the linter can decide and
+> what both lane walkers must implement. **It is not a v2 feature request that any later
+> task may grant on its own.**"*
+
+⛔ A single-session ruling, even the owner's, is the thing that clause names and
+excludes. So R-A is paused rather than applied, and **T2 cannot complete tonight**.
+
+### ⭐ THE THIRD OPTION, WHICH NEEDS NO DECIDABILITY CHANGE
+
+The `cum` door already solves this shape the member-facing way: it **refuses and hands
+back the call that works**, leaving the anchor with the member, visible in their own
+script. The same move is available here:
+
+```
+member writes   priorMaxAllTimeDaily := math.max(priorMaxAllTimeDaily, volD[1])
+door hands back ta.highest(volD[1], <a window the member states>)
+```
+
+Volume **already writes exactly that on the next line** — line 294 is
+`priorMax1YDaily = ta.highest(volD[1], lookbackDays)`. So the script's own author
+reached for the bounded form one line later, and the HV1 trigger is built on it. ⭐ The
+offer is therefore not a guess about what a member meant: it is the shape that script
+uses for its other threshold.
+
+**What that costs a member, honestly:** their HVE trigger becomes "highest in N" rather
+than "highest ever", and they choose N. That is a different feature, and the door would
+say so — exactly as the `cum` sentence says `cumFrom` is not `cum`.
+
+### Three ways forward, for the record
+
+- **A** — grant the static-decidability change, the two named owners together. Largest,
+  and it reaches past Pine into `maxLookback` and the repaint linter.
+- **B** — keep refusing on both lanes. Volume's HVE is then not expressible, and the
+  script refuses with a sentence naming line 284. Status quo, honest, no work.
+- **C** ⭐ — **the door offer**: refuse, and hand back `ta.highest(volD[1], n)` with the
+  window stated, exactly as `cum` hands back `cumFrom`. No decidability change, and it
+  is the idiom this engine already ships. My recommendation.
+
+### What was measured, and what could not be
+
+✅ Ours: `pine:state@284`, both lanes, reproduced after every change tonight.
+⛔ The SPY 1D comparison R-A asks for (our 5,000-bar window vs TradingView's full
+history, both values with dates) **was not taken: no browser**. It is also moot under
+B and C — there is no number of ours to compare until A is granted.
+
+
+---
+
 # ▶️ TOMORROW — THE PLAN, IN ORDER, WITH HONEST MINUTES
 
 ⛔⛔ **T0 IS NEW AND IT COMES FIRST, BECAUSE THE SUITE IS RED.** Ruling 3.5 is built,
