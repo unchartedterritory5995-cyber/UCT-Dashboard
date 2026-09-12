@@ -1,5 +1,40 @@
 # Session state — `feat/indicator-r0r1`
 
+## 🧾 SESSION 1 — WHERE VOLUME STANDS, VERBATIM, AND THE RE-RUN DRY-RUN
+
+```
+VOLUME [screener] ok=true  outputs=5 refusals=4   4 x pine:function@225  (ta.cum, by ruling)
+VOLUME [host]     ok=false outputs=5 refusals=1   pine:state@284
+VOLUME buildRuntimeIr      ok=false               runtime:realtime-untold@296
+```
+
+⭐ **The IR lane's blocker MOVED, and to a better refusal.** It was
+`pine:text-value@151`; ruling 3.3 now fires first at **line 296**, where Volume writes
+`barstate.isconfirmed`. That is the refusal-instead-of-blank the ruling asked for, and
+it lifts the moment T4's producer lands — at which point `pine:text-value@151` becomes
+the next named blocker again.
+
+**The blocker chain, whole:**
+`pine:reassign@250` → `@260` → `pine:request@259` → `pine:state@284`. Three cleared by
+work; the fourth is **R-A, paused** — see above.
+
+### R-E — the dry-run, re-measured twice as master moved
+
+```
+measured 2026-09-11   against 36596a88a   549 behind / 314 ahead   4 conflicts
+measured 2026-09-12   against a5173fe41   (master moved mid-session)
+re-measured           against b272db249   583 behind / 329 ahead   4 conflicts
+
+.gitattributes                                  append-vs-append, keep both
+.gitignore                                      append-vs-append, keep both
+api/services/ticker_explain.py                  fixed on both sides
+app/src/components/screener/reachable.test.js   union the acknowledgement list, then run it
+```
+
+⭐ **Master moved TWICE during the session and the conflict set did not change** — same
+four files, same shapes. So the 45-90 min estimate holds, and the re-measure was worth
+taking rather than quoting the old SHA.
+
 ## ⛔⛔ R-A — PAUSED: `ta.cum` AND VOLUME:284 ARE **NOT** THE SAME CLASS, AND THE CODE SAYS SO
 
 R-A rules that the `ta.cum` ruling "extends to it verbatim, as a CLASS". ⛔ **It does
