@@ -78,6 +78,22 @@
       files. Both need a touch-emulating context, which is a different instrument and a different
       run. Recorded rather than folded in: a pass whose scope is overstated is how a green
       instrument comes to stand in for one nobody ran.
+      **touch-context pass: ✅ OK (2026-09-12T02:54:26Z, live SHA `36596a88a`)** —
+      `smoke-runs/2026-09-12T02-54-26Z-touch.md`. `--auth --touch` in a 393x852 DPR-3 coarse-pointer context:
+      eligibility floor confirmed in-browser, the hub **showing on all sixteen** routes, and the
+      one hide the product actually declares — the chart shell's landscape-immersive mode at
+      852x393 — verified with BOTH halves of its condition asked of the browser (shell attribute
+      AND media query) and the hub measurably not showing (`hidden` attribute true, `display:none`,
+      box 0x0). `hideOnRoute` is declared by **no shipped mode**, read from `registry.js` with
+      comments stripped. Three console errors, all YouTube thumbnail 404s from `i.ytimg.com`;
+      ⛔ that is "three errors, all external", NOT "zero from `app/src/hub/*`" — hashed production
+      chunks cannot be attributed to a source path, and the record says so rather than implying
+      the stronger claim.
+      ⚰️ **The first run of this pass reported a product defect that did not exist** — it asked
+      `querySelector` whether the hub was present, and `HubRoot` keeps the container in the DOM
+      with the HTML `hidden` attribute. Measured, corrected, and railed with four fixtures before
+      anything was written down. ⛔ Still not glass: Chromium emulating a viewport class is not an
+      iPhone, and this says where the hub mounts, never that a gesture works.
 
 - [x] **Preference-key validation live server-side.** ✅ **CLOSED 2026-09-11.**
       **Evidence:** built as L3 item 1 in `60cbe8919`, shipped as **Deploy B** (`b9d66e0c3`,

@@ -51,8 +51,19 @@ Usage
 -----
     python tools/hub_nav_smoke.py                      # prod, public routes only
     python tools/hub_nav_smoke.py --auth               # + SMOKE_EMAIL / SMOKE_PASSWORD
+    python tools/hub_nav_smoke.py --auth --touch       # the phone-class pass (see below)
     python tools/hub_nav_smoke.py --self-check         # rule 14: prove it can FAIL
     python tools/hub_nav_smoke.py --base http://localhost:8077 --auth
+
+THE TOUCH PASS (`--touch`) is a SECOND run, not a wider first one, and the split is structural:
+`useHubActive.js` gates the hub on `(max-width: 1023px) and (pointer: coarse)`, so in the desktop
+context above the hub cannot mount ANYWHERE. "It stayed off the routes it should" is then true for
+a reason that proves nothing, and folding the two together would measure the hub questions in the
+one environment guaranteed to answer them vacuously. The touch pass drives 393x852 at DPR 3 with a
+coarse pointer, asserts the hub mounts exactly where the registry says (`hideOnRoute`, read from
+the registry with comments stripped) and not where it says otherwise, and records console and page
+errors. ⚠️ It is Chromium emulating a phone VIEWPORT CLASS, never an iPhone — iOS Safari is WebKit.
+It can say where the hub mounts; it can never say a gesture works.
 """
 from __future__ import annotations
 
@@ -399,6 +410,192 @@ IDLE_PAGE = """<!doctype html><meta charset="utf-8"><title>idle</title>
 <main><h1>Idle</h1><p>A settled, healthy page.</p></main>"""
 
 
+# ── THE TOUCH PASS ─────────────────────────────────────────────────────────────────────────────
+# ⛔ WHY A SECOND PASS AND NOT A WIDER FIRST ONE. The desktop sweep above answers "can a member
+# still navigate", which is route-shaped and device-agnostic. The two questions it structurally
+# CANNOT answer are hub-shaped: `useHubActive.js:84` gates the hub on
+# `(max-width: 1023px) and (pointer: coarse)`, so on a desktop viewport the hub cannot mount
+# ANYWHERE — "it stayed off the routes it should" is then true for a reason that proves nothing.
+# Running both in one context would mean measuring the hub questions in the one environment
+# guaranteed to answer them vacuously.
+#
+# ⚠️ WHAT THIS IS NOT: it is Chromium emulating a phone VIEWPORT CLASS, not an iPhone. iOS Safari
+# is WebKit, ships `backdrop-filter` only under `-webkit-`, and is the thing G0-1 is unexplained
+# on. This pass can say "the hub mounts where the rules say" — it can never say a gesture works.
+# Glass is still glass (`glass-acceptance.md`).
+
+TOUCH_VIEWPORT = {"width": 393, "height": 852}   # iPhone 15 Pro CSS px
+TOUCH_DPR = 3
+# Landscape with a short height, which is the immersive-chart-shell condition in `hubViewport.js`
+# (`pointer:coarse` + `orientation:landscape` + `max-height:500px`, scoped to the chart shell).
+TOUCH_LANDSCAPE = {"width": 852, "height": 393}
+
+
+def _registry_source() -> str:
+    """`registry.js` with comments stripped.
+
+    ⛔ STRIPPED FIRST, ALWAYS. `registry.js` and `hubViewport.js` both discuss `hideOnRoute` in
+    prose at length ("No shipped mode sets this today — it is read defensively"), and a scanner
+    that matched those would report modes that declare nothing. This repo has paid for that exact
+    mistake six times in one session; `--self-check` carries the case.
+    """
+    src = (REPO / "app" / "src" / "hub" / "registry.js").read_text(encoding="utf-8")
+    src = re.sub(r"/\*[\s\S]*?\*/", "", src)
+    return re.sub(r"//[^\n]*", "", src)
+
+
+def _mode_blocks(src: str):
+    """(mode id, its declaration block) for every mode in the registry."""
+    for m in re.finditer(r"\n\s{4}id:\s*'([a-z]+)',", src):
+        block = src[m.end(): m.end() + 6000]
+        nxt = re.search(r"\n\s{4}id:\s*'[a-z]+',", block)
+        yield m.group(1), (block[: nxt.start()] if nxt else block)
+
+
+def hide_on_route_modes(src: str | None = None) -> list[str]:
+    """Modes DECLARING `hideOnRoute: true` — the list this pass quotes, never a typed one."""
+    src = _registry_source() if src is None else src
+    return sorted({mid for mid, block in _mode_blocks(src)
+                   if re.search(r"(^|[^\w.])hideOnRoute\s*:\s*true", block)})
+
+
+def route_to_mode(src: str | None = None) -> dict[str, str]:
+    """`{'/screener': 'scan', …}` — the same derivation `hubRoutes.js` does, for the same reason
+    it does it there: a hand-typed second route table is the defect this repo keeps re-finding."""
+    src = _registry_source() if src is None else src
+    out: dict[str, str] = {}
+    for mid, block in _mode_blocks(src):
+        r = re.search(r"\n\s{4}route:\s*'([^']+)'", block)
+        if r:
+            out[r.group(1)] = mid
+    return out
+
+
+def touch_eligibility(page) -> dict:
+    """The hub's own mount floor, asked of the browser we are actually driving.
+
+    ⛔ NON-VACUITY, AND IT IS THE WHOLE RISK OF THIS PASS. If the harness does not reproduce
+    `pointer: coarse`, every route reports "no hub" and the run reads as a clean sweep of a
+    product that was never eligible. That is INCONCLUSIVE, never a pass and never a failure.
+    """
+    return page.evaluate(
+        """() => ({
+            coarseAndNarrow: window.matchMedia('(max-width: 1023px) and (pointer: coarse)').matches,
+            backdrop: (typeof CSS !== 'undefined' && typeof CSS.supports === 'function')
+              && (CSS.supports('backdrop-filter', 'blur(1px)')
+                  || CSS.supports('-webkit-backdrop-filter', 'blur(1px)')),
+            visualViewport: typeof window.visualViewport !== 'undefined',
+            width: window.innerWidth,
+            dpr: window.devicePixelRatio,
+            maxTouchPoints: navigator.maxTouchPoints,
+        })"""
+    )
+
+
+# ⛔⛔ PRESENT IS NOT SHOWING, AND THIS SCRIPT ALREADY PUBLISHED THE DIFFERENCE ONCE.
+#
+# `HubRoot.jsx:433` renders `<div data-testid="hub-root" hidden={hidden}>`: the container STAYS in
+# the DOM and takes the HTML `hidden` attribute. The first version of this pass asked
+# `querySelector(...)` and reported the hub as mounted in the chart shell's landscape-immersive
+# mode — i.e. it reported a PRODUCT DEFECT that did not exist. Measured on the live page at
+# 852x393: `hidden` attribute TRUE, computed `display: none`, box 0x0. The product was right and
+# the instrument was wrong (`lesson_did_it_render_needs_the_products_own_answer`).
+#
+# ⚠️ AND `offsetParent === null` IS NOT THE SIGNAL EITHER — the hub is `position: fixed`, so its
+# offsetParent is null even when it is plainly on screen. Measured both ways before choosing:
+# `hidden` attribute + computed display + a non-zero box.
+HUB_STATE_JS = """() => {
+  const el = document.querySelector('[data-testid="hub-root"]');
+  if (!el) return { present: false, showing: false };
+  const cs = getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  return {
+    present: true,
+    hiddenAttr: el.hasAttribute('hidden'),
+    display: cs.display,
+    box: [Math.round(r.width), Math.round(r.height)],
+    showing: !el.hasAttribute('hidden') && cs.display !== 'none'
+             && r.width > 0 && r.height > 0,
+  };
+}"""
+
+
+def hub_state(page) -> dict:
+    return page.evaluate(HUB_STATE_JS)
+
+
+def touch_sweep(page, base: str, routes: list[str], errors: list[dict]):
+    """Every route, in a touch context: does the hub mount where the rules say, and nothing logs?
+
+    Returns (failures, rows, notes).
+    """
+    failures: list[str] = []
+    rows: list[tuple[str, bool, int]] = []
+    notes: list[str] = []
+    src = _registry_source()
+    hidden_modes = hide_on_route_modes(src)
+    section_mode = route_to_mode(src)
+
+    for route in routes:
+        before = len(errors)
+        try:
+            page.goto(f"{base}{route}", wait_until="domcontentloaded", timeout=45000)
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"{route}: the route would not load ({type(exc).__name__})")
+            continue
+        page.wait_for_timeout(2500)  # the hub mounts after auth + settings resolve.
+        st = hub_state(page)
+        new_errors = len(errors) - before
+        rows.append((route, st, new_errors))
+        mode = section_mode.get(route)
+        should_hide = bool(mode and mode in hidden_modes)
+        if should_hide and st["showing"]:
+            failures.append(f"{route}: mode '{mode}' declares hideOnRoute and the hub is SHOWING")
+        elif not should_hide and not st["showing"]:
+            failures.append(
+                f"{route}: the hub is not showing ({st}), and no mode declares hideOnRoute for it. "
+                "Eligibility is viewport+pointer, not route-shaped, so this is a real absence."
+            )
+    return failures, rows, notes
+
+
+def landscape_immersive_check(page, base: str) -> tuple[list[str], str]:
+    """The ONE positive case for 'and not where it shouldn't' that the product actually declares.
+
+    `hubViewport.js` hides the hub in the chart shell's landscape-immersive mode. Nothing else in
+    the shipped registry hides it by route, so without this the 'does not mount elsewhere' half of
+    the ruling has no case to exercise and would be an assertion about an empty set.
+    """
+    page.set_viewport_size(TOUCH_LANDSCAPE)
+    try:
+        page.goto(f"{base}/charts", wait_until="domcontentloaded", timeout=45000)
+    except Exception as exc:  # noqa: BLE001
+        page.set_viewport_size(TOUCH_VIEWPORT)
+        return [], f"INCONCLUSIVE — /charts would not load in landscape ({type(exc).__name__})"
+    page.wait_for_timeout(3000)
+    cond = page.evaluate(
+        """() => ({
+            shell: document.documentElement.hasAttribute('data-mobile-chart-shell'),
+            immersive: matchMedia(
+              '(pointer: coarse) and (orientation: landscape) and (max-height: 500px)').matches,
+        })"""
+    )
+    st = hub_state(page)
+    page.set_viewport_size(TOUCH_VIEWPORT)
+    # ⛔ BOTH HALVES OF THE CONDITION, ASKED OF THE BROWSER. The shell attribute alone is not the
+    # rule — `hubViewport.js` ANDs it with a media query, and a harness that rotates the viewport
+    # without the query matching would be grading a state the product was never in.
+    if not (cond["shell"] and cond["immersive"]):
+        return [], ("INCONCLUSIVE — the landscape-immersive condition never existed at 852x393 "
+                    f"(shell={cond['shell']}, media query={cond['immersive']}); hub state {st}")
+    if st["showing"]:
+        return ([f"/charts in landscape-immersive (852x393): the hub is SHOWING ({st}), and "
+                 "`hubViewport.js` says it must be hidden"], "measured — FAILED")
+    return [], (f"PASS — condition real (shell + media query both true) and the hub is not showing "
+                f"(hidden attribute {st.get('hiddenAttr')}, display {st.get('display')}, "
+                f"box {st.get('box')})")
+
+
 def _serve(body_for_path, nonce):
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):  # noqa: N802
@@ -429,8 +626,50 @@ def _serve(body_for_path, nonce):
     return srv, srv.server_address[1]
 
 
+def _registry_parser_self_check() -> list[str]:
+    """⛔ CODE, NEVER PROSE — proved, not asserted.
+
+    `hubViewport.js` says in a comment that no mode sets `hideOnRoute`, and `registry.js` discusses
+    the field too. A parser that matched those sentences would report modes that declare nothing,
+    and this pass would then expect the hub to be ABSENT on real routes and fail the product for
+    the scanner's mistake. Both directions are checked, because a parser that finds nothing at all
+    passes the first case trivially.
+    """
+    fails: list[str] = []
+    prose = """
+    // hideOnRoute: true is read defensively; no shipped mode sets it.
+    /* a block comment mentioning hideOnRoute: true as well */
+    id: 'wire',
+      route: '/morning-wire',
+    """
+    if hide_on_route_modes(re.sub(r"//[^\n]*", "", re.sub(r"/\*[\s\S]*?\*/", "", prose))):
+        fails.append("a hideOnRoute mentioned only in a COMMENT was counted as a declaration")
+    # ⭐ Four-space indentation, because that is exactly what separates a MODE key from an ACTION
+    # key in the real file. A fixture with a different shape would exercise a parser nobody has.
+    real = "\n    id: 'ghost',\n    route: '/ghost',\n    hideOnRoute: true,\n"
+    if hide_on_route_modes(real) != ["ghost"]:
+        fails.append("a real hideOnRoute declaration was MISSED — the parser cannot see a positive")
+    if route_to_mode(real) != {"/ghost": "ghost"}:
+        fails.append("route_to_mode failed on a synthetic mode block")
+    live = route_to_mode()
+    if live.get("/screener") != "scan":
+        fails.append("route_to_mode lost the live /screener -> scan pair")
+    if "/journal/insights" in live:
+        fails.append("route_to_mode invented a route the registry does not declare")
+    return fails
+
+
 def self_check() -> int:
     from playwright.sync_api import sync_playwright  # noqa: PLC0415
+
+    parser_fails = _registry_parser_self_check()
+    if parser_fails:
+        say("SELF-CHECK FAILED (registry parsers):", err=True)
+        for f in parser_fails:
+            say(f"  ⛔ {f}", err=True)
+        return 1
+    say("  [ok] registry parsers: a commented hideOnRoute is not a declaration, a real one is, "
+        f"and the live route table has {len(route_to_mode())} entries")
 
     nonce = secrets.token_hex(8)
     srv, port = _serve(lambda p: FROZEN_PAGE if "frozen" in p or p == "/" else FROZEN_PAGE, nonce)
@@ -489,6 +728,32 @@ def self_check() -> int:
         idle_clean = render_verdict("/idle", idle_sample) is None
         srv4.shutdown()
 
+        # 5. PRESENT IS NOT SHOWING — the case this pass got WRONG on its first live run, and
+        #    reported as a product defect. `HubRoot` keeps the container in the DOM and sets the
+        #    HTML `hidden` attribute, so a `querySelector` presence check says "mounted" about a
+        #    hub with `display: none`. Three fixtures, because a checker that answers "not
+        #    showing" to everything would pass the first two on its own:
+        #      a) hidden attribute  -> present, NOT showing
+        #      b) display:none      -> present, NOT showing
+        #      c) a real 84x84 box  -> present AND showing   (the control)
+        page.set_content(
+            '<div data-testid="hub-root" hidden style="width:84px;height:84px"></div>')
+        hidden_attr = hub_state(page)
+        page.set_content(
+            '<div data-testid="hub-root" style="display:none;width:84px;height:84px"></div>')
+        display_none = hub_state(page)
+        page.set_content(
+            '<div data-testid="hub-root" style="position:fixed;width:84px;height:84px"></div>')
+        really_showing = hub_state(page)
+        page.set_content("<p>no hub here</p>")
+        absent = hub_state(page)
+        showing_ok = (
+            hidden_attr["present"] and not hidden_attr["showing"]
+            and display_none["present"] and not display_none["showing"]
+            and really_showing["present"] and really_showing["showing"]
+            and not absent["present"] and not absent["showing"]
+        )
+
         br.close()
 
     say("")
@@ -500,16 +765,124 @@ def self_check() -> int:
     say(f"  idle page NOT flagged      : {idle_clean} "
         f"(main thread {idle_sample.get('blockedFraction', 0) * 100:.0f}% blocked, "
         f"{idle_sample.get('fps', 0):.0f} fps)")
+    say(f"  present-is-not-showing     : {showing_ok} "
+        "(hidden attr and display:none both read as NOT showing; a real box reads as showing)")
     if not loop_sample.get("longtaskSupported", False):
         say("SELF-CHECK FAILED — this browser reports no longtask entries, so the render probe "
             "is BLIND here. Silence from a blind instrument is not health.", err=True)
         return 1
-    if frozen_caught and healthy_ok and loop_caught and idle_clean:
+    if frozen_caught and healthy_ok and loop_caught and idle_clean and showing_ok:
         say("SELF-CHECK PASS — both detectors fire on the thing they watch for and stay quiet "
             "on a healthy page.")
         return 0
     say("SELF-CHECK FAILED — this smoke cannot be trusted.", err=True)
     return 1
+
+
+def touch_main(args) -> int:
+    """The touch pass. Exit codes are the same three facts: 0 pass · 1 measured · 2 inconclusive."""
+    from playwright.sync_api import sync_playwright  # noqa: PLC0415
+
+    entries = nav_items()
+    routes = top_level_routes(entries)
+    hidden = hide_on_route_modes()
+    say(f"nav entries derived from NavBar.jsx: {len(entries)}  ·  sweeping {len(routes)} routes")
+    say(f"hideOnRoute declared by: {hidden if hidden else 'NO MODE — the list is empty'}")
+    say("  ⭐ So the expectation on every route is MOUNTS. `hideOnRoute` is read defensively by "
+        "`hubViewport.js` and no shipped mode sets it; the one declared hide left to exercise is "
+        "the chart shell's landscape-immersive mode, checked at the end.")
+
+    errors: list[dict] = []
+    with sync_playwright() as pw:
+        br = pw.chromium.launch()
+        ctx = br.new_context(
+            viewport=TOUCH_VIEWPORT,
+            device_scale_factor=TOUCH_DPR,
+            is_mobile=True,
+            has_touch=True,
+        )
+        page = ctx.new_page()
+
+        # ⛔ BOTH CHANNELS. `console` misses an uncaught exception that never reaches console.error,
+        # and `pageerror` misses a deliberate console.error. Recording one and reporting "zero
+        # errors" would be a claim about the channel, not about the page.
+        page.on("console", lambda m: errors.append(
+            {"kind": "console", "text": m.text, "where": (m.location or {}).get("url", "")}
+        ) if m.type == "error" else None)
+        page.on("pageerror", lambda e: errors.append(
+            {"kind": "pageerror", "text": str(e), "where": ""}
+        ))
+
+        if not args.auth or not login(page, args.base):
+            say("")
+            say("TOUCH PASS INCONCLUSIVE — not signed in. At stage 1 an unset preference resolves "
+                "to `isAdmin`, so an anonymous or non-admin session has no hub to find and every "
+                "route would report 'no hub' for a reason that is not the product's.", err=True)
+            br.close()
+            return 2
+
+        # ⛔ TAKE THE READING ON A REAL APP ROUTE. The first version read it wherever `login()`
+        # left the page, which reported `innerWidth 980` — Chromium's fallback layout width for a
+        # document with no viewport meta — in a 393-wide context. The floor still passed for the
+        # right reason, but an instrument that PRINTS a misleading number invites a false finding
+        # from whoever reads its output.
+        page.goto(f"{args.base}/dashboard", wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(2000)
+        floor = touch_eligibility(page)
+        say(f"  eligibility floor: coarse+narrow={floor['coarseAndNarrow']} "
+            f"backdrop={floor['backdrop']} visualViewport={floor['visualViewport']} "
+            f"({floor['width']}px @ dpr {floor['dpr']}, maxTouchPoints {floor['maxTouchPoints']})")
+        if not (floor["coarseAndNarrow"] and floor["backdrop"] and floor["visualViewport"]):
+            say("")
+            say("TOUCH PASS INCONCLUSIVE — the harness did not reproduce the hub's own mount floor "
+                "(`useHubActive.js`). Every route would report 'no hub' because the CONTEXT is "
+                "ineligible, not because the product is. That is an unmeasured run, not a clean "
+                "one.", err=True)
+            br.close()
+            return 2
+
+        failures, rows, notes = touch_sweep(page, args.base, routes, errors)
+        land_failures, land_note = landscape_immersive_check(page, args.base)
+        failures += land_failures
+        br.close()
+
+    for route, st, errs in rows:
+        mark = "hub ✓" if st["showing"] else ("hub hidden" if st.get("present") else "NO HUB")
+        say(f"    {mark:<11} {route:<22} console errors: {errs}")
+    say(f"  landscape-immersive /charts: {land_note}")
+    for n in notes:
+        say(f"  note: {n}")
+
+    # ── Console errors. Attribution is reported HONESTLY or not at all. ────────────────────────
+    # ⛔ In a production build the chunks are hashed, so "originating from app/src/hub/*" is not
+    # something this can resolve from a stack trace. What it CAN say without inventing anything:
+    # how many errors there were at all, and which of them name the hub. Zero of any origin is the
+    # strong case and needs no attribution; anything else is listed with its location, and an
+    # unattributable error is reported as unattributable rather than quietly dropped.
+    hubbish = [e for e in errors if "hub" in (e["text"] + e["where"]).lower()]
+    say("")
+    say(f"  console/page errors, all origins: {len(errors)}  ·  naming 'hub': {len(hubbish)}")
+    for e in errors[:20]:
+        say(f"    [{e['kind']}] {e['text'][:160]}  {('@ ' + e['where']) if e['where'] else ''}")
+    if errors and not hubbish:
+        say("  ⚠️ Errors were logged but none names the hub. ⛔ That is NOT 'zero from hub files': "
+            "production chunks are hashed, so this cannot attribute a minified frame to a source "
+            "path. Read the list above.")
+
+    if failures:
+        say("")
+        say(f"TOUCH PASS FAILED — {len(failures)} problem(s):", err=True)
+        for f in failures:
+            say(f"  ⛔ {f}", err=True)
+        return 1
+    say("")
+    say(f"TOUCH PASS OK — {len(rows)} routes in a 393x852 coarse-pointer context; the hub mounted "
+        f"on every route the registry says it should and on no route it says it should not; "
+        f"{len(errors)} console/page error(s) recorded.")
+    say("⚠️ Chromium emulating a phone VIEWPORT CLASS, not an iPhone. iOS Safari is WebKit and "
+        "ships backdrop-filter only prefixed — this pass can say where the hub mounts, never that "
+        "a gesture works. Glass is still glass.")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -520,10 +893,16 @@ def main(argv=None) -> int:
     ap.add_argument("--full", action="store_true",
                     help="exhaustive fan-out from the three hub-hosting routes (slow; an "
                          "audit, not a post-deploy smoke)")
+    ap.add_argument("--touch", action="store_true",
+                    help="second pass in a phone-class touch context (393x852, DPR 3, coarse "
+                         "pointer): does the hub mount where the registry says, and does any hub "
+                         "code log an error? Requires --auth.")
     args = ap.parse_args(argv)
 
     if args.self_check:
         return self_check()
+    if args.touch:
+        return touch_main(args)
 
     from playwright.sync_api import sync_playwright  # noqa: PLC0415
 

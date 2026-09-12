@@ -1,0 +1,60 @@
+# Does a change to api/** actually reach flow-worker?
+#
+# flow-worker deploys on a NARROW watch list of ~21 specific api/*.py files while
+# its import closure reaches ~154 api modules. A change to any of the others —
+# api/services/**, api/routers/**, an unlisted top-level api/*.py — builds
+# nothing, deploys nothing, and leaves flow-worker on the OLD code with every
+# test in the repo green. Measured 2026-09-11: flow-worker was SKIPPED on 14 of
+# the last 14 master pushes, including both that touched api/.
+#
+# This does NOT widen the watch list. A wider list means more flow-worker
+# restarts, and each one gaps the OPRA tape permanently until the T+1 flat file.
+# It makes "this push deploys nothing to flow-worker" visible at review time.
+#
+# Scope is deliberately narrow — one stdlib-only script, no install step — so it
+# stays fast and cannot cry wolf. A workflow that cries wolf gets ignored, which
+# would defeat the point.
+name: flow-worker deploy coverage
+
+on:
+  push:
+    paths: ['api/**', 'tools/flow_worker_watch_coverage.py']
+  pull_request:
+    paths: ['api/**', 'tools/flow_worker_watch_coverage.py']
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      # ⛔ fetch-depth 0: the check diffs against a merge-base, and a shallow
+      # clone silently yields an empty diff — the vacuous pass this exists to avoid.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: flow-worker watch coverage
+        env:
+          # The PR's real base. `github.event.before` is all-zeros on a new branch;
+          # the script VERIFIES the ref resolves and falls back rather than
+          # trusting it.
+          FLOW_WATCH_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/flow_worker_watch_coverage.py
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::This change touches files flow-worker RUNS but does not trigger its deploy — it would ship inert."
+          echo ""
+          echo "flow-worker watches ~21 specific api/*.py files (Railway dashboard is the"
+          echo "authority; the mirror is api/flow_worker_main.py's header). Anything else"
+          echo "under api/ deploys nothing to it."
+          echo ""
+          echo "  1. Touch a watched file in the same commit — editing the"
+          echo "     api/flow_worker_main.py header is the conventional trigger."
+          echo "  2. OR add the paths to flow-worker's watch list in the Railway dashboard,"
+          echo "     remembering a wider list means more tape gaps."
+          echo "  3. Run it locally: python tools/flow_worker_watch_coverage.py"
