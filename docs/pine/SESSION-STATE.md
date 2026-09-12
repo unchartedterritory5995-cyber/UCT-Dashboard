@@ -1,5 +1,139 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · T4 — THE `newestBarIsForming` PRODUCER, AND THE 3.3 REFUSAL LIFTS
+
+`app/src/components/chart/engine/ast/pineRuntimeClock.js` + 11 assertions in its test.
+
+⛔ **IT COMPUTES NOTHING, AND THAT IS THE WHOLE DESIGN.** No calendar, no `Date.now()`,
+no timeframe arithmetic. The tri-state is settled once per fetch by
+`indicator_compute.py::bar_close_state` — the side the NYSE calendar lives on — and
+`/api/bars` already attaches it as `newest_bar_is_forming`. `computeClock` says it in its
+own words: *"the seam carries the tri-state; the calendar does not cross it."* This module
+is the runtime lane's copy of the wire the native lane already had
+(`barCloseStateWire.test.js`), written as a function so there is one place to test.
+
+```
+newestBarIsFormingFrom(payload)   → true | false | null   (undefined ⇒ null, never false)
+runtimeClockOpts(forming, extra)  → { newestBarIsForming, interpretOpts: {…} }
+formingByBar(bars, forming)       → per-bar, only the newest can be true
+```
+
+⛔⛔ **THE TEST NOBODY ASKED FOR IS THE IMPORTANT ONE.** `buildRuntimeIr` lifts the 3.3
+refusal on EITHER `opts.newestBarIsForming` or `opts.interpretOpts.newestBarIsForming`,
+but the columns are evaluated from `interpretOpts` alone — so a hand-written caller can
+pass the gate and still render four blank columns, which is ruling 3.3's own failure
+arriving through the door the ruling installed. `runtimeClockOpts` fills both from one
+value, and the shape is pinned.
+
+**The three the owner asked for, measured:**
+
+| | |
+|---|---|
+| closed daily series | `false` on every bar, the newest included |
+| newest bar is the current session, before close | `true` on **exactly** that bar |
+| the refusal | present only while UNKNOWN — `false` is an ANSWER and lifts it |
+
+⭐ And the per-bar answer is asserted **against `computeClock`'s own `isrealtime`**, not
+against a literal: the producer must never become a second authority over what the four
+realtime columns hold. Plus a control that a script with no realtime column never needed
+the producer at all.
+
+### `buildRuntimeIr` on Volume v2, verbatim
+
+```
+uncharted-volume-v2.pine  [untold]              ok=false  runtime:realtime-untold@297
+uncharted-volume-v2.pine  [told forming=false]  ok=false  pine:text-value@153
+uncharted-volume-v2.pine  [told forming=true]   ok=false  pine:text-value@153
+uncharted-volume.pine     [untold]              ok=false  runtime:realtime-untold@296
+uncharted-volume.pine     [told forming=false]  ok=false  pine:text-value@151
+uncharted-volume.pine     [told forming=true]   ok=false  pine:text-value@151
+```
+
+⭐ **THE NEW REFUSAL IS NOT NEW — IT WAS NAMED IN ADVANCE.** Session 1 recorded that the
+IR lane's blocker *"lifts the moment T4's producer lands — at which point
+`pine:text-value@151` becomes the next named blocker again"*. v2 line 153 is
+`f_getTablePos(_pos) => _pos == 'Top Left' ? position.top_left : …`, a string compared in
+a value slot, and the wording is R3.4's, ruled 2026-09-11. Checked against the rulings on
+file before writing it down: nothing here is unruled.
+
+### ⚠️ AND IT PUTS A DECISION IN FRONT OF T3/T5 — see the decision-ready items below
+
+The IR lane refuses **the whole script** at `pine:text-value`, while the refusal's own
+sentence says *"The numeric plots still run; the text output is skipped and named."* Both
+cannot be true of one lane, and Volume v2 is the script T5 is meant to draw.
+
+
+## ⛔ TWO DECISIONS T3/T5 CANNOT BE STARTED WITHOUT — decision-ready, 2026-09-12
+
+### D1 — what a pane does with an `alertcondition`, and whether Volume's HVE reaches a member
+
+**Measured, today, both lanes:**
+
+| | |
+|---|---|
+| `translatePine` | `alertcondition` is a **first-class output row** with a real tree, and `chooseOutput` **prefers it over every plot** — *"an alertcondition IS a condition by construction, so it wins"*. That is why v2's `selected` is **4**, the HVE Trigger. |
+| a saved definition | has **no notion of one**. It becomes the definition's value column like any other 0/1 tree; `defSchema.js` never hears the word. |
+| `buildRuntimeIr` | classifies it as **PRESENTATION** (beside `fill`, `bgcolor`, `hline`) and emits **no series** for it. |
+| the renderer | `binder.js` / `markerPrimitive.js` know `plotshape`/`plotchar` glyphs and nothing about alert conditions. `alertSets.js` is UCT's own alert machinery, not a consumer of imported Pine. |
+
+**So the answer to the question as put: none of the three.** It is not plotted as markers,
+not held for an alerts consumer, and not ignored either — in the screener door it is the
+DEFAULT offer as an ordinary boolean column, and in the runtime lane it is dropped as
+presentation. The two lanes disagree about what kind of thing it is.
+
+⛔ **And that lands on v2 specifically**: the output the host lane SELECTS (index 4, HVE
+Trigger) is exactly the one the runtime lane emits nothing for. T5's *"the four selected
+plots draw"* is indices 0–3; index 4 is the alertcondition.
+
+**Options.**
+- **A — a pane draws it as event markers on firing bars.** The member sees HVE where the
+  script fires. Costs: a `markers` plot needs a glyph, a placement (the bar's high? the
+  pane's top?) and a colour nobody declared — the script says none of it, because Pine
+  draws nothing for an alertcondition either. ⚠️ This invents a rendering, which is what
+  you told me not to do.
+- **B — a pane draws it as a 0/1 line, like any other boolean column.** Honest, no
+  invention, consistent with what the saved document already is. It looks like a square
+  wave at the bottom of the pane and a member may reasonably ask why.
+- **C ⭐ — the pane does not draw it; it is offered to the ALERTS door instead, and the
+  runtime lane's PRESENTATION classification becomes the single answer.** `chooseOutput`
+  then stops preferring it for a HOST target (it may keep preferring it for a screen,
+  where a condition is exactly what is wanted). Volume's HVE reaches a member as an
+  alert, not as a line — which is what `alertcondition` means in Pine.
+- **D — leave it exactly as it is** and let the pane show whatever `selected` points at.
+  For v2 today that draws a 0/1 column titled "HVE Trigger" beside four volume series on
+  one scale, which is the least defensible of the four.
+
+**My recommendation: C**, with the `chooseOutput` split made explicit (screen prefers a
+condition, pane prefers a plot). It needs no new rendering, it makes the two lanes agree,
+and it is the reading of Pine's own semantics. ⛔ It is a ruling, not an implementation
+detail, because it changes which column a member's import lands on.
+
+### D2 — the IR lane refuses a whole script for a text statement, and its own sentence says otherwise
+
+`buildRuntimeIr(v2, told)` → `pine:text-value@153`, **ok=false for the entire script**,
+while that refusal's message reads *"The numeric plots still run; the text output is
+skipped and named."* In `translatePine` that sentence is true — the text helper is not an
+output there and v2 answers **ok=true, 5 outputs, 0 refusals**. In the runtime lane it is
+false: one text statement takes the program.
+
+**Options.**
+- **A — the IR lane skips a text-only statement and keeps the numeric outputs**, matching
+  the message. Unblocks T3/T5 on v2 today. Cost: it is a behaviour change in the lane
+  session 3 is going to rework anyway, and a skipped statement must be reported, not
+  silent.
+- **B ⭐ — T3/T5 drive the pane from the saved definition the HOST lane already produces**
+  (5 outputs, 0 refusals) and the IR lane stays as it is until session 3's text layer.
+  Nothing changes in a lane that is about to be reworked, and the pane has everything it
+  needs today.
+- **C — wait for session 3.** T3/T5 do not start.
+
+**My recommendation: B.** It is the only one that starts T3/T5 without touching a lane
+whose text layer is already scheduled, and the message/behaviour mismatch in A is exactly
+the kind of thing to fix once, in session 3, with the text layer in front of it.
+
+⚠️ Either way the mismatch itself is a defect on file now: a refusal that says the other
+outputs still run, in a lane where they do not.
+
 ## ⭐ VOLUME v2 CAPTURED, AND THE OOS CORPUS IS 40/60 — WITH THE 20 NAMED
 
 ### The v2 vendor capture — `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json`

@@ -222,6 +222,19 @@ asking pytest to enumerate the suite -- that enumeration is the very thing that 
 keeps each chunk's own `returncode`, and reports a chunk with no summary line as **KILLED**
 rather than folding it into "0 failed".
 
+⛔⛔ **ONE LANE RUN AT A TIME. A SECOND START WHILE ONE IS IN FLIGHT IS A STOP, NOT A
+DUPLICATE** (owner ruling, 2026-09-12). Two runs share the out-dir: the second wipes the
+first's per-chunk logs and its `summary.json` as it starts, so the FINISHED run's evidence
+disappears while the report is being written from it. That happened on 2026-09-12 — a
+`&` on the command line plus `run_in_background` started the runner twice, and run 2's
+totals survived only because they had already been read into the transcript before the
+duplicate clobbered them.
+
+⭐ Before starting: check the out-dir. A `chunk-*.log` growing, or a `summary.json` newer
+than the oldest chunk log, means one is running — wait for it or read its results, never
+start beside it. If a run must be abandoned, say so in the report; an overwritten log is
+not a result.
+
 ```bash
 # the FULL Python lane -- the ONLY sanctioned way to run it
 python tools/pytest_chunks.py            # 12 chunks, sequential, per-chunk logs

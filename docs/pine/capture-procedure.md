@@ -278,6 +278,48 @@ This is what makes the mechanism trustworthy rather than merely convenient.
 ⚠️ The module id `423129` is a build artifact and **will change**. Re-derive it by the scan;
 never hard-code it. (Same defect class as the scale constant above.)
 
+## ⛔⛔ THE RIG IS A SCRATCH LAYOUT WITH ZERO STUDIES — the 19-study chart is RETIRED
+
+**Owner ruling, 2026-09-12.** Every capture from here runs on a dedicated empty layout,
+not on the working chart.
+
+```
+before a capture   study count === 0        ⛔ any other number is a STOP
+after an add       study count === 1
+at the end         study count === 0, editor closed, nothing saved
+```
+
+⭐ **WHY IT IS BETTER THAN THE 19-STUDY CHART, measured on 2026-09-12.** With twenty
+studies stacked, each pane is about twenty pixels tall: the v2 capture read
+`Vol : 45.51M (1.05x)` in full and got only `Range: 127.58%` out of a four-cell ATR
+table, because the legend sits over the rest. Reading the other three cells would have
+meant enlarging a pane on the owner's layout — a saved-layout change. On an empty layout
+the study owns the whole pane and there is nothing to preserve.
+
+⚠️ **THE LAYOUT URL IS NOT RECORDED HERE YET.** The ruling arrived with a `<PASTE URL>`
+placeholder, so the scratch layout's id is still owed. Until it lands, every capture is
+blocked — deliberately, rather than falling back to the 19-study chart, which this rule
+retires.
+
+## ⭐ THE TELL WAS A SCREENSHOT OF THE TEXT BUTTON, NEVER THE URI
+
+**Owner ruling, 2026-09-12, on the `placement=dialog` correction.** The morning's rule —
+*"`placement=dialog` in the Monaco model URI means undocked, stop"* — was inferred from a
+detached window and was wrong for the build the rig runs, where the in-tab right panel is
+`dialog` and is exactly where the text `Add to chart` button lives.
+
+⛔ **So the URI is not the tell and never was.** The tell is a SCREENSHOT of the button:
+an own-text, visible, enabled `Add to chart` is the state that makes an add safe, and
+that is a thing you look at. A model URI is a fact about how TradingView labels its own
+panel geometry, which is its business and changes with its builds; the button is the
+product's own statement about what the click will do.
+
+⚠️ The generalisation, worth keeping beyond this door: **when a rule is derived from an
+internal identifier, ask what the member-visible artifact says instead.** The identifier
+is cheaper to read and it is the one that goes stale.
+
+---
+
 ## ⛔⛔ THE PRE-WRITE GATE — THREE READINGS, IMMEDIATELY BEFORE EACH WRITE
 
 **Owner rule, 2026-09-12. Before `setValue`, and again before the Add click, in the
