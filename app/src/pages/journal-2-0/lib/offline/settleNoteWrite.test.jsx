@@ -94,3 +94,39 @@ describe('⛔⛔ SIGN-OUT — both directions, and the STORE NAME is the asserti
     expect(await settleNoteWrite('n1', { updatedAt: T1 }, 'acct-A', { connect })).toBe(T1)
   })
 })
+
+/**
+ * ⛔⛔ §21 — SWITCHING THE WAVE OFF MUST WRITE NOTHING, AND THIS IS NOW THE
+ * WIDEST STORE-DIRECT ENTRY POINT IN THE PRODUCT.
+ *
+ * Before 2026-09-12 the mount-independent writers were three, all inside the
+ * offline layer. `settleNoteWrite` is called from SIXTEEN places across the
+ * Notebook — the trade modal, the importer, the capture targets, the version
+ * history, the trash — and none of those files knows anything about the wave.
+ * So the one-line rollback is only real if the refusal lives HERE, once, and
+ * every one of those sixteen inherits it.
+ *
+ * ⛔ OFF STOPS PROCESSING — it has never been permission to delete or alter what
+ * a member already wrote. The assertion is that NO DATABASE IS OPENED, not
+ * merely that the return is null: a store opened under a flag that is off is a
+ * write the rollback did not prevent.
+ */
+describe('⛔⛔ §21 — with the wave OFF, sixteen doors write nothing', () => {
+  it('records nothing and OPENS NO DATABASE when the flag is off', async () => {
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')
+    setCurrentAccountId('acct-A')
+
+    const landed = await settleNoteWrite('n1', { updatedAt: T1 }, 'acct-A', { connect })
+    expect(landed).toBeNull()
+    expect(openedNames, '⛔ the flag is off and a store was still opened').toEqual([])
+  })
+
+  it('⭐ CONTROL — the SAME call with the wave on does land, and opens exactly one store', async () => {
+    // Without this the test above passes for a settle that never works at all.
+    localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+    setCurrentAccountId('acct-A')
+
+    expect(await settleNoteWrite('n1', { updatedAt: T1 }, 'acct-A', { connect })).toBe(T1)
+    expect(openedNames).toEqual([dbNameFor('acct-A')])
+  })
+})
