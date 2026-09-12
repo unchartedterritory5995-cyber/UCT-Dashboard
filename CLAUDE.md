@@ -779,8 +779,18 @@ same pattern as the BrowserStack credentials. Never in the repo, never in a log,
 never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
 account itself (it is an admin), then re-`setx`.
 
-**First run against it:** box 3 of `docs/plans/joystick/closure.md` — PASS, 16 routes, 25 nav
-entries, at live SHA `7fce88bd2`. Record: `docs/plans/joystick/smoke-runs/2026-09-12T02-24-24Z.md`.
+**Runs against it:** box 3 of `docs/plans/joystick/closure.md` — the desktop pass (PASS, 16
+routes, 25 nav entries, live SHA `7fce88bd2`) and the touch pass (OK, 16 routes, live SHA
+`36596a88a`). Records under `docs/plans/joystick/smoke-runs/`.
+
+⛔ **PRESENT IS NOT SHOWING — and the touch pass published that mistake once before it was caught.**
+`HubRoot.jsx` keeps `<div data-testid="hub-root">` in the DOM and sets the HTML `hidden` attribute,
+so a `querySelector` presence check answers "did React render the container", never "can the member
+see it" — and the first run therefore reported a product defect in the chart shell's
+landscape-immersive mode that did not exist. ⚠️ `offsetParent === null` is not the signal either:
+the hub is `position: fixed`, so that is null while it is plainly on screen. Measure the `hidden`
+attribute, the computed `display`, and a non-zero box, and keep a fixture that must read SHOWING or
+the checker passes by answering "no" to everything.
 
 ### Real-device testing — BrowserStack Live (paid)
 

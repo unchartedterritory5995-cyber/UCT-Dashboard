@@ -492,8 +492,36 @@ def touch_eligibility(page) -> dict:
     )
 
 
-def hub_present(page) -> bool:
-    return page.evaluate("() => !!document.querySelector('[data-testid=\"hub-root\"]')")
+# ⛔⛔ PRESENT IS NOT SHOWING, AND THIS SCRIPT ALREADY PUBLISHED THE DIFFERENCE ONCE.
+#
+# `HubRoot.jsx:433` renders `<div data-testid="hub-root" hidden={hidden}>`: the container STAYS in
+# the DOM and takes the HTML `hidden` attribute. The first version of this pass asked
+# `querySelector(...)` and reported the hub as mounted in the chart shell's landscape-immersive
+# mode — i.e. it reported a PRODUCT DEFECT that did not exist. Measured on the live page at
+# 852x393: `hidden` attribute TRUE, computed `display: none`, box 0x0. The product was right and
+# the instrument was wrong (`lesson_did_it_render_needs_the_products_own_answer`).
+#
+# ⚠️ AND `offsetParent === null` IS NOT THE SIGNAL EITHER — the hub is `position: fixed`, so its
+# offsetParent is null even when it is plainly on screen. Measured both ways before choosing:
+# `hidden` attribute + computed display + a non-zero box.
+HUB_STATE_JS = """() => {
+  const el = document.querySelector('[data-testid="hub-root"]');
+  if (!el) return { present: false, showing: false };
+  const cs = getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  return {
+    present: true,
+    hiddenAttr: el.hasAttribute('hidden'),
+    display: cs.display,
+    box: [Math.round(r.width), Math.round(r.height)],
+    showing: !el.hasAttribute('hidden') && cs.display !== 'none'
+             && r.width > 0 && r.height > 0,
+  };
+}"""
+
+
+def hub_state(page) -> dict:
+    return page.evaluate(HUB_STATE_JS)
 
 
 def touch_sweep(page, base: str, routes: list[str], errors: list[dict]):
@@ -516,16 +544,16 @@ def touch_sweep(page, base: str, routes: list[str], errors: list[dict]):
             failures.append(f"{route}: the route would not load ({type(exc).__name__})")
             continue
         page.wait_for_timeout(2500)  # the hub mounts after auth + settings resolve.
-        present = hub_present(page)
+        st = hub_state(page)
         new_errors = len(errors) - before
-        rows.append((route, present, new_errors))
+        rows.append((route, st, new_errors))
         mode = section_mode.get(route)
         should_hide = bool(mode and mode in hidden_modes)
-        if should_hide and present:
-            failures.append(f"{route}: mode '{mode}' declares hideOnRoute and the hub mounted ANYWAY")
-        elif not should_hide and not present:
+        if should_hide and st["showing"]:
+            failures.append(f"{route}: mode '{mode}' declares hideOnRoute and the hub is SHOWING")
+        elif not should_hide and not st["showing"]:
             failures.append(
-                f"{route}: the hub did NOT mount, and no mode declares hideOnRoute for it. "
+                f"{route}: the hub is not showing ({st}), and no mode declares hideOnRoute for it. "
                 "Eligibility is viewport+pointer, not route-shaped, so this is a real absence."
             )
     return failures, rows, notes
@@ -545,21 +573,27 @@ def landscape_immersive_check(page, base: str) -> tuple[list[str], str]:
         page.set_viewport_size(TOUCH_VIEWPORT)
         return [], f"INCONCLUSIVE — /charts would not load in landscape ({type(exc).__name__})"
     page.wait_for_timeout(3000)
-    shell = page.evaluate(
-        "() => !!document.documentElement.getAttributeNames()"
-        ".find((a) => a.toLowerCase().includes('chart-shell'))"
+    cond = page.evaluate(
+        """() => ({
+            shell: document.documentElement.hasAttribute('data-mobile-chart-shell'),
+            immersive: matchMedia(
+              '(pointer: coarse) and (orientation: landscape) and (max-height: 500px)').matches,
+        })"""
     )
-    present = hub_present(page)
+    st = hub_state(page)
     page.set_viewport_size(TOUCH_VIEWPORT)
-    if not shell:
-        # ⛔ Absence of the shell attribute means the CONDITION was never created. Reporting that
-        # as a pass would be the harness grading its own inability to set up the test.
-        return [], ("INCONCLUSIVE — the chart shell attribute was not present at 852x393, so the "
-                    f"landscape-immersive condition never existed (hub present: {present})")
-    if present:
-        return ([f"/charts in landscape-immersive (852x393): the hub is still mounted, and "
-                 "`hubViewport.js` says it must be hidden"], "measured")
-    return [], "PASS — hub absent in the chart shell's landscape-immersive mode, as declared"
+    # ⛔ BOTH HALVES OF THE CONDITION, ASKED OF THE BROWSER. The shell attribute alone is not the
+    # rule — `hubViewport.js` ANDs it with a media query, and a harness that rotates the viewport
+    # without the query matching would be grading a state the product was never in.
+    if not (cond["shell"] and cond["immersive"]):
+        return [], ("INCONCLUSIVE — the landscape-immersive condition never existed at 852x393 "
+                    f"(shell={cond['shell']}, media query={cond['immersive']}); hub state {st}")
+    if st["showing"]:
+        return ([f"/charts in landscape-immersive (852x393): the hub is SHOWING ({st}), and "
+                 "`hubViewport.js` says it must be hidden"], "measured — FAILED")
+    return [], (f"PASS — condition real (shell + media query both true) and the hub is not showing "
+                f"(hidden attribute {st.get('hiddenAttr')}, display {st.get('display')}, "
+                f"box {st.get('box')})")
 
 
 def _serve(body_for_path, nonce):
@@ -694,6 +728,32 @@ def self_check() -> int:
         idle_clean = render_verdict("/idle", idle_sample) is None
         srv4.shutdown()
 
+        # 5. PRESENT IS NOT SHOWING — the case this pass got WRONG on its first live run, and
+        #    reported as a product defect. `HubRoot` keeps the container in the DOM and sets the
+        #    HTML `hidden` attribute, so a `querySelector` presence check says "mounted" about a
+        #    hub with `display: none`. Three fixtures, because a checker that answers "not
+        #    showing" to everything would pass the first two on its own:
+        #      a) hidden attribute  -> present, NOT showing
+        #      b) display:none      -> present, NOT showing
+        #      c) a real 84x84 box  -> present AND showing   (the control)
+        page.set_content(
+            '<div data-testid="hub-root" hidden style="width:84px;height:84px"></div>')
+        hidden_attr = hub_state(page)
+        page.set_content(
+            '<div data-testid="hub-root" style="display:none;width:84px;height:84px"></div>')
+        display_none = hub_state(page)
+        page.set_content(
+            '<div data-testid="hub-root" style="position:fixed;width:84px;height:84px"></div>')
+        really_showing = hub_state(page)
+        page.set_content("<p>no hub here</p>")
+        absent = hub_state(page)
+        showing_ok = (
+            hidden_attr["present"] and not hidden_attr["showing"]
+            and display_none["present"] and not display_none["showing"]
+            and really_showing["present"] and really_showing["showing"]
+            and not absent["present"] and not absent["showing"]
+        )
+
         br.close()
 
     say("")
@@ -705,11 +765,13 @@ def self_check() -> int:
     say(f"  idle page NOT flagged      : {idle_clean} "
         f"(main thread {idle_sample.get('blockedFraction', 0) * 100:.0f}% blocked, "
         f"{idle_sample.get('fps', 0):.0f} fps)")
+    say(f"  present-is-not-showing     : {showing_ok} "
+        "(hidden attr and display:none both read as NOT showing; a real box reads as showing)")
     if not loop_sample.get("longtaskSupported", False):
         say("SELF-CHECK FAILED — this browser reports no longtask entries, so the render probe "
             "is BLIND here. Silence from a blind instrument is not health.", err=True)
         return 1
-    if frozen_caught and healthy_ok and loop_caught and idle_clean:
+    if frozen_caught and healthy_ok and loop_caught and idle_clean and showing_ok:
         say("SELF-CHECK PASS — both detectors fire on the thing they watch for and stay quiet "
             "on a healthy page.")
         return 0
@@ -759,6 +821,13 @@ def touch_main(args) -> int:
             br.close()
             return 2
 
+        # ⛔ TAKE THE READING ON A REAL APP ROUTE. The first version read it wherever `login()`
+        # left the page, which reported `innerWidth 980` — Chromium's fallback layout width for a
+        # document with no viewport meta — in a 393-wide context. The floor still passed for the
+        # right reason, but an instrument that PRINTS a misleading number invites a false finding
+        # from whoever reads its output.
+        page.goto(f"{args.base}/dashboard", wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(2000)
         floor = touch_eligibility(page)
         say(f"  eligibility floor: coarse+narrow={floor['coarseAndNarrow']} "
             f"backdrop={floor['backdrop']} visualViewport={floor['visualViewport']} "
@@ -777,8 +846,9 @@ def touch_main(args) -> int:
         failures += land_failures
         br.close()
 
-    for route, present, errs in rows:
-        say(f"    {'hub ✓' if present else 'NO HUB'}  {route:<22} console errors: {errs}")
+    for route, st, errs in rows:
+        mark = "hub ✓" if st["showing"] else ("hub hidden" if st.get("present") else "NO HUB")
+        say(f"    {mark:<11} {route:<22} console errors: {errs}")
     say(f"  landscape-immersive /charts: {land_note}")
     for n in notes:
         say(f"  note: {n}")

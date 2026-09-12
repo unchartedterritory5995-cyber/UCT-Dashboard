@@ -78,21 +78,22 @@
       files. Both need a touch-emulating context, which is a different instrument and a different
       run. Recorded rather than folded in: a pass whose scope is overstated is how a green
       instrument comes to stand in for one nobody ran.
-      **touch-context pass: ⬜ BUILT AND SELF-CHECKED, NOT YET RUN** — blocked on a credential,
-      not on a finding. `tools/hub_nav_smoke.py --auth --touch` drives 393×852 at DPR 3 with a
-      coarse pointer and asserts, per route, that the hub mounts exactly where the registry says
-      and nowhere it says otherwise, recording console and page errors as it goes. The
-      `hideOnRoute` list it quotes is **empty — no shipped mode declares it** (read from
-      `registry.js` with comments stripped, because `hubViewport.js` discusses the field in prose
-      and a scanner that matched prose would expect the hub to be absent on real routes and fail
-      the product for its own mistake). So the expectation is MOUNTS on all 16, and the one hide
-      the product actually declares — the chart shell's landscape-immersive mode — is exercised
-      separately at 852×393. ⛔ The run stopped because the smoke account's password was lost
-      before it was persisted (CLAUDE.md records the lesson); recovery is one admin
-      `POST /api/auth/admin/reset-password`. ⭐ The tool refuses to grade itself in the meantime:
-      an ineligible context or an unauthenticated session exits **2 INCONCLUSIVE**, never 0 —
-      because every route would report "no hub" for a reason that is the harness's, not the
-      product's.
+      **touch-context pass: ✅ OK (2026-09-12T02:54:26Z, live SHA `36596a88a`)** —
+      `smoke-runs/2026-09-12T02-54-26Z-touch.md`. `--auth --touch` in a 393x852 DPR-3 coarse-pointer context:
+      eligibility floor confirmed in-browser, the hub **showing on all sixteen** routes, and the
+      one hide the product actually declares — the chart shell's landscape-immersive mode at
+      852x393 — verified with BOTH halves of its condition asked of the browser (shell attribute
+      AND media query) and the hub measurably not showing (`hidden` attribute true, `display:none`,
+      box 0x0). `hideOnRoute` is declared by **no shipped mode**, read from `registry.js` with
+      comments stripped. Three console errors, all YouTube thumbnail 404s from `i.ytimg.com`;
+      ⛔ that is "three errors, all external", NOT "zero from `app/src/hub/*`" — hashed production
+      chunks cannot be attributed to a source path, and the record says so rather than implying
+      the stronger claim.
+      ⚰️ **The first run of this pass reported a product defect that did not exist** — it asked
+      `querySelector` whether the hub was present, and `HubRoot` keeps the container in the DOM
+      with the HTML `hidden` attribute. Measured, corrected, and railed with four fixtures before
+      anything was written down. ⛔ Still not glass: Chromium emulating a viewport class is not an
+      iPhone, and this says where the hub mounts, never that a gesture works.
 
 - [x] **Preference-key validation live server-side.** ✅ **CLOSED 2026-09-11.**
       **Evidence:** built as L3 item 1 in `60cbe8919`, shipped as **Deploy B** (`b9d66e0c3`,
