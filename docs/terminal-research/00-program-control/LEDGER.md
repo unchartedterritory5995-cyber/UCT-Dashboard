@@ -134,6 +134,28 @@ convergence); **`scripts/entity_master_seed.py`** (Seam 1 dot-form alias seeding
 **`ticker_explain.py`** + its eval harness (I1's Ask AI, extended by Seam 29 and Slice 3);
 **`research/analyst_ratings.py`** (A4, extended by attention source-integrity hardening).
 
+## Section 4 — Wave 1+ (2026-09-11 onward), owner-authorized, **branches only, unmerged**
+
+Per the standing rule, every application-code commit this program makes gets a row here **before**
+the session reports. These are on feature branches awaiting the owner's merge — **not on
+`origin/master`**, so the rail's check (1b) does not yet return them.
+
+| commit | branch | system | files | what |
+|---|---|---|---|---|
+| `738abc087` | `feat/d1-adoption-sweep` | **D1** | `tools/fmp_guard_census.py`, `tests/test_fmp_guard_census.py` | Retired **2 verified-stale quarantine entries** (`api/routers/calendar.py`, `api/services/econ_calendar_fmp.py`) — both already migrated and measuring zero violations, so their exemptions were **suppressing the rail on clean files**. Added `test_retired_quarantine_entries_are_genuinely_clean` and `test_no_quarantine_entry_is_stale`, the second generalizing the defect |
+| `638e12f48` | `feat/d1-adoption-sweep` | **D1** | `docs/d1-implementation-log.md` | Recorded the five adapter gaps (G1–G5) that block every remaining FMP call site |
+
+⛔ **W1-A migrated ZERO call sites, and that is the finding, not a failure.** Every remaining direct
+FMP site is blocked by a missing adapter capability, an explicit in-repo directive, or an owner
+exclusion. Nothing was hacked around and the adapter was not speculatively extended. Detail and
+verification: the session report and `docs/d1-implementation-log.md` on that branch.
+
+⚠️ **Pre-existing red, NOT introduced here:** `tests/test_fmp_guard_census.py::test_real_repo_has_zero_unquarantined_violations`
+**already fails on `origin/master`** — `api/services/news/adapters/fmp_news.py:37` carries a
+`financialmodelingprep.com` literal and is not quarantined. Independently verified against master's
+own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
+ceiling and 429 sleep-retry that the adapter does not).
+
 ## ⛔⛔ OWNERSHIP RULING — `alert_taxonomy` (owner, 2026-09-11)
 
 **Terminal-Next OWNS `api/services/alert_taxonomy/` and `api/routers/alert_taxonomy.py`.** It built

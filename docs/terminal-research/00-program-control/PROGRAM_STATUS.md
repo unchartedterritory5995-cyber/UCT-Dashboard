@@ -322,6 +322,31 @@ recorded and unrecorded work are not different processes — one had a manual st
    assignment — the Section 1 row shape. This is the manual step whose absence produced everything
    above; it is now the session's last action, not an afterthought.
 
+## ⛔⛔ THE SPECS ARE NOT ON MASTER — found by W1-A, 2026-09-11
+
+**`docs/terminal-research/` does not exist on `origin/master` at all.** It lives only on the
+`terminal-research` branch, which is never merged. Verified both directions:
+
+```
+git cat-file -e origin/master:docs/terminal-research/07-technical-architecture/specs/provider-abstraction-spec.md   -> ABSENT
+git cat-file -e origin/terminal-research:docs/terminal-research/07-technical-architecture/specs/provider-abstraction-spec.md -> PRESENT
+```
+
+⛔ **And the shipped D1 code cites that spec by section.** `api/services/fmp_client.py`,
+`tools/fmp_guard_census.py` and `tests/test_fmp_guard_census.py` all reference
+`provider-abstraction-spec.md` §4.2, §9.2, §21.1. **An engineer working on master — which is every
+engineer working on this codebase — follows those citations to a file that does not exist for them.**
+
+⭐ **This is the structural form of the whole 50-commit problem, and it is worth stating plainly:
+the program's DOCUMENTS and the program's CODE live in two doc trees that never meet.** The code's
+own record, `docs/d1-implementation-log.md`, **is on master** — so D1's build was documented all
+along, just not where this program looks. Each side was complete and each was invisible to the other.
+
+**Not fixed here** (documentation-only session, and the merge decision is the owner's). Two options
+when the owner wants it closed: merge `docs/terminal-research/` to master, or replace the in-code
+citations with something a master-only reader can resolve. ⚠️ Until then, **treat a spec-section
+citation in application code as a pointer into a branch, not into the tree the reader is holding.**
+
 ## ⛔ THE GATE RULE (owner ruling 6, revised and adopted 2026-09-11)
 
 **a. Scope — any system in the 32-system architecture.** Not "any system with a PRD/spec."
