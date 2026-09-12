@@ -240,3 +240,66 @@ describe('Clear', () => {
     expect(screen.getByTestId(STATUS).textContent).toContain('Trace cleared')
   })
 })
+
+// ── THE MIRROR ATTRIBUTE — the read path for a device nobody can plug a cable into ────────────
+//
+// G0-1 runs on BrowserStack **Live**: a screen mirror in a browser, with no automation transport
+// to return a value through and a clipboard that belongs to the REMOTE device. The attribute is
+// how the trace gets out. These cases are about the two gates and the absent case, because an
+// attribute that leaked to a member, or that read as an empty capture, would be worse than none.
+describe('the trace mirror attribute', () => {
+  it('carries the SAME JSON the Copy button would have produced, for an admin with the toggle on', () => {
+    clearGestureTrace()
+    recordGestureEvent({ type: 'pointerdown', pointerType: 'touch', decision: null })
+    recordGestureEvent({ type: 'pointerup', pointerType: 'touch', decision: 'flick-fire', elapsed: 88 })
+    renderAs('admin', { enabled: true, traceGestures: true })
+
+    const raw = screen.getByTestId(SECTION).getAttribute('data-hub-trace')
+    expect(raw, 'the mirror is absent while the toggle is ON').toBeTruthy()
+
+    // ⭐ Parsed, not string-matched: the point is that the operator can feed it straight to
+    // `tools/hub_trace_analyze.py`, which refuses anything that is not a whole payload.
+    const parsed = JSON.parse(raw)
+    expect(parsed.trace).toBe('uct-joystick-g0')
+    expect(parsed.window.recorded).toBe(2)
+    expect(parsed.rows).toHaveLength(2)
+    expect(parsed.rows[1].decision).toBe('flick-fire')
+    // The thresholds ship with the rows — a trace whose flickMs disagrees with the build that
+    // produced it is unreadable, which is why `constants` is part of the payload.
+    expect(parsed.constants.FLICK_MS).toBeGreaterThan(0)
+  })
+
+  // ⭐ CONTROL 1. Without this, an attribute rendered unconditionally would pass the case above
+  // and sit in every admin's DOM for ever.
+  it('is ABSENT — not empty — when the toggle is off', () => {
+    clearGestureTrace()
+    recordGestureEvent({ type: 'pointerdown', pointerType: 'touch' })
+    renderAs('admin', { enabled: true, traceGestures: false })
+    const section = screen.getByTestId(SECTION)
+    expect(section.hasAttribute('data-hub-trace')).toBe(false)
+    // ⛔ Absent and empty are different facts: an empty string reads as "a capture that recorded
+    // nothing", which is not the same as "nobody is capturing".
+    expect(section.getAttribute('data-hub-trace')).toBeNull()
+  })
+
+  // ⭐ CONTROL 2. The gate that matters for members.
+  it('renders nothing at all for a non-admin, even with the preference set true', () => {
+    clearGestureTrace()
+    recordGestureEvent({ type: 'pointerdown', pointerType: 'touch' })
+    renderAs('member', { enabled: true, traceGestures: true })
+    expect(screen.queryByTestId(SECTION), 'the whole section leaked to a member').toBeNull()
+    expect(document.querySelector('[data-hub-trace]'), 'the mirror leaked to a member').toBeNull()
+  })
+
+  it('adds no endpoint — the mirror is a string in the DOM and nothing else', () => {
+    // ⛔ The spec's "no analytics" is the rule this attribute had to stay inside. A fetch here
+    // would be invisible in a screenshot and obvious in a network log, so assert it directly.
+    clearGestureTrace()
+    recordGestureEvent({ type: 'pointerdown', pointerType: 'touch' })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    renderAs('admin', { enabled: true, traceGestures: true })
+    expect(screen.getByTestId(SECTION).getAttribute('data-hub-trace')).toBeTruthy()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    fetchSpy.mockRestore()
+  })
+})

@@ -245,6 +245,37 @@ export default function JoystickSettingsCard() {
       {isAdmin && (
         <div
           data-testid="joystick-trace-section"
+          /* ⛔⛔ THE MIRROR — the ONE way a trace leaves a device nobody can plug a cable into.
+           *
+           * G0-1 has to be measured on a real iPhone 15 Pro, and the only device path this
+           * account funds is BrowserStack **Live**: a screen mirror in a browser. There is no
+           * automation transport to read a return value with, and the clipboard belongs to the
+           * REMOTE device, not to the operator watching it — so "Copy trace" copies into a
+           * clipboard nobody can reach. This attribute is the read path: the same JSON the
+           * button would have copied, sitting in the DOM where the Live inspector can select it.
+           *
+           * ⛔ ATTRIBUTE ONLY. It adds no endpoint, sends nothing, and changes no behaviour. The
+           * master spec's "no analytics" holds exactly as it did: the buffer's only exits are
+           * still the member's own clipboard and this string, both local to the device.
+           *
+           * ⛔ TWO GATES, BOTH ALREADY LOAD-BEARING ELSEWHERE, and it is deliberately behind the
+           * same ones rather than new ones. `isAdmin` gates this whole section, and
+           * `settings.traceGestures` is itself resolved as `isAdmin && stored === true` in
+           * `useHubSettings` — so a member who writes the preference key straight to the
+           * unvalidated endpoint still gets no attribute, because the flag they set never
+           * resolves true for them. With the toggle OFF the attribute is ABSENT, not empty: an
+           * empty string in the DOM would read as "a capture that recorded nothing", which is a
+           * different fact from "nobody is capturing".
+           *
+           * ⚠️ It is computed at RENDER, which is what the run needs and worth stating so nobody
+           * expects more: the operator gestures on /screener, then navigates to Settings, and the
+           * card mounts and reads the buffer as it stands. It does not live-update while you
+           * watch it — and it does not need to, because you cannot gesture on the pad and read
+           * this attribute at the same moment anyway.
+           *
+           * ⚠️ It can be large — up to 500 rows. The existing fallback textarea below stays the
+           * human-readable path if the inspector proves awkward to select from. */
+          data-hub-trace={settings.traceGestures ? gestureTraceJson() : undefined}
           style={{ marginTop: 14, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}
         >
           <div className={styles.voiceRow}>
