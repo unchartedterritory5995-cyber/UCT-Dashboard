@@ -38,7 +38,7 @@ Ship as part of a bundle; do not spend a tape gap on this alone.
 | 1 | date-scan (`_resolve_dates` loose index scan) | `535311c80` | code + **flag OFF** | unset `FLOW_FAST_DATE_SCAN` (no rebuild) |
 | 2 | parts guard: "what was REQUESTED" | `f65e5ab67` | code, **always on** | `git revert f65e5ab67` |
 | 3 | roll-ledger slot attribution | `7981a46c6` | code, **always on** | `git revert 7981a46c6` |
-| 4 | `ORDER BY CreatedDate, id` (uncapped stream) | `7fcfcc8f2` | code, always on | `git revert 7fcfcc8f2` |
+| 4 | `ORDER BY CreatedDate, id` (uncapped stream) | `47dccfd8b` | code, always on | `git revert 47dccfd8b` |
 
 Components 2 and 3 are independently revertable and touch disjoint files
 (`api/services/flow_aggregate.py` vs `api/flow_router.py`). Component 1 is a flag,
