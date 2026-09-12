@@ -607,6 +607,91 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## S7 `event-proximity` — CP1 + CP2 MERGED 2026-09-12, both ADDITIVE
+
+The **second absorption**. Gate packet `GATE-S7-EVENT-PROXIMITY`, approval line
+CP1–CP2 only, `AT SHA 76529e75b`. Absorbs `api/services/calendar_alerts.py`.
+
+| step | SHA | where |
+|---|---|---|
+| gate packet + approval | **`a31f02374`** | `terminal-research` |
+| **CP1 merge** | **`3316e0d0b`** | **`master`** |
+| **CP2 merge** | **`923afd783`** | **`master`** |
+
+**Classification: ADDITIVE on both.** Measured with `reachable_paths()` — every
+touched file `reachable=False`, **offenders NONE**, rail exit 0. **No marker bump**,
+and flow-worker SKIPPED, which is the artifact saying so. Legacy
+`calendar_alerts.py` byte-identical, railed in both suites.
+**Parity 20/20 throughout**; the control updated **by naming**, never by deleting.
+
+### ⛔ F-S7-EP-1 — the legacy shapes, read from the code
+
+| what the name implies | what `run_prereport_alerts` actually does |
+|---|---|
+| many event kinds | **earnings only** — `_get_reporters_for_date` reads the earnings calendar and nothing else |
+| hours of proximity | **day granularity** — `market_date` is a date string, the dedup PK is per date |
+| session awareness | **no BMO/AMC in the alert**, though the calendar carries it |
+| a 3-day window | ⚠️ **belongs to a different subsystem** |
+
+⛔⛔ **THE TRAP, AND IT IS THE SHARPEST THING IN THIS ROW.**
+`EARNINGS_PROXIMITY_DEFAULT_DAYS = 3` and `collect_earnings_window()` live in
+`calendar_alerts.py` and are consumed by **`awareness/engine.py`**, *never* by the
+alert path. A reading that took the 3 for this alert's window would build a type that
+fires **three days early** and then conclude the legacy path was "missing" alerts it
+was never designed to send. **The constant is in the file; the behaviour is not.**
+
+⭐ Pinned as a rail rather than a sentence: the schema text for `lead_days` must name
+the constant *and* name `awareness`, with a CONTROL asserting the constant still lives
+in the legacy file — because a warning about a trap that has moved is worse than none.
+
+⭐ **The schema pins the WIDER set anyway** — four event kinds, day *and* hour — three
+of which nothing populates, exactly the call F-S7-2 made for `trendline`. ⛔ Pinning is
+not authorizing: firing on another kind, or finer than the legacy day, is out of scope,
+and both halves are railed.
+
+### ⭐ WHAT THE MIRROR RAIL FOUND THAT REASONING DID NOT
+
+`legacy_would_fire` restates the legacy decision because the real function MUTATES its
+dedup table and DELIVERS. Driving the real `_get_reporters_for_date` beside it exposed
+a **structural difference between the two rules**:
+
+> The **legacy** path re-reads the calendar every run. The **dark** rule reads the
+> predicate's **stored** `event_date`. They agree exactly while that stored date is
+> truthful — and the moment a company reschedules they describe different worlds:
+> legacy follows the calendar, the dark predicate keeps firing against the old date
+> until something updates it.
+
+⚠️ **Not fixed, and deliberately so.** It is a finding the dark period exists to size;
+it is *why* `note_event_change` discards the pre-change span into `not_comparable`; and
+it hands CP3 a question it must answer — **who refreshes a projected event date?**
+Recorded as its own test so it cannot be rediscovered later as a bug.
+
+**A second divergence, visible from the source:** the legacy dedup PK is
+`(user, ticker, market_date)` with **no notion of a lead day**, so whichever slot runs
+first wins and the other is deduped away. The dark `fire_key` is
+`(entity_ref, event_date, lead_days)`. **One legacy alert, up to two dark ones.**
+
+### ⛔ HARNESS-ONLY IS IN THE SIGNATURE, NOT IN THE CALL SITE
+
+`evaluate(*, today, predicate_ids, ...)` — `predicate_ids` is **required, with no "all"
+mode**. Sweeping the store is something a future caller **cannot express**, rather than
+something they must remember not to do. That is CP3. Railed by inspecting the signature
+*and* by asserting the call raises without it.
+
+⚰️ And `test_CP1_ships_no_evaluator_and_nothing_calls_register` was **rewritten, not
+deleted**, when CP2 added the evaluator: its first half is discharged by approval, the
+half that still matters — *nothing calls `register()`* — stands, and a new rail asserts
+`event_proximity` appears nowhere in `api/main.py`. ⭐ Registration is not activation, in
+the direction `price-level` got wrong.
+
+Mutation-proved four times, restored by edit: narrow `EVENT_KINDS` → RED · drop the
+3-day trap warning → RED · disable the event-change reset → 2 RED · give
+`predicate_ids` a default → RED.
+
+**Tests: 20 CP1 + 26 CP2. 200 passed across the alert-taxonomy family.**
+
+---
+
 ## D1 G1 — MERGED 2026-09-12, BEHAVIOUR-CHANGING, marker bump #3
 
 | step | SHA | where |
