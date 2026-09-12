@@ -1923,17 +1923,11 @@ flow-worker case entirely, and that case is real.
 rationale.** This file has had a rescinded restriction reinstated that way twice: the
 mechanism under a struck rule explains a class of bug, it is not the rule.
 
-### ⛔ Deploy windows — not stated here
-
-**`docs/runbooks/deploy-windows.md` is the single authority** (Options Flow
-session, 2026-09-12). This file states no rule of its own about push timing.
-
-⚰️ A Wave Q1 session briefly recorded the opposite here — *"every master push
-restarts web, worker, bars-api and flow-worker in lockstep"* — from reading a
-deployment list by SHA without reading the `status` column, which said `SKIPPED`.
-It was nearly made a standing rule widening the RTH freeze to docs. The runbook's
-own audit settles it: flow-worker SKIPPED on **14 of 14** pushes. Counting
-presence is not reading a verdict.
+⚰️ **How the wrong version of this was nearly written into a rule:** a Wave Q1
+session read a deployment list by SHA and never read the `status` column, which
+said `SKIPPED` — concluding *"every master push restarts web, worker, bars-api
+and flow-worker in lockstep"* and nearly widening the RTH freeze to docs on that
+basis. Counting presence is not reading a verdict.
 
 ### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
 
