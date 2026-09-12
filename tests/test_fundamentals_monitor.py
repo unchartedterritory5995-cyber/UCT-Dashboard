@@ -1,4 +1,41 @@
 import importlib
+import os
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolated_monitor_db(tmp_path, monkeypatch):
+    """⛔ Give every test its OWN defect_state DB.
+
+    `_prev_flagged_syms` became a durable SQLite table (2026-09-12), so without
+    this every test in this file shares one file under the sandboxed DATA_DIR:
+    a ticker flagged by an earlier test is already "known" to a later one, its
+    alert is correctly suppressed as not-new, and the later test fails depending
+    on execution ORDER. Also stub the SEC oracle — `stale_reported` is confirmed
+    against EDGAR, so a stale fixture otherwise makes live HTTP calls.
+    """
+    monkeypatch.setenv("FUNDAMENTALS_MONITOR_DB", os.path.join(str(tmp_path), "fm.db"))
+
+    # ⛔ PATCH THE SOURCES, NOT THE MONITOR'S RE-BOUND NAMES. Every test here
+    # calls `_mod()`, which `importlib.reload`s the monitor and therefore
+    # rebinds its module globals — so a `setattr(fm, ...)` from this fixture is
+    # silently discarded and the test reaches the network anyway. Patching where
+    # the functions LIVE survives any number of reloads.
+    import api.services.edgar as _edgar
+    monkeypatch.setattr(_edgar, "newest_reported_quarter", lambda s: None)
+
+    # `_is_fund` resolves through darkpool_eod._ticker_meta (an FMP profile
+    # call), and this file's placeholder ticker "BAD" is a REAL ETF — FMP says
+    # 'B.A.D. ETF', isEtf=True. With a live key the fund exclusion correctly
+    # skipped it and `flagged` came back 0: the fixture was asserting on a name
+    # it assumed was fictional.
+    import api.darkpool_eod as _dp
+    monkeypatch.setattr(_dp, "_ticker_meta", lambda sym: {"sector": None, "isEtf": False})
+
+    import api.services.fundamentals_monitor as fm
+    importlib.reload(fm)
+    yield
 
 
 def _mod():
