@@ -110,6 +110,21 @@ const home = (mode) => ({
 });
 
 /** Flag — always useFlagged().toggle(symbol). Never UCT20, which is read-only. */
+// ⛔⛔ FLAG DOES NOT GET A CONFIRM SHEET — owner ruling, 2026-09-12, and it closes the standing
+// "`scan.flag` commits with no sheet" item as an EXCEPTION THAT IS NOW DECLARED rather than an
+// undocumented one.
+//
+// §C2 asks for a sheet on a COMMIT. Flag is not one: it toggles a local list, it is the
+// most-used action on the fan, and a sheet in front of it would tax every single use to guard a
+// mistake that costs one tap to reverse. ⭐ What §C2 is actually protecting — "the member can
+// get back out" — is delivered instead by an UNDO on the flag toast
+// (`sections/screenerSection.js::onFlag`), which calls the SAME `toggle` the action called, so
+// there is no second definition of what unflagging means. Rendered-text rail:
+// `flagUndoAndButtonCue.test.jsx`.
+//
+// ⚠️ The undo lives exactly as long as the toast (2200ms, `useJournalToast`). That is short for
+// an undo, and widening it means giving the shared journal toast a per-message duration — five
+// other doors render that component, so it is not this feature's call to make.
 const flag = (mode, ring = 0) => ({
   id: `${mode}.flag`,
   label: 'Flag',

@@ -379,6 +379,17 @@ const TOAST_STYLE = Object.freeze({
   zIndex: 'var(--z-hub-open)',
 })
 
+/** Sits directly under the toast chip, on the same anchor. ⚠️ 44px min target — `--tap-min` is
+ *  the app's floor for a touch control and this one appears on a phone by construction. */
+const UNDO_STYLE = Object.freeze({
+  ...TOAST_STYLE,
+  top: 'auto',
+  bottom: 'calc(env(safe-area-inset-bottom) + 68px + 84px + 8px + 34px)',
+  minHeight: 'var(--tap-min, 44px)',
+  minWidth: 'var(--tap-min, 44px)',
+  zIndex: 'var(--z-hub-open)',
+})
+
 /**
  * ⭐ THE SECTION'S WHOLE MOUNTED FOOTPRINT, ARMED ONLY WHERE THE HUB CAN ACTUALLY RENDER.
  *
@@ -397,7 +408,7 @@ const TOAST_STYLE = Object.freeze({
  *
  * @param {{apiRef: object, msg: string|null}} props
  */
-export function ScreenerHubMount({ apiRef, msg, onToast, planTrade, onClosePlanTrade }) {
+export function ScreenerHubMount({ apiRef, msg, onToast, planTrade, onClosePlanTrade, undo }) {
   const auth = useContext(AuthContext)
   const eligible = useHubEligible()
   if (!eligible) return null
@@ -408,6 +419,23 @@ export function ScreenerHubMount({ apiRef, msg, onToast, planTrade, onClosePlanT
     // `HubVoiceBridge` on a route with no `VoiceProvider`.
     auth ? createElement(ActionsBridge, { key: 'bridge', apiRef }) : null,
     createElement(JournalToast, { key: 'toast', msg, style: TOAST_STYLE }),
+    // ⛔ A REAL BUTTON, BESIDE THE SHARED CHIP — never a change to `JournalToast` itself, which
+    // five Journal doors render and none of them wants an action slot. It appears only while
+    // there IS a message, so the two cannot get out of step, and it is a `<button>` so the
+    // keyboard and every screen reader can reach it (an undo only a thumb can press is not a
+    // recovery path for the member most likely to need one).
+    msg && undo
+      ? createElement(
+        'button',
+        {
+          key: 'undo',
+          type: 'button',
+          onClick: undo,
+          style: UNDO_STYLE,
+        },
+        'Undo',
+      )
+      : null,
     /**
      * ⛔ THE SCREENER DOOR ONTO THE JOURNAL'S SHEET — SYMBOL AND A LAST PRICE, NOTHING ELSE.
      *
@@ -586,6 +614,13 @@ export default function useScreenerHubSection({
   // `ScreenerActionsBridge`: both hooks require an `AuthProvider` that this shell does not.
   const actionsRef = useRef(NO_ACTIONS)
   const [toastMsg, setToastMsg] = useJournalToast()
+  // ⚠️ THE UNDO'S LIFETIME IS THE TOAST'S LIFETIME, deliberately: `useJournalToast` clears the
+  // message after 2200ms, and an Undo button that outlived the sentence explaining it would be a
+  // control with no context. The consequence is worth stating rather than hiding — 2.2s is a
+  // SHORT window for an undo, and widening it means giving the shared journal hook a per-message
+  // duration, which is a change to five other doors and not this programme's to make.
+  const [undo, setUndo] = useState(null)
+  useEffect(() => { if (!toastMsg) setUndo(null) }, [toastMsg])
 
   const symbol = tickerOf(rows[index])
   const streamPrice = symbol ? (prices?.[symbol]?.price ?? null) : null
@@ -637,6 +672,25 @@ export default function useScreenerHubSection({
     const willBeFlagged = !isFlagged?.(symbol)
     toggle(symbol)
     setToastMsg(`${willBeFlagged ? 'Flagged' : 'Unflagged'} ${symbol}`)
+    // ⛔⛔ THE RULING THIS IMPLEMENTS (owner, 2026-09-12): FLAG DOES NOT GET A CONFIRM SHEET.
+    // §C2 asks for a sheet on a COMMIT, and Flag is not one: it is a reversible toggle of a
+    // local list, the most-used action on the fan, and a sheet in front of it would put friction
+    // on every single use to protect against a mistake that costs one tap to reverse. What §C2
+    // is actually asking for — "the member can get out of this" — is delivered by the UNDO
+    // below. ⭐ The recovery path ships in the SAME commit as the thing it recovers from, which
+    // is the rule this feature already broke once with "Hide joystick" and a Settings screen
+    // that did not exist yet.
+    //
+    // ⚠️ THE UNDO CALLS `toggle`, THE SAME FUNCTION THE ACTION CALLED — never an "unflag"
+    // written beside it. A second path would be a second authority over what flagging means,
+    // and it would drift the first time `useFlagged` changed.
+    setUndo(() => () => {
+      const { toggle: t } = actionsRef.current
+      if (!t) return
+      t(symbol)
+      setToastMsg(`${willBeFlagged ? 'Unflagged' : 'Flagged'} ${symbol}`)
+      setUndo(null)
+    })
   }, [symbol, setToastMsg])
 
   /** Stable indirection so the fan does not change identity when the bridge mounts. */
@@ -701,6 +755,7 @@ export default function useScreenerHubSection({
     apiRef: actionsRef,
     msg: toastMsg,
     onToast: setToastMsg,
+    undo,
     planTrade,
     onClosePlanTrade: closePlanTrade,
   })

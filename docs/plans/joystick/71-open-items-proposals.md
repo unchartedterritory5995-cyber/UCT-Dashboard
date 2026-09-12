@@ -217,7 +217,7 @@ un-attributable — the reason §3 gave for not shipping the iOS cue on the nigh
 | **1** | **`escalateCue(action)` — one authority, plus the JS-timed visual for the missing-vibrate case** | §3 above | The escalate branch exists TWICE today (`useJoystick.js` for the gesture door, `HubActionsButton.jsx` for the sheet door). This is the only row that FIXES something members can feel the absence of: `haptics.warn()` returns false wherever `navigator.vibrate` is missing, which is **every iPhone**, so the commit cue for destructive actions is silently absent on iOS. ⛔ Must be a JS-timed static class, never a CSS animation: `tokens.css` zeroes `animation-duration` and `transition-duration` app-wide under `prefers-reduced-motion`, which would delete the cue for exactly the members most likely to need a non-haptic one. |
 | **2** | **A haptic on `HubActionsButton`'s WCAG 2.5.1 path** | this file | Pre-existing, and it rides rank 1 for free: once both doors call one `escalateCue`, the sheet door's missing cue is a call site, not a second implementation. Doing it FIRST would mean writing the third copy of a branch that already exists twice. |
 | **3** | **`scan.flag` commits with no sheet — an undocumented §C2 exception** | this file | ⭐ **Decide before building.** It is either a documentation fix (flag is reversible, one tap, and a sheet would be friction on the most-used action) or a product change (§C2 says a commit gets a sheet). The wrong half of this is cheap to build and expensive to ship — it would put a confirmation in front of a gesture members use constantly. Bring the ruling, not a patch. |
-| **4** | **The CI device job** | §2 above | The largest single item in the programme and **mostly not hub code**: CI plumbing plus a paid BrowserStack **Automate** decision (a Live seat does not fund it, and the account's Automate allowance was exhausted at the Phase-2 run). ⛔ Nightly + manual dispatch, never per-push — a per-push device job exhausts the quota inside a week and then gets disabled, which is worse than not having one. |
+| ~~**4**~~ ✅ | ~~**The CI device job**~~ — **BUILT AND ON MASTER**: `ed9450c09` (the workflow) and `dd01a050d` (the funded-plan classifier). Manual dispatch + a nightly cron, never on push except its own gate files; six outcomes, three of them red; a skip requires POSITIVE PROOF of unfundedness, so a 401, a 5xx or a DNS failure goes red rather than green-skipping. ⛔ The only thing left is the QUOTA — see §5 below. | §2 above | The largest single item in the programme and **mostly not hub code**: CI plumbing plus a paid BrowserStack **Automate** decision (a Live seat does not fund it, and the account's Automate allowance was exhausted at the Phase-2 run). ⛔ Nightly + manual dispatch, never per-push — a per-push device job exhausts the quota inside a week and then gets disabled, which is worse than not having one. |
 
 ### Not in this queue, and not this programme's
 
@@ -255,3 +255,33 @@ already uses is the obvious destination, with the same `DATA_SYNC_*` credentials
 it: a copy is not a backup of a WAL database — `VACUUM INTO`, then `PRAGMA quick_check` on the
 COPY, then upload. And it needs a restore rehearsal, because a backup nobody has restored is a
 belief, not a backup.
+
+## 5. BrowserStack — the quota question, as a support question and not a purchase
+
+**Measured 2026-09-12** from this machine, read-only, on the credentials in the environment
+(`BROWSERSTACK_USERNAME = patrickgosz_y3ZHil`):
+
+```
+GET https://api.browserstack.com/automate/plan.json      → 200  {"automate_plan":"Free", …}
+GET https://api-cloud.browserstack.com/app-automate/plan.json → 200  {"automate_plan":"Free", …}
+```
+
+⭐ **A paid LIVE subscription is invisible to both of those endpoints.** BrowserStack publishes a
+plan API for **Automate** and **App Automate** only; **Live** and **App Live** have none. So
+"Patrick paid about a week ago" and "the API says Free" are not in conflict at all if what he
+bought was Live — which is also the product this programme has been using all along
+(`40-phase2-device.md`: *"Live ≠ Automate — they are metered separately, and a Live seat does not
+fund this suite"*).
+
+**The open question, for BrowserStack support or the billing page, in this order:**
+
+1. Does the account attached to `patrickgosz_y3ZHil` hold a paid **Automate** plan today? If the
+   dashboard says yes while `plan.json` says `Free`, that is a support ticket with both artifacts
+   quoted side by side — not something to fix by guessing.
+2. If the paid product is **Live** only, the device path for G0-1 is Live (a human, or an agent
+   with a browser, driving the mirror), and the CI job stays dark. ⛔ That is a working path, not a
+   blocker.
+3. If a DIFFERENT username holds Automate, the fix is the environment's credentials, not a
+   purchase.
+
+⛔ **No purchase is proposed here, and none should be inferred from this section.**
