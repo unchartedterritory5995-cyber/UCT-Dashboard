@@ -284,3 +284,35 @@ request pattern is the discriminator between the two hypotheses.
 ⚠️ Run A is still the worst case and the most informative: clean shape, 7 requests,
 parts served — and the table never rendered inside the settle window. Whatever the
 storm is, it is not the only way to lose the picks table.
+
+
+---
+
+## Login pacing — the limiter must not cost a measurement window
+
+`/api/auth/login` is `@limiter.limit("5/minute")` keyed by client IP
+(`api/routers/auth.py:246`, slowapi). Every rig run opens a **fresh context** — that IS
+the cache clear — so each run logs in once, and a naive sequence of runs trips on the
+6th login inside any minute.
+
+⚰️ Measured 2026-09-12: three consecutive path-B runs returned `login http 429` and
+read exactly like a broken product. On a Monday open that costs the one thing that
+cannot be re-run.
+
+- `_pace_login()` runs before **every** login on both paths and blocks until a login
+  would not trip the limiter. The ledger is module-level on purpose: the limiter counts
+  per IP across every run, path and account, so per-run state would be blind to exactly
+  the sequence that trips it.
+- **The cap is 4/minute, not 5.** The window is the SERVER's; our clock, request travel
+  time and any retry all shift where a login lands inside it. One slot of headroom turns
+  a boundary race into a non-event. Pinned by a test so it cannot drift up.
+- `_login_wait_s()` is a **pure** decision function, so the waiting path is testable
+  without spending a minute to reach it — a guard whose only route through it is a 60 s
+  sleep is a guard no test will ever exercise.
+- **A 429 is reported as INCONCLUSIVE, not an error**, on both paths, overriding whatever
+  the uptime verdict said. A rate-limited login measured nothing, and calling it a
+  product error is the same misreading as calling a cold pod a parts failure.
+
+Rail: `tests/test_flow_rig_swap_guard.py` — 5 pacing cases including a clear-window
+control and a pin on the cap literal. Mutation-proved three ways: raise the cap to 5,
+make the pacer never wait, delete both 429 branches. Each RED, naming the right test.

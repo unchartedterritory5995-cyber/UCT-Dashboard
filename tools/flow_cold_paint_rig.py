@@ -135,6 +135,59 @@ def _uptime():
         return None
 
 
+# ⛔⛔ `/api/auth/login` IS `@limiter.limit("5/minute")`, KEYED BY CLIENT IP
+# (api/routers/auth.py:246, slowapi). Every rig run opens a FRESH context — that
+# is the cache clear, so it cannot be avoided — and therefore logs in once. A
+# naive sequence of runs trips the limiter on the 6th login inside any minute.
+#
+# ⚰️ Measured 2026-09-12: three consecutive path-B runs came back
+# `login http 429` and read exactly like a broken product. On a Monday open that
+# costs the measurement window, which is the one thing that cannot be re-run.
+#
+# ⭐ 4 per minute, not 5. The limiter's window is the SERVER's, not ours: our
+# clock, the request's travel time and any retry all shift where a login lands
+# inside it. One slot of headroom turns a boundary race into a non-event.
+_LOGIN_MAX_PER_MIN = 4
+_LOGIN_WINDOW_S = 60.0
+_LOGIN_TIMES = []
+
+
+def _login_wait_s(times, now, max_per_min=None, window_s=None):
+    """Seconds a login must wait, 0 when it is clear. PURE - no clock, no sleep,
+    so the decision is testable without spending a minute to reach it."""
+    cap = _LOGIN_MAX_PER_MIN if max_per_min is None else max_per_min
+    win = _LOGIN_WINDOW_S if window_s is None else window_s
+    recent = [t for t in times if now - t < win]
+    if len(recent) < cap:
+        return 0.0, recent
+    return win - (now - min(recent)) + 0.5, recent
+
+
+def _pace_login(now=None):
+    """Block until a login would not trip the limiter. Returns seconds slept.
+
+    Kept as a module-level ledger rather than per-run state on purpose: the
+    limiter counts per IP across every run, path and account, so a per-run
+    counter would be blind to exactly the sequence that trips it.
+    """
+    import time as _t
+    now = _t.monotonic() if now is None else now
+    slept = 0.0
+    while True:
+        wait, recent = _login_wait_s(_LOGIN_TIMES, now)
+        del _LOGIN_TIMES[:]
+        _LOGIN_TIMES.extend(recent)
+        if wait <= 0:
+            _LOGIN_TIMES.append(now)
+            return slept
+        print("        [pace] %d logins in the last %.0fs - waiting %.1fs so the "
+              "5/minute limiter cannot cost a run"
+              % (len(recent), _LOGIN_WINDOW_S, wait))
+        _t.sleep(max(wait, 0.1))
+        slept += max(wait, 0.1)
+        now = _t.monotonic()
+
+
 # ⛔ A POD THIS YOUNG IS COLD, NOT MERELY UNSWAPPED. Measured 2026-09-12: a run
 # that began on a 38-second-old pod reported `parts served: NONE` with the page
 # shell rendered, because the deploy had just completed and the parts cache was
@@ -202,12 +255,19 @@ def run_once(pw, email, password, idx, certifying, min_pod_age=None):
         t_run = time.monotonic()
         # Scripted login — page.request keeps the cookie in the context jar, which
         # is robust against the intro overlay (the documented approach).
+        _pace_login()
         r = ctx.request.post(BASE + "/api/auth/login",
                              data={"email": email, "password": password})
         if r.status != 200:
             up_after = _uptime()
             swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
                                        min_pod_age)
+            if r.status == 429:
+                # ⛔ The limiter measured nothing. Reported as INCONCLUSIVE rather
+                # than an error, because "login refused" reads like a broken product
+                # and this one is the harness's own footprint.
+                swapped, why = True, ("login RATE-LIMITED (5/minute per IP) - nothing "
+                                      "was measured; space the runs")
             return {"run": idx, "error": "login http %s" % r.status,
                     "deploy_swapped": swapped, "swap_reason": why,
                     "uptime_before": up_before, "uptime_after": up_after}
@@ -339,12 +399,19 @@ def run_once_path_b(pw, email, password, idx, certifying,
     try:
         up_before = _uptime()
         t_run = time.monotonic()
+        _pace_login()
         r = ctx.request.post(BASE + "/api/auth/login",
                              data={"email": email, "password": password})
         if r.status != 200:
             up_after = _uptime()
             swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
                                        min_pod_age)
+            if r.status == 429:
+                # ⛔ The limiter measured nothing. Reported as INCONCLUSIVE rather
+                # than an error, because "login refused" reads like a broken product
+                # and this one is the harness's own footprint.
+                swapped, why = True, ("login RATE-LIMITED (5/minute per IP) - nothing "
+                                      "was measured; space the runs")
             return {"run": idx, "path": "B", "error": "login http %s" % r.status,
                     "deploy_swapped": swapped, "swap_reason": why,
                     "uptime_before": up_before, "uptime_after": up_after}

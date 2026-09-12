@@ -772,3 +772,54 @@ defect. A rate-limited login is INCONCLUSIVE, exactly like a deploy swap.
 
 `railway variables --service web --set "VITE_COMING_SOON=0"` — build-time, so it needs a
 web rebuild. The backend half is independent and is read per request.
+
+## Item 22 — GEX crosshair lag: SPIKE PLAN ONLY (not started)
+
+1. **Surface / interaction:** `/options-flow` → GEX tab → "📈 Chart with Levels";
+   continuous cursor movement across the plot for ~5 s. No other chart in the app lags.
+2. **It does NOT need RTH.** The lag is driven by per-frame redraw of the 8–12 GEX
+   price lines, not by tape volume — a quiet tape renders the same lines. Schedule it
+   any time, including a weekend, which makes it cheap to run.
+3. **Instrument one frame at a time, five timestamps per event:** `pointermove` →
+   `subscribeCrosshairMove` callback entry → `setCrosshairData` commit → next
+   `requestAnimationFrame` → `performance.now()` at paint. Record per-event, never
+   aggregates; the gap is what is perceived, and a mean hides it.
+4. **Add** `PerformanceObserver` for `long-animation-frame` and `longtask`, plus a
+   `performance.measure` bracketing the lightweight-charts redraw.
+5. **Do the free discriminator FIRST, at runtime, so no partner-owned file is
+   edited:** null the GEX chart's price lines from the console and ask whether the lag
+   disappears. Confirms or kills the price-line hypothesis in about a minute.
+6. **A definitive trace** = Bottom-Up, sorted by Self Time, over 3 s of movement,
+   where ONE function accounts for the gap **and** removing only that work closes it.
+   Naming a hot function is not enough; the removal has to close the gap.
+7. **Files, if instrumentation is needed:** `app/src/components/StockChart.jsx`
+   (crosshair subscription, watermark `measureText`). `app/src/pages/OptionsFlow.jsx`
+   is the call site, is partner-owned, and needs Manrav's ack — step 5 exists to avoid
+   touching it.
+8. **Already ruled out — do not re-test:** React re-renders, subscription churn, the
+   watermark hover handler, price-line teardown cycles. Five fixes shipped 2026-05-23,
+   all kept as correctness wins, none changed the perceived lag.
+9. **Stop condition:** the trace names a function whose self time covers the gap, or
+   step 5 closes the lag. Either ends the guessing. **A sixth speculative fix does not.**
+10. **Deliverable: the trace and one named culprit. No fix in the same session.**
+
+## ⚠️ Two caveats that affect Monday's items 7 and 13, raised BEFORE the session
+
+**The member population may be too small to compute a ratio from.** Production holds
+**26 users** (measured 2026-09-12), the site is in holding-page mode so registration is
+closed, and those 26 are admins and testers. Item 7 asks for "the ratio of parts
+requests to whole-D requests over the first 30 minutes" from real member sessions, and
+item 13 asks how often the storm shape appears for real members. Both may have a
+denominator of 0–3 sessions.
+
+⛔ **A ratio computed from n=1 is not a measurement.** Monday will report the RAW COUNT
+of distinct member sessions and their request sequences, and will only compute a ratio
+if the population supports one. If no member session loads Options Flow during the
+window, items 7 and 13's member half stay **UNMEASURED with that reason** — the rig
+proves the build serves parts, which is a different claim from members using it.
+
+**`current_version` is not a monotonic counter.** It read `39819849` on 2026-09-12
+afternoon and `29820496` that evening on a quiet tape, across a pod restart — consistent
+with the T+1 flat-file backfill changing the underlying rows. Items 4, 9 and 10 compare
+`X-Flow-Version` at paint against the current version; treat a difference as "not the
+same version", never as "older" or "newer".

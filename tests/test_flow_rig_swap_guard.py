@@ -141,3 +141,65 @@ def test_every_branch_fails_closed():
         swapped, why = rig._swap_verdict(*args)
         assert swapped is True, "%r returned a PASS" % (args,)
         assert why, "%r returned no reason" % (args,)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGIN PACING — the limiter must not be able to cost a measurement window
+# ─────────────────────────────────────────────────────────────────────────────
+# ⛔ /api/auth/login is @limiter.limit("5/minute") keyed by client IP
+# (api/routers/auth.py:246). Every rig run opens a FRESH context — that IS the
+# cache clear — so each run logs in once, and a naive sequence trips on the 6th
+# login inside any minute.
+#
+# ⚰️ Measured 2026-09-12: three consecutive path-B runs returned `login http 429`
+# and read exactly like a broken product. On a Monday open that costs the one
+# thing that cannot be re-run.
+
+def test_the_cap_is_below_the_servers_own_limit():
+    """Pins the LITERAL. The server allows 5/minute; pacing at 5 races the
+    boundary, because the window is the SERVER's and our clock, the request's
+    travel time and any retry all shift where a login lands inside it."""
+    rig = _rig()
+    assert rig._LOGIN_MAX_PER_MIN == 4, (
+        "pacing cap must stay strictly under the server's 5/minute")
+    assert rig._LOGIN_WINDOW_S == 60.0
+
+
+def test_a_clear_window_waits_nothing():
+    """The control: without it, a pacer that always waited would satisfy every
+    assertion below and silently double the runtime of every session."""
+    # now=150 keeps both inside the 60s window (50s and 30s ago), so they are
+    # RETAINED and still under the cap of 4.
+    wait, recent = _rig()._login_wait_s([100.0, 120.0], now=150.0)
+    assert wait == 0.0
+    assert recent == [100.0, 120.0]
+
+
+def test_a_full_window_waits_until_the_oldest_login_ages_out():
+    rig = _rig()
+    times = [100.0, 110.0, 120.0, 130.0]          # 4 logins, cap reached
+    wait, recent = rig._login_wait_s(times, now=140.0)
+    assert wait > 0, "a 5th login inside the window must wait"
+    # oldest is 100.0, window 60s -> clear at 160.0, plus the 0.5s headroom
+    assert abs(wait - 20.5) < 0.01, wait
+    assert len(recent) == 4
+
+
+def test_logins_older_than_the_window_do_not_count():
+    """Otherwise the pacer would throttle forever after a long session."""
+    wait, recent = _rig()._login_wait_s([1.0, 2.0, 3.0, 4.0], now=500.0)
+    assert wait == 0.0
+    assert recent == [], "entries outside the window must be dropped, not kept"
+
+
+def test_a_429_is_reported_as_INCONCLUSIVE_not_as_an_error():
+    """A rate-limited login measured nothing. Classifying it as a product error
+    is the same misreading as calling a cold pod a parts failure."""
+    with open(_RIG, encoding="utf-8") as fh:
+        src = fh.read()
+    assert src.count("RATE-LIMITED") == 2, (
+        "both run paths must classify a 429 as inconclusive; found %d"
+        % src.count("RATE-LIMITED"))
+    assert 'if r.status == 429:' in src
+    # and it must override whatever the uptime verdict said
+    assert src.index('swapped, why = _swap_verdict') < src.index('if r.status == 429:')
