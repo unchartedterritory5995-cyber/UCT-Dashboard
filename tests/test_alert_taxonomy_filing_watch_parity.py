@@ -14,6 +14,35 @@ S7 adds any of its seven remaining trigger types, this file must prove that
 filing watch's OBSERVABLE behaviour cannot be broken by a predicate- or
 receipt-shape change.
 
+⛔ THIS FILE PINS THE SHIPPED SHAPE, DELIBERATELY — NOT THE SPEC'S ORIGINAL ONE
+──────────────────────────────────────────────────────────────────────────────
+Writing it surfaced two places where what shipped and what SPEC-S7 described
+had diverged. Both were taken to the owner and both were RATIFIED on
+2026-09-11, so the spec was amended to match the code rather than the reverse.
+These assertions are therefore intentional, and a future reader comparing them
+against an older copy of the spec should not "correct" them:
+
+  * `entity_scope.symbol` — SPEC-S7 §5.2 originally defined `entity_scope` as
+    `{kind, id, asOf}`. Filing watch joins on `symbol` and NOTHING ELSE:
+    `useFilingWatch.getWatch` matches on it, `document_arrival._evaluate_one`
+    uses it as the SEC fetch ticker, and the delivered title, message and
+    `/research/` URL all derive from it. A predicate conforming to the ORIGINAL
+    text would be invisible to every filing-watch surface and would deliver
+    entity-id-shaped copy to members — which is exactly what mutation M1
+    demonstrates. §5.2 now declares `symbol` optional in general and REQUIRED
+    for `document-arrival`.
+    → FOLLOW-UP F-S7-1: migrate filing watch to join on `{kind, id}` once S3
+      entity ids are the canonical key across alert types. Sequenced with the
+      first trigger type that needs entity-scoped matching, NEVER standalone —
+      alone it would touch a live member-facing feature for no member benefit.
+      When that lands, these `symbol` assertions change with it, on purpose.
+
+  * `alert_fires.detail` — SPEC-S7 §5.3's table had no such column, because
+    `triggering_value REAL` cannot hold a filing. Four of the eight trigger
+    types are non-numeric, so a numbers-only receipt cannot serve a taxonomy
+    whose premise is one table for eight types. `detail` is now ratified in
+    §5.3; `triggering_value` stays, unchanged, for the numeric types.
+
 SCOPE — three observables, and only these three:
   1. FIRES     — a fixture filing-arrival event matches the same predicate set
                  and writes the same fire rows.
