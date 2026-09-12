@@ -24,6 +24,27 @@ implemented inside this package and is live to members. Ownership is Terminal-Ne
 2026-09-11); filing watch is a protected consumer. §2 is therefore a precondition for **every** item
 below, not a step in one of them.
 
+## 0a. The consolidation premise, measured (2026-09-11, `origin/master` @ `7fce88bd2`)
+
+S7's premise is "one taxonomy replacing five-plus independently-built alert paths." That is not an
+estimate — **six distinct alert-state tables are referenced in `api/**/*.py` today**, and every
+legacy service the plan proposes absorbing exists:
+
+| table | references | owning service (all verified present) |
+|---|---|---|
+| `indicator_alert_fires` | 35 | `api/services/indicator_alert_service.py` |
+| `alert_fired_log` | 31 | shared delivery seam |
+| `watchlist_alerts` | 27 | `api/services/watchlist_alert_service.py` |
+| **`alert_fires`** | 27 | **S7 Alerts / `alert_taxonomy` — the durable row** |
+| `user_alerts` | 11 | legacy ⛔ **never the durable S7 row; standing owner ruling** |
+| `catalyst_alerts_fired` | 3 | catalyst engine |
+
+Also present: `calendar_alerts.py` (pre-report), `awareness/rules.py` (R1/R2 stop-watch, R4
+regime-flip, R5 earnings-proximity), `scan_evaluator.py` (nightly sweep), `alert_shadow_log.py`.
+
+⭐ **Six tables is the argument for ordering by consolidation.** Each absorption removes one; adding
+a trigger type that absorbs nothing makes it seven.
+
 ## 1. Recommended order, and the reasoning
 
 Two orderings compete. **SPEC-S7's own sequencing** put document-arrival first because it "needs
