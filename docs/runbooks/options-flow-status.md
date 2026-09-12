@@ -109,3 +109,20 @@ six-shard run over 1,181 files, and corroborated at two different merge-bases.
 failed a full sharded run and **passed alone**; the baseline records the evidence and
 the rule that a timeout is never banked, because banking one leaves a slot a real
 failure can occupy unnoticed. Re-run alone before classifying.
+
+## Adjacent jobs, 2026-09-13 (outside the Options Flow ledger)
+
+| Job | Status | Evidence |
+|---|---|---|
+| Python failure baseline | **WAITING — sweep running** | `tools/python_failure_baseline.py` + `docs/test-baseline/python-failures.md`. 1,407 files in 71 explicit-path batches, ~87 min. At 12/71: **4,292 tests, 1 failure, 0 errors, 0 unrunnable, min free 14.24 GB**. Live counts in `scratchpad/pytest-baseline/progress.json`. |
+| Red `gate_shards` rails | **DONE-VERIFIED** | Already recorded in `gate-baseline.json` (7 failures / 5 files, 2026-09-10, corroborated twice, 3 load-sensitive non-entries). JS suite — does not overlap pytest. |
+| Worktree sweep (2nd pass) | **DONE-VERIFIED** | 35 → 33. `terminal-research` removed; `indicator-r0r1` REFUSED (permission denied, file lock) and kept without `--force`; 31 kept for dirty work. No branch deleted, nothing stale to prune, 0 reparse points in the removed tree. |
+| **`bar_quarantine` D/W/M** | **DONE-VERIFIED** | `7500777a2`. Was a complete no-op for D/W/M — write raised inside a bare `except` AND read compared ISO to `set[int]`. Key-additive fix; intraday is identity. 19 tests, mutation-proved (3 D/W/M RED, 0 intraday RED). All four services SUCCESS. |
+| `bar_provenance` D/W/M | **PARKED — same bug, logged not fixed** | `bars_disk_cache.py` one line above the quarantine call: `bar_provenance.record(ticker, tf, int(bar.get("t") or 0), source)` has the identical int()-inside-a-bare-except shape, so **daily provenance is silently never recorded** either. Different module, observability blast radius. Found by the quarantine test's source check. |
+
+⭐ The quarantine push is the first change this weekend to touch `api/**`. Both fixed
+files are **flow-worker-REACHABLE but not on its watch list**, so
+`tools/flow_worker_watch_coverage.py` correctly FAILED the diff — the rail firing on
+its author's own change. Resolved the way the rail prescribes: a comment-only touch to
+the watched `api/flow_worker_main.py` in the same commit, so flow-worker actually
+redeployed instead of running the old code with every test green.
