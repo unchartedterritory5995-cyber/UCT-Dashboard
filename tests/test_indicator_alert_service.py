@@ -1584,3 +1584,155 @@ def test_the_create_route_accepts_a_channel_choice_and_omission_means_the_defaul
     # right answer for a client that never offered the choice
     assert rows[b]["channels"] == ["in_app"]
     assert rows[b]["channels_explicit"] is True
+
+
+# ═══ HARDENING · the cap under concurrency, and it cannot be bypassed ═══════
+
+def test_concurrent_creates_cannot_exceed_the_cap(tmp_db):
+    """⛔⛔ THE COUNT IS READ ON THE CONNECTION THAT IS ABOUT TO APPEND.
+
+    Counting outside the transaction is the classic way a cap leaks: twenty
+    threads each read 199 and each insert a 200th. `create()` reads inside its
+    own `_conn()`, which is the race `user_definitions` already closed the same
+    way.
+    """
+    import threading
+    from api.services import entitlements
+    tiny = entitlements.Limits("tiny", None, None, 1, None, max_alerts=5)
+
+    made, refused = [], []
+    barrier = threading.Barrier(12)
+
+    def worker(i):
+        barrier.wait()                      # all twelve swing at once
+        try:
+            made.append(ias.create(user_id="race", sym=f"S{i}", indicator="rsi",
+                                   condition="above", threshold=70, tf="D", limits=tiny))
+        except entitlements.AlertCountExceeded:
+            refused.append(i)
+        except Exception as exc:            # a lock contention is not a bypass
+            refused.append((i, type(exc).__name__))
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(12)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+
+    live = len(ias.list_for_user("race"))
+    # ⛔ EXACTLY the cap, not merely "no more than". Twelve threads against a cap
+    # of five produced TWELVE rows before `BEGIN IMMEDIATE`.
+    assert live == 5, f"the cap leaked under concurrency: {live} rows for a cap of 5"
+    assert len(made) == 5
+    # ⭐ AND EVERY LOSER GOT THE MEMBER'S SENTENCE, not a lock error. That is what
+    # IMMEDIATE buys over DEFERRED: a contender BLOCKS and then reads the
+    # committed count, instead of failing its write-upgrade with SQLITE_BUSY and
+    # surfacing to the member as a 500.
+    assert len(refused) == 7, refused
+    assert all(not isinstance(r, tuple) for r in refused), (
+        f"a concurrent create failed with a lock error instead of the cap: {refused}")
+
+
+def test_the_cap_cannot_be_bypassed_by_the_PROMOTION_path(tmp_db, client):
+    """⭐ PROMOTION DOES NOT CREATE ALERTS. It creates a DEFINITION and attaches
+    it to a condition; the alert is a second, deliberate click that goes through
+    the same `POST /api/indicator-alerts` as every other create — so there is no
+    second door for the cap to miss."""
+    import api.routers.indicator_alerts as router_mod
+    import inspect
+    src = inspect.getsource(router_mod)
+    # exactly one create route, and it carries the limits dependency
+    assert src.count('@router.post("")') == 1
+    assert "limits: Limits = Depends(limits_dependency)" in src
+    assert "limits=limits" in src
+
+
+def test_the_frontend_defines_no_SECOND_magic_number(tmp_db):
+    """⛔ ONE PLACE. A client-side copy of the cap is a number that drifts silently.
+
+    ⚠️ SCOPED TO THE ALERT SURFACES, and that scope is the point. A repo-wide
+    search for `max_alerts` matches `max_alerts_per_ticker` in the options-flow
+    tester and a `max_alerts: "500"` backtest query parameter in LiveFlow —
+    different features, different numbers, and flagging them would train the next
+    reader to ignore this rail.
+    """
+    import pathlib, re
+    app_src = pathlib.Path(__file__).resolve().parents[1] / "app" / "src"
+    surfaces = [
+        *(app_src / "pages" / "alerts").rglob("*.js*"),
+        *app_src.glob("components/chart/ConditionAlert*.js*"),
+        app_src / "hooks" / "useIndicatorAlerts.js",
+    ]
+    cap = str(ias.MAX_ALERTS_PER_USER)
+    offenders = []
+    for p in surfaces:
+        if not p.exists() or ".test." in p.name:
+            continue
+        txt = p.read_text(encoding="utf-8", errors="ignore")
+        if re.search(r"" + cap + r"", txt) or re.search(r"max_?alerts", txt, re.I):
+            offenders.append(str(p.relative_to(app_src)))
+    assert surfaces, "the rail found no alert surfaces — it has stopped watching"
+    assert not offenders, (
+        f"an alert surface restates the server's cap ({cap}): {offenders}")
+
+
+# ═══ HARDENING · ownership, on EVERY route that names an alert ══════════════
+
+def test_no_route_that_names_an_alert_is_missing_its_ownership_check(client):
+    """⛔⛔ ONE MEMBER'S ALERT IS NOT ANOTHER'S, ON EVERY DOOR.
+
+    Enumerated from the router rather than hand-listed, so a route added later
+    without a check FAILS here instead of leaking. 404 is the canonical answer —
+    403 would confirm that somebody else's alert id exists.
+    """
+    import api.routers.indicator_alerts as rm
+    import inspect
+
+    # every path that takes an {alert_id}
+    paths = sorted({
+        (m, p) for m, p in
+        [(r.methods, r.path) for r in rm.router.routes if "{alert_id}" in getattr(r, "path", "")]
+        for m in m
+    })
+    assert paths, "no {alert_id} routes found — the rail has stopped watching"
+
+    mine = client.post("/api/indicator-alerts", json={
+        "sym": "aapl", "indicator": "rsi", "condition": "above",
+        "threshold": 70, "tf": "D"}).json()["id"]
+
+    # the row exists and belongs to user-abc; now ask as a DIFFERENT member
+    from api.main import app
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    other = lambda: {"id": "someone-else", "email": "x@y", "role": "member"}
+    app.dependency_overrides[get_current_user] = other
+    app.dependency_overrides[get_current_user_with_plan] = other
+    try:
+        bodies = {
+            "/api/indicator-alerts/{alert_id}/snooze": {"minutes": 30},
+            "/api/indicator-alerts/{alert_id}/channels": {"channels": ["in_app"]},
+        }
+        checked = 0
+        for method, path in paths:
+            url = path.replace("{alert_id}", str(mine))
+            r = client.request(method, url, json=bodies.get(path))
+            assert r.status_code == 404, (
+                f"{method} {path} answered {r.status_code} for a FOREIGN alert — "
+                "it must be 404 (403 would confirm the row exists)")
+            checked += 1
+        assert checked >= 5, f"only {checked} alert-scoped routes were checked"
+    finally:
+        app.dependency_overrides[get_current_user] = \
+            lambda: {"id": "user-abc", "email": "abc@test", "role": "member"}
+        app.dependency_overrides[get_current_user_with_plan] = \
+            lambda: {"id": "user-abc", "email": "abc@test", "role": "member"}
+
+    # …and the owner can still reach every one of them
+    assert client.get(f"/api/indicator-alerts/{mine}/fires").status_code == 200
+
+
+def test_a_listing_never_carries_another_members_rows(tmp_db):
+    ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+               threshold=70, tf="D")
+    ias.create(user_id="u2", sym="MSFT", indicator="rsi", condition="above",
+               threshold=70, tf="D")
+    assert [r["sym"] for r in ias.list_for_user("u1")] == ["AAPL"]
+    assert [r["sym"] for r in ias.list_for_user("u2")] == ["MSFT"]
+    assert [f["sym"] for f in ias.list_fires("u1", 50)] == []

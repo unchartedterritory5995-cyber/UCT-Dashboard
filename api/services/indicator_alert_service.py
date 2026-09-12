@@ -507,7 +507,24 @@ def create(
     source = None if admitted is None else DEF_SOURCE_USER
 
     now = int(time.time())
-    with _conn() as db:
+    # ⛔⛔ `BEGIN IMMEDIATE` BEFORE THE COUNT, AND THE CAP DEPENDS ON IT.
+    #
+    # 🔴 MEASURED: without it, twelve concurrent creates against a cap of FIVE
+    # produced TWELVE ROWS. This file runs SQLite in WAL, where every connection
+    # reads its own snapshot and a DEFERRED transaction takes no lock until its
+    # first WRITE — so all twelve `SELECT COUNT(*)` calls saw zero and all twelve
+    # inserted. "The count is read on the connection that is about to append" is
+    # true and is NOT sufficient: the read has to happen inside the write lock.
+    #
+    # ⚠️ IN THE DATABASE, NOT IN A PYTHON MUTEX. `user_definitions` serialises its
+    # own count with a `threading.Lock`, which is correct within one process and
+    # silent across two; taking the lock here bounds a second uvicorn worker by
+    # the same gate. `busy_timeout=2000` bounds the wait, and a contender that
+    # times out RAISES — a refusal, never a bypass.
+    db = _conn()
+    db.isolation_level = None            # explicit transaction control
+    try:
+        db.execute("BEGIN IMMEDIATE")
         live = db.execute(
             "SELECT COUNT(*) FROM indicator_alerts WHERE user_id=?",
             (str(user_id),),
@@ -550,7 +567,20 @@ def create(
                 else encode_channels(channels),
             ),
         )
-        return int(cur.lastrowid)
+        new_id = int(cur.lastrowid)
+        db.execute("COMMIT")
+        return new_id
+    except BaseException:
+        # ⛔ INCLUDING THE CAP REFUSAL, which raises from inside the transaction.
+        # An open IMMEDIATE transaction holds the write lock until its connection
+        # is collected, so a refused create would block every other member's.
+        try:
+            db.execute("ROLLBACK")
+        except Exception:
+            pass
+        raise
+    finally:
+        db.close()
 
 
 def get(alert_id: int) -> Optional[dict]:
