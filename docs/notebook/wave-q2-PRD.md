@@ -159,7 +159,25 @@ Each slice ships behind its own compile-time constant, in the Q1 idiom:
 (measured twice on Q1), and **every member with an open tab keeps the old bundle
 until they reload**. No service worker, no version prompt, by charter.
 
-### The kill switch — recommendation: **BUILD BEFORE Q2-C, NOT BEFORE Q2-A/B**
+### ~~The kill switch — recommendation: **BUILD BEFORE Q2-C, NOT BEFORE Q2-A/B**~~
+
+> ⛔⛔ **SUPERSEDED 2026-09-12 — every track's flag rides on K's config, so K
+> precedes all.** Owner ruling; recorded in manifest §7. The recommendation
+> below is kept struck rather than deleted, because the reasoning in it is still
+> the honest account of why K looked deferrable in Q2 planning — and because a
+> recommendation that simply vanishes is one the next reader re-derives.
+>
+> ⭐ **What changed is not the risk, it is the DEPENDENCY.** The argument below
+> weighs Q2-A/B's failure modes (visible, recoverable) against Q2-C's (invisible,
+> quota-eating) and concludes K can wait. That weighing is still correct in
+> isolation. It stopped governing when every other track — K, S rows, Q2-A, R —
+> was specified to ship dark behind a config key that only K provides: a track
+> that cannot ship dark cannot ship at all, so K is no longer a risk decision
+> but a prerequisite.
+>
+> The spec K is built against is **`docs/notebook/kill-switch-spec.md`**.
+
+**⚰️ STRUCK — superseded, see above:**
 
 | | |
 |---|---|

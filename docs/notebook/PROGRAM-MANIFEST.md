@@ -393,6 +393,35 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-12 — the kill switch's POSITION: the Q2 PRD said "not before Q2-A/B"; the owner ruled K FIRST
+
+`wave-q2-PRD.md` carried a bolded recommendation — **"BUILD BEFORE Q2-C, NOT
+BEFORE Q2-A/B"** — reasoning that Q1 flipped without a kill switch and never
+needed the deploy-only rollback, that Q2-A/B fail visibly and recoverably, and
+that only Q2-C's quota-eating failure justified 6–12 h of work. The owner had
+previously accepted that recommendation.
+
+**Superseded by owner ruling, 2026-09-12: K is first, ahead of every other
+track.** §2's wave table already said "now"; the PRD's recommendation was the
+outlier, and it is now struck and annotated in place (never deleted — a
+recommendation that vanishes is one the next reader re-derives).
+
+⭐ **The reasoning that changed, stated precisely, because the PRD's own argument
+is still correct in isolation.** The PRD weighed RISK: how bad is each slice's
+failure, and how fast must it be stoppable. That weighing did not change. What
+changed is that every other track — K, the S rows, Q2-A, R — is specified to ship
+**dark behind a config key that only K provides**. A track that cannot ship dark
+cannot ship at all. K therefore stopped being a risk decision and became a
+**dependency**, and a dependency's position in a queue is not a judgement call.
+
+⛔ **The general shape, for the next time a recommendation ages:** a
+recommendation reasons from the facts at the time it was written. When a later
+decision changes the *dependency graph* rather than the *risk*, the
+recommendation can be entirely sound and entirely inapplicable. Strike it, say
+which of the two changed, and leave the reasoning readable.
+
+Spec: `docs/notebook/kill-switch-spec.md`.
+
 ### ⚖️ 2026-09-12 — Q2 proposed ahead of R/S; REJECTED, contract order stands
 
 A session proposed starting Wave Q2 (offline read · conflict UX · attachments) in
