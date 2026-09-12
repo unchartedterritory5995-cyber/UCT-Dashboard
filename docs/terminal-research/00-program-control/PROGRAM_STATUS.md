@@ -391,9 +391,13 @@ Three instances found this session, all verified:
 
 1. `fmp_client.py`, the census tool and its tests cite **`provider-abstraction-spec.md` §4.2/§9.2/§21.1** — `docs/terminal-research/` **does not exist on master**.
 2. Every `api/services/entity_master/*.py` cites **`entity-master-spec.md`** — same absence.
-3. `docs/runbooks/deploy-windows.md`, added to master **today**, instructs the reader to run
-   **`python tools/flow_worker_watch_coverage.py`** — that file is **not on master**. It exists only
-   on the unmerged branch `origin/ci/flow-worker-watch-coverage` (`2db52c8f3`).
+3. ~~`docs/runbooks/deploy-windows.md`, added to master **today**, instructs the reader to run
+   **`python tools/flow_worker_watch_coverage.py`** — that file is **not on master**.~~
+   ✅ **RESOLVED 2026-09-11 22:14** — `ci/flow-worker-watch-coverage` merged as `6d40106df`, and
+   `tools/flow_worker_watch_coverage.py` is now present on master. The runbook and its tool are back
+   in the same tree. ⭐ **Kept in the table rather than deleted**, because the window between a
+   runbook shipping and its tool arriving is the hazard, and it closed in about 27 minutes here only
+   because someone happened to be merging that branch anyway.
 
 ⛔ **Treat a cross-artifact citation as a pointer into a branch until proven otherwise.** The first
 two are this program's docs/code split; the third is someone else's runbook shipping ahead of its
@@ -526,7 +530,33 @@ and the rest touch streaming, bars or flow — owner-reserved paths.
 - **F-I1-2 — enrich refusals to name the missing thing.** Shipped refusals are correct but terse;
   *"no transcript RAG pipeline exists, so I cannot answer from the call"* is useful where *"I cannot
   answer that"* is not. ⛔ **Member-visible (it changes answer text), so it needs its own gate
-  approval line.**
+  approval line.** **NOT AUTHORIZED — draft text below, for the owner to grant or amend.**
+
+  > ```
+  > APPROVED BY:      Patrick (owner), via Claude Chat middleman
+  > APPROVED ON:      <date>
+  > APPROVED AT SHA:  <GATE-I1's hash at approval — not backdated>
+  > SCOPE APPROVED:   SLICE 3 (F-I1-2) — the refusal path NAMES the missing thing instead of
+  >                   declining generically. MEMBER-VISIBLE: refusal text changes.
+  >                   ⛔ The refusal DECISION is unchanged — same five response states, same
+  >                      coercion to `refuse`, same conditions under which a refusal is chosen.
+  >                      Only the sentence changes.
+  >                   ⛔ The named reason must be DERIVED from why the answer could not be
+  >                      grounded — the absent domain, the empty evidence bundle, the
+  >                      out-of-scope question class — never a model-authored explanation of
+  >                      its own refusal.
+  >                   ⛔ NO new composer, NO new evidence path, NO change to the hard
+  >                      Buy/Sell/Hold boundary.
+  > ```
+  >
+  > **Conditions to attach:** (1) MANDATORY — the derived reason goes through `_full_text()` and
+  > therefore through the grounding gate, like every other model-authored field, so an enriched
+  > refusal cannot smuggle an ungrounded number. ⚠️ This is exactly the hole slice 1 found and
+  > closed in the harness: `checks._full_text` was blind to the refusal sentence, so a fabricated
+  > number inside a refusal passed every mechanical check. **F-I1-2 makes refusals say more, which
+  > makes that hole matter more.** (2) MANDATORY — golden-set cases asserting an enriched refusal
+  > still fails no mechanical check. (3) Before/after refusal text for the owner, on the real
+  > out-of-scope classes (transcripts, Calendar/Events, portfolio, rating-trend).
 - **F-I1-3 — golden-set adversarial cases for the hard boundary.** ✅ **Already delivered inside
   slice 1** (B01–B06 plus 15 payloads). **No gate line needed — close it** when the merge lands.
 

@@ -139,6 +139,32 @@ convergence); **`scripts/entity_master_seed.py`** (Seam 1 dot-form alias seeding
 Per the standing rule, every application-code commit this program makes gets a row here **before**
 the session reports.
 
+## ⛔⛔ MERGE CHECK 2026-09-11 22:2x — **THE FIVE PRs ARE NOT ON MASTER.** Rows stay PENDING-MERGE.
+
+A session opened on the statement that all five had merged. **Verified against `origin/master @
+a10c7c94a` and they have not**, by three independent measurements rather than one:
+
+1. **Ancestry** — no branch tip is an ancestor of master. (Inconclusive alone: a squash merge
+   produces a new SHA, so this is exactly what a successful squash also looks like.)
+2. **Content** — the decisive check. `tests/test_alert_taxonomy_filing_watch_parity.py`,
+   `app/src/pages/research/i1S8Boundary.test.js`, `tests/test_ticker_explain_full_text_completeness.py`,
+   `api/routers/entity_master_admin.py` and `tests/test_entity_master_seed.py` are all **ABSENT** on
+   master; `scripts/test_entity_master_seed.py` is **still in its old location**; `AlertBell.jsx` has
+   **zero** `document_arrival` references.
+3. **History** — master's last 12 commits are entirely other workstreams (flow-worker weekend bundle,
+   the CI rail, hub smoke, deploy-window docs). No merge commit references any of the five.
+
+**Behaviour on master is unchanged, and both reds are still red** — measured, not inferred:
+`test_test_discovery_coverage` **1 failed / 4 passed** (same single orphan,
+`scripts/test_entity_master_seed.py`), and the FMP census **1 unquarantined violation, 12 quarantine
+entries** (D1's tightening to 10 has not landed), rail **1 failed / 7 passed**.
+
+✅ **What DID merge: `ci/flow-worker-watch-coverage` (`2db52c8f3` via `6d40106df`)** — a different
+workstream's branch, which is why `tools/flow_worker_watch_coverage.py` is now on master.
+
+⛔ **Consequence: slice 2, S7 price-level and the G2/G4 census delta are all still blocked**, because
+each has a precondition that names these merges. Nothing was built on the assumption.
+
 ## ⛔ EVERY ROW IN THIS SECTION IS **PENDING-MERGE**
 
 They live on feature branches, **not on `origin/master`**, so the rail's check (1b) does not return
