@@ -614,6 +614,24 @@ ceiling and 429 sleep-retry that the adapter does not).
 | **S10 Presentation Primitives** | **`3c539d011`** | ADDITIVE — 9 files, all `app/**`, **0** in flow-worker's 154-file closure |
 | **S7 `catalyst-match` CP1** | **`faaa30146`** | ADDITIVE — 3 files, 0 in the closure |
 | **S7 `catalyst-match` CP2** | **`d9631afa5`** | ADDITIVE — 3 files, 0 in the closure |
+| **S10 rail: walk the tree ONCE** | **`de9551dd9`** | ADDITIVE — 1 file, 0 in the closure |
+
+⚰️ **THE FOURTH ROW IS A DEFECT IN A RAIL THIS WAVE SHIPPED, FOUND BY RE-VERIFYING RATHER THAN BY A
+FAILING GATE — and it is recorded because the temptation was to call it noise.**
+`presentationSingleFormatter.test.js` walked all of `app/src` TWICE, once per test, reading and
+comment-stripping ~1,400 files each pass. It went **RED once in an 8-file run** and **GREEN both
+alone and on an immediate re-run of the identical eight** — `lesson_a_rail_can_be_green_alone_and_
+red_in_company`.
+
+⛔ **A LOAD-SENSITIVE RED IS NOT BANKED AS PERMITTED BREAKAGE.** The repo's own rule: re-run it
+alone, then FIX it — a banked slot in the baseline is one a real failure can occupy unnoticed.
+Fixed by walking once into a memoized corpus.
+
+⭐ **And sharing the corpus made the non-vacuity control STRONGER.** Two independently-built walks
+could in principle disagree about which files they visited, so the control was proving a property
+of ITS OWN walk and not of the assertion's. One corpus, queried twice, means the control now
+witnesses the exact set the assertion ran over. Mutation-proved both ways (give `formatPercent` a
+consumer → RED; make the walk return nothing → RED), each restored by edit.
 
 ⛔ **CLASSIFICATION WAS CONFIRMED, NOT ASSUMED.** `reachable_paths()` was called directly for each
 merge and the intersection with the changed set printed. The owner's instruction for S10 was
