@@ -25,6 +25,32 @@ looking healthy and clicks do not land.
 | occluded (2026-09-12) | hidden | false | healthy dimensions, another window on top |
 | **off-screen (2026-09-12)** | **hidden** | **true** | healthy dimensions, `screenY` off the desktop |
 
+⛔⛔ **AND FROM 2026-09-12 THE VISIBILITY GATE READS COORDINATES, NOT JUST VISIBILITY.**
+`visibilityState` alone cannot tell these three apart, and the remedy differs for each.
+Every pre-write gate now reads, in one call, from **the connected tab**:
+
+```js
+JSON.stringify({
+  vis: document.visibilityState, hasFocus: document.hasFocus(),
+  scr: [screenX, screenY], outer: [outerWidth, outerHeight],
+  screen: [screen.width, screen.height, screen.availWidth, screen.availHeight],
+})
+```
+
+**PASS is all three:** `vis === "visible"` **AND** `screenY` within `[0, availHeight)`
+**AND** `screenX` within `[0, availWidth)`. Anything else is a STOP with the numbers
+quoted, never a retry.
+
+⛔⛔ **RE-READ FROM THE CONNECTED TAB. NEVER TRUST A VERBAL "MOVED".** An operator who
+repositions a Chrome window may well have moved a DIFFERENT one — this box runs several,
+and the one the extension is attached to is not necessarily the one in front of them.
+⚰️ Measured 2026-09-12: after *"the Chrome window is now on-screen and will stay there"*
+the connected tab still read `screenX/screenY 2308 / -1272`, **byte-identical to the two
+readings taken before it** — the window had not moved at all. Three reads, three
+identical answers, one confident sentence to the contrary. So the gate asks the tab, and
+`tabs_context_mcp` is what says which tab that is; a report of a fix is a reason to
+re-measure, never a measurement.
+
 ⛔ **AND THIS ONE CANNOT BE FIXED FROM THIS SIDE.** The standing instruction is not to
 move or resize the window, and the other two cases' remedies (click to raise, new tab)
 cannot bring a frame back onto the desktop. It is a STOP with a sentence for the owner,
