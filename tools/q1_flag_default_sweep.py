@@ -64,6 +64,7 @@ TOUCHES = (KEY_LITERAL, KEY_CONST, DEFAULT_CONST, "offlineEnabled", "useOutboxDr
 RE_REMOVE = re.compile(r"removeItem\(\s*(?:" + KEY_CONST + r"|['\"]" + re.escape(KEY_LITERAL) + r"['\"])\s*\)")
 RE_CLEAR = re.compile(r"localStorage\.clear\(\s*\)")
 RE_SET = re.compile(r"setItem\(\s*(?:" + KEY_CONST + r"|['\"]" + re.escape(KEY_LITERAL) + r"['\"])")
+ORDER = {"TESTS-THE-DEFAULT": 0, "TESTS-OFF": 1, "REACHES-DEFAULT": 2, "UNSET-INCIDENTAL": 3}
 RE_ASSERT_DEFAULT = re.compile(re.escape(DEFAULT_CONST) + r"\s*\)\s*\.toBe")
 # ⛔ A STORAGE STUB IS A WAY TO REACH THE DEFAULT, and it leaves no
 # `localStorage` call to grep for. `store({})` and an inline reader whose
@@ -190,7 +191,8 @@ def main() -> int:
     total = sum(len(v) for v in found.values())
     print("⭐ SITES WHOSE BEHAVIOUR DEPENDS ON THE SHIPPED FLAG DEFAULT")
     print(f"   {len(found)} file(s), {total} site(s)\n")
-    order = {"TESTS-THE-DEFAULT": 0, "TESTS-OFF": 1, "UNSET-INCIDENTAL": 2}
+    # ⛔ EVERY class classify() can emit needs an entry here, or the REPORT dies with a KeyError while --self-check still passes: it exercises classify(), never the render. Adding a class and forgetting this line breaks the tool silently.
+    order = dict(ORDER)
     for path in sorted(found, key=lambda p: (min(order[k] for _, k, _ in found[p]), p)):
         print(f"  {path}")
         for line, kind, ev in found[path]:
