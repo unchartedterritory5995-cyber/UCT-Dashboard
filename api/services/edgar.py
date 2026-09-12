@@ -132,32 +132,94 @@ _newest_q_cache: dict[str, tuple[str, str | None]] = {}
 _PERIODIC_FORMS = ("10-Q", "10-K", "10-Q/A", "10-K/A", "20-F", "40-F")
 
 
-def _resolve_cik(ticker: str) -> str | None:
-    """Ticker -> zero-padded CIK via EDGAR's browse endpoint.
+_cik_resolved: dict[str, str | None] = {}
 
-    ⛔ NOT via `sec.gov/files/company_tickers.json`. That file is PARTIAL — 10,426
-    entries on 2026-09-12, missing `MMC` and `BK`, both certain filers — so a
-    resolver built on it answers "not a US filer" for real companies. The first
-    version of this probe did exactly that and printed a fabricated explanation
-    for its own limitation. `browse-edgar?action=getcompany&CIK=<ticker>`
-    resolves a ticker directly and worked for every name tried.
+
+def _ticker_to_cik_bulk() -> dict[str, str]:
+    """{TICKER: zero-padded CIK} from SEC's free bulk file.
+
+    ⛔ INCOMPLETE, and that is the whole reason this module has a chain.
+    Measured 2026-09-12: `company_tickers.json` AND
+    `company_tickers_exchange.json` both return exactly 10,426 entries and both
+    lack MMC, BK, HOLX and EXAS — all real filers. Never read its silence as
+    "this company does not exist"; that is what made `/api/filings/MMC` answer
+    `not found in SEC CIK map` in production.
+    """
+    # `_fetch_cik_ticker_map()` is {cik_str: ticker}; invert it, and pad the CIK
+    # (never the ticker — an earlier version padded the wrong side and produced
+    # {'320193': '000000AAPL'}, which the unit tests could not see because they
+    # stubbed this very function).
+    return {str(t).upper(): str(c).zfill(10)
+            for c, t in _fetch_cik_ticker_map().items() if t}
+
+
+def _fmp_cik(path: str, params: dict, timeout: int = 10):
+    """Indirection so the chain's paid tier is stubbable by name."""
+    from api.services.earnings_estimates import _fmp_get
+    return _fmp_get(path, params, timeout=timeout)
+
+
+def resolve_cik(ticker: str) -> str | None:
+    """Ticker -> zero-padded CIK. Fast and free tiers first, slow one last.
+
+    1. SEC's bulk file — instant, free, and INCOMPLETE (see above).
+    2. FMP's profile `cik` — ~0.15s on a plan we already pay for, and it has the
+       names the bulk file misses. Measured CIKs agree with EDGAR exactly
+       (MMC 0000062709, HOLX 0000859737, EXAS 0001124140).
+    3. `browse-edgar` — authoritative but a legacy CGI that READ-TIMED OUT at 10s
+       on a live call. Last resort only: it cannot sit on a member request path,
+       and relying on it made the fundamentals monitor's staleness oracle fail
+       quiet exactly when it mattered.
+
+    Cached per ticker for the process, negatives included, so a miss is not
+    re-paid on every call.
     """
     t = (ticker or "").upper().strip()
-    if not t or _requests is None:
+    if not t:
         return None
+    if t in _cik_resolved:
+        return _cik_resolved[t]
+
+    cik = None
     try:
-        r = _requests.get(
-            "https://www.sec.gov/cgi-bin/browse-edgar",
-            params={"action": "getcompany", "CIK": t, "type": "10-Q",
-                    "count": "1", "output": "atom"},
-            headers={"User-Agent": "UCTDashboard contact@unchartedterritory.com"},
-            timeout=10,
-        )
-        r.raise_for_status()
-        m = re.search(r"CIK=(\d{10})", r.text) or re.search(r"<cik>(\d+)</cik>", r.text)
-        return m.group(1).zfill(10) if m else None
+        cik = _ticker_to_cik_bulk().get(t)
     except Exception:
-        return None
+        cik = None
+
+    if not cik:
+        try:
+            d = _fmp_cik("/stable/profile", {"symbol": t}, timeout=8)
+            row = d[0] if isinstance(d, list) and d else (d if isinstance(d, dict) else None)
+            raw = (row or {}).get("cik")
+            if raw:
+                cik = str(raw).strip().zfill(10)
+        except Exception:
+            cik = None
+
+    if not cik and _requests is not None:
+        try:
+            r = _requests.get(
+                "https://www.sec.gov/cgi-bin/browse-edgar",
+                params={"action": "getcompany", "CIK": t, "type": "10-Q",
+                        "count": "1", "output": "atom"},
+                headers={"User-Agent": "UCTDashboard contact@unchartedterritory.com"},
+                # ⚠️ BOUNDED TIGHT, and it is best-effort by design. This tier
+                # exists only for a filer neither the bulk map nor FMP covers,
+                # and FMP resolved every real ticker measured. Left unbounded it
+                # made a BOGUS ticker cost ~11s on `/api/filings`, a route that
+                # used to answer "not found" instantly. Negative results are
+                # cached, so the cost is paid once per ticker per process.
+                timeout=8,
+            )
+            r.raise_for_status()
+            m = re.search(r"CIK=(\d{10})", r.text) or re.search(r"<cik>(\d+)</cik>", r.text)
+            if m:
+                cik = m.group(1).zfill(10)
+        except Exception:
+            cik = None
+
+    _cik_resolved[t] = cik
+    return cik
 
 
 def newest_reported_quarter(ticker: str) -> str | None:
@@ -192,7 +254,7 @@ def newest_reported_quarter(ticker: str) -> str | None:
         return hit[1]
 
     label = None
-    cik = _resolve_cik(t)
+    cik = resolve_cik(t)
     if cik:
         try:
             r = _requests.get(
@@ -221,3 +283,7 @@ def newest_reported_quarter(ticker: str) -> str | None:
 
     _newest_q_cache[t] = (today, label)
     return label
+
+
+# Back-compat alias: this was private until a second consumer needed it.
+_resolve_cik = resolve_cik

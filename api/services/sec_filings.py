@@ -53,11 +53,41 @@ def _cik_map() -> dict[str, str]:
     return m
 
 
+from api.services.edgar import resolve_cik as _edgar_resolve_cik
+
+
 def _ticker_to_cik(ticker: str) -> str | None:
+    """Ticker -> CIK: the bulk map first, then EDGAR for what it misses.
+
+    ⚰️ THE MAP ALONE ERRORED ON S&P 500 COMPANIES. Measured in production
+    2026-09-12: `/api/filings/MMC` and `/api/filings/BK` both answered
+    `{"error": "ticker ... not found in SEC CIK map"}`.
+    `sec.gov/files/company_tickers.json` is PARTIAL — 10,426 entries, missing
+    both of those filers — so the research/filings surface told members a real
+    company did not exist. Control: `/api/filings/AAPL` returns cik 0000320193
+    and ten filings, so prod reaches SEC fine; the map is the defect, not the
+    network. Same root cause as the withdrawn FMP ticket — treating that file's
+    silence as "this company does not exist".
+
+    ⭐ A FALLBACK, not a replacement: the map is a free in-memory hit for the
+    ~10k tickers it covers, and only a miss pays for a browse-edgar round trip.
+
+    ⛔ Resolution is IMPORTED from `edgar`, never copied — two copies of
+    "ticker -> CIK" is the second-authority-over-one-value defect this repo has
+    paid for repeatedly.
+    """
     t = (ticker or "").upper().strip()
     if not t:
         return None
-    return _cik_map().get(t)
+    hit = _cik_map().get(t)
+    if hit:
+        return hit
+    # `recent_filings` promises it never raises; an SEC outage must read as
+    # "not found", not as a 500.
+    try:
+        return _edgar_resolve_cik(t)
+    except Exception:  # pragma: no cover - exercised via monkeypatch
+        return None
 
 
 def _name_map() -> dict[str, str]:

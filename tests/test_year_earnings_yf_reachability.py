@@ -22,6 +22,12 @@ def _mod(monkeypatch):
     importlib.reload(ee)
     monkeypatch.setattr(ee.cache, "get", lambda k: None)
     monkeypatch.setattr(ee.cache, "set", lambda k, v, ttl=None, **kw: None)
+    # ⛔ EVERY leg must be stubbed, including the FMP income statement added
+    # 2026-09-12. These tests passed only because FMP_API_KEY happened to be
+    # absent: with a real key in the environment that leg fills the year for
+    # real, `len(by_q)` reaches 4, and the yfinance leg under test never runs —
+    # the assertions then fail for a reason that has nothing to do with the gate.
+    monkeypatch.setattr(ee, "_year_earnings_from_fmp_income", lambda p, y: [])
     return ee
 
 

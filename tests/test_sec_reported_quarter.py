@@ -56,6 +56,11 @@ def _wire(monkeypatch, sec, *, cik="0000859737", filings=None, fail=False):
         raise AssertionError(f"unexpected url {url}")
 
     monkeypatch.setattr(sec._requests, "get", _get)
+    # ⚠️ The line above patches the `requests` MODULE, so it reaches every caller
+    # in the process — including FMP's client. Stub the paid CIK tier by NAME so
+    # this test exercises the browse-edgar path it is actually about.
+    monkeypatch.setattr(sec, "_fmp_cik", lambda path, params, timeout=10: [])
+    monkeypatch.setattr(sec, "_ticker_to_cik_bulk", lambda: {})
     return calls
 
 
