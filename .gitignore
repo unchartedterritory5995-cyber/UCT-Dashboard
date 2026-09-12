@@ -135,4 +135,6 @@ docs/notebook/window-check.log
 # Gate wrapper shard logs — large, per-run, and regenerated every time. The MANIFESTS
 # (.json/.md) beside them are the evidence and stay tracked.
 docs/plans/joystick/gate-runs/*.log
+# the Notebook's own gate runs: keep the REPORT, never the multi-MB shard logs
+docs/notebook/gate-runs/*.log
 docs/plans/joystick/gate-runs/INVALID-*.md
