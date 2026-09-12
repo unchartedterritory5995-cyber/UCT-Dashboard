@@ -363,6 +363,54 @@ BOTH modes today"*. Measured tonight: the HOST lane does not refuse it at all
 (0 refusals); only the screener does, 4 times. A decision record resting on a
 number that has moved.
 
+## 🏁 2026-09-11 EVENING — THE CHECKLIST, EVERY ROW FILLED
+
+Re-scoped goal (owner, mid-session): Volume passes `translatePine` strict AND
+`buildRuntimeIr` **or the gap is named to the line**; the metric re-derived and true;
+the IR→pixels gap measured; the flag scaffolded. Pane, tables, mobile and merge moved
+to tomorrow.
+
+| row | state | evidence |
+|---|---|---|
+| `translatePine` strict on `uncharted-volume.pine` → ok, refusals 0 | **NOT REACHED** | one refusal left: `pine:request@259`. Was `pine:reassign@250` at the start of the night → `@260` after item 2 → `@259` after item 4. Two of three named blockers cleared |
+| `buildRuntimeIr` → ok | **NOT REACHED, GAP NAMED TO THE LINE** | `pine:text-value` **line 151**, `f_getTablePos` — a bind-time string compare in a UDF, not the table text layer anyone expected |
+| host + screener metric re-derived, with the commit | **DONE** | **32/266 host · 46/266 screener** at `b72a0bfe7`, producer `corpusMetric.test.js`, per-script rows in `tools/corpus_metric.json`. ⭐ And tonight's work moved it by **zero** — 0 gained, 0 lost, measured against `606695633` |
+| IR→pixels gap measured | **DONE** | five rows with estimates; blocker 1 named, what is behind it recorded as UNKNOWN rather than estimated |
+| flag named, default OFF, one reader, flag-off test | **DONE** | `VITE_PINE_MEMBER_PANE_ENABLED`, `memberPaneGate.js`, 6 tests, ledger entry `dark`, vacuity of the 5th claim declared and controlled |
+| CRLF class fixed | **DONE** | `e7ad2b7a7` + `909fb7225`; a full `test:engine` now leaves `git status` empty. Zero recorded bytes moved |
+| Kind-4 trio | **DONE** | ruling mirrored from Python, 3 exempt entries with distinct lifetimes |
+| census floors | **ROUTED, NOT TOUCHED — the floors are CORRECT** | 30 added / 0 deleted / 60 in MANIFEST / 30 licence-restricted in `.gitignore`. Lowering them would bake half a corpus in as the truth |
+| `builder/` routing table | **DONE** | 9 files, one row each, verbatim reason + owner + class; 3 missing fixtures named; now covered by `test:builder` and the widened `suiteCoverage` |
+| merge dry-run | **DONE** | **4 conflicts** against `36596a88a`; estimate 150-270 min → **45-90** |
+| four product questions | **DONE, and there are FIVE** | `docs/pine/DECISIONS-2026-09-11.md`; 3.4 was already answered in Python; 3.5 is new |
+| `ta.tr(true)` read | **BLOCKED — UNTESTED** | no browser rig: `list_connected_browsers` → `[]`. On Volume's own line 189, so it is a MUST, not a backlog item. **Not pinned, not guessed** |
+| pin `ta.tr(true)` | **BLOCKED** | depends on the reading above |
+| pane / tables / mobile 640+1024 | **NOT ATTEMPTED** | moved to tomorrow by ruling. Mobile is therefore **UNTESTED**, not "expected to work" |
+| lint | **RECORDED, NOT TOUCHED** | 4,372 frontend / 255 engine at `b72a0bfe7` |
+| `py_compile` on touched Python | **NONE OWED** | no Python file was touched — the Pine translator is JS-only |
+
+### Suites at the end of the night
+
+```
+engine    245 files   5,142 passed   2 failed   32 skipped     the 2 are the census floors
+builder    81 files   1,799 passed  14 failed                  all routed, 0 attributable to tonight
+rails      manifestProse 9 + suiteCoverage 8 = 17 passed
+```
+
+### Three findings nobody went looking for
+
+1. **`translatePine` THROWS instead of returning a refusal** on
+   `smart-money-breakouts-chartprime__ea79c79a67.pine` (`pine:statement` out of
+   `switchBinding`), in both lanes — a member-reachable crash. It also falsifies the
+   comment directly above that call site, which claims `switchBinding` returns null
+   for a shape it cannot take. Pre-existing; routed.
+2. **The CRLF class had a fourth and fifth instance** (`thinkscript/*.ts`, and two
+   harness artifacts under `tools/`). Fixed as a class, with the binaries excluded.
+3. **`suiteCoverage`'s SCOPE was the defect** — it enforced one command over the
+   engine while ten failing files sat in a sibling directory no script ran. Widening
+   it named four more unwatched directories, `chart/pane` among them.
+
+
 ## ⛔⛔ 2026-09-11 EVENING — THE RE-PLAN TRIGGER FIRED: NO BROWSER RIG
 
 **`ta.tr(true)` could not be read tonight, and it is on Volume's OWN critical path.**
