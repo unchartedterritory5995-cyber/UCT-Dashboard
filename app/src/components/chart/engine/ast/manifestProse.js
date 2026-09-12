@@ -80,6 +80,14 @@ export const KEEP = Object.freeze([
   // split is in `chooseOutput` — so every test stays green and the member is simply
   // never told where their alert went. Same failure shape as `_folds`, one ruling later.
   '_alertconditions',
+  // ⛔⛔ READ BY `parse.js::INPUTS_ARE_FOLDED` AND `ast_table.INPUTS_ARE_FOLDED`,
+  // WHICH DECIDE WHETHER A WINDOW NAMING A MEMBER'S KNOB IS BOUNDED AT ALL
+  // (ruling R-J). Stripping it makes the constant fall back to its safe reading —
+  // `false` — so every `ta.sma(v, lenDaily)` becomes unanalysable, every script
+  // using one is branded `repaints`, and `canSaveFormula` refuses it. That is
+  // fail-CLOSED, which is the direction that ships silently: no wrong number, no
+  // crash, just a capability absent in production while every test stays green.
+  '_input_windows',
 ])
 
 /**

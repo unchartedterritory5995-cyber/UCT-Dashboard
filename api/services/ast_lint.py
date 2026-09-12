@@ -156,6 +156,17 @@ TABLE: Dict[str, Any] = load_table()
 # default promises something the member breaks by raising the knob. R-G did not
 # rule that difference, so nothing here adopts it.
 
+#: ⭐⭐ R-J — IS A MEMBER'S KNOB FOLDED INTO THE TREE? Derived from THIS lane's own
+#: manifest read, for the reason the block above gives: this module may import
+#: nothing outside the standard library. The one authority is the manifest, and
+#: ``tests/test_input_windows.py`` holds both lanes to it.
+#: ⚠️ FAILS CLOSED: an absent or non-``True`` declaration reads ``False``.
+_INPUTS_ARE_FOLDED: bool = (
+    (TABLE.get("_input_windows") or {}).get("inputsAreFolded") is True)
+
+#: The wave-2 rule, carried so this lane can name it too.
+_RUNTIME_INPUT_WINDOW_RULE = (TABLE.get("_input_windows") or {}).get("whenRuntime")
+
 #: The clock names constant for a binding, READ OFF THE MANIFEST.
 _BIND_TIME_CLOCK = frozenset(
     (TABLE.get("_bind_time_constants") or {}).get("clock") or ())
@@ -192,7 +203,19 @@ def _bind_foldable_window(node: Any) -> Tuple[bool, Any]:
             return (False, None)
         return (True, v)
     if kind == "series":
-        return (True, 1) if node.get("name") in _BIND_TIME_CLOCK else (False, None)
+        if node.get("name") in _BIND_TIME_CLOCK:
+            return (True, 1)
+        # ⭐⭐ R-J — BOUNDED BY THE FOLDED VALUE WHILE INPUTS ARE FOLDED (R-H).
+        # ⚰️ This lane used to refuse outright, and its docstring argued for it:
+        # "a window that changed with a knob is a window the badge cannot promise
+        # anything about." That argument is RIGHT and its premise is what changed —
+        # a folded `input.int` is baked into the tree, so the knob CANNOT change
+        # today. The gate is the manifest constant, not a decision taken here.
+        if _INPUTS_ARE_FOLDED:
+            d = node.get("inputDefault")
+            if not isinstance(d, bool) and isinstance(d, (int, float)) and d == d:
+                return (True, d)
+        return (False, None)
     if kind == "op" and node.get("name") == "?:":
         args = node.get("args") or []
         if len(args) != 3:

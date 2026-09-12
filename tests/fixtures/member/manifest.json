@@ -1,44 +1,45 @@
 {
-  "_": "⭐⭐ THE MEMBER'S OWN SCRIPTS, ON DISK, SO NOTHING IN THIS PROJECT DEPENDS ON A CONVERSATION ATTACHMENT AGAIN. These were attached twice and lost twice — an attachment lives in the transcript, and a transcript is compacted. Every 'line N' reference in the linemaps, in the tuple `request.security` work and in the owner's instructions resolves against THESE files and nothing else.",
-  "_two_hashes_and_why": "⛔ `body_sha256` COVERS THE SCRIPT AS ITS AUTHOR WROTE IT — the file MINUS the licence block this project appends. That is the one that answers 'is this the same revision the owner sent?', and it stays stable when we edit our own footer. `file_sha256` covers the whole file and answers 'has anything on disk been edited at all?'. One hash could not tell a re-attached revision apart from a footer tweak, and those are very different events.",
-  "_line_numbers_are_load_bearing": "⚠️ THE BODY IS BYTE-IDENTICAL AND THE LICENCE IS APPENDED, NOT PREPENDED. `//@version=6` is positional in Pine and must stay on line 1, and every 'line N' reference in this project must keep pointing at the same statement. Both are satisfied only by a trailing block. `body_lines` is where the author's text ends; anything after it is ours.",
-  "scripts": [
-    {
-      "path": "tests/fixtures/member/uncharted-volume.pine",
-      "author": "AtTheAsk (Uncharted Territory)",
-      "licence": "MPL-2.0",
-      "pine_version": "6",
-      "captured_from": "owner attachment, conversation of 2026-09-08",
-      "committed": "2026-09-09",
-      "body_lines": 576,
-      "body_sha256": "2142366f83025db96d158719cb0050f1b17ac4121e2b91feaf70b08f113337ac",
-      "file_sha256": "306415b2dda8d8f4b95be314e17e2616defaab260610728e164e15e4c9fa7f65"
-    },
-    {
-      "path": "tests/fixtures/member/uncharted-clouds.pine",
-      "author": "AtTheAsk (Uncharted Territory)",
-      "licence": "MPL-2.0",
-      "pine_version": "6",
-      "captured_from": "owner attachment, conversation of 2026-09-08",
-      "committed": "2026-09-09",
-      "body_lines": 137,
-      "body_sha256": "c4eda4b36d857c6b373be4d88fde66aae6e8206c4814c8c101bb0e4ec9fa3472",
-      "file_sha256": "92ec396864828ad26f6e8c30999415842a9a64f7fcf85b8e829f58b091df4f57"
-    },
-    {
-      "path": "tests/fixtures/member/uncharted-volume-v2.pine",
-      "author": "AtTheAsk (Uncharted Territory)",
-      "licence": "MPL-2.0",
-      "pine_version": "6",
-      "captured_from": "OWNER-AUTHORED EDIT, ruling of 2026-09-12 — not a translation and not a rewrite by this project. Two changes to v1: `lookbackBarsHVE = input.int(2500, \"HVE lookback (bars)\", minval=50)`, and the unbounded `priorMaxAllTimeDaily` accumulator replaced by `ta.highest(volD[1], lookbackBarsHVE)`. The indicator title gains ` v2` so the two are distinguishable on one chart.",
-      "committed": "2026-09-12",
-      "body_lines": 579,
-      "body_sha256": "93b1959c28e45bd991327bebb5178c4a7d4ec4e90913a9527c427ecbbdfe28db",
-      "file_sha256": "e550e994f5ad04f197b7746b14db21e9e1a0edcee843a2fa568402ac2e22c0c6",
-      "_role": "⭐ THE HOST TARGET FROM HERE. v1 stays in this manifest as the DOCTRINE case — the `pine:state@284` refusal-with-offer that R-A3 ruled on — and must not be edited to make it pass. v2 is what the pane work is measured against: translatePine strict answers ok=true, 5 outputs, 0 refusals.",
-      "_v1": "tests/fixtures/member/uncharted-volume.pine",
-      "_diff": "docs/pine/uncharted-volume-v1-to-v2.md"
-    }
-  ],
-  "_v1_and_v2": "⛔⛔ BOTH VOLUME REVISIONS ARE HELD ON PURPOSE. v1 is the refusal case the `pine:state` doctrine is pinned against; v2 is the host target. A future session that 'fixes' v1 to translate deletes the only member-scale case this project has for the unbounded-accumulator refusal, and the offer sentence stops being tested against anything a member actually wrote."
+ "_": "⭐⭐ THE MEMBER'S OWN SCRIPTS, ON DISK, SO NOTHING IN THIS PROJECT DEPENDS ON A CONVERSATION ATTACHMENT AGAIN. These were attached twice and lost twice — an attachment lives in the transcript, and a transcript is compacted. Every 'line N' reference in the linemaps, in the tuple `request.security` work and in the owner's instructions resolves against THESE files and nothing else.",
+ "_two_hashes_and_why": "⛔ `body_sha256` COVERS THE SCRIPT AS ITS AUTHOR WROTE IT — the file MINUS the licence block this project appends. That is the one that answers 'is this the same revision the owner sent?', and it stays stable when we edit our own footer. `file_sha256` covers the whole file and answers 'has anything on disk been edited at all?'. One hash could not tell a re-attached revision apart from a footer tweak, and those are very different events.",
+ "_line_numbers_are_load_bearing": "⚠️ THE BODY IS BYTE-IDENTICAL AND THE LICENCE IS APPENDED, NOT PREPENDED. `//@version=6` is positional in Pine and must stay on line 1, and every 'line N' reference in this project must keep pointing at the same statement. Both are satisfied only by a trailing block. `body_lines` is where the author's text ends; anything after it is ours.",
+ "scripts": [
+  {
+   "path": "tests/fixtures/member/uncharted-volume.pine",
+   "author": "AtTheAsk (Uncharted Territory)",
+   "licence": "MPL-2.0",
+   "pine_version": "6",
+   "captured_from": "owner attachment, conversation of 2026-09-08",
+   "committed": "2026-09-09",
+   "body_lines": 576,
+   "body_sha256": "2142366f83025db96d158719cb0050f1b17ac4121e2b91feaf70b08f113337ac",
+   "file_sha256": "306415b2dda8d8f4b95be314e17e2616defaab260610728e164e15e4c9fa7f65"
+  },
+  {
+   "path": "tests/fixtures/member/uncharted-clouds.pine",
+   "author": "AtTheAsk (Uncharted Territory)",
+   "licence": "MPL-2.0",
+   "pine_version": "6",
+   "captured_from": "owner attachment, conversation of 2026-09-08",
+   "committed": "2026-09-09",
+   "body_lines": 137,
+   "body_sha256": "c4eda4b36d857c6b373be4d88fde66aae6e8206c4814c8c101bb0e4ec9fa3472",
+   "file_sha256": "92ec396864828ad26f6e8c30999415842a9a64f7fcf85b8e829f58b091df4f57"
+  },
+  {
+   "path": "tests/fixtures/member/uncharted-volume-v2.pine",
+   "author": "AtTheAsk (Uncharted Territory)",
+   "licence": "MPL-2.0",
+   "pine_version": "6",
+   "captured_from": "OWNER-AUTHORED EDIT, ruling of 2026-09-12 — not a translation and not a rewrite by this project. Two changes to v1: `lookbackBarsHVE = input.int(2500, \"HVE lookback (bars)\", minval=50)`, and the unbounded `priorMaxAllTimeDaily` accumulator replaced by `ta.highest(volD[1], lookbackBarsHVE)`. The indicator title gains ` v2` so the two are distinguishable on one chart. ⭐ SECOND AUTHORED EDIT, ruling R-J, same day: `lookbackBarsHVE` gains `maxval=5000`, so this script already carries the bound wave-2 will need — `_input_windows.whenRuntime` rules that a runtime input's window is bounded by its DECLARED `maxval` and REFUSED when there is none, and an input with no `maxval` would make this script unanalysable the day the premise flips. `body_lines` is unchanged: the edit is in place on line 45.",
+   "committed": "2026-09-12",
+   "body_lines": 579,
+   "body_sha256": "418600bebe332b105eaa48d719e23c9be5198f2627873bdf16d11811cdff9115",
+   "file_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+   "_role": "⭐ THE HOST TARGET FROM HERE. v1 stays in this manifest as the DOCTRINE case — the `pine:state@284` refusal-with-offer that R-A3 ruled on — and must not be edited to make it pass. v2 is what the pane work is measured against: translatePine strict answers ok=true, 5 outputs, 0 refusals.",
+   "_v1": "tests/fixtures/member/uncharted-volume.pine",
+   "_diff": "docs/pine/uncharted-volume-v1-to-v2.md",
+   "_rj": "Hashes re-derived after the R-J edit. Previous: body 93b1959c…28db, file e550e994…c0c6."
+  }
+ ],
+ "_v1_and_v2": "⛔⛔ BOTH VOLUME REVISIONS ARE HELD ON PURPOSE. v1 is the refusal case the `pine:state` doctrine is pinned against; v2 is the host target. A future session that 'fixes' v1 to translate deletes the only member-scale case this project has for the unbounded-accumulator refusal, and the offer sentence stops being tested against anything a member actually wrote."
 }

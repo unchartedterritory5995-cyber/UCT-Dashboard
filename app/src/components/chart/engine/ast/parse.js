@@ -271,7 +271,31 @@ export const BIND_TIME_CLOCK = Object.freeze(
  *  over-stated lookback costs warm-up bars, an UNDER-stated one lets a formula
  *  read a bar the budget never paid for — the one direction a budget cannot
  *  absorb (`api/services/ast_bind.py`'s own header says so). */
-export function bindFoldableWindow(node) {
+/** ⭐⭐ R-J (owner ruling, 2026-09-12) — IS A MEMBER'S KNOB FOLDED INTO THE TREE?
+ *
+ *  ⛔⛔ ONE VALUE, READ OFF THE MANIFEST, NAMED AFTER THE RULING IT DEPENDS ON.
+ *  R-H established that a member `input.int` the translator folds becomes an
+ *  IMMUTABLE parameter baked into the tree — so the folded value is the ONLY
+ *  value that window can ever take, and bounding a lookback by it is a promise
+ *  the badge can keep. The moment that stops being true, bounding by a default
+ *  becomes false the first time a member raises the knob, which is exactly what
+ *  `ast_lint`'s docstring has always warned about.
+ *
+ *  ⛔ SO THE PREMISE IS A CONSTANT AND NOT AN ASSUMPTION IN FOUR HEADS.
+ *  `inputWindowsAgreement.test.js` and `tests/test_input_windows.py` fire BY NAME
+ *  the day it flips, and `closedTable.json::_input_windows.whenRuntime` already
+ *  records what replaces it: bound by the input's DECLARED `maxval`, and REFUSE
+ *  when there is none — never fall back to the default, because a default is
+ *  where the knob starts and a bound must hold everywhere it can reach.
+ *
+ *  ⚠️ IT FAILS CLOSED. An absent or non-`true` declaration reads `false`, which
+ *  makes a knob-named window unanalysable rather than optimistically bounded. */
+export const INPUTS_ARE_FOLDED = ((TABLE._input_windows || {}).inputsAreFolded === true)
+
+/** The wave-2 rule, carried as a STRING so a reader can say what it will be. */
+export const RUNTIME_INPUT_WINDOW_RULE = (TABLE._input_windows || {}).whenRuntime || null
+
+export function bindFoldableWindow(node, allowInputDefault = INPUTS_ARE_FOLDED) {
   const NO = { foldable: false, max: null }
   if (!node || typeof node !== 'object') return NO
 
@@ -283,7 +307,12 @@ export function bindFoldableWindow(node) {
   if (node.type === 'series') {
     // ⭐ A CLOCK NAME IS A PREDICATE: 0 or 1, so 1 bounds it for every binding.
     if (BIND_TIME_CLOCK.includes(node.name)) return { foldable: true, max: 1 }
-    if (typeof node.inputDefault === 'number' && Number.isFinite(node.inputDefault)) {
+    // ⭐⭐ R-J — BOUNDED BY THE FOLDED VALUE WHILE INPUTS ARE FOLDED (R-H).
+    // Gated on the manifest's own constant rather than allowed outright, so the
+    // day a member can raise this knob at runtime the bound stops being a
+    // promise the badge can keep, and the rails say so by name.
+    if (allowInputDefault
+        && typeof node.inputDefault === 'number' && Number.isFinite(node.inputDefault)) {
       return { foldable: true, max: node.inputDefault }
     }
     return NO
@@ -296,9 +325,9 @@ export function bindFoldableWindow(node) {
     // bind stage settles the whole node, so a selector it cannot fold makes the
     // whole length unfoldable — and the door must not defer what the stage will
     // then refuse.
-    const sel = bindFoldableWindow(args[0])
-    const a = bindFoldableWindow(args[1])
-    const b = bindFoldableWindow(args[2])
+    const sel = bindFoldableWindow(args[0], allowInputDefault)
+    const a = bindFoldableWindow(args[1], allowInputDefault)
+    const b = bindFoldableWindow(args[2], allowInputDefault)
     if (!sel.foldable || !a.foldable || !b.foldable) return NO
     return { foldable: true, max: Math.max(a.max, b.max) }
   }
@@ -320,8 +349,8 @@ export function isBindFoldableLength(node) {
 }
 
 /** The largest value this length can take over every binding, or `null`. */
-export function bindFoldableWindowMax(node) {
-  const r = bindFoldableWindow(node)
+export function bindFoldableWindowMax(node, allowInputDefault = INPUTS_ARE_FOLDED) {
+  const r = bindFoldableWindow(node, allowInputDefault)
   return r.foldable ? r.max : null
 }
 
@@ -338,16 +367,8 @@ export function bindFoldableWindowMax(node) {
  *  ruling exists because two readers of one window had already drifted.
  */
 export function usableWindowBound(node) {
-  // ⛔⛔ AN INPUT DEFAULT IS EXCLUDED HERE, AND THE RULING IS NOT ON FILE.
-  // `bindFoldableWindow` bounds a knob-defaulted window by its DEFAULT, and
-  // `lint.js` has consumed that since it was written. `ast_lint.py` says the
-  // opposite IN WRITING — "a window that changed with a knob is a window the
-  // badge cannot promise anything about" — and it is right: bounding by the
-  // default promises something the member breaks the moment they raise the knob.
-  // The two lanes have disagreed since before R-G, no corpus tree exhibits the
-  // shape, and R-G did not rule it. So the readers R-G adds decline it and
-  // nothing widens; `lint.js`'s existing behaviour is untouched.
-  if (node && node.type === 'series' && typeof node.inputDefault === 'number') return null
+  // ⭐ R-J's gate lives on `bindFoldableWindow` itself — ONE place, so this and
+  // `lint.js` cannot answer differently about the same knob.
   const m = bindFoldableWindowMax(node)
   if (m === null || typeof m !== 'number' || !Number.isFinite(m)) return null
   if (!Number.isInteger(m) || m < 1) return null

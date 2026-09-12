@@ -42,7 +42,7 @@ lenWeekly = input.int(50, 'Weekly Length', minval = 1, group = grp_calc, tooltip
 // Hardcoded because there is no meaningful reason to tune this.
 lookbackDays = 252
 // v2 (2026-09-12): the HVE window, stated. See the header note.
-lookbackBarsHVE = input.int(2500, "HVE lookback (bars)", minval=50)
+lookbackBarsHVE = input.int(2500, "HVE lookback (bars)", minval=50, maxval=5000)
 
 // --- Range Calculations ---
 // ATR includes overnight gaps (uses true range); ADR is intraday only.

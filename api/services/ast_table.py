@@ -560,7 +560,26 @@ _TERNARY = next(
     None)
 
 
-def bind_foldable_window(node: Any, allow_input_default: bool = False) -> tuple:
+#: ⭐⭐ R-J (owner ruling, 2026-09-12) — IS A MEMBER'S KNOB FOLDED INTO THE TREE?
+#:
+#: ⛔⛔ ONE VALUE, READ OFF THE MANIFEST, NAMED AFTER THE RULING IT DEPENDS ON.
+#: R-H established that a member ``input.int`` the translator folds becomes an
+#: IMMUTABLE parameter baked into the tree, so the folded value is the ONLY value
+#: that window can take and bounding a lookback by it is a promise the badge can
+#: keep. ``inputWindowsAgreement.test.js`` and ``tests/test_input_windows.py``
+#: fire BY NAME the day it flips, and ``_input_windows.whenRuntime`` already
+#: records what replaces it.
+#:
+#: ⚠️ IT FAILS CLOSED: an absent or non-``True`` declaration reads ``False``.
+INPUTS_ARE_FOLDED: bool = (
+    (TABLE.get("_input_windows") or {}).get("inputsAreFolded") is True)
+
+#: The wave-2 rule, carried as a STRING so a reader can say what it will be.
+RUNTIME_INPUT_WINDOW_RULE = (TABLE.get("_input_windows") or {}).get("whenRuntime")
+
+
+def bind_foldable_window(node: Any,
+                         allow_input_default: bool = INPUTS_ARE_FOLDED) -> tuple:
     """Does this length settle to a number for ANY binding, and what bounds it?
 
     Returns ``(foldable, max)`` — ``(False, None)`` when it does not.
@@ -637,7 +656,8 @@ def bind_foldable_window(node: Any, allow_input_default: bool = False) -> tuple:
     return (False, None)
 
 
-def bind_foldable_window_max(node: Any, allow_input_default: bool = False):
+def bind_foldable_window_max(node: Any,
+                             allow_input_default: bool = INPUTS_ARE_FOLDED):
     """The largest value this length can take over every binding, or ``None``."""
     ok, m = bind_foldable_window(node, allow_input_default)
     return m if ok else None

@@ -1,5 +1,85 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · R-J — A WINDOW THAT NAMES A MEMBER'S KNOB
+
+**Owner ruling, 2026-09-12, tied explicitly to R-H.** Bound by the **folded
+value** for this wave, because the justification is entirely the premise:
+
+```
+R-H   a folded `input.int` is an IMMUTABLE parameter baked into the tree
+ ⇒    the folded value is the ONLY value that window can take
+ ⇒    a lookback bounded by it is a promise the badge can keep
+```
+
+⛔⛔ **SO THE PREMISE IS A CONSTANT, NOT AN ASSUMPTION IN FOUR READERS' HEADS.**
+`closedTable.json::_input_windows.inputsAreFolded` is declared once and derived
+by `parse.js::INPUTS_ARE_FOLDED`, `ast_table.INPUTS_ARE_FOLDED` and
+`ast_lint._INPUTS_ARE_FOLDED` (that lane re-derives from its own manifest read —
+its stdlib-only rail forbids the import). The gate sits on the **contract
+itself**, `bindFoldableWindow` / `bind_foldable_window`, so `lint.js` and the two
+lookback readers cannot answer differently about one knob.
+
+⭐ **AND THE REPLACEMENT IS ALREADY ON FILE**, which is the other half of the
+ruling. `_input_windows.whenRuntime` = `boundByDeclaredMaxval`: once inputs are
+runtime parameters, a window naming one is bounded by that input's **declared
+`maxval`**, and an input with **no** `maxval` makes the window unbounded and the
+reader **REFUSES**. ⛔ Never fall back to the default — a default is where the
+knob starts, and a bound must hold everywhere the knob can reach.
+
+**The rails fire BY NAME the day the constant flips:**
+`inputWindowsAgreement.test.js` (7) and `tests/test_input_windows.py` (6). Each
+carries the control that makes the constant load-bearing rather than decorative:
+pass the flag off explicitly and the same knob goes unanalysable, so the gate
+cannot be deleted from the code path while the suite stays green. Both also pin
+that the two Python derivations of one declaration agree, and that an
+**undeclared** identifier is still unanalysable with the flag either way — R-J
+bounds a knob, never any bare name.
+
+⚠️ **IT MOVES NO NUMBER TODAY, AND THAT IS WORTH SAYING.** Metric **31/44 of
+266**, install census **25 of 269** — both unchanged. No corpus or member tree
+carries a knob-defaulted window in a lookback slot. What R-J buys is that the
+four readers agree about the shape when one arrives, and that wave-2 lands on a
+rule already written instead of re-deciding it.
+
+### ⭐ The authored edit to v2, alongside
+
+`lookbackBarsHVE` gains `maxval=5000` (line 45, in place — `body_lines` stays
+579), so the one member script this wave draws **already carries the bound wave-2
+will need**. Without a `maxval`, the day the premise flips this script becomes
+unanalysable.
+
+```
+body_sha256   93b1959c…28db → 418600be…9115
+file_sha256   e550e994…c0c6 → 518a6b22…b28a
+__uct_param_3 lookbackBarsHVE  default 2500  min 50  max 5000   ⭐ was max null
+```
+
+**Both lanes re-run after the edit, host pasted verbatim:**
+
+```
+=== HOST (strict) ===
+ok        = true
+mode      = host
+title     = "Uncharted Volume v2"
+outputs   = 5
+refusals  = 0
+selected  = 0 "Volume"
+   0 plot            "Volume"             refusal= null
+   1 plot            "Avg Vol Columns"    refusal= null
+   2 plot            "Avg Vol Line"       refusal= null
+   3 plot            "Scale Padding"      refusal= null
+   4 alertcondition  "HVE Trigger"        refusal= null
+
+=== SCREENER ===  ok=true  outputs=5  refusals=4  selected=1
+=== IR lane ===   untold  ok=false  runtime:realtime-untold@297
+                  told    ok=false  pine:text-value@153
+=== PANE ===      document builds, install door admits it, 4 plots drawn
+```
+
+Every reading is **identical to before the edit** — which is the point: adding a
+declared ceiling to an input changes what wave-2 can promise and changes nothing
+this wave computes.
+
 ## ⭐⭐ SESSION 2 · T5 — THE PANE, THE FLAG, AND THE COMPARATOR *(code; pixels owed)*
 
 `MemberPane.jsx` composes what already exists — `memberPaneDefinition` builds the
