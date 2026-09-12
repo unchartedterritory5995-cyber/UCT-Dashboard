@@ -728,6 +728,14 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_fact_refs(conn, user_id, row["id"], body_json)
                         _sync_note_excerpt_refs(conn, user_id, row["id"], body_json)
                         conn.execute("RELEASE j2_import_note")
+                        # Wave Q1 (2026-09-12): ADDITIVE — the revision this write
+                        # created travels back. `import_confirm` advances
+                        # `updated_at` on every note it touches, and a member can
+                        # absolutely have unsent offline work in a note an import
+                        # UPDATES (re-importing an export they already have). A
+                        # browser cannot record a revision it was never told.
+                        item["id"] = row["id"]
+                        item["updatedAt"] = updated_at
                         updated.append(item)
                     else:
                         new_id = uuid.uuid4().hex
@@ -746,6 +754,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
+                        # ⭐ A note created by this call has nothing queued against
+                        # it — it did not exist a moment ago — so this revision is
+                        # for completeness and costs nothing. The `updated` branch
+                        # above is the one that matters.
+                        item["updatedAt"] = updated_at
                         created.append(item)
                 except Exception:
                     conn.execute("ROLLBACK TO j2_import_note")
@@ -2895,9 +2908,20 @@ def delete_folder(
     user_id: str,
     folder_id: str,
     conn: sqlite3.Connection | None = None,
+    moved_out: list | None = None,
 ) -> bool:
     """Delete folder; re-parents children and notes to the deleted folder's parent.
-    Root deletion (parent_id='') sends notes to Unfiled (NULL)."""
+    Root deletion (parent_id='') sends notes to Unfiled (NULL).
+
+    `moved_out`, when given, is filled with `[{noteId, updatedAt}]` for every note
+    the cascade re-parented — the revisions this call created.
+
+    ⛔ AN OUT-PARAM, NOT A RETURN-SHAPE CHANGE AND NOT MODULE STATE. Six callers
+    read the bool; widening the return would touch all of them for one caller's
+    benefit, and a module-level dict would be shared across requests on a pod
+    that serves every member from one process. This mirrors `compute_metrics`'s
+    `members` out-dict, which exists for exactly this reason.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -2919,6 +2943,21 @@ def delete_folder(
                 f"cannot delete: a folder named '{collision['name']}' already exists at the destination — rename it first")
 
         now = _now_iso()
+        # Wave Q1 (2026-09-12): READ THE AFFECTED IDS BEFORE THE UPDATE.
+        #
+        # ⛔⛔ THIS CASCADE IS A DOOR, AND IT WAS A SILENT ONE. The bulk UPDATE
+        # below advances `updated_at` on every note in the folder, so a member
+        # with unsent offline work in ANY of them met a revision their browser
+        # had never heard of, concluded somebody else wrote it, and got a
+        # `(conflicted copy)` of their own note for deleting a folder.
+        #
+        # ⛔ BEFORE, not after: once `folder_id` has moved, the rows can no
+        # longer be found by the folder they used to be in. Reading them after
+        # would return an empty list and land nothing, which is exactly the
+        # shape of a fix that looks present and does nothing.
+        moved = [r["id"] for r in conn.execute(
+            "SELECT id FROM j2_notes WHERE folder_id = ? AND user_id = ?",
+            (folder_id, user_id)).fetchall()]
         # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
         cur = conn.execute(
             "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
@@ -2931,6 +2970,12 @@ def delete_folder(
             (parent, folder_id, user_id))
         if owned:
             conn.commit()
+        # ⭐ ONE revision for all of them: the cascade is a single UPDATE, so every
+        # moved note carries the SAME `updated_at`. The caller lands one revision
+        # per note id and the browser stops mistaking its own folder delete for a
+        # stranger's write.
+        if moved_out is not None:
+            moved_out.extend({"noteId": n, "updatedAt": now} for n in moved)
         return cur.rowcount > 0
     finally:
         if owned:

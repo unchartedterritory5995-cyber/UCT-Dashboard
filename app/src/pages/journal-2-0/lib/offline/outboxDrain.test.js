@@ -498,3 +498,60 @@ describe('⛔ a fork never empties the working copy', () => {
     expect((await getNote(db, 'n1')).serverBase ?? null).toBeNull()
   })
 })
+
+/**
+ * ⛔⛔ Q1-F4 (c) — THE DRAIN'S PUT CANNOT NULL A HERO, AND THAT IS STRUCTURAL.
+ *
+ * A production canary read `heroImageUrl = null` after a hero-door run, which
+ * has two readings: the drain clobbered the hero, or the door never set one.
+ * This is the half that can be settled without a browser — and it is pinned as
+ * a rail rather than read once, because "the payload happens not to include it"
+ * is a fact that a later convenience (`...entry.patch`) would quietly reverse.
+ *
+ * `update_note` builds its SQL `SET` list only from keys PRESENT in the patch,
+ * so a key the drain never sends is a column the drain can never write.
+ */
+describe('⛔ Q1-F4 — the drain sends four keys, and `heroImageUrl` is not one of them', () => {
+  it('the compare-and-set PUT carries title, subtitle, bodyJson, baseUpdatedAt — and nothing else', async () => {
+    const { sendNoteUpdate } = await import('./useOutboxDrain')
+    let sent = null
+    globalThis.fetch = vi.fn(async (_u, opts) => {
+      sent = JSON.parse(opts.body)
+      return { ok: true, json: async () => ({ note: { id: 'n1', updatedAt: 'T2' } }) }
+    })
+
+    await sendNoteUpdate({
+      noteId: 'n1',
+      baseUpdatedAt: 'T1',
+      patch: { title: 't', subtitle: 's', bodyJson: doc('words') },
+    })
+
+    expect(Object.keys(sent).sort()).toEqual(['baseUpdatedAt', 'bodyJson', 'subtitle', 'title'])
+    expect(sent, '⛔ a hero the member just set is not the drain\'s to touch').not.toHaveProperty('heroImageUrl')
+  })
+
+  it('⛔ and it stays four keys even when the entry patch carries extra fields', async () => {
+    // ⭐ THE ONE THAT MATTERS. A queued entry is a stored object; if the send
+    // ever spread it, every field a future wave adds to an entry would start
+    // going out as a note update. The payload is BUILT, never forwarded.
+    const { sendNoteUpdate } = await import('./useOutboxDrain')
+    let sent = null
+    globalThis.fetch = vi.fn(async (_u, opts) => {
+      sent = JSON.parse(opts.body)
+      return { ok: true, json: async () => ({ note: { id: 'n1', updatedAt: 'T2' } }) }
+    })
+
+    await sendNoteUpdate({
+      noteId: 'n1',
+      baseUpdatedAt: 'T1',
+      patch: {
+        title: 't', subtitle: 's', bodyJson: doc('words'),
+        heroImageUrl: null, ticker: 'NVDA', folderId: 'f9', tags: ['x'],
+      },
+    })
+
+    expect(Object.keys(sent).sort()).toEqual(['baseUpdatedAt', 'bodyJson', 'subtitle', 'title'])
+    expect(sent).not.toHaveProperty('heroImageUrl')
+    expect(sent).not.toHaveProperty('ticker')
+  })
+})

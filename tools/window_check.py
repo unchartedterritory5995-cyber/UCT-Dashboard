@@ -340,7 +340,11 @@ def _fire_hero_door(page):
     having exercised a door — exactly as it does for the other three.
     """
     try:
-        el = page.query_selector('input[type="file"][accept*="image"]') or page.query_selector('input[type="file"]')
+        # ⛔⛔ THE STABLE HOOK, NOT THE ACCEPT LIST. `NoteEditorPage` renders a
+        # hidden inline-image input with a BYTE-IDENTICAL accept list, and it is
+        # the one `[accept*=image]` matched — so this driver posted to `/images`
+        # and the hero door was never opened. Measured 2026-09-12.
+        el = page.query_selector('input[type="file"][data-uct-hero-input]')
         if el is None:
             return {"ok": False, "why": "no file input on the page — the hero picker did not render"}
         el.set_input_files({"name": "canary-hero.png", "mimeType": "image/png", "buffer": _HERO_PNG})

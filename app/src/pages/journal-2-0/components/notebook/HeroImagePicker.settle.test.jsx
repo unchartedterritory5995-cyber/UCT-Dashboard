@@ -113,3 +113,32 @@ describe('⛔⛔ HeroImagePicker LANDS ITS REVISION — both doors, real compone
     expect(landed(), 'no account ⇒ no write').toEqual([])
   })
 })
+
+/**
+ * ⛔⛔ THE HOOK THE CANARY STEERS BY.
+ *
+ * ⚰️ For the whole of Wave Q1 no canary could reach this door, and that is WHY
+ * it shipped unsettled. The note editor renders three file inputs, and
+ * `NoteEditorPage`'s hidden inline-image input carries a BYTE-IDENTICAL accept
+ * list — so the obvious selector matched that one, posted to `/images`, and the
+ * rig then reported its own mis-selection as a product defect.
+ *
+ * ⭐ A rail in the SUITE, not a comment in the rig: the attribute lives in the
+ * product, so the thing that notices its removal has to live there too.
+ */
+describe('⛔ the hero input carries the hook the production canary steers by', () => {
+  it('exposes data-uct-hero-input, and it is the FILE input', () => {
+    const { container } = render(<HeroImagePicker noteId="n1" value={null} onChange={vi.fn()} />)
+    const hook = container.querySelector('[data-uct-hero-input]')
+    expect(hook, '⛔ the canary cannot find the hero door without this').toBeTruthy()
+    expect(hook.tagName).toBe('INPUT')
+    expect(hook.type).toBe('file')
+  })
+
+  it('⛔ and the hook is UNIQUE — the editor\'s inline-image input must not answer to it', () => {
+    // ⭐ Uniqueness is the whole point. The accept list is not unique, which is
+    // exactly how the rig drove the wrong input for a wave.
+    const { container } = render(<HeroImagePicker noteId="n1" value={null} onChange={vi.fn()} />)
+    expect(container.querySelectorAll('[data-uct-hero-input]').length).toBe(1)
+  })
+})

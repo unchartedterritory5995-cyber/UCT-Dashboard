@@ -272,3 +272,129 @@ describe('update_note — the importer rewriting media links', () => {
     expect(landed()).toEqual([T2])
   })
 })
+
+describe('delete_folder — ONE call, N revisions, and every one of them lands', () => {
+  it('a folder holding three notes lands THREE revisions, one per note', async () => {
+    const { renderHook, act, waitFor } = await import('@testing-library/react')
+    const { createElement } = await import('react')
+    const { SWRConfig } = await import('swr')
+    const useJ2NoteFolders = (await import('../../hooks/useJ2NoteFolders')).default
+    const MOVED = [
+      { noteId: 'n1', updatedAt: T2 },
+      { noteId: 'n2', updatedAt: T2 },
+      { noteId: 'n3', updatedAt: T2 },
+    ]
+    answering({ ok: true, moved: MOVED })
+
+    const wrapper = ({ children }) => createElement(SWRConfig, { value: { provider: () => new Map() } }, children)
+    const { result } = renderHook(() => useJ2NoteFolders(), { wrapper })
+    await waitFor(() => expect(result.current.remove).toBeTypeOf('function'))
+    await act(async () => { await result.current.remove('f1') })
+
+    // ⛔ THREE, NOT ONE. The cascade is a single bulk UPDATE, so every moved note
+    // carries the SAME revision — and a member can have unsent work in any of
+    // them. Landing only the first would leave the other two forking.
+    await waitFor(() => expect(landed()).toEqual([T2, T2, T2]))
+    expect(landedFor()).toEqual(['n1', 'n2', 'n3'])
+  })
+
+  it('⛔ CONTROL — an EMPTY folder lands nothing, and the delete still works', async () => {
+    const { renderHook, act, waitFor } = await import('@testing-library/react')
+    const { createElement } = await import('react')
+    const { SWRConfig } = await import('swr')
+    const useJ2NoteFolders = (await import('../../hooks/useJ2NoteFolders')).default
+    answering({ ok: true, moved: [] })
+
+    const wrapper = ({ children }) => createElement(SWRConfig, { value: { provider: () => new Map() } }, children)
+    const { result } = renderHook(() => useJ2NoteFolders(), { wrapper })
+    await waitFor(() => expect(result.current.remove).toBeTypeOf('function'))
+    await act(async () => { await result.current.remove('f1') })
+
+    expect(landed(), 'no note moved, so no revision exists to land').toEqual([])
+  })
+
+  it('⛔ CONTROL — a REFUSED delete lands nothing', async () => {
+    const { renderHook, act, waitFor } = await import('@testing-library/react')
+    const { createElement } = await import('react')
+    const { SWRConfig } = await import('swr')
+    const useJ2NoteFolders = (await import('../../hooks/useJ2NoteFolders')).default
+    answering({ detail: 'a folder named X already exists' }, { ok: false, status: 400 })
+
+    const wrapper = ({ children }) => createElement(SWRConfig, { value: { provider: () => new Map() } }, children)
+    const { result } = renderHook(() => useJ2NoteFolders(), { wrapper })
+    await waitFor(() => expect(result.current.remove).toBeTypeOf('function'))
+    await act(async () => { await expect(result.current.remove('f1')).rejects.toThrow() })
+
+    expect(landed(), 'a cascade that never happened has no revisions').toEqual([])
+  })
+
+  it('⛔ the settles are SEQUENTIAL — N concurrent writes to one ring lose entries', async () => {
+    // ⭐ The ring is one key in one IndexedDB. `Promise.all` over N
+    // read-modify-write cycles at that key is how a ring silently drops an
+    // entry, and dropping one is the exact defect this mechanism prevents.
+    const { settleNoteWrites } = await import('./settleNoteWrite')
+    const order = []
+    recordLandedRevision.mockImplementation(async ({ noteId, updatedAt }) => {
+      order.push(`start:${noteId}`)
+      await new Promise((r) => { setTimeout(r, 0) })
+      order.push(`end:${noteId}`)
+      return updatedAt
+    })
+    await settleNoteWrites([{ noteId: 'a', updatedAt: T2 }, { noteId: 'b', updatedAt: T2 }])
+    expect(order, 'a must FINISH before b starts').toEqual(['start:a', 'end:a', 'start:b', 'end:b'])
+  })
+})
+
+describe('import_confirm — a re-import over a note with queued offline work', () => {
+  it('lands a revision for every note the import WROTE, created and updated alike', async () => {
+    const { runImport } = await import('../importer/commit')
+    vi.stubGlobal('fetch', vi.fn(async (url, opts = {}) => {
+      const u = String(url)
+      if (u.endsWith('/import/confirm')) {
+        return {
+          ok: true,
+          json: async () => ({
+            created: [{ importKey: 'file:new.md', id: 'n-new', updatedAt: T2 }],
+            // ⛔ THE ONE THAT MATTERS: a note that already existed, rewritten by
+            // this import, which is exactly the note a member can have unsent
+            // offline work in.
+            updated: [{ importKey: 'file:old.md', id: 'n-old', updatedAt: T2 }],
+            skipped: [],
+          }),
+        }
+      }
+      if (opts.method === 'PUT') return { ok: true, json: async () => ({ note: NOTE }) }
+      return { ok: true, json: async () => ({}) }
+    }))
+
+    await runImport({
+      source: 'file',
+      destFolderId: null,
+      docs: [
+        { importKey: 'file:new.md', title: 'new', tags: [], folderPath: [], bodyJson: { type: 'doc', content: [] }, bodyPlain: '', media: [], links: [] },
+        { importKey: 'file:old.md', title: 'old', tags: [], folderPath: [], bodyJson: { type: 'doc', content: [] }, bodyPlain: '', media: [], links: [] },
+      ],
+      onProgress: () => {},
+    })
+
+    expect(landedFor(), 'both the created and the updated note must land').toEqual(
+      expect.arrayContaining(['n-new', 'n-old']),
+    )
+  })
+
+  it('⛔ CONTROL — a batch the server REFUSED lands nothing', async () => {
+    const { runImport } = await import('../importer/commit')
+    vi.stubGlobal('fetch', vi.fn(async (url) => (String(url).endsWith('/import/confirm')
+      ? { ok: false, status: 500, json: async () => ({ detail: 'boom' }) }
+      : { ok: true, json: async () => ({}) })))
+
+    await runImport({
+      source: 'file',
+      destFolderId: null,
+      docs: [{ importKey: 'file:a.md', title: 'a', tags: [], folderPath: [], bodyJson: { type: 'doc', content: [] }, bodyPlain: '', media: [], links: [] }],
+      onProgress: () => {},
+    })
+
+    expect(landed(), 'nothing was written, so nothing has a revision').toEqual([])
+  })
+})

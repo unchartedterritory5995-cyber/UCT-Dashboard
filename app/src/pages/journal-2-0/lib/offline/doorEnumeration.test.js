@@ -136,24 +136,35 @@ const shapeOfUrl = (u) => u.replace(/\$\{[^}]*\}/g, '*').replace(/\?.*$/, '')
  * Match `settleNoteWrite(`, in code.
  */
 const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
-const landsARevision = (src) => /settleNoteWrite\s*\(/.test(stripComments(src))
+// ⛔ BOTH FORMS. `settleNoteWrites` (plural) is how the two BATCH doors land —
+// one call, many revisions — and a regex written for the singular silently reads
+// a batch door as unsettled.
+const landsARevision = (src) => /settleNoteWrites?\s*\(/.test(stripComments(src))
 
 /**
  * ⛔ THE NAMED EXCEPTIONS. A door is on this list only because landing a
  * revision there is IMPOSSIBLE or already done by another mechanism — never
  * because it was inconvenient. Each entry says what would close it.
  */
-const ROUTE_EXCEPTIONS = {
-  'POST /api/j2/notes/import/confirm':
-    'import_confirm creates and writes MANY notes in one call and returns a summary, not notes. Nothing is '
-    + 'open in an editor and nothing can be queued against a note that did not exist yet, so there is no '
-    + 'revision for this browser to land. To close it the endpoint would have to return [{noteId, updatedAt}] '
-    + 'for every note it touched.',
-  'DELETE /api/j2/note-folders/*':
-    'delete_folder cascades ONE bulk UPDATE over every note in the folder and returns {ok: true}. The '
-    + 'revisions exist and are all identical, but the browser is never told them. To close it the endpoint '
-    + 'would have to return the moved note ids and the one new updatedAt — cheap, and queued as Q1-F1.',
-}
+/**
+ * ⛔⛔ ZERO ROUTE EXCEPTIONS, as of merge 2 (2026-09-12).
+ *
+ * ⚰️ There were two, and both were wrong in the same way. `import_confirm` and
+ * `delete_folder` were warn-listed on the grounds that "there is no revision for
+ * this browser to land". That was true of the RESPONSE and false of the world:
+ * the revisions existed — a bulk UPDATE stamps one `updated_at` across every
+ * note it moves — the browser was simply never told them. Both endpoints return
+ * them now (`{ok, moved:[{noteId,updatedAt}]}` and `{created|updated:[{id,updatedAt}]}`),
+ * both clients land them with `settleNoteWrites`, and both are ordinary doors.
+ *
+ * ⭐ THE LESSON IS ABOUT THE SHAPE OF AN EXCEPTION. "Cannot" deserved one more
+ * question: cannot, or was not asked to? Each entry had to name what would close
+ * it, and writing that down is what made closing it obviously cheap.
+ *
+ * ⛔ An entry here again means a door a member can open whose revision this
+ * browser will never learn. It needs a reason that survives that question.
+ */
+const ROUTE_EXCEPTIONS = {}
 
 const SITE_EXCEPTIONS = {
   'app/src/pages/journal-2-0/lib/offline/useOutboxDrain.js:PUT /api/j2/notes/*':
@@ -184,7 +195,14 @@ function clientWrites() {
       const method = (lines.slice(at - 1, at + 5).join('\n').match(/method:\s*'(POST|PUT|PATCH|DELETE)'/) || [])[1]
       if (!method) continue
       const next = fetchLines.find((n) => n > at)
-      const end = Math.min(next ?? at + 40, at + 40)
+      // ⛔ THE NEXT `fetch` IS THE REAL BOUNDARY — it is what stops one door
+      // borrowing the settle of the door below it. The numeric cap is only a
+      // backstop for a file whose LAST fetch is followed by unrelated lines.
+      // ⚰️ It was 40, tuned on the single-note doors (measured 8–25 lines). A
+      // BATCH door settles after processing the whole response —
+      // `import_confirm`'s is 78 lines below its fetch, with no fetch between —
+      // so 40 reported a settled door as unsettled.
+      const end = Math.min(next ?? at + 120, at + 120)
       writes.push({
         file: rel(p),
         line: at,
@@ -251,7 +269,7 @@ function variableUrlWrites() {
         touchesNotes: /\/api\/j2\/note/.test(src),
         shape: lit ? shapeOfUrl(lit[1] + tail) : null,
         bare: lit ? shapeOfUrl(lit[1]) : null,
-        settles: landsARevision(lines.slice(at - 1, at + 40).join('\n')),
+        settles: landsARevision(lines.slice(at - 1, at + 120).join('\n')),
       })
     }
   }
@@ -358,7 +376,16 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       .filter((w) => w.file.endsWith('useJ2NoteFolders.js'))
       .map((w) => `${w.method} ${w.shape}`)
     expect(folderWrites, 'the folder DELETE must resolve to the door route').toContain('DELETE /api/j2/note-folders/*')
-    expect(ROUTE_EXCEPTIONS['DELETE /api/j2/note-folders/*'], 'and be a NAMED exception').toBeTruthy()
+    // ⭐ AND IT MUST LAND, NOT BE EXCUSED. Until merge 2 this line asserted the
+    // route was a NAMED EXCEPTION — which was the honest reading while the
+    // endpoint returned `{ok:true}` and told the browser nothing. It returns
+    // `moved: [{noteId, updatedAt}]` now, so the control asserts the thing that
+    // actually protects a member: this door lands its revisions like any other.
+    const folderSite = variableUrlWrites().find(
+      (w) => w.file.endsWith('useJ2NoteFolders.js') && `${w.method} ${w.shape}` === 'DELETE /api/j2/note-folders/*',
+    )
+    expect(folderSite.settles, 'the folder cascade must land the revisions it created').toBe(true)
+    expect(ROUTE_EXCEPTIONS, 'and there are no route exceptions left at all').toEqual({})
   })
 
   it('⭐ CONTROL — the matcher really does report an unsettled door', () => {

@@ -22,7 +22,7 @@ const CONFIRM_BATCH_SIZE = 200 // server caps a single batch at 500; we stay wel
 // checkExisting
 // ---------------------------------------------------------------------------
 
-import { settleNoteWrite } from '../offline/settleNoteWrite'
+import { settleNoteWrite, settleNoteWrites } from '../offline/settleNoteWrite'
 
 /**
  * @param {Array<{importKey: string}>} docs
@@ -355,6 +355,17 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
       confirmDone += 1
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
+    // ⛔⛔ `import_confirm` ADVANCES `updated_at` ON EVERY NOTE IT WRITES, and the
+    // `updated` bucket is the one that matters: re-importing an export a member
+    // already has REWRITES existing notes, and any of those can have unsent
+    // offline work queued against it. Unlanded, the next drain meets a revision
+    // it has never heard of and forks the member's note against their own
+    // import. `created` notes carry theirs too — free, since they are in the
+    // same response — though nothing can be queued against a note that did not
+    // exist a moment ago.
+    // ⛔ NO EDITOR IS MOUNTED during an import. That is precisely why the settle
+    // is store-direct and mount-independent.
+    await settleNoteWrites([...(body.created || []), ...(body.updated || [])])
     for (const item of body.skipped || []) {
       idByKey[item.importKey] = item.id
       summary.skipped += 1

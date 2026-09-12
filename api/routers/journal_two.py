@@ -3147,10 +3147,16 @@ def delete_folder_endpoint(
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
-        ok = notes_service.delete_folder(user["id"], folder_id)
+        moved: list[dict[str, Any]] = []
+        ok = notes_service.delete_folder(user["id"], folder_id, moved_out=moved)
         if not ok:
             raise HTTPException(status_code=404, detail="Not found")
-        return {"ok": True}
+        # Wave Q1 (2026-09-12): ADDITIVE — the revisions this cascade created
+        # travel back with the result. The bulk UPDATE advanced `updated_at` on
+        # every note in the folder, and a browser cannot record a revision it was
+        # never told: without this a member with unsent offline work in any of
+        # those notes got a `(conflicted copy)` for deleting a folder.
+        return {"ok": True, "moved": moved}
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -99,3 +99,41 @@ export async function settleNoteWrite(
     ? { accountId, noteId, updatedAt, connect }
     : { accountId, noteId, updatedAt })
 }
+
+/**
+ * ⛔⛔ THE BATCH DOORS — ONE CALL, MANY REVISIONS.
+ *
+ * Two of the seven advancing functions move MANY notes at once, and until
+ * 2026-09-12 both were warn-listed exceptions on the grounds that "there is no
+ * revision for this browser to land". That was true of the RESPONSE, not of the
+ * world: the revisions existed, the browser was simply never told them. Both
+ * endpoints now return them, so both are ordinary doors.
+ *
+ *   DELETE /note-folders/{id}   -> {ok, moved: [{noteId, updatedAt}]}
+ *   POST   /notes/import/confirm -> {created|updated: [{id, updatedAt}]}
+ *
+ * ⭐ SEQUENTIAL, NOT `Promise.all`. Every one of these writes the SAME landed
+ * ring, in the same IndexedDB, for the same account. Firing N concurrent
+ * read-modify-write cycles at one key is how a ring silently loses entries —
+ * and losing one is exactly the defect this whole mechanism exists to prevent.
+ * A folder delete is a rare, member-initiated act; N sequential settles cost
+ * nothing anyone can perceive.
+ *
+ * ⛔ It never throws, for the same reason the single-note form never throws:
+ * the writes already succeeded server-side.
+ *
+ * @param revisions iterable of {noteId|id, updatedAt}
+ * @returns the revisions actually landed
+ */
+export async function settleNoteWrites(
+  revisions, accountId = getCurrentAccountId(), { connect } = {},
+) {
+  const landed = []
+  for (const r of revisions || []) {
+    const noteId = r?.noteId ?? r?.id ?? null
+    // eslint-disable-next-line no-await-in-loop
+    const got = await settleNoteWrite(noteId, r, accountId, { connect })
+    if (got) landed.push({ noteId, updatedAt: got })
+  }
+  return landed
+}

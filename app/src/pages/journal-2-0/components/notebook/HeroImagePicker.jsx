@@ -147,10 +147,21 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
               : 'Click, drag an image here, or focus + paste'}
         </button>
       )}
+      {/* ⛔⛔ THE CANARY CANNOT FIND THIS INPUT WITHOUT A STABLE HOOK, and for
+          the whole of Wave Q1 it did not. The note editor renders THREE file
+          inputs, and `NoteEditorPage`'s hidden inline-image input carries the
+          BYTE-IDENTICAL accept list — so `input[type=file][accept*=image]`
+          matched that one first, posted to `/images`, and the hero door was
+          never driven at all. The rig then reported its own mis-selection as a
+          product defect (`heroImageUrl = null` after a drain).
+          ⭐ `hero` is the door that shipped unsettled BECAUSE no canary could
+          reach it. `data-uct-hero-input` is what makes it reachable, and
+          `HeroImagePicker.settle.test.jsx` asserts it is still here. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/png,image/jpeg,image/gif,image/webp"
+        data-uct-hero-input=""
         style={{ display: 'none' }}
         onChange={(e) => upload(e.target.files?.[0])}
       />
