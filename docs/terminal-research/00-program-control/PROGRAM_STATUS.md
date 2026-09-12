@@ -111,8 +111,21 @@ git log --format='%h %ci %s' ed6b1f041^1..ed6b1f041^2
 git diff --stat ed6b1f041^1...ed6b1f041^2 | tail -1
 ```
 
-⛔ **This section is the manifest check (1b) validates against. A commit on a program-owned path
-that is not recorded here is a FAIL.**
+## ⛔ THE LEDGER IS [`LEDGER.md`](LEDGER.md) — THAT FILE IS THE AUTHORITY
+
+Full row-per-commit enumeration lives there: **Section 1** the program's own 50 commits with a system
+assignment each (**zero unassigned**), **Section 2** what was already ledgered elsewhere, **Section 3**
+the **19 commits from other workstreams building on paths this program created**. The rail's check
+(1b) PASS condition is *every commit returned by the ledger query has a ledger row*.
+
+⛔ **PASS is scoped to paths the program CREATED, not paths it touched.** A first attempt used the
+full 209-file touch footprint and returned 126 "leftovers" that were almost entirely other
+workstreams' legitimate work — the program edits shared files (`api/main.py` and the like) that
+everyone edits. **A shared file cannot attribute authorship.** The 102 created files have a single
+origin, so a later commit touching one is either this program continuing or someone building on it,
+and both belong in the ledger.
+
+The summary below is kept as narrative; the ledger is the manifest.
 
 ### What the fifty commits built
 

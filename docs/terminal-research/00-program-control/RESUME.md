@@ -34,9 +34,11 @@ Read in this order: this file -> `PROGRAM_STATUS.md` -> `GOVERNING_PRINCIPLES.md
 
 ⛔ **Implementation HAS occurred, and it is on `origin/master`.** Any statement that this program has touched no application code — including `SESSION_HANDOFF.md` §16 — is false as of 2026-09-02 evening. The code landed on separate implementation branches (never from this worktree) and is now an ancestor of `origin/master`:
 
-⛔⛔ **THE REAL FIGURE IS 50 COMMITS / 207 FILES / 22,049 INSERTIONS** — branch `feat/entity-master`, merged to master as **`ed6b1f041`** on 2026-09-05, also covering **S1, S2 (a Ctrl/Cmd+K command palette), S7 Alerts, A6–A8 and I1**, with D1's **full ACL boundary** built rather than the hardening pass alone. **Read `PROGRAM_STATUS.md`'s implementation ledger — it is the authority; the summary below is the smaller first cut.** ⚠️ An earlier revision of this file said "no Checkpoint 6 exists"; it does (`5ecdae012`) — the query was path-filtered. A filtered absence is not an absence.
+⛔⛔ **THE AUTHORITY IS [`LEDGER.md`](LEDGER.md) — READ IT, NOT THIS SUMMARY.** 50 commits / 207 files / 22,049 insertions on branch `feat/entity-master`, merged as **`ed6b1f041`** on 2026-09-05, covering **S3, D1, S8, S11, S1+S2, S7 Alerts, A3–A8 and I1** — every one assigned, zero unassigned. Plus **19 further commits from four OTHER workstreams building on paths this program created**, including the convergence program's filing watch, which lives **inside** this program's `alert_taxonomy` package.
 
-**First cut — seventeen commits, 2026-09-02 17:51 → 09-03 15:07**, as surfaced by the re-scoped rail's first run.
+⚠️ An earlier revision of this file said "17 commits" and "no Checkpoint 6 exists." Both were undercounts from filtered queries; Checkpoint 6 is `5ecdae012`. **A filtered absence is not an absence** — use the ledger query, never a path or subject filter.
+
+**Smaller first cut, kept only as the record of what the re-scoped rail surfaced on its first run — seventeen commits, 2026-09-02 17:51 → 09-03 15:07:**
 
 | system | commits | what shipped |
 |---|---|---|

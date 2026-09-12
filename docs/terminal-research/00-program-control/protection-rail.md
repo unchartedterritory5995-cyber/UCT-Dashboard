@@ -96,11 +96,31 @@ PROGPATHS="app/src/components/provenance app/src/lib/marketClock api/routers/pro
 git log --format='%h %ci %s' 9c3df14b9..origin/master -- $PROGPATHS
 ```
 
-PASS = every commit listed is recorded in `PROGRAM_STATUS.md`'s implementation ledger. **An
-unrecorded commit is a FAIL** — it means code shipped that no program document knows about, which
-is precisely the 2026-09-02/03 condition. ⛔ PASS is no longer "empty output"; a build program's
-rail that demands emptiness would fail on its own successful work. Extend `PROGPATHS` whenever a
-system ships its first file — a manifest that lags the build is a blind spot with a different shape.
+⛔ **SUPERSEDED 2026-09-11 by the ledger query — `PROGPATHS` above was hand-typed and undercounted
+twice in one hour.** The manifest is now DERIVED, not typed:
+
+```bash
+# the program's created-path set (102 files) -- derived, never hand-listed
+git diff --diff-filter=A --name-only ed6b1f041^1...ed6b1f041^2 > /tmp/progpaths.txt
+git log --format='%h %ci %s' 9c3df14b9..origin/master -- $(cat /tmp/progpaths.txt)
+```
+
+**PASS = every commit returned has a row in [`LEDGER.md`](LEDGER.md).** An unrecorded commit is a
+**FAIL** — it means code shipped on a path this program owns that no program document knows about,
+which is precisely the 2026-09-02→09-11 condition.
+
+⛔ PASS is no longer "empty output"; a build program's rail that demands emptiness would fail on its
+own successful work.
+
+⛔ **Scope the manifest to paths the program CREATED, never paths it TOUCHED.** The touch footprint
+is 209 files and returns 126 commits that are other workstreams' legitimate work, because this
+program edits shared files (`api/main.py` and the like) that everyone edits. **A shared file cannot
+attribute authorship.** The 102 created files have a single origin, so any later commit touching one
+is either this program continuing or another workstream building on it — and the ledger wants both
+(Section 3 exists precisely because the second kind was happening unseen for a week).
+
+⚠️ Regenerate the created-path set whenever a new system ships its first files, and append the new
+merge range to the ledger query. A manifest that lags the build is a blind spot with a different shape.
 
 **(1c) Did the program move Terminal-Current?** The invariant this rail is named for.
 
