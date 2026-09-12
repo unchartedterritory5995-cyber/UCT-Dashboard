@@ -837,3 +837,11 @@
     min-height: var(--tap-min, 44px);
   }
 }
+
+/* ⭐ The door from a Settings block to a full product surface. */
+.inlineLink {
+  color: var(--ut-gold, #dcbb5e);
+  font-size: 12px;
+  text-decoration: none;
+}
+.inlineLink:hover { text-decoration: underline; }

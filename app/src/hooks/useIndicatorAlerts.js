@@ -260,3 +260,73 @@ export async function toggleIndicatorAlert(id) {
     return null
   }
 }
+
+// ─── THE FIVE CLIENT-LESS ROUTES ────────────────────────────────────────────
+//
+// ⭐⭐ THESE ARE READS AND WRITES THAT HAVE SHIPPED, OWNERSHIP-CHECKED, FOR A
+// WHOLE PHASE WITH NOBODY ASKING. `snooze`, `rearm`, `{id}/fires` and `/fired`
+// all exist on the server, are scoped by `user_id` and return 404 (never 403) for
+// a row that is not yours — and no surface in the product had ever called one. So
+// no member could mute an alert, bring a fired one back, or see what had fired.
+//
+// ⛔ NO NEW ROUTES AND NO NEW SEMANTICS. Every function here is a thin client
+// over a door that already decided its own behaviour; the words a member reads
+// are chosen in the UI, and the meanings are the engine's.
+
+/**
+ * Quiet ONE alert for a bounded window, then let it speak again if still true.
+ *
+ * ⚠️ THE SERVER REFUSES AN OUT-OF-RANGE WINDOW RATHER THAN CLAMPING IT, and this
+ * forwards that refusal instead of pre-validating: a silently clamped 90-day
+ * snooze is a member who believes an alert is off and a system that thinks it is
+ * on, and re-deriving the bound here would be a second authority on it.
+ */
+export async function snoozeIndicatorAlert(id, minutes) {
+  try {
+    const r = await fetch(`${KEY}/${id}/snooze`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes }),
+    })
+    revalidateListings()
+    if (r.ok) return { ok: true, ...(await r.json()) }
+    let detail = ''
+    try { detail = (await r.json())?.detail || '' } catch { /* not JSON */ }
+    return { ok: false, error: detail || `Could not mute this alert (${r.status}).` }
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+}
+
+/**
+ * Manual re-arm — "tell me again next time it happens".
+ *
+ * ⚠️ IT IS NOT THE ONLY WAY AN ALERT COMES BACK, and the UI must not imply it is.
+ * A fired alert re-arms BY ITSELF when the condition is next observed false
+ * (`record_evaluation`), and an expired snooze re-arms too. This is the advanced
+ * case: bring it back NOW, before the condition has gone false.
+ *
+ * ⭐ IT ALSO CANCELS A SNOOZE, because `_rearm` clears `snooze_until`.
+ */
+export async function rearmIndicatorAlert(id) {
+  try {
+    const r = await fetch(`${KEY}/${id}/rearm`, { method: 'POST', credentials: 'include' })
+    revalidateListings()
+    return r.ok ? { ok: true, ...(await r.json()) } : { ok: false, error: `Could not reset this alert (${r.status}).` }
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+}
+
+/** One alert's own fire history, newest first. Ownership-checked server-side. */
+export function useAlertFires(alertId, limit = 25) {
+  const { user } = useAuth()
+  const key = user && alertId ? `${KEY}/${alertId}/fires?limit=${limit}` : null
+  const { data, error, isLoading } = useSWR(key, fetcher, { revalidateOnFocus: false })
+  return {
+    fires: Array.isArray(data?.fires) ? data.fires : [],
+    isLoading: isLoading && !data && !error,
+    error: error || null,
+  }
+}

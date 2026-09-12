@@ -1,0 +1,270 @@
+/* app/src/pages/alerts/AlertsPage.module.css
+ *
+ * ⭐ A TRADING TERMINAL, NOT A SETTINGS TABLE. Dark charcoal, hairline borders,
+ * compact rows, one restrained gold, and state carried in FORM as well as in
+ * words — a severity stripe down the left edge of a row reads at a glance in a
+ * way a status column never does. */
+
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding-block: 22px 64px;
+  padding-left: 16px;
+  padding-right: 16px;
+  color: var(--text, #e5e5e5);
+}
+
+/* ── header ──────────────────────────────────────────────────────────────── */
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.count {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  font-variant-numeric: tabular-nums;
+}
+.headSpacer { flex: 1; }
+
+/* ── filter ──────────────────────────────────────────────────────────────── */
+.filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+}
+.filter {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #888);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.filter:hover { color: var(--text, #e5e5e5); }
+.filterOn {
+  color: var(--text-heading, #f0f0f0);
+  border-color: var(--border, #2a2a2a);
+  background: var(--bg-surface, #161616);
+}
+.filter b {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+.filter:focus-visible,
+.rowBtn:focus-visible,
+.linkBtn:focus-visible,
+.menuItem:focus-visible {
+  outline: 2px solid var(--ut-gold, #dcbb5e);
+  outline-offset: 2px;
+}
+
+/* ── group heading ───────────────────────────────────────────────────────── */
+.groupHead {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted, #888);
+  margin: 18px 0 7px;
+}
+
+/* ── the row ─────────────────────────────────────────────────────────────── */
+.rows { display: flex; flex-direction: column; gap: 6px; }
+
+.row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  gap: 0 12px;
+  align-items: center;
+  background: var(--bg-surface, #161616);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+}
+/* ⭐ THE SEVERITY STRIPE. State in FORM, not only in words — a fault reads from
+   across the room, which is the whole reason this screen exists. */
+.stripe { align-self: stretch; background: transparent; }
+.toneFault .stripe { background: #c4564a; }
+.toneFired .stripe { background: var(--ut-gold, #dcbb5e); }
+.toneMuted .stripe { background: #4a4d55; }
+.toneOk .stripe { background: #2f7d55; }
+.toneMuted .main { opacity: 0.62; }
+
+.main { padding: 9px 0; min-width: 0; }
+.line1 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.sym {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ut-gold, #dcbb5e);
+  letter-spacing: 0.02em;
+}
+.what {
+  font-size: 13px;
+  color: var(--text-heading, #f0f0f0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.trigger { font-size: 12px; color: var(--text-muted, #888); }
+.tf {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  color: var(--text-muted, #888);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.line2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-muted, #888);
+}
+.state { font-weight: 500; }
+.toneFault .state { color: #d8705f; }
+.toneFired .state { color: var(--ut-gold, #dcbb5e); }
+.detail { opacity: 0.8; }
+.sep { opacity: 0.4; }
+
+/* ── row actions ─────────────────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 8px;
+}
+.rowBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm, 4px);
+  line-height: 1;
+}
+.rowBtn:hover { color: var(--text-heading, #f0f0f0); background: rgba(255, 255, 255, 0.05); }
+.rowBtn[aria-pressed='true'] { color: var(--ut-gold, #dcbb5e); }
+
+/* ── the mute menu ───────────────────────────────────────────────────────── */
+.menuWrap { position: relative; }
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 40;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+}
+.menuItem {
+  background: transparent;
+  border: none;
+  color: var(--menu-text, #ededed);
+  text-align: left;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menuItem:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* ── history ─────────────────────────────────────────────────────────────── */
+.history {
+  grid-column: 2 / -1;
+  padding: 0 8px 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border, #2a2a2a);
+  margin-top: 2px;
+  padding-top: 8px;
+}
+.fire {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 11.5px;
+  color: var(--text-muted, #888);
+  flex-wrap: wrap;
+}
+.fireWhen {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text, #e5e5e5);
+  font-variant-numeric: tabular-nums;
+}
+.fireFail { color: #d8705f; }
+
+.linkBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ut-gold, #dcbb5e);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.linkBtn:hover { text-decoration: underline; }
+
+/* ── empty / notice ──────────────────────────────────────────────────────── */
+.empty {
+  border: 1px dashed var(--border, #2a2a2a);
+  border-radius: var(--radius-md, 6px);
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text-muted, #888);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.empty b { color: var(--text-heading, #f0f0f0); font-weight: 600; display: block; margin-bottom: 4px; }
+.notice {
+  margin: 10px 0 0;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 4px);
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  background: var(--bg-surface, #161616);
+  color: var(--text, #e5e5e5);
+}
+.noticeErr { border-left-color: #c4564a; }
+
+/* ⚠️ NARROW. The actions wrap under the row rather than squeezing the name to
+   nothing — a member on a phone still has to be able to read WHAT is watched. */
+@media (max-width: 560px) {
+  .row { grid-template-columns: 3px minmax(0, 1fr); }
+  .actions { grid-column: 2; padding: 0 0 8px; }
+  .history { grid-column: 2; }
+}

@@ -1418,3 +1418,40 @@ def test_the_route_turns_the_cap_into_a_400_carrying_the_stores_sentence(client)
         assert "delete one" in refused.json()["detail"]
     finally:
         app.dependency_overrides.pop(limits_dependency, None)
+
+
+# ═══ the chart deep-link on a fire ══════════════════════════════════════════
+
+def test_a_fire_names_the_CHART_it_came_from():
+    from api.services.indicator_alert_evaluator import _chart_url
+    assert _chart_url("tsla", "D") == "/charts?sym=TSLA&tf=D"
+    assert _chart_url("tsla", None) == "/charts?sym=TSLA"
+    # ⛔ NO SYMBOL, NO LINK. A bare `/charts` would send the member to whatever
+    # chart they last had open, which reads as the product ignoring their click.
+    assert _chart_url("", "D") is None
+    assert _chart_url(None, None) is None
+
+
+def test_the_chart_link_matches_the_frontends_own_reader():
+    """⛔⛔ TWO SPELLINGS OF ONE FACT, PINNED TOGETHER.
+
+    A Python producer cannot import `app/src/lib/chartDeepLink.js`, so the param
+    names are written twice. That module's own docstring names the failure: a
+    hand-typed `?sym=` on one side and a hand-typed `p.get('symbol')` on the
+    other agree the day they are written and silently stop agreeing later. This
+    reads the JS and asserts the two still agree.
+    """
+    import pathlib
+    import re
+    from api.services.indicator_alert_evaluator import _chart_url
+
+    src = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "lib" / "chartDeepLink.js"
+    text = src.read_text(encoding="utf-8")
+    params = dict(re.findall(r"(\w+):\s*'(\w+)'", text.split("CHART_LINK_PARAMS")[1].split("}")[0]))
+    assert params == {"sym": "sym", "tf": "tf"}, params
+    path = re.search(r"CHARTS_PATH\s*=\s*'([^']+)'", text).group(1)
+
+    url = _chart_url("SPY", "5")
+    assert url.startswith(f"{path}?"), (url, path)
+    for key in params.values():
+        assert f"{key}=" in url, (key, url)

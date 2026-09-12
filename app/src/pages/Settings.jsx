@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
@@ -2103,6 +2103,18 @@ export default function Settings() {
      already being fetched and thrown away. See `IndicatorAlertManager.jsx`. */
   const indicatorAlertsCard = (
         <TileCard icon="bell" title="Indicator Alerts">
+          {/* ⭐ ALERTS HAVE THEIR OWN SURFACE NOW (`/alerts`) — one place to
+              pause, mute, reset, inspect history and delete, with price and
+              drawing alerts beside the condition ones.
+              ⛔ THE BLOCK STAYS, DELIBERATELY. This is where members have found
+              their alerts, and quietly deleting a familiar entry point to move
+              a feature is how somebody concludes the feature was removed. It
+              keeps its read-only list and adds the door. */}
+          <div style={{ marginBottom: 10 }}>
+            <Link to="/alerts" className={styles.inlineLink}>
+              Open the Alert Center →
+            </Link>
+          </div>
           <IndicatorAlertManager />
         </TileCard>
   )

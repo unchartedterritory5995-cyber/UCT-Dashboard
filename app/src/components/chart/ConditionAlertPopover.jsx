@@ -201,7 +201,7 @@ export default function ConditionAlertPopover({
                   type="button" className={styles.iconBtn}
                   aria-label="Delete this alert" title="Delete"
                   onClick={() => onDelete(a.id)}
-                ><UIcon name="close" size={12} /></button>
+                ><UIcon name="trash" size={12} /></button>
               )}
             </div>
           ))}

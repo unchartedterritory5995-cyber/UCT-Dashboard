@@ -20,6 +20,7 @@ const ROUTE_TITLES = {
   '/uct-20': 'UCT 20',
   '/breadth': 'Breadth',
   '/charts': 'Charts',
+  '/alerts': 'Alerts',
   '/calendar': 'UCT Terminal',
   '/screener': 'Screener',
   '/options-flow': 'Options Flow',

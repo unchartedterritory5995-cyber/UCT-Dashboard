@@ -163,7 +163,7 @@ export default function ChartSettingsConditions({
             type="button" className={styles.actRowRemove}
             aria-label={`Remove ${ACTION_LABEL[a.type]} from ${c.name}`}
             onClick={() => commit(removeAction(settings, c.id, a.id))}
-          ><UIcon name="close" size={12} /></button>
+          ><UIcon name="x" size={12} /></button>
         </span>
       </div>
     )
@@ -278,7 +278,7 @@ export default function ChartSettingsConditions({
           <button
             type="button" className={styles.actRowRemove} aria-label={`Remove ${c.name}`}
             onClick={() => commit(removeCondition(settings, c.id))}
-          ><UIcon name="close" size={12} /></button>
+          ><UIcon name="x" size={12} /></button>
         </div>
 
         {isOpen && (

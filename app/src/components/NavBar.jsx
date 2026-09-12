@@ -19,6 +19,9 @@ export const NAV_ITEMS = [
   // HOME
   { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
+  // ⭐ ALERTS SITS BESIDE CHARTS, because that is where they are created and
+  // what they are about — not under MARKETS with the research surfaces.
+  { to: '/alerts',       label: 'Alerts',        icon: 'bell' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   // MARKETS
   { to: '/dashboard',    label: 'Dashboard',     icon: 'dashboard' },

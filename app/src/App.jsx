@@ -82,6 +82,10 @@ const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazyPage('/calendar', () => import('./pages/Calendar'))
 const MyStocksHub = lazyPage('/calendar/mystocks', () => import('./pages/calendar/MyStocksHub'))
 const Screener = lazyPage('/screener', () => import('./pages/Screener'))
+// ⭐ ALERTS ARE A PRODUCT SURFACE NOW, not a Settings block. `lazyPage` (not bare
+// `lazy`) so the boot prefetcher knows this route's importer, exactly like every
+// other member page.
+const AlertsPage = lazyPage('/alerts', () => import('./pages/alerts/AlertsPage'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
 const SharedFormula = lazy(() => import('./pages/formulas/SharedFormula'))
@@ -531,6 +535,12 @@ export default function App() {
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
+                {/* ⭐⭐ THE ALERT CENTER. Inside `Layout` and `AuthGuard` like every
+                    other member surface — an alert list is one member's own rows,
+                    so it is never a shared link. The old Settings block stays
+                    exactly where it was and now links here; nothing that pointed
+                    at `/settings` breaks. */}
+                <Route path="/alerts" element={<AlertsPage />} />
                 {/* ⭐⭐ THE VOCABULARY A MEMBER BUILDS WITH. Until this route
                     existed the only complete list of names anywhere in the
                     product was inside an ERROR message — `interpret.js` joins

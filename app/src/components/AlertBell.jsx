@@ -191,7 +191,12 @@ export default function AlertBell() {
   // behavior unchanged.
   function handleItemClick(a) {
     if (!a.read) markRead(a.id)
-    const url = a.data?.research_url
+    // ⭐⭐ THE CHART FIRST, THE RESEARCH PAGE SECOND. An indicator/condition alert
+    // carries `chart_url` — the symbol and timeframe the number actually came
+    // from — and that is where a trader can act on it. Every other producer
+    // carries only `research_url` and is unchanged, because this reads whichever
+    // the alert NAMES rather than deciding per type.
+    const url = a.data?.chart_url || a.data?.research_url
     if (url) {
       setOpen(false)
       navigate(url)

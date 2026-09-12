@@ -2157,6 +2157,25 @@ def _fire_bar_time(bars: list[dict], index: int) -> Any:
     return t
 
 
+def _chart_url(sym: Any, tf: Any) -> Optional[str]:
+    """`/charts?sym=…&tf=…` — the frontend's own deep-link shape.
+
+    ⚠️ `None` WHEN THERE IS NO SYMBOL. An alert with no symbol is not a shape the
+    create path can produce, and a bare `/charts` link would send a member to
+    whatever chart they last had open — which looks like the product ignored
+    their click rather than like it had nothing to point at.
+    """
+    s = str(sym or "").strip().upper()
+    if not s:
+        return None
+    from urllib.parse import urlencode
+    q = {"sym": s}
+    t = str(tf or "").strip()
+    if t:
+        q["tf"] = t
+    return f"/charts?{urlencode(q)}"
+
+
 def _dispatch_delivery(alert: dict, value: float, *,
                        bar_time: Any = None) -> None:
     """Send the alert through the multi-channel watchlist delivery hook.
@@ -2251,6 +2270,21 @@ def _dispatch_delivery(alert: dict, value: float, *,
                 "tf": alert.get("tf"),
                 "bar_time": bar_time,
                 "alert_id": alert.get("id"),
+                # ⭐⭐ WHERE TO GO WHEN THE MEMBER CLICKS THE NOTIFICATION. The
+                # bell already navigates to whatever an alert NAMES
+                # (`AlertBell.handleItemClick` reads `data.research_url`); an
+                # indicator alert's natural destination is the CHART, on this
+                # symbol, at this timeframe — which is where the number came from
+                # and where they can act on it.
+                #
+                # ⛔ THE SHAPE IS `app/src/lib/chartDeepLink.js`'s, WHICH IS THE
+                # ONE PLACE THAT KNOWS IT. `ChartsWorkspace` reads `sym`/`tf`,
+                # applies them through its own authorities and then STRIPS them,
+                # so this is a one-shot instruction and not a second source of
+                # truth. Spelled here because a Python producer cannot import the
+                # JS module — and that is exactly why it is pinned by
+                # `test_the_chart_link_matches_the_frontends_own_reader`.
+                "chart_url": _chart_url(sym, alert.get("tf")),
             },
         )
         _record_delivery_channels(alert, fire_id, outcome)
