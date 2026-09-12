@@ -436,6 +436,35 @@ proven way to put one there, and it carries THE BINDING HAZARD -- assert the act
 then sha256. A partial paste is real: one attempt left `fold-pass` concatenated with a stray NS
 fragment (1614 chars against a committed 628), and only the receipt caught it.
 
+## ⛔⛔ THE DOM AND THE `computer` TOOL ARE DIFFERENT COORDINATE SPACES — locate by SCREENSHOT
+
+**Rule, 2026-09-11/12 (T1): whenever a click goes through the `computer` tool, find the
+target in a SCREENSHOT. Never compute it from `getBoundingClientRect()`.**
+
+Measured on the TradingView chart page, same element, same moment:
+
+```
+getBoundingClientRect()  ->  (1146, 291)        "Create new" in the script-title menu
+visible in the 1568x698 click frame at  (850, 238)
+```
+
+~26% apart on x. ⛔ **And a click computed from the DOM lands in empty space and returns
+`"Clicked at …"` exactly as if it had worked** — a silent miss with a success message,
+which is the worst shape a browser step can have. Two of the three failed interactions in
+that visit were this, not the menu.
+
+⭐ The DOM is still right for READING state — `si.dataLength()`, `si.status()`,
+`metaInfo().plots`, the button label, the editor title. It is the CLICK frame that
+disagrees. So: read with `javascript_tool`, aim with a screenshot, and after any click
+that is supposed to change state, **re-read the state** rather than trusting the return
+string.
+
+⚠️ A corollary that cost a cycle: a submenu that needs a hover (script title → *Create
+new* ▸ → *Indicator*) does not render under a synthetic hover even with the pointer
+confirmed on the row. Two attempts, both clean misses. That route needs a real pointer.
+
+---
+
 ## ⛔⛔ FOUR THINGS THAT LOOK LIKE SUCCESS AND ARE NOT (2026-09-10)
 
 Each of these was hit in one session. Every one of them is silent.

@@ -277,13 +277,35 @@ describe('a script this engine cannot run says so, at its own token', () => {
     expect(screen.getByTestId('readback').textContent).toBe(down.readback)
   })
 
+  // ⚰⚰ BOTH CASES BELOW USED `request.security(syminfo.tickerid, "D", close)`, AND BOTH
+  // WENT GREEN-TO-RED WHEN RULING 3.5 LANDED (2026-09-12) WITHOUT ANYBODY FLIPPING THEM.
+  // 3.5 recognises a literal naming the BASE period as the base rather than as a resample
+  // of it, so on this lane's daily base that call is the IDENTITY and folds to bare
+  // `close`: it translates, Use enables, the formula box fills. The refusal these two
+  // were written around is still real on a timeframe that is not the base, so the
+  // specimen moves to `"60"` and the fold gets a case of its own below.
+  // ⛔ THE LESSON IS THE TIMING, NOT THE SCRIPT. A ruling that turns a refusal into a
+  // fold owes its red tests the same re-freeze as a corpus number, in the commit that
+  // lands it — these sat red across four commits because this file was not run.
   it('a refused script cannot reach the formula box at all', async () => {
     mount()
     await flush()
-    await paste('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "D", close))\n')
+    await paste('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "60", close))\n')
     expect(screen.getByTestId('pine-use').disabled).toBe(true)
     fireEvent.click(tab(/formula/i))
     expect(formulaField().value).toBe('')
+  })
+
+  it('⭐ the BASE period is no refusal — ruling 3.5 folds it to the chart’s own series', async () => {
+    mount()
+    await flush()
+    await paste('//@version=5\nindicator("t")\nplot(request.security(syminfo.tickerid, "D", close))\n')
+    // ⭐ NO REFUSAL, AND THE FORMULA IS THE CHILD UNWRAPPED — not `tf(close, 'D')`, which
+    // reads the last CLOSED day and would answer yesterday. That distinction is the whole
+    // of 3.5, asserted at the door a member actually uses rather than only in the unit.
+    expect(screen.queryByTestId('pine-refusal')).toBe(null)
+    expect(screen.getByTestId('pine-formula-0').textContent).toBe('close')
+    expect(screen.getByTestId('pine-use').disabled).toBe(false)
   })
 
   it('one bad plot beside a good one offers the good one and NAMES the bad one', async () => {
@@ -291,7 +313,7 @@ describe('a script this engine cannot run says so, at its own token', () => {
     await flush()
     await paste('//@version=5\nindicator("t")\n'
       + 'plot(ta.sma(close, 5), "Good")\n'
-      + 'plot(request.security(syminfo.tickerid, "D", close), "Bad")\n')
+      + 'plot(request.security(syminfo.tickerid, "60", close), "Bad")\n')
 
     expect(screen.getByTestId('pine-formula-0').textContent).toBe('sma(close, 5)')
     expect(screen.getByTestId('pine-output-refusal-1').getAttribute('data-guard')).toBe('pine:request')

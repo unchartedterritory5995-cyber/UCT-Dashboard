@@ -153,7 +153,9 @@ describe('the divergence roster satisfies the SHARED schema', () => {
   it('⭐ the schema declares everything THIS lane enforces', () => {
     for (const key of ['required_fields', 'decision_required_keys', 'probe_required_keys',
       'status_vocabulary', 'member_hook_kinds', 'accepted_requires_member_hook',
-      'decision_required_on_status']) {
+      'decision_required_on_status',
+      // the corrected-row contract, Python-only until 2026-09-12 (third instance)
+      'decision_required_keys_when_corrected', 'corrected_requires_correctedIn']) {
       expect(schema[key], `the shared schema does not declare \`${key}\``).toBeDefined()
     }
     expect(Object.keys(schema.member_hook_kinds).sort()).toEqual(['fold', 'vendorNote'])
@@ -183,6 +185,33 @@ describe('the divergence roster satisfies the SHARED schema', () => {
 
       for (const key of schema.probe_required_keys) {
         expect((row.probe || {})[key], `${row.id}: probe names no \`${key}\``).toBeTruthy()
+      }
+    }
+  })
+
+  it('⚰ a CORRECTED row carries its own obligations — the third two-lane split', () => {
+    // ⚠⚠ FOUND 2026-09-12, AND BY THE OTHER LANE AGAIN. `test_vendor_truth.py` has
+    // always required `decision.what_changed` and `correctedIn` on a corrected row; this
+    // file did not know either field existed, so a new row passed here and failed there —
+    // the same shape as the `decision`-as-a-string crash and the `why_keep_ours` gap this
+    // describe block was created for. The fields are declared in the shared schema now
+    // and BOTH lanes read them from it, so neither lane owns the contract.
+    // ⛔ WHY A CORRECTED ROW OWES MORE, NOT LESS: the status switches OFF the
+    // `vendorNote` obligation, which is the strongest one in the roster. Without its own
+    // terms it would be the cheap way out of the ledger.
+    // ⭐ THE NON-VACUITY CONTROL. A loop over a status nothing carries passes forever.
+    expect(doc.rows.filter((r) => r.status === 'corrected').length,
+      'no corrected row left — this rail would pass vacuously').toBeGreaterThan(0)
+    for (const row of doc.rows) {
+      if (row.status !== 'corrected') continue
+      for (const key of schema.decision_required_keys_when_corrected) {
+        expect((row.decision || {})[key],
+          `${row.id}: corrected with no \`decision.${key}\``).toBeTruthy()
+      }
+      if (schema.corrected_requires_correctedIn) {
+        expect(row.correctedIn,
+          `${row.id}: corrected in no named commit or ruling — the claim that ours moved `
+          + 'is unverifiable without one').toBeTruthy()
       }
     }
   })

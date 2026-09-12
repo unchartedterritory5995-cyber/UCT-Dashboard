@@ -2809,10 +2809,29 @@ export function forgetsItsSeed(node, table, warmup) {
     if (isSelf(n)) return true
     if (!carries(n)) return true
     const args = n.args || []
-    if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
-      const withSelf = args.filter(carries)
-      return withSelf.length === 1 && ok(withSelf[0], true)
-    }
+    // ⚰️⚰️ R-F (owner, 2026-09-12) — `min`/`max` ARE OUT OF THE ADMIT SET, AND THIS
+    // ARM IS WHY THEY WERE IN IT. It read `withSelf.length === 1 && ok(withSelf[0], true)`,
+    // and `ok` returns TRUE for bare `self` — so `max(self, y)` was declared
+    // seed-forgetting. A running max NEVER forgets its seed: the seed stands until
+    // something exceeds it. `accum` re-seeds `PINE_STATE_WARMUP` bars back, so the
+    // column answered "the highest of the last 250 bars" to a member who wrote "the
+    // highest ever" — ok:true, no refusal, no disclosure, no window shown.
+    //
+    //     var float m = na / m := math.max(m, volume)
+    //       -> accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)   ok = true
+    //
+    // ⛔ THAT IS THE SECOND INSTANCE OF THE OBV CLASS. The convergence gate above
+    // cites the first: "a 250-bar ROLLING SUM presented as OBV, on every bar, drawing
+    // a line nobody would question". The gate caught `+` and this arm admitted
+    // `min`/`max`, so the same defect walked through the door beside it.
+    //
+    // ⚠️ AND IT DELIBERATELY OVER-REFUSES ONE SHAPE. A DECAYING max — `m := max(m *
+    // 0.9, close)` — really does forget, and it refuses now too. That is the safe
+    // direction (a refusal a member can read, never a plausible wrong number), and it
+    // is one line to narrow if it ever shows up in a real script: swap `ok` for
+    // `contracts` in a restored arm, which admits a self operand only when its
+    // coefficient contracts over the warmup. Not done on spec — no corpus script
+    // writes it.
     if (n.type === 'call' && n.name === 'nz') return args.every((a) => ok(a, true))
     if (n.type === 'op' && n.name === '?:') return ok(args[1], true) && ok(args[2], true)
     return contracts(n, switched)

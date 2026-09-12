@@ -16,6 +16,14 @@
 // graph form is TWO. That ratio is the C2D.2 argument for a graph-native
 // locator, measured rather than asserted.
 //
+// ⚰ THE 666-LOCATOR MEASUREMENT ABOVE IS HISTORY AS OF 2026-09-12. Ruling R-F took
+// `min`/`max` out of the seed-forgetting admit set, so `…03-supertrend`'s band — a
+// 250-bar rolling min this engine was presenting as the running band — refuses at
+// `pine:state`. Nine of its ten columns go with it, the tenth is the author's `ohlc4`
+// fill edge, and the document it now produces is a few hundred bytes with no manifest
+// at all. The ratio argument for a graph-native locator still stands on
+// `…22-rsi-levels-regime-map`, which is why that script carries the case below.
+//
 // ⛔ THE FIXTURE MUST INCLUDE THE MANIFEST, and it must be built the way the
 // product builds it, or this file is measuring a document nobody saves.
 import { describe, it, expect } from 'vitest'
@@ -81,9 +89,11 @@ function productDocument(name) {
 }
 
 const BLOCKED = [
-  'high_engagement__03-supertrend-kivancozbilgic',
   'mid_engagement__22-rsi-levels-regime-map',
 ]
+
+/** ⚰ The other DOCUMENT_SIZE_BLOCKED script, which R-F made too small to block. */
+const NO_LONGER_OVERSIZED = 'high_engagement__03-supertrend-kivancozbilgic'
 
 describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save door', () => {
   for (const name of BLOCKED) {
@@ -127,6 +137,30 @@ describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save d
         + ` -> graph locators ${Object.values(sent.compute.graph.parameters).reduce((n, e) => n + e.locators.length, 0)}`)
     })
   }
+
+  it(`⚰ ${NO_LONGER_OVERSIZED} no longer reaches the budget at all`, () => {
+    // ⛔ THE MEASUREMENT THIS REPLACES WAS REAL AND IS GONE: 70,000-odd bytes with a
+    // 666-locator manifest, reduced 48-fold by the graph form. Under R-F the script
+    // refuses at `pine:state` on all but its `ohlc4` fill edge, so there is no large
+    // document left to reduce — and "it fits now" must not be allowed to read as the
+    // representation having solved something. It is asserted as what it is.
+    const doc = productDocument(NO_LONGER_OVERSIZED)
+    // Measured 2026-09-12: 1,041 bytes, from 70,000-odd. The tight bound is deliberate
+    // — "under the budget" would also be satisfied by a document that still carried
+    // nine columns, and the point is that only the fill edge is left.
+    expect(documentBytes(doc)).toBeLessThan(2000)
+    expect(doc.compute.paramManifest).toBeFalsy()
+    expect(doc.compute.source).toBe('(open + high + low + close) / 4')
+    expect(doc.compute.plots || []).toHaveLength(0)
+    expect(reduceIfOversized(doc)).toBe(doc)
+    // ⭐ AND THE GRAPH FORM DECLINES IT, WHICH IS THE CLEAREST STATEMENT OF HOW SMALL
+    // IT GOT: the representation exists to share sub-trees between several plots, and
+    // there is only one tree left to share. The refusal sentence says exactly that,
+    // so it is asserted rather than paraphrased.
+    const g = toGraphDocument(doc)
+    expect(g.ok).toBe(false)
+    expect(g.reason).toMatch(/not a multi-tree document/)
+  })
 
   it('⛔ THE CONTROL: a document that fits is not reduced at all', () => {
     const doc = productDocument('mid_engagement__13-spma-trend')

@@ -402,11 +402,29 @@ plot(t)
 `)).toBe('accum(0, self * 0.5 + volume, 250)')
   })
 
-  it('a running maximum, which is the shape a trailing stop is built from', () => {
-    expect(formulaOf(`${HEAD}var hi = close
+  it('⛔ a running maximum REFUSES — it is the shape a trailing stop is built from', () => {
+    // ⚰⚰ THIS TEST ASSERTED THE DEFECT, AND ITS OWN TITLE NAMED THE STAKES. It read
+    //     .toBe('accum(close, max(self, close), 250)')
+    // — a 250-BAR ROLLING maximum standing in for a running one, pinned as intended
+    // behaviour under the title "the shape a trailing stop is built from". So the
+    // wrong answer was not merely uncaught; it was codified, with the use case that
+    // makes it dangerous written into the name.
+    //
+    // ⛔ RULING R-F, 2026-09-12: `forgetsItsSeed` no longer admits `min`/`max`. A
+    // running max never forgets its seed — the seed stands until something exceeds it
+    // — so folding it into `accum`'s re-seeding window answered "the highest of the
+    // last 250 bars" to a member who wrote "the highest ever". Six committed scripts
+    // moved out of the passing set on this change and every one is a trailing stop or
+    // a Supertrend band.
+    const r = translatePine(`${HEAD}var hi = close
 hi := math.max(hi, close)
 plot(hi)
-`)).toBe('accum(close, max(self, close), 250)')
+`)
+    expect(r.ok).toBe(false)
+    const x = (r.refusals || [])[0] || {}
+    expect(x.guard).toBe('pine:state')
+    // and the member is told what to write instead, with the window left to them
+    expect(String(x.message)).toContain('highest(<that value>, <bars>)')
   })
 
   it('⭐ a `var` NOBODY reassigns, with a constant seed, is the constant', () => {
@@ -508,34 +526,91 @@ plot(anchor)
     // previous bar emits as an `accum`, and the two stops nest inside the
     // direction column each owning its own `self`. `pine:state` no longer fires
     // here at all.
-    expect(guards).toEqual([])
-    expect(out.ok).toBe(true)
+    // ⚰⚰ 2026-09-12 — AND THE 2026-08-11 VERSION WAS RIGHT ALL ALONG. That version
+    // asserted `out.ok === false` with the plots refusing at `pine:state`, calling it
+    // "a trailing stop being state by construction". The 08-12 entry above replaced it
+    // with "IT TRANSLATES" — and what had actually happened was that a bare monotone
+    // max/min accumulator started folding to `accum(…, 250)`, a rolling window wearing
+    // a running band's name. Ruling R-F removes that admission, so this script refuses
+    // again, at the same guard the 08-11 version named.
+    // ⭐ The history is kept rather than rewritten: a test that swung to a wrong answer
+    // and back is worth more as a record than as a clean assertion.
+    expect(guards.every((g) => g === 'pine:state')).toBe(true)
+    expect(guards).toHaveLength(9)
+    expect(out.ok).toBe(false)
     // ⭐ 5 → 9 ON 2026-08-27, and the four that arrived are `plotshape` — the
     // script's own BUY/SELL markers, which this door ignored until `plotshape`
     // became an output-producing call. A marked bar is a column: the tree is the
     // condition Pine draws the glyph for, so it scans exactly as written. The
     // kinds are asserted below rather than only the count, because "nine outputs"
     // would also be satisfied by four duplicates of something already here.
+    // ⚰ usable was 9 and is 0: every column refuses now. The KINDS assertion below
+    // is kept as a comment rather than deleted, because it records what this script
+    // produced while it was producing a wrong number — which is the thing to compare
+    // against on the day the bounded rewrite lands.
     const usable = out.outputs.filter((o) => o.formula && !o.hidden)
-    expect(usable).toHaveLength(9)
-    expect(usable.map((o) => o.kind)).toEqual([
-      'plot', 'plotshape', 'plotshape', 'plot', 'plotshape', 'plotshape',
-      'alertcondition', 'alertcondition', 'alertcondition',
-    ])
-    expect(out.outputs.filter((o) => o.formula && o.hidden)).toHaveLength(1)
+    expect(usable).toHaveLength(0)
+    // ⚰ THE KINDS THIS SCRIPT PRODUCED WHILE IT WAS PRODUCING A WRONG NUMBER, kept
+    // as the comparison for the day a bounded rewrite lands:
+    //   plot, plotshape, plotshape, plot, plotshape, plotshape,
+    //   alertcondition, alertcondition, alertcondition   (+1 hidden)
+    expect(usable.map((o) => o.kind)).toEqual([])
 
+    // ⭐ ONE FORMULA SURVIVES, AND IT IS THE 2026-08-10 COLUMN CUT BACK TO ITS REAL
+    // SIZE: `plot(ohlc4, display = display.none)`, the hidden edge the author added so
+    // `fill()` had something to fill against. It is pure, so it still translates — and
+    // it is shown to nobody, which is exactly why the 08-10 version of this test was
+    // wrong to read it as "the script still works in part". Asserted at 1 rather than
+    // dropped: if it ever becomes 0, the scaffolding column started refusing too, and
+    // that is a different fact.
+    const hidden = out.outputs.filter((o) => o.formula && o.hidden)
+    expect(hidden).toHaveLength(1)
+    expect(hidden[0].formula).toBe('(open + high + low + close) / 4')
+
+    // ⛔ AND NOTHING IS SELECTED. A door with no offerable column answers -1; it does
+    // not quietly fall back to the hidden one. Measured 2026-09-12.
+    expect(out.selected).toBe(-1)
+
+    // ⚰ WHAT THIS BLOCK USED TO ASSERT, kept because the REASON outlives the script it
+    // was written against:
+    //     const sel = out.outputs[out.selected].formula
+    //     expect(sel.startsWith('accum(')).toBe(true)
+    //     expect(sel.split('accum(').length - 1).toBeGreaterThanOrEqual(3)
     // ⛔ NOT MERELY "IT PRODUCED SOMETHING". Attempt one of this feature emitted a
-    // single flattened accumulator whose `self` meant a direction in one place and
-    // a stop price in another — it translated, the count went up, and the formula
-    // was nonsense. Reading the STRUCTURE is what caught it, so the structure is
-    // what this asserts: an outer accumulator with two further ones inside it.
-    const sel = out.outputs[out.selected].formula
-    expect(sel.startsWith('accum(')).toBe(true)
-    expect(sel.split('accum(').length - 1).toBeGreaterThanOrEqual(3)
+    // single flattened accumulator whose `self` meant a direction in one place and a
+    // stop price in another — it translated, the count went up, and the formula was
+    // nonsense. Reading the STRUCTURE is what caught it. Under R-F this script refuses,
+    // so that guard has no column here to read: it MOVES to the written case below, on
+    // a shape R-F still admits, rather than being deleted with the assertion that
+    // happened to host it.
 
     // ⚠️ AND IT STILL CANNOT BE SAVED — see `pine.corpus.test.js`, which asserts
     // the `budget:nodes` wall by name. Clearing one wall is not clearing them all,
     // and this file has now twice been the place where that got blurred.
+  })
+
+  it('⭐ CONTROL: two accumulators in one column each keep their OWN `self`', () => {
+    // ⭐⭐ THE STRUCTURAL GUARD, REHOUSED (2026-09-12). It used to ride
+    // `10-supertrend.pine`, which refuses under R-F; the defect it guards against is
+    // independent of that script — a single FLATTENED accumulator whose `self` means a
+    // different quantity in each branch translates cleanly, raises the count, and is
+    // nonsense. So it is asserted here on a CONTRACTING pair, which R-F still folds:
+    // two `accum` calls, one per branch, each owning its own `self`.
+    const out = translatePine(`${HEAD}var float up = 0.0
+var float dn = 0.0
+up := up * 0.5 + high
+dn := dn * 0.5 + low
+plot(close > open ? up : dn)
+`, { strict: true })
+    expect(out.ok).toBe(true)
+    const sel = out.outputs[out.selected].formula
+    expect(sel).toBe('close > open ? accum(0, self * 0.5 + high, 250) : accum(0, self * 0.5 + low, 250)')
+    expect(sel.split('accum(').length - 1).toBe(2)
+    // ⛔ AND THE TWO BODIES MUST DIFFER. One flattened accumulator reused in both
+    // branches would still split to two `accum(`, so a count alone cannot tell the
+    // defect from the fix.
+    const bodies = sel.split('accum(').slice(1).map((x) => x.slice(0, x.indexOf(', 250)')))
+    expect(new Set(bodies).size).toBe(2)
   })
 
   it('⛔ …and the convergence gate still refuses an accumulator that never forgets', () => {

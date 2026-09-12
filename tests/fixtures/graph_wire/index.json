@@ -40,10 +40,10 @@
       "name": "high_engagement__03-supertrend-kivancozbilgic",
       "id": "u_c2d900000005",
       "band": "supertrend",
-      "v1Bytes": 438263,
-      "sentBytes": 7244,
-      "isGraph": true,
-      "plots": 10
+      "v1Bytes": 1102,
+      "sentBytes": 1102,
+      "isGraph": false,
+      "plots": 1
     }
   ]
 }

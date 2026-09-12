@@ -152,7 +152,15 @@ describe('🔴 THE RATCHET — a construct may only ever reach FURTHER', () => {
   // legible without recomputing it.
   const FLOOR = {
     'higher-timeframe': 9,     // of 22 that use it
-    'persistent-state': 14,    // of 29 that use it
+    // ⚰️ 14 → 11, RE-FROZEN 2026-09-12 BY RULING R-F. A bare monotone `max`/`min`
+    // accumulator used to fold to `accum(…, 250)` — a 250-bar ROLLING window
+    // presented as an all-time one — so three of the scripts counted here were
+    // reaching persistent-state on a SILENT MISTRANSLATION. Every mover is a
+    // trailing stop or a Supertrend band (atr-trailing-stop-by-ceyhun,
+    // supertrend-explorer, 10-supertrend, 05-chandelier-exit): a stop computed over
+    // a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    'persistent-state': 11,    // of 29 that use it
     'user-defined-fn': 11,    // of 24 that use it
     'bounded-loop': 5,     // of 13 that use it
     // 🔴🔴 4 → 3 ON 2026-09-07 IS THE ONE DOCUMENTED EXCEPTION TO "NEVER LOWER

@@ -1,5 +1,221 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⛔⛔ R-F — THE SHIPPED DEFECT IS FIXED, AND IT COST FIVE PUBLISHED SCRIPTS ON PURPOSE
+
+**Ruling R-F (owner, 2026-09-12): fix, not route.** `forgetsItsSeed` admits `+` only; a
+bare monotone `max`/`min` refuses with the same offer sentence R-A2 authored. Done, with
+every artifact it touches re-frozen and a reason at each line.
+
+### What was removed, and the sentence that replaced it
+
+```js
+// REMOVED from forgetsItsSeed (pine.js ~2809)
+if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
+  const withSelf = args.filter(carries)
+  return withSelf.length === 1 && ok(withSelf[0], true)   // ok(self) === true
+}
+```
+
+⛔ **`ok()` returns true for bare `self`**, so `max(self, y)` was declared
+seed-forgetting. A running max never forgets its seed — the seed stands until something
+exceeds it — and `accum` re-seeds `PINE_STATE_WARMUP` = 250 bars back, so the column
+answered *"the highest of the last 250 bars"* to a member who wrote *"the highest ever"*,
+`ok: true`, no disclosure, no window shown.
+
+⚠️ **A DECAYING extreme (`m := max(m * 0.9, close)`) is refused too.** That one really
+does forget, so this is a named over-refusal in the safe direction; narrowing it is one
+line (swap `ok` for a `contracts` predicate in a restored arm) and is **not** done on
+spec, because no corpus script writes it.
+
+### Metric, re-derived — old → new, with the movers by name
+
+```
+before R-F   host 33/266   screener 47/266
+after  R-F   host 31/266   screener 46/266      measured_at 2026-09-12
+```
+
+| mover | what it is |
+|---|---|
+| `atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine` | trailing stop |
+| `supertrend-explorer__V4MsmtCeKs.pine` | Supertrend band |
+| `10-supertrend.pine` | Supertrend band |
+| `05-chandelier-exit.pine` | trailing stop |
+| `04-ut-bot-alerts.pine` | trailing stop |
+
+⭐ **Every one is a trailing stop or a Supertrend band — which is the evidence that the
+admit arm was not catching an edge case, it was catching the use case.** They are
+**correct losses**, said plainly in every freeze: a count that falls because a wrong
+answer stopped being produced got *more* true, not less.
+
+⚰️ **And `measured_at` in `tools/corpus_metric.json` was a hand-typed `'2026-09-11'`** —
+it went stale the first time the metric moved. It is derived from the run now.
+
+### The two pinned tests, flipped — and one of them had been RIGHT in August
+
+- `pine.variables.test.js` — *"a running maximum, which is the shape a trailing stop is
+  built from"* asserted `accum(close, max(self, close), 250)` **as correct**. ⛔ The
+  defect was codified in a test whose title named the use case.
+- Its companion on `10-supertrend.pine`: the **2026-08-11** version asserted
+  `ok === false` with `pine:state`, *"a trailing stop being state by construction"* — and
+  it was **right**. An 08-12 "correction" replaced it with *"IT TRANSLATES"*, because the
+  fold had started admitting the shape. Both flipped; both histories kept in place rather
+  than rewritten, because a test that swung to a wrong answer and back is worth more as a
+  record than as a clean assertion.
+- Controls kept, as ruled: `+` still folds to `accum` **with its window** (a contracting
+  recurrence), and an explicit-window call still translates untouched
+  (`pine.accumulatorOffer.test.js`, 10 tests).
+- ⭐ **The structural guard was REHOUSED, not deleted.** "Two accumulators in one column
+  each keep their OWN `self`" lived on `10-supertrend.pine`, which now refuses; it is
+  asserted on a written contracting pair instead, with a control that the two bodies must
+  DIFFER (a flattened accumulator reused in both branches would still split to two
+  `accum(`).
+
+### Re-frozen, with the reason at every site
+
+| artifact | old → new |
+|---|---|
+| `pine.corpus` translating | 15 → 14 |
+| `pine.corpus` columns | 55 → **46** (exactly the 9 `10-supertrend` was offering) |
+| `doorScorecard` OPEN | 8 → 10 (42 → 41 at three sites; scannable 17 → 14) |
+| `constructCoverage` persistent-state | 14 → 11 |
+| `pine.paramCorpusCount` | 15 → 14 · 31 → 29 · 1208 → 536 |
+| `pine.community` | 19 → 17, plus two new guard rows |
+| `__fixtures__/pineCorpus.json` | regenerated (`PINE_CORPUS_WRITE=1`) |
+| `compat_harness/…/05-chandelier-exit.json` | translate SUPPORTED → UNSUPPORTED at `pine:state` |
+| `graph_wire` fixture (supertrend row) | 438,263 B / 10 plots / graph → **1,102 B / 1 plot / not a graph** |
+| `tools/corpus_metric.json` | 33/47 → 31/46 |
+
+### ⚠️ The timeout suite was measuring a REFUSED script, and that is worth more than the fix
+
+`pine.timeout.test.js` used `10-supertrend.pine` as *"a perfectly normal script"*. Under
+R-F it refuses, so its resolution work is truncated: the script that used to reach 500
+resolution steps now stops at 389, and two caps went red. ⛔ **A refused script is a bad
+vehicle for a budget test** — it measures less machinery than the cap ships against, and
+it gets quieter every time a guard gets stricter. The vehicle moved to
+`13-average-true-range.pine` (still clean), with the numbers **measured, not guessed**:
+
+```
+total resolution steps, whole script ....... 4,378
+largest SINGLE resolution .................... 314     => every cap <= 300 fires, 500 is clean
+```
+
+⭐ And the file now asserts its own PREMISE — that the vehicle translates clean, by name —
+so the next ruling that refuses this script fails with a sentence instead of silently
+measuring a truncated run. (The old per-resolver comment claimed *"~6,500 steps overall,
+largest single resolution under 1,000"* for Supertrend; measured today it is 12,895 and
+389. The claim was stale in both halves.)
+
+### Builder lane: three specimens moved, each move stated at the line
+
+`high_engagement__03-supertrend-kivancozbilgic` keeps **one** of its ten columns.
+
+⚠️⚠️ **AND THE ONE THAT SURVIVES IS THE AUTHOR'S `ohlc4` FILL EDGE — so the door SELECTS
+it.** An import of that script now offers a column called Supertrend that is the average
+of the bar, with the nine refusals named beside it. The door's policy ("offer what
+translates, name what does not") is working as written; whether a scaffolding column may
+be the *selected* one is a product question I have not settled — it is asserted as a fact
+in `builderInputs.symbolClosure.test.js` so it is visible rather than discovered.
+
+| file | was | now |
+|---|---|---|
+| `paramSingleTranslation.test.js` | supertrend in `COMPLEX` (4 scripts) | 3 scripts + a `REFUSED_BY_RF` rail asserting the refusal by guard; locator-spread case → `…14-master-line-lite` (1 input, 7 trees, 95 locators); declared-disjointness case → `…22-rsi-levels-regime-map` (10 declared) |
+| `builderInputs.symbolClosure.test.js` | `Multiplier` mutation controls | `GateInp` (`…13-spma-trend`) **+ a WRITTEN witness under the original `Multiplier` name** |
+| `graphSaveDoor.test.js` | two DOCUMENT_SIZE_BLOCKED scripts | one, plus a recorded case that the other is now 1,041 B and the graph form declines it ("not a multi-tree document") |
+
+⛔ **The coverage R-F actually cost, named:** the uppercase-initial member-input class had
+TWO corpus witnesses and now has one. A class held up by a single fixture is one ruling
+away from being held up by none — hence the written witness, where no future ruling can
+take it away.
+
+### ⚰️ FOUND WHILE ROUTING: ruling 3.5 landed with two RED tests nobody flipped
+
+`BuilderSheet.pine.test.jsx` pasted `request.security(syminfo.tickerid, "D", close)` in
+two cases and expected `pine:request`. Ruling 3.5 (the base-period identity) makes that
+call the identity on a daily base, so it **folds to bare `close`**, Use enables, the
+formula box fills. Both tests sat red across **four commits** because this file was not
+run. Fixed: the refusal cases move to `"60"` (still refuses), and the fold gets a case of
+its own at the door a member actually uses. ⛔ **The lesson is the timing: a ruling that
+turns a refusal into a fold owes its red tests the same re-freeze as a corpus number, in
+the commit that lands it.**
+
+### ⚠️ AND THE ACCEPTED DIVERGENCE ROW'S MEMBER HOOK DOES NOT REACH A MEMBER YET — RULING NEEDED
+
+`divergences.json::request-security-base-period-identity-vs-lookahead-off-step-back` is
+`accepted` with `member_hook: {kind: 'fold', name: 'baseTimeframeFolds'}`. The engine
+really does emit it (per output row, `pine.js:9870`) — **and no surface reads it**:
+
+```
+grep -rn "baseTimeframeFolds" app/src --exclude-dir=engine/ast   =>  (nothing)
+```
+
+Per the schema's own words, *"`accepted` means the member is TOLD — a row nobody is told
+about is merely KNOWN"*. The channel exists and the renderer does not. ⭐ There is an
+exact precedent to copy: `pine-vendor-notes`, which renders *"maths we RAN and ran
+differently"* for the active output and deliberately sits apart from the "lines a screen
+does not read" list. **What I need from you:** whether to render the fold there, and
+whether the sentence is composed in the component (against the file's stated discipline
+that it writes no sentence of its own) or declared once in `closedTable.json`. I did not
+invent member copy for this.
+
+### The roster and both rails: the THIRD two-lane split, caught by the other lane again
+
+New row `running-extreme-folded-to-a-250-bar-window`, status **`corrected`** — not
+`accepted`: after the fix we produce no number at all, so an accepted row would owe a
+member a sentence about a difference that no longer exists. It carries the before/after,
+the five movers, and what would reopen it.
+
+⚠️⚠️ **And the Python rail failed it while the JS rail passed it.** `test_vendor_truth.py`
+has always required `decision.what_changed` and `correctedIn` on a corrected row;
+`vendorTruth.test.js` did not know either field existed. That is the **third** instance of
+the exact split `divergences.schema.json` was created to end (after `decision`-as-a-string
+and `why_keep_ours`). Both are declared in the shared schema now,
+`decision_required_keys_when_corrected` + `corrected_requires_correctedIn`, and **both
+lanes read them from it** — the Python lane's hardcoded list is gone. JS 1 file green,
+Python 24 passed.
+
+`closedTable.json::_no_offset_reopened_by` gains the R-F addendum: the narrowing went the
+*other* way and the clause governs it too — nothing the linter decides changed, and the
+ruling moves scripts OUT of the translating set, never in.
+
+`docs/superpowers/plans/2026-08-11-plain-recurrence-implementation.md` — the OBV
+incident's home — gains the one line R-F asked for, citing this as the **second instance
+of the class**, with the five movers.
+
+### ⭐ R-A3, recorded as a ruling
+
+The refuse-with-offer fallback **stands** as the answer to R-A/R-A2. The R-A2 measurement
+(our window vs TradingView's all-time max) is **moot and will not be run**: with ours
+refusing there is no number of ours to put beside it. Written into the divergence row's
+`probe.under_tradingview` as *not captured, by ruling*, so nobody later reads the blank as
+an omission.
+
+### Suite state — every remaining red was red before R-F, and that is MEASURED
+
+```
+app/src/components/chart/   412 files   11 failed / 401 passed     25 -> 22 failing tests
+```
+
+⛔ **I did not take this on faith.** I swapped `HEAD`'s `pine.js` in, ran the same 15
+files, and put the R-F file back byte-identical (`cmp` clean). Every one of the 11 was
+already red at `fc6fa2037`; the three that R-F broke — `paramSingleTranslation`,
+`builderInputs.symbolClosure`, `graphSaveDoor` — are fixed, and `pine.corpus` went from 4
+failures to green. Then I swapped in the pre-**today** `pine.js` to be sure none of
+today's committed rulings caused the rest: the same 11 fail there too, except the two
+3.5 cases above, which are now fixed.
+
+**Routed, not ours (11 files, 22 tests) — and it is ONE cause for five of them:**
+
+| class | files | what it is |
+|---|---|---|
+| `tests/fixtures/pine_oos/*.pine` **absent** | `documentSize.measure`, `graphSize.measure`, `objectLadder` (×2), `visualParitySet` | the directory holds only the `.json` results; the `.pine` sources are not in this worktree, so the read ENOENTs |
+| the same gap as a COUNT | `objectDemandCensus`, `visualDemandCensus` (30 vs 60), `capabilityDemandCensus`, `historyDemandCensus` (129 vs >150) | half the frozen 60 is unreadable, so every census floor misses by about half |
+| UI doors, unrelated to the engine | `pineBoxSuggestVoice` (×3), `ImportBox.thinkscript`, `BuilderSheet.pine` (the save-door `sent.id`) | `import-suggest` / `pine-output-refusal-1` never render; fails identically on pre-today `pine.js` |
+
+⭐ **The census floors and the missing corpus are one fact, not two**, which is worth
+saying because four separate red tests read like four problems. The `pine_oos` `.pine`
+sources are the thing to land — and that is the same corpus the 30-row `pine_oos` table on
+the remainder list is about.
+
 ## 🧾 SESSION 1 — WHERE VOLUME STANDS, VERBATIM, AND THE RE-RUN DRY-RUN
 
 ```
@@ -1105,6 +1321,8 @@ and expected — it was always there and translation never reached it because ba
 first. `pine:window` 233 is the bind-time fold, the **other session's** work.
 
 ## Three-number metric: **32/266 host · 46/266 screener** — re-derived 2026-09-11
+
+⚰ **SUPERSEDED TWICE SINCE — read the R-F section at the top of this file.** Ruling 3.5 took it to 33/266 · 47/266 and ruling R-F to **31/266 · 46/266** (2026-09-12). The producer is still `corpusMetric.test.js` and the artifact is still `tools/corpus_metric.json`, whose `measured_at` is now derived from the run rather than typed. This heading is kept because the paragraphs under it are the record of how the first drift was found.
 
 ⚰️ **IT READ 30/266 · 45/266 AND HAD BEEN STALE SINCE BEFORE TONIGHT.** Measured at
 `b72a0bfe7` by `corpusMetric.test.js`, which is now the producer — the old pair came

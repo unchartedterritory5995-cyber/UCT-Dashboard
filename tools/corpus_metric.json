@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-09-11",
+  "measured_at": "2026-09-12",
   "scripts": 266,
-  "host_ok": 33,
-  "screener_ok": 47,
+  "host_ok": 31,
+  "screener_ok": 46,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -170,12 +170,14 @@
       "screener": false,
       "hostGuards": [
         "pine:declaration-strategy",
+        "pine:state",
         "pine:block",
         "pine:builtin",
         "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
+        "pine:state",
         "pine:block",
         "pine:builtin",
         "pine:strategy-call"
@@ -214,10 +216,14 @@
     },
     {
       "file": "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
-      "host": true,
-      "screener": true,
-      "hostGuards": [],
-      "screenerGuards": []
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
     },
     {
       "file": "atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
@@ -575,10 +581,12 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:arity"
+        "pine:arity",
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:arity"
+        "pine:arity",
+        "pine:state"
       ]
     },
     {
@@ -2459,10 +2467,14 @@
     },
     {
       "file": "supertrend-explorer__V4MsmtCeKs.pine",
-      "host": true,
+      "host": false,
       "screener": true,
-      "hostGuards": [],
-      "screenerGuards": []
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
     },
     {
       "file": "supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
@@ -2483,10 +2495,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy"
+        "pine:declaration-strategy",
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:declaration-strategy"
+        "pine:declaration-strategy",
+        "pine:state"
       ]
     },
     {

@@ -47,6 +47,11 @@ const DIR = path.resolve(__dirname, '../../../../../tools/c0_oos_fixtures')
 /** The eight C0 SAVE_BLOCKED scripts, with the identifier each refused on. */
 const BLOCKED = [
   ['high_engagement__02-waddah-attar-explosion-lazybear', 'mult'],
+  // ⚰ R-F (2026-09-12): this one REFUSES now (`pine:state` — its Supertrend band was
+  // folding to a 250-bar rolling min), so every loop below passes VACUOUSLY for it: a
+  // script with no carried formula reads no unbacked name. Kept because it is the
+  // historical record of which eight were save-blocked, and the vacuity is asserted by
+  // name in `⚰ one of the eight no longer translates` rather than left to be noticed.
   ['high_engagement__03-supertrend-kivancozbilgic', 'Multiplier'],
   ['high_engagement__12-cm-ultimate-rsi-mtf-chrismoody', 'upLine'],
   ['long_tail__13-volatility-of-returns', 'showMa'],
@@ -127,15 +132,22 @@ describe('⛔ MUTATION CONTROLS — the audit must be able to FAIL', () => {
     // predicate — is what actually holds the invariant, and the mutation control
     // that matters is the next test. Saying that here rather than letting a
     // reader assume this line is load-bearing.
-    const src = read('high_engagement__03-supertrend-kivancozbilgic')
+    // ⚰ SPECIMEN MOVED 2026-09-12 (R-F). It was `…03-supertrend`/`Multiplier`; that
+    // script refuses now, so it has no usable output to fold an input INTO and
+    // `oldDeclarable` came back empty. `…13-spma-trend` carries the same class —
+    // uppercase-initial names the old filter would have declared — three of them.
+    // ⛔ AND THAT LEAVES THE CLASS ON ONE CORPUS SCRIPT, which is the coverage R-F
+    // actually cost here. The written witness below restores a second one, under the
+    // original name, where no future ruling can take it away.
+    const src = read('mid_engagement__13-spma-trend')
     const probe = translatePine(src, { paramManifest: true, declareInputs: 'all' })
     const usable = (probe.outputs || []).filter((o) => !o.refusal && o.formula)
     const oldDeclarable = [...new Set(usable.flatMap(
       (o) => (o.inputsFolded || []).filter((e) => e.name).map((e) => e.name)))]
-    expect(oldDeclarable).toContain('Multiplier')
-    expect(memberInputKey('Multiplier')).toBeNull()
+    expect(oldDeclarable).toContain('GateInp')
+    expect(memberInputKey('GateInp')).toBeNull()
     // The shipped door does not declare it, by either mechanism.
-    expect(translate(src).declared).not.toContain('Multiplier')
+    expect(translate(src).declared).not.toContain('GateInp')
   })
 
   // ⭐⭐ THE CLOSURE LOOP'S OWN WITNESS, AND IT TOOK THREE TRIES TO FIND ONE.
@@ -183,8 +195,10 @@ plot(close * lineWidth, title = "X")
     // `usedInputs[]` gaining `name`"* for a name that was RIGHT THERE. It sent
     // this session looking for a hand-back that had shipped long ago. A refusal
     // that names the wrong cause is worse than a vague one.
-    for (const [script, id] of [['high_engagement__03-supertrend-kivancozbilgic', 'Multiplier'],
-      ['mid_engagement__13-spma-trend', 'GateInp']]) {
+    // ⚰ 2026-09-12: the `…03-supertrend`/`Multiplier` pair left this loop with R-F — a
+    // refused script reports no skipped inputs, because nothing got as far as folding
+    // one. `UPPERCASE_INITIAL` below carries that name now.
+    for (const [script, id] of [['mid_engagement__13-spma-trend', 'GateInp']]) {
       const t = translate(read(script))
       const hit = (t.outputs || []).flatMap((o) => o.skippedInputs || [])
         .find((s) => s && s.name === id)
@@ -192,6 +206,56 @@ plot(close * lineWidth, title = "X")
       expect(hit.reason).toMatch(/not a legal member-input key/)
       expect(hit.reason).not.toMatch(/no bound name/)
     }
+  })
+
+  // ⭐⭐ THE WRITTEN WITNESS FOR THE UPPERCASE-INITIAL CLASS (2026-09-12). The class had
+  // two corpus witnesses, `Multiplier` and `GateInp`; R-F removed the script the first
+  // one lived in. A class held up by ONE fixture is one ruling away from being held up
+  // by none — this repo's own lesson — so the name that opened C0R keeps a home that
+  // does not depend on any published script continuing to translate.
+  const UPPERCASE_INITIAL = `//@version=5
+indicator("Upper", overlay = false)
+Multiplier = input.float(2.0, "Multiplier")
+plot(ta.atr(14) * Multiplier, title = "X")
+`
+
+  it('⭐ `Multiplier` keeps its witness — declared by nobody, folded, and reported', () => {
+    const t = translate(UPPERCASE_INITIAL)
+    expect(memberInputKey('Multiplier')).toBeNull()
+    expect(t.declared).not.toContain('Multiplier')
+    const out = (t.outputs || []).find((o) => o && o.formula)
+    // ⭐ THE COLUMN IS STILL RIGHT — the default folds in, so the member loses the KNOB
+    // and not the indicator. That distinction is the whole argument of the skip reason.
+    expect(out.formula).toBe('atr(high, low, close, 14) * 2')
+    expect(seriesNamesOf(out.ast).has('Multiplier')).toBe(false)
+    expect([...unbackedDeclaredInputs(t.outputs, t.declared).keys()]).toEqual([])
+    const hit = (out.skippedInputs || []).find((x) => x && x.name === 'Multiplier')
+    expect(hit, 'Multiplier must be reported as skipped').toBeTruthy()
+    expect(hit.reason).toMatch(/not a legal member-input key/)
+    expect(hit.reason).not.toMatch(/no bound name/)
+  })
+
+  it('⚰ one of the eight is down to a single column, and it is the SCAFFOLDING', () => {
+    // ⛔ A VACUOUS PASS IS A SILENT LOSS OF COVERAGE unless somebody writes down which
+    // row went quiet. Under R-F `…03-supertrend` keeps ONE of its ten columns and the
+    // other nine refuse at `pine:state`, so every loop over BLOCKED still visits it and
+    // learns nothing about declared names — it declares none.
+    //
+    // ⚠⚠ AND THE ONE THAT SURVIVES IS `ohlc4`: the author's fill edge, not the band.
+    // The door therefore SELECTS it — `selected` is that output — so an import of this
+    // script offers a column called Supertrend that is the average of the bar. The
+    // refusals are named beside it, which is the door's stated policy, and whether a
+    // scaffolding column may be the SELECTED one is a product question this test does
+    // not settle. It is written down here because it is now reachable.
+    const t = translate(read('high_engagement__03-supertrend-kivancozbilgic'))
+    const carried = (t.outputs || []).filter((o) => o && o.formula && !o.hidden)
+    expect(carried).toHaveLength(1)
+    expect(carried[0].formula).toBe('(open + high + low + close) / 4')
+    expect(t.outputs[t.selected]).toBe(carried[0])
+    expect(t.declared || []).toEqual([])
+    const guards = (t.outputs || []).filter((o) => o.refusal).map((o) => o.refusal.guard)
+    expect(guards).toHaveLength(9)
+    expect(new Set(guards)).toEqual(new Set(['pine:state']))
   })
 
   it('an output whose rows are stripped IS reported unbacked — control for the audit', () => {

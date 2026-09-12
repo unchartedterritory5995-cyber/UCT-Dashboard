@@ -139,16 +139,24 @@
  },
  "10-supertrend.pine": {
   "version": 6,
-  "translates": true,
+  "translates": false,
   "outputs": 10,
-  "usable": 9,
-  "selectedFormula": "accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250) != accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250)[1]",
+  "usable": 0,
+  "selectedFormula": null,
   "downstream": {
    "ok": true,
    "guard": null,
    "repaint": "non-repainting"
   },
-  "perOutputRefusals": {},
+  "refusal": {
+   "guard": "pine:state",
+   "line": 39,
+   "column": 29,
+   "token": "["
+  },
+  "perOutputRefusals": {
+   "pine:state": 9
+  },
   "hiddenScaffolding": 1
  },
  "11-donchian-channel.pine": {

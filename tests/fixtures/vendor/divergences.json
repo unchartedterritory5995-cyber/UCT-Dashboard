@@ -456,6 +456,56 @@
         "name": "baseTimeframeFolds",
         "why": "⛔ There is no table function to hang a `vendorNote` on: `request`, `security`, `tf` and `sym` are none of them `closedTable.json::functions` entries, and the legacy derivation `id.split('-')[0]` therefore names nothing. The member is told by the disclosure the translation emits on the definition itself — `baseTimeframeFolds`, carrying the line, the requested timeframe, the base, and what it folded to. ⭐ This row is why the `fold` kind exists: the roster's `accepted` tier had assumed every divergence was function-level."
       }
+    },
+    {
+      "id": "running-extreme-folded-to-a-250-bar-window",
+      "shape": "recurrent-state",
+      "status": "corrected",
+      "confidence": "measured",
+      "ours": "⛔ NOW: `var float m = na` plus `m := math.max(m, x)` REFUSES at `pine:state`, and the refusal names the bounded call — `highest(<that value>, <bars>)` — with the window left with the member. ⚰ BEFORE 2026-09-12 it FOLDED: `accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)`, ok:true, no disclosure and no window shown. `accum` re-seeds `PINE_STATE_WARMUP` = 250 bars back, so the column answered \"the highest of the last 250 bars\" to a member who wrote \"the highest ever\".",
+      "theirs": "Pine keeps the extreme from the first bar the script ran on, for as long as it has run — an all-time value that moves with however many bars were loaded. That is the documented behaviour of a `var` assignment plus `math.max`, stated here as such: it is not a capture, and this row does not pretend to one.",
+      "why_it_matters": "⛔⛔ IT IS THE SECOND INSTANCE OF THE CLASS THE CONVERGENCE GATE WAS BUILT FOR. That gate's own comment cites the first: \"a 250-bar ROLLING SUM presented as OBV, on every bar, drawing a line nobody would question\". The gate caught `+` and `forgetsItsSeed` admitted `min`/`max` beside it, because its admit arm asked only whether the recurrence forgets its SEED — true of a running max, where the seed stands until something exceeds it — and said nothing about the WINDOW. ⭐ And the shape is not exotic: every script that moved is a trailing stop or a Supertrend band, which is exactly what a member reaches for when they want a level that only ratchets.",
+      "code": "`app/src/components/chart/engine/ast/pine.js::forgetsItsSeed` — the removed arm is quoted at the site with the one-line narrowing a future ruling would use — and `monotoneFoldOffer`, which composes the bounded-form sentence the refusal carries. Tests: `pine.accumulatorOffer.test.js` (the refusals plus both R-F controls) and `pine.variables.test.js` (the two pinned cases, flipped).",
+      "probe": {
+        "case": "`var float m = na` then `m := math.max(m, volume)`, one plot, nothing else — the smallest script that distinguishes a running extreme from a windowed one.",
+        "under_ours": "`pine:state`, with \". THIS ENGINE DOES DECLARE A BOUNDED FORM: `highest(<that value>, <bars>)` — the highest over a window you name.\" appended. Measured 2026-09-12 in `pine.accumulatorOffer.test.js`.",
+        "under_tradingview": "⚠ NOT CAPTURED, BY RULING. R-A3 (owner, 2026-09-12) ruled the all-time-max capture moot: with ours refusing there is no number of ours to place beside it. The vendor side is the language's documented behaviour, and the row says so rather than implying a reading nobody took.",
+        "under_the_engine_before_R_F": "`accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)` with `ok: true` — reproducible by restoring the quoted arm in `forgetsItsSeed`, which is the mutation the two flipped tests now catch.",
+        "discriminates": "⭐ A SERIES LONGER THAN THE WARMUP IS THE WHOLE PROBE. Inside 250 bars the folded answer and the running one agree exactly — which is why nothing caught this for three weeks, and why a short fixture cannot. Past 250 bars they diverge whenever the all-time extreme is older than the window, and the folded column then STEPS DOWN, which a running extreme can never do."
+      },
+      "observation_ids": [],
+      "measured": {
+        "by": "this engine, both lanes, over the 266-script corpus",
+        "on": "2026-09-12",
+        "how": "Removed the `min`/`max` arm from `forgetsItsSeed`, re-derived the corpus metric, and named every script whose verdict moved.",
+        "host_before": 33,
+        "host_after": 31,
+        "screener_before": 47,
+        "screener_after": 46,
+        "movers": [
+          "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+          "supertrend-explorer__V4MsmtCeKs.pine",
+          "10-supertrend.pine",
+          "05-chandelier-exit.pine",
+          "04-ut-bot-alerts.pine"
+        ],
+        "_movers": "⭐ EVERY ONE IS A TRAILING STOP OR A SUPERTREND BAND, which is the evidence that the admit arm was not catching an edge case. They are CORRECT losses: a count that falls because a wrong answer stopped being produced got more true, not less."
+      },
+      "decision": {
+        "ruled": "R-F (owner, 2026-09-12) — fix, not route, the shipped defect: `forgetsItsSeed` admits `+` only, and a bare monotone max/min refuses with the same offer sentence.",
+        "what_changed": "A bare monotone `max`/`min` accumulator no longer folds: it refuses at `pine:state` in BOTH lanes, and the refusal names the bounded call with the window left with the member. `forgetsItsSeed` now admits `+` only, so a CONTRACTING recurrence still folds to `accum` with its window and an explicit-window call still translates untouched — both pinned as controls in `pine.accumulatorOffer.test.js`.",
+        "prior_ruling": "R-A2 (owner, 2026-09-12) authorised the hand-back that names the bounded call. Its measurement is what surfaced this: the offer was built for the `+` case, and the `max` case turned out not to refuse at all.",
+        "what_happened": "⚰ THE DEFECT HAD BEEN CODIFIED IN A TEST WHOSE TITLE NAMED THE USE CASE — `pine.variables.test.js`, \"a running maximum, which is the shape a trailing stop is built from\", asserting the 250-bar fold as correct. And the 2026-08-11 version of its companion case had been RIGHT (`ok === false`, `pine:state`, \"a trailing stop being state by construction\") until an 08-12 correction replaced it with \"IT TRANSLATES\". Both are flipped, and both histories are kept in place rather than rewritten.",
+        "what_would_reopen_it": "⚠ A DECAYING extreme — `m := math.max(m * 0.9, close)` — really does forget its seed and is refused too, which is a named, deliberate over-refusal in the safe direction. Narrowing to it is one line: swap `ok` for a `contracts` predicate in a restored arm, admitting a self operand only where its coefficient contracts over the warmup. Not done on spec, because no corpus script writes it."
+      },
+      "correctedIn": "R-F, 2026-09-12 — `forgetsItsSeed`'s `min`/`max` arm removed; corpus re-frozen at host 31/266 and screener 46/266",
+      "downstream_consumers": {
+        "_": "⭐ WHAT THE CORRECTION COST ELSEWHERE, recorded here rather than as rows of its own. After the fix this is not a vendor divergence at all — we produce no number — so an `accepted` row would owe a member a sentence about a difference that no longer exists.",
+        "frozen_counts": "`pine.corpus` 15→14 translating and 55→46 columns; `doorScorecard` OPEN 8→10; `constructCoverage` persistent-state 14→11; `pine.paramCorpusCount` 15→14, 31→29, 1208→536; `pine.community` 19→17 with two new guard rows; `tools/corpus_metric.json` 33/47 → 31/46.",
+        "builder_lane": "`high_engagement__03-supertrend-kivancozbilgic` keeps ONE of its ten columns — the author's `ohlc4` fill edge — so its save document fell from ~438KB to 1.1KB and is no longer a graph document at all. Three builder specimens moved to scripts that still translate (`paramSingleTranslation`, `builderInputs.symbolClosure`, `graphSaveDoor`), each with the move stated at the line.",
+        "compat_harness": "`tests/fixtures/compat_harness/results/public_script/05-chandelier-exit.json` regenerated: translate SUPPORTED → UNSUPPORTED at `pine:state`, screener eligibility with it."
+      },
+      "bounds": "⚠ THE VENDOR SIDE IS DOCUMENTED BEHAVIOUR, NOT A CAPTURE (R-A3). What is measured is ours, on both lanes, before and after — and the claim this row makes is about our own two behaviours, which is why it is `corrected` rather than `accepted`."
     }
   ]
 }

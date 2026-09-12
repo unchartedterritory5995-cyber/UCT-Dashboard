@@ -89,6 +89,8 @@ the second will look like a regression of the first. The vendor reading needed i
 unlocks anything alone — every one of these nine sits in a script with other refusals, so
 adding all nine moves the strict count by **zero** unless the rest of those scripts also clear.
 
+⚰ **STALE SINCE 2026-09-12 — the metric is now 31/266 host · 46/266 screener.** Ruling 3.5 took it to 33/47 and ruling R-F to 31/46 (five trailing-stop / Supertrend scripts correctly left the translating set). The producer is `app/src/components/chart/engine/ast/corpusMetric.test.js` and the artifact is `tools/corpus_metric.json`; the numbers below are kept as the reading they were taken at, not as current.
+
 ⛔ So this list is a **vocabulary backlog, not an unlock plan**. The unlock plan is
 `r11-vocabulary-gap.md`'s Group C census (31 scripts blocked solely by a dotted name). Working
 this list top-down and expecting 32/266 to move would be measuring the wrong thing — which is

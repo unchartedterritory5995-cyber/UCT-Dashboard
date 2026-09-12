@@ -38,8 +38,11 @@ describe('the community corpus, by name', () => {
     '01-squeeze-momentum-lazybear.pine',
     '02-wavetrend-oscillator-lazybear.pine',
     '03-cm-williams-vix-fix.pine',
-    '04-ut-bot-alerts.pine',
-    '05-chandelier-exit.pine',
+    // ⚰️ '04-ut-bot-alerts.pine' AND '05-chandelier-exit.pine' WERE HERE and came out
+    // 2026-09-12 by ruling R-F — roster 19 → 17. Both were passing on the silent
+    // max/min fold: a 250-bar rolling window standing in for an all-time one. Both are
+    // TRAILING STOPS, so the wrong window put a stop in the wrong place. A roster that
+    // shrinks because a wrong answer stopped being produced has got MORE true.
     '06-qqe-mod.pine',
     // ⭐⭐ TWO WALLS FELL IN ONE SESSION AND THE SECOND WAS INVISIBLE BEHIND THE
     // FIRST. `haopen = na(haopen[1]) ? … : …` is Pine's plain self-referencing

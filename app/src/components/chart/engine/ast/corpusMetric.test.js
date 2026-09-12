@@ -65,8 +65,13 @@ describe('the committed corpus, both lanes', () => {
     console.log(`  translatePine THREW on  ${threw.length} (see rows)`)
     /* eslint-enable no-console */
 
+    // ⚰ `measured_at` WAS A HAND-TYPED '2026-09-11' AND WENT STALE THE FIRST TIME THE
+    // METRIC MOVED: ruling R-F re-derived it on 2026-09-12 and the artifact still said
+    // yesterday — a stamp claiming to date a measurement, dating the last time someone
+    // edited the literal. It is derived from the run now, so the only way for it to be
+    // wrong is for the file not to have been regenerated, which is the thing it should say.
     fs.writeFileSync(OUT, `${JSON.stringify({
-      measured_at: '2026-09-11',
+      measured_at: new Date().toISOString().slice(0, 10),
       scripts: rows.length,
       host_ok: hostOk,
       screener_ok: screenerOk,

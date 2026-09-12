@@ -132,6 +132,8 @@ Measured 2026-09-09 over all 266 committed scripts, in-process, after the
 
 ## (c) The three-number metric — and how many scripts the hang masked
 
+⚰ **STALE SINCE 2026-09-12 — the metric is now 31/266 host · 46/266 screener.** Ruling 3.5 took it to 33/47 and ruling R-F to 31/46 (five trailing-stop / Supertrend scripts correctly left the translating set). The producer is `app/src/components/chart/engine/ast/corpusMetric.test.js` and the artifact is `tools/corpus_metric.json`; the numbers below are kept as the reading they were taken at, not as current.
+
 | | before | after |
 |---|---|---|
 | ok **strict** | 32/266 | **32/266** |

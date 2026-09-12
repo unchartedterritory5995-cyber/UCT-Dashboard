@@ -84,39 +84,70 @@ describe('an unbounded accumulator refuses, and the refusal names the bounded fo
   })
 })
 
-// ─── ⚠️⚠️ THE FINDING THIS RULING UNCOVERED, PINNED SO IT CANNOT BE LOST ──────
+// ─── ⛔⛔ R-F — THE SHIPPED DEFECT, FIXED (owner ruling, 2026-09-12) ─────────
 //
-// A BARE monotone max/min accumulator does NOT refuse — it folds, to a 250-bar rolling
-// window, and has done since the convergence gate shipped. `forgetsItsSeed` admits
-// `min`/`max` against a self-free operand because they "forget once that operand
-// dominates", which is true about the SEED and silent about the WINDOW: `accum` re-seeds
-// `PINE_STATE_WARMUP` bars back, so the column answers "the highest of the last 250
-// bars" to a member who wrote "the highest ever".
+// ⚰️ A BARE MONOTONE max/min ACCUMULATOR USED TO FOLD, SILENTLY, TO A 250-BAR ROLLING
+// WINDOW. `forgetsItsSeed`'s min/max arm read `withSelf.length === 1 && ok(withSelf[0],
+// true)`, and `ok` returns TRUE for bare `self` — so `max(self, y)` was declared
+// seed-forgetting when a running max never forgets: the seed stands until something
+// exceeds it. A member who wrote "the highest ever" got "the highest of the last 250
+// bars", with ok:true, no refusal, no disclosure and no window shown.
 //
-// ⛔ THAT IS THE SAME DEFECT THE CONVERGENCE GATE WAS BUILT FOR — its own comment cites
-// "a 250-bar ROLLING SUM presented as OBV, on every bar, drawing a line nobody would
-// question". The gate caught `+` and admitted `max`/`min`.
+// ⛔ SECOND INSTANCE OF THE OBV CLASS. The convergence gate cites the first — "a 250-bar
+// ROLLING SUM presented as OBV" — and caught `+` while this arm admitted min/max.
 //
-// ⚠️ NOT CHANGED HERE. Refusing it would be member-visible on every shipped definition
-// that uses the shape, so it is the owner's call, routed with this measurement. These
-// tests PIN the current behaviour so the decision is made deliberately rather than
-// discovered later.
-describe('⚠️ ROUTED: a bare monotone accumulator folds to a ROLLING window today', () => {
-  it('pins it — `max` folds to accum(…, 250), not to an all-time high', () => {
-    const r = translatePine(`${H}var float m = na\nif bar_index > 0\n    m := math.max(m, volume)\nplot(m)\n`,
+// ⭐⭐ AND IT WAS NOT HYPOTHETICAL. Removing the arm moved TWO committed corpus scripts
+// out of the passing set, and both are TRAILING STOPS built on a running max:
+//   atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine  `math.max(nz(Trail1[1],0), SC - SL1)`
+//   supertrend-explorer__V4MsmtCeKs.pine          `max(up, up1)` / `min(dn, dn1)`
+// They were passing ON the silent fold, so they were passing WRONG — a trailing stop
+// computed over a rolling 250 bars is a stop in the wrong place. Correct losses.
+describe('R-F — a bare monotone accumulator REFUSES, and says what to write instead', () => {
+  const maxSrc = 'var float m = na\nif bar_index > 0\n    m := math.max(m, volume)\nplot(m)'
+  const minSrc = 'var float m = na\nif bar_index > 0\n    m := math.min(m, volume)\nplot(m)'
+
+  it('⛔ `max` refuses — it used to fold to accum(…, 250) with ok:true', () => {
+    const r = host(maxSrc)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:state')
+    expect(r.message).toContain('BOUNDED FORM')
+    expect(r.message).toContain('highest(<that value>, <bars>)')
+  })
+
+  it('⛔ `min` likewise, and through the SAME door with the SAME wording', () => {
+    const r = host(minSrc)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:state')
+    expect(r.message).toContain('lowest(<that value>, <bars>)')
+    // One message, one door: the sentence a member reads here is the one Volume:284
+    // reads, differing only in which bounded call it names.
+    expect(r.message).toContain('Stating the window is what makes the answer the same tomorrow')
+  })
+
+  it('⭐ CONTROL: a CONTRACTING recurrence still folds to `accum` WITH its window', () => {
+    // The family `forgetsItsSeed` exists to admit, and the one thing R-F must not break:
+    // an EMA-shaped `self * k + x * (1-k)` really does forget its seed.
+    const r = translatePine(`${H}var float e = 0.0\nif bar_index > 0\n    e := e * 0.9 + close * 0.1\nplot(e)\n`,
       { strict: true })
     expect(r.ok).toBe(true)
     const out = (r.outputs || []).find((o) => o.refusal === null)
-    expect(out.formula).toBe('accum(0 / 0, barindex > 0 ? max(self, volume) : self, 250)')
-    // ⛔ THE NUMBER IS THE POINT: 250 is a window, and the member asked for all of time.
+    expect(out.formula).toBe('accum(0, barindex > 0 ? self * 0.9 + close * 0.1 : self, 250)')
     expect(out.formula).toContain('250')
   })
 
-  it('pins `min` the same way', () => {
-    const r = translatePine(`${H}var float m = na\nif bar_index > 0\n    m := math.min(m, volume)\nplot(m)\n`,
-      { strict: true })
+  it('⭐ CONTROL: an explicit-window call still translates untouched', () => {
+    const r = translatePine(`${H}plot(ta.highest(volume, 2500))\n`, { strict: true })
     expect(r.ok).toBe(true)
     const out = (r.outputs || []).find((o) => o.refusal === null)
-    expect(out.formula).toBe('accum(0 / 0, barindex > 0 ? min(self, volume) : self, 250)')
+    expect(out.formula).toBe('highest(volume, 2500)')
+  })
+
+  it('⚠️ the DECAYING max is refused too — a named, deliberate over-refusal', () => {
+    // `max(self * 0.9, close)` genuinely does forget, and it refuses now. The safe
+    // direction: a refusal a member can read beats a plausible wrong number. One line
+    // narrows it if a real script ever writes one — no corpus script does.
+    const r = host('var float m = na\nif bar_index > 0\n    m := math.max(m * 0.9, close)\nplot(m)')
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:state')
   })
 })

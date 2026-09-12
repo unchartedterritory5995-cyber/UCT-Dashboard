@@ -108,6 +108,14 @@ const REFUSES = Object.freeze({
   // ⭐ WAS `pine:window` @25 ON `len` — the computed windows `len / 2` and
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
   // in `closedTable.json` and not in `PINE_INEXPRESSIBLE` either.
+  // ➕➕ ADDED 2026-09-12 BY RULING R-F. Both were on the TRANSLATES roster and both
+  // were passing on a SILENT MISTRANSLATION: a bare monotone `max`/`min` accumulator
+  // folded to `accum(…, 250)`, a 250-bar ROLLING window standing in for an all-time
+  // one. ⛔ Both are TRAILING STOPS — UT Bot is a trailing-stop alert and Chandelier
+  // Exit is a trailing stop — so the wrong window put a member's STOP in the wrong
+  // place. They refuse now, and the refusal names the bounded form.
+  '04-ut-bot-alerts.pine': ['pine:state', 15, '['],
+  '05-chandelier-exit.pine': ['pine:state', 27, '['],
   '22-daily-weekly-monthly-highs-lows.pine': ['pine:collection', 132, 'array.get'],
   // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE as ['pine:request', 14,
   // 'request.security'] and it TRANSLATES now — ruling 3.5 (`29d64a2ef`, 2026-09-12):

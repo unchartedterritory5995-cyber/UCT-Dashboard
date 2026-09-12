@@ -356,7 +356,9 @@ def test_the_shared_schema_is_what_THIS_lane_enforces():
     again. This asserts the schema declares everything this lane enforces."""
     for key in ("required_fields", "decision_required_keys", "probe_required_keys",
                 "status_vocabulary", "member_hook_kinds",
-                "accepted_requires_member_hook"):
+                "accepted_requires_member_hook",
+                "decision_required_keys_when_corrected",
+                "corrected_requires_correctedIn"):
         assert key in _SCHEMA, f"the shared schema does not declare `{key}`"
     assert _SCHEMA["decision_required_on_status"] == ["accepted"], (
         "`decision` is read only on accepted rows; the schema must say so rather than "
@@ -450,15 +452,19 @@ def test_a_MEASURED_row_carries_the_measurement_and_a_suspected_row_does_not():
         # behaviour is now, WHICH commit did it, and what would reopen it.
         if row["status"] == "corrected":
             dec = row.get("decision") or {}
-            assert dec.get("ruled"), f"{row['id']}: corrected with no ruling"
-            assert dec.get("what_changed"), (
-                f"{row['id']}: corrected with no statement of what the behaviour is "
-                "NOW — a reader cannot tell a closed divergence from a stale row")
-            assert dec.get("what_would_reopen_it"), (
-                f"{row['id']}: corrected with no condition that would reopen it")
-            assert row.get("correctedIn"), (
-                f"{row['id']}: corrected in no named commit — the claim that ours "
-                "moved is unverifiable without one")
+            # ⚠ THESE KEYS WERE THIS FILE'S PRIVATE OPINION UNTIL 2026-09-12, and that is
+            # how a new corrected row came to pass the JS rail and fail here — the third
+            # time one lane enforced a field the other had never heard of. They now come
+            # from `divergences.schema.json`, which both lanes read, and the JS rail
+            # enforces the same list. Keep them there, never back here.
+            for key in _SCHEMA["decision_required_keys_when_corrected"]:
+                assert dec.get(key), (
+                    f"{row['id']}: corrected with no `decision.{key}` — a reader cannot "
+                    "tell a closed divergence from a stale row")
+            if _SCHEMA.get("corrected_requires_correctedIn"):
+                assert row.get("correctedIn"), (
+                    f"{row['id']}: corrected in no named commit — the claim that ours "
+                    "moved is unverifiable without one")
 
 
 # ─── 4. the findings, pinned so they expire honestly ─────────────────────────

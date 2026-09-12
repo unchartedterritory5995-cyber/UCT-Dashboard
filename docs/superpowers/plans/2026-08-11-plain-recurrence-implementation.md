@@ -194,6 +194,20 @@ note, do not delete them** — the guards they name are all still live.
   automated signal calls it a win — that is how attempt one nearly shipped.
 - Mutation-check at least: delete the convergence gate (OBV must red), return the
   memo unconditionally, and make `plainRecurrence` always take the INSIDE branch.
+- ⚰⚰ **R-F, 2026-09-12 — THE SECOND INSTANCE OF THE OBV CLASS, AND IT WAS INSIDE
+  THIS GATE.** `forgetsItsSeed` as written above carries an arm admitting `min`/`max`
+  against a self-free operand, and `ok()` returns true for bare `self` — so
+  `max(self, volume)` was declared seed-forgetting and folded to `accum(…, 250)`:
+  *the highest of the last 250 bars*, ok:true, answering a member who wrote *the
+  highest ever*. The gate caught `+` (the hand-rolled OBV above) and admitted the
+  running max beside it, for three weeks, on five published scripts — every one a
+  trailing stop or a Supertrend band: `atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine`,
+  `supertrend-explorer__V4MsmtCeKs.pine`, `10-supertrend.pine`,
+  `05-chandelier-exit.pine`, `04-ut-bot-alerts.pine`. The arm is removed; host 33→31
+  and screener 47→46 are correct losses. ⭐ The lesson for the next arm anybody adds
+  here: *"forgets its seed"* is a claim about the SEED and says nothing about the
+  WINDOW, and `accum` re-seeds `PINE_STATE_WARMUP` bars back — so an operator that
+  forgets only when an operand dominates has not forgotten anything a window can hold.
 - The Pine translator is JS-only, so there is no Python mirror — but the emitted
   tree is an ordinary `accum`, already parity-proven.
 

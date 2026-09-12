@@ -43,5 +43,12 @@
     "ruled",
     "why_keep_ours"
   ],
-  "_why_keep_ours": "⚠️ FOUND 2026-09-12, AND IT WAS PYTHON-ONLY. `test_vendor_truth.py` required `decision.why_keep_ours` on every accepted row and the JS rail did not know the field existed — the same split that let a `decision` string through. Declared here so both lanes ask for it. It is the ARGUMENT: why our convention stays, not merely that it was ruled."
+  "_why_keep_ours": "⚠️ FOUND 2026-09-12, AND IT WAS PYTHON-ONLY. `test_vendor_truth.py` required `decision.why_keep_ours` on every accepted row and the JS rail did not know the field existed — the same split that let a `decision` string through. Declared here so both lanes ask for it. It is the ARGUMENT: why our convention stays, not merely that it was ruled.",
+  "decision_required_keys_when_corrected": [
+    "ruled",
+    "what_changed",
+    "what_would_reopen_it"
+  ],
+  "corrected_requires_correctedIn": true,
+  "_corrected_contract": "⚠⚠ THE THIRD INSTANCE OF THE SPLIT THIS FILE EXISTS TO END, found 2026-09-12 by the Python lane on a new `corrected` row. `test_vendor_truth.py` required `decision.what_changed` and `correctedIn` on every corrected row; `vendorTruth.test.js` did not know either field existed, so the row passed the JS rail and failed the Python one — the same shape as the `decision`-as-a-string crash and the `why_keep_ours` gap already recorded above. Declared here so both lanes ask. ⛔ `corrected` switches OFF the `vendorNote` obligation, so it owes its own: WHO ruled, WHAT the behaviour is NOW, and WHICH commit or ruling moved it — otherwise it is a door out of the ledger."
 }

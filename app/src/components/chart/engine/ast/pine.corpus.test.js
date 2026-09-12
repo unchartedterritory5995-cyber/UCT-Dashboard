@@ -539,7 +539,13 @@ describe('the whole corpus, in one number', () => {
     // of the whole script. ⚠️ SO THE COVERAGE THIS FIXTURE CARRIED IS NOT LOST:
     // `perOutputRefusals` still records `pine:plot-offset` ×3, which is what the
     // "NOTHING is blocked on the bar offset any more" case downstream reads.
-    expect(translating).toBe(15)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F. `10-supertrend.pine` moved out of the
+    // translating set, and it is a CORRECT loss: it was folding its Supertrend band to
+    // `accum(… min(band, nz(self, …)) …, 250)` — a 250-bar ROLLING min presented as the
+    // running band, i.e. a trailing stop in the wrong place. It refuses at pine:state
+    // now. A count that went down because a wrong answer stopped being produced is a
+    // count that got MORE true, not less.
+    expect(translating).toBe(14)
     // ⚰️⚰️ 60 → 53 THE SAME DAY, AND THE SEVEN THAT LEFT WERE NEVER THERE.
     // The count went DOWN while a script was ADDED, which is the only reason
     // anybody looked: −8 from `03-rsi-directional-momentum-scanner`, +1 from 15.
@@ -573,7 +579,16 @@ describe('the whole corpus, in one number', () => {
     // own terms: the two columns are `(highest(high, 9) + lowest(low, 9)) / 2` and
     // its 26-bar twin, both of which read bars on every session and neither of which
     // is a folded-constant phantom. The three displaced plots still refuse.
-    expect(columns).toBe(55)
+    // ⚰⚰ 55 → 46 ON 2026-09-12, BY RULING R-F, AND THE NINE THAT LEFT ARE THE NINE
+    // `10-supertrend.pine` WAS OFFERING. Two plots, four `plotshape` markers and three
+    // `alertcondition`s, every one of them built on a band this engine was folding to a
+    // 250-bar rolling min/max — a member screening on "Supertrend flipped" was screening
+    // on a window nobody chose. They are a CORRECT loss, and the arithmetic is exact:
+    // the script's own usable count was 9 and the corpus number fell by 9.
+    // ⭐ Same reading as the `53 → 55` paragraph, in the other direction: a number that
+    // falls because a wrong answer stopped being produced is a number that got more true.
+    // If this climbs back to 55 without a named script, suspect the admission reopened.
+    expect(columns).toBe(46)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus

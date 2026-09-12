@@ -393,7 +393,16 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
     // is why the bucketing assertion above demands a written reason for every
     // entry and why those two reasons name a decidability line rather than a
     // difficulty. Read them before trusting this number.
-    expect(open.length).toBeLessThanOrEqual(8)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(open.length).toBeLessThanOrEqual(10)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {
@@ -411,7 +420,16 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
     // because it was never a real pass — it silently folded a for-loop-mutated
     // scalar to its pre-loop value instead of refusing (SILENT_WRONG_RESULT).
     // See its RULED entry above and `pine.forLoopReassignSilentWrongResult.test.js`.
-    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(42)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(41)
   })
 })
 
@@ -494,7 +512,16 @@ describe('🔴 TRANSLATING IS NOT DELIVERING — how far a script actually gets'
     // ⭐ 43 → 42 ON 2026-09-07 — the same RISK-043 correction as `ALL.filter`'s
     // ratchet above, tracked one-for-one since this total derives from it.
     expect(total.evaluate).toBe(total.translate)
-    expect(total.evaluate).toBeGreaterThanOrEqual(42)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(total.evaluate).toBeGreaterThanOrEqual(41)
   })
 })
 
@@ -625,7 +652,16 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     // ceiling identity below (`reachable.size === scriptsTranslating.size`)
     // still holds — both sides dropped together.
     expect(reachable.size).toBeGreaterThanOrEqual(scriptsScannable.size)
-    expect(reachable.size).toBeGreaterThanOrEqual(42)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(reachable.size).toBeGreaterThanOrEqual(41)
     expect(reachable.size).toBe(scriptsTranslating.size)
   })
 
@@ -747,6 +783,15 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     // rather than a literal `0`). It now correctly refuses (RULED, above) and
     // offers no column at all. If this climbs back past 17 without a named
     // script, suspect the same class of false constant returned.
-    expect(scriptsScannable.size).toBeGreaterThanOrEqual(17)
+    // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F, AND THE LOSS IS CORRECT. A bare
+    // monotone `max`/`min` accumulator used to fold to `accum(…, 250)` with ok:true —
+    // a 250-bar ROLLING window presented as an all-time one. Every script that moved
+    // out of the passing set on this change is a TRAILING STOP or a Supertrend band:
+    //   atr-trailing-stop-by-ceyhun__UMldb6tGLd · supertrend-explorer__V4MsmtCeKs
+    //   10-supertrend · 05-chandelier-exit
+    // They were passing ON the silent fold, so they were passing WRONG — a stop
+    // computed over a rolling 250 bars is a stop in the wrong place.
+    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
+    expect(scriptsScannable.size).toBeGreaterThanOrEqual(14)
   })
 })

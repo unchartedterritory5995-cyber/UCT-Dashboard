@@ -22,8 +22,31 @@ import { translatePine, PINE_TRANSLATE_BUDGET_MS, PINE_TRANSLATE_MAX_STEPS } fro
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\//, ''))
 const REPO = path.resolve(HERE, '../../../../../..')
-const NORMAL = path.join(REPO, 'tests/fixtures/pine/10-supertrend.pine')
+
+// ⚰⚰ THE VEHICLE MOVED ON 2026-09-12, AND WHY IT MOVED IS THE LESSON. This was
+// `10-supertrend.pine` — a script that translated clean, which is the whole premise
+// of the file: ask a NORMAL script to stop at an absurd budget. Ruling R-F removed
+// the min/max admission from `forgetsItsSeed`, so Supertrend now refuses
+// `pine:state` at every output — and a refused output stops resolving, so the
+// script that used to reach 500 resolution steps now stops at 389. Two caps in
+// this file went red, and the red was correct: the cap had nothing left to bound.
+//
+// ⛔ A REFUSED SCRIPT IS A BAD VEHICLE FOR A BUDGET TEST. Its resolution work is
+// truncated by the refusal, so the cap is measured against less machinery than it
+// ships against, and the test drifts quieter every time a guard gets stricter.
+// `13-average-true-range.pine` translates clean today, so the premise holds again —
+// and the control below asserts THAT, by name, so the next ruling that refuses this
+// script fails here with a sentence instead of silently measuring a truncated run.
+const NORMAL = path.join(REPO, 'tests/fixtures/pine/13-average-true-range.pine')
 const source = fs.readFileSync(NORMAL, 'utf8')
+
+// Measured 2026-09-12 on this file, with a counter in `checkBudget` (removed after):
+//   total resolution steps for the whole script .... 4,378
+//   largest SINGLE resolution ........................ 314
+//   therefore: every cap <= 300 fires, and 500 is clean.
+const CAP_FIRES = 300
+const CAP_CLEAN = 500
+const TOTAL_STEPS = 4378
 
 const guardsOf = (r) => [...new Set((r.refusals || []).map((x) => x.guard))]
 const timeoutsOf = (r) => (r.refusals || []).filter((x) => x.guard === 'pine:timeout')
@@ -54,11 +77,22 @@ describe('pine:timeout — the step cap', () => {
     expect(guardsOf(r)).not.toContain('pine:timeout')
   })
 
+  it('⭐⭐ THE PREMISE: the vehicle is a script this engine TRANSLATES', () => {
+    // ⛔ The file's claim is "a perfectly normal script refuses at an absurd
+    // budget". If the vehicle ever stops being normal, every cap below measures a
+    // run cut short by a refusal instead of the translator's real work — which is
+    // exactly what R-F did to `10-supertrend.pine`, quietly, in two assertions.
+    // So the premise is asserted, not assumed, and it names the guards it found.
+    const r = translatePine(source, { strict: true })
+    expect(guardsOf(r), 'the timeout vehicle must translate clean — pick a new one').toEqual([])
+    expect(r.ok).toBe(true)
+  })
+
   it('⛔ the cap is checked OUTSIDE the sampling mask', () => {
     // The first version gated the step cap behind the same 4096-step mask as the
     // clock, which made every cap below 4096 UNREACHABLE — a guard that could not
     // fire, and it looked entirely correct in review. Small caps must be honoured.
-    for (const maxSteps of [1, 10, 100, 500]) {
+    for (const maxSteps of [1, 10, 100, CAP_FIRES]) {
       const r = translatePine(source, { strict: true, maxSteps })
       expect(guardsOf(r), `maxSteps=${maxSteps}`).toContain('pine:timeout')
     }
@@ -67,12 +101,14 @@ describe('pine:timeout — the step cap', () => {
   it('⚠️ the cap is PER RESOLVER, not per script', () => {
     // `translatePine` builds one Resolver per output plus one for the object
     // pass, and `budgetSteps` lives on the Resolver. So the cap bounds a single
-    // resolution, not the script's total work: this script takes ~6,500 steps
-    // overall but its largest single resolution is under 1,000, which is why a
-    // cap of 1,000 is already clean. Anyone reading the shipped 5,000,000 as a
-    // whole-script ceiling would be over-estimating the headroom.
-    expect(guardsOf(translatePine(source, { strict: true, maxSteps: 500 }))).toContain('pine:timeout')
-    expect(guardsOf(translatePine(source, { strict: true, maxSteps: 1000 }))).not.toContain('pine:timeout')
+    // resolution, not the script's total work: this script spends 4,378 steps
+    // overall and its largest single resolution is 314, which is why a cap of 500
+    // is already clean while the script does fourteen times that much work.
+    // Anyone reading the shipped 5,000,000 as a whole-script ceiling would be
+    // over-estimating the headroom by more than an order of magnitude.
+    expect(TOTAL_STEPS / CAP_CLEAN).toBeGreaterThan(8)
+    expect(guardsOf(translatePine(source, { strict: true, maxSteps: CAP_FIRES }))).toContain('pine:timeout')
+    expect(guardsOf(translatePine(source, { strict: true, maxSteps: CAP_CLEAN }))).not.toContain('pine:timeout')
   })
 
   it('a cap of 0 disables the step guard', () => {

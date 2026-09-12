@@ -74,8 +74,22 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // ⚠️ SO A TRANSLATOR THAT GOT WORSE COULD STILL SHOW 15 — this pair moves for
     // corpus reasons as readily as for engine reasons, which is exactly why the
     // sibling pin below counts parameters and not scripts.
-    expect(translating.length, 'scripts that translate at all').toBe(15)
-    expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(15)
+        // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F — 15 → 14 scripts, 31 → 29 params,
+    // 1,208 → 536 locator occurrences. One script left the translating set:
+    // `10-supertrend.pine`, which was folding its Supertrend band to
+    // `accum(… min(band, nz(self, …)) …, 250)` — a 250-bar ROLLING min standing in for
+    // the running band. The locator drop is large because that one folded formula was
+    // enormous; losing a single WRONG script can move a total more than losing several
+    // right ones, which is why the movers are NAMED rather than the delta explained.
+expect(translating.length, 'scripts that translate at all').toBe(14)
+        // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F — 15 → 14 scripts, 31 → 29 params,
+    // 1,208 → 536 locator occurrences. One script left the translating set:
+    // `10-supertrend.pine`, which was folding its Supertrend band to
+    // `accum(… min(band, nz(self, …)) …, 250)` — a 250-bar ROLLING min standing in for
+    // the running band. The locator drop is large because that one folded formula was
+    // enormous; losing a single WRONG script can move a total more than losing several
+    // right ones, which is why the movers are NAMED rather than the delta explained.
+expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(14)
   })
 
   it('reproduces the "29 total adjustable parameters" claim under the distinct-id counting', () => {
@@ -90,7 +104,14 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // 14-script corpus; it stays reproduced there and superseded here.
     // ⛔ Do NOT "restore" 29 — that is precisely the silent restoration the pin
     // above forbids. If it ever reads 29 again, a script left the corpus.
-    expect(totalDistinctParams, 'sum of distinct parameter ids across all 15 scripts').toBe(31)
+        // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F — 15 → 14 scripts, 31 → 29 params,
+    // 1,208 → 536 locator occurrences. One script left the translating set:
+    // `10-supertrend.pine`, which was folding its Supertrend band to
+    // `accum(… min(band, nz(self, …)) …, 250)` — a 250-bar ROLLING min standing in for
+    // the running band. The locator drop is large because that one folded formula was
+    // enormous; losing a single WRONG script can move a total more than losing several
+    // right ones, which is why the movers are NAMED rather than the delta explained.
+expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(29)
   })
 
   it('pins the OTHER candidate counting as a separate, much larger, non-"29" metric', () => {
@@ -106,7 +127,14 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // point of keeping this metric beside the distinct-id one: a fixture swap that
     // moves distinct ids by 2 moves locators by 4, while a translator regression
     // that multiplies expansion moves this number and not the other.
-    expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 15 scripts').toBe(1208)
+        // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F — 15 → 14 scripts, 31 → 29 params,
+    // 1,208 → 536 locator occurrences. One script left the translating set:
+    // `10-supertrend.pine`, which was folding its Supertrend band to
+    // `accum(… min(band, nz(self, …)) …, 250)` — a 250-bar ROLLING min standing in for
+    // the running band. The locator drop is large because that one folded formula was
+    // enormous; losing a single WRONG script can move a total more than losing several
+    // right ones, which is why the movers are NAMED rather than the delta explained.
+expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(536)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {
