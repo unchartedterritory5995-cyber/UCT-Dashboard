@@ -1,5 +1,78 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · R-H — A MEMBER CANNOT VARY AN INPUT PER PANE INSTANCE TODAY
+
+**Owner ruling, 2026-09-12: accepted for this wave, routed for the next.**
+
+⛔ **THE CONSEQUENCE, PLAINLY.** A member's `input.int` that the translator folds
+becomes an **immutable parameter baked into the tree**, carried in
+`compute.paramManifest` with locators pointing at the literal — *not* a
+`defSchema` input an instance holds a value for. `applyParamEdit` rewrites that
+literal atomically (every locator's round-trip verifies, or nothing is written)
+and hands back a **new definition**.
+
+> **Two panes of one script that differ by a parameter are TWO DEFINITIONS, not
+> two instances.**
+
+Measured on `uncharted-volume-v2.pine`, Daily Length 50 vs 10: two ids, two
+distinct `compute.trees`, both valid, both installed. The T3 test is titled
+`TWO DEFINITIONS with different lookbackBarsHVE — not two instances`, because a
+title saying "two instances" would be the artifact that teaches the next
+engineer the wrong model.
+
+⏭️ **"INPUTS AS RUNTIME PARAMETERS" IS A NAMED WAVE-2 ITEM**, beside arrays and
+loops. It is required for the *user inputs editable* criterion, and that
+criterion is **not waived — only sequenced**.
+
+⚠️ **AND `lookbackBarsHVE` SPECIFICALLY CANNOT MOVE A PANE AT ALL**, for a
+different reason that is ruling D1's own consequence: `__uct_param_3` appears in
+the **HVE Trigger tree and nowhere else**, and D1 sends an `alertcondition` to
+Alerts rather than drawing it. Once the pane declines that row the knob has no
+drawn series left to move, and `memberPaneVariants` says so by name rather than
+installing two identical panes.
+
+---
+
+## ⭐⭐ SESSION 2 · R-G — FOUR READERS OF ONE WINDOW *(page entry; the code landed in `d098fa05d`)*
+
+**24 disagreements → 0** across 1,302 trees (corpus + member fixtures, both
+lanes). **`repaints` badges 20 → 0.** **Install census 9 → 25 of 269, no losses**,
+16 movers named in the commit. The corpus metric is unmoved at **31/44 of 266** —
+correct, because R-G changes what INSTALLS, not what translates.
+
+The rail found **four** instances of one defect class, not one:
+
+| # | shape | who had it right |
+|---|---|---|
+| 1 | bind-foldable window `isweekly ? lenWeekly : lenDaily` | `lint.js` only |
+| 2 | bind-time text `str`/`symtext`/`textop` | `ast_lint.py` only |
+| 3 | `lookback: "series"` (`ta.cum`) | `ast_lint.py` only |
+| 4 | the recurrence binding `self` | `lint.js` only |
+
+⛔ **A RAIL FIRED AND IT WAS RIGHT.** The first cut imported `ast_table` into
+`ast_lint`; `test_no_evaluator_is_reachable_from_the_linter` refused it — that
+module may import nothing outside the standard library, so a badge can never be
+reached by RUNNING a formula. The linter re-derives the walk from its own
+manifest read instead, which is the arrangement the file already documents for
+`SESSION_LOOKBACK` and `SERIES_LOOKBACK`: the one authority is
+`closedTable.json`, and the agreement rail binds the readers to it.
+
+⚠️ **AN UN-RULED WIDENING WAS PULLED BACK, AND IT IS AN OPEN QUESTION.**
+`parse.js::bindFoldableWindow` bounds a knob-defaulted window by its **default**;
+`ast_lint`'s docstring refuses to in writing — *"a window that changed with a knob
+is a window the badge cannot promise anything about"* — and it is right: the
+default promises something the member breaks by raising the knob. The two lanes
+have disagreed since **before** R-G, no corpus tree exhibits the shape, and R-G
+did not rule it. The readers R-G adds pass `allow_input_default=False`;
+`lint.js`'s existing behaviour is untouched. **Owner call.**
+
+⛔ **AND THE CORPUS ALONE PROVES NONE OF IT** — measured before the rail was
+written, `corpus/committed` agrees 643/643 both before and after, because it
+contains none of the four shapes. The population is corpus + member fixtures, the
+shapes are asserted present **by name**, and the comparison is exercised against
+synthetic disagreements including the form that actually shipped four times: one
+reader answering while the other refuses.
+
 ## ⭐⭐ SESSION 2 · R-I — THE PARITY HARNESS WAS MEASURING A CONSTANT
 
 ⚰️⚰️ `visualParitySet.test.js::documentOf` decided pane placement with

@@ -232,6 +232,12 @@ function memberInputSpecs(rows) {
  *  that literal and hands back a NEW definition, atomically (every locator's
  *  round-trip verifies before anything is written, or nothing is).
  *
+ *  ⭐⭐ RULING R-H (owner, 2026-09-12): ACCEPTED FOR THIS WAVE, ROUTED FOR THE
+ *  NEXT. "Inputs as runtime parameters" is a named wave-2 item beside arrays and
+ *  loops — it is required for the *user inputs editable* criterion, which is NOT
+ *  waived, only sequenced. Until it lands, a member cannot vary an input per
+ *  pane instance, and this function is the honest shape of what they CAN do.
+ *
  *  ⚠️ SO THE MEMBER-FACING FACT IS: varying a folded parameter costs a second
  *  definition, not a second instance. Written down here because the alternative
  *  — quietly installing one definition and hoping the instance carried the

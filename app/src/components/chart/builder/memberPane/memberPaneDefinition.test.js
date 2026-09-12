@@ -159,8 +159,8 @@ describe('⛔⛔ the gate is the pane gate, not a second opinion about it', () =
   })
 })
 
-describe('⭐⭐ two panes of one script that differ by a parameter', () => {
-  it('two definitions, two trees, one source', () => {
+describe('⭐⭐ TWO DEFINITIONS with different `lookbackBarsHVE` — not two instances', () => {
+  it('⭐ two DEFINITIONS of one script, two trees, one source', () => {
     // ⛔ TWO DEFINITIONS, NOT TWO INSTANCES, AND THAT IS THE FINDING. A folded
     // `input.int` becomes an IMMUTABLE parameter baked into the tree with
     // locators pointing at it — not a `defSchema` input an instance carries a
