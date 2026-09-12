@@ -262,6 +262,21 @@ function HubShell({ setToastMsg }) {
   // of the gesture it measures is not an instrument. React never reconciles this
   // attribute because no JSX prop declares it.
   const rootRef = useRef(null)
+  /**
+   * G3-15: the Actions button's measured width, so the chip can clear it.
+   *
+   * ⭐ STATE, NOT A REF, because the chip's anchor is rendered from it — a ref would hold the
+   * right number and paint the wrong box. `setActionsWidthPx` is passed straight down as
+   * `onMeasure`: React's setter is stable for the life of the component, which is what keeps the
+   * button's layout effect from re-subscribing on every render, and a repeat report of the same
+   * width bails out of re-rendering by identity.
+   *
+   * ⚠️ It starts at 0, which `HubChip` reads as "no button rendered" and leaves the chip where it
+   * was. That window is one layout pass long (`useLayoutEffect` runs before paint), so nothing is
+   * painted at the old anchor — but it is also why the chip must treat 0 as "don't move" rather
+   * than guessing a width: a guess would be a second authority over a number the button owns.
+   */
+  const [actionsWidthPx, setActionsWidthPx] = useState(0)
   // Filled by HubVoiceBridge only while a VoiceProvider is mounted; null elsewhere, so the
   // Voice action no-ops on a route with no voice rather than throwing.
   const voiceConnectRef = useRef(null)
@@ -543,6 +558,8 @@ function HubShell({ setToastMsg }) {
         ringName={state.dragging && state.ring != null ? RING_NAMES[state.ring] : null}
         mirrored={mirrored}
         modeColor={activeModeConfig?.color}
+        // G3-15 — the chip clears the Actions button by the button's own measured width.
+        actionsWidthPx={actionsWidthPx}
       />
       {/* onFeedback MUST be wired. With the hub enabled, Layout.jsx stops mounting
           `<FeedbackWidget/>` on touch (spec 2c), so an unwired entry here would not be a
@@ -573,6 +590,9 @@ function HubShell({ setToastMsg }) {
         // already answered. Without this line, someone who turned haptics off still feels the
         // sheet buzz. Same expression `useJoystick` reads (`settings.haptics !== false`).
         onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
+        // G3-15 — the button measures itself and reports up; HubChip renders off this and
+        // nothing re-types the number. See `HubChip.ACTIONS_CLEARANCE_PX`.
+        onMeasure={setActionsWidthPx}
       />
       {/* No toast here — see HubToastHost. Every message this feature shows is set by an
           action that unmounts this subtree. */}

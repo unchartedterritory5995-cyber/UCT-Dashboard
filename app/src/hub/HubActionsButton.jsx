@@ -1,7 +1,7 @@
 // HubActionsButton — the always-visible, WCAG 2.5.1 door to every action in the current mode.
 // See docs/plans/joystick/00-master-spec-v1.4.md §5 (Actions button) and §C2 (why it must exist).
 
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import Sheet from '../components/mobile/Sheet'
 import HubScrubRange from './HubScrubRange'
 import UIcon from '../components/ui/UIcon'
@@ -108,6 +108,10 @@ export default function HubActionsButton({
   // did before, rather than crashing on a missing prop.
   cueEl = null,
   cueClassName = '',
+  // ⭐ G3-15: the button reports its OWN rendered width upward, and nothing else may guess it.
+  // Optional — unwired, this reports nothing and the chip stays where it was, which is the
+  // pre-fix geometry rather than a crash. See the effect below.
+  onMeasure = null,
 }) {
   // ⚰️ THE `open` / `onOpenChange` PAIR IS GONE, with the gesture it existed for. This button was
   // made optionally controlled so the two-finger Peek could open the SAME sheet rather than a
@@ -125,6 +129,42 @@ export default function HubActionsButton({
   const sideStyle = mirrored
     ? { left: `${EDGE_OFFSET_PX + PAD_PX + INNER_GAP_PX}px` }
     : { right: `${EDGE_OFFSET_PX + PAD_PX + INNER_GAP_PX}px` }
+
+  /**
+   * ⛔⛔ G3-15 — READ AT LAYOUT, NEVER TYPED. The chip has to clear this button, and the owner's
+   * ruling is explicit that the number comes from the rendered box, not from a constant copied
+   * into `HubChip`. This is the only place that can honestly answer "how wide is it": the button
+   * declares `minWidth: MIN_TAP_PX` but its real width is whatever the icon, padding and the
+   * member's Dynamic Type setting make it, and a hand-typed 44 in the chip would be right until
+   * the first day it was not.
+   *
+   * ⭐ `useLayoutEffect`, not `useEffect`: the chip re-renders off this value, and a paint at the
+   * old anchor followed by a corrected one is a visible jump on every mount.
+   *
+   * ⚠️ `getBoundingClientRect()` RETURNS 0 IN JSDOM, which has no layout engine — so a bare
+   * measurement would report "no button" to every unit test and the chip would never move in any
+   * of them (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`: the rail would pass by
+   * measuring nothing). A zero therefore falls back to `MIN_TAP_PX`, which is not a hard-coded
+   * anchor — it is this button's OWN declared floor, from the same constant the inline style
+   * uses, and a real browser overrides it with the real number on the same frame.
+   *
+   * `ResizeObserver` keeps it honest afterwards (Dynamic Type, an icon swap); its absence is not
+   * an error, only the loss of the follow-up — jsdom ships none.
+   */
+  const btnRef = useRef(null)
+  useLayoutEffect(() => {
+    const el = btnRef.current
+    if (!onMeasure || !el) return undefined
+    const report = () => {
+      const measured = Math.round(el.getBoundingClientRect().width)
+      onMeasure(measured > 0 ? measured : MIN_TAP_PX)
+    }
+    report()
+    if (typeof ResizeObserver !== 'function') return undefined
+    const ro = new ResizeObserver(report)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [onMeasure])
 
   const handlePick = (action) => {
     if (idsHas(disabledIds, action.id)) return
@@ -163,6 +203,7 @@ export default function HubActionsButton({
     <>
       <button
         type="button"
+        ref={btnRef}
         className={styles.actionsButton}
         style={{
           ...sideStyle,

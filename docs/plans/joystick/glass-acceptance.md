@@ -209,11 +209,44 @@ the hint ("…next result") sits under the sliders icon.
 
 **Severity: cosmetic, plus a 40px hit-shadow over a readout.** The chip is a readout, so the
 swallowed taps land on the Actions button rather than on nothing, and nothing is lost but the
-last few characters of a hint. ⛔ **No fix is applied here.** A geometry change to a shipped
-control is the owner's call, and three one-line candidates exist — move the chip's anchor from
-`right: 118px` to `right: 164px`; give the chip a `max-width: calc(100% - 180px)` with
-`text-overflow: ellipsis`; or drop the chip below the button's band. Each changes what a member
-sees, so each wants a ruling, not an autonomous edit.
+last few characters of a hint.
+
+### ⭐ CONFIRMED ON A SECOND ENGINE, THEN FIXED — owner's ruling, 2026-09-12
+
+`python tools/hub_chip_clearance.py --base https://uctintelligence.com` drove headless Chromium
+at 360/375/430 against the **deployed** build, signed in as the smoke account, over all **nine**
+routed modes derived from `registry.js`:
+
+> **27 of 27 (mode × width) pairs failed. Every one at exactly 40 × 28 px**, and
+> `elementFromPoint` inside the chip returned `"<Mode> actions"` — the button — on 40+ sampled
+> points per pair. The iPhone measurement was not a device quirk, a mirror artifact or a
+> one-mode edge case; it is the shipped geometry on every routed mode at every width.
+
+**The owner's ruling (supersedes the three candidates above):** *the chip's right anchor moves
+inward by the Actions button's measured width plus 4px whenever the button is rendered — read the
+width at layout, never hard-code — and the chip keeps its truncation behaviour at the reduced
+width.* Applied:
+
+* `HubActionsButton` measures its own rendered box (`useLayoutEffect` + `ResizeObserver`) and
+  reports it up through `onMeasure`; `HubRoot` holds it; `HubChip` renders its anchor from it.
+  **Nobody re-types the width**, and the resulting gap is **8px whatever the button measures** —
+  both terms carry the width, so it cancels.
+* The ceiling moves with the anchor: `max-width: calc(100vw - (inset + 24)px)`, with
+  `.chipHint` ellipsising and `.chipMode` pinned at `flex: 0 0 auto`. Measured need: the widest
+  shipped chip is the Screener's at 229px, which at the new anchor would have left **−2px** of
+  gutter on a 393px viewport and **−35px** at 360 — it would have clipped off the far edge.
+
+**Rails.** `app/src/hub/hubChipActionsClearance.test.jsx` (11 cases: both hands × 360/375/430,
+the derived gap, the ceiling's derivation, and the CSS half) — **mutation-proved**: forcing the
+clearance to 0 turns 8 of the 11 red, and the three that stay green are exactly the three that
+should. The box arithmetic moved to `app/src/hub/__tests__/restBoxes.js` because
+`feedbackIsOneTap.test.jsx` already owned machinery that could have caught this and was pointed
+at one element only. `tools/hub_chip_clearance.py --self-check` covers six verdict cases plus a
+**real-Chromium fixture control** proving the sweep can return PASS as well as FAIL.
+
+⬜ **The row stays FAIL until the fix is on glass.** A green unit rail is a statement about
+declared offsets; this row is closed by re-running the sweep against the deployed fix, and by the
+Live session's own eyes. Until then the G1/G3 gate keeps it as a blocker (`rollout.md`).
 
 ### G3-16 (b) — MEASURED, 2026-09-12. (a) still needs a human eye.
 

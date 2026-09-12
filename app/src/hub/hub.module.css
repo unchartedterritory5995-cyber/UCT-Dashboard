@@ -222,10 +222,18 @@
   border: var(--hub-rim-width) solid var(--hub-rim);
   box-shadow: var(--hub-shadow);
   white-space: nowrap;
+  /* G3-15: the chip's ceiling is an inline `max-width` derived from its own anchor (HubChip.jsx).
+     Without `overflow: hidden` here that ceiling would clip nothing — the text would simply spill
+     past the rounded edge — so this is the half of the truncation that lives in the stylesheet. */
+  overflow: hidden;
   z-index: var(--z-hub-rest);
 }
 
+/* ⛔ THE MODE NAME NEVER YIELDS. Flex items default to `flex-shrink: 1`, so under the new ceiling
+   the label and the hint would ellipsise together and "SCREENER" would become "SCREEN…" — which
+   is the one string in this chip a member needs whole. The hint is the part that gives way. */
 .chipMode {
+  flex: 0 0 auto;
   font-weight: 500;
   font-size: var(--text-sm);
   letter-spacing: 0.06em;
@@ -234,6 +242,12 @@
 }
 
 .chipHint {
+  /* `min-width: 0` is load-bearing, not tidiness: a flex item's automatic minimum size is its
+     content, so without it `text-overflow` has nothing to overflow and the chip just gets wider
+     than its max-width instead of ellipsising. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
