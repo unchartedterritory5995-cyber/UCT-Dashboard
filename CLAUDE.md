@@ -1093,6 +1093,85 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
+## ⛔⛔ WORKTREE OWNERSHIP — A SESSION DELETES ONLY WHAT IT CREATED
+
+**Owner ruling, 2026-09-12, after a worktree was emptied WHILE another session
+was running tests in it.**
+
+> A session never runs `git worktree remove`, never runs `git worktree prune`,
+> and never deletes any directory under `C:\Users\Patrick\uct-worktrees\` that it
+> did not create **in that same session**. A cleanup or a prune is a
+> **stop-and-ask**, not a tidy-up.
+
+⛔ **THE OWNER FILE IS HOW YOU KNOW.** Every worktree carries
+`.uct-session-owner` at its root — gitignored, written at creation, naming the
+creating session id and the date. Before removing anything under
+`uct-worktrees\`, read it. **No owner file is not permission**; it means the
+worktree predates the rule, and that is a stop-and-ask too.
+
+```
+# at creation, always
+git worktree add <path> <branch>
+printf 'session: <id>\ncreated: <YYYY-MM-DD>\n' > <path>/.uct-session-owner
+```
+
+⚰️ **THE INCIDENT.** 2026-09-12, ~16:12: `uct-worktrees\indicator-r0r1` had every
+tracked file deleted out from under a running 12-chunk pytest lane. **Established
+from the run's own logs**, not from timestamps — the runner enumerated 1,399 test
+files at start, chunk 1 then produced **332 ×**
+`ModuleNotFoundError: spec not found for the module 'api.services.crypto_box'`
+(an `importlib.reload` of a module whose source had gone from disk), and chunk 2
+refused to start on a path that no longer existed. Something wrote a fresh
+`.pytest_cache` into the emptied directory at **16:13:16**, ~45 s after that
+session's runner was already dead.
+
+⛔ **WHAT WAS NOT ESTABLISHED, AND IS NOT GUESSED AT:** which process did it. Six
+Claude session temp directories were live on the box and four sibling worktrees
+were touched in the same minutes. The git registration was also gone —
+consistent with `worktree remove`/`prune` and not with a bare `rm -rf` — but
+`.git/worktrees` last changed 24 minutes later, when a *different* worktree was
+created, so that is not evidence about this one either way.
+
+⭐ **NOTHING WAS LOST, AND THAT IS THE ONLY REASON THIS IS A RULE RATHER THAN AN
+INCIDENT REPORT.** Every commit had been pushed; the branch was recreated from
+`origin` byte-for-byte. The next one may not be so lucky. Full forensics:
+`docs/runbooks/indicator-ecosystem-resume.md`.
+
+## ⛔⛔ NEVER VERIFY A RUNNER THROUGH A PIPE — THE PIPE OWNS THE EXIT CODE
+
+**Owner ruling, 2026-09-12.** A pipeline's exit status is the **last** command's.
+Piping a runner into `| tail`, `| findstr`, `| Select-Object`, `| head` or
+`| grep` throws the runner's status away and replaces it with the filter's — and
+a filter that read some text always succeeds.
+
+```bash
+# ⛔ WRONG — this reports tail's status, and tail always succeeds
+python tools/pytest_chunks.py 2>&1 | tail -30        # → 0, whatever happened
+
+# ✅ RIGHT — redirect, read the bare exit code, then read the file
+python tools/pytest_chunks.py > run.log 2>&1; echo "EXIT: $?"
+tail -3 run.log        # the VERDICT line
+```
+
+```powershell
+# PowerShell: $LASTEXITCODE after the BARE command, never after a pipeline
+python tools/pytest_chunks.py *> run.log ; $LASTEXITCODE
+```
+
+⚰️ **MEASURED, TWICE, ON THE SAME TOOL.** On 2026-09-10 three OOM-killed pytest
+runs all read as clean because each was piped to `tail`. On 2026-09-12 the same
+mistake hid a lane run that executed **one chunk of twelve** and then crashed:
+the reader saw `[exited with code 0]`. And while building the fix, the
+verification command reproduced it a third time —
+`python tools/pytest_chunks.py --out-dir . --only 1` exits **2** bare and **0**
+through `| tail -1`.
+
+⭐ **THE RUNNER NOW PRINTS A `VERDICT:` LINE AS ITS LAST LINE** so a piped run is
+still legible — but that is a **mitigation, not a fix**. The exit code is still
+gone. Read both. `tests/test_pytest_chunks_runner.py` carries a reproduction of
+the masking so the next reader does not have to take this on trust.
+
+
 ## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
 
 **`/data` exists as `C:\data` on the dev machine, so every product path that

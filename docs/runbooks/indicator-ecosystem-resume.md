@@ -235,6 +235,57 @@ than the oldest chunk log, means one is running — wait for it or read its resu
 start beside it. If a run must be abandoned, say so in the report; an overwritten log is
 not a result.
 
+## ⛔⛔ R8 — WORKTREE OWNERSHIP (owner ruling, 2026-09-12)
+
+> A session never runs `git worktree remove`, never runs `git worktree prune`,
+> and never deletes any directory under `C:\Users\Patrick\uct-worktrees\` that it
+> did not create **in that same session**. Every worktree gets a
+> `.uct-session-owner` file at its root at creation, naming the session and the
+> date. A cleanup or a prune is a **stop-and-ask**.
+
+The rule itself lives in the repo-level `CLAUDE.md` — the file every session
+reads — so it reaches sessions that never open this runbook. This is the reason
+it exists.
+
+### The incident, 2026-09-12 ~16:12
+
+`uct-worktrees\indicator-r0r1` had every tracked file deleted out from under a
+running 12-chunk pytest lane, and its git registration went with them.
+
+**ESTABLISHED, from the run's own logs rather than from timestamps:**
+
+| evidence | reading |
+|---|---|
+| the runner enumerated **1,399 test files** at start | the tree was intact when the run began |
+| chunk 1: **332 ×** `ModuleNotFoundError: spec not found for the module 'api.services.crypto_box'` | `importlib.reload` of a module whose **source had gone from disk** mid-process |
+| chunk 2: `ERROR: file or directory not found: api/services/journal_two/test_telemetry.py` | gone **before pytest could start** |
+| `.pytest_cache/v/cache/nodeids` **16:13:16**, `stepwise` **16:13:23** | something ran pytest there **~45 s after this session's runner was dead** |
+
+⛔ **The chunk runner was EXONERATED by reading it**, not by assuming: four
+filesystem operations, no `shutil` / `rmtree` / `unlink` / `remove` / `rmdir`,
+`ROOT` from `__file__`, no `chdir`, `cwd=ROOT` to every child. Pinned by an AST
+sweep in `tests/test_pytest_chunks_runner.py` so it stays true.
+
+**NOT ESTABLISHED, and not guessed at:**
+
+- **Which process.** Six Claude session temp directories were live; four sibling
+  worktrees were touched in the same minutes (`s7-price-level` 16:13,
+  `flow-watch-rail` 16:14, `notebook-flip` 16:31, `terminal-research` 16:36).
+  None of it is attributable.
+- **Whether the same actor removed the git registration.** Its absence is
+  consistent with `worktree remove`/`prune` and not with a bare `rm -rf` — but
+  `.git/worktrees` last changed at 16:36, 24 minutes later, when a *different*
+  worktree was created. Not evidence about this one either way.
+- **The exact deletion start.** The directory's own mtime is the moment chunk 1
+  created `.pytest_cache` inside it, which overwrote whatever the deletion set.
+  Bounded only as after the file walk and during chunk 1.
+
+⭐ **Nothing was lost** — every commit had been pushed, and the worktree was
+recreated from `origin/feat/indicator-r0r1` byte-for-byte. That is the only
+reason this is a rule and not a post-mortem. The surviving `.pytest_cache` is
+preserved in the session scratchpad as `forensic-pytest_cache-r0r1`.
+
+
 ### ⚰️⚰️ RUN 4 IS **VOID** — 2026-09-12, and the cause chain is four links long
 
 **It is not a result. It measured nothing and it reported exit 0.** Recorded here

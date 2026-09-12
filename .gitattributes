@@ -106,11 +106,22 @@ tests/fixtures/** text eol=lf
 # copies this box checks out CRLF. Named individually rather than as `tools/**`,
 # because that directory also holds PNGs and archives and a blanket text rule
 # there is the corrupt-binary hazard the top of this file exists to prevent.
-tools/chart_parity_cases.json text eol=lf
-tools/corpus_metric.json      text eol=lf
-# ⭐ THIRD OF THE SAME KIND (R-G, 2026-09-12). `lookbackAgreement.test.js`
-# rewrites this cross-lane oracle on EVERY engine run, LF-only, so
-# without this line a plain `npm run test:engine` leaves the tree dirty on a
-# box with `core.autocrlf=true` — content byte-identical, EOL flag flipped.
-# Caught by recreating the worktree and running the suite once.
-tools/lookback_agreement.json text eol=lf
+# ⭐⭐ AS A CLASS, NOT THREE FILES (owner ruling, 2026-09-12). It was three named
+# lines and the fourth instance still got through: `lookback_agreement.json`
+# landed unpinned on 2026-09-12 and dirtied the tree on every `npm run
+# test:engine`. Naming files caught three and missed the fourth, which is what a
+# hand-maintained list does.
+#
+# ⛔ `tools/**/*.json`, NEVER `tools/**`. The comment above is still the reason:
+# this directory holds PNGs, and a blanket text rule there is the corrupt-binary
+# hazard the top of this file exists to prevent. JSON is never binary, so
+# restricting the class to the extension keeps the safety and drops the list.
+#
+# ⚠️ AND `tests/fixtures/**` WOULD NOT HAVE CAUGHT IT — that rule is scoped to
+# that tree and this artifact lives in `tools/`. Checked rather than assumed.
+#
+# Pinning the three previously-unpinned files (`carried_perf`,
+# `execution_shapes`, `window_perf`) re-normalises nothing: all three are already
+# stored LF-only. They have no producer in the repo today, so they cannot churn —
+# which is an argument from today's state, and exactly why the rule is a class.
+tools/**/*.json text eol=lf

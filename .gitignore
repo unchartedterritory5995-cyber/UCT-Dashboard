@@ -153,3 +153,8 @@ tools/pine_survey/cache/
 # full run is ~40 MB across 12 logs and is evidence for ONE run, not an
 # artifact. Cite a chunk log by path in a commit message; never commit it.
 .pytest_chunks/
+
+# ⛔ WORKTREE OWNERSHIP (CLAUDE.md, owner ruling 2026-09-12). Every worktree
+# carries one at its root naming the session that created it, so a cleanup can
+# tell what it is about to delete. Per-worktree and never committed.
+.uct-session-owner

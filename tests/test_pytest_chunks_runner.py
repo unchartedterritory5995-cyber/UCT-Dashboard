@@ -124,6 +124,54 @@ def test_the_three_ways_a_run_can_be_incomplete_are_each_a_failure(results, tota
 
 
 # --------------------------------------------------------------------------- #
+# the pipe rule, REPRODUCED — because nobody believes it until they see it
+# --------------------------------------------------------------------------- #
+
+def test_a_pipe_MASKS_a_nonzero_exit_code_and_here_is_the_proof():
+    """⛔⛔ THE RULE IS IN CLAUDE.md; THIS IS WHY IT IS TRUE.
+
+    A pipeline's exit status is the LAST command's. Pipe a runner into ``tail``
+    and the runner's status is discarded and replaced by tail's — and tail, having
+    read some text, always succeeds.
+
+    ⚰️ THIS HAS COST THIS PROJECT THREE TIMES. 2026-09-10: three OOM-killed pytest
+    runs all read as clean, each piped to ``tail``. 2026-09-12: a lane run that
+    executed ONE chunk of twelve and then crashed reached a report as
+    ``[exited with code 0]``. And while building the fix for that, the
+    verification command reproduced it a third time.
+
+    ⭐ SO IT IS DEMONSTRATED HERE RATHER THAN ASSERTED IN PROSE, on a command whose
+    failure is not in doubt, through the same shell a runner is invoked from.
+    """
+    import shlex
+    failing = f"{shlex.quote(sys.executable)} -c 'import sys; sys.exit(7)'"
+
+    bare = subprocess.run(["bash", "-c", failing], capture_output=True)
+    piped = subprocess.run(["bash", "-c", f"{failing} | tail -1"], capture_output=True)
+
+    assert bare.returncode == 7, "the control command did not fail as intended"
+    assert piped.returncode == 0, (
+        "a pipe no longer masks the exit code on this box — if that is really "
+        "true (pipefail on by default?), the CLAUDE.md rule can be relaxed, but "
+        "verify it in the shell the runners are actually invoked from first")
+
+    # ⭐ AND THE SANCTIONED FORM RECOVERS IT: redirect, then read `$?`.
+    redirected = subprocess.run(
+        ["bash", "-c", f"{failing} > /dev/null 2>&1; echo $?"],
+        capture_output=True, text=True)
+    assert redirected.stdout.strip() == "7"
+
+
+def test_the_pipe_rule_is_written_where_every_session_reads_it():
+    """⛔ A rule that lives only in a runbook one project opens is a rule the next
+    session skips. Both halves of this ruling are in the repo-level CLAUDE.md."""
+    claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "NEVER VERIFY A RUNNER THROUGH A PIPE" in claude
+    assert "WORKTREE OWNERSHIP" in claude
+    assert ".uct-session-owner" in claude
+
+
+# --------------------------------------------------------------------------- #
 # 4. it cannot point its writes at a checkout
 # --------------------------------------------------------------------------- #
 
