@@ -1,5 +1,97 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⚰️⚰️ SESSION 2 · THE WORKTREE WAS EMPTIED MID-RUN — 2026-09-12
+
+**Nothing was lost.** Every commit was pushed before the event;
+`origin/feat/indicator-r0r1` and the local branch both read `3f45b1c67`, the tree
+was clean at the last status, and the worktree was recreated from that branch
+byte-for-byte.
+
+### What was ESTABLISHED
+
+⛔⛔ **AN EXTERNAL PROCESS DELETED THE FILES WHILE A LANE RUN WAS IN FLIGHT.** Not
+inferred from timestamps — read out of the run's own logs:
+
+| evidence | reading |
+|---|---|
+| runner enumerated **1,399 test files** at start | the tree was **intact** when the run began |
+| chunk 1: **332 ×** `ModuleNotFoundError: spec not found for the module 'api.services.crypto_box'` | `importlib.reload` of a module whose **source had gone from disk** mid-process |
+| chunk 2: `ERROR: file or directory not found: api/services/journal_two/test_telemetry.py` | the file was **gone before pytest could start** |
+| `.pytest_cache/v/cache/nodeids` written **16:13:16**, `stepwise` **16:13:23** | something ran pytest in that directory **~45 s after this session's runner was already dead** |
+
+⛔ **THE RUNNER IS EXONERATED, BY READING IT RATHER THAN BY ASSUMING.**
+`tools/pytest_chunks.py` performs exactly four filesystem operations —
+`out_dir.mkdir`, one `open(log,"w")` per chunk, `log.read_text`, one
+`summary.json` write — and contains **no** `shutil`, `rmtree`, `unlink`, `remove`
+or `rmdir`. `ROOT` is `__file__.parents[1]`, it never calls `os.chdir`, and it
+passes `cwd=ROOT` to each child, so it ran against **this** worktree and no other.
+The `journal_two/` paths in its logs are real files of this repo that were being
+deleted underneath it, not evidence of a second checkout.
+
+⭐ **AND `--out` IS `--out-dir`** — argparse accepts any unambiguous prefix of a
+long option. "The flag I passed does not appear in the source" was a false alarm
+that cost forensics time; recorded so the next reader does not chase it.
+
+### What could NOT be determined
+
+- **Which process deleted it.** No actor identified. Six Claude session temp
+  directories exist on this box and several sibling worktrees were touched in the
+  same minutes (`s7-price-level` 16:13, `flow-watch-rail` 16:14, `notebook-flip`
+  16:31, `terminal-research` 16:36) — concurrent multi-session activity is
+  ordinary here and none of it is attributable.
+- **Whether the git registration was removed by the same actor.** `indicator-r0r1`
+  had no entry under `.git/worktrees/` afterwards, which is what a
+  `git worktree remove`/`prune` leaves behind and a bare `rm -rf` does not. But
+  `.git/worktrees` last changed at **16:36**, ~24 minutes after the deletion, at
+  the same moment another worktree was created — so that mtime is not evidence
+  about r0r1 either way.
+- **The exact deletion start.** The directory's own mtime (16:12:01) is the moment
+  `.pytest_cache` was created inside it by chunk 1, which overwrote whatever the
+  deletion had set. Bounded only as *after* the file walk and *during* chunk 1.
+
+⛔ **NO GUESS IS RECORDED AS A CAUSE.** The surviving `.pytest_cache` was moved to
+the session scratchpad as `forensic-pytest_cache-r0r1` rather than deleted, so
+the artifact outlives this session.
+
+### The recreation, verified
+
+```
+git worktree add …/indicator-r0r1 feat/indicator-r0r1
+HEAD 3f45b1c67 == origin/feat/indicator-r0r1     ✅
+git status                                        clean
+npm ci                                            (node_modules is gitignored)
+npm run test:engine   5,224 passed · 2 failed · 32 skipped
+                      the 2 are the routed census floors and nothing else ✅
+```
+
+⚠️ **AND THE RUN LEFT THE TREE DIRTY, WHICH IS ITS OWN SMALL FINDING.**
+`lookbackAgreement.test.js` rewrites `tools/lookback_agreement.json` on **every**
+engine run, LF-only, against a box with `core.autocrlf=true` — content
+byte-identical, EOL flag flipped. It is now pinned `text eol=lf` in
+`.gitattributes` beside its two siblings (`chart_parity_cases.json`,
+`corpus_metric.json`), which is where it should have gone when it was added.
+
+### Run 4 is VOID, and the fix
+
+The cause chain and the four fixes are in
+`docs/runbooks/indicator-ecosystem-resume.md`. In short: the deletion (link 1)
+made chunk 2 look KILLED, the runner **died printing that warning** on a
+`UnicodeEncodeError` for its own ⛔ through a cp1252 stdout (link 3, ten chunks
+unrun), and the invocation piped to `tail` so the reader saw exit 0 (link 4) —
+which is R7 in that same runbook, broken by the person quoting it.
+
+⛔ Now: the runner makes **its own** stdout UTF-8; every run's **last line is a
+VERDICT** and `FAIL` covers no-totals / unparsed counts / a short run / killed /
+red; a crashed runner exits **3** and says what did not run; and `--out-dir` is
+**refused** if it is a worktree root, inside one, or **above** one — the blast
+radius that emptied this worktree was a parent of a checkout.
+`tests/test_pytest_chunks_runner.py` carries a case per fix plus the AST sweep
+that keeps the exoneration true.
+
+⚠️ **THE VERDICT LINE IS A MITIGATION FOR THE PIPE, NOT A FIX FOR IT.** Measured
+again while building it: `--out-dir .` exits **2** bare and **0** through
+`| tail -1`. Redirect, read `$?`, and read the last line.
+
 ## ⭐⭐ SESSION 2 · R-J — A WINDOW THAT NAMES A MEMBER'S KNOB
 
 **Owner ruling, 2026-09-12, tied explicitly to R-H.** Bound by the **folded
