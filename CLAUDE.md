@@ -3921,6 +3921,21 @@ this closes that gap.
   reported, which is the `reported_forward_overlap` class. **The gap is upstream
   absence, not our window.** Leave it at 130 unless a measurement says
   otherwise.
+- ✅ **THE DATA WAS RECOVERABLE FROM A SOURCE WE ALREADY PAY FOR.**
+  `/stable/earnings` is the only *earnings* endpoint on this plan, but
+  `/stable/income-statement?period=quarter` — same vendor, same key, different
+  endpoint — carries the reports it drops. It is now the THIRD gap-fill leg in
+  `get_year_earnings` (ahead of yfinance: it has revenue, it is the plan we
+  already pay for, and Yahoo's record is shorter for exactly these names).
+  Measured 2026-09-12: recovers MMC (+2 quarters), SJW (+2), RNP (+2), BK (+1);
+  **nine of the fifteen investigated stale names came out clean**, MMC and BK
+  (~$90B and ~$97B) among them. ⛔ It is labelled by
+  `_fiscal_q_from_period_end`, NEVER by FMP's own `period`/`fiscalYear` — HOLX
+  ends its fiscal Q1 in late December, so the provider's numbering disagrees
+  with this pipeline's and trusting it duplicates one quarter while dropping
+  another, which is the trap `_year_earnings_from_stock` already documents.
+  ⚠️ Actuals only — no estimate, so no surprise %; inventing one would render to
+  a member as analyst consensus nobody published.
 - ⛔ **The yfinance leg was UNREACHABLE for every plain US ticker** until
   2026-09-12 — `get_year_earnings._gather` gated it on `"." in prov or
   any(ch.isdigit())`, a test of the SYMBOL'S SHAPE, so a three-provider chain was

@@ -1,134 +1,116 @@
-# Fundamentals provider gaps — measured 2026-09-12
+# Fundamentals provider gaps — investigated and mostly closed, 2026-09-12
 
-What the "Fundamentals data regression" alerts were actually reporting, how
-widespread it is, and the escalation we owe FMP. Companion to the code change on
-`fix/fundamentals-staleness-and-alert-dedupe`.
+What the "Fundamentals data regression" alerts were reporting, how widespread it
+was, what fixed it, and the narrow residue that still needs a provider ticket.
+Companion to `fix/fundamentals-staleness-and-alert-dedupe`.
 
 ## The short version
 
-The alerts were **true positives**. For a small but real slice of the universe
-our providers stop delivering quarterly earnings, the widget's completeness
-guard could not see it, and members were shown an old quarter as the latest with
-nothing said. The code change makes that visible and stops the monitor paging
-about it nightly. **Restoring the data itself is a provider problem and needs a
-support ticket** — that is the only open item here.
+The alerts were **true positives**. `/stable/earnings` — the only earnings
+endpoint on this plan — stops returning rows for reports that happened, for a
+slice of US operating companies. MMC's stops at 2026-01-29 with two quarters
+reported since, so the widget showed 2025 Q4 as its latest quarter with nothing
+said.
 
-## Method
+**The data was recoverable from a source we already pay for.**
+`/stable/income-statement?period=quarter` — the same vendor, the same key, a
+different endpoint — carries those quarters. It is now the third gap-fill leg in
+`get_year_earnings`, and MMC, BK and SJW read through 2026 Q2 with
+`stale_quarters = 0`. Nine of the fifteen names investigated came out clean.
 
-`/stable/earnings?symbol=<T>&limit=12` for a random sample of
-`api/data/cap_universe.json`; a ticker counts as STALE when the newest row
-carrying an actual (`epsActual` or `revenueActual`) is more than 135 days old —
-i.e. at least one quarterly report is missing. Stale names were then classified
-with `/stable/profile` (`isFund`/`isEtf`) and cross-checked against Finnhub
-`/stock/earnings`, which is the gap-fill `get_year_earnings` actually uses.
+A ticket is still worth filing for the six where FMP's whole record stops, but it
+is no longer the only route and no member is waiting on it.
 
-⚠️ **Two samples were taken and they disagree.** The first (n=300, seed 11)
-gave 8.0% stale / 2.3% operating companies. The second (n=900, seed 4242) gives
-6.1% / 1.44%. **Use the 900 figure** — it is the larger sample and the earlier
-number was quoted in the first write-up of this investigation before the wider
-scan was run. Both are recorded so nobody re-derives the old one from the
-earlier prose and thinks it is a second confirmation.
+## ⚠️ Two measurements, and the first one overstated the problem
 
-## Prevalence (n=900 of 3,742)
+Recorded in full because the correction matters more than the numbers.
 
-| Bucket | Count | Share |
+**Scan 1 — endpoint-only.** Random samples of `api/data/cap_universe.json`,
+counting a ticker STALE when the newest `/stable/earnings` row carrying an actual
+was >135 days old. n=300 gave 8.0% stale / 2.3% operating companies; n=900 gave
+**6.1% / 1.44%**.
+
+⛔ **Both figures measure ONE ENDPOINT, not what a member sees.** The pipeline
+merges `/stable/earnings` with Finnhub and (now) the income statement, so an
+endpoint-only scan counts names the merge already covers. It over-counted in a
+way the method could not see: of the 15 names it flagged, four (TMHC, PRTC, VRE,
+CVGW) are only **one** quarter behind once the legs are merged — an ordinary late
+filer, below the notice threshold and not a defect at all.
+
+**Scan 2 — through the real merged pipeline** (`get_year_earnings` for 2025+2026,
+then `reported_staleness`), n=150, after the fix:
+
+| | Count | Share |
 |---|---|---|
-| OK | 811 | 90.1% |
-| **Stale** (>135d since newest reported quarter) | **55** | **6.1%** |
-| No actuals at all | 4 | 0.4% |
-| No FMP rows at all | 30 | 3.3% |
+| OK | 145 | 96.7% |
+| **Stale (≥2 quarters behind)** | **3** | **2.0%** |
+| No data at all | 2 | 1.3% |
 
-Of the 55 stale names, **42 are funds or ETFs** — closed-end funds (Nuveen,
-PIMCO, Eaton Vance, BlackRock) that can never have a quarterly EPS strip. They
-are not a data gap; they are names that should never have been invariant-checked,
-and the code change now skips them.
+**All three stale names are closed-end funds** — VVR (Invesco Senior Income
+Trust), ISD (PGIM High Yield Bond), PPT (Franklin Premier Income Trust), each
+`isFund=True`, each caught by the monitor's fund exclusion, none of which has a
+quarterly EPS strip by nature.
 
-**13 are operating companies — 1.44% of the sample.** Finnhub rescued only
-**2 of the 55**, so the fallback chain is not covering this.
+⚠️ **That is not a claim of zero.** The residual operating-company rate implied
+by scan 1's follow-through is on the order of 0.5–1%, so a fresh 150-name draw
+containing none of them is *consistent with* that rate, not proof against it.
+And the run hit Finnhub 429s, which degrades a leg and makes staleness look
+**worse**, so 2.0% is an upper bound.
 
-## The 13, and whether anything covers them
+⭐ The general lesson, worth carrying: **a scan of one provider endpoint is not a
+measurement of the product.** The first number went into two write-ups before
+anyone ran the merged pipeline.
 
-| Ticker | Mkt cap | FMP newest actual | Days | Finnhub | Covered? |
-|---|---|---|---|---|---|
-| MMC | $89.8B | 2026-01-29 | 226 | empty | **no** |
-| ERJ | $47.4B | 2025-11-04 | 312 | 2026-06-30 | yes — gap-fill |
-| EXAS | $20.0B | 2026-02-13 | 211 | 2025-12-31 (older) | **no** |
-| ACLX | $6.7B | 2026-02-26 | 198 | 2025-12-31 (older) | **no** |
-| TMHC | $6.7B | 2026-04-22 | 143 | 2026-03-31 (older) | **no** |
-| FOLD | $4.5B | 2026-02-20 | 204 | 2025-12-31 (older) | **no** |
-| PRTC | $4.2B | 2026-04-29 | 136 | 2024-12-31 (older) | **no** |
-| SJW | $1.9B | 2026-02-26 | 198 | empty | **no** |
-| VRE | $1.8B | 2026-04-22 | 143 | 2025-12-31 (older) | **no** |
-| RNP | $0.9B | 2026-03-05 | 191 | empty | **no** — but see below |
-| DHIL | $0.5B | 2026-02-26 | 198 | 2025-03-31 (older) | **no** |
-| CVGW | $0.5B | 2026-03-12 | 184 | 2026-03-31 | yes — gap-fill |
-| BRY | $0.3B | 2025-11-05 | 311 | 2025-09-30 (older) | **no** |
+## What the income-statement leg recovers
 
-So **11 of 900 (~1.2%)** have no source newer than FMP — extrapolating,
-on the order of **45 operating companies** across the universe.
+Measured with this module's own fiscal mappers — `_fiscal_q_from_report` for
+report dates, `_fiscal_q_from_period_end` for period ends — after a first attempt
+compared the two date kinds directly and produced nonsense (`/stable/earnings`
+`date` is the REPORT date; `/stable/income-statement` `date` is the PERIOD END,
+~1–2 months earlier, so a naive `>` reads a same-quarter row as "behind").
 
-⚠️ **RNP is a closed-end fund** (Cohen & Steers REIT and Preferred Income) that
-FMP's `isFund`/`isEtf` flags do **not** set, so the fund exclusion will not catch
-it. An industry-based exclusion would be worse, not better: DHIL is also
-"Asset Management" and is a genuine operating company. FMP's flag is the
-principled signal and this is its known miss rate — RNP will be recorded as a
-shape defect and digested, never paged, which is the right outcome for a name
-nobody can fix.
+| Ticker | earnings newest | income-stmt newest | Gain |
+|---|---|---|---|
+| MMC | 2025 Q4 | **2026 Q2** | +2 |
+| SJW | 2025 Q4 | **2026 Q2** | +2 |
+| RNP | 2025 Q4 | **2026 Q2** | +2 |
+| BK | 2026 Q1 | **2026 Q2** | +1 |
 
-## Three distinct upstream failure modes
+End-to-end through the real pipeline, the fifteen investigated names now read:
 
-Worth keeping separate; they need different asks.
+**Clean (9):** MMC · BK · ERJ · TMHC · PRTC · SJW · VRE · RNP · CVGW
+**Still stale (6):** EXAS · ACLX · FOLD · DHIL · BRY · HOLX
 
-1. **The feed stops.** MMC and BK have a clean quarterly cadence and then
-   nothing — no row at all for reports that happened. MMC's last row is
-   2026-01-29 and it has reported twice since.
+## The three upstream failure modes
+
+1. **The feed stops.** MMC, BK, SJW, RNP — `/stable/earnings` has no row for
+   reports that happened. **Now covered** by the income statement.
 2. **A row exists with null actuals.** HOLX carries `date=2026-05-07` with
-   `epsActual: null, revenueActual: null` — FMP knows the report happened and
-   never filled the numbers.
-3. **The record is sparse and irregular.** Mostly funds, where quarterly
-   earnings are not a meaningful concept.
+   `epsActual: null, revenueActual: null` and nothing after. Not covered — the
+   income statement stops at the same quarter.
+3. **The whole record stops.** EXAS, ACLX, FOLD, DHIL, BRY — every FMP endpoint
+   ends at the same quarter, Finnhub is older, Yahoo is empty or shorter. Not
+   recoverable from anything we hold.
 
-⚠️ **Unresolved, and worth raising in the ticket:** FMP dates MMC's 1.87 EPS
-report as **2026-01-29** while Yahoo dates the same figure **2025-01-30** — a
-year apart. Either a coincidence of two similar quarters or a corrupted date on
-FMP's side. Not established either way here, and it matters because a shifted
-date lands the quarter under the wrong fiscal label.
+## What is NOT the answer, so nobody re-tries it
 
-## Yahoo is not the answer for the worst cases
-
-`quarterly_income_stmt` and `earnings_dates` are **empty for MMC, BK and HOLX**
-(control: AAPL and NVDA return five quarters in the same session, so this is not
-a rate limit). Yahoo's MMC record has actuals through 2025-10-16 and then jumps
-to a future scheduled date — a *bigger* hole than FMP's.
-
-⭐ This is why the yfinance re-gating in the code change is worth doing but is
-**not** a fix for these names: it turns a fallback that could never run for a US
-ticker into one that runs where Yahoo has data, and Yahoo does not have data
-here. Do not read that change as closing this gap.
-
-## The ask (paste-ready)
-
-> **Plan:** Ultimate. **Endpoint:** `/stable/earnings`.
->
-> For a subset of US operating companies, `/stable/earnings` stops returning
-> rows for reports that have taken place. Examples, all verified against the
-> companies' own filings, with the newest row your API returns that carries an
-> actual:
->
-> - `MMC` (Marsh & McLennan, ~$90B) — newest actual dated 2026-01-29. Two
->   quarters reported since; no rows for them.
-> - `BK` (Bank of New York Mellon, ~$97B) — newest actual 2026-04-16; the
->   following quarter is absent.
-> - `HOLX` (Hologic, ~$17B) — a row exists for 2026-05-07 with `epsActual` and
->   `revenueActual` both null, and nothing after it.
-> - Also affected: `EXAS`, `FOLD`, `ACLX`, `TMHC`, `VRE`, `SJW`, `DHIL`, `BRY`,
->   `PRTC`.
->
-> Separately, for `MMC` your API dates the 1.87 EPS report 2026-01-29 while
-> another provider dates the same figure 2025-01-30. Could you confirm which is
-> correct?
->
-> Measured prevalence: 13 of a random 900-symbol sample of US listings.
+- **Yahoo.** `quarterly_income_stmt` and `earnings_dates` are **empty for MMC,
+  BK and HOLX** (control: AAPL and NVDA return five quarters in the same
+  session, so not a rate limit). Yahoo's MMC record stops at 2025-10-16 — a
+  *bigger* hole than FMP's. The yfinance re-gating on this branch is still worth
+  having, but it recovers nothing here.
+- **Massive/Polygon `/vX/reference/financials`.** Has data, but lags (MMC newest
+  2025-12-31, BK 2026-03-31) and its revenue disagrees with FMP for banks
+  (BK 2025 Q1: 6123M vs FMP's 4792M — different revenue definitions). Using it
+  would put a second authority on revenue for exactly the sector where the two
+  disagree most.
+- **`_UNREPORTED_GRACE_DAYS` (130d).** CLAUDE.md suggested tightening it. It is
+  correct in both directions: on MMC it rightly drops the 2026-03-31 estimate
+  row, because that quarter should be a reported actual and showing it as a
+  forward estimate is the lie to avoid. Tightening drops more real forward
+  quarters; loosening re-admits stale estimates for already-reported ones, which
+  is the `reported_forward_overlap` class. **The gap was upstream absence, not
+  our window.**
 
 ## Deploying this — the watch-coverage FAIL is accepted, and why
 
@@ -139,51 +121,70 @@ FAIL — flow-worker RUNS these files but will NOT redeploy for them:
     api/services/earnings_estimates.py
 ```
 
-The tool is right as a statement about static reachability, and the honest
-answer is **accepted skew — do not trigger a flow-worker redeploy for it.**
-
-The chain it found:
+The tool is right about static reachability; the answer is **accepted skew — do
+not trigger a flow-worker redeploy.** The chain:
 
 ```
-api.flow_worker_main
-  api.flow_gap_autofill
-    api.services.liveflow_monitor
-      api.services.bars_fetch
-        api.services.bars_sanitize
-          api.services.earnings_estimates
+api.flow_worker_main -> api.flow_gap_autofill -> api.services.liveflow_monitor
+  -> api.services.bars_fetch -> api.services.bars_sanitize
+    -> api.services.earnings_estimates
 ```
 
-`bars_sanitize` imports **exactly one symbol** from that module, function-locally
-at line 261: `from api.services.earnings_estimates import _fmp_get`. This
-branch changes `get_year_earnings`'s provider gate and adds
-`_is_foreign_shaped` / `_is_recent_year`. It does not touch `_fmp_get` or
-anything `_fmp_get` calls, so flow-worker's behaviour is identical on either
-version of the file.
+`bars_sanitize` imports **exactly one symbol**, function-locally at line 261:
+`from api.services.earnings_estimates import _fmp_get`. This branch changes
+`get_year_earnings`'s provider chain and adds three helpers. It does not touch
+`_fmp_get` or anything `_fmp_get` calls, so flow-worker behaves identically on
+either version.
 
 ⭐ The trade being refused: a flow-worker restart drops the Massive OPRA
-websocket and **Massive does not replay** — that gap is permanent until the T+1
-flat file (`docs/runbooks/deploy-windows.md` Tier 2). Paying a permanent tape
-gap to synchronise a function no code in that process calls is the wrong way
-round.
+websocket and **Massive does not replay** — permanent gap until the T+1 flat file
+(`docs/runbooks/deploy-windows.md` Tier 2). Paying that to synchronise a function
+nothing in that process calls is the wrong way round.
 
-⛔ **This reasoning is per-push and does not generalise.** A future change to
-`earnings_estimates.py` that touches `_fmp_get`, or that adds a symbol
-`bars_sanitize` starts importing, genuinely does need the window. The tool will
-say so again — re-run it and re-do this analysis rather than citing this
-paragraph.
+⛔ **Per-push, not a standing exemption.** A future change touching `_fmp_get`,
+or a new symbol `bars_sanitize` starts importing, genuinely needs the window.
+Re-run the tool and redo this analysis; do not cite this paragraph.
 
-Everything else on the branch is `api/services/**`, `tests/**`, `app/**`, docs
-and CLAUDE.md, which restarts web (plus worker and bars-api, which watch
-`api/**`) — about a minute of `/api/*` blip. Per the runbook that is Tier 1:
-push any time, but if a scheduled job is due in the next minute or two, wait
-for it.
+Everything else is `api/services/**`, `tests/**`, `app/**` and docs → restarts
+web plus worker and bars-api (both watch `api/**`), ~1 min of `/api/*` blip.
+Tier 1: push any time, but if a scheduled job is due in the next minute or two,
+wait for it.
+
+## The remaining ask (paste-ready, narrowed)
+
+Worth filing, no longer urgent — these five are the ones nothing we hold can
+recover.
+
+> **Plan:** Ultimate. **Endpoints:** `/stable/earnings` and
+> `/stable/income-statement`.
+>
+> For a subset of US operating companies both endpoints stop returning data for
+> quarters the companies have reported and filed. Newest quarter your API
+> returns for each, verified against their filings:
+>
+> - `EXAS` (Exact Sciences, ~$20B) — 2025 Q4
+> - `FOLD` (Amicus Therapeutics, ~$4.5B) — 2025 Q4
+> - `ACLX` (Arcellx, ~$6.7B) — 2025 Q4
+> - `DHIL` (Diamond Hill, ~$0.5B) — 2025 Q4
+> - `BRY` (Berry Corporation, ~$0.3B) — 2025 Q3
+>
+> Separately, `HOLX` (Hologic, ~$17B) returns a row dated 2026-05-07 on
+> `/stable/earnings` with `epsActual` and `revenueActual` both null, and no row
+> after it — the report is known but unpopulated.
+>
+> Also: for `MMC` your API dates the 1.87 EPS report 2026-01-29 while another
+> provider dates the same figure 2025-01-30. Could you confirm which is correct?
+> A shifted report date lands the quarter under the wrong fiscal label.
 
 ## What the code change does and does not do
 
-Does: stops paging about it, excludes funds, detects the staleness, and tells the
-member their latest quarter is unavailable instead of implying an old one is
-current. Makes the yfinance leg reachable for US tickers in recent years.
+**Does:** recovers the quarters `/stable/earnings` dropped, for every name where
+the income statement has them (MMC, BK, SJW, RNP among those investigated);
+stops paging about defects nobody can act on; excludes funds; detects the
+staleness that remains and tells the member their latest quarter is unavailable
+instead of implying an old one is current; makes the yfinance leg reachable for
+US tickers in recent years.
 
-Does **not**: recover the missing numbers. Nothing in our code can — the data is
-absent from every provider we read for 11 of these names. The ticket above is
-the only route.
+**Does not:** recover quarters absent from every endpoint we hold — the six
+above. Those now surface honestly (notice + daily digest, never a page) rather
+than silently.
