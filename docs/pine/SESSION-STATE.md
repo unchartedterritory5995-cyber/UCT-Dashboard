@@ -1,5 +1,96 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · PART 3 (v2 half) — THE VENDOR FIXTURE, CAPTURED ON THE 0-INDICATOR RIG
+
+`tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json`, AMEX:SPY 1D,
+last bar **2026-09-11**, captured 2026-09-12T23:10Z.
+
+### ⛔⛔ THE RECEIPT IS AS STRONG AS IT GETS
+
+The editor buffer was hashed before and after the write, and **the after-hash
+equals the committed fixture's `file_sha256` exactly**:
+
+```
+before  e550e994…c0c6   ← the PRE-R-J revision, left in the editor by an earlier session
+after   518a6b22…b28a   ← identical to tests/fixtures/member/uncharted-volume-v2.pine
+delta   +13 chars = `, maxval=5000`
+```
+
+So the script TradingView ran is **byte-identical to the file in this repo** —
+not "the same script", the same bytes. Monaco module id **423129**,
+**re-derived** this visit by scanning 10,558 webpack modules for one exporting
+`editor.getModels` + `editor.create`, not carried forward.
+
+⭐ **The Add gate caught its own trap**: two spans with own-text `Add to chart`,
+one **93×24 visible** and one **93×0** — the zero-height duplicate the rule was
+written for. Gate counted 1, `Update on chart` 0 → SAFE TO ADD.
+
+### ⭐⭐ THE VENDOR CONFIRMS RULING D1, IN ITS OWN TYPE SYSTEM
+
+`metaInfo().plots` types the eight outputs itself:
+
+```
+plot_0 line   "Volume"            plot_1 colorer → plot_0
+plot_2 line   "Avg Vol Columns"   plot_3 colorer → plot_2
+plot_4 line   "Avg Vol Line"      plot_5 colorer → plot_4
+plot_6 line   "Scale Padding"     plot_7 alertcondition  "HVE Trigger"
+```
+
+⛔ **TradingView itself types `plot_7` as `alertcondition`, distinct from the four
+`line` plots** — and the four it types as lines are exactly the four
+`memberPaneDefinition` draws. D1 was reasoned from Pine's semantics; this is the
+vendor agreeing, independently.
+
+### ⛔ THE TABLES WERE READ AS STRINGS, NOT AS PIXELS
+
+**A screenshot cannot recover a trailing space, and one cell has one.** Three
+approaches were tried: the study's `tables()` store (`_builtTables`,
+`_cellsByTableId`, `_tableSources`) is **empty**; so is
+`graphics()._primitivesCollection.dwgtables` — both are staging areas consumed at
+materialisation. The strings exist in exactly one place: the draw call.
+`CanvasRenderingContext2D.prototype.fillText` was wrapped for **one** redraw and
+restored immediately (`restored: true` asserted in the same call).
+
+| table | cell | len | trailing space |
+|---|---|---|---|
+| Range (Top Left) | `ATR : $6.21 (0.81%)` | 19 | no |
+| Range | `\| Range: 137.58%` | 16 | no |
+| Range | `\| ATRx: 0.92` | 12 | no |
+| Volume (Top Right) | `Vol : 45.51M (1.05x) ` | **21** | **yes** |
+
+⚰️ **THE RANGE TABLE HAS THREE CELLS AND THE EARLIER CAPTURE RECORDED ONE.** On
+the 19-study layout the pane was ~20px tall and the chart legend sat on the ATR
+cell, so only `Range: 127.58%` came out. That capture is superseded by this one.
+The `| ` prefixes are separators the script writes **into** the cell text.
+
+### ⭐ NON-ZERO SPREAD PER READ — the control that this is a measurement
+
+| series | distinct | spread |
+|---|---|---|
+| Volume | 4 | 32,812,411 → 45,512,741 |
+| Avg Vol Line | 4 | 43,318,979 → 45,040,146.1 |
+| Scale Padding | 4 | 54,188,427.175 → 56,890,926.25 |
+| Avg Vol Columns | 2 | value on the last bar, `null` below it — the two-tone cap only draws above the average |
+| HVE Trigger | 1 | ⚠️ **flat 0** — it is the alertcondition, not a series. Recorded as flat, not quietly dropped. |
+
+### Rig left as found
+
+Study removed, **0 indicators asserted** by the corrected probe, editor closed,
+pane restored, settings dialog cancelled without applying. **Nothing saved** —
+the one authorised save was spent closing Part 0.
+
+⚠️ Chart legend `Indicators → Titles/Values` were turned **off** for the read,
+because the Range table renders on the legend's own line. That is a CHART setting,
+not a study input, and no captured number depends on it. It is unsaved, so the
+**saved** layout still has them on; the live session keeps them off, which
+happens to be what the remaining captures want.
+
+### ⏭️ STILL OWED ON PART 3
+
+The **HVE symbol fixture**. `HVE Trigger` is flat 0 on SPY across this window, so
+SPY cannot be that case — it needs a symbol on which the condition actually
+fires, with the symbol and record date named **before** the capture.
+
 ## ✅ SESSION 2 · PART 0 — THE RIG IS AT 0 INDICATORS AND SAVED
 
 **Closed 2026-09-12.** `e3cTXatd` is the scratch rig; the "URL owed" line is
