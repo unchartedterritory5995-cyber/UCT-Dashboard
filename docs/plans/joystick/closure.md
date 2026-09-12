@@ -1,12 +1,12 @@
 # Joystick hub — closure
 
-> ## ⬜ NOT YET LAUNCHED — this is the LAUNCHED template, and **one of its six boxes is ticked.**
+> ## ⬜ NOT YET LAUNCHED — this is the LAUNCHED template, and **two of its six boxes are ticked.**
 >
-> ### What is live right now — read from Railway, 2026-09-11, not inferred
+> ### What is live right now — read from Railway, 2026-09-12, not inferred
 >
 > | | Value | How it was read |
 > |---|---|---|
-> | `web` deployment | **`b63cf9775`** — SUCCESS, 2026-09-11T20:58:24Z (*"fix(charts): let the chart library place the Pre/Post word, not us"*) | `railway status --json` → production → `web.latestDeployment.meta.commitHash` |
+> | `web` deployment | **`7fce88bd2`** — SUCCESS, 2026-09-12T02:17:25Z (*"Rail: a PREVIEW_MODES flip cannot ship without a regenerated surface matrix"*) | `railway status --json` → production → `web.latestDeployment.meta.commitHash` |
 > | Kill switch | **`HUB_PREVIEW_ENABLED=true`** — hub eligible | `railway variables --service web --kv` |
 > | Rollout stage | **1 — admin only** (`ROLLOUT_STAGE = 1`, `app/src/hub/rolloutStage.js`) | read from the source at the live SHA; it is a BUILD-time constant, so the deployed bundle is its only authority — no Railway variable to check |
 >
@@ -31,7 +31,7 @@
 > launch sequence**, and Deploys A (`0c0af484a`) and B (`b9d66e0c3`) both shipped under it. See
 > `rollout.md`, which is this programme's authority on who can see the hub today.
 
-## DEFINITION OF LAUNCHED — the gate: **1 of 6**
+## DEFINITION OF LAUNCHED — the gate: **2 of 6**
 
 - [ ] **G0 resolved.** Flick scores **≥ 8/10 on an iPhone 15 Pro-class device**, measured by the
       owner on real glass; if it comes in below, the root cause is **traced and fixed** — not
@@ -57,28 +57,27 @@
       every fan action, plus D4 and D1 where an operator meets them, each row carrying a
       BLOCKED-BY-G0 box so a run made too early records itself as blocked rather than as a fail.
 
-- [ ] **Post-deploy client smoke, signed in, covering every top-level route including
-      `/dashboard`, and CONCLUSIVE.** ⛔ *Conclusive* is the load-bearing word, not decoration:
-      `tools/hub_nav_smoke.py` exists because a green suite, a 200 from `/api/health` and a
-      rising uptime were all simultaneously true while navigation was frozen for members
-      (`postmortem-nav-freeze.md`). A run that comes back empty, or that dies before it writes,
-      is an INCOMPLETE — never a pass.
-      **Evidence:** ⬜ **RUN 2026-09-12T01:36Z against production at live SHA `b63cf9775` —
-      exit 2, INCONCLUSIVE-UNPROVISIONED. The box stays UNTICKED.** Record:
-      `smoke-runs/2026-09-12T01-36-34Z.md`. 16 nav entries were derived from `NavBar.jsx` and
-      **0 were exercised**: with no `SMOKE_EMAIL`/`SMOKE_PASSWORD` the run covered
-      `['/morning-wire']` and not `['/dashboard', '/journal', '/screener']`.
-      ⛔ H15 does not fire on exit 2 — nothing was rolled back, because nothing was measured.
-      ✅ The same session ran `--self-check`, **exit 0**: planted freeze DETECTED, planted render
-      loop DETECTED (main thread 96% blocked, 19 fps), healthy page and idle page both unflagged.
-      **The instrument is proven able to fail; what is missing is an account to point it at.**
-      ⛔ **AND A LOGIN ALONE WILL NOT CLOSE THIS BOX.** The run named the reason: `/dashboard`
-      — the very route the freeze was reported on — is **paid-only**, so a public-signup account
-      reaches it no better than an anonymous one. The signed-in run needs a synthetic account
-      (never a member's, never the owner's; `ADMIN_EMAILS` today holds three personal addresses
-      and no synthetic one) **with a comped paid grant**, and admin on top of that if the hub's
-      own surfaces are to be exercised rather than just navigation. Provisioning it is a write to
-      production and an owner decision.
+- [x] **Post-deploy client smoke, signed in, covering every top-level route including
+      `/dashboard`, and CONCLUSIVE.** ✅ **CLOSED 2026-09-12.**
+      **Evidence:** `smoke-runs/2026-09-12T02-24-24Z.md` — `tools/hub_nav_smoke.py --auth`
+      against production at **02:24Z**, live `web` SHA **`7fce88bd2`** (SUCCESS 02:17:25Z,
+      `/api/health` 200). **PASS, exit 0:** 16 top-level routes derived from `NavBar.jsx`, all
+      probed for a render loop, **25 nav entries exercised, every one moving BOTH the URL and the
+      screen.** Busiest main thread `/options-flow` at 6.3% blocked against a 60% limit.
+      Signed in as `smoke@uctintelligence.internal` — synthetic, admin, comped Pro, created for
+      this and nothing else (CLAUDE.md → Testing → Smoke).
+      ⭐ `/dashboard` reads 33 fps at 0.0% blocked, and that is a healthy page here: live price
+      cells repaint, which costs frames without starving the main thread. The 2026-09-10 freeze
+      was ~4,500 React commits per second — the opposite signature, and the reason this instrument
+      samples the CAUSE and not only the symptom.
+      ⛔ **TWO THINGS THIS RUN DID NOT MEASURE, and the box is ticked on the tool's own criteria,
+      not on a wider reading of them.** The hub requires `(max-width:1023px) AND (pointer:coarse)`,
+      so on a desktop viewport it **could not mount on any route** — "it stayed off the routes it
+      should" is true here for a reason that proves nothing about `hideOnRoute`. And the tool does
+      not subscribe to `page.on("console")`, so no claim is made about console errors from hub
+      files. Both need a touch-emulating context, which is a different instrument and a different
+      run. Recorded rather than folded in: a pass whose scope is overstated is how a green
+      instrument comes to stand in for one nobody ran.
 
 - [x] **Preference-key validation live server-side.** ✅ **CLOSED 2026-09-11.**
       **Evidence:** built as L3 item 1 in `60cbe8919`, shipped as **Deploy B** (`b9d66e0c3`,
@@ -113,7 +112,7 @@
       **Evidence:**
 
 - [ ] **closure.md rewritten as LAUNCHED, citing each of the above.** This document: five filled
-      evidence slots above this line, and this header replaced by one that says LAUNCHED and
+      evidence slots above this line (**two are filled today — boxes 3 and 4**), and this header replaced by one that says LAUNCHED and
       has the citations to mean it. ⛔ It is deliberately last and deliberately not
       self-satisfying — ticking it while any box above is empty is the only way to make this
       whole gate a lie.

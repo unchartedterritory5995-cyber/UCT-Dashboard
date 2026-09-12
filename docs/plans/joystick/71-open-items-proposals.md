@@ -233,3 +233,16 @@ lost when this programme closes.
   B (`b9d66e0c3`), and **live** — `b9d66e0c3` is an ancestor of the deployed `web` SHA.
 - **The transitive write-path rail.** Shipped as `writePathsTransitive.test.js`; it was the fourth
   item of the standing order's idle-capacity clause and is the reason this file names three.
+
+### Housekeeping, noted and deliberately NOT done today
+
+**`.gitattributes` has no `*.js` rule**, so `core.autocrlf=true` on this box governs JS line
+endings: LF in the object store, CRLF in the working tree. That is working correctly — it is why
+`tools/hub_surface_matrix.mjs` writes LF while the checked-out docs are CRLF, and why
+`surfaceMatrixIsCurrent.test.js` normalises both sides before comparing.
+
+⛔ **Do not "fix" this by adding a rule now.** Owner ruling, 2026-09-12. Adding `*.js text eol=lf`
+renormalises every JS file in the repo on the next checkout — a diff across the whole frontend,
+landing on top of other people's branches, in exchange for nothing a normaliser in one test does
+not already handle. If it is ever done it wants its own commit, on a quiet tree, with nothing else
+in it.

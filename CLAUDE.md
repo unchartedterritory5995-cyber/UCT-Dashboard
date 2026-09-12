@@ -722,25 +722,54 @@ indistinguishable from a human one in the activity log.
   model's `EmailStr` validation — verified against the installed validator — while `*.invalid` does
   not (the validator rejects special-use domains by name).
 
-#### ⬜ PROVISIONING STATE: NOT YET CREATED — blocked, and the block is worth reading
+#### ✅ PROVISIONED 2026-09-12 — one production write, on an explicit owner allow
 
-`ADMIN_EMAILS` on `web` **already carries the address** (4 entries; the three personal ones
-untouched; the running process was verified to hold it, not just the service config). The account
-row itself does not exist yet, because **`COMING_SOON_MODE=1` on production and
-`POST /api/auth/signup` refuses every request while it is set** (`auth.py:192` — *"Accounts aren't
-open yet"*). There is no admin endpoint that creates a user.
-
-That leaves exactly two doors, and the choice is the owner's because they differ in blast radius,
-not in effort:
-
-| Door | What it costs |
+| | |
 |---|---|
-| **A — create it through the app's own service layer in the pod** (`create_user` + `comp_user_access`, the exact functions the signup and comp-access endpoints call) | One write to `auth.db` from a remote shell. No member-visible change, no variable flipped, no email sent — the verification mail is in the HTTP handler, so a bounce to an unroutable domain never happens. ⛔ Blocked by this environment's permission layer, which refuses production remote-shell writes; it needs an explicit allow. |
-| **B — flip `COMING_SOON_MODE=0`, sign up over HTTP, flip it back** | Opens **public registration to the entire internet** for the length of the window, and re-opens Stripe subscriptions with it (`auth.py:1700`). Two restarts. Anyone who signs up during the window keeps their account. ⚠️ This is a site-wide state change to create one test account, and it is the larger risk of the two despite looking like the "normal path". |
+| Email | `smoke@uctintelligence.internal` |
+| User id | `f4433528-6466-474a-949c-8d5eda8a7b91` |
+| Role | `admin` — auto-promoted at LOGIN from `ADMIN_EMAILS` (`auth.py:253`), not set by hand |
+| Plan | `pro`, `status='comped'`, no Stripe ids — via `comp_user_access`, the function `POST /api/auth/admin/comp-access` calls |
+| `email_verified` | `false`, and that is fine: admins skip verification, and the domain cannot receive mail |
 
-⛔ **Do not pick B because it is the one that runs without a permission prompt.** That is the
-reasoning to watch for: the gate that stops door A is doing its job, and routing around it through
-a change that touches every visitor is worse, not safer.
+**How it was created, and why not through HTTP.** `COMING_SOON_MODE=1` on production, so
+`POST /api/auth/signup` refuses every request (`auth.py:192`), and no admin endpoint creates a
+user. The account was created by calling **the app's own service functions in the web pod** —
+`create_user` (the exact function signup calls, `auth.py:200`) then `comp_user_access` — with no
+raw SQL against `users` or `subscriptions`. One write, on an explicit owner allow.
+
+⛔⛔ **DOOR B IS REFUSED PERMANENTLY. Never flip `COMING_SOON_MODE` to create an account.**
+Owner ruling, 2026-09-12. Flipping it opens **public registration to the entire internet** for
+the length of the window and re-opens Stripe subscriptions with it (`auth.py:1700`); anyone who
+registers during the window keeps their account. It is a site-wide state change in exchange for
+one test account, and it is the larger risk of the two **despite looking like the normal path**.
+⭐ The reasoning to watch for in yourself is "door B runs without a permission prompt" — the gate
+on the pod write is doing its job, and routing around it through a change that touches every
+visitor is worse, not safer.
+
+**What the write was verified against.** A `VACUUM INTO` backup of production `auth.db` was taken
+FIRST — `/data/backups/auth-2026-09-12-pre-smoke-account.db`, `quick_check = ok`, 26 users / 21
+subscriptions / 43 sessions, and a SHA of the users table's ids (`7ae697e7bf814601`). ⛔ A backup,
+never a file copy: a plain copy of a WAL database omits whatever is still in the `-wal` sidecar and
+looks complete while lagging the source. The provisioning script then fingerprinted the users table
+before and after and asserted the **set difference was exactly one id — the new one — with nothing
+removed**. ⭐ A count going up by one is compatible with one row added and another silently
+rewritten; a set difference is not. Result: 26 → 27 users, 21 → 22 subscriptions,
+`ids_added = [f4433528-…]`, `ids_removed = []`.
+⚠️ The backup lives on the same Railway volume as the database. That protects against a logical
+mistake, which is what this write risked; it does **not** protect against losing the volume.
+
+**⛔ It must never hold a real position, note, or plan.** A smoke account that accumulates state
+stops being a control — the next run cannot tell a product change from its own leftovers.
+Whatever a run creates, that run removes.
+
+**Credentials.** `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the operator's environment via `setx`, the
+same pattern as the BrowserStack credentials. Never in the repo, never in a log, never in a commit,
+never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
+account itself (it is an admin), then re-`setx`.
+
+**First run against it:** box 3 of `docs/plans/joystick/closure.md` — PASS, 16 routes, 25 nav
+entries, at live SHA `7fce88bd2`. Record: `docs/plans/joystick/smoke-runs/2026-09-12T02-24-24Z.md`.
 
 ### Real-device testing — BrowserStack Live (paid)
 
