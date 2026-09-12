@@ -33,6 +33,27 @@ _EMPTY_TTL = 120      # 2 min — a fully-empty payload (transient outage) self-
 _STALE_SERVE_MAX = 3 * 86400   # serve an expired snapshot up to 3 days old while refreshing
 _SNAP_KIND = "earnings_table"
 
+# ⛔ BUMP THIS whenever the payload SHAPE changes or the quarterly strip's
+# composition changes (a provider added to / removed from `get_year_earnings`,
+# a new top-level field). A persisted snapshot stamped with an older version is
+# treated as a MISS and rebuilt, instead of being served for up to _SLOW_TTL.
+#
+# ⚰️ Version 2 exists because version 1 shipped without one. Minutes after the
+# 2026-09-12 staleness deploy the code was live and provably running — the admin
+# endpoint carried the new keys — while `GET /api/fundamentals/earnings-table
+# ?sym=MMC` still answered `reported_through: None, stale_quarters: None` and a
+# newest reported quarter of 2025 Q4. MMC's snapshot had been written by the
+# previous build, it passes `_snapshot_is_complete` (annual rows and reported
+# quarters are both present), and it was inside its TTL — so the serve path
+# returned it verbatim and scheduled no rebuild.
+#
+# ⭐ A payload cannot heal into a new shape by being refreshed in place, which is
+# the same reason `barsIDB.CACHE_LOGIC_VERSION` exists on the browser side.
+# And the lesson worth keeping: the deploy was green throughout — build SUCCESS,
+# uptime reset, new code demonstrably serving. **Verifying the CODE is live is
+# not verifying the ANSWER changed.**
+_PAYLOAD_VERSION = 2
+
 try:
     from zoneinfo import ZoneInfo
     _ET = ZoneInfo("America/New_York")
@@ -520,7 +541,8 @@ def _build(ticker, now):
     # renders (Starlette json.dumps allow_nan=False) and no poison is cached.
     result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly,
                         "reported_through": rep[-1] if rep else None,
-                        "stale_quarters": reported_staleness(quarterly, now=now)})
+                        "stale_quarters": reported_staleness(quarterly, now=now),
+                        "_v": _PAYLOAD_VERSION})
     return result, fresh
 
 
@@ -540,6 +562,21 @@ def _snapshot_is_complete(payload) -> bool:
     if payload.get("annual") and not any(r.get("reported") for r in quarterly):
         return False
     return True
+
+
+def _snapshot_is_current(payload) -> bool:
+    """Was this PERSISTED payload written by code with today's payload shape?
+
+    Separate from `_snapshot_is_complete` on purpose: completeness asks whether
+    the data is usable, currency asks whether the SHAPE is one we still serve.
+    A payload can be perfectly complete and still be the wrong shape, which is
+    exactly the state that let an eight-month-old quarter reach members after
+    the 2026-09-12 deploy. Equality, not `>=`: a rollback must not serve a newer
+    shape it cannot read either.
+    """
+    if not isinstance(payload, dict):
+        return False
+    return payload.get("_v") == _PAYLOAD_VERSION
 
 
 def _build_and_cache(ticker, now=None):
@@ -659,7 +696,7 @@ def get_earnings_table(ticker, now=None, debug=False):
         return hit
 
     snap = snap_store.get(_SNAP_KIND, ticker, now=now)
-    if snap is not None and _snapshot_is_complete(snap[0]):
+    if snap is not None and _snapshot_is_complete(snap[0]) and _snapshot_is_current(snap[0]):
         payload, age, ttl = snap
         if age <= ttl:
             # Fresh on disk (e.g. right after a redeploy) — seed memory, serve.
