@@ -1,0 +1,150 @@
+{
+  "at": "2026-09-12T09:57:52",
+  "tree_head_start": "e951d01cfe63a55b1b794c6fd39309c3f0903dd2",
+  "tree_head_end": "e951d01cfe63a55b1b794c6fd39309c3f0903dd2",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "7164d491f265055efcdb6121f59d17592757cdae",
+  "shards": 6,
+  "excluded": [],
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 3,
+        "passed": 212,
+        "skipped": 0,
+        "todo": 0,
+        "total": 215
+      },
+      "tests": {
+        "failed": 4,
+        "passed": 2717,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2721
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 0,
+        "passed": 214,
+        "skipped": 1,
+        "todo": 0,
+        "total": 215
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 2933,
+        "skipped": 5,
+        "todo": 0,
+        "total": 2938
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 2,
+        "passed": 212,
+        "skipped": 0,
+        "todo": 0,
+        "total": 214
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 3903,
+        "skipped": 4,
+        "todo": 0,
+        "total": 3909
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 0,
+        "passed": 214,
+        "skipped": 0,
+        "todo": 0,
+        "total": 214
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 2991,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2991
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 213,
+        "skipped": 0,
+        "todo": 0,
+        "total": 214
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2523,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2524
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 214,
+        "skipped": 0,
+        "todo": 0,
+        "total": 214
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3952,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3952
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 6,
+      "passed": 1279,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1286
+    },
+    "tests": {
+      "failed": 7,
+      "passed": 19019,
+      "skipped": 9,
+      "todo": 0,
+      "total": 19035
+    }
+  },
+  "test_files_on_disk": 1286,
+  "test_files_waived": 0,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "baseline_sha": "258c5609d529a1f247ae6ff2da266f8479742823",
+  "baseline_measured_at": "2026-09-10 (re-measured on origin/master 62a228e5d)",
+  "vs_baseline": {
+    "observed_count": 7,
+    "baseline_count": 7,
+    "new": [],
+    "no_longer_failing": [],
+    "matches_baseline": true
+  }
+}

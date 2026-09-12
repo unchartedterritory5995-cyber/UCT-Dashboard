@@ -792,6 +792,79 @@ the hub is `position: fixed`, so that is null while it is plainly on screen. Mea
 attribute, the computed `display`, and a non-zero box, and keep a fixture that must read SHOWING or
 the checker passes by answering "no" to everything.
 
+### The G0 trace mirror is LIVE — `data-hub-trace`, admin-only, since 2026-09-12
+
+`PR #108` merged as `d899489124`; `web` is serving `59388e52c`, of which that commit is an
+ancestor (`git merge-base --is-ancestor`, not inferred from the push). `/api/health` 200 on a
+fresh boot.
+
+**What it is:** on the Settings → Joystick card, while *Record gesture trace* is ON, the
+admin-only trace section carries `data-hub-trace` holding exactly the JSON the *Copy trace*
+button would produce — so it feeds `tools/hub_trace_analyze.py` unchanged.
+
+⛔ **It exists because BrowserStack LIVE is the only device path this account funds.** A Live
+session is a screen mirror: there is no automation transport to return a value through, and the
+clipboard belongs to the REMOTE device, so "Copy trace" copies where nobody watching can reach.
+The attribute is the read path.
+
+⛔ **Attribute only — no endpoint, nothing sent** (a test spies on `fetch` and asserts it is never
+called). Two gates, both already load-bearing: `isAdmin` gates the section, and
+`settings.traceGestures` itself resolves as `isAdmin && stored === true`, so a member who writes
+the preference key straight to the endpoint still gets nothing. **Absent, not empty**, when the
+toggle is off — an empty string would read as "a capture that recorded nothing".
+
+⚠️ Computed at RENDER: gesture on `/screener`, then navigate to Settings and the card reads the
+buffer as it stands. It does not live-update, and cannot need to.
+
+⭐ **The read path, proven on a real session 2026-09-12:** BrowserStack Live's own toolbar →
+**DevTools → Safari Web Inspector** attaches a full inspector, *rendered in the operator's own
+browser*, whose Console evaluates in the device's page. `data-hub-trace` is read there, and a
+summary can be computed on-device so only a short string has to come back. **Attaching and
+detaching the inspector does NOT reload the device's tab** — a `window` marker survived two
+cycles — which matters because the trace ring is module state with no sink and a reload destroys
+it. The console *log* is cleared on each attach; `window` is not. Navigate with
+`history.pushState` + `PopStateEvent` from that console, never a document load, for the same
+reason. ⚠️ The attribute is computed at render, so after gesturing you must actually re-mount the
+card (route away and back) — re-reading it in place returns the value from the previous render.
+
+### ⛔⛔ A LIVE SCREEN MIRROR CANNOT MEASURE A SUB-300 ms GESTURE — measured, 2026-09-12
+
+**Floor: 260–427 ms per gesture, on an iPhone 15 Pro / iOS 17.6 Live session, read from the
+device's own clock.** Sixteen gestures, two drag lengths. Anything whose threshold is shorter than
+that — the joystick's `FLICK_MS = 120` is the live example — **cannot be tested through a Live
+mirror at all**, and a run that tries produces a table of the websocket.
+
+⛔ **THE COST IS PER POINTER-EVENT ROUND TRIP, NOT PER PIXEL — so "drag a shorter distance" is not
+a fix.** Shrinking the drag 6× (139 px → 23 px of travel) left the move count at 16–19 (from
+11–22) and made the median *worse*, 280 → 329 ms. There is no shorter drag; the client decides how
+many events to send and the operator does not.
+
+⛔ **SYNTHETIC MOUSE/POINTER EVENTS ON THE MIRROR CANVAS ARE SILENTLY DISCARDED.** Dispatching
+`PointerEvent`/`MouseEvent` on `#flashlight-overlay-native` inside `#flashParent.streaming-container`
+returns plausible local durations (39–60 ms) and changes nothing on the phone. Five attempts left
+the device's own `recorded` counter at **exactly** its previous value — zero events arrived.
+⭐ **It looked like it worked.** The only thing that caught it was reading a counter the *device*
+owns, not the timings the *operator's* browser reported — the same rule as reading the wire instead
+of the call site.
+
+⭐ **What a Live mirror IS good for:** anything untimed — does it render, where is it, does it
+resolve the right target, does the label say the right thing. A deliberate press fired 10/10
+correctly in the same run, and the *same* session settled a geometry question no local suite can
+answer (glass-acceptance G3-15) by reading `getBoundingClientRect` and `elementFromPoint` from
+real Safari. Reserve it for those, and route every timing question to a real finger or to a
+transport that owns the clock.
+
+⛔ **A LIVE SESSION DIES ON INACTIVITY — DO NOT START A LONG LOCAL JOB IN THE MIDDLE OF ONE.**
+Kicking off a six-shard gate (~15 min) mid-run cost the device session: *"Your remote session has
+been closed due to inactivity."* The device work and the local gate are **serialised**, not
+parallel. Finish the device, then gate — and if a gate must run first, expect to re-open the
+session and to need the owner's sign-in again.
+
+⚠️ **A device-console `PointerEvent` probe is an ENGINE test, never a glass result.** It can prove
+a branch is reachable and that two clocks agree; it cannot say anything about the touch pipeline,
+because no finger touched glass. Label it as such in the artifact or it will be cited as the
+measurement it is not.
+
 ### Testing → BrowserStack — WHAT IS PAID FOR, measured 2026-09-12 in the dashboard
 
 > **Live and App Live are paid. Automate and App Automate are NOT on this account at all.**
@@ -1420,6 +1493,50 @@ timeout is never banked as permitted breakage, and provenance is `git show <sha>
 
 ## Worktree Directory
 
+### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
+
+> **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
+> BOX UNDER MEMORY PRESSURE.**
+
+What was running at once, none of it aware of the others (31.8 GB box, free memory fell to
+**4.8 GB**):
+
+| PID shape | What | Cost |
+|---|---|---|
+| `python -m pytest tests/ -q -k "journal_two or notebook or j2"` | an **unscoped backend pytest** | **11,854 MB RSS**, still climbing |
+| `python scripts/gate_shards.py --shards 6` + `uct-worktrees/notebook-flip/app/node_modules/.bin/vitest` | **a second six-shard gate**, another worktree | 6 shards |
+| `python -u analysis/4f-r_part_b/motion_lab.py` under `heavy_lock` | render job | ongoing |
+
+**The damage, in order:**
+1. Gate attempt 1 -> `INVALID`: shards 5 and 6 produced **no totals line**.
+2. Gate attempt 2 (`--max-workers 4`) -> `INVALID`: **all six**, in under a minute.
+3. Running one shard by hand gave the real cause: `ERR_MODULE_NOT_FOUND: Cannot find package 'vite'`.
+4. `app/node_modules` was down to **2 entries**, then **0**, then **did not exist** - with **no npm
+   process running**. A killed `npm ci` deletes before it installs.
+5. An `npm ci` started to repair it logged `added 527 packages ... in 10s` and left **nothing on
+   disk** - swept mid-write.
+6. The worktree's **`.git` file was destroyed too**, so the tree was not a repository any more.
+
+**NOTHING WAS LOST, AND THE REASON IS WORTH KNOWING.** A worktree's commits live in the MAIN
+repository's object store, and its branch refs in the main `.git/refs` - so the hotfix branch was
+intact and pushable from the main checkout after verifying the SHA matched on the remote. Recovery
+is `git worktree prune` then `git worktree add <path> <branch>`. Move the damaged tree aside rather
+than deleting it (`_dead-<name>-<date>`) - a post-mortem needs the body.
+
+**`gate_shards.py` REFUSING ITSELF IS THE SYSTEM WORKING.** It wrote `INVALID-*.md` and deleted the
+partial shard logs *precisely so* an empty log directory could not later read as a completed run.
+Both INVALIDs were the environment; neither said anything about the code. **Never read an INVALID
+manifest as a signal about your branch, and never merge on one.**
+
+**`pytest tests/ -q -k "..."` IS NOT A SCOPED RUN.** The `-k` filter selects which tests *execute*;
+every test in the tree is still **collected**, and collection is where the memory goes
+(`--collect-only` alone reached 6.6 GB - see the backend-pytest rule). Scoping means **naming the
+files**.
+
+**The evidence of an OOM sweep is that there is no evidence** - no traceback, no error, a
+suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
+contended box as a killed run until proven otherwise, and check free memory before blaming code.
+
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
 ⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**
@@ -1630,6 +1747,24 @@ writes a placeholder naming the device and `(session did not complete)` **before
 the session, and overwrites it only with a real result.
 
 ### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
+
+### ⛔ A WINDOWS PATH THROUGH THE BASH TOOL LOSES ITS BACKSLASH — quote it, or use PowerShell
+
+2026-09-12, booting the hub sandbox. The command read
+`powershell -File scripts/hub-sandbox.ps1 -DataDir C:\\data-hubtest -Port 8077`, and what the
+launcher actually received was **`--data-dir C:data-hubtest`** — read back from the running
+process's own command line (`Get-CimInstance Win32_Process`), not guessed. `C:data-hubtest` is a
+DRIVE-RELATIVE path: Windows resolves it against the current directory on C:, so the sandbox wrote
+to `...\uct-worktrees\joystick-launch-close\data-hubtest` instead of `C:\data-hubtest`.
+
+⭐ **The guard held and every checkpoint was CLEAN** — pre-boot, +15s and +120s, 53 db files hashed
+each time — because the launcher's protection is the AST-derived env pins and the tripwire on the
+shared root, not the spelling of the sandbox path. That is the design working: a mangled argument
+produced a wrong-but-harmless directory rather than a write into `C:\data`.
+
+⛔ **The fix is the tool boundary, not more escaping.** Pass Windows paths from the PowerShell tool,
+or single-quote them (`-DataDir 'C:\data-hubtest'`). And **verify what the PROCESS received**, not
+what the command said — the same rule as reading the wire instead of the call site.
 
 ### Live-data backup (operator safety net)
 

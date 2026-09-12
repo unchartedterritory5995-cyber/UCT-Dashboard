@@ -187,7 +187,7 @@ def expectations(specs: list[str]) -> list[str]:
     return out
 
 
-def analyse(payload: dict, expect: list[str]) -> dict:
+def analyse(payload: dict, expect: list[str], control: int = 0) -> dict:
     rows = payload.get("rows") or []
     win = payload.get("window") or {}
     consts = payload.get("constants") or {}
@@ -207,6 +207,7 @@ def analyse(payload: dict, expect: list[str]) -> dict:
         bucket, why = classify(g, exp)
         end = g["end"] or {}
         results.append({
+            "isControl": idx is not None and idx >= max(0, len(expect) - control) and control > 0,
             "seq": (g["down"] or (g["rows"][0] if g["rows"] else {})).get("seq"),
             "expected": exp,
             "bucket": bucket,
@@ -275,6 +276,28 @@ def report(a: dict, label: str) -> None:
     for g in a["gestures"]:
         say(f"  {str(g['seq'] or '?'):<5} {str(g['expected'] or '—'):<19} {g['bucket']:<44} {g['why']}")
 
+    # ⛔⛔ THE CONTROL BLOCK IS READ FIRST, AND IT IS NOT PART OF HYPOTHESIS A.
+    #
+    # The control is a handful of deliberately SLOW drags. They are supposed to land in (b) — that
+    # is the whole point: it proves the instrument can tell a press from a flick. Counting them in
+    # the timing verdict made a healthy sandbox run report "A IS LIVE" off 5 gestures that were
+    # never flicks, which would have made every device verdict unreadable in the same way.
+    controls = [g for g in a["gestures"] if g.get("isControl")]
+    if controls:
+        missed = [g for g in controls if g["bucket"] == B_MISSED]
+        ok = len(missed) == len(controls)
+        say("")
+        say(f"  ⭐ CONTROL CHECK — {len(missed)}/{len(controls)} deliberately slow drags read as "
+            f"\"flick window missed\": {'PASS' if ok else '⛔ FAILED'}")
+        if not ok:
+            say("     ⛔ THE INSTRUMENT IS WRONG, NOT THE PRODUCT. A control that does not read as a "
+                "missed window means this run cannot classify a flick either. Fix it and re-run "
+                "before reading a single line below.")
+        else:
+            el = nums(g["elapsed"] for g in controls)
+            if el:
+                say(f"     controls took {min(el):.0f}-{max(el):.0f}ms against a {a['constants'].get('FLICK_MS')}ms window")
+
     buckets = Counter(g["bucket"] for g in a["gestures"])
     say("\n  counts")
     for b, n in buckets.most_common():
@@ -282,11 +305,13 @@ def report(a: dict, label: str) -> None:
 
     # ── The verdicts. One line per hypothesis, each naming the number it rests on. ──────────────
     flick_ms = consts.get("FLICK_MS")
-    elapsed = nums(g["elapsed"] for g in a["gestures"] if g["bucket"] in (A_FIRED, B_MISSED, D_WRONG, GUARD))
-    travelled = nums(g["travelled"] for g in a["gestures"])
-    ev = nums(g["sinceDownEventTs"] for g in a["gestures"])
-    pn = nums(g["sinceDownPerfNow"] for g in a["gestures"])
-    coalesced = nums(g["coalesced"] for g in a["gestures"])
+    # Hypothesis A is about FLICKS. The control block is excluded by construction.
+    attempts = [g for g in a["gestures"] if not g.get("isControl")]
+    elapsed = nums(g["elapsed"] for g in attempts if g["bucket"] in (A_FIRED, B_MISSED, D_WRONG, GUARD))
+    travelled = nums(g["travelled"] for g in attempts)
+    ev = nums(g["sinceDownEventTs"] for g in attempts)
+    pn = nums(g["sinceDownPerfNow"] for g in attempts)
+    coalesced = nums(g["coalesced"] for g in attempts)
 
     say("\n  verdicts")
     if elapsed and isinstance(flick_ms, (int, float)):
@@ -306,7 +331,7 @@ def report(a: dict, label: str) -> None:
         say(f"    B  travel   : median travelled {statistics.median(travelled):g}px, min {min(travelled):g}px")
     else:
         say("    B  travel   : no travel values — cannot say")
-    wrong = buckets.get(D_WRONG, 0)
+    wrong = sum(1 for g in attempts if g["bucket"] == D_WRONG)
     say(f"    C  geometry : {wrong} gesture(s) resolved onto an action other than the expected one → "
         + ("**C IS LIVE**" if wrong else "not implicated"))
     if buckets.get(C_NO_ENGINE):
@@ -372,6 +397,18 @@ def self_check() -> int:
     if expectations(["scan.chartIt:10", "scan.flag:2"]) != ["scan.chartIt"] * 10 + ["scan.flag"] * 2:
         fails.append("--expect expansion is wrong")
 
+    # The control block must be excluded from A, or a healthy run reports A IS LIVE off its
+    # own control. Proved on a synthetic population rather than asserted.
+    fake = {"gestures": [
+        {"isControl": False, "bucket": A_FIRED, "elapsed": 80, "travelled": 140,
+         "sinceDownEventTs": 70, "sinceDownPerfNow": 79, "coalesced": 1},
+        {"isControl": True, "bucket": B_MISSED, "elapsed": 530, "travelled": 140,
+         "sinceDownEventTs": 500, "sinceDownPerfNow": 520, "coalesced": 1},
+    ]}
+    att = [g for g in fake["gestures"] if not g.get("isControl")]
+    if len(att) != 1 or max(nums(g["elapsed"] for g in att)) >= 120:
+        fails.append("the control block is not excluded from hypothesis A")
+
     if fails:
         say("SELF-CHECK FAILED:\n  " + "\n  ".join(fails), err=True)
         return 1
@@ -386,6 +423,9 @@ def main(argv=None) -> int:
     ap.add_argument("--expect", action="append", default=[],
                     help="intended action id, optionally :count — in the order the script runs "
                          "(e.g. --expect scan.chartIt:10)")
+    ap.add_argument("--control", type=int, default=0,
+                    help="the last N declared gestures are the CONTROL block (deliberately slow "
+                         "drags). They are reported separately and excluded from hypothesis A.")
     ap.add_argument("--compare", help="a second trace (the other device) to print beside the first")
     ap.add_argument("--self-check", action="store_true", help="prove the classifier can fail")
     args = ap.parse_args(argv)
@@ -396,12 +436,12 @@ def main(argv=None) -> int:
         ap.error("give a trace file (or - for stdin), or --self-check")
 
     expect = expectations(args.expect)
-    first = analyse(load(args.trace), expect)
+    first = analyse(load(args.trace), expect, args.control)
     report(first, args.trace)
     ok = readable(first)[0]
 
     if args.compare:
-        second = analyse(load(args.compare), expect)
+        second = analyse(load(args.compare), expect, args.control)
         report(second, args.compare)
         ok = ok and readable(second)[0]
         say("\n═══ diff — stop at the FIRST line that differs; everything after it is downstream ═══")

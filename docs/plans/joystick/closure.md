@@ -39,12 +39,31 @@
       ⬜ UNEXPLAINED: *"iPhone 15 Pro scored sticky fan 0/10 and flick 0/10, while iPhone SE
       scored 10/10 on both — on the same calibrated pointer path."* `g0-flick-trace-plan.md` is
       the plan for explaining it.
-      **Evidence:** ⬜ OPEN — needs the owner's thumb. **Both halves of the measurement now
+      **Evidence:** ⬜ OPEN — needs the owner's thumb, and as of 2026-09-12 that is now a
+      *measured* conclusion rather than an assumption. **Both halves of the measurement
       exist and are self-checked:** the phone script is the numbered top half of
       `g0-flick-trace-plan.md` (7 steps, ~10 min, iPhone 15 Pro, production, admin), and the
       analyser is `tools/hub_trace_analyze.py` (`--self-check` PASSES: six buckets each reached by
       the row that means them, an intent-withheld gesture stays UNDECIDED, an overflowed buffer is
       refused). ⛔ Nothing here is a result — an instrument that is ready is not a measurement.
+
+      **2026-09-12 — a real iPhone 15 Pro / iOS 17.6 was driven against production on
+      BrowserStack Live. Verdict `INCONCLUSIVE-TRANSPORT`; this box stays UNTICKED.**
+      Full run: `g0-1-live-device-run-2026-09-12.md`. The control gate failed by 2.2×: ten
+      mirror-driven gestures took **260–427 ms** against a 120 ms window, and the mandated
+      retry with the shortest drag the mirror accepts came out *slower*, because the mirror's
+      floor is per pointer-event round trip, not per pixel. No flick was ever attempted by a
+      real touch, so no twenty-flick table was published.
+      ⭐ What the run did establish, on that device: the pad renders at exactly the specified
+      pixel; the **press** path fired **10/10** onto the intended outer-ring action (so the
+      Phase 2 "15 Pro 0/10 on sticky fan" half is NOT reproduced on iOS 17.6); the **flick
+      branch itself fires 6/6** at 76–79 ms when a pointer sequence reaches it inside the
+      window (engine probe — ⛔ *not* a G0-1 result, no finger touched glass); `elapsed` and
+      `event.timeStamp` agree to **≤ 8 ms** across all 16 gestures, which **eliminates cause A
+      as originally written**; and `getCoalescedEvents()` added 0 rows on every gesture.
+      ⇒ One question is left, and no funded product can ask it: *does a real finger's flick on
+      a 15 Pro produce a pointerdown→pointerup pair under 120 ms?* This is the point at which
+      the owner's own device is the only remaining path, stated explicitly as required.
 
 - [ ] **Glass acceptance passed on ≥ 1 notched iOS device and ≥ 1 Android.**
       `glass-acceptance.md`, every block, including the surfaces Increments 3–7 added.
@@ -56,6 +75,10 @@
       `node tools/hub_surface_matrix.mjs --glass` — every mode's Primary/Reverse/Scrub binding and
       every fan action, plus D4 and D1 where an operator meets them, each row carrying a
       BLOCKED-BY-G0 box so a run made too early records itself as blocked rather than as a fail.
+      ⛔ **The 2026-09-12 Live run did not lift this gate** and could not have: it returned
+      `INCONCLUSIVE-TRANSPORT`, which is neither a G0-1 pass nor a fail. Every G1 row therefore
+      still ticks its BLOCKED-BY-G0 box, and any of them run today on a mirror would measure
+      the same ~300 ms transport rather than the product.
 
 - [x] **Post-deploy client smoke, signed in, covering every top-level route including
       `/dashboard`, and CONCLUSIVE.** ✅ **CLOSED 2026-09-12.**

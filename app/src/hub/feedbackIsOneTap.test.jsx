@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { AuthContext } from '../context/AuthContext'
 import HubActionsButton from './HubActionsButton'
 import { modes, INNER_MAX } from './registry'
+import { sumPx, boxOf, overlaps, nameOf, INWARD_UNBOUNDED, UNKNOWN_HEIGHT } from './__tests__/restBoxes'
 
 let definedCount = 0
 let executedCount = 0
@@ -145,30 +146,13 @@ describe('why it is a button and not an inner-ring action', () => {
 })
 
 // ── geometry: the collision claim, measured ─────────────────────────────────
-/** `calc(env(safe-area-inset-bottom) + 68px + 84px)` -> 152. env() reads as 0 (see the header). */
-const sumPx = (value) => [...String(value ?? '').matchAll(/(-?\d+(?:\.\d+)?)px/g)]
-  .reduce((a, m) => a + Number(m[1]), 0)
-
-const INWARD_UNBOUNDED = 10000 // an auto-width element may extend inward forever
-const UNKNOWN_HEIGHT = 200     // a content-sized element may grow upward; assume generously
-
-/**
- * The rest-state box of one element, in (inward-from-its-edge, up-from-the-bottom) space.
- * Elements anchored to the SAME edge are the only ones that can collide horizontally, and in
- * this hub every anchored element is on the same edge by construction (mirrorsAsAUnit.test.jsx).
- */
-function boxOf(el) {
-  const s = el.style
-  const edge = s.right && s.right !== 'auto' ? sumPx(s.right) : sumPx(s.left)
-  const width = sumPx(s.width) || sumPx(s.minWidth) || INWARD_UNBOUNDED
-  const bottom = sumPx(s.bottom)
-  const height = sumPx(s.height) || sumPx(s.minHeight) || UNKNOWN_HEIGHT
-  return { x0: edge, x1: edge + width, y0: bottom, y1: bottom + height }
-}
-const overlaps = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
-
-const name = (el) => el.getAttribute('data-testid') || el.getAttribute('aria-label')
-  || `<${el.tagName.toLowerCase()} class="${el.className}">`
+// ⛔ THE ARITHMETIC MOVED OUT, AND THAT IS THE POINT. `sumPx`/`boxOf`/`overlaps` used to be
+// private to this file, pointed at ONE element. They were already capable of catching the hub
+// chip sitting under the Actions button and never did, because nothing asked them that pair —
+// which is how G3-15 ended up being found on real glass instead. They now live in
+// `__tests__/restBoxes.js` so `hubChipActionsClearance.test.jsx` measures the SAME boxes with the
+// SAME rules rather than a second copy that agrees until it doesn't.
+const name = nameOf
 
 describe('⛔ it does not collide — with the hub, in either hand', () => {
   for (const handedness of ['right', 'left']) {
