@@ -316,3 +316,41 @@ cannot be re-run.
 Rail: `tests/test_flow_rig_swap_guard.py` — 5 pacing cases including a clear-window
 control and a pin on the cap literal. Mutation-proved three ways: raise the cap to 5,
 make the pacer never wait, delete both 429 branches. Each RED, naming the right test.
+
+
+---
+
+## The GEX crosshair protocol (`tools/gex_crosshair_probe.py`)
+
+Navigates a member to GEX → Chart with Levels, scrolls the chart into a drivable
+band, drives 60 synthetic moves across its width in ~1 s, and **refuses to report
+anything until it proves it is driving the crosshair**.
+
+### ⛔ Four instrument traps, all hit for real on 2026-09-13
+
+1. **The chart is below the fold.** It renders at `y≈1125` in a 1000 px viewport, so
+   a box read before scrolling points off-screen and every synthetic move lands
+   nowhere. The control reported `dom mutations=0` — which a naive harness publishes
+   as "the crosshair never responds". Scroll first, then re-read the box, and require
+   a drivable VISIBLE BAND rather than full containment (demanding containment
+   refused a perfectly good surface whose last 5 px fell below the fold).
+2. **Event Timing does not emit `pointermove`.** Chrome reports discrete
+   interactions, so an input-to-paint metric comes back n=0 on a working chart. Use a
+   listener on the canvas instead — verified: 5 synthetic moves produce 5 pointermove
+   and 5 mousemove, and `elementFromPoint` at the drive centre is the CANVAS.
+3. **This chart renders no DOM legend** that changes on crosshair move, so a
+   MutationObserver reads 0 for a crosshair that works. It is canvas-only.
+4. **`get_by_role("button", name="GEX")` matches nothing here.** The tab bar is plain
+   `<button>`s whose accessible name is not what the role locator resolves, and the
+   miss surfaces 60 s later as "Chart with Levels never appeared" — which reads like
+   the GEX data failing rather than a selector miss. Click by exact button text.
+
+### ⭐ And two rules the results themselves taught
+
+- **A negative needs a POSITIVE CONTROL.** Inject ~25 ms of work per move and confirm
+  the probe reports dropped frames and a LoAF entry. Without that, "0 dropped frames"
+  is indistinguishable from a blind instrument.
+- **Headless and headed disagree, so state which you ran.** Headless showed 0 dropped
+  frames; headed showed 15–17 — and a non-GEX chart headed showed 54. Headed numbers
+  on a shared-GPU dev box are dominated by the environment, so any headed claim needs
+  a same-session control on another surface before it means anything.

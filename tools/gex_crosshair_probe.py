@@ -32,6 +32,7 @@ INSTRUMENT = """
     frames: [],        // rAF timestamps -> intervals, dropped frames
     domMutations: [],  // timestamped DOM changes inside the chart (legend etc)
     moves: [],         // our own dispatch marks
+    inputs: [],        // pointermove ARRIVALS at the chart canvas
   };
   window.__gex = S;
 
@@ -82,10 +83,23 @@ INSTRUMENT = """
       .observe(root, {childList: true, subtree: true, characterData: true});
     return true;
   };
+  // ⭐ THE INPUT CHANNEL THAT EXISTS HERE. Event Timing does not emit
+  // pointermove and this chart has no DOM legend, so arrival is observed by
+  // listening on the canvas itself - verified: 5 synthetic moves produced 5
+  // pointermove + 5 mousemove on this element.
+  window.__gexAttachCanvas = () => {
+    const cs = Array.from(document.querySelectorAll('canvas')).filter(c => {
+      const r = c.getBoundingClientRect(); return r.height > 200 && r.width > 300; });
+    S.canvasCount = cs.length;
+    for (const c of cs) c.addEventListener('pointermove',
+      () => S.inputs.push(performance.now()), true);
+    return cs.length;
+  };
   window.__gexMark = (x, y) => S.moves.push({t: performance.now(), x, y});
   window.__gexReset = () => {
     S.events.length = 0; S.longtasks.length = 0; S.loaf.length = 0;
     S.frames.length = 0; S.domMutations.length = 0; S.moves.length = 0;
+    S.inputs.length = 0;
   };
   return true;
 })()
@@ -126,7 +140,17 @@ def open_gex_chart(page):
     """Navigate a MEMBER to GEX -> Chart with Levels. Returns the chart box."""
     page.goto(BASE + "/options-flow", wait_until="commit", timeout=60000)
     settle(page)
-    page.get_by_role("button", name="GEX", exact=True).first.click()
+    # ⛔ Click by exact BUTTON TEXT, not by ARIA role. The role-based locator
+    # silently matched nothing here (the tab bar is plain <button>s whose
+    # accessible name is not what get_by_role resolved), and the failure surfaced
+    # 60s later as "Chart with Levels never appeared" — which reads like the GEX
+    # data failing, not like a selector miss.
+    clicked = page.evaluate("""(() => {
+      const b = Array.from(document.querySelectorAll('button'))
+        .find(b => (b.innerText||'').trim() === 'GEX');
+      if (!b) return false; b.click(); return true; })()""")
+    if not clicked:
+        raise RuntimeError("no button with exact text 'GEX' — page did not settle?")
     page.wait_for_selector("text=Chart with Levels", timeout=60000)
     page.get_by_text("Chart with Levels", exact=False).first.click()
     page.wait_for_selector("canvas", timeout=60000)
@@ -187,6 +211,7 @@ def verify_drives_crosshair(page, box):
       new MutationObserver(() => window.__gex.domMutations.push(performance.now()))
         .observe(n, {childList: true, subtree: true, characterData: true});
       return true; })()""")
+    page.evaluate("window.__gexAttachCanvas()")
     page.evaluate("window.__gexReset()")
     cx, cy = box["x"] + box["w"] / 2, box["y"] + box["h"] / 2
     for dx in (-120, -60, 0, 60, 120):
@@ -194,10 +219,11 @@ def verify_drives_crosshair(page, box):
         page.wait_for_timeout(120)
     page.wait_for_timeout(400)
     st = page.evaluate("({e: window.__gex.events.length, d: window.__gex.domMutations.length,"
+                       " i: window.__gex.inputs.length, c: window.__gex.canvasCount,"
                        " f: window.__gex.frames.length, vis: document.visibilityState})")
-    ok = st["d"] > 0 and st["f"] > 0
-    print("  CONTROL  pointermove entries=%d  dom mutations=%d  frames=%d  vis=%s  -> %s"
-          % (st["e"], st["d"], st["f"], st["vis"],
+    ok = st["i"] >= 3 and st["f"] > 0
+    print("  CONTROL  canvas arrivals=%d/5 (canvases=%d)  frames=%d  vis=%s  -> %s"
+          % (st["i"], st["c"], st["f"], st["vis"],
              "synthetic moves DO drive the crosshair" if ok
              else "!! THEY DO NOT - every latency below would be meaningless"))
     return ok, st
@@ -216,7 +242,7 @@ def run_protocol(page, box, moves=60, span_ms=1000):
         page.wait_for_timeout(step_ms)
     page.wait_for_timeout(1200)                  # let the last paints land
     return page.evaluate("""(() => { const S = window.__gex; return {
-      events: S.events, longtasks: S.longtasks, loaf: S.loaf,
+      events: S.events, longtasks: S.longtasks, loaf: S.loaf, inputs: S.inputs,
       frames: S.frames, domMutations: S.domMutations, moves: S.moves,
       errs: {e: S.eventObsError, l: S.longtaskObsError, f: S.loafObsError}}; })()""")
 
@@ -239,8 +265,10 @@ def analyse(raw):
             lat.append(dm[j] - m["t"])
     def pct(v, p):
         return v[min(int(len(v) * p), len(v) - 1)] if v else None
+    inputs = raw.get("inputs") or []
     return {
         "n_moves": len(raw["moves"]), "n_events": len(ev),
+        "n_input_arrivals": len(inputs),
         "input_to_paint_ms": {"median": pct(dur, .5), "p95": pct(dur, .95),
                               "max": (dur[-1] if dur else None)},
         "handler_ms": {"median": pct(proc, .5), "p95": pct(proc, .95)},

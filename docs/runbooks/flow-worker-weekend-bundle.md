@@ -943,3 +943,66 @@ matters is which branches have commits NOT in master that touch the file —
 
 The diff is kept minimal regardless, so any rebase is trivial: two hunks, one promoting
 `fmtGex` to module scope beside `fmt` and `fK`, one deleting the in-component `const`.
+
+### Phase 2 — the crosshair lag: NO GEX-SPECIFIC LAG IS MEASURABLE. Thread closed.
+
+Measured on the now-rendering chart (post-`67566d999`), member-smoke, pod ≥120 s,
+every run accepted by the swap/cold guard.
+
+**Before distribution — headless, 5 accepted runs, 60 synthetic moves across the
+chart width in ~1 s:**
+
+| run | frames | frame iv median | dropped | long tasks | LoAF | canvas arrivals |
+|---|---|---|---|---|---|---|
+| 1–5 | 204–207 | **16.70 ms** | **0** | **0** | **0** | 57/60 |
+
+16.70 ms against 16.67 ms for 60 Hz. A locked 60 fps for the whole sweep.
+
+⛔ **A negative is worthless if the instrument cannot see a positive.** Injecting
+25 ms of synthetic work per move into a canvas `pointermove` listener produced
+**10 dropped frames and a 63 ms LoAF**, against 0 and 0 for the real chart. The probe
+detects lag; the negative is real.
+
+**Headed — and this is why the headless negative alone would have been wrong:**
+
+| surface (headed, identical protocol) | dropped | LoAF | frame iv |
+|---|---|---|---|
+| GEX chart, 8–12 price lines | 15–17 | 12 (max 104 ms) | 17.40 ms |
+| **`/charts`, NO GEX lines (control)** | **54** | 3 (max 57 ms) | 17.40 ms |
+
+⭐ **The chart WITHOUT the GEX lines dropped three times more frames.** So the headed
+drops are not GEX-specific. Two further facts kill the script hypothesis outright:
+**zero long tasks** in every headed run, and **zero script attribution in any LoAF
+entry** — `renderStart → styleAndLayoutStart` is 0–1 ms. Long frames with no script
+time and no layout time are the presentation pipeline, i.e. a headed browser sharing a
+GPU on a busy dev box, not the page's JavaScript.
+
+#### Verdict
+
+**No function is named, because no GEX-specific lag exists to attribute.** Per the
+definition of done this is the "definitively characterised" branch, not a guess: the
+GEX chart holds 60 fps headless, beats a plain chart headed, and shows no script cost
+in any long frame.
+
+⚰️ **What this says about the five speculative fixes.** They shipped 2026-05-23 and
+were all kept as correctness wins. One of them evidently did fix the lag — and nobody
+could confirm it, because from 2026-09-07 the view crashed on open, so every later
+report of the lag "persisting" was about a screen that never rendered. **The thread
+closes on a measurement, not on a fix.**
+
+#### Step 8's discriminator was not run, and why
+
+Nulling the 8–12 price lines at runtime requires the lightweight-charts series handle,
+which is module-private and not reachable from the page without editing a file.
+Reported rather than faked. It is also **moot**: the discriminator exists to test
+whether the lines are the cost, and the GEX chart already performs BETTER than the
+no-lines control.
+
+#### ⚠️ The honest boundary of this negative
+
+This is a synthetic 60-moves-in-1 s sweep, in Chromium, on a dev box, at 1600×1400.
+The original report was a human's perception on their own display. What would settle
+it beyond this: the owner's own DevTools Performance trace during real cursor movement
+on the real machine — Bottom-Up, sorted by Self Time. If that shows a hot function this
+protocol does not, the protocol is what is wrong, and it is `tools/gex_crosshair_probe.py`
+to fix.
