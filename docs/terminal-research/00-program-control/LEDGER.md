@@ -607,6 +607,127 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+# ⛒ BUILD DAY — 2026-09-12. Every unblocked system to its gate boundary, one session.
+
+Control file: `10-roadmap/2026-09-12-build-day-plan.md` (`f9a759a8c`). Rules for the day are its
+§7: gate packet → approval block filled → checkpoint, named test files only, `reachable_paths()`
+on every merge, ADDITIVE strands accumulate and are discharged by ONE marker bump at the end,
+a ledger row before the next item starts.
+
+⛔ **MASTER IS MOVING UNDER THIS SESSION.** Three other workstreams pushed to `master` during the
+first merge alone (notebook Q1, a bars-provenance fix, a Confluence Radar fix, a test-baseline
+correction). Every merge below states the base it was verified against, because "green on my
+tree" and "green on master" stopped being the same sentence today.
+
+## Tier 1 merges
+
+| what | commit | base | classification |
+|---|---|---|---|
+| **D2 CP2** — the first non-screener store + the first reader | **`ffa8102c7`** | `16ef7d7fc` | ADDITIVE — 8 files, **0** in flow-worker's 154-module closure |
+
+---
+
+### D2 CP2 — `ffa8102c7`. Gate line 2 `eee16c59e`, marked **NARROWED**.
+
+**The book stops describing the screener and starts being an address book.** `bars_sqlite` joins
+it — five metrics, `ohlcv.o/h/l/c/v` — and exactly ONE reader resolves through it, dark, serving
+the legacy value. 142 metrics total; `--check` OK.
+
+#### ⛔ The approval's own criterion picked the store that cannot be addressed
+
+The scope said *"pick by which has the most divergent naming in the D2 inventory"*. Measured —
+every module of each candidate parsed, docstrings and comments blanked, control 19/19 and 14/14
+still carrying a `def` — that is **fundamentals**, and not narrowly:
+
+| axis | `bars_sqlite` | `fundamentals` |
+|---|---|---|
+| metric spellings | 5 | **10** |
+| as-of spellings | 2 | **7** |
+| entity | `ticker` 323 vs `sym` 110 — a convention | `sym` 217 vs `ticker` 202 — **a coin flip** |
+
+⭐ **And the two facts are one fact: fundamentals has ten names BECAUSE it has no declaration.**
+`fund_snapshots` is `(kind, ticker, payload, ttl, updated_at)` — a JSON blob with zero per-metric
+columns. Addressing it means typing ten names into the builder, which converts the address book
+into a second authority over the values it addresses. That is the defect D2 exists to remove,
+committed inside D2. The block is marked **NARROWED**, the narrowing is the SELECTION RULE rather
+than the deliverable, and **F-D2-1** records fundamentals with its prerequisite: a row-shape
+declaration in `earnings_table.py` first. No fix.
+
+#### ⭐ THE PROJECTION IS NOT THE SCHEMA — and that is what the migrated reader is for
+
+`ohlcv`'s DDL is `ticker, tf, ts, o, h, l, c, v`, so the close is **column 6**. The tuple the
+store's readers hand back is `SELECT ts,o,h,l,c,v`, so the close is **position 4**. Both numbers
+are true about the same column and only one of them indexes the tuple in your hand.
+
+`api/services/ticker_returns.py` — the Desk's since-mention percentages — had the bare integer `4`
+typed into it three times. **F-D2-3:** nothing in the repo would have noticed if that projection
+changed. `[4]` would silently become the LOW, every ticker chip on the Desk would show a wrong
+percentage, and no test, type or assertion would fire. It was chosen as the one migrated reader
+for exactly that reason, and because it is outside flow-worker's closure.
+
+#### ⛔ What the store does not declare is written `null`, never defaulted
+
+`cadence`, `grain` and `sentence` are declared for all 137 screener scalars and for **none** of the
+five bars columns. Defaulting cadence to the book's only existing value is a one-word change that
+would make a continuously-fetched store look like a nightly batch one — in the field
+`scan_evaluator.cadence_ceiling` reasons about. The axis report counts them as `(undeclared)`:
+`cadences {(undeclared): 5, nightly: 137}`. *"We could not compute it"* and *"nightly"* are
+different facts; this is `CoverageLine`'s discipline one layer down.
+
+**F-D2-2 — recorded, not fixed.** The bars store's as-of grain varies by timeframe and is declared
+nowhere; it is re-derived inline as `tf in ("D", "W", "M")` in **seven** places in
+`api/services/bars_fetch.py`. Declaring it once is the obvious fix and CP2 does not do it:
+`bars_fetch.py` and `bars_sqlite.py` are **inside flow-worker's import closure and outside its
+watch list**, so flow-worker would run a stale copy of any new declaration. Harmless for a constant
+nobody reads, not worth the strand.
+
+#### ⛔⛔ TWO INSTRUMENT DEFECTS, BOTH CAUGHT BY THE BUILD ITSELF
+
+1. **The DDL scan found THREE `CREATE TABLE` literals in `bars_sqlite.py`.** Two are real; the
+   third is a **docstring** saying a recovery helper *"would run `CREATE TABLE` against damage."*
+   A parser that counted it would have reported a property of the module's explanation as a
+   property of its schema. `CODE, NEVER PROSE` — the seventh instance this month, and the first
+   one caught by the tool refusing rather than by a human noticing.
+2. **The derivation first demanded that all projections over `ohlcv` agree.** There are **eleven**,
+   every one correct code answering a different question (`DISTINCT ticker`, `c` alone, `v` alone,
+   a key-prefixed variant used by one auditor). Unanimity was never the property to look for. The
+   bar row is now derived from the function carrying the store's delta query, which ties the row
+   shape and the as-of column to one declaration instead of to a majority vote.
+
+#### ⚰️ CP1's inertness rail was rewritten, not deleted
+
+CP1's rail required that **no** product path read the book. CP2's approval granted the first
+reader. The rail was not deleted — deleting a rail because the thing it forbade got approved turns
+*"one reader, on purpose"* into *"any number of readers, unnoticed"*. It now names
+`api/services/canonical/address_book.py` and fails by name on the **second** reader, with a
+non-vacuity control asserting the allow-listed module actually reads the book in CODE.
+
+#### Mutations — each restored by EDIT, never `git checkout`
+
+| # | mutation | result |
+|---|---|---|
+| **A** | rename a book entry (`ohlcv.c` → `ohlcv.cc`) | **2 RED** |
+| **B** | make the reader serve the BOOK path | **5 RED** |
+| **C** | reorder the DDL so the schema position equals the projection position | **1 RED** |
+| **D** | let an undeclared cadence take the neighbour's default | **1 RED** |
+| **E** | make the dual-compute raise on disagreement | **1 RED** |
+
+**Measured:** 80 passed (address book 32 · dual read 24 · ticker returns + desk ticker coverage
+24), `PYTEST_EXIT=0`; desk + scan-evaluator 154 passed. Named test files only.
+
+⚠️ **ONE PROCESS NEAR-MISS, RECORDED BECAUSE IT NEARLY DELETED ANOTHER WORKSTREAM'S WORK.**
+`git reset --soft origin/master` was used to fast-forward the branch while five other-workstream
+commits were unmerged. The index then held the **inverse** of those five commits — staged deletions
+of files master had added — and a commit at that moment would have reverted the notebook Q1 gate
+work under a D2 commit message. Caught by reading `git status` before committing; recovered by
+copying the six CP2 files aside, `git checkout -- .`, and restoring them. ⛔ **`reset --soft` is
+not a fast-forward when the branch is behind** — it moves the pointer and leaves the old tree
+staged against the new base. Use `git merge --ff-only` (which refuses if it would clobber) or
+commit first and rebase.
+
+---
+
+
 ## ✅ THE ROLLOUT SEED RAN. Verified in production, read-only, 2026-09-12.
 
 ⛔ **The RESUME carried this as "Monday's first check" because it was an INFERENCE** — the boot had
