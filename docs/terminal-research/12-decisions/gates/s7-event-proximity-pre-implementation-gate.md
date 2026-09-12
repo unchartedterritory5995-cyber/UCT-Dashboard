@@ -14,7 +14,7 @@ measured_against: origin/master @ a0c2bfee4
 ```
 APPROVED BY:      Patrick (owner), via Claude Chat middleman
 APPROVED ON:      2026-09-12
-APPROVED AT SHA:  <this packet's commit>
+APPROVED AT SHA:  76529e75b   (this packet as it stood at approval)
 SCOPE APPROVED:   CP1–CP2 ONLY.
                   CP1 = registration + schema.
                   CP2 = dark evaluator + forward-only harness against
