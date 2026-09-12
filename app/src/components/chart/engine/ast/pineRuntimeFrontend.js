@@ -33,6 +33,7 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE,
 } from './pine.js'
+import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import {
@@ -107,6 +108,17 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:switch': 'a switch — the runtime has no multi-way branch yet',
   'runtime:varip': 'varip — intrabar persistence, which a closed-bar runtime cannot reproduce',
   'runtime:udt': 'a user-defined type',
+  // ⭐ RULING 3.3 (owner, 2026-09-12) — THIS LANE REFUSES RATHER THAN BLANKS.
+  // The four realtime barstate columns are decided by `opts.newestBarIsForming`, a
+  // tri-state produced on the Python side. Nothing in `app/src` supplies it to this
+  // lane yet, so they fail closed to NA — correct, and BLANK. A member cannot tell a
+  // blank cell from "this bar is not confirmed", and our own doctrine says anything
+  // unrenderable surfaces a named refusal or a disclosure, never a blank.
+  // ⛔ SCOPED TO THIS LANE ON PURPOSE. The first attempt put it in `interpret()`, the
+  // SHARED seam, and turned 12 tests red: censuses and rails legitimately interpret
+  // trees with no clock, where no member is involved. Breaking them was the signal
+  // that the seam was wrong, not that the tests were.
+  'runtime:realtime-untold': 'this lane cannot say yet whether the newest bar has finished, so a realtime barstate column would be blank rather than wrong',
   'runtime:presentation': 'a presentation call — this belongs to the presentation program, which the runtime lane does not carry yet',
   'runtime:directive': 'a compiler directive',
   'runtime:unbound': 'a name nothing in this script binds',
@@ -401,6 +413,22 @@ export function buildRuntimeIr(source, opts = {}) {
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
 
+  // ⛔⛔ RULING 3.3 — REFUSE BY NAME, NEVER BLANK.
+  // ⭐⭐ SCANNED OVER TOKENS, NOT SOURCE TEXT. `lexPine` has already dropped comments
+  // and strings, so a realtime name written in a COMMENT cannot trigger this — the
+  // CODE-NEVER-PROSE rule satisfied by construction rather than by a regex that strips.
+  // ⭐ `null`/`undefined` is "nobody told me"; `false` is a real answer and folds.
+  const told = opts.newestBarIsForming != null
+    || (opts.interpretOpts && opts.interpretOpts.newestBarIsForming != null)
+  if (!told) {
+    const hit = tokens.find((t) => t && t.kind === 'ident'
+      && CLOCK_REALTIME.some((c) => t.value === c || t.value === `barstate.${c}`))
+    if (hit) {
+      note('runtime:realtime-untold')
+      return fail(new RuntimeRefusal('runtime:realtime-untold',
+        `\`${hit.value}\``, locate(hit)), diagnostics)
+    }
+  }
   const mut = scanMutability(stmts)
 
   // The resolver's environment holds ONLY pure bindings. A mutable name never
