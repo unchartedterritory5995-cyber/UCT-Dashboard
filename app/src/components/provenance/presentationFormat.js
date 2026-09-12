@@ -50,7 +50,7 @@
 //   - `epochSecondsToIso` is untouched. It is a type conversion, not a
 //     presentation decision, so it is not S10's to own.
 
-import { formatCurrency } from '../../lib/presentation/presentationPrimitives'
+import { formatPriceDisclosure, formatCurrency } from '../../lib/presentation/presentationPrimitives'
 
 /**
  * ⚰️ This was the implementation:
@@ -72,14 +72,21 @@ import { formatCurrency } from '../../lib/presentation/presentationPrimitives'
  * knows how a price is rendered", and that sentence has been false for as long
  * as this file has existed.
  *
- * ⛔ Reconciling them is NOT in S10's approved scope and must not be smuggled
- * in here: they disagree on the currency symbol, on the decimal rule and on the
- * absent sentinel, so every one of those six call sites would move visibly.
- * Named here, and in S10's gate packet, as the first migration S10's next line
- * should consider.
+ * ⚰️ S10 CP2 SETTLED IT, AND NOT BY RECONCILING THEM. The retired sentence,
+ * kept verbatim because its reasoning is why the answer is what it is:
+ *
+ *     ⛔ Reconciling them is NOT in S10's approved scope and must not be
+ *     smuggled in here: they disagree on the currency symbol, on the decimal
+ *     rule and on the absent sentinel, so every one of those six call sites
+ *     would move visibly.
+ *
+ * ⭐ All three disagreements are REAL and both rules are RIGHT — for different
+ * surfaces. S10 now owns both, named: `formatPriceDisclosure` (this one) and
+ * `formatPriceTick` (the chart one). Nothing collapsed, nothing moved.
+ * ⛔ That "next line" is this one. GATE-S10 line 2 (CP2).
  */
 export function formatPrice(value) {
-  return formatCurrency(value)
+  return formatPriceDisclosure(value)
 }
 
 /** Epoch seconds (D1's `ProvenanceRecord.source_observed_at`/`fetched_at`
