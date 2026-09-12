@@ -162,6 +162,27 @@ def render(rep: dict, db_path: str) -> str:
     return "\n".join(out)
 
 
+def _in_window() -> tuple[bool, str]:
+    """Is NOW inside the sweep's cron window (mon-fri 09:00-16:59 ET)?
+
+    Returns the reason as text either way, so the caller never restates the
+    schedule and the two copies cannot drift.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        import datetime as _dt
+        now = _dt.datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        # Never guess QUIET: an unresolvable clock must not silence a real stall.
+        return (True, "could not resolve ET -- assuming inside the window")
+    stamp = now.strftime("%a %H:%M ET")
+    if now.weekday() >= 5:
+        return (False, "it is %s" % stamp)
+    if not (9 <= now.hour <= 16):
+        return (False, "it is %s, outside 09:00-16:59" % stamp)
+    return (True, stamp)
+
+
 def ticking(db_path: str) -> tuple[str, int]:
     """The Monday-morning question, answered in one line: IS IT TICKING AND
     WRITING ROWS?
@@ -198,10 +219,23 @@ def ticking(db_path: str) -> tuple[str, int]:
         rep = {"predicates": 0, "spans": 0, "observed": 0}
 
     if beat is None:
-        return ("TICKING: NO  -- no heartbeat row at all. The sweep has never run "
-                "in this store.\n"
-                "  Check ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 and the boot line "
-                "'S7 price-level DARK comparison ENABLED'.", 1)
+        # THE WEEKEND CASE. "Outside the sweep window" and "armed but broken"
+        # leave an IDENTICAL store and call for OPPOSITE actions -- wait, vs
+        # investigate. Reporting the first as the second is a false alarm, and a
+        # liveness command that cries wolf gets ignored, which is worse than not
+        # having one.
+        inside, when = _in_window()
+        if not inside:
+            return ("TICKING: n/a -- %s, and the sweep only runs weekdays "
+                    "09:00-16:59 ET.\n"
+                    "  No heartbeat yet is EXPECTED here, not a fault. Re-run "
+                    "after Monday's open." % when, 0)
+        return ("TICKING: NO  -- no heartbeat row at all, and it IS inside the "
+                "window (%s).\n"
+                "  The sweep should have stamped within the last minute. Check "
+                "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1, the boot line "
+                "'S7 price-level DARK comparison ENABLED', and the web log for "
+                "'price-level DARK sweep failed'." % when, 1)
 
     age = _t.time() - float(beat["last_tick"])
     # The sweep runs every minute inside the window; 3 minutes is two missed

@@ -748,3 +748,103 @@ def test_the_report_tool_is_read_only_about_the_store():
     main_part = code.split("def _self_check")[0]
     for verb in ("INSERT INTO", "UPDATE ", "DELETE FROM", "DROP "):
         assert verb not in main_part.upper(), f"the report writes: {verb}"
+
+
+def test_the_weekend_case_never_swallows_a_real_stall():
+    """⛔ THE WEEKEND EXCUSE MUST NOT BECOME A MUTE BUTTON.
+
+    "Outside the sweep window" and "armed but broken" leave an IDENTICAL store
+    and call for opposite actions, so `--ticking` distinguishes them. ⛔ But a
+    window check is exactly the kind of guard that quietly widens: the moment it
+    can answer "outside" while INSIDE the window, a real stall reports exit 0 and
+    nobody looks again.
+
+    So this pins both directions, and pins that an UNRESOLVABLE clock fails
+    LOUD — never quiet. An instrument that cannot tell the time must not be the
+    thing that decides nothing is wrong.
+    """
+    import importlib.util, sqlite3, tempfile, os
+    spec = importlib.util.spec_from_file_location(
+        "s7rep4", str(_REPO / "tools" / "s7_price_level_report.py"))
+    rep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rep)
+
+    d = tempfile.mkdtemp()
+    p = os.path.join(d, "never.db")
+    sqlite3.connect(p).close()          # a store the sweep has never touched
+
+    import datetime as _dt
+
+    class _FakeNow:
+        def __init__(self, wd, hour):
+            self._wd, self._hour = wd, hour
+        @property
+        def hour(self):
+            return self._hour
+        def weekday(self):
+            return self._wd
+        def strftime(self, _f):
+            return "FAKE"
+
+    real = rep._in_window
+
+    # INSIDE the window with no heartbeat -> loud, exit 1.
+    monkey = {"wd": 2, "hour": 10}
+    rep._in_window = lambda: (True, "Wed 10:00 ET")
+    text, code = rep.ticking(p)
+    assert code == 1 and "TICKING: NO" in text, text
+    assert "IS inside the window" in text
+
+    # OUTSIDE the window with no heartbeat -> expected, exit 0.
+    rep._in_window = lambda: (False, "Sat 11:00 ET")
+    text, code = rep.ticking(p)
+    assert code == 0 and "TICKING: n/a" in text, text
+    assert "EXPECTED here, not a fault" in text
+
+    rep._in_window = real
+
+    # And the real clock helper agrees with datetime about which case today is.
+    now = _dt.datetime.now()
+    inside, why = rep._in_window()
+    assert isinstance(inside, bool) and why, "the helper must always give a reason"
+
+    # ⛔ An unresolvable clock must NOT report "outside" -- that would silence a
+    # stall. Proved by breaking the import the helper depends on.
+    import builtins
+    real_import = builtins.__import__
+
+    def boom(name, *a, **k):
+        if name == "zoneinfo":
+            raise ImportError("no tz database")
+        return real_import(name, *a, **k)
+
+    builtins.__import__ = boom
+    try:
+        inside, why = rep._in_window()
+    finally:
+        builtins.__import__ = real_import
+    assert inside is True, (
+        "a clock it cannot resolve must fail LOUD (inside the window), or the "
+        "weekend excuse becomes a way to never report a stall")
+    assert "could not resolve" in why
+
+
+def test_a_stalled_sweep_INSIDE_the_window_still_exits_nonzero(monkeypatch, dbp):
+    """The other half: a store that HAS a heartbeat, aged out, must stay exit 1
+    regardless of the window — the window check only ever excuses the
+    never-started case, never a sweep that stopped."""
+    import importlib.util, time as _t
+    spec = importlib.util.spec_from_file_location(
+        "s7rep5", str(_REPO / "tools" / "s7_price_level_report.py"))
+    rep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rep)
+
+    uid = _user("admin")
+    _alert(uid, sym="STALL", target=100.0)
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
+    _proj.run_dark_sweep(now=_t.time() - 7200, db_path=dbp)      # two hours stale
+
+    rep._in_window = lambda: (False, "Sat 11:00 ET")             # weekend, even so
+    text, code = rep.ticking(dbp)
+    assert code == 1, "a stale heartbeat is a stall whatever the day"
+    assert "STALLED" in text
