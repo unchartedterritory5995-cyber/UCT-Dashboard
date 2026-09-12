@@ -1051,6 +1051,20 @@ function ChartPane({
            (absent prop ⇒ absent door), and this is the handler that reaches the
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
+        /* ⭐ WHAT AN ALERT ON A CONDITION NAMES. The Conditions tab shows a bell
+           only when it is handed both — the same "absent prop ⇒ absent door" rule
+           as the Builder button, and here it is the difference between a bell that
+           arms something and one that could not say what symbol it meant.
+           ⛔ THE TIMEFRAME IS THE ONE THAT IS DRAWN, not the raw prop. A breadth
+           or index symbol is clamped to D/W/M (`breadthTf` / `indexTf`), so arming
+           on `tf` would set the alert on a timeframe this chart is not showing.
+           ⛔⛔ AND `chartId` IS DELIBERATELY NOT PASSED, for the reason recorded at
+           the `StockChart` mount above: it SCOPES indicator alerts, and a
+           condition alert that was chart-scoped while the alert popover on this
+           same pane creates global ones would be one surface quietly meaning
+           something different from its neighbour. */
+        alertSym={sym}
+        alertTf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
       />
     </div>
   )

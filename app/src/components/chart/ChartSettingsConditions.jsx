@@ -6,7 +6,10 @@ import {
 } from './engine/conditionControls'
 import { sourceOptions, parseSource } from './engine/sourceRef'
 import { validateConditionFormula } from './engine/conditions'
+import { CAPABILITY_REASON, SOURCE_UNAVAILABLE } from './engine/conditionCapability'
 import { MARKER_SHAPES, MARKER_POSITIONS, ACTION_CHANNEL } from './engine/conditionActions'
+import { ConditionAlertBell, ConditionAlertNote } from './ConditionAlertBell'
+import { bellState } from './engine/conditionBell'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
 
@@ -67,10 +70,31 @@ const POSITION_LABEL = { aboveBar: 'Above bar', belowBar: 'Below bar' }
 
 export default function ChartSettingsConditions({
   settings, onChange, conditionErrors = null, registry = null, onBuild = null,
+  // ─── THE ALERT DOOR — A LAUNCHER, LIKE `onBuild` ───────────────────────────
+  //
+  // ⚠️ ABSENT PROP ⇒ ABSENT BELL, the same rule the Builder door follows. An
+  // alert needs a SYMBOL and a TIMEFRAME, which this panel does not own; a bell
+  // rendered without a host to arm it would be a control that does nothing on
+  // every surface that mounts these settings outside a chart.
+  onArmAlert = null, onPromoteCondition = null, alerts = [], sym = null,
+  promotingId = null,
 }) {
   const list = useMemo(() => conditionsOf(settings), [settings])
   const [openId, setOpenId] = useState(null)
+  const [bellId, setBellId] = useState(null)
   const [draft, setDraft] = useState({})
+
+  // ⛔ ONE DERIVATION FOR THE WHOLE LIST, not a hook per row — a row is rendered
+  // from a `.map`, and a capability computed inside one would be a hook in a loop.
+  // It is also the cheaper shape: `conditionCapability` parses, and parsing once
+  // per render beats once per row per render.
+  const showBell = !!(onArmAlert || onPromoteCondition)
+  const bells = useMemo(
+    () => (showBell
+      ? new Map(list.map((c) => [c.id, bellState(c, registry, alerts, sym)]))
+      : new Map()),
+    [showBell, list, registry, alerts, sym],
+  )
 
   const commit = (next) => { if (next !== settings) onChange?.(next) }
 
@@ -78,6 +102,12 @@ export default function ChartSettingsConditions({
    *  `close >` must be able to keep typing, and a writer that refuses would
    *  otherwise snap the box back on every keystroke. */
   const formulaValue = (c) => (draft[c.id] !== undefined ? draft[c.id] : c.formula)
+  /** The text a DURABLE condition actually runs — the definition's, never the row's. */
+  const durableSource = (c) => {
+    const def = c.definitionId && registry && typeof registry.getDefinition === 'function'
+      ? registry.getDefinition(c.definitionId) : null
+    return (def && def.compute && def.compute.source) || null
+  }
   const formulaProblem = (c) => {
     const text = formulaValue(c)
     if (text === c.formula) return null
@@ -164,6 +194,17 @@ export default function ChartSettingsConditions({
    * avoid.
    */
   const problemOf = (c) => {
+    // ⛔⛔ A DURABLE CONDITION HAS NO FORMULA HERE, AND THAT IS NOT A FAULT. Its
+    // formula lives in a user definition; the row's `formula` is at most a
+    // non-authoritative compatibility copy and is usually `''`. Asking
+    // `validateConditionFormula` about it answered "a condition needs a formula"
+    // — the settings panel calling a perfectly good condition broken, on the one
+    // screen a member goes to when something looks wrong.
+    if (c.definitionId) {
+      const have = registry && typeof registry.getDefinition === 'function'
+        ? !!registry.getDefinition(c.definitionId) : true
+      return have ? null : CAPABILITY_REASON[SOURCE_UNAVAILABLE]
+    }
     const instances = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
     for (const [key, ref] of Object.entries(c.bindings || {})) {
       const parsed = parseSource(ref)
@@ -178,6 +219,7 @@ export default function ChartSettingsConditions({
 
   const renderRow = (c, i) => {
     const isOpen = openId === c.id
+    const bell = bells.get(c.id) || null
     const err = (conditionErrors && conditionErrors.get ? conditionErrors.get(c.id) : null)
       || problemOf(c)
     const used = usedChannels(c)
@@ -208,7 +250,22 @@ export default function ChartSettingsConditions({
                 ? err
                 : `${c.actions.length} action${c.actions.length === 1 ? '' : 's'}`}
             </span>
+            {/* ⭐ SAVED FORMULA — the one word that tells a member where this
+                condition's maths actually lives, and therefore why the box below
+                is not theirs to type in. */}
+            {c.definitionId && !err && <span className={styles.actBadge}>saved formula</span>}
           </button>
+          {bell && (
+            <ConditionAlertBell
+              cond={c}
+              state={bell}
+              expanded={bellId === c.id}
+              busy={promotingId === c.id}
+              onArm={onArmAlert}
+              onPromote={onPromoteCondition}
+              onExplain={() => setBellId(bellId === c.id ? null : c.id)}
+            />
+          )}
           <button
             type="button" className={styles.actRowRemove} aria-label={`Move ${c.name} up`}
             disabled={i === 0}
@@ -225,6 +282,13 @@ export default function ChartSettingsConditions({
           ><UIcon name="close" size={12} /></button>
         </div>
 
+        {/* ⭐ THE REFUSAL IS SHOWN OUTSIDE THE COLLAPSED BODY, because it is the
+            answer to a click on the bell — a member who asked "why not?" should
+            not have to also expand the condition to read it. */}
+        {bell && bellId === c.id && (
+          <ConditionAlertNote cond={c} state={bell} onBuild={onBuild} />
+        )}
+
         {isOpen && (
           <>
             <div className={styles.indRow}>
@@ -236,19 +300,38 @@ export default function ChartSettingsConditions({
                 onChange={(e) => commit(renameCondition(settings, c.id, e.target.value))}
               />
             </div>
-            <div className={styles.indRow}>
-              <span className={styles.indLabel}>Formula</span>
-              <input
-                type="text" className={styles.indNum} style={{ width: 260 }}
-                aria-label={`${c.name} formula`}
-                value={formulaValue(c)}
-                onChange={(e) => {
-                  const text = e.target.value
-                  setDraft((d) => ({ ...d, [c.id]: text }))
-                  commit(setConditionFormula(settings, c.id, text))
-                }}
-              />
-            </div>
+            {/* ⛔⛔ A DURABLE CONDITION'S FORMULA IS NOT EDITED HERE, AND THE BOX IS
+                NOT MERELY DISABLED — IT IS ABSENT. An editable box over a
+                definition-backed row would write `cond.formula`, which is exactly
+                the second editable truth this whole model exists to prevent: the
+                chart would keep evaluating the DEFINITION while the member watched
+                their typing have no effect. What they see instead is the formula
+                that actually runs, read-only, and where it lives. */}
+            {c.definitionId ? (
+              <div className={styles.indRow}>
+                <span className={styles.indLabel}>Formula</span>
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <code style={{ fontSize: 11, opacity: 0.9 }}>{durableSource(c) || '—'}</code>
+                  <span style={{ fontSize: 11, opacity: 0.6 }}>
+                    Saved formula — edit it in the formula builder.
+                  </span>
+                </span>
+              </div>
+            ) : (
+              <div className={styles.indRow}>
+                <span className={styles.indLabel}>Formula</span>
+                <input
+                  type="text" className={styles.indNum} style={{ width: 260 }}
+                  aria-label={`${c.name} formula`}
+                  value={formulaValue(c)}
+                  onChange={(e) => {
+                    const text = e.target.value
+                    setDraft((d) => ({ ...d, [c.id]: text }))
+                    commit(setConditionFormula(settings, c.id, text))
+                  }}
+                />
+              </div>
+            )}
             {problem && (
               <div className={styles.indRow}>
                 <span className={styles.indLabel} />
@@ -264,7 +347,10 @@ export default function ChartSettingsConditions({
                 with it because the VALUE is the same `'@id::plot'` string.
                 ⚠️ Only offered when something is on the chart to bind to; a
                 self-contained formula (`close > open`) needs none of this. */}
-            {bindable.length > 0 && BINDING_KEYS.map((key) => {
+            {/* ⚠️ AND NEITHER ARE THE BOUND SERIES. A durable condition is
+                self-contained by definition; offering it a chart binding would
+                offer a knob that changes nothing. */}
+            {!c.definitionId && bindable.length > 0 && BINDING_KEYS.map((key) => {
               const cur = c.bindings[key] || ''
               // Slots are offered in order and one at a time: `b` appears once `a`
               // is filled, so an empty condition shows ONE row rather than three.

@@ -2,8 +2,9 @@ import { parseFormula } from './ast/parse'
 import { treeYieldsBool } from './ast/pine'
 import { interpret, maxLookback } from './ast/interpret'
 import { parseSource, barFieldSeries } from './sourceRef'
-import { chartEvaluability } from './operandCapability'
+import { chartEvaluability, namesIn } from './operandCapability'
 import { bindingKey } from './pool'
+import { signalColumn } from './definitionSignal'
 
 // ─── A CONDITION IS DATA ────────────────────────────────────────────────────
 //
@@ -81,12 +82,30 @@ export function normaliseConditions(cs) {
   for (const c of raw) {
     if (!c || typeof c !== 'object') continue
     if (typeof c.id !== 'string' || !c.id || seen.has(c.id)) continue
-    if (typeof c.formula !== 'string' || !c.formula.trim()) continue
+    // ⭐⭐ TWO VALID FORMS, AND THE SECOND IS WHY THIS TEST MOVED.
+    //
+    //   LEGACY INLINE   { formula, bindings }   — may name chart instances
+    //                                              (`@instanceId::plotKey`), follows
+    //                                              them, lives only in this blob.
+    //   DEFINITION-BACKED { definitionId }      — the durable boolean user
+    //                                              definition owns the formula.
+    //
+    // ⛔ A DEFINITION-BACKED ROW HAS NO FORMULA OF ITS OWN, so requiring one
+    // dropped it silently — the condition would vanish from the chart with nothing
+    // saying why. A row must carry ONE of the two, and carrying neither is what is
+    // malformed.
+    const hasFormula = typeof c.formula === 'string' && !!c.formula.trim()
+    const hasDefinition = typeof c.definitionId === 'string' && !!c.definitionId.trim()
+    if (!hasFormula && !hasDefinition) continue
     seen.add(c.id)
     out.push({
       id: c.id,
+      // ⛔ CANONICAL WHEN PRESENT. A definition-backed condition's truth is the
+      // DEFINITION's; any `formula` still on the row is a non-authoritative
+      // compatibility copy and nothing reads it for evaluation or for editing.
+      definitionId: hasDefinition ? c.definitionId.trim() : null,
       name: typeof c.name === 'string' && c.name.trim() ? c.name : 'Condition',
-      formula: c.formula,
+      formula: hasFormula ? c.formula : '',
       // ⚠️ `enabled` DEFAULTS TO TRUE, and absence is the default's spelling.
       // Additive persistence: a row written before an `enabled` key existed is on.
       enabled: c.enabled !== false,
@@ -227,8 +246,111 @@ export function resolveBindings(cond, bars, columnOf) {
  * @param {Function} columnOf  bindingKey → column, from the binder
  * @returns {{column: Uint8Array|null, error: string|null, missing: string[]}}
  */
-export function evaluateCondition(cond, bars, columnOf) {
+/**
+ * A numeric column → the {FALSE, TRUE, UNKNOWN} verdict column.
+ *
+ * ⭐ SHARED BY BOTH CONDITION FORMS ON PURPOSE. The inline and the
+ * definition-backed branch differ only in where the numbers come from; a second
+ * copy of this loop is how "unknown" would come to mean two things.
+ */
+function packColumn(raw, n, warm, unavailable = null) {
+  const out = new Uint8Array(n)
+  for (let i = 0; i < n; i++) {
+    if (i < warm || (unavailable !== null && unavailable[i])) { out[i] = COND_UNKNOWN; continue }
+    const v = raw[i]
+    // ⛔ `Number.isFinite`, NOT `!Number.isNaN` — an `Infinity` from a division
+    // is not a verdict either, and reading it as TRUE would fire a rule on the
+    // one bar whose arithmetic blew up.
+    out[i] = !Number.isFinite(v) ? COND_UNKNOWN : (v !== 0 ? COND_TRUE : COND_FALSE)
+  }
+  return out
+}
+
+/**
+ * Which bars a BOUND SOURCE has no number for — or `null` when none do.
+ *
+ * ⭐⭐ UNKNOWN IS NOT FALSE, AND A BOUND SOURCE IS WHERE THE TWO GOT MERGED.
+ * `maxLookback('a > 50')` is **0** — the tree names a binding, not a function with
+ * a window — so nothing masked the head. Meanwhile the bound RSI column is `NaN`
+ * for its first 14 bars, and `NaN > 50` resolves to **0** by design (the table
+ * pins a comparison against NaN at FALSE, which is Pine's rule and the one the
+ * scan lane is tested against). So a finite `0` arrived at `packColumn` and was
+ * read as "evaluated, and false" on bars where nothing had been evaluated at all.
+ *
+ * The same condition written standalone — `rsi(close, 14) > 50` — reports UNKNOWN
+ * over that head, because `maxLookback` can see the `rsi` call. Two spellings of
+ * one idea, two different truth columns. This is what closes that.
+ *
+ * ⛔ ONLY THE NAMES THE FORMULA ACTUALLY READS. A condition may carry a binding it
+ * no longer uses (`b` left over after an edit); masking on that one's warm-up
+ * would call bars unknown that the formula has a perfectly good answer for.
+ *
+ * ⚠️ AND IT IS PER-BAR, NOT A LEADING HEAD. A bound source can go non-finite in
+ * the middle of a series, and "the condition could not be meaningfully evaluated"
+ * is equally true there — `trueRuns` already treats UNKNOWN as breaking a run
+ * rather than extending one, so a mid-series gap draws as a gap.
+ */
+function unavailableFromSources(series, ast, n) {
+  const used = new Set(namesIn(ast))
+  let mask = null
+  for (const [key, col] of Object.entries(series || {})) {
+    if (!used.has(key) || !col) continue
+    for (let i = 0; i < n; i++) {
+      if (Number.isFinite(col[i])) continue
+      if (mask === null) mask = new Uint8Array(n)
+      mask[i] = 1
+    }
+  }
+  // ⭐ `null` WHEN NOTHING IS UNAVAILABLE, so the overwhelmingly common case —
+  // a self-contained formula, or a fully warm source — allocates nothing and
+  // `packColumn`'s inner test short-circuits on identity.
+  return mask
+}
+
+export function evaluateCondition(cond, bars, columnOf, registry) {
   const n = Array.isArray(bars) ? bars.length : 0
+
+  // ─── THE DEFINITION-BACKED FORM ───────────────────────────────────────────
+  //
+  // ⭐⭐ ONE AUTHORED TRUTH, READ — NOT RE-AUTHORED. A durable condition owns no
+  // formula; the user definition does. So this branch does not parse, does not
+  // build a second tree and does not run a second evaluator — it asks the registry
+  // for the column it already computes for that definition, and hands it to the
+  // same warm-up and packing every inline condition goes through. The actions
+  // downstream (candle colour, marker, background) cannot tell the two apart, and
+  // that is the point.
+  //
+  // ⛔ AND THERE IS NO FALLBACK TO A COMPATIBILITY FORMULA. A row may still carry
+  // the text it was promoted from; it is not authoritative, and reading it when the
+  // definition is missing would be exactly the "two editable truths" this model
+  // exists to prevent — the chart would quietly shade on the OLD maths.
+  if (cond && cond.definitionId) {
+    if (!registry || typeof registry.getDefinition !== 'function') {
+      return { column: null, error: 'Source unavailable', missing: [cond.definitionId] }
+    }
+    const def = registry.getDefinition(cond.definitionId)
+    if (!def) return { column: null, error: 'Source unavailable', missing: [cond.definitionId] }
+    let cols
+    try {
+      cols = registry.computeFor(def, bars, undefined, undefined)
+    } catch (err) {
+      return { column: null, error: String(err && err.message ? err.message : err), missing: [] }
+    }
+    // ⛔ THE SIGNAL PLOT, NOT WHICHEVER KEY THE REGISTRY BUILT FIRST. The alert
+    // lane addresses `compute.scanPlot`; a chart that shaded on plot 1 instead
+    // would disagree with the alert armed on the very same condition, and both
+    // would look right from where they stand.
+    const raw = signalColumn(def, cols)
+    if (!raw) return { column: null, error: 'Source unavailable', missing: [cond.definitionId] }
+    // ⚠️ THE WARM-UP IS THE DEFINITION'S TREE'S, asked of the same static
+    // `maxLookback` an inline condition asks — so "cannot say yet" means the same
+    // thing in both forms, and an UNKNOWN head can never read as a false→true edge.
+    let warm = 0
+    try { warm = maxLookback(def.compute && def.compute.ast) } catch { warm = 0 }
+    if (!Number.isInteger(warm) || warm < 0) warm = 0
+    return { column: packColumn(raw, n, warm), error: null, missing: [] }
+  }
+
   const check = validateConditionFormula(cond.formula, cond.bindings)
   if (!check.ok) return { column: null, error: check.reason, missing: [] }
 
@@ -272,16 +394,14 @@ export function evaluateCondition(cond, bars, columnOf) {
   try { warm = maxLookback(check.ast) } catch { warm = 0 }
   if (!Number.isInteger(warm) || warm < 0) warm = 0
 
-  const out = new Uint8Array(n)
-  for (let i = 0; i < n; i++) {
-    if (i < warm) { out[i] = COND_UNKNOWN; continue }
-    const v = raw[i]
-    // ⛔ `Number.isFinite`, NOT `!Number.isNaN` — an `Infinity` from a division
-    // is not a verdict either, and reading it as TRUE would fire a rule on the
-    // one bar whose arithmetic blew up.
-    out[i] = !Number.isFinite(v) ? COND_UNKNOWN : (v !== 0 ? COND_TRUE : COND_FALSE)
+  // ⭐⭐ AND THE BOUND SOURCES' OWN WARM-UP, WHICH THE TREE CANNOT SEE. See
+  // `unavailableFromSources`: this is what makes `a > 50` with `a = RSI(14)` and
+  // `rsi(close, 14) > 50` report the same UNKNOWN head.
+  return {
+    column: packColumn(raw, n, warm, unavailableFromSources(series, check.ast, n)),
+    error: null,
+    missing: [],
   }
-  return { column: out, error: null, missing: [] }
 }
 
 /**

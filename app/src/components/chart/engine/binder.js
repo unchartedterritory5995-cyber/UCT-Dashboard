@@ -824,7 +824,11 @@ export function createBinder({ chart, LWC }) {
     // rule is what keeps this a straight line rather than a second Kahn sort. The
     // day one becomes sourceable, its rows join `orderByDependency` unchanged —
     // `conditions.conditionInstance` already shapes them for it.
-    evaluateConditions(ctx.conditions, bars, columns)
+    // ⛔⛔ AND THE REGISTRY REACHES IT NOW, because a DURABLE condition's formula
+    // lives in a user definition rather than in the settings blob. Without it a
+    // promoted condition would read back "Source unavailable" on a chart whose
+    // registry holds that definition perfectly well.
+    evaluateConditions(ctx.conditions, bars, columns, registry)
 
     // ── 1c. THE INFO FIELDS — THE THIRD CONSUMER, IN THE SAME PASS ─────────
     //
@@ -1414,7 +1418,7 @@ export function createBinder({ chart, LWC }) {
    * Changing a marker’s colour or a background’s opacity never reaches this
    * function at all — those live in the ACTION, and the action is not in the key.
    */
-  function evaluateConditions(list, bars, columns) {
+  function evaluateConditions(list, bars, columns, registry) {
     const conditions = Array.isArray(list) ? list : []
     const live = new Set()
     let changed = false
@@ -1429,7 +1433,23 @@ export function createBinder({ chart, LWC }) {
         conditionMemo.delete(cond.id)
         continue
       }
+      // ⛔⛔ A DURABLE CONDITION'S FORMULA IS NOT IN THE BLOB, SO NEITHER IS ITS
+      // IDENTITY. `cond.formula` is `''` for one — the compatibility copy is not
+      // authoritative and a promoted row may carry none — so the signature above
+      // is CONSTANT for it, and the memo (which is keyed per condition id, so two
+      // of them never collide) would then never invalidate.
+      //
+      // ⚠️ THE FAILURE THAT CAUSES IS AN EDIT THAT DOES NOT LAND. A member edits
+      // the formula, `installUserDefinitions` replaces the document under the SAME
+      // id, and this condition keeps painting the pre-edit column for as long as
+      // the bars array holds. The VERSION and the REV are the two things that move
+      // when the document is replaced, so they are what makes it recompute.
       let sig = cond.formula + ' '
+      if (cond.definitionId) {
+        const d = registry && typeof registry.getDefinition === 'function'
+          ? registry.getDefinition(cond.definitionId) : null
+        sig += `${cond.definitionId} ${d ? d.version : '?'} ${d && d.compute ? d.compute.rev : '?'}`
+      }
       for (const [key, ref] of Object.entries(cond.bindings || {})) {
         sig += key + '=' + ref
         const parsed = parseSource(ref)
@@ -1440,7 +1460,7 @@ export function createBinder({ chart, LWC }) {
       }
       const memo = conditionMemo.get(cond.id)
       if (memo && memo.bars === bars && memo.sig === sig) continue
-      const r = attempt(() => evaluateCondition(cond, bars, (key) => columns.get(key) || null))
+      const r = attempt(() => evaluateCondition(cond, bars, (key) => columns.get(key) || null, registry))
       const out = r.ok && r.value ? r.value : { column: null, error: 'the condition could not be evaluated' }
       conditionMemo.set(cond.id, { bars, sig })
       if (out.column) conditionColumns.set(cond.id, out.column)

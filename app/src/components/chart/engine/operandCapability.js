@@ -35,6 +35,7 @@ const SERIES_SET = new Set(CHART_SERIES)
 const CLOCK_SET = new Set(CHART_CLOCK)
 const SCALAR_SET = new Set(SCREENER_SCALARS)
 const FN_SET = new Set(Object.keys(TABLE.functions))
+const OP_SET = new Set(Object.keys(TABLE.operators || {}))
 
 /**
  * Which execution contexts can resolve this name.
@@ -55,6 +56,12 @@ export function capabilityOf(name) {
   if (SERIES_SET.has(name)) return { kind: 'series', chart: true, screener: true, why: null }
   if (CLOCK_SET.has(name)) return { kind: 'clock', chart: true, screener: true, why: null }
   if (FN_SET.has(name)) return { kind: 'function', chart: true, screener: true, why: null }
+  // ⚠️ AN OPERATOR IS A NAME TOO. The canonical tree spells `op` nodes with a
+  // `.name` (`>`, `u-`, `?:`), so any walk that collects names collects these —
+  // and a caller asking "can a server resolve this?" must not be told `>` is
+  // unknown. `conditionCapability` found that the hard way: `close > ema(close,
+  // 20)` reported an unknown name and was refused as un-promotable.
+  if (OP_SET.has(name)) return { kind: 'operator', chart: true, screener: true, why: null }
   if (SCALAR_SET.has(name)) {
     const spec = TABLE.scalars[name] || {}
     const sentence = typeof spec.sentence === 'string' ? spec.sentence : name

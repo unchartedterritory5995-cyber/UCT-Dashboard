@@ -15,7 +15,7 @@ import {
 // THIS file's writer and colour swatch; see its header for why it is a
 // composition of the two shipped surfaces rather than a third one.
 import ChartSettingsIndicators from './ChartSettingsIndicators'
-import ChartSettingsConditions from './ChartSettingsConditions'
+import ConditionAlertsTab from './ConditionAlertsTab'
 import ChartSettingsInfoFields from './ChartSettingsInfoFields'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
 // The engine's definitions, so the Indicators tab can GENERATE the rows for the
@@ -287,6 +287,21 @@ export default function ChartSettingsModal({
   // A surface with no way to reach a builder shows no New Formula button rather
   // than one that does nothing.
   onCreateFormula = null,
+  // ─── WHAT AN ALERT ON A CONDITION NEEDS TO NAME ───────────────────────────
+  //
+  // ⭐⭐ THREE FACTS, NOT A HANDLER. An alert needs a SYMBOL and a TIMEFRAME —
+  // which this modal does not own — and the chart id scopes the listing. The
+  // arming itself belongs to `ConditionAlertsTab`, which is mounted only while
+  // the Conditions tab is open, so its 30-second poller does not run in every
+  // chart of a nine-cell grid for a panel nobody has opened.
+  //
+  // ⚠️ ABSENT SYMBOL OR TIMEFRAME ⇒ ABSENT BELL. Every chart mounts these
+  // settings, including surfaces with no symbol of their own; a bell there would
+  // be a control that silently does nothing, which is the defect this whole lane
+  // exists to prevent.
+  alertSym = null,
+  alertTf = null,
+  chartId = null,
 }) {
   const panelRef = useRef(null)
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
@@ -1186,7 +1201,7 @@ export default function ChartSettingsModal({
           )}
 
           {activeTab === 'conditions' && (
-            <ChartSettingsConditions
+            <ConditionAlertsTab
               settings={settings}
               onChange={(next) => onChange?.({ ...next, preset: 'custom' })}
               registry={engineRegistry}
@@ -1195,6 +1210,9 @@ export default function ChartSettingsModal({
               onBuild={onCreateFormula
                 ? (opts) => onCreateFormula({ consumerKind: 'condition', ...opts })
                 : null}
+              sym={alertSym}
+              tf={alertTf}
+              chartId={chartId}
             />
           )}
 
