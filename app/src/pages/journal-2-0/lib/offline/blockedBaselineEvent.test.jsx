@@ -253,7 +253,7 @@ describe('⛔⛔ WHAT IS SENT — ids and counters, never a member’s words', (
     // ⛔⛔ FLIPPED 2026-09-12 — unset now resolves to ON. The DISTINCTION this test
     // exists for is untouched: `byDefault` still separates "unset" from "explicit",
     // which is the whole point of recording it (`project_feature_flag_ledger`).
-    expect(flagState(store)).toMatchObject({ key: null, enabled: true, byDefault: true, def: true })
+    expect(flagState(store)).toMatchObject({ key: null, enabled: false, byDefault: true, def: false })
     expect(flagState({ getItem: () => '0' })).toMatchObject({ key: '0', enabled: false, byDefault: false })
     expect(flagState({ getItem: () => '1' })).toMatchObject({ key: '1', enabled: true, byDefault: false })
   })

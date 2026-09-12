@@ -282,10 +282,7 @@ describe('⛔ the one-line rollback — OFF still means inert', () => {
     // purpose" are indistinguishable from the outside, and a default that can
     // change without a test changing is how a dark wave goes live unnoticed.
     // Whoever flips this flag must edit this line in the same commit.
-    // ⛔⛔ FLIPPED 2026-09-12. The literal is still PINNED, in the opposite
-    // direction: a default that can change without a test changing is how a
-    // dark wave goes live unnoticed — and now, how a live one goes dark.
-    expect(OFFLINE_DEFAULT_ON).toBe(true)
+    expect(OFFLINE_DEFAULT_ON).toBe(false)
   })
 })
 
