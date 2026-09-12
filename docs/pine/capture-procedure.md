@@ -1,4 +1,87 @@
 # Capture procedure — driving a live TradingView chart
+
+## ⛔⛔ THE VISIBILITY GATE, v2 — MEASURED AGAINST **THIS DISPLAY**, NOT THE PRIMARY
+
+**Owner ruling, 2026-09-12.** The pass condition, read from the CONNECTED TAB:
+
+```js
+document.visibilityState === 'visible'
+  && window.screenY >= screen.availTop
+  && (window.screenY + window.outerHeight) <= (screen.availTop + screen.availHeight)
+```
+
+**Worked example — today's read, which PASSES:**
+
+```
+visibilityState  "visible"
+screen.availTop  -1446      screen.availHeight 1392   → display spans y ∈ [-1446, -54]
+window.screenY   -1287      window.outerHeight 1015   → window  spans y ∈ [-1287, -272]
+screen.isExtended true
+                                        -1446 ≤ -1287  and  -272 ≤ -54   ⇒ PASS
+```
+
+### ⚰️ THE SUPERSEDED BOUND, AND WHY IT WAS WRONG
+
+The previous rule was **`screenY` within `[0, availHeight)`**. It is withdrawn.
+
+⛔ **IT ASSUMED THE PRIMARY'S ORIGIN.** On a multi-monitor desktop a display
+placed **above** the primary has a **negative** Y origin, and a window sitting
+perfectly inside it therefore has a negative `screenY`. The old bound fails that
+window every time — a false STOP on a perfectly visible chart.
+
+⚰️ **IT WAS WRITTEN FROM ONE OBSERVATION.** The day it was added, this window was
+at `screenY -1272` and genuinely off the desktop, `visibilityState "hidden"`, four
+reads running. Negative-Y and off-desktop coincided in that single sample, and the
+bound was written against the coincidence rather than the property. The moment the
+window landed on a real display above the primary — `screenY -1287`, *more*
+negative than the broken case — the bound said STOP and the chart was fine.
+
+⭐ **THE FIX IS TO ASK THE DISPLAY WHERE IT STARTS.** `screen.availTop` /
+`screen.availLeft` give the work-area origin of the display the window is
+currently on, so the comparison is against the right frame of reference.
+`screen.isExtended` says whether more than one display exists at all.
+
+⛔ **`visibilityState` REMAINS THE LOAD-BEARING HALF.** It read `"hidden"` on
+every single occasion clicks silently failed, and `"visible"` the moment they
+worked. The geometry check is the corroboration and the diagnosis; the visibility
+flag is the thing that actually tracks whether a click will land.
+
+⚠️ And the standing rule is unchanged: **re-read it from the connected tab
+immediately before every browser write**, and never trust a verbal "moved".
+
+## ⛔ COUNTING STUDIES: CHART EVENTS ARE NOT INDICATORS
+
+A rig at "0 studies" still holds two `dataSources` that look like studies:
+
+```
+Splits    id "Splits@tv-basicstudies"     shortId "Splits"
+Earnings  id "Earnings@tv-basicstudies"   shortId "Earnings"
+```
+
+These are the **Events** toggles in chart settings. They carry a `metaInfo().id`
+exactly as an indicator does, and TradingView offers no *Remove* for them and
+gives them no legend row — so a naive `dataSources().filter(has metaInfo)` reports
+**2** on an empty chart and "0 means 0" stops being true.
+
+⛔ **FILTER BY `shortId`, NEVER BY `packageId`.** The obvious filter —
+"exclude `tv-basicstudies`" — is wrong: the built-in **Volume** indicator is also
+`tv-basicstudies`, so a package filter would hide a real indicator, which is the
+error that matters. The event set is `{Splits, Earnings, Dividends}`.
+
+⭐ **AND THE PROBE CARRIES ITS OWN CONTROL**, because "0 indicators" and "the
+probe looked nowhere" are the same observation otherwise:
+
+```
+studies: 2   events: [Splits, Earnings]   indicators: 0
+controlProbeSawSomething: true            ← studies > 0, so it did look
+controlFilterRemovedExactlyTheEvents: true
+```
+
+⛔ **CROSS-CHECKED AGAINST THE PRODUCT'S OWN ANSWER.** Right-click the chart: with
+indicators present the menu offers *"Remove N indicators"*; with none, that item
+is **absent**. Two independent readings, and the tell is a screenshot of the menu
+— the same rule as the `Add to chart` button.
+
 
 ## ⛔⛔ A THIRD WAY A CAPTURE WINDOW GOES DARK: IT IS NOT ON THE SCREEN
 
@@ -37,7 +120,7 @@ JSON.stringify({
 })
 ```
 
-**PASS is all three:** `vis === "visible"` **AND** `screenY` within `[0, availHeight)`
+⚰️ **SUPERSEDED 2026-09-12 — see "THE VISIBILITY GATE, v2" at the top of this file.** The bound below assumed the PRIMARY display's origin and false-STOPs any window on a monitor above it. It read: **PASS is all three:** `vis === "visible"` **AND** `screenY` within `[0, availHeight)`
 **AND** `screenX` within `[0, availWidth)`. Anything else is a STOP with the numbers
 quoted, never a retry.
 

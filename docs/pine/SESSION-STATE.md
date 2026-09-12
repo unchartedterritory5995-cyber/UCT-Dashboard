@@ -1,5 +1,60 @@
 # Session state — `feat/indicator-r0r1`
 
+## ✅ SESSION 2 · PART 0 — THE RIG IS AT 0 INDICATORS AND SAVED
+
+**Closed 2026-09-12.** `e3cTXatd` is the scratch rig; the "URL owed" line is
+closed with this entry.
+
+| check | result |
+|---|---|
+| layout title | `SPY … UCT AGENT VISIT 2026-09-10 (disposable)` ✅ the disposable agent layout |
+| gate at the write | `visible` · display `[-1446, -54]` · window `[-1287, -272]` → **PASS** |
+| indicators before the save | **0** (corrected probe) · no *Remove* item in the context menu |
+| the one authorised save | taken, `Ctrl+S`, on this state |
+| **after reload** | **0 indicators**, both readings agree |
+
+⛔ **THE RELOAD IS THE PROOF, NOT THE SAVE.** `Ctrl+S` gave no visible
+confirmation and the JS probes for a dirty flag found none, so "the save
+succeeded" was never asserted from the keypress. What is asserted is what the
+server returns: a full reload of `e3cTXatd` comes back with **0 indicators** and
+a context menu with **no Remove item**. That is the state Part 0 required, and it
+is now persisted.
+
+### ⚠️ THE 19 WERE CLEARED BY SOMEBODY ELSE, AND WHO IS NOT ESTABLISHED
+
+Three hours earlier this chart carried 19 studies and the context menu read
+*"Remove 19 indicators"*. On the first read after the window was fixed it carried
+**none**. **This session did not remove them** — every removal attempt it made
+had failed against the off-desktop window, and its one successful click of that
+period landed nowhere.
+
+⛔ **NOT ASSERTED: any link to the 16:12 worktree deletion.** Both are actions by
+an unidentified actor on this session's resources on the same afternoon; that is
+a **correlation, recorded as one**. It may equally have been the owner clearing a
+disposable layout they had just maximised. No cause is claimed for either.
+
+⭐ **AND IT DID NOT CHANGE THE DECISION.** The layout is disposable by title,
+nothing on it was worth preserving, and the screenshot at 0 was banked before the
+save. The provenance of the clearing is recorded because an unrecorded change of
+premise is how a later reader mistakes somebody else's work for a measurement.
+
+### ⛔ THE STUDY-COUNT PROBE WAS OVER-INCLUSIVE, AND IS FIXED
+
+Its first answer was **`studyCount: 2`** on an empty chart — `Splits` and
+`Earnings`, the chart **Events** toggles. They carry a `metaInfo().id` exactly as
+an indicator does; TradingView offers no *Remove* for them and gives them no
+legend row.
+
+⛔ Filter by **`shortId` ∈ {Splits, Earnings, Dividends}**, never by
+`packageId` — the built-in **Volume** indicator is also `tv-basicstudies`, so a
+package filter would hide a real indicator, which is the error that matters.
+
+⭐ The probe now reports its own control, because *"0 indicators"* and *"the probe
+looked nowhere"* are otherwise the same observation:
+`studies: 2 · events: [Splits, Earnings] · indicators: 0 ·
+controlProbeSawSomething: true`. Cross-checked against the product's own answer
+every time. Both are written up in `capture-procedure.md`.
+
 ## ⛔⛔ SESSION 2 · TWO STANDING RULES, IN `CLAUDE.md` — 2026-09-12
 
 Both went into the **repo-level `CLAUDE.md`**, the file every session reads,
