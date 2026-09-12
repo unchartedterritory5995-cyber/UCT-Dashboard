@@ -39,14 +39,23 @@
       ⬜ UNEXPLAINED: *"iPhone 15 Pro scored sticky fan 0/10 and flick 0/10, while iPhone SE
       scored 10/10 on both — on the same calibrated pointer path."* `g0-flick-trace-plan.md` is
       the plan for explaining it.
-      **Evidence:**
+      **Evidence:** ⬜ OPEN — needs the owner's thumb. **Both halves of the measurement now
+      exist and are self-checked:** the phone script is the numbered top half of
+      `g0-flick-trace-plan.md` (7 steps, ~10 min, iPhone 15 Pro, production, admin), and the
+      analyser is `tools/hub_trace_analyze.py` (`--self-check` PASSES: six buckets each reached by
+      the row that means them, an intent-withheld gesture stays UNDECIDED, an overflowed buffer is
+      refused). ⛔ Nothing here is a result — an instrument that is ready is not a measurement.
 
 - [ ] **Glass acceptance passed on ≥ 1 notched iOS device and ≥ 1 Android.**
       `glass-acceptance.md`, every block, including the surfaces Increments 3–7 added.
       ⛔ Gated behind G0-1 above, in that file's own words (`:104`): *"Resolve G0-1 before
       reading any G1"* — G1 is the same measurement done by hand, so a G1 pass read while G0-1
       is unexplained proves nothing.
-      **Evidence:**
+      **Evidence:** ⬜ OPEN, and still gated behind G0-1. The step list is no longer a memory:
+      **`glass-acceptance-steps.md`, 96 rows, DERIVED** from the registry by
+      `node tools/hub_surface_matrix.mjs --glass` — every mode's Primary/Reverse/Scrub binding and
+      every fan action, plus D4 and D1 where an operator meets them, each row carrying a
+      BLOCKED-BY-G0 box so a run made too early records itself as blocked rather than as a fail.
 
 - [ ] **Post-deploy client smoke, signed in, covering every top-level route including
       `/dashboard`, and CONCLUSIVE.** ⛔ *Conclusive* is the load-bearing word, not decoration:

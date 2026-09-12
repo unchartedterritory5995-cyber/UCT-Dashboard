@@ -319,8 +319,133 @@ function selfCheck() {
   console.log(`self-check OK — 9 cases, ${man.length} manifest entries parsed`)
 }
 
+// ── THE GLASS SHEET ────────────────────────────────────────────────────────────────────────────
+// One step per surface, derived from the same rows as the matrix, so a bubble that ships without a
+// glass step is impossible rather than merely unlikely. `glass-acceptance.md`'s hand-written blocks
+// (G0-G4) stay where they are: they carry judgement a generator cannot — the colour-confusability
+// question, the chip-vs-button overlap — and this is the exhaustive sweep beside them, not a
+// replacement for them.
+
+/** Which device each step needs, from the property under test. */
+function deviceFor(r) {
+  if (r.row === 'action' && r.escalate) return 'Android only — `haptics.js` no-ops without `navigator.vibrate`, which iOS Safari does not expose'
+  return 'both'
+}
+
+/** Live (a human on glass) vs Automate (scriptable). ⚠️ BrowserStack meters these SEPARATELY and
+ *  the account's Automate allowance was exhausted at the Phase-2 run; a Live seat does not fund it.
+ *  So the column is a purchasing decision made visible, not a promise that anything is wired. */
+function runnerFor(r) {
+  if (r.row === 'mode') return 'Automate-able'
+  if (r.flickable === false) return '⛔ LIVE ONLY — the flick is the measurement'
+  if (r.escalate) return '⛔ LIVE ONLY — a haptic is felt, never asserted'
+  if (r.kind === 'navigate' || r.kind === 'home') return 'Automate-able'
+  return 'Live preferred'
+}
+
+function expectedForAction(r) {
+  if (r.flickable === false) {
+    return `**D4, here.** A fast flick (under \`FLICK_MS\`) toward “${r.label}” **opens the fan and fires NOTHING**; `
+      + `a deliberate press (~500ms) DOES fire it. ⛔ Both halves, or the row proves nothing.`
+  }
+  if (r.kind === 'navigate') return `The route changes to \`${r.to}\`, once. Nothing is written.`
+  if (r.kind === 'home') return 'The Home fan returns. No navigation happens on its own.'
+  if (r.kind === 'confirm') return `Exactly **ONE** sheet opens — the confirm sheet — never two. It names the action, and the commit button performs it.${r.escalate ? ' The fire haptic ESCALATES (`warn`, not `impact`).' : ''}`
+  return `The action runs once and the fan closes.${r.escalate ? ' The fire haptic ESCALATES (`warn`, not `impact`) — this is a write to a live position.' : ''}`
+}
+
+function glassSheet({ baseline, rows }) {
+  const L = []
+  L.push('# Joystick hub — the per-surface glass sweep (GENERATED)')
+  L.push('')
+  L.push('> ## ⛔⛔ RUN AFTER G0-1 RESOLVES. DO NOT RUN EARLY.')
+  L.push('>')
+  L.push('> `glass-acceptance.md:104` is the rule this sheet inherits: *"Resolve G0-1 before reading')
+  L.push('> any G1."* G0-1 is an iPhone 15 Pro scoring flick **0/10** where an SE scored 10/10 on the')
+  L.push('> same calibrated path, and it is **UNEXPLAINED**. Every row below is the same gesture')
+  L.push('> measured by hand, so a PASS read while that is open is a pass against an instrument known')
+  L.push('> to disagree with itself. ⛔ Below 8/10 on the flick score, every row here is')
+  L.push('> **BLOCKED-BY-G0**, never FAIL.')
+  L.push('>')
+  L.push('> **Two devices, both required:** a notched iOS (**iPhone 15 Pro**) and an Android')
+  L.push('> (**Pixel 8**). Run every "both" row on each; the device column names the rows that belong')
+  L.push('> to one of them only.')
+  L.push('>')
+  L.push('> ⚰️ **GENERATED — do not hand-edit.** `node tools/hub_surface_matrix.mjs --glass`')
+  L.push(`> (baseline \`${baseline}\`). A hand-maintained copy of this list beside the registry that owns`)
+  L.push('> it is the drift this repo has paid for in a nav roster, a writer index, a setup catalog and')
+  L.push('> a COT route count. Regenerate it; do not patch it.')
+  L.push('>')
+  L.push('> ⚠️ **The Runner column is a purchasing decision, not a wiring claim.** BrowserStack meters')
+  L.push('> **Live** and **Automate** separately, the account\'s Automate allowance was exhausted at the')
+  L.push('> Phase-2 run, and no CI device job exists (`71-open-items-proposals.md` §2). Every row is a')
+  L.push('> Live row today; the column says which ones would stop needing a human if minutes were bought.')
+  L.push('')
+  L.push('**Judgement rows live in `glass-acceptance.md` and are not duplicated here** — G3-15 (the')
+  L.push('chip/Actions-button overlap) and G3-16 (Wire vs Journal colour confusability) ask a human a')
+  L.push('question no generator can phrase. This sheet is the exhaustive per-surface sweep beside them.')
+  L.push('')
+
+  const modes = rows.filter((r) => r.row === 'mode')
+  for (const m of modes) {
+    const acts = rows.filter((r) => r.row === 'action' && r.mode === m.mode)
+    L.push(`## ${m.mode} — ${m.route || 'in place'}${m.newlyLive ? '  ⭐ **LEFT PREVIEW SINCE INCREMENT 2 — every row below is untested on glass**' : ''}`)
+    L.push('')
+    L.push('| # | Step | Expected | Device | Runner | Result |')
+    L.push('|---|---|---|---|---|---|')
+    let n = 0
+    for (const b of m.bindings) {
+      n += 1
+      const step = {
+        onTap: `Tap the pad once. (The chip says “${m.tapHint}”.)`,
+        onDoubleTap: 'Tap twice inside the double-tap window (`DOUBLE_TAP_MS` 280).',
+        onScrub: 'Press and drag along y to scrub.',
+        onScrubCommit: 'Release the scrub.',
+        readout: 'While scrubbing, read the chip.',
+        onPeek: 'Perform the Peek gesture.',
+      }[b.key]
+      const expected = {
+        onTap: `The cursor steps **once** and the target scrolls into view. ⛔ Exactly one step per tap — a double step is the tap firing twice.`,
+        onDoubleTap: 'The cursor steps **back** one. A single tap must not also fire.',
+        onScrub: `The cursor moves with the thumb${m.cursor ? ` over the \`${m.cursor}\` list` : ''}, and the page follows it.`,
+        onScrubCommit: 'The landing row is revealed — scrolled into view, not merely selected.',
+        readout: 'The chip names the thing under the cursor in the page\'s OWN words (a ticker, a note title, a date), never a bare index.',
+        onPeek: 'The Peek sheet opens once.',
+      }[b.key]
+      L.push(`| GS-${m.mode}-${n} | **${b.role}.** ${step} | ${expected} | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+    }
+    if (!m.bindings.length) {
+      L.push(`| GS-${m.mode}-0 | _This mode declares no gesture bindings._ | Tap, double-tap and scrub do **nothing** here, and the chip does not promise otherwise. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+    }
+    for (const a of acts) {
+      n += 1
+      const req = a.requires.length
+        ? ` Then repeat with **no ${a.requires.join('/')}** in context: the bubble must render **DISABLED with a reason, never hidden**.`
+        : ''
+      const tag = a.isNew ? ' 🆕' : a.becameReachable ? ' ⭐' : ''
+      L.push(`| GS-${m.mode}-${n} | **${a.label}**${tag} (\`${a.id}\`) — flick to it from the pad.${req} | ${expectedForAction(a)} | ${deviceFor(a)} | ${runnerFor(a)} | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+    }
+    L.push('')
+  }
+
+  L.push('## The two named doors — run these on BOTH devices, whatever else is skipped')
+  L.push('')
+  L.push('| # | Door | Step | Expected | Device |')
+  L.push('|---|---|---|---|---|')
+  const guarded = rows.filter((r) => r.row === 'action' && r.flickable === false)
+  L.push(`| D4 | **A real touch surface honours \`flickable:false\`** | ${guarded.map((g) => `\`${g.id}\``).join(', ') || '_none declared_'} — eight fast flicks at it, then ONE deliberate press as the control. | 0 of 8 fire. The control DOES fire. ⛔ Without the control this row proves nothing: a bubble that never fires because the fan never opened would also read 0/8. | both |`)
+  L.push('| D1 | **The no-drag door** | With **VoiceOver** (iOS) / **TalkBack** (Android) running, reach the Actions button and operate EVERY action in the sheet — including a `confirm` action\'s numeric field and its ± steppers — with **no drag at any point**. | Every action is reachable and fires, and the confirm commits at the ADJUSTED value. This is the EQUAL path the sheet exists for, not a lesser one. ⛔ Two-finger Peek is NOT this door and was removed: screen readers consume two-finger tap, and two pointers fails WCAG 2.5.1 on its face. | both — iOS uses VoiceOver, Android TalkBack |')
+  L.push('')
+  L.push('⛔ **An unfilled row is OPEN, never PASS.** This programme has already recorded a device')
+  L.push('template coming back blank four times and nearly being read as a pass; the rule that came out')
+  L.push('of it is the one that governs this sheet — **an absent result is not a pass, it is an absent**')
+  L.push('**result.**')
+  return L.join('\n')
+}
+
 if (argv.includes('--self-check')) selfCheck()
 else {
   const data = await build()
-  console.log(argv.includes('--json') ? JSON.stringify(data, null, 1) : markdown(data))
+  if (argv.includes('--glass')) console.log(glassSheet(data))
+  else console.log(argv.includes('--json') ? JSON.stringify(data, null, 1) : markdown(data))
 }
