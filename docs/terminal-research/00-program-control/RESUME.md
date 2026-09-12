@@ -1,35 +1,80 @@
 # RESUME — cold-start entry point (Document B §3A)
 
-**READ `SESSION_HANDOFF.md` FIRST if it is newer than this file's last-updated line below** — it is the authoritative recovery checkpoint after the third session-limit pause and supersedes the dispatch state described here. Otherwise read in this order: this file -> `GOVERNING_PRINCIPLES.md` -> `PROGRAM_STATUS.md` -> `CRITICAL_PATH.md` -> `OWNER_DECISIONS.md` -> `AGENT_REGISTRY.md` (current wave) -> the charter in `charter/` if any requirement is in doubt.
+**Last verified against git: `a31cacea1` (2026-09-03 07:04:50 -0500), branch `terminal-research`, in sync with `origin/terminal-research`. Reconciled 2026-09-11.**
+
+Read in this order: this file -> `PROGRAM_STATUS.md` -> `GOVERNING_PRINCIPLES.md` -> `CRITICAL_PATH.md` -> `OWNER_DECISIONS.md` -> `AGENT_REGISTRY.md` §5 -> the charter in `charter/` if any requirement is in doubt.
+
+⛔ **`SESSION_HANDOFF.md` is now a HISTORICAL artifact** (the 2026-09-02 11:57 recovery checkpoint). It is preserved as a record, not as a state description, and its §5 and §16 are superseded here. Do not act from it.
 
 ## Where we are
 
-* **Program day:** 1 · **Phase:** Day 1b (external landscape research). Owner proceed received 2026-09-02 10:41 UTC.
-* **Worktree:** `C:\Users\Patrick\uct-worktrees\terminal-research`, branch `terminal-research`, start SHA `9c3df14b9`. Never push master. Push this branch to `origin/terminal-research` at checkpoints.
+* **Program day:** 1 **CLOSED**. **Phase 2 CLOSED** (product/IA/data architecture + F-09, adversarially validated). **Phase 3 CLOSED** (technical validation + PRD/spec for the four LOCKED systems).
+* **Stage:** specification complete for four systems; **two of them have been IMPLEMENTED and are live on `origin/master`** (see "Implementation status" below). The program is **idle**, awaiting the owner's sign-off on S8's completion status.
+* **Worktree:** `C:\Users\Patrick\uct-worktrees\terminal-research`, branch `terminal-research`, start SHA `9c3df14b9`. Never push master from here. Push this branch to `origin/terminal-research` at checkpoints.
 * **Orchestrator:** the only committer. Commit with `git add docs/terminal-research` (scoped; never `-A`).
-* **Last updated:** 2026-09-02 (recovery checkpoint; see SESSION_HANDOFF.md for the full state -- this file's dispatch section below is now stale).
 
-## What is dispatched (see `AGENT_REGISTRY.md` §5)
+## What exists (verified against git, not asserted)
 
-* Wave 1 COMPLETE (17/17 accepted; ledger in `AGENT_REGISTRY.md` §5). Orientation memo delivered (`13-executive-synthesis/orientation-memo.md`); awaiting the owner's proceed instruction for Day 1b external research.
-* Wave 1b: ALL 28 external tasks dispatched; 23 accepted (Bloomberg 8/8, universe validator, Gödel evidence, dossiers: Unusual Whales, TradingView, Koyfin, Benzinga Pro, AlphaSense, Fiscal.ai, Quartr, FactSet, LSEG, SpotGamma, adjacent light note; desk tools 4/4; C4-01). Internal syntheses accepted: E-02, F-03a (system map, capability ledger, tech debt), F-03b (provider ledger).
-* SECOND usage-limit pause ~14:30 UTC (DL-019) killed 11 tasks; re-dispatched 16:10. In flight (10): B-POD-BBG (completion), F-04 (completion), F-06, F-08, C5-01, C7-01, E-05, B-GDL-02, E-06, C6-01. Wave 2 queue (contracts on disk): B-GDL-03 (after B-GDL-02); verifiers B-<P>-03 and reconstructors B-<P>-02 for the 11 products (`contracts/B-WAVE2.md`, Sonnet); C1-01/02, C2-01/02/03, C3-01/02, C4-02/03, C5-02, C6-02/03, C7-02/03, C8-01/02 (`contracts/C-WAVE2.md`, Opus); G-01-D2 light red team after F-06/F-08 land (`contracts/G-LIGHT-D2.md`, Fable); pod syntheses B-POD-<P> after each product's -02/-03 return. Dispatch from `contracts/B-BBG.md` (section ID), `contracts/B-DOSSIER.md` (appendix ID), `contracts/B-DESK.md`, `contracts/C-WAVE1B.md`, each prefaced by `_EXTERNAL_PREAMBLE.md`. Keep ≤10 in flight.
-* After the synthesis trio returns: write and dispatch F-04 (licensing register) and F-06 (first draft of the forty executive questions, due end of Day 2); run the rail; write `DAY_1_EXECUTIVE_SYNTHESIS.md` at the end of Day 1b.
-* Housekeeping: an agent left an untracked scratch file `routers_inv.txt` at the worktree root; delete it once all Wave 1 tasks have returned (never while they run). Re-dispatch prompt = "Read `_SHARED_PREAMBLE.md` and `contracts/<ID>.md` in full, execute, write only to the FILE DESTINATION, return ≤150 words" plus the verbatim SOURCE HANDLING / SECRETS / DO NOT clauses.
+**Research — Day 1 closed.** Wave 1 (17/17 internal + licensing), Wave 1b (28/28 external benchmark), the internal synthesis group (system map, capability ledger, tech-debt register, provider ledger F-03b, licensing register F-04, both cost models), `executive-questions.md` (all 40), `hypothesis-register.md` (35), and `DAY_1_EXECUTIVE_SYNTHESIS.md` (90 KB, accepted after an independent fact-check pass that found and corrected two genuine drifts). Closed at `7652adabf`; readiness review at `714c05779`.
+
+**Phase 2 — architecture, closed at `92e9c0a8e`.** `product-architecture.md` (32-system decomposition: 12 platform S-systems, 5 data-platform D-systems, 14 applications, 1 intelligence layer), `information-architecture.md`, `data-architecture.md`, `capability-infrastructure-matrix.md`, `provider-master-ledger.md` (F-09), `ARCHITECTURAL_DECISION_REGISTER.md`, and `13-executive-synthesis/PHASE_2_INTEGRATION_SYNTHESIS.md` (the CONDITIONAL GO that authorized Phase 3).
+
+**Phase 3 — PRD/spec pairs, closed at `e9e7a71f7`.** Four complete pairs, no truncation, for the four systems the decision register had LOCKED:
+
+| system | PRD | spec | document status |
+|---|---|---|---|
+| **S3** Entity Master | `05-product-strategy/prds/entity-master-prd.md` | `07-technical-architecture/specs/entity-master-spec.md` | draft — awaiting review |
+| **D1** Provider Abstraction | `prds/provider-abstraction-prd.md` | `specs/provider-abstraction-spec.md` | draft — awaiting review |
+| **S8** Provenance & Freshness | `prds/provenance-freshness-prd.md` | `specs/provenance-freshness-spec.md` | **IMPLEMENTED** — awaiting owner sign-off |
+| **S7** Alerts & Monitoring | `prds/alerts-monitoring-prd.md` | `specs/alerts-monitoring-spec.md` | draft — awaiting review |
+
+**After Phase 3 close** (the five commits the old control files never recorded): the Entity Master pre-implementation gate packet (`12-decisions/gates/entity-master-pre-implementation-gate.md`, 564 lines, `c46048ae6`, final and awaiting explicit owner approval); RG-33 filed and then corrected (`a9837d71d`, `633691038` — `cap_universe.json` is the stale file, **not** `delisted_tickers_bulk.json`); and the S8/S11 implementation records (`8935b5092`, `99e7de3b5`, `f23530a8d`, `92296aa62`, `a31cacea1`).
+
+## Implementation status
+
+⛔ **Implementation HAS occurred, and it is on `origin/master`.** Any statement that this program has touched no application code — including `SESSION_HANDOFF.md` §16 — is false as of 2026-09-02 evening. The code landed on separate implementation branches (never from this worktree) and is now an ancestor of `origin/master`:
+
+| system | commits | what shipped |
+|---|---|---|
+| **S8** Provenance & Freshness | `7adf80bd4`, `8d04bf75f`, `48bba9614` | `app/src/components/provenance/` (Provenance, FreshnessBadge, CoverageLine, Cited, freshnessContract, availabilityContract, sessionStale + tests), `api/routers/provenance_quote.py`, `api/routers/provenance_bar.py`, `api/services/bar_provenance.py`, `app/src/pages/ProvenanceDemo.jsx` at `/provenance-demo` |
+| **S11** Session & Market Clock | `e14a5836b`, `1cf0bf028` | `app/src/lib/marketClock/{marketClock,nyseCalendar}.js`; `useMarketOpen.js` re-sourced; `sessionModel.js` `nextOpenHint()` upgraded to skip holidays |
+
+**S11 has no PRD/spec document** — deliberately. Its `product-architecture.md` system block was judged sufficient for a system that size; that judgement is recorded in `provenance-freshness-prd.md` §12.4 and is not a gap to be silently filled.
+
+**S3 Entity Master (`api/services/entity_master/`) is pre-existing UCT infrastructure the program adopted, not something this program built** — `provenance-freshness-spec.md` §8a confirms it satisfies what the architecture calls S3.
 
 ## What is blocked
 
-Nothing. Owner inputs batch 1 is filed (`OWNER_INPUTS_REQUESTED.md`) with defaults; D-001 proceeds provisionally.
+Nothing is blocked on research. Two things are waiting on the owner:
+
+1. **S8's overall completion status** — the PRD/spec frontmatter both read "awaiting owner sign-off." S10 (Presentation Primitives) and the vendor-side entitlement taxonomy (SPEC-S8 §17a) are formally DEFERRED, neither blocking.
+2. **The Entity Master pre-implementation gate packet** — final, presented, awaiting explicit approval.
+
+Standing owner inputs remain open and undecided by silence: OI-03(a)/(b) (Massive tier / FMP DDLA — moves 57 licensing-register rows), OI-06 (one observed desk morning — the highest-leverage input remaining), OI-08/OI-18, OI-21, and D-003 (decisiveness for two audiences).
 
 ## Where to pick up
 
-1. If Wave 1 tasks have returned: QC each report (open the file; classify ACCEPT / ACCEPT WITH GAPS / RESEARCH AGAIN / DISCARD; log in `AGENT_REGISTRY.md` §5; feed GAPS into `RESEARCH_GAPS.md`).
-2. A task that returned nothing or a partial report: re-dispatch from its contract with a KNOWN FACTS block.
-3. Approval is in hand (DL-015). Continue Wave 1b top-ups until all 28 external tasks have returned; QC each (a dossier with uniform 🟢 and no URLs is DISCARDED and re-dispatched).
-4. Day 1 ends when: B-POD-BBG and F-04 completed, F-06 (forty questions + Day 1 synthesis) and F-08 landed, rail run (R1), checkpoint written in PROGRAM_STATUS.md. Then advance the program-day counter to 2 and dispatch Wave 2 in batches of ≤10 (verifiers/reconstructors first for the deep products, then domain pods, then G-01-D2).
-5. Pause protocol: if a 429 kills tasks, check each destination file (frontmatter + GAPS/SOURCES) — a written file is accepted after QC; a partial file gets a COMPLETION re-dispatch; a missing file gets an exact re-dispatch.
-5. Run the protection rail (`protection-rail.md`, exact commands) at every checkpoint; update `PROGRAM_STATUS.md`, this file, `CRITICAL_PATH.md`, `OWNER_DECISIONS.md`.
+1. **Do not re-dispatch the Wave-2 recovery list.** It is closed. Of the eight items `SESSION_HANDOFF.md` §5 classified as needing re-dispatch (that file says "seven" in §1 and §5's prose while its own table lists eight), **seven are DONE and accepted** — F-06 deliverable 2, B-POD-BBG, C7-02, C5-02, B-POD-GDL, C2-01, C7-03 — all QC'd file-by-file in `AGENT_REGISTRY.md`.
+2. **One research task remains outstanding: C2-02 (Events intelligence).** Its destination file `05-product-strategy/domain-events-intelligence.md` is still the original 635-byte stub (frontmatter + "DRAFT — patterns section being written first"), and it is **untracked** — it has never been committed, which is why no commit records it. It was the one member of the recovery list left out of the six-worker recovery wave `wf_ff0deab0-60a`. Re-dispatch it **full**, not as a completion; the stub is discarded, not built from. Tier 2 (Sonnet High) per DL-020.
+3. **Then the un-dispatched Wave-2 remainder** (`contracts/C-WAVE2.md`, `contracts/B-WAVE2.md`): domain pods C1-01/02, C2-03, C3-01/02, C4-02/03, C6-03, C8-01/02; the dossier verifiers/reconstructors (one -02 and one -03 per product); F-05 (capability matrix) and F-07 (JTBD/workflow library) once their inputs exist; `G-LIGHT-D2.md` light red team. Batches of ≤10, Sonnet tier per DL-020.
+4. **QC every return by reading the actual file** — bytes, section headers, tail, truncation-marker scan — never an agent's self-report. This is how F-08 and C6-02 were correctly recovered after their agents reported failure, and how B-POD-BBG's premature failure call was caught and corrected (`68d0f4990`).
+5. ⛔ **When scanning a file for a literal marker, strip prose first.** A truncation-marker scan of `provenance-freshness-spec.md` on 2026-09-11 returned two hits, both false: the field name `truncated` inside a documented data shape, and a line-range note. An instrument that matches prose reports a property of itself.
+6. Run the protection rail (`protection-rail.md`) at every checkpoint and update `PROGRAM_STATUS.md`, this file, `CRITICAL_PATH.md`, `OWNER_DECISIONS.md`.
+
+## How this drifted (read before trusting any control file)
+
+Between 2026-09-02 17:14 and 2026-09-03 07:04, five commits landed — the Entity Master gate packet, two RG-33 commits, and the S8/S11 implementation records — and **not one of them touched a control file.** In the same window, application code for S8 and S11 shipped to `origin/master` from separate branches, which this worktree's history cannot see at all. `RESUME.md` and `SESSION_HANDOFF.md` were last written at 11:57 that morning and went on describing "Day 1b, Wave 2 partially complete, seven tasks needing re-dispatch" for nine days, while every one of those tasks but C2-02 had in fact been completed and accepted hours later.
+
+A cold-start session reading `RESUME.md` first, exactly as instructed, would therefore have re-dispatched seven finished research tasks and believed no code had shipped.
+
+⛔ **So: check git before trusting these files.** This document carries a "Last verified against git" line at the top; if the branch has moved past that SHA, reconcile before acting. Two specific blind spots, both real here: a docs commit that records implementation is not the implementation (the code lives on other branches, and only `origin/master` can confirm it), and an **untracked** file is invisible to every `git log` — C2-02's stub survived nine days precisely because nothing ever committed it.
 
 ## Standing hazards
 
 Vocabulary TERMINAL-CURRENT / TERMINAL-NEXT everywhere. Engine/bot/wire/scans read-only. Never the stale `uct-dashboard` checkout. Never run anything on the production pod. Port 8077 is a stale local backend. `C:\data` is real; never override conftest pins. Partner files untouched. Usage-limit pause = normal; on resume, follow this file.
+
+⚠️ **Two ID collisions in this program's own vocabulary — both live, both load-bearing:**
+1. **`D3`/`D4`/`D6`/`D7` name both decisions and systems.** `PHASE_2_INTEGRATION_SYNTHESIS.md` §10 locks "D3 Entity Master, D4 Provider Abstraction, D6 Provenance, D7 Alerts" — those are **decision-register** ids. The **systems** with those ids are D3 Realtime Streaming and D4 Caching & Serving. The systems locked by those decisions are S3, D1, S8 and S7. Always say which register you mean.
+2. **`S7` means two different things across programs.** Here it is the **Alerts & Monitoring** system. In the (now closed) UCT Terminal convergence program, "S7" is the **filing-watch** feature that went live to members 2026-09-11 12:07:29 ET. They are unrelated.
+
+⚠️ **The codebase has moved since these documents were written.** Terminal-Next must not assume a pre-convergence codebase — see `PROGRAM_STATUS.md`'s reconciliation section for the one confirmed overlap (Seam 7's 2026-09-07 edit to S11's `nyseCalendar.js`).

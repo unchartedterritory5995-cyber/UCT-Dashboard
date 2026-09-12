@@ -1,8 +1,9 @@
 # PROGRAM STATUS
 
-**Program day:** 1 CLOSED, Phase 2 CLOSED, Phase 3 CLOSED (technical validation + PRD/spec for the four LOCKED systems). Implementation NOT authorized — awaiting owner decision on Phase 3's exit gate.
-**Stage:** Specification. No implementation.
-**Last updated:** 2026-09-02 (Phase 3 close, session 1)
+**Program day:** 1 CLOSED, Phase 2 CLOSED, Phase 3 CLOSED (technical validation + PRD/spec for the four LOCKED systems).
+**Stage:** Specification complete for four systems; **two of them (S8, S11) are IMPLEMENTED and live on `origin/master`** — see "Post-Phase-3 work" below. Program **idle since 2026-09-03**, awaiting owner sign-off on S8's completion status and on the Entity Master gate packet.
+**Last updated:** 2026-09-11 (control-file reconciliation; no new program work).
+**Last verified against git:** `a31cacea1` (2026-09-03 07:04:50 -0500), branch `terminal-research`, in sync with `origin/terminal-research`.
 **Deadline health:** GREEN — Day 1, the Readiness Review, Phase 2 (architecture), and Phase 3 (technical validation + 4 PRD/spec pairs) all completed, adversarially validated, corrected, and committed/pushed this session.
 
 ## Checkpoint (Document A format)
@@ -59,6 +60,11 @@ None for further specification work on the four LOCKED systems — all eight doc
 specs) are complete and validated. Implementation itself remains explicitly gated pending the
 owner's decision on the Phase 3 exit report.
 
+⛔ **Superseded within hours of being written** — the checkpoint above describes the state at
+2026-09-02 17:14. S8 and S11 were authorized and implemented that same evening and the following
+morning. See "Post-Phase-3 work" below; everything from here to the end of this checkpoint is
+historical.
+
 ### Findings for a normal operations session (outside program scope)
 * RG-32 (new, see above): Compass's ambient regime context and its `get_regime` tool disagree.
 * Four PC-scheduled jobs failing silently: flow-corpus archive empty since 2026-08-09; breadth-live monitor 'could not check' 52 runs since 2026-08-10 (D-14).
@@ -77,11 +83,78 @@ empty; production `/api/health` 200 and `/calendar` 200. See `protection-rail.md
 ### Deadline health
 GREEN.
 
+## Post-Phase-3 work (2026-09-02 17:31 → 2026-09-03 07:19) — added by the 2026-09-11 reconciliation
+
+Five docs commits and five code commits landed after the Phase 3 close above, and **no control file
+recorded any of them** until this reconciliation.
+
+**Docs, on `terminal-research`:**
+* `c46048ae6` — **Entity Master pre-implementation gate packet**, `12-decisions/gates/entity-master-pre-implementation-gate.md`, 564 lines. Status: final, presented, **awaiting explicit owner approval**.
+* `a9837d71d` then `633691038` — **RG-33** filed and then corrected: the stale file is `cap_universe.json`, **not** `delisted_tickers_bulk.json`. The correction is the operative version.
+* `8935b5092`, `99e7de3b5`, `f23530a8d`, `92296aa62`, `a31cacea1` — the **S8 readiness review and implementation records**, plus the **S11 implementation record** and one factual correction: NYSE's 2026 calendar has **3 July as a full closure, not an early close** (Independence Day observed); only 27 November and 24 December are real early closes. The shipped dataset uses the corrected calendar; the prose error was recorded rather than silently fixed.
+
+**Code, on `origin/master` (from separate implementation branches, never from this worktree):**
+
+| system | commits | what shipped |
+|---|---|---|
+| **S8** Provenance & Freshness | `7adf80bd4`, `8d04bf75f`, `48bba9614` | `app/src/components/provenance/` (Provenance, FreshnessBadge, CoverageLine, Cited, freshnessContract, availabilityContract, sessionStale + tests), `api/routers/provenance_quote.py`, `api/routers/provenance_bar.py`, `api/services/bar_provenance.py`, `app/src/pages/ProvenanceDemo.jsx` at `/provenance-demo` |
+| **S11** Session & Market Clock | `e14a5836b`, `1cf0bf028` | `app/src/lib/marketClock/{marketClock,nyseCalendar}.js`; `useMarketOpen.js` re-sourced; `sessionModel.js` `nextOpenHint()` upgraded to skip holidays |
+
+⛔ **Why the protection rail never noticed.** The rail diffs *this worktree's* application paths against
+the start SHA. The implementation happened on other branches, so the diff stayed empty and the rail
+kept passing — correctly, for what it measures. **A green protection rail proves this worktree shipped
+nothing; it cannot prove the program shipped nothing.** Any future implementation slice must be
+verified against `origin/master`, not against this worktree's diff.
+
+**Deferred, recorded, not gaps:** S10 (Presentation Primitives) and the vendor-side entitlement
+taxonomy (SPEC-S8 §17a) are both formally DEFERRED and neither blocks. S11 has **no PRD/spec
+document** by deliberate judgement — its `product-architecture.md` system block was held sufficient
+for a system that size.
+
+## Codebase drift since these documents were written
+
+The PRDs and specs describe a codebase as it stood on 2026-09-02. The (separate, now closed) UCT
+Terminal convergence program has shipped to master continuously since. **Exactly one confirmed
+overlap**, found by diffing master's history against every path this program owns:
+
+* **Seam 7, `4c4e19ede` (2026-09-07)** edited S11's own `nyseCalendar.js` — added 2027 holiday data
+  (the table had ~4 months of runway and degraded to "every weekday is a full trading day" once
+  `COVERED_YEARS=[2026]` lapsed), and added `tests/test_nyse_calendar_parity.py` so a hand-edit to
+  either calendar table fails CI instead of drifting. It explicitly preserved S11's bundled
+  zero-latency design as deliberate architecture. **This is a strict improvement to S11 and requires
+  no revision here** — but S11's own record must not be read as describing the current file.
+
+No other master commit since 2026-09-03 has touched `app/src/components/provenance/`,
+`app/src/lib/marketClock/`, the provenance routers, or `api/services/entity_master/`.
+
+⚠️ **`S7` names two different things.** Here it is the **Alerts & Monitoring** system. In the
+convergence program it is the **filing-watch** feature, live to members since 2026-09-11 12:07:29 ET.
+Unrelated. (Checked: the alerts PRD and spec name `alert_fires` and never `user_alerts`, so they are
+already consistent with the owner's 2026-09-08 ruling that the durable alert is `alert_fires`.)
+
+## How the control files drifted (read before trusting them)
+
+Between 2026-09-02 17:14 and 2026-09-03 07:04, ten commits landed across two repositories' worth of
+branches and not one touched `RESUME.md` or `SESSION_HANDOFF.md`. Those two files went on describing
+"Day 1b, Wave 2 partially complete, seven tasks needing re-dispatch" for nine days, while all but one
+of those tasks had been completed and accepted hours after they were written. A cold-start session
+following the documented reading order would have re-dispatched seven finished research tasks and
+believed no code had shipped. Both files now carry a "last verified against git" line; **if the
+branch has moved past that SHA, reconcile before acting.**
+
+Two blind spots that made this durable, both worth carrying forward: a docs commit that *records* an
+implementation is not the implementation (the code was on branches this worktree cannot see, and only
+`origin/master` confirms it), and an **untracked** file is invisible to every `git log` and every
+diff — which is exactly how C2-02's 635-byte stub survived nine days looking like completed work.
+
 ## Next actions
-1. Deliver the Phase 3 exit report to the owner (the 12-point format requested) and stop — explicit
-   implementation gate in effect; no application code changes without an explicit go-ahead.
-2. On proceed: the owner's own exit-gate answer (GO/CONDITIONAL GO/NO-GO) determines whether
-   implementation begins, further specification continues, or a targeted revision is needed first.
-3. RG-32 (the Compass regime-vocabulary collision) is a real, live product inconsistency outside
-   this program's scope — worth the owner's attention in a normal operations session regardless of
-   the Phase 3 decision.
+1. **Owner decisions outstanding** (nothing below is decided by silence): sign-off on **S8's overall
+   completion status**; explicit approval of the **Entity Master pre-implementation gate packet**;
+   and the standing inputs OI-03(a)/(b), OI-06, OI-21 and D-003.
+2. **Re-dispatch C2-02 (Events intelligence), full** — the single outstanding research task. Its
+   destination file is still the original 635-byte stub and is untracked. Tier 2 per DL-020.
+3. **Then the un-dispatched Wave-2 remainder** (`contracts/C-WAVE2.md`, `contracts/B-WAVE2.md`):
+   domain pods C1-01/02, C2-03, C3-01/02, C4-02/03, C6-03, C8-01/02; the per-product verifiers and
+   reconstructors; F-05 and F-07 once their inputs exist; `G-LIGHT-D2.md`. Batches of ≤10.
+4. RG-32 (the Compass regime-vocabulary collision) is a real, live product inconsistency outside
+   this program's scope — worth the owner's attention in a normal operations session regardless.

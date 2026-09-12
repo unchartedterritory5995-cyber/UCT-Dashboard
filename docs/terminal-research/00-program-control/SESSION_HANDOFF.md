@@ -1,7 +1,23 @@
 # SESSION HANDOFF — Terminal-Next research program
 
-**Written:** 2026-09-02, recovery checkpoint after the third session-limit pause of this session.
-**Read this file FIRST in any new or resumed session**, before `RESUME.md`, before re-dispatching anything. It supersedes the "what is dispatched" section of `RESUME.md` as of this timestamp; `RESUME.md` still owns the standing hazards and the cold-start reading order.
+**Written:** 2026-09-02 11:57, recovery checkpoint after the third session-limit pause of that session.
+
+---
+
+# ⛔ SUPERSEDED — HISTORICAL RECORD ONLY. DO NOT ACT FROM THIS FILE.
+
+**Reconciled 2026-09-11 against git `a31cacea1` (2026-09-03 07:04:50 -0500).** This file is kept because its Wave 1 / Wave 1b ledgers, its decision summaries and its recovery-classification method are accurate history and worth preserving. **Its state description is not.** It stopped being true roughly six hours after it was written, and nothing updated it for nine days.
+
+**Read `RESUME.md`, then `PROGRAM_STATUS.md`.** Those two carry the current state.
+
+**The two sections below that are actively wrong, corrected in place:**
+
+* **§5 — the re-dispatch list is CLOSED.** Seven of its eight items are DONE and accepted; one (C2-02) was never re-dispatched. Per-item classification is in §5 itself, in the "2026-09-11 reconciliation" column.
+* **§16 — "Zero implementation has occurred" is FALSE.** S8 and S11 shipped application code to `origin/master` on 2026-09-02 evening and 2026-09-03 morning. See §16 and `RESUME.md`.
+
+Also note this file's own internal miscount: §1 and §5's prose both say **seven** items need re-dispatch, while §5's table lists **eight**. The eighth — C2-02 — is precisely the one that was never re-dispatched.
+
+---
 
 ---
 
@@ -44,6 +60,25 @@ Program-control layer (14 control files + contracts), capability probe, coverage
 **Full ledger with dispatch/return times and QC notes: `AGENT_REGISTRY.md` §5.**
 
 ## 5. Interrupted work — exact classification (Step 1/Step 6 of the recovery instructions)
+
+> ### ✅ CLOSED — 2026-09-11 reconciliation
+>
+> Every item below is now resolved. Verified by reading each destination file on disk and each QC verdict in `AGENT_REGISTRY.md` §5 — not from the table's own dispositions, which describe intent at 11:57 on 2026-09-02 and were overtaken the same afternoon.
+>
+> | item | 2026-09-11 classification | evidence |
+> |---|---|---|
+> | **F-08** hypothesis register | ✅ was already ACCEPTED here | `hypothesis-register.md`, 82 KB |
+> | **C6-02** grounding architectures | ✅ was already ACCEPTED here | 53 KB |
+> | **F-06 deliverable 2** | **DONE** | `13-executive-synthesis/DAY_1_EXECUTIVE_SYNTHESIS.md`, 90,018 bytes, commit `7652adabf`; accepted with corrections, then an independent fact-check (`F-06-factcheck`) found and fixed two genuine drifts |
+> | **B-POD-BBG** Bloomberg synthesis | **DONE** | `bloomberg/dossier.md` 171,833 bytes + new leaf `09-multi-asset-analytics.md` 87,086 bytes, commit `860d4a1be`. ⚠️ A premature "failed a second time" call was made and then corrected at `68d0f4990` — attempt 2 had succeeded, just slowly |
+> | **C7-02** symbol master / time model | **DONE** | `07-technical-architecture/domain-symbol-master-time.md`, 13 KB partial → 56,074 bytes, 848 lines, §0–1 kept verbatim |
+> | **C5-02** personalization patterns | **DONE** | `06-ux-and-information-architecture/personalization-patterns.md`, 5 KB partial → 48,073 bytes, 618 lines, §1–2 kept verbatim |
+> | **B-POD-GDL** Gödel synthesis | **DONE** | `godel/dossier.md`, 70,254 bytes, written from scratch |
+> | **C2-01** news architecture | **DONE** | `05-product-strategy/domain-news-intelligence.md`, 55,209 bytes, 753 lines |
+> | **C7-03** vendor abstraction / data platform | **DONE** | `07-technical-architecture/domain-data-platform.md`, 40,682 bytes, 223 lines |
+> | **C2-02** events intelligence | ⛔ **NOT STARTED** | `05-product-strategy/domain-events-intelligence.md` is still the identical 635-byte stub described below, and is **UNTRACKED** — never committed, invisible to `git log`. It was the one item omitted from the six-worker recovery wave `wf_ff0deab0-60a`; `AGENT_REGISTRY.md` line 267 still reads "NEEDS RE-DISPATCH: full" |
+>
+> **Nothing was SUPERSEDED.** C2-02 remains decision-relevant and is the single outstanding research task in the program. Re-dispatch it **full** — the stub is discarded, not completed from.
 
 Ten Wave-2 assignments were in flight when the third pause hit. Two of them (F-08, C6-02) turned out to have already finished writing — the 429 killed the agent's *process* after its file was already durable, which is why "an agent reported failure" does not mean "no output exists." Every classification below was verified by reading the actual file (bytes, section headers, tail content, truncation-marker scan), never by trusting the agent's own return trace.
 
@@ -126,9 +161,24 @@ Provider ledger (F-03b, accepted): 48 providers, 20 core, 7 retirement/consolida
 
 ## 16. Implementation status
 
-**Zero implementation has occurred.** This remains Phase Zero (research/discovery/synthesis) throughout. No application source has been touched by this program at any point (confirmed every checkpoint via the protection rail). No prototypes have been built.
+> ### ⛔ CORRECTED 2026-09-11 — THE PARAGRAPH BELOW IS FALSE
+>
+> It was true when written (2026-09-02 11:57) and false about nine hours later. **S8 and S11 shipped application code to `origin/master`**, from separate implementation branches, never from this worktree:
+>
+> | system | commits (all ancestors of `origin/master`) |
+> |---|---|
+> | **S8** Provenance & Freshness | `7adf80bd4` (Step 1), `8d04bf75f` (Step 2), `48bba9614` (`<Cited>` interim form) |
+> | **S11** Session & Market Clock | `e14a5836b`, `1cf0bf028` |
+>
+> This is why the protection rail kept passing: it diffs *this worktree's* application paths, and the implementation never touched them. **A green protection rail proves this worktree shipped nothing; it cannot prove the program shipped nothing.** The rail is not at fault — its scope was simply mistaken for a wider claim.
+>
+> The work was owner-authorized at the time (the freshness-naming and entitlement-orthogonality rulings of 2026-09-02 evening, recorded in `provenance-freshness-prd.md` §0a and SPEC-S8 §19). Current status per both documents' frontmatter: all A-READY-NOW work implemented, **awaiting owner sign-off on S8's overall completion status**.
+
+**[HISTORICAL, superseded]** Zero implementation has occurred. This remains Phase Zero (research/discovery/synthesis) throughout. No application source has been touched by this program at any point (confirmed every checkpoint via the protection rail). No prototypes have been built.
 
 ## 17. Exact next actions (in order)
+
+> ⛔ **EXECUTED — do not follow this list (2026-09-11).** Items 1–4 were carried out on 2026-09-02 afternoon: the recovery wave ran (`wf_ff0deab0-60a`), every return was QC'd by direct file read, Day 1 was formally closed at `7652adabf`, and the program then advanced through Phase 2 (`92e9c0a8e`) and Phase 3 (`e9e7a71f7`). Item 5's remaining Wave-2 pods and the `B-WAVE2.md` verifiers/reconstructors were **not** dispatched and are still open — they are restated in `RESUME.md`'s "Where to pick up," together with C2-02, the one recovery item this list's wave omitted. Current next actions live in `PROGRAM_STATUS.md`.
 
 1. **Read this file, then `RESUME.md`, then `GOVERNING_PRINCIPLES.md`, then `CRITICAL_PATH.md`, then `AGENT_REGISTRY.md` §5** (the standard cold-start order, per `GOVERNING_PRINCIPLES.md` §4 and `RESUME.md`).
 2. Dispatch the **recommended next wave** (§18 below) — 7 tasks, all pre-scoped, contracts either already on disk or trivially derived from the existing `C-WAVE2.md` / `B-POD-BBG.md` / `B-POD-GDL.md` / `F-06.md` contracts. Model tier per DL-020 (§13): Sonnet High for six, Fable High for the one Tier-3 item (F-06 deliverable 2).
@@ -139,6 +189,12 @@ Provider ledger (F-03b, accepted): 48 providers, 20 core, 7 retirement/consolida
 7. Day 2 gate: light red team (`G-LIGHT-D2.md`, contract ready) once F-06/F-08 and the domain pods are in.
 
 ## 18. Recommended next wave (proposed — NOT dispatched; awaiting owner go-ahead)
+
+> ⛔ **DISPATCHED AND CLOSED (2026-09-11).** This wave ran on 2026-09-02 as `wf_ff0deab0-60a` (six workers) plus the F-06 Day-1 synthesis and its fact-check. Every item in the table is accepted.
+>
+> ⚠️ **THIS TABLE IS WHERE C2-02 WAS LOST, and it is worth understanding.** §5 correctly classified **eight** items as needing re-dispatch. This table — the one that was actually executed — lists **seven**, and C2-02 is not one of them. The count in §1 and §5's prose ("seven") matches this table rather than §5's own eight-row classification, so the file reads as internally consistent from every angle except the one that mattered. The task was diagnosed correctly, dropped silently at the point of scheduling, and then confirmed absent by a count that had already inherited the omission.
+>
+> ⭐ **A worklist derived from a plan cannot verify the plan.** The check that would have caught this is reconciling the dispatch list back against the classification that produced it, by item and not by count — and, at the end, asserting each destination file changed. C2-02's file never did, and being untracked it never appeared in a diff either. See §5's reconciliation table.
 
 | # | ID | Task | Model | Effort | Why this tier |
 |---|---|---|---|---|---|
