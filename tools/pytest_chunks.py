@@ -58,6 +58,92 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+
+def _make_own_output_utf8() -> None:
+    """⛔⛔ THE RUNNER'S OWN STDOUT, NOT THE CHILD'S (2026-09-12).
+
+    ⚰️ RUN 4 DIED HERE, AT CHUNK 2 OF 12. This module already set
+    ``PYTHONIOENCODING=utf-8`` on the *subprocess* env — and then printed its own
+    ⛔ warnings through a parent stdout that a background capture had handed it
+    as **cp1252**. The first ⛔ it tried to write raised
+    ``UnicodeEncodeError: 'charmap' codec can't encode character '\\u26d4'`` and
+    took the whole run with it, ten chunks unrun.
+
+    ⛔ AND THE WARNING IT DIED PRINTING WAS THE KILLED-CHUNK WARNING — the single
+    most important line this tool emits. An instrument whose failure mode is
+    "crashes while reporting a failure" reports success by omission.
+
+    ⭐ IT IS FIXED IN THE RUNNER, NOT IN THE CALLER'S ENVIRONMENT, deliberately:
+    a rule that lives in whoever-remembers-to-export is the rule this whole file
+    exists because nobody remembered.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            # A stream that cannot be reconfigured must not stop the run — but it
+            # must not be able to kill it later either, which `errors="replace"`
+            # above is what guarantees when it works. Nothing else to do here.
+            pass
+
+
+def worktree_roots() -> list[pathlib.Path]:
+    """Every git worktree root this checkout knows about, resolved.
+
+    ⛔ ASKED OF GIT, NEVER GUESSED FROM THE PATH. A sibling checkout can live
+    anywhere; only git knows where they all are."""
+    try:
+        out = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=str(ROOT), capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return [ROOT]
+    roots = [pathlib.Path(line[len("worktree "):].strip()).resolve()
+             for line in out.stdout.splitlines() if line.startswith("worktree ")]
+    return roots or [ROOT]
+
+
+#: The ONE place inside a worktree a log directory may live: that worktree's own
+#: gitignored `.pytest_chunks/`. Named so the default and an explicit
+#: `--out-dir` are judged by the SAME rule rather than the default being exempt.
+SANCTIONED_IN_TREE = ".pytest_chunks"
+
+
+def refuse_out_dir(out_dir: pathlib.Path, roots: list[pathlib.Path]):
+    """``None`` if this log directory is safe, else the sentence to refuse with.
+
+    ⛔⛔ WHY A LOG DIRECTORY IS GUARDED AT ALL (owner ruling, 2026-09-12). On
+    2026-09-12 this worktree was emptied WHILE a run was in flight — 1,399 files
+    enumerated at start, 332 ``ModuleNotFoundError: spec not found`` in chunk 1,
+    and chunk 2 refusing to start on a path that no longer existed. This module
+    was exonerated by reading it (it performs no delete of any kind), but the
+    standing rule from that day is that a tool must not be *able* to point its
+    writes at a checkout. So the check is structural rather than a promise.
+
+    Three refusals, and the third is the one that matters most:
+      * the directory IS a worktree root
+      * the directory is INSIDE a worktree, other than that worktree's own
+        gitignored ``.pytest_chunks/``
+      * the directory is ABOVE a worktree root — a parent of a checkout is the
+        blast radius that took this session's worktree with it
+    """
+    out_dir = out_dir.resolve()
+    for root in roots:
+        if out_dir == root:
+            return f"--out-dir IS a git worktree root: {out_dir}"
+        if root in out_dir.parents:
+            rel = out_dir.relative_to(root)
+            if rel.parts and rel.parts[0] == SANCTIONED_IN_TREE:
+                continue
+            return (f"--out-dir is inside the git worktree {root} at {out_dir}. "
+                    f"The only sanctioned in-tree location is "
+                    f"{root / SANCTIONED_IN_TREE}, which is gitignored.")
+        if out_dir in root.parents:
+            return (f"--out-dir {out_dir} is ABOVE the git worktree root {root}. "
+                    "A parent of a checkout is never a log directory.")
+    return None
+
 #: pytest's own documented exit codes. Anything else is the OS, not pytest.
 #: 0 all passed · 1 tests failed · 2 interrupted · 3 internal error
 #: 4 usage error · 5 no tests collected
@@ -169,7 +255,14 @@ def main() -> int:
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     out_dir = pathlib.Path(args.out_dir) if args.out_dir else (
-        ROOT / ".pytest_chunks" / stamp)
+        ROOT / SANCTIONED_IN_TREE / stamp)
+    # ⛔⛔ JUDGED BEFORE IT IS CREATED. `mkdir(parents=True)` on a bad path would
+    # already have made directories somewhere it should never write.
+    bad = refuse_out_dir(out_dir, worktree_roots())
+    if bad:
+        print("REFUSED:", bad)
+        print("VERDICT: FAIL (refused before any chunk ran)")
+        return 2
     out_dir.mkdir(parents=True, exist_ok=True)
 
     idxs = [args.only - 1] if args.only else list(range(args.chunks))
@@ -231,12 +324,43 @@ def main() -> int:
     if killed:
         print("⛔ A KILLED CHUNK IS NOT A PASS. Its tests did not run and its counts "
               "are missing from the totals above.")
+    # ⛔⛔ A RUN WITH NO TOTALS LINE IS NOT A RUN (owner ruling, 2026-09-12).
+    # Run 4 printed a per-chunk line for chunk 1, died mid-report on chunk 2, and
+    # its wrapper reported exit 0. Three separate ways that could read as success
+    # are now three ways to fail, each named:
+    #   * no counts at all           — nothing was measured
+    #   * a chunk that ran but whose numbers did not parse — silently missing
+    #   * fewer chunks than asked for — the run did not finish
+    unparsed = [r["chunk"] for r in results if r["hasSummary"] and not r["counts"]]
+    asked = len(idxs)
+    short = asked - len(results)
+    verdict_reasons = []
+    if not total:
+        verdict_reasons.append("NO TOTALS — nothing was measured")
+    if unparsed:
+        verdict_reasons.append(f"counts unparsed in chunks {unparsed} — their "
+                               "numbers are MISSING from the totals above")
+    if short > 0:
+        verdict_reasons.append(f"{short} of {asked} chunks produced no result at all")
+    if killed:
+        verdict_reasons.append(f"KILLED chunks {killed}")
+    if red:
+        verdict_reasons.append(f"red chunks {red}")
+
     (out_dir / "summary.json").write_text(
-        json.dumps({"chunks": results, "totals": total, "killed": killed, "red": red},
+        json.dumps({"chunks": results, "totals": total, "killed": killed, "red": red,
+                    "unparsed": unparsed, "asked": asked, "reasons": verdict_reasons},
                    indent=2), encoding="utf-8")
     print("summary:", out_dir / "summary.json")
 
-    return 1 if (killed or red) else 0
+    # ⭐ THE LAST LINE IS ALWAYS A VERDICT, so a run read through a pipe — whose
+    # exit status belongs to the pipe, not to this process — is still legible.
+    # That is exactly how run 4's failure reached a reader as "exit 0".
+    if verdict_reasons:
+        print("VERDICT: FAIL — " + "; ".join(verdict_reasons))
+        return 1
+    print("VERDICT: PASS")
+    return 0
 
 
 def io_open(p: pathlib.Path):
@@ -244,4 +368,18 @@ def io_open(p: pathlib.Path):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # ⛔⛔ A CRASHED RUNNER EXITS NONZERO AND SAYS SO ON ITS LAST LINE.
+    # Run 4's traceback went to stderr and its exit status went to `tail`; the
+    # reader saw "[exited with code 0]". An uncaught exception already exits 1,
+    # but the VERDICT line is what survives a pipe, so it is printed here too.
+    _make_own_output_utf8()
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except BaseException:
+        import traceback
+        traceback.print_exc()
+        print("VERDICT: FAIL — the runner itself crashed; chunks after the last "
+              "one reported above DID NOT RUN")
+        raise SystemExit(3)

@@ -235,6 +235,60 @@ than the oldest chunk log, means one is running — wait for it or read its resu
 start beside it. If a run must be abandoned, say so in the report; an overwritten log is
 not a result.
 
+### ⚰️⚰️ RUN 4 IS **VOID** — 2026-09-12, and the cause chain is four links long
+
+**It is not a result. It measured nothing and it reported exit 0.** Recorded here
+because every link in the chain is a rule this runbook already contained.
+
+```
+1.  an EXTERNAL process emptied the worktree WHILE the run was in flight
+       runner enumerated 1,399 test files at start  → the tree was intact
+       chunk 1: 332 × ModuleNotFoundError: spec not found for 'api.services.crypto_box'
+                (importlib.reload of a module whose source had gone from disk)
+       chunk 2: ERROR: file or directory not found: api/services/journal_two/test_telemetry.py
+2.  the runner called chunk 2 KILLED — correct verdict, WRONG CAUSE. Its
+    documented default is "no summary ⇒ OOM until proven otherwise"; this was a
+    disappearing checkout, which looks identical from inside.
+3.  the runner then DIED PRINTING THAT WARNING:
+       UnicodeEncodeError: 'charmap' codec can't encode character '⛔'
+       tools/pytest_chunks.py:217
+    It set PYTHONIOENCODING=utf-8 on the CHILD's env and never on its own stdout.
+    Ten of twelve chunks never ran.
+4.  the invocation was `python tools/pytest_chunks.py … 2>&1 | tail -30`, so the
+    reader saw `[exited with code 0]` — TAIL's status.
+```
+
+⛔⛔ **LINK 4 IS THIS RUNBOOK'S OWN R7 RULE, BROKEN BY THE PERSON QUOTING IT.**
+*"Never read pytest's status through a pipe."* The runner's own module docstring
+says the same thing in its own words. It was still piped to `tail`, and that is
+the single reason a dead run reached a report as a clean one.
+
+⭐ **THE RUNNER WAS EXONERATED BY READING IT, NOT BY ASSUMING.** It performs
+exactly four filesystem operations — `out_dir.mkdir(parents=True, exist_ok=True)`,
+one `open(log, "w")` per chunk, `log.read_text`, and one
+`summary.json` `write_text` — and contains **no** `shutil`, `rmtree`, `unlink`,
+`remove` or `rmdir`. `tests/test_pytest_chunks_runner.py` now pins that with an
+AST sweep so a future edit cannot quietly add one.
+
+⚠️ **AND `--out` IS `--out-dir`.** argparse accepts any unambiguous prefix of a
+long option, so a flag that was never read in the source was silently accepted.
+Nothing turned on it here, but "the flag I passed does not appear in the file"
+was a false alarm that cost forensics time.
+
+### What changed so this cannot recur
+
+| link | fix | test |
+|---|---|---|
+| 3 | `_make_own_output_utf8()` reconfigures the RUNNER's own stdout/stderr, in the runner, not in the caller's environment | `test_the_runner_makes_its_OWN_stdout_utf8_…` + a control proving the same print dies without it |
+| 2+4 | every run's **last line is a VERDICT**, and `FAIL` covers no-totals, unparsed counts, a short run, killed chunks and red chunks | `test_the_three_ways_a_run_can_be_incomplete_are_each_a_failure` |
+| 4 | a crashed runner exits **3** and prints `VERDICT: FAIL — the runner itself crashed` | `test_a_crashed_runner_exits_nonzero…` |
+| 1 | `--out-dir` is **refused** if it is a worktree root, inside one (other than that worktree's gitignored `.pytest_chunks/`), or **above** one | four cases + a control that the guard still allows the sanctioned path |
+
+⛔ **THE VERDICT LINE IS THE MITIGATION FOR THE PIPE**, not a substitute for
+fixing the invocation. A pipeline's status still belongs to the pipe — measured
+again while building this: `--out-dir .` exits **2** bare and **0** through
+`| tail -1`. Redirect and read `$?`, and read the last line.
+
 ```bash
 # the FULL Python lane -- the ONLY sanctioned way to run it
 python tools/pytest_chunks.py            # 12 chunks, sequential, per-chunk logs
