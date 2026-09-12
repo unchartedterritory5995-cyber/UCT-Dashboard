@@ -27,12 +27,16 @@ import logging
 import math
 import os
 import random
+import sqlite3
 import threading
 import time
 from datetime import datetime, timezone
 
 from api.services.cache import cache
-from api.services.earnings_table import get_earnings_table, _label_from_period_end, _next_q_label
+from api.services.earnings_table import (
+    get_earnings_table, _label_from_period_end, _next_q_label,
+    expected_latest_reported_label, reported_staleness,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -51,8 +55,60 @@ _PRIORITY = (
     "NKE", "MU", "AMD", "ORCL", "NFLX", "COST", "HD", "UNH", "XOM", "PG",
 )
 
-# Invariant violations that should NEVER occur — any one is a regression signal.
-_CRITICAL_KINDS = ("exception", "bad_shape", "nan", "dup_quarter", "label_mismatch")
+# Quarters behind the generic reporting expectation before a strip counts as
+# stale. 1 is an ordinary late filer; 2 means a quarter is genuinely missing.
+_STALE_QUARTERS = int(os.environ.get("FUNDAMENTALS_MONITOR_STALE_QUARTERS", "2"))
+
+# Invariant violations that mean OUR pipeline regressed — these, and only these,
+# page Discord.
+#
+# The split is "who is supposed to guarantee this?". Every kind below is an
+# invariant OUR OWN code enforces: `_fmp_forward_quarters` filters a forward row
+# whose label is already reported (`reported_forward_overlap`) or already seen
+# (`dup_forward`), `_build_quarterly` dedups by (year, quarter)
+# (`dup_quarter`), and the sanitizer makes `nan` impossible. One of these
+# surfacing means a guard stopped working — exactly what this monitor exists to
+# catch.
+#
+# `forward_gap`, `forward_noncontiguous` and `stale_reported` are the other
+# half: they describe a HOLE in what a provider handed us, which our code then
+# faithfully reproduces. Real, worth recording, and not something a page at
+# 23:00 can act on — they stay in `flagged_current` and are served by
+# /api/admin/fundamentals-health.
+#
+# ⚰️ This tuple existed since 2026-07-03 and was referenced NOWHERE, so every
+# kind paged equally — the 2026-09-11 investigation's "a few alerts a day".
+# It also read `label_mismatch`, which check_ticker has never emitted; wiring it
+# as written would have silently demoted the real `label_period_mismatch`
+# regression signal to non-paging.
+_CRITICAL_KINDS = ("exception", "bad_shape", "nan", "dup_quarter", "dup_forward",
+                   "reported_forward_overlap", "label_period_mismatch")
+
+# ── Durable defect state ──────────────────────────────────────────────────────
+# `_state` is a module dict and this pod redeploys several times a day, so an
+# in-memory suppression set makes every boot rediscover a standing defect as
+# news. Same lesson provider_coverage_monitor recorded on 2026-08-09.
+_DATA_DIR = os.environ.get("DATA_DIR") or ("/data" if os.path.isdir("/data") else os.path.join(os.getcwd(), "data"))
+DB_PATH = os.environ.get("FUNDAMENTALS_MONITOR_DB", os.path.join(_DATA_DIR, "fundamentals_monitor.db"))
+
+# How often the standing non-critical defects get their one summary.
+_DIGEST_SECONDS = int(os.environ.get("FUNDAMENTALS_MONITOR_DIGEST_SECONDS", "86400"))
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS defect_state (
+  sym   TEXT PRIMARY KEY,
+  kinds TEXT NOT NULL,
+  since TEXT NOT NULL
+);
+-- The digest's "last sent" stamp. On disk for the same reason defect_state is:
+-- an in-memory stamp resets on every web restart, so a pod that redeploys a few
+-- times a day would send a "daily" digest a few times a day — the exact defect
+-- this module is being fixed for.
+CREATE TABLE IF NOT EXISTS monitor_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+"""
 
 # ── State (for the status endpoint) ───────────────────────────────────────────
 _state_lock = threading.Lock()
@@ -67,15 +123,181 @@ _state = {
     "healed_total": 0,
     "flagged_total": 0,
     "flagged_current": [],          # tickers still failing after the last cycle's heal
-    "_prev_flagged_syms": [],       # for alert-on-change (don't re-spam persistent flags)
+    "_prev_flagged_syms": [],       # in-memory MIRROR of defect_state (fallback only)
+    "skipped_funds_last_cycle": 0,  # ETFs/CEFs passed over — no quarterly strip to check
     "blank_sales_last_cycle": 0,
     "last_cycle_at": None,
     "last_alert_at": None,
+    "last_digest_at": None,
 }
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _connect() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=5)
+    conn.executescript(_SCHEMA)
+    return conn
+
+
+def _load_defect_syms() -> set[str]:
+    """Tickers already known to be in defect, from disk — so a redeploy does not
+    turn a standing defect back into news."""
+    try:
+        with _connect() as conn:
+            return {r[0] for r in conn.execute("SELECT sym FROM defect_state").fetchall()}
+    except Exception:  # pragma: no cover - fall back to the in-memory mirror
+        _logger.warning("[fund-monitor] defect_state read failed", exc_info=True)
+        return set(_state.get("_prev_flagged_syms") or [])
+
+
+def _save_defect_state(checked: set[str], flagged: dict[str, list[str]], ts: str) -> None:
+    """Record this cycle's outcome for the tickers it ACTUALLY CHECKED.
+
+    ⛔ The difference from provider_coverage_monitor's version, and the whole
+    point of this fix: that monitor evaluates its entire population every cycle,
+    so "absent from the defect set" means recovered. This one SAMPLES ~30 of
+    ~3,700 names, so absent almost always means "not looked at this cycle".
+    Clearing those is precisely the bug — a standing defect would leave the set
+    the moment it went unsampled and page again on its next appearance.
+
+    A ticker that WAS checked and came back clean must still leave the set, or
+    its next genuine breach is silent — the worse of the two directions."""
+    if not checked:
+        return
+    try:
+        with _connect() as conn:
+            recovered = sorted(checked - set(flagged))
+            if recovered:
+                conn.execute(
+                    "DELETE FROM defect_state WHERE sym IN (%s)" % ",".join("?" * len(recovered)),
+                    tuple(recovered),
+                )
+            for sym, kinds in sorted(flagged.items()):
+                # DO UPDATE only the kinds: `since` stays the moment the defect
+                # STARTED, so a long-standing one can be dated.
+                conn.execute(
+                    "INSERT INTO defect_state (sym, kinds, since) VALUES (?, ?, ?) "
+                    "ON CONFLICT(sym) DO UPDATE SET kinds=excluded.kinds",
+                    (sym, ",".join(sorted(kinds)), ts),
+                )
+    except Exception:  # pragma: no cover
+        _logger.warning("[fund-monitor] defect_state write failed", exc_info=True)
+
+
+def _meta_get(key: str):
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT value FROM monitor_meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+    except Exception:  # pragma: no cover
+        return None
+
+
+def _meta_set(key: str, value: str) -> None:
+    try:
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO monitor_meta (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, value),
+            )
+    except Exception:  # pragma: no cover
+        _logger.warning("[fund-monitor] monitor_meta write failed", exc_info=True)
+
+
+def _standing_shape_defects() -> list[dict]:
+    """Every ticker currently in defect whose issues are ALL non-critical.
+
+    Read from defect_state rather than from this cycle's flagged list on
+    purpose: one cycle sees ~30 of ~3,700 names, so a digest built from the
+    sample would report a near-random slice of the real set. Criticals are
+    excluded because they already paged individually — repeating them here
+    would teach the reader that the digest is where criticals live."""
+    try:
+        with _connect() as conn:
+            rows = conn.execute(
+                "SELECT sym, kinds, since FROM defect_state ORDER BY sym"
+            ).fetchall()
+    except Exception:  # pragma: no cover
+        return []
+    out = []
+    for sym, kinds, since in rows:
+        ks = [k for k in (kinds or "").split(",") if k]
+        if ks and not any(k in _CRITICAL_KINDS for k in ks):
+            out.append({"sym": sym, "kinds": ks, "since": since})
+    return out
+
+
+def _send_digest(rows: list[dict]) -> None:
+    """One Discord summary of the standing non-critical defects. Best-effort."""
+    kinds: dict[str, int] = {}
+    for r in rows:
+        for k in r["kinds"]:
+            kinds[k] = kinds.get(k, 0) + 1
+    summary = ", ".join(f"{k}×{v}" for k, v in sorted(kinds.items())) or "none"
+    names = ", ".join(r["sym"] for r in rows[:25])
+    more = f" (+{len(rows) - 25} more)" if len(rows) > 25 else ""
+
+    try:
+        from api.services import discord_notify
+        discord_notify._send_webhook({
+            "title": "📋 Fundamentals data gaps — standing",
+            "description": (
+                f"**{len(rows)}** ticker(s) have a provider-side gap our pipeline "
+                f"faithfully reproduces. Not a regression in our code, and nothing "
+                f"to act on tonight — recorded so it does not go unnoticed.\n"
+                f"**Issues:** {summary}\n**Tickers:** {names}{more}\n"
+                f"Detail: `/api/admin/fundamentals-health`"
+            ),
+            "color": 0xC9A84C,
+            "timestamp": _now_iso(),
+        })
+    except Exception:  # pragma: no cover
+        pass
+
+
+def _maybe_digest(now_ts: float) -> bool:
+    """Send the standing-defect digest at most once per `_DIGEST_SECONDS`.
+    Returns True if one went out."""
+    rows = _standing_shape_defects()
+    if not rows:
+        return False
+    last = _meta_get("last_digest_at")
+    try:
+        last_ts = float(last) if last is not None else None
+    except (TypeError, ValueError):
+        last_ts = None
+    if last_ts is not None and (now_ts - last_ts) < _DIGEST_SECONDS:
+        return False
+    _send_digest(rows)
+    _meta_set("last_digest_at", repr(float(now_ts)))
+    with _state_lock:
+        _state["last_digest_at"] = _now_iso()
+    return True
+
+
+def _is_fund(sym: str) -> bool:
+    """True for an ETF or closed-end fund — a name with no quarterly EPS strip
+    to be wrong about.
+
+    In a 300-ticker sample of the monitor's own universe (2026-09-12), 17 of the
+    24 names whose reported strip was stale were CEFs — Nuveen, PIMCO, Eaton
+    Vance, BlackRock. They can never satisfy these invariants, so they were a
+    permanent and meaningless share of the alert volume.
+
+    Reuses the profile lookup that already backs dark-pool ETF detection
+    (cached per name per day, `isEtf or isFund`). Fails to False: an unknown
+    name is treated as an operating company, so a provider outage can never
+    silence a real regression."""
+    try:
+        from api.darkpool_eod import _ticker_meta
+        return (_ticker_meta(sym) or {}).get("isEtf") is True
+    except Exception:  # pragma: no cover - profile lookup is best-effort
+        return False
 
 
 # ── Invariant checks ──────────────────────────────────────────────────────────
@@ -159,6 +381,21 @@ def check_ticker(sym: str, now=None) -> dict:
             if _next_q_label(prev) != nxt:
                 issues.append({"kind": "forward_noncontiguous", "detail": f"{prev}->{nxt}"})
                 break
+
+    # (f) the REPORTED half is not stale. The completeness guard in
+    #     `_build_and_cache` only ever asked whether there were ZERO reported
+    #     quarters, so a strip whose newest actual was two quarters old passed as
+    #     complete, held the full TTL, persisted to the snapshot store, and was
+    #     served as current. Measured 2026-09-12: MMC's newest reported quarter
+    #     was 2025 Q4 because FMP's feed stops at 2026-01-29, Finnhub returns
+    #     nothing, and Yahoo stops earlier still. ~2.3% of the universe is in
+    #     this state, including S&P 500 names (BK, HOLX).
+    behind = reported_staleness(q, now=now)
+    if behind >= _STALE_QUARTERS:
+        issues.append({"kind": "stale_reported",
+                       "detail": f"reported through {rep_labels[-1] if rep_labels else '?'}; "
+                                 f"expected {expected_latest_reported_label(now=now)} "
+                                 f"({behind} quarters behind)"})
 
     blank_sales = sum(1 for r in a if r.get("eps") is not None and r.get("sales") is None)
     return {"sym": sym, "ok": not issues, "issues": issues, "blank_sales": blank_sales}
@@ -276,12 +513,14 @@ def run_cycle(now=None) -> dict:
     """Sample the universe, check invariants, self-heal transient issues, and
     alert on any that persist. Returns a per-cycle summary."""
     syms = _sample_tickers(_SAMPLE)
-    checked = healed = blank_sales = 0
+    checked = healed = blank_sales = skipped_funds = 0
     flagged: list[dict] = []
+    seen: set[str] = set()
 
     for sym in syms:
         res = check_ticker(sym, now=now)
         checked += 1
+        seen.add(sym)
         blank_sales += res.get("blank_sales", 0)
         if res["ok"]:
             continue
@@ -291,17 +530,32 @@ def run_cycle(now=None) -> dict:
             _logger.info("[fund-monitor] healed %s (was: %s)", sym,
                          ",".join(i["kind"] for i in res["issues"]))
             continue
+        # An ETF/CEF has no quarterly EPS strip, so it can never satisfy these
+        # invariants. Consulted only for a ticker that already FAILED, so the
+        # profile lookup costs nothing on the clean majority.
+        if _is_fund(sym):
+            skipped_funds += 1
+            _logger.info("[fund-monitor] skipped %s (fund/ETF — no quarterly strip)", sym)
+            continue
         flagged.append({"sym": sym, "issues": recheck["issues"]})
         _logger.warning("[fund-monitor] PERSISTENT %s: %s", sym,
                         ",".join(i["kind"] for i in recheck["issues"]))
 
-    # Alert only on NEWLY-flagged tickers, not every cycle: a persistent upstream
-    # anomaly (e.g. a stale forward quarter that self-heal can't fix because the
-    # source data itself is the problem) stays visible in `flagged_current` via
-    # the status endpoint but must not re-spam Discord hourly.
-    cur_syms = {f["sym"] for f in flagged}
-    prev_syms = set(_state.get("_prev_flagged_syms") or [])
-    newly = [f for f in flagged if f["sym"] not in prev_syms]
+    # Page only on a NEWLY-seen defect that indicates OUR pipeline regressed.
+    # Everything else — an upstream hole, a stale provider feed — is recorded in
+    # `flagged_current` and served by /api/admin/fundamentals-health, because a
+    # page cannot act on it and re-firing one is what made these alerts noise.
+    #
+    # "Newly" is read from DISK and written back only for the tickers this cycle
+    # actually checked: the sample rotates, so the previous in-memory set said
+    # "not flagged last cycle" about names it had simply never looked at.
+    ts = _now_iso()
+    prev_syms = _load_defect_syms()
+    by_sym = {f["sym"]: [i["kind"] for i in f["issues"]] for f in flagged}
+    alertable = [f for f in flagged
+                 if any(i["kind"] in _CRITICAL_KINDS for i in f["issues"])]
+    newly = [f for f in alertable if f["sym"] not in prev_syms]
+    _save_defect_state(seen, by_sym, ts)
 
     with _state_lock:
         _state["cycles_completed"] += 1
@@ -309,16 +563,21 @@ def run_cycle(now=None) -> dict:
         _state["healed_total"] += healed
         _state["flagged_total"] += len(flagged)
         _state["flagged_current"] = flagged
-        _state["_prev_flagged_syms"] = sorted(cur_syms)
+        _state["_prev_flagged_syms"] = sorted(by_sym)
+        _state["skipped_funds_last_cycle"] = skipped_funds
         _state["blank_sales_last_cycle"] = blank_sales
-        _state["last_cycle_at"] = _now_iso()
+        _state["last_cycle_at"] = ts
 
     if newly:
         _alert(newly)
+    digested = _maybe_digest(time.time() if now is None else float(now))
 
-    _logger.info("[fund-monitor] cycle: %d checked, %d healed, %d persistent-flagged, %d blank-sales",
-                 checked, healed, len(flagged), blank_sales)
-    return {"checked": checked, "healed": healed, "flagged": len(flagged), "blank_sales": blank_sales}
+    _logger.info("[fund-monitor] cycle: %d checked, %d healed, %d persistent-flagged, "
+                 "%d fund-skipped, %d paged, %d blank-sales",
+                 checked, healed, len(flagged), skipped_funds, len(newly), blank_sales)
+    return {"checked": checked, "healed": healed, "flagged": len(flagged),
+            "skipped_funds": skipped_funds, "paged": len(newly),
+            "digested": digested, "blank_sales": blank_sales}
 
 
 def _run_forever() -> None:

@@ -62,6 +62,7 @@ import time
 from typing import Any, Optional
 
 from api.services import auth_db as _auth_db
+from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import price_level as _pl
 from api.services.alert_taxonomy import price_level_compare as _cmp
 from api.services.alert_taxonomy import receipts as _receipts
@@ -295,13 +296,82 @@ def run_dark_sweep(*, now: Optional[float] = None,
     ⛔ STILL DARK. This writes `alert_fires` + receipts and comparison rows. It
     imports no delivery path, and the rails assert that from the source.
     """
+    at = time.time() if now is None else now
     symbols = sorted({p["symbol"] for p in project_admin_alerts() if p.get("symbol")})
     if not symbols:
-        return {"projected": 0, "evaluated": 0, "outcomes": {},
-                "anchor_moves": 0, "priced": 0, "no_price": []}
+        out = {"projected": 0, "evaluated": 0, "outcomes": {},
+               "anchor_moves": 0, "priced": 0, "no_price": []}
+        _beat(at, out, db_path=db_path)
+        return out
 
     prices, missing = _prices_for(symbols)
     out = run_projected_comparison(prices, now=now, db_path=db_path)
     out["priced"] = len(prices)
     out["no_price"] = missing
+    _beat(at, out, db_path=db_path)
     return out
+
+
+_BEAT_DDL = """
+CREATE TABLE IF NOT EXISTS price_level_sweep_heartbeat (
+    id          INTEGER PRIMARY KEY CHECK (id = 1),
+    last_tick   REAL NOT NULL,
+    ticks       INTEGER NOT NULL DEFAULT 0,
+    projected   INTEGER NOT NULL DEFAULT 0,
+    priced      INTEGER NOT NULL DEFAULT 0,
+    no_price    TEXT    NOT NULL DEFAULT '[]'
+);
+"""
+
+
+def _beat_conn(db_path: str | None = None):
+    """The heartbeat's OWN connector.
+
+    ⭐ It is a separate seam for one reason: "a heartbeat failure never takes the
+    comparison down" is only a testable claim if the heartbeat can be broken
+    ALONE. Patching the shared `_db.connect` breaks the comparison too, so the
+    test would have been asserting a property of a system that had already
+    failed -- green for a reason unrelated to the guard
+    (`lesson_a_guard_that_tests_the_adjacent_thing`).
+    """
+    return _db.connect(db_path)
+
+
+def _beat(at: float, out: dict, *, db_path: str | None = None) -> None:
+    """Stamp one tick. ⭐ THE ONLY THING THAT CAN ANSWER "IS IT STILL TICKING".
+
+    ⛔ The comparison spans cannot answer it and it is worth saying why: a span
+    OPENS once per predicate and thereafter only its counters move, with no
+    timestamp on them. So a store holding spans proves the sweep ran AT LEAST
+    ONCE and nothing more — a sweep that died at 09:01 looks identical at 15:00
+    to one that has been running all day. ⭐ A monotonic tick count plus a
+    wall-clock stamp is the smallest thing that distinguishes them, and *"it
+    stopped hours ago"* is precisely the failure this dark run cannot afford to
+    discover next weekend.
+
+    ⛔ It is stamped on EVERY tick, including the ones that found no cohort and
+    the ones that priced nothing. A heartbeat that only beats on success is a
+    success detector, not a liveness one.
+
+    Best-effort: a heartbeat that raised would take the comparison down with it,
+    which inverts the whole point.
+    """
+    try:
+        conn = _beat_conn(db_path)
+        try:
+            conn.executescript(_BEAT_DDL)
+            conn.execute(
+                "INSERT INTO price_level_sweep_heartbeat "
+                "(id, last_tick, ticks, projected, priced, no_price) "
+                "VALUES (1, ?, 1, ?, ?, ?) "
+                "ON CONFLICT(id) DO UPDATE SET last_tick=excluded.last_tick, "
+                "ticks = price_level_sweep_heartbeat.ticks + 1, "
+                "projected=excluded.projected, priced=excluded.priced, "
+                "no_price=excluded.no_price",
+                (at, int(out.get("projected") or 0), int(out.get("priced") or 0),
+                 json.dumps(out.get("no_price") or [])))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass

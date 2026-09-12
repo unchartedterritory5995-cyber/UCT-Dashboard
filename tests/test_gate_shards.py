@@ -513,11 +513,19 @@ log_text = json.loads(sys.argv[4])
 # Real run_gate, real parsing, real compare_failures, real render, real main() -> real exit status.
 _real = gate_shards.run_gate
 gate_shards.load_baseline = lambda: {{"measured_at": "rail", "sha": "0" * 40, "failures": baseline}}
-gate_shards.run_gate = lambda shards, od: _real(
+# The stub FORWARDS whatever main() passes, overriding only the three seams this
+# rail needs to fake. It used to pin its own signature (`lambda shards, od:`), so
+# every new keyword main() learned broke it - `max_workers` did, then `exclude`
+# and `exclude_reasons`, and all three rails in this file went red together with a
+# TypeError that never reached a manifest. A stub that must be hand-synced with
+# the function it wraps is a second authority over one signature.
+_SEAMS = ("tree_state_fn", "run_shard_fn", "file_count_fn")
+gate_shards.run_gate = lambda shards, od, **kw: _real(
     shards, od,
     tree_state_fn=lambda: ("f" * 40, []),
     run_shard_fn=lambda i: log_text,
     file_count_fn=lambda: {files_on_disk},
+    **{{k: v for k, v in kw.items() if k not in _SEAMS}},
 )
 raise SystemExit(gate_shards.main(["--shards", "1", "--out", out_dir]))
 '''
