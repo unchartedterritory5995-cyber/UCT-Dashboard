@@ -365,7 +365,11 @@ def test_the_shared_schema_is_what_THIS_lane_enforces():
         "`decision` is read only on accepted rows; the schema must say so rather than "
         "requiring it everywhere — a schema stricter than the artifact cries wolf")
     assert "ruled" in _SCHEMA["decision_required_keys"]
-    assert set(_SCHEMA["member_hook_kinds"]) == {"vendorNote", "fold"}
+    # ⭐ `requirementTag` ADDED 2026-09-12: a divergence about HOW MUCH HISTORY the
+    # consumer supplies, met through `closedTable.json::_requirement_tags` rather
+    # than through any function's note. Pinned here rather than derived so a new
+    # kind cannot appear without an author acknowledging it in this rail.
+    assert set(_SCHEMA["member_hook_kinds"]) == {"vendorNote", "fold", "requirementTag"}
 
 
 def test_every_row_satisfies_the_SHARED_schema_so_both_lanes_agree():
@@ -611,6 +615,36 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
                     f"{row['id']}: fold channel `{name}` has no `memberNote` in "
                     "`closedTable.json::_folds` — the disclosure reaches nobody, which "
                     "is the difference between ACCEPTED and merely KNOWN.")
+            continue
+
+        if kind == "requirementTag":
+            # ⭐ THE DISCLOSURE IS A TAG ON THE SAVED DEFINITION, not a note on a
+            # function. The AGEN firing-count divergence is a property of HOW MANY
+            # BARS the consumer supplied, and no function in the manifest owns that
+            # — `ta.highest` computes the declared formula correctly on both sides.
+            # So the hook must name a real key of `closedTable.json::_requirement_tags`,
+            # which is the section every consumer already reads to decide whether it
+            # can serve the definition at all.
+            name = hook.get("name") or ""
+            assert name, f"{row['id']}: requirementTag hook names no tag"
+            manifest = json.load(io.open(
+                ROOT / "app" / "src" / "components" / "chart" / "engine" / "ast"
+                / "closedTable.json", encoding="utf-8"))
+            tags = manifest.get("_requirement_tags") or {}
+            # ⛔ PROSE KEYS ARE NOT TAGS. That section carries `_`-prefixed
+            # explanation alongside the real entries, and a hook naming one of
+            # those would pass a bare `in` check while disclosing nothing.
+            real = {k: v for k, v in tags.items() if not k.startswith("_")}
+            assert name in real, (
+                f"{row['id']}: requirementTag hook names `{name}` and"
+                f" `closedTable.json::_requirement_tags` declares"
+                f" {sorted(real)}. A tag nobody stamps reaches no member.")
+            # And the tag must say WHICH calls raise it and WHO accepts it —
+            # a tag with an empty `calls` list is stamped on nothing.
+            entry = real[name]
+            assert entry.get("calls"), (
+                f"{row['id']}: `_requirement_tags.{name}` names no calls, so"
+                " nothing ever stamps it and the disclosure is unreachable.")
             continue
 
         # kind == 'vendorNote': the manifest key is the function.

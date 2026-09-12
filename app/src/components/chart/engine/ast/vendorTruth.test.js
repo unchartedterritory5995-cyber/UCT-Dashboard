@@ -161,7 +161,13 @@ describe('the divergence roster satisfies the SHARED schema', () => {
       'fold_requires_member_note']) {
       expect(schema[key], `the shared schema does not declare \`${key}\``).toBeDefined()
     }
-    expect(Object.keys(schema.member_hook_kinds).sort()).toEqual(['fold', 'vendorNote'])
+    // ⭐ `requirementTag` ADDED 2026-09-12 (owner ruling on the AGEN firing-count
+    // divergence): a divergence about HOW MUCH HISTORY the consumer supplies has no
+    // function to hang a `vendorNote` on and no translator fold to disclose — the
+    // member meets it through a tag on the saved definition
+    // (`closedTable.json::_requirement_tags`). Pinned in both lanes rather than
+    // derived, so a new kind cannot appear without an author acknowledging it twice.
+    expect(Object.keys(schema.member_hook_kinds).sort()).toEqual(['fold', 'requirementTag', 'vendorNote'])
     expect(schema.decision_required_on_status).toEqual(['accepted'])
   })
 

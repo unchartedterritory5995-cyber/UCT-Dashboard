@@ -1,5 +1,5 @@
 # Capture procedure — driving a live TradingView chart
-
+
 ## ⛔⛔ THE VISIBILITY GATE, v2 — MEASURED AGAINST **THIS DISPLAY**, NOT THE PRIMARY
 
 **Owner ruling, 2026-09-12.** The pass condition, read from the CONNECTED TAB:
@@ -541,6 +541,62 @@ fixture.
 405-bar series produced NOTHING; on a long series it pushed the first output row past
 the bar the probe existed to read. Declare it only when the script genuinely needs the
 history, and never in a probe whose subject is bar 0.
+
+## ⛔⛔ MEASURE `bars_loaded` BEFORE THE READ — THE WINDOW CHECK (owner ruling, 2026-09-12)
+
+**Every vendor capture records the depth it was read at, and that depth is asserted
+against the script's largest declared window BEFORE the numbers are used.** Below the
+window the capture is **WINDOW_TRUNCATED — not void** — and only the columns whose own
+window exceeds the loaded depth drop out of comparison.
+
+**`bars_loaded` is the length of the study's OWN output buffer** — the same buffer the
+plot values are read out of, counted before the read. ⛔ Not a chart range, not a bar
+count off the price series: the question is how much history *the study* computed over.
+On AGEN it read **4,066 rows, 2010-07-14 → 2026-09-11**, which is what the fixture
+records and what the first/last bar dates beside it corroborate.
+
+Then the block goes in the fixture, and `tests/test_vendor_capture_window.py` re-derives
+every field of it except `bars_loaded`:
+
+```json
+"window_check": {
+  "script": "member/uncharted-volume-v2.pine",
+  "script_sha256": "518a6b22…b28a",
+  "bars_loaded": 4066,
+  "largest_declared_window": 2751,
+  "verdict": "FULL_WINDOW",
+  "excluded_from_comparison": []
+}
+```
+
+⚰️ **WHY.** `uncharted-volume-v2` fired its HVE condition **23 times on the vendor's
+4,066-bar AGEN series and 8 times on our 6,684-bar one**, and neither side is wrong:
+`ta.highest(volD[1], 2500)` over a window that is not yet full returns the max of what
+exists, so a shallower series carries a lower running maximum and the condition clears
+more often. **A firing is a statement about the loaded window, not about the symbol's
+life.** That capture had to be *forced* to 4,066 bars — the study loaded **1,003 on add
+and 400 after a timeframe change**, both under the window — and a capture taken at
+either depth would have recorded the shortfall as if it were the script's answer, with
+every other check passing.
+
+⭐ **THE WINDOW IS DERIVED, NOT TYPED.** `largest_declared_window` comes from
+`tools/lookback_agreement.json`, the R-G cross-lane oracle both readers write; the
+helper is `tools/vendor_window.py`. It reads **2,751 and not the 2,500 the input
+declares** — `maxLookback` is a tree SUM in which the input is the largest single term
+and not the whole reach. That is the conservative number, and it is measured.
+
+⛔ **PER COLUMN, NEVER ALL-OR-NOTHING.** At 1,003 bars only `HVE Trigger` (2,751) is
+unanswerable; `Volume` (0) and the three 50-bar columns are exactly as good as they
+would be at any depth. Discarding them would throw away a real measurement to punish an
+unrelated one.
+
+⛔ **AN UNREAD DEPTH IS A REFUSAL, NOT A PASS.** `bars_loaded: null` classifies
+`UNMEASURED` and excludes *every* column that needs any history at all. The SPY capture
+of the same day sits there because it predates this rule by hours, and it is named in a
+**closed** list in the rail — a capture taken afterwards that lands at UNMEASURED fails
+by name. ⚠️ Its 50-bar columns are demonstrably fine (a 50-bar `sma` is `na` until it
+has 50 bars, and they returned values), but that is an argument and the rule takes a
+reading: **the exclusion is what makes not measuring cost something.**
 
 ## ⚠️ THE `All` RANGE BUTTON CHANGES THE RESOLUTION
 

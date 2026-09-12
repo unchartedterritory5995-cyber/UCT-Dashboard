@@ -1,5 +1,130 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 — THE TWO AGEN DIVERGENCES, RULED AND RAILED (2026-09-12)
+
+Owner ruled both; this is what landed.
+
+### 1. Firing count — **ACCEPTED** as a window-depth divergence, not a bug
+
+`divergences.json` row `hve-window-depth-fires-more-on-a-shorter-series`, status
+`accepted`, evidence AGEN **4,066 vendor bars vs 6,684 ours**. Neither side is
+adjusted. Its `member_hook` is a **new kind** — `requirementTag`, naming
+`closedTable.json::_requirement_tags.window_dependent` — because a divergence about
+how much history the CONSUMER supplies has no function to hang a `vendorNote` on and
+no translator fold to disclose. The kind is declared in the shared schema and pinned
+in **both** lanes (`test_vendor_truth.py` and `vendorTruth.test.js`).
+
+### ⛔⛔ THE IMPLICATION IS THE PART THAT SHIPS — a rail on the fixture files
+
+`tools/vendor_window.py` + `tests/test_vendor_capture_window.py`. Every vendor
+capture now carries a `window_check` block, and **the rail re-derives every field of
+it except `bars_loaded`**, so a capture cannot certify its own arithmetic:
+
+| capture | bars_loaded | window | verdict | excluded |
+|---|---|---|---|---|
+| AGEN 1D | **4,066** | 2,751 | `FULL_WINDOW` | — |
+| SPY 1D | *not read* | 2,751 | `UNMEASURED` | the four columns that need any history |
+
+⭐ **THE WINDOW IS 2,751, NOT THE 2,500 THE INPUT DECLARES.** `maxLookback` is a tree
+SUM — the input is the largest single term in `HVE Trigger`'s reach, not the whole of
+it. The number is read off `tools/lookback_agreement.json`, the R-G cross-lane oracle
+**both readers write**, so it is measured rather than transcribed and cannot drift
+from the script.
+
+⛔ **PER COLUMN, NEVER ALL-OR-NOTHING.** At the 1,003 bars the AGEN study actually
+loaded on add, only `HVE Trigger` is unanswerable; `Volume` (window 0) and the three
+50-bar columns are exactly as good as at any depth.
+
+⛔ **AN UNREAD DEPTH IS A REFUSAL.** `UNMEASURED` excludes every column needing
+history. The SPY capture sits there because it predates the ruling by hours, named in
+a **closed** list in the rail — a capture taken afterwards that lands at UNMEASURED
+fails by name. ⚠️ Its 50-bar columns are demonstrably fine (a 50-bar `sma` is `na`
+until it has 50 bars, and they returned values) — recorded as an **observation, not
+promoted to a measurement**, because the exclusion is what makes not measuring cost
+something. **Owed: read `bars_loaded` off the rig and delete the entry.**
+
+Mutation-checked five ways — stale `bars_loaded`, a transcribed 2,500, an emptied
+exclusion list, the block deleted, the sha clobbered — each goes red.
+
+### On our own side: the pane does NOT need the disclosure, and the alerts door does
+
+Measured rather than assumed:
+
+```
+pane document trees: value 0 · out2 50 · out3 50 · out4 50   → LARGEST 50
+the full output 4 "HVE Trigger" alertcondition               → 2751
+FIRST_PAINT_BARS = 600 on every timeframe · fullBarsFor('D') = 12500
+```
+
+⭐ **No drawn series carries the `window_dependent` obligation**, because the
+2,751-bar window belongs solely to the alertcondition **D1 removes from the pane**.
+The obligation transfers to the **alerts door**, where 600 bars at first paint is
+**2,151 short** — recorded there, not on the pane.
+
+### 2. Volume values — **OPEN**, cause not established
+
+Row `agen-historical-volume-differs-by-1-8-percent-before-2016`, status **`open`** — a
+status added to the vocabulary in both places it lives (the schema and the roster's
+own `_status_vocabulary`) for exactly this: **measured on both sides, cause not
+established.** Deliberately not `suspected` (the numbers are in hand) and not
+`confirmed` (which here means an observation EXPLAINS a delta — this explains
+nothing). Like `suspected`, it may never explain a delta in the harness.
+
+Both hypotheses stay live: adjusted volume vs consolidated-vs-primary tape. ⛔ The row
+carries **no `member_hook`** and says why — it briefly wore `window_dependent`, which
+describes the *other* AGEN row; a volume value that disagrees before 2016 is a
+data-provenance property of the series, not of the loaded window, and stamping it on
+the window tag would tell a member the wrong thing in the one place they read.
+
+⭐ **T6 is unaffected**: recent bars agree to ~1e-6, the comparison uses the last 300
+bars, and the record day itself agrees to 1.5e-7.
+
+Two cheap checks are queued for the next rig visit (owner-authorised, T5's session if
+the rig is idle): read the vendor chart's dividend/split adjustment toggles and record
+them in the fixture, and re-read one pre-2016 bar with adjustment off. If that explains
+it the row closes; if not it becomes a data-provenance item outside this wave.
+
+### ⚠️ PYTHON LANE RUN 5 — 12/12 chunks, exit code read BARE
+
+`REAL EXIT = 1`. **23,781 passed · 55 failed · 68 skipped · 10 xfailed**, no chunk
+killed, every chunk with a totals line.
+
+| chunk | result | | chunk | result |
+|---|---|---|---|---|
+| 1 | 2 failed, 2365 passed | | 7 | 20 failed, 2515 passed |
+| 2 | 1793 passed | | 8 | 6 failed, 2153 passed |
+| 3 | 2178 passed, 9 xfailed | | 9 | 1 failed, 1309 passed |
+| 4 | 2756 passed, 1 xfailed | | 10 | 3 failed, 2074 passed |
+| 5 | 10 failed, 1697 passed | | 11 | 6 failed, 1875 passed |
+| 6 | 1703 passed | | 12 | 7 failed, 1363 passed |
+
+**Against run 2 (41 failed / 23,773 passed): +16 new, −2 gone.** And the 16 are not
+16 regressions:
+
+- **5 are `test_vendor_truth.py`** — the run snapshotted the tree at 18:31–18:40 while
+  this session was mid-edit on `divergences.json`. **All green now** (24 passed).
+- **10 are `app/dist` being absent from the recreated worktree**, not a code change —
+  and this was **proved, not argued**. The build is gitignored, so `git worktree add`
+  produced a tree with no bundle: the SPA catch-all route is not mounted (`the SPA
+  catch-all route is gone`) and the flow health reads `bundle_missing` where the test
+  expects `cold`. Same cause as chunk 6's `app/dist/fonts absent — build app/ first`
+  skip. ⛔ Options Flow is out of bounds for this wave and none of these were touched.
+- **1** (`test_ticker_logos::test_run_hires_upgrade_recaches_existing`) did not
+  reproduce in isolation — population-sensitive, recorded as such, not chased.
+
+⭐ **THE CONTROL WAS RUN.** `npm run build`, then the same four files:
+
+```
+before the build   10 failed,  93 passed     REAL EXIT = 1
+after the build     0 failed, 107 passed     REAL EXIT = 0
+```
+
+⚠️ **A recreated worktree is not a rebuilt one**, and a lane-to-lane comparison across
+the deletion has to say which side had a bundle. Subtracting the 10 build-absence reds,
+the 5 mid-edit vendor reds (green as of this commit) and the 1 that will not reproduce,
+**run 5's standing position is 39** — which is exactly run 2's **41 minus the 2 that
+were fixed**. ⭐ **Old → new: 41 → 39, movers −2, no regression.**
+
 ## ⭐⭐ SESSION 2 · PART 3 (HVE half) — AGEN, PREDICTED FROM OUR DATA, CONFIRMED ON THE VENDOR
 
 `tests/fixtures/vendor/uncharted-volume-v2-agen-1d-hve-2026-09-12.json`.

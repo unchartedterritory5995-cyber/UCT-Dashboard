@@ -1,7 +1,6 @@
 {
   "_": "⭐⭐ THE HVE CASE. `uncharted-volume-v2.pine` on NASDAQ:AGEN 1D — the symbol chosen because its HVE Trigger actually FIRES, which SPY's never does. Read off a live TradingView chart on the scratch rig, 2026-09-12.",
   "_why_a_second_symbol": "On SPY the `HVE Trigger` column is flat 0 across the whole window — correct, and useless as a test of the condition. A fixture that only ever holds 0 cannot tell a working detector from a deleted one.",
-
   "candidate_selection": {
     "_": "⛔⛔ CHOSEN FROM OUR OWN DATA FIRST, AND THE ANSWER WAS NAMED BEFORE THE VENDOR WAS TOUCHED. That ordering is the whole point: a symbol picked by looking at TradingView would make the comparison below circular.",
     "method": "`C:/data/bars.db` (read-only), every ticker with >= 2800 daily bars (2,749 of them), evaluating the script's own condition `volD >= ta.highest(volD[1], 2500)` with an O(n) monotonic-deque sliding max, ranked by record margin.",
@@ -9,11 +8,16 @@
     "symbols_firing_in_last_300_sessions": 680,
     "why_AGEN": "Exactly ONE firing in the last 300 sessions (an unambiguous record day, not a name that grinds out marginal ones — SOXS fires 25 times), a 17.54x margin, 6,684 bars of history so the 2,500 window is FULL and not truncated, and a real event behind it: close 3.35 -> 6.12 (+83%) on the day.",
     "rejected_examples": [
-      { "sym": "SOXS", "why": "25 firings — a leveraged ETF that sets records constantly; a weak discriminator" },
-      { "sym": "FER", "why": "highest margin (17.95x) but 11 firings and 177 bars ago" }
+      {
+        "sym": "SOXS",
+        "why": "25 firings — a leveraged ETF that sets records constantly; a weak discriminator"
+      },
+      {
+        "sym": "FER",
+        "why": "highest margin (17.95x) but 11 firings and 177 bars ago"
+      }
     ]
   },
-
   "prediction_before_capture": {
     "_": "Stated from our data BEFORE the chart was opened. Recorded here so the match below is a prediction confirmed, not a fact copied.",
     "symbol": "AGEN",
@@ -21,10 +25,13 @@
     "record_volume": 174277900,
     "prior_2500_bar_max": 9933500,
     "margin": "17.54x",
-    "our_history": { "bars": 6684, "first": "2000-02-08", "last": "2026-09-04" },
+    "our_history": {
+      "bars": 6684,
+      "first": "2000-02-08",
+      "last": "2026-09-04"
+    },
     "expected_firings_in_last_300_sessions": 1
   },
-
   "capture": {
     "symbol": "NASDAQ:AGEN",
     "interval": "1D",
@@ -34,92 +41,288 @@
     "vendor_last_bar": "2026-09-11",
     "buffer_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
     "_buffer": "Re-verified against the committed fixture before the add, without rewriting — the model still held the exact bytes from the SPY capture.",
-    "add_gate": { "add_to_chart_visible_enabled_nonzero": 1, "update_on_chart": 0, "verdict": "SAFE TO ADD" },
+    "add_gate": {
+      "add_to_chart_visible_enabled_nonzero": 1,
+      "update_on_chart": 0,
+      "verdict": "SAFE TO ADD"
+    },
     "_history_note": "⚠️ 4,066 bars had to be FORCED. The study loaded 1,003 bars on add and 400 after a timeframe change — under the 2,500 the window needs. `Go to -> 2012-01-03` pulled the history in. ⛔ A capture taken at 1,003 bars would have had a partial window and a lower running max, which is exactly the divergence cause identified below."
   },
-
   "the_record_day": {
     "_": "⭐ THE PREDICTION HELD. Same date, and the volumes agree to 1.5e-7.",
     "date": "2026-07-13",
     "ours_volume": 174277900,
     "vendor_volume": 174277926,
-    "relative_difference": 1.49e-7,
+    "relative_difference": 1.49e-07,
     "vendor_hve_trigger": 1,
     "vendor_plot_values": {
-      "Volume": 174277926, "Avg Vol Columns": 4270898.74, "Avg Vol Line": 4270898.74,
-      "Scale Padding": 217847407.5, "HVE Trigger": 1
+      "Volume": 174277926,
+      "Avg Vol Columns": 4270898.74,
+      "Avg Vol Line": 4270898.74,
+      "Scale Padding": 217847407.5,
+      "HVE Trigger": 1
     },
     "neighbours": [
-      { "date": "2026-07-10", "ours": 833400, "vendor": 833400, "trigger": 0 },
-      { "date": "2026-07-14", "ours": 11111000, "vendor": 11110968, "trigger": 0 },
-      { "date": "2026-07-15", "ours": 4491100, "vendor": 4491064, "trigger": 0 },
-      { "date": "2026-07-16", "ours": 2696500, "vendor": 2696460, "trigger": 0 }
+      {
+        "date": "2026-07-10",
+        "ours": 833400,
+        "vendor": 833400,
+        "trigger": 0
+      },
+      {
+        "date": "2026-07-14",
+        "ours": 11111000,
+        "vendor": 11110968,
+        "trigger": 0
+      },
+      {
+        "date": "2026-07-15",
+        "ours": 4491100,
+        "vendor": 4491064,
+        "trigger": 0
+      },
+      {
+        "date": "2026-07-16",
+        "ours": 2696500,
+        "vendor": 2696460,
+        "trigger": 0
+      }
     ]
   },
-
   "DIVERGENCE": {
     "_": "⛔⛔ RECORDED, NOT ADJUSTED. Neither side was changed to make the other agree. Two distinct causes, both identifiable from the data itself.",
-
     "firing_count": {
       "ours_whole_series": 8,
       "vendor_whole_series": 23,
       "ours_last_300_sessions": 1,
-      "vendor_dates_we_do_not_have": ["2011-06-03", "2012-06-22", "2013-06-28", "2017-02-14", "2017-10-23", "2018-12-20", "2020-03-06", "2020-03-10", "2020-09-10", "2022-06-29", "2023-12-12", "2023-12-15", "2024-02-15", "2024-04-26"],
-      "shared_dates": ["2013-09-17", "2013-10-08", "2013-12-16", "2015-01-09", "2024-07-18", "2025-06-03", "2026-07-13"],
+      "vendor_dates_we_do_not_have": [
+        "2011-06-03",
+        "2012-06-22",
+        "2013-06-28",
+        "2017-02-14",
+        "2017-10-23",
+        "2018-12-20",
+        "2020-03-06",
+        "2020-03-10",
+        "2020-09-10",
+        "2022-06-29",
+        "2023-12-12",
+        "2023-12-15",
+        "2024-02-15",
+        "2024-04-26"
+      ],
+      "shared_dates": [
+        "2013-09-17",
+        "2013-10-08",
+        "2013-12-16",
+        "2015-01-09",
+        "2024-07-18",
+        "2025-06-03",
+        "2026-07-13"
+      ],
       "cause": "⭐ HISTORY DEPTH, and it is arithmetic rather than a bug. The vendor's series starts 2010-07-14 (4,066 bars); ours starts 2000-02-08 (6,684). `ta.highest(volD[1], 2500)` over a window that is not yet full returns the max of what exists, so the vendor's running maximum is LOWER through roughly 2020 and the condition clears more often. Both lanes are computing the declared formula correctly on the history they hold.",
       "_implication": "⚠️ An HVE firing is a statement about the LOADED window, not about the symbol's life. On a chart that has not scrolled back far enough it will over-report — which is why this capture forced 4,066 bars and says so."
     },
-
     "volume_values": {
       "cause": "NOT ESTABLISHED. The vendor reports FRACTIONAL volumes on older bars (e.g. 449522.45), which means some adjustment factor is applied; the factor is ~0.9814-0.9824 before 2016 and ~1.0000 from 2024 on. It is NOT a split ratio (a reverse split would be a large integer factor, and the price axis does show ~$56-140 in 2011-2013 against a raw ~$3-5, so a price adjustment IS present). Whether the volume difference is that adjustment, a consolidated-vs-primary-tape difference, or a provider difference is not determined here.",
       "table": [
-        { "date": "2013-09-17", "ours": 458066,    "vendor": 449522.45,  "ratio": 0.981349, "rel": 1.87e-2 },
-        { "date": "2013-10-08", "ours": 475119,    "vendor": 466754.30,  "ratio": 0.982395, "rel": 1.76e-2 },
-        { "date": "2013-12-16", "ours": 487841,    "vendor": 479160.00,  "ratio": 0.982205, "rel": 1.78e-2 },
-        { "date": "2015-01-09", "ours": 1481565,   "vendor": 1453940.65, "ratio": 0.981355, "rel": 1.86e-2 },
-        { "date": "2024-07-18", "ours": 9129600,   "vendor": 9129568,    "ratio": 0.999996, "rel": 3.51e-6 },
-        { "date": "2025-06-03", "ours": 9933500,   "vendor": 9933528,    "ratio": 1.000003, "rel": 2.82e-6 },
-        { "date": "2026-07-13", "ours": 174277900, "vendor": 174277926,  "ratio": 1.000000, "rel": 1.49e-7 }
+        {
+          "date": "2013-09-17",
+          "ours": 458066,
+          "vendor": 449522.45,
+          "ratio": 0.981349,
+          "rel": 0.0187
+        },
+        {
+          "date": "2013-10-08",
+          "ours": 475119,
+          "vendor": 466754.3,
+          "ratio": 0.982395,
+          "rel": 0.0176
+        },
+        {
+          "date": "2013-12-16",
+          "ours": 487841,
+          "vendor": 479160.0,
+          "ratio": 0.982205,
+          "rel": 0.0178
+        },
+        {
+          "date": "2015-01-09",
+          "ours": 1481565,
+          "vendor": 1453940.65,
+          "ratio": 0.981355,
+          "rel": 0.0186
+        },
+        {
+          "date": "2024-07-18",
+          "ours": 9129600,
+          "vendor": 9129568,
+          "ratio": 0.999996,
+          "rel": 3.51e-06
+        },
+        {
+          "date": "2025-06-03",
+          "ours": 9933500,
+          "vendor": 9933528,
+          "ratio": 1.000003,
+          "rel": 2.82e-06
+        },
+        {
+          "date": "2026-07-13",
+          "ours": 174277900,
+          "vendor": 174277926,
+          "ratio": 1.0,
+          "rel": 1.49e-07
+        }
       ],
       "_shape": "Old bars diverge ~1.8%; bars from 2024 on agree to ~1e-6. The record day itself agrees to 1.5e-7, so the CASE this fixture exists for is unaffected by the divergence."
     }
   },
-
   "series": {
     "value_array_layout": "[Volume, colorer, Avg Vol Columns, colorer, Avg Vol Line, colorer, Scale Padding, HVE Trigger]",
     "rows": [
-      { "date": "2026-09-11", "values": [790464, 4287003512, null, 4287003512, 5079771.619999999, 436207615, 6349714.5249999985, 0] },
-      { "date": "2026-09-10", "values": [893555, 4287003512, null, 4287003512, 5077170.6, 436207615, 6346463.25, 0] },
-      { "date": "2026-09-09", "values": [1445780, 4287003512, null, 4287003512, 5072190.459999999, 436207615, 6340238.074999999, 0] },
-      { "date": "2026-09-03", "values": [738723, 4287003512, null, 4287003512, 5130350.359999999, 436207615, 6412937.949999999, 0] }
+      {
+        "date": "2026-09-11",
+        "values": [
+          790464,
+          4287003512,
+          null,
+          4287003512,
+          5079771.619999999,
+          436207615,
+          6349714.5249999985,
+          0
+        ]
+      },
+      {
+        "date": "2026-09-10",
+        "values": [
+          893555,
+          4287003512,
+          null,
+          4287003512,
+          5077170.6,
+          436207615,
+          6346463.25,
+          0
+        ]
+      },
+      {
+        "date": "2026-09-09",
+        "values": [
+          1445780,
+          4287003512,
+          null,
+          4287003512,
+          5072190.459999999,
+          436207615,
+          6340238.074999999,
+          0
+        ]
+      },
+      {
+        "date": "2026-09-03",
+        "values": [
+          738723,
+          4287003512,
+          null,
+          4287003512,
+          5130350.359999999,
+          436207615,
+          6412937.949999999,
+          0
+        ]
+      }
     ],
     "spread_control": {
-      "Volume": { "distinct": 4, "min": 738723, "max": 1445780 },
-      "Avg Vol Line": { "distinct": 4, "min": 5072190.459999999, "max": 5130350.359999999 },
-      "Scale Padding": { "distinct": 4, "min": 6340238.074999999, "max": 6412937.949999999 },
-      "Avg Vol Columns": { "distinct": 1, "value": null, "note": "null on all four — volume is below the average on every one of these bars, so the two-tone cap does not draw. It DOES carry a value on the record day (4270898.74), which is the control that it is not simply broken." },
-      "HVE Trigger": { "distinct": 2, "values": [0, 1], "note": "⭐ 0 on ordinary bars and 1 on 2026-07-13 — the first fixture in this project where this column is not constant." }
+      "Volume": {
+        "distinct": 4,
+        "min": 738723,
+        "max": 1445780
+      },
+      "Avg Vol Line": {
+        "distinct": 4,
+        "min": 5072190.459999999,
+        "max": 5130350.359999999
+      },
+      "Scale Padding": {
+        "distinct": 4,
+        "min": 6340238.074999999,
+        "max": 6412937.949999999
+      },
+      "Avg Vol Columns": {
+        "distinct": 1,
+        "value": null,
+        "note": "null on all four — volume is below the average on every one of these bars, so the two-tone cap does not draw. It DOES carry a value on the record day (4270898.74), which is the control that it is not simply broken."
+      },
+      "HVE Trigger": {
+        "distinct": 2,
+        "values": [
+          0,
+          1
+        ],
+        "note": "⭐ 0 on ordinary bars and 1 on 2026-07-13 — the first fixture in this project where this column is not constant."
+      }
     }
   },
-
   "tables": {
     "_": "Read as STRINGS at the draw call, same method as the SPY fixture; `fillText` wrapped for one redraw and restored (`restored: true`).",
     "range_table": {
       "position_input": "Top Left",
       "cells": [
-        { "text": "ATR : $0.58 (8.37%)", "len": 19, "trailing_space": false },
-        { "text": "| Range: 55.11%", "len": 15, "trailing_space": false },
-        { "text": "| ATRx: 0.64", "len": 12, "trailing_space": false }
+        {
+          "text": "ATR : $0.58 (8.37%)",
+          "len": 19,
+          "trailing_space": false
+        },
+        {
+          "text": "| Range: 55.11%",
+          "len": 15,
+          "trailing_space": false
+        },
+        {
+          "text": "| ATRx: 0.64",
+          "len": 12,
+          "trailing_space": false
+        }
       ]
     },
     "volume_table": {
       "position_input": "Top Right",
       "cells": [
-        { "text": "Vol : 790.46K (0.16x) ", "len": 22, "trailing_space": true }
+        {
+          "text": "Vol : 790.46K (0.16x) ",
+          "len": 22,
+          "trailing_space": true
+        }
       ],
       "_": "⭐ The trailing space is present here too — 22 chars for 21 visible. Same convention as SPY, confirmed on a second symbol, so it is the script's and not an artifact of one read."
     }
   },
-
-  "teardown": { "study_removed": true, "indicators_after": 0, "editor_open": false, "saved": false }
+  "teardown": {
+    "study_removed": true,
+    "indicators_after": 0,
+    "editor_open": false,
+    "saved": false
+  },
+  "window_check": {
+    "_": "⭐ THE WINDOW CHECK — owner ruling 2026-09-12, out of the AGEN firing-count divergence. A capture records the depth it was read at and that depth is asserted against the script's largest declared window BEFORE the numbers are used. Below the window the capture is WINDOW_TRUNCATED, not void, and only its short columns drop out of comparison. ⛔ Every field here except `bars_loaded` is RE-DERIVED by `tests/test_vendor_capture_window.py` from `tools/lookback_agreement.json` and compared against what is written — the capture cannot certify its own arithmetic. `bars_loaded` is the one observation only the rig can supply.",
+    "_largest_is_2751_not_2500": "⚠️ 2,751 AND NOT THE 2,500 THE INPUT DECLARES. `maxLookback` is a tree SUM: the 2,500 `lookbackBarsHVE` input is the largest single term in `HVE Trigger`'s reach and not the whole of it. Both readers measure 2,751 and this is their number, not a transcription — and it is the conservative one, since a capture clearing 2,751 clears 2,500 too.",
+    "script": "member/uncharted-volume-v2.pine",
+    "script_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "bars_loaded": 4066,
+    "largest_declared_window": 2751,
+    "declared_windows": {
+      "Avg Vol Columns": 50,
+      "Avg Vol Line": 50,
+      "HVE Trigger": 2751,
+      "Scale Padding": 50,
+      "Volume": 0
+    },
+    "verdict": "FULL_WINDOW",
+    "excluded_from_comparison": [],
+    "_from": "`capture.study_bars_loaded`, read off the study on the rig — the same 4,066 the capture had to be FORCED to reach.",
+    "_note": "⭐ FULL_WINDOW, and the divergence recorded in `DIVERGENCE.firing_count` is NOT a truncation of this capture. 4,066 clears the 2,751 window at the read, so every column here is comparable. The divergence is about the EARLY BARS of the vendor's own series, which begins 2010-07-14 and so cannot fill a 2,500-bar window until roughly 2020 — a property of their history, not of this read."
+  }
 }

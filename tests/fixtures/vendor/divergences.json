@@ -6,7 +6,8 @@
     "refuted": "MEASURED, AND WE MATCH THE VENDOR AFTER ALL. Kept rather than deleted — a retired suspicion is the cheapest thing to re-suspect, and the next reader deserves to know it was checked. Carries `refutedBy`.",
     "accepted": "CONFIRMED, AND WE ARE KEEPING OUR BEHAVIOUR ON PURPOSE. Requires `decision` — who ruled, when, and why. This is the row type that MUST reach a member: an accepted divergence is a sentence the product owes whoever pasted the script.",
     "spec-falsified": "MEASURED AGAINST THE VENDOR'S PUBLISHED DEFINITION and found to differ, by `tools/vendor_spec_probes.py`. Stronger than `suspected` (a number was computed, not a belief stated) and weaker than `confirmed` (nobody has read the vendor's SCREEN, and prose can be incomplete). ⛔ It still may not explain a delta in `vendor_truth.py` — the asymmetry is deliberate: a falsified spec probe says we are probably wrong, which is a reason to FIX, never a reason to expect.",
-    "corrected": "MEASURED, WE DIFFERED, AND WE CHANGED OURS TO MATCH THE VENDOR. ⛔⛔ THIS TERM EXISTS BECAUSE THE LEDGER COULD NOT SAY THE MOST COMMON GOOD OUTCOME. It could say `accepted` (we differ and are keeping ours) and `refuted` (we thought we differed and never did) — but a divergence we CLOSED by fixing our own side had nowhere to live, so `rsi-zero-movement-reads-na` was filed `accepted` and two rails correctly refused it: an accepted row owes a member a `vendorNote`, and after a correction there is no difference left to disclose. Forcing it into `accepted` would have made the ledger assert the opposite of what happened. ⭐ KEPT RATHER THAN DELETED, for `refuted`'s reason turned around: the next reader needs to know the old behaviour existed, that it was deliberate, and what argument retired it — otherwise they re-introduce it. Requires `decision` (`ruled` — who and when; `what_changed` — the behaviour now) and `correctedIn` (the commit). ⛔ IT OWES A MEMBER NOTHING, and that is the whole difference from `accepted`: once ours matches the vendor there is no sentence the product owes anybody. A `vendorNote` here would describe a difference that no longer exists."
+    "corrected": "MEASURED, WE DIFFERED, AND WE CHANGED OURS TO MATCH THE VENDOR. ⛔⛔ THIS TERM EXISTS BECAUSE THE LEDGER COULD NOT SAY THE MOST COMMON GOOD OUTCOME. It could say `accepted` (we differ and are keeping ours) and `refuted` (we thought we differed and never did) — but a divergence we CLOSED by fixing our own side had nowhere to live, so `rsi-zero-movement-reads-na` was filed `accepted` and two rails correctly refused it: an accepted row owes a member a `vendorNote`, and after a correction there is no difference left to disclose. Forcing it into `accepted` would have made the ledger assert the opposite of what happened. ⭐ KEPT RATHER THAN DELETED, for `refuted`'s reason turned around: the next reader needs to know the old behaviour existed, that it was deliberate, and what argument retired it — otherwise they re-introduce it. Requires `decision` (`ruled` — who and when; `what_changed` — the behaviour now) and `correctedIn` (the commit). ⛔ IT OWES A MEMBER NOTHING, and that is the whole difference from `accepted`: once ours matches the vendor there is no sentence the product owes anybody. A `vendorNote` here would describe a difference that no longer exists.",
+    "open": "⭐ ADDED 2026-09-12 (owner ruling). MEASURED ON BOTH SIDES, CAUSE NOT ESTABLISHED. Deliberately not `suspected` — the numbers are in hand on both sides — and not `confirmed`, which in this vocabulary means an observation EXPLAINS a delta. An `open` row explains nothing: it owes its competing hypotheses and the check that would settle them, and it is a ROUTING state, saying the work was recorded rather than chased. ⛔ Like `suspected` it may never explain a delta in `vendor_truth.py`, for the same reason: a cause nobody has established must not silence a measurement."
   },
   "_probe_rule": "⛔ EVERY ROW CARRIES A `probe` THAT DISCRIMINATES. The probe describes a case whose VALUE DIFFERS under the two conventions, with the two answers named. A row whose probe cannot distinguish the conventions is a description of nothing — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` — and `test_vendor_truth.py` refuses a row that does not carry both answers.",
   "rows": [
@@ -506,6 +507,49 @@
         "compat_harness": "`tests/fixtures/compat_harness/results/public_script/05-chandelier-exit.json` regenerated: translate SUPPORTED → UNSUPPORTED at `pine:state`, screener eligibility with it."
       },
       "bounds": "⚠ THE VENDOR SIDE IS DOCUMENTED BEHAVIOUR, NOT A CAPTURE (R-A3). What is measured is ours, on both lanes, before and after — and the claim this row makes is about our own two behaviours, which is why it is `corrected` rather than `accepted`."
+    },
+    {
+      "id": "hve-window-depth-fires-more-on-a-shorter-series",
+      "shape": "window-depth",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "On AGEN 1D our daily store holds 6,684 bars from 2000-02-08, so `ta.highest(volD[1], 2500)` has a FULL window from 2010 onward and the HVE condition clears 8 times across the whole series — once in the last 300 sessions, on 2026-07-13.",
+      "theirs": "TradingView's AGEN series begins 2010-07-14 and the chart had 4,066 bars loaded. Its running maximum is therefore lower through roughly 2020 and the same condition clears 23 times, including 14 dates we do not fire on (2011-06-03, 2012-06-22, 2013-06-28, 2017-02-14, 2017-10-23, 2018-12-20, 2020-03-06, 2020-03-10, 2020-09-10, 2022-06-29, 2023-12-12, 2023-12-15, 2024-02-15, 2024-04-26).",
+      "why_it_matters": "⛔⛔ AN HVE FIRING IS A STATEMENT ABOUT THE LOADED WINDOW, NOT ABOUT THE SYMBOL'S LIFE, and nothing on either side says so. `ta.highest` over a window that is not yet full returns the max of what exists rather than `na`, so a short series silently reports records that a longer one would not. Measured on the rig: the study loaded 1,003 bars on add and 400 after a timeframe change — both under the declared 2,500 — and a capture taken at either depth would have carried this error with no signal at all. ⭐ Both lanes compute the declared formula CORRECTLY on the history they hold; the divergence is the history, which is why it is accepted rather than corrected.",
+      "member_hook": {
+        "kind": "requirementTag",
+        "name": "window_dependent"
+      },
+      "decision": {
+        "ruled": "Owner, 2026-09-12: accepted as a window-depth divergence, not a bug. Neither side is adjusted. The implication becomes a FIXTURE CONVENTION — every vendor capture records `bars_loaded` and asserts it against the script's largest declared window before the read; a capture below that window is marked WINDOW_TRUNCATED, not void, and its window-dependent columns are excluded from comparison.",
+        "why_keep_ours": "Ours is the deeper series and its window is full where the vendor's is not, so our firing set is the one that answers the question the script asks. ⛔ That is a statement about THIS symbol's history depth and not a general claim of correctness: on a symbol where TradingView holds more history than we do, the same arithmetic would run the other way.",
+        "what_would_reopen_it": "Any of: TradingView extending AGEN's history back before 2000-02-08 so its window is full where ours is (the arithmetic then runs the other way); the script gaining a guard that returns `na` until its declared window is full, which would make both sides silent instead of divergent; or a symbol where WE hold less history than the vendor, which would put our firing set on the over-reporting side and is the case this row's `why_keep_ours` explicitly declines to generalise over."
+      },
+      "probe": {
+        "under_ours": "6,684 daily bars from 2000-02-08; 8 firings over the series; 1 in the last 300 sessions (2026-07-13, 174,277,900 against a prior max of 9,933,500).",
+        "under_theirs": "4,066 bars from 2010-07-14; 23 firings; the record day agrees exactly (2026-07-13, 174,277,926, relative difference 1.5e-7).",
+        "discriminates": "Load the vendor chart to fewer than 2,500 bars and the firing set GROWS; force it deeper and the early firings disappear. The record day is stable under both, which is what separates a window artefact from a data disagreement.",
+        "case": "AGEN 1D, the HVE firing set over the whole series, counted on each side at its own history depth."
+      },
+      "_fetch_depth_on_our_side": "⭐ MEASURED 2026-09-12, and the answer is that the PANE is not exposed to this. The v2 pane document's largest declared window is 50 bars (`value` 0, `out2`/`out3`/`out4` 50); `FIRST_PAINT_BARS` delivers 600 on every timeframe and backfill reaches 12,500 daily. The 2,751-bar window (a tree SUM, not the literal 2,500) belongs to `HVE Trigger` ALONE — the alertcondition ruling D1 removes from the pane. So no drawn series needs the disclosure, and the obligation transfers to whatever surface eventually consumes the alert condition, where 600 bars at first paint is 2,151 short."
+    },
+    {
+      "id": "agen-historical-volume-differs-by-1-8-percent-before-2016",
+      "shape": "vendor-data",
+      "status": "open",
+      "confidence": "measured",
+      "ours": "Raw integer daily volumes from our store: AGEN 2013-09-17 458,066 · 2013-10-08 475,119 · 2013-12-16 487,841 · 2015-01-09 1,481,565 · 2024-07-18 9,129,600 · 2026-07-13 174,277,900.",
+      "theirs": "TradingView reports FRACTIONAL volumes on the older bars: 449,522.45 · 466,754.30 · 479,160 · 1,453,940.65 · 9,129,568 · 174,277,926. The ratio theirs/ours is ~0.9814-0.9824 before 2016 and ~1.0000 from 2024 onward.",
+      "why_it_matters": "A fractional volume means an adjustment FACTOR is being applied, and a ~1.8%% shift in historical volume moves every average, every multiplier and every record comparison computed over that history. ⭐ It does NOT move this wave's work: the T6 comparison uses the last 300 bars, where the two agree to ~1e-6 — inside float noise — and the AGEN record day agrees to 1.5e-7.",
+      "_cause": "NOT ESTABLISHED. Two hypotheses, neither eliminated: (a) a corporate-action volume adjustment — the price axis DOES show an adjustment (~$56-140 in 2011-13 against a raw ~$3-5), though a reverse split would be a large integer factor and this is ~1.018, so it would have to be some other action; (b) a consolidated-tape versus primary-exchange volume difference between providers.",
+      "_what_would_settle_it": "Read the vendor chart's data-adjustment toggles (dividend/split adjustment) on the rig and re-read one pre-2016 bar with adjustment OFF. If the value moves to ours, (a) is the cause and this row closes. If it does not, the row stays open on (b) and becomes a data-provenance item outside this wave.",
+      "probe": {
+        "under_ours": "AGEN 2015-01-09 daily volume = 1,481,565 (integer, unadjusted).",
+        "under_theirs": "AGEN 2015-01-09 daily volume = 1,453,940.65 (fractional; ratio 0.981355).",
+        "discriminates": "The fractional part is the tell — an unadjusted tape volume is a whole number of shares, so any non-integer value is arithmetic applied after the fact. Recent bars are integral on both sides, which bounds when the adjustment stops applying.",
+        "case": "AGEN 1D daily volume on 2015-01-09, read from our store and from the vendor chart."
+      },
+      "_no_member_hook": "⛔ DELIBERATELY NONE. This row is `open`, so it owes a member nothing yet — and the hook it briefly carried (`requirementTag: window_dependent`) described the OTHER AGEN row. A volume value that disagrees before 2016 is a data-provenance property of the series, not a property of how much history the consumer loaded; stamping it on the window tag would tell a member the wrong thing in the one place they read."
     }
   ]
 }

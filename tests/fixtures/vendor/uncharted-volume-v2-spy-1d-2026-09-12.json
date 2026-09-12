@@ -1,7 +1,6 @@
 {
   "_": "⭐⭐ THE VENDOR'S OWN ANSWER for `uncharted-volume-v2.pine` on AMEX:SPY 1D, read off a live TradingView chart on the scratch rig. This is the oracle T5's per-series comparison is measured against. ⛔ NOTHING HERE IS COMPUTED BY THIS PROJECT — every number and every string is what TradingView drew.",
   "_supersedes": "tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json as first captured earlier the same day, which held 8 plots and a PARTIAL table read: the 19-study layout left the volume pane ~20px tall and the chart legend covered the Range table, so only `Range: 127.58%` came out of it. This capture is on the 0-indicator rig with the legend off and the pane maximised, and it carries all three Range cells.",
-
   "capture": {
     "symbol": "AMEX:SPY",
     "interval": "1D",
@@ -11,10 +10,14 @@
     "last_bar_unix": 1789133400,
     "rig_indicators_before_add": 0,
     "rig_indicators_after_add": 1,
-    "study_status": { "isFailed": false, "isLoading": false, "isCompleted": true, "statusType": 2 },
+    "study_status": {
+      "isFailed": false,
+      "isLoading": false,
+      "isCompleted": true,
+      "statusType": 2
+    },
     "_gate": "visibility gate v2 PASS at the write: visible, display y ∈ [-1446, -54], window y ∈ [-1287, -272]"
   },
-
   "source_receipt": {
     "_": "⛔ THE STRONGEST FORM THIS RECEIPT TAKES. The editor buffer was hashed BEFORE and AFTER the write, and the AFTER hash equals the committed fixture's `file_sha256` exactly — so the script TradingView ran is byte-identical to the file in this repo, not merely 'the same script'.",
     "buffer_sha256_before": "e550e994f5ad04f197b7746b14db21e9e1a0edcee843a2fa568402ac2e22c0c6",
@@ -26,7 +29,6 @@
     "delta_chars": 13,
     "_delta": "`, maxval=5000` — the R-J authored edit. The buffer held the PRE-R-J revision from an earlier session; the write brought it to the committed one."
   },
-
   "monaco": {
     "module_id": "423129",
     "_": "⛔ RE-DERIVED THIS VISIT from the webpack registry (10,558 modules scanned for one exporting `editor.getModels` + `editor.create`), never assumed. It happens to match the previously recorded id; that is a fact about this build, confirmed, not carried forward.",
@@ -34,92 +36,275 @@
     "language": "pine_v6",
     "_placement": "`placement=dialog` is the IN-TAB RIGHT PANEL and is exactly where the text `Add to chart` button lives — the 2026-09-12 correction to the earlier `dialog means undocked` rule."
   },
-
   "add_button_gate": {
     "_": "The corrected gate: exactly one element whose OWN TEXT is `Add to chart`, visible, enabled, height > 0; and zero `Update on chart`.",
     "add_to_chart_matches": [
-      { "tag": "span", "w": 93, "h": 24, "visible": true, "disabled": false },
-      { "tag": "span", "w": 93, "h": 0, "visible": false, "disabled": false }
+      {
+        "tag": "span",
+        "w": 93,
+        "h": 24,
+        "visible": true,
+        "disabled": false
+      },
+      {
+        "tag": "span",
+        "w": 93,
+        "h": 0,
+        "visible": false,
+        "disabled": false
+      }
     ],
     "add_visible_enabled_nonzero": 1,
     "update_on_chart_matches": 0,
     "verdict": "SAFE TO ADD",
     "_zero_height": "⭐ THE ZERO-HEIGHT DUPLICATE THE RULE WARNS ABOUT IS RIGHT THERE — two spans, same text, 93x24 and 93x0. A gate without the height test would have counted two and stopped."
   },
-
   "plots": {
     "_": "⭐ THE VENDOR'S OWN PLOT ROSTER, read from `metaInfo().plots`. ⛔⛔ NOTE `plot_7`: TradingView itself types it `alertcondition`, DISTINCT from the four `line` plots. That is the vendor confirming ruling D1 — an alertcondition is not a drawable series, and the four this project draws are exactly the four TradingView types as lines.",
     "order": [
-      { "id": "plot_0", "type": "line", "title": "Volume" },
-      { "id": "plot_1", "type": "colorer", "target": "plot_0" },
-      { "id": "plot_2", "type": "line", "title": "Avg Vol Columns" },
-      { "id": "plot_3", "type": "colorer", "target": "plot_2" },
-      { "id": "plot_4", "type": "line", "title": "Avg Vol Line" },
-      { "id": "plot_5", "type": "colorer", "target": "plot_4" },
-      { "id": "plot_6", "type": "line", "title": "Scale Padding" },
-      { "id": "plot_7", "type": "alertcondition", "title": "HVE Trigger" }
+      {
+        "id": "plot_0",
+        "type": "line",
+        "title": "Volume"
+      },
+      {
+        "id": "plot_1",
+        "type": "colorer",
+        "target": "plot_0"
+      },
+      {
+        "id": "plot_2",
+        "type": "line",
+        "title": "Avg Vol Columns"
+      },
+      {
+        "id": "plot_3",
+        "type": "colorer",
+        "target": "plot_2"
+      },
+      {
+        "id": "plot_4",
+        "type": "line",
+        "title": "Avg Vol Line"
+      },
+      {
+        "id": "plot_5",
+        "type": "colorer",
+        "target": "plot_4"
+      },
+      {
+        "id": "plot_6",
+        "type": "line",
+        "title": "Scale Padding"
+      },
+      {
+        "id": "plot_7",
+        "type": "alertcondition",
+        "title": "HVE Trigger"
+      }
     ],
     "value_array_layout": "[time, plot_0, plot_1, plot_2, plot_3, plot_4, plot_5, plot_6, plot_7]",
     "rows": [
-      { "bars_back": 0, "date": "2026-09-11", "time": 1789133400,
-        "values": [45512741, 4283477836, 43318979, 4287003512, 43318979, 436207615, 56890926.25, 0] },
-      { "bars_back": 1, "date": "2026-09-10", "time": 1789047000,
-        "values": [42740375, 4287003512, null, 4287003512, 43350741.74, 436207615, 54188427.175000004, 0] },
-      { "bars_back": 2, "date": "2026-09-09", "time": 1788960600,
-        "values": [32812411, 4287003512, null, 4287003512, 43608454.94, 436207615, 54510568.675, 0] },
-      { "bars_back": 5, "date": "2026-09-04", "time": 1788442200,
-        "values": [43531581, 4287003512, null, 4287003512, 45040146.1, 436207615, 56300182.625, 0] }
+      {
+        "bars_back": 0,
+        "date": "2026-09-11",
+        "time": 1789133400,
+        "values": [
+          45512741,
+          4283477836,
+          43318979,
+          4287003512,
+          43318979,
+          436207615,
+          56890926.25,
+          0
+        ]
+      },
+      {
+        "bars_back": 1,
+        "date": "2026-09-10",
+        "time": 1789047000,
+        "values": [
+          42740375,
+          4287003512,
+          null,
+          4287003512,
+          43350741.74,
+          436207615,
+          54188427.175000004,
+          0
+        ]
+      },
+      {
+        "bars_back": 2,
+        "date": "2026-09-09",
+        "time": 1788960600,
+        "values": [
+          32812411,
+          4287003512,
+          null,
+          4287003512,
+          43608454.94,
+          436207615,
+          54510568.675,
+          0
+        ]
+      },
+      {
+        "bars_back": 5,
+        "date": "2026-09-04",
+        "time": 1788442200,
+        "values": [
+          43531581,
+          4287003512,
+          null,
+          4287003512,
+          45040146.1,
+          436207615,
+          56300182.625,
+          0
+        ]
+      }
     ],
     "spread_control": {
       "_": "⛔ NON-ZERO SPREAD PER READ — the control that this capture is a MEASUREMENT and not a blank or a constant. A series that read the same on every bar would satisfy any comparison and prove nothing.",
-      "Volume":          { "distinct": 4, "min": 32812411, "max": 45512741, "spread": 12700330 },
-      "Avg Vol Line":    { "distinct": 4, "min": 43318979, "max": 45040146.1, "spread": 1721167.1 },
-      "Scale Padding":   { "distinct": 4, "min": 54188427.175000004, "max": 56890926.25, "spread": 2702499.075 },
-      "Avg Vol Columns": { "distinct": 2, "note": "value on the last bar (45.51M > 43.32M avg), null on the three below it — the two-tone cap only draws when volume exceeds the average. Varying, and varying for a reason the script states." },
-      "HVE Trigger":     { "distinct": 1, "value": 0, "note": "⚠️ FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series. Recorded as flat rather than quietly dropped." }
+      "Volume": {
+        "distinct": 4,
+        "min": 32812411,
+        "max": 45512741,
+        "spread": 12700330
+      },
+      "Avg Vol Line": {
+        "distinct": 4,
+        "min": 43318979,
+        "max": 45040146.1,
+        "spread": 1721167.1
+      },
+      "Scale Padding": {
+        "distinct": 4,
+        "min": 54188427.175000004,
+        "max": 56890926.25,
+        "spread": 2702499.075
+      },
+      "Avg Vol Columns": {
+        "distinct": 2,
+        "note": "value on the last bar (45.51M > 43.32M avg), null on the three below it — the two-tone cap only draws when volume exceeds the average. Varying, and varying for a reason the script states."
+      },
+      "HVE Trigger": {
+        "distinct": 1,
+        "value": 0,
+        "note": "⚠️ FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series. Recorded as flat rather than quietly dropped."
+      }
     }
   },
-
   "tables": {
     "_": "⛔⛔ READ AS STRINGS, NOT AS PIXELS. These are the exact arguments TradingView passed to `fillText`, captured by wrapping `CanvasRenderingContext2D.prototype.fillText` for one redraw and restoring it immediately (`restored: true` asserted). A screenshot read cannot recover a TRAILING SPACE, and one of these cells has one.",
     "_why_not_the_model": "The study's own `tables()` store (`_builtTables`, `_cellsByTableId`, `_tableSources`) and `graphics()._primitivesCollection.dwgtables` are ALL EMPTY while the tables are plainly on screen — they are staging areas consumed at materialisation. Three approaches were tried; the draw call is the only place the string exists.",
     "range_table": {
       "position_input": "Top Left",
       "cells": [
-        { "text": "ATR : $6.21 (0.81%)", "len": 19, "trailing_space": false, "x": 76, "y": 22 },
-        { "text": "| Range: 137.58%", "len": 16, "trailing_space": false, "x": 201, "y": 22 },
-        { "text": "| ATRx: 0.92", "len": 12, "trailing_space": false, "x": 304, "y": 22 }
+        {
+          "text": "ATR : $6.21 (0.81%)",
+          "len": 19,
+          "trailing_space": false,
+          "x": 76,
+          "y": 22
+        },
+        {
+          "text": "| Range: 137.58%",
+          "len": 16,
+          "trailing_space": false,
+          "x": 201,
+          "y": 22
+        },
+        {
+          "text": "| ATRx: 0.92",
+          "len": 12,
+          "trailing_space": false,
+          "x": 304,
+          "y": 22
+        }
       ],
       "_": "⚰️ THREE CELLS. The earlier capture recorded ONE (`Range: 127.58%`) because the chart legend sat on top of the ATR cell and the pane was ~20px tall. The `| ` prefixes are separators the script writes INTO the cell text, not gaps between cells."
     },
     "volume_table": {
       "position_input": "Top Right",
       "cells": [
-        { "text": "Vol : 45.51M (1.05x) ", "len": 21, "trailing_space": true, "x": 1533, "y": 22 }
+        {
+          "text": "Vol : 45.51M (1.05x) ",
+          "len": 21,
+          "trailing_space": true,
+          "x": 1533,
+          "y": 22
+        }
       ],
       "_": "⭐ len 21 for 20 visible characters — THE TRAILING SPACE IS REAL and is the reason these were read as strings. It is also the only one of the four cells that has one."
     },
     "labels": [
-      { "text": "HV1•256.61M", "len": 11, "x": 36, "y": 2 },
-      { "text": "+282%", "len": 5, "x": 36, "y": 16 }
+      {
+        "text": "HV1•256.61M",
+        "len": 11,
+        "x": 36,
+        "y": 2
+      },
+      {
+        "text": "+282%",
+        "len": 5,
+        "x": 36,
+        "y": 16
+      }
     ]
   },
-
   "study_inputs": {
     "_": "The defaults as the script declares them — NOT altered for this capture. Recorded so a re-read can be compared against the same configuration.",
-    "Daily Length": 50, "Weekly Length": 50, "HVE lookback (bars)": 2500,
-    "Range Type": "ATR", "Range Length": 14, "Calculation Method": "RMA",
-    "Range Display Format": "Percentage", "ATR Ext MA Type": "SMA", "ATR Ext MA Length": 50,
-    "Volume Display Style": "Histogram", "Histogram Line Width": 3,
-    "Color based on previous close": true, "Show Only Latest HV Label": true,
+    "Daily Length": 50,
+    "Weekly Length": 50,
+    "HVE lookback (bars)": 2500,
+    "Range Type": "ATR",
+    "Range Length": 14,
+    "Calculation Method": "RMA",
+    "Range Display Format": "Percentage",
+    "ATR Ext MA Type": "SMA",
+    "ATR Ext MA Length": 50,
+    "Volume Display Style": "Histogram",
+    "Histogram Line Width": 3,
+    "Color based on previous close": true,
+    "Show Only Latest HV Label": true,
     "Table Label Size": "Normal",
-    "Show Range Table": true, "Show Range Used": true, "Show ATR extension from MA": true,
+    "Show Range Table": true,
+    "Show Range Used": true,
+    "Show ATR extension from MA": true,
     "Show DCR in Range Table": false,
-    "Show Volume Table": true, "Show Avg Vol": false,
-    "Volume Table Pos": "Top Right", "Range Table Pos": "Top Left", "Vol Table Lookback": 50
+    "Show Volume Table": true,
+    "Show Avg Vol": false,
+    "Volume Table Pos": "Top Right",
+    "Range Table Pos": "Top Left",
+    "Vol Table Lookback": 50
   },
-
   "_chart_settings_touched": "⚠️ Chart legend `Indicators → Titles` and `Values` were turned OFF for this read, because the Range table renders at the pane's top-left and the legend sits on the same line. That is a CHART setting, not a study input — no captured number depends on it. Not saved.",
-
-  "_still_owed": "The HVE symbol fixture — a symbol on which the HVE Trigger actually fires, with the symbol and the record date named BEFORE the capture. `HVE Trigger` is flat 0 on SPY across this window, so SPY cannot serve as that case."
+  "_still_owed": "The HVE symbol fixture — a symbol on which the HVE Trigger actually fires, with the symbol and the record date named BEFORE the capture. `HVE Trigger` is flat 0 on SPY across this window, so SPY cannot serve as that case.",
+  "window_check": {
+    "_": "⭐ THE WINDOW CHECK — owner ruling 2026-09-12, out of the AGEN firing-count divergence. A capture records the depth it was read at and that depth is asserted against the script's largest declared window BEFORE the numbers are used. Below the window the capture is WINDOW_TRUNCATED, not void, and only its short columns drop out of comparison. ⛔ Every field here except `bars_loaded` is RE-DERIVED by `tests/test_vendor_capture_window.py` from `tools/lookback_agreement.json` and compared against what is written — the capture cannot certify its own arithmetic. `bars_loaded` is the one observation only the rig can supply.",
+    "_largest_is_2751_not_2500": "⚠️ 2,751 AND NOT THE 2,500 THE INPUT DECLARES. `maxLookback` is a tree SUM: the 2,500 `lookbackBarsHVE` input is the largest single term in `HVE Trigger`'s reach and not the whole of it. Both readers measure 2,751 and this is their number, not a transcription — and it is the conservative one, since a capture clearing 2,751 clears 2,500 too.",
+    "script": "member/uncharted-volume-v2.pine",
+    "script_sha256": "518a6b22f7cc238d898869d496af7a96151520598bdba6de7b92f69d6c27b28a",
+    "bars_loaded": null,
+    "largest_declared_window": 2751,
+    "declared_windows": {
+      "Avg Vol Columns": 50,
+      "Avg Vol Line": 50,
+      "HVE Trigger": 2751,
+      "Scale Padding": 50,
+      "Volume": 0
+    },
+    "verdict": "UNMEASURED",
+    "excluded_from_comparison": [
+      "Avg Vol Columns",
+      "Avg Vol Line",
+      "HVE Trigger",
+      "Scale Padding"
+    ],
+    "_why_unmeasured": "⚰️ THIS CAPTURE PREDATES THE RULING BY HOURS. The rig depth was never probed, and it cannot be recovered from the artifact — only from the chart, on another visit. Named in `tests/test_vendor_capture_window.py::PREDATES_THE_MEASUREMENT`, which is a CLOSED list: a capture taken after 2026-09-12 that lands at UNMEASURED fails that rail by name.",
+    "_what_the_capture_still_suggests": "⚠️ AN OBSERVATION, DELIBERATELY NOT PROMOTED TO A MEASUREMENT. `Avg Vol Line` reads 43,318,979 on the last bar and a 50-bar `sma` is `na` until it has 50 bars, so the three 50-bar columns demonstrably had their window. That is an argument, and the rule takes a reading — so they stay excluded until `bars_loaded` is read off the rig. ⛔ The exclusion is what makes not measuring cost something; reasoning around it here is how the rule would stop being one."
+  }
 }
