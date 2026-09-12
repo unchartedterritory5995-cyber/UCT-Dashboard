@@ -152,7 +152,14 @@ def legacy_would_fire(params: dict[str, Any], *,
       rule A: is this displayed ticker on the user's watchlist, and has it not
               already been claimed for (user, ticker, market_date)?
       rule B: is this displayed row's normalised grade in the must-know set, is
-              the user an admin, and not already claimed?
+              the user an admin, and not already claimed **under the must-know
+              namespace**?
+
+    ⚰️ RULE B USED TO SHARE RULE A's KEY, AND THAT WAS F-S7-5 — a live defect in
+    which an admin who watched a name never received the must-know alert for it.
+    Fixed in the legacy path first (`store.mustknow_dedup_key`), then mirrored
+    here, so the dark rule and the legacy rule agree AFTER the fix rather than
+    agreeing on a bug.
     """
     rule = params.get("match_rule")
     rows = list(displayed)

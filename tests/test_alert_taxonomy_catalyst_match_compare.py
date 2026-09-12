@@ -83,18 +83,83 @@ def test_the_grade_rule_refuses_a_non_admin_and_that_guard_is_load_bearing():
     assert cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True) == ["NVDA"]
 
 
-def test_already_fired_reproduces_the_CROSS_RULE_SUPPRESSION(db):
-    """⛔⛔ F-S7-CM-1 ITEM 1, THE BEHAVIOUR TO REPRODUCE RATHER THAN FIX.
-    The two legacy rules share `(user_id, ticker, market_date)`, so an admin who
-    also WATCHES the name gets the watchlist alert and never the must-know one.
-    A dark rule that fired both would read as `new_only` on every admin."""
+def test_already_fired_is_PER_RULE_since_F_S7_5(db):
+    """⚰️ THIS ASSERTED THE CROSS-RULE SUPPRESSION AND CALLED IT "behaviour to
+    REPRODUCE rather than fix". The retired body:
+
+        first = cm.would_fire(WATCH_PRED, displayed=rows, member_tickers=["NVDA"])
+        second = cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True,
+                               already_fired=first)
+        assert second == [], "the grade alert must be suppressed ..."
+
+    ⛔ That reading was right about the MIGRATION and wrong about the BUG. It was
+    a live production defect (F-S7-5) and **absorbing it would have made it
+    permanent and invisible** — the dark rule reproduces it, the comparison
+    reports `agreed`, and the defect becomes a specification. It was fixed in the
+    legacy path FIRST (`store.mustknow_dedup_key`), so this type now mirrors the
+    FIXED behaviour.
+
+    ⭐ `already_fired` is therefore PER-RULE: a name claimed by the watchlist
+    rule no longer silences the grade rule.
+    """
     rows = _rows(("NVDA", "A", "Catalyst", "FDA"))
-    # the watchlist rule claims it first, exactly as `run()` orders them
     first = cm.would_fire(WATCH_PRED, displayed=rows, member_tickers=["NVDA"])
     assert first == ["NVDA"]
-    # ...and the grade rule then finds it already claimed
-    second = cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True, already_fired=first)
-    assert second == [], "the grade alert must be suppressed for a name already claimed"
+
+    # The grade rule's own namespace is empty, so it fires too.
+    second = cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True, already_fired=[])
+    assert second == ["NVDA"], "since F-S7-5 both rules fire for one (user, ticker, date)"
+
+    # ...and each rule still dedups WITHIN itself.
+    assert cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True,
+                         already_fired=second) == []
+
+
+def test_the_dedup_grain_is_declared_PER_RULE():
+    """⛔ A predicate naming the wrong grain would model the pre-F-S7-5 collision
+    and reintroduce it as the dark rule's specification."""
+    assert cm.dedup_grain_for(cm.RULE_GRADE) == cm.DEDUP_GRAIN_MUSTKNOW
+    assert cm.dedup_grain_for(cm.RULE_WATCHLIST) == cm.DEDUP_GRAIN
+    assert cm.DEDUP_GRAIN != cm.DEDUP_GRAIN_MUSTKNOW
+    assert set(cm.DEDUP_GRAINS) == {cm.DEDUP_GRAIN, cm.DEDUP_GRAIN_MUSTKNOW}
+
+
+def test_the_mirror_agrees_with_the_FIXED_legacy_on_a_watched_grade_A_name(monkeypatch):
+    """⭐ THE POINT OF FIXING BOTH IN ONE PR: after the fix, dark and legacy must
+    still AGREE. Driven against the REAL legacy function with delivery and the
+    dedup store stubbed, keyed exactly as `try_record_alert` keys it."""
+    from api.services.catalyst import engine as ce
+    from api.services import watchlist_alert_service as wal
+    fired, delivered = set(), []
+
+    def _try(u, t, d):
+        k = (u, (t or "").upper(), d)
+        if k in fired:
+            return False
+        fired.add(k)
+        return True
+
+    monkeypatch.setattr(wal, "deliver_alert_payload",
+                        lambda **kw: delivered.append((kw["source"], kw["sym"])))
+    monkeypatch.setattr(ce.store, "try_record_alert", _try)
+    monkeypatch.setattr(ce, "_collect_user_watchlist_tickers", lambda: {"a1": {"NVDA"}})
+    monkeypatch.setattr(ce, "_collect_admin_user_ids", lambda: ["a1"])
+    monkeypatch.setenv("CATALYST_ALERTS_ENABLED", "1")
+    monkeypatch.setenv("CATALYST_MUSTKNOW_ALERTS_ENABLED", "1")
+    monkeypatch.delenv("CATALYST_MUSTKNOW_GRADES", raising=False)
+
+    rows = _rows(("NVDA", "A", "Catalyst", "FDA"))
+    ce._fire_catalyst_alerts(rows, DAY)
+    ce._fire_mustknow_alerts(rows, DAY)
+    real_sources = sorted(src for (src, _s) in delivered)
+    assert real_sources == ["catalyst_alert", "catalyst_mustknow"], (
+        "control: the fixed legacy really does deliver both")
+
+    # the dark rule, on the same inputs, per rule
+    dark_watch = cm.would_fire(WATCH_PRED, displayed=rows, member_tickers=["NVDA"])
+    dark_grade = cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True)
+    assert dark_watch == ["NVDA"] and dark_grade == ["NVDA"], (
+        "dark and legacy disagree after the fix — the mirror was not updated with it")
 
 
 def test_a_ticker_appearing_twice_alerts_once():

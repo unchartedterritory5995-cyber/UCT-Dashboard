@@ -180,8 +180,21 @@ CATALYST_TYPE_CONVENTION = (
     "None",
 )
 
-#: The one dedup grain the legacy table enforces, as its PK.
+#: The dedup grain each legacy rule enforces. ⚰️ There was ONE until F-S7-5: the
+#: must-know rule now namespaces its identity so the two rules cannot claim a
+#: single key (`store.mustknow_dedup_key`). Both still resolve to the same
+#: PRIMARY KEY on `catalyst_alerts_fired`; what differs is the identity written
+#: into the `ticker` column.
 DEDUP_GRAIN = "user_ticker_day"
+DEDUP_GRAIN_MUSTKNOW = "user_mustknowticker_day"
+DEDUP_GRAINS = (DEDUP_GRAIN, DEDUP_GRAIN_MUSTKNOW)
+
+
+def dedup_grain_for(match_rule: str) -> str:
+    """⛔ ONE declaration of which rule dedups how. A predicate naming the wrong
+    grain would model the pre-F-S7-5 collision and reintroduce it as the dark
+    rule's specification."""
+    return DEDUP_GRAIN_MUSTKNOW if match_rule == RULE_GRADE else DEDUP_GRAIN
 
 PARAMS_SCHEMA = {
     "match_rule": "string -- 'watchlist' | 'grade'. ⛔ TWO RULES, ONE DEDUP "
