@@ -9,6 +9,13 @@ version never rolls, so a run measures a best case that no member ever hits duri
 RTH. The label rides on every row and on the summary; `--certifying` is the only
 way to drop it, and it should only be passed during RTH.
 
+⭐ THE OPERATING REQUIREMENTS LIVE IN `docs/runbooks/flow-cold-paint-rig.md`:
+the TWO PATHS a session must measure separately (direct load, intro-gated, vs
+in-app navigation, no intro) and the rule that EVERY run reports its transport
+— whole-D vs parts — so a regression cannot hide behind a fast-looking number.
+That file also records which half of the two-path requirement this tool does
+NOT implement yet. Read it before quoting any number this script prints.
+
 ## The traps this encodes, each already paid for in this codebase
 
 - ⛔ **A hidden tab never loads Options Flow at all.** `shouldFetchVersion` gates on
