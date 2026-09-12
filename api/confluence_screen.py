@@ -104,13 +104,26 @@ def compute_board() -> dict:
         except Exception:  # noqa: BLE001
             return 0
 
+    # ETF exclusion source. The Massive dark-pool feed no longer carries
+    # SecurityType (only the retired BBS rows did), so the old
+    # `securityType == "Equity"` gate drops EVERY name once the BBS rows age out
+    # of the trailing window. We exclude ETFs instead via the same authoritative
+    # FMP `isEtf` classifier the Dark Pool EOD card uses (cached per name/day,
+    # fail-soft), applied to gate SURVIVORS only so the profile calls stay cheap.
+    try:
+        from api.darkpool_eod import _ticker_meta, _ETF_OVERRIDE
+    except Exception:  # noqa: BLE001
+        def _ticker_meta(_s):                          # fail-soft: never drops a name
+            return {"sector": None, "isEtf": None}
+        _ETF_OVERRIDE = set()
+
     rows = []
     for sym, f in flow.items():
         d = dpmap.get(sym)
-        if not d or d.get("securityType") != "Equity":
+        if not d:
             continue
         band = _BANDS.get(d.get("cat"))
-        if not band:                                   # drops Mega + Indexes/ETF
+        if not band:                                   # drops Indexes/ETF cats (Mega folds into Large)
             continue
         net = f.get("net") or 0
         bull = f.get("bull") or 0
@@ -125,6 +138,22 @@ def compute_board() -> dict:
         bear_ok = net < 0 and acc == "Dist" and bear >= FLOW_MIN and dpn >= DP_MIN
         if not (bull_ok or bear_ok):
             continue
+        # Survivor is a real confluence candidate — spend one cached FMP profile
+        # call to (a) drop an ETF the cat-band's hardcoded lists miss (VOO/IGV/
+        # IEFA-class, whose AUM mis-sizes them into a cap band) and (b) fill the
+        # sector the Massive feed leaves blank. Fail-soft: an unavailable profile
+        # never drops a name.
+        sector = d.get("sector") or None
+        if sym in _ETF_OVERRIDE:
+            continue
+        try:
+            meta = _ticker_meta(sym) or {}
+        except Exception:  # noqa: BLE001 — fail-soft: a bad profile never drops a name
+            meta = {}
+        if meta.get("isEtf"):
+            continue
+        if not sector:
+            sector = meta.get("sector")
         net5 = (flow5.get(sym) or {}).get("net") or 0
         ratio = abs(net5) / abs(net) if net else 0
         if net5 * net > 0 and ratio >= BUILDING_FRAC:
@@ -143,7 +172,7 @@ def compute_board() -> dict:
             "leapPrem": leap_prem, "leapShare": round(leap_share, 3),
             "status": status, "freshRatio": round(ratio, 2),
             "bigPrint": d.get("bigPrintN") or 0, "bigDate": d.get("bigPrintDate"),
-            "sector": d.get("sector"),
+            "sector": sector,
         })
 
     # rank within (band, dir): dp size + net + leap-share + freshness weight
