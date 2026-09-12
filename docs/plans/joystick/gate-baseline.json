@@ -47,8 +47,8 @@
     "names": [
       {
         "name": "flowSearchProduct",
-        "seen": "base 78ac8016b",
-        "evidence": "passed in isolation; not banked; does not fail at f58383e69 either"
+        "seen": "base 78ac8016b; AGAIN on launch/queued-fixes over base a10c7c94a (2026-09-12)",
+        "evidence": "passed in isolation; not banked; does not fail at f58383e69 either. SECOND SIGHTING 2026-09-12: red in-shard on the branch run, ABSENT from the branch's own baseline run at a10c7c94a minutes earlier, then PASSED ALONE in 35s with the named CONTROL case taking 11.5s of it. Content held constant, outcome flipped, so the variable was timing. The mechanism is the same one recorded for ArticlesSection.native: the branch adds two test files (1283 -> 1285), which reslices every shard."
       },
       {
         "name": "sharedScreen.route",

@@ -914,3 +914,31 @@ Recorded so the assumption is not silently inherited: the hub changes **where th
 (a media query) and nothing about how it works. `FloatingOrb.jsx`'s internals and its desktop rendering
 are untouched, and the hub's "Voice" action calls the orb's own handler,
 `useRealtimeSession().connect(context)`.
+
+---
+
+## R-28 — The Desk: 3-4 YouTube thumbnails 404 on the video grid (owner: The Desk)
+
+**Status:** open · **Blocking this programme:** no · **Found by:** the joystick touch smoke,
+2026-09-12, incidentally
+
+While sweeping every top-level route in a phone-class context on production
+(`tools/hub_nav_smoke.py --auth --touch`, live SHA `36596a88a`), the only console errors recorded
+in the whole sweep were YouTube thumbnail 404s:
+
+```
+[console] Failed to load resource: 404  @ https://i.ytimg.com/vi/znjo804B_0k/hqdefault.jpg
+[console] Failed to load resource: 404  @ https://i.ytimg.com/vi/hmGZSV_axHo/hqdefault.jpg
+[console] Failed to load resource: 404  @ https://i.ytimg.com/vi/wfiXYt6rOWg/hqdefault.jpg
+```
+
+An earlier desktop run of the same sweep recorded four, booked against `/desk`. ⚠️ **The
+per-route attribution is by ARRIVAL WINDOW, not by origin page** — the two runs booked the same
+thumbnails under different routes — so treat "which route" as unreliable and "the Desk video grid"
+as the likely source, since `hqdefault.jpg` is what a video card requests.
+
+⭐ Nothing here is the hub's, and nothing here is a failure of the smoke: the pass is green. It is
+recorded because an error nobody owns is an error nobody fixes, and because three 404s per page
+load is a real (small) cost on a phone. A plausible cause worth checking first: a video that was
+deleted or made private on the channel while its `edu_videos` row survived — `hqdefault.jpg` 404s
+for exactly that case.
