@@ -228,6 +228,12 @@ def cache_state() -> dict:
 # exactly how the desk insights pass reported healthy straight through a total
 # failure (its 4-consecutive-failure streak never survived a redeploy).
 _STATS = {"requests": 0, "cache_hits": 0, "builds": 0, "build_failures": 0,
+          # ⛔ A STREAM THAT ARRIVED INTACT AND WAS REFUSED IS ITS OWN FACT.
+          # `build_failures` covers timeouts, non-zero exits and unparseable
+          # stdout — a build that produced nothing. A build that produced VALID
+          # frames which the guard then rejected is a different failure with a
+          # different fix, and it hid for 885 rolls inside the shared counter.
+          "parts_rejected_missing": 0,
           "stale_served": 0, "declined_busy": 0, "last_build": None,
           # ⛔ MEMBER traffic, counted SEPARATELY from the warmer's own calls.
           # The warmer goes through the same builder, so a single `requests`
@@ -568,9 +574,43 @@ def build_parts(csv_text: str, date_filter: str | None = None,
     frames = _read_frames(proc.stdout)
     _st["frames_ms"] = int((time.monotonic() - _t_frames) * 1000)
     _st["stdout_kb"] = len(proc.stdout or b"") // 1024
-    if not frames or "bootstrap" not in frames:
-        log.warning("[flow-agg] parts stream unusable (%d bytes, %d frames)",
-                    len(proc.stdout), len(frames))
+    # ⛔⛔ THE STREAM IS USABLE IFF IT CARRIES WHAT WAS *REQUESTED*.
+    #
+    # This guard used to read `"bootstrap" not in frames`. That was correct
+    # before `--only=` existed, when every build emitted every part and
+    # "bootstrap is present" WAS "the stream is complete". With an emission
+    # filter it is the wrong question in BOTH directions, and both directions
+    # were live:
+    #
+    #   1. It REJECTED a valid partial stream. The preparer's pass 2 asks for
+    #      SERVED_PART_NAMES - FIRST_PAINT_PARTS, which by construction never
+    #      contains `bootstrap`. Measured on prod 2026-09-11: every roll spawned
+    #      node, ran processFlowData in full, piped back 18,971,776 bytes of NINE
+    #      valid frames, and discarded all of it — 5.5 s and ~19 MB of IPC per
+    #      roll. After 889 prepared rolls the parts cache held exactly
+    #      ['bootstrap', 'TOP_PICKS'] with 22 of 24 slots free, so the deferred
+    #      TICKER_DB/CONV split and the 3b raw fallback were NEVER pre-warmed.
+    #      `build_failures` stood at 885 — one per prepared roll — while
+    #      `prepare.failed` read 0, because pass 2's return value is not checked.
+    #      No member ever saw an error: the serving path passes no `only=`, so a
+    #      cold interaction just paid a full ~5.8 s build instead of a warm hit.
+    #
+    #   2. It ACCEPTED a stream missing a requested part, whenever bootstrap
+    #      happened to be present — caching a set without an array the caller
+    #      asked for.
+    #
+    # ⛔ DERIVED PARTS ARE BEST-EFFORT AND MUST NOT BE REQUIRED. With no ETF
+    # replica the bundle deliberately emits no TOP_PICKS ("NO REPLICA => NO FILE"
+    # above), and FIRST_PAINT_PARTS requests it — so requiring every requested
+    # name would turn a documented safe fallback into a failed first paint.
+    # Required = the requested names that belong to the PARTITION.
+    requested = tuple(only) if only else PART_NAMES
+    missing = [p for p in requested if p in PART_NAMES and p not in frames]
+    if not frames or missing:
+        _STATS["parts_rejected_missing"] += 1
+        log.warning("[flow-agg] parts stream rejected — missing requested parts "
+                    "%s (%d bytes, %d frames, requested=%s)",
+                    missing, len(proc.stdout), len(frames), list(requested))
         return None
 
     stats = {}
