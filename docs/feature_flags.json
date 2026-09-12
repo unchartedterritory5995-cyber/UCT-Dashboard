@@ -35,7 +35,12 @@
     "baked_value is a MEASUREMENT of the deployed bundle at baked_measured_on, not a",
     "prediction. It goes stale the moment the build changes: the served JS is the",
     "authority, and a flag read as `=== '1'` is false when undefined, which is",
-    "indistinguishable from off-on-purpose at every layer except the artifact."
+    "indistinguishable from off-on-purpose at every layer except the artifact.",
+    "",
+    "flip_precondition: what must be VERIFIED before a held flag is turned on, and",
+    "what turning it on changes for a member. A flag held at 0 with no recorded",
+    "precondition is the same ambiguity as an unset one - nobody can tell whether it",
+    "is waiting on evidence or was simply forgotten."
   ],
   "flags": {
     "AI_SEARCH_DOSSIER_ENABLED": {
@@ -895,7 +900,8 @@
       "baked_value": "0",
       "baked_measured_on": "1c76f9f38",
       "last_changed": "2026-09-12",
-      "note": "HELD pending an owner ruling: open-for-business vs holding page. Set to 0 on 2026-09-12 so the build-args fix could not flip the public front door as a side effect. It was 1 (intent: holding page) while the build made it undefined, so members have been seeing the real Landing page. Backend COMING_SOON_MODE is still on, so signup is refused - the funnel is open and its last step cannot succeed."
+      "note": "HELD pending an owner ruling: open-for-business vs holding page. Set to 0 on 2026-09-12 so the build-args fix could not flip the public front door as a side effect. It was 1 (intent: holding page) while the build made it undefined, so members have been seeing the real Landing page. Backend COMING_SOON_MODE is still on, so signup is refused - the funnel is open and its last step cannot succeed.",
+      "hold": "HELD 2026-09-12 pending an owner ruling between two prepared change sets: A = open for business (COMING_SOON_MODE=0 on web; read at call time, no rebuild needed; signup starts succeeding and public registration opens), B = holding page (VITE_COMING_SOON=1; build-time, so it needs a web REBUILD; / serves the holding page and the funnel routes redirect, /login untouched). Until the ruling lands the state stays as it is: members see the real Landing page with a reachable funnel whose signup the backend refuses."
     },
     "VITE_FLOW_PARTS": {
       "status": "armed",
@@ -955,7 +961,9 @@
       "baked_value": "0",
       "baked_measured_on": "1c76f9f38",
       "last_changed": "2026-09-12",
-      "note": "Massive bars push feed. HELD at 0: it was 1 (intent: 100% rollout, per the Bars Push Feed section of CLAUDE.md) while the build made it undefined, so every chart has been on the Finnhub poll. Set to 0 so the build-args fix would change only Options Flow. Turning it on is one variable, no code change."
+      "note": "Massive bars push feed. HELD at 0: it was 1 (intent: 100% rollout, per the Bars Push Feed section of CLAUDE.md) while the build made it undefined, so every chart has been on the Finnhub poll. Set to 0 so the build-args fix would change only Options Flow. Turning it on is one variable, no code change.",
+      "flip_precondition": "ON CHANGES FOR A MEMBER: every chart's developing candle comes from the Massive push feed over ONE pooled SSE instead of the Finnhub 250ms poll, and 60m/D/W/M gain authoritative bar updates. VERIFY BEFORE FLIPPING (quiet tape): (1) the SINGLE-WRITER gate - that barsPushActive SUPPRESSES the Finnhub writers rather than both writing, via app/src/components/chart/engine/__tests__/singleWriterIndex.test.js, because two writers on one developing bar is the Heikin-Ashi raw-candle bug that shipped 2026-07-06; (2) /api/admin/bars-stream-status shows subscriber_pairs RISING with a chart open. On a quiet tape bars_emitted_total stays 0, so subscriber count is the honest signal and emitted bars prove nothing.",
+      "hold": "HELD at 0 by owner ruling 2026-09-12; no action until a test is scheduled for it. Flipping needs no code change."
     },
     "VITE_MASSIVE_STREAM": {
       "status": "dark",
@@ -967,7 +975,9 @@
       "baked_value": "0",
       "baked_measured_on": "1c76f9f38",
       "last_changed": "2026-09-12",
-      "note": "Live Flow SSE instant-tape global rollout. HELD at 0 for the same reason as VITE_REALTIME_BARS. Per-browser escapes (localStorage uct.massiveStream, ?stream) still work, so it can be exercised without flipping it for everyone."
+      "note": "Live Flow SSE instant-tape global rollout. HELD at 0 for the same reason as VITE_REALTIME_BARS. Per-browser escapes (localStorage uct.massiveStream, ?stream) still work, so it can be exercised without flipping it for everyone.",
+      "flip_precondition": "ON CHANGES FOR A MEMBER: Live Flow prints appear the instant the server tailer classifies them instead of up to 20s later, and the 20s poll drops to a 60s reconcile. VERIFY BEFORE FLIPPING (quiet tape): exercise it through the PER-BROWSER escape first (localStorage uct.massiveStream=1, or ?stream) so nothing flips for everyone; then confirm the SSE connects, the 60s reconcile still fires, and prints are NOT double-counted between the stream and the poll.",
+      "hold": "HELD at 0 by owner ruling 2026-09-12; no action until a test is scheduled for it. Flipping needs no code change."
     },
     "VITE_DESK_BG_AUDIO_ENABLED": {
       "status": "dark",
@@ -979,7 +989,9 @@
       "baked_value": "0",
       "baked_measured_on": "1c76f9f38",
       "last_changed": "2026-09-12",
-      "note": "Desk mobile audio-primary playback. HELD at 0 for the same reason as VITE_REALTIME_BARS."
+      "note": "Desk mobile audio-primary playback. HELD at 0 for the same reason as VITE_REALTIME_BARS.",
+      "flip_precondition": "ON CHANGES FOR A MEMBER: on a coarse-pointer device a Desk video's audio streams through a hidden <audio> element so it survives screen-lock and backgrounding like a podcast, with the YT iframe muted underneath. VERIFY BEFORE FLIPPING: on a REAL touch device - jsdom performs no layout and an emulator cannot reproduce lock behaviour - that audio survives a lock/unlock and the iframe stays muted so there is no double audio.",
+      "hold": "HELD at 0 by owner ruling 2026-09-12; no action until a test is scheduled for it. Flipping needs no code change."
     },
     "VITE_CATALYST_UI_ENABLED": {
       "status": "dark",

@@ -52,6 +52,7 @@ import os
 import statistics
 import sys
 import time
+import urllib.request
 
 # ⛔ THE PAGE'S OWN TEXT IS PRINTED, AND A WINDOWS CONSOLE IS cp1252.
 # 2026-09-12: run 1 measured the fix working, then the rig DIED on `⌘` in
@@ -116,6 +117,38 @@ window.__rig = {firstContent: null, visibleAtStart: document.visibilityState,
 """
 
 
+def _uptime():
+    """The web pod's uptime in seconds, or None if it could not be read.
+
+    ⛔ EVERY MASTER PUSH REBUILDS WEB. A run that straddles a deploy swap is
+    measuring two different pods, and the failure does not announce itself as a
+    deploy: on 2026-09-12 another workstream pushed five times in six minutes and
+    the rig reported `login http 502` on three consecutive runs, which reads
+    exactly like a broken product. `/api/health` was 502 in that window and 200
+    with a 46 s uptime immediately after.
+    """
+    try:
+        req = urllib.request.Request(BASE + "/api/health", headers={"User-Agent": UA})
+        body = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
+        return float(body["uptime_seconds"])
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
+def _swap_verdict(up_before, up_after, elapsed_s):
+    """(swapped, why). THREE outcomes, not two — an unreadable uptime is
+    INCONCLUSIVE, never a pass: during a swap `/api/health` itself 502s, so
+    "could not tell" is the swap case wearing a blank face."""
+    if up_before is None or up_after is None:
+        return True, "uptime unreadable (health 502 during a swap reads like this)"
+    if up_after < up_before:
+        return True, "uptime went BACKWARD %.0fs -> %.0fs" % (up_before, up_after)
+    if up_after < elapsed_s:
+        return True, ("pod is younger (%.0fs) than the run (%.0fs)"
+                      % (up_after, elapsed_s))
+    return False, ""
+
+
 def _fmt(v, unit=""):
     return "n/a" if v is None else ("%.0f%s" % (v, unit) if isinstance(v, (int, float)) else str(v))
 
@@ -128,12 +161,20 @@ def run_once(pw, email, password, idx, certifying):
     ctx = browser.new_context(user_agent=UA, viewport={"width": 1440, "height": 900})
     responses = []
     try:
+        # ⛔ BEFORE anything else: a run that straddles a deploy swap measures two
+        # pods and must be discarded, not averaged. See _swap_verdict.
+        up_before = _uptime()
+        t_run = time.monotonic()
         # Scripted login — page.request keeps the cookie in the context jar, which
         # is robust against the intro overlay (the documented approach).
         r = ctx.request.post(BASE + "/api/auth/login",
                              data={"email": email, "password": password})
         if r.status != 200:
-            return {"run": idx, "error": "login http %s" % r.status}
+            up_after = _uptime()
+            swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+            return {"run": idx, "error": "login http %s" % r.status,
+                    "deploy_swapped": swapped, "swap_reason": why,
+                    "uptime_before": up_before, "uptime_after": up_after}
         role = ((r.json() or {}).get("user") or {}).get("role")
 
         page = ctx.new_page()
@@ -177,8 +218,15 @@ def run_once(pw, email, password, idx, certifying):
         cur = ctx.request.get(BASE + "/api/flow/version")
         cur_v = cur.text().strip()[:40] if cur.status == 200 else None
 
+        up_after = _uptime()
+        swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+
         return {
             "run": idx,
+            "deploy_swapped": swapped,
+            "swap_reason": why,
+            "uptime_before": up_before,
+            "uptime_after": up_after,
             "role": role,
             "visible_at_start": rig.get("visibleAtStart"),
             "observer_attached": rig.get("observerAttached"),
@@ -251,10 +299,16 @@ def run_once_path_b(pw, email, password, idx, certifying, start_route="/dashboar
     ctx = browser.new_context(user_agent=UA, viewport={"width": 1440, "height": 900})
     responses = []
     try:
+        up_before = _uptime()
+        t_run = time.monotonic()
         r = ctx.request.post(BASE + "/api/auth/login",
                              data={"email": email, "password": password})
         if r.status != 200:
-            return {"run": idx, "path": "B", "error": "login http %s" % r.status}
+            up_after = _uptime()
+            swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+            return {"run": idx, "path": "B", "error": "login http %s" % r.status,
+                    "deploy_swapped": swapped, "swap_reason": why,
+                    "uptime_before": up_before, "uptime_after": up_after}
         role = ((r.json() or {}).get("user") or {}).get("role")
 
         page = ctx.new_page()
@@ -311,8 +365,15 @@ def run_once_path_b(pw, email, password, idx, certifying, start_route="/dashboar
         parts = {x["part"]: x for x in flow if x["part"]}
         wire = sum(int(x["clen"]) for x in flow if (x["clen"] or "").isdigit())
 
+        up_after = _uptime()
+        swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+
         return {
             "run": idx, "path": "B", "role": role,
+            "deploy_swapped": swapped,
+            "swap_reason": why,
+            "uptime_before": up_before,
+            "uptime_after": up_after,
             "start_route": start_route,
             "url_changed": diag.get("url") != start_route,
             "observer_attached": rigb.get("attached"),
@@ -375,7 +436,10 @@ def main(argv=None):
                 row["path"] = "A"
                 rows.append(row)
                 if row.get("error"):
-                    print("run %d: ERROR %s" % (i, row["error"]))
+                    print("run %d: ERROR %s%s" % (
+                        i, row["error"],
+                        "  -> INCONCLUSIVE, not a product failure: %s"
+                        % row.get("swap_reason") if row.get("deploy_swapped") else ""))
                     continue
                 print("run %d | first_content=%s | flow_req=%d | wire=%s | parts=%s"
                       % (i, _fmt(row["first_content_ms"], "ms"), row["flow_requests"],
@@ -392,6 +456,9 @@ def main(argv=None):
                 print("        DIAG path=%s bodylen=%s vis=%s wall=%.0fms"
                       % (d.get("url"), d.get("len"), d.get("vis"),
                          row.get("wall_ms") or 0))
+                if row.get("deploy_swapped"):
+                    print("        !! INCONCLUSIVE - a deploy swap straddled this run "
+                          "(%s). DISCARDED from the summary." % row.get("swap_reason"))
 
         if a.path in ("b", "both"):
             print("")
@@ -403,7 +470,10 @@ def main(argv=None):
                                       a.start_route)
                 rows.append(row)
                 if row.get("error"):
-                    print("run %d: ERROR %s" % (i, row["error"]))
+                    print("run %d: ERROR %s%s" % (
+                        i, row["error"],
+                        "  -> INCONCLUSIVE, not a product failure: %s"
+                        % row.get("swap_reason") if row.get("deploy_swapped") else ""))
                     continue
                 print("run %d | shell=%s | picks=%s | flow_req=%d | wire=%s | parts=%s"
                       % (i, _fmt(row["shell_ms"], "ms"), _fmt(row["picks_ms"], "ms"),
@@ -422,6 +492,9 @@ def main(argv=None):
                 if row["url_changed"] and row["shell_ms"] is None:
                     print("        !! URL MOVED, SHELL NEVER RENDERED - this is the "
                           "navigation-freeze signature, not a slow page")
+                if row.get("deploy_swapped"):
+                    print("        !! INCONCLUSIVE - a deploy swap straddled this run "
+                          "(%s). DISCARDED from the summary." % row.get("swap_reason"))
 
     print("-" * 72)
     # ⛔ NOT `label` — that name holds the quiet-tape warning printed below, and
@@ -432,8 +505,12 @@ def main(argv=None):
                            ("PATH B shell", "shell_ms"),
                            ("PATH B picks (the TOP_PICKS product)", "picks_ms")):
         want = "A" if row_label.startswith("PATH A") else "B"
-        good = [r for r in rows if r.get("path") == want
-                and not r.get("error") and r.get(key)]
+        # ⛔ A RUN THAT OVERLAPS ANY MASTER PUSH IS INCONCLUSIVE (hard rule,
+        # owner 2026-09-12). Discarded, never averaged - two pods are not one
+        # measurement, and the symptom looks like a product failure.
+        cand = [r for r in rows if r.get("path") == want and not r.get("error")]
+        discarded = [r for r in cand if r.get("deploy_swapped")]
+        good = [r for r in cand if not r.get("deploy_swapped") and r.get(key)]
         if good:
             v = sorted(r[key] for r in good)
             w = sorted(r["wire_bytes_flow"] for r in good)
@@ -441,7 +518,10 @@ def main(argv=None):
                   % (row_label, statistics.median(v), max(v), len(v),
                      statistics.median(w)))
         else:
-            print("%-38s no successful runs - NOTHING MEASURED" % row_label)
+            print("%-38s no usable runs - NOTHING MEASURED" % row_label)
+        if discarded:
+            print("%-38s %d run(s) DISCARDED: a deploy swap straddled them"
+                  % ("", len(discarded)))
 
     print("[!] %s" % label)
     if not a.certifying:

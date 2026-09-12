@@ -191,6 +191,46 @@ a ~12 s tick plus up to 2 s of poll — not 5.
 
 ---
 
+## Monday item 11 — three additions, OBSERVE ONLY (owner, 2026-09-12)
+
+⛔ **Observe and characterise. Do not fix any of these on Monday.**
+
+### 1. `.of-picks` / the TOP 10 table after in-app navigation
+
+Path B's dry run rendered it in 15.9 s on one run and **never** on the next, while
+`part=bootstrap` and `part=TOP_PICKS` were served on both. So the transport is fine and
+something downstream of it is not. Reproduce under a live tape and capture **which of
+three it is**:
+
+- a **render gate** — the table waits on a condition that a navigated-in page does not
+  satisfy (the shell mounted, so the gate is below it);
+- a **race with the version check** — `part=TOP_PICKS` lands against one version while
+  the page has moved to another, and the product is discarded as stale;
+- a **data-shape issue** — `TOP_PICKS` is a DERIVED product (`{generation, variants}`),
+  not a slice of `D`, and a consumer expecting an array would drop it silently.
+
+⭐ Capture the response AND the mount together: a request log alone cannot tell a
+discarded product from one that never arrived.
+
+### 2. The duplicate-request storm
+
+Path B run 2 issued `part=TOP_PICKS` ×3, `part=bootstrap` ×3 **and** a `data?days=1`
+in one navigation — 3.5 MB, against run 3's clean 7 requests. Decide which:
+
+- the **intro/escape trap** — an artifact of how the rig leaves the start route;
+- the **Suspense shell double-mounting** — the app-wide `<Suspense>` remounting the page
+  and re-firing its effects;
+- a **real client bug** that costs members 3.5 MB on some navigations.
+
+⚠️ The third is the one that matters, and it is indistinguishable from the first two
+from the request log alone — count MOUNTS, not requests.
+
+### 3. Real member sessions stay on parts under a live tape
+
+The 2026-09-12 verification was on a QUIET tape with the version frozen. Confirm
+`part=bootstrap` + `part=TOP_PICKS` still serve first paint when the version is ROLLING,
+and that a roll mid-navigation does not fall back to whole-D.
+
 # ✅ MERGED AND VERIFIED — 2026-09-12 (weekend window)
 
 Merged to master as **`a5173fe41`** (merge commit, no force). Deploy fan-out:

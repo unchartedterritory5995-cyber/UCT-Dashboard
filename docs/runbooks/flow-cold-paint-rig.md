@@ -182,3 +182,39 @@ through a deploy swap. `/api/health` was 502 in the same window and 200 with a 4
 uptime afterwards. **A rig run that overlaps someone else's deploy is INCONCLUSIVE,
 never a product failure** — check `railway deployment list --service web` before
 believing a transport error.
+
+---
+
+## ⛔⛔ HARD RULE — a run overlapping any master push is INCONCLUSIVE
+
+> **Every master push rebuilds web. A run that straddles the swap measured two
+> different pods, and it is DISCARDED, never averaged.**
+
+Owner ruling, 2026-09-12. Enforced in the rig, not left to the operator:
+
+- `_uptime()` reads `/api/health`'s `uptime_seconds` **before and after every run**,
+  on both paths.
+- `_swap_verdict(before, after, elapsed)` returns swapped when uptime went
+  **backward**, when the pod is **younger than the run** (uptime can still move
+  forward across a swap if the run is long enough — this is the subtle case), or when
+  the uptime was **unreadable at all**.
+- A swapped run prints `!! INCONCLUSIVE` and is filtered out of every median. The
+  summary **says how many were dropped** — a silent discard is as misleading as
+  averaging them in, because nobody can tell `n` fell.
+- ⛔ **An ERROR row carries the verdict too.** The error paths used to return before
+  the second uptime read, so `login http 502` — the exact symptom a swap produces —
+  came back with no verdict at all. That was the one case the rule exists for.
+
+⭐ **FAIL CLOSED on "could not tell".** During a swap `/api/health` itself 502s, so an
+unreadable uptime IS the swap case wearing a blank face. Treating `None` as fine is
+the shape `lesson_a_saturated_instrument_reports_zero` names.
+
+Rail: `tests/test_flow_rig_swap_guard.py` — five cases including a clean-run control,
+plus a source check that `main()` still filters and still counts the discards.
+Mutation-proved by inverting the backward-uptime comparison.
+
+⚰️ **Why it is a hard rule and not advice.** On 2026-09-12 the rig reported
+`login http 502` on three consecutive runs and it read exactly like a broken product.
+It was another workstream pushing five times in six minutes. Later the same afternoon
+it happened again on the rig's own verification run, and the deploy in flight was
+*this session's own commit*. Both times the honest answer was "nothing was measured".
