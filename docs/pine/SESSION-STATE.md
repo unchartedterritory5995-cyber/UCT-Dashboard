@@ -198,7 +198,7 @@ apart. Browser work stopped there rather than hammering it.
 
 **Outstanding, and none of it is lost work:**
 
-1. ⛔ **`r11-time-session.pine` IS UNREAD.** It is the last of item 7's three probes
+1. ✅ **`r11-time-session.pine` IS READ** — measured 2026-09-11: 400 bars, `_compiles: true`, verdict + discriminator recorded in `tests/fixtures/vendor/r11-time-session-spy-5m-2026-09-11.json`; item 7's row above owns the reading. ⚰ **THIS SAID "IS UNREAD" AND WAS STALE** — the outstanding list was written before the capture and never revisited, which is the defect class this repo keeps paying for. The superseded text: it is the last of item 7's three probes
    and the only one that needs an INTRADAY chart — `time(timeframe.period,
    "0930-1600")`, the form the corpus's **54 two-argument sites** ride on (re-measured
    2026-09-11 across 13 `corpus/committed` scripts; the **52** here had drifted by two
