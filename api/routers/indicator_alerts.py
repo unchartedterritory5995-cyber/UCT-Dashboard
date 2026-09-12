@@ -53,12 +53,17 @@ def _refusal_to_400(exc: alert_user_series.AdmissionRefused) -> HTTPException:
 
 
 class AlertCreate(BaseModel):
+    # ⚠️ `None` MEANS "THE CALLER DID NOT CHOOSE", and `create()` turns that into
+    # the explicit V1 default (`["in_app"]`) rather than into NULL. Every older
+    # client sends nothing and therefore gets in-app only — which is the right
+    # answer for a client that never offered the choice.
     sym: str
     indicator: str
     condition: str
     threshold: Optional[float] = None
     tf: str
     params: Optional[dict[str, Any]] = None
+    channels: Optional[list[str]] = None
     # ⭐ SPEC §8: WHICH INSTANCE. Optional, and an absent one is not an error —
     # a client that does not know its chart's instances (or an alert armed from
     # somewhere that has no chart at all) still gets an alert; what it does not
@@ -313,6 +318,11 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user),
             instance_id=body.instance_id,
             scope=body.scope,
             limits=limits,
+            # ⚠️ AN OMITTED `channels` IS NOT `None` TO THE SERVICE. `None` there
+            # means "store NULL, i.e. legacy"; omission means "use the V1
+            # default". Passing the field only when the client actually sent one
+            # is what keeps those two apart.
+            **({} if body.channels is None else {"channels": body.channels}),
         )
     except entitlements.AlertCountExceeded as exc:
         # ⛔ THE COUNT CAP IS THE MEMBER'S ANSWER, NOT A 500. It carries the
@@ -418,6 +428,31 @@ def toggle_alert(alert_id: int, user: dict = Depends(get_current_user)):
     new_state = not alert["active"]
     ias.set_active(alert_id, new_state)
     return {"active": new_state}
+
+
+class ChannelsBody(BaseModel):
+    channels: list[str]
+
+
+@router.post("/{alert_id}/channels")
+def set_alert_channels(alert_id: int, body: ChannelsBody,
+                       user: dict = Depends(get_current_user)):
+    """Where this alert is delivered. Ownership-checked like every route here.
+
+    ⭐ DELIVERY IS NOT TRUTH. `ias.set_channels` writes ONE column and moves no
+    part of the firing lifecycle — no re-arm, no baseline reset, no catch-up, no
+    revision. A member changing "also email me" is not editing their formula.
+
+    ⛔ AN UNKNOWN CHANNEL IS DROPPED, NOT 400'd, AND THE RESPONSE SAYS WHAT
+    LANDED. `discord` is the live case: a client that sends it is not
+    malformed — it is ahead of what V1 exposes — and the honest answer is to
+    store what can be honoured and report it back, so the UI re-renders from the
+    server's answer rather than from its own optimistic guess.
+    """
+    alert = ias.get(alert_id)
+    if not alert or alert["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return ias.set_channels(alert_id, body.channels)
 
 
 @router.post("/{alert_id}/snooze")

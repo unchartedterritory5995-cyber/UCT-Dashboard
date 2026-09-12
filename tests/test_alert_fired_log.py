@@ -819,3 +819,76 @@ def test_route_latency_states_the_worst_case_per_timeframe(client):
         assert set(wc.values()) == {60}
     else:
         assert wc["5"] == 60 + 300
+
+
+# ═══ C4 · CHANNELS NARROW DELIVERY, AND NEVER THE FIRE ══════════════════════
+
+def _deliver(monkeypatch, channels_wanted, *, email="a@b.c"):
+    """Run `deliver_alert_payload` with every real channel stubbed, and report
+    what each one was told to do."""
+    from api.services import watchlist_alert_service as wls
+    sent = {"in_app": 0, "email": 0}
+
+    def fake_add_alert(*a, **kw):
+        sent["in_app"] += 1
+        ch = kw.get("channels")
+        if ch is not None:
+            ch["in_app"] = "ok"
+            ch["discord"] = "skipped"
+        return {}
+
+    monkeypatch.setattr(wls, "add_alert", fake_add_alert)
+    monkeypatch.setattr(wls, "_get_user_email", lambda uid: email)
+    monkeypatch.setattr(wls, "send_email",
+                        lambda *a, **k: sent.__setitem__("email", sent["email"] + 1) or True)
+    # the fire-once lease is not what this case is about
+    from api.services import indicator_alert_service as ias
+    monkeypatch.setattr(ias, "claim_delivery", lambda *a, **k: True)
+
+    report = wls.deliver_alert_payload(
+        user_id="u1", sym="AAPL", title="t", message="m",
+        source="indicator_alert", extra_data={"alert_id": 1},
+        channels_wanted=channels_wanted)
+    return sent, report
+
+
+def test_None_means_TODAYS_behaviour_so_every_other_producer_is_untouched(monkeypatch):
+    """⛔ SIX OTHER PRODUCERS CALL THIS FUNCTION and none has a channel choice.
+    Passing nothing must be byte-identical to before the parameter existed."""
+    sent, report = _deliver(monkeypatch, None)
+    assert sent == {"in_app": 1, "email": 1}
+    assert report["channels"]["in_app"] == "ok"
+    assert report["channels"]["email"] == "ok"
+
+
+def test_in_app_only_does_not_send_email(monkeypatch):
+    sent, report = _deliver(monkeypatch, ["in_app"])
+    assert sent == {"in_app": 1, "email": 0}
+    # ⛔ SKIPPED, NOT FAILED. `failed` releases the delivery lease and the next
+    # cycle retries — a member who never wanted email would be retried forever.
+    assert report["channels"]["email"] == "skipped"
+    assert report["channels_failed"] == 0
+
+
+def test_email_only_does_not_write_the_in_app_feed(monkeypatch):
+    sent, report = _deliver(monkeypatch, ["email"])
+    assert sent == {"in_app": 0, "email": 1}
+    assert report["channels"]["in_app"] == "skipped"
+    assert report["channels"]["discord"] == "skipped"
+
+
+def test_an_empty_list_sends_nowhere_and_is_not_a_failure(monkeypatch):
+    """⭐ "record it, send it nowhere" is a thing a member may legitimately ask
+    for, and it must not read as an outage."""
+    sent, report = _deliver(monkeypatch, [])
+    assert sent == {"in_app": 0, "email": 0}
+    assert report["channels_failed"] == 0
+
+
+def test_channels_can_NARROW_but_never_WIDEN(monkeypatch):
+    """⛔ Asking for email when the account has no address is still `skipped` —
+    a choice cannot conjure a channel the account cannot serve."""
+    sent, report = _deliver(monkeypatch, ["in_app", "email"], email=None)
+    assert sent["email"] == 0
+    assert report["channels"]["email"] == "skipped"
+    assert report["channels_failed"] == 0

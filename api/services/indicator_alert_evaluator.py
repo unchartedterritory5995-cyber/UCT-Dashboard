@@ -2157,6 +2157,21 @@ def _fire_bar_time(bars: list[dict], index: int) -> Any:
     return t
 
 
+def _ias_channels(alert: Mapping[str, Any]) -> Optional[list]:
+    """The alert's effective delivery channels, from the service that owns them.
+
+    ⚠️ A ROW FETCHED BEFORE THE COLUMN EXISTED HAS NO KEY AT ALL, and that is not
+    the same as NULL. `list_active` selects `_COLS`, so every row the evaluator
+    sees carries the resolved list — but a hand-built dict in a test or a tool
+    may not, and `None` (no opinion) is the honest answer for one of those rather
+    than an invented default.
+    """
+    if "channels" not in alert:
+        return None
+    from api.services import indicator_alert_service as _ias
+    return _ias.effective_channels(alert)
+
+
 def _chart_url(sym: Any, tf: Any) -> Optional[str]:
     """`/charts?sym=…&tf=…` — the frontend's own deep-link shape.
 
@@ -2286,6 +2301,17 @@ def _dispatch_delivery(alert: dict, value: float, *,
                 # `test_the_chart_link_matches_the_frontends_own_reader`.
                 "chart_url": _chart_url(sym, alert.get("tf")),
             },
+            # ⭐⭐ WHERE THIS MEMBER ASKED TO BE TOLD. `effective_channels` is the
+            # ONE resolution of the row's `channels` column — NULL means LEGACY
+            # (in-app + email, what pre-C4 rows have always done) and an explicit
+            # list means the member chose. Re-deriving that here would be a second
+            # authority on a question the API also answers.
+            #
+            # ⛔ THE FIRE IS ALREADY RECORDED BY THE TIME THIS RUNS. Narrowing the
+            # channels changes who is TOLD, never whether it happened —
+            # `indicator_alert_fires` holds the row either way and the history,
+            # the fire-once key and the re-arm are all upstream of this call.
+            channels_wanted=_ias_channels(alert),
         )
         _record_delivery_channels(alert, fire_id, outcome)
         if _delivery_failed(outcome):

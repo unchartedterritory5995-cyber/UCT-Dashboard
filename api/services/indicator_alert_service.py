@@ -39,6 +39,11 @@ import time
 from typing import Any, Optional
 
 from api.services import alert_fired_log
+# ⭐ THE CHANNEL NAMES ARE THE FEED'S OWN. They are already written into
+# `indicator_alert_fires.delivery_channels` by `alerts.add_alert`; importing them
+# is what keeps a channel a member SELECTED and a channel the log REPORTS the
+# same string.
+from api.services.alerts import CHANNEL_IN_APP, CHANNEL_EMAIL
 
 _DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 
@@ -58,6 +63,10 @@ _DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 #                      the compute RAISED (or the address is unknown). The alert
 #                      is silent and the user could not otherwise tell.
 #   error            — an exception escaped the per-alert evaluation entirely.
+#: "the caller said nothing" — distinct from an explicit `None`, which MEANS
+#: legacy. A plain `None` default would make those two indistinguishable.
+_UNSET = object()
+
 ALERT_STATES: tuple[str, ...] = (
     "armed", "fired", "snoozed", "needs_attention", "error")
 
@@ -169,6 +178,25 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # cutover gate would then pass on an empty set: a gate that cannot fail. The
     # rail is `test_a_scoped_alert_is_still_visible_to_list_active`.
     ("scope", "ALTER TABLE indicator_alerts ADD COLUMN scope TEXT"),
+    # ⭐⭐ WHERE A FIRE IS SENT — AND `NULL` IS NOT "NO CHANNELS".
+    #
+    # Two populations meet in this column and they must not be collapsed:
+    #
+    #   PRE-C4 ROWS  carry NULL, because they were created when no member could
+    #                choose. NULL therefore means LEGACY: whatever this lane did
+    #                before the column existed — in-app, plus email if the account
+    #                has an address. Reinterpreting those NULLs as "email off"
+    #                would silently switch off delivery a member is receiving
+    #                today and never asked to stop.
+    #
+    #   POST-C4 ROWS carry an EXPLICIT list, always. `create()` writes the V1
+    #                default (`["in_app"]`) rather than leaving NULL, so a new
+    #                alert never inherits legacy email and "the member chose this"
+    #                is a fact in the row rather than an inference from its age.
+    #
+    # ⛔ SO THE MIGRATION BACKFILLS NOTHING. Adding the column changes no existing
+    # row's behaviour, which is the whole reason it is nullable.
+    ("channels", "ALTER TABLE indicator_alerts ADD COLUMN channels TEXT"),
     # ⭐ PHASE D TASK 12 (spec §12): WHO AUTHORED THE ARITHMETIC.
     #
     # NULL = BUILTIN, and that is the whole migration. Every row that exists —
@@ -265,6 +293,16 @@ def _row_to_dict(row: tuple) -> dict:
         # frontend's `alertSetFor` reads as "on every chart" for exactly the
         # reason the column is nullable.
         "scope": row[22],
+        # ⭐⭐ THE EFFECTIVE ANSWER, NOT THE RAW COLUMN. A surface asking "where
+        # does this go" must not have to know that NULL means legacy — that is
+        # exactly the inference this resolves once, here, at the one door every
+        # reader comes through.
+        "channels": effective_channels({"channels": row[24]}),
+        # ⚠️ AND THE RAW VALUE BESIDE IT, because an EDIT has to be able to tell
+        # "never chosen" from "chose in-app + email": they resolve identically and
+        # mean different things, and a UI that could not tell would silently
+        # convert a legacy row into an explicit one just by being opened.
+        "channels_explicit": parse_channels(row[24]) is not None,
         # ⭐ WHO AUTHORED THE ARITHMETIC. `None` in the column is BUILTIN —
         # resolved here so no surface, and no gate, has to know that absence
         # means "UCT wrote it". Every existing row (all 31 soak rows included) is
@@ -278,8 +316,88 @@ _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at, scope, def_source"
+    "instance_id, instance_missing_at, scope, def_source, channels"
 )
+
+
+# ─── WHERE A FIRE IS SENT ────────────────────────────────────────────────────
+#
+# ⭐⭐ THE NAMES ARE `api/services/alerts.py`'s, NOT NEW ONES. They are already
+# written into `indicator_alert_fires.delivery_channels` and read back by the
+# bell; a second vocabulary would mean a channel a member selected and a channel
+# the log reports could not be matched to each other.
+
+#: The channels a member may CHOOSE in V1. Discord is deliberately absent:
+#: `DISCORD_ALERT_WEBHOOK` is one global admin destination, so offering it would
+#: route a private alert into a shared channel.
+SELECTABLE_CHANNELS: tuple[str, ...] = (CHANNEL_IN_APP, CHANNEL_EMAIL)
+
+#: What a NEW member-created alert gets when the caller says nothing.
+#:
+#: ⛔ IN-APP ONLY. Creating an alert and subscribing to email are two different
+#: member decisions, and a one-click create must not quietly make the second one.
+DEFAULT_CHANNELS: tuple[str, ...] = (CHANNEL_IN_APP,)
+
+#: What a PRE-C4 row (`channels IS NULL`) means. This is the behaviour those rows
+#: have had since they were created and it is not this phase's to change.
+LEGACY_CHANNELS: tuple[str, ...] = (CHANNEL_IN_APP, CHANNEL_EMAIL)
+
+
+def parse_channels(raw: Any) -> Optional[list]:
+    """The stored column → a list, or `None` for LEGACY. Never raises.
+
+    ⚠️ `None` AND `[]` ARE DIFFERENT ANSWERS. `None` is "this row predates the
+    choice"; `[]` is "the member turned everything off", which is a thing they may
+    legitimately ask for and must not be rewritten into the legacy default.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, (list, tuple)):
+        names = list(raw)
+    else:
+        try:
+            names = json.loads(raw)
+        except Exception:
+            # ⛔ UNREADABLE IS LEGACY, NOT EMPTY. A corrupt value must not silence
+            # an alert a member is relying on.
+            return None
+        if not isinstance(names, list):
+            return None
+    out = []
+    for n in names:
+        n = str(n).strip().lower()
+        if n in SELECTABLE_CHANNELS and n not in out:
+            out.append(n)
+    return out
+
+
+def effective_channels(alert: Any) -> list:
+    """The channels a fire on this alert should actually reach.
+
+    ⭐⭐ ONE RESOLUTION, READ BY EVERY SURFACE. The API serialises it, the
+    evaluator delivers on it and the UI renders it — so "what will this alert
+    do" cannot be answered three ways. A caller that re-derived it from
+    `alert["channels"]` plus a guess about the row's age is the drift this
+    function exists to prevent.
+    """
+    raw = alert.get("channels") if isinstance(alert, dict) else alert
+    parsed = parse_channels(raw)
+    return list(LEGACY_CHANNELS) if parsed is None else parsed
+
+
+def encode_channels(names: Any) -> Optional[str]:
+    """A list → the stored TEXT, or `None` to mean LEGACY.
+
+    ⛔ AN EXPLICIT EMPTY LIST STORES `"[]"`, NOT NULL. Collapsing it to NULL
+    would turn "notify me nowhere" into "notify me everywhere I used to" — the
+    exact inversion of what the member asked for.
+    """
+    if names is None:
+        return None
+    parsed = parse_channels(names)
+    if parsed is None:
+        return None
+    return json.dumps(parsed, separators=(",", ":"))
 
 
 def _clean_scope(scope: Optional[Any]) -> Optional[str]:
@@ -318,8 +436,19 @@ def create(
     instance_id: Optional[str] = None,
     scope: Optional[str] = None,
     limits: Any = None,
+    channels: Any = _UNSET,
 ) -> int:
     """Create a new indicator alert. Returns the new alert ID.
+
+    ⛔⛔ `channels` DEFAULTS TO AN EXPLICIT `["in_app"]`, NEVER TO NULL. NULL in
+    that column means LEGACY — "created before a member could choose", which
+    resolves to in-app AND email. A new alert left NULL would therefore start
+    emailing somebody who only clicked a bell once, and creating an alert is not
+    the same decision as subscribing to email.
+
+    ⚠️ `_UNSET` RATHER THAN `None` AS THE SENTINEL, because `None` is a MEANING
+    here: a caller may deliberately ask for legacy semantics (the rev-migration
+    notice re-arming an old row), and it must be able to say so.
 
     ⭐ `limits` IS THE CALLER'S TOOLKIT (`entitlements.Limits`), AND IT DECIDES THE
     COUNT CAP — verbatim the shape `user_definitions.save` already takes, for the
@@ -393,8 +522,8 @@ def create(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id, scope, def_source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?)",
+            "instance_id, scope, def_source, channels) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -414,6 +543,11 @@ def create(
                 # NULL for a builtin — the same "absence means what it always
                 # meant" rule the `scope` column above is built on.
                 source,
+                # ⛔ EXPLICIT BY DEFAULT — see the docstring. `_UNSET` (nobody
+                # said) becomes the V1 default; an explicit `None` stays NULL for
+                # the one caller that genuinely wants legacy semantics.
+                encode_channels(DEFAULT_CHANNELS) if channels is _UNSET
+                else encode_channels(channels),
             ),
         )
         return int(cur.lastrowid)
@@ -757,6 +891,25 @@ def record_trigger(alert_id: int, last_value: float, *,
             (STATE_FIRED, now_i, now_i, key, int(alert_id)),
         )
     return True
+
+
+def set_channels(alert_id: int, names: Any) -> dict:
+    """Change where this alert is delivered. Returns the effective channels.
+
+    ⭐⭐ IT WRITES **ONE COLUMN** AND THAT IS THE WHOLE SAFETY PROPERTY.
+    Delivery is not truth: changing where a fire is sent must not touch what the
+    alert watches or when it next speaks. Specifically it does NOT move
+    `arm_epoch`, `state`, `snooze_until`, `last_fire_key`, `last_value`,
+    `triggered_at` or `params_json` — so it cannot re-arm the alert, cannot
+    manufacture a catch-up fire against a baseline that did not move, and cannot
+    change the definition or its revision.
+    """
+    with _conn() as db:
+        db.execute("UPDATE indicator_alerts SET channels=? WHERE id=?",
+                   (encode_channels(names), int(alert_id)))
+    row = get(alert_id)
+    return {"channels": (row or {}).get("channels", list(DEFAULT_CHANNELS)),
+            "channels_explicit": bool((row or {}).get("channels_explicit"))}
 
 
 def snooze(alert_id: int, minutes: int, *, now: Optional[float] = None) -> dict:

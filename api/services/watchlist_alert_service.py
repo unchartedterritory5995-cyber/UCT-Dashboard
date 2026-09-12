@@ -384,6 +384,7 @@ def deliver_alert_payload(
     source: str = "indicator_alert",
     extra_data: dict | None = None,
     severity: str = "warning",
+    channels_wanted: list | None = None,
 ) -> dict:
     """Public delivery hook reusable by other alert systems (e.g. indicator alerts).
 
@@ -417,9 +418,31 @@ def deliver_alert_payload(
     failure, because nothing was owed. `_delivery_failed` reads that flag first
     for precisely that reason.
 
+    ⭐⭐ `channels_wanted` IS OPT-IN, AND `None` IS TODAY'S BEHAVIOUR. Six other
+    producers call this function — the awareness engine, calendar alerts, catalyst
+    alerts and must-know, the catalyst digest, the AI briefings and the
+    rev-migration notice — and none of them has a per-alert channel choice.
+    Passing nothing leaves every one of them byte-identical. Only the indicator
+    evaluator supplies a list, and only because an alert row can now carry one.
+
+    ⛔ IT CAN ONLY NARROW, NEVER WIDEN. A channel absent from the list is
+    SKIPPED — not attempted, not failed — which is the word this function already
+    uses for "nothing was owed here". It cannot switch a channel ON that the
+    account cannot serve: a member with no address still reports `skipped` for
+    email whether or not they asked for it.
+
     :returns: ``{"claimed", "channels", "channels_ok", "channels_failed",
         "errors"}`` — see `_delivery_report`.
     """
+    # ⚠️ `None` IS "NO OPINION" AND AN EMPTY LIST IS AN OPINION. Every existing
+    # caller means the first by saying nothing; a member who turned every channel
+    # off means the second, and "record the fire, send it nowhere" is a thing they
+    # may legitimately ask for.
+    _wanted = None if channels_wanted is None else {
+        str(c).strip().lower() for c in channels_wanted}
+
+    def _wants(name: str) -> bool:
+        return _wanted is None or name in _wanted
     # ⭐ FIRE-ONCE FOR THE CHART INDICATOR LANE (Phase C Task 11) — the ONE gate
     # every channel below is downstream of.
     #
@@ -470,20 +493,30 @@ def deliver_alert_payload(
     # calendar alerts and the awareness engine all pass one. Passing it through
     # is what makes this alert the member's instead of the whole membership's.
     in_app_raised = False
+    # ⛔⛔ THE IN-APP WRITE IS THE ONE THAT MAKES THE FIRE VISIBLE IN UCT, and it
+    # is what `alert_durability` mirrors into `user_alerts`. Switching it off is
+    # the member's to choose — but it is the only channel whose absence removes a
+    # RECORD rather than a notification, so it is named here rather than left to
+    # the loop below. The FIRE itself is already in `indicator_alert_fires`
+    # regardless: history is not a delivery channel.
     try:
-        add_alert(
-            source,
-            title,
-            message,
-            # severity is the Discord gate (add_alert fires the global admin
-            # webhook on warning/critical only) — bulk member content like the
-            # AI briefings passes "info" so 200 personalized briefs never flood
-            # the admin channel (2026-08-28 review).
-            severity=severity,
-            data=data,
-            user_id=user_id,
-            channels=channels,
-        )
+        if _wants(CHANNEL_IN_APP):
+            add_alert(
+                source,
+                title,
+                message,
+                # severity is the Discord gate (add_alert fires the global admin
+                # webhook on warning/critical only) — bulk member content like the
+                # AI briefings passes "info" so 200 personalized briefs never flood
+                # the admin channel (2026-08-28 review).
+                severity=severity,
+                data=data,
+                user_id=user_id,
+                channels=channels,
+            )
+        else:
+            channels[CHANNEL_IN_APP] = CHANNEL_SKIPPED
+            channels[CHANNEL_DISCORD] = CHANNEL_SKIPPED
     except Exception as e:
         in_app_raised = True
         _logger.warning("AlertBell delivery failed: %s", e)
@@ -508,7 +541,12 @@ def deliver_alert_payload(
     # 2. Email
     try:
         email = _get_user_email(user_id)
-        if not email:
+        # ⛔ A CHANNEL THE MEMBER DID NOT ASK FOR IS `skipped`, NOT `failed`.
+        # `failed` releases the delivery lease and makes the next cycle retry; a
+        # member who never wanted email would be retried forever.
+        if not _wants(CHANNEL_EMAIL):
+            channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
+        elif not email:
             # No address on file. Nothing was attempted and nothing failed.
             channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
         else:

@@ -1455,3 +1455,132 @@ def test_the_chart_link_matches_the_frontends_own_reader():
     assert url.startswith(f"{path}?"), (url, path)
     for key in params.values():
         assert f"{key}=" in url, (key, url)
+
+
+# ═══ C4 · DELIVERY CHANNELS ═════════════════════════════════════════════════
+#
+# ⭐⭐ TWO POPULATIONS MEET IN ONE NULLABLE COLUMN AND MUST NOT BE COLLAPSED.
+# A pre-C4 row carries NULL and has always been delivered in-app AND by email;
+# reading those NULLs as "email off" would silently stop mail a member is
+# receiving today and never asked to stop. A post-C4 row carries an EXPLICIT
+# list, because creating an alert and subscribing to email are different
+# decisions and one click must not make the second one.
+
+def test_NULL_means_LEGACY_not_no_channels(tmp_db):
+    assert ias.effective_channels({"channels": None}) == list(ias.LEGACY_CHANNELS)
+    assert "email" in ias.effective_channels({"channels": None}), (
+        "a pre-C4 alert must keep emailing — it has since it was created")
+
+
+def test_an_EXPLICIT_empty_list_is_not_legacy(tmp_db):
+    """⛔ `[]` IS A CHOICE. Collapsing it to NULL would turn "notify me nowhere"
+    into "notify me everywhere I used to" — the exact inversion of the ask."""
+    assert ias.effective_channels({"channels": "[]"}) == []
+    assert ias.encode_channels([]) == "[]"
+    assert ias.encode_channels(None) is None
+
+
+def test_an_unreadable_value_falls_back_to_LEGACY_not_to_silence(tmp_db):
+    """A corrupt column must not mute an alert somebody is relying on."""
+    assert ias.effective_channels({"channels": "not json"}) == list(ias.LEGACY_CHANNELS)
+    assert ias.effective_channels({"channels": '{"a":1}'}) == list(ias.LEGACY_CHANNELS)
+
+
+def test_unknown_channels_are_dropped_and_duplicates_collapse(tmp_db):
+    # `discord` is the live case: not selectable in V1 because the webhook is one
+    # global admin destination.
+    assert ias.parse_channels('["discord"]') == []
+    assert ias.parse_channels('["in_app","IN_APP"," email "]') == ["in_app", "email"]
+    assert "discord" not in ias.SELECTABLE_CHANNELS
+
+
+def test_a_NEW_alert_is_created_with_an_EXPLICIT_default_never_NULL(tmp_db):
+    """⛔⛔ THE HEART OF C4. A one-click create must not begin emailing."""
+    aid = ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+                     threshold=70, tf="D")
+    row = ias.get(aid)
+    assert row["channels"] == ["in_app"]
+    assert row["channels_explicit"] is True, "a new alert must not be left NULL"
+    # …and the raw column really is a list, not NULL
+    with ias._conn() as db:
+        raw = db.execute("SELECT channels FROM indicator_alerts WHERE id=?", (aid,)).fetchone()[0]
+    assert raw == '["in_app"]'
+
+
+def test_a_caller_can_still_ask_for_LEGACY_explicitly(tmp_db):
+    """⚠️ `_UNSET` vs `None`. Omission means "the V1 default"; an explicit None
+    means "store NULL", which one internal caller may legitimately want."""
+    aid = ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+                     threshold=70, tf="D", channels=None)
+    row = ias.get(aid)
+    assert row["channels_explicit"] is False
+    assert row["channels"] == list(ias.LEGACY_CHANNELS)
+
+
+def test_a_caller_may_opt_into_email_at_create(tmp_db):
+    aid = ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+                     threshold=70, tf="D", channels=["in_app", "email"])
+    assert ias.get(aid)["channels"] == ["in_app", "email"]
+
+
+def test_changing_delivery_moves_NO_PART_of_the_firing_lifecycle(tmp_db):
+    """⛔⛔ DELIVERY IS NOT TRUTH.
+
+    Changing where a fire is sent must not re-arm the alert, reset its baseline,
+    manufacture a catch-up, duplicate it or touch what it watches. Every one of
+    those is a column, so this asserts the columns rather than the intention.
+    """
+    aid = ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+                     threshold=70, tf="D")
+    ias.record_trigger(aid, 71.0)
+    ias.snooze(aid, 30)
+    before = ias.get(aid)
+    n_before = len(ias.list_for_user("u1"))
+
+    out = ias.set_channels(aid, ["in_app", "email"])
+    after = ias.get(aid)
+
+    assert out["channels"] == ["in_app", "email"]
+    for col in ("arm_epoch", "state", "snooze_until", "last_fire_key", "last_value",
+                "triggered_at", "trigger_count", "params_json", "indicator",
+                "condition", "threshold", "tf", "active", "created_at"):
+        assert after[col] == before[col], f"set_channels moved {col!r}"
+    assert len(ias.list_for_user("u1")) == n_before, "set_channels duplicated the alert"
+
+
+def test_the_channels_route_is_ownership_checked_and_reports_what_LANDED(client):
+    r = client.post("/api/indicator-alerts", json={
+        "sym": "aapl", "indicator": "rsi", "condition": "above",
+        "threshold": 70, "tf": "D"})
+    aid = r.json()["id"]
+    assert client.get("/api/indicator-alerts").json()["alerts"][0]["channels"] == ["in_app"]
+
+    on = client.post(f"/api/indicator-alerts/{aid}/channels",
+                     json={"channels": ["in_app", "email"]})
+    assert on.status_code == 200, on.text
+    assert on.json()["channels"] == ["in_app", "email"]
+
+    # ⛔ an unknown channel is DROPPED and the response says so, rather than 400 —
+    # a client sending `discord` is ahead of V1, not malformed.
+    drop = client.post(f"/api/indicator-alerts/{aid}/channels",
+                       json={"channels": ["in_app", "discord"]})
+    assert drop.json()["channels"] == ["in_app"]
+
+    # a foreign row is 404, never 403 — the same rule every route here follows
+    assert client.post("/api/indicator-alerts/999999/channels",
+                       json={"channels": ["in_app"]}).status_code == 404
+
+
+def test_the_create_route_accepts_a_channel_choice_and_omission_means_the_default(client):
+    a = client.post("/api/indicator-alerts", json={
+        "sym": "aapl", "indicator": "rsi", "condition": "above", "threshold": 70,
+        "tf": "D", "channels": ["in_app", "email"]}).json()["id"]
+    b = client.post("/api/indicator-alerts", json={
+        "sym": "msft", "indicator": "rsi", "condition": "above", "threshold": 70,
+        "tf": "D"}).json()["id"]
+    rows = {r["id"]: r for r in client.get("/api/indicator-alerts").json()["alerts"]}
+    assert rows[a]["channels"] == ["in_app", "email"]
+    # ⚠️ an OLDER client sends no field at all and gets in-app only, which is the
+    # right answer for a client that never offered the choice
+    assert rows[b]["channels"] == ["in_app"]
+    assert rows[b]["channels_explicit"] is True
