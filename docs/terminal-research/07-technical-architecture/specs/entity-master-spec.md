@@ -49,7 +49,7 @@ sources: PRD-S3-ENTITY-MASTER (`prds/entity-master-prd.md`, all 18 sections) ·
   `api/services/voice_tool_impls.py` (partial — the `get_ticker_details` tool registration), and a
   `Grep` census of `to_polygon_symbol` call sites and `composite_figi`/`share_class_figi` reads
   across `api/`.
-status: IMPLEMENTATION RECORD — S3 SHIPPED to origin/master 2026-09-02 (Checkpoints 1–8, merge ed6b1f041). Every module this spec names exists; `api/routers/entity_master_admin.py` does not. Retroactive record 2026-09-11: PRD-S3 §0b.
+status: IMPLEMENTATION RECORD — S3 SHIPPED to origin/master 2026-09-02 (Checkpoints 1–8, merge ed6b1f041). Every module this spec names now exists, including `api/routers/entity_master_admin.py`, built 2026-09-11 on branch feat/s3-admin-routes (7f483014b) and awaiting merge. Retroactive record: PRD-S3 §0b. Amendments: see the change log at the foot of this document.
 date: 2026-09-02
 provisional_markers: OI-05 (asset-class scope — this spec's schema is type-tagged so widening is a
   data change, not a migration); OI-03(a)/(b) (bears on nothing in S3's own output per PRD §11 —
@@ -492,10 +492,33 @@ Row shape gains `entity_id: string | null`. No new endpoint; no version bump; no
   "last_reconcile_at": <iso ts | null>
 }
 ```
-No-auth read (mirrors `GET /api/admin/bars-stream-status`'s and `GET /api/admin/reconciliation-
-status`'s existing no-auth-diagnostic convention in this codebase — a deliberate choice those two
-routes already make, reused here rather than inventing a third auth posture for the same kind of
-endpoint).
+⛔ **AMENDED 2026-09-11 (owner ruling): this route is `require_admin`-GATED, not a no-auth read.**
+
+**Reason: R-17.** This program's own Day-1 research confirmed three real-time endpoints
+(`/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`) are **unauthenticated in production** and
+recorded it as a live risk. `GET /api/admin/entity-master/status` exposes counts over the security
+universe — entity totals, alias totals, delisted totals, FIGI coverage, ambiguous-resolution counts.
+**Extending the no-auth-diagnostic convention would have widened exactly the exposure R-17 flagged**,
+so the convention loses to the finding.
+
+⚠️ **The original text is preserved below, because the reasoning it gives is sound and the amendment
+overrides it on a different axis** — it argued from *consistency* (don't invent a third auth posture
+for the same kind of endpoint) and the amendment argues from *exposure*. A future reader should see
+both, not just the winner:
+
+> ~~No-auth read (mirrors `GET /api/admin/bars-stream-status`'s and `GET /api/admin/reconciliation-
+> status`'s existing no-auth-diagnostic convention in this codebase — a deliberate choice those two
+> routes already make, reused here rather than inventing a third auth posture for the same kind of
+> endpoint).~~
+
+**As shipped** (`feat/s3-admin-routes`, `7f483014b`): `require_admin` from
+`api.middleware.auth_middleware` — **401 anonymous / 403 member**. The prefix was deliberately NOT
+added to `AdminGuardMiddleware.GUARDED_PREFIXES`, which would have collapsed the anonymous 401 into
+a 403.
+
+⭐ **This makes `bars-stream-status` and `reconciliation-status` the outliers, not this route.**
+Whether those two should also be gated is a separate question for a normal operations session — it
+is not in S3's scope and is recorded here rather than acted on.
 
 ### 7.4 `POST /api/admin/entity-master/reconcile` and `POST /api/admin/entity-master/event` (new)
 
@@ -503,6 +526,20 @@ endpoint).
 The `event` route is the manual override lever — the same shape as `delisted_registry.add_entry()`
 — for an admin to submit one identity-change event by hand before D5 exists to submit it
 automatically.
+
+✅ **CONFIRMED CORRECT 2026-09-11 — `/reconcile` is the write lever; S3 has no `/reseed`.** Every
+`reseed` in this document (here, §2's component table, §16) cites **`cot.py`'s** route as an *auth*
+precedent and never proposes one for S3. That reading held up under implementation, for a reason the
+spec did not state and should: **the seed lives in `scripts/`, and `reconciliation.py`'s own header
+forbids the job depending on `scripts/` at runtime**, so a `/reseed` route would have broken that
+boundary. `run_reconciliation` is the in-package equivalent.
+
+⚠️ **But `cot.py`'s `POST /reseed` is the right precedent for AUTH and the WRONG one for THREADING.**
+It uses `BackgroundTasks`, which borrows the shared 64-slot anyio pool — the 2026-07-01 524-outage
+mechanism — and S3's reconcile is a 60-page Massive walk. **As shipped, `/reconcile` runs on a
+dedicated daemon thread**, following `cot.py`'s *other* precedent, `POST /narratives/prewarm`, with
+single-flight (409), `dry_run` defaulting **true**, no client-supplied `db_path`, and nothing
+scheduled.
 
 ---
 
@@ -836,3 +873,14 @@ file named in §2's inventory and the `sources` frontmatter field was read-only 
 No git command was run. No secret value appears anywhere in this document; environment-variable
 NAMES referenced (`DATA_DIR`, `MASSIVE_API_KEY`) are existing names cited from the files that
 already declare them, never values.
+
+---
+
+## Change log
+
+| date | change | why |
+|---|---|---|
+| 2026-09-11 | **§7.3 `GET /api/admin/entity-master/status` amended from a no-auth read to `require_admin`-gated.** Original text preserved struck-through in place. | Owner ruling. **R-17**: this program confirmed three production endpoints are unauthenticated and recorded it as a live risk; `/status` exposes counts over the security universe, so extending the no-auth-diagnostic convention would have widened exactly that exposure. The original argued from consistency, the amendment from exposure — both are on the page. |
+| 2026-09-11 | **§7.4 annotated**: `/reconcile` confirmed as the write lever and the absence of a `/reseed` route explained. | Implementation surfaced a reason the spec had not stated: the seed lives in `scripts/` and `reconciliation.py`'s header forbids a runtime dependency on `scripts/`. |
+| 2026-09-11 | **§7.4 threading note added**: `cot.py`'s `/reseed` is the right precedent for auth and the wrong one for threading (it uses `BackgroundTasks`). | The shared 64-slot anyio pool is the 2026-07-01 524-outage mechanism; a 60-page Massive walk belongs on a daemon thread. |
+| 2026-09-11 | **Frontmatter corrected**: it asserted `api/routers/entity_master_admin.py` "does not [exist]". | It exists as of `7f483014b`. The claim was true when written on 2026-09-11 and false hours later — the same same-day staleness this program has now recorded several times. |
