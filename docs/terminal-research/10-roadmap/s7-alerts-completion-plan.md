@@ -1,7 +1,7 @@
 ---
 id: PLAN-S7-COMPLETION
 title: S7 Alerts — completion plan (Wave 2, PLAN ONLY)
-role: plan for finishing S7 Alerts against SPEC-S7. Written 2026-09-11 under owner ruling 2. NOT authorized to build — the owner authorizes trigger types individually from this plan.
+role: plan for finishing S7 Alerts against SPEC-S7. Written 2026-09-11 under owner ruling 2; §2a added 2026-09-12 from what price-level CP1–CP3 taught. NOT authorized to build — the owner authorizes trigger types individually from this plan.
 status: PLAN ONLY — no S7 code authorized
 date: 2026-09-11
 ---
@@ -54,7 +54,7 @@ five-plus independently-built alert paths.
 
 | order | trigger type | why here | size |
 |---|---|---|---|
-| **1** | **`price-level`** | The highest-volume existing alert path (`watchlist_alerts`, the AlertBell, email + Discord delivery). It is the type that proves the taxonomy can *absorb* a shipped subsystem rather than sit beside it — and until one absorption is proven, S7 is a sixth alert system, which is the exact defect it exists to remove. Member value and consolidation value coincide. | **M** |
+| **1 ✅** | **`price-level`** — CP1–CP3 MERGED, dark, armed 2026-09-12; verdict gate five sessions | The highest-volume existing alert path (`watchlist_alerts`, the AlertBell, email + Discord delivery). It is the type that proves the taxonomy can *absorb* a shipped subsystem rather than sit beside it — and until one absorption is proven, S7 is a sixth alert system, which is the exact defect it exists to remove. Member value and consolidation value coincide. | **M** |
 | **2** | **`event-proximity`** | `calendar_alerts.py` already ships pre-report alerts on a scheduler with its own dedup table. Second absorption, and it shares the earnings/economic evidence the A5 work just modernized onto D1/S8. | **M** |
 | **3** | **`indicator-condition`** | Absorbs `indicator_alert_service` / `indicator_alert_fires`. Higher evaluation cost (a computed value per cycle) and it wants D2's metric address book to be done properly — see §4. | **L** |
 | **4** | **`catalyst-match`** | `catalyst_alerts_fired` exists with a three-column dedup PK. Mostly a re-homing; its scoring stays in the catalyst engine. | **S–M** |
@@ -93,6 +93,72 @@ seen to fail on regression.**
 
 ⛔ Per ruling 2b: **any change that alters what a member sees from filing watch is a separate PR,
 flagged to the owner by name, never bundled with S7 work.**
+
+## 2a. ⛔⛔ MANDATORY CHECKLIST — every trigger type, no exceptions
+
+**Added 2026-09-12 from what `price-level` CP1–CP3 actually taught.** These are not
+recommendations. Each one is here because its absence produced a real defect in the first
+absorption, and each is cheap to satisfy and expensive to retrofit.
+
+### 1. PIN EVERY SHAPE IN THE SCHEMA AT REGISTRATION — including the ones nothing populates yet
+
+`price-level` pinned **both** `price` and `trendline` at CP1, before any evaluator existed
+(F-S7-2). That looked like over-engineering and was not: a trendline has **no past** — its level is
+a function of `now` — so a schema that admitted only fixed levels would have taught the next
+engineer that a stale-level cleanup was safe, and it would have killed every bound line.
+
+⚠️ **And read the LEGACY DATA, not just the legacy code.** Production carries a third
+`alert_type` value, `line`, that neither F-S7-2 nor the schema anticipated — bound to a drawing,
+carrying **no anchors**, evaluated by both sides as a fixed level. It happens to be harmless
+because both level functions fall through identically. **That was luck, not design.**
+
+### 2. THE COMPARISON IS FORWARD-ONLY, AND SHIPS WITH THE REPORT THAT READS IT
+
+Both rules evaluated live on the same tick from the moment the dark predicate arms. **No replay,
+ever** (F-S7-3). An anchor/parameter rewrite **resets the clock** and the pre-move span is
+discarded into `not_comparable` — never counted as agreement.
+
+⛔ **Four outcomes, never a pass rate.** `legacy_only` is an alert somebody LOSES at the flip;
+`new_only` is one they start getting TWICE. Different defects, different members. Collapsing them
+into a percentage answers a question nobody asked.
+
+⛔ **The report ships WITH the type, carrying a NON-VACUITY CONTROL.** An empty comparison store
+prints four zeroes per predicate and reads exactly like perfect agreement. The report must lead
+with what it observed and say `NO DATA` rather than summarise nothing. *A dark run that never ran
+and a dark run that found no disagreement are different facts.*
+
+⛔ **And it must state what it CANNOT see.** The price-level projection is structurally blind to
+the one-shot/persistent divergence, because the legacy row leaves the projection the moment it
+fires. A `new_only` of zero there is not evidence — it is a blind spot, and the report prints that
+sentence every time so nobody sizes the next checkpoint against it.
+
+### 3. ⛔⛔ NAME THE THING THAT CALLS THE EVALUATOR, AND THE RAIL THAT ASSERTS THE CALL SITE EXISTS
+
+**This is the item that would have caught the only real defect in CP3.** `price-level` merged with
+the type registered, the projection built, the harness built and **eighteen tests green — and
+nothing calling the evaluator.** Monday's dark run would have collected zero rows, and a week later
+an empty store reads exactly like five sessions of agreement.
+
+Every trigger type's checklist carries this line, answered in writing before merge:
+
+> *What calls this evaluator, on what trigger, and which test fails if that wire is cut?*
+
+⭐ **The rail must assert the WIRE, not the parts.** A suite whose every test invokes the evaluator
+directly is **structurally blind** to this — that is precisely why eighteen green tests said
+nothing. Assert the scheduler entry, the flag that gates it, and the job body calling the sweep.
+
+⚠️ **Registration is not activation — and putting a DARK evaluator on a tick is not the FLIP.**
+Conflating those two is what produced the defect: CP1/CP2's correct *"registration only, no
+scheduler entry"* was carried into CP3 by habit and then **enforced by a test**, while CP3's own
+approval said the harness *runs*. The flip is **delivery plus the legacy switch-off**, and nothing
+else.
+
+### 4. A LIVENESS STAMP, NOT JUST A RESULT STORE
+
+The comparison spans carry no per-tick timestamp, so a sweep that died on its first morning is
+**indistinguishable** at the end of the week from one that ran every minute. Every dark run needs a
+heartbeat — a monotonic tick count and a wall-clock stamp, written on **every** tick including the
+ones that found nothing. *A heartbeat that only beats on success is a success detector.*
 
 ## 3. What each trigger type needs from the substrate
 
