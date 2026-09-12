@@ -50,7 +50,7 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
-  SERIES_LOOKBACK,
+  SERIES_LOOKBACK, usableWindowBound,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -2296,6 +2296,35 @@ function windowLiteral(node, index) {
   return arg.value
 }
 
+/** ⭐⭐ R-G — THE WINDOW A REGISTRATION-TIME READER MAY ACCEPT (owner ruling,
+ *  2026-09-12), which is WIDER than the evaluator's.
+ *
+ *  `windowLiteral` requires a literal `num` node and stays that way for the
+ *  EVALUATOR: by the time a tree is computed the bind stage has folded every
+ *  bind-time length, so a non-literal there is a real defect. A LOOKBACK and an
+ *  argument-domain check are asked at REGISTRATION, where no binding exists —
+ *  and refusing there made `timeframe.isweekly ? lenWeekly : lenDaily`
+ *  uninstallable, which is the exact pattern `_bind_time_constants` exists for.
+ *
+ *  ⛔ IT OVER-CLAIMS, WHICH IS THE ONLY SAFE DIRECTION. `usableWindowBound`
+ *  returns the MAXIMUM over the arms. An over-stated lookback costs warm-up bars
+ *  at the left edge; an UNDER-stated one hands back numbers computed from bars
+ *  that were never fetched — the one direction `maxLookback`'s own docstring
+ *  says a budget must never fail in.
+ *
+ *  ⛔ AND IT IS THE SAME CONTRACT `lint.js` AND `ast_table.py` READ.
+ *  `parse.js::bindFoldableWindow` is the single walk; `lint.js` has used it since
+ *  it was written, and before this ruling THIS file did not — which is how a
+ *  member script could be bounded by the linter and refused by the door.
+ *  A foldable length whose bound is not a usable window falls through to
+ *  `windowLiteral` so the member still gets the named refusal.
+ */
+function bindableWindow(node, index) {
+  const bound = usableWindowBound((node.args || [])[index])
+  if (bound !== null) return bound
+  return windowLiteral(node, index)
+}
+
 /** ⭐⭐ THE ARGUMENT DOMAIN THE MANIFEST DECLARES, ENFORCED AT THE RESOLVE PASS —
  *  because `int` can say "a whole number" and cannot say "no larger than that
  *  one".
@@ -2346,7 +2375,9 @@ function assertArgDomain(node, spec) {
   if (spec.args[ceiling] !== 'int') return
   const values = []
   for (let i = 0; i < spec.args.length; i++) {
-    values[i] = spec.args[i] === 'int' ? windowLiteral(node, i) : null
+    // ⛔ R-G: the SAME registration-time reader, so a bind-foldable length is
+    // compared on its MAX rather than refused before the comparison happens.
+    values[i] = spec.args[i] === 'int' ? bindableWindow(node, i) : null
   }
   const roleOf = (i) => (Array.isArray(spec.argRoles) && typeof spec.argRoles[i] === 'string'
     ? spec.argRoles[i] : 'period')
@@ -2445,7 +2476,7 @@ export function ownLookback(node, spec) {
       `${JSON.stringify(node.name)} declares lookback ${JSON.stringify(lb)}, which is neither a constant nor an argument`)
   }
   const times = m[1] === undefined ? 1 : Number(m[1])
-  return times * windowLiteral(node, Number(m[2]))
+  return times * bindableWindow(node, Number(m[2]))
 }
 
 /** How many bars of history the tree needs. A TREE SUM, never a dataflow pass.
@@ -2529,7 +2560,11 @@ export function maxLookback(ast) {
     assertArity(node, spec)
     let best = 0
     for (let i = 0; i < node.args.length; i++) {
-      if (spec.args[i] === 'int') { windowLiteral(node, i); continue }
+      // ⛔ R-G: a VALIDATION of the slot, not a measurement — and it must admit
+      // exactly what `ownLookback` admits, or a length measured happily one
+      // function up is refused here. The value is discarded; the refusal is why
+      // the call is made at all.
+      if (spec.args[i] === 'int') { bindableWindow(node, i); continue }
       best = Math.max(best, seen.get(node.args[i]))
     }
     // ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED, and

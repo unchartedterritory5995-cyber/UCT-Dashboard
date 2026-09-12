@@ -53,6 +53,7 @@ from api.services.nyse_calendar import (
     NYSE_HOLIDAYS_YYYYMMDD,
 )
 from api.services.ast_table import (
+    usable_window_bound,
     TABLE, CLOCK_SECTION, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION,
     SERIES_SECTION, ARG_DOMAIN, arg_domains, bar_readers, recurrences,
     recurrence_bindings, is_pointwise,
@@ -2588,7 +2589,36 @@ def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
                 f"{node.get('name')!r} declares lookback {lb!r}, which is neither a "
                 "constant nor an argument")
     times = int(m.group(1)) if m.group(1) else 1
-    return times * _window_literal(node, int(m.group(2)))
+    return times * _bindable_window(node, int(m.group(2)))
+
+
+def _bindable_window(node: dict, index: int) -> int:
+    """The window a REGISTRATION-TIME reader may accept — wider than the evaluator's.
+
+    ⭐⭐ R-G (owner ruling, 2026-09-12). ``_window_literal`` requires a literal
+    ``num`` node, and it stays that way for the EVALUATOR: by the time a tree is
+    computed the bind stage has folded every bind-time length, so a non-literal
+    there is a real defect. A LOOKBACK is asked at REGISTRATION, where no binding
+    exists — and refusing there made ``timeframe.isweekly ? lenWeekly : lenDaily``
+    uninstallable, which is the exact pattern ``_bind_time_constants`` exists for.
+
+    ⛔ IT OVER-CLAIMS, WHICH IS THE ONLY SAFE DIRECTION.
+    ``usable_window_bound`` returns the MAXIMUM over the arms. An over-stated
+    lookback costs warm-up bars at the left edge; an UNDER-stated one hands back
+    numbers computed from bars that were never fetched, which this function's own
+    caller calls the one direction a budget must never fail in.
+
+    ⛔ AND IT IS THE SAME CONTRACT ``ast_lint`` AND ``parse.js`` READ.
+    ``ast_table.bind_foldable_window`` is the single walk; three readers, one
+    grammar, and ``tests/test_ast_lookback_parity.py`` holds them to one answer.
+    A foldable length whose bound is not a usable window (``0.5``, ``-3``) falls
+    through to ``_window_literal`` so the member still gets the named refusal.
+    """
+    bound = usable_window_bound((node.get("args") or [None] * (index + 1))[index]
+                                if index < len(node.get("args") or []) else None)
+    if bound is not None:
+        return bound
+    return _window_literal(node, index)
 
 
 def max_lookback(ast: Any) -> int:
@@ -2681,7 +2711,13 @@ def max_lookback(ast: Any) -> int:
         best = 0
         for i in range(len(node["args"])):
             if spec["args"][i] == "int":
-                _window_literal(node, i)
+                # ⛔ THE SAME REGISTRATION-TIME READER AS THE LOOKBACK ABOVE (R-G).
+                # This is a VALIDATION of the slot, not a measurement, and it must
+                # admit exactly what `_own_lookback` admits — otherwise a
+                # bind-foldable length would be measured happily one line up and
+                # refused here, which is the same two-readers defect one function
+                # further in. The value is discarded; the refusal is the point.
+                _bindable_window(node, i)
                 continue
             best = max(best, seen[id(node["args"][i])])
         # ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED,

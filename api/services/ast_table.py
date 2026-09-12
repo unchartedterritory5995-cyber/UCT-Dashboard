@@ -527,6 +527,127 @@ def alert_note_for(title: Optional[str],
     return notes[MEMBER_NOTE].replace(notes[NAME_PLACEHOLDER], name)
 
 
+# --------------------------------------------------------------------------- #
+# ⭐⭐ R-G — THE BIND-FOLDABLE WINDOW, AS ONE CONTRACT FOR EVERY READER
+# --------------------------------------------------------------------------- #
+
+#: The clock names that are constant for a binding, READ OFF THE MANIFEST.
+#:
+#: ⛔ NEVER A LIST TYPED HERE. ``dayofweek`` and ``isdaily`` sit in the same
+#: manifest section and are opposite kinds; only the sentence each entry carries
+#: says so. ``ast_bind.BIND_TIME_CLOCK`` re-exports this rather than re-reading
+#: the manifest, so the roster has one home.
+BIND_TIME_CLOCK = frozenset(
+    (TABLE.get("_bind_time_constants") or {}).get("clock") or ())
+
+
+def bind_foldable_window(node: Any, allow_input_default: bool = False) -> tuple:
+    """Does this length settle to a number for ANY binding, and what bounds it?
+
+    Returns ``(foldable, max)`` — ``(False, None)`` when it does not.
+
+    ⛔⛔ THE MIRROR OF ``parse.js::bindFoldableWindow``, NODE KIND FOR NODE KIND.
+    ``tests/test_ast_lookback_parity.py`` walks both lanes over the same trees and
+    compares the numbers; a shape admitted on one side and not the other is a
+    script that installs on the pane and refuses in the sweep.
+
+        num                a literal
+        series (clock)     ``isweekly`` etc. — 0 or 1, so its max is 1
+        series (input)     an ``input.*`` default, fixed per DEFINITION
+        op '?:'            max over the two ARMS
+
+    Everything else answers ``(False, None)``. ⛔ NO MONOTONICITY ARGUMENT IS MADE
+    ANYWHERE HERE: admitting ``a + b`` would need "both arms non-negative" to
+    bound it, and a bound resting on an unstated premise is how an UNDER-stated
+    window gets shipped.
+
+    ⛔⛔ THE BOUND IS THE MAXIMUM, never the first arm and never the one matching
+    today's chart. An over-stated lookback costs warm-up bars; an UNDER-stated one
+    lets a formula read a bar the budget never paid for, which is the one
+    direction a budget cannot absorb.
+    """
+    if not isinstance(node, Mapping):
+        return (False, None)
+
+    kind = node.get("type")
+
+    if kind == "num":
+        v = node.get("value")
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return (False, None)
+        return (True, v) if v == v and v not in (float("inf"), float("-inf")) else (False, None)
+
+    if kind == "series":
+        name = node.get("name")
+        # ⭐ A CLOCK NAME IS A PREDICATE: 0 or 1, so 1 bounds it for every binding.
+        if name in BIND_TIME_CLOCK:
+            return (True, 1)
+        # ⛔⛔ AN INPUT DEFAULT IS **OFF** BY DEFAULT, AND THE RULING IS NOT ON FILE.
+        # `parse.js::bindFoldableWindow` bounds a knob-defaulted window by its
+        # DEFAULT; `ast_lint`'s own docstring says the opposite in writing — "a
+        # window that changed with a knob is a window the badge cannot promise
+        # anything about" — and it is right: bounding by the default promises
+        # something the member breaks the moment they raise the knob. The two lanes
+        # have disagreed about this since before R-G and no corpus tree exhibits it,
+        # which is why the agreement rail is silent on it. R-G did not rule it, so
+        # the window readers pass `allow_input_default=False` and nothing widens.
+        if allow_input_default:
+            d = node.get("inputDefault")
+            if not isinstance(d, bool) and isinstance(d, (int, float)) and d == d:
+                return (True, d)
+        return (False, None)
+
+    if kind == "op" and node.get("name") == "?:":
+        args = node.get("args") or []
+        if len(args) != 3:
+            return (False, None)
+        # ⛔ THE SELECTOR MUST FOLD TOO, even though it contributes no VALUE. The
+        # bind stage settles the whole node, so a selector it cannot fold makes
+        # the whole length unfoldable — and no reader may defer what the stage
+        # will then refuse.
+        sel_ok, _ = bind_foldable_window(args[0], allow_input_default)
+        a_ok, a_max = bind_foldable_window(args[1], allow_input_default)
+        b_ok, b_max = bind_foldable_window(args[2], allow_input_default)
+        if not (sel_ok and a_ok and b_ok):
+            return (False, None)
+        return (True, max(a_max, b_max))
+
+    # ``offset`` (x[1]), ``tf``, ``sym``, ``call``, ``textop``, ``str``,
+    # ``symtext`` and every arithmetic ``op`` — each reads a bar, another
+    # request, a symbol, or needs a premise this function will not make.
+    return (False, None)
+
+
+def bind_foldable_window_max(node: Any, allow_input_default: bool = False):
+    """The largest value this length can take over every binding, or ``None``."""
+    ok, m = bind_foldable_window(node, allow_input_default)
+    return m if ok else None
+
+
+def usable_window_bound(node: Any):
+    """``bind_foldable_window_max`` narrowed to what a WINDOW may actually be.
+
+    ⭐ A window is a whole number of at least 1. A foldable length whose bound is
+    ``0.5`` or ``-3`` is not a usable window, and this returns ``None`` for it so
+    the caller falls through to its own refusal — which names the function, the
+    argument and the value, and is the sentence a member reads.
+
+    ⛔ ONE NARROWING, SHARED. Written here rather than at each of the three call
+    sites, because three copies of "integer and at least one" is exactly the
+    shape that drifts.
+    """
+    m = bind_foldable_window_max(node)
+    if m is None or isinstance(m, bool):
+        return None
+    if isinstance(m, float):
+        if not m.is_integer():
+            return None
+        m = int(m)
+    if not isinstance(m, int) or m < 1:
+        return None
+    return m
+
+
 #: The declaration that says an entry's OTHER ``int`` arguments must fit inside
 #: the one its ``lookback`` names. ``closedTable.json::_functions_domain`` argues
 #: it; this is the key both lanes match on, and its VALUE names which of the

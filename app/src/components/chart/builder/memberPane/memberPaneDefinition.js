@@ -100,6 +100,19 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     .slice(0, CARRY_MAX)
   if (!drawable.length) return no('this script declares nothing a chart can draw', null, t)
 
+  // ⛔⛔ THE LINT SCOPE MUST BE THE SCOPE THE DOOR WILL USE.
+  // `evaluateFormula` decides the repaint mode, and it needs the DEFINITION's
+  // declared inputs — chrome plus the member's own knobs — or a formula naming
+  // `basisInput` reads as an unknown series and comes back `repaints`. The
+  // install door lints against the finished document's inputs and measures
+  // `non-repainting`, then refuses the disagreement. Measured on the corpus:
+  // 15 scripts refused with `declared "repaints" but the linter MEASURES
+  // "non-repainting"` — two authorities over one badge, four lines apart.
+  const memberSpecs = memberInputSpecs(drawable)
+  const lintScope = {
+    ...BUILDER_INPUT_SCOPE,
+    ...Object.fromEntries((memberSpecs || []).map((spec) => [spec.key, true])),
+  }
   const rows = drawable.map((o, i) => {
     const p = o.presentation || {}
     // ⛔⛔ THE MODE COMES FROM THE LINTER, NEVER FROM A DEFAULT WRITTEN HERE.
@@ -110,7 +123,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // `sma(close, 20)` and the door refused it with
     // `declared "repaints" but the linter MEASURES "non-repainting"`. Asking the
     // same function the door asks is the only way the two can agree.
-    const ev = evaluateFormula(o.formula, BUILDER_INPUT_SCOPE)
+    const ev = evaluateFormula(o.formula, lintScope)
     return {
       key: keyAt(i),
       label: o.title || '',
@@ -144,7 +157,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       ast: rows[0].ast,
       mode: rows[0].mode,
       readback: rows[0].readback,
-      inputs: memberInputSpecs(t),
+      inputs: memberSpecs,
       plots: rows,
       // ⭐ THE AUTHOR'S OWN PANE INTENT. `overlay = true` means the price pane;
       // anything else gets its own sub-pane at a quarter of the chart.
@@ -173,15 +186,39 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
 
 /** The member's OWN declared inputs, as `buildDefinition` wants them.
  *
- *  ⚠️ `buildDefinition` prepends the chrome inputs (colour, width, …) itself and
- *  filters them back out of this half, so handing it the member's list alone is
- *  correct — handing it `[...BUILDER_INPUTS, ...member]` also works and is what
- *  the sheet does. Passing an EMPTY list would silently fall back to
- *  `BUILDER_INPUTS`, which is why an empty declaration returns `undefined` and
- *  lets the default happen on purpose rather than by accident. */
-function memberInputSpecs(t) {
-  const declared = Array.isArray(t.declared) ? t.declared : []
-  return declared.length ? declared : undefined
+ *  ⚰️ THIS READ `translation.declared` AND THAT IS AN ARRAY OF **NAMES**, not of
+ *  input specs. `buildDefinition` passes them straight into the document, so the
+ *  install door answered `inputs[14].key: required non-empty string, got
+ *  undefined` — on 16 corpus scripts, every one with the same sentence. Measured
+ *  while re-running the install census for R-G; it had been invisible because
+ *  `uncharted-volume-v2.pine` declares NO surviving member input, so the one
+ *  script this module was built against took the `undefined` branch and the
+ *  default.
+ *
+ *  ⭐ THE SPECS COME OFF THE ROWS. `memberInputTranslation` annotates each output
+ *  with `memberInputs` — `{key, type, label, default}`, the shape `defSchema`
+ *  validates — and a multi-plot document needs the UNION across the rows it
+ *  keeps, deduped by key, because one knob can feed several plots.
+ *
+ *  ⛔ ONLY THE ROWS THE PANE KEEPS. An input referenced solely by an output the
+ *  pane declined (a hidden helper, an `alertcondition`) is not a knob this
+ *  document has anything to do with, and declaring it would put a control on a
+ *  member's pane that moves nothing.
+ *
+ *  ⚠️ AN EMPTY LIST RETURNS `undefined` ON PURPOSE: `buildDefinition` falls back
+ *  to `BUILDER_INPUTS` for a falsy list, so passing `[]` and passing nothing are
+ *  the same thing — said out loud here so the next reader does not "fix" it.
+ */
+function memberInputSpecs(rows) {
+  const byKey = new Map()
+  for (const o of rows) {
+    for (const spec of (o.memberInputs || [])) {
+      if (spec && typeof spec.key === 'string' && spec.key && !byKey.has(spec.key)) {
+        byKey.set(spec.key, spec)
+      }
+    }
+  }
+  return byKey.size ? [...byKey.values()] : undefined
 }
 
 /** ⭐⭐ N DEFINITIONS THAT DIFFER ON ONE PARAMETER — the honest shape of

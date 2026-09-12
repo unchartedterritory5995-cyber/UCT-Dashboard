@@ -57,6 +57,7 @@ import re
 # already in the list and already exports what this needs.
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
+
 # --------------------------------------------------------------------------- #
 # the vocabulary
 # --------------------------------------------------------------------------- #
@@ -128,6 +129,96 @@ def load_table(path: Optional[pathlib.Path] = None) -> Dict[str, Any]:
 
 
 TABLE: Dict[str, Any] = load_table()
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ R-G — THE BIND-FOLDABLE WINDOW, DERIVED FROM THIS LANE'S OWN MANIFEST
+# --------------------------------------------------------------------------- #
+#
+# ⛔⛔ IT IS RE-DERIVED HERE RATHER THAN IMPORTED, AND THAT IS NOT AN OVERSIGHT.
+# `test_ast_lint.py::test_no_evaluator_is_reachable_from_the_linter` asserts this
+# module imports NOTHING outside the standard library — *"if that module can
+# compute an indicator, the verdict could be reached by RUNNING the formula
+# instead of by reading the tree, and a claim measured on one bar window is not
+# the universal claim the badge makes."* That rail fired the moment R-G's first
+# cut imported `ast_table`, and the rail is right.
+#
+# ⭐ SO THE ONE AUTHORITY IS THE MANIFEST, NOT A PYTHON MODULE. `_bind_time_constants`
+# declares the clock roster and both lanes read the SAME `closedTable.json`; the
+# walk over it is small, and `tests/test_ast_lookback_agreement.py` binds every
+# reader to one answer over real trees. That is the arrangement this file already
+# uses for `SESSION_LOOKBACK` and `SERIES_LOOKBACK` and says so in `_resolve_declaration`:
+# *"it does not share code with the other two by design ... a parity test is what
+# holds all three to one answer."*
+#
+# ⛔ NO INPUT-DEFAULT ARM. `parse.js` bounds a knob-defaulted window by its
+# default; this lane's own docstring refuses to, and it is right — bounding by the
+# default promises something the member breaks by raising the knob. R-G did not
+# rule that difference, so nothing here adopts it.
+
+#: The clock names constant for a binding, READ OFF THE MANIFEST.
+_BIND_TIME_CLOCK = frozenset(
+    (TABLE.get("_bind_time_constants") or {}).get("clock") or ())
+
+#: Every entry declaring a ``recurrence``, and the reserved names their bodies
+#: bind -- both derived, never listed.
+_RECURRENCES = {
+    name: spec["recurrence"]
+    for name, spec in (TABLE.get("functions") or {}).items()
+    if isinstance(spec, dict) and isinstance(spec.get("recurrence"), dict)
+}
+_RECURRENCE_BINDINGS = frozenset(
+    r["binds"] for r in _RECURRENCES.values() if isinstance(r.get("binds"), str))
+
+
+def _bind_foldable_window(node: Any) -> Tuple[bool, Any]:
+    """``(foldable, max)`` -- the mirror of ``ast_table.bind_foldable_window``
+    and of ``parse.js::bindFoldableWindow``, minus the input-default arm.
+
+        num                a literal
+        series (clock)     ``isweekly`` etc. -- 0 or 1, so its max is 1
+        op '?:'            max over the two ARMS
+
+    ⛔⛔ THE BOUND IS THE MAXIMUM, never the first arm and never the one matching
+    today's chart. Over-stating a window costs warm-up bars; UNDER-stating it lets
+    a formula read a bar the budget never paid for.
+    """
+    if not isinstance(node, dict):
+        return (False, None)
+    kind = node.get("type")
+    if kind == "num":
+        v = node.get("value")
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v:
+            return (False, None)
+        return (True, v)
+    if kind == "series":
+        return (True, 1) if node.get("name") in _BIND_TIME_CLOCK else (False, None)
+    if kind == "op" and node.get("name") == "?:":
+        args = node.get("args") or []
+        if len(args) != 3:
+            return (False, None)
+        # ⛔ THE SELECTOR MUST FOLD TOO: the bind stage settles the whole node, so
+        # a selector it cannot fold makes the whole length unfoldable.
+        sel_ok, _ = _bind_foldable_window(args[0])
+        a_ok, a_max = _bind_foldable_window(args[1])
+        b_ok, b_max = _bind_foldable_window(args[2])
+        if not (sel_ok and a_ok and b_ok):
+            return (False, None)
+        return (True, max(a_max, b_max))
+    return (False, None)
+
+
+def _usable_window_bound(node: Any):
+    """That bound, narrowed to what a WINDOW may be: a whole number >= 1."""
+    ok, m = _bind_foldable_window(node)
+    if not ok or isinstance(m, bool):
+        return None
+    if isinstance(m, float):
+        if not m.is_integer():
+            return None
+        m = int(m)
+    return m if isinstance(m, int) and m >= 1 else None
+
 
 #: The one ``lookback`` that names a window instead of measuring one -- the bars
 #: back to the first bar of this bar's own New York calendar day.
@@ -282,13 +373,32 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         if idx >= len(arg_nodes):
             return UNKNOWN
         node = arg_nodes[idx]
-        if not isinstance(node, dict) or node.get("type") != "num":
-            return UNKNOWN
-        value = node.get("value")
-        if isinstance(value, bool) or not isinstance(value, int):
-            return UNKNOWN
         times = int(m.group(1)) if m.group(1) else 1
-        return times * value
+        # ⛔⛔ THE LITERAL PATH FIRST, AND UNCHANGED, BECAUSE THIS FUNCTION SERVES
+        # **BOTH** SLOTS. `forward` declarations are NEGATIVE — `at(close, -1)`
+        # reads one bar ahead — and a first cut of R-G narrowed this to "a whole
+        # number >= 1" for every caller. `future_index` then came back
+        # `non-repainting`: the fixture whose whole job is to be the minimum
+        # forward-reference shape, branded clean, with three mutation controls
+        # going green beside it. A window rule applied to a forward reach is not
+        # the same rule.
+        if isinstance(node, dict) and node.get("type") == "num":
+            value = node.get("value")
+            if isinstance(value, bool) or not isinstance(value, int):
+                return UNKNOWN
+            return times * value
+        # ⭐⭐ R-G — AND ONLY THEN THE BIND-FOLDABLE FALLBACK, FOR A LENGTH THAT IS
+        # NOT A LITERAL. A clock predicate, or a `?:` over literals and clock
+        # predicates, is bounded by the MAXIMUM over its arms: over-stating a
+        # window costs warm-up bars, UNDER-stating it lets a formula read a bar the
+        # budget never paid for. Everything else still answers UNKNOWN and fails
+        # closed — `sma(close, period)` stays unanalysable, because a window that
+        # moves with a knob is a window the badge cannot promise anything about.
+        # ⛔ Mirrors `lint.js::resolveDeclaration`, literal-first, in that order.
+        bound = _usable_window_bound(node)
+        if bound is None:
+            return UNKNOWN
+        return times * bound
     return UNKNOWN
 
 
@@ -475,6 +585,44 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
         reasons.append("unanalysable: %s" % why)
         return UNKNOWN, UNKNOWN
 
+    # ⭐⭐ EVERY NODE INSIDE SOME RECURRENCE'S **BODY** ARGUMENT (R-G, 2026-09-12).
+    #
+    # ⚰️⚰️ THIS PASS WAS MISSING ON THIS SIDE ONLY, and the R-G agreement rail
+    # found it — the fourth instance of one defect class, this time with
+    # `lint.js` correct and this lane behind. `self` is the running value's OWN
+    # previous bar, so it reaches back nothing of its own: the `warmup` the
+    # `accum` call declares IS the whole window, and adding a bar here would
+    # double-count it. Without the pass, `self` fell through to "not a series
+    # this table declares" and UNKNOWN outranks everything in `_max_reach`, so
+    # every accumulator on the platform read `repaints` in this lane while the
+    # browser read it correctly. Measured on `uncharted-volume-v2.pine`'s HVE
+    # Trigger: js 2751, python UNANALYSABLE.
+    #
+    # ⛔ SCOPED, NOT BY NAME. A walk that judged `self` by name alone would call
+    # every stray one legal; outside a body the name resolves to nothing and the
+    # refusal below is the honest answer, which is what `ast_interpret` says too.
+    # ⛔ AND THE BODY INDEX COMES OFF THE MANIFEST, never position 1.
+    _recs = _RECURRENCES
+    _bindings = _RECURRENCE_BINDINGS
+    in_recurrence_body: set = set()
+    for node in order:
+        if not isinstance(node, dict) or node.get("type") != "call":
+            continue
+        rec = _recs.get(node.get("name"))
+        if not isinstance(rec, Mapping):
+            continue
+        node_args = node.get("args") if isinstance(node.get("args"), list) else []
+        idx = rec.get("body")
+        body = node_args[idx] if isinstance(idx, int) and 0 <= idx < len(node_args) else None
+        descend = [body]
+        while descend:
+            x = descend.pop()
+            if not isinstance(x, dict) or id(x) in in_recurrence_body:
+                continue
+            in_recurrence_body.add(id(x))
+            for child in (x.get("args") if isinstance(x.get("args"), list) else []):
+                descend.append(child)
+
     for node in reversed(order):
         if not isinstance(node, dict):
             reach_of[id(node)] = unknown("a node that is not an object")
@@ -497,6 +645,11 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             reach_of[id(node)] = (0, 0)
         elif kind == "series":
             name = node.get("name")
+            # ⭐ A RECURRENCE BINDING FIRST, AND ONLY WHERE IT IS BOUND.
+            # Mirrors `lint.js`'s `series` arm exactly; see the pre-pass above.
+            if name in _bindings and id(node) in in_recurrence_body:
+                reach_of[id(node)] = (0, 0)
+                continue
             # ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING --
             # verbatim ``sentence.js::renderName``'s reasoning, for the same
             # reason. A definition whose input shadows ``close`` is a wiring

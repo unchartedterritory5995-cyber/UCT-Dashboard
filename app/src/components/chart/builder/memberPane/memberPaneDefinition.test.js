@@ -44,9 +44,9 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     expect(validateDefinition(r.definition).ok).toBe(true)
   })
 
-  it('⛔⛔ …and the SHIPPED INSTALL DOOR still refuses it — `resolve:window`', () => {
-    // ⚰️⚰️ THE BLOCKER T3 FOUND, MEASURED RATHER THAN ASSUMED AWAY. The document
-    // validates and cannot be installed:
+  it('⭐⭐ …and the SHIPPED INSTALL DOOR ADMITS IT — R-G, the fold is taught', () => {
+    // ⚰️ WHAT THIS CASE USED TO PIN. The document validated and could not be
+    // installed:
     //
     //   compute.trees.out2: refused at registration by "resolve:window" —
     //   sma argument 1 must be a whole number of at least 1, got
@@ -55,27 +55,21 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // That ternary is `timeframe.isweekly ? lenWeekly : lenDaily` — the EXACT
     // pattern `closedTable.json::_bind_time_constants` exists for. It folds at
     // BIND time, when a timeframe is known; registration has no binding, so
-    // `interpret.js::maxLookback` → `ownLookback` → `windowLiteral` refuses.
+    // `interpret.js::ownLookback` → `windowLiteral` refused, while
+    // `lint.js::maxLookback` bounded it happily.
     //
-    // ⛔ AND THE TWO AUTHORITIES OVER "HOW FAR BACK DOES THIS TREE REACH"
-    // DISAGREE. `lint.js::maxLookback` HAS the bind-foldable branch
-    // (`bindFoldableWindowMax`, taking the MAX of the arms — over-claiming, the
-    // safe direction) and its own comment warns about exactly this split:
-    // "the door would defer, the linter would bound, and the member would get a
-    // number nothing produced". `interpret.js::maxLookback` and the Python
-    // mirror `ast_interpret._own_lookback` do not have it.
-    //
-    // ⚠️ THIS TEST PINS THE DEFECT, NOT THE DESIRED END STATE. Teaching
-    // `ownLookback` the same fold WIDENS what a member may install, which is a
-    // product decision and is not on file. When it is ruled, this case is the
-    // one that goes red and names itself.
+    // ⭐⭐ OWNER RULING R-G (2026-09-12) — TEACH THE FOLD. All four readers now
+    // take the bound from ONE walk (`parse.js::bindFoldableWindow` /
+    // `ast_table.bind_foldable_window`), as the MAXIMUM over the arms:
+    // over-claiming costs warm-up bars, under-claiming hands back numbers
+    // computed from bars nobody fetched. `lookbackAgreement.test.js` and
+    // `tests/test_ast_lookback_agreement.py` hold all four to one answer.
     const r = memberPaneDefinition({ source: V2, id: `${MEMBER_PANE_DEF_PREFIX}-i` })
     expect(r.ok).toBe(true)
     const { installed: got, errors } = registry.installUserDefinitions([r.definition])
-    expect(got).toHaveLength(0)
-    expect(errors).toHaveLength(1)
-    expect(errors[0]).toContain('resolve:window')
-    expect(errors[0]).toContain('isweekly')
+    expect(errors).toEqual([])
+    expect(got).toHaveLength(1)
+    installed.push(r.definition.id)
   })
 
   it('⭐ a script the door DOES admit reaches `indicatorInstances`', () => {
@@ -183,11 +177,10 @@ describe('⭐⭐ two panes of one script that differ by a parameter', () => {
     // The trees really differ — the whole point.
     expect(JSON.stringify(a.definition.compute.trees))
       .not.toBe(JSON.stringify(b.definition.compute.trees))
-    // …and both are still valid documents. ⚠️ NOT `install`ed here: v2 is held
-    // out of the registry by the `resolve:window` blocker above, which is a
-    // property of the SCRIPT and not of the variant mechanism.
+    // …and both are valid documents the install door now admits (R-G).
     for (const x of v.variants) {
       expect(validateDefinition(x.definition).ok).toBe(true)
+      expect(install(x.definition)).toHaveLength(1)
     }
   })
 

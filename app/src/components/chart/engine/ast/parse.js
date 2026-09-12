@@ -325,6 +325,35 @@ export function bindFoldableWindowMax(node) {
   return r.foldable ? r.max : null
 }
 
+/** ⭐⭐ R-G — `bindFoldableWindowMax` NARROWED TO WHAT A WINDOW MAY ACTUALLY BE.
+ *
+ *  A window is a whole number of at least 1. A foldable length whose bound is
+ *  `0.5` or `-3` is not a usable window, and this answers `null` for it so the
+ *  caller falls through to its own refusal — which names the function, the
+ *  argument and the value, and is the sentence a member reads.
+ *
+ *  ⛔ ONE NARROWING, SHARED BY EVERY REGISTRATION-TIME READER, and mirrored by
+ *  `ast_table.usable_window_bound`. Written once because three copies of
+ *  "integer and at least one" is exactly the shape that drifts — and this whole
+ *  ruling exists because two readers of one window had already drifted.
+ */
+export function usableWindowBound(node) {
+  // ⛔⛔ AN INPUT DEFAULT IS EXCLUDED HERE, AND THE RULING IS NOT ON FILE.
+  // `bindFoldableWindow` bounds a knob-defaulted window by its DEFAULT, and
+  // `lint.js` has consumed that since it was written. `ast_lint.py` says the
+  // opposite IN WRITING — "a window that changed with a knob is a window the
+  // badge cannot promise anything about" — and it is right: bounding by the
+  // default promises something the member breaks the moment they raise the knob.
+  // The two lanes have disagreed since before R-G, no corpus tree exhibits the
+  // shape, and R-G did not rule it. So the readers R-G adds decline it and
+  // nothing widens; `lint.js`'s existing behaviour is untouched.
+  if (node && node.type === 'series' && typeof node.inputDefault === 'number') return null
+  const m = bindFoldableWindowMax(node)
+  if (m === null || typeof m !== 'number' || !Number.isFinite(m)) return null
+  if (!Number.isInteger(m) || m < 1) return null
+  return m
+}
+
 export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live',
   // ⭐⭐ THE BIND-TIME TEXT TRIO. `textop` yields a NUMBER and sits wherever a
   // number sits; `str` and `symtext` are its operands and may appear NOWHERE
