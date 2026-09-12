@@ -2,7 +2,7 @@
 id: GATE-D2-CANONICAL-DATA-MODEL
 title: D2 — Canonical Data Model & Metric Address Book — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ✅ CP1 APPROVED 2026-09-12 and BUILT (`b9783d509`). CP2+ need new lines.
+status: ✅ CP1 APPROVED 2026-09-12 and BUILT (`b9783d509`). ✅ CP2 APPROVED 2026-09-12 (NARROWED — see line 2). CP3+ need new lines.
 date: 2026-09-12
 measured_against: origin/master @ ee9c96fa1
 pairs_with: PRD-D2-CANONICAL-DATA-MODEL · SPEC-D2-CANONICAL-DATA-MODEL
@@ -32,6 +32,161 @@ flow-worker's 154-file import closure, confirmed with `reachable_paths()`. No ma
 ⚠️ **THE SCOPE LINE NAMES A CHECKPOINT, NOT "D2", AND THAT WAS THE POINT.** The PRD's §8 argues
 that *"D2 ships"* is not a checkable condition; an approval reading "build D2" would have
 reproduced that defect inside the approval itself.
+
+---
+
+## ⛔ APPROVAL — LINE 2 (CP2). **NARROWED.** The CP1 block above stands as granted.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  eee16c59e   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP2 - extend the canonical book to the first non-screener
+                  store. State which (bars_sqlite or fundamentals - pick by
+                  which has the most divergent naming in the D2 inventory) and
+                  why. Migrate exactly ONE reader to resolve through the book,
+                  DARK: it computes both the legacy path and the book path, a
+                  rail asserts equality on every call in test and on a sampled
+                  fraction in production (log-only, never raise), and it serves
+                  the legacy value. Derivation rail extended to the new store.
+                  No schema change on any live store.
+
+                  NARROWED, and the narrowing is the selection RULE, not the
+                  deliverable: the stated criterion ("most divergent naming")
+                  measures to FUNDAMENTALS, and fundamentals cannot be addressed
+                  without typing every name - which is the one thing the book
+                  may never do. CP2 therefore lands on `bars_sqlite`. CP2.1
+                  carries the measurement, the disagreement, and F-D2-1.
+
+                  CP3 NEEDS A NEW LINE.
+```
+
+### CP2.1 ⛔ THE STATED CRITERION PICKED THE STORE THAT CANNOT BE ADDRESSED
+
+**Measured, not asserted.** Every module of each candidate store parsed, docstrings and comments
+blanked (`ast` → blank the string `Expr` nodes → `ast.unparse`), then each address axis counted.
+Control: 19/19 and 14/14 modules still contained a `def ` after stripping, so the stripper was
+still looking at real code.
+
+| axis | `bars_sqlite` (19 modules) | `fundamentals` (14 modules) |
+|---|---|---|
+| **metric** | **5** spellings — `open` 27, `close` 15, `low` 5, `high` 1, `volume` 1 | **10** spellings — `eps_actual` 32, `eps` 20, `eps_est` 8, `sales` 7, `sales_est` 7, `surprise` 6, `epsActual` 5, `rev_actual` 4, `revenue` 3, `reported_eps` 1 |
+| **as-of** | **2** — `ts` 126, `time` 90 | **7** — `fiscal_year` 31, `period_end` 24, `quarter` 21, `report_date` 21, `captured_at` 5, `updated_at` 4, `day_key` 3 |
+| **entity** | 3, with a clear winner — `ticker` 323 vs `sym` 110 vs `symbol` 4 | 3, with **no winner** — `sym` 217 vs `ticker` 202 vs `symbol` 23 |
+| **timeframe** | 3 — `tf` 513, `interval` 21, `period` 8 | 2 — `period` 35, `interval` 3 |
+
+⭐ **On the stated criterion, fundamentals wins and it is not close** — twice the metric spellings,
+three and a half times the as-of spellings, and the only axis in either store where the majority
+spelling does not exist (`sym` 217 against `ticker` 202 is a coin flip, not a convention).
+
+⛔⛔ **AND THAT IS EXACTLY WHY IT CANNOT BE THE FIRST STORE. The two facts are one fact.**
+
+> **Fundamentals has ten names for its metrics because it has no declaration.** `fund_snapshots`
+> is `(kind TEXT, ticker TEXT, payload TEXT, ttl REAL, updated_at REAL)` — a JSON blob with **zero
+> per-metric columns**. `estimate_snapshots` declares `eps_est` / `sales_est` and nothing else.
+> Every other name — `eps_actual`, `rev_actual`, `eps_surprise_pct`, `label`, `period_end` —
+> exists only as a string literal inside a dict display in `api/services/earnings_table.py`.
+
+CP1's load-bearing property, in its own words, is *"NOT ONE VALUE IS TYPED HERE. If a number or a
+name appears in the output, it was read from one of those four."* Extending the book to
+fundamentals means **typing ten metric names and seven as-of names into the builder**, which turns
+the address book from a ratification of the codebase's existing form into a second authority over
+it. That is the defect D2 exists to remove, committed inside D2.
+
+⭐ **`bars_sqlite` can be addressed without typing anything, because it declares itself:**
+
+```
+CREATE TABLE IF NOT EXISTS ohlcv (
+    ticker TEXT NOT NULL,
+    tf     TEXT NOT NULL,
+    ts     INTEGER NOT NULL,
+    o REAL, h REAL, l REAL, c REAL, v INTEGER,
+    PRIMARY KEY (ticker, tf, ts)
+)
+```
+
+Table name, column names, SQL types and the key tuple all come out of that one literal by AST. The
+value columns (`o h l c v`) are the DDL columns minus the key columns; the store id is the
+declaring module's own stem; the as-of column is the key column the store's own delta query filters
+on (`get_bars_since`: `… AND ts>? ORDER BY ts ASC`), cross-checked against the key tuple. The
+timeframe axis was already in the book at CP1, from `_BARS_STORE_TF_KEYS`.
+
+**F-D2-1 — RECORDED, NOT FIXED.** *Fundamentals is the most divergently-named store in the
+inventory and is unaddressable until `earnings_table.py` declares its row shape once.* The
+prerequisite is a declaration in that module, not a bigger builder — writing the names into the
+book instead would freeze the divergence at the address layer, where it would then look canonical.
+Sized separately; it is not CP2.
+
+### CP2.2 What CP2 builds
+
+| | |
+|---|---|
+| `tools/build_canonical_address_book.py` | a second derivation — the `ohlcv` DDL, the shared row projection, the key tuple. The refusals stay: an empty scan, an unclassified store, or an unknown SQL type each fail rather than guess |
+| `api/data/canonical_address_book.json` | a `stores` block and **five** new metrics (`ohlcv.o/h/l/c/v`), table-qualified so they cannot collide with the 137 screener names |
+| `api/services/canonical/address_book.py` | ⭐ **the FIRST product reader of the book** — the CP1 inertness rail is rewritten in place to say so, retired sentence kept verbatim |
+| `api/services/canonical/dual_read.py` | the dual-compute recorder: serves the legacy value, records every comparison, logs a disagreement, **never raises** |
+| `api/services/ticker_returns.py` | the ONE migrated reader, DARK |
+| `tests/test_canonical_address_book.py` | the derivation rail extended to the new store |
+| `tests/test_d2_dual_read.py` | the dual-compute rails and the mutations |
+
+⛔ **No schema change on any live store.** Not one line of SQL is edited; the DDL is *read*.
+
+### CP2.3 The migrated reader, and why this one
+
+`api/services/ticker_returns.py` — the Desk's since-mention returns — reads a close price as
+**`basis_rows[-1][4]`**, three times. `4` is a hand-typed ordinal into the projection
+`SELECT ts,o,h,l,c,v`, declared in `bars_sqlite.py` and reproduced identically by `get_bars`,
+`get_bars_before` and `get_bars_since`.
+
+⛔ **The ordinal is not the DDL order.** The DDL is `ticker, tf, ts, o, h, l, c, v`, where `c` is
+column **6**; in the projection it is position **4**. A reader reasoning from the schema would be
+two columns wrong — which is the exact confusion an address exists to end.
+
+⭐ **Chosen because it is the smallest live reader whose current addressing is a bare integer**, and
+because it is outside flow-worker's import closure (`reachable_paths()` →
+`api/services/ticker_returns.py` is False), so CP2 touches nothing flow-worker runs. The Desk
+renders the number, and CP2 **serves the legacy value**, so the number cannot move.
+
+**F-D2-3 — RECORDED as the reason this reader was chosen.** *Nothing today would notice if that
+projection changed.* `[4]` would silently become `l`, every since-mention percentage on the Desk
+would be wrong, and no test, type or assertion in the repo would fire. CP2's static rail plus the
+dual-compute close the hole for this one reader; the other positional readers of that projection
+are named in the finding and are not in CP2's scope.
+
+### CP2.4 ⛔ THE BOOK RECORDS WHAT THE STORE DOES NOT DECLARE AS `null`, NEVER AS A DEFAULT
+
+`cadence`, `as_of.grain` and `sentence` are declared for all 137 screener scalars and for **none**
+of the five bars metrics. The book writes `null`, and the axis report counts them.
+
+⭐ **This is the `CoverageLine` discipline one layer down.** Defaulting the bars store to
+`cadence: "nightly"` — the only value in the book today — is a one-word change that would make a
+continuously-fetched store look like a batch one, in the very field
+`scan_evaluator.cadence_ceiling` reasons about. *"We could not compute it"* and *"nightly"* are
+different facts, and a book that cannot say the first one is not worth reading.
+
+**F-D2-2 — RECORDED, NOT FIXED.** *The bars store's as-of grain varies by timeframe and is declared
+nowhere*; it is re-derived inline as `tf in ("D", "W", "M")` in seven places in
+`api/services/bars_fetch.py`. Declaring it once is the obvious fix and CP2 does not do it, for one
+reason: `bars_fetch.py` and `bars_sqlite.py` are **inside flow-worker's import closure and outside
+its watch list**, so flow-worker would run a stale copy of any new declaration. Harmless for a
+constant nobody reads, and not worth the strand — it belongs to whoever moves the seven call sites.
+
+### CP2.5 Mutations required before merge
+
+| # | mutation | expected |
+|---|---|---|
+| **A** | rename a book entry (`ohlcv.c` → `ohlcv.cc`) | RED — the book path resolves nothing, and the static rail fails by name |
+| **B** | make the reader **serve the book path**, with the book path injected to disagree | RED — the "serves the legacy value" rail |
+| **C** | reorder the DDL literal's columns in a copy | RED — the projection/DDL cross-check |
+| **D** | drop the `null`-preserving branch so an undeclared cadence takes a default | RED — the invented-default rail |
+| **E** | make the dual-compute raise on disagreement | RED — the never-raise rail |
+
+### CP2.6 Revert
+
+Delete `api/services/canonical/`, restore three `[4]`s in `ticker_returns.py`, re-run the builder.
+No store, no schema and no member-visible value is touched, so the revert is a deletion.
+
 
 ### The four rulings, as given
 
