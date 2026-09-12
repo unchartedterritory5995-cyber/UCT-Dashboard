@@ -49,7 +49,7 @@ sources: PRD-S3-ENTITY-MASTER (`prds/entity-master-prd.md`, all 18 sections) ·
   `api/services/voice_tool_impls.py` (partial — the `get_ticker_details` tool registration), and a
   `Grep` census of `to_polygon_symbol` call sites and `composite_figi`/`share_class_figi` reads
   across `api/`.
-status: draft — Phase 3 deliverable, awaiting review
+status: IMPLEMENTATION RECORD — S3 SHIPPED to origin/master 2026-09-02 (Checkpoints 1–8, merge ed6b1f041). Every module this spec names exists; `api/routers/entity_master_admin.py` does not. Retroactive record 2026-09-11: PRD-S3 §0b.
 date: 2026-09-02
 provisional_markers: OI-05 (asset-class scope — this spec's schema is type-tagged so widening is a
   data change, not a migration); OI-03(a)/(b) (bears on nothing in S3's own output per PRD §11 —

@@ -34,7 +34,7 @@ sources: >
   capability-infrastructure-matrix.md (D1 row, §6) · 01-existing-system/capability-ledger.md (rows
   O6, P3, D2, D12, A1, A3, A10, A12, A13) · 00-program-control/GOVERNING_PRINCIPLES.md (§13, §14A, §9,
   §6, §11, §12) · 13-executive-synthesis/PHASE_2_INTEGRATION_SYNTHESIS.md (§8, §9)
-status: draft — Phase 3 deliverable, awaiting review
+status: IMPLEMENTATION RECORD — D1 SHIPPED to origin/master 2026-09-02 (21 commits, merge ed6b1f041). ACL boundary BUILT, adoption PARTIAL: 18 files on the fmp_client adapter, 35 still calling FMP directly. DEC-14 has NOT self-expired (D2 unshipped). See §0b.
 date: 2026-09-02
 provisional_markers: >
   OI-03(a) Massive plan tier · OI-03(b) FMP Data Display and Licensing Agreement · D5 (product-
@@ -60,6 +60,54 @@ Part 5). Nothing in this document proposes a new vendor, a new asset class, or w
 consolidating an estate UCT already pays for.
 
 ---
+
+## 0b. IMPLEMENTATION RECORD — D1 shipped 2026-09-02 (written retroactively 2026-09-11)
+
+**The ACL boundary this PRD specifies was BUILT.** Twenty-one commits, 2026-09-02 19:05 → 21:44,
+beginning three minutes after S3's last checkpoint and all on `origin/master` since `ed6b1f041`.
+Full rows in [`LEDGER.md`](../../00-program-control/LEDGER.md) §1. An earlier 2026-09-11 note
+described D1 as "a hardening pass, the adapter layer still unbuilt" — **that was wrong.**
+
+**What shipped:**
+
+- **Shared error taxonomy + licensing-class lookup** (`de579ec8a`) — `api/services/provider_licensing_class.py`
+- **The FMP adapter** (`6235cfc2b`) — `api/services/fmp_client.py`
+- **Nine call-site migrations onto it** — `insider.py`, `fundamentals.py`'s FMP metrics trio,
+  `analyst_actions.py`'s grades leg, `earnings_estimates.py`'s six originally-scoped sites,
+  `transcript_indexer.py`, `financial_history.py`'s three statement legs, `analyst_grades.py`'s five
+  legs, `engine.py`'s two inline calls
+- **A Massive adapter** (`2d5d0ddb3`, completed `ce8b3f26a`) — extending `_MassiveRestClient` in
+  place rather than forking it
+- **AST guard census tools for both vendors** (`cf41b6a05`) — `tools/fmp_guard_census.py`,
+  `tools/massive_guard_census.py`
+- **Observability** (`833aac0f6`) — a `served_total` counter plus FMP/Massive admin status endpoints
+- **A real-provider validation checkpoint** (`3ad29e784`) that found and fixed two genuine defects: a
+  404 misclassification (`0616369aa`) and a false `real_time`/`delayed` equivalence in
+  `massive.get_quote` (`44f667a3e`)
+- **The provenance/freshness hardening** (`9d0b5eb26`) — vendor-entitlement distinction, stale
+  detection, AI-consumable contract. This is the commit S8 consumes
+
+### ⚠️ Adoption is PARTIAL, and that is the honest headline
+
+Measured on `origin/master` @ `b63cf9775`, 2026-09-11:
+
+| | count |
+|---|---|
+| files importing `api.services.fmp_client` (on the adapter) | **18** |
+| files still referencing `_fmp_get` / `financialmodelingprep` directly | **35** |
+| files referencing the Massive client outside `massive.py` | **11** |
+
+**The boundary exists; most of the estate has not moved behind it.** The PRD's own §4 named six
+uncoordinated `_fmp_get` helpers across 28 modules as the worst debt-to-effort ratio in the
+register; nine call sites were migrated, and the long tail was not. This is the state to plan the
+next D1 slice against — not a defect, but not "done" either.
+
+### DEC-14 has NOT self-expired
+
+`DEC-14` (the "Applications ✗ D1 build-out exception") reverts automatically **the day D2 ships**.
+Checked: no canonical-data-model or metric-address-book module exists on master. **D2 is unshipped,
+so DEC-14 remains in force.** Likewise `DEC-15` (the Entity Master interim reconciliation job) is
+still in force, since D5 is unshipped.
 
 ## 1. Required traceability chain
 

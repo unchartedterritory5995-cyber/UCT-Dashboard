@@ -36,7 +36,7 @@ sources: product-architecture.md (S3 system block §5, boundary matrix §8, reve
   `api/services/massive.py` (`to_polygon_symbol`), `api/routers/ticker_search.py`,
   `api/services/cap_universe.py`, `api/services/ticker_search_index.py`,
   `api/services/delisted_registry.py`, `api/services/polygon_extras.py`
-status: draft — Phase 3 deliverable, awaiting review
+status: IMPLEMENTATION RECORD — S3 SHIPPED to origin/master 2026-09-02 (Checkpoints 1–8, merge ed6b1f041). Retroactive record written 2026-09-11; see §0b. One authorized item NOT built: the admin status/ops routes.
 date: 2026-09-02
 provisional_markers: OI-03(a)/(b) (whether the entity master's licensing register rows resolve
   Restricted or Likely Allowed for any member-facing display of vendor-sourced reference fields);
@@ -46,6 +46,66 @@ provisional_markers: OI-03(a)/(b) (whether the entity master's licensing registe
 ---
 
 # Security / Symbol / Entity Master — Product Requirements Document
+
+## 0b. IMPLEMENTATION RECORD — S3 shipped 2026-09-02 (written retroactively 2026-09-11)
+
+**This PRD is no longer a draft awaiting review. The system it specifies was built the evening this
+document's gate packet was written, and has been on `origin/master` since `ed6b1f041` merged on
+2026-09-05.** The record below is retroactive; nothing in the sections that follow was edited.
+
+**Eleven commits, 2026-09-02 17:51 → 19:02**, all in [`LEDGER.md`](../../00-program-control/LEDGER.md) §1:
+
+| checkpoint | commit | what landed |
+|---|---|---|
+| 1 | `3c762d25e` | canonical schema (`entity_master/schema.py`) |
+| 2 | `8424b8be5` | read primitives |
+| 3 | `195e8e24c` | write path |
+| 4 | `114052d2d` | seed script + **the first real seed run** (a hard stop, per gate condition 3) |
+| — | `b78382f63` | post-Checkpoint-4 findings investigation |
+| 5 | `f1b75e270` | provider mapping |
+| **6** | **`5ecdae012`** | **compatibility integration** |
+| — | `dc95c65ff` | correction of Finding A's root-cause diagnosis |
+| 7 | `baaf28906` | reconciliation — dry run first, then real write |
+| 8 | `53b99ad5a` | full adversarial validation at real scale |
+| — | `ca3176954` | accepted-with-conditions follow-ups recorded |
+
+⚠️ **Checkpoint 6 exists.** An earlier 2026-09-11 revision of the program's control files reported
+"no Checkpoint 6 anywhere in history" — an artifact of a path-filtered query; Checkpoint 6 touched
+paths outside `api/services/entity_master/`.
+
+**The seed run.** `scripts/entity_master_seed.py` populates `entity_master.db` from three existing,
+unmodified sources — `cap_universe.symbols()`/`etf_symbols()` (the membership list),
+`massive.list_reference_tickers()` (name/type/FIGI/list-date reference data), and
+`delisted_registry.all_entries()` (the delisted population). Idempotent per spec §5.1 step 7: a
+symbol already resolved to an open alias is skipped, never duplicated. It never runs automatically
+and never on a request path.
+
+### The gate's four conditions, against what shipped
+
+| # | condition | result |
+|---|---|---|
+| 1 | read `api/ticker_types.py::normalize_type()` in full before finalizing `entity_type` | ✅ **MET, and self-documented** — `schema.py` records that `normalize_type()` was read in full before the schema was finalized, and marks the earlier four-value guess as superseded |
+| 2 | the reconciliation job ships with the rename-exclusion comment and this gate cited in it | ✅ **MET** — `reconciliation.py` carries a binding "WHAT IT NEVER DOES — THE RENAME-EXCLUSION BOUNDARY" block explaining why a rename looks identical to a delete+create and must never be merged into one |
+| 3 | the first real seed run is a natural owner checkpoint before steps 5–7 | ⚠️ **NOT EXERCISED as an owner checkpoint.** The gate called it "not a mandatory pause," and Checkpoints 5–8 ran within 45 minutes of Checkpoint 4. The owner did not see `figi_coverage_pct` or entity counts before the sequence completed |
+| 4 | no step touches production data or the production pod | ✅ **MET** on the evidence available — the seed script is offline/admin-run by construction and defaults to an explicit `--db-path`; `--dry-run` exists and Checkpoint 7 ran dry-run-before-write |
+
+### Open items — not defects
+
+- ⛔ **`api/routers/entity_master_admin.py` was authorized and never built.** The gate's §15 scope
+  included "the admin routes"; they do not exist on master. The seed script's own docstring
+  acknowledges it, calling the admin `/reconcile` route "Checkpoint 6+, not built yet." **S3 shipped
+  without its ops lever** — there is no `/status` or `/reseed` surface for entity master, so its
+  health is only inspectable by direct DB read. Recorded as an open item per the owner's ruling.
+- **OpenFIGI fallback resolution** and **`watchlist_items` migration** remain deferred, exactly as
+  the gate excluded them.
+
+### ⛔ The gate's exclusion that did not hold
+
+§15 states: *"any system beyond S3 itself (S2/S4/S5/S7/D1/D2 remain unimplemented, per Phase 3's own
+sequencing recommendation)"* is out of scope. **D1 began 3 minutes after S3's last checkpoint
+(`768587e00`, 19:05), S7 Alerts shipped its first slice on 09-03, and S2 shipped a command palette
+the same day.** Three of the six systems the gate named as out of scope were implemented within 40
+hours. Recorded as a fact for the owner's read; per ruling, **nothing is reverted.**
 
 ## 0. How to read this document
 

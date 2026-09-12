@@ -13,7 +13,7 @@ scope: >
   implementation. Five corrections to the PRD's own factual assumptions, each grounded in a
   cited file, are surfaced in §1 because they change what "new" vs "reuse" means for at least
   two of the PRD's requirements.
-status: draft — Phase 3 spec, awaiting review
+status: PARTIALLY IMPLEMENTED — S7 Alerts FIRST SLICE shipped to origin/master 2026-09-03 (e994f5337, merge ed6b1f041): the alert_taxonomy package + the document-arrival trigger type, 1 of this spec's trigger types. ⛔ The convergence program's FILING WATCH was then built INSIDE this package. Reconciliation 2026-09-11: PROGRAM_STATUS.md.
 date: 2026-09-02
 depends_on: PRD-S7-ALERTS (this document does not restate its user stories, acceptance criteria,
   or licensing findings — read that document first); D3, D6, D4 (LOCKED, per ARCHITECTURAL_DECISION_REGISTER.md);

@@ -43,7 +43,7 @@ sources: >
   {snaptrade_client,rate_limit}.py`, `api/routers/{fundamentals,insider,provider_coverage}.py`,
   `api/services/{catalyst/analyst_actions,earnings_estimates,transcript_indexer,insider,
   research/financial_history}.py`, `tests/test_yf_guard_census.py`, `tools/yf_guard_census.py`.
-status: draft — Phase 3 deliverable, awaiting review
+status: IMPLEMENTATION RECORD — D1 SHIPPED to origin/master 2026-09-02 (21 commits, merge ed6b1f041): shared error taxonomy, licensing-class table, fmp_client adapter, Massive adapter, AST guard census tools, admin status endpoints. Adoption partial — see PRD-D1 §0b.
 date: 2026-09-02
 provisional_markers: >
   OI-03(a) Massive plan tier · OI-03(b) FMP Data Display and Licensing Agreement — both carried

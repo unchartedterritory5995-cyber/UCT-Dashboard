@@ -214,6 +214,25 @@ sound and the codebase did not drift under them. **The risk was never drift. It 
 document set and the production tree had been describing two different programs for nine days**, and
 only a rail pointed at the production tree could tell.
 
+## Q4 — Terminal-Current classification: **S11-related 0 · other 7 files, all flagged**
+
+The owner's ruling: *intended only if it was S11/calendar work.* **None of it is S11.** Both commits
+are **A5 Events & Calendar modernization onto S3/D1/S8** — `1214dc246` and its follow-up
+`529c54987`. 7 files, **+266 / −52**. Every line classified; nothing is S11-related, so every row
+below is flagged for the owner with its production-behaviour change.
+
+| file | Δ | class | what changed in production behaviour |
+|---|---|---|---|
+| `api/routers/calendar.py` | +215/−… | **other — S3 + D1/S8** | Adds `_attach_entities()`, stamping a **canonical S3 entity onto every earnings entry of a week** (a resolution miss stamps an honest `{"status":"not_found","entityId":null}` rather than omitting the field). Routes the FMP earnings/econ legs through **D1's adapter** (`_fmp_calendar_day`, `_fmp_range_week`) and returns a **provenance envelope** (`vendor`, `sourceActivity`, `fetchedAt`, `sourceObservedAt`, `tieBreak`) as `earnings_provenance` / `econ_provenance`. Adds a new response source **`range_error`** when *both* earnings providers fail for a paged week. |
+| `app/src/pages/calendar/CalendarHeader.jsx` | +23 | **other — S8** | **New member-visible sentence** in the calendar header when a provider leg degraded: *"Some earnings/economic data may be incomplete this week (a provider was unavailable)."* Renders only on `degraded`; a healthy week shows nothing new. Desktop only (`!isPhone`). |
+| `app/src/pages/Calendar.jsx` | +17/−… | **other — A5 error handling** | The new `range_error` source now shows the **existing** error banner instead of rendering a silently empty week, and is excluded from the retry-suppression path. ⭐ `range_error+finviz` is **deliberately excluded** — Finviz salvaged real rows, so that case falls through to normal rendering rather than hiding real data behind an error. |
+| `app/src/pages/calendar/earningsModalRow.js` | +9 | **other — S3** | Passes `entity` through the shell-level projection. Without it the modal's entity-unresolved note **could never fire** even though the backend returns the field — caught live during A5 validation, because the embedded research panels resolve independently server-side and stayed correct while only this projection dropped it. |
+| `CalendarHeader.test.jsx` · `earningsModalRow.test.js` · `refusalLastHops.test.jsx` | +34/+16/+4 | **other — coverage** | Tests for the three behaviours above. |
+
+⛔ **Nothing here is reverted** (owner ruling). The four behaviour changes are recorded so the owner
+can confirm each was intended. The member-visible one is the `CalendarHeader` degraded note — it is
+the only row a member could notice on a healthy day's regression.
+
 ⛔ **Why the protection rail never noticed — and what changed.** The rail diffed *this worktree's*
 application paths against the start SHA. This worktree receives only docs commits, so the diff was
 empty **by construction** and PASS was guaranteed regardless of what the program shipped. **A green

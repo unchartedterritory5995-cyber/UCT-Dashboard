@@ -329,6 +329,52 @@ Each block: responsibility · answers which of the six questions · inputs · ou
 - **Build condition.** **Extend** the RGL board (C1, C5, C6) — the bespoke slot tabs, float and pop-out already exist; add the error boundary (TD-02, "cheapest fix in the estate"); port `useStaggeredMount` and a published panel cap (B10; synthesis §12.1). **PROVISIONAL / OWNER INPUT REQUIRED: D1** — the hybrid model is the evidenced lean (Review §7 D1; C5-01 §0 reframes fixed/modular/hybrid as "can a page become a panel, and who owns the schema"); final lock waits on OI-06 and the `charts_workspace_layout` query; the dock-library question (RG-27, an afternoon spike) is decision-relevant only if D1 moves. Nothing in S1's contract changes under either outcome — that is the reversibility.
 - **Evidence.** C1–C9; C5-01 §0, §7, §10; D-11 §7.2; TD-02, TD-03, TD-05; synthesis §12.1.
 
+### S1 / S2 — IMPLEMENTATION RECORD: PROVISIONAL-SHIPPED, 2026-09-03 (written retroactively 2026-09-11)
+
+⛔⛔ **A narrow S1+S2 slice is LIVE IN PRODUCTION, built ahead of OI-06, which was supposed to decide
+its foundations.** Owner ruling 2026-09-11: **KEEP — do not revert.** Status is
+**PROVISIONAL-SHIPPED**: live code, no PRD, no spec, no gate packet.
+
+**What shipped** — `app/src/components/CommandPalette.jsx` (450 lines) + its test, two commits:
+`0eec8343d` (a global Ctrl/Cmd+K palette for security search and navigation) and `0577245df` (a
+visible search trigger plus in-box `?` help). It searches the **existing** `/api/ticker-search` — no
+new endpoint — matches an action list against the same query box the ticker search uses, and every
+`to` target was verified against `App.jsx`'s real route table. `?` is an in-box help mode. Ask AI is
+a ticker-only secondary action routing to `/research/:sym?section=ai`.
+
+**It has since become load-bearing for four other workstreams** — Wave H, Wave L, notebook Wave B
+and the search convergence have all extended it ([`LEDGER.md`](../../00-program-control/LEDGER.md)
+§3, 7 commits). Reverting it was never the cheap option, and is now a multi-workstream operation.
+
+### ⛔ This is an explicit gate exception. Recorded, with the reason.
+
+`PHASE_2_INTEGRATION_SYNTHESIS.md` §10's conditions read: *"Do not finalize any PRD/spec for a
+PROVISIONAL/OWNER-BOUND system ahead of its gating input"* — DEC-01 (workspace model) and DEC-02
+(command-grammar default) are both gated on **OI-06, the observed desk morning, still unanswered**.
+No PRD or spec was written, so the letter of the condition was not breached; **its purpose was** —
+a shipped surface constrains the decision more firmly than a document would.
+
+⭐ **The exception is granted, not overlooked. Per the owner's ruling, when OI-06 lands its findings
+get DIFFED against what shipped and drive a rework list — they are not discarded, and the shipped
+palette does not get to pre-decide the answer.**
+
+### Questions OI-06 must answer AGAINST this shipped surface
+
+1. **Noun-first or verb-first?** The palette ships **noun-first** (type a ticker, get the entity;
+   actions are secondary). DEC-02's default was never ratified. If the desk morning shows a
+   verb-first habit, this is the rework.
+2. **Is one global query box the right grammar,** or do search and command want separate doors? The
+   palette merges them into a single input.
+3. **`?` as the discoverability mechanism** — does an in-box help mode actually surface the grammar
+   to someone who has never opened it, or does it need a persistent affordance?
+4. **Ctrl/Cmd+K as the binding** — does it collide with anything in the desk's real browser/OS
+   environment?
+5. **Ticker-only Ask AI.** Ask AI is reachable only from a row that carries a `.ticker`. Is the
+   AI door supposed to be ticker-scoped, or should any query reach it?
+6. **What belongs in the action list at all** — it is currently a hand-maintained list of routes
+   that exist. DEC-01's workspace model decides whether navigation targets are *routes* or
+   *workspace objects*, and the answer changes what this list is.
+
 ### S2 — Command, Search & Navigation
 
 - **Responsibility.** The one input surface; the keyboard registry; noun/verb/saved-object/question resolution into typed results; the published address space; command history that is recallable and editable; deep-link generation.
@@ -392,6 +438,47 @@ Each block: responsibility · answers which of the six questions · inputs · ou
 - **Must NOT own.** Any store (S5), any entitlement (S9), an ML re-ranking layer before customisation is measured (C5-02 §9 moves 2 and 6 deferred — PROVISIONAL on the telemetry queries), the workspace document.
 - **Build condition.** **Consolidate**: three documentation-only moves first (C5-02 §9), then two additive UI moves; firm-published boards on `charts_layouts` `scope=global` (C4).
 - **Evidence.** C5-02 §9; Review §6; C4, G3; RG-11.
+
+### S7 Alerts — IMPLEMENTATION RECORD: first slice shipped 2026-09-03 (written retroactively 2026-09-11)
+
+⚠️ Write **"S7 Alerts"**, never a bare "S7" — the convergence program's **filing watch** also calls
+itself S7 and the two are different things. They are also, it turns out, the same code (below).
+
+**Shipped** — `e994f5337`, "S7 first slice: alert taxonomy package + document-arrival trigger type."
+On `origin/master` since `ed6b1f041`. Eight files: `api/routers/alert_taxonomy.py` plus
+`api/services/alert_taxonomy/{__init__,db,delivery,document_arrival,predicates,receipts,registry}.py`.
+`registry.py` implements SPEC-S7 §5.1's trigger-type registry and cites it by section.
+
+### Reconciliation against `alerts-monitoring-spec.md`
+
+| spec trigger type | shipped? |
+|---|---|
+| 1 price-level · 2 indicator-condition · 3 scan-membership-change · 5 event-proximity · 6 regime-change · 7 position-risk · 8 catalyst-match | ❌ **not built** |
+| **4 document-arrival** | ✅ **built** (`document_arrival.py`) |
+
+**One of eight trigger types.** The spec's own sequencing named document-arrival first ("needs
+engineering only"), so the slice followed the spec's order — it simply stopped after step one. The
+registry, predicate store, delivery seam and receipts are generic, so the remaining seven are
+extensions of a real foundation rather than a rewrite.
+
+✅ **THE `alert_fires` RULING HOLDS IN THE SHIPPED CODE, not merely in the spec.** Measured on
+`origin/master`: `alert_fires` appears **25 times** across `db.py` (9), `receipts.py` (15) and
+`document_arrival.py` (1); **`user_alerts` appears ZERO times** anywhere in the package. The
+convergence program's 2026-09-08 owner ruling — *the durable alert is `alert_fires`, never a
+`user_alerts` row* — is satisfied by construction here.
+
+### ⛔⛔ The collision is not just a name — it is shared code
+
+The convergence program's **filing watch** is implemented **inside this package**:
+`d71326261` (durable in-app notification bridge for document-arrival fires), `8ec29b457`
+(duplicate-predicate guard, Stage 3), `ca9093c00` (dual-write durable read state), `5f4597ae0`
+(Stage 4 creation UI + Stage 5 settings). See [`LEDGER.md`](../../00-program-control/LEDGER.md) §3.
+
+**Both programs documented this as a vocabulary hazard. Neither documented that one is built on the
+other.** A change to `alert_taxonomy`'s predicate or receipt shape is now a change to a
+member-visible convergence feature that went live 2026-09-11 12:07:29 ET. **Treat this package as
+jointly owned until the owner rules otherwise; do not refactor it as if S7 Alerts were its only
+consumer.**
 
 ### S7 — Alerts & Monitoring
 
@@ -559,6 +646,43 @@ Call transcripts (FMP of record, AV lazy, earningscall dormant), recaps, keyword
 
 ### A7 — Ownership
 Institutional, insider, clusters, short interest. **Must not own** a second short-interest source without the licensing register (Finviz is a U-class single source with no history — provider ledger §5.5; history is "derivable by retaining the nightly column," a storage decision through D2). Form 4 / 13F on EDGAR are public domain and unused for this (provider ledger §5.4) — A6 supplies, A7 consumes. **Extend.** Evidence: D8; provider ledger §5.4, §5.5.
+
+### A8 / I1 — IMPLEMENTATION RECORDS, 2026-09-04 (written retroactively 2026-09-11)
+
+Both shipped with **no PRD, no spec, no gate packet**. Owner ruling 2026-09-11: **KEEP**, records
+now, specs only where a system-level spec is warranted. Both are in
+[`LEDGER.md`](../../00-program-control/LEDGER.md) §1.
+
+**A8 — News Slice 1** (`4605aa8dd`). Canonical FMP-backed company news on `/research/:sym`:
+`api/services/research/news.py`, `app/src/pages/research/tabs/NewsTab.jsx` +
+`hooks/useCompanyNews.js`, wired through `api/routers/research.py`. **It consumes D1 properly** —
+`fmp_client.py` and `provider_licensing_class.py` are in its diff, so it reads news through the
+adapter and carries a licensing class rather than calling FMP inline. Tests shipped with it
+(`NewsTab.test.jsx`, `ResearchPage.test.jsx`).
+
+> **Recommendation: A8 does NOT need a full spec.** It is one application tab reading one provider
+> class through an existing adapter, and the architecture already constrains it (the platform
+> contract, D1's boundary, S8's rendering). A spec would restate those. **What it does need is the
+> §3.4 provider-ledger row and a licensing check** before any second news source is added — the
+> licensing register's Restricted-pending-contract classification applies to member-facing raw
+> vendor content, and news is exactly that class.
+
+**I1 — two slices.** `341bb78de` (AI-Native Research Assistant Slice 1, a contextual "Explain" tab)
+and `a21518d0e` (Security Research Q&A Slice 2, a 6-composer contextual assistant):
+`api/services/ticker_explain.py`, `app/src/pages/research/tabs/AskAiTab.jsx`, and — notably — a
+**purpose-built evaluation harness**, `api/services/ticker_explain_eval/` with `checks.py`,
+`golden_set.py`, `judge.py`, `runner.py`.
+
+> **Recommendation: I1 DOES need a spec, and it is the highest-value one outstanding.** Three
+> reasons, none of them process for its own sake. (1) I1 is the one system the Phase 2 adversarial
+> validation already caught **claiming ownership of the provenance renderer against S8** — the exact
+> defect a spec exists to prevent, and it is now shipping generated prose to members. (2) It has
+> grown a golden set and an LLM judge; **an eval harness is a specification written in test form**,
+> and leaving it as the only spec means the contract lives where no one reads it. (3) It has already
+> been extended twice by other workstreams (Seam 29, Slice 3 — `LEDGER.md` §3) with no shared
+> contract to extend against. The spec should be narrow: the tool-registry contract, the grounding
+> rule (every cited figure through `<Cited>`), the refusal shape, and the boundary that I1 composes
+> on S8 and never renders its own receipt.
 
 ### A8 — News & Catalyst Intelligence
 The catalyst engine, the tape, news feeds, buzz, the "why is it moving" surface. **Owns** the three taxonomies that must unify (catalyst tags, themes, cashtags — synthesis §8.4) and the primary-vs-mentioned ticker bit (C2-01 §10 "needs engineering only"). **Must not own** a browsable general feed until the posture is decided (**PROVISIONAL / OWNER INPUT REQUIRED: P-δ, the telemetry queries** — synthesis §13.8 finds no written decision either way; the architecture supports curated-first with an escape hatch at *any* granularity by making "why isn't X here" a S8 receipt rather than a tile feature); nor a retraction model it cannot source (C2-01 §10 "needs engineering"); nor tweet bodies retained past the window (RG-21). The honest negative for "why is it moving" is a first-class output (synthesis §10.4). **Extend.** Evidence: K8, M3, M5, M6; C2-01 §10, §11; synthesis §1.13, §8.4, §10.4, §13.8.
