@@ -22,12 +22,29 @@
 
 import { useId, useState } from 'react'
 import UIcon from '../ui/UIcon'
+import { formatDateTimeViewerLocal } from '../../lib/presentation/presentationPrimitives'
 import styles from './Cited.module.css'
 
-function epochToLocal(epochSeconds) {
-  if (!Number.isFinite(epochSeconds)) return null
-  return new Date(epochSeconds * 1000).toLocaleString('en-US')
-}
+// ⚰️ `epochToLocal` LIVED HERE. It is now S10's
+// `formatDateTimeViewerLocal`, moved byte for byte:
+//
+//     function epochToLocal(epochSeconds) {
+//       if (!Number.isFinite(epochSeconds)) return null
+//       return new Date(epochSeconds * 1000).toLocaleString('en-US')
+//     }
+//
+// ⚠️⚠️ AND MOVING IT MADE A REAL DEFECT VISIBLE THAT HAD NO NAME BEFORE.
+// This renders in the VIEWER's timezone. Its two neighbours in this same
+// directory — `<Provenance>`'s "Observed:" line and `<FreshnessBadge>`'s "as
+// of" clause — pin ET. So on one S8 surface a member outside ET reads two
+// timestamps in two different zones, and NEITHER carries a zone label.
+//
+// ⛔ IT IS NOT FIXED HERE, DELIBERATELY. S10's approved scope is "no
+// member-visible layout change; snapshot tests prove S8 renders byte-identical
+// before and after adoption" — and changing this zone moves a rendered string
+// for every member outside ET, which is exactly what that condition forbids.
+// Recorded in `presentationPrimitives.js`'s own header, railed by
+// `presentationPrimitives.test.js`, and it needs its own approval line.
 
 export default function Cited({ children, row = null }) {
   const panelId = useId()
@@ -51,7 +68,7 @@ export default function Cited({ children, row = null }) {
     ? [
       `${row.ticker} · ${row.tf}`,
       `Source: ${row.source}`,
-      row.validated_at && `Validated: ${epochToLocal(row.validated_at)}`,
+      row.validated_at && `Validated: ${formatDateTimeViewerLocal(row.validated_at)}`,
       row.verified_at ? 'Reconciliation: verified' : 'Reconciliation: not yet verified',
     ].filter(Boolean)
     : [row.uctUri && `Address: ${row.uctUri}`].filter(Boolean)

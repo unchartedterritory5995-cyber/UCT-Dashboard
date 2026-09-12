@@ -11,13 +11,17 @@
 //     folded into `freshness` — see that module's header for why.
 //   - A real, accessible, keyboard-operable detail disclosure for the
 //     present-provenance case, replacing Step 1's native-tooltip stand-in.
-//     Still deliberately minimal formatting (`presentationFormat.js`, NOT
-//     S10 — see that file's header) since S10 does not exist yet.
+//     ⚰️ This read "Still deliberately minimal formatting
+//     (`presentationFormat.js`, NOT S10 — see that file's header) since S10
+//     does not exist yet." S10 EXISTS AS OF 2026-09-12 and this component is
+//     one of the four that adopted it. The timestamp below is now formatted by
+//     `lib/presentation/presentationPrimitives.js::formatTimeEt`, byte for
+//     byte the same function `presentationFormat.formatEtTime` was.
 
 import { useId, useState } from 'react'
 import UIcon from '../ui/UIcon'
 import { AVAILABLE, AVAILABILITY_LABEL } from './availabilityContract'
-import { formatEtTime } from './presentationFormat'
+import { formatTimeEt } from '../../lib/presentation/presentationPrimitives'
 import styles from './Provenance.module.css'
 
 export default function Provenance({
@@ -81,9 +85,14 @@ export default function Provenance({
 
   // Present-provenance case: value + an accessible, keyboard-operable
   // detail disclosure (a real <button>, so Enter/Space/click/tab all work
-  // without any hand-rolled key handling) — still minimal formatting per
-  // this file's header note.
-  const asOfText = formatEtTime(provenance.timestamp)
+  // without any hand-rolled key handling).
+  //
+  // ⛔ `seconds: true` IS NOT A DEFAULT, IT IS THIS SURFACE'S CHOICE, AND IT IS
+  // WHY S10 CARRIES THE OPTION. A provenance disclosure is the one place a
+  // second matters — it is the record of WHEN the vendor observed the value,
+  // read by someone reconstructing an order of events. The badge beside it
+  // deliberately shows no seconds, because there a second is noise.
+  const asOfText = formatTimeEt(provenance.timestamp, { seconds: true })
   const detailParts = [
     provenance.sourceActivity && `Source: ${provenance.sourceActivity}`,
     asOfText && `Observed: ${asOfText} ET`,
