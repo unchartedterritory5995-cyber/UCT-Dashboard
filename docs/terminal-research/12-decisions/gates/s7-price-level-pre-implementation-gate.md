@@ -2,7 +2,7 @@
 id: GATE-S7-PRICE-LEVEL
 title: S7 Alerts — `price-level` trigger type — Pre-Implementation Gate
 role: gates the FIRST ABSORPTION. `document-arrival` is already live and is NOT gated by this packet.
-status: PRESENTED — awaiting owner approval. NOT approved.
+status: ✅ APPROVED 2026-09-12 for CHECKPOINTS 1-2 only. CP3+ needs a new approval line.
 pairs_with: PRD-S7, SPEC-S7, s7-alerts-completion-plan.md
 date: 2026-09-12
 ---
@@ -12,22 +12,25 @@ date: 2026-09-12
 ## ⛔ APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
-APPROVED BY:      ____________________
-APPROVED ON:      ____________________
-APPROVED AT SHA:  ____________________   (this packet as it stood at approval)
-SCOPE APPROVED:   [ ] all of §4   [ ] only: ____________________
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  123a30054   (this packet as it stood at approval)
+SCOPE APPROVED:   [ ] all of §4   [x] only: CHECKPOINTS 1-2.
+
+                  CP1 — as shipped: type registration, both shapes pinned, no evaluator,
+                        no delivery, legacy byte-identical.
+                  CP2 — dark evaluator + FORWARD-ONLY comparison harness, per the F-S7-3
+                        ruling in §3a. No delivery, no flip, no legacy switch-off, and no
+                        migration of member predicates.
+
+                  ⛔ CP3+ NEEDS A NEW APPROVAL LINE. Shadowing real member
+                     `watchlist_alerts` rows is CP3 and is NOT approved here.
 ```
 
-⚠️ **TRANSCRIBED FROM THE SESSION DIRECTIVE, NOT INVENTED, AND NOT A SIGNATURE.** The directive of
-2026-09-11 read: *"S7 price-level — gate packet + approval block, Checkpoint 1, branch only, DO NOT
-MERGE; comparison design in the ledger row."* That authorizes **Checkpoint 1 on a branch** and
-nothing further. The block above is deliberately left blank because ⭐ **this program's own rule is
-that the binding constraint is a second party recording approval, not date ordering** — and an
-author filling in the author's own approval reproduces exactly the S3 defect the rule exists to
-prevent (packet written 17:31, Checkpoint 1 at 17:51, same session, same author).
-
-⛔ **Nothing in §4 merges until the four lines above are filled in.** Checkpoint 1 exists on
-`feat/s7-price-level`, unmerged, precisely so that approval can still be refused cheaply.
+✅ **APPROVED 2026-09-12.** ⭐ The block was left blank in the packet as written, and that was the
+point: the author's own directive-transcription is not a signature, and this program's binding
+constraint has always been *a second party recording approval*, never date ordering. This line is
+that second party.
 
 ---
 
@@ -99,23 +102,33 @@ and **nothing in the row can detect that the line moved yesterday.** That is a f
 exactly the kind S8's honest-degraded principle forbids, and it would be *more* convincing than a
 blank because it carries a number.
 
-**The honest options, for the owner — NOT chosen here:**
+### ⛔ RULING (owner, 2026-09-12) — NO REPLAY, EVER. THE COMPARISON IS FORWARD-ONLY.
 
-1. **Decline to replay a trendline alert**, and say so in those words — "this line has been moved
-   since it was armed; we cannot say what it would have done." Cheapest, and honest.
-2. **Add `geometry_updated_at`** and decline only when it post-dates the replay window. Correct, one
-   migration, and still declines for the common case.
-3. **Version the geometry** (an append-only anchor history). Fully correct, materially larger, and
-   the only option that makes a trendline replay genuinely answerable.
+The three options the packet recorded (decline · add `geometry_updated_at` · version the geometry)
+are **superseded**. The owner's ruling removes the question rather than answering it:
 
-⭐ **Recorded rather than resolved, deliberately.** ⛔ Option 1 is NOT the safe default by virtue of
-being smallest: a member reading "cannot say" for every trendline alert may reasonably conclude the
-feature is broken. Which of the three is right is a product call.
+1. ⛔ **No `replay_fn`, ever, for this trigger type.** Not deferred — ruled out. The dark predicate
+   and its legacy twin are evaluated **live against the same bars from the moment the dark predicate
+   arms**. ⛔ **No backfill over historical bars**, which is what §5.6's "replay against cached bars"
+   sentence would otherwise invite.
+2. **An anchor rewrite RESETS the comparison clock.** If `resync_bound_alerts` moves a legacy
+   trendline mid-window, the dark twin's clock resets at that moment and the **pre-move span is
+   marked NOT COMPARABLE** — never counted as agreement, never as disagreement.
+3. **The NEW predicate store records `anchors_set_at` and a version counter on every anchor write**,
+   so the dark side is auditable even though the legacy side is not. ⛔ **Do NOT add columns to
+   `watchlist_alerts`** — the legacy path stays byte-identical.
+4. **Dark-period minimum before any verdict is shown: five full trading sessions of forward data.**
 
-## 4. Scope proposed for Checkpoint 1 — and ONLY Checkpoint 1
+⭐ **Why this is stronger than the packet's option 1.** Option 1 declined to replay a line that *had*
+moved — which still requires knowing whether it moved, which the legacy row cannot tell you. Ruling
+out replay entirely makes the unanswerable question irrelevant: forward-only comparison never needs
+the geometry's history, because it only ever compares two things that were both live at the same
+instant.
+
+## 4. Checkpoint 1 — APPROVED AND MERGED
 
 **Register the type and pin its schema against BOTH shipped shapes. No evaluator. No delivery.
-Nothing member-visible. Nothing merged.**
+Nothing member-visible.**
 
 1. `api/services/alert_taxonomy/price_level.py` — `TYPE_ID`, `PARAMS_SCHEMA`, `register()`, mirroring
    `document_arrival.py`'s shape exactly.
@@ -128,6 +141,21 @@ Nothing member-visible. Nothing merged.**
 
 ⛔ **Explicitly NOT in Checkpoint 1:** no evaluation loop, no `delivery.py` call, no read of
 `watchlist_alerts`, no migration, no change to `watchlist_alert_service.py`, no scheduler entry.
+
+## 4a. Checkpoint 2 — APPROVED. Dark evaluator + FORWARD-ONLY comparison harness
+
+1. **A dark evaluator** that writes `alert_fires` rows and receipts for `price-level` predicates and
+   **never calls `delivery`**. The CP1 import-absence rail stays and now guards the evaluator too.
+2. **The forward-only comparison harness** implementing §3a: paired evaluation from the moment the
+   dark predicate arms, an **anchor-move clock reset**, and a **NOT COMPARABLE** bucket that is
+   never folded into agreement or disagreement.
+3. **`anchors_set_at` + a version counter on every anchor write, in the NEW store only.**
+   ⛔ `watchlist_alerts` gains no columns.
+4. **Harness-armed predicates ONLY.** ⛔ CP2 does **not** read or shadow real member
+   `watchlist_alerts` rows. That is CP3 and needs its own approval line.
+
+⛔ **Explicitly NOT in Checkpoint 2:** no delivery, no flip, no legacy switch-off, no migration of
+member predicates, no shadowing of real member rows, and **no replay of any kind**.
 
 ## 5. Conditions
 
@@ -154,8 +182,7 @@ Nothing member-visible. Nothing merged.**
 
 ## 7. Final gate
 
-# IMPLEMENT CHECKPOINT 1 ONLY — *pending the approval block in §0*, branch only, **DO NOT MERGE**
+# ✅ APPROVED — IMPLEMENT CHECKPOINTS 1 AND 2. CP1 merges; CP2 is dark, forward-only, harness-armed predicates ONLY.
 
-⚠️ **F-S7-3 is the one to answer before authorizing anything past Checkpoint 1.** It is not an
-implementation detail: it decides whether the tuning receipt this trigger type can honestly offer is
-a number, a refusal, or a migration.
+⛔ **F-S7-3 IS ANSWERED (§3a): no replay, ever; forward-only.** The open question is now CP3 —
+shadowing real member `watchlist_alerts` rows — which is explicitly outside this approval.
