@@ -1,13 +1,40 @@
 ---
 id: D1-G3-G5-SIZING
 title: D1 gaps G3 and G5 — sizing and recommendation
-role: owner decision input. NOT an authorization to build. Recommendation only, as instructed.
-status: awaiting owner ruling
+role: the sizing that produced the 2026-09-12 G3/G5 rulings. Both are now DECIDED; this stays as the reasoning behind them.
+status: ✅ RULED 2026-09-12 — G3 DEFERRED and to be re-scoped; G5 QUARANTINED with the contract reason
 date: 2026-09-12
 measured_against: origin/master @ a0c2bfee4
 ---
 
 # G3 and G5 — what each needs, what it unblocks, size, risk
+
+## ✅ THE RULINGS (owner, 2026-09-12)
+
+**G3 — DEFERRED, and to be RE-SCOPED before anyone builds it.** Its standing
+justification says it blocks `ticker_logos`' PNG *and* `fundamentals_bulk`'s 30–70 MB
+CSVs. ⛔ The second half does not exist in this code: the bulk call is
+`_fmp_get("/stable/ratios-bulk")` returning a **list of dicts**, and there is no CSV
+parse anywhere in `fmp_bulk.py`. G3's real blast radius is **one PNG call site**, which
+does not pay for a second return channel through the adapter.
+
+⚠️ **Nothing is scheduled off this until the gap is re-measured against the real call
+sites.** Building against a gap description that has drifted from the source is how a
+programme spends a week on a problem it does not have.
+
+**G5 — `fmp_news.py` QUARANTINED, with the contract reason, and the census is GREEN.**
+The entry is in `tools/fmp_guard_census.py`'s `QUARANTINE`, named in the pinned set in
+`tests/test_fmp_guard_census.py`, and it states the architectural reason rather than a
+migration date. ⭐ **Unlike every other entry in that list it is not "not yet migrated" —
+it is "must not be."**
+
+⚠️ **And the entry carries its own guard against becoming a licence:** it exempts ONE
+file for ONE stated reason, and
+`test_retired_quarantine_entries_are_genuinely_clean` is what retires it if
+`fmp_news` ever adopts the adapter's contract.
+
+---
+
 
 Both read from the code, not from the gap list's summary of it.
 
