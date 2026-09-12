@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — see **"Which services a master push actually wakes"** below, and derive the roster with `railway status --json` rather than trusting any list, this one included.
+- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -1893,41 +1893,17 @@ flow-worker case entirely, and that case is real.
 rationale.** This file has had a rescinded restriction reinstated that way twice: the
 mechanism under a struck rule explains a class of bug, it is not the rule.
 
-### ⛔ Which services a master push actually wakes — MEASURED 2026-09-12
+### ⛔ Deploy windows — not stated here
 
-> **`web` rebuilds on EVERY master push, docs and tools included. The other four
-> are path-gated and usually do nothing.** Railway creates a deployment RECORD
-> for every service on every push and then SKIPS the ones whose watch paths did
-> not match — so a deployment list that shows your SHA against five services is
-> NOT five deploys.
+**`docs/runbooks/deploy-windows.md` is the single authority** (Options Flow
+session, 2026-09-12). This file states no rule of its own about push timing.
 
-⚰️ **READ THE `status` FIELD, NOT THE SHA.** This was gotten wrong in the session
-that measured it: the SHA appeared under `web`, `worker`, `bars-api` and
-`flow-worker` for the same push, and that was reported as "every master push
-restarts all four" — which became a proposed standing rule widening the RTH
-push freeze to docs. The `status` field said `SKIPPED` for three of them. Counting
-presence is not reading a verdict (`lesson_an_identity_join_is_not_a_correctness_check`).
-
-The last eight pushes, `railway deployment list --service <svc> --json`:
-
-| service | outcome | what wakes it |
-|---|---|---|
-| `web` | **SUCCESS 8/8** | everything — it builds the frontend bundle, so docs-only and tools-only pushes rebuild it too |
-| `worker` | SKIPPED 7/8 | `api/**` — woke only for `12e142de7` (`api/services/todaypack.py`) |
-| `bars-api` | SKIPPED 7/8 | `api/**` — same push, same reason |
-| `flow-worker` | **SKIPPED 8/8** | narrower still; did not deploy once in the window measured |
-| `chart-renderer` | independent | last deploy 2026-09-01, unrelated to these pushes |
-
-⭐ **What this means in practice:** an `app/**`-only or docs-only push is a
-**web-only** event. It does not restart the Options Flow pipeline. The standing
-"no master push Mon–Fri 09:00–16:00 ET" rule stands on its own reason — a web
-restart can still cost a scheduled slot — but **not** on "it restarts
-flow-worker", which is false.
-
-⛔ **This is a measurement with a date on it, not a guarantee.** Watch patterns
-are service settings that a person can change, and the CLI does **not** expose
-them (`watchPatterns` comes back `null`), so the only way to know is to push and
-read `status`. Re-measure rather than quote this table if the answer matters.
+⚰️ A Wave Q1 session briefly recorded the opposite here — *"every master push
+restarts web, worker, bars-api and flow-worker in lockstep"* — from reading a
+deployment list by SHA without reading the `status` column, which said `SKIPPED`.
+It was nearly made a standing rule widening the RTH freeze to docs. The runbook's
+own audit settles it: flow-worker SKIPPED on **14 of 14** pushes. Counting
+presence is not reading a verdict.
 
 ### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
 

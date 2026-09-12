@@ -17,6 +17,39 @@
 
 ---
 
+## ⛔⛔ THE DENOMINATOR WAS REDEFINED AT THE FLIP — read this before reading any zero
+
+`notebook_offline_opt_in` is what makes "zero `notebook_blocked_no_baseline`
+events" mean anything: a week of zeros over **zero** browsers running the layer
+is not evidence, it is an empty set.
+
+⚰️ **Until 2026-09-12 it fired when the localStorage key BECAME `'1'`.** After
+the flip the key is **unset** for every member and the layer is **on** — so that
+condition is false for the entire population. The denominator would have sat at
+zero while the numerator was drawn from everybody. ⛔ **A zero denominator does
+not read as broken. It reads as healthy**, which is the more dangerous failure,
+and it is the same shape as a green browser matrix over a mount path nobody
+covered — the error that gave this wave its incident.
+
+**It now fires when the LAYER IS ACTIVE** (`offlineEnabled()` — the same reader
+the editor and the drain gate on), so the denominator counts exactly the
+population the numerator comes from. `api/routers/journal_two.py` still lists
+the event in `_J2_TELEMETRY_EVENTS`; this file, not that comment, is where the
+definition lives.
+
+⭐ **And the dedupe marker had to change with it.** It mirrored the key and
+REMOVED itself when the key was unset — harmless while unset meant OFF; once
+unset means ON it clears the dedupe every load and turns a once-per-BROWSER
+count into a once-per-PAGE-VIEW count. It now stores the RESOLVED state.
+
+**What the table should look like:** roughly **one event per member browser, on
+that browser's first Notebook load after it picks up the new bundle**. There is
+no version prompt and no service worker, so it arrives as a trickle over hours
+and days as members reload — never a spike at merge. `byDefault: true` on
+essentially all of them; `byDefault: false` only where someone set `'1'` by hand
+(the rig). A count that climbs faster than distinct browsers, or that keeps
+climbing with no new members, means the dedupe regressed.
+
 ## What to watch (§18)
 
 | # | Signal | Why it matters | Where it shows |

@@ -33,6 +33,32 @@ THE MIDDLE.** Nobody reads to line 74 to find out that line 5 is void. This is
 ⛔ **Do not re-litigate any of the three.** If a future session believes one of
 them is wrong, it needs a NEW measurement, not a re-reading of the old header.
 
+## ⛔ KNOWN PRE-EXISTING REDS — master's, not this wave's
+
+⭐ **Measured both ways before being claimed**: each was run against the
+COMMITTED file as well as this branch and failed identically, so none of them is
+inherited work dressed as ours. Listed so the next session does not adopt them.
+
+**`tests/test_gate_shards.py` — 3 failures, on `master`:**
+
+| test | area |
+|---|---|
+| `test_the_exit_code_is_NONZERO_on_a_real_differing_set` | baseline-diff rails |
+| `test_non_vacuity_the_SAME_path_returns_zero_on_a_matching_set` | baseline-diff rails |
+| `test_a_baseline_entry_that_stopped_failing_does_NOT_block` | baseline-diff rails |
+
+⛔ **These are the rails over the gate's own baseline comparison** — the machinery
+that decides whether a failing set is a regression. They are red on master while
+being the thing every gate verdict in this wave leans on. Not fixed here (out of
+scope, and not this wave's file), but ⛔ **not nothing either**: a green gate
+verdict rests on comparison logic whose own tests do not pass. Worth an owner
+decision separately from Q1.
+
+**The frontend baseline itself** carries 7 known failures
+(`258c5609d529a1f247ae6ff2da266f8479742823`, re-measured on `origin/master`
+`62a228e5d`); the gate compares against that set rather than against zero.
+
+
 ## ⛔ THE ONE WAIVER ON THE FLIP GATE — rule12Paths, and it is NOT ours
 
 **Waived by the owner, 2026-09-11.** The flip gate runs with
