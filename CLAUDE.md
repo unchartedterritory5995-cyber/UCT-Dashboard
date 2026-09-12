@@ -831,6 +831,56 @@ browsers only and cannot run it.
 *"a Live seat does not fund this suite."* The dashboard now confirms the stronger version — there
 is no Automate seat to expire.
 
+### ⭐ HOW A LIVE DEVICE SIGNS IN — the smoke-account login link, never a typed password
+
+**Standing procedure. No human types a password into a mirrored phone, and neither does an agent.**
+
+```sh
+# 1. authenticate as the smoke account from the terminal (an API call from a script — the same
+#    thing tools/hub_nav_smoke.py:247 already does; the password never touches a form field)
+#    then mint a link. SMOKE_EMAIL / SMOKE_PASSWORD come from the operator's environment.
+python tools/smoke_login_link.py            # prints one URL, valid 5 minutes, single use
+# 2. on the Live device: tap the address bar's ⊗ to clear it, type the URL, go.
+#    ⛔ NEVER ctrl+a — on the Live mirror that types a literal "a" into the field.
+```
+
+The device is then signed in with an ordinary session cookie and every route behaves exactly as
+it does for a member. `/smoke-login` burns the token on first use.
+
+⛔ **THE FLAG IS THE SWITCH, AND IT IS OFF BY DEFAULT EVERYWHERE.** The endpoint answers **404**
+— not 403 — unless `SMOKE_LOGIN_LINK_ENABLED=1` is set on the service. Set for this programme on
+`web` only. **Removal instruction, to be run when the programme closes:**
+
+```sh
+railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
+```
+
+⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
+lands in their session recording and in this app's own access log as a query string. Five-minute
+expiry plus single-use is what makes that acceptable **for a synthetic account** and is exactly
+what would make it unacceptable for a real one. The allow-list is one hard-coded id
+(`SMOKE_USER_ID`, default `f4433528-…`); any other id gets the same 404 as the flag being off, so
+the endpoint cannot be used as an oracle for which account is the privileged one.
+
+⭐ **Watch-coverage classification for this change (required by `docs/runbooks/deploy-windows.md`,
+which makes a red a REVIEW GATE, not a block) — INERT STRAND, no flow-worker redeploy.**
+`tools/flow_worker_watch_coverage.py` goes red on `api/services/auth_service.py` and
+`api/services/auth_db.py`: flow-worker RUNS them and will not redeploy for them. Traced rather
+than assumed — flow-worker's import closure reaches `auth_service` by exactly one hop
+(`flow_worker_main` → `flow_gap_autofill` → `flow_admin_auth`) for exactly one symbol,
+**`validate_session`**, which this change does not touch; and `api/routers/auth.py` — the *only*
+caller of every changed function — **is not in that closure at all**. The migration is additive
+with `DEFAULT 'reset'`, so even a stale writer produces correct rows. ⛔ Forcing a redeploy via
+the marker would be Tier 2 during market hours: a dropped Massive OPRA socket is a permanent tape
+gap, paid for zero behavioural difference.
+
+⛔ **`password_resets` now backs two token kinds and the `purpose` column is what keeps them
+apart.** The direction that matters is not the obvious one: without the filter, a leaked
+**password-reset** token would be redeemable as a **login**, turning every reset email into a
+bearer credential. Both directions are railed in `tests/test_smoke_login_link.py` and
+mutation-proved. A link also refuses an account with TOTP enabled — otherwise it would grant
+strictly more than the password does, which is the one thing it must never do.
+
 ### Real-device testing — BrowserStack Live (paid)
 
 **Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no

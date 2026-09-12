@@ -34,6 +34,8 @@ from api.services.auth_service import (
     verify_email_token,
     create_password_reset,
     execute_password_reset,
+    create_smoke_login_token,
+    redeem_smoke_login_token,
     log_activity,
     get_recent_activity,
     get_user_detail,
@@ -597,6 +599,125 @@ def resend_verification(request: Request, user: dict = Depends(get_current_user)
 def _require_admin(user: dict):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
+
+
+# ── Smoke-account login link ─────────────────────────────────────────────────
+#
+# ⛔⛔ THIS IS AN AUTHENTICATION BYPASS, AND IT IS SHAPED SO THAT SAYING SO IS NOT ALARMING.
+#
+# It exists for one reason: real-device testing runs on BrowserStack Live, a screen mirror, and
+# there is no honest way to sign a device in there — an agent must not type a password into a
+# field, and the owner should not have to hand-type one for every session. So the session is
+# handed over as a link instead. Four independent conditions must ALL hold, and each one is
+# sufficient on its own to make a stolen link worthless:
+#
+#   1. the caller already holds an authenticated ADMIN session;
+#   2. `SMOKE_LOGIN_LINK_ENABLED=1` is set on the service (OFF by default, everywhere);
+#   3. the target is exactly one hard-coded synthetic user id — an allow-list of one;
+#   4. the token is single-use and expires in five minutes.
+#
+# ⭐ IT GRANTS NOTHING NEW. The link produces the same session a password login produces, for an
+# account that already exists and that the issuing admin could already act as. It is a transport
+# for an existing capability, not a new one — which is the property that makes it reviewable.
+#
+# ⛔ AND IT REFUSES TO BE A 2FA BYPASS. Not in the original ask, and added because without it the
+# feature would be exactly that: `login` hands back a challenge instead of a session when TOTP is
+# enabled, so a link that skipped straight to `create_session` would grant MORE than the password
+# does. `/smoke-login` refuses an account with TOTP on rather than silently out-ranking it.
+SMOKE_USER_ID_DEFAULT = "f4433528-6466-474a-949c-8d5eda8a7b91"
+
+
+def _smoke_login_enabled() -> bool:
+    return os.getenv("SMOKE_LOGIN_LINK_ENABLED", "") == "1"
+
+
+def _smoke_user_id() -> str:
+    return os.getenv("SMOKE_USER_ID", SMOKE_USER_ID_DEFAULT)
+
+
+class SmokeLoginLinkRequest(BaseModel):
+    user_id: str
+
+
+@router.post("/smoke-login-link")
+@limiter.limit("5/hour")
+def smoke_login_link(
+    request: Request,
+    req: SmokeLoginLinkRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Issue a single-use login URL for the synthetic smoke account. Admin only, flag-gated."""
+    _require_admin(user)
+
+    # ⛔ 404, NOT 403, FOR BOTH THE FLAG AND THE WRONG ID — and deliberately the SAME 404.
+    # A 403 on the flag would confirm the endpoint exists, and a distinguishable answer for
+    # "wrong user id" would turn this into an oracle for which id is the privileged one. An admin
+    # who needs to know why reads the service's env, not the status code.
+    if not _smoke_login_enabled() or req.user_id != _smoke_user_id():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # ⛔ THE USER MUST EXIST, AND THIS IS NOT A FORMALITY — it was found by a test. `password_resets`
+    # has a foreign key to `users`, so minting for an id with no row raises `IntegrityError` and the
+    # caller gets a 500 with a traceback in the log, for what is really just "wrong environment"
+    # (SMOKE_USER_ID pointed somewhere this database has never heard of). Same 404 as every other
+    # refusal: the endpoint's answer is "no", never "no, and here is why".
+    if not get_user_by_id(req.user_id):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    token = create_smoke_login_token(req.user_id)
+    # ⛔ THE TOKEN IS NEVER LOGGED. The row records that a link was issued, for whom, by whom —
+    # everything an audit needs — and nothing that would let a reader of the log use it.
+    log_activity(
+        user["id"],
+        "smoke_login_link_issued",
+        details=f"target={req.user_id}",
+        ip_address=client_ip(request),
+    )
+    return {"url": f"{DASHBOARD_URL.rstrip('/')}/smoke-login?token={token}"}
+
+
+class SmokeLoginRequest(BaseModel):
+    token: str
+
+
+@router.post("/smoke-login")
+@limiter.limit("10/hour")
+def smoke_login(request: Request, req: SmokeLoginRequest, response: Response):
+    """Exchange a smoke-login token for the ordinary session cookie."""
+    if not _smoke_login_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    user_id = redeem_smoke_login_token(req.token)
+    # ⛔ ONE MESSAGE FOR EVERY FAILURE. Expired, already used, wrong purpose, never existed — the
+    # caller learns "no" and nothing else. The page above it says "link expired" for all of them,
+    # which is the honest summary of every case from the operator's side.
+    if not user_id:
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    # ⛔ RE-CHECK THE ALLOW-LIST AT REDEMPTION. The token was minted under the id in force when it
+    # was issued; this asks the question again at the moment the session is created, so narrowing
+    # SMOKE_USER_ID takes effect on tokens already in flight rather than five minutes later.
+    if user_id != _smoke_user_id():
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    # See the header: a link must never out-rank a second factor.
+    if totp_service.is_enabled(user_id):
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    log_activity(user_id, "smoke_login_redeemed", ip_address=client_ip(request))
+
+    # ⛔ THE SAME SESSION-CREATION PATH `login` USES. Not a copy of it — a second way to mint a
+    # session is a second place for a session bug to live, and the one that gets forgotten is
+    # always the one that skips a check the other one grew later.
+    ua = (request.headers.get("user-agent") or "")[:512]
+    token = create_session(user_id, user_agent=ua, ip_address=client_ip(request))
+    _set_session_cookie(response, token)
+    plan = get_user_plan(user_id)
+    return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
 # ── Feedback endpoints ────────────────────────────────────────────────────────
