@@ -31,7 +31,7 @@ import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 import { paramLocatorsIn } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
-import { vendorNotesForTree, foldNotesForOutput } from '../engine/ast/parse'
+import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
 import styles from './PineBox.module.css'
@@ -143,6 +143,11 @@ export function inspectPine(source, opts = undefined) {
     vendorNotes: [
       ...(out.ast ? vendorNotesForTree(out.ast) : []),
       ...foldNotesForOutput(out),
+      // ⭐ THIRD SOURCE, SAME RULE (ruling D1, option C, 2026-09-12): an
+      // `alertcondition` row tells the member the pane declined to draw it and
+      // where the condition actually lives. Interpolated in `parse.js`, rendered
+      // here verbatim — this component still writes no sentence of its own.
+      ...alertNoteForOutput(out),
     ],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
@@ -229,6 +234,11 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     vendorNotes: [
       ...(out.ast ? vendorNotesForTree(out.ast) : []),
       ...foldNotesForOutput(out),
+      // ⭐ THIRD SOURCE, SAME RULE (ruling D1, option C, 2026-09-12): an
+      // `alertcondition` row tells the member the pane declined to draw it and
+      // where the condition actually lives. Interpolated in `parse.js`, rendered
+      // here verbatim — this component still writes no sentence of its own.
+      ...alertNoteForOutput(out),
     ],
       refusal: stamp(out.refusal),
       downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,

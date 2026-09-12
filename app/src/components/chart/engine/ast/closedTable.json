@@ -3223,5 +3223,14 @@
       "_ruling": "Ruling 3.5 (2026-09-12): a literal naming the BASE period is the identity, not a resample of it, so `request.security(syminfo.tickerid, 'D', close)` on a daily-base engine emits the child unwrapped. `tf(close,'D')` would read the last CLOSED day and answer yesterday; the identity has no step-back. On an intraday base the two differ by one bar, which is what the sentence tells the member.",
       "_row": "tests/fixtures/vendor/divergences.json::request-security-base-period-identity-vs-lookahead-off-step-back"
     }
+  },
+  "_alertconditions": {
+    "_": "⛔⛔ THE ONE PLACE THE ALERT-CONDITION SENTENCE IS WRITTEN (owner ruling D1, option C, 2026-09-12). An `alertcondition` draws NOTHING in Pine — it registers a condition the platform offers under Alerts — and this engine's two lanes had disagreed about what kind of thing it is: `translatePine` made it a first-class boolean column and `chooseOutput` PREFERRED it over every plot, while `buildRuntimeIr` classified it as PRESENTATION and emitted no series for it. The ruling makes the runtime lane's reading the single answer for a PANE: a host target never selects one, a screen still may, and the member is told where it went in this sentence.",
+    "_how_to_extend": "`parse.js::alertNotesOf` and `api/services/ast_table.py::alert_notes` read this block in both lanes; `PineBox` renders the result VERBATIM beside the vendor and fold notes. `namePlaceholder` is the literal substring the alert condition's own title replaces — the substitution happens in the note producer, never in the component, for the same reason ruling 1.1 gives.",
+    "kind": "lane-split",
+    "namePlaceholder": "<name>",
+    "memberNote": "This script's alert condition '<name>' is available under Alerts; it is not drawn on the chart.",
+    "_ruling": "D1 (2026-09-12), option C of four. A — draw it as event markers — was rejected as INVENTING a rendering the script never declares (no glyph, no placement, no colour). B — draw it as a 0/1 line — is honest but puts a square wave on a volume scale. D — leave it — is what shipped and is why Volume v2's `selected` was index 4, the one output the runtime lane emits nothing for. C makes the lanes agree and needs no new rendering.",
+    "_followup": "Routing the condition into `alertSets.js` (UCT's own alert machinery) is a FOLLOW-UP, not part of this ruling: today the sentence tells the member where the condition lives, and nothing yet subscribes it."
   }
 }

@@ -10241,7 +10241,7 @@ export function translatePine(source, opts = {}) {
     objects: objectPass.program,
     objectDiagnostics: objectPass.diagnostics,
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
-    selected: blocked ? -1 : chooseOutput(resolved, table),
+    selected: blocked ? -1 : chooseOutput(resolved, table, { host: strict }),
     notes: withExcerpts(notes, lines),
     // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
     // position order carries the guard, line, column and caret excerpt, exactly
@@ -10274,8 +10274,23 @@ export function translatePine(source, opts = {}) {
  *  0/1 column and a scan is `<tree> != 0` — so it is the one that screens.
  *  Otherwise the first plot that translated at all. ⛔ A member can always choose
  *  another; this decides what is on screen first, never what is possible. */
-function chooseOutput(rows, table) {
+function chooseOutput(rows, table, opts = {}) {
+  // ⛔⛔ RULING D1 (2026-09-12, option C) — A PANE DOES NOT SELECT AN ALERT.
+  // `alertcondition` DRAWS NOTHING in Pine: it registers a condition the platform
+  // offers under Alerts. This engine's two lanes disagreed about that — here it
+  // was the PREFERRED offer, while `buildRuntimeIr` classified it as PRESENTATION
+  // and emitted no series for it — so the output a host target selected was
+  // exactly the one the runtime lane had nothing to draw. Volume v2 is the case:
+  // `selected` was index 4, "HVE Trigger", beside four volume plots the pane
+  // could actually render.
+  //
+  // ⭐ THE SCREEN IS UNCHANGED AND THAT IS THE POINT OF A SPLIT RATHER THAN A
+  // DELETION. A scan asks "when is this true", and an alertcondition IS a
+  // condition by construction — it is still the right first offer THERE. What
+  // changes is only the lane that has to put a line on a chart.
+  const host = opts.host === true
   const ok = (r) => r.refusal === null && !r.hidden
+      && !(host && r.kind === 'alertcondition')
   // ⛔ A CONSTANT IS NEVER THE FIRST OFFER, AND THAT IS MEASURED TOO. A published
   // indicator plots a hidden zero baseline so `fill()` has something to fill
   // against (`06-adx-advanced.pine` line 175: `pZero = plot(0.0,

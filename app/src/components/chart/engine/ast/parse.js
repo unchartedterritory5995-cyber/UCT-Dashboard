@@ -546,6 +546,55 @@ export function foldNotesForOutput(out, notes = FOLD_NOTES) {
   return seen
 }
 
+/** ─── ⭐⭐ THE ALERT-CONDITION DISCLOSURE: A LANE SPLIT A MEMBER CAN READ ─────
+ *
+ *  Ruling D1 (2026-09-12, option C). An `alertcondition` DRAWS NOTHING in Pine —
+ *  it registers a condition the platform offers under Alerts — so a PANE does not
+ *  select one. That is a decision `chooseOutput` makes in `pine.js`; this is the
+ *  sentence that tells the member where the condition went, and it is declared
+ *  ONCE in `closedTable.json::_alertconditions`.
+ *
+ *  ⛔ THE SUBSTITUTION HAPPENS HERE, NOT IN THE COMPONENT. The sentence carries a
+ *  `<name>` placeholder because the member needs to know WHICH condition, and the
+ *  renderer composing that would be a second authority over one value — the exact
+ *  defect ruling 1.1 closed for fold notes. The producer interpolates; `PineBox`
+ *  renders the finished string verbatim, like every other note it shows.
+ *
+ *  ⚠️ A row with no title falls back to the placeholder's own text rather than
+ *  emitting `'undefined'` — an unnamed alert is still an alert, and a sentence
+ *  naming a JavaScript value would be worse than a vague one.
+ */
+export function alertNotesOf(table) {
+  const spec = (table && table._alertconditions) || null
+  if (!spec || typeof spec !== 'object') return null
+  if (typeof spec.memberNote !== 'string' || !spec.memberNote.trim()) return null
+  const placeholder = typeof spec.namePlaceholder === 'string' && spec.namePlaceholder
+    ? spec.namePlaceholder : '<name>'
+  return { memberNote: spec.memberNote, namePlaceholder: placeholder }
+}
+
+export const ALERT_NOTES = Object.freeze(alertNotesOf(TABLE) || {})
+
+/** The alert disclosure an OUTPUT ROW carries, in the shape `vendorNotesForTree`
+ *  returns, so the renderer has one list and one spelling.
+ *
+ *  ⛔ IT KEYS OFF `kind`, NEVER OFF `selected`. The note is a fact about what this
+ *  ROW is — a condition, not a drawing — and it is equally true of an
+ *  alertcondition the member scrolled past. Keying it off "the one the pane
+ *  declined" would silently drop the second and third conditions in a script that
+ *  declares several, which is the whole family of bug `foldNotesForOutput`
+ *  documents one function above. */
+export function alertNoteForOutput(out, notes = ALERT_NOTES) {
+  if (!out || out.kind !== 'alertcondition') return []
+  if (!notes || typeof notes.memberNote !== 'string') return []
+  const name = (typeof out.title === 'string' && out.title.trim())
+    ? out.title.trim() : 'this alert'
+  return [{
+    name: 'alertcondition',
+    note: notes.memberNote.split(notes.namePlaceholder || '<name>').join(name),
+  }]
+}
+
 /** The declaration that says an entry's OTHER `int` arguments must fit inside
  *  the one its `lookback` names. `closedTable.json::_functions_domain` argues it;
  *  this is the key both lanes match on, and its VALUE names which of the entry's

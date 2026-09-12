@@ -1,5 +1,49 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · D1 (option C) — A PANE DOES NOT SELECT AN ALERT
+
+⛔⛔ **THE TWO LANES DISAGREED ABOUT WHAT AN `alertcondition` IS, AND THE HOST LANE
+HAD THE WRONG ANSWER.** `chooseOutput` PREFERRED it over every plot — *"an
+alertcondition IS a condition by construction, so it wins"* — while `buildRuntimeIr`
+classified it as PRESENTATION and emitted no series for it. So the output a pane
+selected was exactly the one the runtime lane has nothing to draw.
+
+**Measured on the real member script, before → after:**
+
+| | |
+|---|---|
+| `uncharted-volume-v2.pine` host `selected` | **4** ("HVE Trigger") → **0** ("Volume") |
+| the same script, screener `selected` | **1** → **1**, unmoved |
+| the alertcondition row itself | still index 4, still `refusal: null` — a SPLIT, not a deletion |
+
+⭐ **THE SCREEN IS UNCHANGED AND THAT IS THE POINT.** A scan asks *"when is this
+true"*, and a condition is the right first offer there. Only the lane that has to put
+a line on a chart changed, and `pine.alertLane.test.js` carries the control that
+would fail an engine which had simply stopped preferring conditions anywhere.
+
+**The sentence has ONE home**, exactly as ruling 1.1 required of the fold note:
+`closedTable.json::_alertconditions.memberNote`, read by `parse.js::alertNotesOf` and
+`api/services/ast_table.py::alert_notes`, interpolated by the PRODUCER (never the
+component), rendered verbatim by `PineBox` beside the vendor and fold notes:
+
+> This script's alert condition 'HVE Trigger' is available under Alerts; it is not
+> drawn on the chart.
+
+⛔ Keyed off `kind`, never off `selected` — a script declaring three conditions has
+three things to tell the member, and the second and third are not the selected row by
+construction. `_alertconditions` is registered in `manifestProse.KEEP`: stripping it
+changes no number and moves no selection, so every test would stay green and the
+member would simply never be told — the `_folds` failure shape, one ruling later.
+
+⚠️ **A script whose ONLY output is a condition now answers `selected: -1` on a pane**,
+with `ok: true` (nothing failed to translate). That is the honest answer — there is no
+line to draw — and it is written down rather than left to be discovered. The pane's
+gate is `selected >= 0`, not `ok`.
+
+⏭️ **Routing the condition into `alertSets.js` is a FOLLOW-UP**, not part of this
+ruling. Today the sentence tells the member where the condition lives; nothing
+subscribes it yet.
+
 ## ⭐⭐ SESSION 2 · T4 — THE `newestBarIsForming` PRODUCER, AND THE 3.3 REFUSAL LIFTS
 
 `app/src/components/chart/engine/ast/pineRuntimeClock.js` + 11 assertions in its test.

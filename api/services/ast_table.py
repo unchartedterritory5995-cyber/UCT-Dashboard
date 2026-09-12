@@ -475,6 +475,58 @@ def fold_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str
     }
 
 
+#: The manifest section holding the ALERT-CONDITION sentence (ruling D1, option
+#: C, 2026-09-12). Unlike ``_folds`` this is ONE block, not a roster of channels:
+#: the disclosure is a property of a KIND of output, not of a fold channel.
+ALERTS_SECTION = "_alertconditions"
+
+#: The literal substring inside ``memberNote`` that the condition's own title
+#: replaces. Declared in the manifest so neither lane hard-codes ``"<name>"``.
+NAME_PLACEHOLDER = "namePlaceholder"
+
+
+def alert_notes(manifest: Optional[Mapping[str, Any]] = None) -> Optional[Mapping[str, str]]:
+    """The alert-condition disclosure: ``{"memberNote": ..., "namePlaceholder": ...}``.
+
+    ⭐ THE MIRROR OF ``parse.js::alertNotesOf``, AND IT EXISTS FOR THE REASON THE
+    FOLD NOTE'S MIRROR EXISTS: the sentence a member reads must have exactly one
+    author. Ruling D1 splits ``chooseOutput`` by lane so a PANE never selects an
+    ``alertcondition`` — an alertcondition draws nothing in Pine — and this is the
+    sentence that tells the member where the condition went instead.
+
+    ⛔ RETURNS ``None`` RATHER THAN A DEFAULT SENTENCE when the section is absent
+    or blank. A fallback written here would be a second copy of the one string,
+    and it would read as working right up until the manifest strip dropped the
+    section — which is precisely the failure ``manifestProse.KEEP`` was extended
+    to prevent.
+    """
+    m = manifest if manifest is not None else TABLE
+    spec = (m or {}).get(ALERTS_SECTION)
+    if not isinstance(spec, Mapping):
+        return None
+    note = spec.get(MEMBER_NOTE)
+    if not isinstance(note, str) or not note.strip():
+        return None
+    placeholder = spec.get(NAME_PLACEHOLDER)
+    if not isinstance(placeholder, str) or not placeholder:
+        placeholder = "<name>"
+    return {MEMBER_NOTE: note, NAME_PLACEHOLDER: placeholder}
+
+
+def alert_note_for(title: Optional[str],
+                   manifest: Optional[Mapping[str, Any]] = None) -> Optional[str]:
+    """That sentence with the condition's own title substituted, or ``None``.
+
+    ⚠️ An untitled condition becomes ``"this alert"`` rather than the string
+    ``"None"`` — a vague sentence beats one naming a Python value.
+    """
+    notes = alert_notes(manifest)
+    if notes is None:
+        return None
+    name = title.strip() if isinstance(title, str) and title.strip() else "this alert"
+    return notes[MEMBER_NOTE].replace(notes[NAME_PLACEHOLDER], name)
+
+
 #: The declaration that says an entry's OTHER ``int`` arguments must fit inside
 #: the one its ``lookback`` names. ``closedTable.json::_functions_domain`` argues
 #: it; this is the key both lanes match on, and its VALUE names which of the

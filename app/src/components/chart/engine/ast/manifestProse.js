@@ -73,6 +73,13 @@ export const KEEP = Object.freeze([
   // `request.security` became the chart's own series. That is the failure the
   // divergence roster calls "merely KNOWN", arriving through the build.
   '_folds',
+  // ⛔⛔ READ BY `parse.js::alertNotesOf` AND `PineBox`, AND IT IS THE ONLY COPY OF
+  // THE SENTENCE. `_alertconditions` carries the note a member reads when the HOST
+  // lane declines to draw an `alertcondition` (ruling D1, option C). Stripping it does
+  // not change one number and does not change which column a pane selects — the lane
+  // split is in `chooseOutput` — so every test stays green and the member is simply
+  // never told where their alert went. Same failure shape as `_folds`, one ruling later.
+  '_alertconditions',
 ])
 
 /**
