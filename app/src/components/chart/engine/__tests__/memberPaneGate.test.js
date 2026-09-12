@@ -102,17 +102,28 @@ describe('the member-pane gate', () => {
       .toEqual([])
   })
 
-  it('⭐ THE CONTROL: the importer walker can actually see an importer', () => {
-    // Without this, the assertion above would pass just as happily if the walker
-    // were broken, looking in the wrong directory, or matching nothing.
+  it('⭐⭐ THE GATE NOW HAS A CONSUMER, AND IT CONSULTS THE GATE (T5)', () => {
+    // ⚰️ THIS USED TO ASSERT `importers('memberPaneGate').length === 0` and borrow
+    // `placement.js` as its positive control, because the gate had been written
+    // before the surface it guards. `MemberPane.jsx` is that surface, so the
+    // borrowed control is retired and the real claim takes its place.
     const known = importers('memberPaneGate')
-    expect(known.length,
-      'the walker found NO importer of a module that is imported by this very '
-      + 'suite — it is broken or pointed at the wrong root, and the vacuous '
-      + 'assertion above therefore proves nothing')
-      .toBe(0)
-    // memberPaneGate has no non-test importer yet either, so use a module that
-    // certainly does: `placement.js` is imported by the engine's own sources.
+      .map((f) => path.relative(APP, f).split(path.sep).join('/'))
+    expect(known,
+      'the member-pane gate has no non-test importer. If the pane was deleted, '
+      + 'delete this case with it; if it stopped importing the gate, that is the '
+      + 'defect this file exists for.')
+      .toEqual(['src/components/chart/builder/memberPane/MemberPane.jsx'])
+
+    // ⛔ IMPORTING IT IS NOT CONSULTING IT. A component that pulled the module in
+    // and never called the reader would satisfy an import scan and still show a
+    // member an unfinished pane on a default build.
+    const pane = fs.readFileSync(
+      path.join(APP, 'src/components/chart/builder/memberPane/MemberPane.jsx'), 'utf8')
+    expect(pane).toContain('memberPaneEnabled()')
+
+    // ⭐ AND THE WALKER IS STILL SHOWN TO WORK ON A MODULE WITH MANY IMPORTERS,
+    // so a walker that had broken into "finds exactly one file, always" reds.
     expect(importers('placement').length).toBeGreaterThan(0)
   })
 })

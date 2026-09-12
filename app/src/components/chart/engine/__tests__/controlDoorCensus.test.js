@@ -641,6 +641,22 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'because a reader auditing "which surfaces can put an indicator on a chart" must not have ' +
        'to open the file to learn that this one cannot — and because the day somebody gives ' +
        'the preview a real onStore, this row is where that change has to argue for itself'],
+      ['app/src/components/chart/builder/memberPane/MemberPane.jsx',
+       '⭐ NEW AT T5 (2026-09-12) — a MEMBER OWN-SCRIPT pane, behind '
+       + '`VITE_PINE_MEMBER_PANE_ENABLED`. It is the `PreviewPane` shape and it is '
+       + 'ledgered for the same reason: addInstance is the only door that means "put '
+       + 'THIS definition on this chart, as its own copy" — a freshly translated '
+       + 'member script has no `legacy:<id>` to revive — and it follows the '
+       + 'BuilderSheet TASK-16 ORDER, installUserDefinitions FIRST, addInstance on '
+       + 'the id the registry actually installed. ⛔ WHAT IS DIFFERENT IS THE FLAG: '
+       + 'the gate is read BEFORE the document is even built, so on a default build '
+       + 'this surface installs nothing, writes nothing and renders nothing. Its '
+       + 'settings blob is a throwaway with every other instance stripped and its '
+       + '`onStore` is a noop, so like the preview it reaches no persisted settings '
+       + '— ledgered anyway, because a reader auditing "which surfaces can put an '
+       + 'indicator on a chart" must not have to open the file to learn that this '
+       + 'one cannot, and because the day the flag flips this row is where that '
+       + 'change argues for itself'],
       ['app/src/components/screener/ScanResults.jsx',
        '⭐ NEW AT PHASE E TASK 9 — scan → chart in one click (AMENDMENT 2 §A2.2). A scan ' +
        'hit is charted WITH THE DEFINITION THAT FOUND IT, and addInstance is the only ' +

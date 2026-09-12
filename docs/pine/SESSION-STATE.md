@@ -1,5 +1,74 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · T5 — THE PANE, THE FLAG, AND THE COMPARATOR *(code; pixels owed)*
+
+`MemberPane.jsx` composes what already exists — `memberPaneDefinition` builds the
+document, the shipped install door validates it, `addInstance` puts it in
+`indicatorInstances`, `ChartPane` draws it — and adds nothing of its own except
+the flag and the disclosures.
+
+⛔⛔ **FLAG-OFF IS A `null` RETURN BEFORE ANY WORK.** `memberPaneEnabled()` is read
+first, inside the component, so on a default build this **installs nothing,
+writes nothing and renders nothing**. The rail asserts that against the REGISTRY
+LISTING, not against a spy: `PreviewPane`'s header records what a leaked
+definition costs — it rides `listUserDefinitions()` onto the member's real chart,
+the same list the settings row, the legend and the alert address read. `'0'`,
+`'true'`, `''` and `'yes'` are all off; only the exact `'1'` opts in.
+
+| | |
+|---|---|
+| flag OFF | `container.innerHTML === ''`, no `ChartPane`, **no registry entry** |
+| flag ON | one `ChartPane`, `density="mini"`, `showTfBar={false}`, `liveUpdates:false`, `backgroundWarm:false` |
+| the blob | the member's own canvas with **every other instance stripped**, `onStore` a noop |
+| unmount | uninstalls — asserted against the listing |
+| D1's alert note | on screen, verbatim, naming `HVE Trigger` |
+| a refusal | the `paneGate` sentence, never a blank |
+
+⚠️ **THE CEILING, STATED AT THE TOP OF THE TEST FILE RATHER THAN IN A REPORT.**
+`ChartPane` is mocked, so every case is about **what the pane is handed**. Whether
+the four series paint, whether Scale Padding is invisible and scale-setting, and
+whether the sub-pane is a quarter high are **screenshot questions** and are owed
+against the real chart. Nothing offline may be read as evidence for them.
+
+### ⭐ `seriesCompare.js` — the parity comparator, proved able to fail first
+
+The owner's three terms, each here because the obvious single rule gets one of
+them wrong:
+
+- **integers EXACT** — 45,510,000 against 45,510,001 passes any float tolerance
+  you would pick and is a different number of shares. Measured in the test: the
+  same pair reads **2.2e-8 relative**, which is why the `kind` split exists.
+- **floats RELATIVE at 1e-9** — magnitudes here span volume (1e8) and a ratio
+  (1e0); an absolute bound is vacuous at one end and unmeetable at the other.
+- **the ABSOLUTE error beside it** — 3e-10 relative on a volume column is 0.015
+  shares, and a human reading the table needs that number.
+
+⛔ Plus the cases a lenient comparator skips: a blank on ONE side is a mismatch
+(warm-up ending a bar early is the defect a parity run exists to catch), a length
+mismatch is refused outright rather than graded on the overlap, and a vendor zero
+is compared absolutely so one zero bar does not fail a whole series.
+
+⛔⛔ **IT IS EXERCISED BEFORE IT MEETS A VENDOR NUMBER, DELIBERATELY.** The Part 3
+capture cannot happen while the rig window is off the desktop, and a comparator
+first run against the real numbers later would be an instrument nobody had seen
+discriminate — this repo has twice had an instrument manufacture a finding.
+
+### Two rails fired on the new consumer, and both were right
+
+`memberPaneGate.test.js` carried an assertion that the gate had **no importer
+yet**, with `placement.js` borrowed as its positive control. `MemberPane.jsx` is
+the surface it was written for, so the borrowed control is retired and the real
+claim takes its place: the gate has exactly that one importer, **and importing is
+not consulting** — the source is checked for `memberPaneEnabled()`, because a
+component that pulled the module in and never called it would satisfy an import
+scan and still show a member an unfinished pane. `controlDoorCensus.test.js`
+required the new `addInstance` caller to be ledgered with its reason.
+
+⚠️ **THREE SUITES ARE LOAD-SENSITIVE, NOT BROKEN.** `manifestProse`,
+`enumerationSites` and `EvidenceTab.doors` each walk ~1,400 files and went red in
+one full-suite run and green in the next, and all three pass alone. Second full
+run: **8,627 passed, exactly the 10 known reds.**
+
 ## ⭐⭐ SESSION 2 · R-H — A MEMBER CANNOT VARY AN INPUT PER PANE INSTANCE TODAY
 
 **Owner ruling, 2026-09-12: accepted for this wave, routed for the next.**
