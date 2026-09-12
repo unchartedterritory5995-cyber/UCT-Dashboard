@@ -256,32 +256,29 @@ it: a copy is not a backup of a WAL database — `VACUUM INTO`, then `PRAGMA qui
 COPY, then upload. And it needs a restore rehearsal, because a backup nobody has restored is a
 belief, not a backup.
 
-## 5. BrowserStack — the quota question, as a support question and not a purchase
+## 5. BrowserStack — ANSWERED 2026-09-12 in the dashboard. Not a support question.
 
-**Measured 2026-09-12** from this machine, read-only, on the credentials in the environment
-(`BROWSERSTACK_USERNAME = patrickgosz_y3ZHil`):
+⚰️ **This section first framed the mismatch as something to raise with BrowserStack support.** It
+is not. Read in the account's own dashboard on 2026-09-12, signed in as the owner:
 
-```
-GET https://api.browserstack.com/automate/plan.json      → 200  {"automate_plan":"Free", …}
-GET https://api-cloud.browserstack.com/app-automate/plan.json → 200  {"automate_plan":"Free", …}
-```
+| Product | State |
+|---|---|
+| Live | ✅ **PAID** — dashboard loads the device picker |
+| App Live | ✅ **PAID** — dashboard loads |
+| **Automate** | ❌ **NOT ON THE ACCOUNT** — `automate.browserstack.com/dashboard` redirects to `/request_access` |
+| **App Automate** | ❌ **NOT ON THE ACCOUNT** — same redirect |
 
-⭐ **A paid LIVE subscription is invisible to both of those endpoints.** BrowserStack publishes a
-plan API for **Automate** and **App Automate** only; **Live** and **App Live** have none. So
-"Patrick paid about a week ago" and "the API says Free" are not in conflict at all if what he
-bought was Live — which is also the product this programme has been using all along
-(`40-phase2-device.md`: *"Live ≠ Automate — they are metered separately, and a Live seat does not
-fund this suite"*).
+Invoices, both Paid: `INV02573416` $49 on 7 Sep 2026, `INV02574188` $47.37 on 8 Sep 2026. Username
+`patrickgosz_y3zhil`, the same one `BROWSERSTACK_USERNAME` holds — so this is one account, not two.
 
-**The open question, for BrowserStack support or the billing page, in this order:**
+⭐ **`plan.json` saying `Free` was RIGHT all along.** The API covers Automate and App Automate only;
+Live and App Live have no plan endpoint, so a paid Live seat is invisible to every check an agent
+can make. "Paid a week ago" and "the API says Free" were about different products.
 
-1. Does the account attached to `patrickgosz_y3ZHil` hold a paid **Automate** plan today? If the
-   dashboard says yes while `plan.json` says `Free`, that is a support ticket with both artifacts
-   quoted side by side — not something to fix by guessing.
-2. If the paid product is **Live** only, the device path for G0-1 is Live (a human, or an agent
-   with a browser, driving the mirror), and the CI job stays dark. ⛔ That is a working path, not a
-   blocker.
-3. If a DIFFERENT username holds Automate, the fix is the environment's credentials, not a
-   purchase.
+**What follows for item 4 (the CI device job):** it is an **Automate** job and will keep taking its
+unfunded-skip branch — correctly, on positive proof — until Automate is bought. Real-device work
+today goes through **Live**: a human or an agent driving the screen mirror, not a script.
 
-⛔ **No purchase is proposed here, and none should be inferred from this section.**
+**Priced once, for information, not proposed** (monthly, 2026-09-12): Automate Chrome $129 ·
+Desktop $129 · **Desktop & Mobile $225** · Desktop & Mobile Pro $275. Only the $225 tier and above
+include real mobile devices, so it is the only one that could run G0-1 or the device matrix.
