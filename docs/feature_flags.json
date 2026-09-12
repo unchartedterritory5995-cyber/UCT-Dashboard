@@ -49,28 +49,28 @@
     "AI_SEARCH_DOSSIER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "AI_SEARCH_MEMORY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "AI_SEARCH_PERSONAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "ALERT_SHADOW_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -80,6 +80,13 @@
         "web"
       ],
       "note": "S7 first slice (owner authorization, 2026-09-03; api/main.py:6090-6116). Registers the 20-min alert_taxonomy_document_arrival cron, which polls SEC EDGAR per-ticker filings (api/services/sec_filings.py) against a watermark and fires document-arrival alerts through the alert-taxonomy predicate/delivery pipeline -- S7's first live trigger type. Independent of COMPASS_AUTOMATION_ENABLED. Live monitoring a real production predicate (NVDA) as of 2026-09-05, waiting on a genuine new filing; see docs/uct-terminal/continuity-checkpoint.md \"CURRENT WAITING ON EXTERNAL EVENT\"."
+    },
+    "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-EVENT-PROXIMITY CP3 (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_event_proximity_dark cron -- 07:05 and 18:05 ET weekdays, the legacy path's own two slots -- running the FORWARD-ONLY dark comparison of the new event-proximity evaluator against calendar_alerts.run_prereport_alerts. ARMED 2026-09-12 17:29:02 UTC on `web`, owner-authorized for this one variable only. DEFAULT IS OFF BY DESIGN: it reads real member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of My Stocks x the day's reporters), so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). ⛔ CADENCE IS DAILY, NOT PER-MINUTE, unlike its price-level sibling: the legacy path's whole notion of time is a DATE, so a minute-by-minute sweep would re-ask a question whose answer cannot change until tomorrow. The report tool's staleness bound follows that (26h, not 180s) -- copying the sibling's number would report a healthy sweep as stalled every time. Verdict gate five full trading sessions; read with `tools/s7_price_level_report.py --ticking`, which covers BOTH dark runs. CP4 (all members) and the FLIP each need a new owner approval line."
     },
     "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED": {
       "status": "armed",
@@ -95,28 +102,28 @@
     "AUTHDB_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "AWARENESS_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "BARSPACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "BARSPACK_WEB_INGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -148,7 +155,7 @@
     "BARS_PREWARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -162,35 +169,35 @@
     "BARS_UNIVERSE_CRAWLER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "BRAIN_PACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "BRAIN_TOOLS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "BREADTH_HISTORY_BACKFILL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "BREADTH_WICKS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -204,7 +211,7 @@
     "BROKER_SYNC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -213,26 +220,26 @@
       "where": [
         "web"
       ],
-      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. \u26b0\ufe0f This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
+      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. ⚰️ This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
     },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CALENDAR_WEEK_POST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CALL_RECAP_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -243,70 +250,70 @@
     "CATALYST_CURATOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CATALYST_DIGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CATALYST_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CATALYST_HUNTER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CATALYST_MUSTKNOW_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "CATALYST_RATINGS_SIGNAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_ASK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_CHAT_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_SIGNALS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -320,14 +327,14 @@
     "COMPASS_AUTOMATION_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "COMPASS_EOD_RECAP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -338,7 +345,7 @@
     "COMPASS_WEEKLY_DIGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -352,49 +359,49 @@
     "DARKPOOL_BIGBLOCK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_EOD_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_FLATFILE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_INTRADAY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_INTRADAY_TIERED_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_MASSIVE_INGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_RECORDS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -405,49 +412,49 @@
     "DEEP_HISTORY_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DESK_BACKGROUND_AUDIO_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DESK_DAILY_SESSION_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DESK_SESSION_CHAPTERS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DESK_SESSION_DISCORD_RECAP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DESK_TSDR_ANNOUNCE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "DISCORD_INDEX_CLOSE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -458,21 +465,21 @@
     "EXCURSION_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "EXPOSURE_GATE_WATCH_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "FLOW_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -486,14 +493,14 @@
     "FLOW_GAP_AUTOFILL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "FLOW_OPT_AGG_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -511,7 +518,7 @@
     "FLOW_READS_PROXY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -526,14 +533,14 @@
     "FUNDAMENTALS_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "FUNDAMENTALS_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -544,7 +551,7 @@
     "GROUPS_SWING_GATES_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -558,7 +565,7 @@
     "IMPLIED_STORE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -579,77 +586,77 @@
     "INTRADAYPACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "J2_ATTACHMENT_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "J2_ATTACHMENT_GC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "J2_SHARE_LINKS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "LIVEFLOW_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_CURATED_STREAM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_RESTHEAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_STREAM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_WS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "NHNL_SCANNER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -663,7 +670,7 @@
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -720,21 +727,21 @@
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "R2_RECOVERY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "RATINGS_PERCENTILE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -743,7 +750,7 @@
       "where": [
         "web"
       ],
-      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. \u26b0\ufe0f THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
+      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. ⚰️ THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
     },
     "S7_FILING_WATCH_ENABLED": {
       "status": "armed",
@@ -759,21 +766,21 @@
     "SCAN_SWEEP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "SCREENER_ANALYST_PASS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "SCREENER_LIVE_TIER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -787,7 +794,7 @@
     "SNAPSHOT_DELTA_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -798,14 +805,14 @@
     "STREAM_BARS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "THEME_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
@@ -819,63 +826,63 @@
     "TRADE_CONDITION_FILTER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "TRANSCRIPT_INDEX_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "TRANSCRIPT_KEYWORD_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "TWITTERAPI_IO_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "VOLUME_PUSH_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "VOLUME_SCANNER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "WEEKLY_FLOW_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "WIRE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     },
     "WORKER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set \u2014 service not captured)"
+        "(set — service not captured)"
       ],
       "note": ""
     }
