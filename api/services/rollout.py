@@ -199,6 +199,131 @@ def seed_cohort_from_role(cohort: str, role: str, *, conn=None) -> int:
     return int(after) - int(before)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# S12 SECOND MIGRATION — the assignment mechanism the deleted flag stood in for
+#
+# ⛔ APPROVED SCOPE (owner, 2026-09-12, line 2, PROVISIONAL on §8's reading):
+# *"second migration - S7 flags become tag assignments; delete the bespoke role
+# checks; in-pod verification that the projected set is still 12."*
+#
+# ⛔⛔ THESE SHIP IN THE SAME COMMIT THAT DELETES `CP4_ALL_MEMBERS_FLAG`, AND
+# THAT IS NOT TIDINESS. The first migration's packet said widening was "a tag
+# assignment"; there was no function that assigned a tag to anybody, so the
+# sentence described an INSERT somebody would have to type at a shell — against
+# the owner's own instruction that day not to write tag rows by hand.
+# `lesson_a_documented_workaround_is_not_a_recovery_path`: the re-enable path
+# ships with the removal or the removal does not ship.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def assign_cohort(cohort: str, user_ids, *, conn=None) -> int:
+    """Add these accounts to the cohort. IDEMPOTENT. Returns rows inserted.
+
+    ⛔ NEVER REMOVES. Same contract as `seed_cohort_from_role`, for the same
+    reason: a member added by hand must survive the next call, and a running
+    dark comparison must not lose a participant as a side effect of somebody
+    adding one.
+
+    ⛔ AND IT INSERTS ONLY FOR IDS THAT ARE REAL ACCOUNTS. `cohort_user_ids`
+    already JOINs `users` so a tag for a deleted account is never projected —
+    but writing one anyway would leave the table saying something false about
+    who is in the rollout, and the next person to read it by hand would believe
+    the table.
+    """
+    ids = [str(u) for u in dict.fromkeys(user_ids) if str(u).strip()]
+    if not ids:
+        # ⛔ An empty assignment is a no-op, never "everybody". The wide version
+        # has its own name below, so a caller cannot reach it by accident.
+        return 0
+    tag = tag_for(cohort)
+    own = conn is None
+    c = _auth_db.get_connection() if own else conn
+    try:
+        before = c.execute("SELECT COUNT(*) FROM user_tags WHERE tag = ?", (tag,)).fetchone()[0]
+        marks = ",".join("?" * len(ids))
+        c.execute(
+            "INSERT OR IGNORE INTO user_tags (id, user_id, tag) "
+            "SELECT lower(hex(randomblob(16))), u.id, ? FROM users u "
+            "WHERE u.id IN (%s)" % marks,
+            tuple([tag] + ids),
+        )
+        c.commit()
+        after = c.execute("SELECT COUNT(*) FROM user_tags WHERE tag = ?", (tag,)).fetchone()[0]
+    finally:
+        if own:
+            c.close()
+    return int(after) - int(before)
+
+
+def seed_cohort_all_members(cohort: str, *, conn=None) -> int:
+    """Every account in `users` joins the cohort. IDEMPOTENT.
+
+    ⚰️ THIS IS WHAT `ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ALL_MEMBERS` USED TO
+    BE. Its retired body, verbatim from `event_proximity_projection`:
+
+        if all_members_enabled():
+            rows = conn.execute("SELECT id FROM users").fetchall()
+
+    ⭐ Same population, and a completely different instrument. The flag widened
+    the cohort for the whole SERVICE the moment it was set, atomically and
+    invisibly, and narrowing again meant a redeploy. This writes rows somebody
+    can list, diff, and remove one at a time — and it cannot widen a cohort
+    nobody named.
+    """
+    own = conn is None
+    c = _auth_db.get_connection() if own else conn
+    try:
+        tag = tag_for(cohort)
+        before = c.execute("SELECT COUNT(*) FROM user_tags WHERE tag = ?", (tag,)).fetchone()[0]
+        c.execute(
+            "INSERT OR IGNORE INTO user_tags (id, user_id, tag) "
+            "SELECT lower(hex(randomblob(16))), u.id, ? FROM users u",
+            (tag,),
+        )
+        c.commit()
+        after = c.execute("SELECT COUNT(*) FROM user_tags WHERE tag = ?", (tag,)).fetchone()[0]
+    finally:
+        if own:
+            c.close()
+    return int(after) - int(before)
+
+
+def remove_from_cohort(cohort: str, user_ids, *, conn=None) -> int:
+    """Take these accounts out of the cohort. Returns rows removed.
+
+    ⛔⛔ AN EMPTY `user_ids` RAISES. It does not mean "all", and it does not mean
+    "nothing" either — it means the caller computed a set and got nothing, which
+    is the state in which a rollout gets emptied by a typo. `assign_cohort`
+    treats empty as a no-op because adding nobody is harmless; removing is not
+    symmetric, so neither is the guard.
+
+    ⭐ THIS IS THE DIRECTION THE ROLE CHECK COULD NEVER DO. `role = 'admin'`
+    could grow (promote somebody) and could not shrink without demoting a real
+    administrator of the product. Narrowing a canary to three of six people is
+    the thing S12 exists for, and until this function existed S12 could only
+    widen.
+    """
+    ids = [str(u) for u in dict.fromkeys(user_ids) if str(u).strip()]
+    if not ids:
+        raise ValueError(
+            "remove_from_cohort() refuses an empty user_ids. An empty set is "
+            "how a cohort gets emptied by accident; say which accounts.")
+    tag = tag_for(cohort)
+    own = conn is None
+    c = _auth_db.get_connection() if own else conn
+    try:
+        marks = ",".join("?" * len(ids))
+        cur = c.execute(
+            "DELETE FROM user_tags WHERE tag = ? AND user_id IN (%s)" % marks,
+            tuple([tag] + ids),
+        )
+        c.commit()
+        return int(cur.rowcount or 0)
+    finally:
+        if own:
+            c.close()
+
+
 def role_user_ids(role: str, *, conn=None) -> set[str]:
     """The pre-swap population, kept ONLY so the no-op proof has an oracle.
 

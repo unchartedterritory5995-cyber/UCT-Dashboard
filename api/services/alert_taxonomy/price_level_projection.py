@@ -73,7 +73,15 @@ from api.services.alert_taxonomy import receipts as _receipts
 # comparison bookkeeping is keyed by the LEGACY ROW ID as ruled.
 PROJECTED_PREFIX = "legacy:"
 
-ADMIN_ROLE = "admin"
+# ⚰️ S12'S SECOND MIGRATION DELETED ONE DECLARATION HERE. Retired verbatim:
+#
+#     ADMIN_ROLE = "admin"
+#
+# The first migration took the role out of the QUERY (the ⚰️ block in
+# `project_admin_alerts` quotes it) and left it in the constant, referenced by
+# nothing but that quotation. Two modules each declaring their own `"admin"` is
+# the second-authority shape S12 exists to remove; `rollout.LEGACY_S7_ROLE` is
+# the one authority now, and it seeds rather than decides.
 
 
 def projected_predicate_id(legacy_row_id: str) -> str:
