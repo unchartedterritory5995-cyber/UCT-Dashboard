@@ -607,6 +607,53 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## D1 G1 — MERGED 2026-09-12, BEHAVIOUR-CHANGING, marker bump #3
+
+| step | SHA | where |
+|---|---|---|
+| G1 | **`d050f867f`** | `feat/s7-price-level` |
+| marker bump #3 | **`e1d4b348a`** | same commit series |
+| **merge** | **`a0c2bfee4`** | **`master`** |
+
+**Deploy artifacts:** web **SUCCESS** 16:12:59Z · flow-worker **SUCCESS** 16:12:59Z,
+advancing `59388e52c → a0c2bfee4`. ⭐ flow-worker BUILT rather than SKIPPED — the first
+bump in this programme that discharged a real strand, and the artifact proves the
+mechanism end to end.
+
+### ⛔ CLASSIFICATION — BEHAVIOUR-CHANGING, IT STRANDS
+
+The rail exited **1** and named four files flow-worker RUNS and does not watch:
+`fmp_client.py` · `earnings_estimates.py` · `earnings_history_fmp.py` ·
+`fmp_transcripts.py`. Without the bump the push would have left flow-worker on the old
+copies **with every test green** — the exact failure the marker exists for.
+
+### CENSUS — the number G1 actually moved
+
+| | before | after |
+|---|---|---|
+| `_fmp_get` sites naming a timeout | 12 | **31** |
+| sites inheriting a default | **21** | **2** |
+
+The two survivors are both `bars_sanitize.py` — bars-api territory, owner-reserved,
+excluded **by name** in a single constant so widening the exemption stays reviewable.
+
+⚠️ **The review doc said "eight named" explicit sites; there are twelve** (ten literal,
+two env-configured). A hand-typed count beside the list it describes, again.
+
+### ⛔ WHAT DID NOT SHIP, AND WHY — tranche 1
+
+The twelve explicit sites are **not** migrated to the typed adapter. Reading the code
+turned up something the G1 review never flagged: **the typed functions RAISE
+(`FMPNotFound`) where legacy `_fmp_get` RETURNS `[]`/`None`.** So migrating is not
+"pass the same number through" — it converts not-found from a falsy value into an
+exception, and two of those sites (`routers/research.py`, `services/fundamentals.py`)
+are on a **member request path** where an unhandled raise is a 500.
+
+⭐ **The review sized G1 as a timeout question. It is also an error-semantics question**,
+and each of the twelve needs its own not-found decision. That is a ruling, not a refactor.
+
+---
+
 ## S7 `price-level` — APPROVED 2026-09-12 · CP1–CP3 MERGED · DARK RUN STARTS MONDAY'S OPEN
 
 | commit | branch | system | files | what |
