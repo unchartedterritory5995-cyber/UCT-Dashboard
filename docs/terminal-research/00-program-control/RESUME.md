@@ -30,6 +30,35 @@ is exactly the reassurance that stops anyone reading further. ⛔ The staleness 
 DIFFER by design: 180 s for price-level, **26 h** for event-proximity. Copying the
 sibling's number would report a healthy twice-a-day sweep as stalled every time.
 
+## ⛔⛔ MONDAY, BEFORE ANYTHING ELSE — DID THE ROLLOUT SEED RUN IN PRODUCTION?
+
+S12's swap made `user_tags` the cohort for **both** dark runs, and the ruling is **empty cohort ⇒
+NO members**. The seed that makes the swap a no-op runs in `api/main.py`'s lifespan on every boot.
+
+⛔⛔ **IT IS UNVERIFIED IN PRODUCTION.** The boot happened — both `[startup] S7 … DARK comparison
+ENABLED` lines are present on `ee8bac5e9` — but the seed's own line is a `logging.info` and did not
+appear in the retrieved log window. **"The code path runs on boot" is an INFERENCE**, and this
+session was burned twice in one day by exactly that move.
+
+**If the seed did not run, both dark runs are projecting ZERO right now**, and five sessions of
+"agreement" over an empty set reads exactly like five sessions of agreement. That is the failure the
+seeding step exists to prevent, so it must be the FIRST thing checked.
+
+**How to check, cheapest first:**
+
+1. `python tools/s7_price_level_report.py --ticking` — a non-zero row count means the cohort is
+   non-empty and the sweep is writing. ⚠️ A ZERO is **not** proof of the opposite: it is also what a
+   quiet market looks like. Zero means *go to 2*.
+2. Read the seed's own log line, or the count of `user_tags` rows with tag `rollout:s7-dark`, in the
+   running pod.
+3. If the cohort is empty: `rollout.ensure_s7_dark_seeded()` is idempotent and safe to run again.
+
+⭐ **AND THE DISTINCTION IS THE WHOLE POINT.** `NO DATA` (the sweep never ran, or the cohort is
+empty) and `QUIET` (it ran and found no disagreement) print the same four zeroes. Do not read one as
+the other.
+
+---
+
 ## ⛔⛔ HOW TO READ NEXT WEEKEND — the two columns that decide, and the two that cannot
 
 **`price-level`:** `legacy_only` is the column. `new_only` is **structurally invisible**
