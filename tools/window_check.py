@@ -775,7 +775,34 @@ STATE_JS = """async (acct) => {
     out.lockDetail = _mine.map(l => ({name: l.name, mode: l.mode, id: l.clientId}));
     out.held = (q.held || []).filter(l => String(l.name).startsWith('uct.nb.sync.')).map(l => l.mode);
     out.pending = (q.pending || []).filter(l => String(l.name).startsWith('uct.nb.sync.')).length;
-  } catch { out.locks = 'ERR' }
+    // ⛔⛔ AND THE CENSUS CANNOT ANSWER THE QUESTION THE ROW ASKS.
+    //
+    // `query()` still reports a lock held by a document Chrome has merely
+    // FROZEN — a previous page kept in the back/forward cache — and nothing
+    // evicts it while nobody asks for it. An opted-out cleanup page never asks,
+    // so it counts a holder that is not running and calls the profile dirty.
+    //
+    // MEASURED 2026-09-11, both halves, on this rig:
+    //   · navigate off the notebook with nothing waiting ⇒ the previous
+    //     context's lock still reads HELD 5s later;
+    //   · do it with a second tab WAITING ⇒ leadership transfers inside 5s and
+    //     stays transferred through 60s.
+    // So the frozen holder is harmless and the product is correct — but the
+    // census cannot tell it from a live one.
+    //
+    // ⭐ ASK FOR THE LOCK INSTEAD. A grant IS the row's claim ("lock free ⇒ the
+    // next run can open it"), and it is what forces Chrome to resolve a frozen
+    // holder. No grant inside the budget ⇒ something LIVE holds it ⇒ RED.
+    // ⛔ The callback returns undefined ON PURPOSE: that releases the lock the
+    // instant it is granted, so the probe never becomes the leader it measures.
+    out.lockClaimable = await new Promise((resolve) => {
+      const ac = new AbortController();
+      const t = setTimeout(() => { try { ac.abort() } catch (e) {} resolve(false) }, 5000);
+      navigator.locks.request('uct.nb.sync.' + acct, {signal: ac.signal}, () => {
+        clearTimeout(t); resolve(true); return undefined;
+      }).catch(() => { clearTimeout(t); resolve(false) });
+    });
+  } catch { out.locks = 'ERR'; out.lockClaimable = 'ERR' }
   try {
     const h = await openIfExists('uct_notebook_' + acct);
     if (h.missing) { out.dbOpened = false; out.stores = null; out.storeNames = []; out.dbMissing = true; return out; }
@@ -1118,8 +1145,11 @@ def run_check(label: str, with_canary: bool, number: int = 0) -> Check:
             st = page.evaluate(STATE_JS, ACCOUNT_ID)
             stores_ok, stores_txt = render_stores(st)
             chk.add("four durable stores", stores_ok, stores_txt, stores_txt)
+            # ⛔ BOTH READINGS. The census can count a FROZEN holder from an
+            # earlier page; the claim is whether this run can actually lead.
             chk.add("notebook locks", st.get("locks") != "ERR",
-                    f"**{st.get('locks')}** `uct.nb.sync.*`", "navigator.locks unavailable")
+                    f"**{st.get('locks')}** `uct.nb.sync.*` · claimable: "
+                    f"**{st.get('lockClaimable')}**", "navigator.locks unavailable")
             key = st.get("optInKey")
             chk.add("opt-in key", True, _render_key(key))
 
@@ -1324,7 +1354,11 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     reasons = []
     if not zeroed:
         reasons.append(f"stores not all zero ({stores!r})")
-    if end.get("locks") != 0:
+    # ⛔ THE CLAIM, NOT THE CENSUS. `locks != 0` failed a clean run on
+    # 2026-09-11 by counting a FROZEN holder (see STATE_JS). What this row
+    # promises is that the next run can lead, and the only honest test of
+    # that is to ask for the lock.
+    if end.get("lockClaimable") is not True:
         # NAME THE HOLDER'S NEIGHBOURHOOD TOO. A Web Lock belongs to an
         # execution context, so "which pages are open" is half the answer and
         # this profile is PERSISTENT - it can restore tabs from a prior session.
@@ -1332,8 +1366,9 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
             _pages = [pg.url for pg in page.context.pages]
         except Exception:                                    # noqa: BLE001
             _pages = ["<unreadable>"]
-        reasons.append(f"locks={end.get('locks')} -> {end.get('lockDetail')!r} "
-                       f"; {len(_pages)} page(s) open: {_pages}")
+        reasons.append(f"the sync lock could NOT be claimed in 5s (lockClaimable="
+                       f"{end.get('lockClaimable')!r}) - something LIVE holds it: "
+                       f"{end.get('lockDetail')!r} ; {len(_pages)} page(s) open: {_pages}")
     # ⭐ The opt-in key is NOT asserted here any more. `_mini_canary`'s `finally`
     # owns it, asserts it, and runs on every exit — including the two this step
     # can never be reached from. One authority, at the point of the action.
@@ -1344,8 +1379,8 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     end_total = end_notes.get("total")
     if isinstance(chk.notes_before, int) and isinstance(end_total, int) and end_total != chk.notes_before:
         reasons.append(f"note count ended at {end_total}, baseline was {chk.notes_before}")
-    chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
-             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}** (+{len(_kept_before)} pre-existing, excluded) \u00b7 notes **{chk.notes_before} \u2192 {end_total}**",
+    chk.step("5 cleanup \u2192 stores 0, sync lock claimable, opted out", not reasons,
+             f"stores all zero: **{zeroed}** \u00b7 sync lock claimable: **{end.get('lockClaimable')}** (census **{end.get('locks')}**) \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}** (+{len(_kept_before)} pre-existing, excluded) \u00b7 notes **{chk.notes_before} \u2192 {end_total}**",
              # \u26d4 Name the sub-condition that failed. "cleanup incomplete" while
              # printing three values that all look fine cost a diagnosis today.
              "cleanup incomplete: " + " \u00b7 ".join(reasons))
@@ -2367,7 +2402,8 @@ def self_check() -> int:
                 return {"ok": True, "total": len(self.notes),
                         "canary": [t for t in self.notes if SENTINEL in t]}
             if "optInKey" in js:                     # STATE_JS
-                return {"optInKey": "0", "locks": 0, "stores": {"notes": 0, "outbox": 0},
+                return {"optInKey": "0", "locks": 0, "lockClaimable": True,
+                        "stores": {"notes": 0, "outbox": 0},
                         "dbOpened": True, "storeNames": ["notes"]}
             if "objectStoreNames" in js:
                 return {"storesCleared": 0}
@@ -2578,8 +2614,14 @@ def self_check() -> int:
                     p.queued, p.offline_text = True, text
                     p.queued_base = p.updated
 
-        def __init__(self, lands=True, door_moves=True, forks=False):
+        def __init__(self, lands=True, door_moves=True, forks=False,
+                     lock_claimable=True, lock_census=0):
             self.lands, self.door_moves, self.forks = lands, door_moves, forks
+            # ⛔ TWO KNOBS, BECAUSE THEY CAME APART ON THE RIG. The census
+            # counts a FROZEN holder; the claim asks whether the next run can
+            # lead. `census=1, claimable=True` is the exact state that failed a
+            # clean run on 2026-09-11, and it must be GREEN.
+            self.lock_claimable, self.lock_census = lock_claimable, lock_census
             self.online, self.rev = True, 1
             self.updated = "REV-1"
             self.note_id = "note-1"
@@ -2686,7 +2728,11 @@ def self_check() -> int:
                                    if self.queued else []),
                         "server": self.server_note() if self.online else "OFFLINE"}
             if "optInKey" in js:                           # STATE_JS
-                return {"optInKey": self.store.get(FLAG_KEY, "0"), "locks": 0,
+                return {"optInKey": self.store.get(FLAG_KEY, "0"),
+                        "locks": self.lock_census,
+                        "lockClaimable": self.lock_claimable,
+                        "lockDetail": [{"name": "uct.nb.sync.acct", "mode": "exclusive",
+                                        "id": "FROZEN"}] * self.lock_census,
                         "held": ["exclusive"], "pending": 0, "dbOpened": True,
                         "storeNames": ["notes"], "stores": {"notes": 0}}
             if "setItem(k, '1')" in js:
@@ -2701,8 +2747,10 @@ def self_check() -> int:
                 return "ONLINE 200" if self.online else "FAILED: TypeError"
             return {}
 
-    def _drive_canary(number=10, lands=True, door_moves=True, forks=False):
-        page = _DrainPage(lands=lands, door_moves=door_moves, forks=forks)
+    def _drive_canary(number=10, lands=True, door_moves=True, forks=False,
+                      lock_claimable=True, lock_census=0):
+        page = _DrainPage(lands=lands, door_moves=door_moves, forks=forks,
+                          lock_claimable=lock_claimable, lock_census=lock_census)
         chk = Check(label="t", number=number)
         _mini_canary(chk, page, page.set_offline, page.puts)
         return chk, page
@@ -2764,6 +2812,33 @@ def self_check() -> int:
                   not (_step(chk_d, "4 door ") or Read("x", True)).ok))
     cases.append(("…and the door is opted back out of anyway",
                   (_step(chk_d, "5 opted back out") or Read("x", False)).ok))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔ THE CLEANUP LOCK — A CENSUS AND A CLAIM ARE DIFFERENT QUESTIONS
+    # ══════════════════════════════════════════════════════════════════════════
+    # 2026-09-11: `locks != 0` failed a run whose every product step was green.
+    # The holder was a document Chrome had FROZEN earlier in the same run, and
+    # nothing evicts one while nobody asks for the lock. Measured on the rig:
+    # with a second tab WAITING, leadership transferred inside 5s and stayed
+    # transferred through 60s — so a frozen holder never blocks the next run.
+    # ⛔ THE FIX IS NOT A LOOSER THRESHOLD. It is a different measurement: ASK
+    # for the lock. Both halves are driven below, and the RED still fires.
+    chk_lk, _page_lk = _drive_canary(number=10, lock_claimable=False, lock_census=1)
+    _lk = _step(chk_lk, "5 cleanup")
+    cases.append(("⛔ DRIVEN: a sync lock that cannot be CLAIMED is RED",
+                  _lk is not None and not _lk.ok))
+    cases.append(("…and it says so — the holder is named, not just counted",
+                  "could NOT be claimed" in (_lk.render() if _lk else "")))
+    # ⭐ THE EXACT STATE OF 2026-09-11, AND IT MUST BE GREEN.
+    chk_lc, _page_lc = _drive_canary(number=10, lock_claimable=True, lock_census=1)
+    _lc = _step(chk_lc, "5 cleanup")
+    cases.append(("⭐ CONTROL: a FROZEN holder (census 1) that IS claimable is GREEN",
+                  _lc is not None and _lc.ok and not chk_lc.findings))
+    cases.append(("…and the census is still PRINTED, so a stale holder stays visible",
+                  "census **1**" in (_lc.render() if _lc else "")))
+    cases.append(("⚰️ CONTROL: the census this replaced could not tell those two apart",
+                  _page_lk.lock_census == _page_lc.lock_census == 1
+                  and _lk is not None and _lc is not None and _lk.ok != _lc.ok))
     _body_src = src_wc.split("def _canary_body", 1)[1].split("\n# ═", 1)[0]
     cases.append(("the door is chosen INSIDE the canary from the run's own number",
                   "door_for(chk.number)" in _body_src))
