@@ -307,14 +307,56 @@ type already has (§3), not centralized in one file — a `registerTriggerType` 
 
 ### 5.2 Predicate registration
 
+⛔ **AMENDED 2026-09-11 (owner ruling): `entity_scope` carries an optional `symbol`, and it is
+REQUIRED for `document-arrival`.**
+
+**Found by the filing-watch parity rail** (`tests/test_alert_taxonomy_filing_watch_parity.py`,
+`4d7a795a4`). The original three-field shape below was **not what shipped, and not what filing watch
+joins on**:
+
+- `useFilingWatch.getWatch` matches **solely** on `entity_scope.symbol`.
+- `document_arrival._evaluate_one` uses it as the SEC fetch ticker.
+- The delivered title, message and `/research/` URL all derive from it.
+
+⛔ **A predicate conforming to the ORIGINAL text — `{kind, id, asOf}` only — would be invisible to
+every filing-watch surface and would deliver entity-id-shaped copy to members.** The parity rail's
+M1 mutation demonstrates exactly that: deleting `symbol` produced `'ent_01M29QVE…' == 'AAPL'`
+failures in the bell title and the Research link. The existing suites concealed the dependency by
+hand-adding `"symbol"` to raw scopes, so it was undocumented at the contract level.
+
+**The amended shape:**
+
+```python
+entity_scope: dict
+# {"kind": "entity"|"entity-set"|"list-ref",
+#  "id": ...,               # REQUIRED
+#  "asOf": ...,             # REQUIRED
+#  "symbol": str | None,    # OPTIONAL in general; ⛔ REQUIRED for `document-arrival`.
+#                           #   Filing watch joins on this field and nothing else.
+#  "entity_status": ...}    # OPTIONAL additive extra, as `predicates.py` documents
+```
+
+⚠️ **The original text is preserved below.** It was right about the Context Channel shape and about
+the S3 interim; it was simply incomplete against what shipped:
+
+> ```python
+> entity_scope: dict      # ~~{"kind": "entity"|"entity-set"|"list-ref", "id": ..., "asOf": ...}~~
+>                         # — per information-architecture.md §10.1's Context Channel shape.
+>                         # INTERIM (§8): "id" is a raw ticker string until S3 exists; the
+>                         # shape is typed identically either way so no caller changes when
+>                         # S3 lands.
+> ```
+
+**F-S7-1 (follow-up, recorded not scheduled): migrate filing watch to join on `{kind, id}`** once S3
+entity ids are the canonical key across alert types. ⛔ **Sequenced with the first trigger type that
+needs entity-scoped matching — never as a standalone change.** Doing it alone would touch a
+live member-facing feature for no member benefit, and per the protected-consumer ruling that is a
+separate, owner-flagged PR anyway.
+
 ```python
 def register_predicate(
     type_id: str,
-    entity_scope: dict,      # {"kind": "entity"|"entity-set"|"list-ref", "id": ..., "asOf": ...}
-                              # — per information-architecture.md §10.1's Context Channel shape.
-                              # INTERIM (§8): "id" is a raw ticker string until S3 exists; the
-                              # shape is typed identically either way so no caller changes when
-                              # S3 lands.
+    entity_scope: dict,      # see the AMENDED shape above — `symbol` required for document-arrival
     params: dict,             # typed per type_id, validated against params_schema
     user_id: str,
     channels: list[str] | None = None,  # per-alert channel override (§5.5); None = inherit
@@ -344,6 +386,33 @@ is a symbol-string lookup against `cap_universe.json` (the same universe gate `t
 already uses), not S3, until S3 exists.
 
 ### 5.3 The fire receipt (generalizes `alert_fired_log.py`, §3)
+
+⛔ **AMENDED 2026-09-11 (owner ruling): `alert_fires` carries a `detail` column, ratified as
+contract.** The table below did not have one; `db.py` shipped it and documented the deviation in its
+own docstring. **Filing watch's entire in-app reconstruction depends on it**, so it is no longer a
+deviation to be tidied away — it is the contract.
+
+```sql
+  detail TEXT,        -- JSON. The non-numeric payload a fire needs to be reconstructed in-app.
+                      -- For `document-arrival`: {form, accession, url, filed, company, ticker}.
+                      -- Ratified 2026-09-11; see api/services/alert_taxonomy/db.py's docstring
+                      -- for the original deviation note.
+```
+
+⭐ **Why it exists, stated plainly because the original omission was a real design gap:**
+`triggering_value REAL` **cannot hold a filing.** A document-arrival fire has no number to record —
+it has a form type, an accession, a URL. A schema that can only record numbers cannot serve a
+taxonomy whose whole premise is *one table for eight types*, and four of those eight
+(`document-arrival`, `scan-membership-change`, `regime-change`, `catalyst-match`) are non-numeric.
+
+✅ **`triggering_value REAL` STAYS**, unchanged, for the numeric types — `price-level`,
+`indicator-condition`, `event-proximity`, `position-risk`. The two columns are complementary, not
+alternatives: a numeric fire fills `triggering_value`, a non-numeric one fills `detail`, and a type
+may use both.
+
+⚠️ Pinned by the parity rail's receipt assertions (`fire_key`, `detail.{form,accession,url,filed,company,ticker}`,
+`source_data_class="sec_filing"`, `freshness_class is None`, `entity_ref`), so a future reshape fails
+a test rather than a member's notification.
 
 ```sql
 CREATE TABLE IF NOT EXISTS alert_fires (

@@ -150,6 +150,37 @@ the session reports. These are on feature branches awaiting the owner's merge �
 | `3ebe013a5` | `feat/s3-admin-routes` | **S3** | `scripts/test_entity_master_seed.py` → `tests/test_entity_master_seed.py`, `docs/entity-master-implementation-log.md` (+path note) | **Collected a suite that no standard pytest run had ever executed.** `pytest.ini` declares `testpaths = tests, api`, and `tests/test_test_discovery_coverage.py` was **already failing on `origin/master`** naming this file as its single orphan. The suite was sound the whole time: **18 passed, exit 0** once collected; the discovery rail then goes **5 passed, exit 0**. ⛔ Moved rather than adding `scripts` to `testpaths`, because that would make a standard run collect `scripts/test_massive_ws.py` — which the same rail exempts as "a manual probe against the LIVE Massive WS; Massive allows ~1 connection per key, so running it kicks production off the OPRA feed." **Extending `testpaths` would have turned a routine test run into a production-outage risk** |
 | `4d7a795a4` | `feat/s7-filing-watch-parity` | **S7 Alerts** | `tests/test_alert_taxonomy_filing_watch_parity.py` (new, 595) | **The filing-watch parity rail — the precondition for every remaining S7 trigger type.** 20 tests over the three observables. **Test-file only; zero source changes; working tree clean.** Mutation-proved: M1 deleted `symbol` from `predicates.resolve_entity_scope` → **5 failed**, the entity id leaking into the bell title and the `/research/` URL; M2 changed the `fire_key` scheme → **2 failed**, and ⚠️ **the existing suites stayed green on M2 — that regression is silent today.** Control `test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package` AST-scans for module-level `TYPE_ID` and flips the day S7 lands any new type |
 
+| `be3474241` | `feat/i1-rails` | **I1** | `app/src/pages/research/i1S8Boundary.test.js` (new, 457), `tests/test_ticker_explain_full_text_completeness.py` (new, 320), `tests/test_ticker_explain_adversarial.py` (new, 194), `api/services/ticker_explain_eval/{golden_set,checks}.py` (+401), `tests/test_ticker_explain_eval.py` (+6) | **GATE-I1 first slice, approved before Checkpoint 1 — the first gate this program's rule has actually preceded.** F-I1-1 S8-boundary AST rail (acorn+acorn-jsx; I1 surface, S8 primitives and the concept vocabulary all **derived**, never hand-typed). F-I1-4 `_full_text()` completeness rail, fields derived from `EXPLAIN_SCHEMA` with an unfamiliar shape **raising rather than skipping**. B01–B06 hard-boundary cases + 15 adversarial payloads. ⛔ **`ticker_explain.py` and `AskAiTab.jsx` byte-identical to master — no product path touched.** Orchestrator re-ran: backend **312 passed, exit 0**; frontend **Test Files 1 passed (1), Tests 8 passed (8)**, file count asserted |
+| `76f6e2e77` | `fix/alert-bell-filing-icon` | **filing watch** (protected consumer) | `app/src/components/AlertBell.jsx` (+6) | ⛔ **MEMBER-VISIBLE — its own PR by ruling 2b, flagged to the owner by name, never bundled with S7 work.** Adds the missing `document_arrival: 'document'` entry so a new 10-K no longer looks identical to a price alert. `document` is an existing UIcon glyph. Existing AlertBell suites re-run: **2 files, 18 tests passed, exit 0** |
+| `c46be401f` | `feat/s7-filing-watch-parity` | **S7 Alerts** | parity test docstring (+31) | Records that the rail pins the **shipped** shape deliberately, and why, so a future reader holding an older spec does not "correct" the assertions. Carries **F-S7-1** at the point of use. Docstring only; **20 passed, exit 0** |
+
+### ⛔ F-S7-1 — migrate filing watch to join on `{kind, id}`
+
+**Recorded, not scheduled.** Once S3 entity ids are the canonical key across alert types, filing
+watch should stop joining on `entity_scope.symbol`. ⛔ **Sequenced with the first trigger type that
+needs entity-scoped matching — never standalone.** Alone it would touch a live member-facing feature
+for no member benefit, and per the protected-consumer ruling it would be an owner-flagged PR anyway.
+When it lands, the parity rail's `symbol` assertions change with it, on purpose.
+
+### ⛔⛔ F-I1-1 FOUND A REAL, LIVE VIOLATION — the Phase-2 defect never actually closed
+
+`AskAiTab.jsx`'s "Sources" block **renders its own citation list** — `[E#]` marks, source, date and
+link in local CSS-module classes — instead of composing S8's `<Cited>` / `<Provenance>`. Its sibling
+tabs on the same page (NewsTab, OwnershipTab, AnalystRatingsTab) all compose the S8 primitives, so
+**the Ask-AI answer shows a different provenance affordance from every tab beside it.**
+
+⭐ **This is the exact defect Phase 2's adversarial validation "fixed" in 2026-09-02 — by writing a
+sentence into an architecture document.** The sentence was true as a decision and false as a
+description, and stayed false for nine days while I1 shipped generated prose to members. **A rail
+built to catch it caught it on its first run.** Recorded in the branch's `RECORDED_BOUNDARY_DEBT`;
+**not fixed — it is member-visible and out of GATE-I1's approved scope.**
+
+⚠️ Second finding, fixed in the eval harness only: **`checks._full_text` never read the refusal
+sentence.** Its docstring claimed it covered `refusal_reason`; the code read only
+`insufficient_evidence_reason` — the served name, not the raw-payload name. **A fabricated number or
+a Buy directive inside a refusal passed every mechanical check.** Two adversarial cases (A04, A14)
+passed before the fix. No product path was touched.
+
 ⛔ **TWO DEVIATIONS ON `feat/s3-admin-routes`, both caused by the orchestrator's brief, both needing
 an owner ruling — neither is the agent's error:**
 
