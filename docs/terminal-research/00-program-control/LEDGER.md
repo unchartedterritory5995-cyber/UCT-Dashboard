@@ -607,15 +607,56 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
-## S7 `price-level` — Checkpoint 1, branch only, UNMERGED
+## S7 `price-level` — APPROVED 2026-09-12 · CP1 MERGED · CP2 on branch
 
 | commit | branch | system | files | what |
 |---|---|---|---|---|
 | `37cba8111` | `feat/s7-price-level` | **S7 Alerts** | `api/services/alert_taxonomy/price_level.py` (new), `tests/test_alert_taxonomy_price_level_schema.py` (new), `tests/test_alert_taxonomy_filing_watch_parity.py` (control updated by naming) | **GATE-S7-PRICE-LEVEL Checkpoint 1** (packet `123a30054`, approval block **BLANK**). Registers the type; **no evaluator, no delivery, no read of `watchlist_alerts`, no migration, no scheduler entry**. Legacy path byte-identical (`git diff` empty on `watchlist_alert_service.py` + `auth_db.py`). Two findings below moved the scope. Mutation-proved both ways (M1 drop `trendline` → RED; M2 import `delivery` → RED), restored by edit. **30 passed** across both files |
 
-⛔ **DO NOT MERGE.** The packet's four approval lines are blank by design — the session directive
-authorized Checkpoint 1 on a branch, and an author filling in the author's own approval reproduces
-the S3 defect the rule exists to prevent.
+✅ **APPROVED 2026-09-12**, scope **Checkpoints 1–2 only**. Approval block committed at
+**`644497c6a`** (packet SHA of record `123a30054`). ⛔ **CP3+ needs a new approval line.**
+
+| step | SHA | where |
+|---|---|---|
+| approval block | **`644497c6a`** | `terminal-research` |
+| CP1 merge | **`2fcd33b28`** | `master` |
+| marker bump #2 | **`59388e52c`** | `master` |
+| CP2 | **`c0f88b969`** | `feat/s7-price-level` — **branch only** |
+
+**Deploy artifacts for the CP1 merge (`59388e52c`):** web **SUCCESS** 05:26:01Z, uptime reset
+confirmed at `/api/health` (321 s); flow-worker **SUCCESS** 05:26:01Z, advancing `fd735513b →
+59388e52c`. ⭐ The push immediately before it (`d89948912`, another workstream) was **SKIPPED** —
+which is the useful half of the artifact: it shows the browser watch-list edit did **not** widen the
+list, so the marker bought a lever and not extra tape gaps.
+
+### ⛔ RAIL CLASSIFICATION — ADDITIVE, AND STRANDING NOTHING (both checkpoints)
+
+Measured with the rail's **own** `reachable_paths()`, never a hand BFS:
+
+| file | reachable | watched |
+|---|---|---|
+| `alert_taxonomy/price_level.py` | **False** | False |
+| `alert_taxonomy/price_level_compare.py` | **False** | False |
+| the three test files | False | False |
+
+**offenders: NONE. Rail exit 0 on both checkpoints.**
+
+⭐ **Why nothing is stranded, and why that will change.** `price_level.py` is unreachable *because*
+CP1/CP2 never call `register()` — nothing imports it, so flow-worker cannot run a stale copy of code
+it never loads. ⛔ **CP3 breaks that**: `api/services/alerts.py` IS in flow-worker's reachable closure
+and imports the taxonomy modules (that is precisely why `document_arrival.py` is reachable today), so
+the moment `register()` is wired, `price_level.py` becomes reachable-and-unwatched and the next merge
+carries a real strand needing a real window.
+
+⚠️ **The marker bump therefore discharged NOTHING, and its row says so.** Of the 29 files master
+gained since flow-worker's running commit, **zero** were reachable-but-unwatched. It was bumped to
+establish a **known-current baseline before CP2** rather than to clear a backlog — a classification
+row that claimed a discharge here would have been ceremony, and the next one would mean less for it.
+
+⚰️ Recorded in the marker itself: its first two lines are stamped `2026-09-12` but were written
+2026-09-11 ~23:15/23:27 CDT, so the file's timestamps read out of order. **Not corrected in place** —
+the file is append-only by owner rule, and rewriting a past line is exactly what that rule forbids.
+The note is the fix.
 
 ### ⛔ THE COMPARISON DESIGN — this row is its SINGLE AUTHORITY
 
@@ -657,8 +698,26 @@ by construction, so a small numeric difference is expected rather than a defect;
 fixed levels would either mask a real disagreement or cry wolf on every one. F-S7-3 is the same root
 cause seen from the replay side.
 
-**Where it lives:** beside the evaluator, under its own approval — **not in Checkpoint 1**, which
-ships no evaluator and therefore has nothing to diff.
+**Where it lives:** ✅ **BUILT IN CP2** — `api/services/alert_taxonomy/price_level_compare.py`,
+with `tests/test_alert_taxonomy_price_level_compare.py` as its rail.
+
+⛔ **RULED 2026-09-12 — FORWARD-ONLY, NO REPLAY.** The design above survives intact; the owner's
+ruling removed one question from it. Both sides are evaluated live on the same tick from the moment
+the dark predicate arms — **no backfill over historical bars, ever**. ⭐ That is stronger than
+"decline to replay a line that moved", because deciding *whether* it moved needs a fact the legacy
+row does not carry; forward-only never needs the geometry's history at all.
+
+**Added by the ruling:** an anchor rewrite **RESETS the comparison clock** and the pre-move span's
+counts are **discarded into `not_comparable`** — never kept as agreement. `anchors_set_at` + a
+monotonic `anchor_version` land on the **NEW store only**; ⛔ `watchlist_alerts` gains no columns.
+**No verdict is shown before five full trading sessions** of forward data (`verdict_ready`, returned
+as its own field so "not enough data yet" can never be read as "they agree").
+
+⚠️ **A real defect the anchor-move test caught, worth keeping visible.** `note_anchor_move` cleared
+the legacy baseline but not the predicate's `prev_price`, so the dark side would have reported a
+crossing that never happened — **the price did not move through the new line, the line moved under
+the price**. `note_anchor_write` now clears it. That is what "the clock resets" means on the dark
+side, and nothing in the design document would have caught it.
 
 ### ⛔ F-S7-2 — a `price-level` alert can be a TRENDLINE, whose level is a function of TIME
 
