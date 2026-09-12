@@ -17,6 +17,8 @@ from api.middleware.auth_middleware import get_current_user
 from api.services import alert_user_series
 from api.services import indicator_alert_service as ias
 from api.services import indicator_alert_evaluator
+from api.services import entitlements
+from api.services.entitlements import Limits, limits_dependency
 
 
 router = APIRouter(prefix="/api/indicator-alerts", tags=["indicator-alerts"])
@@ -256,7 +258,8 @@ def get_alert_latency(user: dict = Depends(get_current_user)):
 
 
 @router.post("")
-def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
+def create_alert(body: AlertCreate, user: dict = Depends(get_current_user),
+                 limits: Limits = Depends(limits_dependency)):
     # ⛔ THE CREATE PATH USED TO VALIDATE NOTHING. A typo'd indicator was stored,
     # accepted, and then silently never fired — an alert the user believes is
     # watching. That is the same silence `needs_attention` exists to end, reached
@@ -309,7 +312,13 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
             params_json=body.params,
             instance_id=body.instance_id,
             scope=body.scope,
+            limits=limits,
         )
+    except entitlements.AlertCountExceeded as exc:
+        # ⛔ THE COUNT CAP IS THE MEMBER'S ANSWER, NOT A 500. It carries the
+        # store's own sentence — "you have N alerts … delete one before creating
+        # another" — so the surface never has to re-word a refusal it did not make.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except alert_user_series.AdmissionRefused as exc:
         # ⛔ THE ADMISSION CHAIN, REACHED — and its refusal is the USER'S answer,
         # not a 500. `ias.create` raises BEFORE the INSERT, so a refusal here

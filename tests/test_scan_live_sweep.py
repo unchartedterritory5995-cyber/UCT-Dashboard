@@ -2507,7 +2507,7 @@ def test_the_ENTITLEMENT_CAP_is_applied_ONCE_over_the_WHOLE_page_never_twice(
     monkeypatch.setattr(scan_store, "_now_for_reads", lambda: t + 30)
 
     capped = entitlements.Limits(toolkit="all", max_symbols=3, max_history_bars=None,
-                                 max_definitions=10, min_refresh_seconds=None)
+                                 max_definitions=10, min_refresh_seconds=None, max_alerts=entitlements.TOOLKITS["all"].max_alerts)
     app = FastAPI()
     app.include_router(results_mod.router)
     app.dependency_overrides[get_current_user] = lambda: dict(PAID_USER)

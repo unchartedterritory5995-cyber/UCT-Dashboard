@@ -112,17 +112,25 @@ def client(defs_db, alerts_db, bars):
     """
     from fastapi.testclient import TestClient
     from api.main import app
-    from api.middleware.auth_middleware import get_current_user
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan)
 
     who = {"id": USER_A}
 
     app.dependency_overrides[get_current_user] = lambda: dict(who)
+    # ⭐ THE PLAN-AWARE DOOR TOO — the create route carries
+    # `Depends(limits_dependency)` for the alert count cap, and that reads the
+    # `subscriptions` table this tmp DB has no reason to hold. Same override the
+    # definition-cap tests use, and `c.become` keeps working because both
+    # dependencies read the SAME mutable dict.
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who)
     try:
         c = TestClient(app)
         c.become = who.__setitem__            # type: ignore[attr-defined]
         yield c
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user_with_plan, None)
 
 
 def save(user_id: str, definition: dict, *, repaint: dict | None = None) -> dict:

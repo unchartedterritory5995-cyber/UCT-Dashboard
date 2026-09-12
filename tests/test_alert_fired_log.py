@@ -621,16 +621,22 @@ def test_the_chart_alert_lane_never_routes_anything_to_watchlist_create_alert():
 def client(tmp_db):
     from fastapi.testclient import TestClient
     from api.main import app
-    from api.middleware.auth_middleware import get_current_user
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan)
 
     def _fake_user():
         return {"id": "user-abc", "email": "abc@test", "role": "member"}
 
     app.dependency_overrides[get_current_user] = _fake_user
+    # The create route carries `Depends(limits_dependency)` for the alert count
+    # cap; that door reads the `subscriptions` table this tmp DB has no reason
+    # to hold. Same override the definition-cap tests use.
+    app.dependency_overrides[get_current_user_with_plan] = _fake_user
     try:
         yield TestClient(app)
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user_with_plan, None)
 
 
 def test_route_fired_returns_only_my_fires(client):

@@ -106,6 +106,7 @@ from typing import Any, Mapping, Optional, Sequence
 from fastapi import Depends
 
 from api.middleware.auth_middleware import get_current_user_with_plan
+from api.services import indicator_alert_service
 from api.services import user_definitions
 
 
@@ -154,6 +155,30 @@ class ToolkitWithheld(Exception):
         super().__init__(f"[{reason}] {detail}")
 
 
+class AlertCountExceeded(ValueError):
+    """The alert COUNT axis refused a create.
+
+    ⚠️ A `ValueError`, for the same reason `ToolkitLimitExceeded` is one: the
+    alert router turns a store `ValueError` into a 400 carrying the store's own
+    sentence, and a new exception type would escape as a 500 — which reads to the
+    member as an outage rather than as their plan.
+
+    ⛔ A SEPARATE CLASS FROM `ToolkitLimitExceeded`, not a reuse. They are both
+    count refusals and they refuse DIFFERENT THINGS: one says "delete a formula",
+    the other says "delete an alert". A caller that wanted to tell them apart —
+    to offer the right next action — could not, and the sentence a member reads
+    would have to be re-derived from the message text.
+    """
+
+    def __init__(self, limits: "Limits", count: int) -> None:
+        self.limits = limits
+        self.count = count
+        super().__init__(
+            f"you have {count} alerts, which is the most the {limits.toolkit!r} "
+            f"toolkit allows ({limits.max_alerts}) — delete one before creating "
+            "another")
+
+
 class ToolkitLimitExceeded(ValueError):
     """A COUNT axis refused a write.
 
@@ -194,6 +219,11 @@ class Limits:
     max_history_bars: Optional[int]
     max_definitions: int
     min_refresh_seconds: Optional[int]
+    #: ⭐ SERVER-EVALUATED ALERTS PER USER. Like `max_definitions` this has no
+    #: ungated spelling: an alert is a row the 60-second evaluator reads on
+    #: EVERY cycle forever, so an unbounded count is unbounded standing work,
+    #: not merely an unbounded store.
+    max_alerts: int
 
     def __post_init__(self) -> None:
         if not isinstance(self.toolkit, str) or not self.toolkit.strip():
@@ -201,6 +231,7 @@ class Limits:
         for field in ("max_symbols", "max_history_bars", "min_refresh_seconds"):
             _check_optional_count(field, getattr(self, field))
         _check_count("max_definitions", self.max_definitions)
+        _check_count("max_alerts", self.max_alerts)
 
 
 def _check_count(field: str, value: Any) -> None:
@@ -245,6 +276,14 @@ TOOLKITS: Mapping[str, Limits] = MappingProxyType({
         max_history_bars=None,     # OWNER: §8.4 — and see the header's ruling
         max_definitions=user_definitions.MAX_DEFINITIONS_PER_USER,
         min_refresh_seconds=None,  # OWNER: §8.5 — cadence is unanswered
+        # ⚠️ A SAFETY CAP, NOT A PRICING NUMBER, and the difference is recorded
+        # here so the day it becomes one is a deliberate edit. Nothing in the
+        # product sold an alert count; this exists because one-click creation
+        # arrived before any bound did, and an uncapped count is standing work
+        # on a shared 60-second thread. Generous on purpose: 200 is far past any
+        # trader's real book and far short of anything that troubles the cycle
+        # (measured: ~0.9 ms per user-defined series, so 200 is ~0.2 s).
+        max_alerts=indicator_alert_service.MAX_ALERTS_PER_USER,
     ),
 })
 
@@ -374,6 +413,27 @@ def check_definition_count(count: int, limits: Optional[Limits]) -> None:
         raise ValueError(f"count must be a non-negative int, got {count!r}")
     if count >= limits.max_definitions:
         raise ToolkitLimitExceeded(limits, count)
+
+
+def check_alert_count(count: int, limits: Optional[Limits]) -> None:
+    """RAISES when one more alert would break the plan. Returns ``None``.
+
+    ⭐ THE SAME SHAPE AS `check_definition_count`, DELIBERATELY — same argument
+    (the COUNT, never the user), same exception, same resulting 400 carrying the
+    store's own sentence. A second refusal vocabulary for "you have too many of
+    these" is a second thing a member has to learn.
+
+    ⛔ AND THE COUNT IS THE CALLER'S, for the same reason it is there: the store
+    knows how to count its own live rows inside the transaction that is about to
+    append, and re-deriving it here would be a second authority read outside that
+    transaction.
+    """
+    if limits is None:
+        limits = TOOLKITS[DEFAULT_TOOLKIT]
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        raise ValueError(f"count must be a non-negative int, got {count!r}")
+    if count >= limits.max_alerts:
+        raise AlertCountExceeded(limits, count)
 
 
 def refresh_floor_seconds(cadence: Optional[str],

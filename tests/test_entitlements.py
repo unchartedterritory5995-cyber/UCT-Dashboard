@@ -131,8 +131,8 @@ BARS = _bars()
 #: DOWNGRADE shrinks the answer, which is the test that makes an entitlement bound
 #: an entitlement bound rather than a capacity bound with a new spelling.
 SMALL = ent.Limits("small", max_symbols=5, max_history_bars=BAR_COUNT,
-                   max_definitions=1, min_refresh_seconds=86_400)
-LARGE = ent.Limits("large", None, None, 500, None)
+                   max_definitions=1, min_refresh_seconds=86_400, max_alerts=1)
+LARGE = ent.Limits("large", None, None, 500, None, 500)
 UNGATED = ent.TOOLKITS[ent.DEFAULT_TOOLKIT]
 
 #: Every toolkit whose history bound ADMITS `BARS`. All three must agree bit for
@@ -647,7 +647,7 @@ def test_a_DOWNGRADE_actually_SHRINKS_the_DEFINITION_COUNT_too(defs):
     `max_definitions` an entitlement bound rather than `MAX_DEFINITIONS_PER_USER`
     with a longer name.
     """
-    tight = ent.Limits("tight", None, None, 1, None)
+    tight = ent.Limits("tight", None, None, 1, None, 1)
 
     first = svc.save("u1", "u_000000000001", _stored(1), limits=tight)
     assert first["appended"] is True
@@ -1993,7 +1993,7 @@ def test_every_RESULT_STORE_the_census_names_EXISTS_and_exposes_its_read_door():
 # ═══ 7. the NUMBERS live in exactly ONE place ═══════════════════════════════
 
 AXES = ("max_symbols", "max_history_bars", "max_definitions",
-        "min_refresh_seconds")
+        "min_refresh_seconds", "max_alerts")
 
 
 def _axis_literals(sources) -> list:
@@ -2171,7 +2171,7 @@ def test_a_TOOLKIT_is_hashable_frozen_and_comparable_BY_VALUE():
     """It is passed across a request boundary, put in sets by the tests above and
     compared for equality by the "nothing changed" rail — all three need value
     semantics, and a frozen dataclass is the one shape that gives all three."""
-    assert ent.Limits("a", None, None, 1, None) == ent.Limits("a", None, None, 1, None)
+    assert ent.Limits("a", None, None, 1, None, 1) == ent.Limits("a", None, None, 1, None, 1)
     assert len({UNGATED, copy.deepcopy(UNGATED)}) == 1
     with pytest.raises(dataclasses.FrozenInstanceError):
         SMALL.max_symbols = 9                                # type: ignore[misc]

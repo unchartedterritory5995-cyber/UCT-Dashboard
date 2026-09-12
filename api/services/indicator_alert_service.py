@@ -72,6 +72,18 @@ STATE_ERROR = "error"
 # trading rationale.
 SNOOZE_MAX_MINUTES = 60 * 24 * 30
 
+#: ⭐ ALERTS PER USER — A CAPACITY BOUND, AND IT LIVES WITH THE THING IT BOUNDS.
+#: `entitlements.TOOLKITS` REFERENCES this rather than restating the number, the
+#: same arrangement `user_definitions.MAX_DEFINITIONS_PER_USER` already has, so a
+#: capacity number tuned by ops and an entitlement number sold to a member cannot
+#: silently diverge while they are still the same value.
+#:
+#: ⚠️ AN ALERT IS NOT A ROW, IT IS STANDING WORK. Every active one is read by the
+#: 60-second evaluator forever, so this bounds a thread's cycle rather than a
+#: table's size. 200 is far past any trader's real book and, at the measured
+#: ~0.9 ms per user-defined series, about 0.2 s of a 60 s cycle.
+MAX_ALERTS_PER_USER = 200
+
 # How often the silence sweep is allowed to pay for a diagnostic recompute per
 # alert. A warming alert produces no value every cycle and its diagnosis does
 # not change; re-deriving it every sweep would be a compute per alert per sweep
@@ -305,8 +317,16 @@ def create(
     params_json: Optional[Any] = None,
     instance_id: Optional[str] = None,
     scope: Optional[str] = None,
+    limits: Any = None,
 ) -> int:
     """Create a new indicator alert. Returns the new alert ID.
+
+    ⭐ `limits` IS THE CALLER'S TOOLKIT (`entitlements.Limits`), AND IT DECIDES THE
+    COUNT CAP — verbatim the shape `user_definitions.save` already takes, for the
+    same reason: the ROUTER knows the account (`Depends(limits_dependency)`) and
+    this module knows the count, and neither should have to learn the other's job.
+    ``None`` means the default toolkit, which is also what every internal caller
+    and every existing test passes by saying nothing.
 
     ⚠️ `scope` IS OPTIONAL AND OMITTING IT MEANS **GLOBAL**, not "unknown".
     An alert armed from a surface with no chart identity belongs to every chart,
@@ -341,10 +361,34 @@ def create(
     # means there is nothing to go quiet.
     from api.services import alert_user_series
     admitted = alert_user_series.arm_for_alert(user_id, indicator, sym.upper(), tf)
+    # ⭐⭐ THE COUNT CAP, THROUGH THE ONE ENTITLEMENT MECHANISM THIS REPO HAS.
+    # `entitlements.check_alert_count` is `check_definition_count`'s sibling and
+    # raises the same kind of `ValueError`, so the router turns it into the same
+    # 400 carrying the store's own sentence. A standalone alert quota would have
+    # been a second place a cap number lives.
+    #
+    # ⛔ AFTER THE ADMISSION, BEFORE THE INSERT. The admission is what decides
+    # whether this alert could EVER fire; refusing on count first would spend a
+    # member's cap message on an alert that was structurally mute anyway.
+    #
+    # ⚠️ AND IT IS READ INSIDE THE WRITE CONNECTION BELOW, not here — see the
+    # count query in the `with` block. Counting outside the transaction that
+    # appends is the race `user_definitions` already closed by counting under its
+    # own lock.
     source = None if admitted is None else DEF_SOURCE_USER
 
     now = int(time.time())
     with _conn() as db:
+        live = db.execute(
+            "SELECT COUNT(*) FROM indicator_alerts WHERE user_id=?",
+            (str(user_id),),
+        ).fetchone()[0]
+        # ⛔ IMPORTED HERE, NOT AT MODULE LEVEL. `entitlements` imports THIS
+        # module for `MAX_ALERTS_PER_USER`; a top-level import back would close
+        # the cycle. `user_definitions.save` has the same pair and resolves it the
+        # same way — one lazy import at the one call site that needs it.
+        from api.services import entitlements
+        entitlements.check_alert_count(int(live), limits)
         cur = db.execute(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "

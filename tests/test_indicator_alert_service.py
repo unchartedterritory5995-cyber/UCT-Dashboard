@@ -105,16 +105,26 @@ def client(tmp_db):
     we monkeypatched in tmp_db, so writes from the route hit the tmp DB."""
     from fastapi.testclient import TestClient
     from api.main import app
-    from api.middleware.auth_middleware import get_current_user
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan)
 
     def _fake_user():
         return {"id": "user-abc", "email": "abc@test", "role": "member"}
 
     app.dependency_overrides[get_current_user] = _fake_user
+    # ⭐ AND THE PLAN-AWARE DOOR, because the create route now carries
+    # `Depends(limits_dependency)` for the alert count cap. That dependency reads
+    # the `subscriptions` table, which this tmp DB does not have — overriding it
+    # is exactly what `test_user_definitions.py` does for the definition cap, and
+    # for the same reason: the harness supplies the account, the test exercises
+    # the route. `toolkit` is absent, so `limits_for` resolves the default
+    # toolkit, which is the one that ships.
+    app.dependency_overrides[get_current_user_with_plan] = _fake_user
     try:
         yield TestClient(app)
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_current_user_with_plan, None)
 
 
 def test_route_create_and_list(client):
@@ -1322,3 +1332,89 @@ def test_arm_exits_NONZERO_WHEN_ITS_OWN_VERIFY_REFUSES(tmp_db, monkeypatch, caps
     assert soak.verify()["deliverable_now"] == len(missed)
     assert rc == 1
     assert "DELIVERABLE" in capsys.readouterr().err
+
+
+# ═══ the alert COUNT CAP ════════════════════════════════════════════════════
+#
+# ⭐⭐ IT IS THE ENTITLEMENT MECHANISM THIS REPO ALREADY HAS, not a second quota
+# architecture. `entitlements.check_alert_count` is `check_definition_count`'s
+# sibling: same argument shape (the COUNT, never the user), same kind of
+# ValueError, same resulting 400 carrying the store's own sentence.
+#
+# ⛔ AND IT IS ENFORCED ON THE SERVER. A frontend that greys out a button is not
+# a limit — one-click creation arrived before any bound did, and every active
+# alert is standing work on a shared 60-second thread.
+
+def test_the_shipped_toolkit_bounds_the_alert_count(tmp_db):
+    from api.services import entitlements
+    from api.services import indicator_alert_service as svc
+    assert entitlements.TOOLKITS["all"].max_alerts == svc.MAX_ALERTS_PER_USER, (
+        "the toolkit must REFERENCE the capacity bound, never restate it")
+
+
+def test_creating_one_past_the_cap_is_REFUSED_and_the_row_is_not_written(tmp_db, monkeypatch):
+    """⛔ THE REFUSAL LANDS BEFORE THE INSERT, so a capped member's store is
+    exactly as big as their cap and not one row bigger."""
+    from api.services import entitlements
+    tiny = entitlements.Limits("tiny", None, None, 1, None, max_alerts=2)
+
+    for i in range(2):
+        ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+                   threshold=70, tf="D", limits=tiny)
+    assert len(ias.list_for_user("u1")) == 2
+
+    with pytest.raises(entitlements.AlertCountExceeded) as exc:
+        ias.create(user_id="u1", sym="MSFT", indicator="rsi", condition="above",
+                   threshold=70, tf="D", limits=tiny)
+    # the member's own next action is in the sentence
+    assert "delete one" in str(exc.value)
+    assert len(ias.list_for_user("u1")) == 2, "a refused create still wrote a row"
+
+
+def test_the_cap_is_PER_USER_not_global(tmp_db):
+    from api.services import entitlements
+    tiny = entitlements.Limits("tiny", None, None, 1, None, max_alerts=1)
+    ias.create(user_id="u1", sym="AAPL", indicator="rsi", condition="above",
+               threshold=70, tf="D", limits=tiny)
+    # a SECOND member is unaffected by the first member's count
+    ias.create(user_id="u2", sym="AAPL", indicator="rsi", condition="above",
+               threshold=70, tf="D", limits=tiny)
+    assert len(ias.list_for_user("u1")) == 1
+    assert len(ias.list_for_user("u2")) == 1
+
+
+def test_an_absent_limits_means_the_DEFAULT_toolkit_not_unbounded(tmp_db):
+    """⚠️ `None` IS THE DEFAULT TOOLKIT, NOT 'no cap'. Every internal caller and
+    every older test passes nothing; none of them may thereby escape the bound."""
+    from api.services import entitlements
+    import api.services.indicator_alert_service as svc
+    assert svc.MAX_ALERTS_PER_USER > 0
+    # the door resolves the shipped toolkit rather than skipping the check
+    with pytest.raises(entitlements.AlertCountExceeded):
+        entitlements.check_alert_count(svc.MAX_ALERTS_PER_USER, None)
+    entitlements.check_alert_count(svc.MAX_ALERTS_PER_USER - 1, None)
+
+
+def test_the_route_turns_the_cap_into_a_400_carrying_the_stores_sentence(client):
+    from api.services import entitlements
+    from api.services.entitlements import limits_dependency
+    from api.main import app
+
+    tiny = entitlements.Limits("tiny", None, None, 1, None, max_alerts=1)
+    # KEYED ON THE FUNCTION THE ROUTE WAS REGISTERED WITH. `Depends()` captured
+    # `entitlements.limits_dependency` at import time, so rebinding the router
+    # module's own name afterwards would change nothing the app can see.
+    app.dependency_overrides[limits_dependency] = lambda: tiny
+    try:
+        ok = client.post("/api/indicator-alerts", json={
+            "sym": "aapl", "indicator": "rsi", "condition": "above",
+            "threshold": 70, "tf": "D"})
+        assert ok.status_code == 200, ok.text
+        refused = client.post("/api/indicator-alerts", json={
+            "sym": "msft", "indicator": "rsi", "condition": "above",
+            "threshold": 70, "tf": "D"})
+        # ⛔ 400, NOT 500 — a plan bound is the member's answer, not an outage.
+        assert refused.status_code == 400, refused.text
+        assert "delete one" in refused.json()["detail"]
+    finally:
+        app.dependency_overrides.pop(limits_dependency, None)
