@@ -327,3 +327,47 @@ session's in-flight work. What this wave contributed to it is a measurement rath
 patch: the vendor **accepts and runs** a timeframe-conditional length, witnessed on Uncharted
 Volume itself computing on both 1D and 1W, so 233 is a capability gap and not a correctness
 guard. The numeric half (that the folded window is 5 on 1W and 20 on 1D) is still unmeasured.
+
+---
+
+## 🌓 RULING 3.1 (2026-09-11) — THE INTENDED REPRESENTATION IS AN AXIS PAIR. DARK.
+
+**No tri-state.** Ruled after nine timeline rows on AMEX:SPY 1D
+(`tests/fixtures/vendor/barstate-daily-timeline.json`, sha256 `fc38853154b901f2…`)
+showed the vendor's two time axes moving **hours apart on one bar**:
+
+```
+instant A   isconfirmed 0 -> 1    bracketed (19:22, 20:55) ET
+instant B   isrealtime  1 -> 0    bracketed (20:55, 23:57) ET
+```
+
+Rows 4-6 were full page RELOADS and all read `isrealtime=1`, so the flip is the CLOCK,
+not the fetch. Rows 7-9 share one `pageLoadEpoch` across 23:57 → 00:56 → 07:38.
+
+⭐⭐ **A tri-state cannot express two flags that flip at different times**, so this was
+never a calibration difference between us and the vendor — it is a different NUMBER OF
+AXES, and one boolean cannot carry two instants however it is decoded.
+
+**The intended representation, for whoever builds it:**
+
+```
+(confirmed_at, realtime_until)     two timestamps, not three booleans
+  isconfirmed  := now >= confirmed_at
+  isrealtime   := now <  realtime_until
+  ishistory    := not isrealtime
+```
+
+⛔ **Each axis carries its OWN instant.** Anything cheaper re-encodes one boolean and
+re-creates the disagreement the measurement found. A derived triple is fine as a
+READ-BACK; it must not be the stored shape.
+
+⛔⛔ **AND HOST MODE KEEPS REFUSING `barstate.*` UNTIL REALTIME IS TESTED ON THIS
+ENGINE.** Not blank, not a plausible value — a named refusal. The screener keeps its
+`isconfirmed` fold, which is exact on closed bars and has no viewer to disagree with.
+
+**Status: DARK. Not built 2026-09-11.** What it waits on is one measurement, not a
+design: **instant A, to the minute** — a single row between 19:30 and 20:30 ET closes
+the 93-minute bracket. `nyse_calendar.EXTENDED_CLOSE_HOUR` guesses 20:00 and derives
+17:00 for a half-day, which is a guess about a guess. An early-close day (a prediction
+for 2026-11-27 is pre-registered in the fixture) is the only thing that tests the
+derived value.
