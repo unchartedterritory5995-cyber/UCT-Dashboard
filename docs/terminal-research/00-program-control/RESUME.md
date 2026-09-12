@@ -4,104 +4,72 @@
 
 ---
 
-# ⛔⛔ COLD START — WHERE THINGS ACTUALLY ARE, 2026-09-12 (SATURDAY)
+# ⛔⛔ COLD START — WHERE THINGS ACTUALLY ARE, end of 2026-09-12 (SATURDAY)
 
 **This block supersedes everything below it. Read it, then `LEDGER.md`.**
 
-## S7 `price-level` — CP3, DARK, **ARMED**, running from Monday's open
+## TWO DARK RUNS ARE ARMED. Both admin cohort. Both read next weekend.
 
-| | |
-|---|---|
-| state | **Checkpoints 1–3 merged to master.** Dark: no delivery, no flip, no legacy change. |
-| cohort | **ADMIN-ROLE ACCOUNTS ONLY**, via a read-only projection of `watchlist_alerts`. CP4 (all members) needs its own approval line **after** five sessions of admin data. |
-| armed | `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1` on `web`, **2026-09-12 14:58:47 UTC**. Boot line verified: `[startup] S7 price-level DARK comparison ENABLED (every minute, weekdays 09:00-16:59 ET, admin cohort, no delivery)`. |
-| verdict gate | **five full trading sessions**, per predicate. `verdict_ready` is its own field — *"not enough data yet"* is never rendered as *"they agree"*. |
-| read it | `railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py"` |
-| Monday liveness | same tool, `--ticking`. Exit 0 = ticking, 1 = stalled/never started. |
+| | `price-level` | `event-proximity` |
+|---|---|---|
+| state | CP1–CP3 merged, dark | CP1–CP3 merged, dark |
+| cohort | admin-role `watchlist_alerts` rows | admin-role My Stocks × the day's reporters |
+| flag | `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED` | `ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED` |
+| cadence | every minute, weekdays 09:00–16:59 ET | 07:05 and 18:05 ET weekdays |
+| verdict gate | five full trading sessions | five full trading sessions |
 
-⛔⛔ **THE COLUMN THAT MATTERS IS `legacy_only`. `new_only` WILL BE ~0 AND THAT IS NOT A FINDING.**
-
-- **`legacy_only`** — legacy fires on a LEVEL TEST (`>=`/`<=`), the new rule needs a TRANSITION. An
-  alert armed while price is already through its level fires immediately on the legacy path and
-  **never** on the dark one. **Those are the members who lose an alert at the flip.** This is the
-  number the flip decision rests on.
-- **`new_only`** — **STRUCTURALLY INVISIBLE, not absent.** Legacy is one-shot (`_trigger_alert` sets
-  `is_active = 0`) and the projection reads only active rows, so the moment legacy fires the row
-  leaves the comparison. The report sees the FIRST divergence per predicate and **cannot see a
-  second crossing at all.** ⛔ Do not size CP4 or the flip against a `new_only` of zero — it is a
-  thing this instrument cannot observe. Rail:
-  `test_KNOWN_LIMIT_the_one_shot_divergence_is_invisible_to_a_projection`.
-- **`not_comparable`** — span time we deliberately refuse to score (an anchor rewrite resets the
-  clock). Never folded into a denominator; folding it in would make *moving a trendline* look like
-  agreement.
-
-⚠️ **A report run before Monday says `NO DATA`, and that is correct.** The cron is `mon-fri
-09:00–16:59 ET`, so there is no heartbeat row and no span over the weekend. `NO DATA` is the
-non-vacuity control doing its job, not a failed arming.
-
-### ⛔ WHY `price_level.py` IS NOT "BEHAVIOUR-CHANGING" YET — and the test that will say when it is
-
-The CP3 ruling said the module becomes BEHAVIOUR-CHANGING under the flow-worker rail from CP3 on.
-**Measured after the wiring landed, it is still `reachable=False`** — `api/services/alerts.py`
-imports `receipts` and `document_arrival` **by name**, not the package, and `register()` is wired in
-`api/main.py`, which is the **WEB** entry and is not in flow-worker's closure at all. The earlier
-claim was a generalisation from one reachable sibling, published in the ledger **and** restated in
-the marker file, where the second copy read as corroboration of the first.
-
-⭐ So the reclassification is **deferred and conditional**, and it is a **rail, not a sentence**:
+**ONE command covers both**, Monday ~09:05 ET (Git Bash needs the prefix; drop it in
+PowerShell):
 
 ```
-tests/test_flow_worker_watch_coverage.py::test_price_level_is_STILL_OUTSIDE_flow_workers_closure
+MSYS_NO_PATHCONV=1 railway ssh --service web   "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
 ```
 
-It fails **by name** the day anything in flow-worker's closure imports `price_level`, and prints the
-reclassification instruction in its failure message. It will fire on one of two foreseeable events:
-**the flip** (an evaluator on a worker tick), or anything under `api/services/alerts.py`'s closure
-naming `price_level`. ⛔ Until it fires, classifying a `price_level` change as ADDITIVE is correct,
-and classifying it as BEHAVIOUR-CHANGING "because the ruling said so" is classifying by habit.
+⭐ **The worse exit code of the two wins** — a green overall line beside one stalled sweep
+is exactly the reassurance that stops anyone reading further. ⛔ The staleness bounds
+DIFFER by design: 180 s for price-level, **26 h** for event-proximity. Copying the
+sibling's number would report a healthy twice-a-day sweep as stalled every time.
 
-### ⚰️ THE ONE DEFECT THIS CHECKPOINT SHIPPED, kept because the shape repeats
+## ⛔⛔ HOW TO READ NEXT WEEKEND — the two columns that decide, and the two that cannot
 
-CP3 merged (`ea0326717`) with `register()` wired, the projection and harness built, **18 tests
-green — and nothing calling the evaluator.** Monday would have produced zero rows, and next weekend
-an empty store reads exactly like five sessions of agreement. Cause: CP1/CP2's correct *"registration
-only, no scheduler entry"* invariant was carried into CP3 **by habit**, written into the `api/main.py`
-comment, and then **enforced by a test** — while approval line 2 says the harness *"runs against the
-projected predicates"*. ⭐ Registration is not activation; but putting the **dark** evaluator on a
-tick is not the **flip** either. Fixed in CP3b (`baea70d76`). The rail that catches it now asserts
-the **wire**, not the parts — every other test called the evaluator itself, which is why eighteen of
-them said nothing.
+**`price-level`:** `legacy_only` is the column. `new_only` is **structurally invisible**
+(legacy is one-shot; the row leaves the projection the moment it fires), so a zero there is
+a blind spot, not evidence.
 
-## ⭐ NEXT-SESSION QUEUE — in this order
+⚠️ **And the cohort has NO TRENDLINES** — 10 fixed-price rows and 2 `line` rows. The
+interpolated level, the anchor-move reset, all of F-S7-2 collect **nothing**. Next
+weekend's verdict covers **fixed levels only** and must say so.
+
+**`event-proximity`:** the thing its dark week is SIZING is the **calendar-reschedule
+divergence** — the legacy path re-reads the calendar every run, a stored date is a
+snapshot. CP3 makes them converge by construction (reset + `not_comparable`), so what the
+week measures is **genuine rule disagreement only**. A high `not_comparable` means the
+calendar moved a lot, not that anything is wrong.
+
+## What else landed 2026-09-12
+
+- **G1 tranche 1** — `3b817186c`, BEHAVIOUR-CHANGING, marker bump #4. The adapter fails
+  fast; the call site owns degradation. Two member-request-path sites now return the legacy
+  empty shape **plus an S8 envelope** instead of a silent `null`.
+- **F-S7-4** — `b5133f50d`. The third `alert_type` (`line`) is pinned with its own branch.
+- **G3 DEFERRED and to be re-scoped** (its stated justification is half-false in this repo:
+  one PNG call site, no CSVs). **G5 quarantined with the contract reason — the census red
+  is CLEARED.**
+- **CP4 prepped on a branch, NOT merged**: `feat/s7-price-level-cp4` (`e79635193`) for
+  price-level; event-proximity's CP4 flag ships inert on master beside CP3's.
+
+## ⭐ NEXT-SESSION QUEUE
 
 | # | item | note |
 |---|---|---|
-| 1 | **G1** | Classify under the flow-worker rail, merge, **marker bump only if it strands** — measure with `reachable_paths()`, never a hand BFS. Held over from 2026-09-12 by owner instruction. |
-| 2 | **D1 G3 / G5 sizing** | G3 = the adapter is JSON-only (blocks `ticker_logos` PNG + `fundamentals_bulk` 30–70 MB CSV). G5 = no retry/backoff/request-ceiling. **Sizing only** — not a build authorization. |
-| 3 | **S7 trigger-type plan, updated with what CP1–CP3 taught** | see the three mandatory items below |
-| 4 | **F-I1-2 gate line** | ⏸️ **STILL PARKED.** Do not re-raise; it is owner-bound. |
+| 1 | **Read both dark runs** | five sessions; `--ticking` first, then the full report |
+| 2 | **G1 tranche 1 remainder** | `darkpool_eod`, `company_about`, `ir_webcast` are locally guarded and unmigrated — no behaviour to preserve that is not already preserved, so they are optional |
+| 3 | **D1 G3 re-scope** | measure the real call sites before authorizing anything |
+| 4 | **CP4** | needs the owner's line AFTER the five-session read |
+| 5 | **F-I1-2** | ⏸️ **STILL PARKED.** Do not re-raise. |
 
-### ⛔ WHAT CP1–CP3 ADDS TO THE S7 TRIGGER-TYPE PLAN — mandatory for every future type
-
-1. **BOTH SHAPES IN THE SCHEMA AT REGISTRATION.** `price-level` pinned `price` *and* `trendline` in
-   CP1, before any evaluator existed. A trendline is a first-class shape with **no past** — its level
-   is a function of `now`, so nothing may write a stale-level cleanup against it.
-2. **FORWARD-ONLY COMPARISON, NO REPLAY, EVER.** Both rules evaluated live on the same tick from the
-   moment the dark predicate arms. An anchor rewrite **resets the clock** and the pre-move span is
-   discarded into `not_comparable` — never counted as agreement. Four outcomes, never a pass rate.
-   And every comparison ships with the report that reads it **and a non-vacuity control**, because an
-   empty store renders identically to perfect agreement.
-3. ⛔⛔ **WIRING IS NOT ACTIVATION — A MANDATORY CHECKPOINT ITEM.** Every trigger type's checklist
-   must carry, as its own line: *"name the thing that CALLS this evaluator, and the rail that asserts
-   the call site exists."* Registration, an evaluator, and green tests are all compatible with a
-   feature that never runs. The rail must assert the **wire**, not the parts — a suite whose every
-   test invokes the evaluator directly is structurally blind to the one question that matters.
-
-## Also open
-
-- **Browser checks — owed by the owner**, batched: bell icon · Ask-AI provenance (slice 2 is live) ·
-  S3 admin `/status`.
-- **G1** as queued above.
+⛔ **Browser checks remain the owner's**: bell icon · Ask-AI provenance · S3 admin
+`/status`.
 
 ---
 

@@ -607,6 +607,70 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## D1 G1 TRANCHE 1 — MERGED `3b817186c`, BEHAVIOUR-CHANGING, marker bump #4
+
+Owner error-semantics ruling: **the adapter's fail-fast contract stands; the CALL SITE
+owns degradation.**
+
+⚠️ **AND THE GAP WAS WIDER THAN THIS LEDGER SAID LAST WAVE.** The previous row recorded
+that the typed functions raise where legacy `_fmp_get` returns `[]` on NOT-FOUND. Reading
+the helper: it catches `Exception` and returns `None` for **everything** — network error,
+5xx, auth failure, rate limit, malformed JSON. Every migration therefore converts a silent
+`None` into a raised typed error, and the only question per site is who can degrade
+honestly.
+
+| | |
+|---|---|
+| merge | **`3b817186c`** |
+| marker bump #4 | in the same push |
+| classification | **BEHAVIOUR-CHANGING** — `industry_map.py` and `ticker_meta.py` are in flow-worker's closure and unwatched |
+
+**The two member-request-path sites** catch the adapter error, return the legacy empty
+shape, and attach an S8 envelope (`source=provider_error`). ⛔ **DEGRADED IS NOT ABSENT**,
+and until now they rendered identically: an outage returned `null` at 200,
+indistinguishable from a quiet ticker. ⭐ The empty shape is preserved exactly, the
+envelope is additive, **genuine emptiness still returns `None`**, and a degraded response
+is **not cached** — caching an outage would freeze a blank quote onto the page after the
+provider recovered.
+
+**The other ten:** `analyst_pass` ×4 migrated as-is (AST-verified: the caller wraps EACH
+leg); `ticker_meta` / `ticker_logos` / `industry_map` keep their docstring promise of
+*never raises* via a local catch — ⭐ the promise is the contract their callers were
+written against, and the legacy helper merely happened to keep it.
+
+### ⛔⛔ A BLIND SPOT IN THIS PROGRAMME'S OWN CENSUS
+
+`research.py` passes `_fmp_get` to `ThreadPoolExecutor.submit` **as a callable**. That is
+a `Name` node in an argument position, not a `Call` — so the census that produced last
+wave's **12 → 31** walked straight past it. The site happens to pass a timeout, so nothing
+was broken; **what was broken is the instrument**, which reported a census it could not
+have made. Reference sites are now enumerated and must each be KNOWN.
+
+⚰️ And that rail's own non-vacuity control was a **count** (`>= 25 sites`). Tranche 1
+migrated nine away and it went red for the right reason and the wrong cause — it was
+measuring migration progress, not scan health. Replaced with a **named member**.
+
+---
+
+## F-S7-4 — MERGED `b5133f50d`, ADDITIVE. Luck becomes design.
+
+Production carries a third `alert_type`: **`line`** — drawing-bound, **no anchors** — found
+by the CP3 dry run, not by reading the legacy code.
+
+⭐ **Both level functions already resolved it correctly, and that was LUCK.** Each keys
+interpolation on `== 'trendline'` and falls through otherwise. The tempting reading of a
+drawing-bound row is *"bound to a drawing, therefore interpolate"* — and that reading would
+have disagreed with legacy on **every one of those rows**, for a reason that is not the
+migration.
+
+`level_at` now has **one branch per shape** (behaviour byte-identical; what changed is that
+the next editor must read the word `line` and choose). ⛔ **An unknown kind still falls
+through**, deliberately — raising would make the dark side disagree with legacy the moment
+a fourth type appears, and the comparison would start measuring our refusal. The loudness
+lives in `KNOWN_LEVEL_KINDS` and in the dry run, **which exits 3** on an unpinned shape.
+
+---
+
 ## S7 `event-proximity` — CP1 + CP2 MERGED 2026-09-12, both ADDITIVE
 
 The **second absorption**. Gate packet `GATE-S7-EVENT-PROXIMITY`, approval line
@@ -617,6 +681,36 @@ CP1–CP2 only, `AT SHA 76529e75b`. Absorbs `api/services/calendar_alerts.py`.
 | gate packet + approval | **`a31f02374`** | `terminal-research` |
 | **CP1 merge** | **`3316e0d0b`** | **`master`** |
 | **CP2 merge** | **`923afd783`** | **`master`** |
+| approval line 2 (CP3) | **`09785ac95`** | `terminal-research` |
+| **CP3 merge** | **`c97e2a501`** | **`master`** |
+
+### ⛔⛔ CP3 — THE CALENDAR IS RE-READ EVERY TICK (the who-refreshes-the-date ruling)
+
+CP2's mirror rail exposed that the legacy path **re-reads the calendar every run** while a
+stored `event_date` is only a snapshot. Left alone, a reschedule makes the two rules
+describe different worlds and the dark week would measure **a data-freshness artefact**
+instead of the rule difference it exists to size.
+
+**The ruling, implemented:** the projection re-reads the calendar every tick — through
+`calendar_alerts._get_reporters_for_date`, the legacy module's **own** function, never a
+reimplementation. The stored date is an **audit snapshot**. Calendar ≠ snapshot **is** a
+reschedule: clock resets, pre-reschedule span discarded into `not_comparable`, snapshot
+replaced with a version bump. ⭐ **The two worlds then converge by construction.**
+
+⛔ The predicate id is keyed on **(user, ticker) and NOT the date** — keying the date in
+would make every reschedule look like a brand-new predicate and **hide** the reset.
+
+**The wire (§2a item 3):** `ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED`, DEFAULT OFF,
+07:05 and 18:05 ET weekdays — the legacy path's own two slots. ⭐ Cadence is daily, not
+per-minute: the legacy notion of time is a DATE, so a minute-by-minute sweep would re-ask a
+question whose answer cannot change until tomorrow.
+
+Mutation-proved on disk, both named guards: drop the role predicate → **4 RED**; disable
+the reschedule reset → **RED**.
+
+⚰️ Two CP2-era assertions discharged and **rewritten, not deleted**. And price-level's own
+wire test asserted `main.count("run_dark_sweep()") == 1`; a second sweep made it 2 — the
+same count-as-instrument defect as the census floor, scoped to its own job body.
 
 **Classification: ADDITIVE on both.** Measured with `reachable_paths()` — every
 touched file `reachable=False`, **offenders NONE**, rail exit 0. **No marker bump**,
