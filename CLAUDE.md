@@ -1860,72 +1860,38 @@ comm -12 <(git diff --name-only $BASE..origin/master | sort -u)          <(git d
 
 Empty overlap and fewer than six behind ⇒ push and open the PR as-is.
 
-### ⚰️ RESCINDED 2026-09-11 — THE MARKET-HOURS PUSH WINDOW IS GONE. PUSH ANY TIME.
+### Deploy windows — the FILES decide, not the clock
 
-> **Owner ruling, 2026-09-11, verbatim: "Ignore the no push window we can push anytime
-> anyday forever going forward."** There is no longer any time-of-day restriction on
-> pushing to master. Do not delay a deploy for the clock, and do not ask.
+**`docs/runbooks/deploy-windows.md` is the single authority. This section states no
+rule of its own.**
 
-⛔ **Do not re-derive the old rule from the mechanism below.** The mechanism is real and is
-kept because it still explains a class of missing-data bug. It is no longer a reason to
-wait — it is a reason to know where to look when a scheduled row is absent. This is the
-second time a rescinded restriction in this file has been re-applied by a later reader
-from its surviving rationale; the rationale is not the rule.
+In short: which services restart depends on which files a push touches, and only one
+restart is expensive.
 
-⚠️ **The accepted cost, stated once so it is a known trade and not a forgotten one:** a
-push during market hours can still drop a scheduled slot, per the mechanism below. The
-owner has accepted that. Record which slots a restart landed on if you happen to know;
-never hold the push for it.
+- **Docs, tests, tools, scripts, `app/**` → push any time.** These restart web only.
+  Cost is a ~1 min `/api/*` blip and a possible lost scheduler slot (APScheduler's job
+  store is in memory, so a slot whose minute passes during the swap is lost outright,
+  not run late). If a scheduled job is due in the next minute or two, wait for it.
+- **Anything on flow-worker's watch list → after-hours or weekend only.** A flow-worker
+  restart drops the Massive OPRA socket, and Massive does not replay: the gap is
+  permanent until the T+1 flat file. Physics, not policy.
 
-#### Condition 5 of the standing deploy authorization, as it now reads
+`python tools/flow_worker_watch_coverage.py` prints what this branch touches and what
+flow-worker reaches. `railway deployment list --service flow-worker --json` reports
+**`SKIPPED`** for a push that missed the list — it was SKIPPED on **14 of 14** pushes to
+2026-09-11.
 
-> **5. At push time: master tip unchanged since the gate, nothing BUILDING, `/api/health`
-> stable. Nothing else.**
+⚰️ **Two rules this replaces, and the history is kept deliberately.**
+**"No master push Mon–Fri 09:00–16:00 ET, docs-only included"** was justified by *"every
+master push redeploys web, worker, bars-api and flow-worker in lockstep"* — measurement
+disproves it: over 14 pushes flow-worker deployed **zero** times, worker and bars-api
+only on the two `api/**` commits, and only **web** deploys on every push.
+**"Ignore the no push window, we can push anytime anyday forever"** dropped the
+flow-worker case entirely, and that case is real.
 
-⚰️ **STRUCK from condition 5, permanently:** the 09:00-16:00 ET no-push rule; the
-15:45-16:15 ET avoidance; and the "leave room for a second blip" clause. Owner ruling
-2026-09-11: *"We are building; there is no closed window for pushes, now or later."*
-
-⭐ **Soft preference, never blocking.** When it costs nothing, don't START a restart that
-spans a **:00 minute during 09:00-16:00 ET** — that is the one minute a UCT Terminal slot can
-be lost. If it happens anyway, note it in the report and move on. **This never delays a
-push and is never a reason to ask.**
-
-**The mechanism, still true:**
-
-> **A push to master is a production deploy. It rebuilds and RESTARTS the web
-> pod. APScheduler's job store is IN MEMORY, so a scheduled slot whose time
-> passes during the swap is never scheduled at all — lost outright, not merely
-> run late, and `misfire_grace_time` cannot see it.**
-
-Facts that remain useful for DIAGNOSIS (none of them gate a push any more):
-
-- **Docs-only pushes are included.** A three-file docs push rebuilds web and
-  deploys (`f321e5e7b`, 2026-09-10). "It's only markdown" is not an exemption.
-- **A flag flip is a restart too.** `railway variables --set` was measured
-  auto-redeploying on `web` — see the `--set` section below.
-- **Not every job has a catch-up.** The chart digest's `catch_up()` is THAT
-  workstream's mitigation, not a platform guarantee. `pattern_vision` has none:
-  a slot lost to a restart is simply never judged, and the only trace is a
-  missing hour in `vision_slot_log`.
-- **Other sessions push too.** Three deploys landed on `web` overnight on
-  2026-09-09/10 from an unrelated workstream. Run `railway deployment list
-  --service web` before assuming the pod you measured is the pod now running.
-- ⚰️ **A MARKET-HOURS CASE, 2026-09-10 — this is what it costs.** Three more
-  pushes landed on `web` at **10:14, 10:58 and 11:00:14 ET**, none of them from
-  the workstream that owned the scheduled job. The last arrived **fourteen
-  seconds after a judge slot fired**. That run had already paid for an Opus call
-  and written its verdict when the swap replaced the process, so its `finally`
-  never ran and `vision_slot_log` holds **no row for the slot at all**. The only
-  surviving trace is the append-only cost log: one paid call in that hour, no
-  slot row beside it. ⭐ **A `finally` does not survive process death** — if you
-  are relying on one to record an aborted run, a deploy is the case it cannot
-  cover.
-
-⚰️ This paragraph used to read: *"If a push inside the window is genuinely urgent, that
-is an owner decision, and the cost to state is WHICH scheduled slots are lost."* There is
-no window and no such decision to escalate. A restart still happens and can still cost a
-slot; that is now a diagnostic note, not a gate.
+⛔ **Neither should be restored, and neither should be re-derived from its surviving
+rationale.** This file has had a rescinded restriction reinstated that way twice: the
+mechanism under a struck rule explains a class of bug, it is not the rule.
 
 ### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
 
