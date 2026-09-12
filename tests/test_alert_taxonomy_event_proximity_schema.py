@@ -149,28 +149,21 @@ def test_no_replay_fn_is_registered():
         "comparison is forward-only and a date change resets the clock")
 
 
-def test_the_evaluator_exists_but_NOTHING_CALLS_register():
-    """⚰️ THIS TEST ASSERTED "CP1 ships no evaluator", and that was true for
-    exactly one commit:
+def test_the_registration_is_wired_ONCE_and_only_in_the_boot_path():
+    """⚰️ THIS TEST HAS NOW BEEN REWRITTEN TWICE, and the trail is the point.
 
-        "⛔ CP1 DECLARES THE TYPE. A registered type with a wired evaluator is
-        CP2+; a registered type with an evaluator nobody calls is the defect
-        price-level shipped, so both halves are asserted."
+    CP1: *"CP1 ships no evaluator AND nothing calls register()"* — both true.
+    CP2: the evaluator arrived by approval, so the first half was discharged and
+         *"nothing calls register()"* was left standing.
+    CP3: approval line 2 WIRES register() and adds a flag-gated sweep, so the
+         second half is discharged too.
 
-    ⛔ CP2 ADDS THE EVALUATOR BY APPROVAL, so the first half is DISCHARGED, not
-    waived. The second half is the one that still matters and is left standing:
-    **nothing calls `register()`**. Wiring is CP3 and needs its own line.
-
-    ⭐ Rewritten rather than deleted. Deleting it would leave no record that the
-    evaluator is deliberate and no rail on the wire that is still absent — and
-    "registration is not activation" is exactly the distinction price-level got
-    wrong in the other direction.
+    ⛔ Each rewrite kept the sentence it retired, because the alternative is a
+    deleted test and no record that the wiring is deliberate. What survives is
+    the invariant that never changed: **registered exactly once, in the boot
+    path, and nowhere else.**
     """
-    code = _code_only(_MODULE)
-    assert "def evaluate" in code, (
-        "CP2's evaluator is gone — if this is a deliberate rollback, rewrite this "
-        "test rather than letting it pass on the CP1 shape")
-
+    import pathlib as _pl
     callers = []
     for path in sorted((_REPO / "api").rglob("*.py")):
         if path == _MODULE:
@@ -193,20 +186,30 @@ def test_the_evaluator_exists_but_NOTHING_CALLS_register():
                     and isinstance(node.func.value, ast.Name)
                     and node.func.value.id in aliases):
                 callers.append(str(path.relative_to(_REPO)).replace("\\", "/"))
-    assert callers == [], (
-        f"event_proximity.register() is wired in {callers}. CP1-CP2 are DARK and "
-        "harness-driven; wiring lands under CP3's own approval line.")
+
+    assert callers == ["api/main.py"], (
+        f"event_proximity.register() is called from {callers}. CP3 approves ONE "
+        "call site, in the boot path; a second is a second authority over "
+        "whether the type exists.")
 
 
-def test_CP2_ships_NO_SCHEDULER_ENTRY_and_no_sweep():
-    """⛔ The other half of "registration is not activation", asserted against
-    `api/main.py` rather than promised. ⭐ The gate packet pre-writes CP3's wire
-    rail precisely so this is a deliberate absence at CP2, not a forgotten one."""
+def test_CP3_wires_a_FLAG_GATED_sweep_that_DEFAULTS_OFF():
+    """⚰️ This asserted `event_proximity` appears NOWHERE in api/main.py. CP3
+    puts it there by approval — so the assertion inverts to the thing that now
+    matters: the sweep exists, it is gated, and the gate DEFAULTS OFF.
+
+    ⛔ Default OFF is not a style choice. The sweep reads real member rows, so an
+    unset variable must mean nothing runs — the same contract as its price-level
+    sibling. ⭐ The 'is it actually wired' half lives in the projection suite's
+    `test_the_dark_sweep_is_actually_wired_to_a_tick`, which asserts the WIRE
+    rather than the parts.
+    """
     main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
-    assert "event_proximity" not in main, (
-        "event_proximity is referenced in api/main.py — CP1-CP2 put it on no tick")
-    # control: the probe can see a sibling type that IS wired.
-    assert "_at_price_level.register()" in main
+    assert 'os.environ.get("ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED", "0") == "1"' in main, (
+        "the event-proximity sweep is not gated, or its default is not OFF")
+    assert 'id="alert_taxonomy_event_proximity_dark"' in main
+    # control: the probe can see the sibling type's gate too.
+    assert 'ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED' in main
 
 
 def test_the_legacy_path_is_byte_identical():

@@ -520,8 +520,17 @@ def test_the_dark_sweep_is_actually_wired_to_a_tick():
     assert main.count('id="alert_taxonomy_price_level_dark"') == 1, (
         "the dark comparison has no scheduler entry — nothing will call it on "
         "Monday, and the store will be empty next weekend")
-    assert main.count("run_dark_sweep()") == 1, (
-        "the scheduler entry exists but does not call the sweep")
+    # ⚰️ This asserted `main.count("run_dark_sweep()") == 1`. event-proximity CP3
+    # added a SECOND dark sweep and the count went to 2 — red for the right
+    # reason and the wrong cause, exactly like the census floor earlier today.
+    # ⛔ A count is the wrong instrument when the population is meant to grow.
+    # Scope to THIS job's body and assert the call is in it.
+    start = main.index("def _price_level_dark_sweep_job():")
+    end = main.index('id="alert_taxonomy_price_level_dark"', start)
+    body = main[start:end]
+    assert "run_dark_sweep()" in body, (
+        "the price-level scheduler entry exists but its job body does not call "
+        "the sweep")
     assert 'os.environ.get("ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED", "0") == "1"' in main, (
         "the sweep is not flag-gated, or its default is not OFF — this reads real "
         "member rows, so an unset variable must mean nothing runs")

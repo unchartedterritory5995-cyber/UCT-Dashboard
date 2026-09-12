@@ -183,6 +183,57 @@ def _in_window() -> tuple[bool, str]:
     return (True, stamp)
 
 
+def ticking_event_proximity(db_path: str) -> tuple[str, int]:
+    """The same liveness question for the SECOND dark run.
+
+    ⛔ Its cadence is different and the staleness bound must follow it, not be
+    copied. price-level ticks every minute (180 s is two missed ticks);
+    event-proximity ticks TWICE A DAY at 07:05 and 18:05 ET, so a 180 s bound
+    would report a healthy sweep as stalled every single time it was run. The
+    bound here is ~26 h: longer than the longest legitimate gap (Friday evening
+    to Monday morning is longer still, which is why the weekend check below
+    excuses it rather than this number stretching to cover it).
+    """
+    import time as _t
+    beat = None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            r = conn.execute("SELECT * FROM event_proximity_sweep_heartbeat "
+                             "WHERE id = 1").fetchone()
+            beat = dict(r) if r else None
+        finally:
+            conn.close()
+    except sqlite3.OperationalError:
+        beat = None
+
+    if beat is None:
+        inside, when = _in_window()
+        if not inside:
+            return ("EVENT-PROXIMITY  n/a -- %s, and its slots are 07:05 / 18:05 ET "
+                    "on weekdays. No heartbeat yet is EXPECTED." % when, 0)
+        return ("EVENT-PROXIMITY  NO  -- no heartbeat, and it IS a weekday (%s).\n"
+                "  Check ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 and the boot "
+                "line 'S7 event-proximity DARK comparison ENABLED'." % when, 1)
+
+    age = _t.time() - float(beat["last_tick"])
+    alive = age < 26 * 3600
+    lines = [
+        "EVENT-PROXIMITY  %s -- last tick %.1fh ago, %d ticks total"
+        % ("YES" if alive else "NO ", age / 3600.0, int(beat["ticks"])),
+        "  projected %d, reschedules %d"
+        % (int(beat["projected"]), int(beat["reschedules"])),
+    ]
+    if not alive:
+        lines.append("  STALLED -- it has missed at least one slot. Check the web log "
+                     "for 'event-proximity DARK sweep failed'.")
+    if int(beat["projected"]) == 0:
+        lines.append("  ! projected=0 -- no admin account's My Stocks intersected the "
+                     "day's reporters. Healthy, but comparing NOBODY.")
+    return ("\n".join(lines), 0 if alive else 1)
+
+
 def ticking(db_path: str) -> tuple[str, int]:
     """The Monday-morning question, answered in one line: IS IT TICKING AND
     WRITING ROWS?
@@ -292,9 +343,16 @@ def main() -> int:
               "This is NOT agreement. Check the path and the sweep flag." % db)
         return 2
     if args.ticking:
-        text, code = ticking(db)
-        print(text)
-        return code
+        # ⭐ ONE COMMAND, BOTH DARK RUNS. Two commands would mean a Monday where
+        # somebody checks one and assumes the other, and the second is the one
+        # with the twice-a-day cadence nobody has a feel for yet.
+        t1, c1 = ticking(db)
+        t2, c2 = ticking_event_proximity(db)
+        print("PRICE-LEVEL      " + t1.replace("TICKING: ", "", 1))
+        print(t2)
+        # ⛔ The worse of the two wins. A green overall line beside one stalled
+        # sweep is exactly the reassurance that stops anyone reading further.
+        return max(c1, c2)
     rep = build(db)
     if args.json:
         rep["per"] = {k: {**v, "sessions": sorted(v["sessions"])}
