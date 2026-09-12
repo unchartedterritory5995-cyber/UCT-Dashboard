@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway (single service) at `https://uctintelligence.com` (Cloudflare DNS)
+- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — see **"Which services a master push actually wakes"** below, and derive the roster with `railway status --json` rather than trusting any list, this one included.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -1926,6 +1926,74 @@ Facts that remain useful for DIAGNOSIS (none of them gate a push any more):
 is an owner decision, and the cost to state is WHICH scheduled slots are lost."* There is
 no window and no such decision to escalate. A restart still happens and can still cost a
 slot; that is now a diagnostic note, not a gate.
+
+### ⛔ Which services a master push actually wakes — MEASURED 2026-09-12
+
+> **`web` rebuilds on EVERY master push, docs and tools included. The other four
+> are path-gated and usually do nothing.** Railway creates a deployment RECORD
+> for every service on every push and then SKIPS the ones whose watch paths did
+> not match — so a deployment list that shows your SHA against five services is
+> NOT five deploys.
+
+⚰️ **READ THE `status` FIELD, NOT THE SHA.** This was gotten wrong in the session
+that measured it: the SHA appeared under `web`, `worker`, `bars-api` and
+`flow-worker` for the same push, and that was reported as "every master push
+restarts all four" — which became a proposed standing rule widening the RTH
+push freeze to docs. The `status` field said `SKIPPED` for three of them. Counting
+presence is not reading a verdict (`lesson_an_identity_join_is_not_a_correctness_check`).
+
+The last eight pushes, `railway deployment list --service <svc> --json`:
+
+| service | outcome | what wakes it |
+|---|---|---|
+| `web` | **SUCCESS 8/8** | everything — it builds the frontend bundle, so docs-only and tools-only pushes rebuild it too |
+| `worker` | SKIPPED 7/8 | `api/**` — woke only for `12e142de7` (`api/services/todaypack.py`) |
+| `bars-api` | SKIPPED 7/8 | `api/**` — same push, same reason |
+| `flow-worker` | **SKIPPED 8/8** | narrower still; did not deploy once in the window measured |
+| `chart-renderer` | independent | last deploy 2026-09-01, unrelated to these pushes |
+
+⭐ **What this means in practice:** an `app/**`-only or docs-only push is a
+**web-only** event. It does not restart the Options Flow pipeline. The standing
+"no master push Mon–Fri 09:00–16:00 ET" rule stands on its own reason — a web
+restart can still cost a scheduled slot — but **not** on "it restarts
+flow-worker", which is false.
+
+⛔ **This is a measurement with a date on it, not a guarantee.** Watch patterns
+are service settings that a person can change, and the CLI does **not** expose
+them (`watchPatterns` comes back `null`), so the only way to know is to push and
+read `status`. Re-measure rather than quote this table if the answer matters.
+
+### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
+
+`app/src/hub/rule12Paths.test.js` (`327fa4c70`) asserts *"this branch must not
+edit the Notebook workstream's files"* and enforces it by diffing
+`merge-base(origin/master, HEAD)..HEAD` for anything under
+`app/src/pages/journal-2-0/`.
+
+⛔ **It has no branch identity check, so it fires on EVERY branch that edits
+those paths — including the Notebook workstream editing its own code.** It
+cannot distinguish the case it was written for from that case's exact opposite
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). It is on `master`
+today, which means the Notebook cannot hold a green suite while doing its own
+work.
+
+**Waived once, by the owner, 2026-09-11**, for the Wave Q1 flip gate — excluded
+by name with the reason printed in the gate manifest, never modified. ⭐ **The
+fix belongs to the joystick session**: gate the rail on being ON a joystick
+branch (or on the diff containing hub changes), so it only fires where rule 12
+applies. Until then every Notebook gate carries a waiver it should not need.
+
+### ⛔ Rolling back a FRONTEND flag is a deploy, not a variable
+
+Constants like `OFFLINE_DEFAULT_ON`
+(`app/src/pages/journal-2-0/lib/offline/offlineFlag.js`) are **compiled into the
+bundle**. There is no Railway variable behind them, and setting one named after
+the constant changes nothing while looking like it worked. Rollback = revert the
+commit, push to `master`, wait for the `web` rebuild (**~2–3 min**; one
+measurement, 138 s), and **every member with an open tab keeps the OLD bundle
+until they reload** — there is no service worker and no new-version prompt, by
+charter. ⚰️ For most of Wave Q1 the canary stamped the opposite instruction on
+every evidence row; it was corrected 2026-09-12.
 
 ### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
 

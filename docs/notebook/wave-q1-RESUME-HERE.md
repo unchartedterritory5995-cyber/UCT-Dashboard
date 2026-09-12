@@ -33,6 +33,29 @@ THE MIDDLE.** Nobody reads to line 74 to find out that line 5 is void. This is
 ⛔ **Do not re-litigate any of the three.** If a future session believes one of
 them is wrong, it needs a NEW measurement, not a re-reading of the old header.
 
+## ⛔ THE ONE WAIVER ON THE FLIP GATE — rule12Paths, and it is NOT ours
+
+**Waived by the owner, 2026-09-11.** The flip gate runs with
+`app/src/hub/rule12Paths.test.js` excluded by name, and the gate manifest prints:
+
+> *rule12Paths excluded — joystick B7 rail has no branch identity check and fails
+> on any branch editing journal-2-0/, including the Notebook editing itself;
+> cross-workstream false positive; waived by owner 2026-09-11.*
+
+⛔ **The waiver covers ONE test and nothing else.** The gate must still reconcile
+to zero NEW failures against the baseline; a second red is a stop, not a second
+waiver.
+
+⭐ **It is not a Notebook defect and it was not fixed here.** The rail
+(`327fa4c70`, joystick B7) asserts "this branch must not edit the Notebook
+workstream's files" but has no branch-identity check, so it fires on every branch
+touching `app/src/pages/journal-2-0/` — including the Notebook's own. Editing it
+would be doing, to another workstream inside its observation window, precisely
+what rule 12 exists to prevent. **The joystick session owes the fix**; it is
+recorded in `CLAUDE.md` → *"B7 / rule 12 owes a branch-identity check"* and the
+owner is carrying it over.
+
+
 ## ✅ WHAT IS ACTUALLY OPEN — 2026-09-12
 
 **Q1 is built, merged, and live in production DARK.** The branch
