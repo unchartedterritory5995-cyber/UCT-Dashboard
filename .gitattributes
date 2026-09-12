@@ -58,3 +58,43 @@ app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text e
 # byte-identical to its blob once line endings are normalised (e.g. 556 bytes on
 # disk vs a 535-byte blob, exactly its 21 CRLFs). Nothing about the converter drifted.
 app/src/pages/journal-2-0/lib/importer/__fixtures__/obsidian_parity/*.json text eol=lf
+
+# ⛔⛔ THE CLASS, NOT THE INSTANCE — a DIRECTORY BACKSTOP for every fixture
+# (added 2026-09-11, third instance of the same defect).
+#
+# The three rules above were each added the day one extension bit: `.pine` when
+# the member-script hash rail cried wolf, `server_convert/*.json` for the
+# note-connector drift test, `obsidian_parity/*.json` for its sibling. The fourth
+# instance was `tests/fixtures/thinkscript/*.ts` — `ImportBox.thinkscript.test.jsx`
+# byte-compares that file against what the import box produced, and CRLF on disk
+# against an LF blob fails it on the very first statement: the box produced a
+# bare-LF `declare upper;` line and the committed fixture arrived CRLF.
+# (This comment deliberately spells no escape sequence: written with one, the
+# escape became a REAL newline here and git parsed the remainder as a rule —
+#   .gitattributes:71: 'declare is not a valid attribute name
+# which is R8's defect class arriving in a config file instead of a message.)
+# Fixing a fifth extension next week is not a fix; this is.
+#
+# ⭐ MEASURED before writing the rule, not guessed. 1,862 tracked files under
+# tests/fixtures: json 1516 · pine 191 · py 89 · ts 24 · csv 16 · png 9 · md 9 ·
+# jpg 5 · gitignore 2 · gz 1. And `git ls-files --eol` says EVERY text blob is
+# ALREADY `i/lf` (1,615 of them checked out `w/crlf`, 230 `w/lf`). So this rule
+# rewrites nothing in the index and changes no recorded hash — it stops the
+# CHECKOUT from manufacturing a difference that was never committed.
+tests/fixtures/** text eol=lf
+
+# ⛔ …AND THE 15 BINARIES INSIDE IT, DECLARED AFTER SO THEY WIN. A later line
+# overrides an earlier one, and `binary` expands to `-text`, so these are exempt
+# from the rule above. Sweeping them into a text rule would rewrite every 0x0A
+# inside a PNG on checkout — and these particular PNGs are the vendor VISUAL
+# PARITY references, so a corrupted one would read as a product regression in the
+# one comparison that exists to catch product regressions. That is the same
+# failure the woff2 block at the top of this file was written to prevent; it
+# named four font extensions and left the image formats to the sniffer.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.gz   binary
