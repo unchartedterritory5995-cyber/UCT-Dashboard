@@ -58,6 +58,7 @@ closes on its own rather than accumulating one-sided noise forever.
 from __future__ import annotations
 
 import json
+import os
 import time
 from typing import Any, Optional
 
@@ -74,6 +75,34 @@ PROJECTED_PREFIX = "legacy:"
 
 ADMIN_ROLE = "admin"
 
+#: ⛔ CP4 — THE ALL-MEMBERS COHORT, BEHIND ITS OWN FLAG, DEFAULT OFF.
+#:
+#: CP3 is approved for admin accounts only. CP4 widens the projection to every
+#: member and **needs its own owner approval line after five sessions of
+#: admin-cohort data** — so this flag exists, defaults OFF, and changes nothing
+#: while unset.
+#:
+#: ⭐ A SECOND FLAG, NOT A WIDENED FIRST ONE. `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED`
+#: arms the sweep; this one decides WHO it reads. Collapsing them into one
+#: variable would mean the only way to test the wider cohort is to also arm the
+#: run, and the only way to narrow the cohort back is to stop the run — two
+#: decisions the owner must be able to make separately.
+#:
+#: ⛔ The failure direction is NARROW. Unset, malformed, or any value other than
+#: the accepted truthy set leaves the admin gate exactly as CP3 shipped it.
+CP4_ALL_MEMBERS_FLAG = "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ALL_MEMBERS"
+
+
+def all_members_enabled() -> bool:
+    """⛔ Read at CALL TIME, never captured at import.
+
+    A module-level capture would make the flag a deploy-time decision and turn
+    the owner's "unset it to narrow the cohort" into a fiction — the same defect
+    `test_the_flag_is_read_per_request` exists to prevent on HUB_PREVIEW_ENABLED.
+    """
+    raw = (os.environ.get(CP4_ALL_MEMBERS_FLAG) or "").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
 
 def projected_predicate_id(legacy_row_id: str) -> str:
     return f"{PROJECTED_PREFIX}{legacy_row_id}"
@@ -87,14 +116,26 @@ def project_admin_alerts() -> list[dict[str, Any]]:
     legacy path fires it sets `is_active = 0`, and a projection that ignored
     that would keep comparing against a row the member no longer has armed.
     """
+    all_members = all_members_enabled()
     conn = _auth_db.get_connection()
     try:
-        rows = conn.execute(
-            "SELECT wa.* FROM watchlist_alerts wa "
-            "JOIN users u ON u.id = wa.user_id "
-            "WHERE wa.is_active = 1 AND u.role = ?",
-            (ADMIN_ROLE,),
-        ).fetchall()
+        if all_members:
+            # ⛔ CP4 COHORT. Still joined to `users` rather than reading
+            # `watchlist_alerts` alone: the join is what guarantees every
+            # projected row belongs to a real account, and dropping it would
+            # also project ORPHANED rows whose user was deleted.
+            rows = conn.execute(
+                "SELECT wa.* FROM watchlist_alerts wa "
+                "JOIN users u ON u.id = wa.user_id "
+                "WHERE wa.is_active = 1",
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT wa.* FROM watchlist_alerts wa "
+                "JOIN users u ON u.id = wa.user_id "
+                "WHERE wa.is_active = 1 AND u.role = ?",
+                (ADMIN_ROLE,),
+            ).fetchall()
     finally:
         conn.close()
 

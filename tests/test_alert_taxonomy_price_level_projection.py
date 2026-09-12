@@ -934,3 +934,98 @@ def test_the_dry_run_reports_a_missing_bar_instead_of_substituting_one():
     assert any("STALE" in x for x in missing), (
         "a bar from a different session was substituted instead of reported")
     assert "NONE" in missing
+
+
+# --- CP4 PREP: the all-members cohort, behind its own flag, DEFAULT OFF -----
+
+def test_CP4_unset_leaves_the_admin_gate_EXACTLY_as_CP3_shipped_it(monkeypatch):
+    """⛔ THE WHOLE SAFETY PROPERTY OF CP4 PREP.
+
+    CP4 is UNAPPROVED. This code may sit on master only because an unset flag
+    changes nothing — so the test is not "admin-only works", it is "admin-only
+    is byte-for-byte the CP3 behaviour, for every value the flag can hold that
+    is not an explicit yes".
+    """
+    monkeypatch.delenv(_proj.CP4_ALL_MEMBERS_FLAG, raising=False)
+    admin, member = _user("admin"), _user("member")
+    a_id = _alert(admin, sym="ADMN")
+    m_id = _alert(member, sym="MEMB")
+
+    ids = _ids()
+    assert a_id in ids, "control: the admin row must still project"
+    assert m_id not in ids, "unset must NOT widen the cohort"
+
+    # ⛔ The failure direction is NARROW for everything that is not a clear yes.
+    for junk in ("", "0", "false", "no", "off", "maybe", "TRUE-ish", "2", " "):
+        monkeypatch.setenv(_proj.CP4_ALL_MEMBERS_FLAG, junk)
+        assert m_id not in _ids(), (
+            f"the flag value {junk!r} widened the cohort — only an explicit "
+            "truthy value may do that")
+
+
+def test_CP4_set_projects_member_rows(monkeypatch):
+    """The other direction, so the flag is not inert — an unprovable widening is
+    as bad as an accidental one."""
+    admin, member = _user("admin"), _user("member")
+    a_id = _alert(admin, sym="ADMN")
+    m_id = _alert(member, sym="MEMB")
+
+    for truthy in ("1", "true", "YES", "On"):
+        monkeypatch.setenv(_proj.CP4_ALL_MEMBERS_FLAG, truthy)
+        ids = _ids()
+        assert m_id in ids, f"{truthy!r} should have widened the cohort"
+        assert a_id in ids, "and must never DROP the admin rows"
+
+
+def test_CP4_is_read_at_CALL_TIME_not_captured_at_import(monkeypatch):
+    """⛔ A module-level capture would make this a DEPLOY-time decision and turn
+    'unset it to narrow the cohort' into a fiction. Same defect
+    `test_the_flag_is_read_per_request` exists to prevent on HUB_PREVIEW_ENABLED
+    — and the rollback story is the reason it matters."""
+    member = _user("member")
+    m_id = _alert(member, sym="MEMB")
+
+    monkeypatch.setenv(_proj.CP4_ALL_MEMBERS_FLAG, "1")
+    assert m_id in _ids()
+    monkeypatch.delenv(_proj.CP4_ALL_MEMBERS_FLAG, raising=False)
+    assert m_id not in _ids(), (
+        "narrowing the cohort required a restart — the flag was captured at "
+        "import")
+
+
+def test_CP4_never_projects_an_ORPHANED_row(monkeypatch):
+    """⛔ THE WIDE PATH KEEPS THE JOIN, and this is why.
+
+    The obvious CP4 implementation drops the `users` join entirely. That would
+    also project rows whose user no longer exists — an alert with no owner, fed
+    into a comparison keyed by user_id. The join is what makes 'every projected
+    row belongs to a real account' true in BOTH cohorts.
+    """
+    member = _user("member")
+    kept = _alert(member, sym="KEPT")
+    orphan = _alert(member, sym="ORPH")
+    conn = _auth_db.get_connection()
+    try:
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.execute("UPDATE watchlist_alerts SET user_id='ghost-user' WHERE id=?",
+                     (orphan,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    monkeypatch.setenv(_proj.CP4_ALL_MEMBERS_FLAG, "1")
+    ids = _ids()
+    assert kept in ids, "control: the intact member row must project"
+    assert orphan not in ids, "an alert whose user is gone must never project"
+
+
+def test_CP4_is_NOT_wired_to_any_scheduler_or_main(monkeypatch):
+    """⛔ CP4 PREP IS CODE ONLY. The flag must appear nowhere in `api/main.py` —
+    not in a scheduler block, not in a boot log line. Its only mention outside
+    the projection module should be this test file."""
+    main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
+    assert _proj.CP4_ALL_MEMBERS_FLAG not in main, (
+        "CP4's flag is referenced in api/main.py — this checkpoint is "
+        "UNAPPROVED and must not be reachable from boot")
+    # control: the CP3 flag IS there, so the probe can see a sibling.
+    assert "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED" in main
