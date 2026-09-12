@@ -4,6 +4,11 @@ Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
 DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
 watch paths set in the Railway service settings (never railway.json — that file
+# 2026-09-13 - deploy trigger. `api/services/bar_quarantine.py` and
+# `api/services/bars_disk_cache.py` are REACHABLE from this worker but are not
+# on the watch list below, so a fix to them ships inert here unless a watched
+# file moves in the same commit. `tools/flow_worker_watch_coverage.py` failed
+# the diff and named them; this touch is the fix the rail prescribes.
 is shared by all three services): api/{massive_ws_worker,massive_processor,
 flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
