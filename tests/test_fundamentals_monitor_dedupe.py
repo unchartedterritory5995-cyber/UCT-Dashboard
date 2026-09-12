@@ -271,3 +271,38 @@ def test_the_digest_reports_standing_defects_the_cycle_did_not_sample(tmp_path, 
         _SHAPE_PAYLOAD if s == "OTHER" else _payload()))
     fm.run_cycle(now=1_000_000.0 + 86_400 + 1)        # GAPPY not sampled this time
     assert sent[-1] == ["GAPPY", "OTHER"], f"digest lost an unsampled standing defect: {sent[-1]}"
+
+
+def test_an_unwritable_db_does_not_turn_the_digest_into_a_per_cycle_page(tmp_path, monkeypatch):
+    """A read-only /data must not turn the digest into a per-cycle page.
+
+    ⚠️ THIS TEST PASSED THE MOMENT IT WAS WRITTEN, and the reason is the point.
+    The hypothesis was that `_meta_get` returning None on a store error is
+    indistinguishable from "never sent", so a broken DB would fire the digest on
+    every cycle — twelve a day, the exact spam this change removes, arriving
+    when nobody can read the state to explain why. That hypothesis was WRONG:
+    `_standing_shape_defects` swallows the same failure and returns `[]`, and
+    `_maybe_digest` returns early on an empty set, so a broken store makes the
+    digest go SILENT rather than loud.
+
+    Silent is the correct direction here and the degradation is bounded: the
+    durable read falls back to the in-memory mirror, so criticals still page and
+    only the once-a-day summary is lost. Kept as a regression guard because the
+    two swallowed failures that produce this are in different functions, and a
+    later "improvement" to either one — making `_standing_shape_defects` raise,
+    or having `_maybe_digest` treat an unreadable stamp as "never sent" — would
+    silently invert it. No fix was needed; do not read this as one.
+    """
+    sent = []
+    fm = _digest_mod(tmp_path, monkeypatch, sent)
+    fm.run_cycle(now=1_000_000.0)
+    assert sent == [["GAPPY"]]
+
+    # Now the store dies completely — reads AND writes.
+    def _boom(*a, **kw):
+        raise OSError("attempt to write a readonly database")
+
+    monkeypatch.setattr(fm, "_connect", _boom)
+    fm.run_cycle(now=1_000_000.0 + 3600)
+    fm.run_cycle(now=1_000_000.0 + 7200)
+    assert sent == [["GAPPY"]], f"a broken store re-sent the digest every cycle: {sent}"
