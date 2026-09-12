@@ -429,12 +429,19 @@
     {
       "id": "request-security-base-period-identity-vs-lookahead-off-step-back",
       "shape": "seeded",
-      "status": "accepted",
+      "status": "confirmed",
       "confidence": "measured",
       "ours": "A `request.security(own symbol, <literal naming the engine's base>, expr)` folds to the IDENTITY — the child expression unwrapped, reading the bars already in hand. Ruling 3.5, 2026-09-11. Disclosed per definition on the output as `baseTimeframeFolds`, and refused outright by a guard when the base is INTRADAY and the newest bar is still forming.",
       "theirs": "TradingView's `request.security(..., 'D', ..., lookahead_off)` reads the last CLOSED daily bar. Viewed from an intraday chart that is the PREVIOUS session while today is forming; viewed from a daily chart on a closed-bar engine it is the bar in hand.",
       "why_it_matters": "The two coincide exactly on this engine, because it evaluates a daily base and closed bars: 'the last closed daily bar' and 'the bars in hand' are the same series. They diverge by ONE BAR only if the engine ever evaluates an intraday base with a forming newest bar — which is the case the guard refuses rather than folds, so the difference can never appear silently. ⛔ Recorded as ACCEPTED rather than left implicit because the alternative spelling is one the 2026-09-01 ruling measured and rejected: putting `D` in TF_RESAMPLABLE would make this a RESAMPLE, and `tf` reads the last closed period, so `tf(close,'D')` on a daily base answers YESTERDAY (measured then: [null,10,11,12,...] against [10,11,12,13,...]). `D` is still absent from TF_RESAMPLABLE; only the identity path changed.",
-      "decision": "ACCEPTED. Values coincide on a closed-bar daily engine; the one-bar case is guarded and refuses by name, and every fold is disclosed on the definition.",
+      "decision": {
+        "ruled": "2026-09-11 — THE OWNER RULED IT ACCEPTED (ruling 3.5): identity on a base-period literal, with the guard and the disclosure. The row is filed as `confirmed` rather than `accepted` for a SCHEMA reason, not a doubt — see `why_not_accepted_yet`.",
+        "why_not_accepted_yet": "⛔ `tests/test_vendor_truth.py::test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest` derives the member-facing hook from `row['id'].split('-')[0]` and requires a `vendorNote` on that `closedTable.json::functions` entry — the pattern every existing row follows (`atr-tr-starts-at-bar-1` → `atr`). This divergence is about a TRANSLATOR construct, and `request`, `security`, `tf` and `sym` are none of them table functions, so there is no entry to hang the note on. The member IS told, by a different channel: `baseTimeframeFolds` on the definition's own output names the fold, its line, the requested timeframe and the base. ⭐ So the roster's `accepted` tier assumes every divergence is function-level, and this is the first one that is not. Routed as a T0 sub-item: either the tier learns a second disclosure channel, or translator-level divergences get their own tier.",
+        "what_happened": "A literal naming the engine's own base period now folds to the identity instead of refusing. Measured in both lanes; eight cases and three controls in `pine.security.test.js`.",
+        "owed_to_the_member": "The fold is disclosed per definition as `baseTimeframeFolds` — line, requested timeframe, base, and what it folded to. A fold nobody is told about is a script that quietly stopped being the one they pasted.",
+        "what_would_reopen_it": "This engine ever evaluating an INTRADAY base. Then a literal 'D' is the last completed session rather than the bars in hand, and the identity would be off by a session — which is why the guard refuses that case outright rather than folding it.",
+        "prior_ruling": "⛔⛔ NOT A REVERSAL OF 2026-09-01. That ruling kept `D` OUT of `TF_RESAMPLABLE` — the RESAMPLE path — because `tf` reads the last CLOSED period, so `tf(close,'D')` on a daily base answers YESTERDAY (measured then: [null,10,11,12,...] against [10,11,12,13,...]). It was built, moved a corpus 43 → 44, and was reverted for that step-back. `D` is STILL absent from `TF_RESAMPLABLE`; only the identity path, which has no step-back, changed."
+      },
       "code": "request.security",
       "measured": "2026-09-11",
       "probe": {
