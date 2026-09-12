@@ -53,6 +53,13 @@
       ],
       "note": "S7 first slice (owner authorization, 2026-09-03; api/main.py:6090-6116). Registers the 20-min alert_taxonomy_document_arrival cron, which polls SEC EDGAR per-ticker filings (api/services/sec_filings.py) against a watermark and fires document-arrival alerts through the alert-taxonomy predicate/delivery pipeline -- S7's first live trigger type. Independent of COMPASS_AUTOMATION_ENABLED. Live monitoring a real production predicate (NVDA) as of 2026-09-05, waiting on a genuine new filing; see docs/uct-terminal/continuity-checkpoint.md \"CURRENT WAITING ON EXTERNAL EVENT\"."
     },
+    "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-PRICE-LEVEL CP3/CP3b (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_price_level_dark cron (weekdays 09:00-16:59 ET, every minute, max_instances=1) which runs the FORWARD-ONLY dark comparison of the new price-level evaluator against the legacy watchlist_alerts rule. UNSET IN PRODUCTION AS OF 2026-09-12 -- read live via `railway variables --service web --kv`, which returned no such key. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of watchlist_alerts), so an unset variable must mean nothing runs -- the DESK_TSDR_ANNOUNCE_SHOWS contract, where the failure direction is silence rather than exposure. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). Arming it starts the dark run; the VERDICT GATE is five full trading sessions and the report is `python tools/s7_price_level_report.py`. The FLIP (delivery + legacy switch-off) and CP4 (all members) each need a new owner approval line -- this flag is NOT that."
+    },
     "ALPHA_GOLD_EOD_ENABLED": {
       "status": "dark",
       "note": "Was armed; confirmed OFF (=0) on flow-worker as of 2026-09-06 -- the ledger entry had drifted. Superseded same-day by CREAM_EOD_ENABLED (api/flow_worker_main.py:456-489): Cream of the Crop's aggregate, curation-free EOD read replaced Alpha Gold's single-print summary on the adjacent 16:05/16:10 ET cron slot. The scheduler branch and the alpha_gold_eod.py module are both still present (env-var-only revert, no deploy needed either way), but nothing currently arms it."
