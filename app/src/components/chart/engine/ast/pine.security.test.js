@@ -362,3 +362,97 @@ plot(security(tickerid, 'W', close))`)))
     expect(ast.value).toBe('SPY')
   })
 })
+
+// ─── ⭐⭐ THE TUPLE FORM (2026-09-11) ────────────────────────────────────────
+//
+// `[a, b, …] = request.security(sym, tf, f(), lookahead)` fetches several values
+// in ONE request, which is the efficient idiom and the commonest destructure in
+// this corpus — 42 of 63. `uncharted-volume.pine:259` is an EIGHT-value one.
+//
+// ⭐ THE WHOLE DESIGN CLAIM IS THAT THIS ADDS NO SECOND AUTHORITY. Element k is
+// resolved in the inner call's own scope and then handed to `securityAsNode` to
+// wrap, so whose bars, which period, lookahead, and the rule that `sym` must sit
+// OUTSIDE `tf` are decided by the same method the scalar form uses. The tests
+// below are therefore mostly checks that the tuple form INHERITS each decision
+// rather than re-stating it — and the refusals matter more than the passes.
+describe('request.security → tf, the TUPLE form', () => {
+  const src = (body) => `//@version=5\nindicator("t")\n${body}\n`
+  const F = 'f() =>\n    [close, high]\n'
+  const one = (body, opts) => {
+    const r = translatePine(src(body), opts)
+    const out = (r.outputs || [])[0] || {}
+    return {
+      ok: !!r.ok,
+      ast: out.ast || null,
+      guard: (out.refusal || r.refusal || {}).guard || null,
+    }
+  }
+
+  it('⭐ element 0 and element 1 each become their OWN tf node', () => {
+    const a = one(`${F}[p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
+    expect(a.guard).toBe(null)
+    expect(a.ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+
+    const b = one(`${F}[p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\nplot(q)`)
+    expect(b.ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'high' }] })
+  })
+
+  it('⭐⭐ INHERITS lookahead_on → `tf_live`, with no second rule written here', () => {
+    const r = one(`${F}[p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_on)\nplot(p)`)
+    expect(r.ast).toEqual({ type: 'tf_live', value: 'W', args: [{ type: 'series', name: 'close' }] })
+  })
+
+  it('⭐⭐ INHERITS the `sym`-must-be-OUTER ordering for another symbol', () => {
+    // `tf(sym(…))` hands `sym` resampled bars while the benchmark series is not
+    // resampled — the ordering `interpret` refuses by name. Composing through
+    // `securityAsNode` means the tuple form CANNOT emit it.
+    const r = one(`${F}[p, q] = request.security("SPY", 'W', f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
+    expect(r.ast).toEqual({
+      type: 'sym',
+      value: 'SPY',
+      args: [{ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }],
+    })
+  })
+
+  it('⭐ the chart’s own timeframe is the identity, exactly as for a scalar', () => {
+    const r = one(`${F}[p, q] = request.security(syminfo.tickerid, timeframe.period, f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
+    expect(r.ast).toEqual({ type: 'series', name: 'close' })
+  })
+
+  it('⛔ CONTROL: an UNRECOGNISED lookahead spelling refuses, tuple or not', () => {
+    const r = one(`${F}[p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_sideways)\nplot(p)`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:request')
+  })
+
+  it('⛔ CONTROL: a timeframe that is not a literal refuses', () => {
+    const r = one(`${F}x = close > 1 ? "W" : "D"\n[p, q] = request.security(syminfo.tickerid, x, f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:request')
+  })
+
+  it('⛔ CONTROL: a literal `D` refuses — it is the BASE period, not a resample', () => {
+    // 🔴 AND THIS IS THE ONE BLOCKING `uncharted-volume.pine`. `TF_RESAMPLABLE` is
+    // ['W','M'] because the base bar IS a day, so there is nothing to resample a
+    // day from. `timeframe.period` is recognised as the identity (test above); a
+    // literal 'D' is not, and on a daily-base engine the two are arguably the same
+    // request. Treating them as the same is a MEMBER-VISIBLE semantic change, so it
+    // is routed as a decision rather than taken here — and until it is taken, the
+    // honest answer is this refusal.
+    const r = one(`${F}[p, q] = request.security(syminfo.tickerid, 'D', f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:request')
+  })
+
+  it('⛔ CONTROL: more names than the inner call answers still refuses', () => {
+    const r = one(`${F}[p, q, s] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\nplot(s)`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:tuple')
+  })
+
+  it('⭐ and it works INSIDE an `if` branch, through the shared destructure reader', () => {
+    const r = one(`${F}var float v = na\nif bar_index > 0\n    [p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\n    v := p\nplot(v)`)
+    expect(r.guard).toBe(null)
+    expect(r.ok).toBe(true)
+  })
+})

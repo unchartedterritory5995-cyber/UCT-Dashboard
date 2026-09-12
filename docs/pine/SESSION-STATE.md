@@ -33,6 +33,69 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 
 ---
 
+## ✅ ITEM 4 — THE TUPLE `request.security` IS BUILT, AND VOLUME'S LAST BLOCKER IS ONE LITERAL
+
+**`[a, …, h] = request.security(sym, tf, f(), lookahead)` now hands out its parts.**
+Volume's line 259 is an eight-value one, and the corpus writes this call in 42 of
+its 63 destructures.
+
+⭐⭐ **THE DESIGN CLAIM IS THAT IT ADDS NO SECOND AUTHORITY.** Element k resolves in
+the inner call's own scope and is then handed to `securityAsNode` **to wrap** —
+through a single new `resolveInner` parameter, one substitution point. So *whose
+bars*, *which period*, *lookahead*, and the rule that `sym` must sit OUTSIDE `tf`
+are all still decided by the method the scalar form uses. A tuple request cannot
+mean something a scalar request would not.
+
+Measured, both lanes:
+
+```
+own symbol, 'W', off        -> tf(high, 'W')                    element 1, its own node
+lookahead_on               -> tf_live(close, 'W')               INHERITED, no rule rewritten
+other symbol "SPY"         -> sym('SPY', tf(close, 'W'))        sym OUTER, by construction
+timeframe.period           -> close                             the identity, as for a scalar
+inside an `if` branch      -> ok                                through item 2's shared reader
+unrecognised lookahead     -> pine:request                      REFUSED
+computed timeframe         -> pine:request                      REFUSED
+3 names for a 2-tuple      -> pine:tuple                        REFUSED
+```
+
+### 🔴 AND VOLUME'S REMAINING HOST BLOCKER IS NOW EXACTLY ONE THING
+
+```
+before item 2   pine:reassign@250   volD
+after item 2    pine:reassign@260   volD
+after item 4    pine:request@259    the tuple request itself
+```
+
+**It is the literal `'D'`.** `TF_RESAMPLABLE` is `['W', 'M']` *because the base bar
+IS a day* — there is nothing to resample a day from. `timeframe.period` is
+recognised as the identity (measured above); a literal `'D'` is not. On a
+daily-base engine those are arguably the same request, and Volume's whole
+`isDaily ? direct : request` split exists only because a TradingView chart can be
+intraday while this engine always evaluates daily bars.
+
+⛔ **I did not take that decision.** Widening it changes what every imported
+script computes, and our `tf` is `lookahead_off` + `[1]` — the last CLOSED higher
+bar — so "identity" and "last closed day" differ by one bar on an intraday chart
+even though they coincide on a closed-bar daily engine. That is a member-visible
+semantic, so it is routed as decision **3.5** with the others rather than decided
+at 21:30. Until it is taken, the refusal is the honest answer, and there is a
+control asserting it.
+
+### Evidence
+
+- `pine.security.test.js` 22 → 31 tests; engine suite **5,135 passed · 2 failed ·
+  32 skipped** (the 2 are the census floors) — **zero new failures**
+- **mutation-proved by hand**: disabling the binding turns **8 of the 9** new tests
+  red. ⭐ The three controls that name `pine:request` flip too, because without the
+  binding everything collapses to `pine:tuple` — so those controls pin the GUARD,
+  not merely "it refuses", which is the difference between a control and coverage
+- ⚠️ **one self-inflicted debug cycle, recorded:** `positionaliseSecurityArgs`
+  returns NODES, not `{name, value}` wrappers (`slots[at] = a.value` is the
+  unwrap), and reading `.value` off one again made every condition quietly false.
+  The refusal then looked like a capability gap rather than my own typo — which is
+  why the shape of a returned value is now stated in a comment at that line.
+
 ## ✅ R2 — THE KIND-4 TEXT TRIO: THE RULING ALREADY EXISTED, ON THE OTHER LANE
 
 ⚰️ **SESSION-STATE said this wanted a product ruling. It did not — one was already

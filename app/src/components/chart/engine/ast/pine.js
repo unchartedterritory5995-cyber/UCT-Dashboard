@@ -4529,6 +4529,52 @@ export class Resolver {
         })
       } finally { this.env = prevEnv }
     }
+    // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
+    // is `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(),
+    // lookahead = barmerge.lookahead_off)` — eight daily values fetched in one
+    // request, which is the efficient idiom and the one the corpus actually writes
+    // (42 of 63 destructures bind this call).
+    //
+    // ⭐ IT RESOLVES ELEMENT k AND THEN HANDS IT TO `securityAsNode` TO WRAP. The
+    // wrapping is not re-derived here: whose bars, which period, lookahead, and the
+    // rule that `sym` must sit OUTSIDE `tf` are all decided by the same method the
+    // single-value form uses. A tuple request cannot therefore mean something a
+    // scalar request would not.
+    //
+    // ⛔ A SHAPE `securityAsNode` WON'T TAKE STILL REFUSES, by its own null. An
+    // unrecognised lookahead spelling, a computed timeframe, a symbol that is
+    // neither the chart's nor a nameable ticker — each returns null there and
+    // becomes `pine:request` here, which is the sentence the namespace already
+    // publishes rather than a second one invented for tuples.
+    if (bound.kind === 'securityTuplePart') {
+      if (this.frames.length >= MAX_CALL_DEPTH) {
+        throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+      }
+      const part = bound.fn.value.parts[bound.index]
+      if (!part) {
+        throw new PineRefusal('pine:tuple',
+          `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
+          + `${bound.fn.value.parts.length}-part result`, locate(tok))
+      }
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try {
+        const out = this.securityAsNode(bound.call, () => {
+          // The inner call's own scope: its arguments become a frame, and the part
+          // resolves in the environment the function closed over — exactly as the
+          // plain `tuplePart` arm does it.
+          this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
+          const innerEnv = this.env
+          this.env = part.env || innerEnv
+          try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = innerEnv }
+        })
+        if (!out) {
+          throw new PineRefusal('pine:request',
+            `${REFUSALS['pine:request']} — \`${name}\``, bound.at || locate(tok))
+        }
+        return out
+      } finally { this.env = prevEnv }
+    }
     if (bound.kind === 'tuplePart') {
       if (this.frames.length >= MAX_CALL_DEPTH) {
         throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
@@ -6547,7 +6593,7 @@ export class Resolver {
    *  Translating it as if it were `off` would silently turn a look-ahead script into
    *  a look-behind one and backtest beautifully.
    */
-  securityAsNode(node) {
+  securityAsNode(node, resolveInner) {
     const args = node.args || []
 
     // ⚠️ EVERY ARGUMENT IS A `{name, value}` WRAPPER, because Pine has named
@@ -6623,7 +6669,12 @@ export class Resolver {
     if (live && !code) live = false
 
     // 4. compose, innermost first.
-    let out = this.resolve(positional[2])
+    // ⭐ THE ONE SUBSTITUTION POINT. A TUPLE request resolves element k of its
+    // inner call instead of the whole expression, and then wants EXACTLY this
+    // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
+    // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
+    // the tuple form from becoming a second authority on what a request means.
+    let out = resolveInner ? resolveInner() : this.resolve(positional[2])
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
     if (other) out = { type: 'sym', value: other, args: [out] }
     return out
@@ -8101,6 +8152,43 @@ function destructureBindings(toks, env, first) {
       }
     }
   }
+  // ⭐⭐ A TUPLE `request.security` — Volume's line 259, and the corpus's commonest
+  // destructure by a wide margin. The parts are held here and WRAPPED at resolve
+  // time by `securityAsNode`, so this site decides only one thing: that the inner
+  // expression really is a call answering enough values to hand out.
+  //
+  // ⛔ THE `kind === 'tuple'` AND LENGTH CHECKS ARE THE SAME TWO THIS FUNCTION
+  // ALREADY MAKES FOR A PLAIN USER CALL, and they are the whole safety of the
+  // feature. Everything about WHICH bars and WHICH period stays with
+  // `securityAsNode`, which returns null for a shape it will not take — and that
+  // null becomes `pine:request` at resolve time, not a guess here.
+  if (eq > close && names.length > 0 && parsedRhs && parsedRhs.type === 'call'
+      && (parsedRhs.name === 'request.security' || parsedRhs.name === 'security')) {
+    const placed = positionaliseSecurityArgs(parsedRhs.args || [])
+    // ⚠️ `positionaliseSecurityArgs` RETURNS NODES, NOT `{name, value}` WRAPPERS
+    // — `slots[at] = a.value` is the unwrap. Reading `.value` off one again cost a
+    // debug cycle: every condition below went quietly false and the refusal looked
+    // like a capability gap rather than my own typo.
+    const expr = placed && placed[2] ? placed[2] : null
+    const inner = expr && expr.type === 'call' ? env.get(expr.name) : null
+    const value = inner && inner.kind === 'fn' ? inner.value : null
+    if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
+      const callerEnv = new Map(env)
+      return {
+        names,
+        bindings: names.map((n, k) => ({
+          kind: 'securityTuplePart',
+          call: parsedRhs,
+          fn: inner,
+          args: expr.args || [],
+          index: k,
+          env: callerEnv,
+          at: locate(n),
+        })),
+      }
+    }
+  }
+
   return { names, why: tupleRefusalTail(parsedRhs, names, env) }
 }
 
