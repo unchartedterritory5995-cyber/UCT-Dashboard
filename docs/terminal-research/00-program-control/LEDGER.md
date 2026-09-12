@@ -139,7 +139,10 @@ convergence); **`scripts/entity_master_seed.py`** (Seam 1 dot-form alias seeding
 Per the standing rule, every application-code commit this program makes gets a row here **before**
 the session reports.
 
-## ⛔⛔ MERGE CHECK 2026-09-11 22:2x — **THE FIVE PRs ARE NOT ON MASTER.** Rows stay PENDING-MERGE.
+## ✅ MERGE CHECK SUPERSEDED — three of five merged 2026-09-11 22:41 CDT (see the table above)
+
+> The section below recorded the 22:2x state, when a session opened on "merged: all five" and none
+> were. Kept as the record of how that was established — the three-way check is the reusable part.
 
 A session opened on the statement that all five had merged. **Verified against `origin/master @
 a10c7c94a` and they have not**, by three independent measurements rather than one:
@@ -170,13 +173,51 @@ each has a precondition that names these merges. Nothing was built on the assump
 They live on feature branches, **not on `origin/master`**, so the rail's check (1b) does not return
 them and cannot yet validate them. Five PRs, merged by the owner, in this order:
 
-| # | branch | tip SHA | status | tier |
+| # | branch | tip SHA | status | merge SHA |
 |---|---|---|---|---|
-| 1 | `feat/s7-filing-watch-parity` | `c46be401f` | **PENDING-MERGE** | WEB-ONLY |
-| 2 | `feat/i1-rails` | `be3474241` | **PENDING-MERGE** | WEB-ONLY |
-| 3 | `fix/alert-bell-filing-icon` | `76f6e2e77` | **PENDING-MERGE** ⛔ MEMBER-VISIBLE | WEB-ONLY |
-| 4 | `feat/s3-admin-routes` | `3ebe013a5` | **PENDING-MERGE** | WEB-ONLY |
-| 5 | `feat/d1-adoption-sweep` | `638e12f48` | **PENDING-MERGE** | WEB-ONLY |
+| 1 | `feat/s7-filing-watch-parity` | `c46be401f` | ✅ **MERGED** 2026-09-11 22:41 CDT | **`6ed34c4b0`** |
+| 2 | `feat/i1-rails` | `be3474241` | ✅ **MERGED** | **`8bf8e93b1`** |
+| 3 | `fix/alert-bell-filing-icon` | `76f6e2e77` | ✅ **MERGED** ⛔ MEMBER-VISIBLE | **`080297866`** |
+| 4 | `feat/s3-admin-routes` | `3ebe013a5` | ⛔ **HELD — CI RAIL FAILS** (below) | — |
+| 5 | `feat/d1-adoption-sweep` | `638e12f48` | ⏸️ **HELD** — clean, but its value is in being read after #4 | — |
+
+**Master `a10c7c94a` → `080297866`.** Verified per merge: content present, rail OK, and on the final
+stack **361 backend passed / exit 0** and **3 frontend files, 26 tests passed / exit 0**.
+
+## ⛔⛔ WHY #4 IS HELD — `tools/flow_worker_watch_coverage.py` exits 1
+
+```
+[watch-coverage] FAIL — flow-worker RUNS these files but will NOT redeploy for them:
+    api/services/entity_master/store.py
+  This push would leave flow-worker on the OLD code with every test green.
+```
+
+**The chain, taken from the rail's own reachability function rather than re-derived:**
+`api/flow_worker_main.py` → … → **`api/services/massive.py`** → `entity_master/api.py` →
+**`entity_master/store.py`**. Flow-worker loads it transitively via Massive, and
+`api/services/**` is not on flow-worker's watch list.
+
+⭐ **This is a real strand the earlier WEB-ONLY assessment could not have caught.** That assessment
+intersected the changed files with the *watch list* and correctly found no watched file. The rail
+asks a different and better question — *does flow-worker RUN a changed file it won't redeploy for?* —
+and the tool that asks it only landed on master at 22:14 tonight, after the assessment was written.
+
+⚠️ **Risk of the strand itself is nil TODAY and that is not the point.** The change is additive
+(`status_counts()` added to `store.py`); flow-worker would simply run a version lacking a function it
+never calls. The rail cannot know that, and the next change to that file might not be additive.
+
+**The two documented remedies, and why neither is mine to apply:**
+
+1. *Touch a watched file in the same commit* — the conventional trigger is an
+   `api/flow_worker_main.py` header edit. ⛔ **Prohibited by the standing "nothing in flow-worker"
+   rule.**
+2. *Add `api/services/entity_master/**` to flow-worker's watch list* — Railway dashboard config, the
+   owner's, and it widens the list, which the runbook notes means more tape gaps.
+
+**Measured fallback, already verified:** merges 1, 2, 3 **and 5** together pass the rail (exit 0) —
+**only #4 strands.** #5 is held not for any technical reason but because its whole purpose was to be
+read *after* #4 cleared the discovery-coverage red; landing it alone puts two unexplained reds on
+master at once.
 
 ⛔ **THE NEXT SESSION'S FIRST ACTION, on the owner's word "merged":** re-run the protection rail
 against `origin/master`, flip each row above to **MERGED** with its **merge SHA** (the SHA on master,
