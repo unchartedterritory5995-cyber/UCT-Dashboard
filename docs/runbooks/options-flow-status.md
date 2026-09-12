@@ -110,19 +110,77 @@ failed a full sharded run and **passed alone**; the baseline records the evidenc
 the rule that a timeout is never banked, because banking one leaves a slot a real
 failure can occupy unnoticed. Re-run alone before classifying.
 
-## Adjacent jobs, 2026-09-13 (outside the Options Flow ledger)
+## Adjacent jobs, 2026-09-12 (outside the Options Flow ledger)
+
+⚰️ This heading read **2026-09-13** until now, and so does the deploy-trigger comment
+in `api/flow_worker_main.py`. Both were written on **Saturday 2026-09-12** (17:13 CDT =
+18:13 ET); neither was ever the 13th. A dated record that is wrong about its own date
+is the cheapest possible way to mislead the next reader about ordering.
 
 | Job | Status | Evidence |
 |---|---|---|
-| Python failure baseline | **WAITING — sweep running** | `tools/python_failure_baseline.py` + `docs/test-baseline/python-failures.md`. 1,407 files in 71 explicit-path batches, ~87 min. At 12/71: **4,292 tests, 1 failure, 0 errors, 0 unrunnable, min free 14.24 GB**. Live counts in `scratchpad/pytest-baseline/progress.json`. |
+| Python failure baseline | **DONE-VERIFIED** | 71/71 batches, **23,849 tests, 66 failures, 0 errors**, 1 UNRUNNABLE group (10 files, left unrunnable). Never near the 3 GB floor (min free **11.31 GB**), 106.9 min. The **"9 pre-existing failures" figure is NO LONGER TRUE** — it is 66 across 21 files, 39 of them in four single-cause clusters, 3 environment artefacts (net 63). Rail mutation-proved four ways. `docs/test-baseline/python-failures.md` + `.json`. |
 | Red `gate_shards` rails | **DONE-VERIFIED** | Already recorded in `gate-baseline.json` (7 failures / 5 files, 2026-09-10, corroborated twice, 3 load-sensitive non-entries). JS suite — does not overlap pytest. |
 | Worktree sweep (2nd pass) | **DONE-VERIFIED** | 35 → 33. `terminal-research` removed; `indicator-r0r1` REFUSED (permission denied, file lock) and kept without `--force`; 31 kept for dirty work. No branch deleted, nothing stale to prune, 0 reparse points in the removed tree. |
 | **`bar_quarantine` D/W/M** | **DONE-VERIFIED** | `7500777a2`. Was a complete no-op for D/W/M — write raised inside a bare `except` AND read compared ISO to `set[int]`. Key-additive fix; intraday is identity. 19 tests, mutation-proved (3 D/W/M RED, 0 intraday RED). All four services SUCCESS. |
-| `bar_provenance` D/W/M | **PARKED — same bug, logged not fixed** | `bars_disk_cache.py` one line above the quarantine call: `bar_provenance.record(ticker, tf, int(bar.get("t") or 0), source)` has the identical int()-inside-a-bare-except shape, so **daily provenance is silently never recorded** either. Different module, observability blast radius. Found by the quarantine test's source check. |
+| **`bar_provenance` D/W/M** | **DONE-SHIPPED — verification INERT-ON-DEPLOY** | `0164051dc`. Same bug, same `norm_bar_time` boundary, one call site. 10 tests; mutation-proved twice (restore the cast → 5 RED / **0 intraday**; neuter `norm_bar_time` → 4 RED / **0 intraday**). 104 green across every suite importing either module. Rail flagged `bars_disk_cache.py` stranded → rode along on `api/flow_worker_deploy_marker.txt` bump #5; flow-worker **BUILDING → SUCCESS, not SKIPPED**. Rollback `git revert 0164051dc`. |
 
 ⭐ The quarantine push is the first change this weekend to touch `api/**`. Both fixed
 files are **flow-worker-REACHABLE but not on its watch list**, so
 `tools/flow_worker_watch_coverage.py` correctly FAILED the diff — the rail firing on
-its author's own change. Resolved the way the rail prescribes: a comment-only touch to
-the watched `api/flow_worker_main.py` in the same commit, so flow-worker actually
-redeployed instead of running the old code with every test green.
+its author's own change. Resolved the way the rail prescribes: a watched file moves in
+the same commit, so flow-worker actually redeploys instead of running the old code with
+every test green. `7500777a2` used a comment-only touch to `api/flow_worker_main.py`;
+`0164051dc` used the purpose-built `api/flow_worker_deploy_marker.txt` instead, which is
+what that file exists for and does not risk the watch-list mirror it sits beside.
+
+### ⚰️ FINDING — `bar_provenance` has very probably NEVER held a row, since 2026-05-09
+
+**Not a consequence of the fix; the reason the fix could not be verified end-to-end.**
+
+`bar_provenance.py` shipped 2026-05-08 (`2175d0888`); its only live writer shipped the
+next day, 2026-05-09, in `65bb406ce` *"record provenance on every clean cache write"* —
+already carrying `int(bar.get("t") or 0)`. The chain, traced rather than assumed:
+
+- **One live writer.** An AST walk over all of `api/` finds exactly two callers of
+  `bars_disk_cache.put`: `bars_disk_cache_test.py:19` (a test helper) and
+  `bars_fetch.py:2645`. Nothing else.
+- **That site is D/W/M-only.** It sits in `_run_universe_warm_multi_tf`'s deep branch,
+  guarded by `is_deep_tf = tf in ("D","W","M")`; intraday takes `_get_bars_inner`, which
+  never calls `put`. So **intraday provenance is not written by this path either** — that
+  is not a regression, it has always been so.
+- **Its only door is operator-triggered.** `POST /api/admin/warm-universe`, not a
+  scheduler job and not any member request path.
+- **Every D/W/M bar carries an ISO `t`.** Measured live: `/api/bars/AAPL?tf=D` →
+  `t='2026-09-11'` (str); `tf=5` → `t=1789168500` (int).
+- **So every write raised** `ValueError` inside the bare `except: pass` — for 126 days.
+- **The second writer is unreachable.** `bar_self_heal.py:46` sits behind
+  `_fetch_from_alt`, a permanent `return None` placeholder ("Plan 4 will implement").
+
+Measured, not inferred: the **worker** pod has no `bar_provenance` table at all
+(`init_schema()` is called from `api/main.py`, the web entry), and production
+`/api/provenance/bar` returns **404** for both the daily key `20260911` and a
+just-fetched intraday epoch.
+
+⛔ **NOT DIRECTLY MEASURED:** the web pod's own table. A read-only `railway ssh --service
+web` probe was written and refused twice by the permission layer. Recorded as an
+inference from the trace above, **not** as a measurement — the distinction matters
+because one surviving row would falsify the "never" and leave the rest intact.
+
+⭐⭐ **AND THE IRONY IS THE LESSON.** On 2026-08-09 the *plural* `bars_provenance` table
+was deleted from `bars_sqlite.py` for exactly this defect — "the table held 0 rows …
+nothing in the product ever wrote a row". Its farewell comment points next door:
+*"`bar_provenance.py` — SINGULAR — is the live system … That is the affordance this
+comment described, already built, next door."* **The survivor had the same disease, and
+the note certifying it as working never measured it.** A comment naming a mechanism is
+a claim about a run, and nobody made the run.
+
+### Other findings, recorded and NOT fixed (owner decides scheduling)
+
+| # | Finding | Why it was left |
+|---|---|---|
+| 1 | **`validate_bar` does not parse `t`.** Measured: `t: ""` and `t: "garbage"` both return `(True, [])`, so a bar with an unparseable time passes validation, is cached and is served. Only a *missing* `t` is rejected. | A real defect one layer above this fix, in a different module, with a correctness (not observability) blast radius. `0164051dc` stops such bars corrupting the provenance table — it does not stop them being cached. |
+| 2 | **`bar_self_heal.try_heal` can never run.** `_fetch_from_alt` is `return None` by design pending "Plan 4". Its `bar_provenance.record` and `bar_quarantine.remove` calls are dead code today. | Not a defect, an unfinished feature — but it is why "two writers" is really "one". |
+| 4 | ⭐⭐ **LIVE PRODUCTION DEFECT, found by the Python sweep, shipped 12:01 today in `553f6b68b` (D1 G1 tranche 1) and on `origin/master` now.** `api/services/ticker_meta.py:145` calls `_log.warning(...)`; every other line in that file uses `_logger` and `_log` is never defined. It sits **inside the `except` handler that commit added to keep** the function's docstring promise *"Never raises"* — the handler meant to preserve the contract is what breaks it. Blast radius traced: `_base_meta` catches it one frame up and falls back to Finnhub, so nothing 500s — but **every FMP profile failure is now logged as `name '_log' is not defined`, destroying the real provider error**. Five of the 66 baseline failures are this one line. | Not this session's to fix (docs-only, and D1 owns it). Recorded so it cannot go quiet — the sweep is the only reason it is visible. |
+| 3 | **`api/flow_worker_main.py`'s deploy-trigger comment splits a sentence** in the module docstring, mid-clause, and is dated a day ahead. Introduced by `7500777a2`. | Cosmetic, in the one in-repo mirror of the watch list. Left alone under an explicit "nothing else" scope. |
+

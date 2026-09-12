@@ -169,6 +169,30 @@ def sweep(batch_size: int, out_dir: str, limit: int | None = None) -> int:
     return 0
 
 
+def module_id(path: str) -> str:
+    """``tests/test_x.py`` -> ``tests.test_x``.
+
+    ⛔ NEVER ``rstrip(".py")``. `str.rstrip` strips a CHARACTER SET, not a suffix,
+    so it ate the stem of any file whose name ended in `p` or `y`:
+    ``tests/test_happy_py.py`` became ``tests.test_happy_``. Measured, not guessed.
+    """
+    q = path.replace("\\", "/")
+    if q.endswith(".py"):
+        q = q[:-3]
+    return q.replace("/", ".")
+
+
+def belongs_to(test_id: str, mods: set[str]) -> bool:
+    """Does ``<classname>::<test>`` come from one of these modules?
+
+    Matched at a DOT BOUNDARY, never by substring: ``test_bar`` is a substring of
+    ``tests.test_bars::x``, so a substring test makes `check tests/test_bar.py`
+    expect another file's failures and report them as regressions.
+    """
+    cls = test_id.split("::", 1)[0]
+    return any(cls == m or cls.startswith(m + ".") for m in mods)
+
+
 def check(files: list[str], out_dir: str) -> int:
     """Re-run a named subset and compare its red set to the baseline."""
     if not os.path.exists(BASELINE):
@@ -180,16 +204,30 @@ def check(files: list[str], out_dir: str) -> int:
     xml = os.path.join(out_dir, "check.xml")
     rc, tail = run_batch(files, xml)
     if rc in (2, 3, -9) or not os.path.exists(xml):
-        print("INCONCLUSIVE: the subset could not run (rc=%s)\n%s" % (rc, tail[-300:]))
+        print("INCONCLUSIVE: the subset could not run (rc=%s)" % rc)
+        print(tail[-300:])
         return 2
-    got = {"%s::%s" % (f["classname"], f["test"]) for f in parse_junit(xml)["failures"]}
-    want = {k for k in base.get("ids", []) if any(k.startswith(f.replace("/", ".").rstrip(".py"))
-                                                  for f in files)} or set(base.get("ids", []))
-    want = {w for w in want if any(os.path.basename(f)[:-3] in w for f in files)}
+    parsed = parse_junit(xml)
+
+    # ⛔ NON-VACUITY CONTROL. A run that collected nothing produces an empty red
+    # set, which matches an empty `want` and reports OK - a green light for a typo in
+    # the file list. An empty result is a failed invocation until proven otherwise.
+    if parsed["counts"]["tests"] == 0:
+        print("INCONCLUSIVE: the subset ran but collected 0 tests - check the paths")
+        return 2
+
+    mods = {module_id(f) for f in files}
+    got = {"%s::%s" % (f["classname"], f["test"]) for f in parsed["failures"]}
+    want = {k for k in base.get("ids", []) if belongs_to(k, mods)}
+
+    # ⛔ NO "or every id" FALLBACK. The previous version fell back to the WHOLE
+    # baseline when its prefix match found nothing, so a subset naming files with no
+    # recorded failures reported every other file's failures as "now passing".
     started_passing = sorted(want - got)
     newly_red = sorted(got - want)
     if not started_passing and not newly_red:
-        print("OK: red set matches the baseline (%d)" % len(got))
+        print("OK: red set matches the baseline (%d failing, %d tests run)"
+              % (len(got), parsed["counts"]["tests"]))
         return 0
     for t in started_passing:
         print("  NOW PASSING (baseline needs updating): %s" % t)
