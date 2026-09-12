@@ -15,6 +15,7 @@ import uuid
 import pytest
 
 from api.services import auth_db as _auth_db
+from api.services import rollout as _rollout
 from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import price_level as _pl
 from api.services.alert_taxonomy import price_level_compare as _cmp
@@ -65,6 +66,14 @@ def _user(role: str) -> str:
         conn.commit()
     finally:
         conn.close()
+    # ⭐ S12: the COHORT is the gate now, not the role. This mirrors exactly what
+    # `api/main.py` does at boot -- seed the `rollout:s7-dark` tag FROM the role,
+    # idempotently -- so the fixture reproduces production rather than inventing
+    # a shortcut. ⛔ An admin created without this would be invisible to the
+    # projection, which is the correct new behaviour and would make every test
+    # below pass for the wrong reason.
+    if role == "admin":
+        _rollout.ensure_s7_dark_seeded()
     return uid
 
 
@@ -148,13 +157,16 @@ def test_MUTATION_the_role_gate_is_load_bearing():
     m_id = _alert(member, sym="MEMB")
 
     src = (_AT / "price_level_projection.py").read_text(encoding="utf-8")
-    gate = '"WHERE wa.is_active = 1 AND u.role = ?",'
+    # ⚰️ This mutated `'"WHERE wa.is_active = 1 AND u.role = ?",'` until S12
+    # replaced the inlined role check with one cohort predicate. The gate moved;
+    # the proof did not change shape.
+    gate = "cohort = _rollout.cohort_user_ids(_rollout.S7_DARK)"
     assert src.count(gate) == 1, (
-        "the role gate is not where this mutation expects it — fix the probe, "
+        "the cohort gate is not where this mutation expects it — fix the probe, "
         "not the product")
 
     ns: dict = {}
-    exec(compile(src.replace(gate, '"WHERE wa.is_active = 1 AND ? IS NOT NULL",'),
+    exec(compile(src.replace(gate, "cohort = _rollout.role_user_ids('member') | _rollout.cohort_user_ids(_rollout.S7_DARK)"),
                  "<mutated price_level_projection>", "exec"), ns)
     leaked = {p["legacy_id"] for p in ns["project_admin_alerts"]()}
 
@@ -166,20 +178,48 @@ def test_MUTATION_the_role_gate_is_load_bearing():
     assert m_id not in _ids()
 
 
-def test_a_role_change_moves_the_row_next_tick_with_no_sync_job():
-    """⭐ PROJECTION, NOT MIRROR. Promote the account and its alerts appear on the
-    very next read. No sync job ran, because there is nothing to sync."""
+def test_a_COHORT_change_moves_the_row_next_tick_with_no_sync_job():
+    """⭐ PROJECTION, NOT MIRROR. Add the account to the cohort and its alerts
+    appear on the very next read. No sync job ran, because there is nothing to
+    sync.
+
+    ⚰️ THIS USED TO PROMOTE THE ACCOUNT TO ADMIN, and that was the S12 finding in
+    one line: joining a dark run meant becoming an administrator of the whole
+    product. The retired body:
+
+        uid = _user("member")
+        aid = _alert(uid, sym="ROLE")
+        assert aid not in _ids()
+        conn.execute("UPDATE users SET role='admin' WHERE id=?", (uid,))
+        assert aid in _ids(), "a promoted account's alerts must be visible immediately"
+
+    ⛔ A ROLE CHANGE NO LONGER MOVES THE ROW, and that is the point rather than a
+    regression — `test_a_role_change_does_NOT_silently_drop_a_member_from_a_
+    running_cohort` in `test_rollout.py` asserts the other half.
+    """
     uid = _user("member")
     aid = _alert(uid, sym="ROLE")
     assert aid not in _ids()
 
+    # the role alone does NOT move it any more
     conn = _auth_db.get_connection()
     try:
         conn.execute("UPDATE users SET role='admin' WHERE id=?", (uid,))
         conn.commit()
     finally:
         conn.close()
-    assert aid in _ids(), "a promoted account's alerts must be visible immediately"
+    assert aid not in _ids(), (
+        "a role change moved the row — the cohort is supposed to be the tag now")
+
+    # the TAG does, on the next read, with nothing in between
+    conn = _auth_db.get_connection()
+    try:
+        conn.execute("INSERT OR IGNORE INTO user_tags (id, user_id, tag) VALUES (?,?,?)",
+                     ("t-" + uid, uid, _rollout.tag_for(_rollout.S7_DARK)))
+        conn.commit()
+    finally:
+        conn.close()
+    assert aid in _ids(), "a tagged account's alerts must be visible immediately"
 
 
 # --- THE PROJECTION IS LIVE, AND READ-ONLY ----------------------------------

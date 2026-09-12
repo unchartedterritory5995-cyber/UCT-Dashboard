@@ -13,6 +13,7 @@ from datetime import date, timedelta
 import pytest
 
 from api.services import auth_db as _auth_db
+from api.services import rollout as _rollout
 from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import event_proximity as ep
 from api.services.alert_taxonomy import event_proximity_compare as cmp_
@@ -54,6 +55,12 @@ def _user(role: str) -> str:
         conn.commit()
     finally:
         conn.close()
+    # ⭐ S12: the COHORT is the gate now, not the role. Mirrors exactly what
+    # `api/main.py` does at boot — seed `rollout:s7-dark` FROM the role,
+    # idempotently — so the fixture reproduces production rather than inventing
+    # a shortcut.
+    if role == "admin":
+        _rollout.ensure_s7_dark_seeded()
     return uid
 
 
@@ -99,14 +106,17 @@ def test_CONTROL_the_member_would_project_if_the_role_were_the_only_difference(w
     world["reporters"] = {TODAY.isoformat(): {"AAPL"}}
     assert proj.project_admin_event_predicates(TODAY) == []
 
+    # ⚰️ This promoted the account to ADMIN. S12 made the cohort a TAG, so the
+    # control now adds the tag: "the only thing keeping it out is the COHORT".
     conn = _auth_db.get_connection()
     try:
-        conn.execute("UPDATE users SET role='admin' WHERE id=?", (member,))
+        conn.execute("INSERT OR IGNORE INTO user_tags (id, user_id, tag) VALUES (?,?,?)",
+                     ("t-" + member, member, _rollout.tag_for(_rollout.S7_DARK)))
         conn.commit()
     finally:
         conn.close()
     assert len(proj.project_admin_event_predicates(TODAY)) == 1, (
-        "promoting the SAME row must project it — so the role really is the gate")
+        "tagging the SAME row must project it — so the cohort really is the gate")
 
 
 def test_MUTATION_the_role_gate_is_load_bearing(world):
@@ -122,13 +132,16 @@ def test_MUTATION_the_role_gate_is_load_bearing(world):
     world["reporters"] = {TODAY.isoformat(): {"NVDA", "AAPL"}}
 
     src = (_AT / "event_proximity_projection.py").read_text(encoding="utf-8")
-    gate = '"SELECT id FROM users WHERE role = ?", (ADMIN_ROLE,)'
+    # ⚰️ This mutated `'"SELECT id FROM users WHERE role = ?", (ADMIN_ROLE,)'`
+    # until S12 replaced the role check with one cohort predicate. The gate
+    # moved; the proof did not change shape.
+    gate = "return _rollout.cohort_user_ids(_rollout.S7_DARK)"
     assert src.count(gate) == 1, (
-        "the role gate is not where this mutation expects it — fix the probe, "
+        "the cohort gate is not where this mutation expects it — fix the probe, "
         "not the product")
 
     ns: dict = {}
-    exec(compile(src.replace(gate, '"SELECT id FROM users WHERE ? IS NOT NULL", (ADMIN_ROLE,)'),
+    exec(compile(src.replace(gate, "return _rollout.role_user_ids('member') | _rollout.cohort_user_ids(_rollout.S7_DARK)"),
                  "<mutated event_proximity_projection>", "exec"), ns)
     leaked = {(p["user_id"], p["entity_ref"])
               for p in ns["project_admin_event_predicates"](TODAY)}
@@ -363,16 +376,51 @@ def test_a_heartbeat_failure_never_takes_the_comparison_down(world, dbp, monkeyp
 
 # --- CP4 prep, default OFF --------------------------------------------------
 
-def test_CP4_unset_leaves_the_admin_gate_exactly_as_CP3_shipped_it(world, monkeypatch):
+def test_CP4_unset_changes_nothing_AND_SO_DOES_SET(world, monkeypatch):
+    """⚰️ CP4's FLAG IS NO LONGER A CODE PATH — S12, owner instruction 2026-09-12:
+    *"CP4's all-members flag becomes a tag assignment, not a code path (keep the
+    flag test asserting 'unset changes nothing' until the flag is deleted in a
+    later line)."*
+
+    The retired assertion, verbatim, and it was true when it was written:
+
+        monkeypatch.setenv(proj.CP4_ALL_MEMBERS_FLAG, "1")
+        refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
+        assert member in refs and admin in refs, "an explicit yes must widen it"
+
+    ⭐ The flag no longer reaches a branch, so this asserts the STRONGER fact
+    that is now true by construction: **unset changes nothing, and so does set.**
+    Widening the dark run to all members is a tag assignment, which is why the
+    last block below adds a TAG and the cohort widens with no variable at all.
+
+    ⛔ The constant and `all_members_enabled()` stay declared-and-uncalled until a
+    later line deletes them — this test is the record of why they are still here.
+    """
     monkeypatch.delenv(proj.CP4_ALL_MEMBERS_FLAG, raising=False)
     admin, member = _user("admin"), _user("member")
     world["mine"] = {admin: {"NVDA"}, member: {"AAPL"}}
     world["reporters"] = {TODAY.isoformat(): {"NVDA", "AAPL"}}
-    for junk in ("", "0", "false", "no", "off", "maybe", "2", " "):
+
+    baseline = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
+    # NON-VACUITY: the admin really does project, so "member absent" means something.
+    assert admin in baseline, "the admin row must project, or this proves nothing"
+    assert member not in baseline
+
+    for junk in ("", "0", "false", "no", "off", "maybe", "2", " ", "1", "true", "YES", "on"):
         monkeypatch.setenv(proj.CP4_ALL_MEMBERS_FLAG, junk)
         refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
-        assert member not in refs, f"the flag value {junk!r} widened the cohort"
+        assert refs == baseline, (
+            f"the flag value {junk!r} changed the cohort — it is supposed to "
+            f"reach no branch at all now")
 
-    monkeypatch.setenv(proj.CP4_ALL_MEMBERS_FLAG, "1")
+    # ⭐ And THIS is how CP4 widens now: a tag, not a variable.
+    conn = _auth_db.get_connection()
+    try:
+        conn.execute("INSERT OR IGNORE INTO user_tags (id, user_id, tag) VALUES (?,?,?)",
+                     ("t-" + member, member, _rollout.tag_for(_rollout.S7_DARK)))
+        conn.commit()
+    finally:
+        conn.close()
     refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
-    assert member in refs and admin in refs, "an explicit yes must widen it"
+    assert member in refs and admin in refs, (
+        "a tag assignment must widen the cohort — that is the whole migration")

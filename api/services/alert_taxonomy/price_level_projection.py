@@ -62,6 +62,7 @@ import time
 from typing import Any, Optional
 
 from api.services import auth_db as _auth_db
+from api.services import rollout as _rollout
 from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import price_level as _pl
 from api.services.alert_taxonomy import price_level_compare as _cmp
@@ -80,20 +81,49 @@ def projected_predicate_id(legacy_row_id: str) -> str:
 
 
 def project_admin_alerts() -> list[dict[str, Any]]:
-    """Every ACTIVE `watchlist_alerts` row belonging to an ADMIN-role account,
-    shaped as a price-level predicate. **One SELECT. Nothing else.**
+    """Every ACTIVE `watchlist_alerts` row belonging to a member of the
+    `rollout:s7-dark` cohort, shaped as a price-level predicate.
+    **One SELECT. Nothing else.**
 
     ⛔ `is_active = 1` is part of the projection, not an afterthought: once the
     legacy path fires it sets `is_active = 0`, and a projection that ignored
     that would keep comparing against a row the member no longer has armed.
+
+    ⚰️ THE COHORT USED TO BE A ROLE CHECK, INLINED IN THIS JOIN — S12's first
+    migration. The retired predicate, verbatim:
+
+        "SELECT wa.* FROM watchlist_alerts wa "
+        "JOIN users u ON u.id = wa.user_id "
+        "WHERE wa.is_active = 1 AND u.role = ?",
+        (ADMIN_ROLE,),
+
+    ⭐ It was the same decision `event_proximity_projection._cohort_user_ids()`
+    was making with different SQL, in a different module — one rollout gate, two
+    authorities, with a third copy already scheduled for `catalyst-match` CP3.
+    Both now resolve through `rollout.cohort_user_ids(S7_DARK)`, so the two dark
+    runs can never describe different populations.
+
+    ⛔⛔ AN EMPTY COHORT MEANS NO MEMBERS — no fallback to admins, ever (owner
+    ruling, 2026-09-12). The swap is a no-op only because `main.py` seeds the tag
+    from the role at boot.
     """
+    cohort = _rollout.cohort_user_ids(_rollout.S7_DARK)
+    if not cohort:
+        # ⛔ RETURN EARLY RATHER THAN BUILD AN `IN ()`. SQLite accepts an empty
+        # `IN ()` as "match nothing", which is the right answer — but going
+        # through the query would make an empty cohort and a query that found no
+        # active alerts indistinguishable in the logs, and those are different
+        # facts about a dark run.
+        return []
+
     conn = _auth_db.get_connection()
     try:
+        placeholders = ",".join("?" * len(cohort))
         rows = conn.execute(
             "SELECT wa.* FROM watchlist_alerts wa "
             "JOIN users u ON u.id = wa.user_id "
-            "WHERE wa.is_active = 1 AND u.role = ?",
-            (ADMIN_ROLE,),
+            f"WHERE wa.is_active = 1 AND wa.user_id IN ({placeholders})",
+            tuple(sorted(cohort)),
         ).fetchall()
     finally:
         conn.close()
