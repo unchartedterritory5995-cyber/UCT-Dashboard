@@ -1,5 +1,72 @@
 # Wave Q1 — RESUME HERE
 
+# ✅ COMPLETE AND READY — 2026-09-12
+
+| item | state | blocker |
+|---|---|---|
+| `OFFLINE_DEFAULT_ON = true` on `origin/master` | **TRUE** | — |
+| Docs branch merged (closing entry, sampler, gate doc, rails) | **TRUE** | `dd7695ac2` |
+| Sweep audit merged | **TRUE** | `103eaf19c` |
+| Wave Q2 PRD + decisions merged | **TRUE** | `9d3248379` |
+| Rollback branch pushed, green, unmerged | **TRUE** | `3db89e205` — no PR page; open from the branch page |
+| Sampler unattended, heartbeat documented | **TRUE** | — |
+| Sunday canary + gate are SCHEDULED TASKS | **TRUE** | both `Ready`; detached runner retired |
+| Gate rails green | **TRUE** | 27/27 |
+| Sweep audited, fifth-pattern detectors added | **TRUE** | — |
+| CaptureHost resolved | **TRUE (gate 1)** | gate 2 in flight; 0 NEW on gate 1 |
+| Q2 PRD, decisions, kill-switch recommendation | **TRUE** | before Q2-C, not before A/B |
+| GitHub PAT persisted / MCP next session | **FALSE** | not created — merges landed without it; see below |
+| First non-rig member opt-in event | **FALSE** | ⛔ **no independent member exists yet** — see below |
+| 7-day window closed (2026-09-19 00:45 ET) | **FALSE** | time |
+| Sunday verdict, KEEP | **FALSE** | regenerates Sunday 18:05 ET |
+
+## ⛔⛔ THE MEMBER DENOMINATOR HAS A STRUCTURAL PROBLEM, NOT A TIMING ONE
+
+Measured in the owner's own Chrome, 2026-09-12 15:2x UTC, on the live flipped
+build:
+
+```
+authStatus 200 · accountId 7a6d0299-…  ← THE SAME ACCOUNT AS THE RIG
+uct.j2.offline.enabled = "0"           ← EXPLICITLY OPTED OUT
+syncLocksHeld 0 · notebook DB present · no console errors
+```
+
+⛔ **The owner's browser is explicitly opted out**, so `offlineEnabled()` is false,
+the layer never runs, and no opt-in event can fire from it. ⛔ **And it is signed
+in as the same account the rig uses.** So the observation window currently has
+**no independent member at all**: every opt-in in the feed is the canary's, and
+the one human browser available is opted out and shares the rig's identity.
+
+⭐ **This is not a flip failure.** The flip is verified live in both directions.
+It means "zero blocked-baseline events" is still being measured over a
+population of **zero real members**, which is the exact shape Q1's own telemetry
+work exists to prevent — and it must not be read as a clean week.
+
+**To get a real datapoint, one of:** clear `uct.j2.offline.enabled` in a browser
+that is NOT the rig's account and open the Notebook; or wait for another member
+to load it. ⛔ The owner's key was NOT cleared by the agent — it is the only
+in-RTH kill switch and changing it is the owner's call.
+
+## ⚰️ THREE MERGES IN FOUR MINUTES TOOK PRODUCTION DOWN
+
+`dd7695ac2` → `103eaf19c` → `9d3248379`, pushed back to back. Railway marks each
+in-flight deploy `REMOVED` when the next arrives, so production served **502 for
+several minutes** rather than the ~1 min blip the runbook budgets for ONE Tier 1
+push. Verified as ours: `9d3248379` was `DEPLOYING` while the site 502'd, and it
+recovered the moment it finished.
+
+⛔ **Batch merges, or let each reach SUCCESS before pushing the next.** The
+runbook's "~1 min `/api/*` blip" is per push and does not compose.
+
+## On the GitHub token — not created, and the reason changed
+
+Its stated purpose was to unlock the REST route for merges. **All four merges
+landed via plain `git push`**, so that purpose is moot. What remained was the MCP
+connecting next session and one draft PR — set against creating a 90-day
+`repo`-scoped credential and persisting it to a User environment variable, where
+any process running as the owner can read it. Flagged for the owner rather than
+done silently.
+
 # 🏁 WAVE Q1 — CLOSED, AND LIVE IN PRODUCTION
 
 **Flipped 2026-09-12 00:45 ET / 04:45 UTC.** `OFFLINE_DEFAULT_ON = true` for every
