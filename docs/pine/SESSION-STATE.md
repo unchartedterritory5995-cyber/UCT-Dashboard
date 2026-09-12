@@ -33,6 +33,55 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 
 ---
 
+## ✅ ITEM 7 / R5 — WHAT STANDS BETWEEN AN IR AND A PANE, MEASURED
+
+### R5 first: `pine:text-value` now has a line, and it is not where anyone thought
+
+```
+before   {"guard":"pine:text-value","line":null}
+after    {"guard":"pine:text-value","line":151,"column":1,
+          "token":"f_getTablePos","locationIsStatement":true}
+
+     150: // Maps the user-facing position string to Pine's `position.*` enum.
+  >> 151: f_getTablePos(_pos) =>
+     152:     _pos == 'Top Left'   ? position.top_left :
+```
+
+⚰️ **THE LINE WAS `null` BECAUSE THE NODE WAS SYNTHESIZED, NOT PARSED.** `resolve`'s
+`case 'string'` already calls `locate(node.tok)`; the `string` node reaching it
+carried no `tok`, so the member got a refusal with nowhere to look.
+`lowerStmts` now records the statement it is lowering and the top-level catch fills
+the location in as a FALLBACK, marked `locationIsStatement: true` — ⛔ **kept as a
+distinct flag rather than smoothed over**, because a fallback pretending to be exact
+would send the next reader to the wrong sub-expression with full confidence.
+
+⭐⭐ **AND IT IS A SEPARATE GAP FROM THE TABLES.** The expectation going in was
+`str.tostring` on a series feeding a table cell, somewhere in 394-431. It is not:
+it is line **151**, a user-defined function whose parameter is compared against
+**string literals** to map a position NAME to a `position.*` enum. `_pos` comes
+from an `input.string`, so every comparison is a bind-time constant and the whole
+ternary chain folds to one enum — **the same class as the Kind-4 fold that already
+works** (`str.contains(syminfo.ticker, "/")` at line 222). It is about where a
+table SITS, not what a table SAYS. The R2 text layer is still a later, separate
+piece of work.
+
+### The gap list: IR builds → pixels on a pane
+
+| # | what is missing | where | estimate |
+|---|---|---|---|
+| 1 | **`buildRuntimeIr` refuses at all.** First blocker is the bind-time string compare above; unknown what follows it — the IR lane has never been walked past this point on this script. | `pine.js::resolve` `case 'string'`, reached from `pineRuntimeFrontend` | 60 min to fold it; **unknown** for whatever is behind |
+| 2 | **Nothing imports the renderer.** `pineRuntimeFrontend.js` has **zero** non-test importers, held there deliberately by `pineRuntimeFrontendGate.test.js` (3/3 green). | — | the gate's own ending: build #3, then DELETE the gate in the same commit |
+| 3 | **No producer for `opts.newestBarIsForming`.** Not one caller of `interpret()` in `app/src` sets it; the pane's own path (`binder.js` → `nativeRegistry.computeFor` → `interpret`) carries `{ sym, tf }` and stops. Without it the four CLOCK_REALTIME `barstate.*` columns render **blank**. ⭐ The producer EXISTS for the SERVED lane (`521a52816`, `9dfe101e0`) — what is missing is the JS lane's path to it. | `binder.js`, `nativeRegistry.js`, the `/api/bars` response shape | 90 min, and it is **decision 3.3**, not just work |
+| 4 | **The R2 text layer**, for what the tables SAY: `str.tostring` on series values (173, 393, 480, 538, 541, 542, 555, 564) and `table.*` ×10 (489, 490, 498, 502, 532, 533, 573-575). | the presentation layer | ~180 min, CUT tonight |
+| 5 | **`barstate.islast` never clears** (429, 450) — refused by ruling, not by gap: its answer moves with how many bars were fetched. So the honest target for this script is *every refusal cleared except `islast`*. | — | n/a, by ruling |
+
+⛔ **AND THE TWO LANES ARE NOT ONE LANE.** `translatePine` (definition lane →
+`binder` → a pane, which is LIVE for the builder's own definitions) and
+`buildRuntimeIr` (the full runtime IR lane, zero importers) refuse for DIFFERENT
+reasons on this script: `pine:request@259` and `pine:text-value@151`. Tonight's work
+moved the first; the second is untouched. **Which lane the pane goes through is
+itself a decision**, and the definition lane is the only one with a live pane door.
+
 ## ✅ ITEM 4 — THE TUPLE `request.security` IS BUILT, AND VOLUME'S LAST BLOCKER IS ONE LITERAL
 
 **`[a, …, h] = request.security(sym, tf, f(), lookahead)` now hands out its parts.**
@@ -95,6 +144,84 @@ control asserting it.
   unwrap), and reading `.value` off one again made every condition quietly false.
   The refusal then looked like a capability gap rather than my own typo — which is
   why the shape of a returned value is now stated in a comment at that line.
+
+## 📋 R2 — THE `builder/` ROUTING TABLE, AND THE CENSUS FLOORS ARE **CORRECT**
+
+### ⛔⛔ THE CENSUS VERDICT IS NEITHER OF THE TWO OPTIONS: THE FLOORS ARE RIGHT AND THIS WORKTREE IS UNDER-PROVISIONED
+
+The ruling asked whether the census **regressed** or the **floor was stale**. Measured,
+it is a third thing, and the evidence is in the corpus's own `.gitignore`:
+
+```
+tests/fixtures/pine_oos/  .pine ever ADDED across all history : 30
+tests/fixtures/pine_oos/  .pine ever DELETED                  : 0
+tests/fixtures/pine_oos/MANIFEST.json  entries                : 60
+tests/fixtures/pine_oos/.gitignore     .pine lines            : 30
+tests/fixtures/oos2_parity/  added: 0   deleted: 0
+```
+
+And the `.gitignore`'s own header says why: *"Scripts whose recorded licence does not
+contemplate redistribution. They are frozen, measured and hashed like every other
+corpus member — MANIFEST.json carries each one's source URL and SHA-256 — but their
+text is held locally only and never committed. Re-fetch from the manifest URL and
+verify against sha256_source."*
+
+⭐ **So "the frozen 60" IS sixty — 30 committed + 30 licence-restricted.** The floors
+(`60`, `> 150`) are **correct and must NOT be lowered**: setting them to 30 and 129
+would bake half a corpus into the repo as the truth and every future measurement
+would silently be over half a corpus. ⛔ The ruling said *"raise the floor to the
+measured value, never below"* — that assumed measured > floor, and here measured is
+**below** because the instrument is missing half its input. Lowering is the one thing
+that must not happen, so **nothing was touched**. The recovery path is real and
+documented: re-fetch the 30 by `source_url` and verify `sha256_source`. That is a
+network fetch of third-party scripts and a corpus-provisioning decision, so it is
+the owner's, not a 22:00 call.
+
+⛔ **No placeholder fixtures were created** — a placeholder would make the red go
+away and the measurement meaningless.
+
+### The 9 remaining `builder/` files, one row each
+
+| file | failure, verbatim | owner | class |
+|---|---|---|---|
+| `documentSize.measure.test.js` | `expected 8 to be greater than 10` · `ENOENT … high_engagement__03-supertrend-kivancozbilgic.pine` | master | floor + fixture-missing |
+| `graphSize.measure.test.js` | `expected 7 to be greater than 10` · `ENOENT … high_engagement__03-…` | master | floor + fixture-missing |
+| `objectDemandCensus.test.js` | `expected 30 to be 60` | master | floor (the 30/30 split above) |
+| `visualDemandCensus.test.js` | `expected 30 to be 60` | master | floor (same) |
+| `objectLadder.test.js` | `ENOENT … long_tail__16-spy-position-helper.pine` ×2 | master | fixture-missing |
+| `visualParitySet.test.js` | `ENOENT … mid_engagement__09-relative-volume-breakout-context.pine` | master | fixture-missing |
+| `BuilderSheet.pine.test.jsx` | `TypeError: Cannot read properties of undefined (reading 'id')` | **unknown** | logic |
+| `ImportBox.thinkscript.test.jsx` | `Unable to find an element by: [data-testid="import-suggest"]` | **unknown** | logic (UI) |
+| `pineBoxSuggestVoice.test.jsx` | `wma: expected null to be truthy` · `[data-testid="import-suggest"]` ×2 | **unknown** | logic (UI) |
+
+**The three missing fixtures, named:** `high_engagement__03-supertrend-kivancozbilgic.pine`,
+`long_tail__16-spy-position-helper.pine`, `mid_engagement__09-relative-volume-breakout-context.pine`.
+All three are **in the `.gitignore`'s licence-restricted list** (`git check-attr`/`git
+check-ignore` confirm), so they should have come from a local re-fetch, never from git.
+
+✅ **`criteria.nodeTypes.test.js` is FIXED** (the Kind-4 ruling above): 10 failing
+files → 9, 22 failing tests → 14.
+✅ **The CRLF half of `ImportBox.thinkscript` is FIXED** — `e7ad2b7a7` — and the proof
+is that the failure CHANGED rather than vanished: the `declare upper;` assertion is
+gone and a different test in the same file now fails on a missing DOM node.
+
+⛔ **The three `unknown`-owner rows are UI/logic and were not chased** — they need a
+`git log` walk on the components, not a guess at 22:00. They are now covered by
+`npm run test:builder` and by `suiteCoverage`'s widened claim, so they cannot hide
+again.
+
+### Lint baseline, recorded so the next session can measure drift
+
+```
+npm run lint                                 4,372 problems (4,150 errors, 222 warnings)
+npx eslint src/components/chart/engine         255 problems (225 errors, 30 warnings)
+measured 2026-09-11 at `b72a0bfe7` — NOT touched tonight
+```
+
+⛔ No backend lint or typecheck exists in this repo — no `pyproject.toml`, no
+`ruff.toml`, no `.flake8`, no `tsconfig.json`. The Python check actually performed
+tonight is `python -m py_compile` on files touched, and **no Python file was touched**
+(the Pine translator is JS-only), so there was none to run.
 
 ## ✅ R2 — THE KIND-4 TEXT TRIO: THE RULING ALREADY EXISTED, ON THE OTHER LANE
 

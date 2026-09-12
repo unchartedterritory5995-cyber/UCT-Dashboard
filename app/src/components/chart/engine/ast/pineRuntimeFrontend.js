@@ -1073,6 +1073,17 @@ export function buildRuntimeIr(source, opts = {}) {
   ])
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
 
+  // ⚰️ A REFUSAL WITH `line: null` IS NOT AN ACCEPTABLE FINAL STATE.
+  // `buildRuntimeIr` on `uncharted-volume.pine` answered
+  //     { guard: 'pine:text-value', line: null }
+  // because the `string` node that reached `resolve` carried no `tok` — synthesized
+  // rather than parsed — so `locate(node.tok)` was null and the member got a refusal
+  // with nowhere to look. This records the statement being lowered so the catch
+  // below can fall back to it.
+  // ⚠️ IT IS THE STATEMENT'S LOCATION, NOT THE EXPRESSION'S, and the distinction
+  // is kept rather than smoothed over: a fallback that pretended to be exact would
+  // send the next reader to the wrong sub-expression with full confidence.
+  let lastStmtTok = null
   const lowerStmts = (list, scope) => {
     const out = []
     for (let i = 0; i < list.length; i += 1) {
@@ -1081,6 +1092,7 @@ export function buildRuntimeIr(source, opts = {}) {
       if (!toks.length) continue
       diagnostics.statements += 1
       const first = toks[0]
+      lastStmtTok = first
       const word = first.kind === 'ident' ? first.value : null
 
       // ── declarations of the script itself ──
@@ -1362,6 +1374,18 @@ export function buildRuntimeIr(source, opts = {}) {
   try {
     statements = lowerStmts(stmts, root)
   } catch (e) {
+    // The fallback: a refusal that knows no location inherits the STATEMENT's,
+    // so `line: null` never reaches a member. Marked `approximate` so nobody
+    // later reads it as the offending sub-expression's own position.
+    if (e && e.line == null && lastStmtTok) {
+      const at = locate(lastStmtTok)
+      if (at) {
+        e.line = at.line
+        e.column = at.column
+        e.token = at.token
+        e.locationIsStatement = true
+      }
+    }
     return fail(e, diagnostics)
   }
 
@@ -1495,6 +1519,7 @@ function fail(e, diagnostics) {
       line: e.line != null ? e.line : null,
       column: e.column != null ? e.column : null,
       token: e.token != null ? e.token : null,
+      ...(e.locationIsStatement ? { locationIsStatement: true } : {}),
     },
     diagnostics,
   }
