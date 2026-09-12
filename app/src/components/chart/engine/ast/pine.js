@@ -274,8 +274,16 @@ export const REFUSALS = Object.freeze({
     'this fills a gap by carrying an earlier bar\'s value forward, which needs a '
     + 'per-bar memory this grammar has no node for. `na` and `nz` themselves do '
     + 'translate',
+  // ⭐ RULING 3.4 (owner, 2026-09-11) — the member-facing wording, verbatim.
+  // The refused NAME and LINE travel with the refusal object, so the sentence does
+  // not repeat them; `lowerStmts` now guarantees a line even when the offending
+  // node was synthesized and carried no token of its own.
+  // ⛔ The old sentence — "text cannot be a value in a screened column" — was
+  // true and told a member nothing they could act on: it named a rule instead of
+  // saying what happened to their script.
   'pine:text-value':
-    'text cannot be a value in a screened column',
+    'this script uses a text feature our chart does not render yet. The numeric '
+    + 'plots still run; the text output is skipped and named here',
   'pine:colour-value':
     'a colour cannot be a value in a screened column',
   // ⚰️ "no counterpart in the engine grammar" IS FALSE FOR AT LEAST `%`: the
