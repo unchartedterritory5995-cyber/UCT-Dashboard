@@ -1035,7 +1035,7 @@
       "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
       "baked_measured_on": "1c76f9f38",
       "last_changed": "never set",
-      "note": "Unset; ComingSoon.jsx uses its FALLBACK_LAUNCH constant. Only matters while the holding page renders."
+      "note": "Unset; ComingSoon.jsx uses its FALLBACK_LAUNCH constant, which is 2026-10-16T09:00:00-04:00 (Fri Oct 16 2026, 9am ET) as of 8033898c0. This now matters in production rather than hypothetically: the holding page renders as of the OPTION B flip on 2026-09-12. Setting this on web overrides the launch date with no code change - it is a declared build ARG as of the Dockerfile.web fix, so like VITE_COMING_SOON it needs a web REBUILD to take effect, and a `--set` plus a restart is not enough."
     },
     "VITE_MASSIVE_CURATED_STREAM": {
       "status": "dark",
