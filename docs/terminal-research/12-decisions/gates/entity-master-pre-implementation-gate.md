@@ -22,6 +22,43 @@ sources: PRD-S3-ENTITY-MASTER (prds/entity-master-prd.md, all 18 sections, read 
 
 # Entity Master — Pre-Implementation Gate
 
+> ## ⛔ THIS GATE WAS NEVER USED AS A GATE (recorded 2026-09-11)
+>
+> **Written `c46048ae6`, 2026-09-02 17:31. Implementation began `3c762d25e` at 17:51 — twenty
+> minutes later — and finished at 18:54 the same evening.** The packet says "final, presented to
+> owner, awaiting explicit approval"; approval was first given on 2026-09-11, nine days after the
+> system it gates went to production.
+>
+> Its content held up well: the four conditions were checkable and three of the four were met, two
+> of them **self-documented in the shipped code** (`schema.py` records reading `normalize_type()` in
+> full; `reconciliation.py` carries the rename-exclusion boundary). Condition 3 — *"the first real
+> seed run is a natural checkpoint for the owner to look at actual output… if desired"* — is the one
+> that lapsed, and it lapsed because it was written as optional. **The document was a good
+> specification of what to build and a non-functional gate**, and those are different jobs.
+>
+> ⚠️ Its §15 exclusion — *"S2/S4/S5/S7/D1/D2 remain unimplemented"* — did not hold either: D1 began 3
+> minutes after S3's last checkpoint, and S2 and S7 Alerts shipped within 40 hours.
+>
+> ### Recommendation for how this program uses gate packets from here (owner's call, not a rule)
+>
+> A gate packet that can be satisfied by the same session that wrote it is a plan with a cover page.
+> Three changes would make the next one bite, in increasing cost:
+>
+> 1. **A gate packet names its approver and carries an empty approval line** — a SHA and a timestamp
+>    filled in by someone other than the author. Cheap, and it makes "approved" a fact in git rather
+>    than an assumption.
+> 2. **Mandatory checkpoints are marked MANDATORY, optional ones are dropped.** Condition 3 was the
+>    only place a human was invited in, and it was phrased "if desired." Either the owner sees
+>    `figi_coverage_pct` before Checkpoints 5–8, or the gate should not pretend to offer it.
+> 3. **A gate's scope exclusions get a rail, not a sentence.** "S2/S4/S5/S7/D1/D2 remain
+>    unimplemented" was correct when written and false 40 hours later, with nothing to notice. The
+>    ledger query is now that rail — a commit on an excluded system's path with no ledger row fails
+>    it.
+>
+> ⭐ **The honest read: this packet did not fail. It was a gate in a program that had already become
+> a build program without saying so** — which is the same root cause as the 50 unrecorded commits,
+> seen from a different angle. See `PROGRAM_STATUS.md` → *How 50 commits went unrecorded*.
+
 No application code has been modified to produce this packet. No new research was opened. The PRD
 and technical specification were read in full and independently re-verified against the current
 codebase rather than trusted at face value; every claim below is either a direct restatement of

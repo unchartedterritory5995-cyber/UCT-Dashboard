@@ -282,6 +282,46 @@ convergence program it is the **filing-watch** feature, live to members since 20
 Unrelated. (Checked: the alerts PRD and spec name `alert_fires` and never `user_alerts`, so they are
 already consistent with the owner's 2026-09-08 ruling that the durable alert is `alert_fires`.)
 
+## How 50 commits went unrecorded
+
+Four mechanisms, each sufficient on its own. They compounded.
+
+**1. The branch model.** Program artifacts live in the `terminal-research` worktree on the
+`terminal-research` branch. Implementation happened on `feat/entity-master`, a branch that worktree
+never checks out. A worktree's `git log`, `git diff` and `git status` describe its own branch. There
+is no view from inside the docs worktree in which those 50 commits exist.
+
+**2. The protection rail was path- and tree-scoped.** Check (1) diffed the docs worktree against the
+start SHA, so its result was empty by construction and PASS was unconditional. When it was first
+re-scoped on 2026-09-11 it used a hand-typed path manifest, which undercounted 50 to 17; a
+subject-pattern sweep run alongside it omitted `S7` and missed more. A path-filtered log answers
+"what touched this path" and a subject-filtered log answers "what did I think to grep for."
+
+**3. A state word was read as an authorship word.** `provenance-freshness-spec.md` §8a calls Entity
+Master "already shipped." It was written at ~23:00 on 2026-09-02, five hours after this program
+built Entity Master. Read on 2026-09-11 it produced the conclusion that S3 was pre-existing UCT
+infrastructure the program had adopted, which is how S3's 11 commits stayed out of the first ledger.
+
+**4. The program's own recorded work used the same channel.** S8's and S11's implementation records
+exist because someone wrote them into a PRD by hand after an in-conversation authorization. That is
+the same mechanism that produced the other 43 commits; those simply had no one write them down. The
+recorded and unrecorded work are not different processes — one had a manual step performed.
+
+### Standing rules
+
+1. **The ledger query is the merge, not a filter.**
+   `git log --format='%h %ci %s' ed6b1f041^1..ed6b1f041^2` for the program's own build, and
+   `git log 9c3df14b9..origin/master -- $(git diff --diff-filter=A --name-only ed6b1f041^1...ed6b1f041^2)`
+   for anyone building on a path the program created. Scope to paths the program **created**; a
+   shared file cannot attribute authorship.
+2. **Any work on a program-created path gets a ledger row, whichever program performs it.** The
+   rail's check (1b) PASS condition is that every commit the query returns has a row in
+   [`LEDGER.md`](LEDGER.md). An unrecorded commit is a FAIL.
+3. **Every session that touches application code for a Terminal-Next system appends its commits to
+   `LEDGER.md` before the session closes.** Hash, timestamp, subject, file count, system
+   assignment — the Section 1 row shape. This is the manual step whose absence produced everything
+   above; it is now the session's last action, not an afterthought.
+
 ## How the control files drifted (read before trusting them)
 
 Between 2026-09-02 17:14 and 2026-09-03 07:19, thirteen commits landed across several branches' worth of
@@ -297,14 +337,59 @@ implementation is not the implementation (the code was on branches this worktree
 `origin/master` confirms it), and an **untracked** file is invisible to every `git log` and every
 diff — which is exactly how C2-02's 635-byte stub survived nine days looking like completed work.
 
-## Next actions
-1. **Owner decisions outstanding** (nothing below is decided by silence): sign-off on **S8's overall
-   completion status**; explicit approval of the **Entity Master pre-implementation gate packet**;
-   and the standing inputs OI-03(a)/(b), OI-06, OI-21 and D-003.
-2. **Re-dispatch C2-02 (Events intelligence), full** — the single outstanding research task. Its
-   destination file is still the original 635-byte stub and is untracked. Tier 2 per DL-020.
-3. **Then the un-dispatched Wave-2 remainder** (`contracts/C-WAVE2.md`, `contracts/B-WAVE2.md`):
-   domain pods C1-01/02, C2-03, C3-01/02, C4-02/03, C6-03, C8-01/02; the per-product verifiers and
-   reconstructors; F-05 and F-07 once their inputs exist; `G-LIGHT-D2.md`. Batches of ≤10.
-4. RG-32 (the Compass regime-vocabulary collision) is a real, live product inconsistency outside
-   this program's scope — worth the owner's attention in a normal operations session regardless.
+## THE TRUE SYSTEM ROSTER — rebuilt against the ledger, 2026-09-11
+
+⛔ **The previous roster was wrong on S3 and D1 and silent on five more.** Every row below is derived
+from [`LEDGER.md`](LEDGER.md), not from the architecture documents' intentions. "Built" means *this
+program shipped code for it*; "pre-existing" means UCT capability the program inherited.
+
+| id | system | built by this program? | PRD/spec | status |
+|---|---|---|---|---|
+| **S1** | Terminal Shell & Workspace | ✅ narrow slice (`0eec8343d`) | none | **PROVISIONAL-SHIPPED** — ahead of OI-06, gate exception recorded |
+| **S2** | Command, Search & Navigation | ✅ narrow slice (`0eec8343d`, `0577245df`) | none | **PROVISIONAL-SHIPPED** — ditto; extended by 4 other workstreams |
+| **S3** | Entity Master | ✅ **fully, Checkpoints 1–8** | ✅ both → record | **SHIPPED**, minus its admin ops routes |
+| **S4** | Context Bus | ❌ | none | partial pre-existing (`WorkspaceContext`/`ChartsSymContext`); unspecified |
+| **S5** | Persistence & User State | ❌ | none | partial pre-existing (`chart_settings` versioning); unspecified |
+| **S6** | Personalization | ❌ | none (research only) | not started; OI-21 sharpens order |
+| **S7** | **Alerts** (never a bare "S7") | ✅ first slice (`e994f5337`) | ✅ both | **PARTIAL — 1 of 8 trigger types.** ⛔ jointly owned with the convergence filing watch |
+| **S8** | Provenance & Freshness | ✅ 5 commits | ✅ both → record | **SHIPPED** (A-ready-now); full `<Cited>` gated on D2 |
+| **S9** | Entitlements & Licensing Gate | ❌ | none | mechanism pre-exists (`entitlements.py`); **owner-bound on DEC-05/OI-03** |
+| **S10** | Presentation Primitives | ❌ | none | **formally DEFERRED**; S8 uses a local interim formatter |
+| **S11** | Session & Market Clock | ✅ 2 commits | none *by design* | **SHIPPED**; extended by convergence Seam 7 |
+| **S12** | Rollout, Cohort & Observability | ❌ | none | partial pre-existing (`user_tags` written, read by no gate) |
+| **D1** | Provider Abstraction | ✅ **21 commits — ACL boundary built** | ✅ both → record | **SHIPPED, ADOPTION PARTIAL** — 18 files on the adapter, 35 still direct |
+| **D2** | Canonical Data Model & Metric Address Book | ❌ | none | **NOT BUILT** — on the critical path; DEC-14 stays in force until it ships |
+| **D3** | Realtime Streaming | ❌ | none | pre-existing and strong |
+| **D4** | Caching & Serving | ❌ | none | pre-existing, under-adopted |
+| **D5** | Reference & Corporate-Actions Data | ❌ | none | not built; DEC-15 stays in force until it ships |
+| **A3/A4** | Fundamentals · Estimates | ✅ vertical slice + Analyst Ratings tab | none | **SHIPPED** onto S3+D1+S8+S11 |
+| **A5** | Events & Calendar | ✅ 2 commits | none | **SHIPPED** — ⛔ modified Terminal-Current, see Q4 |
+| **A6/A7** | Transcripts & Filings · Ownership | ✅ 1 commit | none | **SHIPPED** |
+| **A8** | News & Catalyst Intelligence | ✅ News Slice 1 | none | **SHIPPED**; spec not needed, ledger row + licensing check are |
+| **I1** | Intelligence Layer | ✅ 2 slices + eval harness | none | **SHIPPED**; ⭐ **needs a spec — highest-value one outstanding** |
+| A1, A2, A9–A14, E1 | Markets · Charts · Screening · Options · Breadth · Watchlists · Journal · Portfolio | ❌ | none | untouched by this program |
+
+## Next actions — re-planned 2026-09-11
+
+**S3 and D1 are off the build list.** Both shipped. The new top five:
+
+| # | work | size | blocked on |
+|---|---|---|---|
+| **1** | **D1 adoption sweep** — migrate the remaining 35 direct FMP call sites behind `fmp_client`, using the AST guard census tools the program already built. Not new design; finishing what shipped | **M** | nothing. The highest-value work that needs no decision from you |
+| **2** | **I1 spec** — narrow: tool-registry contract, the grounding rule, the refusal shape, and the boundary that I1 composes on S8 and never renders its own receipt | **S–M** | nothing |
+| **3** | **S3's admin ops routes** (`entity_master_admin.py`) — authorized in the gate, never built; S3 currently has no `/status` or `/reseed` surface | **S** | nothing |
+| **4** | **S7 Alerts — FINISH, not start** | **M–L** | ⛔ **a joint-ownership ruling first** — the convergence filing watch lives inside this package |
+| **5** | **D2 Canonical Data Model** — needs its own PRD/spec pass first; releases DEC-14 and unblocks S8's full `<Cited>` | **L** | nothing owner-bound, but it is the long pole |
+
+**C2 answer — S7 Alerts is "finish against spec", not "start."** The foundation is real and
+spec-cited: `registry.py` implements SPEC-S7 §5.1, the predicate store, delivery seam and receipts
+are generic, and document-arrival was the spec's own first step. Seven trigger types remain as
+extensions of a working substrate. ⛔ But it cannot be scheduled as ordinary work until you rule on
+joint ownership — a change to the predicate or receipt shape is a change to a live member-facing
+convergence feature.
+
+**Still parked, unchanged:** S1/S2 rework (awaiting OI-06), S9 (awaiting OI-03/DEC-05), S10
+(deferred), and the Day-1 research wave (owner ruling 5).
+
+**Outside program scope, still worth your attention:** RG-32 — Compass's ambient regime context and
+its `get_regime` tool disagree, live, today.
