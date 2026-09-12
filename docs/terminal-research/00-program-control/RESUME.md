@@ -61,22 +61,51 @@ calendar moved a lot, not that anything is wrong.
   the five primitives adopted by S8's four and nothing else, byte-identity proved against a
   frozen oracle rather than a snapshot file) · **S7 `catalyst-match` CP1** (`faaa30146`)
   and **CP2** (`d9631afa5`), dark, harness-armed only, parity 20/20.
-- **D2 and S12 are DOCS ONLY.** D2 has a PRD, a spec and a gate packet whose approval block is
-  **EMPTY**; S12 has one spec and no code. ⛔ Nothing in either is authorized.
+- **D2 CP1 IS BUILT AND MERGED** (`b9783d509`, gate `1a0adb471`). 137 metrics, derived, INERT —
+  nothing in `api/**` reads it and a rail enforces that. CP2+ need new lines.
+- **S12's FIRST MIGRATION IS BUILT AND MERGED** (`56df6803f`, gate `afdd4adf5`). Both S7 cohorts
+  read `user_tags`. ⛔⛔ **An empty cohort means NO members** — the seed in `api/main.py` is what
+  makes the swap a no-op, and it is idempotent and never removes.
+- **F-S10-2 MERGED** (`e909279e1`) — `<Cited>` pins ET with a visible label. **MEMBER-VISIBLE**:
+  every member outside ET now reads a different, correct, labelled timestamp.
+- **F-S10-1** (two `formatPrice`s, six importers) and **F-S7-5** (the catalyst dedup collision, a
+  LIVE production bug latent behind an OFF flag) are RECORDED, not fixed.
 
 ## ⭐ NEXT-SESSION QUEUE
 
 | # | item | note |
 |---|---|---|
 | 1 | **Read both dark runs** | five sessions; `--ticking` first, then the full report |
-| 2 | **Sign or refuse D2 CP1** | PRD + spec + gate packet written 2026-09-12, approval block **EMPTY**. The packet recommends signing CP1 alone (inert data + a derivation rail) or nothing yet |
+| 2 | **F-S7-5 — the catalyst dedup fix** | ⛔ A LIVE production bug, latent only because `CATALYST_MUSTKNOW_ALERTS_ENABLED` is OFF. Recommended: narrow fix (namespace the must-know dedup key) BEFORE absorption, while the flag is still off. Needs one line. §8b of the catalyst-match packet |
 | 3 | **S7 `catalyst-match` CP3** | needs a new line; §9 of its packet lists the five things that line must name |
 | 4 | **G1 tranche 1 remainder** | `darkpool_eod`, `company_about`, `ir_webcast` are locally guarded and unmigrated — no behaviour to preserve that is not already preserved, so they are optional |
 | 5 | **D1 G3 re-scope** | measure the real call sites before authorizing anything |
 | 6 | **CP4 (price-level)** | needs the owner's line AFTER the five-session read |
-| 7 | **S10's next line** | three candidates, in order: the `<Cited>` timezone divergence (member-visible), the two `formatPrice`s (six call sites), `formatPercent`'s first consumer |
-| 8 | **S12 first migration** | spec written; needs the EMPTY-cohort ruling before anything is built |
+| 7 | **S10 CP2** | F-S10-1 folded in: the two `formatPrice`s (six importers, three disagreements, one of them an EDITABLE INPUT). Plus `formatPercent`'s first consumer |
+| 8 | **D2 CP2** | the resolver + S7 as first consumer. ⛔ Needs a new line. And `indicator-condition` waits on CP1 **plus the first non-screener store** — all 137 metrics today are `screener_rows` |
 | 9 | **F-I1-2** | ⏸️ **STILL PARKED.** Do not re-raise. |
+
+---
+
+## 🔧 WORKTREE HOUSEKEEPING — done 2026-09-12, read before running a frontend test
+
+`uct-worktrees/s7-price-level/app` now has a **REAL `node_modules`** (`npm ci`, exit 0), not a
+junction.
+
+⚰️ **IT WAS A JUNCTION FOR ONE AFTERNOON AND THAT WAS ALREADY WRONG TWICE.** The first target
+(`uct-dashboard/app/node_modules`) had a broken `cssstyle` install and every vitest run died at
+jsdom import; the second (`_merge-station`) was **deleted by another session within the hour**,
+taking the junction with it — so a session that had been told *"the junction is left in place for
+you"* would have started with a repair.
+
+⛔ **A JUNCTION POINTS AT ANOTHER SESSION'S WORKTREE AND IS THEREFORE NOT DURABLE.** CLAUDE.md
+offers it as a shortcut for a throwaway baseline checkout; it is not a setup. If a worktree is
+going to live more than an afternoon, run `npm ci` in its `app/`.
+
+⚠️ **And the docs worktree itself vanished mid-session** — `uct-worktrees/terminal-research` was
+pruned by another session while this one was working in it. Nothing was lost (the branch was
+already pushed) and it was re-created with `git worktree add`. **Push docs commits as you make
+them; never leave a docs worktree as the only copy of anything.**
 
 ---
 

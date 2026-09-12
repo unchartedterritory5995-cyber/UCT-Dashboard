@@ -2,32 +2,75 @@
 id: GATE-D2-CANONICAL-DATA-MODEL
 title: D2 — Canonical Data Model & Metric Address Book — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ⛔ UNSIGNED — the approval block is EMPTY. Written 2026-09-12 for the owner to read and sign.
+status: ✅ CP1 APPROVED 2026-09-12 and BUILT (`b9783d509`). CP2+ need new lines.
 date: 2026-09-12
 measured_against: origin/master @ ee9c96fa1
 pairs_with: PRD-D2-CANONICAL-DATA-MODEL · SPEC-D2-CANONICAL-DATA-MODEL
 ---
 
-# ⛔ UNSIGNED — D2 pre-implementation gate
+# ✅ CP1 APPROVED — D2 pre-implementation gate
 
-## ⛔ APPROVAL — EMPTY
-
-```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
-
-
+## ⛔ APPROVAL — CP1 ONLY
 
 ```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  1a0adb471
+SCOPE APPROVED:   CP1 - inert canonical address data (the ratified form written
+                  down as data, not read by any product path) + the derivation
+                  rail that fails when a scalar name, store, cadence, or grain
+                  diverges from closedTable.json. Fix the scan_evaluator.py
+                  "54 scalars" comment to derive from the table, per its own last
+                  line. No reader migrated, no schema change on live stores.
 
-⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No manifest, no resolver, no declaration, no change to
-any consumer, no change to DEC-14's wording. The PRD and spec are docs-only deliverables of Wave 3.
+                  CP2+ NEED NEW LINES.
+```
 
-⚠️ **AND THE SCOPE LINE MUST NAME A CHECKPOINT, NOT "D2".** The PRD's §8 is an argument that "D2
-ships" is not a checkable condition; signing "build D2" would reproduce that defect in the approval
-itself. The three checkpoints below exist so a line can name one.
+**Delivered:** `b9783d509` on `origin/master`, 2026-09-12. **ADDITIVE** - 5 files, zero in
+flow-worker's 154-file import closure, confirmed with `reachable_paths()`. No marker bump.
+
+⚠️ **THE SCOPE LINE NAMES A CHECKPOINT, NOT "D2", AND THAT WAS THE POINT.** The PRD's §8 argues
+that *"D2 ships"* is not a checkable condition; an approval reading "build D2" would have
+reproduced that defect inside the approval itself.
+
+### The four rulings, as given
+
+| | question | ruling |
+|---|---|---|
+| **D2-A** | ratify-and-widen vs design | **A - ratify** `closedTable.json` + `resolve_entity_scope` + `ProvenanceRecord` + the timeframe map, and widen. No second model |
+| **D2-B** | DEC-14's expiry | **YES** - replace *"the day D2 ships"* with the three-clause per-call-site condition over the census, written into the decision register verbatim and citing the census rail by test name |
+| **D2-C** | the ad-hoc metric key | **A - kill it.** `indicator-condition` waits on D2 CP1 **plus the first non-screener store**; the dependency is recorded in the S7 plan |
+| **D2-D** | first consumer | **YES - S7.** Dark, weekly vocabulary, lowest blast radius |
+
+### What CP1 actually shipped
+
+| | |
+|---|---|
+| `api/data/canonical_address_book.json` | **137 metrics**, derived; `git add -f` (see below) |
+| `tools/build_canonical_address_book.py` | the derivation, with `--check` |
+| `tests/test_canonical_address_book.py` | 12 tests - the four-field rail, the axis report, the inertness rail |
+| `api/services/screener/scan_evaluator.py` | the "54 scalars" comment fixed, retired sentence kept verbatim |
+| `.gitignore` | one comment; see §2b |
+
+**Mutation record, each restored by re-deriving or by edit:**
+
+| # | mutation | result |
+|---|---|---|
+| H | a metric's **cadence** diverges from the table | **2 RED** |
+| I | a scalar **name** the table declares is missing | **8 RED** |
+| J | a **product path** references the book | **1 RED** - the inertness rail, by name |
+
+## 2b. ⚠️ TWO THINGS THE RAILS CAUGHT WHILE BEING WRITTEN
+
+**1. The book would not have been committed.** `.gitignore`'s `data/` excludes `api/data/`, so the
+file needs `git add -f`. ⛔ A generated file nobody can diff in review is a second authority with
+extra steps, and the rail that asks git whether the file is tracked is what caught it.
+
+**2. ⚰️ AND THE NEGATION THAT LOOKS LIKE THE FIX CANNOT WORK.** Git cannot re-include a file whose
+PARENT DIRECTORY is excluded, so a `!api/data/<file>` line reads like a working mechanism and does
+nothing. ⚠️ **That is also true of the existing `!api/data/voice_kb/**` lines** - those files are
+tracked because they were force-added, not because of the negation. Recorded in `.gitignore`, not
+fixed; they are not this program's.
 
 ---
 

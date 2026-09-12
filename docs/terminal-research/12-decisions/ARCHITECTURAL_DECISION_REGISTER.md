@@ -193,7 +193,51 @@ application call sites may call a named D1 adapter module directly (never constr
 URL) during this window; every such call site is tracked and re-pointed at D2 once it ships. The
 exception is named in both `product-architecture.md`'s boundary matrix and reversibility ledger,
 and in `provider-abstraction-spec.md` §7.2, so it reads as a tracked decision, not a local
-rationalization. *What would change it:* nothing — it self-expires the day D2 ships.
+rationalization.
+
+### ⛔⛔ THE EXPIRY CONDITION — REPLACED 2026-09-12 BY OWNER RULING (D2-B)
+
+⚰️ **This read:** *"What would change it: nothing — it self-expires the day D2 ships."*
+
+⛔ **"THE DAY D2 SHIPS" IS NOT A CHECKABLE CONDITION, IN EITHER DIRECTION.** D2 is not a thing that
+ships on a day — it is a manifest that gains entries. Under that wording the exception either
+expires while most call sites have no address to point at (breaking them), or never expires because
+"D2 shipped" is arguable forever. ⭐ **Both failure modes are the same defect: a condition nobody
+can evaluate.**
+
+**The replacement, verbatim and binding:**
+
+> **DEC-14 expires for a CALL SITE, not for the programme, on the day all three hold for it:**
+>
+> 1. **the value it fetches has a D2 address** — the metric is declared in the address book and
+>    resolves; and
+> 2. **the address returns the same value the direct call returns**, proved FORWARD-ONLY against
+>    live traffic for a stated window, never by replay; and
+> 3. **the call site reads through the address**, and the census reports it as migrated rather than
+>    quarantined.
+>
+> **The programme-level exception expires when the census reports zero call sites for which clause 1
+> is false.** Not when a document says D2 shipped.
+
+**The census rail, cited by test name so this condition has an instrument rather than an intention:**
+`tests/test_fmp_guard_census.py::test_real_repo_has_zero_unquarantined_violations`, over
+`tools/fmp_guard_census.py`. Measured 2026-09-12: **0 unquarantined literals, 0 unquarantined
+`_fmp_get`-shaped definitions, 11 quarantine entries**, GREEN.
+
+⛔ **AND THE CONDITION MUST DISTINGUISH *NOT YET ADDRESSED* FROM *DELIBERATELY OUTSIDE*, OR IT CAN
+NEVER REACH ZERO.** One of those eleven quarantine entries —
+`api/services/news/adapters/fmp_news.py` — carries the G5 ruling of 2026-09-12 saying it must
+**never** migrate: its retry-and-budget contract is the opposite of the adapter's and both are right
+for their own callers. A condition that counted it as outstanding would be unsatisfiable, and an
+unsatisfiable condition is the same as no condition at all.
+
+⛔ **CLAUSE 2 IS NOT A REPLAY.** The S7 programme has now refused replay three times for three
+different reasons — a trendline has no past, a calendar date moves, an LLM-graded row cannot be
+re-synthesised. A provider's answer for a past instant is not recoverable either, so "does the
+address return what the direct call returned" is answered by running both on the same tick.
+F-S7-3's four outcomes, never a pass rate.
+
+*What would change it:* the three clauses above, per call site, measured by the census.
 
 ## DEC-15 — Entity Master interim reconciliation job
 

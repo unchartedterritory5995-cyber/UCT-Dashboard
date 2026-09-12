@@ -607,6 +607,164 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## WAVE 3 CONTINUED — four more merges on the owner's rulings, all ADDITIVE, 2026-09-12
+
+| what | commit | classification |
+|---|---|---|
+| **D2 CP1** — the canonical address book as inert data | **`b9783d509`** | ADDITIVE — 5 files, 0 in flow-worker's closure |
+| **S12 first migration** — both S7 cohorts onto `user_tags` | **`56df6803f`** | ADDITIVE — 7 files, 0 in the closure |
+| **F-S10-2** — `<Cited>` pins ET with a label (MEMBER-VISIBLE) | **`e909279e1`** | ADDITIVE — 4 files, 0 in the closure |
+| the load-sensitive rail fix | **`de9551dd9`** | ADDITIVE — 1 file |
+
+⛔ **Every classification confirmed with `reachable_paths()` and the intersection printed, not
+inferred from file extensions.** No marker bump on any of the four.
+
+---
+
+### D2 CP1 — `b9783d509`. Gate `1a0adb471`. Rulings A / YES / A / YES; CP1 signed.
+
+**137 metrics, derived, inert.** Every value comes from a declaration that already exists —
+`closedTable.json` via `ast_lint.TABLE`, `resolve_entity_scope`, `_BARS_STORE_TF_KEYS`,
+`ProvenanceRecord`. **Not one value is typed.** `test_no_product_path_reads_the_address_book` walks
+every module under `api/` with prose stripped and fails by name if one reads it — a reader is CP2.
+
+⭐ **THE POPULATION IS REPORTED, NEVER ASSERTED AS A COUNT.** There is no `assert len(metrics) == N`
+anywhere. The axis check asserts the PROPERTY — one store, one cadence, one grain — and PRINTS the
+count.
+
+⚰️ **AND THAT IS THE CORRECTION THIS CHECKPOINT OWED.** `scan_evaluator.py` said *"all 54 declared
+scalars are unanimous"* and warned about *"a fifty-fifth"* — **inside a paragraph whose own last
+line reads "⛔ NOTHING HAND-LISTS WHICH SCALARS ARE NIGHTLY."** The manifest had grown well past 54
+and the unanimity claim was **still true**: the mechanism was right, only the number drifted. Count
+gone, retired sentence kept verbatim, a test reports it now.
+
+**⛔ TWO THINGS THE RAILS CAUGHT WHILE BEING WRITTEN, both about committing generated data:**
+
+1. The book **would not have been committed** — `.gitignore`'s `data/` excludes `api/data/`, so it
+   needs `git add -f`. A generated file nobody can diff in review is a second authority with extra
+   steps, and the rail that asks *git* whether the file is tracked is what caught it.
+2. ⚰️ **The negation that looks like the fix cannot work.** Git cannot re-include a file whose
+   PARENT DIRECTORY is excluded, so a `!api/data/<file>` line reads like a working mechanism and
+   does nothing. ⚠️ **That is also true of the existing `!api/data/voice_kb/` lines** — those files
+   are tracked because they were force-added. Recorded, not fixed; not this program's.
+
+Mutations, restored by re-deriving or by edit: a metric's cadence diverges → **2 RED** · a declared
+scalar name missing → **8 RED** · a product path references the book → **1 RED**, by name.
+
+**DEC-14's expiry condition is now in `ARCHITECTURAL_DECISION_REGISTER.md` verbatim**, with the
+census rail cited by test name (`test_real_repo_has_zero_unquarantined_violations`) and the clause
+that distinguishes *not yet addressed* from *deliberately outside* — without which it can never
+reach zero, because `fmp_news.py` must never migrate.
+
+**`indicator-condition` is sequenced behind D2 CP1 PLUS the first non-screener store**, recorded as
+§2b of the S7 completion plan. ⛔ CP1 alone is not enough, and that is the point: all 137 metrics
+are `store: screener_rows`, so the book can address a nightly screener column and nothing else.
+
+---
+
+### S12 first migration — `56df6803f`. Gate `afdd4adf5`.
+
+Both S7 projections' cohorts are one SQL predicate over `user_tags` now. **A rollout gate that was
+written as a role check**, duplicated across two modules, with a third copy already scheduled.
+
+⛔⛔ **AN EMPTY COHORT MEANS NO MEMBERS. NEVER A FALLBACK TO ADMINS.** The comfortable alternative
+needs no seeding step and puts a **second authority** on who is in a cohort — so the day somebody
+emptied the tag deliberately, the system would silently re-cover every admin.
+
+**THE SWAP IS A NO-OP, MEASURED** — in a sandboxed `auth.db` with the census pins applied before any
+`api.**` import, so no write touched a shared data root:
+
+```
+BEFORE (retired role rule) ....... 15 projected
+AFTER, UNSEEDED .................. 0     <- the ruling, demonstrated
+seeded ........................... 5 tag rows
+AFTER, SEEDED .................... 15 projected, IDENTICAL ROW IDS
+members with alerts .............. 7, none projected either way
+```
+
+⭐ **Identical ROW IDS, not an identical count** — 15 → 15 is compatible with one row entering and
+another leaving.
+
+⛔ **AND THE DRY RUN AGAINST FRIDAY'S BARS COULD NOT VERIFY IT, WHICH IS THE FINDING.** It returns
+`projected 0` **before AND after**, because the dev box's `auth.db` has **116 admin accounts and
+ZERO active admin alerts** (read live, read-only). That `0 == 0` is the **NO DATA case wearing the
+QUIET case's clothes**, and banking it as verification is exactly what the four comparison outcomes
+exist to prevent. Both dry runs re-ran clean; `--self-check` PASSED, so the scratch guard still
+bites.
+
+⛔ **The seed is in `api/main.py`, NOT `auth_db.init_db()`** — `auth_db.py` is inside flow-worker's
+import closure and is **not** on its watch list, so editing it would strand flow-worker on stale
+code for a change it runs. Measured, not assumed.
+
+**CP4's all-members flag is no longer a code path.** Its rail now asserts the stronger truth —
+**unset changes nothing, AND SO DOES SET** — and ends by adding a TAG and watching the cohort widen
+with no variable at all.
+
+---
+
+### F-S10-2 — `<Cited>` pins ET with a visible label. `e909279e1`. MEMBER-VISIBLE.
+
+One instant, one S8 surface, read four different ways depending on where the member sat:
+
+| viewer zone | BEFORE | AFTER |
+|---|---|---|
+| `America/New_York` | `"9/11/2025, 9:32:15 AM"` | `"9/11/2025, 9:32:15 AM ET"` |
+| `America/Chicago` | `"9/11/2025, 8:32:15 AM"` | `"9/11/2025, 9:32:15 AM ET"` |
+| `Europe/London` | `"9/11/2025, 2:32:15 PM"` | `"9/11/2025, 9:32:15 AM ET"` |
+| `Asia/Tokyo` | `"9/11/2025, 10:32:15 PM"` | `"9/11/2025, 9:32:15 AM ET"` |
+
+⭐ **A London reader was shown a bar validated at "2:32 PM" and nothing said which afternoon that
+was.** ⛔ The label is the other half, not decoration: pinning the zone silently would swap one
+unlabelled timestamp for another.
+
+The snapshot-identity tests **changed, as expected**, and three retired assertions are kept verbatim.
+What stays pinned byte-for-byte is the ABSENT behaviour. Mutations: the zone un-pinned → **3 RED**;
+the label dropped → **7 RED**.
+
+---
+
+### F-S10-1 — two `formatPrice`s, six importers. RECORDED, folded into S10 CP2. No fix now.
+
+`chart/drawingLabels.js::formatPrice` renders `"123.46"` — no currency symbol, tick-aware decimals,
+**the empty string** when absent — against `presentationFormat.js`'s `"$12.50"` and em dash. Four
+product modules and two test files import the first.
+
+⚠️ **`StopConfirmSheet.jsx` seeds an EDITABLE INPUT from it**, so changing the format changes what a
+member sees *and then edits and submits* — CP2 must treat that site as behaviour, not presentation.
+
+⭐ **The hard part is not the code, it is deciding which rule is right — and the answer is probably
+"both, for different surfaces."** A chart label must be tick-aware and must not spend pixels on a
+currency symbol; a provenance disclosure must be unambiguous. ⛔ And the two absent sentinels are
+read by LAYOUT: an em dash holds a column, an empty string collapses it.
+
+---
+
+### F-S7-5 — the catalyst dedup collision is a LIVE PRODUCTION BUG
+
+> **An admin who also WATCHES a name never receives the must-know alert for it.**
+
+Both legacy rules write `catalyst_alerts_fired` keyed `(user_id, ticker, market_date)`, watchlist
+first. ⭐ **The suppressed alert is the HIGHER-severity one**, and the suppression lands exactly on
+the names an operator cared enough to watch — while a must-know alert exists to reach somebody
+*regardless* of their watchlist.
+
+⚠️ **Latent, not safe:** `CATALYST_MUSTKNOW_ALERTS_ENABLED` defaults OFF and was not observed set,
+so there are no live victims *today* — and it fires the moment that flag is armed, silently, with
+nothing in the code or the ledger to warn whoever arms it.
+
+⚠️ **NOT MEASURED:** how often the two rules actually collide on real data, because a read-only
+probe of production `/data/catalysts.db` was refused by tooling policy. That is the number that
+would size the fix.
+
+**The one line the owner asked for: YES — fix it in the legacy path before absorption. It is the
+safer order, but ONLY as the narrow fix (namespace the must-know dedup key) and ONLY while the flag
+is still OFF.** Absorbing the bug makes it permanent and invisible: the dark rule reproduces it
+faithfully, the comparison reports `agreed`, and the defect becomes a *specification* — a later fix
+would then read as a `new_only` regression against its own baseline. Full reasoning and the four
+conditions: §8b of the catalyst-match gate packet.
+
+---
+
 ## WAVE 3 — three merges, all ADDITIVE, no marker bump, 2026-09-12
 
 | what | commit | classification |

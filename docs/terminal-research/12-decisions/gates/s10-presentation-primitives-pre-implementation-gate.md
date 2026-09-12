@@ -167,7 +167,7 @@ instead of the fact quietly becoming false. ⭐ That is
 
 ---
 
-## 6. ⛔⛔ THE BIGGEST THING S10 FOUND, AND IT IS OUT OF SCOPE
+## 6. ⛔⛔ F-S10-1 — TWO `formatPrice`s, SIX IMPORTERS, THREE DISAGREEMENTS
 
 **There is a SECOND `formatPrice` in this app with a different contract.**
 
@@ -185,8 +185,33 @@ It is the `lesson_a_comment_claiming_agreement_is_not_agreement` shape exactly.
 
 ⛔ **RECONCILING THEM IS NOT IN THIS SCOPE AND MUST NOT BE SMUGGLED IN.** They disagree on the
 currency symbol, the decimal rule AND the absent sentinel, so every one of those six call sites
-would move visibly. **It is the first migration S10's next line should consider**, and it is a
-member-visible change that needs its own approval.
+would move visibly.
+
+### ⛔ RULED 2026-09-12: RECORD AS **F-S10-1**, FOLD INTO S10 CP2. NO FIX NOW.
+
+**The six modules that import `drawingLabels.formatPrice`, enumerated from source, not estimated:**
+
+| # | module | product or test |
+|---|---|---|
+| 1 | `app/src/components/chart/drawingRenderers.js` | **product** — it is the default `fmt` for every price readout a drawing draws |
+| 2 | `app/src/hub/PlanTradeSheet.jsx` | **product** |
+| 3 | `app/src/hub/sections/journalSection.js` | **product** — 4 call sites incl. the stop-set toast a member reads |
+| 4 | `app/src/hub/StopConfirmSheet.jsx` | **product** — 3 call sites, including an editable input's value |
+| 5 | `app/src/components/chart/drawingLabels.test.js` | test |
+| 6 | `app/src/hub/tickIsAskedNotDecided.test.jsx` | test |
+
+⚠️ **AND #4 IS THE ONE THAT MAKES THIS DELICATE.** `StopConfirmSheet` seeds an **editable input**
+from `formatPrice(roundToTick(stop, tick), { tick })`. Changing the format changes what a member
+sees *and then edits and submits*, so CP2 must treat that site as behaviour, not presentation.
+
+⭐ **THE HARD PART IS NOT THE CODE, IT IS DECIDING WHICH RULE IS RIGHT** — and the answer is
+probably "both, for different surfaces". A chart drawing label must be tick-aware and must not
+waste pixels on a currency symbol; a provenance disclosure must be unambiguous. **That is a case
+for S10 owning TWO named primitives with stated call-site rules, not for collapsing them into one.**
+
+⛔ **What CP2 must NOT do:** pick whichever is more common and migrate the rest. `formatPrice`'s two
+absent sentinels — the em dash and the **empty string** — are read by layout: an em dash holds a
+column, an empty string collapses it.
 
 ---
 
@@ -210,8 +235,45 @@ on the shim instead of the file.
 
 ## 8. What a future S10 line would need to name
 
-1. **The `<Cited>` timezone divergence** (§2.1) — member-visible, and the clearest defect S10 found.
-2. **The two `formatPrice`s** (§6) — six call sites, three disagreements.
-3. **`formatPercent`'s first consumer** (§5.2).
+1. ✅ **The `<Cited>` timezone divergence** (§2.1) — **RULED AND FIXED 2026-09-12 as F-S10-2**, on
+   its own line, member-visible and deliberately so. See §9.
+2. ⏳ **F-S10-1, the two `formatPrice`s** (§6) — recorded, **folded into S10 CP2**, no fix now.
+3. ⏳ **`formatPercent`'s first consumer** (§5.2) — still adopted by nothing; its rail says so.
 4. **Everything beyond the S8 family.** TD-08's "118 files" is an inherited count this pass did not
    re-measure, and it should be re-measured before it sizes anything.
+
+---
+
+## 9. ✅ F-S10-2 — `<Cited>` pins ET with a visible label. MERGED `e909279e1`.
+
+Own line, own commit, flagged by name (owner, 2026-09-12). **S10's first build found this and was
+not allowed to fix it**, because that approval required byte-identical rendering.
+
+**The before/after, for one instant, by where the member sat — the record the ruling asked for:**
+
+| viewer zone | BEFORE | AFTER |
+|---|---|---|
+| `America/New_York` | `"9/11/2025, 9:32:15 AM"` | `"9/11/2025, 9:32:15 AM ET"` |
+| `America/Chicago` | `"9/11/2025, 8:32:15 AM"` | `"9/11/2025, 9:32:15 AM ET"` |
+| `Europe/London` | `"9/11/2025, 2:32:15 PM"` | `"9/11/2025, 9:32:15 AM ET"` |
+| `Asia/Tokyo` | `"9/11/2025, 10:32:15 PM"` | `"9/11/2025, 9:32:15 AM ET"` |
+
+⭐ **A London reader was shown a bar validated at "2:32 PM" and nothing said which afternoon that
+was.** A provenance surface whose whole job is to say *when* a value was true cannot leave the
+reader to guess the zone.
+
+⛔ **THE LABEL IS THE OTHER HALF, NOT DECORATION.** Pinning the zone silently would swap one
+unlabelled timestamp for another, and a London reader would read a number three hours earlier than
+yesterday's with nothing to explain it.
+
+**The snapshot-identity tests changed, as expected**, and three retired assertions are kept
+verbatim: the byte-identity claim against the old oracle, the *"AND THAT IS THE VIEWER ZONE"* pin
+that existed so the divergence could not be tidied away, and the adoption render check. What stays
+pinned byte-for-byte is the **absent** behaviour — `NaN`/`null`/`undefined` still return `null`.
+
+**Mutation record:** the market zone un-pinned → **3 RED**; the ET label dropped → **7 RED**. Each
+restored by edit. 8 test files green, VITEST_EXIT=0. ADDITIVE, 4 files, 0 in flow-worker's closure.
+
+**Member impact:** every member outside ET now reads a different, correct, labelled timestamp in the
+`<Cited>` disclosure. Members in ET see the same clock time with `" ET"` appended. No layout change;
+no other surface touched.

@@ -160,6 +160,52 @@ The comparison spans carry no per-tick timestamp, so a sweep that died on its fi
 heartbeat — a monotonic tick count and a wall-clock stamp, written on **every** tick including the
 ones that found nothing. *A heartbeat that only beats on success is a success detector.*
 
+## 2b. ⛔⛔ `indicator-condition` IS SEQUENCED BEHIND D2 — the ad-hoc metric key is KILLED
+
+**Owner ruling D2-C, 2026-09-12.** This plan carried, for `indicator-condition`, an alternative:
+*ship an ad-hoc metric key with a sunset date rather than blocking on D2's address book.*
+
+⛔ **KILLED. And the argument is measured, not aesthetic: this codebase has run that experiment
+twice and BOTH keys are still live.**
+
+| the ad-hoc key | what it was | still live? |
+|---|---|---|
+| `_LEDGER_TIMEFRAME` (`indicator_alert_evaluator.py:1694`) | a hand-typed copy of `_BARS_STORE_TF_KEYS`, shipped **with a comment explaining why it is dangerous** | **yes** |
+| `pct_above_50ma` | an ad-hoc spelling of a metric that already had one (`pct_above_50sma`, 190 refs) | **yes**, in 5 files including a live regime classifier |
+
+⭐ **A sunset date is a promise made by the person who benefits from not keeping it.** Every
+instance of the shape in this repo's history — the `/api/tweets/tape` route kept "one deploy cycle",
+`j2_playbook_entries` kept "~30d", `trades.py` kept as "a rollback backup" — is still present. The
+pattern is not carelessness; it is that **a dated promise has no mechanism.**
+
+### THE DEPENDENCY, RECORDED
+
+> **`indicator-condition` waits on D2 CP1 *plus the first non-screener store*.**
+
+⛔ **CP1 ALONE IS NOT ENOUGH, AND THAT IS THE DEPENDENCY'S WHOLE POINT.** CP1 shipped
+(`b9783d509`) with **137 metrics — and every one of them is `store: screener_rows`**, at
+`cadence: nightly`. The address book can today address a nightly screener column and **nothing
+else**: not a bar, not a quote, not a fundamental. An indicator condition that named a bar-derived
+metric would have no address to carry.
+
+**So the gate for `indicator-condition` is:**
+
+1. D2 CP1 merged — ✅ done; and
+2. the address book's metric axis covers **at least one store that is not `screener_rows`**, with
+   that store classified in PRD-D2 §7; and
+3. `cadence` GATES THE PREDICATE at registration.
+
+⭐ **Item 3 is the half that is a real member-facing defect today, not a modelling nicety.** A
+predicate asking a `cadence: nightly` metric to answer an intraday condition registers cleanly,
+evaluates cleanly, and **never fires** — and nothing distinguishes it from a condition that simply
+has not been met. *An alert that cannot fire and an alert that has not fired look identical to a
+member, and the member is the one holding the position.*
+
+⚠️ **THE HONEST COST, STATED: `indicator-condition` IS DELAYED.** That is the trade the ruling
+makes, and it is the owner's to make. The alternative was a key that would never be retired.
+
+---
+
 ## 3. What each trigger type needs from the substrate
 
 | component | what a new type adds | shape change to existing types? |

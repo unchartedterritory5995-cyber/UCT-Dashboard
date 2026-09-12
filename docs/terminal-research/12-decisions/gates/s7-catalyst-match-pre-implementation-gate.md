@@ -245,6 +245,77 @@ did not run, and an enum guessed from a prompt is the F-S7-4 mistake made delibe
 
 ---
 
+## 8b. ⛔⛔ F-S7-5 — THE DEDUP COLLISION IS A LIVE PRODUCTION BUG, NOT A MIGRATION ARTEFACT
+
+**Recorded by owner instruction, 2026-09-12.** CP1's §2.1 described it as *"behaviour to REPRODUCE,
+not fix"*, which is correct **for the dark comparison** and is not the whole story. Stated plainly:
+
+> **An admin who also WATCHES a name never receives the must-know alert for it.**
+
+`engine.run()` calls `_fire_catalyst_alerts` first and `_fire_mustknow_alerts` second; both write
+`catalyst_alerts_fired` keyed `(user_id, ticker, market_date)` through `store.try_record_alert`, an
+atomic `INSERT` + `IntegrityError`. The first rule to claim the key wins the day. So for a grade-A
+catalyst on an admin's own watchlist, the member gets the **watchlist wording** —
+`📰 Catalyst: $X (Catalyst)` — and never the **must-know wording** — `🚨 Must-know A: $X (FDA)`.
+
+⭐ **THE DIRECTION IS THE BAD ONE.** The suppressed alert is the HIGHER-severity one, and the
+suppression is most likely exactly where it hurts: on the names an operator cares enough to watch.
+A must-know alert exists to reach somebody *regardless* of their watchlist, and the one population
+guaranteed not to get it is the population that watches the name.
+
+⚠️ **IT IS CURRENTLY LATENT, AND THAT IS TIMING, NOT SAFETY.**
+`CATALYST_MUSTKNOW_ALERTS_ENABLED` defaults **OFF** and was not observed set on `web`. So the
+collision has no live victims *today* — and it fires the moment that flag is armed, silently, with
+nothing in the code or the ledger to warn whoever arms it.
+
+⚠️ **NOT MEASURED:** the row counts in production's `catalyst_alerts_fired`, because a read-only
+probe of `/data/catalysts.db` was refused by tooling policy this pass. **How often the two rules
+actually collide on real data is unknown**, and that is the number that would size the fix.
+
+### ⛔ ONE LINE FOR THE OWNER — is fixing it in the LEGACY path safe before absorption?
+
+> **My answer: YES, and it is safer than the alternative — but ONLY as the narrow fix, and only
+> while the must-know flag is still OFF.**
+
+**The narrow fix is one dedup key, not two code paths:** give the must-know rule its own dedup
+namespace — `try_record_alert(user_id, f"mustknow:{ticker}", market_date)` or a `kind` column — so
+the two rules stop competing for one key. That is **additive**, it changes nothing for the watchlist
+rule, and it is the same "namespace the cooldown key" move `awareness/rules.py` already made for
+`{sym}:stop_hit` vs `{sym}:stop_near` **for exactly this reason**, in this codebase, with the
+comment explaining why.
+
+**Why fixing it before absorption is the safer order, not the riskier one:**
+
+1. ⛔ **Absorbing a bug makes it permanent and invisible.** `catalyst-match` reproduces the
+   collision faithfully — by design — so after absorption the dark rule and the legacy rule agree,
+   the comparison reports `agreed`, and the defect is now a *specification*. A later fix would then
+   read as a `new_only` regression against its own baseline.
+2. ⭐ **The flag being OFF is the whole window.** Fixing it now changes what **zero members
+   currently receive**. Fixing it after the flag is armed changes what real people are getting, mid-
+   flight. This is the cheapest this fix will ever be.
+3. **It needs no new authority.** The namespace lives in the caller; `try_record_alert` is untouched.
+
+**The conditions I would attach:**
+
+- ⛔ **Do it while `CATALYST_MUSTKNOW_ALERTS_ENABLED` is OFF, and verify that flag's state LIVE
+  before starting** — not from the code default, which is exactly the read the
+  `SMOKE_LOGIN_LINK_ENABLED` stop condition was built around.
+- ⛔ **Narrow fix only.** Do NOT reorder the two rules, do NOT merge them, do NOT change
+  `try_record_alert`'s signature for existing callers. Reordering would change which *wording* a
+  member sees for names that collide — a second behaviour change riding along.
+- ⛔ **`catalyst-match`'s schema and evaluator must move in the same commit.** The type pins
+  `dedup_grain: "user_ticker_day"` and `would_fire` reproduces the collision through
+  `already_fired`; leaving those describing the old behaviour would put the defect back as the
+  dark rule's specification.
+- ⚠️ **`catalyst_alerts_fired` gains rows it did not have.** One extra row per (admin, colliding
+  ticker, day). Trivial in volume; worth saying because the table is a dedup ledger and its row
+  count is a thing somebody may have eyeballed.
+
+⛔ **What I would NOT do without a further line:** touch the wording, the ordering, the grades, or
+the cohort. Those are product calls; this is a keying defect.
+
+---
+
 ## 9. What CP3 would have to name — NOT authorized
 
 1. **Which cohort.** `price-level` and `event-proximity` both project the admin role via a
