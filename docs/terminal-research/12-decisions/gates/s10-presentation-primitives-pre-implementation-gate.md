@@ -2,7 +2,7 @@
 id: GATE-S10-PRESENTATION-PRIMITIVES
 title: S10 — Presentation Primitives — pre-implementation gate
 role: the approval packet for S10's first build. Nothing builds past the scope on the approval line.
-status: ✅ APPROVED 2026-09-12 — primitives only, adopted by S8's four and nothing else. BUILT AND MERGED the same day.
+status: ✅ CP1 APPROVED + MERGED 2026-09-12 (`3c539d011`, + F-S10-2 `e909279e1`). ✅ CP2 APPROVED + MERGED 2026-09-12 (`6576f044e`). CP3 needs a new line.
 date: 2026-09-12
 measured_against: origin/master @ ee9c96fa1
 ---
@@ -30,6 +30,95 @@ under `app/**`, zero in flow-worker's 154-file import closure, confirmed with `r
 rather than assumed. No marker bump.
 
 ---
+
+---
+
+## ⛔ APPROVAL — LINE 2 (CP2). The CP1 block above stands as granted.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  db1314f23   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP2 - F-S10-1. S10 owns TWO named price primitives with
+                  stated call-site rules; the two existing formatPrice
+                  functions forward to them under their existing names and
+                  signatures; no call site moves and no rendered string
+                  changes. Byte identity proved against frozen oracles.
+
+                  CP3 NEEDS A NEW LINE.
+```
+
+**Delivered:** `6576f044e` on `origin/master`, 2026-09-12. **ADDITIVE** — 4 files, all `app/**`,
+zero in flow-worker's import closure. No marker bump.
+
+### CP2.1 The resolution is "both, named" — and §6 already argued why
+
+`formatPriceDisclosure(value)` → `$12.50`, em dash absent. `formatPriceTick(value, {tick})` →
+`123.46`, tick-aware, **empty string** absent. Both live in
+`app/src/lib/presentation/presentationPrimitives.js`; `provenance/presentationFormat.formatPrice`
+and `chart/drawingLabels.formatPrice` forward to them and keep their names, so the six importers
+did not move and no rendered string changed.
+
+⛔ **The central rail asserts the two STAY DIFFERENT** on all three axes. A later pass that
+"simplifies" S10 by collapsing them would be a member-visible layout change on four product
+surfaces and would pass every other test in the repo — because the absent sentinels are read by
+LAYOUT, not by a person: an em dash holds a column, an empty string collapses it.
+
+⚰️ **The false comment is retired in place.** `drawingLabels` called itself *"already the one place
+in the app that knows how a price is rendered"*; the sentence is kept verbatim inside the ⚰️ block
+and the claim is gone.
+
+### CP2.2 ⛔ A COUNT CORRECTION, AND IT IS THIS PROGRAMME'S OWN DEFECT
+
+The build-day plan (`f9a759a8c`) recorded delta **Δ2** as *"F-S10-1 has SEVEN importers not six —
+`drawingMeasure.js` imports `formatPercent`"*. Measured this pass, by parsing the import specifier
+list rather than grepping the module name:
+
+| population | count | members |
+|---|---|---|
+| modules importing `drawingLabels` | **9** | 6 product (`ChartDrawingOverlay`, `drawingMeasure`, `drawingRenderers`, `PlanTradeSheet`, `StopConfirmSheet`, `journalSection`) + 3 test |
+| modules importing **`formatPrice`** from it | **6** | 4 product (`drawingRenderers`, `PlanTradeSheet`, `StopConfirmSheet`, `journalSection`) + 2 test |
+
+⭐ **Δ2 conflated two populations and landed on a number that is neither.** §6's table was RIGHT at
+six; the plan's *correction* of it was wrong. Recorded here rather than quietly fixed, because a
+hand-typed count beside the list it describes is the defect this programme keeps re-committing —
+and this time the programme committed it against its own gate packet, the same morning.
+
+### CP2.3 The one call site that is behaviour, not presentation
+
+`StopConfirmSheet` seeds an **editable input** from `formatPrice(roundToTick(stop, tick), {tick})`.
+What the formatter returns is what a member sees, edits and submits, so CP2 proves that site
+separately from the rendering ones, across four stop values × three ticks.
+
+### CP2.4 Byte identity is proved against FROZEN ORACLES, not snapshots
+
+The two pre-CP2 bodies are reproduced verbatim in `priceIsTwoPrimitives.test.js` and run
+in-process, over 24 values × 10 ticks — sub-dollar, the `a === 0` branch, the four-figure boundary,
+a tick finer than `maxDecimals`, and eight spellings of absent. ⛔ A stored expected string is a
+fact about the machine that generated it; an oracle is the rule.
+
+### CP2.5 Mutation record
+
+| # | mutation | result |
+|---|---|---|
+| **M1** | `drawingLabels` delegates to the DISCLOSURE primitive | **8 RED** |
+| **M2** | `formatPriceTick`'s absent sentinel becomes the em dash | **4 RED** |
+| **M3** | collapse the two primitives into one | **6 RED** |
+| **M4** | re-inline the tick arithmetic in `drawingLabels` | **1 RED** — the delegation rail, which strips comments so the ⚰️ block quoting that arithmetic cannot keep it alive |
+
+**Measured:** 372 passed / 14 files, `VITEST_EXIT=0`. Three pre-existing failures in
+`src/components/chart` (`ChartDrawingOverlay.surfaces`, `manifestProse`, `pine.blindCorpus`) were
+measured against the tree at HEAD **with these three files reverted** — the same three, the same
+test names — so **0 NEW**. ⛔ Not inferred from "they don't import my files": `ChartDrawingOverlay`
+imports `priceFormatterFor` from `drawingLabels`, so the transitive edge is real and only a
+measurement settles it.
+
+### CP2.6 Revert
+
+Delete the two primitives, restore the two forwarded bodies from the ⚰️ blocks that quote them,
+delete the rail. No rendered string changes in either direction, which is what makes the revert
+cheap.
 
 ## 1. What S10 is, and why it could be built this weekend
 

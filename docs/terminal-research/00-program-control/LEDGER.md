@@ -728,6 +728,149 @@ commit first and rebase.
 ---
 
 
+## Tier 2 merges — 2026-09-12
+
+| what | commit | base | classification |
+|---|---|---|---|
+| **S12 second migration** — the flag and the role constants go; the mechanism arrives | **`78ba40fe8`** | `756b5956f` | ADDITIVE — 6 files, **0** in flow-worker's closure |
+| **S10 CP2** — F-S10-1: a price has two right renderings, both named | **`6576f044e`** | `78ba40fe8` | ADDITIVE — 4 files, all `app/**`, **0** in the closure |
+
+⛔ **Master moved ~10 commits between the D2 CP2 merge and these two** (notebook Wave K, the
+launch/closure merge, a ticker_meta `_log`→`_logger` fix, two test-baseline corrections). Both were
+rebased onto the current master and re-run before pushing; neither has any file in common with
+what moved.
+
+---
+
+### S12 second migration — `78ba40fe8`. Gate line 2 `9891d29f0`, marked **PROVISIONAL**.
+
+#### What is gone, and how the emptiness was measured
+
+AST over **2,532** modules with docstrings and comments blanked; control needle `cohort_user_ids`
+found in six files, so the walk was looking at real code.
+
+| symbol | declared in | referenced in CODE by |
+|---|---|---|
+| `ADMIN_ROLE = "admin"` | `price_level_projection.py` | **nothing** |
+| `ADMIN_ROLE = "admin"` | `event_proximity_projection.py` | **nothing** |
+| `CP4_ALL_MEMBERS_FLAG` | `event_proximity_projection.py` | two test files |
+| `all_members_enabled()` | `event_proximity_projection.py` | one test file |
+
+⭐ **The first migration took the role out of the QUERY and left it in the CONSTANT.** Two modules
+each declaring their own `"admin"` is the second-authority shape S12 exists to remove, and it
+survived a whole migration by being quoted in the ⚰️ blocks that recorded its removal.
+
+⛔ **A flag declared-and-uncalled is not neutral.** The next reader finds
+`ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ALL_MEMBERS` in the source, sets it in Railway, watches
+nothing happen, and cannot tell a dead variable from a broken one.
+
+#### ⛔⛔ AND THE MECHANISM SHIPPED IN THE SAME COMMIT
+
+The first migration's packet said widening was *"a tag assignment"*. **No function assigned a tag
+to anybody**, so that sentence described an `INSERT` somebody would have to type at a shell —
+against the owner's own instruction the same day: *"do not write tag rows by hand from the shell."*
+`lesson_a_documented_workaround_is_not_a_recovery_path`: the re-enable path ships with the removal
+or the removal does not ship.
+
+| | |
+|---|---|
+| `assign_cohort` | INSERT OR IGNORE for named accounts; never removes; ignores ids that are not accounts |
+| `seed_cohort_all_members` | the deleted flag's actual replacement |
+| `remove_from_cohort` | ⭐ **the direction a role check could never do** |
+| `tools/rollout_cohort.py` | the operator door — READ-ONLY unless `--apply`, prints the diff first, **ids only, never an email** |
+
+⭐ **`role = 'admin'` could grow by promoting somebody and could only shrink by DEMOTING a real
+administrator of the whole product.** Narrowing a canary to three of six people is the thing S12
+exists for, and until this commit S12 could only widen. The rail proves a3 leaves the cohort **and
+is still an admin**.
+
+⛔ **The two guards are deliberately asymmetric.** `assign_cohort([])` is a no-op — adding nobody is
+harmless. `remove_from_cohort([])` **raises** — a caller that computed a set and got nothing is
+exactly the caller who empties a rollout by accident. An empty sequence must never mean "all".
+
+#### ⚠️ PROVISIONAL — the one question the line does not settle
+
+> **Does "S7 flags become tag assignments" include `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED` and
+> `ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED`, or only the cohort-widening flag?**
+
+**Answer taken: the cohort flag only.** `rollout.py`'s own header — written under the scope the
+first migration was granted — says the env flags stay and the ordering is load-bearing, because
+converting them would make *"stop the dark run"* a `DELETE` against `user_tags`: destructive,
+un-auditable, and impossible to reverse without re-deriving who was in the cohort. **A flag that
+turns a thing off is not the same instrument as a list of who it is on for.** If the owner meant
+both, it is one line in each sweep in `api/main.py` and nothing built here is wasted.
+
+#### ✅ IN-POD VERIFICATION — the running process, 2026-09-12, read-only, ids only
+
+⛔ **A merge proves what is on master. Only an import inside the pod proves what is executing.**
+
+```
+rollout.assign_cohort            present: True
+rollout.seed_cohort_all_members  present: True
+rollout.remove_from_cohort       present: True
+event_proximity_projection.CP4_ALL_MEMBERS_FLAG  GONE: True
+event_proximity_projection.all_members_enabled   GONE: True
+event_proximity_projection.ADMIN_ROLE            GONE: True
+price_level_projection.ADMIN_ROLE                GONE: True
+control - rollout.S7_DARK          = s7-dark
+control - epp._cohort_user_ids     present: True
+control - plp.project_admin_alerts present: True
+
+users total 28 · admins 6 · user_tags rows tag='rollout:s7-dark' 6
+SET EQUAL to the admin set: True   (both differences empty)
+rollout: tags present ... rollout:s7-dark 6   (and no other)
+
+projected via COHORT ............ 12
+projected via ROLE (the oracle) . 12
+IDENTICAL: True          STILL 12: True
+```
+
+⭐ **The three control lines are the reason the four `GONE: True` mean anything.** An import that
+half-failed would make every absence claim true at once.
+
+**Mutations, each restored by EDIT:** A restore `ADMIN_ROLE` → RED · B re-declare the CP4 flag →
+RED · C `seed_cohort_all_members` seeds from the admin role → RED · D `remove_from_cohort([])`
+means all → RED · E the tool writes without `--apply` → RED.
+**Measured:** 92 passed, `PYTEST_EXIT=0`.
+
+---
+
+### S10 CP2 — `6576f044e`. Gate line 2 `db1314f23`.
+
+**F-S10-1 is settled, and not by reconciling anything.** `formatPriceDisclosure` → `$12.50`, em
+dash absent. `formatPriceTick` → `123.46`, tick-aware, **empty string** absent. Both named in S10;
+the two existing `formatPrice` functions forward to them under their old names and signatures, so
+the six importers did not move and no rendered string changed.
+
+⛔ **The absent sentinels are read by LAYOUT, not by a person** — an em dash holds a column, an
+empty string collapses it — which is why the central rail asserts the two primitives **stay
+different** on all three axes. A later "simplification" that collapsed them would be a
+member-visible layout change on four product surfaces and would pass every other test in the repo.
+
+⚠️ **`StopConfirmSheet` seeds an EDITABLE INPUT from this formatter**, so that site is behaviour
+rather than presentation and is proved separately, four stop values × three ticks.
+
+#### ⛔ A COUNT CORRECTION AGAINST THIS PROGRAMME'S OWN PLAN, THE SAME MORNING
+
+The build-day plan recorded Δ2 as *"F-S10-1 has SEVEN importers not six — `drawingMeasure.js`
+imports `formatPercent`"*. Measured by parsing the import specifier list rather than grepping the
+module name: **9** modules import `drawingLabels` (6 product, 3 test); **6** import `formatPrice`
+(4 product, 2 test). ⭐ **Δ2 conflated two populations and landed on a number that is neither.**
+The gate packet's §6 table was right at six; the plan's *correction* of it was wrong. Recorded
+rather than quietly fixed — a hand-typed count beside the list it describes is the defect this
+programme keeps re-committing, and this time it was committed against its own gate packet.
+
+**Mutations:** M1 delegate to the wrong primitive → 8 RED · M2 change the absent sentinel → 4 RED ·
+M3 collapse the two → 6 RED · M4 re-inline the tick arithmetic → 1 RED.
+**Measured:** 372 passed / 14 files, `VITEST_EXIT=0`. Three pre-existing `src/components/chart`
+failures were measured against HEAD **with the three changed files reverted** — same three, same
+names — so **0 NEW**. ⛔ Not inferred from "they don't import my files": `ChartDrawingOverlay`
+imports `priceFormatterFor` from `drawingLabels`, so the transitive edge is real and only a
+measurement settles it.
+
+---
+
+
 ## ✅ THE ROLLOUT SEED RAN. Verified in production, read-only, 2026-09-12.
 
 ⛔ **The RESUME carried this as "Monday's first check" because it was an INFERENCE** — the boot had
