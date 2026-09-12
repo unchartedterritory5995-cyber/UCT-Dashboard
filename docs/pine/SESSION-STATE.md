@@ -500,6 +500,43 @@ about unbounded accumulators, not more capability.
 → `pine:state@284`. Three cleared, the fourth is a ruling.
 
 
+## 🧾 CLOSE-OUT ADDENDUM — the rulings, and the final numbers
+
+| ruling | state | where recorded |
+|---|---|---|
+| **3.5** `'D'` identity | **BUILT + MEASURED, WIP at `29d64a2ef` — NOT GREEN.** All three conditions done: (a) identity only when the literal equals the base, with the non-daily case keeping the refusal verbatim; (b) guard refuses on a forming intraday bar, with a closed-bar control; (c) disclosed as `baseTimeframeFolds`. **12 tests in 9 files still encode the old behaviour** → T0. | `pine.security.test.js` (10 cases), `divergences.json`, SESSION-STATE |
+| **3.2** `ta.barssince` arity | **NOT DONE — deliberately deferred.** Stacking a second behaviour change on a red engine suite makes attribution impossible. ⛔ And its pre-check is owed first: `user_definitions` must be scanned for shipped 2-arg calls, which I did not run. | T0 then this |
+| **3.1** axis pair | ✅ **RECORDED, DARK** | `docs/pine/barstate.md` + fixture sha |
+| **3.3** four names refuse in the JS lane | **NOT DONE — same reason as 3.2.** The doctrine call is recorded; the refusal + test is T4's first half. | `DECISIONS-2026-09-11.md` |
+| **3.4** member wording | ✅ **PLACED verbatim** on `pine:text-value` — the one sentence a member reads for this case. Not on the concierge's own `REFUSALS` table, which is pairwise disjoint from the translator's by design. | `pine.js` |
+| **`pine_oos`** 30 local-only | **BLOCKED — and not by the network.** Page fetches (HTTP 200, 395 KB); `capture_method` is **null** and `sha256_source` hashes the Pine TEXT, so reproducing the capture needs the Pine-editor/facade route. ⛔ No scrape-and-guess: a one-byte extractor difference would report 30 sha mismatches that were mine. **Floors stay at 60.** Nothing committed from that directory. | tomorrow-morning item |
+| **`switchBinding`** false comment | ✅ **CORRECTED** (`cfaa48014`); the fix routed as a corpus item | `pine.js` |
+| **finding #3** (my own conflated check) | ✅ **FIXED IN THE TEST ITSELF**, not just noted: the agreement case now holds the branch constant and varies only the destructure, with a companion control asserting the conditional form does NOT equal the unconditional one — so a folder that flattened the `if` away cannot pass both. | `pine.tuples.test.js` |
+
+### Final numbers
+
+```
+PYTHON LANE (R7 chunked, 12 chunks, sequential)
+  42 failed · 23,770 passed · 56 skipped · 10 xfailed · KILLED CHUNKS = 0
+  red chunks: 1, 5, 7, 8, 9, 10, 11, 12     every chunk produced a totals line
+  baseline at 5d25012d2 was 40 / 23,772 — a +2 delta, and TWO OF THEM WERE MINE
+  via data files, not code (divergences.json reached the JS rail and not its Python
+  mirror). Fixed in a6764234e; test_vendor_truth.py now 22 passed.
+
+ENGINE   245 files · 5,139 passed · 14 failed · 32 skipped
+         2 = routed census floors · 12 = ruling 3.5's blast radius (T0)
+BUILDER   81 files · 1,799 passed · 14 failed — all routed, 0 attributable to tonight
+RAILS     manifestProse 9 + suiteCoverage 8 = 17 passed
+LINT      4,372 frontend / 255 engine — recorded, untouched
+py_compile  NONE OWED: no .py file was touched all night
+```
+
+⚠️ **`origin/master` MOVED DURING THE SESSION** — `36596a88a` → `a5173fe41`. The
+4-conflict dry-run was measured against the former, so **T8 must re-measure** before
+quoting it. This branch has been bitten by exactly this: "master moved twice
+mid-sequence ⇒ 4 rebases".
+
+
 ## 🏁 2026-09-11 EVENING — THE CHECKLIST, EVERY ROW FILLED
 
 Re-scoped goal (owner, mid-session): Volume passes `translatePine` strict AND
