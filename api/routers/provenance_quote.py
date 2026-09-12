@@ -26,25 +26,16 @@ router = APIRouter()
 def _error_shape(exc) -> dict:
     """One typed D1 exception -> one honest JSON shape. Never a bare 500 --
     the caller (an S8 component) needs the SPECIFIC reason, not just
-    "something failed"."""
-    from api.services import provider_errors as pe
+    "something failed".
 
-    kind = (
-        "not_configured" if isinstance(exc, pe.ProviderNotConfigured) else
-        "not_found" if isinstance(exc, pe.ProviderNotFound) else
-        "auth_error" if isinstance(exc, pe.ProviderAuthError) else
-        "rate_limited" if isinstance(exc, pe.ProviderRateLimited) else
-        "transient" if isinstance(exc, pe.ProviderTransient) else
-        "unknown"
-    )
-    return {
-        "error": True,
-        "kind": kind,
-        "vendor": getattr(exc, "vendor", None),
-        "status": getattr(exc, "status", None),
-        "entitlement_denied": getattr(exc, "entitlement_denied", None),
-        "message": str(exc),
-    }
+    ⚰️ This function OWNED the isinstance ladder until 2026-09-12. It now
+    delegates to `provider_degraded.error_shape`, which the G1 tranche-1
+    call-site degradation also uses. ⛔ Two copies of a type ladder drift the
+    day a new provider error class is added, and the drift is silent: the older
+    copy just starts reporting `unknown` for a class the newer one names.
+    """
+    from api.services import provider_degraded
+    return provider_degraded.error_shape(exc)
 
 
 def _fmp_result(symbol: str, entity_type: Optional[str]) -> dict:

@@ -60,9 +60,19 @@ def _call_sites():
 
 def test_every_fmp_get_call_site_names_its_timeout():
     sites = _call_sites()
-    # NON-VACUITY: an AST walk that found nothing would pass this trivially, and
-    # "no call sites" is exactly what a broken scan looks like.
-    assert len(sites) >= 25, f"the scan found only {len(sites)} _fmp_get sites — broken, not green"
+    # ⛔ NON-VACUITY, AND IT NAMES A MEMBER RATHER THAN COUNTING.
+    # ⚰️ This asserted `len(sites) >= 25`. G1 tranche 1 migrated nine sites onto
+    # the typed adapter and the population fell to 24, so the floor went red for
+    # the RIGHT reason and the WRONG cause — it was measuring migration progress,
+    # not scan health. A count beside a population that is deliberately shrinking
+    # is a rail that must be edited every time the work succeeds.
+    # ⭐ A named member cannot drift that way: `bars_sanitize.py` is
+    # owner-reserved and excluded from migration BY RULING, so it is the one site
+    # guaranteed to still be here.
+    paths = {p for p, _, _ in sites}
+    assert "api/services/bars_sanitize.py" in paths, (
+        "the scan did not find the owner-reserved site that is excluded from "
+        f"migration by ruling — it is broken, not green. Saw: {sorted(paths)}")
 
     unpinned = [(p, ln) for p, ln, has in sites if not has and p not in OWNER_RESERVED]
     assert unpinned == [], (
@@ -70,6 +80,57 @@ def test_every_fmp_get_call_site_names_its_timeout():
         f"{unpinned}. Pin the number at the call site (10 to preserve today's "
         "behaviour) — an unnamed timeout becomes 25 s the day it migrates to the "
         "typed adapter, and nothing goes red when it does.")
+
+
+def test_the_scan_ALSO_SEES_fmp_get_passed_as_a_REFERENCE():
+    """⛔⛔ THE BLIND SPOT THIS RAIL SHIPPED WITH, found by migrating G1 tranche 1.
+
+    `api/routers/research.py` passes `_fmp_get` to `ThreadPoolExecutor.submit`
+    as a CALLABLE:
+
+        ex.submit(_fmp_get, path, {...}, timeout=12)
+
+    That is a `Name` node in an argument position, **not** a `Call` whose func is
+    `_fmp_get` — so the call-site scan above walked straight past it, and so did
+    the census that produced the 12 -> 31 number. ⭐ The site happens to pass a
+    timeout, so nothing was broken; what was broken is the INSTRUMENT, which
+    reported a complete census it could not have made
+    (`lesson_an_instrument_can_reproduce_its_own_blind_spot`).
+
+    ⛔ A reference site cannot be checked for a timeout by reading the reference
+    — the argument is supplied at the `submit` call. So this rail does the only
+    honest thing: it ENUMERATES them and requires each to be known, rather than
+    silently covering zero of them.
+    """
+    refs = []
+    for f in sorted((_REPO / "api").rglob("*.py")):
+        rel = f.relative_to(_REPO).as_posix()
+        try:
+            tree = ast.parse(f.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for arg in node.args:
+                if isinstance(arg, ast.Name) and arg.id == "_fmp_get":
+                    refs.append((rel, node.lineno))
+                elif isinstance(arg, ast.Attribute) and arg.attr == "_fmp_get":
+                    refs.append((rel, node.lineno))
+
+    KNOWN = {"api/routers/research.py"}
+    unknown = sorted({rel for rel, _ in refs} - KNOWN)
+    assert unknown == [], (
+        f"`_fmp_get` is passed as a REFERENCE from {unknown}. A reference site is "
+        "invisible to the call-site scan above, so its timeout cannot be pinned "
+        "there. Either give it an explicit timeout at the submit/partial call and "
+        "add it to KNOWN, or migrate it to the typed adapter.")
+
+    # ⛔ NON-VACUITY: if the reference form ever disappears, this exemption stops
+    # describing anything and should be retired rather than carried.
+    assert refs, (
+        "no `_fmp_get` reference sites found at all — either they were migrated "
+        "(retire this test and its KNOWN set) or this scan is broken")
 
 
 def test_the_owner_reserved_exclusion_is_STILL_REAL():
