@@ -198,3 +198,51 @@ It touches `useJoystick.js` — the most delicate file in the hub, and one that 
 change tonight (the two-finger Peek). Batching a second gesture-engine change into the same
 unshipped set trades a real accessibility improvement against the ability to say which change
 caused a regression. It goes in its own increment, with its own gate.
+
+---
+
+## 4. THE QUEUE — ranked, and NOT started. Owner ruling, 2026-09-12.
+
+> **None of these begins until the six LAUNCHED boxes in `closure.md` close.** They are listed in
+> the order they should be picked up, with what each actually costs, so the ranking is a decision
+> already made rather than one re-argued on the day.
+
+⭐ **Why a ranking and not a backlog:** every row below is small enough to look like "while I'm in
+there" work, and three of the four touch `useJoystick.js`, the most safety-critical file in the
+feature. A list without an order invites batching, and batching is what makes a regression
+un-attributable — the reason §3 gave for not shipping the iOS cue on the night the Peek came out.
+
+| Rank | Item | Where it is written up | The honest cost |
+|---|---|---|---|
+| **1** | **`escalateCue(action)` — one authority, plus the JS-timed visual for the missing-vibrate case** | §3 above | The escalate branch exists TWICE today (`useJoystick.js` for the gesture door, `HubActionsButton.jsx` for the sheet door). This is the only row that FIXES something members can feel the absence of: `haptics.warn()` returns false wherever `navigator.vibrate` is missing, which is **every iPhone**, so the commit cue for destructive actions is silently absent on iOS. ⛔ Must be a JS-timed static class, never a CSS animation: `tokens.css` zeroes `animation-duration` and `transition-duration` app-wide under `prefers-reduced-motion`, which would delete the cue for exactly the members most likely to need a non-haptic one. |
+| **2** | **A haptic on `HubActionsButton`'s WCAG 2.5.1 path** | this file | Pre-existing, and it rides rank 1 for free: once both doors call one `escalateCue`, the sheet door's missing cue is a call site, not a second implementation. Doing it FIRST would mean writing the third copy of a branch that already exists twice. |
+| **3** | **`scan.flag` commits with no sheet — an undocumented §C2 exception** | this file | ⭐ **Decide before building.** It is either a documentation fix (flag is reversible, one tap, and a sheet would be friction on the most-used action) or a product change (§C2 says a commit gets a sheet). The wrong half of this is cheap to build and expensive to ship — it would put a confirmation in front of a gesture members use constantly. Bring the ruling, not a patch. |
+| **4** | **The CI device job** | §2 above | The largest single item in the programme and **mostly not hub code**: CI plumbing plus a paid BrowserStack **Automate** decision (a Live seat does not fund it, and the account's Automate allowance was exhausted at the Phase-2 run). ⛔ Nightly + manual dispatch, never per-push — a per-push device job exhausts the quota inside a week and then gets disabled, which is worse than not having one. |
+
+### Not in this queue, and not this programme's
+
+**D-30 — one `data_root()` helper.** Stays **CLOSED-BLOCKED** as a separate production task: 72
+environment variables name paths inside the shared data root and each resolves independently of
+`DATA_DIR`, across ~68 call sites under `api/**`. ⛔ It is a **production** risk rather than a
+testing inconvenience, and it must not ride along with hub work — recorded here only so it is not
+lost when this programme closes.
+
+### The two rows that are already done, so nobody re-opens them
+
+- **P6 — preference-key validation.** §1's own RESOLVED note: built `60cbe8919`, shipped as Deploy
+  B (`b9d66e0c3`), and **live** — `b9d66e0c3` is an ancestor of the deployed `web` SHA.
+- **The transitive write-path rail.** Shipped as `writePathsTransitive.test.js`; it was the fourth
+  item of the standing order's idle-capacity clause and is the reason this file names three.
+
+### Housekeeping, noted and deliberately NOT done today
+
+**`.gitattributes` has no `*.js` rule**, so `core.autocrlf=true` on this box governs JS line
+endings: LF in the object store, CRLF in the working tree. That is working correctly — it is why
+`tools/hub_surface_matrix.mjs` writes LF while the checked-out docs are CRLF, and why
+`surfaceMatrixIsCurrent.test.js` normalises both sides before comparing.
+
+⛔ **Do not "fix" this by adding a rule now.** Owner ruling, 2026-09-12. Adding `*.js text eol=lf`
+renormalises every JS file in the repo on the next checkout — a diff across the whole frontend,
+landing on top of other people's branches, in exchange for nothing a normaliser in one test does
+not already handle. If it is ever done it wants its own commit, on a quiet tree, with nothing else
+in it.

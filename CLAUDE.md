@@ -691,6 +691,86 @@ Never the owner's account, never a colleague's, never a member.
 **Every device script names its preview URL explicitly**, as a stated precondition at the top of the
 file. A device script that does not say what it is pointed at is not a test.
 
+### Testing → Smoke — the ONE synthetic production account
+
+> **`smoke@uctintelligence.internal` is the only account any automated tool may sign in as on
+> production.** Owner ruling, 2026-09-12.
+
+**What it is for.** `tools/hub_nav_smoke.py` (the post-deploy client smoke, box 3 of
+`docs/plans/joystick/closure.md`) and any future automated production check. It exists because the
+smoke needs a signed-in session and the alternatives were both wrong: a member's account puts a
+robot inside someone's data, and the owner's account makes every automated run
+indistinguishable from a human one in the activity log.
+
+**Rules, and they are not negotiable:**
+
+- ⛔ **It must never hold a real position, a real note, a real watchlist entry or a real alert.**
+  A smoke account that accumulates state stops being a control: the next run cannot tell a
+  product change from its own leftovers. Anything it creates, it removes.
+- ⛔ **It is the ONLY account an automated production tool signs in as.** `SMOKE_EMAIL` /
+  `SMOKE_PASSWORD` in the operator's environment (`setx`, same pattern as the BrowserStack
+  credentials), never in the repo, never in a log, never in a commit.
+- ⛔ **Never a personal address in `ADMIN_EMAILS` for this purpose.** The three real entries there
+  belong to people; the synthetic one is a fourth and is the only one automation uses.
+- Its admin role comes from `ADMIN_EMAILS` because there is **no other path**: `api/routers/auth.py`
+  promotes on signup (`:205`) and on login (`:253`) from that set, and no admin endpoint sets a
+  role. Its paid access comes from `POST /api/auth/admin/comp-access` — the same endpoint the admin
+  page uses — so the subscription row is the shape the rest of the app already reads
+  (`plan='pro'`, `status='comped'`, no Stripe ids).
+- ⭐ **The domain is deliberately unroutable.** `.internal` is reserved (RFC 8375), so the address
+  can neither receive nor send mail and cannot be mistaken for a person's. It passes the signup
+  model's `EmailStr` validation — verified against the installed validator — while `*.invalid` does
+  not (the validator rejects special-use domains by name).
+
+#### ✅ PROVISIONED 2026-09-12 — one production write, on an explicit owner allow
+
+| | |
+|---|---|
+| Email | `smoke@uctintelligence.internal` |
+| User id | `f4433528-6466-474a-949c-8d5eda8a7b91` |
+| Role | `admin` — auto-promoted at LOGIN from `ADMIN_EMAILS` (`auth.py:253`), not set by hand |
+| Plan | `pro`, `status='comped'`, no Stripe ids — via `comp_user_access`, the function `POST /api/auth/admin/comp-access` calls |
+| `email_verified` | `false`, and that is fine: admins skip verification, and the domain cannot receive mail |
+
+**How it was created, and why not through HTTP.** `COMING_SOON_MODE=1` on production, so
+`POST /api/auth/signup` refuses every request (`auth.py:192`), and no admin endpoint creates a
+user. The account was created by calling **the app's own service functions in the web pod** —
+`create_user` (the exact function signup calls, `auth.py:200`) then `comp_user_access` — with no
+raw SQL against `users` or `subscriptions`. One write, on an explicit owner allow.
+
+⛔⛔ **DOOR B IS REFUSED PERMANENTLY. Never flip `COMING_SOON_MODE` to create an account.**
+Owner ruling, 2026-09-12. Flipping it opens **public registration to the entire internet** for
+the length of the window and re-opens Stripe subscriptions with it (`auth.py:1700`); anyone who
+registers during the window keeps their account. It is a site-wide state change in exchange for
+one test account, and it is the larger risk of the two **despite looking like the normal path**.
+⭐ The reasoning to watch for in yourself is "door B runs without a permission prompt" — the gate
+on the pod write is doing its job, and routing around it through a change that touches every
+visitor is worse, not safer.
+
+**What the write was verified against.** A `VACUUM INTO` backup of production `auth.db` was taken
+FIRST — `/data/backups/auth-2026-09-12-pre-smoke-account.db`, `quick_check = ok`, 26 users / 21
+subscriptions / 43 sessions, and a SHA of the users table's ids (`7ae697e7bf814601`). ⛔ A backup,
+never a file copy: a plain copy of a WAL database omits whatever is still in the `-wal` sidecar and
+looks complete while lagging the source. The provisioning script then fingerprinted the users table
+before and after and asserted the **set difference was exactly one id — the new one — with nothing
+removed**. ⭐ A count going up by one is compatible with one row added and another silently
+rewritten; a set difference is not. Result: 26 → 27 users, 21 → 22 subscriptions,
+`ids_added = [f4433528-…]`, `ids_removed = []`.
+⚠️ The backup lives on the same Railway volume as the database. That protects against a logical
+mistake, which is what this write risked; it does **not** protect against losing the volume.
+
+**⛔ It must never hold a real position, note, or plan.** A smoke account that accumulates state
+stops being a control — the next run cannot tell a product change from its own leftovers.
+Whatever a run creates, that run removes.
+
+**Credentials.** `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the operator's environment via `setx`, the
+same pattern as the BrowserStack credentials. Never in the repo, never in a log, never in a commit,
+never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
+account itself (it is an admin), then re-`setx`.
+
+**First run against it:** box 3 of `docs/plans/joystick/closure.md` — PASS, 16 routes, 25 nav
+entries, at live SHA `7fce88bd2`. Record: `docs/plans/joystick/smoke-runs/2026-09-12T02-24-24Z.md`.
+
 ### Real-device testing — BrowserStack Live (paid)
 
 **Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no
