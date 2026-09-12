@@ -88,9 +88,27 @@ def row(at, latest, total, blocked, conflicts, outbox, errors, flag) -> str:
 
 
 def append(line: str) -> None:
+    """⛔⛔ NEVER TRUNCATES. This function used to rewrite the file whenever the
+    header did not match the current one — which meant that CHANGING A COLUMN
+    SILENTLY DESTROYED EVERY ROW ALREADY RECORDED. It did, on 2026-09-12: five
+    rows of real observation data (01:20 through 09:00 ET) were replaced by a
+    fresh header the moment the member column was corrected.
+
+    ⛔ An append-only log that can rewrite itself is not append-only, and a log
+    that loses history when its schema changes loses it exactly when someone is
+    improving the instrument. The header is now written ONLY into a file that
+    does not exist or is empty; a schema change appends a new header block and
+    leaves everything above it alone.
+    """
     LOG.parent.mkdir(parents=True, exist_ok=True)
-    if not LOG.exists() or HEADER.split("|")[0] not in LOG.read_text(encoding="utf-8"):
+    existing = LOG.read_text(encoding="utf-8") if LOG.exists() else ""
+    if not existing.strip():
         LOG.write_text(HEADER, encoding="utf-8")
+    elif HEADER.split("|")[0] not in existing:
+        # ⭐ Schema changed: a NEW header block, appended. Old rows stay readable
+        # and stay labelled by the header that was above them when written.
+        with LOG.open("a", encoding="utf-8") as fh:
+            fh.write(chr(10) + HEADER)
     with LOG.open("a", encoding="utf-8") as fh:
         fh.write(line)
 
