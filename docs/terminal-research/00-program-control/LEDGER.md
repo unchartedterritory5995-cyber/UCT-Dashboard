@@ -607,6 +607,78 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## S7 `price-level` — Checkpoint 1, branch only, UNMERGED
+
+| commit | branch | system | files | what |
+|---|---|---|---|---|
+| `37cba8111` | `feat/s7-price-level` | **S7 Alerts** | `api/services/alert_taxonomy/price_level.py` (new), `tests/test_alert_taxonomy_price_level_schema.py` (new), `tests/test_alert_taxonomy_filing_watch_parity.py` (control updated by naming) | **GATE-S7-PRICE-LEVEL Checkpoint 1** (packet `123a30054`, approval block **BLANK**). Registers the type; **no evaluator, no delivery, no read of `watchlist_alerts`, no migration, no scheduler entry**. Legacy path byte-identical (`git diff` empty on `watchlist_alert_service.py` + `auth_db.py`). Two findings below moved the scope. Mutation-proved both ways (M1 drop `trendline` → RED; M2 import `delivery` → RED), restored by edit. **30 passed** across both files |
+
+⛔ **DO NOT MERGE.** The packet's four approval lines are blank by design — the session directive
+authorized Checkpoint 1 on a branch, and an author filling in the author's own approval reproduces
+the S3 defect the rule exists to prevent.
+
+### ⛔ THE COMPARISON DESIGN — this row is its SINGLE AUTHORITY
+
+The absorption default (completion plan §4a) says the new type runs **dark** and the flip plus the
+legacy switch-off happen in the **same PR**. ⭐ **The dark period is only worth having if the diff is
+designed before the evaluator ships** — otherwise "it ran dark for a week" is a duration, not
+evidence. GATE-S7-PRICE-LEVEL §5 condition 5 points HERE and deliberately restates none of it.
+
+**The question the comparison answers:** *for the same price cross, did `price-level` fire when
+`watchlist_alerts` fired, and only then?*
+
+**The join key.** `(user_id, sym, direction, level_at_fire)` bucketed to the **evaluation cycle**, not
+to a wall-clock instant. Both paths ride the same 15s `/api/live-prices` poll, so two fires for one
+cross land in the same cycle; a timestamp equality test would fail on ordinary scheduling jitter and
+manufacture disagreement.
+
+**Four outcomes, never collapsed to a pass rate** — the `CoverageLine` idiom, because *"we could not
+compare"* and *"they disagreed"* are different facts:
+
+| outcome | meaning | what it implies |
+|---|---|---|
+| **agreed** | both fired, same cycle, same level | the absorption is faithful |
+| **new-only** | `alert_fires` fired, legacy did not | ⛔ the member would get an EXTRA alert on flip |
+| **legacy-only** | legacy fired, `alert_fires` did not | ⛔ the member would LOSE an alert on flip |
+| **not comparable** | no legacy counterpart exists to compare against | **not a disagreement** — see below |
+
+⛔ **"Not comparable" is load-bearing and must not be folded into "agreed."** A predicate armed
+during the dark window has no legacy twin; a legacy row deleted mid-window has no new twin. Counting
+either as agreement inflates the pass rate in the flattering direction, which is exactly how a dark
+period ends up certifying nothing.
+
+⛔ **The comparison must be able to report a disagreement it did not cause.** Before the diff is
+trusted, arm one predicate on each path with DELIBERATELY different levels and confirm it reports
+`new-only` and `legacy-only` — the non-vacuity control. A differ that has only ever printed "agreed"
+has not been shown to be able to print anything else.
+
+⚠️ **Trendline alerts need their own bucket in the report, named.** Their level moves between cycles
+by construction, so a small numeric difference is expected rather than a defect; folding them in with
+fixed levels would either mask a real disagreement or cry wolf on every one. F-S7-3 is the same root
+cause seen from the replay side.
+
+**Where it lives:** beside the evaluator, under its own approval — **not in Checkpoint 1**, which
+ships no evaluator and therefore has nothing to diff.
+
+### ⛔ F-S7-2 — a `price-level` alert can be a TRENDLINE, whose level is a function of TIME
+
+`_alert_level_now` (`:94`) interpolates AND extrapolates between two anchors when
+`alert_type == "trendline"`. The legacy module handles exactly two shapes, `"price"` and
+`"trendline"`, and the rail DERIVES that set by AST rather than trusting any comment. A schema of
+`{symbol, target_price, direction}` drops half the shipped alerts — member-visible (an armed alert
+quietly ceasing to be armed), so a separate PR under ruling 2b. ⚠️ The extrapolation means a
+`price-level` predicate has **no natural expiry**. Recorded in SPEC-S7 §5.1.
+
+### ⛔ F-S7-3 — "would have fired N times" is NOT honestly computable for a bound trendline
+
+`resync_bound_alerts` (`:130`) rewrites anchors in place when the member moves the drawing, and
+`watchlist_alerts` has **no `updated_at`** (`auth_db.py:599`). The replay would run today's line over
+last month's bars as though it had always been in force, undetectably. ⭐ A figure is *more*
+convincing than a blank — the fabricated receipt S8 forbids. ⚠️ The existing `is_active = 1` scoping
+is CORRECT and must survive absorption: a fired alert's geometry is already protected. Three options
+recorded in the packet, **none chosen — it is a product call**. Checkpoint 1 registers **no
+`replay_fn`**. Recorded in SPEC-S7 §5.6, which named the `price-level` replay case explicitly.
+
 ## ⛔⛔ OWNERSHIP RULING — `alert_taxonomy` (owner, 2026-09-11)
 
 **Terminal-Next OWNS `api/services/alert_taxonomy/` and `api/routers/alert_taxonomy.py`.** It built

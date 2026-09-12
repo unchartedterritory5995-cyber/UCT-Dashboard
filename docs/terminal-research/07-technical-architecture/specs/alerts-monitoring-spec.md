@@ -305,6 +305,18 @@ type already has (§3), not centralized in one file — a `registerTriggerType` 
 `indicator_alert_service.py` for `indicator-condition`, one in `awareness/engine.py` for
 `regime-change` and `position-risk`, etc. — so ownership stays visible at the call site.
 
+⛔ **AMENDED 2026-09-12 — F-S7-2: a `price-level` predicate has TWO shapes, not one.** The shipped
+path (`watchlist_alert_service.py`) handles exactly `alert_type ∈ {"price", "trendline"}`. A
+`params_schema` of `{symbol, target_price, direction}` cannot express the second — it needs the anchor
+geometry (`anchor_t1/p1/t2/p2`), because the level is recomputed per cycle from those anchors rather
+than stored. ⛔ An absorption built on the one-shape schema would **silently stop arming every
+trendline a member has drawn**, which is member-visible and therefore a separate PR under ruling 2b,
+never a migration detail. ⚠️ Note also that a trendline EXTRAPOLATES past its second anchor, so a
+`price-level` predicate has **no natural expiry** — the obvious "is this level in the past?" cleanup
+sweep would be wrong here. Registered shape: `api/services/alert_taxonomy/price_level.py`
+(`feat/s7-price-level`, unmerged); the two values are DERIVED from the legacy module by AST in
+`tests/test_alert_taxonomy_price_level_schema.py`, never hand-typed.
+
 ### 5.2 Predicate registration
 
 ⛔ **AMENDED 2026-09-11 (owner ruling): `entity_scope` carries an optional `symbol`, and it is
@@ -526,6 +538,32 @@ the trailing 7 days, or — for a predicate with genuinely no fire history yet (
 `price-level` threshold nobody has armed before) — replays the predicate against the
 already-cached historical bars (`api/routers/bars.py`, `A3`) the way the entity's own chart
 already does, never a second history fetch.
+
+⛔ **AMENDED 2026-09-12 — F-S7-3: this is NOT honestly computable for a BOUND TRENDLINE
+`price-level` alert, and the sentence above names `price-level` specifically.**
+
+Replaying "against the already-cached historical bars" is sound when the level is a CONSTANT. Half
+the shipped price alerts are not: `watchlist_alert_service._alert_level_now` (`:94`) interpolates and
+extrapolates between two anchors when `alert_type == "trendline"`, so **the level is a function of
+time**, and `resync_bound_alerts` (`:130`) rewrites those anchors IN PLACE whenever the member moves
+the drawing.
+
+⛔ **`watchlist_alerts` has no `updated_at` column** (`auth_db.py:599`). The geometry's age is
+therefore unrecoverable: the replay would run today's line back over last month's bars **as though it
+had always been in force**, and nothing in the row can detect that it was moved yesterday. ⭐ That
+number would be *more* convincing than a blank, because it carries a figure — the fabricated receipt
+S8's honest-degraded principle exists to forbid.
+
+⚠️ **The `is_active = 1` scoping on `resync_bound_alerts` is CORRECT and must survive absorption** —
+a TRIGGERED alert's geometry is already protected ("moving the line on Thursday must not rewrite what
+Tuesday said"). The gap is only the still-armed case.
+
+**Three options, recorded and NOT chosen here** (GATE-S7-PRICE-LEVEL §3): decline to replay a moved
+trendline in those words · add `geometry_updated_at` and decline only when it post-dates the window ·
+version the geometry append-only. ⛔ Option 1 is not the safe default by virtue of being smallest — a
+member who reads "cannot say" on every trendline alert may reasonably conclude the feature is broken.
+
+**Checkpoint 1 registers `price-level` with NO `replay_fn`** until that is answered.
 
 ---
 
