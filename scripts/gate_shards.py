@@ -179,7 +179,15 @@ def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) ->
     return (proc.stdout or "") + (proc.stderr or "")
 
 
-def _run_shard(index: int, shards: int, out_dir: pathlib.Path, max_workers: int = 2) -> str:
+# ⛔⛔ AN EXCLUSION IS A CLAIM, AND IT MUST BE VISIBLE IN THE ARTEFACT.
+# A gate that quietly drops a test is not a gate. Whatever is excluded is named in
+# the manifest, WITH ITS REASON, beside the totals it changed — so a reader who
+# only ever sees the manifest cannot mistake a waived suite for a whole one.
+EXCLUDE_REASONS: dict[str, str] = {}
+
+
+def _run_shard(index: int, shards: int, out_dir: pathlib.Path, max_workers: int = 2,
+               exclude: tuple[str, ...] = ()) -> str:
     log = out_dir / f"shard-{index}.log"
     # ⛔⛔ `encoding="utf-8"` IS THE WHOLE POINT OF THIS LINE. Shipped without it, `text=True`
     # decoded vitest's UTF-8 output as cp1252, the reader thread died on the first check mark
@@ -187,8 +195,10 @@ def _run_shard(index: int, shards: int, out_dir: pathlib.Path, max_workers: int 
     # correctly reported "no totals line" — a true statement about a false cause.
     # `errors="replace"` means a stray undecodable byte degrades one character instead of
     # destroying an entire run.
-    text = _capture(
-        ["npx", "vitest", "run", f"--shard={index}/{shards}", f"--maxWorkers={max_workers}"], APP)
+    cmd = ["npx", "vitest", "run", f"--shard={index}/{shards}", f"--maxWorkers={max_workers}"]
+    for pat in exclude:
+        cmd += ["--exclude", pat]
+    text = _capture(cmd, APP)
     log.write_text(text, encoding="utf-8")
     return text
 
@@ -244,13 +254,14 @@ class GateError(RuntimeError):
 
 
 def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
-             run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2) -> dict:
+             run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2,
+             exclude: tuple[str, ...] = (), exclude_reasons: tuple[str, ...] = ()) -> dict:
     """Run the gate, or refuse. Returns the manifest dict.
 
     Every failure mode raises `GateError` naming itself, so a caller can never mistake one for
     another — and so the test can assert WHICH one fired.
     """
-    run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir, max_workers))
+    run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir, max_workers, tuple(exclude)))
 
     # ⛔ THE WRAPPER'S OWN OUTPUT IS NOT TREE DRIFT, AND THIS COST A SECOND RUN.
     #
@@ -343,6 +354,8 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "wrapper": "scripts/gate_shards.py",
         "wrapper_blob": blob_hash(pathlib.Path(__file__)),
         "shards": shards,
+        # ⛔ PAIRED, so a pattern can never appear without the reason it was waived for.
+        "excluded": list(zip(exclude, list(exclude_reasons) + ["⛔ NO REASON GIVEN"] * len(exclude))),
         "per_shard": per_shard,
         "summed": summed,
         "test_files_on_disk": declared,
@@ -362,6 +375,14 @@ def render(manifest: dict) -> str:
         f"- tree: `{manifest['tree_head_start']}` (start) -> `{manifest['tree_head_end']}` (end)",
         f"- wrapper: `{manifest['wrapper']}` blob `{manifest['wrapper_blob']}`",
         f"- shards: {manifest['shards']}",
+    ] + ([
+        "",
+        "## ⛔ WAIVED — this run did NOT execute the following",
+        "",
+    ] + [f"- `{pat}` — {why}" for pat, why in manifest.get("excluded", [])] + [
+        "",
+        "⛔ The totals above are over the REMAINING suite. A waiver covers exactly what it names.",
+    ] if manifest.get("excluded") else []) + [
         "",
         "| shard | test files | tests |",
         "|---|---|---|",
@@ -413,12 +434,24 @@ def main(argv=None) -> int:
     # sessions at once: three worktrees had full suites in flight and the host
     # OOM-killed mine twice. Lowering MY footprint is the only lever that does
     # not require destroying somebody else's 13-minute run.
+    ap.add_argument("--exclude", action="append", default=[],
+                    metavar="GLOB",
+                    help="vitest --exclude glob; repeatable. Pair with --exclude-reason.")
+    ap.add_argument("--exclude-reason", action="append", default=[],
+                    metavar="TEXT",
+                    help="why the matching --exclude is waived. ⛔ REQUIRED per --exclude: an "
+                         "unexplained exclusion is how a suite shrinks without anyone deciding to.")
     ap.add_argument("--max-workers", type=int, default=2,
                     help="vitest workers per shard; lower it when the box is contended")
     args = ap.parse_args(argv)
     out_dir = pathlib.Path(args.out)
     try:
-        manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers)
+        if len(args.exclude_reason) != len(args.exclude):
+            say('⛔ REFUSING: every --exclude needs an --exclude-reason. An unexplained '
+                'exclusion is how a suite shrinks without anyone deciding to.', err=True)
+            return 2
+        manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers,
+                            exclude=tuple(args.exclude), exclude_reasons=tuple(args.exclude_reason))
     except GateError as e:
         # ⛔ A REFUSED RUN LEAVES NO ARTIFACT THAT LOOKS LIKE A RUN. The first failure of this
         # wrapper left six 0-byte `shard-*.log` files behind, and a directory of empty logs reads
