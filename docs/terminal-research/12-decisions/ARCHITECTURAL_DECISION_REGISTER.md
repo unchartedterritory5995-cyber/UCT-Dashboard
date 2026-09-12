@@ -17,7 +17,50 @@ Status key: **LOCKED** — the architecture already commits to this, reversal is
 **PROVISIONAL / OWNER-BOUND** — genuinely cannot lock without owner input; the architecture is
 designed so the choice stays a configuration value, not a rebuild.
 
-## D1 — Workspace model (fixed / modular / hybrid)
+---
+
+## ⛔ ID RENAME, 2026-09-11 — decisions are `DEC-nn`, never a bare `Dn`
+
+**Every decision in this register was renamed from `Dn` to `DEC-nn` (owner ruling, 2026-09-11).
+The reason: a bare `Dn` named as many as five different things across this program's documents,
+and two of them sat in the same table row.**
+
+| this register's id | was | the thing a bare `Dn` ALSO means elsewhere |
+|---|---|---|
+| DEC-01 … DEC-15 | D1 … D15 | — |
+| **DEC-03** | D3 | **system D3 Realtime Streaming** · capability-ledger row D3 (Estimates/consensus) · benchmark-universe row D3 (Finviz) |
+| **DEC-04** | D4 | **system D4 Caching & Serving** · capability-ledger row D4 (Earnings history) · benchmark-universe row D4 (Market Chameleon) |
+| **DEC-06** | D6 | capability-ledger row D6 (Call recaps/transcripts) |
+| **DEC-07** | D7 | capability-ledger row D7 (SEC filings) |
+| DEC-01 / DEC-02 / DEC-05 | D1 / D2 / D5 | **systems D1 Provider Abstraction · D2 Canonical Data Model · D5 Reference & Corporate-Actions Data** |
+
+⭐ **THE STANDING RULE, from here on: a bare `Dn` in any program artifact means the SYSTEM.
+A decision is always written `DEC-nn`.** Read `Dn` as a system unless it is spelled `DEC-nn`.
+
+⚠️ **The owner's ruling named four ids (D3/D4/D6/D7). All fifteen were renamed instead**, because
+renaming four would have left `D1`, `D2` and `D5` — the three most heavily referenced system ids in
+the program — still colliding, and would have produced mixed lists like `(DEC-03, DEC-04, D5,
+DEC-06, DEC-07, D9, D13)` that are harder to read than either endpoint. Reversible in one commit.
+
+⛔ **Two headings below deliberately still contain a bare `Dn`, and it is correct:** DEC-11's
+"Canonical Data Model (D2)" and DEC-14's "Applications ✗ D1 build-out exception" both name
+**systems**. Do not "fix" them.
+
+⚠️ **In-prose references elsewhere have NOT been mass-renamed, on purpose.** 1,284 un-hyphenated
+`Dn` tokens exist across 34 program files, and the same token is a decision, a system, a
+capability-ledger row, a benchmark-universe row, or a Readiness-Review item depending on the
+sentence — `information-architecture.md` line 435 carries a capability-ledger `D6` and a decision
+`D7` in one table row. A rule-based pass over them produced a ~10% false-positive rate against
+hand-checking, which is worse than the collision it would fix. **Decision references are corrected
+per-document, at the moment that document is re-verified** (S3's were done at its re-verification;
+D1's and S7's happen when each is authorized). Until then, resolve any bare `Dn` through the table
+above.
+
+⚠️ Unrelated `D-` series that this rename does NOT touch and must not be confused with `DEC-nn`:
+**`D-01`…`D-14`** are Wave-1 research task ids (`contracts/D-01.md` …), and **`D-001`…`D-003`** are
+owner decisions in `OWNER_DECISIONS.md`.
+
+## DEC-01 — Workspace model (fixed / modular / hybrid)
 
 **Status: RECOMMENDED, REVERSIBLE, sharpened by Phase 2.** The Readiness Review recommended
 "hybrid"; information-architecture.md's §4 sharpened this to **three surface kinds** — fixed
@@ -28,7 +71,7 @@ and this register's own correction closed). *Final lock gated on:* OI-06 (observ
 and the `charts_workspace_layout` telemetry query (OI-21). *Reversible because:* the Workspace
 Document (S5) is library-agnostic — a dock-library swap doesn't change S1's contract.
 
-## D2 — Command-grammar default (noun-first vs. verb-first)
+## DEC-02 — Command-grammar default (noun-first vs. verb-first)
 
 **Status: RECOMMENDED, REVERSIBLE, sharpened by Phase 2.** information-architecture.md §8
 designed one substrate ("Grammar C") with both a noun-first command line and a Ctrl-K-style
@@ -37,7 +80,7 @@ hypothesis, not locked:* desk = context-first, member = palette-first. *Final lo
 OI-06. *Reversible because:* both front ends already exist over one grammar; changing the default
 is a configuration flip, not a rebuild.
 
-## D3 — Symbol/Entity master design
+## DEC-03 — Symbol/Entity master design
 
 **Status: LOCKED.** Phase 2 fully designed this (data-architecture.md §5, product-architecture.md
 S3): one internal permanent entity id, FIGI as the external mapping (its *permanence property*,
@@ -46,20 +89,20 @@ tickers as a dated alias list, delist/rename marked not erased. No counter-evide
 Phase 2 or its validation pass. *Open technical question, not a design question:* whether
 Massive/FMP responses already carry a `figi` field (a live API read, not a research question).
 
-## D4 — Provider Abstraction Layer pattern
+## DEC-04 — Provider Abstraction Layer pattern
 
 **Status: LOCKED.** data-architecture.md fully designs the anti-corruption-layer pattern per
 vendor, using `finnhub_client.py` as the reference and the six-independent-FMP-helpers debt as the
 first consolidation target. No counter-evidence found.
 
-## D5 — Member-facing data-licensing posture
+## DEC-05 — Member-facing data-licensing posture
 
 **Status: PROVISIONAL / OWNER-BOUND, unchanged.** Every Phase 2 document designs the licensing-
 eligibility mechanism (entitlement rows per data class per audience, S9) so the architecture does
 not change regardless of how this resolves — but the actual posture is not decided and cannot be
 by evidence alone. *Gated on:* OI-03(a)/(b). See `OWNER_DECISIONS.md` D-002.
 
-## D6 — AI provenance component: shared vs. per-surface
+## DEC-06 — AI provenance component: shared vs. per-surface
 
 **Status: LOCKED, and a real defect was caught and fixed here.** data-architecture.md and
 product-architecture.md's S8 (Provenance & Freshness) fully design this as one shared rendering
@@ -68,12 +111,12 @@ claiming ownership of "the one provenance renderer" in product-architecture.md's
 exactly the second-authority defect this program repeatedly flags elsewhere. Corrected: I1 now
 explicitly routes every answer through S8's renderer rather than building a competing one.
 
-## D7 — Alert-type taxonomy: unified vs. fragmented
+## DEC-07 — Alert-type taxonomy: unified vs. fragmented
 
 **Status: LOCKED.** product-architecture.md's S7 (Alerts & Monitoring) designs one trigger
 taxonomy over the existing shared delivery seam. No counter-evidence found.
 
-## D8 — Corporate-actions and portfolio-risk scope: build now or defer
+## DEC-08 — Corporate-actions and portfolio-risk scope: build now or defer
 
 **Status: RECOMMENDED, REVERSIBLE — defer confirmed.** product-architecture.md's D5 (data
 system) designs adjustment-as-policy now (small, needed regardless); A14 (Portfolio & Risk) has
@@ -82,7 +125,7 @@ its boundary fixed but its build explicitly deferred; a genuine corporate-action
 scoped into Phase 2. *Gated on:* OI-06 revealing the desk needs one of these daily; otherwise
 treat as an MVP/roadmap scoping call (H-01), not an architecture question.
 
-## D9 — Decisiveness for two audiences
+## DEC-09 — Decisiveness for two audiences
 
 **Status: PROVISIONAL / OWNER-BOUND, mechanism now designed.** See `OWNER_DECISIONS.md` D-003
 (promoted to a formal escalation this checkpoint). The Intelligence Layer's verdict renderer
@@ -94,7 +137,7 @@ research per the Day 1 synthesis's own §13.4 finding.
 
 ## New items Phase 2 surfaced (not in the original nine)
 
-## D10 — Packs vs. tools for AI context delivery
+## DEC-10 — Packs vs. tools for AI context delivery
 
 **Status: LOCKED (an engineering call, not owner-bound).** product-architecture.md's I1 system
 explicitly takes a position: intent-gated context reaches the model as registered **tools** (via
@@ -105,7 +148,7 @@ in this direction rather than sitting on a flag indefinitely. *What would change
 found in the research argues for packs; this is recorded as a decision so a future implementer
 doesn't re-litigate it without new evidence.
 
-## D11 — Canonical Data Model (D2) migration scope: new classes only, or retrofit the ~55 legacy SQLite files
+## DEC-11 — Canonical Data Model (D2) migration scope: new classes only, or retrofit the ~55 legacy SQLite files
 
 **Status: RECOMMENDED, REVERSIBLE.** data-architecture.md recommends scoping the canonical schema
 to new TERMINAL-NEXT data classes only, not a retrofit of every existing SQLite file — a full
@@ -113,7 +156,7 @@ migration is named as a possible future step, not a Phase 2 commitment. *What wo
 specific legacy surface proving unmaintainable without the canonical model; no such case has
 surfaced yet.
 
-## D12 — Canonical earnings-date authority (OQ-14)
+## DEC-12 — Canonical earnings-date authority (OQ-14)
 
 **Status: RECOMMENDED, REVERSIBLE — an assumption, not a decision, but worth registering.** The
 architecture assumes `/api/calendar` is the canonical earnings-date authority and designs the
@@ -122,7 +165,7 @@ duplicate-authority gap the Readiness Review's Part 2 audit found unflagged in t
 *What would change it:* if the bot's data is ever found more current/accurate than the calendar's,
 which no research pass has found.
 
-## D13 — Regime-classifier authority
+## DEC-13 — Regime-classifier authority
 
 **Status: LOCKED (resolved 2026-09-02, Phase 3).** `voice_regime_classifier.get_current_regime()`
 (the dashboard's own 5-way breadth/VIX/MA/distribution-days/exposure heuristic) is the single live
@@ -140,7 +183,7 @@ two different regime words in one Compass conversation today. This does not affe
 (the alerts-monitoring spec correctly used the D13 finding, not the journal_two surface) but is
 worth the owner's attention as a normal-operations fix.
 
-## D14 — Applications ✗ D1 build-out exception
+## DEC-14 — Applications ✗ D1 build-out exception
 
 **Status: RECOMMENDED, REVERSIBLE, self-expiring (Phase 3).** The boundary matrix's unconditional
 "no application calls a vendor" rule cannot hold before D2 (Canonical Data Model) and D1 (Provider
@@ -152,7 +195,7 @@ exception is named in both `product-architecture.md`'s boundary matrix and rever
 and in `provider-abstraction-spec.md` §7.2, so it reads as a tracked decision, not a local
 rationalization. *What would change it:* nothing — it self-expires the day D2 ships.
 
-## D15 — Entity Master interim reconciliation job
+## DEC-15 — Entity Master interim reconciliation job
 
 **Status: RECOMMENDED, REVERSIBLE, self-expiring (Phase 3).** Without an ongoing feed, the Entity
 Master (S3) goes stale the day after its one-time seed — before D5 (Reference & Corporate-Actions
@@ -168,18 +211,18 @@ self-expires the day D5 ships.
 
 | ID | Decision | Status | Gated on |
 |---|---|---|---|
-| D1 | Workspace model | Recommended, reversible | OI-06, OI-21 |
-| D2 | Command-grammar default | Recommended, reversible | OI-06 |
-| D3 | Symbol/Entity master | **Locked** | — |
-| D4 | Provider Abstraction Layer | **Locked** | — |
-| D5 | Member-facing licensing posture | Owner-bound | OI-03(a)/(b) |
-| D6 | AI provenance component | **Locked** | — |
-| D7 | Alert-type taxonomy | **Locked** | — |
-| D8 | Corporate-actions/portfolio-risk timing | Recommended, defer | OI-06 |
-| D9 | Decisiveness for two audiences | Owner-bound | new escalation D-003 |
-| D10 | Packs vs. tools | **Locked** | — |
-| D11 | Canonical model migration scope | Recommended, reversible | future evidence |
-| D12 | Canonical earnings-date authority | Recommended, reversible | future evidence |
-| D13 | Regime-classifier authority | **Locked** | — |
-| D14 | Applications ✗ D1 build-out exception (Phase 3) | Recommended, reversible, self-expiring | reverts automatically when D2 ships |
-| D15 | Entity Master interim reconciliation job (Phase 3) | Recommended, reversible, self-expiring | reverts automatically when D5 ships |
+| DEC-01 | Workspace model | Recommended, reversible | OI-06, OI-21 |
+| DEC-02 | Command-grammar default | Recommended, reversible | OI-06 |
+| DEC-03 | Symbol/Entity master | **Locked** | — |
+| DEC-04 | Provider Abstraction Layer | **Locked** | — |
+| DEC-05 | Member-facing licensing posture | Owner-bound | OI-03(a)/(b) |
+| DEC-06 | AI provenance component | **Locked** | — |
+| DEC-07 | Alert-type taxonomy | **Locked** | — |
+| DEC-08 | Corporate-actions/portfolio-risk timing | Recommended, defer | OI-06 |
+| DEC-09 | Decisiveness for two audiences | Owner-bound | new escalation D-003 |
+| DEC-10 | Packs vs. tools | **Locked** | — |
+| DEC-11 | Canonical model migration scope | Recommended, reversible | future evidence |
+| DEC-12 | Canonical earnings-date authority | Recommended, reversible | future evidence |
+| DEC-13 | Regime-classifier authority | **Locked** | — |
+| DEC-14 | Applications ✗ D1 build-out exception (Phase 3) | Recommended, reversible, self-expiring | reverts automatically when D2 ships |
+| DEC-15 | Entity Master interim reconciliation job (Phase 3) | Recommended, reversible, self-expiring | reverts automatically when D5 ships |

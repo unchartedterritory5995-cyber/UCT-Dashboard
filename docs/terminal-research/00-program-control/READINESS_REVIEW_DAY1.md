@@ -320,7 +320,14 @@ here.
 
 Nine decisions, each genuinely load-bearing — not padded to lengthen the list.
 
-**D1 — Workspace model: fixed / modular / hybrid.**
+> ⚠️ **IDs renamed 2026-09-11 (owner ruling).** These nine were written `D1`–`D9` and are now
+> `DEC-01`–`DEC-09`, matching `12-decisions/ARCHITECTURAL_DECISION_REGISTER.md`, which they seeded.
+> A citation elsewhere reading "`READINESS_REVIEW_DAY1.md` §7 D7" means **DEC-07** — same item, old
+> spelling. The rename exists because a bare `Dn` also names a data-platform system, a
+> capability-ledger row and a benchmark-universe row; **from here on a bare `Dn` means the SYSTEM,
+> and a decision is always `DEC-nn`.** Full mapping and rationale: the register's own rename note.
+
+**DEC-01 — Workspace model: fixed / modular / hybrid.**
 *Why it matters:* determines the whole shell architecture and the persistence-layer design.
 *Options:* fixed pages; fully modular dock (react-mosaic/dockview/FlexLayout style); hybrid
 (fixed market-wide pages + a composable, portfolio-specific board layer).
@@ -334,7 +341,7 @@ the popout spike (RG-27) revealing dockview/FlexLayout breaks the SSE-pool prope
 hybrid model would avoid.
 *Locks:* before shell/workspace implementation, not before architecture drafting (C5-03).
 
-**D2 — Command-grammar default: noun-first vs. verb-first.**
+**DEC-02 — Command-grammar default: noun-first vs. verb-first.**
 *Why it matters:* C4-01 calls this the sharpest fork in the whole command-grammar survey; UCT
 cannot have both as default.
 *Options:* Bloomberg-style `TICKER <FUNCTION>` noun-first; palette-style `Ctrl-K` verb-first.
@@ -344,7 +351,7 @@ action — genuinely unresolved, not under-researched.
 *What would change it:* the observed desk morning.
 *Locks:* before the IA/command-system spec finalizes.
 
-**D3 — Symbol/Entity master design.**
+**DEC-03 — Symbol/Entity master design.**
 *Why it matters:* nearly every other system (context propagation, provenance, alerts, watchlists)
 depends on a stable identity underneath the ticker string.
 *Options:* adopt FIGI (free, MIT-licensed, permanence-by-design, already cited as prior art by two
@@ -358,7 +365,7 @@ as a dated alias list; store adjustment as a labeled policy, not a fallback trig
 best-evidenced recommendation in this register.
 *Locks:* the schema before implementation begins; design work can and should start immediately.
 
-**D4 — Provider Abstraction Layer pattern.**
+**DEC-04 — Provider Abstraction Layer pattern.**
 *Why it matters:* determines how every future data-model and provider-swap decision gets made.
 *Options:* an anti-corruption-layer per vendor with a canonical internal model (the pattern
 `stripe_service.py` already proves works in this codebase); continue direct per-vendor client code.
@@ -368,7 +375,7 @@ study; the ACL pattern already exists and works for exactly one integration (Str
 *What would change it:* nothing found argues against it.
 *Locks:* before ARCH-04 (data architecture) finalizes.
 
-**D5 — Member-facing data-licensing posture (D-002).**
+**DEC-05 — Member-facing data-licensing posture (D-002).**
 *Why it matters:* decides whether raw vendor data can ever display to a non-desk member.
 *Options:* Restricted-pending-contract (current default); Likely Allowed on confirmation of
 Massive's tier and/or an FMP DDLA.
@@ -379,7 +386,7 @@ OI-03(b) resolve favorably; 13 of the remaining 27 are fixable by engineering al
 *Locks:* before ARCH-06 and any member-facing data-display feature; does NOT block desk-scoped
 architecture work.
 
-**D6 — AI provenance component: shared vs. per-surface.**
+**DEC-06 — AI provenance component: shared vs. per-surface.**
 *Why it matters:* determines whether "every AI answer is cited" is a structural guarantee or a
 per-feature discipline that will eventually lapse.
 *Options:* one shared rendering component every AI/data surface routes through; continue
@@ -392,7 +399,7 @@ identified counter-evidence.
 *What would change it:* nothing found.
 *Locks:* early, before ARCH-05 finalizes; this is cheap to decide now.
 
-**D7 — Alert-type taxonomy: unified vs. fragmented.**
+**DEC-07 — Alert-type taxonomy: unified vs. fragmented.**
 *Why it matters:* five-plus alert subsystems exist today, sharing one delivery seam
 (`deliver_alert_payload`) but no shared trigger model.
 *Options:* unify around one taxonomy; continue building new alert types as one-off subsystems.
@@ -402,7 +409,7 @@ abstraction, which is cheap relative to the alternative of a sixth independent a
 *What would change it:* nothing found.
 *Locks:* before the Alerts system spec.
 
-**D8 — Corporate-actions and portfolio-risk scope: build now or defer.**
+**DEC-08 — Corporate-actions and portfolio-risk scope: build now or defer.**
 *Why it matters:* both are genuinely new infrastructure with no current UCT equivalent.
 *Options:* build in this phase; defer to a later roadmap horizon.
 *Evidence:* no dossier or internal-system finding establishes either as near-term desk-blocking;
@@ -411,7 +418,7 @@ they surfaced as capability gaps, not as demonstrated desk needs.
 *What would change it:* OI-06 revealing the desk actually needs one of these daily.
 *Locks:* at MVP/roadmap definition, not before.
 
-**D9 — Decisiveness for two audiences (desk vs. member).**
+**DEC-09 — Decisiveness for two audiences (desk vs. member).**
 *Why it matters:* determines whether the provenance/verdict component renders one shape or two.
 *Options:* decisive-by-default for everyone; graduated/coached posture for non-desk members.
 *Evidence:* §13.4 of the synthesis surfaces the tension (LSEG/FactSet refuse the verdict for
