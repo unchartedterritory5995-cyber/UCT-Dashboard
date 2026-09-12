@@ -823,3 +823,97 @@ afternoon and `29820496` that evening on a quiet tape, across a pod restart — 
 with the T+1 flat-file backfill changing the underlying rows. Items 4, 9 and 10 compare
 `X-Flow-Version` at paint against the current version; treat a difference as "not the
 same version", never as "older" or "newer".
+
+## 🔴 GEX — the spike found a CRASH, not a lag. `fmtGex is not defined`, live since 2026-09-07
+
+**The crosshair-lag spike could not run: the surface it lives on does not render.**
+Clicking the **GEX** tab on `/options-flow` as a member throws into the error boundary:
+
+```
+ReferenceError: fmtGex is not defined
+    at Ha (https://uctintelligence.com/assets/OptionsFlow-oJSUV_RD.js:2:27947)
+```
+
+The member sees "Something went wrong on this page". No GEX view, no chart, no levels.
+
+### Root cause
+
+`GexStrikesChart` is a **module-level** lazy shim that forwards the formatter:
+
+```jsx
+const GexStrikesChartLazy = lazy(() => import("./optionsFlow/FlowCharts")…);
+function GexStrikesChart(props) {                        // module scope
+  return <GexStrikesChartLazy {...props} fmtGex={fmtGex} />;   // ← not in scope
+}
+```
+
+`fmtGex` is a `const` declared **inside the component body**, in the
+`dataMode==="gex"` render block (`OptionsFlow.jsx:4343`). Its two sibling shims forward
+`fmt` (`:277`) and `fK` (`:285`), and both of those **are** module-level functions —
+which is precisely why only this one broke. Introduced by `9e72492d2` (2026-09-07),
+"perf(flow) take recharts off the critical path".
+
+⭐ **It is NOT the 2026-09-12 build fix.** `<GexStrikesChart>` renders at `:4487`
+inside `dataMode==="gex"`, gated by no `VITE_*` flag. The crash predates
+`af80e0b91` by a day and is independent of it.
+
+### Proof — a controlled A/B whose only variable is whether the name exists
+
+An unqualified identifier resolves up the scope chain to global, so defining it at
+runtime should stop the crash. It does:
+
+| `globalThis.fmtGex` | crashed | canvases | "Chart with Levels" offered |
+|---|---|---|---|
+| absent | **yes** | 0 | no |
+| defined | **no** | 0 | **yes** |
+
+No file was edited to obtain this.
+
+### The fix — NOT LANDED, it is in `OptionsFlow.jsx`
+
+`scratchpad/gex-fmtGex-scope-fix.patch` (applies clean, `git apply --check` exit 0):
+promote `fmtGex` to a module-level `function` beside `fmt` and `fK`, delete the
+in-component `const` so there is one definition rather than two. No call site changes.
+Note for Manrav: `scratchpad/NOTE-FOR-MANRAV-gex-crash.md`.
+
+### ⚰️ This closes the "five speculative fixes" history differently than expected
+
+The lag was last observed in May. Five theory-driven fixes shipped 2026-05-23 and none
+changed it. **Since 2026-09-07 nobody could have re-observed it at all**, because the
+view crashes — so any report of the lag "persisting" after that date was about a
+screen that never rendered. The lag question is still open; it is simply
+**unobservable until the crash is fixed.**
+
+### Harness state — built, input verified, two observation channels ruled out
+
+`tools/gex_crosshair_probe.py`. It navigates a member to GEX → Chart with Levels,
+scrolls the chart into a drivable band, drives 60 synthetic moves across the width in
+~1 s, and refuses to report anything unless it first proves it is driving the crosshair.
+
+⛔ **Two channels that do not exist on this surface**, both caught by that control
+rather than published as product defects:
+
+1. **Event Timing does not emit `pointermove`.** Chrome reports discrete interactions,
+   so `input_to_paint` came back n=0. That is not absent input: a listener attached to
+   the chart canvas counted **5 pointermove + 5 mousemove for 5 synthetic moves**, and
+   `elementFromPoint` at the drive centre is the CANVAS. **Synthetic moves do reach the
+   same handler a real pointer does** — the assumption is now measured.
+2. **This chart renders no DOM legend that changes on crosshair move**, so a
+   MutationObserver reports 0 for a crosshair that works. It is canvas-only here.
+
+⭐ Usable channels for the next attempt: a canvas listener for input arrival,
+`long-animation-frame` for per-frame **script attribution** (the one that names
+functions), rAF intervals for dropped frames, and a canvas pixel sample if the
+crosshair's own movement must be timestamped.
+
+⚠️ Also caught: a first attempt pointed at `y=1125` in a 1000 px viewport — the chart
+is below the fold — and the control reported `dom mutations=0`. A naive harness would
+have published that as "the crosshair never responds".
+
+### Status: NOT YET FOUND
+
+**No function is named and no self time is measured.** Per the definition of done that
+is "not yet found", not a diagnosis. What settles it: land the scope fix, then run
+`tools/gex_crosshair_probe.py` with the LoAF attribution channel on a pod ≥120 s old.
+No RTH needed — `/api/gex/data` returns full SPY data on a Saturday (spot 764.29,
+callWall 770, putWall 750, 108 strikes), so the surface is fully exercisable off-hours.
