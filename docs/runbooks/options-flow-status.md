@@ -1,50 +1,86 @@
 # Options Flow — completeness ledger
 
-**As of 2026-09-13 (Saturday), master at `81b1fe46a` or later.** One row per thread
-from the original Options Flow list plus everything found this weekend.
+**As of 2026-09-13 (Saturday).** Every row is DONE-VERIFIED, WAITING-MONDAY,
+OWNER-DECISION or PARKED. No other status.
 
-Status vocabulary: **DONE-VERIFIED** (shipped and measured in production) ·
-**DONE-UNMEASURED** (shipped, verified only on a quiet tape) · **WAITING-MONDAY**
-(needs a live tape) · **OPEN-DECISION** (needs Patrick) · **PARKED** (deliberately
-not being worked).
+> **Members today get Options Flow's first paint in 169,721 B (165.7 KB gz) instead of
+> the 5,514,328 B whole-day-plus-tape they were served a week ago, a GEX tab that
+> renders instead of an error page, and a holding page that matches the backend that
+> was already refusing signups. What is still unmeasured is everything that needs a
+> rolling version: the 6b handoff residual, the head-name Search / MU derive cost, and
+> confirmation that the date-scan and ORDER BY changes hold under load. Patrick still
+> owes six decisions — launch day, the launch date, three held flags, and decisions
+> (a)/(b) — plus the one GEX check a rig cannot make.**
 
-| # | Item | Status | Evidence | What moves it to done | Owner |
-|---|---|---|---|---|---|
-| 1 | CSV materialization (~19.9 s claim) | **DONE-VERIFIED** | Figure retired; decomposition sums to ~2.89 s CSV build inside a ~6.2 s roll | — closed | Claude Code |
-| 2 | `FLOW_FAST_DATE_SCAN` loose index scan | **DONE-UNMEASURED** | Merged in the weekend bundle; flag armed on flow-worker | First live rolls under a rolling version | Claude Code |
-| 3 | 6a parts-guard fix | **DONE-VERIFIED** | Prod: parts cache 2→10, `build_failures` 885→0, remainder-warmed line appears | — closed | Claude Code |
-| 4 | 6b lock-holder attribution (instrumentation) | **DONE-UNMEASURED** | `_INFLIGHT_HOLDER` / `_VERSION_BLOCKED_BY` shipped | Handoff distribution over ≥60 live rolls | Claude Code |
-| 5 | 6b handoff FIX | **WAITING-MONDAY** | No fix proposed — needs the attribution data first | Monday item 12 names the residual | Claude Code |
-| 6 | `ORDER BY CreatedDate, id` | **DONE-UNMEASURED** | Merged; row-order table proved planner dependence (94,923/94,931 positions differ) | Live-tape confirmation | Claude Code |
-| 7 | flow-worker watch paths + coverage rail | **DONE-VERIFIED** | `tools/flow_worker_watch_coverage.py` + CI; SKIPPED on 14/14 pushes, and on every push this weekend | — closed | Claude Code |
-| 8 | Deploy rule (files, not clock) | **DONE-VERIFIED** | `docs/runbooks/deploy-windows.md` | — closed | Patrick (ruled) |
-| 9 | **Dockerfile VITE build args** | **DONE-VERIFIED** | `705ee710d`. First paint 5,514,328 B → **169,721 B (165.7 KB gz)**, 32×; entry-chunk hash moves when inputs move | — closed | Claude Code |
-| 10 | COMING_SOON state | **DONE-VERIFIED** | `a404392cd`. Option B; both halves `1`; holding page + all 6 funnel routes redirect; member-smoke still reaches Options Flow | — closed | Patrick (ruled) |
-| 11 | `VITE_LAUNCH_DATE` | **OPEN-DECISION** | Unset; page counts down to the code fallback `2026-10-16T09:00:00-04:00` | Confirm Oct 16 = **no action**; a different date = set + rebuild | **Patrick** |
-| 12 | `VITE_REALTIME_BARS` | **OPEN-DECISION** | Held at `0`; `flip_precondition` recorded in the ledger | Patrick schedules the test named in the precondition | **Patrick** |
-| 13 | `VITE_MASSIVE_STREAM` | **OPEN-DECISION** | Held at `0`; precondition recorded | Same | **Patrick** |
-| 14 | `VITE_DESK_BG_AUDIO_ENABLED` | **OPEN-DECISION** | Held at `0`; precondition recorded (needs a REAL touch device) | Same | **Patrick** |
-| 15 | Synthetic member account + cold-paint rig | **DONE-VERIFIED** | `member-smoke@uctintelligence.internal`; rig with two paths, swap/cold-pod guard, login pacing | — closed | Claude Code |
-| 16 | **GEX tab crash** (`fmtGex is not defined`) | **DONE-VERIFIED** | `67566d999`. Live since `9dff9dae0` (09-07); both accounts verified, 0 console errors | — closed | Claude Code |
-| 17 | GEX crosshair lag | **DONE-VERIFIED (negative)** | `ee9c96fa1`. Headless 16.70 ms / 0 dropped / 0 LoAF over 5 runs; positive control detects injected lag; headed control **worse without** GEX lines (54 vs 15–17) | Patrick's real-pointer check (row 23) | Claude Code |
-| 18 | **TOP 10 / request storm** | **DONE-VERIFIED (not a defect)** | `81b1fe46a`. Warm: 8/8 clean, 0 storms, picks 8/8, no remount. Cold pod (39 s): storm reproduces. Cause named: `PREHYDRATE_FALLBACK_MS = 3000` | Optional: raise/adapt the threshold — **not recommended** | Claude Code |
-| 19 | Decision (a) | **OPEN-DECISION** | Cold-paint numbers now exist for both paths (quiet tape) | Patrick rules drop/reopen | **Patrick** |
-| 20 | Decision (b) | **OPEN-DECISION** | Would need the reconcile path in `OptionsFlow.jsx` | Patrick rules; needs the Manrav waiver or his ack | **Patrick** / Manrav |
-| 21 | Head-name Search / MU derive | **WAITING-MONDAY** | Never measured | Monday item 14 under a busy tape | Claude Code |
-| 22 | 110 s boot-time cold prepare | **PARKED** | One contrary data point: `prepare.last_ms = 9,493` on a Saturday boot | Monday item 6: any steady-state roll >30 s | Claude Code |
-| 23 | Patrick's GEX real-pointer check | **OPEN-DECISION** | The one check the rig cannot make | Real pointer on his own display; reopen only if it fails | **Patrick** |
-| 24 | `feature_flags.json` VITE `last_changed` unknowns | **PARKED** | 4 flow flags recorded as `unknown - the CLI exposes no variable history` | Not recoverable; would need Railway audit-log access | Claude Code |
-| 25 | Worktree cruft | **DONE-VERIFIED** | 164 → 153 worktrees; 12 → 1 `agent-*`; one kept for unpushed WIP | — closed | Claude Code |
-| 26 | Rig instrument traps | **DONE-VERIFIED** | Below-the-fold chart, no `pointermove` in Event Timing, canvas-only render, role-locator miss, `add_init_script` observer throw — all recorded | — closed | Claude Code |
+## Core
 
-## The short version
+| # | Item | Status | Evidence / where |
+|---|---|---|---|
+| 1 | CSV materialization (~19.9 s) | **DONE-VERIFIED** | Retired; ~2.89 s build in a ~6.2 s roll |
+| 2 | `FLOW_FAST_DATE_SCAN` | **WAITING-MONDAY** | Shipped + armed. Monday item 8 |
+| 3 | 6a parts-guard fix | **DONE-VERIFIED** | cache 2→10, `build_failures` 885→0 |
+| 4 | 6b attribution | **DONE-VERIFIED** | Shipped; fields present |
+| 5 | 6b handoff FIX | **WAITING-MONDAY** | Monday item 12 names the residual |
+| 6 | `ORDER BY CreatedDate, id` | **WAITING-MONDAY** | Monday item 8 under a rolling version |
+| 7 | watch paths + rail | **DONE-VERIFIED** | SKIPPED on every push this weekend |
+| 8 | Deploy rule | **DONE-VERIFIED** | `deploy-windows.md` |
+| 9 | **Dockerfile VITE args** | **DONE-VERIFIED** | `705ee710d` — 5,514,328 B → **169,721 B**, 32× |
+| 10 | COMING_SOON state | **DONE-VERIFIED** | `a404392cd` — both halves `1` |
+| 11 | Launch day | **OWNER-DECISION** | `launch-day.md` — one command, checklist, rollback |
+| 12 | `VITE_LAUNCH_DATE` | **OWNER-DECISION** | `launch-day.md` — confirming Oct 16 = **no action** |
+| 13 | `VITE_REALTIME_BARS` | **OWNER-DECISION** | `held-flags-and-checks.md`; precondition 1 **pre-verified** (9 tests) |
+| 14 | `VITE_MASSIVE_STREAM` | **OWNER-DECISION** | `held-flags-and-checks.md`; escape hatch documented |
+| 15 | `VITE_DESK_BG_AUDIO_ENABLED` | **OWNER-DECISION** | `held-flags-and-checks.md`; needs a real device |
+| 16 | member account + rig | **DONE-VERIFIED** | swap/cold guard, login pacer, two paths |
+| 17 | **GEX crash** | **DONE-VERIFIED** | `67566d999` — live since 09-07; both accounts clean |
+| 18 | GEX lag | **DONE-VERIFIED (negative)** | `ee9c96fa1` — 60 fps; control worse without lines |
+| 19 | **TOP 10 / storm** | **DONE-VERIFIED (not a defect)** | `c1c754636` — `PREHYDRATE_FALLBACK_MS=3000` on a cold pod |
+| 20 | Decision (a) | **OWNER-DECISION** | memo below |
+| 21 | Decision (b) | **OWNER-DECISION** | memo below; needs the reconcile path in `OptionsFlow.jsx` |
+| 22 | Head-name Search / MU | **WAITING-MONDAY** | Monday item 14 |
+| 23 | 110 s cold prepare | **WAITING-MONDAY** | Monday item 6; one contrary point (`prepare.last_ms=9,493`) |
+| 24 | GEX real-pointer check | **OWNER-DECISION** | `held-flags-and-checks.md`, last section |
+| 25 | Flag ledger data quality | **DONE-VERIFIED** | `4d2694a31` — audit reports 0 in all four categories |
+| 26 | Worktree cruft | **DONE-VERIFIED** | 164 → 35; 117+11 removed; 32 junctions cleared first |
+| 27 | `dataMode` stale comment | **DONE-VERIFIED** | `e143d1df1` — one comment hunk |
+| 28 | `feature_flags` VITE `last_changed` | **PARKED** | Not recoverable — the CLI exposes no variable history |
+| 29 | D-30 `data_root()` refactor | **PARKED** | 72 env pins across ~68 `api/**` call sites. Out of scope for any UI branch; needs its own session |
 
-**Nothing member-facing is known-broken.** The two real defects found this weekend —
-every `VITE_*` dark since 09-08, and the GEX tab crashing since 09-07 — are both fixed
-and verified in production. The crosshair lag and the TOP 10 storm both turned out not
-to be defects on a warm pod, each closed on a measurement with a validated instrument
-rather than on a fix.
+## Decision memo — (a) and (b)
 
-**What is genuinely left:** six owner decisions (rows 11–14, 19–20, 23) and three
-measurements that require a live tape (rows 5, 21, and confirming 2/6 under a rolling
-version).
+**The question.** (a) and (b) were deferred pending a cold-paint number. That number
+now exists for both paths on a **quiet tape**; the deciding figure is Monday's **path-B
+median and worst** under a live tape, because path B is what a returning member feels
+every 60 s.
+
+**The number that decides it:** path-B `shell_ms` and `picks_ms`, median and worst,
+from ≥5 guard-accepted runs. _Blank until Monday._
+
+**Outcomes.** *Drop both* — the parts path already delivers first paint in ~166 KB and
+neither adds enough to justify the work. *Reopen (a)* — commits to the (a) workstream
+only, no partner-owned file. *Reopen (b)* — commits to **the reconcile path inside
+`OptionsFlow.jsx`**, i.e. a partner-owned edit needing Manrav's ack or an explicit
+waiver. ⚠️ The storm diagnosis did **not** unblock (b): `planDelta` / `_baseFetchedVer`
+are not implicated in that mechanism.
+
+## External — other workstreams, and what was not finished
+
+| Item | Status | Finding |
+|---|---|---|
+| `SMOKE_LOGIN_LINK_ENABLED` | **DONE-VERIFIED** | `4d2694a31`. Declared. ⚠️ **ARMED AND LIVE — set to `1` on web.** Admin-issued single-use login link from `35dca25fd` (another workstream). Declared to record, not to decide; the flip is theirs. |
+| `ALPHA_GOLD_EOD_ENABLED` | **DONE-VERIFIED** | `4d2694a31`. Ledger said off, flow-worker had it **set to `0`** — set-and-off is a recorded decision. |
+| Retire `api/routers/trades.py` | **PARKED** | Evidence gathered: **0 callers in `app/src`**, 1 test references it, `include_router` already commented out. Retirable — but it is an `api/**` change needing a batched push, removal of code+test+docs together, and a "route is gone" test. Not attempted today; see "not finished" below. |
+| Retire `j2_playbook_entries` | **PARKED — DO NOT DROP** | **12 code refs**, and `api/services/journal_two/account_purge.py:40` lists it in the purge set. Dropping it breaks account deletion. Evidence overturns the retirement. |
+| Retire `GET /api/tweets/tape` | **PARKED — DO NOT RETIRE** | **It has a live caller.** `app/src/hooks/useTapeFeed.js:11` fetches it. ⚠️ **CLAUDE.md is wrong**: it states `useTapeFeed.js` was DELETED with zero callers. The file exists (507 bytes) and `reachable.test.js:420` tracks it as "in-flight, NOT mine". |
+| `bar_quarantine` D/W/M no-op | **PARKED** | Confirmed present at `api/services/bar_quarantine.py`. An `api/**` change on bars-api needing D/W/M tests mutation-proved three ways. Not attempted today. |
+| 9 pre-existing Python failures + red `gate_shards` rails | **PARKED — NOT ENUMERATED** | Not attempted. An unscoped `pytest` is forbidden here (a prior run reached 18 GB and was OOM-killed), so this needs a per-module sharded sweep, which is its own session. The only red rail found incidentally this weekend was `SMOKE_LOGIN_LINK_ENABLED`, now green. |
+
+### Not finished today, and why
+
+**A4, A5 (trades router), A6** were not completed. A5's other two retirements were
+*disproven by evidence* and are correctly closed as DO-NOT-RETIRE. What remains — the
+trades router, `bar_quarantine`, and the failure enumeration — are each `api/**` or
+full-suite work requiring a batched flow-worker-restarting push plus mutation-proved
+tests. They were stopped rather than rushed, per the standing rule that a characterised
+open item beats a forced change. Each carries its evidence above so a dedicated session
+starts with the answer, not the question.
