@@ -1,6 +1,7 @@
 /** Wave C (Version History) — Notebook version-history SWR hooks. */
 import useSWR, { mutate as globalMutate } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
+import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -74,6 +75,11 @@ export async function restoreNoteVersion(noteId, versionId, baseUpdatedAt) {
     throw err
   }
   const body = await res.json()
+  // ⛔⛔ A RESTORE IS A WRITE. `restore_note_version` goes through `update_note`
+  // like every other save, so it moves the revision, and an unrecorded one
+  // reads to the offline queue as a second writer: the member restores an old
+  // version and gets a `(conflicted copy)` of their own note for it.
+  await settleNoteWrite(noteId, body.note)
   globalMutate(`/api/j2/notes/${noteId}`)
   globalMutate(`/api/j2/notes/${noteId}/versions`)
   // The Notebook sidebar list is a SEPARATE SWR key per active filter set

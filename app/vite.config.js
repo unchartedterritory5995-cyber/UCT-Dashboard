@@ -193,6 +193,20 @@ export default defineConfig({
       '/api': 'http://localhost:8000'
     }
   },
+  // ⛔⛔ THE SUPPORTED-ENGINE FLOOR, DECLARED. It was UNDECLARED before 2026-09-12, which is
+  // precisely how the Notebook route came to crash on every iOS below 18.4: Vite's default
+  // target is `'modules'` (~safari14), so a reader would reasonably believe old Safari was
+  // covered.
+  //
+  // ⭐ IT WOULD NOT HAVE HELPED, AND THAT IS THE LESSON WORTH KEEPING. `build.target` governs
+  // SYNTAX DOWNLEVELLING ONLY — esbuild rewrites `??=` and class fields, and does not add a
+  // single polyfill. `Iterator` is a GLOBAL, not syntax, so no target setting here would have
+  // caught `typeof Iterator.prototype.join` inside a dependency. Declaring the floor is worth
+  // doing so the intent is written down; the thing that actually catches this class is
+  // `iteratorGlobalFloor.test.js`, which reads the built chunks.
+  build: {
+    target: ['safari16', 'es2021'],
+  },
   test: {
     environment: 'jsdom',
     globals: true,

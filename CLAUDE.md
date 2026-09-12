@@ -954,6 +954,53 @@ bearer credential. Both directions are railed in `tests/test_smoke_login_link.py
 mutation-proved. A link also refuses an account with TOTP enabled — otherwise it would grant
 strictly more than the password does, which is the one thing it must never do.
 
+### ⛔⛔ REAL-DEVICE iOS FOUND A PRODUCTION CRASH jsdom AND CHROMIUM CANNOT SEE
+
+**The touch smoke MUST include one iOS-17 device. Not "a mobile viewport" — a real old Safari.**
+
+⚰️ **2026-09-12.** A Live iPhone 15 Pro on **iOS Safari 17.5** opened `/journal/notebook` on
+production and got the ROUTE-LEVEL error boundary instead of the page:
+
+```
+ReferenceError: Can't find variable: Iterator — DocumentPreviewSheet-*.js
+```
+
+`pdfjs-dist@6` carries its own compatibility shim at module top level —
+`if (typeof Iterator.prototype.join !== "function")` — which is pdf.js feature-detecting Iterator
+Helpers **written so that it throws on exactly the engines it is detecting for**: `typeof
+X.prototype` still evaluates `X`, and the `Iterator` global did not ship until Safari 18.4. Every
+member on iOS below 18.4 lost the Notebook.
+
+⛔ **THE ENGINE WE TEST IN HAS THE THING WHOSE ABSENCE IS THE BUG.** jsdom has `Iterator`. Chromium
+has `Iterator`. So the unit suite, the six-shard gate and a headless-Chromium device sweep were all
+green — that same morning, one of those sweeps loaded `/journal/notebook` in Chromium and reported
+the hub mounting normally. No amount of emulation finds this class; only an old engine does.
+
+⭐ **THREE TRAPS, EACH OF WHICH LOOKED LIKE THE ANSWER:**
+1. **"Use the legacy build."** `pdfjs-dist/legacy` reads the global safely in **17** places to the
+   modern build's 2 — and carries **the same fatal shim**. Both builds crash identically. Reading
+   six of seventeen matches and generalising is what made it look fixed.
+2. **"Grep the bundle for `Iterator.`"** That check **fails the fix and passes the bug**: the safe
+   build has eight times more mentions. The predicate is UNGUARDED ACCESS, never presence.
+3. **"Define the global above the import."** ES imports are **hoisted** — a top-level statement
+   written above them runs *after* every import has been evaluated. The shim must be its own
+   module, imported first. `lib/pdfjs.js` says so at the import line.
+
+⭐ **AND A TEXT SCAN OF A BUNDLE CANNOT SEE A SHIM.** Once another chunk defines the global, the
+offending text is still there and now inert. `iteratorGlobalFloor.test.js` therefore **simulates
+the engine** — deletes `globalThis.Iterator`, loads the real module chain, asserts it survives —
+and keeps the bundle scan only for globals nothing shims, with a rail that fails if those two
+lists ever drift.
+
+⭐ **THE RAIL IMMEDIATELY FOUND A SECOND ONE THE DEVICE COULD NOT SHOW:**
+`Promise.withResolvers` (Safari **17.4**) in the same chunk. The debugging phone was on 17.5, so it
+never threw there — but the declared floor is iOS 16, where it would have. Shimmed too.
+
+⚠️ **The floor was UNDECLARED before this.** No `browserslist`, no `build.target`; Vite's default
+`'modules'` (~safari14) would have led a reader to believe old Safari was covered. Now declared as
+`iOS >= 16` in both. ⛔ **`build.target` would not have caught this anyway** — it downlevels
+SYNTAX and adds no polyfills, and `Iterator` is a global.
+
 ### Real-device testing — BrowserStack Live (paid)
 
 **Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no

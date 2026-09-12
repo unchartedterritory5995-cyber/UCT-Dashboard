@@ -35,6 +35,7 @@ import {
 } from './inFlight'
 import { offlineEnabled } from './offlineFlag'
 import { chooseLocalRecovery, newSessionId, sameAuthoredContent } from './recoverLocalState'
+import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
 
 /** No durable store here at all (a private window, an old browser). Reported,
@@ -267,6 +268,10 @@ export async function settleLandedSave({
       sessionId: SESSION_ID,
       localSavedAt: Date.now(),
       dirty: caughtUp ? 0 : 1,
+      // ⭐ The server has just spoken: `acked` is what it accepted, at `landed`.
+      // That is the newest possible base, and it replaces whatever the record
+      // was carrying.
+      serverBase: caughtUp ? null : snapshotOfServerCopy(acked, landed),
     }
     const intent = caughtUp ? null : {
       mutationId: outboxIdFor(noteId),
@@ -356,6 +361,11 @@ export function useDurableNote({
 
     const persist = async ({ state, generation }) => {
       const db = await connect(accountId)
+      // ⛔ Read BEFORE writing: the base travels forward from whatever this
+      // record already knew. A clean record is its own base, so the snapshot
+      // is only ever taken at the clean→dirty transition — one extra body per
+      // UNSYNCED note, never per note.
+      const prev = await getNote(db, noteId)
       const record = {
         noteId,
         title: state?.title ?? '',
@@ -370,6 +380,11 @@ export function useDurableNote({
         // reading every note.
         dirty: state?.synced ? 0 : 1,
       }
+      // ⛔ `null` when clean — a clean record IS the base and a second copy of
+      // one value is a second authority over it.
+      record.serverBase = record.dirty
+        ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase))
+        : null
       const intent = record.dirty
         ? {
           mutationId: outboxIdFor(noteId),

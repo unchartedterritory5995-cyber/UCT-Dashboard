@@ -27,6 +27,7 @@ import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import styles from './NotebookTab.module.css'
+import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -473,6 +474,11 @@ export default function NotebookTab() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
+      // ⛔⛔ `restore_note` ADVANCED THIS NOTE'S REVISION. A note coming back
+      // out of the trash can still have unsent offline work queued against it
+      // — that is exactly the note a member restores — so an unlanded revision
+      // here forks the member's own recovery.
+      await settleNoteWrite(note.id, body.note)
       addNoteToTree(body.note)
       refresh()
       refreshAll()

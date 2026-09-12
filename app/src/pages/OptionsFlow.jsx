@@ -651,7 +651,7 @@ export default function OptionsFlowDashboard() {
 
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";  // gates the Discord push controls
-  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
+  const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index" | "liveflow" | "darkpool" | "gex"
   const [tab, setTab] = useState("Market Read");
   // ─── Remote ETF/INDEX ticker list ─────────────────────────────────────────
   // Fetched once from /api/ticker-types/etf-index-symbols on mount. Merges

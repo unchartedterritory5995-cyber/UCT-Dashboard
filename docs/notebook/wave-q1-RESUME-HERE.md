@@ -20,6 +20,238 @@
 | 7-day window closed (2026-09-19 00:45 ET) | **FALSE** | time |
 | Sunday verdict, KEEP | **FALSE** | regenerates Sunday 18:05 ET |
 
+# ⛔⛔ Q1 DEFECT — SEVEN DOOR FAMILIES, THREE SHAPES (2026-09-12)
+
+> ⚰️ **"THE FOUR DOORS" WAS NEVER FOUR, AND THE LIST'S METHOD WAS THE DEFECT.**
+> Wave Q1 recorded *"the FOUR doors — every path that advances `updatedAt`"* and
+> named body, folder, ticker, tags. That list came from the DERIVED WIRE RAIL,
+> which can only see doors a canary actually opened. No canary ever uploaded a
+> hero image, so `hero` was absent — and shipped to production unsettled.
+>
+> ⭐ Re-derived on 2026-09-12 **from the SQL**, not from behaviour:
+> **SEVEN server-side functions** advance a note's `updated_at`, reached through
+> **nine routes** and **sixteen client call sites**, and the conflict they
+> produce has **THREE SHAPES**, not one.
+
+## The seven, derived (`doorEnumeration.test.js` ①)
+
+| function | how it is reached | client sites |
+|---|---|---|
+| `update_note` | `PUT /notes/{id}` · `POST\|DELETE /notes/{id}/hero` · `POST /versions/{id}/restore` (via `restore_note_version`) | 10 |
+| `append_widget_embed` | `POST /notes/{id}/embeds` | 3 |
+| `append_financial_fact` | `POST /notes/{id}/facts/{id}/insert` | 1 |
+| `append_document_excerpt` | `POST /notes/{id}/excerpts` | 1 |
+| `restore_note` | `POST /notes/{id}/restore` | 1 |
+| `import_confirm` | `POST /notes/import/confirm` | **named exception** |
+| `delete_folder` | `DELETE /note-folders/{id}` | **named exception** |
+
+⛔ `restore_note_version` is an eighth NAME and not an eighth door — it writes no
+SQL of its own and calls `update_note`. Rail ① (b) pins that distinction so a
+real eighth cannot hide behind it.
+
+## The three shapes (`serverChange.js`)
+
+Classified from **the diff of the returned note against the last-known one**,
+never from which endpoint was called — an endpoint's shape can change in a later
+wave; a diff of two documents cannot lie about what is in them.
+
+| shape | proof | what the drain does |
+|---|---|---|
+| `metadata-only` | body, title and subtitle byte-identical | **rebase** onto the new revision and send |
+| `append-only` | the body is the last-known body plus tail blocks, every one of `widgetEmbed` / `financialFact` / `documentExcerpt` | **merge** those blocks into the queued body and send |
+| `body-rewrite` | anything else, **including anything unprovable** | **fork** — preserve both copies |
+
+⛔ **The default is `body-rewrite`.** Missing evidence, an unrecognised node, a
+moved block, a changed title — all fall through to the safe answer. A duplicate
+is recoverable by the member; an overwrite is not.
+
+⭐ **The classifier is the SECOND LINE, and that is the point.** The landed ring
+only knows revisions THIS browser recorded, so a door fired in another tab, a
+door that shipped before its settle, or a door nobody has enumerated yet still
+produces a revision the ring has never heard of. The ring is an enumeration of
+callers, and Wave Q1 proved twice that an enumeration of callers goes stale
+silently. The diff needs no enumeration at all.
+
+## The last-known server copy
+
+The classifier needs a base, and the base is **not** the member's working copy —
+diffing against that reads the member's own unsent edit as the server's change
+and forks every time. So:
+
+- a **clean** record (`dirty: 0`) **is** its own base; storing a second copy
+  would be a second authority over one value;
+- a **dirty** record carries `serverBase`, captured at the clean→dirty
+  transition and moved forward on every ack and every successful drain send;
+- a dirty record with **no** snapshot answers `null`, which classifies as
+  `body-rewrite`, which forks. "We could not read it" is never "it matches".
+
+Cost: one extra body per UNSYNCED note, never per note.
+
+## The named exceptions, and what would close each
+
+| exception | why it cannot land | what would close it |
+|---|---|---|
+| `POST /notes/import/confirm` | creates and writes MANY notes in one call, returns a summary; nothing is open in an editor and nothing can be queued against a note that did not exist yet | return `[{noteId, updatedAt}]` per note touched |
+| `DELETE /note-folders/{id}` | one bulk UPDATE over every note in the folder, returns `{ok: true}`; the revisions exist and are identical, the browser is just never told them | return the moved note ids + the one new `updatedAt` — **cheap; queued as Q1-F1** |
+
+Both are warn-listed **by name** in `doorEnumeration.test.js`, and a rail asserts
+each carries a reason and a closure path, so neither can decay into a shrug.
+
+## What the API changed (ADDITIVE)
+
+`POST /notes/{id}/excerpts` now returns `{excerpt, note}`. `append_document_excerpt`
+advanced that note's `updated_at`, and **a browser cannot record a revision it
+was never told** — every other door route already returned the note; this was the
+one that did not. Rail: `tests/test_journal_two_excerpts_router.py::
+test_create_excerpt_returns_the_note_it_just_advanced`, mutation-proved.
+
+## The emptied working copy — the small defect beside the big one
+
+`settleForked` wrote the SERVER's copy back into the durable record, and every
+field fell back to `''`/`null`. A fork that resolved without a usable server note
+therefore **blanked the member's local copy of that note and marked it clean** —
+and a clean record is not a recovery candidate, so the banner would never offer
+it back either. The words survived in the `(conflicted copy)` sibling; the note
+the member had been looking at did not. It now keeps the content and settles the
+queue; three rails, mutation-proved.
+
+## Two defects this fix introduced, caught by rails before merge
+
+1. **`??` over a baseline, three times** — including one in `settleNoteWrite.js`
+   written earlier and never run against `baseline.test.js`. `''` reads as
+   present to a producer and absent to a consumer; all three now go through
+   `usableBaseline`.
+2. **`(await res.json().catch(() => ({}))).note` throws synchronously** when a
+   response has no `json` — `.catch` only handles a *rejected* promise. In
+   `capturePriceToNotebook` that turned a **successful** price capture into
+   "Capture failed — try again". Body-reading moved INSIDE `settleNoteWrite`,
+   which now accepts a Response, an envelope or a note and cannot throw.
+
+⭐ And a third, in the *instrument*: the enumeration rail's first version matched
+`settleNoteWrite` **inside the ⛔ comment explaining why the settle is there**, so
+deleting the call and leaving the comment passed. It strips comments now. Same
+disease as `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.
+
+## The rails, and what each one can fail for
+
+| rail | owns | mutation-proved |
+|---|---|---|
+| `serverChange.test.js` (30) | the three shapes, one case per append type, the last-known-copy helpers | 4 mutations |
+| `outboxDrain.test.js` (28) | the drain rebases / merges / forks, the record gets the appends, a fork never empties | 5 mutations |
+| `NoteEditorPage.conflict.test.jsx` (9) | the editor merges all three append types and metadata-only; a foreign append still forks | roster shrunk to widgetEmbed → 2 red |
+| `doorFamilies.settle.test.jsx` (17) | every drivable door lands the RIGHT revision, each paired with its negative | via the gauntlet |
+| `doorEnumeration.test.js` (9) | ① the seven from the SQL · ② no unaccounted server writer · ③ every door call lands or is named · ④ variable-URL writes resolved | 3 mutations |
+| per-component rails | the component wires its own door: hero ×2, excerpt, thesis review, trade modal ×2, trash restore | via the gauntlet |
+| `tools/q1_door_settle_gauntlet.py` | one mutation per settle call site; GREEN is a defect | self-checking control |
+
+⛔ **Two layers, one authority each.** A component rail owns "this surface hands
+its response to the settle, for this note". Whether the settle lands the right
+revision from that response is owned once, in `doorFamilies` +
+`settleNoteWrite.test.jsx`. A component rail that asserted the ARGUMENT SHAPE was
+really testing how that component reads a body — and went red the day the read
+moved into the helper, where it belongs.
+
+## Still open, named, with owners
+
+| id | item | why it is not in this merge | owner |
+|---|---|---|---|
+| **Q1-F1** | `delete_folder` returns the moved note ids + revision | ruled a merge-2 exception; cheap (≈15 lines + a rail) | Notebook |
+| **Q1-F2** | `import_confirm` returns per-note revisions | ruled a merge-2 exception; larger (bulk shape change) | Notebook |
+| **Q1-F3** | behavioural rail for `GlobalAddPositionProvider`'s hero door | it is the SAME door as `HeroImagePicker` (5 rails) and the provider ends in `window.location.href`, which jsdom cannot drive without a redesign of the harness. Structural coverage from ③ + gauntlet RED | Notebook |
+
+⭐ **Q1-F4 and Q1-F5 were added after the deploy** — see the production sweep
+table above. The full open list lives there; this one is a subset kept for the
+reader who arrives at this section first.
+
+## ✅✅ DEPLOY — Q1 fix: seven door families land revisions; drain classifies metadata/append/rewrite
+
+| | |
+|---|---|
+| merged | `3e79bb1e6` → `master`, 2026-09-12 |
+| web | **SUCCESS** `3e79bb1e6` · `/api/health` uptime **32 s** (reset) |
+| bars-api | **SUCCESS** `3e79bb1e6` (`api/**`-gated) |
+| worker | BUILDING → `api/**`-gated |
+| flow-worker | **SKIPPED** — the OPRA tape was never touched. ⭐ Read from the STATUS column, not from the SHA: the SHA appears on a SKIPPED row too, and reading presence as a deploy is the error that nearly widened the RTH freeze |
+| gate | `docs/notebook/gate-runs/2026-09-12T15-38-28.md` — **19,186 passed / 7 failed, 0 NEW**, failing set matches the baseline exactly, tree hash stable start→end, 1,294 runnable reconciling with 1,295 − 1 waived |
+| plain-diff cross-check | independent of the tool: ANSI and CR stripped first, then `comm` against `docs/plans/joystick/gate-baseline.json` — **0 unique to observed · 0 unique to baseline · 7 in both**, agreeing with the tool's own verdict |
+| third leg | the classifier's own strings are in the SERVED bundle: `metadata-only`, `append-only`, `body-rewrite`, `documentExcerpt`, `financialFact` all found in `/assets/useDurableNote-o-Tk5Ifo.js` |
+
+### Member impact
+
+A member who edits a note offline while anything else moves that note's revision
+— setting a ticker, uploading a hero image, saving a price into it, capturing an
+excerpt, restoring it from the trash — no longer gets a `(conflicted copy)` of
+their own note. Sixteen client call sites now record the revision they created,
+and when the queue meets a revision it has never heard of, the drain reads the
+DIFF: metadata-only rebases, a server-side append merges, and only a genuine
+prose rewrite forks. Nothing else about the Notebook changes. Anyone with a tab
+open keeps the old bundle until they reload.
+
+## The production property sweep — family × ordering × verdict
+
+Every row is the same property: **a member types offline, a door fires, sends
+are in flight, the transport returns — the sentence must reach the server body
+and no `(conflicted copy)` may be created.**
+
+⛔ **DRIVEN means the member's own control was operated in a real browser on
+production.** It never means a scripted `fetch` stood in for one: a raw fetch is
+a SECOND-WRITER simulation whose fork is *correct*, and reading it as a defect in
+the member's path cost this wave three deploys (measured: raw-fetch door 11 lost
+/ 13, the member's own door 0 lost / 36).
+
+| family | door | ordering | verdict | evidence |
+|---|---|---|---|---|
+| `update_note` | `ticker` | 3 queued sends beat the door | ✅ **GREEN** | canary run #28, `2026-09-12T20:46:21Z` — sentence in server body **True**, door value kept (`ticker='NVDA'`), no fork, notes 37→38→37 |
+| `update_note` | `tags` | 3 queued sends beat the door | ✅ **GREEN** | run #29, `20:48:24Z` — sentence **True**, `tags=['window-check-door']`, no fork |
+| `update_note` | `folder` | 3 queued sends beat the door | ✅ **GREEN** | run #30, `20:50:14Z` — sentence **True**, no fork. Value check prints **N/A by construction** (the canary note has no folder, so `folderId: null` is a real write whose value reads the same on both sides); the door is proved by the baseline move |
+| `update_note` | `hero` | 3 queued sends beat the door | ⚠️ **INCONCLUSIVE** | run #31 reported `heroImageUrl = None` after the drain. **That has two readings and this run could not separate them** — see below. The run REFUSED TO STAMP, so no row claims otherwise |
+| `append_widget_embed` | Send to Journal | — | ⚠️ **INCONCLUSIVE — not reachable from this page** | the door is on the **charts page**, not the note editor. The editor's `/chart` slash command inserts CLIENT-side and never calls `/embeds` |
+| `append_financial_fact` | Save price to Notebook | — | ⚠️ **INCONCLUSIVE — not reachable from this page** | the door is on **TickerPopup**. The editor's `/price` command creates the fact then inserts client-side — the non-advancing half |
+| `append_document_excerpt` | Save excerpt | — | ⚠️ **INCONCLUSIVE — not reachable from this page** | needs a PDF uploaded to the note, opened in the preview, with a real text selection inside the rendered document |
+| `restore_note` | Trash → Restore | — | **N/A by construction** | a member cannot be typing offline INTO the note they are simultaneously restoring from the trash. A real door with a real rail; not this property |
+| `import_confirm` | import wizard | — | **N/A — named exception** | returns a summary, not notes; no revision exists for the browser to land (Q1-F2) |
+| `delete_folder` | folder sidebar | — | **N/A — named exception** | one bulk UPDATE, returns `{ok:true}`; the revisions exist and are never told to the browser (Q1-F1) |
+
+### ⚠️ The hero row, stated exactly
+
+Run #31 drove the hero door through the editor's own file input and, after the
+drain, read `heroImageUrl = None`. Two readings:
+
+- **(a) PRODUCT** — the drain's body PUT clobbered the hero the member just set;
+- **(b) INSTRUMENT** — the door never set a hero, and the canary reported its own
+  failure as a product defect.
+
+⛔ **This run could not separate them**, and says so rather than picking one.
+`tools/q1_hero_door_probe.py` was written to isolate it — create a note, fire
+only the hero door, read the note back, no drain involved — and **its browser
+failed to launch twice**, so nothing was measured.
+
+⭐ **What makes (b) the more likely reading, and why that is still not a verdict.**
+The step's "the baseline moved" signal is weak here: the rig reads the note's
+`updatedAt` while OFFLINE, so `before` is `None`, and `after` is non-null because
+the drain's own body PUT moves the revision regardless of whether a hero was ever
+uploaded. So that signal cannot tell the two apart either. And on the product
+side `update_note` builds its `SET` list only from keys present in the patch, and
+the drain's PUT carries `{title, subtitle, bodyJson, baseUpdatedAt}` — so a body
+send has no mechanism to null a hero. **Neither observation is a measurement, and
+the row stays INCONCLUSIVE until the probe runs.**
+
+⛔ `hero` was added to the canary's rotation and **taken straight back out** in
+the same session. Leaving it in would have made the scheduled unattended window
+refuse to stamp every fourth run, for an instrument reason that reads as a
+product problem to whoever finds the gap later. The driver and its verdict arm
+are KEPT in the file, so closing this is wiring, not rediscovery.
+
+### Open, named, owned
+
+| id | item | what it needs |
+|---|---|---|
+| **Q1-F1** | `delete_folder` returns the moved note ids + the one new revision | ≈15 lines + a rail |
+| **Q1-F2** | `import_confirm` returns per-note revisions | bulk response shape change |
+| **Q1-F3** | behavioural rail for `GlobalAddPositionProvider`'s hero door | the provider ends in `window.location.href`; jsdom needs a harness redesign |
+| **Q1-F4** | **the hero row above** — get `q1_hero_door_probe.py` to launch, settle (a) vs (b), then put `hero` back in the rotation | the probe's `launch_persistent_context` dies on the rig profile; `window_check` launches Chrome differently and succeeds, so the fix is to reuse its spawn path |
+| **Q1-F5** | drive the three append families on production | each needs the rig to leave the note editor for a different surface (charts page · TickerPopup · PDF preview) |
+
 ## ⛔⛔ THE MEMBER DENOMINATOR HAS A STRUCTURAL PROBLEM, NOT A TIMING ONE
 
 Measured in the owner's own Chrome, 2026-09-12 15:2x UTC, on the live flipped
@@ -4741,6 +4973,105 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### post-door-fix canary 3 — door rotation — **2026-09-12T20:50:14Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **18932** · Chrome/152.0.7977.83 · CDP `127.0.0.1:61172` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **6** · latest 2026-09-12 20:48:37 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 53 append(s) · tail `M01010101010` |
+| door this run | **`folder`** — `DOORS[30 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T20:50:38.571265+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#30** ⇒ `DOORS[30 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T20:51:00.765551+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T20:51:00.765551+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T20:51:00.765551+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T20:50:14Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T20:51:00.765551+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### post-door-fix canary 2 — door rotation — **2026-09-12T20:48:24Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **25132** · Chrome/152.0.7977.83 · CDP `127.0.0.1:58381` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **6** · latest 2026-09-12 20:46:34 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 51 append(s) · tail `10M010101010` |
+| door this run | **`tags`** — `DOORS[29 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T20:48:48.432839+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `tags` moved the baseline under the queued entry | run **#29** ⇒ `DOORS[29 % 3]` = **`tags`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T20:49:10.257714+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T20:49:10.257714+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T20:49:10.257714+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `tags`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T20:48:24Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T20:49:10.257714+00:00`: **False** · door value kept: **True** (`tags` = ['window-check-door']) |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### post-door-fix canary 1 — door rotation — **2026-09-12T20:46:21Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **26844** · Chrome/152.0.7977.83 · CDP `127.0.0.1:64460` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **6** · latest 2026-09-12 15:45:46 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 49 append(s) · tail `1010M0101010` |
+| door this run | **`ticker`** — `DOORS[28 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T20:46:45.290207+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `ticker` moved the baseline under the queued entry | run **#28** ⇒ `DOORS[28 % 3]` = **`ticker`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T20:47:08.094589+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T20:47:08.094589+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T20:47:08.094589+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `ticker`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T20:46:21Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T20:47:08.094589+00:00`: **False** · door value kept: **True** (`ticker` = 'NVDA') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
 ### saturday-canary-1 — **2026-09-12T13:32:54Z**
 
 ⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
@@ -5604,7 +5935,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of saturday-canary-1 — 2026-09-12T13:32:54Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of post-door-fix canary 3 — door rotation — 2026-09-12T20:50:14Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.
@@ -5612,13 +5943,13 @@ checked by eye on the day.
 | # | condition | latest reading |
 |---|---|---|
 | 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
-| 2 | Opted-in browsers (the denominator) | **19** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **15** — need **7** |
+| 2 | Opted-in browsers (the denominator) | **6** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **18** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
 ## ✅ RECOMMENDATION: **GO**
 
-**Met:** zero blocked-baseline events · 19 opted-in browsers · 15 consecutive green runs
+**Met:** zero blocked-baseline events · 6 opted-in browsers · 18 consecutive green runs
 
 ⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
 the numerator 05:06:56Z. A browser that opted in inside that window is

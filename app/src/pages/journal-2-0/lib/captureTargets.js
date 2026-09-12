@@ -18,6 +18,8 @@
 
 import { chartsLinkUrl } from '../../../lib/chartDeepLink'
 
+import { settleNoteWrite } from './offline/settleNoteWrite'
+
 const LAST_NOTE_KEY = 'uct.jw.lastNote'
 const LAST_NOTE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
@@ -38,7 +40,14 @@ async function appendToNote(noteId, attrs) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ attrs }),
   })
-  return res.ok
+  if (!res.ok) return false
+  // ⛔⛔ SEND TO JOURNAL MOVES THE NOTE'S REVISION. Landing it is what stops the
+  // offline queue from meeting a revision it has never heard of, deciding
+  // another writer produced it, and forking the member's note against their own
+  // capture. `settleNoteWrite` never throws — a capture must not fail because
+  // bookkeeping did.
+  await settleNoteWrite(noteId, res)
+  return true
 }
 
 async function pushToInbox(widgetId, attrs) {

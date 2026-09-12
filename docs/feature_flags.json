@@ -49,28 +49,28 @@
     "AI_SEARCH_DOSSIER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "AI_SEARCH_MEMORY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "AI_SEARCH_PERSONAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "ALERT_SHADOW_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -86,7 +86,7 @@
       "where": [
         "web"
       ],
-      "note": "GATE-S7-EVENT-PROXIMITY CP3 (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_event_proximity_dark cron -- 07:05 and 18:05 ET weekdays, the legacy path's own two slots -- running the FORWARD-ONLY dark comparison of the new event-proximity evaluator against calendar_alerts.run_prereport_alerts. ARMED 2026-09-12 17:29:02 UTC on `web`, owner-authorized for this one variable only. DEFAULT IS OFF BY DESIGN: it reads real member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of My Stocks x the day's reporters), so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). ⛔ CADENCE IS DAILY, NOT PER-MINUTE, unlike its price-level sibling: the legacy path's whole notion of time is a DATE, so a minute-by-minute sweep would re-ask a question whose answer cannot change until tomorrow. The report tool's staleness bound follows that (26h, not 180s) -- copying the sibling's number would report a healthy sweep as stalled every time. Verdict gate five full trading sessions; read with `tools/s7_price_level_report.py --ticking`, which covers BOTH dark runs. CP4 (all members) and the FLIP each need a new owner approval line."
+      "note": "GATE-S7-EVENT-PROXIMITY CP3 (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_event_proximity_dark cron -- 07:05 and 18:05 ET weekdays, the legacy path's own two slots -- running the FORWARD-ONLY dark comparison of the new event-proximity evaluator against calendar_alerts.run_prereport_alerts. ARMED 2026-09-12 17:29:02 UTC on `web`, owner-authorized for this one variable only. DEFAULT IS OFF BY DESIGN: it reads real member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of My Stocks x the day's reporters), so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). \u26d4 CADENCE IS DAILY, NOT PER-MINUTE, unlike its price-level sibling: the legacy path's whole notion of time is a DATE, so a minute-by-minute sweep would re-ask a question whose answer cannot change until tomorrow. The report tool's staleness bound follows that (26h, not 180s) -- copying the sibling's number would report a healthy sweep as stalled every time. Verdict gate five full trading sessions; read with `tools/s7_price_level_report.py --ticking`, which covers BOTH dark runs. CP4 (all members) and the FLIP each need a new owner approval line."
     },
     "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED": {
       "status": "armed",
@@ -96,34 +96,37 @@
       "note": "GATE-S7-PRICE-LEVEL CP3/CP3b (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_price_level_dark cron (weekdays 09:00-16:59 ET, every minute, max_instances=1) which runs the FORWARD-ONLY dark comparison of the new price-level evaluator against the legacy watchlist_alerts rule. ARMED 2026-09-12 14:58:47 UTC on `web`, owner-authorized for this one variable only. `--set` AUTO-REDEPLOYED (a new deployment appeared 2s later) -- the `web` behaviour, matching the 2026-09-09 measurement and not the 2026-08-30 chart-renderer one; that question stays unsettled and this is a third data point. Verified by ARTIFACT: web deploy SUCCESS, uptime reset at /api/health, and the running commit proved to contain `id=\"alert_taxonomy_price_level_dark\"` (CP3b 329a4a322 is its ancestor) -- not by a `--kv` readback, which says what the service is configured with and not what the process has. NOTE: the cron is mon-fri 09:00-16:59 ET, so there is NO heartbeat and NO span over the weekend; a report run before Monday says NO DATA and that is correct, not a failed arming. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of watchlist_alerts), so an unset variable must mean nothing runs -- the DESK_TSDR_ANNOUNCE_SHOWS contract, where the failure direction is silence rather than exposure. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). Arming it starts the dark run; the VERDICT GATE is five full trading sessions and the report is `python tools/s7_price_level_report.py`. The FLIP (delivery + legacy switch-off) and CP4 (all members) each need a new owner approval line -- this flag is NOT that."
     },
     "ALPHA_GOLD_EOD_ENABLED": {
-      "status": "dark",
-      "note": "Was armed; confirmed OFF (=0) on flow-worker as of 2026-09-06 -- the ledger entry had drifted. Superseded same-day by CREAM_EOD_ENABLED (api/flow_worker_main.py:456-489): Cream of the Crop's aggregate, curation-free EOD read replaced Alpha Gold's single-print summary on the adjacent 16:05/16:10 ET cron slot. The scheduler branch and the alpha_gold_eod.py module are both still present (env-var-only revert, no deploy needed either way), but nothing currently arms it."
+      "status": "armed",
+      "note": "Set on flow-worker with the value 0 (read 2026-09-13), i.e. SET AND OFF - a recorded decision, not an accident. Status is `armed` per this file's own definition (set on at least one service; the VALUE is the decision), so read the value, not the status word. Corrected 2026-09-13: the ledger previously said off while Railway had it set, and tools/flag_ledger_audit.py is the only thing that reconciles intent with reality.",
+      "where": [
+        "flow-worker"
+      ]
     },
     "AUTHDB_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "AWARENESS_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "BARSPACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
     "BARSPACK_WEB_INGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -136,7 +139,8 @@
     },
     "BARS_A_CLOSE_GUARD_ENABLED": {
       "status": "dark",
-      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed."
+      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed.",
+      "where": []
     },
     "BARS_HISTORY_ORIGIN_ENABLED": {
       "status": "armed",
@@ -155,7 +159,7 @@
     "BARS_PREWARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
@@ -169,35 +173,35 @@
     "BARS_UNIVERSE_CRAWLER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
     "BRAIN_PACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "BRAIN_TOOLS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "BREADTH_HISTORY_BACKFILL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
     "BREADTH_WICKS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
@@ -211,7 +215,7 @@
     "BROKER_SYNC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -220,100 +224,101 @@
       "where": [
         "web"
       ],
-      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. ⚰️ This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
+      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. \u26b0\ufe0f This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
     },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CALENDAR_WEEK_POST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CALL_RECAP_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CATALYST_AV_NEWS_ENABLED": {
       "status": "dark",
-      "note": "Off 2026-09-02, and the precondition was CHECKED rather than assumed: CATALYST_AV_NEWS_KEY is set on no service, so _pull_av_news falls through to the shared ALPHAVANTAGE_API_KEY (which IS set on web). That is the free ~25 calls/day bucket already shared with the earnings-history widget - and this repo's own notes record that quota as already exhausted by the existing news aggregator. CATALYST_ENGINE_ENABLED is set, and the engine bursts every 5 minutes pre-market, so arming this would spend an exhausted budget on every refresh: it buys no sentiment and can starve a feature that works today. The code is wired and ready - set a dedicated or premium CATALYST_AV_NEWS_KEY and THEN arm this. Arming it without one is not a smaller version of the feature, it is failed calls."
+      "note": "Off 2026-09-02, and the precondition was CHECKED rather than assumed: CATALYST_AV_NEWS_KEY is set on no service, so _pull_av_news falls through to the shared ALPHAVANTAGE_API_KEY (which IS set on web). That is the free ~25 calls/day bucket already shared with the earnings-history widget - and this repo's own notes record that quota as already exhausted by the existing news aggregator. CATALYST_ENGINE_ENABLED is set, and the engine bursts every 5 minutes pre-market, so arming this would spend an exhausted budget on every refresh: it buys no sentiment and can starve a feature that works today. The code is wired and ready - set a dedicated or premium CATALYST_AV_NEWS_KEY and THEN arm this. Arming it without one is not a smaller version of the feature, it is failed calls.",
+      "where": []
     },
     "CATALYST_CURATOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CATALYST_DIGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CATALYST_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CATALYST_HUNTER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CATALYST_MUSTKNOW_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "CATALYST_RATINGS_SIGNAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "COMMUNITY_ASK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "COMMUNITY_CHAT_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "COMMUNITY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "COMMUNITY_SIGNALS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -327,25 +332,26 @@
     "COMPASS_AUTOMATION_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "COMPASS_EOD_RECAP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "COMPASS_HEALTH_EMAIL_ENABLED": {
       "status": "dark",
-      "note": "Off 2026-09-02 by decision: this gates ONLY the scheduler SEND of the weekly operator email. The compute and the status endpoint are ungated and always callable, so the numbers (chat volume, active users, tool-failure rate) are available on demand without it. Off therefore means no weekly email is being sent, NOT no health data. Whether the owner wants a recurring email is theirs to say, and nothing is lost while it is off."
+      "note": "Off 2026-09-02 by decision: this gates ONLY the scheduler SEND of the weekly operator email. The compute and the status endpoint are ungated and always callable, so the numbers (chat volume, active users, tool-failure rate) are available on demand without it. Off therefore means no weekly email is being sent, NOT no health data. Whether the owner wants a recurring email is theirs to say, and nothing is lost while it is off.",
+      "where": []
     },
     "COMPASS_WEEKLY_DIGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -359,127 +365,130 @@
     "DARKPOOL_BIGBLOCK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DARKPOOL_EOD_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DARKPOOL_FLATFILE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DARKPOOL_INTRADAY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DARKPOOL_INTRADAY_TIERED_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DARKPOOL_MASSIVE_INGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DARKPOOL_RECORDS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DEEP_CACHE_ENABLED": {
       "status": "dark",
-      "note": "Off 2026-09-02, and superseded in direction. It builds a bars_cache_deep directory on the pod at boot; the architecture has since moved deep history OFF the web pod to a worker origin plus Cloudflare (BARS_HISTORY_ORIGIN_ENABLED / BARS_HISTORY_PROXY_ENABLED, both armed) precisely so the web pod never holds that volume of data. Arming this would push back toward the failure it was moved away from."
+      "note": "Off 2026-09-02, and superseded in direction. It builds a bars_cache_deep directory on the pod at boot; the architecture has since moved deep history OFF the web pod to a worker origin plus Cloudflare (BARS_HISTORY_ORIGIN_ENABLED / BARS_HISTORY_PROXY_ENABLED, both armed) precisely so the web pod never holds that volume of data. Arming this would push back toward the failure it was moved away from.",
+      "where": []
     },
     "DEEP_HISTORY_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
     "DESK_BACKGROUND_AUDIO_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DESK_DAILY_SESSION_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DESK_SESSION_CHAPTERS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DESK_SESSION_DISCORD_RECAP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DESK_TSDR_ANNOUNCE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "DISCORD_INDEX_CLOSE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "EARNINGS_PREWARM_ENABLED": {
       "status": "dark",
-      "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn."
+      "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
+      "where": []
     },
     "EXCURSION_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "EXPOSURE_GATE_WATCH_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "FLOW_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker",
+        "web"
       ],
       "note": ""
     },
@@ -493,14 +502,15 @@
     "FLOW_GAP_AUTOFILL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker",
+        "web"
       ],
       "note": ""
     },
     "FLOW_OPT_AGG_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker"
       ],
       "note": ""
     },
@@ -513,45 +523,49 @@
     },
     "FLOW_PRUNE_ENABLED": {
       "status": "dark",
-      "note": "Deliberately unarmed, re-confirmed 2026-09-02, and it should stay that way absent an explicit decision. There is NO restore path: the R2 backups run at 02:30 ET, AFTER the 20:00 ET prune, so every snapshot is already post-prune, and flow_backup.py has no restore function at all. Unarmed, the nightly job still reports precisely what it WOULD remove, so the information is available without the risk. The first armed run would be the largest delete this table has ever seen."
+      "note": "Deliberately unarmed, re-confirmed 2026-09-02, and it should stay that way absent an explicit decision. There is NO restore path: the R2 backups run at 02:30 ET, AFTER the 20:00 ET prune, so every snapshot is already post-prune, and flow_backup.py has no restore function at all. Unarmed, the nightly job still reports precisely what it WOULD remove, so the information is available without the risk. The first armed run would be the largest delete this table has ever seen.",
+      "where": []
     },
     "FLOW_READS_PROXY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "FLOW_REST_BACKFILL_ENABLED": {
       "status": "dark",
-      "note": "Off 2026-09-02 pending its own dry run. It recovers a WS disconnect window same-day via Massive REST, and is PARTIAL by construction: REST options-trades are per-contract, so only the enumerable Q-pool is recoverable and newly-surfacing contracts still wait for the T+1 flat file - which heals the gap anyway, one day later. The module's own instruction is to run the read-only audit (flow_gap_autofill) BEFORE enabling. Arm it after that audit, not before."
+      "note": "Off 2026-09-02 pending its own dry run. It recovers a WS disconnect window same-day via Massive REST, and is PARTIAL by construction: REST options-trades are per-contract, so only the enumerable Q-pool is recoverable and newly-surfacing contracts still wait for the T+1 flat file - which heals the gap anyway, one day later. The module's own instruction is to run the read-only audit (flow_gap_autofill) BEFORE enabling. Arm it after that audit, not before.",
+      "where": []
     },
     "FMP_BULK_ENABLED": {
       "status": "dark",
-      "note": "Off 2026-09-02: an optimization layer only. It pulls whole-market FMP fundamentals so the per-ticker yfinance call and its politeness sleep are skipped for covered symbols, and every miss falls back to that per-ticker path - which is armed and correct. Off costs latency, never correctness. Not armed because the bulk endpoint availability on the current FMP plan is unverified, and an unverified arm here buys a log full of warnings rather than a speedup."
+      "note": "Off 2026-09-02: an optimization layer only. It pulls whole-market FMP fundamentals so the per-ticker yfinance call and its politeness sleep are skipped for covered symbols, and every miss falls back to that per-ticker path - which is armed and correct. Off costs latency, never correctness. Not armed because the bulk endpoint availability on the current FMP plan is unverified, and an unverified arm here buys a log full of warnings rather than a speedup.",
+      "where": []
     },
     "FUNDAMENTALS_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "FUNDAMENTALS_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "GRADE_TICKER_CONFIRMED_SOURCE_ENABLED": {
       "status": "dark",
-      "note": "Seam 28's re-enablement, merged dark 2026-09-10 on owner authorization. OFF: grade_ticker._default_patterns_fn returns [] exactly as it has since 2026-09-06, so Compass keeps routing every call through its honest no-usable-setup SKIP. ON: it sources pattern_vision.store.get_confirmed ONLY -- D1-window-bounded, latest-evidence-bar-per-setup, so a setup confirmed on an older bar and rejected on a newer one is never served -- and the raw rule-engine feed stays unreachable in both states (Seam 23/28). DELIBERATELY OFF because turning it ON changes the SOURCE and not the OUTPUT: pattern_verdicts has key_level but no entry/stop/target column, and grade_ticker's hard gate is entry-or-stop-is-None -> SKIP, so a confirmed verdict alone still cannot produce a tradable verdict. Manufacturing an entry and a stop from one level would be the fabricated-confidence move Seam 23 and Seam 28 each removed. Flipping this on is therefore safe but currently pointless; making it meaningful needs verdicts to carry levels, which is a schema change and separate work. Pinned by tests/test_grade_ticker_confirmed_source.py::test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels, which goes RED the day levels are added."
+      "note": "Seam 28's re-enablement, merged dark 2026-09-10 on owner authorization. OFF: grade_ticker._default_patterns_fn returns [] exactly as it has since 2026-09-06, so Compass keeps routing every call through its honest no-usable-setup SKIP. ON: it sources pattern_vision.store.get_confirmed ONLY -- D1-window-bounded, latest-evidence-bar-per-setup, so a setup confirmed on an older bar and rejected on a newer one is never served -- and the raw rule-engine feed stays unreachable in both states (Seam 23/28). DELIBERATELY OFF because turning it ON changes the SOURCE and not the OUTPUT: pattern_verdicts has key_level but no entry/stop/target column, and grade_ticker's hard gate is entry-or-stop-is-None -> SKIP, so a confirmed verdict alone still cannot produce a tradable verdict. Manufacturing an entry and a stop from one level would be the fabricated-confidence move Seam 23 and Seam 28 each removed. Flipping this on is therefore safe but currently pointless; making it meaningful needs verdicts to carry levels, which is a schema change and separate work. Pinned by tests/test_grade_ticker_confirmed_source.py::test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels, which goes RED the day levels are added.",
+      "where": []
     },
     "GROUPS_SWING_GATES_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -565,7 +579,7 @@
     "IMPLIED_STORE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -586,77 +600,80 @@
     "INTRADAYPACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
     "J2_ATTACHMENT_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "J2_ATTACHMENT_GC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "J2_SHARE_LINKS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "LIVEFLOW_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
     },
     "MASSIVE_CURATED_STREAM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker"
       ],
       "note": ""
     },
     "MASSIVE_RESTHEAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker"
       ],
       "note": ""
     },
     "MASSIVE_STREAM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker",
+        "web"
       ],
       "note": ""
     },
     "MASSIVE_WS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker",
+        "web",
+        "worker"
       ],
       "note": ""
     },
     "NHNL_SCANNER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -670,7 +687,7 @@
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker"
       ],
       "note": ""
     },
@@ -711,11 +728,13 @@
     },
     "PATTERN_CANONICAL_SCANNER_PILOT_ENABLED": {
       "status": "dark",
-      "note": "Phase 8 Package 8G-B canonical pattern-engine migration, read-side pilot leg (api/services/screener/pattern_join.py:564-628; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on AND the caller is admin AND a row already legacy-matched power_earnings_gap (the only family in the hardcoded _PILOT_SUPPORTED_FAMILIES set -- widening it is a deliberate code change, not an env toggle), attaches an additional pattern_canonical_pilot key sourced from the canonical read; never mutates any existing key, and any failure at any stage falls back to the untouched legacy rows. Actively being performance-tuned against real admin traffic this week (idx_pd_sym_tf index work); own tests tests/test_screener_wave5_pattern_join_pilot.py."
+      "note": "Phase 8 Package 8G-B canonical pattern-engine migration, read-side pilot leg (api/services/screener/pattern_join.py:564-628; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on AND the caller is admin AND a row already legacy-matched power_earnings_gap (the only family in the hardcoded _PILOT_SUPPORTED_FAMILIES set -- widening it is a deliberate code change, not an env toggle), attaches an additional pattern_canonical_pilot key sourced from the canonical read; never mutates any existing key, and any failure at any stage falls back to the untouched legacy rows. Actively being performance-tuned against real admin traffic this week (idx_pd_sym_tf index work); own tests tests/test_screener_wave5_pattern_join_pilot.py.",
+      "where": []
     },
     "PATTERN_CANONICAL_SHADOW_LOG_ENABLED": {
       "status": "dark",
-      "note": "Phase 8 Package 8F canonical pattern-engine migration, shadow-log leg (api/services/screener/snapshot_builder.py:1052-1061; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on, every snapshot-build cycle additionally calls pattern_join.compare_pattern_shadow and logs the result -- pure observation, never touches pattern_map (the data actually served). Deliberately independent of the write-side flag per a 2026-09-04 design review: \"do not make snapshot_builder.py unconditionally switch to the canonical reader; legacy remains served while canonical is computed/logged beside it.\" Own tests tests/test_snapshot_builder_pattern_shadow.py."
+      "note": "Phase 8 Package 8F canonical pattern-engine migration, shadow-log leg (api/services/screener/snapshot_builder.py:1052-1061; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on, every snapshot-build cycle additionally calls pattern_join.compare_pattern_shadow and logs the result -- pure observation, never touches pattern_map (the data actually served). Deliberately independent of the write-side flag per a 2026-09-04 design review: \"do not make snapshot_builder.py unconditionally switch to the canonical reader; legacy remains served while canonical is computed/logged beside it.\" Own tests tests/test_snapshot_builder_pattern_shadow.py.",
+      "where": []
     },
     "PERMANENT_DAILY_FRESHNESS_ENABLED": {
       "status": "armed",
@@ -727,21 +746,21 @@
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "R2_RECOVERY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "RATINGS_PERCENTILE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -750,7 +769,7 @@
       "where": [
         "web"
       ],
-      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. ⚰️ THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
+      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. \u26b0\ufe0f THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
     },
     "S7_FILING_WATCH_ENABLED": {
       "status": "armed",
@@ -761,26 +780,27 @@
     },
     "SCAN_LIVE_SWEEP_ENABLED": {
       "status": "dark",
-      "note": "Deliberately unarmed, re-confirmed 2026-09-02, per the live-scan retirement (2026-08-29): that surface was retired while its engine was kept. Worth knowing before touching it: the job is registered UNCONDITIONALLY and the flag is read PER CALL inside live_sweep_job and again inside run_sweep(mode=live), so arming and rolling back are both env-var-only, with no deploy either way. Downstream rendering already assumes scan_hits_live is empty."
+      "note": "Deliberately unarmed, re-confirmed 2026-09-02, per the live-scan retirement (2026-08-29): that surface was retired while its engine was kept. Worth knowing before touching it: the job is registered UNCONDITIONALLY and the flag is read PER CALL inside live_sweep_job and again inside run_sweep(mode=live), so arming and rolling back are both env-var-only, with no deploy either way. Downstream rendering already assumes scan_hits_live is empty.",
+      "where": []
     },
     "SCAN_SWEEP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "SCREENER_ANALYST_PASS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "SCREENER_LIVE_TIER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -794,25 +814,28 @@
     "SNAPSHOT_DELTA_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "bars-api",
+        "web",
+        "worker"
       ],
       "note": ""
     },
     "STANDING_FLOW_ENABLED": {
       "status": "dark",
-      "note": "Superseded, and setting it would change nothing - confirmed 2026-09-02. On 2026-08-22 the cron was switched, per owner, from run_standing_cron (60-day Open Flow) to run_weekly_cron (a true 5-day week). The scheduler registration and both run_weekly and run_standing accept EITHER this flag or WEEKLY_FLOW_ENABLED, and WEEKLY_FLOW_ENABLED=1 IS set on flow-worker, so the Friday 16:15 ET job is already registered and firing. This flag now survives only as a redundant second arm for a job that is already armed; the 60-day board it was named for is no longer scheduled."
+      "note": "Superseded, and setting it would change nothing - confirmed 2026-09-02. On 2026-08-22 the cron was switched, per owner, from run_standing_cron (60-day Open Flow) to run_weekly_cron (a true 5-day week). The scheduler registration and both run_weekly and run_standing accept EITHER this flag or WEEKLY_FLOW_ENABLED, and WEEKLY_FLOW_ENABLED=1 IS set on flow-worker, so the Friday 16:15 ET job is already registered and firing. This flag now survives only as a redundant second arm for a job that is already armed; the 60-day board it was named for is no longer scheduled.",
+      "where": []
     },
     "STREAM_BARS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "THEME_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
@@ -826,65 +849,72 @@
     "TRADE_CONDITION_FILTER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "TRANSCRIPT_INDEX_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "TRANSCRIPT_KEYWORD_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "TWITTERAPI_IO_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "VOLUME_PUSH_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "VOLUME_SCANNER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "WEEKLY_FLOW_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "flow-worker"
       ],
       "note": ""
     },
     "WIRE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "web"
       ],
       "note": ""
     },
     "WORKER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "worker"
       ],
       "note": ""
+    },
+    "SMOKE_LOGIN_LINK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "ARMED AND LIVE: set to 1 on web (read 2026-09-13). Admin-issued single-use login link for the synthetic smoke account, introduced by 35dca25fd (2026-09-12, another workstream). api/routers/auth.py:631 reads os.getenv('SMOKE_LOGIN_LINK_ENABLED', '') == '1', so the CODE default is off everywhere and the service value is what turns it on. Declared here to record what exists - the flip belongs to the workstream that shipped it. Its header states the four gates (admin session, this flag, a one-id allow-list, a single-use five-minute token) and that it grants no capability the issuing admin did not already have."
     }
   },
   "build_flags": {

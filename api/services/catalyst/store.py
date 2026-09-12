@@ -679,10 +679,49 @@ def cost_stats_for_date(market_date: str) -> dict:
         return dict(row)
 
 
+#: ⛔⛔ F-S7-5 — THE MUST-KNOW RULE'S OWN DEDUP NAMESPACE.
+#:
+#: `catalyst_alerts_fired` is keyed `(user_id, ticker, market_date)` and TWO
+#: rules write it: `_fire_catalyst_alerts` (watchlist) runs first and
+#: `_fire_mustknow_alerts` (grade, admins only) runs second. Sharing the key
+#: meant **an admin who also WATCHED a name never received the must-know alert
+#: for it** — and the suppressed one is the HIGHER-severity alert, landing
+#: exactly on the names an operator cared enough to watch, while a must-know
+#: alert exists to reach somebody REGARDLESS of their watchlist.
+#:
+#: ⭐ THE FIX IS THE ONE THIS CODEBASE ALREADY MADE FOR THE SAME SHAPE.
+#: `awareness/rules.py` namespaces its cooldown keys `{sym}:stop_hit` vs
+#: `{sym}:stop_near`, with the comment: *"an earlier 'nearing stop' warning must
+#: never swallow the THROUGH-the-stop escalation."* Same defect, same remedy.
+#:
+#: ⛔ THE WATCHLIST RULE'S KEY IS UNTOUCHED — it still passes the bare ticker —
+#: so nobody loses an alert they get today. This can only ADD a delivery.
+#:
+#: ⚠️ THE TRADE, STATED: the `ticker` column now holds a value that is not a
+#: ticker for must-know rows. The alternative — a `kind` column in the PRIMARY
+#: KEY — is a full table rebuild in SQLite for a live dedup ledger, to express
+#: the same thing. `mustknow_dedup_key` is declared ONCE so the two sides cannot
+#: disagree about the spelling, and `ticker.upper()` inside `try_record_alert`
+#: normalises it the same way it always did.
+MUSTKNOW_DEDUP_PREFIX = "mustknow:"
+
+
+def mustknow_dedup_key(ticker: str) -> str:
+    """The must-know rule's dedup identity for a ticker. ⛔ ONE declaration: a
+    second spelling anywhere would silently re-share the key with the watchlist
+    rule and put F-S7-5 straight back."""
+    return f"{MUSTKNOW_DEDUP_PREFIX}{(ticker or '').upper()}"
+
+
 def try_record_alert(user_id: str, ticker: str, market_date: str) -> bool:
     """Atomically dedupe a catalyst alert. Returns True if newly recorded
     (caller should fire alert), False if already fired today for this
-    (user, ticker, market_date)."""
+    (user, ticker, market_date).
+
+    ⛔ `ticker` IS A DEDUP IDENTITY, NOT NECESSARILY A SYMBOL. The watchlist rule
+    passes the bare ticker; the must-know rule passes
+    `mustknow_dedup_key(ticker)` so the two rules cannot claim one key. See
+    F-S7-5 above."""
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         try:
             c.execute(

@@ -195,3 +195,69 @@ describe('the append-only case the handler was built for still merges', () => {
     expect(JSON.stringify(retry.bodyJson)).toContain('widgetEmbed')  // and so did the append
   })
 })
+
+/**
+ * ⚰️ THE SECOND HALF OF THE SAME DEFECT, FOUND 2026-09-12. The check above knew
+ * about ONE server-side append. The server has three — `append_widget_embed`,
+ * `append_financial_fact`, `append_document_excerpt` — so a member who saved a
+ * price or captured an excerpt into a note they were also editing got a
+ * `(conflicted copy)` instead of a merge, from their own single device.
+ *
+ * ⛔ These are not three copies of one rail. Each one is a DIFFERENT NODE TYPE
+ * that a different product surface produces, and the roster they are checked
+ * against (`SERVER_APPENDED_TYPES`) is the thing that goes stale when a fourth
+ * lands.
+ */
+const serverAppending = (node) => ({
+  ...NOTE, updatedAt: 'T2',
+  bodyJson: { type: 'doc', content: [...BASE_BODY.content, node] },
+})
+
+describe('every server-side append merges, not just the embed', () => {
+  it.each([
+    ['financialFact (a saved price)', { type: 'financialFact', attrs: { factId: 'f1' } }, 'financialFact'],
+    ['documentExcerpt (an excerpt capture)', { type: 'documentExcerpt', attrs: { excerptId: 'x1' } }, 'documentExcerpt'],
+  ])('a server-appended %s is merged and retried, not forked', async (_label, node, marker) => {
+    serverNote = serverAppending(node)
+    updateMock
+      .mockRejectedValueOnce(conflict())
+      .mockResolvedValue({ ...NOTE, updatedAt: 'T3' })
+    await renderEditor()
+    await editLocallyAndLetAutosaveFire()
+    await act(async () => { vi.advanceTimersByTime(200) })
+
+    await waitFor(() => expect(updateMock.mock.calls.length).toBeGreaterThan(1))
+    expect(postedNotes().length).toBe(0)                       // no fork
+    const retry = updateMock.mock.calls[updateMock.mock.calls.length - 1][0]
+    expect(retry.baseUpdatedAt).toBe('T2')
+    expect(retry.title).toBe(LOCAL_TITLE)                      // the member's edit survived
+    expect(JSON.stringify(retry.bodyJson)).toContain(marker)   // and so did the append
+  })
+
+  it('⛔ CONTROL — a paragraph appended by another device is NOT a server append, and still forks', async () => {
+    serverNote = serverAppending({ type: 'paragraph', content: [{ type: 'text', text: 'typed elsewhere' }] })
+    updateMock.mockRejectedValueOnce(conflict()).mockResolvedValue({ ...NOTE, updatedAt: 'T3' })
+    await renderEditor()
+    await editLocallyAndLetAutosaveFire()
+    await act(async () => { vi.advanceTimersByTime(200) })
+
+    await waitFor(() => expect(postedNotes().length).toBe(1))  // preserved both
+  })
+})
+
+describe('a metadata-only server change rebases — it never forks', () => {
+  it('a ticker set on another surface does not cost the member a conflicted copy', async () => {
+    // The body, title and subtitle are byte-identical; only the ticker moved.
+    serverNote = { ...NOTE, updatedAt: 'T2', ticker: 'NVDA' }
+    updateMock.mockRejectedValueOnce(conflict()).mockResolvedValue({ ...NOTE, updatedAt: 'T3' })
+    await renderEditor()
+    await editLocallyAndLetAutosaveFire()
+    await act(async () => { vi.advanceTimersByTime(200) })
+
+    await waitFor(() => expect(updateMock.mock.calls.length).toBeGreaterThan(1))
+    expect(postedNotes().length).toBe(0)
+    const retry = updateMock.mock.calls[updateMock.mock.calls.length - 1][0]
+    expect(retry.baseUpdatedAt).toBe('T2')
+    expect(retry.title).toBe(LOCAL_TITLE)
+  })
+})

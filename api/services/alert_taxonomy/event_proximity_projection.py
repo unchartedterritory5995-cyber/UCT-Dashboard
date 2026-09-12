@@ -54,6 +54,7 @@ from datetime import date as _date, timedelta as _timedelta
 from typing import Any, Optional
 
 from api.services import auth_db as _auth_db
+from api.services import rollout as _rollout
 from api.services.alert_taxonomy import db as _db
 from api.services.alert_taxonomy import event_proximity as _ep
 from api.services.alert_taxonomy import event_proximity_compare as _cmp
@@ -82,21 +83,38 @@ def projected_predicate_id(user_id: str, ticker: str) -> str:
 
 
 def _cohort_user_ids() -> set[str]:
-    """Admin-role account ids — the existing role check, never a hardcoded list.
+    """The `rollout:s7-dark` cohort — S12's first migration.
 
-    ⛔ A typed list is a second authority over who is an admin and goes stale
-    SILENTLY the day someone's role changes, in the direction that quietly
-    widens a cohort.
+    ⚰️ THIS WAS A ROLE CHECK, AND THAT WAS A ROLLOUT GATE WEARING A PRIVILEGE'S
+    CLOTHES. The retired body, kept verbatim:
+
+        conn = _auth_db.get_connection()
+        try:
+            if all_members_enabled():
+                rows = conn.execute("SELECT id FROM users").fetchall()
+            else:
+                rows = conn.execute("SELECT id FROM users WHERE role = ?", (ADMIN_ROLE,)).fetchall()
+        finally:
+            conn.close()
+        return {str(dict(r)["id"]) for r in rows}
+
+    Its own docstring said *"the existing role check, never a hardcoded list …
+    a typed list is a second authority"* — which was right about typed lists and
+    still left the cohort unable to shrink, unable to include a non-admin, and
+    duplicated in `price_level_projection.py`.
+
+    ⛔⛔ AN EMPTY COHORT MEANS NO MEMBERS. There is no fallback to admins here and
+    there must never be one (owner ruling, 2026-09-12). The swap is a no-op only
+    because `main.py` seeds the tag from the role at boot, and
+    `test_the_swap_projects_an_IDENTICAL_cohort` is what proves it.
+
+    ⛔ AND THE CP4 FLAG IS NO LONGER A CODE PATH. Widening to all members is now
+    a TAG ASSIGNMENT, not a branch — so the `all_members_enabled()` test above is
+    gone. `CP4_ALL_MEMBERS_FLAG` and its rail stay until a later line deletes
+    them, asserting the thing that is now true by construction: **unset changes
+    nothing, and so does set.**
     """
-    conn = _auth_db.get_connection()
-    try:
-        if all_members_enabled():
-            rows = conn.execute("SELECT id FROM users").fetchall()
-        else:
-            rows = conn.execute("SELECT id FROM users WHERE role = ?", (ADMIN_ROLE,)).fetchall()
-    finally:
-        conn.close()
-    return {str(dict(r)["id"]) for r in rows}
+    return _rollout.cohort_user_ids(_rollout.S7_DARK)
 
 
 def project_admin_event_predicates(today: _date) -> list[dict[str, Any]]:

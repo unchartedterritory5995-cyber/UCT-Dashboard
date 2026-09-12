@@ -22,12 +22,43 @@
 
 import { useId, useState } from 'react'
 import UIcon from '../ui/UIcon'
+import { formatDateTimeEt } from '../../lib/presentation/presentationPrimitives'
 import styles from './Cited.module.css'
 
-function epochToLocal(epochSeconds) {
-  if (!Number.isFinite(epochSeconds)) return null
-  return new Date(epochSeconds * 1000).toLocaleString('en-US')
-}
+// ⚰️ `epochToLocal` LIVED HERE. It is now S10's
+// `formatDateTimeViewerLocal`, moved byte for byte:
+//
+//     function epochToLocal(epochSeconds) {
+//       if (!Number.isFinite(epochSeconds)) return null
+//       return new Date(epochSeconds * 1000).toLocaleString('en-US')
+//     }
+//
+// ⚠️⚠️ AND MOVING IT MADE A REAL DEFECT VISIBLE THAT HAD NO NAME BEFORE.
+// IT IS NOW FIXED, on its own line (owner, 2026-09-12).
+//
+// This rendered in the VIEWER's timezone while its two neighbours in this same
+// directory — `<Provenance>`'s "Observed:" line and `<FreshnessBadge>`'s "as of"
+// clause — pinned ET, and NEITHER carried a zone label, which is the half that
+// made it invisible. One instant, one S8 surface, read four different ways
+// depending on where the member sat:
+//
+//     viewer zone        BEFORE                      AFTER
+//     America/New_York   "9/11/2025, 9:32:15 AM"     "9/11/2025, 9:32:15 AM ET"
+//     America/Chicago    "9/11/2025, 8:32:15 AM"     "9/11/2025, 9:32:15 AM ET"
+//     Europe/London      "9/11/2025, 2:32:15 PM"     "9/11/2025, 9:32:15 AM ET"
+//     Asia/Tokyo         "9/11/2025, 10:32:15 PM"    "9/11/2025, 9:32:15 AM ET"
+//
+// ⭐ A LONDON READER WAS SHOWN A BAR VALIDATED AT "2:32 PM" AND NOTHING SAID
+// WHICH AFTERNOON THAT WAS. A provenance surface whose whole job is to say when
+// a value was true cannot leave the reader to guess the zone.
+//
+// ⛔ MEMBER-VISIBLE, DELIBERATELY. S10's first build could not make this change
+// — its approval required byte-identical rendering — which is exactly why this
+// one is a separate line: it is allowed to move a string, and it does.
+//
+// ⛔ THE LABEL IS THE OTHER HALF. Pinning the zone silently would swap one
+// unlabelled timestamp for another, and a London reader would see a number three
+// hours earlier than yesterday's with nothing to explain it.
 
 export default function Cited({ children, row = null }) {
   const panelId = useId()
@@ -51,7 +82,7 @@ export default function Cited({ children, row = null }) {
     ? [
       `${row.ticker} · ${row.tf}`,
       `Source: ${row.source}`,
-      row.validated_at && `Validated: ${epochToLocal(row.validated_at)}`,
+      row.validated_at && `Validated: ${formatDateTimeEt(row.validated_at)}`,
       row.verified_at ? 'Reconciliation: verified' : 'Reconciliation: not yet verified',
     ].filter(Boolean)
     : [row.uctUri && `Address: ${row.uctUri}`].filter(Boolean)

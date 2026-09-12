@@ -35,6 +35,7 @@ import InterventionBanner from './InterventionBanner'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
+import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import SecuritySymbolInput from './SecuritySymbolInput'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
@@ -248,6 +249,11 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         body: JSON.stringify({ attrs }),
       })
       if (!res.ok) return String(res.status)
+      // ⛔⛔ THE APPEND MOVED THE NOTE'S REVISION. A browser cannot record a
+      // revision it was never told, and an unrecorded revision is what makes
+      // the offline queue decide somebody else wrote — and fork the member's
+      // note against their own trade link. `settleNoteWrite` never throws.
+      await settleNoteWrite(noteId, res)
       return null
     } catch (e) {
       return String(e?.message || e)
@@ -311,7 +317,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
               body: JSON.stringify({
                 properties: { 'builtin:research_type': side === 'Short' ? 'short_thesis' : 'long_thesis' },
               }),
-            }).catch(() => {})
+            })
+              // ⛔ Best-effort stays best-effort — but a PUT that SUCCEEDS has
+              // moved the revision, and that has to be landed or the member's
+              // next offline drain forks this note.
+              .then(async (r) => (r.ok ? settleNoteWrite(thesisNoteId, r) : null))
+              .catch(() => {})
           }
         }
       }

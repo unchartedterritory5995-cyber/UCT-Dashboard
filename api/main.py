@@ -3138,6 +3138,35 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
 
+    # ── S12 first migration: seed the `rollout:s7-dark` cohort ───────────────
+    #
+    # ⛔⛔ THIS IS WHAT MAKES THE COHORT SWAP A NO-OP BY CONSTRUCTION. Both S7
+    # dark projections now read `user_tags` instead of `users.role = 'admin'`,
+    # and an untagged cohort means NO MEMBERS -- never a fallback to admins
+    # (owner ruling, 2026-09-12). So without this line the swap would silently
+    # cover ZERO people, and five sessions of "agreement" over an empty set
+    # reads exactly like five sessions of agreement.
+    #
+    # ⭐ IDEMPOTENT AND ADDITIVE-ONLY. `INSERT OR IGNORE` against a
+    # `UNIQUE(user_id, tag)`, so every boot after the first inserts nothing. It
+    # NEVER removes a tag: a member added to the cohort by hand must survive a
+    # restart, and a member whose ROLE changed must not be silently dropped out
+    # of a running dark comparison.
+    #
+    # ⛔ IT IS HERE AND NOT IN `auth_db.init_db()`, DELIBERATELY. `auth_db.py` is
+    # inside flow-worker's import closure and is NOT on its watch list, so
+    # editing it would strand flow-worker on stale code for a change it runs --
+    # measured with `tools/flow_worker_watch_coverage.py`, not assumed. `main.py`
+    # is not in that closure.
+    try:
+        from api.services import rollout as _rollout
+        _seeded = _rollout.ensure_s7_dark_seeded()
+        logging.getLogger(__name__).info(
+            "rollout: cohort %r seeded from role %r (%d new tag rows)",
+            _rollout.S7_DARK, _rollout.LEGACY_S7_ROLE, _seeded)
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"rollout seed failed: {e}")
+
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
     # `if not ingest_enabled(): return` guard and only when this process holds

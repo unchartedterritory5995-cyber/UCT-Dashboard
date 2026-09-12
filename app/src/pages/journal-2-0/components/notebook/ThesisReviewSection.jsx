@@ -4,6 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useThesisReviews from '../../hooks/useThesisReviews'
 import { REVIEW_OUTCOMES } from '../../lib/reviewOutcomes'
 import styles from './ThesisReviewSection.module.css'
+import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 
 /**
  * Wave O — the finance-native review loop, where the research already is.
@@ -213,7 +214,12 @@ export default function ThesisReviewSection({
           method: 'PUT', credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ properties: { 'builtin:review_date': nextReviewAt } }),
-        }).catch(() => {})
+        })
+          // ⛔⛔ A PROPERTY WRITE IS A DOOR. It goes through `update_note` and
+          // moves the note's revision; unlanded, the member's next offline
+          // drain reads it as somebody else's write and forks the thesis note.
+          .then(async (r) => (r.ok ? settleNoteWrite(noteId, r) : null))
+          .catch(() => {})
       }
       setAnnouncement(`Review completed: ${OUTCOMES.find((o) => o.id === outcome)?.label}.`)
       setMemberNote(''); setOutcome(null); setNextReviewAt('')

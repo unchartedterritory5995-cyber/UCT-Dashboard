@@ -6,6 +6,7 @@
 // picker CaptureMenu offers widgets — there is no comment/target choice to
 // make here, just "where does this go."
 import { freshLastNote } from './captureTargets'
+import { settleNoteWrite } from './offline/settleNoteWrite'
 
 const LAST_NOTE_KEY = 'uct.jw.lastNote'
 
@@ -46,6 +47,10 @@ export async function capturePriceToNotebook(ticker) {
       method: 'POST', credentials: 'include',
     })
     if (!insertRes.ok) return 'Capture failed — try again'
+    // ⛔⛔ `append_financial_fact` advanced this note's revision. Unlanded, it
+    // reads to the offline queue as a stranger's write and forks the member's
+    // note against their own saved price.
+    await settleNoteWrite(noteId, insertRes)
     return `${ticker} price captured to Notebook`
   } catch {
     return 'Capture failed — try again'

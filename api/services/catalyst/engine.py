@@ -355,7 +355,21 @@ def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
             ticker = (c.get("ticker") or "").upper()
             if not ticker:
                 continue
-            if not store.try_record_alert(user_id, ticker, market_date):
+            # ⛔⛔ F-S7-5: THE MUST-KNOW RULE HAS ITS OWN DEDUP KEY.
+            #
+            # This used to pass the bare `ticker`, sharing
+            # `(user_id, ticker, market_date)` with `_fire_catalyst_alerts`
+            # above — which runs FIRST. So an admin who also WATCHED the name
+            # never received this alert, and the suppressed one is the
+            # HIGHER-severity of the two, landing exactly on the names an
+            # operator cared enough to watch. A must-know alert exists to reach
+            # somebody REGARDLESS of their watchlist.
+            #
+            # ⭐ Same remedy `awareness/rules.py` already uses for
+            # `{sym}:stop_hit` vs `{sym}:stop_near`. ⛔ The watchlist rule's key
+            # is untouched, so this can only ADD a delivery, never remove one.
+            if not store.try_record_alert(
+                    user_id, store.mustknow_dedup_key(ticker), market_date):
                 continue
             grade = (c.get("grade") or "").upper()
             ctype = c.get("catalyst_type") or c.get("tag") or "Catalyst"

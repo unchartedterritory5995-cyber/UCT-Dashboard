@@ -19,6 +19,10 @@ import { clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent } fro
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { sameAuthoredContent } from './recoverLocalState'
+import {
+  APPEND_ONLY, BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange,
+  lastKnownServerCopy, missingServerNodes, serverAppendedKeysIn, snapshotOfServerCopy,
+} from './serverChange'
 
 export const SENT = 'sent'
 export const FORKED = 'forked'
@@ -55,6 +59,9 @@ async function settleSent(db, entry, saved) {
     ...(rec || {}),
     baseUpdatedAt,
     dirty: caughtUp ? 0 : 1,
+    // ⛔ AFTER the spread, never inside it: the record's own `serverBase` is
+    // now stale — the server has just accepted these words at this revision.
+    serverBase: caughtUp ? null : snapshotOfServerCopy(saved, baseUpdatedAt),
   }
   // ⛔ The re-queued intent carries what the RECORD holds now, not the words
   // we just sent. Re-queuing `entry.patch` would make the next drain send the
@@ -72,6 +79,25 @@ async function settleSent(db, entry, saved) {
  *  should hold what the SERVER has rather than keep claiming to be an unsent
  *  edit of it. */
 async function settleForked(db, entry, serverNote) {
+  // ⛔⛔ A FORK MUST NEVER EMPTY THE WORKING COPY.
+  //
+  // ⚰️ Every field below falls back to `''` or `null`, so a `fork` that
+  // resolved without a usable server note — a 200 with no `note` key, a shape
+  // change, a caller returning the CREATED note instead of the server's —
+  // wrote a record with no title and no body, marked it `dirty: 0`, and cleared
+  // the intent. The member's words were safe in the `(conflicted copy)` sibling,
+  // but the note they had open went BLANK, and a clean record is not a recovery
+  // candidate, so the banner would never offer the local copy back either.
+  //
+  // ⛔ The queue is still settled — the fork DID happen and the entry is owed to
+  // nobody now — but the content stays exactly as it was. An honest stale body
+  // beats an empty one; the next open re-reads the server anyway.
+  const usable = serverNote && (serverNote.bodyJson != null || serverNote.title != null)
+  if (!usable) {
+    const rec = await getNote(db, entry.noteId)
+    if (rec) await putNoteWithIntent(db, { ...rec, dirty: 0, serverBase: null }, null)
+    return
+  }
   await putNoteWithIntent(db, {
     noteId: entry.noteId,
     title: serverNote?.title ?? '',
@@ -82,6 +108,9 @@ async function settleForked(db, entry, serverNote) {
     sessionId: null,
     localSavedAt: Date.now(),
     dirty: 0,
+    // ⛔ Clean ⇒ the record IS the base. Carrying a stale snapshot past a fork
+    // would let the next conflict classify against a document nobody holds.
+    serverBase: null,
   }, null)
 }
 
@@ -127,10 +156,57 @@ async function settleBlocked(db, entry, error) {
  * and inventing a record here would overwrite the durable working copy with a
  * reconstruction of the patch.
  */
-async function rebaseEntry(db, entry, baseUpdatedAt) {
+async function rebaseEntry(db, entry, baseUpdatedAt, serverBase = undefined) {
   const rec = await getNote(db, entry.noteId)
   const next = { ...entry, baseUpdatedAt, queuedAt: Date.now() }
-  if (rec) await putNoteWithIntent(db, rec, next)
+  // ⛔ `undefined` means "leave it alone" — the ring-based rebase learns a
+  // revision but never sees the server's document, so it has nothing to record
+  // and must not erase what the record already knew.
+  const rec2 = rec && serverBase !== undefined ? { ...rec, serverBase } : rec
+  if (rec2) await putNoteWithIntent(db, rec2, next)
+  return next
+}
+
+/** Put the server's appended blocks at the end of a document, without touching
+ *  a single one of the member's own.
+ *
+ * ⛔ Returns null when the document is not one this can safely extend. Null
+ * means "cannot merge" and the caller forks — it never means "nothing to do".
+ */
+function withAppends(bodyJson, nodes) {
+  if (!bodyJson || typeof bodyJson !== 'object' || !Array.isArray(bodyJson.content)) return null
+  const missing = missingServerNodes(nodes, serverAppendedKeysIn(bodyJson))
+  if (!missing.length) return bodyJson
+  return { ...bodyJson, content: [...bodyJson.content, ...missing] }
+}
+
+/**
+ * ⭐⭐ THE APPEND-ONLY MERGE. The server appended blocks of its own; the member
+ * has words we still owe it. Both survive, and nothing here is a guess: the
+ * classifier PROVED the server's only change was those appends.
+ *
+ * ⛔⛔ THE RECORD GETS THEM TOO, AND SEPARATELY. `settleSent` re-queues the
+ * RECORD's words whenever they are ahead of what was just acknowledged — so a
+ * merge that only touched the outbox entry would be undone by the very next
+ * drain, which would send a body with the appends stripped back out. Each
+ * document keeps its own words and gains the same blocks.
+ */
+async function mergeAppends(db, entry, appended, baseUpdatedAt, serverBase) {
+  const patchBody = withAppends(entry.patch?.bodyJson, appended)
+  if (!patchBody) return null
+  const rec = await getNote(db, entry.noteId)
+  const next = {
+    ...entry,
+    patch: { ...entry.patch, bodyJson: patchBody },
+    baseUpdatedAt,
+    queuedAt: Date.now(),
+  }
+  if (rec) {
+    const recBody = withAppends(rec.bodyJson, appended)
+    // ⛔ A record this cannot extend is not a reason to abandon the merge — the
+    // entry is what goes on the wire. It IS a reason not to rewrite the record.
+    await putNoteWithIntent(db, recBody ? { ...rec, bodyJson: recBody, serverBase } : { ...rec, serverBase }, next)
+  }
   return next
 }
 
@@ -402,6 +478,71 @@ export async function drainOutbox(db, {
                 continue
               }
               // a second 409 ⇒ fall through and fork, preserving both copies
+            }
+          }
+          // ⭐⭐ THE RING COULD NOT VOUCH FOR THIS REVISION — SO ASK THE DIFF.
+          //
+          // ⚰️ 2026-09-12. The landed ring only knows revisions THIS browser
+          // recorded. A door fired in another tab, a door that shipped before
+          // the settle did, a door nobody has enumerated yet — every one of
+          // them produces a revision the ring has never heard of, and the
+          // answer was always "not ours ⇒ fork". A member who set a ticker in
+          // one tab and typed in another got a `(conflicted copy)` of a note
+          // only they had ever touched.
+          //
+          // ⛔⛔ AND THIS IS WHY THE CLASSIFICATION IS DERIVED FROM THE DIFF,
+          // NOT FROM WHICH ENDPOINT WAS CALLED. The ring is an enumeration of
+          // callers, and Wave Q1 proved twice that an enumeration of callers
+          // goes stale silently. Two documents cannot lie about what is in them.
+          //
+          // ⛔ It runs ONLY when the ring had nothing to offer and no rebase has
+          // been tried. After a rebase the fetched copy is a revision behind,
+          // and classifying against a stale document is how you merge into a
+          // note that has moved again.
+          if (!retriedRebase && mine?.serverNote && isUsableBaseline(mine.serverUpdatedAt)) {
+            const base = lastKnownServerCopy(noteRec)
+            const shape = classifyServerChange(mine.serverNote, base)
+            const snapshot = snapshotOfServerCopy(mine.serverNote, mine.serverUpdatedAt)
+            let merged = null
+            if (shape === METADATA_ONLY) {
+              // The body never moved. The member's queued body is still the
+              // only authority on the body — rebase and send it.
+              // eslint-disable-next-line no-await-in-loop
+              merged = await rebaseEntry(db, entry, mine.serverUpdatedAt, snapshot)
+            } else if (shape === APPEND_ONLY) {
+              // eslint-disable-next-line no-await-in-loop
+              merged = await mergeAppends(
+                db, entry, appendedServerNodes(mine.serverNote, base), mine.serverUpdatedAt, snapshot,
+              )
+            }
+            if (merged) {
+              entry = merged
+              retriedRebase = true
+              rebased = mine.serverUpdatedAt
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                const saved = await send(entry)
+                // eslint-disable-next-line no-await-in-loop
+                await settleSent(db, entry, saved)
+                results.push({
+                  mutationId: entry.mutationId,
+                  noteId: entry.noteId,
+                  outcome: SENT,
+                  shape,
+                  reason: shape === APPEND_ONLY
+                    ? `409, and the server's only change was blocks it appended itself — merged onto ${rebased} and sent`
+                    : `409, but the server's body never moved (${shape}) — rebased onto ${rebased} and sent`,
+                })
+                continue
+              } catch (re) {
+                if (re?.status !== 409) {
+                  results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: KEPT, error: re })
+                  continue
+                }
+                // ⛔ A second 409 means the server moved AGAIN while we were
+                // deciding. Fall through and fork — preserving both copies is
+                // the answer whenever the ground will not hold still.
+              }
             }
           }
         } catch {

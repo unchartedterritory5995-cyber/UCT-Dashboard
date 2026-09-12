@@ -270,6 +270,32 @@ def canary_should_run(suspended: bool, no_canary_flag: bool) -> bool:
 # ⭐ THE DOOR IS DERIVED FROM THE RUN'S OWN NUMBER, NEVER PASSED IN. A rotation
 # the caller has to remember to vary is a rotation that silently stops varying,
 # and seven rows would then say the same word while claiming to rotate.
+# ⛔⛔ FOUR NOW, AND THE FOURTH IS THE REASON THIS WHOLE FILE EXISTS.
+# `hero` is the door that shipped to production UNSETTLED for the whole of Wave
+# Q1 — because the door list was derived from what THIS canary drove, and no
+# canary ever uploaded a hero image. It is driven here so that can never again be
+# true of the list that produced it.
+# ⭐ The other three families found on 2026-09-12 (`append_widget_embed`,
+# `append_financial_fact`, `append_document_excerpt`) are NOT reachable from the
+# note editor — they are opened from the charts page, a TickerPopup and a PDF
+# preview. They are INCONCLUSIVE here by construction and are named as such in
+# the sweep table, never driven by a substitute mechanism.
+# ⛔⛔ THREE, AND `hero` IS DELIBERATELY NOT THE FOURTH — YET.
+#
+# `hero` IS the door that shipped unsettled, and it is exactly the one this rig
+# should drive. It was added on 2026-09-12 and taken straight back out, because
+# adding it made the UNATTENDED canary rotate into a door this rig cannot yet
+# drive: run #31 reported `heroImageUrl = None` after the drain, and the isolating
+# probe (`tools/q1_hero_door_probe.py`) could not launch a browser to say whether
+# that was the DRAIN clobbering a hero or the DOOR never setting one.
+#
+# ⛔ An undrivable door is INCONCLUSIVE, never a finding and never a green — and
+# leaving it in the rotation would have made the scheduled observation window
+# refuse to stamp every fourth run for an INSTRUMENT reason, which reads as a
+# product problem to anyone finding the gap later.
+#
+# ⭐ The driver (`_fire_hero_door`) and its verdict arm in `door_survived` are
+# KEPT, so closing this is wiring, not rediscovery. Q1-F4 in the resume doc.
 DOORS = ("folder", "ticker", "tags")
 DOOR_PATCH = {
     "folder": {"folderId": None},
@@ -299,6 +325,30 @@ def door_for(n: int) -> str:
     return DOORS[n % len(DOORS)]
 
 
+# A 1x1 PNG, inline, so the rig needs no fixture file on disk and no network.
+_HERO_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000d4944415478da63f8ffff3f0005fe02fea735a09b0000000049454e44ae426082"
+)
+
+
+def _fire_hero_door(page):
+    """Upload a hero image through the editor's own file input.
+
+    ⛔ INCONCLUSIVE, NEVER A SUBSTITUTE. If the input is not on the page this
+    returns `ok: False` with the reason, and the caller records the run as not
+    having exercised a door — exactly as it does for the other three.
+    """
+    try:
+        el = page.query_selector('input[type="file"][accept*="image"]') or page.query_selector('input[type="file"]')
+        if el is None:
+            return {"ok": False, "why": "no file input on the page — the hero picker did not render"}
+        el.set_input_files({"name": "canary-hero.png", "mimeType": "image/png", "buffer": _HERO_PNG})
+        return {"ok": True, "via": "input[type=file].set_input_files"}
+    except Exception as e:  # noqa: BLE001 — the reason is the product of this function
+        return {"ok": False, "why": f"{type(e).__name__}: {e}"}
+
+
 def door_survived(door: str, server_note) -> tuple:
     """Did the value this run's door set survive the drain's send?
 
@@ -316,6 +366,13 @@ def door_survived(door: str, server_note) -> tuple:
     if door == "tags":
         tags = server_note.get("tags") if isinstance(server_note.get("tags"), list) else []
         return DOOR_PATCH["tags"]["tags"][0] in tags, f" (`tags` = {tags!r})"
+    if door == "hero":
+        # ⛔ The VALUE is a server-assigned URL, so the assertion is that one
+        # EXISTS — not that it equals something this tool chose. Inventing an
+        # expected URL would be a second authority over a value only the server
+        # can produce.
+        url = server_note.get("heroImageUrl")
+        return bool(url), f" (`heroImageUrl` = {url!r})"
     return True, (" — `folder`'s VALUE check is N/A by construction (this note has no "
                   "folder); the door is proved by the baseline move above")
 
@@ -1631,7 +1688,15 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     # and that is a SECOND-WRITER simulation whose fork is correct. Reading it as
     # a defect in the member's path cost this wave three deploys.
     _val = DOOR_PATCH["ticker"]["ticker"] if door == "ticker" else DOOR_PATCH["tags"]["tags"][0]
-    _rr = page.evaluate(REAL_DOOR_JS, {"door": door, "value": _val})
+    if door == "hero":
+        # ⛔⛔ THE MEMBER'S OWN FILE INPUT, driven by the browser — not a scripted
+        # upload. `set_input_files` makes Chrome fire the same `change` the member
+        # fires, so `HeroImagePicker`'s real handler runs, POSTs, and settles. A
+        # scripted `fetch` of the multipart body would be the second-writer
+        # artifact this file already paid three deploys for.
+        _rr = _fire_hero_door(page)
+    else:
+        _rr = page.evaluate(REAL_DOOR_JS, {"door": door, "value": _val})
     if not (isinstance(_rr, dict) and _rr.get("ok")):
         # ⛔ INCONCLUSIVE, NOT GREEN, AND NOT A RAW-FETCH FALLBACK. Falling back
         # to DOOR_JS here would silently reintroduce the artifact.
@@ -2568,12 +2633,19 @@ def self_check() -> int:
     # ══════════════════════════════════════════════════════════════════════════
     # ⭐ THE DOOR ROTATION — derived, varying, and DRIVEN.
     # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ DERIVED FROM `DOORS`, NEVER FROM A TYPED COUNT. These cases read
+    # "three" in three places until 2026-09-12, when a FOURTH door (`hero` — the
+    # one that shipped unsettled) joined the roster and every one of them went
+    # red for arithmetic rather than for behaviour. A self-check that has to be
+    # hand-edited whenever the thing it checks grows is a second authority over
+    # the roster's size.
+    _N = len(DOORS)
     cases.append(("the door is derived from the run's own number",
-                  [door_for(n) for n in (9, 10, 11)] == ["folder", "ticker", "tags"]))
+                  [door_for(n) for n in range(_N, _N * 2)] == list(DOORS)))
     cases.append(("no two consecutive runs walk the same door",
                   all(door_for(n) != door_for(n + 1) for n in range(0, 40))))
-    cases.append(("every door comes up inside any three consecutive runs",
-                  all({door_for(k) for k in range(n, n + 3)} == set(DOORS) for n in range(0, 40))))
+    cases.append((f"every door comes up inside any {_N} consecutive runs",
+                  all({door_for(k) for k in range(n, n + _N)} == set(DOORS) for n in range(0, 40))))
     # ⚰️ THE SHAPE OF A ROW, not the shape of a label. My own defect, driven:
     # the regex I trusted cannot see a `--label`led row, so a rotation keyed to it
     # would print ONE door across a whole labelled streak.
@@ -2586,8 +2658,18 @@ def self_check() -> int:
                   rows_stamped(_rows_doc) == 2))
     cases.append(("⚰️ CONTROL: the regex I once trusted sees only ONE of those two rows",
                   len(re.findall(r"^### check (\d+)", _rows_doc, re.M)) == 1))
+    # ⛔⛔ STEP BY ONE ROW, NOT BY TWO. The original repeated a TWO-row document
+    # and asserted all doors came up — which held only because 2 and 3 happen to
+    # be coprime. With a fourth door, stepping two at a time reaches exactly half
+    # the roster and the case fails for arithmetic, not for behaviour. The
+    # property is that each additional LABELLED row advances the rotation, so the
+    # fixture grows one labelled row at a time.
+    _labelled_row = "\n".join([
+        "### deploy #4 live — run 1 of 7 — **2026-09-10T20:40:00Z**", "", "| | reading |",
+        "|---|---|", "| **mini-canary** | ✅ **6/6** steps green |", "", ""])
     cases.append(("…so a --labelled streak still rotates its door",
-                  len({door_for(rows_stamped(_rows_doc * k) + 1) for k in (1, 2, 3)}) == 3))
+                  [rows_stamped(_labelled_row * k) for k in range(0, _N)] == list(range(0, _N))
+                  and len({door_for(rows_stamped(_labelled_row * k) + 1) for k in range(0, _N)}) == _N))
     cases.append(("`folder`'s value check says N/A rather than a green it never measured",
                   door_survived("folder", {})[0] is True and "N/A" in door_survived("folder", {})[1]))
     cases.append(("…while `ticker` and `tags` are checked against the server's own note",
@@ -2797,7 +2879,11 @@ def self_check() -> int:
     def _step(chk, prefix):
         return next((s for s in chk.canary if s.name.startswith(prefix)), None)
 
-    chk_g, page_g = _drive_canary(number=10)              # 10 % 3 = 1 → ticker
+    # ⛔ The run number is DERIVED from where `ticker` sits in the roster, not a
+    # literal whose comment ("10 % 3 = 1") silently stops being true the day a
+    # fourth door lands — which is exactly what happened on 2026-09-12.
+    _ticker_n = _N + DOORS.index("ticker")
+    chk_g, page_g = _drive_canary(number=_ticker_n)
     cases.append(("DRIVEN: the canary walks its derived door and the run is green",
                   chk_g.door == "ticker" and all(s.ok for s in chk_g.canary) and not chk_g.findings))
     cases.append(("…the door PUT really moved the baseline under the queued entry",
@@ -2808,9 +2894,9 @@ def self_check() -> int:
     cases.append(("…and the note count moved by exactly one — this run's own note",
                   (_step(chk_g, "5 note count") or Read("x", False)).ok))
     cases.append(("DRIVEN: the rotation actually varies across n",
-                  [_drive_canary(number=n)[0].door for n in (9, 10, 11)]
-                  == ["folder", "ticker", "tags"]))
-    _chk_t, _page_t = _drive_canary(number=11)            # tags
+                  [_drive_canary(number=n)[0].door for n in range(_N, _N * 2)] == list(DOORS)))
+    _tags_n = _N + DOORS.index("tags")
+    _chk_t, _page_t = _drive_canary(number=_tags_n)       # tags, wherever it sits in the roster
     cases.append(("…and the tags run really set its tag on the server note",
                   _page_t.tags == ["window-check-door"]))
 

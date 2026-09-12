@@ -78,7 +78,8 @@ def get(ticker: str, tf: str, bars: int):
         if bad_times:
             filtered = [
                 b for b in hot.get("bars", [])
-                if not isinstance(b, dict) or b.get("t") not in bad_times
+                if not isinstance(b, dict)
+                or bar_quarantine.norm_bar_time(b.get("t")) not in bad_times
             ]
             if not filtered:
                 return None
@@ -119,7 +120,8 @@ def get(ticker: str, tf: str, bars: int):
             data = dict(data)
             data["bars"] = [
                 b for b in data["bars"]
-                if not isinstance(b, dict) or b.get("t") not in bad_times
+                if not isinstance(b, dict)
+                or bar_quarantine.norm_bar_time(b.get("t")) not in bad_times
             ]
 
         if not data.get("bars"):
@@ -227,17 +229,29 @@ def put(ticker: str, tf: str, bars: int, payload: dict):
             prior_close = bar.get("c")
             # Record provenance for the clean bar — observability sidecar.
             # Must NEVER break the cache write path.
+            #
+            # ⚰️ This was the SECOND instance of the bug 7500777a2 fixed one line
+            # below: int() on an ISO daily date raises, the bare except swallows it,
+            # and no D/W/M provenance row was ever written. Same normaliser, same
+            # single boundary, same key-additive property (identity for ints).
+            # ⛔ An un-keyable time SKIPS rather than being written as a guessed key.
+            # `bar_quarantine._key` RAISES in the same situation; here that would be
+            # swallowed by the except below, which is just the old silence again.
             try:
-                bar_provenance.record(ticker, tf, int(bar.get("t") or 0), source)
+                _pt = bar_quarantine.norm_bar_time(bar.get("t"))
+                if _pt is not None:
+                    bar_provenance.record(ticker, tf, _pt, source)
             except Exception:
                 pass
         else:
             try:
-                bar_quarantine.add(
-                    ticker, tf, int(bar.get("t") or 0),
-                    "; ".join(reasons),
-                    source=payload.get("source"),
-                )
+                _qt = bar_quarantine.norm_bar_time(bar.get("t"))
+                if _qt is not None:
+                    bar_quarantine.add(
+                        ticker, tf, _qt,
+                        "; ".join(reasons),
+                        source=payload.get("source"),
+                    )
             except Exception:
                 # Quarantine table issues must never break the cache write path
                 pass

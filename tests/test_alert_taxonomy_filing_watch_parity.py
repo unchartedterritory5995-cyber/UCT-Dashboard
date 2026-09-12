@@ -586,6 +586,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # instruction. Flipped twice:
     #   2026-09-12  `price-level`      GATE-S7-PRICE-LEVEL CP1
     #   2026-09-12  `event-proximity`  GATE-S7-EVENT-PROXIMITY CP1
+    #   2026-09-12  `catalyst-match`   GATE-S7-CATALYST-MATCH CP1
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.
@@ -593,6 +594,15 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # `event-proximity` CP1 registers the type and ships NO evaluator, so it
     # cannot fire at all -- step 2 guards fires being dropped from the member's
     # feed, and there are none; step 3 needs a fire to run against.
+    #
+    # `catalyst-match` CP1-CP2 is the same case for a stricter reason: it has an
+    # evaluator, but NOTHING WIRES IT and it records no fire at all. It imports
+    # neither `receipts` nor `delivery`, every predicate it sees is armed by its
+    # own comparison harness, and
+    # `test_the_harness_is_the_only_caller_of_would_fire` is the rail that keeps
+    # that true. There is no fire to reconstruct and no feed row to drop.
+    # ⛔ Step 2 becomes a PRECONDITION the moment CP3 projects real cohort rows,
+    # not a follow-up -- same rule as price-level's below.
     #
     # ⛔ `price-level` IS DIFFERENT NOW AND THE DISTINCTION MATTERS. It has an
     # evaluator (CP2) that is WIRED and ARMED (CP3/CP3b), writing real
@@ -608,7 +618,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # INVERTED when CP3 wired register() -- it is now
     # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
     # rather than left pointing at a name that no longer exists.
-    _EXPECTED = {"document-arrival", "price-level", "event-proximity"}
+    _EXPECTED = {"document-arrival", "price-level", "event-proximity", "catalyst-match"}
 
     files, declared = _declared_trigger_types()
 

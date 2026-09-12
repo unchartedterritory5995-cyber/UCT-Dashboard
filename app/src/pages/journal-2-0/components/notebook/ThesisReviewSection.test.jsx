@@ -8,6 +8,7 @@ vi.mock('../../hooks/useThesisReviews', () => ({
 }))
 
 import ThesisReviewSection from './ThesisReviewSection'
+import * as settleModule from '../../lib/offline/settleNoteWrite'
 
 const EVIDENCE = [
   { id: 'e1', stance: 'supports', targetType: 'document_excerpt', targetId: 'x1' },
@@ -313,5 +314,73 @@ describe('the landing mark outlives the url parameter', () => {
       <ThesisReviewSection noteId="n1" evidence={EVIDENCE} anchorReviewId="rv1" />)
     rerender(<ThesisReviewSection noteId="n1" evidence={EVIDENCE} anchorReviewId={null} />)
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * ⛔⛔ A PROPERTY WRITE IS A DOOR.
+ *
+ * Completing a review with a next-review date writes `builtin:review_date`
+ * through the ordinary note PUT — `update_note` — so it advances this note's
+ * revision exactly like a body save. Unlanded, a member who reviewed a thesis
+ * while offline work was queued against it got a `(conflicted copy)` of their
+ * own note for it.
+ *
+ * ⭐ This rail owns "the component settles the PUT it just made, for this
+ * note". That the settle then lands the right revision is owned once, in
+ * `lib/offline/doorFamilies.settle.test.jsx`.
+ */
+describe('⛔ completing a review with a next date lands the note revision', () => {
+  // ⛔ Its own opener: the harness's `open` lives inside another describe.
+  const open = async () => {
+    render(<ThesisReviewSection noteId="n1" evidence={EVIDENCE} />)
+    fireEvent.click(screen.getByRole('button', { name: /Review thesis/i }))
+    await waitFor(() => expect(screen.getByLabelText(/Your assessment/i)).toBeTruthy())
+  }
+
+  const completeWith = async ({ nextDate }) => {
+    await open()
+    fireEvent.click(screen.getByRole('radio', { name: 'No change' }))
+    if (nextDate) {
+      const date = document.querySelector('input[type="date"]')
+      if (date) fireEvent.change(date, { target: { value: nextDate } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: /Complete review/i }))
+  }
+
+  it('the property PUT is settled', async () => {
+    const spy = vi.spyOn(settleModule, 'settleNoteWrite').mockResolvedValue('T2')
+    // ⛔ URL-AWARE. The complete handler early-returns without a review id, so
+    // a stub that answers everything with one body never reaches the door and
+    // the rail would pass by never exercising it.
+    vi.stubGlobal('fetch', vi.fn(async (url) => ({
+      ok: true,
+      json: async () => (String(url).endsWith('/reviews')
+        ? { review: { id: 'r1' } }
+        : { note: { id: 'n1', updatedAt: 'T2' } }),
+    })))
+    await completeWith({ nextDate: '2026-12-01' })
+
+    await waitFor(() => expect(spy, '⛔ the review-date PUT did not land its revision').toHaveBeenCalled())
+    expect(spy.mock.calls[0][0]).toBe('n1')
+    spy.mockRestore()
+  })
+
+  it('⛔ CONTROL — with NO next date there is no note write, so nothing is settled', async () => {
+    const spy = vi.spyOn(settleModule, 'settleNoteWrite').mockResolvedValue('T2')
+    // ⛔ URL-AWARE. The complete handler early-returns without a review id, so
+    // a stub that answers everything with one body never reaches the door and
+    // the rail would pass by never exercising it.
+    vi.stubGlobal('fetch', vi.fn(async (url) => ({
+      ok: true,
+      json: async () => (String(url).endsWith('/reviews')
+        ? { review: { id: 'r1' } }
+        : { note: { id: 'n1', updatedAt: 'T2' } }),
+    })))
+    await completeWith({ nextDate: null })
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Complete review/i })).toBeNull())
+    expect(spy, 'completing a review is not itself a note write').not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
