@@ -179,6 +179,11 @@ def self_check() -> int:
     # ⛔ NON-VACUITY: the sweep must actually find the known sites in the real tree.
     real = sweep()
     n = sum(len(v) for v in real.values())
+    # ⛔ THIS RAIL EXISTS BECAUSE THE RENAME BROKE THE REPORT AND --self-check
+    # STAYED GREEN. classify() gained REACHES-DEFAULT, the sort order did not,
+    # and the render died with a KeyError that no case here could see.
+    case("every class classify() can emit has a sort order",
+         set(ORDER) >= {"TESTS-THE-DEFAULT", "TESTS-OFF", "REACHES-DEFAULT", "UNSET-INCIDENTAL"})
     case(f"the sweep finds real sites in the tree (found {n})", n >= 4)
     print("self-check:", "PASS" if not bad else f"FAIL ({bad})")
     return 1 if bad else 0
