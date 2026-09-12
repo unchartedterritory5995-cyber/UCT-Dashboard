@@ -3938,8 +3938,21 @@ this closes that gap.
   the full TTL, persisted to the snapshot store, and was served as current. The
   payload now carries `reported_through` + `stale_quarters` and the widget says
   so. Threshold is 2 quarters: one behind is an ordinary late filer.
-  Measurement, the three upstream failure modes, and the FMP escalation:
+  Measurement and the three upstream failure modes:
   **`docs/fundamentals-provider-gaps-2026-09-12.md`**.
+  ⛔⛔ **THAT DOC'S FMP TICKET IS WITHDRAWN — DO NOT SEND IT.** It accused FMP of
+  dropping filed quarters for EXAS/FOLD/ACLX/DHIL/BRY/HOLX. Checked against SEC
+  EDGAR's submissions index 2026-09-12 (control: MMC, BK and AAPL each return a
+  2026 Q2 10-Q, so the method finds current filings), **every one of those six
+  has filed nothing newer than what FMP already has** — HOLX's newest 10-Q is
+  period-end 2025-12-27, filed 2026-01-29. They are not provider gaps; the
+  companies have not reported. ⭐ `stale_reported` cannot distinguish "the
+  provider is missing a filed quarter" from "the company has not filed one", so
+  the member-facing notice states only *nothing newer has been reported yet* —
+  it previously blamed the providers, for six names where they were blameless.
+  ⚰️ And `sec.gov/files/company_tickers.json` is PARTIAL (10,426 entries, missing
+  MMC and BK): resolve a CIK via `browse-edgar?action=getcompany&CIK=<ticker>`,
+  and never read that file's silence as "not a US filer".
 - **Cold-tail bounded** (`_COLD_TAIL`, default 6/cycle) — a cold check can fire
   the scarce AlphaVantage 25/day deep-history budget the widget itself uses;
   warm+priority sampling keeps external-quota cost tiny (near-zero on Railway,

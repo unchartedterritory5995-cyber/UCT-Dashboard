@@ -186,3 +186,27 @@ test('an older payload without the staleness fields shows no notice', () => {
   render(<Wrap sym="AAPL" initialOpts={{ view: 'quarterly' }} />)
   expect(screen.queryByTestId('fundamentals-stale-notice')).toBeNull()
 })
+
+// ⚰️ The notice must not assert a CAUSE we have not established.
+// The first version read "Our data providers have not published the N quarters
+// since". Checked against SEC EDGAR's submissions index on 2026-09-12 (control:
+// MMC, BK and AAPL all return a 2026 Q2 10-Q, so the method finds current
+// filings), every remaining flagged name's newest filing is EXACTLY what FMP
+// already has — HOLX's newest 10-Q is period-end 2025-12-27 filed 2026-01-29.
+// The companies have not filed anything newer. The providers were not at fault,
+// and the widget was telling members they were.
+test('the staleness notice does not blame the data providers', () => {
+  mockData.mockReturnValue(STALE_DATA)
+  render(<Wrap sym="MMC" initialOpts={{ view: 'quarterly' }} />)
+  const text = screen.getByTestId('fundamentals-stale-notice').textContent
+  expect(text).not.toMatch(/provider/i)
+  expect(text).not.toMatch(/have not published/i)
+})
+
+test('the staleness notice states only what we can see: nothing newer is reported', () => {
+  mockData.mockReturnValue(STALE_DATA)
+  render(<Wrap sym="MMC" initialOpts={{ view: 'quarterly' }} />)
+  const text = screen.getByTestId('fundamentals-stale-notice').textContent
+  expect(text).toMatch(/2025 Q4/)
+  expect(text).toMatch(/reported/i)
+})

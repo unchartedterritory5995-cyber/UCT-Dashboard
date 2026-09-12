@@ -150,31 +150,61 @@ web plus worker and bars-api (both watch `api/**`), ~1 min of `/api/*` blip.
 Tier 1: push any time, but if a scheduled job is due in the next minute or two,
 wait for it.
 
-## The remaining ask (paste-ready, narrowed)
+## ⛔ THE FMP TICKET IS WITHDRAWN — DO NOT SEND IT
 
-Worth filing, no longer urgent — these five are the ones nothing we hold can
-recover.
+An earlier revision of this document carried a paste-ready support ticket
+accusing FMP of dropping filed quarters for `EXAS`, `FOLD`, `ACLX`, `DHIL`,
+`BRY` and `HOLX`. **That accusation is false and the ticket must not be sent.**
 
-> **Plan:** Ultimate. **Endpoints:** `/stable/earnings` and
-> `/stable/income-statement`.
->
-> For a subset of US operating companies both endpoints stop returning data for
-> quarters the companies have reported and filed. Newest quarter your API
-> returns for each, verified against their filings:
->
-> - `EXAS` (Exact Sciences, ~$20B) — 2025 Q4
-> - `FOLD` (Amicus Therapeutics, ~$4.5B) — 2025 Q4
-> - `ACLX` (Arcellx, ~$6.7B) — 2025 Q4
-> - `DHIL` (Diamond Hill, ~$0.5B) — 2025 Q4
-> - `BRY` (Berry Corporation, ~$0.3B) — 2025 Q3
->
-> Separately, `HOLX` (Hologic, ~$17B) returns a row dated 2026-05-07 on
-> `/stable/earnings` with `epsActual` and `revenueActual` both null, and no row
-> after it — the report is known but unpopulated.
->
-> Also: for `MMC` your API dates the 1.87 EPS report 2026-01-29 while another
-> provider dates the same figure 2025-01-30. Could you confirm which is correct?
-> A shifted report date lands the quarter under the wrong fiscal label.
+Checked against **SEC EDGAR's submissions index** — the filings themselves, not
+a vendor's copy of them — on 2026-09-12:
+
+| Ticker | Newest SEC filing | Period end | Filed | What FMP has |
+|---|---|---|---|---|
+| HOLX | 10-Q | 2025-12-27 | 2026-01-29 | the same |
+| EXAS | 10-K | 2025-12-31 | 2026-02-13 | the same |
+| ACLX | 10-K | 2025-12-31 | 2026-02-26 | the same |
+| FOLD | 10-K | 2025-12-31 | 2026-02-20 | the same |
+| DHIL | 10-K | 2025-12-31 | 2026-02-26 | the same |
+| BRY | 10-Q | 2025-09-30 | 2025-11-05 | the same |
+
+**Control (this is what makes the table mean anything):** the same method run
+against `MMC`, `BK` and `AAPL` returns a **2026 Q2** 10-Q for each — period ends
+2026-06-30, 2026-06-30 and 2026-06-27, filed 2026-07-21, 2026-07-31 and
+2026-07-31. So the method does find current filings; it is not silently
+returning stale data for everything.
+
+⭐ **These six are not provider gaps. The companies have not filed anything
+newer.** FMP has everything that exists. Sending that ticket would have been a
+wrong accusation against a vendor, generated from a scan that only ever looked
+at other vendors.
+
+⚰️ **Two instrument failures nearly published it as fact.** First,
+`https://www.sec.gov/files/company_tickers.json` returned no entry for HOLX,
+EXAS, ACLX, FOLD, DHIL *or* BRY — and the first version of the probe printed
+"(no CIK — not a US filer?)", **a fabricated explanation for the instrument's own
+limitation**. That file is partial: it has 10,426 entries and is missing `MMC`
+and `BK` too, both certain filers. Second, an earlier run had swallowed a
+transient fetch error and built an EMPTY ticker map, so every lookup "failed"
+identically. Both were caught only by adding controls — assert the map is large,
+assert `AAPL` resolves — and by resolving CIKs through
+`browse-edgar?action=getcompany&CIK=<ticker>`, which works for all of them.
+
+⛔ **An absence is only evidence if the instrument could have seen a presence.**
+This document asserted a vendor was at fault on the strength of three vendors
+being silent, and the authoritative source was one HTTP call away.
+
+### What, if anything, is still worth raising with FMP
+
+One thing only, and it is a question rather than a complaint: for `MMC`, FMP
+dates the 1.87 EPS report **2026-01-29** while another provider dates the same
+figure **2025-01-30**. A shifted report date lands a quarter under the wrong
+fiscal label. Worth asking; not worth a ticket on its own.
+
+`/stable/earnings` dropping quarters for MMC, BK, SJW and RNP **was** real — the
+companies had filed (MMC's Q2 2026 10-Q was filed 2026-07-21) and that endpoint
+did not have it. But it is fixed from inside, by reading FMP's own income
+statement, so there is nothing to ask for.
 
 ## What the code change does and does not do
 
