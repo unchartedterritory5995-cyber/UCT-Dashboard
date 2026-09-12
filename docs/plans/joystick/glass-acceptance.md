@@ -134,8 +134,19 @@ single-pointer alternative. So this block is the accessibility gate, and Peek is
 |---|---|---|---|---|
 | G2-1 | **Android + TalkBack.** Swipe to focus the hub's Actions button, double-tap. No drag anywhere. | The Actions sheet opens. | `G2-talkback-sheet.png` | [ ] PASS [ ] FAIL |
 | G2-2 | With TalkBack, activate **every** action on Home's sheet in turn, no drag at any point. | Each activates its target. | — | [ ] PASS [ ] FAIL |
-| G2-3 | **iOS + VoiceOver.** Same as G2-1. | The Actions sheet opens. | `G2-voiceover-sheet.png` | [ ] PASS [ ] FAIL |
-| G2-4 | With VoiceOver, reach and operate the **confirm sheet's number field and its ± steppers** on Screener Alert, and commit. | The price is adjustable and commits at the adjusted value, with no drag. This is the "EQUAL path" the sheet exists for. | `G2-confirm-fields.png` | [ ] PASS [ ] FAIL |
+| G2-3 | **iOS + VoiceOver.** Same as G2-1. | The Actions sheet opens. | `G2-voiceover-sheet.png` | [ ] PASS [ ] FAIL — ⛔ **BLOCKED (not a fail), 2026-09-12** |
+| G2-4 | With VoiceOver, reach and operate the **confirm sheet's number field and its ± steppers** on Screener Alert, and commit. | The price is adjustable and commits at the adjusted value, with no drag. This is the "EQUAL path" the sheet exists for. | `G2-confirm-fields.png` | [ ] PASS [ ] FAIL — ⛔ **BLOCKED (not a fail), 2026-09-12** |
+
+⛔ **G2-3 / G2-4 cannot be run on BrowserStack Live on this device, and that is a product
+limit of the harness, not a result.** Live's own toolbar → **Screen Reader (Beta)** answers, on
+the iPhone 15 Pro / iOS 17.6 session: *"Screen Reader is currently not supported for this
+device."* There is no way to turn VoiceOver on through the mirror, and an accessibility row that
+cannot be performed is **BLOCKED**, never PASS — absence is not a pass
+(`lesson_an_over_refusal_is_invisible` has the general form). Open paths, in order of cost:
+(a) try another iOS device in the Live picker, since the message is device-scoped; (b) run
+**G2-1/G2-2 on an Android + TalkBack** Live session, which the same menu may support and which
+covers the same door on the other platform; (c) the owner's own phone with VoiceOver, which is
+the path G0-1 already needs.
 
 ## Block G3 — surfaces added in Increments 3-7
 
@@ -157,13 +168,86 @@ Every one of these is emulated-green and has never been touched by a finger.
 | G3-12 | **The range input (no-drag scrub)** | Open Peek, use the range control instead of dragging. | It moves the same value the drag moves, and reads out the section's own readout. A member who cannot drag can still scrub. | [ ] PASS [ ] FAIL |
 | G3-13 | **linkTicker's symbol field** | On the Notebook, activate Link ticker. | The confirm sheet carries a symbol field; it is never a permanently dimmed bubble and never a label that lies. | [ ] PASS [ ] FAIL |
 | G3-14 | **Confirm-sheet fields** | Any `confirm` action supplying fields. | The steppers and numeric input operate on the same value the gesture produces, and the committed value is the adjusted one. | [ ] PASS [ ] FAIL |
-| G3-15 | **⚠️ Chip vs Actions button — a PRE-EXISTING overlap in declared geometry** | Look at the hub at rest with a long mode label. | ⛔ **This is a known open question, not a regression, and it is on this sheet because only glass can settle it.** In declared values the two boxes overlap: the chip sits at right-offset 118 with `width:auto` and `white-space:nowrap`, y[96,124]; the Actions button occupies right-offsets [114,158], y[88,132]. Same z-index, button paints last. jsdom resolves no layout, so no local suite can say whether a real long label actually reaches the button. Report what you SEE. | [ ] PASS [ ] FAIL |
-| G3-16 | **Wire vs Journal in Home's fan** (D-27) | On the Dashboard, open Home's fan. **Do not read the labels** — cover them if you can. Ask: can you tell the **Wire** bubble from the **Journal** bubble by sight alone? Then enable **high contrast** and open the same fan again. | Two answers, both recorded — this row is the only thing that can answer either: **(a)** at the shipped default, are Wire and Journal distinguishable, or do they read as the same green? **(b)** does high contrast make Wire *more* separable from Journal than the default does? ⛔ "They look fine to me" from a normally-sighted operator answers (a) only for that operator — note whether the tester is colour-blind, and which type. | (a) default: [ ] DISTINGUISHABLE [ ] CONFUSABLE · (b) high contrast: [ ] BETTER [ ] SAME [ ] WORSE |
+| G3-15 | **⚠️ Chip vs Actions button — a PRE-EXISTING overlap in declared geometry** | Look at the hub at rest with a long mode label. | ⛔ **This is a known open question, not a regression, and it is on this sheet because only glass can settle it.** In declared values the two boxes overlap: the chip sits at right-offset 118 with `width:auto` and `white-space:nowrap`, y[96,124]; the Actions button occupies right-offsets [114,158], y[88,132]. Same z-index, button paints last. jsdom resolves no layout, so no local suite can say whether a real long label actually reaches the button. Report what you SEE. | [ ] PASS · **[x] FAIL — MEASURED ON GLASS 2026-09-12**, see the block below |
+| G3-16 | **Wire vs Journal in Home's fan** (D-27) | On the Dashboard, open Home's fan. **Do not read the labels** — cover them if you can. Ask: can you tell the **Wire** bubble from the **Journal** bubble by sight alone? Then enable **high contrast** and open the same fan again. | Two answers, both recorded — this row is the only thing that can answer either: **(a)** at the shipped default, are Wire and Journal distinguishable, or do they read as the same green? **(b)** does high contrast make Wire *more* separable from Journal than the default does? ⛔ "They look fine to me" from a normally-sighted operator answers (a) only for that operator — note whether the tester is colour-blind, and which type. | (a) default: [ ] DISTINGUISHABLE [ ] CONFUSABLE — ⬜ **still the owner's eye** · (b) high contrast: **[x] BETTER** [ ] SAME [ ] WORSE — measured 2026-09-12, see below |
 
 ⭐ **G3-16 is a SWITCH, and it is the only row here that is.** D-27 shipped the teal-shifted
 Wire accent behind `[data-hub-contrast="high"]` precisely because no session can answer this
 question — the token is built, railed and inert unless a member turns high contrast on. What
 each answer does:
+
+---
+
+### ⛔ G3-15 — SETTLED ON REAL GLASS, 2026-09-12. It overlaps, and the question was framed too narrowly.
+
+**iPhone 15 Pro / iOS 17.6, Safari, production, 393 × 659.** Rects read from the device through
+the Live session's Safari Web Inspector — real layout, not jsdom.
+
+| route | chip label | chip × Actions-button overlap |
+|---|---|---|
+| `/screener` | "Screener · 1/100 tap: next result" (w 229) | **40 × 28 px** |
+| `/morning-wire` | "wire tap: next segment" (w 166) | **40 × 28 px** |
+| `/breadth` | "Breadth tap: next tab" (w 162) | **40 × 28 px** |
+| `/dashboard` | "Home Preview — more coming" (w 204) | **40 × 28 px** |
+| `/calendar` | "Calendar tap: next day" (w 174) | **40 × 28 px** |
+| `/journal` | (w 32) | **32 px** |
+| `/notebook` | no chip rendered | n/a |
+
+⭐⭐ **THE ROW ASKED THE WRONG QUESTION, AND THE ANSWER IS WORSE THAN IT EXPECTED.** It asks
+whether *a long label* reaches the button. **Label length is irrelevant: the chip is
+right-anchored** (`right: 118px`, `width: auto`, growing leftward), so its right edge sits at a
+fixed 118px from the viewport edge while the button occupies right-offsets [114, 158]. The
+overlap is therefore **a constant 40 px on every mode at every label length** — 158 − 118 — and
+the measurement returns exactly 40 on all six modes that render a chip. It is not an edge case.
+The declared geometry in the row above already implied this; glass confirms it to the pixel.
+
+**Who wins:** both are `z-index: 360` with `pointer-events: auto`, and the button is later in the
+DOM, so it paints and hit-tests on top. `document.elementFromPoint` inside the overlap returns
+the button's `<svg>`; 130px to the left it returns the chip's own `<b>`. The chip is
+`overflow: visible; white-space: nowrap`, so the text is **covered, not clipped** — the tail of
+the hint ("…next result") sits under the sliders icon.
+
+**Severity: cosmetic, plus a 40px hit-shadow over a readout.** The chip is a readout, so the
+swallowed taps land on the Actions button rather than on nothing, and nothing is lost but the
+last few characters of a hint. ⛔ **No fix is applied here.** A geometry change to a shipped
+control is the owner's call, and three one-line candidates exist — move the chip's anchor from
+`right: 118px` to `right: 164px`; give the chip a `max-width: calc(100% - 180px)` with
+`text-overflow: ellipsis`; or drop the chip below the button's band. Each changes what a member
+sees, so each wants a ruling, not an autonomous edit.
+
+### G3-16 (b) — MEASURED, 2026-09-12. (a) still needs a human eye.
+
+Tokens read from the **running production build** on the device, not from the repo:
+`--hub-mode-wire` `#9FE887` (default) / `#D4FEE4` (`[data-hub-contrast="high"]`);
+`--hub-mode-journal` `#4FB833` in both.
+
+Measured by `node tools/hub_accent_cvd.mjs` (`--self-check` PASSES, and its control fires: red vs
+green reads 86.6 for normal vision and 35.3 under protanopia, so the simulation can actually see
+a deficiency rather than being an identity function). ⛔ It imports `contrastMath`'s `de00` and
+`contrast` rather than re-deriving them, so these numbers are the same ΔE00 that
+`modeAccentSeparation.test.js` rails — one authority, not two.
+
+| vision | default ΔE00 (wire vs journal) | high-contrast ΔE00 | default ratio | high ratio | verdict |
+|---|---|---|---|---|---|
+| normal | **14.5** | **28.0** | 1.74 | 2.32 | BETTER |
+| protanopia (simulated) | 14.0 | 27.5 | 1.71 | 2.23 | BETTER |
+| deuteranopia (simulated) | 15.2 | 29.5 | 1.79 | 2.46 | BETTER |
+| tritanopia (simulated) | 14.1 | 21.5 | 1.75 | 2.32 | BETTER |
+
+⇒ **(b) = BETTER**, and not marginally: high contrast roughly **doubles** ΔE00 for normal vision
+and for all three simulated dichromacies, and raises the luminance ratio on every one. That half
+of the switch is answered, and the new axis is the dichromacy simulation — the existing rail
+models a hue-blind viewer as *luminance only*, which is the coarse version of the same idea.
+
+⛔ **(a) is NOT answered and must not be inferred from this table.** ΔE₇₆ between two token
+values is not what a member sees: the bubbles are drawn on `backdrop-filter` glass over live
+page content, so the rendered colours are composited, and "can you tell these apart at a glance
+in a fan" is a perceptual question about two greens, not a distance. The row's own rule stands —
+a normally-sighted operator's "they look fine" answers (a) for that operator only. **The owner's
+eye is still the input**, and per the switch table below it is (a) alone that decides whether
+`#D4FEE4` gets promoted to `:root`.
+
+---
 
 | G3-16 (a) default | G3-16 (b) high contrast | What to do |
 |---|---|---|
