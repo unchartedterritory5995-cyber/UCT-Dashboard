@@ -33,6 +33,46 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 
 ---
 
+## ⛔⛔ 2026-09-11 EVENING — THE RE-PLAN TRIGGER FIRED: NO BROWSER RIG
+
+**`ta.tr(true)` could not be read tonight, and it is on Volume's OWN critical path.**
+
+Measured, twice, independently, at 21:0x ET:
+
+```
+list_connected_browsers  -> []
+tabs_context_mcp         -> "Browser extension is not connected."
+```
+
+⭐ **WHY THIS MATTERS MORE THAN A MISSED BACKLOG ITEM.** `ta.tr(true)` is not a
+vocabulary nicety — `uncharted-volume.pine:189` is
+`_src = rangeType == 'ATR' ? ta.tr(true) : high - low`, which feeds the ATR range
+and therefore the ATR table. Measured tonight in both lanes:
+
+```
+ta.tr(true)   [screener] ok=false  refusals=1  pine:builtin@3
+ta.tr(true)   [host]     ok=false  refusals=1  pine:builtin@3
+ta.tr(false)  both       ok=true   refusals=0
+bare ta.tr    both       ok=true   refusals=0
+```
+
+So the ARGUMENT is the entire gap, and the argument changes the maths — which is
+precisely why it owes a vendor reading and may not be guessed. ⛔ **It is NOT
+pinned and must not be**: a plausible spelling here would be a wrong number
+wearing a right name, and `ceil`/`floor` were already built and backed out this
+week for owing less than this.
+
+**Blocked by it:** the reading itself, and any pin that depends on it. **Not
+blocked:** the reassign fold, the 8-tuple `request.security`, the metric
+re-derivation, the IR→pixels measurement, the flag scaffold, the routing table,
+the merge dry-run. The night proceeds on those.
+
+**To unblock:** start Chrome with the Claude extension connected and signed in to
+the same account, then the S1-S5 editor route in `capture-procedure.md` applies
+unchanged (assert the action button BEFORE `setValue`; poll from outside in cheap
+calls — a 40-second `await` inside one `Runtime.evaluate` is what wedged the
+renderer on 2026-09-11).
+
 ## The owner's order of work — where it stands
 
 > ### ✅ THE ORDER IS COMPLETE, 2026-09-11 — with two named remainders
