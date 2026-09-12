@@ -917,3 +917,29 @@ is "not yet found", not a diagnosis. What settles it: land the scope fix, then r
 `tools/gex_crosshair_probe.py` with the LoAF attribution channel on a pod ≥120 s old.
 No RTH needed — `/api/gex/data` returns full SPY data on a Saturday (spot 764.29,
 callWall 770, putWall 750, 108 strikes), so the surface is fully exercisable off-hours.
+
+### In-flight work on `OptionsFlow.jsx` at the time of the GEX fix (2026-09-13)
+
+Checked before touching the file, so anyone with work in progress knows to rebase.
+**Nothing else was merged, rebased or deleted.**
+
+| branch | unmerged commits on the file | newest touch | hunks vs master |
+|---|---|---|---|
+| `origin/feat/indicator-r0r1` | 1 (`9dff9dae0`) | Claude Fable 5, 2026-09-08 | **0** |
+| `origin/worktree-indicator-ecosystem` | 1 (`9dff9dae0`, same commit) | Claude Fable 5, 2026-09-08 | **0** |
+
+Both carry the same commit and **0 hunks vs master** — the file content already matches
+master, so there is no conflict surface. **No branch of Manrav's has activity on the
+lines changed here**, and no branch touches the module-function region (~275–295) or the
+old in-component `fmtGex` (~4343).
+
+⚠️ One stash exists and does **not** touch this file: `stash@{2026-06-15}` (Patrick,
+"broker-sync WIP (deploy unblock)") — 0 matches for `OptionsFlow.jsx`.
+
+⭐ The first listing attempt was **noise**: filtering on `git diff origin/master..<branch>`
+matches every branch merely BEHIND master, and reported 80+ branches. The question that
+matters is which branches have commits NOT in master that touch the file —
+`git rev-list --count origin/master..<branch> -- <path>` — which narrowed 80+ to 2.
+
+The diff is kept minimal regardless, so any rebase is trivial: two hunks, one promoting
+`fmtGex` to module scope beside `fmt` and `fK`, one deleting the in-component `const`.
