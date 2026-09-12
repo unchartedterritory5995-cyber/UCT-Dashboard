@@ -1,5 +1,67 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⛔⛔ SESSION 2 · TWO STANDING RULES, IN `CLAUDE.md` — 2026-09-12
+
+Both went into the **repo-level `CLAUDE.md`**, the file every session reads,
+rather than only into a runbook one project opens. `CLAUDE.md` is editable from
+this branch (it already diverges from master here by 21/5 lines), so both land
+with the merge.
+
+⏭️ **OWED TO SESSION 3:** the worktree-ownership rule is the **first item** of the
+PR body's *member impact / process* section. Written down here because the PR
+body is session 3's and this obligation must not travel only in a transcript.
+
+### R8 — a session deletes only what it created
+
+> Never `git worktree remove`, never `git worktree prune`, never delete any
+> directory under `uct-worktrees\` the session did not create **in that same
+> session**. A cleanup or a prune is a **stop-and-ask**.
+
+⛔ **`.uct-session-owner` at every worktree root**, gitignored, written at
+creation, naming the session id and date. **No owner file is NOT permission** —
+it means the worktree predates the rule, which is also a stop-and-ask.
+`indicator-r0r1` has one now, and it says plainly that this checkout was
+**recreated** today rather than created, so the record does not overclaim.
+
+The incident, with what was established and what was **not**, is R8 in
+`docs/runbooks/indicator-ecosystem-resume.md`.
+
+### The pipe rule — the pipeline owns the exit code
+
+> Verification of any runner never goes through `| tail`, `| findstr`,
+> `| Select-Object`, `| head` or `| grep`. Redirect, read the bare exit code,
+> then read the `VERDICT:` line from the log.
+
+⚰️ **THREE TIMES.** Three OOM kills on 2026-09-10; run 4 on 2026-09-12 (one chunk
+of twelve, reported exit 0); and the verification command for run 4's own fix,
+which reproduced it a third time while the fix was being written.
+
+⭐ **AND IT IS REPRODUCED, NOT ASSERTED.**
+`test_a_pipe_MASKS_a_nonzero_exit_code_and_here_is_the_proof` runs a command that
+exits **7**, measures **7** bare and **0** through `| tail -1`, and recovers 7 by
+redirecting — through the same shell the runners are invoked from. A second case
+pins that both rules are in `CLAUDE.md`, because a rule in the wrong file is a
+rule the next session skips.
+
+### The fourth CRLF instance, fixed as a CLASS
+
+`tools/lookback_agreement.json` is the **fourth** file of this kind and it landed
+unpinned, dirtying the tree on every `npm run test:engine`. The `.gitattributes`
+block was three **named files**; naming files caught three and missed the fourth.
+
+⛔ **`tools/**/*.json text eol=lf`** replaces the list.
+⚠️ **`tests/fixtures/**` would NOT have caught it** — that rule is scoped to that
+tree and this artifact lives in `tools/`. **Checked, not assumed.**
+⛔ Restricted to the extension, never `tools/**`: that directory holds PNGs, and
+a blanket text rule there is the corrupt-binary hazard the top of the file exists
+to prevent.
+
+⭐ It re-normalises nothing. The three previously-unpinned files
+(`carried_perf`, `execution_shapes`, `window_perf`) are already stored LF-only
+and **have no producer in the repo**, so they cannot churn today — an argument
+from today's state, and exactly why the rule is now a class rather than a fifth
+line.
+
 ## ⚰️⚰️ SESSION 2 · THE WORKTREE WAS EMPTIED MID-RUN — 2026-09-12
 
 **Nothing was lost.** Every commit was pushed before the event;
