@@ -81,3 +81,46 @@ def test_an_unparseable_stamp_is_never_claimed_as_a_member(tmp_path, monkeypatch
     monkeypatch.setenv("NB_RESUME_DOC", str(resume))
     gate = _load("nb_gate")
     assert gate.is_rig("not-a-timestamp", []) is True
+
+
+def test_a_KEEP_over_zero_members_says_so(tmp_path, monkeypatch):
+    """⛔ A verdict file must never look like population evidence it does not have.
+
+    Every trigger reads clean when nobody has run the layer — that is what clean
+    looks like over an EMPTY SET. A bare KEEP would be read next week as "a week
+    of members found nothing".
+    """
+    gate = _load("nb_gate")
+    src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
+    assert "no independent member exposure" in src
+    assert "0 blocked-baseline " in src and "events measured over 0 real members" in src
+    # the qualification is gated on the member line, not unconditional
+    assert 'no_member = member.startswith("none")' in src
+    assert 'if verdict == "KEEP" and no_member:' in src
+
+
+def test_the_owner_and_the_smoke_account_are_not_members(tmp_path, monkeypatch):
+    """⛔ ATTRIBUTION BY IDENTITY, NOT BY CLOCK.
+
+    The gate excluded rig activity by canary TIMING alone and reported the
+    owner's own 14:00:28 opt-in as FIRST MEMBER OPT-IN — 27 minutes from any
+    canary, so the timing rule could not see it.
+    """
+    monkeypatch.setenv("NB_OBSERVE_LOG", str(tmp_path / "l.md"))
+    obs = _load("nb_observe")
+    assert "unchartedterritory5995@gmail.com" in obs.NOT_A_MEMBER
+    assert "smoke@uctintelligence.internal" in obs.NOT_A_MEMBER
+    # ⭐ CONTROL: the exclusion list is not a catch-all
+    assert "someone-else@example.com" not in obs.NOT_A_MEMBER
+
+
+def test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY():
+    """⛔ A reading that could not be TAKEN is not a finding. Production 502s on
+    every Tier 1 deploy; an ANOMALY row there makes the Sunday gate REVERT a
+    healthy product because another workstream deployed at 17:05."""
+    obs_src = (TOOLS / "nb_observe.py").read_text(encoding="utf-8")
+    gate_src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
+    assert "production unreachable (HTTP 5xx" in obs_src
+    assert 'not a finding, and not evidence of a clean interval either' in obs_src
+    # and the gate must not count a SKIPPED row as a trigger
+    assert '"SKIPPED" not in x[-1]' in gate_src

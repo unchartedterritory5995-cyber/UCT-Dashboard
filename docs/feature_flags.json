@@ -40,7 +40,10 @@
     "flip_precondition: what must be VERIFIED before a held flag is turned on, and",
     "what turning it on changes for a member. A flag held at 0 with no recorded",
     "precondition is the same ambiguity as an unset one - nobody can tell whether it",
-    "is waiting on evidence or was simply forgotten."
+    "is waiting on evidence or was simply forgotten.",
+    "",
+    "decision / decision_reason: recorded when an owner rules on a held flag, so",
+    "the ledger says WHY a value is what it is and not merely what it is."
   ],
   "flags": {
     "AI_SEARCH_DOSSIER_ENABLED": {
@@ -896,12 +899,13 @@
         "web"
       ],
       "owner": "owner",
-      "railway_value": "0",
-      "baked_value": "0",
-      "baked_measured_on": "1c76f9f38",
+      "railway_value": "1",
+      "baked_value": "1",
+      "baked_measured_on": "deploy 8497fcd2 (2026-09-12)",
       "last_changed": "2026-09-12",
-      "note": "HELD pending an owner ruling: open-for-business vs holding page. Set to 0 on 2026-09-12 so the build-args fix could not flip the public front door as a side effect. It was 1 (intent: holding page) while the build made it undefined, so members have been seeing the real Landing page. Backend COMING_SOON_MODE is still on, so signup is refused - the funnel is open and its last step cannot succeed.",
-      "hold": "HELD 2026-09-12 pending an owner ruling between two prepared change sets: A = open for business (COMING_SOON_MODE=0 on web; read at call time, no rebuild needed; signup starts succeeding and public registration opens), B = holding page (VITE_COMING_SOON=1; build-time, so it needs a web REBUILD; / serves the holding page and the funnel routes redirect, /login untouched). Until the ruling lands the state stays as it is: members see the real Landing page with a reachable funnel whose signup the backend refuses."
+      "note": "OPTION B executed 2026-09-12: `railway variables --service web --set \"VITE_COMING_SOON=1\"`. Reason: locked until launch date. Both halves now AGREE - COMING_SOON_MODE=1 on the backend was left untouched, so signup is refused AND the funnel is closed, which is the first time those two have matched since af80e0b91. Verified on the artifact: the ComingSoon lazy import went from an unbound discarded call (`)));q(()=>...`) to a bound declarator (`,z5=q(()=>...`) in the same chunk. Verified in a browser: logged out, / serves the holding page (COMING SOON, countdown to Oct 16 2026, waitlist input, LOG IN link) and /pricing /compare /brokers /signup /subscribe /landing all redirect to it; member-smoke still signs in and reaches Options Flow on the parts path. TO REVERSE: set VITE_COMING_SOON=0 - it is a BUILD-TIME flag, so it needs a web rebuild to take effect, unlike the backend half which is read per request.",
+      "decision": "OPTION B - holding page. Owner ruling 2026-09-12.",
+      "decision_reason": "locked until launch date"
     },
     "VITE_FLOW_PARTS": {
       "status": "armed",

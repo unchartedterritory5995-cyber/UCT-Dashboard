@@ -692,7 +692,18 @@ def get_earnings_table(ticker, now=None, debug=False):
 
     ckey = f"earnings_table::{ticker}"
     hit = cache.get(ckey)
-    if hit is not None:
+    # ⛔ The MEMORY layer needs the same version gate as the disk layer below,
+    # and the first cut of this fix wired only the disk branch. This read runs
+    # FIRST and used to return unconditionally, so an old-shape payload pinned
+    # here kept serving for up to _SLOW_TTL (6h) while the gate sat downstream
+    # doing nothing for it. Caught in production by a watcher on SJW's member
+    # payload: every other ticker reported _v=2 within minutes, SJW sat at
+    # _v=None for twenty.
+    #
+    # ⭐ Gating the slow layer and not the fast one is worse than gating
+    # neither, because the fix LOOKS present — the constant exists, the disk
+    # branch honours it, and that branch's tests pass.
+    if hit is not None and _snapshot_is_current(hit):
         return hit
 
     snap = snap_store.get(_SNAP_KIND, ticker, now=now)

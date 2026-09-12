@@ -100,7 +100,11 @@ def main() -> int:
         fails.append(f"heartbeat: Last Result {last_result!r} (expected 0) - the window is UNOBSERVED, not clean")
 
     # trigger 1 - any row whose flag is not OK
-    bad = [x for x in r if x and not x[-1].startswith("OK")]
+    # ⛔ A SKIPPED row is a reading that could not be TAKEN - unobserved, never a
+    # red. Counting it as a trigger would revert a healthy product because
+    # another workstream deployed during the sampler's minute.
+    bad = [x for x in r if x and not x[-1].startswith("OK") and "SKIPPED" not in x[-1]]
+    skipped = [x for x in r if x and "SKIPPED" in x[-1]]
     t1 = "PASS" if not bad else "FAIL"
     if bad:
         fails.append(f"trigger 1: {len(bad)} non-OK row(s), first at {bad[0][0]}")
@@ -133,7 +137,24 @@ def main() -> int:
     if errs:
         fails.append(f"trigger 4: console errors at {errs[0][0]}")
 
-    cans = canary_times()
+    # ⭐ THE MEMBER COUNT COMES FROM THE SAMPLER, WHICH KNOWS IDENTITIES.
+    # The timing rule below is kept only as a fallback for rows written before
+    # the sampler recorded `members` - it cannot see the owner's own browsing,
+    # which is exactly how 14:00:28 was misread as the first member.
+    member_counts = []
+    for x_ in r:
+        if len(x_) > 1 and "members " in x_[1]:
+            try:
+                member_counts.append(int(x_[1].split("members ")[1].split()[0].strip("()")))
+            except (ValueError, IndexError):
+                pass
+    if member_counts:
+        m = max(member_counts)
+        member = (f"none - 0 independent members ({len(member_counts)} row(s) counted by identity)"
+                  if m == 0 else f"{m} INDEPENDENT MEMBER OPT-IN(S) - see the log")
+        cans = []
+    else:
+        cans = canary_times()
     member = "none - every opt-in is the rig" + chr(39) + "s (" + str(len(cans)) + " canary run(s) excluded)"
     for x in r:
         if len(x) > 1 and x[1] not in ("-", "", chr(8212)) and not is_rig(x[1], cans):
@@ -141,12 +162,29 @@ def main() -> int:
             break
 
     verdict = "KEEP" if (hb_ok and not bad and not errs and not conf) else "REVERT"
+    # ⛔⛔ A KEEP OVER ZERO REAL MEMBERS IS NOT POPULATION EVIDENCE.
+    #
+    # Every trigger below reads clean when nobody has run the layer - that is
+    # what clean looks like over an EMPTY SET, and a bare "KEEP" in this file
+    # would be read next week as "a week of members found nothing". It is the
+    # same shape as a green browser matrix over a mount path nobody covered,
+    # which is the error that gave this wave its incident.
+    #
+    # ⭐ So the verdict SAYS SO. The gate still keeps - there is nothing to
+    # revert for - but it can never look like evidence it does not have.
+    no_member = member.startswith("none")
+    if verdict == "KEEP" and no_member:
+        verdict = ("KEEP — no independent member exposure; 0 blocked-baseline "
+                   "events measured over 0 real members")
+    skip_note = ("" if not skipped else
+                 f"{chr(10)}⚠️ {len(skipped)} SKIPPED row(s) - those intervals were UNOBSERVED, "
+                 f"not clean.{chr(10)}")
     body = f"""# Wave Q1 — gate verdict
 
 VERDICT: **{verdict}**
 at:        {at}
 heartbeat: Last Run Time {last_run} | Last Result {last_result}
-rows read: {len(r)}  ({r[0][0] if r else 'none'} .. {r[-1][0] if r else 'none'})
+rows read: {len(r)} ({len(skipped)} skipped){skip_note}  ({r[0][0] if r else 'none'} .. {r[-1][0] if r else 'none'})
 member:    {member}
 
 | trigger | result |

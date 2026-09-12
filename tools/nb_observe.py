@@ -35,6 +35,21 @@ _env = os.environ.get("NB_OBSERVE_LOG", "").strip()
 LOG = (pathlib.Path(_env) if _env
        else pathlib.Path(__file__).resolve().parent / "wave-q1-observation-log.md")
 OPT_IN = "j2:notebook_offline_opt_in"
+
+# ⛔⛔ ATTRIBUTION BY IDENTITY, NOT BY CLOCK. The gate excluded rig activity by
+# CANARY TIMING alone, and on 2026-09-12 it reported the owner's own 14:00:28
+# opt-in as "FIRST MEMBER OPT-IN" - 27 minutes from any canary, so the timing
+# rule could not see it. The feed carries an email; use it.
+#
+#   unchartedterritory5995@gmail.com  the owner AND the rig share this account.
+#                                     Canary runs, probes, and the owner's own
+#                                     human browsing all land here. None of them
+#                                     is an independent member.
+#   smoke@uctintelligence.internal    another workstream's post-deploy smoke.
+#
+# ⭐ A MEMBER is an opt-in from NEITHER of these. That is the only number the
+# "zero blocked-baseline events" claim may be divided by.
+NOT_A_MEMBER = ("unchartedterritory5995@gmail.com", "smoke@uctintelligence.internal")
 BLOCKED = "j2:notebook_blocked_no_baseline"
 
 # ⚰️ THE SUBTRACTION THAT COULD ONLY EVER SAY ZERO.
@@ -113,6 +128,24 @@ def append(line: str) -> None:
         fh.write(line)
 
 
+OPTIN_JS = """async (excluded) => {
+  const r = await fetch('/api/auth/admin/activity?limit=200', {credentials:'include'});
+  if (!r.ok) return {err: 'HTTP ' + r.status};
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) return {err: 'not JSON (deploy blip?)'};
+  const j = await r.json();
+  const rows = Array.isArray(j) ? j : (j.rows || j.activity || []);
+  const hits = rows.filter(x => String(x.action).includes('notebook_offline_opt_in'));
+  const indep = hits.filter(x => !excluded.includes(String(x.email || '').toLowerCase()));
+  return {
+    total: hits.length,
+    latest: hits.length ? hits[0].created_at : null,
+    memberCount: indep.length,
+    memberLatest: indep.length ? indep[0].created_at : null,
+    memberWho: indep.length ? String(indep[0].email || '').split('@')[0] + '@…' : null,
+  };
+}"""
+
 NOTES_JS = """async () => {
   const r = await fetch('/api/j2/notes?limit=300', {credentials:'include'});
   if (!r.ok) return {err: 'HTTP ' + r.status};
@@ -159,11 +192,31 @@ def main() -> int:
 
             act = page.evaluate(wc.ACTIVITY_JS, [OPT_IN, BLOCKED])
             total = (act.get(OPT_IN) or {}).get("count", "ERR")
-            latest = (act.get(OPT_IN) or {}).get("latest") or "—"
+            oi = page.evaluate(OPTIN_JS, [e.lower() for e in NOT_A_MEMBER])
+            latest = oi.get("latest") or "—"
+            members = oi.get("memberCount", "ERR")
+            member_latest = oi.get("memberLatest") or "—"
             blocked = (act.get(BLOCKED) or {}).get("count", "ERR")
             notes = page.evaluate(NOTES_JS)
             conflicts = notes.get("conflicts", f"ERR ({notes.get('err')})")
 
+
+            # ⛔⛔ A READING THAT COULD NOT BE TAKEN IS NOT A FINDING.
+            #
+            # Production 502s for ~1-2 min on every Tier 1 deploy, and another
+            # workstream pushes several times an hour. A sampler row taken during
+            # one reads: every figure ERR, console full of "Failed to load
+            # resource: 502". Flagged as ANOMALY, that row makes the Sunday gate
+            # return REVERT - a rollback of a healthy product because someone
+            # else deployed at 17:05. Same distinction the canary already needed
+            # for its post-door read.
+            unreachable = (not isinstance(total, int)) and any("502" in e or "503" in e for e in errors)
+            if unreachable:
+                append(row(at, "—", "—", "—", "—", "—", len(errors),
+                           "**SKIPPED** — production unreachable (HTTP 5xx, deploy in flight); "
+                           "not a finding, and not evidence of a clean interval either"))
+                print(f"{at}  SKIPPED - production 5xx")
+                return 0
 
             reasons = []
             if errors:
@@ -172,8 +225,9 @@ def main() -> int:
                 reasons.append(f"blocked-baseline events = {blocked}")
             flag = "OK" if not reasons else "**ANOMALY** — " + " · ".join(reasons)
 
-            append(row(at, latest, total, blocked, conflicts, 0, len(errors), flag))
-            print(f"{at}  latest={latest} total={total} blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
+            append(row(at, f"{latest} · members {members}" + ("" if members in (0, "ERR") else f" (latest {member_latest})"),
+                       total, blocked, conflicts, 0, len(errors), flag))
+            print(f"{at}  latest={latest} members={members} total={total} blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
     except Exception as e:                                   # noqa: BLE001
         append(row(at, "—", "—", "—", "—", "—", "—",
                    f"**SKIPPED** — {type(e).__name__}: {str(e)[:80]}"))

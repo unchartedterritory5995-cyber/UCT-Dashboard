@@ -33,6 +33,20 @@ below as the OLD member count, not as `latest opt-in`.
 | 2026-09-12 07:00 ET | 0 | 19 | 0 | 3 | 0 | 0 | OK |
 | 2026-09-12 09:00 ET | 0 | 19 | 0 | 3 | 0 | 0 | OK |
 
+
+⭐ **THREE IDENTITIES, AND ONLY ONE OF THEM IS A MEMBER.**
+
+| identity | what it is | counts as a member? |
+|---|---|---|
+| `unchartedterritory5995@gmail.com` via the canary rig | scheduled canary runs and probes | **no** |
+| `unchartedterritory5995@gmail.com` via the owner's own Chrome | **owner browser (rig account, human use)** — the flag was cleared 2026-09-12 so the owner's week of real browsing exercises the layer | **no** |
+| `smoke@uctintelligence.internal` | another workstream's post-deploy smoke | **no** |
+| anything else | a real member | **YES** |
+
+⛔ The owner and the rig SHARE an account, so identity alone cannot separate the
+first two — and it does not need to: neither is a member. What matters is that
+an opt-in from **any other email** is, and `members` counts exactly those.
+
 | at (ET) | latest opt-in (UTC) | opt-in (windowed) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
 |---|---|---|---|---|---|---|---|
 | 2026-09-12 09:20 ET | 2026-09-12 05:17:56 | 19 | 0 | 3 | 0 | 0 | OK |

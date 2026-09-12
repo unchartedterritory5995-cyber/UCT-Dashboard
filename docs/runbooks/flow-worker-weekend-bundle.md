@@ -682,3 +682,93 @@ test stays green.
 ⭐ Generalising: when a rail asserts *presence*, ask what a BROKEN version of the thing
 would look like to it. If the broken version also satisfies the assertion, the rail is
 decoration.
+
+## ✅ COMING_SOON — OPTION B executed, 2026-09-12. Reason: locked until launch date
+
+> **Owner ruling: signups stay locked until launch.** `VITE_COMING_SOON=1` on `web`.
+> `COMING_SOON_MODE=1` on the backend left untouched — **both halves now agree for the
+> first time since `af80e0b91`.**
+
+```
+railway variables --service web --set "VITE_COMING_SOON=1"
+```
+
+### Fan-out
+
+web rebuilt (`8497fcd2`, SUCCESS); **flow-worker, worker and bars-api all SKIPPED.**
+This is a build-time flag, so the rebuild is required — unlike the backend half, which
+`waitlist.py:40` reads per request.
+
+### Verified on the artifact
+
+The `ComingSoon` lazy import changed from a discarded call to a bound declarator, in
+the same chunk, before and after:
+
+```
+pre-flip :  ...eps([45,1,46,3,47])));q(()=>L(()=>import("./ComingSoon-CF0j02dy.js"
+post-flip:  ...([45,1,46,3,47]))),z5=q(()=>L(()=>import("./ComingSoon-BHPxO2sB.js"
+```
+
+`)));` → `,z5=`. With the flag off, `COMING_SOON ? <ComingSoon/> : <Landing/>` folded to
+the Landing branch and the identifier lost every reference; now it is bound.
+
+⚠️ `Landing` keeps its binding either way — it is ALSO routed at `/landing`
+independently of the ternary. Reading Landing's binding proves nothing about this flag.
+
+### Verified in a browser
+
+| check | result |
+|---|---|
+| logged out, `/` serves the holding page | **PASS** — `YOU ARE HERE · OCT 16 · DOORS OPEN · COMING SOON`, 33-day countdown, waitlist input, `LOG IN` link |
+| `/pricing` `/compare` `/brokers` `/signup` `/subscribe` `/landing` → the holding page | **PASS** — all six land on `/` with the holding markers |
+| member-smoke signs in and reaches Options Flow | **PASS** — http 200, role=member, `.of-mroot` rendered |
+| …still on the parts path | **PASS** — `X-Flow-Part` headers: `bootstrap` and `TOP_PICKS` first (un-versioned), then `CONV`, `TICKER_DB`, `all_directional`, `all_trades` |
+
+The logged-out rows were measured in one run (uptime 38 → 83 s) and the two
+member-smoke rows re-measured on a clean warm window (uptime 232 → 256 s), for the
+reason in the next note.
+
+Countdown target is the code fallback `2026-10-16T09:00:00-04:00` (`ComingSoon.jsx`),
+since `VITE_LAUNCH_DATE` is unset — worth knowing now that the holding page is what
+members see.
+
+### ⚠️ A GAP IN THE SWAP GUARD: a freshly-booted pod is cold, not swapped
+
+One run reported `parts served: NONE` with the shell rendered — and the pod was **38 s
+old** when it started. A deploy had just completed, so the parts cache was cold. The
+swap guard did **not** flag it: uptime moved forward (38 → 83) and exceeded the run
+length, which is exactly what `_swap_verdict` looks for.
+
+⭐ **Uptime going forward proves no swap DURING the run; it says nothing about whether
+the pod is warm enough to measure.** Re-run on a warm pod (uptime 232 s at start) and
+the parts path passed with all six `X-Flow-Part` headers.
+
+⛔ **Recorded, NOT implemented** — out of scope for this session. The fix is a minimum
+pod age at run START (`up_before < ~120 s` ⇒ INCONCLUSIVE), alongside the existing
+backward/younger/unreadable checks. Until then, an operator must read `uptime_before`
+in the rig's own output and discard a run that began on a fresh pod.
+
+No deploy swap straddled any of these runs (uptime monotonic in every one).
+
+### ⛔ A FIFTH instrument trap, same class as §3 — needles from the source, not the artifact
+
+The first verification run reported **all seven logged-out checks as FAILURES** against
+a holding page that was rendering perfectly. The markers were taken from
+`ComingSoon.jsx` as `"Doors open"` / `"You are here"`, and the page uppercases them via
+CSS `text-transform`, so `innerText` returns `DOORS OPEN` / `YOU ARE HERE`. Matching
+case-insensitively fixed it.
+
+⭐ **That is the third form of one trap in a single session:** esbuild renames
+identifiers, a URL built by template never contains its assembled form, and CSS
+transforms the text `innerText` returns. **Derive the needle from what the ARTIFACT
+emits, never from what the source contains** — and when a check fails, ask whether the
+instrument could have succeeded before believing the product is broken.
+
+⚠️ Also: `member-smoke login` returned **429** on the re-run. That was self-inflicted —
+this session's repeated rig logins tripped the login rate limiter, not a product
+defect. A rate-limited login is INCONCLUSIVE, exactly like a deploy swap.
+
+### To reverse
+
+`railway variables --service web --set "VITE_COMING_SOON=0"` — build-time, so it needs a
+web rebuild. The backend half is independent and is read per request.
