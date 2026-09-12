@@ -17,6 +17,16 @@ restarts, and every flow-worker restart gaps the OPRA tape PERMANENTLY until the
 T+1 flat file. The point is to make "this push deploys nothing to flow-worker" a
 VISIBLE FACT at review time instead of a discovery weeks later.
 
+⛔ WORKER AND BARS-API ARE DELIBERATELY NOT COVERED. Their watch patterns look
+`api/**`-shaped, so every api change already redeploys them and there is no
+stranding to catch — a check there would be vacuous, and a vacuous check reads as
+coverage. Evidence is BEHAVIOURAL, not the literal patterns (which could not be
+read; see tools/railway_watch_patterns.py): on 2026-09-12 both SKIPPED a docs-only
+push and both rebuilt on an `api/**` push, and across the preceding 14 master
+pushes they woke only on the two commits that touched `api/`. ⚠️ Revisit if the
+real patterns ever turn out to be narrow — then they have the same trap flow-worker
+has, and this tool generalises by parameterising ENTRY and the watch source.
+
 ⛔ THE DASHBOARD IS THE AUTHORITY on watch patterns; `railway.json` is shared by
 all services and never carries them. The only in-repo mirror is the header of
 `api/flow_worker_main.py`, so that is what this parses — deliberately ONE mirror.

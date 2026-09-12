@@ -139,3 +139,65 @@ whatever the thing you are measuring also changes.**
 `_PREPARE_POLL_S` is **2 s**, not the 5 s quoted in earlier notes. One preparer
 tick is ~11.7 s (pass 1 ~6.2 s + pass 2 ~5.5 s), so read `blocked_held_ms` against
 a ~12 s tick plus up to 2 s of poll — not 5.
+
+---
+
+# ✅ MERGED AND VERIFIED — 2026-09-12 (weekend window)
+
+Merged to master as **`a5173fe41`** (merge commit, no force). Deploy fan-out:
+
+    web          SUCCESS
+    flow-worker  SUCCESS   <- the inert-ship gate: NOT "SKIPPED"
+    worker       SUCCESS
+    bars-api     SUCCESS
+
+`FLOW_FAST_DATE_SCAN=1` set on flow-worker afterwards. ⚠️ **`--set` AUTO-REDEPLOYED
+flow-worker** (a second build at 03:07:37 for the same commit) — a third data point
+for the "measured BOTH ways" note, matching `web` 2026-09-09, not `chart-renderer`
+2026-08-30. That cost a second tape gap in the same window, which is the argument for
+setting the variable in the SAME window as the merge rather than after it.
+
+## Non-RTH checks — all measured
+
+| check | result |
+|---|---|
+| flow-worker actually redeployed | **SUCCESS**, not SKIPPED |
+| `FLOW_FAST_DATE_SCAN` in the RUNNING process | **`'1'`** — read in-process over `railway ssh`, not from `--kv` |
+| `_resolve_dates` on the prod pod, flag OFF | **1.4227 s** |
+| `_resolve_dates` on the prod pod, flag ON | **0.0028 s cold / 0.0010 s warm** — same pod, same day, same call |
+| `parts_rejected_missing` exists | **yes**, reads **0** |
+| `build_failures` | **0** (was 885 across 889 prepared rolls pre-fix) |
+| parts cache contents | **10 entries** — bootstrap, TOP_PICKS, ALL_SYMS, CONV, TICKER_DB, UOA_TRADES, WATCH, all_directional, all_trades, darkPool |
+| `builds` per prepare cycle | **2** (pass 1 + pass 2). Pre-fix: 1 build + 1 failure |
+| tracebacks / `parts stream rejected` in logs | **0 / 0** |
+| web `/api/health` uptime reset | confirmed (252 s) |
+
+⭐ **The line that proves 6a end-to-end**, which could not exist before the fix
+because pass 2 always returned `None`:
+
+    [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39819711 in 17503ms
+    [flow-agg] parts built in 5357 ms :: stdout=18444KB gzip=518ms ::
+        ALL_SYMS=2KB, CONV=64KB, TICKER_DB=293KB, UOA_TRADES=1KB,
+        WATCH=397KB, all_directional=482KB, all_trades=1065KB, darkPool=0KB
+    [flow-prepare] remainder warmed v=39819711 in 5963ms   <- NEW
+
+## ⛔ NOT measured — RTH-dependent, Monday
+
+- **`prepare_ms` steady-state, and therefore the roll-level effect of the date scan.**
+  `rolls_steady[]` is **0** and `rolls_startup[]` is **1**: the Saturday tape is quiet,
+  so no steady-state roll has occurred. The ~6.2 s p50 baseline (n=25) still has no
+  post-flag counterpart. **The component is measured (1.4227 s → 0.0028 s); the roll is
+  not.** Do not quote a roll-level improvement until this row is filled.
+
+      Measured p50 with flag ON: ______  (n=____, date ______)
+
+- **"No new exceptions across ≥5 rolls."** Zero exceptions observed, but only ONE
+  prepare cycle has run. Five rolls needs an active tape.
+- Cold first paint via the browser rig · handoff attribution (`blocked_by` /
+  `blocked_pass` / `blocked_held_ms`) over a full session.
+
+⚠️ One number worth watching Monday, recorded because it is not yet explained: the
+first prepare after the *bundle* boot took **110,929 ms**, while the first prepare
+after the *flag* boot took **17,503 ms** (pass 1 5,005 ms + cold CSV ~12.5 s; pass 2
+5,357 ms). Both are cold-boot cycles. The gap is unattributed — likely the OPRA
+consumer restarting concurrently — and is not evidence about steady state either way.
