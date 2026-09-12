@@ -449,9 +449,20 @@ def test_a_partial_earnings_table_is_not_cached_as_complete(monkeypatch, tmp_pat
 
 def test_a_complete_earnings_table_still_gets_the_full_ttl(monkeypatch, tmp_path):
     """The other direction — a genuinely complete payload must NOT be punished
-    with the 2-minute retry TTL, which would re-fetch every visit."""
+    with the 2-minute retry TTL, which would re-fetch every visit.
+
+    ⚠️ The `reported: True` is load-bearing, not decoration. This fixture was
+    written 2026-08-05 against a guard that only asked whether the two lists
+    were non-empty; the "presence is not completeness" hardening of 2026-09-08
+    (the MU bug — 12 annual rows and 4 quarterly rows that were ALL unreported)
+    added a third clause, and a payload carrying annual data with no reported
+    quarter has been deliberately PARTIAL ever since. The fixture was never
+    updated, so this test failed on master for four days; drop the flag and it
+    goes red again while the code is behaving exactly as designed.
+    """
     et, seen = _ttl_for(monkeypatch, tmp_path,
-                        annual=[{"label": "FY25"}], quarterly=[{"label": "Q2 26"}])
+                        annual=[{"label": "FY25"}],
+                        quarterly=[{"label": "Q2 26", "reported": True}])
     assert seen["ttl"] in (et._FAST_TTL, et._SLOW_TTL)
     assert seen["ttl"] != et._EMPTY_TTL
     assert seen.get("persisted") is True

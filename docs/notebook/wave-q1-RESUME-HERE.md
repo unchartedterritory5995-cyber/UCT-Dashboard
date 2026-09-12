@@ -1,5 +1,344 @@
 # Wave Q1 — RESUME HERE
 
+# ✅ COMPLETE AND READY — 2026-09-12
+
+| item | state | blocker |
+|---|---|---|
+| `OFFLINE_DEFAULT_ON = true` on `origin/master` | **TRUE** | — |
+| Docs branch merged (closing entry, sampler, gate doc, rails) | **TRUE** | `dd7695ac2` |
+| Sweep audit merged | **TRUE** | `103eaf19c` |
+| Wave Q2 PRD + decisions merged | **TRUE** | `9d3248379` |
+| Rollback branch pushed, green, unmerged | **TRUE** | `3db89e205` — no PR page; open from the branch page |
+| Sampler unattended, heartbeat documented | **TRUE** | — |
+| Sunday canary + gate are SCHEDULED TASKS | **TRUE** | both `Ready`; detached runner retired |
+| Gate rails green | **TRUE** | 27/27 |
+| Sweep audited, fifth-pattern detectors added | **TRUE** | — |
+| CaptureHost resolved | **TRUE** | two clean gates, 0 NEW each; load-sensitive by name, no fix |
+| Q2 PRD, decisions, kill-switch recommendation | **TRUE** | before Q2-C, not before A/B |
+| GitHub PAT / MCP next session | **DECIDED — not created** | owner ruling; merges landed via `git push`, rollback is one click from the branch page |
+| First INDEPENDENT member opt-in | **FALSE** | every opt-in is the owner's account or the internal smoke account; arrives with real traffic |
+| 7-day window closed (2026-09-19 00:45 ET) | **FALSE** | time |
+| Sunday verdict, KEEP | **FALSE** | regenerates Sunday 18:05 ET |
+
+## ⛔⛔ THE MEMBER DENOMINATOR HAS A STRUCTURAL PROBLEM, NOT A TIMING ONE
+
+Measured in the owner's own Chrome, 2026-09-12 15:2x UTC, on the live flipped
+build:
+
+```
+authStatus 200 · accountId 7a6d0299-…  ← THE SAME ACCOUNT AS THE RIG
+uct.j2.offline.enabled = "0"           ← EXPLICITLY OPTED OUT
+syncLocksHeld 0 · notebook DB present · no console errors
+```
+
+⛔ **The owner's browser is explicitly opted out**, so `offlineEnabled()` is false,
+the layer never runs, and no opt-in event can fire from it. ⛔ **And it is signed
+in as the same account the rig uses.** So the observation window currently has
+**no independent member at all**: every opt-in in the feed is the canary's, and
+the one human browser available is opted out and shares the rig's identity.
+
+⭐ **This is not a flip failure.** The flip is verified live in both directions.
+It means "zero blocked-baseline events" is still being measured over a
+population of **zero real members**, which is the exact shape Q1's own telemetry
+work exists to prevent — and it must not be read as a clean week.
+
+**To get a real datapoint, one of:** clear `uct.j2.offline.enabled` in a browser
+that is NOT the rig's account and open the Notebook; or wait for another member
+to load it. ⛔ The owner's key was NOT cleared by the agent — it is the only
+in-RTH kill switch and changing it is the owner's call.
+
+## ⚰️ THREE MERGES IN FOUR MINUTES TOOK PRODUCTION DOWN
+
+`dd7695ac2` → `103eaf19c` → `9d3248379`, pushed back to back. Railway marks each
+in-flight deploy `REMOVED` when the next arrives, so production served **502 for
+several minutes** rather than the ~1 min blip the runbook budgets for ONE Tier 1
+push. Verified as ours: `9d3248379` was `DEPLOYING` while the site 502'd, and it
+recovered the moment it finished.
+
+⛔ **Batch merges, or let each reach SUCCESS before pushing the next.** The
+runbook's "~1 min `/api/*` blip" is per push and does not compose.
+
+## ✅ CaptureHost — LOAD-SENSITIVE BY NAME, NO FIX NEEDED
+
+Two full 6-shard gates with the flag true, nothing else running:
+
+| gate | result | shard 6 (CaptureHost's shard) |
+|---|---|---|
+| 1 | **0 NEW failures**, set matches baseline | 0 failed / 3984 |
+| 2 | **0 NEW failures**, set matches baseline | 0 failed / 3984 |
+
+Its single observed failure was in one flip-gate run; it passed alone, passed
+paired against all four offline-layer neighbours in its shard, and has now passed
+two clean full gates. **That is the repo's own definition of a load-sensitive
+name, and it needs no product or teardown fix.** `fix/capturehost-isolation`
+contains nothing beyond `master` and was therefore not pushed.
+
+⛔ **The `load_sensitive` list lives in `docs/plans/joystick/gate-baseline.json`,
+which is the joystick workstream's file and out of bounds for this wave.** Adding
+`CaptureHost.test.jsx > closing returns the dialog to nothing` to it — with the
+evidence above — is a **joystick-session follow-up**, alongside the B7
+branch-identity fix. ⛔ It must be added to `load_sensitive`, **never banked into
+the baseline**: the baseline's own instruction says a banked slot is one a real
+failure can occupy unnoticed.
+
+## ⛔ DECIDED — the GitHub PAT was deliberately NOT created
+
+Owner ruling, 2026-09-12. Its stated purpose was unlocking the REST route for
+merges; **all merges landed via plain `git push`**, so that purpose was moot. What
+remained was the MCP connecting next session and one draft PR — set against
+creating a 90-day `repo`-scoped credential and persisting it to a User
+environment variable, where any process running as the owner can read it. Not
+worth it for that.
+
+⭐ **Sunday's revert does not depend on it.** `rollback/notebook-offline-default-off`
+@ `3db89e205` is pushed, gated and gauntleted green with the flag false. Opening a
+PR from the branch page and merging it with a **merge commit** is one click.
+
+## ⭐ THE OWNER'S BROWSER NOW RUNS THE LAYER — and is still not a member
+
+Owner ruling, 2026-09-12. `uct.j2.offline.enabled` was **removed** from the
+owner's regular Chrome so a week of real human browsing exercises the offline
+layer. Verified immediately after, on the live build:
+
+```
+flagKey null (default ON) · optInMarker "1" · sync lock HELD 1 · session lock 1
+notebook DB present · no console errors
+```
+
+⛔ **It is labelled `owner browser (rig account, human use)` and counts as
+NEITHER a member NOR the rig.** It shares the rig's account, so identity cannot
+separate the two — and it does not need to, because neither is an independent
+member. `members` counts opt-ins from **any other email**, and that is the only
+number the "zero blocked-baseline events" claim may be divided by.
+
+# 🏁 WAVE Q1 — CLOSED, AND LIVE IN PRODUCTION
+
+**Flipped 2026-09-12 00:45 ET / 04:45 UTC.** `OFFLINE_DEFAULT_ON = true` for every
+member from their first page load after the deploy. Wave Q1 had been built,
+merged and **dark** since `32afb1fd8`; it is dark no longer.
+
+| | |
+|---|---|
+| flip tip, fast-forwarded onto `master` | **`739218e48`** |
+| rollback, pre-authored · gated · gauntleted · **PUSHED** | **`3db89e205`** (`rollback/notebook-offline-default-off`) |
+| deploy tier | **Tier 1 — web only** (`docs/runbooks/deploy-windows.md`) |
+| verified on `origin/master` | hash ✅ · ancestor ✅ · `offlineFlag.js:66` reads `true` ✅ |
+
+⭐ **The rollback existed before the flip did**, deliberately: the moment you need
+a rollback is the worst moment to write one.
+
+⛔ **There is no PR page, so Sunday's revert is a two-step.** `gh` is not installed
+on this box; the GitHub MCP server failed to connect at session start; and
+`GITHUB_PERSONAL_ACCESS_TOKEN` is **not visible in the agent's shell** (the REST
+call returned **401**). **Sunday's revert: open a PR from the branch page for
+`rollback/notebook-offline-default-off` @ `3db89e205`, and merge it with a MERGE
+COMMIT** — not squash, not rebase, because this record cites these hashes. Ten
+seconds, and documented rather than discovered.
+
+## The deploy — measured per service, not inferred from the tier
+
+| service | status for `739218e48` |
+|---|---|
+| **web** | **SUCCESS** — `createdAt` 04:45:15Z → process start 04:46:57.9Z |
+| worker | SKIPPED |
+| bars-api | SKIPPED |
+| flow-worker | **SKIPPED** |
+| chart-renderer | no record (independent; last deploy 2026-09-01) |
+
+**Rebuild timing, now a range rather than a point:** **103 s** (this flip) and
+**138 s** (`b63cf9775`). A third figure, 41 s, was a *redeploy of an existing
+image* and is **not comparable** — it measures a different thing and is recorded
+here only so nobody averages it in. Options Flow verified healthy after:
+`enabled · available · warm`, all three views live.
+
+## Both directions, on the live build
+
+**The served bundle actually changed** — `NotebookTab-DsTCcK7U.js` (was
+`NotebookTab-CMePJ5Sn.js`), and the minified flag reads `const Qs=!0` where it
+read `zi=!1` before. That check exists because a deploy can "succeed" and still
+serve a cached bundle.
+
+| state | sync lock | claimable | notebook DB | verdict |
+|---|---|---|---|---|
+| key **unset** (the member default) | **1 held, exclusive, ours** | False * | `uct_notebook_<acct>` · `conflicts/meta/notes/outbox` | **layer ACTIVE** |
+| key **`'0'`** | **0 held** | True | present, untouched | **layer OFF** |
+| key cleared again | **1 held** | False * | same | **reversible** |
+
+\* `claimable: False` there is the leader **working** — the measuring page holds
+the lock itself, so it cannot be granted twice. In the canary's cleanup the page
+is opted out, which is why `True` is the expected reading there. ⛔ Do not read
+these two as the same measurement.
+
+**Console / pageerror across all three states: none.**
+
+## Five real-door canaries on the flipped build
+
+| run | # | door | door path | claimable (census) | forks | outbox | sentence in body | notes |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 21 | `folder` | REAL | True (1) | 0 | 0→0 | ✅ | 37 → 38 |
+| 2 | 22 | `ticker` | REAL | True (1) | 0 | 0→0 | ✅ | 37 → 38 |
+| 3 | 24 | `folder` | REAL | True (1) | 0 | **1→0** | ✅ | 38 → 39 |
+| 4 | 25 | `ticker` | REAL | True (1) | 0 | 0→0 | ✅ | 38 → 39 |
+| 5 | 26 | `tags` | REAL | True (1) | 0 | 0→0 | ✅ | 38 → 39 |
+
+**5/5 green, all three doors covered.** Every run drove the member's own door —
+the `baseline None → <timestamp>` fingerprint the raw-fetch door cannot produce.
+
+⭐ Run 3's `outbox 1→0` was not scripted: it is the entry stranded by the crashed
+run below being picked up and drained once the layer came back on. **The
+re-enable path, working on production.**
+
+⛔ **Run #23 is missing from that table and the reason is recorded, not hidden.**
+It consumed the `tags` slot, which is why two extra runs were added rather than
+shipping a table with one door unexercised.
+
+**Cumulative real-door fork rate: 0 forks in 42 runs** (28 prior verifiable + 9
+earlier on 09-11 + 5 post-flip). At 42 clean runs, any fork rate **≥ 10.4 % is
+excluded at ≥99 % confidence**; below ~10 % remains unexcluded and would need
+more runs than this wave will pay for. ⛔ That is the honest claim; "proven
+clean" is not.
+
+## ⚰️ THE ONE RED, AND IT WAS A DEPLOY MEETING AN INSTRUMENT
+
+Post-flip canary 3 died on `SyntaxError: Unexpected token '<', "<!DOCTYPE "...`.
+Another workstream pushed `739218e48 → 6b4378e33`; `web` restarted at 05:04:30Z
+against a run that began at 05:03:25Z; `/api/j2/notes/<id>` served the SPA
+fallback during the swap, and `.json()` threw. The run died on the traceback — no
+row, no cleanup, an orphan note and a stranded outbox entry.
+
+**Classified DEPLOY + INSTRUMENT, never PRODUCT.** A ~1 min `/api/*` blip is the
+documented cost of *any* Tier 1 push. Canaries 1 and 2 had already passed against
+the flipped build. **No rollback was warranted and none was performed.**
+
+**Fixed** (`7e83f38ad`): the post-door read now returns a structured `readFailed`
+and the step goes red as explicitly **INCONCLUSIVE** — never as "the baseline did
+not move". Same distinction `_doc_text(None) == ""` got wrong twice in this wave:
+*a response that could not be PARSED is not a revision that did not MOVE.*
+
+**Litter cleaned, identified before deletion:** one orphan note carrying the
+crashed run's own sentinel (`WINDOW-CHECK-SENTINEL 2026-09-12T05:03:25Z`). The
+three preserved round-3 evidence notes were **not** touched.
+
+## Telemetry — the denominator means something now, and it currently reads zero
+
+| | |
+|---|---|
+| `notebook_offline_opt_in`, total | **20** |
+| …of which **member** | **0** |
+| `notebook_blocked_no_baseline` | **0** |
+| `sync-conflict` notes | 3 (all preserved round-3 evidence) |
+
+⛔ **All 20 are the rig**, accumulated across the night's canary runs, each of
+which opts in and back out — a genuine re-opt-in, which the new logic correctly
+counts. **The real denominator starts on the first member load.** It is 01:20 ET
+on a Saturday; nobody has opened the Notebook yet, and saying so is the point.
+
+⭐ **Dedupe verified on the LIVE build, not only in jsdom:** three loads of the
+same browser, marker `'1'` each time, **count 19 → 20 — one event.** That is the
+once-per-page-view regression the flip commit had to prevent, confirmed dead in
+production.
+
+## The observation window — unattended, starting now
+
+The sampler runs from **`C:\Users\Patrick\uct-q1-observe\`** — deliberately **outside every git
+worktree**, so removing a worktree during the 7-day window cannot kill the job.
+⚠️ The two `.py` files there are **copies taken 2026-09-12** and will not track
+later repo edits; the repo copy is the source of truth, and both must be updated
+together.
+
+It appends a row every 2 hours to `C:\Users\Patrick\uct-q1-observe\wave-q1-observation-log.md`, as Task
+Scheduler job **`UCT-WaveQ1-Observe`** (`/SC HOURLY /MO 2 /ST 02:00`, **Ready**).
+**It has been running unattended since the flip** — rows at 01:20, 03:00, 05:00,
+07:00, 09:00 and 09:20 ET, every one `OK`.
+
+⚰️ **A column that could only ever say zero, caught by its own log.** The table
+began with `opt-in (member) = total − 20`. Then `total` went **20 → 19**, and
+counts do not decrease: the admin activity feed is a **200-row window** and old
+events roll off it. A member event arriving while another rolled off would leave
+`total` unchanged and `member` reading **0** — indistinguishable from nobody
+coming. Replaced with **`latest opt-in (UTC)`**, which moves when something new
+arrives regardless of roll-off. ⛔ **Every opt-in up to `2026-09-12 05:17:56` is
+the rig.** A `latest` newer than that, with no canary running, is a real member. A run that cannot take the rig profile writes a
+**SKIPPED** row with its reason, so **a gap in the log is never silent**.
+
+⛔ **The limitation, printed in the log's own header so it is discovered now and
+not on Sunday:** *Outbox stuck >5 min is not observable fleet-wide and the rig
+runs opted out. It is covered only by real-door canary runs (rig, layer on) and
+by member reports. A canary any time this weekend fills that datapoint; the
+sampler does not.*
+
+## ⛔⛔ THE SUNDAY 18:00 ET GATE — the rule, verbatim
+
+> **any unexplained red, any fork not attributable to a genuine second writer,
+> any outbox item stuck >5 min, or any offline-layer console error seen by a real
+> member → merge `3db89e205` before 20:00 ET Sunday.**
+>
+> **Clean → KEEP, and the 7-day window runs from the flip timestamp.**
+
+⭐ Triggers 1, 2 and 4 read **fleet-wide from the log**. ⛔ **Trigger 3 reads
+canary result or member report — NEVER the sampler**, for the reason in the log
+header.
+
+### ⛔⛔ FIRST, CHECK THE JOB RAN — a log with no rows looks exactly like a quiet week
+
+The sampler writes a SKIPPED row when it *runs and cannot proceed*. It writes
+**nothing at all** if the job never fired, and **Task Scheduler's own exit code is
+the only signal for that case**. Run this before reading the table:
+
+```
+schtasks /Query /TN "UCT-WaveQ1-Observe" /FO LIST /V
+```
+
+⭐ Read **`Last Run Time`** (should be within the last 2 hours) and **`Last
+Result`** (`0` = ran). A stale `Last Run Time`, or a non-zero `Last Result`, means
+**the table is incomplete and its silence means nothing.**
+
+## ⛔ THE ONLY IN-RTH TOOL — per browser, exact text
+
+```js
+localStorage.setItem('uct.j2.offline.enabled', '0')   // then RELOAD the page
+```
+
+Takes effect on that browser's next load and reaches nobody else. Destroys
+nothing: a durable copy left behind by a switched-off layer is inert, and the
+server holds every synced note regardless.
+
+## ⛔ ROLLBACK MECHANICS — a deploy, not a variable
+
+`OFFLINE_DEFAULT_ON` is a **compile-time constant** compiled into the bundle.
+There is no Railway variable behind it, and setting one named after it changes
+nothing while looking like it worked. Rollback = merge `3db89e205`, wait for the
+`web` rebuild (**103–138 s measured**), and **every member with an open tab keeps
+the OLD bundle until they reload** — no service worker, no version prompt, by
+charter. So "reverted" means "no NEW page load gets it", never "nobody is running
+it".
+
+## ⛔ SETTLED — do not reopen
+
+- **Single writer: DECIDED AND REVERSED.** The coordination machinery is what
+  makes the member path rebase; deleting it breaks the path that works.
+  `wave-q1-single-writer-decision.md` §4 lists the only three things that reopen it.
+- **The property rail (old §A): VOID.** There was no product defect to reproduce.
+- **Round 3: the INSTRUMENT.** Fifth of five instrument defects this wave — and
+  tonight added a sixth (the deploy-blip crash) and a seventh (the sweep's blind
+  spot to injected storage stubs). ⛔ **Every one made the product look broken;
+  none made it look healthy.** That is bias, not noise. Treat the next
+  unexplained red as the instrument first — without letting that reasoning talk
+  you out of a rollback a member could feel.
+
+## Follow-ups — none blocking the observation window
+
+| # | item | owner | scope |
+|---|---|---|---|
+| a | `rule12Paths` (joystick B7, `327fa4c70`) has no branch-identity check, so it fires on any branch editing `journal-2-0/` — including the Notebook's own. Waived by name for tonight's gate, never modified. | joystick session (owner carrying) | one guard condition + a rail |
+| b | `tests/test_gate_shards.py` — **3 red on master**, and they are the rails over the gate's own **baseline-comparison** logic, which every verdict tonight leaned on. Verdicts were cross-checked by plain `sed`/`sort`/`comm` diff instead. | TBD | worth its own decision |
+| c | Runtime kill switch, shape (a) server-served flag. **MEDIUM, 6–12 h.** ⛔ Does **not** fix the open-tab case either — a boot-read flag is still a boot-time value. | deferred | costed, not built |
+| d | The flag sweep now detects a **fourth** way to reach the default (injected storage stubs). Its docstring promised three and warned "reading cannot prove there is no fifth" — neither can the tool. | Notebook | watch for a fifth |
+| e | No PR page for the rollback branch (`gh` absent, REST blocked). | owner | 10 seconds from the branch page, if a clickable revert is wanted for Sunday |
+
+---
+
+
 # ⛔⛔⛔ START HERE — 2026-09-12
 
 ⭐ **PRODUCT FINDING, KEPT — rig probe 3, 2026-09-12:** a leader that
@@ -4402,6 +4741,224 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### saturday-canary-1 — **2026-09-12T13:32:54Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **33116** · Chrome/152.0.7977.83 · CDP `127.0.0.1:49358` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **19** · latest 2026-09-12 05:17:56 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 45 append(s) · tail `10101010M010` |
+| door this run | **`folder`** — `DOORS[27 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T13:33:17.503129+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#27** ⇒ `DOORS[27 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T13:33:40.304011+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T13:33:40.304011+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T13:33:40.304011+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T13:32:54Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T13:33:40.304011+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### post-flip-5 — **2026-09-12T05:14:58Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **42420** · Chrome/152.0.7977.83 · CDP `127.0.0.1:60919` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **38** · canary notes 4 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **19** · latest 2026-09-12 05:13:21 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 41 append(s) · tail `101010101010` |
+| door this run | **`tags`** — `DOORS[26 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T05:15:21.763578+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `tags` moved the baseline under the queued entry | run **#26** ⇒ `DOORS[26 % 3]` = **`tags`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T05:15:43.506648+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T05:15:43.506648+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T05:15:43.506648+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `tags`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T05:14:58Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T05:15:43.506648+00:00`: **False** · door value kept: **True** (`tags` = ['window-check-door']) |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **38 → 39** (expected **39**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+4 pre-existing, excluded) · notes **38 → 38** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### post-flip-4 — **2026-09-12T05:13:09Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **32024** · Chrome/152.0.7977.83 · CDP `127.0.0.1:53808` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **38** · canary notes 4 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **19** · latest 2026-09-12 05:09:31 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 39 append(s) · tail `M01010101010` |
+| door this run | **`ticker`** — `DOORS[25 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T05:13:32.271518+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `ticker` moved the baseline under the queued entry | run **#25** ⇒ `DOORS[25 % 3]` = **`ticker`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T05:13:54.048057+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T05:13:54.048057+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T05:13:54.048057+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `ticker`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T05:13:09Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T05:13:54.048057+00:00`: **False** · door value kept: **True** (`ticker` = 'NVDA') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **38 → 39** (expected **39**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+4 pre-existing, excluded) · notes **38 → 38** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### post-flip-3-of-3 — **2026-09-12T05:09:18Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **23920** · Chrome/152.0.7977.83 · CDP `127.0.0.1:59934` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 2 · `notes` 1 · `outbox` 1 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **38** · canary notes 4 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **18** · latest 2026-09-12 05:03:37 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 37 append(s) · tail `10M010101010` |
+| door this run | **`folder`** — `DOORS[24 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T05:09:42.200707+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#24** ⇒ `DOORS[24 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T05:10:05.745190+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T05:10:05.745190+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T05:10:05.745190+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T05:09:18Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T05:10:05.745190+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **38 → 39** (expected **39**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+4 pre-existing, excluded) · notes **38 → 38** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### check 15 — **2026-09-12T05:07:19Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **38928** · Chrome/152.0.7977.83 · CDP `127.0.0.1:58490` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 2 · `notes` 1 · `outbox` 1 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **38** · canary notes 4 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **18** · latest 2026-09-12 05:03:37 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | — not run this pass |
+
+### post-flip-2-of-3 — **2026-09-12T05:01:35Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **39688** · Chrome/152.0.7977.83 · CDP `127.0.0.1:62785` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **16** · latest 2026-09-12 04:59:56 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 33 append(s) · tail `101010M01010` |
+| door this run | **`ticker`** — `DOORS[22 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T05:01:58.389137+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `ticker` moved the baseline under the queued entry | run **#22** ⇒ `DOORS[22 % 3]` = **`ticker`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T05:02:20.339878+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T05:02:20.339878+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T05:02:20.339878+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `ticker`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T05:01:35Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T05:02:20.339878+00:00`: **False** · door value kept: **True** (`ticker` = 'NVDA') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### post-flip-1-of-3 — **2026-09-12T04:59:44Z**
+
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → process start). A member with an open tab keeps the OLD bundle until they reload.
+
+| | reading |
+|---|---|
+| rig | PID **35460** · Chrome/152.0.7977.83 · CDP `127.0.0.1:49734` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **15** · latest 2026-09-12 04:57:38 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 31 append(s) · tail `10101010M010` |
+| door this run | **`folder`** — `DOORS[21 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T05:00:07.712785+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#21** ⇒ `DOORS[21 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T05:00:30.170135+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T05:00:30.170135+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T05:00:30.170135+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T04:59:44Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T05:00:30.170135+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
 ### check 14 — **2026-09-12T01:35:20Z**
 
 ⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
@@ -5047,7 +5604,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 14 — 2026-09-12T01:35:20Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of saturday-canary-1 — 2026-09-12T13:32:54Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.
@@ -5055,13 +5612,13 @@ checked by eye on the day.
 | # | condition | latest reading |
 |---|---|---|
 | 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
-| 2 | Opted-in browsers (the denominator) | **7** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **9** — need **7** |
+| 2 | Opted-in browsers (the denominator) | **19** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **15** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
 ## ✅ RECOMMENDATION: **GO**
 
-**Met:** zero blocked-baseline events · 7 opted-in browsers · 9 consecutive green runs
+**Met:** zero blocked-baseline events · 19 opted-in browsers · 15 consecutive green runs
 
 ⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
 the numerator 05:06:56Z. A browser that opted in inside that window is

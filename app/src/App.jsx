@@ -190,6 +190,7 @@ const BrokersPage = lazy(() => import('./pages/BrokersPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const SmokeLogin = lazy(() => import('./pages/SmokeLogin'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 const VerifyPending = lazy(() => import('./pages/VerifyPending'))
 const NotFound = lazy(() => import('./pages/NotFound'))
@@ -409,6 +410,10 @@ export default function App() {
             <Route path="/subscribe" element={<PreLaunchGate><Subscribe /></PreLaunchGate>} />
             <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Admin-issued single-use login link for the synthetic device-test account.
+                Unauthenticated by design — the token IS the credential, and the backend refuses
+                it unless SMOKE_LOGIN_LINK_ENABLED is set and it names the one allow-listed id. */}
+            <Route path="/smoke-login" element={<SmokeLogin />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/verify-pending" element={<VerifyPending />} />
             <Route path="/terms" element={<Terms />} />

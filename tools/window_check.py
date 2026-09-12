@@ -1641,10 +1641,42 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
         dr = {"status": None, "before": None, "after": None, "attempts": 0}
     else:
         page.wait_for_timeout(4000)
+        # ⛔⛔ A DEPLOY BLIP IS NOT A REVISION THAT DID NOT MOVE.
+        #
+        # ⚰️ 2026-09-12, post-flip canary 3: another workstream pushed to master
+        # mid-run, `web` restarted underneath us, `/api/j2/notes/<id>` served the
+        # SPA fallback, and `.json()` threw
+        # `SyntaxError: Unexpected token '<', "<!DOCTYPE "...`. The whole run died
+        # on the traceback — no row, no cleanup, an orphan note left on the
+        # account. A one-minute `/api/*` blip is the DOCUMENTED cost of any Tier 1
+        # push (`docs/runbooks/deploy-windows.md`), so the instrument must survive
+        # one rather than crash into it.
+        #
+        # ⛔ AND IT MUST NOT BE READ AS AN ANSWER. An unreadable response is
+        # INCONCLUSIVE, never "the baseline did not move" — the same distinction
+        # `_doc_text(None) == ""` got wrong twice in this wave: a layer that could
+        # not be READ is not a layer that is EMPTY.
         _after = page.evaluate(
-            "async (id) => (await (await fetch('/api/j2/notes/'+id,{credentials:'include'})).json()).note?.updatedAt",
+            "async (id) => { try {"
+            "  const r = await fetch('/api/j2/notes/'+id,{credentials:'include'});"
+            "  const t = await r.text();"
+            "  if (!r.ok) return {readFailed: 'HTTP ' + r.status};"
+            "  try { return {updatedAt: (JSON.parse(t)).note?.updatedAt} }"
+            "  catch { return {readFailed: 'not JSON: ' + t.slice(0,40)} }"
+            "} catch (e) { return {readFailed: String(e && e.name || e)} } }",
             note_id)
-        dr = {"status": 200, "before": None, "after": _after, "attempts": 1, "via": _rr.get("via")}
+        if isinstance(_after, dict) and _after.get("readFailed"):
+            chk.step(f"4 door `{door}` — the post-door revision could not be READ", False,
+                     f"read failed: {_after['readFailed']}",
+                     f"⛔ INCONCLUSIVE, not a finding: the server could not be read after the "
+                     f"door ({_after['readFailed']}). A deploy blip looks exactly like this. "
+                     f"Re-run; do NOT record this as a baseline that failed to move.")
+            dr = {"status": None, "before": None, "after": None, "attempts": 1,
+                  "readFailed": _after["readFailed"]}
+        else:
+            dr = {"status": 200, "before": None,
+                  "after": (_after or {}).get("updatedAt") if isinstance(_after, dict) else _after,
+                  "attempts": 1, "via": _rr.get("via")}
     if not isinstance(dr, dict):
         dr = {"status": None, "before": None, "after": None}
     door_moved = (dr.get("status") == 200 and isinstance(dr.get("after"), str)

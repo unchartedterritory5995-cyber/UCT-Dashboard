@@ -250,27 +250,27 @@ def _quote_observed_at(raw: Any) -> Optional[float]:
     return None
 
 
-def get_quote(ticker: str, *, entity_type: Optional[str] = None) -> _pe.ProviderResult:
+def get_quote(ticker: str, *, entity_type: Optional[str] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     sym = _fmp_index_symbol(ticker) if entity_type == "index" else ticker.upper()
     return _fetch("/stable/quote", {"symbol": sym},
                    source_activity="fmp_client.get_quote", data_class="fundamentals",
                    not_found_if=_empty_list, freshness="delayed_15",
-                   observed_at_of=_quote_observed_at)
+                   observed_at_of=_quote_observed_at, timeout=timeout)
 
 
-def get_key_metrics_ttm(ticker: str) -> _pe.ProviderResult:
+def get_key_metrics_ttm(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/key-metrics-ttm", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_key_metrics_ttm", data_class="fundamentals",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_ratios_ttm(ticker: str) -> _pe.ProviderResult:
+def get_ratios_ttm(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/ratios-ttm", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_ratios_ttm", data_class="fundamentals",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_analyst_grades(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_analyst_grades(ticker: str, *, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Latest analyst grades (`/stable/grades`) — the endpoint
     `catalyst/analyst_actions.py` and `analyst_grades.py` both use, per
     §2.3's finding that these two call sites already share ONE real
@@ -280,34 +280,34 @@ def get_analyst_grades(ticker: str, *, limit: Optional[int] = None) -> _pe.Provi
         params["limit"] = limit
     return _fetch("/stable/grades", params,
                    source_activity="fmp_client.get_analyst_grades", data_class="analyst_grades",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_grades_consensus(ticker: str) -> _pe.ProviderResult:
+def get_grades_consensus(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/grades-consensus", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_grades_consensus", data_class="analyst_grades",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_grades_historical(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_grades_historical(ticker: str, *, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     params = {"symbol": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-historical", params,
                    source_activity="fmp_client.get_grades_historical", data_class="analyst_grades",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_price_target_consensus(ticker: str) -> _pe.ProviderResult:
+def get_price_target_consensus(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/price-target-consensus", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_price_target_consensus", data_class="estimates",
-                   not_found_if=_empty_container, freshness="end_of_day")
+                   not_found_if=_empty_container, freshness="end_of_day", timeout=timeout)
 
 
-def get_price_target_summary(ticker: str) -> _pe.ProviderResult:
+def get_price_target_summary(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/price-target-summary", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_price_target_summary", data_class="estimates",
-                   not_found_if=_empty_container, freshness="end_of_day")
+                   not_found_if=_empty_container, freshness="end_of_day", timeout=timeout)
 
 
 # 2026-09-04 (News/Intelligence Slice 1, A8, owner-authorized narrow slice):
@@ -320,54 +320,54 @@ def get_price_target_summary(ticker: str) -> _pe.ProviderResult:
 # its own composer slice. `limit` is left optional/unbounded here exactly like
 # every other typed list endpoint above; the composer is the one that clamps
 # it, not the adapter.
-def get_news_stock(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_news_stock(ticker: str, *, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Wire coverage naming this ticker (`/stable/news/stock`)."""
     params = {"symbols": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/news/stock", params,
                    source_activity="fmp_client.get_news_stock", data_class="news",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
 
 
-def get_news_press_releases(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_news_press_releases(ticker: str, *, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """The company's own announcements (`/stable/news/press-releases`)."""
     params = {"symbols": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/news/press-releases", params,
                    source_activity="fmp_client.get_news_press_releases", data_class="news",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
 
 
-def get_earnings(ticker: str, *, limit: int = 20) -> _pe.ProviderResult:
+def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/earnings", {"symbol": ticker.upper(), "limit": limit},
                    source_activity="fmp_client.get_earnings", data_class="earnings",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_transcript_dates(ticker: str) -> _pe.ProviderResult:
+def get_transcript_dates(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/earning-call-transcript-dates", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_transcript_dates", data_class="transcripts",
-                   not_found_if=_empty_list, freshness="historical")
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout)
 
 
-def get_transcript_latest_page(page: int) -> _pe.ProviderResult:
+def get_transcript_latest_page(page: int, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/earning-call-transcript-latest", {"page": page, "limit": 100},
                    source_activity="fmp_client.get_transcript_latest_page", data_class="transcripts",
-                   not_found_if=_empty_list, freshness="historical", timeout=25)
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout if timeout is not None else 25)
 
 
-def get_transcript_content(ticker: str, year: int, quarter: int) -> _pe.ProviderResult:
+def get_transcript_content(ticker: str, year: int, quarter: int, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch(
         "/stable/earning-call-transcript",
         {"symbol": ticker.upper(), "year": year, "quarter": quarter},
         source_activity="fmp_client.get_transcript_content", data_class="transcripts",
-        not_found_if=_empty_list, freshness="historical", timeout=40,
+        not_found_if=_empty_list, freshness="historical", timeout=timeout if timeout is not None else 40,
     )
 
 
-def get_earnings_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
+def get_earnings_calendar(from_date: str, to_date: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Earnings-calendar rows for a date RANGE — the one typed function in
     this module that does NOT take `ticker: str`, since `/stable/
     earnings-calendar` is a market-wide day/range query, not a per-symbol
@@ -377,10 +377,10 @@ def get_earnings_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
     (live-measured, `api/services/implied_store.py`)."""
     return _fetch("/stable/earnings-calendar", {"from": from_date, "to": to_date},
                    source_activity="fmp_client.get_earnings_calendar", data_class="earnings",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_economic_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
+def get_economic_calendar(from_date: str, to_date: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Economic-calendar rows for a date range — added for the calendar
     page's A5 modernization (2026-09-03). A market-wide range query, not a
     per-symbol one, same shape as `get_earnings_calendar`. `econ_calendar_fmp.py`
@@ -388,79 +388,79 @@ def get_economic_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
     replaces its raw `requests.get` transport."""
     return _fetch("/stable/economic-calendar", {"from": from_date, "to": to_date},
                    source_activity="fmp_client.get_economic_calendar", data_class="economic",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=20)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 20)
 
 
-def get_ipo_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
+def get_ipo_calendar(from_date: str, to_date: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """IPO-calendar rows for a date range — added for the calendar page's A5
     modernization (2026-09-03). Mirrors `ipo_calendar.py`'s existing
     `_fmp_ipo_get` request shape exactly; that module owns the merge with
     Finnhub's richer per-row detail."""
     return _fetch("/stable/ipos-calendar", {"from": from_date, "to": to_date},
                    source_activity="fmp_client.get_ipo_calendar", data_class="ipo",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=8)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 8)
 
 
-def get_insider_trading(ticker: str) -> _pe.ProviderResult:
+def get_insider_trading(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/insider-trading/search", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_insider_trading", data_class="insider",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_shares_float(ticker: str) -> _pe.ProviderResult:
+def get_shares_float(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Float + shares-outstanding — added for the Ownership tab's D1
     migration (2026-09-03). Share counts move slowly (a company action, not
     an intraday event), same tier as key-metrics/ratios."""
     return _fetch("/stable/shares-float", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_shares_float", data_class="ownership",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_institutional_ownership_summary(ticker: str, *, year: int, quarter: int) -> _pe.ProviderResult:
+def get_institutional_ownership_summary(ticker: str, *, year: int, quarter: int, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """One quarter's Form 13F position-flow summary — added for the
     Ownership tab's D1 migration (2026-09-03). A genuinely historical
     filing (13Fs lag ~45 days), not an end-of-day snapshot."""
     return _fetch("/stable/institutional-ownership/symbol-positions-summary",
                    {"symbol": ticker.upper(), "year": year, "quarter": quarter},
                    source_activity="fmp_client.get_institutional_ownership_summary", data_class="ownership",
-                   not_found_if=_empty_list, freshness="historical")
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout)
 
 
-def get_institutional_ownership_holders(ticker: str, *, year: int, quarter: int, limit: int = 12) -> _pe.ProviderResult:
+def get_institutional_ownership_holders(ticker: str, *, year: int, quarter: int, limit: int = 12, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Top holders for one 13F quarter — added for the Ownership tab's D1
     migration (2026-09-03). Same freshness class as the summary leg above;
     both describe the identical filing quarter."""
     return _fetch("/stable/institutional-ownership/extract-analytics/holder",
                    {"symbol": ticker.upper(), "year": year, "quarter": quarter, "page": 0, "limit": limit},
                    source_activity="fmp_client.get_institutional_ownership_holders", data_class="ownership",
-                   not_found_if=_empty_list, freshness="historical")
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout)
 
 
-def get_income_statement(ticker: str, *, period: str = "quarter", limit: int) -> _pe.ProviderResult:
+def get_income_statement(ticker: str, *, period: str = "quarter", limit: int, timeout: Optional[int] = None) -> _pe.ProviderResult:
     params = {"symbol": ticker.upper(), "limit": limit}
     if period == "quarter":
         params["period"] = "quarter"
     return _fetch("/stable/income-statement", params,
                    source_activity="fmp_client.get_income_statement", data_class="fundamentals",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=20)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 20)
 
 
-def get_balance_sheet_statement(ticker: str, *, period: str = "quarter", limit: int) -> _pe.ProviderResult:
+def get_balance_sheet_statement(ticker: str, *, period: str = "quarter", limit: int, timeout: Optional[int] = None) -> _pe.ProviderResult:
     params = {"symbol": ticker.upper(), "limit": limit}
     if period == "quarter":
         params["period"] = "quarter"
     return _fetch("/stable/balance-sheet-statement", params,
                    source_activity="fmp_client.get_balance_sheet_statement", data_class="fundamentals",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=20)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 20)
 
 
-def get_cash_flow_statement(ticker: str, *, period: str = "quarter", limit: int) -> _pe.ProviderResult:
+def get_cash_flow_statement(ticker: str, *, period: str = "quarter", limit: int, timeout: Optional[int] = None) -> _pe.ProviderResult:
     params = {"symbol": ticker.upper(), "limit": limit}
     if period == "quarter":
         params["period"] = "quarter"
     return _fetch("/stable/cash-flow-statement", params,
                    source_activity="fmp_client.get_cash_flow_statement", data_class="fundamentals",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=20)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 20)
 
 
 # ── 2026-09-11: D1 adapter gap G2 — typed functions for endpoints reached
@@ -522,19 +522,31 @@ def get_cash_flow_statement(ticker: str, *, period: str = "quarter", limit: int)
 # raw, unrouted URLs and report which ones the account can still reach —
 # routing it through this adapter would destroy the diagnostic.
 #
-# ⛔ NONE of these expose a `timeout` PARAMETER. Adding one is gap G1, a
-# separate pending owner ruling. Four of the five take the module default
-# (`_DEFAULT_TIMEOUT`) because their live call sites disagree with each
-# other about how long the call may take — `/stable/profile` alone is
-# reached with 8, 8.0, 10 and two env-configured values — so there is no
-# single existing request shape to mirror the way `get_ipo_calendar` mirrors
-# `_fmp_ipo_get`'s. The one exception is `get_news_general_latest`, which
-# carries the same internal `timeout=12` as the two news-family functions
-# already above it, on the rule that typed functions in one endpoint family
-# must not disagree about their own ceiling. An internal constant is not an
-# exposed parameter; G1 is untouched either way.
+# ⚰️ THIS BLOCK READ: "NONE of these expose a `timeout` PARAMETER. Adding one
+# is gap G1, a separate pending owner ruling." ⛔ G1 WAS RULED AND AUTHORIZED
+# 2026-09-12 — every typed function above and below now takes a keyword-only
+# `timeout` and forwards it, so a caller can finally ask.
+#
+# ⛔ WHAT DID NOT CHANGE, and is the half that matters: the PER-ENDPOINT
+# INTERNAL DEFAULTS. A caller that passes nothing still gets exactly the number
+# it got before — `timeout if timeout is not None else N`, not a bare
+# `timeout=timeout`. That distinction is the whole reason G1 is not a mechanical
+# migration: `_DEFAULT_TIMEOUT` is 25 s and the legacy `_fmp_get` default is
+# 10 s, so a function that forgot its own literal would move every silent caller
+# 10 s → 25 s, and a timeout change fails as SLOWNESS, never as an error.
+# Rail: `test_the_per_endpoint_INTERNAL_defaults_survived_G1_exactly`, which
+# pins the thirteen numbers as VALUES.
+#
+# The original reasoning, still true: four of the five take the module default
+# (`_DEFAULT_TIMEOUT`) because their live call sites disagree with each other
+# about how long the call may take — `/stable/profile` alone is reached with 8,
+# 8.0, 10 and two env-configured values — so there was no single existing
+# request shape to mirror the way `get_ipo_calendar` mirrors `_fmp_ipo_get`'s.
+# The exception is `get_news_general_latest`, which carries the same internal
+# `timeout=12` as the two news-family functions above it, on the rule that typed
+# functions in one endpoint family must not disagree about their own ceiling.
 
-def get_company_profile(ticker: str) -> _pe.ProviderResult:
+def get_company_profile(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Company profile (`/stable/profile`) — name, exchange, sector,
     industry, description, logo URL, beta, market cap. The single
     highest-value gap in the census: EIGHT separate modules reach this
@@ -557,11 +569,11 @@ def get_company_profile(ticker: str) -> _pe.ProviderResult:
     touches zero adapter code."""
     return _fetch("/stable/profile", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_company_profile", data_class="profile",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
 def get_analyst_estimates(ticker: str, *, period: str = "annual",
-                          limit: Optional[int] = None) -> _pe.ProviderResult:
+                          limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Forward analyst estimates (`/stable/analyst-estimates`) — reached
     directly by `annual_financials.py` (annual, limit 20),
     `earnings_table.py` (quarter, limit 40) and
@@ -583,10 +595,10 @@ def get_analyst_estimates(ticker: str, *, period: str = "annual",
         params["limit"] = limit
     return _fetch("/stable/analyst-estimates", params,
                    source_activity="fmp_client.get_analyst_estimates", data_class="estimates",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_grades_news(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_grades_news(ticker: str, *, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Per-firm rating actions for ONE symbol (`/stable/grades-news`) —
     `analyst_intel.py::_fmp_recent_actions`'s endpoint. Distinct from
     `get_grades_historical` above, which is aggregate buy/hold/sell COUNTS
@@ -601,10 +613,10 @@ def get_grades_news(ticker: str, *, limit: Optional[int] = None) -> _pe.Provider
         params["limit"] = limit
     return _fetch("/stable/grades-news", params,
                    source_activity="fmp_client.get_grades_news", data_class="analyst_grades",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_grades_latest_news(*, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_grades_latest_news(*, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """The newest rating actions ACROSS THE MARKET
     (`/stable/grades-latest-news`) — `catalyst/sources.py`'s analyst pull.
     Market-wide, not per-symbol, so like `get_earnings_calendar` /
@@ -615,10 +627,10 @@ def get_grades_latest_news(*, limit: Optional[int] = None) -> _pe.ProviderResult
         params["limit"] = limit
     return _fetch("/stable/grades-latest-news", params,
                    source_activity="fmp_client.get_grades_latest_news", data_class="analyst_grades",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_news_general_latest(*, limit: Optional[int] = None) -> _pe.ProviderResult:
+def get_news_general_latest(*, limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Market-wide headlines (`/stable/news/general-latest`) — the third
     leg of FMP's news family, beside `get_news_stock` and
     `get_news_press_releases` above, reached directly today from
@@ -632,11 +644,11 @@ def get_news_general_latest(*, limit: Optional[int] = None) -> _pe.ProviderResul
         params["limit"] = limit
     return _fetch("/stable/news/general-latest", params,
                    source_activity="fmp_client.get_news_general_latest", data_class="news",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
 
 
 def get_news_stock_latest(*, limit: Optional[int] = None,
-                          page: Optional[int] = None) -> _pe.ProviderResult:
+                          page: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """The GLOBAL stock-news feed (`/stable/news/stock-latest`) — every
     symbol at once, newest first, rather than one symbol's coverage.
 
@@ -656,11 +668,11 @@ def get_news_stock_latest(*, limit: Optional[int] = None,
         params["page"] = page
     return _fetch("/stable/news/stock-latest", params,
                    source_activity="fmp_client.get_news_stock_latest", data_class="news",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
 
 
 def get_news_press_releases_latest(*, limit: Optional[int] = None,
-                                   page: Optional[int] = None) -> _pe.ProviderResult:
+                                   page: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """The GLOBAL press-release feed (`/stable/news/press-releases-latest`)
     — the company-IR lane's ingest path, same global/paginated shape as
     `get_news_stock_latest` above and the same relationship to
@@ -672,7 +684,7 @@ def get_news_press_releases_latest(*, limit: Optional[int] = None,
         params["page"] = page
     return _fetch("/stable/news/press-releases-latest", params,
                    source_activity="fmp_client.get_news_press_releases_latest", data_class="news",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
 
 
 # ── Index membership (`index_constituents.py` / `etf_holdings.py`) ──────────
@@ -688,29 +700,29 @@ def get_news_press_releases_latest(*, limit: Optional[int] = None,
 # docstring for why an unregistered (vendor, data_class) pair is left to
 # fall through rather than borrowed from a neighbour.
 
-def get_sp500_constituents() -> _pe.ProviderResult:
+def get_sp500_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """S&P 500 members (`/stable/sp500-constituent`). Market-wide, no
     `ticker` argument. Rows carry `symbol`."""
     return _fetch("/stable/sp500-constituent", {},
                    source_activity="fmp_client.get_sp500_constituents", data_class="constituents",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_nasdaq_constituents() -> _pe.ProviderResult:
+def get_nasdaq_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Nasdaq 100 members (`/stable/nasdaq-constituent`)."""
     return _fetch("/stable/nasdaq-constituent", {},
                    source_activity="fmp_client.get_nasdaq_constituents", data_class="constituents",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_dowjones_constituents() -> _pe.ProviderResult:
+def get_dowjones_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Dow 30 members (`/stable/dowjones-constituent`)."""
     return _fetch("/stable/dowjones-constituent", {},
                    source_activity="fmp_client.get_dowjones_constituents", data_class="constituents",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_etf_holdings(ticker: str) -> _pe.ProviderResult:
+def get_etf_holdings(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """One ETF's holdings (`/stable/etf/holdings`) — how
     `index_constituents.py` resolves the four index lists that have no
     constituent endpoint (S&P 100 via OEF, MidCap 400 via IJH, SmallCap 600
@@ -723,7 +735,7 @@ def get_etf_holdings(ticker: str) -> _pe.ProviderResult:
     between them will reach for the wrong field."""
     return _fetch("/stable/etf/holdings", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_etf_holdings", data_class="etf_holdings",
-                   not_found_if=_empty_list, freshness="end_of_day")
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
 # ── 2026-09-11: D1 adapter gap G4 — the multi-symbol news leg ───────────────
@@ -766,7 +778,7 @@ def _symbols_csv(tickers: Sequence[str]) -> str:
 
 
 def get_news_stock_multi(tickers: Sequence[str], *,
-                         limit: Optional[int] = None) -> _pe.ProviderResult:
+                         limit: Optional[int] = None, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Wire coverage naming ANY of `tickers`, in ONE request
     (`/stable/news/stock`) — the multi-symbol sibling of `get_news_stock`.
 
@@ -802,4 +814,4 @@ def get_news_stock_multi(tickers: Sequence[str], *,
         params["limit"] = limit
     return _fetch("/stable/news/stock", params,
                    source_activity="fmp_client.get_news_stock_multi", data_class="news",
-                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)

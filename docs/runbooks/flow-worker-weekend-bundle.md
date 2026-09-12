@@ -1,5 +1,54 @@
 # Deploy notes — flow-worker weekend bundle (branch `perf/flow-date-scan`)
 
+> # 🔴 THE HEADLINE OF THE WEEKEND
+>
+> **Every `VITE_*` was dark from `af80e0b91` (2026-09-08 21:53 ET). Members were on
+> whole-D for four days. First paint went from 5.5 MB to 166 KB when it was fixed.**
+>
+> `Dockerfile.web` declared **zero build ARGs**. It builds the web service, and a
+> Docker stage inherits nothing: Railway offers each service variable to the build as
+> a BUILD ARG, and an undeclared build arg is dropped without an error. Nine `VITE_*`
+> were set on `web`, eight to the literal `1`, and **all nine were ineffective**.
+>
+> ⭐ **NOTHING FAILED.** Every one of those flags is read as `=== '1'`, which is false
+> when undefined — indistinguishable from "off on purpose" at every layer a test or a
+> health check can reach. The suite stayed green, `/api/health` stayed 200, and
+> flow-worker built and served the parts cache correctly the whole time. **No browser
+> was asking for it.**
+>
+> ### ⭐ The proof, in one sentence
+>
+> **Four `VITE_*` were changed on Railway and the rebuilt entry chunk came back
+> BYTE-IDENTICAL** — `index-VW7Dk9Ft.js` before and after. A build whose output cannot
+> move when its inputs move is not reading those inputs. After the fix the same
+> operation moves the hash (`index-cZA22Jfk.js`), and the render token's value went
+> from **0 occurrences** in the bundle to **14**.
+>
+> ### Since when — a BOUND, not a date
+>
+> | when | what |
+> |---|---|
+> | 2026-09-07 19:19 ET | `55359ed75` ships the parts client — subject says **"(flag off)"** |
+> | 2026-09-08 21:53 ET | `af80e0b91` replaces the nixpacks build with `Dockerfile.web`; every `VITE_*` goes dark |
+> | 2026-09-12 09:38 ET | `705ee710d` fixes it; verified on the artifact |
+>
+> Members were on whole-D **continuously since 2026-09-08 21:53 ET at the latest**.
+> Whether the parts path was ever live in the ~26 h before that is **not recoverable**:
+> the flag went in deliberately off and the CLI exposes no variable history.
+>
+> ### First paint, measured on the wire
+>
+> | | gzip |
+> |---|---|
+> | `part=bootstrap` | 128,188 B (125.2 KB) |
+> | `part=TOP_PICKS` | 41,533 B (40.6 KB) |
+> | **total** | **169,721 B (165.7 KB)** vs **5,514,328 B** before — **32×** |
+>
+> Detail, evidence and the after-state are in the sections below; the ledger blind spot
+> this exposed is closed by `docs/feature_flags.json`'s `build_flags` section and
+> `tests/test_vite_flag_ledger.py`.
+
+
 `api/flow_db.py` is on flow-worker's watch list, so this deploy RESTARTS the OPRA
 consumer and gaps the tape permanently until the T+1 flat file. **After-hours or
 weekend only.** (The Mon–Fri push freeze is rescinded — see CLAUDE.md, 2026-09-11.
@@ -141,6 +190,46 @@ tick is ~11.7 s (pass 1 ~6.2 s + pass 2 ~5.5 s), so read `blocked_held_ms` again
 a ~12 s tick plus up to 2 s of poll — not 5.
 
 ---
+
+## Monday item 11 — three additions, OBSERVE ONLY (owner, 2026-09-12)
+
+⛔ **Observe and characterise. Do not fix any of these on Monday.**
+
+### 1. `.of-picks` / the TOP 10 table after in-app navigation
+
+Path B's dry run rendered it in 15.9 s on one run and **never** on the next, while
+`part=bootstrap` and `part=TOP_PICKS` were served on both. So the transport is fine and
+something downstream of it is not. Reproduce under a live tape and capture **which of
+three it is**:
+
+- a **render gate** — the table waits on a condition that a navigated-in page does not
+  satisfy (the shell mounted, so the gate is below it);
+- a **race with the version check** — `part=TOP_PICKS` lands against one version while
+  the page has moved to another, and the product is discarded as stale;
+- a **data-shape issue** — `TOP_PICKS` is a DERIVED product (`{generation, variants}`),
+  not a slice of `D`, and a consumer expecting an array would drop it silently.
+
+⭐ Capture the response AND the mount together: a request log alone cannot tell a
+discarded product from one that never arrived.
+
+### 2. The duplicate-request storm
+
+Path B run 2 issued `part=TOP_PICKS` ×3, `part=bootstrap` ×3 **and** a `data?days=1`
+in one navigation — 3.5 MB, against run 3's clean 7 requests. Decide which:
+
+- the **intro/escape trap** — an artifact of how the rig leaves the start route;
+- the **Suspense shell double-mounting** — the app-wide `<Suspense>` remounting the page
+  and re-firing its effects;
+- a **real client bug** that costs members 3.5 MB on some navigations.
+
+⚠️ The third is the one that matters, and it is indistinguishable from the first two
+from the request log alone — count MOUNTS, not requests.
+
+### 3. Real member sessions stay on parts under a live tape
+
+The 2026-09-12 verification was on a QUIET tape with the version frozen. Confirm
+`part=bootstrap` + `part=TOP_PICKS` still serve first paint when the version is ROLLING,
+and that a roll mid-navigation does not fall back to whole-D.
 
 # ✅ MERGED AND VERIFIED — 2026-09-12 (weekend window)
 
@@ -334,3 +423,586 @@ All four build-time flags ARE set on web (`VITE_FLOW_PARTS=1`, `VITE_FLOW_DEFER_
 reaching them** — 5.5 MB instead of ~161 KB. NOT chased further tonight: characterising
 it means reading the client, and it needs an RTH session to see whether it also holds
 under a live tape. **Top candidate for Monday's item 11.**
+
+### ✅ RESOLVED — it was the BUILD, not the client (2026-09-12)
+
+`Dockerfile.web` carried **zero `ARG` declarations**. It builds the web service —
+the build log says `load build definition from Dockerfile.web` — and a Docker stage
+inherits nothing: Railway offers each service variable to the build as a BUILD ARG,
+and an undeclared build arg is dropped without an error. So every `VITE_*` was
+undefined during `npm run build`, `USE_PARTS` folded to `false`, and the whole parts
+path was tree-shaken out of the bundle. Nine variables were set on `web`, eight to
+the literal `1`, and **all nine were ineffective**.
+
+⛔ **READ THE BUILD LOG, NOT THE BUILD CONFIG.** Three separate config surfaces
+disagree about how `web` builds, and two of them are wrong:
+
+| surface | says | true? |
+|---|---|---|
+| `railway.json` → `build.builder` | `NIXPACKS` | no — dashboard overrides it |
+| Railway API → `serviceInstance.builder` | `RAILPACK` | no — a dashboard `dockerfilePath` overrides it |
+| the deployment's own build log | `Dockerfile.web` | **yes** |
+
+⚰️ This cost a live retraction: the finding was briefly walked back on the strength
+of `railway.json`'s `NIXPACKS`, which would have left the defect in place. The
+artifact is the authority; a builder field is a claim about a build.
+
+⭐ **The cheapest proof that a variable does not reach a build: change it and watch
+the bundle hash.** Four `VITE_*` were changed on `web` and the rebuilt entry chunk
+came back **byte-identical** (`index-VW7Dk9Ft.js` before and after). A build whose
+output cannot move when its inputs move is not reading those inputs.
+
+#### Since when — a BOUND, not a date
+
+| when | what |
+|---|---|
+| 2026-09-07 19:19 ET | `55359ed75` ships the parts client — commit subject says **"(flag off)"** |
+| 2026-09-08 21:53 ET | `af80e0b91` replaces the nixpacks build with `Dockerfile.web`; every `VITE_*` goes dark |
+| 2026-09-12 | measured on the deployed bundle; fix shipped |
+
+**Members have been on whole-D + the full tape continuously since 2026-09-08 21:53 ET
+at the latest.** Whether the parts path was ever live in the ~26 h before that is
+**not recoverable**: the flag went in deliberately OFF, and the CLI exposes no
+variable history.
+
+⛔ **And the ledger cannot answer it either — `docs/feature_flags.json` contains no
+`VITE_` entries at all.** It tracks the server-side `FLOW_*` family and has a
+structural blind spot for exactly the class that just failed silently: build-time
+frontend flags. Recorded as a follow-up, deliberately NOT fixed in this push.
+
+#### Member impact
+
+For at least four days, every member loading Options Flow fetched whole-day aggregate
+plus the entire raw tape — about **5.5 MB where the parts path costs ~161 KB gz** —
+and the first-paint work behind `FLOW_BOOTSTRAP_ENABLED` and `FLOW_PREPARE_ENABLED`
+reached nobody. flow-worker was building the parts cache correctly and serving it
+correctly the whole time; **no browser was asking for it.** Nothing failed while this
+was true: a flag read as `=== '1'` is false when undefined, so the suite stayed green
+and `/api/health` stayed 200. The same build miss also kept the COMING SOON holding
+page from rendering (the public marketing funnel was open while the backend refused
+every signup — reported separately, NOT changed by this deploy) and kept the Massive
+bars push feed from ever subscribing, so every chart ran on the Finnhub poll.
+
+#### The rail
+
+`tests/test_dockerfile_vite_build_args.py` + `.github/workflows/vite-build-args.yml`.
+The required set is **derived** from `app/src/**` — never typed — so the tenth flag is
+covered the day it lands. Mutation-proved in-repo before shipping: drop one `ARG`
+→ RED naming exactly it; drop one `ENV` export → RED naming exactly it; restore → 3
+passed. Restored by re-inserting the line, never `git checkout`.
+
+⚠️ `ENV VITE_X=$VITE_X` turns an unpassed arg into `""` rather than leaving it absent,
+so **every one of the 17 read sites was checked** for a case where `''` and `undefined`
+differ. Three use `??` or `!== '0'` — `VITE_CATALYST_UI_ENABLED`,
+`VITE_TWITTER_UI_ENABLED`, `VITE_GRID_WARM_ENABLED` — and all three evaluate
+identically under both. Re-check this if a read site ever starts distinguishing them.
+
+### ⛔ Credential hygiene — a sentinel is SHAPED like the secret, never IS the secret
+
+When a scan needs a non-vacuity control — proof it can actually see a match before its
+zeros mean anything — **build the control from a value shaped like the secret, not from
+the secret.** On 2026-09-12 a credential sweep proved itself with
+`git hash-object -w --stdin <<< "sentinel-$PW-sentinel"`, which wrote a loose object
+**containing the live credential** into the object store: the check for a planted
+credential planted one. It was removed and verified absent, but the right control never
+creates the exposure it is testing for.
+
+⭐ The control is still mandatory — a scan that cannot demonstrate a hit is not
+evidence of absence. Generate a decoy of the same length and alphabet, plant that, and
+assert the scan finds it.
+
+### ⚰️ The first attempt FAILED the build in 14 seconds — and the rail passed over it
+
+`1f99a950b` was pushed at 09:32:47 ET and web went **FAILED** at 09:33, with a build
+log containing one line: `scheduling build on Metal builder`. No build ran. Members
+were never affected — Railway serves the last SUCCESS on failure — and the fan-out was
+otherwise exactly right (flow-worker, worker, bars-api all **SKIPPED**).
+
+The cause was in the patch, not in Railway. The `ENV` block had been generated with a
+literal backslash+`n` pair where a line continuation belonged, so all seventeen exports
+sat on **one physical line**:
+
+    ENV VITE_CATALYST_UI_ENABLED=$VITE_CATALYST_UI_ENABLED \n    VITE_CHART_RENDER_TOKEN=...
+
+⛔ **The generator was corrupted by the shell, not by Python.** A heredoc collapsed the
+doubled backslash in `" \<newline>    "` down to a single one, leaving backslash+`n`.
+Anything that emits a backslash through a heredoc on this box must build it as
+`chr(92)` — including a test's own needle, or the same collapse corrupts the check.
+
+⭐ **AND THE RAIL PASSED.** `test_each_declared_arg_is_also_exported_to_the_build`
+asserts the substring `NAME=$NAME` is present, and it is present on a single broken
+line exactly as on seventeen good ones. **A substring assertion is blind to the syntax
+around it.** `test_the_env_block_is_physically_well_formed` now checks the physical
+shape — no literal backslash+`n` anywhere, one line per ARG, every line but the last
+ending in a continuation and the last not — and is mutation-proved by reintroducing
+this exact mangling: it goes RED while the substring test stays green, which is the
+whole point.
+
+### ✅ AFTER-STATE — verified on the deployed artifact (2026-09-12, `705ee710d`)
+
+web **SUCCESS** (`2a4c16b4`), and flow-worker / worker / bars-api all **SKIPPED** —
+`Dockerfile.web` is on no other service's watch list, so the OPRA tape was untouched.
+`/api/health` uptime 36 s; entry chunk moved `index-VW7Dk9Ft.js` → `index-cZA22Jfk.js`.
+
+⭐ **That hash move is the cleanest proof the fix worked.** Before it, four `VITE_*`
+were changed on Railway and the rebuilt entry chunk came back **byte-identical**. A
+build whose output cannot move when its inputs move is not reading those inputs; now
+it moves.
+
+#### First paint, measured on the wire as a browser asks for it
+
+| | on the wire (gzip) | decoded |
+|---|---|---|
+| `part=bootstrap` | 128,188 B (125.2 KB) | 975,017 B |
+| `part=TOP_PICKS` | 41,533 B (40.6 KB) | 246,056 B |
+| **first paint total** | **169,721 B (165.7 KB gz)** | |
+
+Against the **5,514,328 B** the pre-fix session pulled: a **32× reduction**. Both
+responses carry `X-Flow-Part`.
+
+#### Rig, direct load (path A), member account
+
+`part=bootstrap` + `part=TOP_PICKS` are the two un-versioned first-paint requests, and
+**`data?days=1` is gone** — the raw tape is replaced by four versioned deferred parts
+(`CONV`, `TICKER_DB`, `all_directional`, `all_trades`) that land after paint. Session
+wire 2,119,080 B including that remainder, stable across all three runs.
+
+⚠️ `first_content` median **9,890 ms** — and it is **NOT a page number**. It is a
+QUIET-TAPE run (the label rides on every row), and ~9.3 s of it is the intro animation
+on the direct-load path. Do not quote it. The path-B (in-app navigation) number, which
+is the one without the intro, still does not exist — see the rig runbook.
+
+⚠️ Run 1 of the first attempt showed `data?days=1` present and only 339 KB of wire,
+where runs 2 and 3 showed the deferred parts and no tape. Recorded rather than tidied
+away: the first-visit shape differs from the steady state, and Monday should expect it.
+
+#### Admin control
+
+`role=admin`, 2 runs: **identical** — same 7 requests, same parts, same 2,119,080 B.
+So the load path is a property of the BUILD, not of the account.
+
+#### ⛔ An instrument error worth carrying: a minified bundle has no identifiers
+
+The pre-fix evidence was reported as five absent markers. **Three of them could never
+have matched**: `REQUIRED_PARTS`, `planBundle` and `fetchPartsBundle` are IDENTIFIERS,
+and esbuild renames every one. Only string literals survive. The finding was correct
+but stood on one valid leg, not four:
+
+| needle | before | after | valid? |
+|---|---|---|---|
+| `TOP_PICKS` | 0 | 4 | ✅ a string literal in `SERVER_TOPPICKS_PARTS` |
+| `bootstrap` | 1 | 7 | ✅ string literal |
+| `&part=` | 1 | 2 | ✅ template fragment from `partUrlFrom` |
+| `part=bootstrap` | 0 | 0 | ❌ never emitted — the URL is built as `&part=${...}` |
+| `REQUIRED_PARTS`, `planBundle`, `fetchPartsBundle` | 0 | 0 | ❌ identifiers, renamed |
+
+⭐ **When probing a minified bundle, the needle must be a STRING the source emits, or
+a structural fold you can read.** The decisive pre-fix evidence was always the folds —
+`ComingSoon` bound to nothing, `useRealtimeBars` minified to a dead effect holding
+`!1` — and the token's value going 0 → 14 occurrences across the fix.
+
+#### The rig died mid-verification, and that is now fixed
+
+Run 1 measured the fix working and then the rig raised `UnicodeEncodeError` on
+`\u2318` in the page's own body text: a Windows console is cp1252 and the rig prints
+what it reads. It lost runs 2 and 3 and **would have taken Monday's RTH session with
+it.** `sys.stdout.reconfigure(errors="backslashreplace")` at import, for stdout and
+stderr both — one global fix rather than a guard per print site, because the next
+print site is the one you forget.
+
+## ⛔ Instrument traps — four self-corrections from 2026-09-12
+
+Each of these produced a confident wrong answer that looked like a fact about the
+product. All four are properties of the INSTRUMENT.
+
+### 1. A heredoc eats one level of backslash
+
+The `ENV` block was generated with `" \<newline>    "` in a Python script fed through
+a shell heredoc. The shell collapsed the doubled backslash, Python received
+backslash+`n`, and all seventeen exports landed on **one physical line**. Railway
+failed the build in 14 seconds with a log containing nothing past
+`scheduling build on Metal builder`.
+
+⭐ **Measured rule: `\` becomes `\`, and `\n` becomes `n`, in a `python - <<'EOF'`
+heredoc on this box.** A single backslash inside a regex (`\s`, `\.`) survives; a
+doubled one does not. **Build every literal backslash with `chr(92)`** when a heredoc
+is in the path — including a test's own needle, or the same collapse corrupts the check
+that was supposed to catch this.
+
+⚠️ Same family, hit an hour later: **backticks inside a double-quoted bash string are
+command substitution.** An assertion message containing `` `label` `` executed the
+Windows `label` command, which sat waiting on stdin until the call timed out. Use
+single quotes, or no backticks.
+
+### 2. A builder field is a claim; the build log is the artifact
+
+Three config surfaces disagree about how `web` builds and **two of them are wrong**:
+
+| surface | says | true? |
+|---|---|---|
+| `railway.json` → `build.builder` | `NIXPACKS` | no — the dashboard overrides it |
+| Railway API → `serviceInstance.builder` | `RAILPACK` | no — a dashboard `dockerfilePath` overrides it |
+| the deployment's own build log | `Dockerfile.web` | **yes** |
+
+⚰️ This cost a live retraction: a correct finding was walked back on the strength of
+`railway.json`'s `NIXPACKS`, which would have left the defect in place. `railway logs
+--service web --build <FULL-DEPLOYMENT-ID>` is the answer — and the id must be the full
+UUID, since a truncated one returns `Deployment not found`.
+
+### 3. A minified bundle has no identifiers
+
+Five markers were reported as pre-fix evidence. **Three could never have matched:**
+`REQUIRED_PARTS`, `planBundle` and `fetchPartsBundle` are identifiers, and esbuild
+renames every one. A fourth, `part=bootstrap`, is never emitted either — the URL is
+built as `` `${baseUrl}&part=${encodeURIComponent(part)}` ``, so only `&part=` survives.
+
+| needle | before | after | valid? |
+|---|---|---|---|
+| `TOP_PICKS` | 0 | 4 | ✅ string literal in `SERVER_TOPPICKS_PARTS` |
+| `bootstrap` | 1 | 7 | ✅ string literal |
+| `&part=` | 1 | 2 | ✅ template fragment |
+| `/api/flow/ticker-product/` | 0 | 1 | ✅ the server-search endpoint |
+| `part=bootstrap` | 0 | 0 | ❌ never emitted |
+| `REQUIRED_PARTS`, `planBundle`, `fetchPartsBundle` | 0 | 0 | ❌ identifiers, renamed |
+
+⭐ **A needle into a minified bundle must be a STRING the source emits, or a structural
+fold you can read.** The decisive evidence was always the folds — `ComingSoon` bound to
+nothing, `useRealtimeBars` minified to a dead effect holding `!1` — and a VALUE
+(the render token) going 0 → 14. A value cannot be explained by tree-shaking.
+
+### 4. A substring assertion is blind to the syntax around it
+
+`test_each_declared_arg_is_also_exported_to_the_build` asserts `NAME=$NAME` is present.
+That is true of one malformed line exactly as of seventeen good ones, so the rail
+**passed over the very Dockerfile that failed the build**.
+`test_the_env_block_is_physically_well_formed` now checks the physical shape, and is
+mutation-proved by reintroducing the exact mangling: it goes RED while the substring
+test stays green.
+
+⭐ Generalising: when a rail asserts *presence*, ask what a BROKEN version of the thing
+would look like to it. If the broken version also satisfies the assertion, the rail is
+decoration.
+
+## ✅ COMING_SOON — OPTION B executed, 2026-09-12. Reason: locked until launch date
+
+> **Owner ruling: signups stay locked until launch.** `VITE_COMING_SOON=1` on `web`.
+> `COMING_SOON_MODE=1` on the backend left untouched — **both halves now agree for the
+> first time since `af80e0b91`.**
+
+```
+railway variables --service web --set "VITE_COMING_SOON=1"
+```
+
+### Fan-out
+
+web rebuilt (`8497fcd2`, SUCCESS); **flow-worker, worker and bars-api all SKIPPED.**
+This is a build-time flag, so the rebuild is required — unlike the backend half, which
+`waitlist.py:40` reads per request.
+
+### Verified on the artifact
+
+The `ComingSoon` lazy import changed from a discarded call to a bound declarator, in
+the same chunk, before and after:
+
+```
+pre-flip :  ...eps([45,1,46,3,47])));q(()=>L(()=>import("./ComingSoon-CF0j02dy.js"
+post-flip:  ...([45,1,46,3,47]))),z5=q(()=>L(()=>import("./ComingSoon-BHPxO2sB.js"
+```
+
+`)));` → `,z5=`. With the flag off, `COMING_SOON ? <ComingSoon/> : <Landing/>` folded to
+the Landing branch and the identifier lost every reference; now it is bound.
+
+⚠️ `Landing` keeps its binding either way — it is ALSO routed at `/landing`
+independently of the ternary. Reading Landing's binding proves nothing about this flag.
+
+### Verified in a browser
+
+| check | result |
+|---|---|
+| logged out, `/` serves the holding page | **PASS** — `YOU ARE HERE · OCT 16 · DOORS OPEN · COMING SOON`, 33-day countdown, waitlist input, `LOG IN` link |
+| `/pricing` `/compare` `/brokers` `/signup` `/subscribe` `/landing` → the holding page | **PASS** — all six land on `/` with the holding markers |
+| member-smoke signs in and reaches Options Flow | **PASS** — http 200, role=member, `.of-mroot` rendered |
+| …still on the parts path | **PASS** — `X-Flow-Part` headers: `bootstrap` and `TOP_PICKS` first (un-versioned), then `CONV`, `TICKER_DB`, `all_directional`, `all_trades` |
+
+The logged-out rows were measured in one run (uptime 38 → 83 s) and the two
+member-smoke rows re-measured on a clean warm window (uptime 232 → 256 s), for the
+reason in the next note.
+
+Countdown target is the code fallback `2026-10-16T09:00:00-04:00` (`ComingSoon.jsx`),
+since `VITE_LAUNCH_DATE` is unset — worth knowing now that the holding page is what
+members see.
+
+### ⚠️ A GAP IN THE SWAP GUARD: a freshly-booted pod is cold, not swapped
+
+One run reported `parts served: NONE` with the shell rendered — and the pod was **38 s
+old** when it started. A deploy had just completed, so the parts cache was cold. The
+swap guard did **not** flag it: uptime moved forward (38 → 83) and exceeded the run
+length, which is exactly what `_swap_verdict` looks for.
+
+⭐ **Uptime going forward proves no swap DURING the run; it says nothing about whether
+the pod is warm enough to measure.** Re-run on a warm pod (uptime 232 s at start) and
+the parts path passed with all six `X-Flow-Part` headers.
+
+⛔ **Recorded, NOT implemented** — out of scope for this session. The fix is a minimum
+pod age at run START (`up_before < ~120 s` ⇒ INCONCLUSIVE), alongside the existing
+backward/younger/unreadable checks. Until then, an operator must read `uptime_before`
+in the rig's own output and discard a run that began on a fresh pod.
+
+No deploy swap straddled any of these runs (uptime monotonic in every one).
+
+### ⛔ A FIFTH instrument trap, same class as §3 — needles from the source, not the artifact
+
+The first verification run reported **all seven logged-out checks as FAILURES** against
+a holding page that was rendering perfectly. The markers were taken from
+`ComingSoon.jsx` as `"Doors open"` / `"You are here"`, and the page uppercases them via
+CSS `text-transform`, so `innerText` returns `DOORS OPEN` / `YOU ARE HERE`. Matching
+case-insensitively fixed it.
+
+⭐ **That is the third form of one trap in a single session:** esbuild renames
+identifiers, a URL built by template never contains its assembled form, and CSS
+transforms the text `innerText` returns. **Derive the needle from what the ARTIFACT
+emits, never from what the source contains** — and when a check fails, ask whether the
+instrument could have succeeded before believing the product is broken.
+
+⚠️ Also: `member-smoke login` returned **429** on the re-run. That was self-inflicted —
+this session's repeated rig logins tripped the login rate limiter, not a product
+defect. A rate-limited login is INCONCLUSIVE, exactly like a deploy swap.
+
+### To reverse
+
+`railway variables --service web --set "VITE_COMING_SOON=0"` — build-time, so it needs a
+web rebuild. The backend half is independent and is read per request.
+
+## Item 22 — GEX crosshair lag: SPIKE PLAN ONLY (not started)
+
+1. **Surface / interaction:** `/options-flow` → GEX tab → "📈 Chart with Levels";
+   continuous cursor movement across the plot for ~5 s. No other chart in the app lags.
+2. **It does NOT need RTH.** The lag is driven by per-frame redraw of the 8–12 GEX
+   price lines, not by tape volume — a quiet tape renders the same lines. Schedule it
+   any time, including a weekend, which makes it cheap to run.
+3. **Instrument one frame at a time, five timestamps per event:** `pointermove` →
+   `subscribeCrosshairMove` callback entry → `setCrosshairData` commit → next
+   `requestAnimationFrame` → `performance.now()` at paint. Record per-event, never
+   aggregates; the gap is what is perceived, and a mean hides it.
+4. **Add** `PerformanceObserver` for `long-animation-frame` and `longtask`, plus a
+   `performance.measure` bracketing the lightweight-charts redraw.
+5. **Do the free discriminator FIRST, at runtime, so no partner-owned file is
+   edited:** null the GEX chart's price lines from the console and ask whether the lag
+   disappears. Confirms or kills the price-line hypothesis in about a minute.
+6. **A definitive trace** = Bottom-Up, sorted by Self Time, over 3 s of movement,
+   where ONE function accounts for the gap **and** removing only that work closes it.
+   Naming a hot function is not enough; the removal has to close the gap.
+7. **Files, if instrumentation is needed:** `app/src/components/StockChart.jsx`
+   (crosshair subscription, watermark `measureText`). `app/src/pages/OptionsFlow.jsx`
+   is the call site, is partner-owned, and needs Manrav's ack — step 5 exists to avoid
+   touching it.
+8. **Already ruled out — do not re-test:** React re-renders, subscription churn, the
+   watermark hover handler, price-line teardown cycles. Five fixes shipped 2026-05-23,
+   all kept as correctness wins, none changed the perceived lag.
+9. **Stop condition:** the trace names a function whose self time covers the gap, or
+   step 5 closes the lag. Either ends the guessing. **A sixth speculative fix does not.**
+10. **Deliverable: the trace and one named culprit. No fix in the same session.**
+
+## ⚠️ Two caveats that affect Monday's items 7 and 13, raised BEFORE the session
+
+**The member population may be too small to compute a ratio from.** Production holds
+**26 users** (measured 2026-09-12), the site is in holding-page mode so registration is
+closed, and those 26 are admins and testers. Item 7 asks for "the ratio of parts
+requests to whole-D requests over the first 30 minutes" from real member sessions, and
+item 13 asks how often the storm shape appears for real members. Both may have a
+denominator of 0–3 sessions.
+
+⛔ **A ratio computed from n=1 is not a measurement.** Monday will report the RAW COUNT
+of distinct member sessions and their request sequences, and will only compute a ratio
+if the population supports one. If no member session loads Options Flow during the
+window, items 7 and 13's member half stay **UNMEASURED with that reason** — the rig
+proves the build serves parts, which is a different claim from members using it.
+
+**`current_version` is not a monotonic counter.** It read `39819849` on 2026-09-12
+afternoon and `29820496` that evening on a quiet tape, across a pod restart — consistent
+with the T+1 flat-file backfill changing the underlying rows. Items 4, 9 and 10 compare
+`X-Flow-Version` at paint against the current version; treat a difference as "not the
+same version", never as "older" or "newer".
+
+## 🔴 GEX — the spike found a CRASH, not a lag. `fmtGex is not defined`, live since 2026-09-07
+
+**The crosshair-lag spike could not run: the surface it lives on does not render.**
+Clicking the **GEX** tab on `/options-flow` as a member throws into the error boundary:
+
+```
+ReferenceError: fmtGex is not defined
+    at Ha (https://uctintelligence.com/assets/OptionsFlow-oJSUV_RD.js:2:27947)
+```
+
+The member sees "Something went wrong on this page". No GEX view, no chart, no levels.
+
+### Root cause
+
+`GexStrikesChart` is a **module-level** lazy shim that forwards the formatter:
+
+```jsx
+const GexStrikesChartLazy = lazy(() => import("./optionsFlow/FlowCharts")…);
+function GexStrikesChart(props) {                        // module scope
+  return <GexStrikesChartLazy {...props} fmtGex={fmtGex} />;   // ← not in scope
+}
+```
+
+`fmtGex` is a `const` declared **inside the component body**, in the
+`dataMode==="gex"` render block (`OptionsFlow.jsx:4343`). Its two sibling shims forward
+`fmt` (`:277`) and `fK` (`:285`), and both of those **are** module-level functions —
+which is precisely why only this one broke. Introduced by `9e72492d2` (2026-09-07),
+"perf(flow) take recharts off the critical path".
+
+⭐ **It is NOT the 2026-09-12 build fix.** `<GexStrikesChart>` renders at `:4487`
+inside `dataMode==="gex"`, gated by no `VITE_*` flag. The crash predates
+`af80e0b91` by a day and is independent of it.
+
+### Proof — a controlled A/B whose only variable is whether the name exists
+
+An unqualified identifier resolves up the scope chain to global, so defining it at
+runtime should stop the crash. It does:
+
+| `globalThis.fmtGex` | crashed | canvases | "Chart with Levels" offered |
+|---|---|---|---|
+| absent | **yes** | 0 | no |
+| defined | **no** | 0 | **yes** |
+
+No file was edited to obtain this.
+
+### The fix — NOT LANDED, it is in `OptionsFlow.jsx`
+
+`scratchpad/gex-fmtGex-scope-fix.patch` (applies clean, `git apply --check` exit 0):
+promote `fmtGex` to a module-level `function` beside `fmt` and `fK`, delete the
+in-component `const` so there is one definition rather than two. No call site changes.
+Note for Manrav: `scratchpad/NOTE-FOR-MANRAV-gex-crash.md`.
+
+### ⚰️ This closes the "five speculative fixes" history differently than expected
+
+The lag was last observed in May. Five theory-driven fixes shipped 2026-05-23 and none
+changed it. **Since 2026-09-07 nobody could have re-observed it at all**, because the
+view crashes — so any report of the lag "persisting" after that date was about a
+screen that never rendered. The lag question is still open; it is simply
+**unobservable until the crash is fixed.**
+
+### Harness state — built, input verified, two observation channels ruled out
+
+`tools/gex_crosshair_probe.py`. It navigates a member to GEX → Chart with Levels,
+scrolls the chart into a drivable band, drives 60 synthetic moves across the width in
+~1 s, and refuses to report anything unless it first proves it is driving the crosshair.
+
+⛔ **Two channels that do not exist on this surface**, both caught by that control
+rather than published as product defects:
+
+1. **Event Timing does not emit `pointermove`.** Chrome reports discrete interactions,
+   so `input_to_paint` came back n=0. That is not absent input: a listener attached to
+   the chart canvas counted **5 pointermove + 5 mousemove for 5 synthetic moves**, and
+   `elementFromPoint` at the drive centre is the CANVAS. **Synthetic moves do reach the
+   same handler a real pointer does** — the assumption is now measured.
+2. **This chart renders no DOM legend that changes on crosshair move**, so a
+   MutationObserver reports 0 for a crosshair that works. It is canvas-only here.
+
+⭐ Usable channels for the next attempt: a canvas listener for input arrival,
+`long-animation-frame` for per-frame **script attribution** (the one that names
+functions), rAF intervals for dropped frames, and a canvas pixel sample if the
+crosshair's own movement must be timestamped.
+
+⚠️ Also caught: a first attempt pointed at `y=1125` in a 1000 px viewport — the chart
+is below the fold — and the control reported `dom mutations=0`. A naive harness would
+have published that as "the crosshair never responds".
+
+### Status: NOT YET FOUND
+
+**No function is named and no self time is measured.** Per the definition of done that
+is "not yet found", not a diagnosis. What settles it: land the scope fix, then run
+`tools/gex_crosshair_probe.py` with the LoAF attribution channel on a pod ≥120 s old.
+No RTH needed — `/api/gex/data` returns full SPY data on a Saturday (spot 764.29,
+callWall 770, putWall 750, 108 strikes), so the surface is fully exercisable off-hours.
+
+### In-flight work on `OptionsFlow.jsx` at the time of the GEX fix (2026-09-13)
+
+Checked before touching the file, so anyone with work in progress knows to rebase.
+**Nothing else was merged, rebased or deleted.**
+
+| branch | unmerged commits on the file | newest touch | hunks vs master |
+|---|---|---|---|
+| `origin/feat/indicator-r0r1` | 1 (`9dff9dae0`) | Claude Fable 5, 2026-09-08 | **0** |
+| `origin/worktree-indicator-ecosystem` | 1 (`9dff9dae0`, same commit) | Claude Fable 5, 2026-09-08 | **0** |
+
+Both carry the same commit and **0 hunks vs master** — the file content already matches
+master, so there is no conflict surface. **No branch of Manrav's has activity on the
+lines changed here**, and no branch touches the module-function region (~275–295) or the
+old in-component `fmtGex` (~4343).
+
+⚠️ One stash exists and does **not** touch this file: `stash@{2026-06-15}` (Patrick,
+"broker-sync WIP (deploy unblock)") — 0 matches for `OptionsFlow.jsx`.
+
+⭐ The first listing attempt was **noise**: filtering on `git diff origin/master..<branch>`
+matches every branch merely BEHIND master, and reported 80+ branches. The question that
+matters is which branches have commits NOT in master that touch the file —
+`git rev-list --count origin/master..<branch> -- <path>` — which narrowed 80+ to 2.
+
+The diff is kept minimal regardless, so any rebase is trivial: two hunks, one promoting
+`fmtGex` to module scope beside `fmt` and `fK`, one deleting the in-component `const`.
+
+### Phase 2 — the crosshair lag: NO GEX-SPECIFIC LAG IS MEASURABLE. Thread closed.
+
+Measured on the now-rendering chart (post-`67566d999`), member-smoke, pod ≥120 s,
+every run accepted by the swap/cold guard.
+
+**Before distribution — headless, 5 accepted runs, 60 synthetic moves across the
+chart width in ~1 s:**
+
+| run | frames | frame iv median | dropped | long tasks | LoAF | canvas arrivals |
+|---|---|---|---|---|---|---|
+| 1–5 | 204–207 | **16.70 ms** | **0** | **0** | **0** | 57/60 |
+
+16.70 ms against 16.67 ms for 60 Hz. A locked 60 fps for the whole sweep.
+
+⛔ **A negative is worthless if the instrument cannot see a positive.** Injecting
+25 ms of synthetic work per move into a canvas `pointermove` listener produced
+**10 dropped frames and a 63 ms LoAF**, against 0 and 0 for the real chart. The probe
+detects lag; the negative is real.
+
+**Headed — and this is why the headless negative alone would have been wrong:**
+
+| surface (headed, identical protocol) | dropped | LoAF | frame iv |
+|---|---|---|---|
+| GEX chart, 8–12 price lines | 15–17 | 12 (max 104 ms) | 17.40 ms |
+| **`/charts`, NO GEX lines (control)** | **54** | 3 (max 57 ms) | 17.40 ms |
+
+⭐ **The chart WITHOUT the GEX lines dropped three times more frames.** So the headed
+drops are not GEX-specific. Two further facts kill the script hypothesis outright:
+**zero long tasks** in every headed run, and **zero script attribution in any LoAF
+entry** — `renderStart → styleAndLayoutStart` is 0–1 ms. Long frames with no script
+time and no layout time are the presentation pipeline, i.e. a headed browser sharing a
+GPU on a busy dev box, not the page's JavaScript.
+
+#### Verdict
+
+**No function is named, because no GEX-specific lag exists to attribute.** Per the
+definition of done this is the "definitively characterised" branch, not a guess: the
+GEX chart holds 60 fps headless, beats a plain chart headed, and shows no script cost
+in any long frame.
+
+⚰️ **What this says about the five speculative fixes.** They shipped 2026-05-23 and
+were all kept as correctness wins. One of them evidently did fix the lag — and nobody
+could confirm it, because from 2026-09-07 the view crashed on open, so every later
+report of the lag "persisting" was about a screen that never rendered. **The thread
+closes on a measurement, not on a fix.**
+
+#### Step 8's discriminator was not run, and why
+
+Nulling the 8–12 price lines at runtime requires the lightweight-charts series handle,
+which is module-private and not reachable from the page without editing a file.
+Reported rather than faked. It is also **moot**: the discriminator exists to test
+whether the lines are the cost, and the GEX chart already performs BETTER than the
+no-lines control.
+
+#### ⚠️ The honest boundary of this negative
+
+This is a synthetic 60-moves-in-1 s sweep, in Chromium, on a dev box, at 1600×1400.
+The original report was a human's perception on their own display. What would settle
+it beyond this: the owner's own DevTools Performance trace during real cursor movement
+on the real machine — Bottom-Up, sorted by Self Time. If that shows a hot function this
+protocol does not, the protocol is what is wrong, and it is `tools/gex_crosshair_probe.py`
+to fix.

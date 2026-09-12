@@ -904,6 +904,56 @@ browsers only and cannot run it.
 *"a Live seat does not fund this suite."* The dashboard now confirms the stronger version — there
 is no Automate seat to expire.
 
+### ⭐ HOW A LIVE DEVICE SIGNS IN — the smoke-account login link, never a typed password
+
+**Standing procedure. No human types a password into a mirrored phone, and neither does an agent.**
+
+```sh
+# 1. authenticate as the smoke account from the terminal (an API call from a script — the same
+#    thing tools/hub_nav_smoke.py:247 already does; the password never touches a form field)
+#    then mint a link. SMOKE_EMAIL / SMOKE_PASSWORD come from the operator's environment.
+python tools/smoke_login_link.py            # prints one URL, valid 5 minutes, single use
+# 2. on the Live device: tap the address bar's ⊗ to clear it, type the URL, go.
+#    ⛔ NEVER ctrl+a — on the Live mirror that types a literal "a" into the field.
+```
+
+The device is then signed in with an ordinary session cookie and every route behaves exactly as
+it does for a member. `/smoke-login` burns the token on first use.
+
+⛔ **THE FLAG IS THE SWITCH, AND IT IS OFF BY DEFAULT EVERYWHERE.** The endpoint answers **404**
+— not 403 — unless `SMOKE_LOGIN_LINK_ENABLED=1` is set on the service. Set for this programme on
+`web` only. **Removal instruction, to be run when the programme closes:**
+
+```sh
+railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
+```
+
+⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
+lands in their session recording and in this app's own access log as a query string. Five-minute
+expiry plus single-use is what makes that acceptable **for a synthetic account** and is exactly
+what would make it unacceptable for a real one. The allow-list is one hard-coded id
+(`SMOKE_USER_ID`, default `f4433528-…`); any other id gets the same 404 as the flag being off, so
+the endpoint cannot be used as an oracle for which account is the privileged one.
+
+⭐ **Watch-coverage classification for this change (required by `docs/runbooks/deploy-windows.md`,
+which makes a red a REVIEW GATE, not a block) — INERT STRAND, no flow-worker redeploy.**
+`tools/flow_worker_watch_coverage.py` goes red on `api/services/auth_service.py` and
+`api/services/auth_db.py`: flow-worker RUNS them and will not redeploy for them. Traced rather
+than assumed — flow-worker's import closure reaches `auth_service` by exactly one hop
+(`flow_worker_main` → `flow_gap_autofill` → `flow_admin_auth`) for exactly one symbol,
+**`validate_session`**, which this change does not touch; and `api/routers/auth.py` — the *only*
+caller of every changed function — **is not in that closure at all**. The migration is additive
+with `DEFAULT 'reset'`, so even a stale writer produces correct rows. ⛔ Forcing a redeploy via
+the marker would be Tier 2 during market hours: a dropped Massive OPRA socket is a permanent tape
+gap, paid for zero behavioural difference.
+
+⛔ **`password_resets` now backs two token kinds and the `purpose` column is what keeps them
+apart.** The direction that matters is not the obvious one: without the filter, a leaked
+**password-reset** token would be redeemable as a **login**, turning every reset email into a
+bearer credential. Both directions are railed in `tests/test_smoke_login_link.py` and
+mutation-proved. A link also refuses an account with TOTP enabled — otherwise it would grant
+strictly more than the password does, which is the one thing it must never do.
+
 ### Real-device testing — BrowserStack Live (paid)
 
 **Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no
@@ -1446,6 +1496,31 @@ them:**
 - ⚠️ Still true and NOT fixed by this: writes into `C:\data` from outside pytest
   (a bare `python tools/...` run, a `railway ssh`-less local script) hit the live
   files. The guard is a *test-suite* rail only.
+
+  ⚰️ **AND SETTING `DATA_DIR` IS NOT THE REMEDY — that is root cause 1 above,
+  re-committed 2026-09-12.** A bare probe of the fundamentals widget set
+  `DATA_DIR` to a scratchpad, looked sandboxed, and wrote
+  `C:\data\fundamentals_estimates.db` and `C:\data\fundamentals_tables.db`
+  anyway. Both resolve through their OWN vars (`FUNDAMENTALS_ESTIMATES_DB_PATH`,
+  `FUNDAMENTALS_TABLES_DB_PATH`), which `DATA_DIR` does not reach. The writes
+  were benign — correct current rows into two snapshot caches, both
+  `quick_check = ok`, no member data — and they were benign by luck, not by
+  design.
+
+  ⭐ **The remedy is to apply the CENSUS, never a hand-picked var.** The pins are
+  derived, `unpinnable` is currently **0**, so nothing needs guessing:
+
+  ```python
+  import conftest, os
+  _, pins, _ = conftest.shared_data_root_census()
+  for env, literal in pins.items():
+      os.environ[env] = literal.replace("/data", r"C:\some\sandbox")
+  # ...only now import anything from api.**
+  ```
+
+  Order is load-bearing: these paths are captured at MODULE IMPORT, so a pin set
+  after the import reaches nothing. `scripts/hub_sandbox_boot.py` already does
+  this properly for a full boot — prefer it over a hand-rolled probe.
 
 ## ⛔ Sandbox boots — the 2026-09-08 incident, and the two rails that make a sandbox trustworthy
 
@@ -2058,6 +2133,23 @@ session read a deployment list by SHA and never read the `status` column, which
 said `SKIPPED` — concluding *"every master push restarts web, worker, bars-api
 and flow-worker in lockstep"* and nearly widening the RTH freeze to docs on that
 basis. Counting presence is not reading a verdict.
+
+### 📓 Notebook Wave Q1 — LIVE (not dark) since 2026-09-12 00:45 ET
+
+`OFFLINE_DEFAULT_ON = true` on `master` as of `739218e48`. The durable IndexedDB
+working copy, the outbox, Web Locks leader election and conflict-fork-never-clobber
+are the DEFAULT path for every member, not an opt-in.
+
+⭐ **The closing entry is the authority** — `docs/notebook/wave-q1-RESUME-HERE.md`,
+first section. It carries the verification, the canary table, the Sunday
+18:00 ET keep-or-revert gate, and the per-browser opt-out.
+
+⛔ **Rollback is pre-authored and pushed**: `rollback/notebook-offline-default-off`
+at `3db89e205`, gated and gauntleted green with the flag false. It is a DEPLOY,
+not a variable — see *"Rolling back a FRONTEND flag"* below.
+
+⛔ **Unattended observation**: `tools/nb_observe.py`, Task Scheduler job
+`UCT-WaveQ1-Observe`, every 2 hours into `docs/notebook/wave-q1-observation-log.md`.
 
 ### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
 
@@ -3941,9 +4033,83 @@ this closes that gap.
   earnings_table:: key has no trailing separator, so `delete_prefix` would
   over-match, e.g. 'A' wiping AAPL) + `cache.delete_prefix(f"mb_year_earnings_{S}_")`
   (separator-anchored, safe).
-- **Alert-on-change:** Discord + in-app (`chart_health_alerts`) fire ONLY on
-  newly-flagged tickers, so a persistent upstream anomaly (self-heal can't fix a
-  bad SOURCE) stays visible in the status endpoint without re-spamming hourly.
+- **Alert-on-change:** Discord + in-app (`chart_health_alerts`) fire ONLY on a
+  newly-seen defect that indicates OUR pipeline regressed. The "newly" baseline
+  is the **durable `defect_state` table** in `/data/fundamentals_monitor.db`,
+  written back only for the tickers a cycle ACTUALLY CHECKED.
+  ⛔ That last clause is the whole design: this monitor SAMPLES ~30 of ~3,700, so
+  "absent from the flagged set" almost always means "not looked at", and clearing
+  those is the bug. `provider_coverage_monitor`'s version replaces the whole set
+  each cycle because it evaluates its entire population — **do not copy it back
+  here.**
+  ⚰️ This previously read *"fire ONLY on newly-flagged tickers … without
+  re-spamming hourly"* and described an intent that did not hold: the baseline
+  was `_state["_prev_flagged_syms"]`, an in-memory set holding only the PREVIOUS
+  cycle's flagged names. Half of the 30 sample slots are a random shuffle of warm
+  entries plus a random cold tail, so a long-tail name left the set the moment it
+  went unsampled and paged again on its next appearance — and every master push
+  restarts web and cleared it outright (measured on prod 2026-09-12: started_at
+  minutes old, `cycles_completed` 1, `_prev_flagged_syms` empty). It produced
+  several pages a day for defects nobody could act on. **A suppression set whose
+  population is a rotating sample is not a suppression set.**
+- **`_CRITICAL_KINDS` is wired** and decides what pages. The split is "who is
+  supposed to guarantee this?": `exception` · `bad_shape` · `nan` ·
+  `dup_quarter` · `dup_forward` · `reported_forward_overlap` ·
+  `label_period_mismatch` are invariants OUR code enforces, so one surfacing
+  means a guard stopped working → page. `forward_gap` ·
+  `forward_noncontiguous` · `stale_reported` describe a HOLE a provider handed
+  us that our code faithfully reproduces → recorded in `flagged_current`, served
+  by the health endpoint, and summarised in **one digest per
+  `FUNDAMENTALS_MONITOR_DIGEST_SECONDS`** (default daily; stamp is in
+  `monitor_meta` on disk, or a pod that redeploys three times a day sends three
+  "daily" digests). ⚰️ The tuple existed from 2026-07-03 referenced NOWHERE, so
+  every kind paged equally; it also listed `label_mismatch`, which
+  `check_ticker` has never emitted — wiring it as written would have demoted the
+  real `label_period_mismatch` signal.
+- **Funds/ETFs are never flagged** (`_is_fund`, reusing `darkpool_eod._ticker_meta`'s
+  cached profile lookup, consulted only for a ticker that already FAILED so the
+  clean majority costs nothing). 42 of the 55 stale names in a 900-ticker sample
+  were closed-end funds, which can never have a quarterly EPS strip. ⚠️ FMP's
+  `isFund`/`isEtf` misses some CEFs (RNP is one) and an industry-based test would
+  be worse — DHIL is also "Asset Management" and is a real operating company.
+  A missed fund is recorded and digested, never paged.
+- **`stale_reported`** catches the member-visible half: `_build_and_cache`'s
+  completeness guard only ever asked whether there were ZERO reported quarters,
+  so a strip whose newest actual was two quarters old passed as complete, held
+  the full TTL, persisted to the snapshot store, and was served as current. The
+  payload now carries `reported_through` + `stale_quarters` and the widget says
+  so. Threshold is 2 quarters: one behind is an ordinary late filer.
+  ⛔⛔ **THE MONITOR'S FLAG IS CONFIRMED AGAINST SEC EDGAR; THE DISPLAY IS NOT.**
+  `reported_staleness` compares against a GENERIC 75-day expectation, which
+  answers *"is what we hold old?"* — right for the member notice, useless as a
+  defect signal. `check_ticker` therefore consults
+  `edgar.newest_reported_quarter(sym)` and raises `stale_reported` ONLY when the
+  filings show a periodic report we do not have. Validated live 2026-09-12:
+  HOLX/EXAS/ACLX/FOLD/DHIL/BRY → **no flag** (SEC agrees with what we serve;
+  the companies have not reported), MMC's pre-fix state → **flag** (SEC showed
+  2026 Q2 against our 2025 Q4). ⭐ Display asks "is what we hold old?"; the
+  monitor asks "has the company filed something we lack?" — only the second is
+  actionable and only the filings can answer it. ⚠️ SEC is consulted only for an
+  already-stale strip (a healthy ticker spends no round-trip), cached per ticker
+  per UTC day, and a `None` answer does NOT flag — unknown and current must stay
+  distinguishable or an SEC outage manufactures findings for the universe.
+  ⛔ Tests that exercise a stale fixture MUST stub `sec_newest_reported_quarter`;
+  without it `check_ticker` makes two live HTTP calls to sec.gov.
+  Measurement and the three upstream failure modes:
+  **`docs/fundamentals-provider-gaps-2026-09-12.md`**.
+  ⛔⛔ **THAT DOC'S FMP TICKET IS WITHDRAWN — DO NOT SEND IT.** It accused FMP of
+  dropping filed quarters for EXAS/FOLD/ACLX/DHIL/BRY/HOLX. Checked against SEC
+  EDGAR's submissions index 2026-09-12 (control: MMC, BK and AAPL each return a
+  2026 Q2 10-Q, so the method finds current filings), **every one of those six
+  has filed nothing newer than what FMP already has** — HOLX's newest 10-Q is
+  period-end 2025-12-27, filed 2026-01-29. They are not provider gaps; the
+  companies have not reported. ⭐ `stale_reported` cannot distinguish "the
+  provider is missing a filed quarter" from "the company has not filed one", so
+  the member-facing notice states only *nothing newer has been reported yet* —
+  it previously blamed the providers, for six names where they were blameless.
+  ⚰️ And `sec.gov/files/company_tickers.json` is PARTIAL (10,426 entries, missing
+  MMC and BK): resolve a CIK via `browse-edgar?action=getcompany&CIK=<ticker>`,
+  and never read that file's silence as "not a US filer".
 - **Cold-tail bounded** (`_COLD_TAIL`, default 6/cycle) — a cold check can fire
   the scarce AlphaVantage 25/day deep-history budget the widget itself uses;
   warm+priority sampling keeps external-quota cost tiny (near-zero on Railway,
@@ -3955,8 +4121,42 @@ this closes that gap.
   `_CYCLE_SECONDS` (7200) · `_SAMPLE` (30) · `_COLD_TAIL` (6) · `_STARTUP_DELAY`.
 - **Known day-1 flag:** HUBG (its 2026 Q1 actual is missing from FMP's
   stable/earnings but lingers as a stale forward estimate card) — a real
-  surfaced anomaly, not a false positive. Grace-window tightening in
-  `earnings_table._UNREPORTED_GRACE_DAYS` (130d) is a possible follow-up.
+  surfaced anomaly, not a false positive. **Still flagged 2026-09-12**, now with
+  twelve more operating companies; it was the first instance of a class, not a
+  one-off.
+- ⚰️ **`_UNREPORTED_GRACE_DAYS` (130d) is NOT the follow-up this used to
+  suggest.** Measured 2026-09-12: the floor is doing the right thing in both
+  directions. On MMC it correctly drops the 2026-03-31 estimate row — that
+  quarter should be a reported actual by now, and showing it as a forward
+  estimate is precisely the lie to avoid. Tightening it drops MORE real forward
+  quarters; loosening it re-admits stale estimates for quarters already
+  reported, which is the `reported_forward_overlap` class. **The gap is upstream
+  absence, not our window.** Leave it at 130 unless a measurement says
+  otherwise.
+- ✅ **THE DATA WAS RECOVERABLE FROM A SOURCE WE ALREADY PAY FOR.**
+  `/stable/earnings` is the only *earnings* endpoint on this plan, but
+  `/stable/income-statement?period=quarter` — same vendor, same key, different
+  endpoint — carries the reports it drops. It is now the THIRD gap-fill leg in
+  `get_year_earnings` (ahead of yfinance: it has revenue, it is the plan we
+  already pay for, and Yahoo's record is shorter for exactly these names).
+  Measured 2026-09-12: recovers MMC (+2 quarters), SJW (+2), RNP (+2), BK (+1);
+  **nine of the fifteen investigated stale names came out clean**, MMC and BK
+  (~$90B and ~$97B) among them. ⛔ It is labelled by
+  `_fiscal_q_from_period_end`, NEVER by FMP's own `period`/`fiscalYear` — HOLX
+  ends its fiscal Q1 in late December, so the provider's numbering disagrees
+  with this pipeline's and trusting it duplicates one quarter while dropping
+  another, which is the trap `_year_earnings_from_stock` already documents.
+  ⚠️ Actuals only — no estimate, so no surprise %; inventing one would render to
+  a member as analyst consensus nobody published.
+- ⛔ **The yfinance leg was UNREACHABLE for every plain US ticker** until
+  2026-09-12 — `get_year_earnings._gather` gated it on `"." in prov or
+  any(ch.isdigit())`, a test of the SYMBOL'S SHAPE, so a three-provider chain was
+  two deep for exactly the names members open. Now gated on whether the year is
+  still on screen (`_is_recent_year`: current or previous), which is the cost the
+  shape test was really protecting. ⚠️ **This does not close the gap** — Yahoo is
+  empty for MMC, BK and HOLX too (control: AAPL/NVDA return five quarters in the
+  same session). It fixes a decorative fallback; it recovers nothing for the
+  worst names.
 
 ## ⚠️ FOR RAVI — a one-line change landed in `api/live_massive_router.py` (2026-09-01)
 

@@ -327,6 +327,35 @@ export default function FundamentalsWidget({
         )}
       </div>
 
+      {/* The reported half can be stale without being empty, and the widget used
+          to present an old quarter as the latest with nothing said. `>= 2` is a
+          DISPLAY threshold, deliberately the same shape as the monitor's
+          `_STALE_QUARTERS`: one quarter behind is an ordinary late filer and
+          saying so would cry wolf every earnings season; two means a quarter the
+          company reported is not available from any source we read.
+          An older cached payload has no `stale_quarters` key, and `undefined >= 2`
+          is false — it renders exactly as before.
+
+          ⚰️ THE COPY BELOW ONCE ASSERTED A CAUSE, AND THE CAUSE WAS WRONG. It
+          read "Our data providers have not published the N quarters since".
+          Checked against SEC EDGAR's submissions index on 2026-09-12 — control:
+          MMC, BK and AAPL all return a 2026 Q2 10-Q, so the method does find
+          current filings — every remaining flagged name's newest filing is
+          EXACTLY what FMP already has. HOLX's newest 10-Q is period-end
+          2025-12-27, filed 2026-01-29. The companies have not filed anything
+          newer; the providers were not at fault, and this widget was telling
+          members they were.
+
+          ⭐ We cannot distinguish "the provider is missing a filed quarter" from
+          "the company has not filed one" without an EDGAR lookup, so the copy
+          now states only what we can see: nothing newer is reported. */}
+      {!isPanelView && data?.stale_quarters >= 2 && (
+        <div className={styles.staleNotice} data-testid="fundamentals-stale-notice" role="status">
+          Latest quarter unavailable — the most recent reported figures we have
+          end at <strong>{data.reported_through}</strong>. Nothing newer has been
+          reported yet.
+        </div>
+      )}
       {effectiveView === 'analyst' ? (
         <AnalystPanel sym={sym} />
       ) : effectiveView === 'ownership' ? (

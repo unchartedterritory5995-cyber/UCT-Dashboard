@@ -240,26 +240,115 @@ class TestG2TypedFunctions:
         sent.mock.reset_mock()
         assert fc.get_news_general_latest().licensing_class == "R"
 
-    def test_new_functions_do_not_expose_a_timeout_parameter(self):
-        """Gap G1 is a SEPARATE pending owner ruling. A `timeout=` kwarg on
-        any of these would quietly pre-empt it."""
-        import inspect
-        names = [n for n, _, _ in G2_FUNCTIONS] + ["get_news_stock_multi"]
-        for name in names:
-            sig = inspect.signature(getattr(fc, name))
-            assert "timeout" not in sig.parameters, f"{name} exposes a timeout parameter (G1)"
+    def test_EVERY_typed_function_exposes_a_timeout_parameter(self):
+        """⚰️ THESE TWO TESTS USED TO ASSERT THE EXACT OPPOSITE, and they were
+        right to:
 
-    def test_no_existing_typed_function_grew_a_timeout_parameter_either(self):
-        """The non-vacuity control for the test above: if the adapter had
-        NO timeout parameters anywhere for an unrelated reason, that test
-        would pass while proving nothing about G1. This sweeps every
-        module-level `get_*` and would go red on any of them."""
+            "Gap G1 is a SEPARATE pending owner ruling. A `timeout=` kwarg on any
+            of these would quietly pre-empt it."
+
+        ⛔ G1 WAS RULED AND AUTHORIZED 2026-09-12. The guard did its job — it kept
+        an un-ruled behaviour change out of the adapter until a second party said
+        yes — so it is INVERTED here, not deleted. Deleting it would leave no
+        record that the parameter is deliberate, and no rail on the thing that
+        replaced it.
+
+        ⭐ The list is DERIVED from the module, never typed: a typed function
+        added tomorrow without a timeout is exactly the regression this now
+        catches, and a hand-typed roster would not see it.
+        """
         import inspect
         publics = [n for n in dir(fc) if n.startswith("get_") and callable(getattr(fc, n))]
         assert len(publics) >= 30, f"expected the full typed surface, found {len(publics)}"
-        offenders = [n for n in publics
-                     if "timeout" in inspect.signature(getattr(fc, n)).parameters]
-        assert offenders == [], f"typed functions exposing a timeout (G1): {offenders}"
+        missing = [n for n in publics
+                   if "timeout" not in inspect.signature(getattr(fc, n)).parameters]
+        assert missing == [], (
+            f"typed functions that do NOT expose a timeout: {missing}. G1's whole "
+            "point is that a caller can ask for one; a function without it is a "
+            "call site that still cannot migrate.")
+
+    def test_every_exposed_timeout_is_KEYWORD_ONLY_and_defaults_to_None(self):
+        """⛔ Keyword-only, or the parameter changes the positional signature and
+        a migration becomes a behaviour change in a second, invisible way.
+        ⛔ Default None, never a number: a default here would silently overrule
+        the per-endpoint internal defaults below."""
+        import inspect
+        for n in [n for n in dir(fc) if n.startswith("get_") and callable(getattr(fc, n))]:
+            p = inspect.signature(getattr(fc, n)).parameters.get("timeout")
+            if p is None:
+                continue
+            assert p.kind is inspect.Parameter.KEYWORD_ONLY, f"{n}: timeout is positional"
+            assert p.default is None, f"{n}: timeout defaults to {p.default!r}, not None"
+
+    def test_the_exposed_timeout_is_actually_FORWARDED_to_fetch(self):
+        """⛔ A PARAMETER THAT IS ACCEPTED AND DROPPED IS WORSE THAN NO PARAMETER:
+        every caller believes it asked for 4 s and every call runs at 25 s, and
+        nothing goes red because a timeout fails as SLOWNESS, never as an error.
+
+        Read from the SOURCE by AST — each typed function's single `_fetch` call
+        must pass `timeout`, and the expression must mention the parameter.
+        """
+        import ast, inspect, pathlib
+        src = pathlib.Path(inspect.getsourcefile(fc)).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        checked, bad = 0, []
+        for node in tree.body:
+            if not (isinstance(node, ast.FunctionDef) and node.name.startswith("get_")):
+                continue
+            calls = [c for c in ast.walk(node) if isinstance(c, ast.Call)
+                     and isinstance(c.func, ast.Name) and c.func.id == "_fetch"]
+            if not calls:
+                continue
+            checked += 1
+            kw = [k for k in calls[0].keywords if k.arg == "timeout"]
+            if not kw or "timeout" not in ast.unparse(kw[0].value):
+                bad.append(node.name)
+        assert checked >= 30, f"the AST scan saw only {checked} typed functions — broken"
+        assert bad == [], f"typed functions that accept a timeout and drop it: {bad}"
+
+    def test_the_per_endpoint_INTERNAL_defaults_survived_G1_exactly(self):
+        """⛔⛔ THE ONE THING G1 WAS NOT ALLOWED TO CHANGE.
+
+        Thirteen typed functions carried their own timeout literal before G1 —
+        the news family's 12 s, transcripts' 40 s, the statements' 20 s. Exposing
+        a parameter must leave a caller that passes NOTHING on exactly the number
+        it had, or G1 becomes a silent timing change across the whole adapter and
+        no test anywhere goes red.
+
+        ⭐ Pinned as values, not as "unchanged", because "unchanged" is only
+        checkable against a version nobody will look up.
+        """
+        import ast, inspect, pathlib
+        EXPECTED = {
+            "get_news_stock": 12, "get_news_press_releases": 12,
+            "get_transcript_latest_page": 25, "get_transcript_content": 40,
+            "get_economic_calendar": 20, "get_ipo_calendar": 8,
+            "get_income_statement": 20, "get_balance_sheet_statement": 20,
+            "get_cash_flow_statement": 20, "get_news_general_latest": 12,
+            "get_news_stock_latest": 12, "get_news_press_releases_latest": 12,
+            "get_news_stock_multi": 12,
+        }
+        src = pathlib.Path(inspect.getsourcefile(fc)).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        found = {}
+        for node in tree.body:
+            if not (isinstance(node, ast.FunctionDef) and node.name.startswith("get_")):
+                continue
+            calls = [c for c in ast.walk(node) if isinstance(c, ast.Call)
+                     and isinstance(c.func, ast.Name) and c.func.id == "_fetch"]
+            if not calls:
+                continue
+            for k in calls[0].keywords:
+                if k.arg != "timeout":
+                    continue
+                # `timeout if timeout is not None else N` -> N is the default
+                if isinstance(k.value, ast.IfExp) and isinstance(k.value.orelse, ast.Constant):
+                    found[node.name] = k.value.orelse.value
+        assert found == EXPECTED, (
+            "the per-endpoint internal timeout defaults changed.\n"
+            f"  expected: {sorted(EXPECTED.items())}\n"
+            f"  found:    {sorted(found.items())}\n"
+            "A caller passing nothing must keep the number it had before G1.")
 
 
 # ── G4 · the multi-symbol news leg ─────────────────────────────────────────
@@ -342,7 +431,13 @@ class TestNothingExistingChanged:
     def test_get_news_stock_still_takes_one_ticker_with_the_same_signature(self):
         import inspect
         sig = inspect.signature(fc.get_news_stock)
-        assert list(sig.parameters) == ["ticker", "limit"]
+        # ⚰️ This pinned ["ticker", "limit"] exactly. G1 (ruled 2026-09-12) adds
+        # `timeout` to EVERY typed function, so the pin is widened by exactly that
+        # one name — and no further. ⛔ The property this test actually guards is
+        # G4: `get_news_stock` still takes ONE ticker. Widening it to a subset
+        # check would let a `tickers` parameter through, which is the whole thing
+        # it exists to catch.
+        assert list(sig.parameters) == ["ticker", "limit", "timeout"]
         # `fmp_client` uses `from __future__ import annotations`, so every
         # annotation is a STRING at runtime — comparing against `str` itself
         # would fail for the right-looking wrong reason.

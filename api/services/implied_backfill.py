@@ -337,7 +337,7 @@ def past_reports(sym: str, limit: int) -> list[dict]:
     # reported" and permanently skip the symbol.
 
     # Newest-first, and includes not-yet-reported rows (filtered below).
-    fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)})
+    fmp = ee._fmp_get("/stable/earnings", {"symbol": sym.upper(), "limit": max(limit * 3, 24)}, timeout=10)
     announcements = []
     for r in fmp or []:
         if not isinstance(r, dict):

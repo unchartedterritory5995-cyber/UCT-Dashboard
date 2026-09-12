@@ -14,6 +14,7 @@ import time
 from api.services import yf_util
 from api.services.cache import TTLCache
 from api.services.finnhub_client import fh_get
+from api.services import fmp_client as _fmp_client
 
 _logger = logging.getLogger(__name__)
 _mem = TTLCache()
@@ -134,7 +135,15 @@ def _from_fmp(ticker: str):
     _base_meta can treat both legs identically."""
     from api.services import earnings_estimates as ee
 
-    data = ee._fmp_get("/stable/profile", {"symbol": ticker}, timeout=_FMP_PROFILE_TIMEOUT)
+    try:
+        data = _fmp_client.get_company_profile(ticker, timeout=_FMP_PROFILE_TIMEOUT).value
+    except Exception as exc:            # noqa: BLE001 -- every D1 typed error
+        # ⛔ This function's docstring PROMISES it never raises, and the promise
+        # is the contract its callers were written against. The legacy
+        # `_fmp_get` kept it by swallowing everything; the typed adapter raises,
+        # so the catch moves HERE rather than the contract changing silently.
+        _log.warning("FMP profile failed for %s: %s", ticker, exc)
+        return {"name": None, "sector": None, "industry": None, "market_cap_musd": None}
     row = _fmp_row(data)
     if not row:
         return {"name": None, "sector": None, "industry": None, "market_cap_musd": None}

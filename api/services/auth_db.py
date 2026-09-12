@@ -108,6 +108,9 @@ CREATE TABLE IF NOT EXISTS password_resets (
     token       TEXT UNIQUE NOT NULL,
     expires_at  TIMESTAMP NOT NULL,
     used        INTEGER DEFAULT 0,
+    -- 'reset' | 'smoke-login'. See init_db()'s migration comment: a token of one purpose must
+    -- never be redeemable as the other, and every consumer filters on this column.
+    purpose     TEXT NOT NULL DEFAULT 'reset',
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -520,6 +523,25 @@ def init_db():
     try:
         conn.executescript(_SCHEMA)
         conn.commit()
+
+        # ⛔⛔ Migration: `password_resets.purpose` — THE COLUMN THAT KEEPS TWO TOKEN KINDS APART.
+        #
+        # The single-use token machinery in this table now backs TWO things: a password reset and
+        # the admin-issued smoke-account login link. Without a purpose, one token type could be
+        # redeemed as the other, and the dangerous direction is not the obvious one: a leaked
+        # PASSWORD-RESET token would become a working LOGIN, skipping the reset flow entirely.
+        #
+        # ⭐ `DEFAULT 'reset'` is load-bearing, not tidiness. Every row that already exists was
+        # issued by `create_password_reset`, so backfilling them as resets is correct AND it means
+        # `execute_password_reset`'s new `purpose = 'reset'` filter cannot orphan a live token a
+        # member is mid-way through using. The opposite default would have silently invalidated
+        # every outstanding reset email at deploy time.
+        pr_cols = [row[1] for row in conn.execute("PRAGMA table_info(password_resets)").fetchall()]
+        if "purpose" not in pr_cols:
+            conn.execute(
+                "ALTER TABLE password_resets ADD COLUMN purpose TEXT NOT NULL DEFAULT 'reset'"
+            )
+            conn.commit()
 
         # Migration: add email_verified column if missing
         cols = [row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()]

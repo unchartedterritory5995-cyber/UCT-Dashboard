@@ -42,6 +42,7 @@ import sqlite3
 import time
 
 from api.services import earnings_estimates as ee
+from api.services import fmp_client as _fmp
 
 log = logging.getLogger(__name__)
 
@@ -258,7 +259,7 @@ def _fetch_consensus_label(ticker: str):
     the bucket total is 0 (mirrors ``analyst_grades._consensus``'s zero-total
     refusal — an uncorroborated label with nobody behind it is not a real
     consensus)."""
-    row = _first(ee._fmp_get("/stable/grades-consensus", {"symbol": ticker}, timeout=4))
+    row = _first(_fmp.get_grades_consensus(ticker, timeout=4).value)
     if not row:
         return None
     buckets = ("strongBuy", "buy", "hold", "sell", "strongSell")
@@ -271,7 +272,7 @@ def _fetch_consensus_label(ticker: str):
 def _fetch_pt_target(ticker: str):
     """``/stable/price-target-consensus`` → ``targetConsensus``, falling
     back to ``targetMedian``. None when both are null."""
-    row = _first(ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4))
+    row = _first(_fmp.get_price_target_consensus(ticker, timeout=4).value)
     if not row:
         return None
     val = _num(row.get("targetConsensus"))
@@ -286,7 +287,7 @@ def _fetch_grade_actions_30d(ticker: str):
     today (inclusive: ``date >= today - 30d``). ``(0, 0)`` is a REAL answer
     when the leg returned rows; ``(None, None)`` only when the leg itself
     failed (not a list)."""
-    data = ee._fmp_get("/stable/grades", {"symbol": ticker, "limit": 40}, timeout=4)
+    data = _fmp.get_analyst_grades(ticker, limit=40, timeout=4).value
     if not isinstance(data, list):
         return None, None
     cutoff = _now_et().date() - datetime.timedelta(days=30)
@@ -332,8 +333,7 @@ def _fetch_eps_growth(ticker: str):
     ET-anchored current-year floor, then the two SMALLEST surviving years
     are genuinely (current, next).
     """
-    data = ee._fmp_get("/stable/analyst-estimates",
-                        {"symbol": ticker, "period": "annual", "limit": 20}, timeout=4)
+    data = _fmp.get_analyst_estimates(ticker, period="annual", limit=20, timeout=4).value
     if not isinstance(data, list):
         return None
     floor_year = _now_et().year

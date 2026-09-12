@@ -155,20 +155,83 @@ def test_checkpoint_1_registers_no_replay_fn():
         "honestly for a bound trendline until the geometry question is answered.")
 
 
-def test_the_registration_is_not_wired_yet():
-    """A registered type with no evaluator behind it lets a predicate be created
-    that nothing ever evaluates — an armed alert that silently never fires, which
-    is worse than no alert. `register()` exists; nothing calls it yet."""
+def test_the_registration_is_wired_ONCE_and_nowhere_else():
+    """⚰️ **THIS TEST USED TO ASSERT THE OPPOSITE**, and the sentence it carried
+    was true when it was written:
+
+        "A registered type with no evaluator behind it lets a predicate be
+        created that nothing ever evaluates — an armed alert that silently never
+        fires, which is worse than no alert. `register()` exists; nothing calls
+        it yet."
+
+    ⛔ That hazard is DISCHARGED, not waived. CP2 built the evaluator and CP3
+    wires `register()` under approval line 2 — so the condition the rule was
+    protecting (a type that can be armed and never evaluated) no longer holds,
+    and the assertion is rewritten rather than deleted. Deleting it would leave
+    the next reader with no record that the wiring is deliberate.
+
+    **What must stay true, and what this now asserts:**
+      1. an evaluator exists behind the registered type;
+      2. `register()` is called from EXACTLY ONE place, the boot path;
+      3. nothing schedules the evaluator — registration is not activation.
+
+    ⭐ Callers are DERIVED by AST from the import alias, never grepped: the old
+    version matched any file containing both "price_level" and "register", which
+    would now match `price_level_projection.py` for its prose.
+    """
+    assert callable(getattr(price_level, "evaluate", None)), (
+        "the type is registered with no evaluator behind it — that is the exact "
+        "hazard the CP1 form of this test existed to prevent")
+
     callers = []
-    for path in (_REPO / "api").rglob("*.py"):
+    for path in sorted((_REPO / "api").rglob("*.py")):
         if path == _MODULE:
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if "price_level" in text and "register" in text:
-            callers.append(str(path.relative_to(_REPO)))
-    assert callers == [], (
-        f"price_level.register() appears to be wired in {callers}. Checkpoint 1 "
-        "declares the type only; wiring lands with the evaluator, under its own approval.")
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        aliases = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for a in node.names:
+                    if a.name == "price_level" and "alert_taxonomy" in (node.module or ""):
+                        aliases.add(a.asname or a.name)
+            elif isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.name.endswith("alert_taxonomy.price_level"):
+                        aliases.add(a.asname or a.name)
+        if not aliases:
+            continue
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "register"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in aliases):
+                callers.append(str(path.relative_to(_REPO)).replace("\\", "/"))
+
+    assert callers == ["api/main.py"], (
+        f"price_level.register() is called from {callers}. CP3 approves ONE call "
+        "site, in the boot path; a second one is a second authority over whether "
+        "the type exists.")
+
+    main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
+    after = main.split("_at_price_level.register()")[1][:600]
+    assert "add_job" not in after, (
+        "a scheduler entry landed beside the registration. The DARK sweep has "
+        "its own flag-gated block further down; a second, ungated one here would "
+        "run the evaluator on every boot.")
+
+    # ⚰️ This assertion used to read "Registration is NOT activation — putting the
+    # evaluator on a tick is the flip, and the flip is its own approval line."
+    # ⛔ The second half was WRONG and it nearly cost the dark run. Putting the
+    # evaluator on a tick is exactly what approval line 2 authorised ("the
+    # comparison harness runs against the projected predicates"); the FLIP is
+    # delivery plus the legacy switch-off. Conflating the two left the module
+    # registered, tested, green and called by nothing.
+    assert 'id="alert_taxonomy_price_level_dark"' in main, (
+        "the dark comparison sweep is not wired to any tick — CP3's harness "
+        "would collect nothing, and an empty store reads like agreement")
 
 
 def test_the_type_id_is_the_spec_s_id():
@@ -184,3 +247,101 @@ def test_schema_fields_are_documented_not_bare(field):
     meaning into a comment nobody reads at the call site."""
     assert isinstance(price_level.PARAMS_SCHEMA[field], str)
     assert len(price_level.PARAMS_SCHEMA[field]) > 20, f"{field} has no contract text"
+
+
+# --- F-S7-4: the third shape, made design -----------------------------------
+
+def test_all_three_known_shapes_are_pinned():
+    """⛔ F-S7-4 (owner ruling, 2026-09-12). Production carries a third
+    `alert_type` — `line`, drawing-bound and carrying NO anchors — that neither
+    F-S7-2 nor the original schema anticipated. It was found by the CP3 pipeline
+    dry run, not by reading the legacy code."""
+    assert price_level.KNOWN_LEVEL_KINDS == ("price", "trendline", "line")
+    for kind in price_level.KNOWN_LEVEL_KINDS:
+        assert f"'{kind}'" in price_level.PARAMS_SCHEMA["level_kind"], (
+            f"{kind} is in KNOWN_LEVEL_KINDS but the schema text does not name it")
+
+
+def test_each_of_the_three_shapes_resolves_through_ITS_OWN_BRANCH():
+    """⛔⛔ THE POINT OF F-S7-4: LUCK BECOMES DESIGN.
+
+    `price` and `line` produce the same answer, and before this ruling they
+    reached it through the same `else` fall-through. ⭐ The tempting reading of a
+    drawing-bound row is *"bound to a drawing, therefore interpolate"* — and that
+    reading would have disagreed with legacy on every one of those rows, for a
+    reason that is not the migration.
+
+    So the branches are asserted from the SOURCE: each named shape must be
+    tested for explicitly, not land in a default.
+    """
+    src = _MODULE.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == "level_at")
+    compared = set()
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Compare) and isinstance(node.ops[0], ast.Eq):
+            rhs = node.comparators[0]
+            if isinstance(rhs, ast.Name):
+                compared.add(rhs.id)
+    assert {"TRENDLINE", "BOUND_LINE", "FIXED"} <= compared, (
+        f"level_at does not branch explicitly on every named shape; it compares "
+        f"only {sorted(compared)}. A shape that lands in the default is a "
+        "fall-through, and F-S7-4 exists because a fall-through was right by luck")
+
+
+@pytest.mark.parametrize("kind,expect_interpolated", [
+    ("trendline", True),
+    ("line", False),
+    ("price", False),
+])
+def test_the_three_shapes_resolve_to_the_right_LEVEL(kind, expect_interpolated):
+    """The branches must also produce the right answers, not merely exist."""
+    t1, t2 = 1_000_000.0, 1_000_000.0 + 86_400.0
+    params = {"level_kind": kind, "target_price": 50.0,
+              "anchor_t1": t1, "anchor_p1": 100.0,
+              "anchor_t2": t2, "anchor_p2": 200.0}
+    got = price_level.level_at(params, t1 + 43_200.0)
+    if expect_interpolated:
+        assert got == pytest.approx(150.0), "a trendline must interpolate"
+    else:
+        assert got == 50.0, f"{kind} must resolve to its fixed target_price"
+
+
+def test_a_BOUND_LINE_with_no_anchors_is_the_production_shape():
+    """⚠️ The real rows carry `drawing_id` AND NO anchors. The branch must not
+    quietly depend on anchors being present."""
+    params = {"level_kind": "line", "target_price": 42.0, "drawing_id": "d1",
+              "anchor_t1": None, "anchor_p1": None,
+              "anchor_t2": None, "anchor_p2": None}
+    assert price_level.level_at(params, 1_700_000_000.0) == 42.0
+
+
+def test_an_UNKNOWN_kind_STILL_falls_through_exactly_as_legacy_does():
+    """⛔ A FOURTH alert_type must NOT make the dark side raise or return None.
+
+    `_alert_level_now` falls through to `target_price` for anything that is not
+    `trendline`, so the mirror must too — otherwise the day a fourth type
+    reaches production the comparison starts measuring our refusal instead of
+    the migration. ⭐ The loudness belongs in the rail and the dry run, never in
+    a runtime refusal that breaks the thing it was meant to protect.
+    """
+    params = {"level_kind": "something-new", "target_price": 7.5}
+    assert price_level.level_at(params, 1_700_000_000.0) == 7.5
+
+
+def test_the_dry_run_FAILS_if_a_fourth_alert_type_appears_in_production():
+    """⛔ THE CONTROL THE RULING ASKED FOR, and it lives where production data is
+    actually read — the dry-run tool, not a unit test that can never see a real
+    row. Asserted from the SOURCE so the check cannot be quietly dropped."""
+    import ast as _ast
+    src = (_REPO / "tools" / "s7_price_level_dryrun.py").read_text(encoding="utf-8")
+    tree = _ast.parse(src)
+    for node in _ast.walk(tree):
+        if (isinstance(node, _ast.Expr) and isinstance(node.value, _ast.Constant)
+                and isinstance(node.value.value, str)):
+            node.value.value = ""
+    code = _ast.unparse(tree)
+    assert "KNOWN_LEVEL_KINDS" in code, (
+        "the dry run no longer checks projected shapes against KNOWN_LEVEL_KINDS "
+        "— a fourth alert_type would reach the comparison unannounced")

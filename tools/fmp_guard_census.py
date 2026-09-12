@@ -74,6 +74,34 @@ QUARANTINE: dict[str, str] = {
     "api/services/ticker_logos.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/engine.py": "2 remaining inline FMP news calls (/stable/news/*) — out of this build's originally-scoped 2 call sites in this file",
     "api/services/earnings_estimates.py": "_fmp_get itself: kept byte-for-byte, load-bearing for 9 external consumers outside this build's authorized migration scope (see Section 1 addendum)",
+    # ⛔⛔ D1 GAP G5 — QUARANTINED BY RULING (owner, 2026-09-12), NOT AS DEBT.
+    # Every other entry above is "not yet migrated". This one is "must not be",
+    # and the distinction is the point: `news/adapters/fmp_news.py`'s contract is
+    # the OPPOSITE of the adapter's, and both are right for their own callers.
+    #
+    #   * fmp_news ABSORBS transient failure inside the call -- a 3-attempt loop,
+    #     a 429 sleep-retry (2s/6s/10s), a 5xx-only retry, and a 0.5s global
+    #     pacer. Correct for a background ingest, where the RUN is the unit and a
+    #     429 is a pause rather than an answer.
+    #   * fmp_client FAILS FAST and lets the caller decide. Correct for a request
+    #     path, where a member is waiting and three retries plus sleeps is a
+    #     twenty-second page.
+    #
+    # ⛔ And the BUDGETS differ in KIND, not size: `fmp_client._take_token` is a
+    # GLOBAL module-level bucket; `RequestBudget` is PER-RUN and labelled
+    # ("fmp-poll", "fmp-backfill", "verify"). An ingest that must abort at N
+    # requests FOR THAT RUN cannot express it through a global bucket, and moving
+    # to one would let a busy backfill starve an unrelated caller.
+    #
+    # Absorbing it would mean a per-call retry policy on every typed function --
+    # a second G1-shaped ruling, changing every existing caller's semantics from
+    # fail-fast to retry-then-fail. Sizing: docs/terminal-research/10-roadmap/
+    # d1-g3-g5-sizing.md.
+    #
+    # ⚠️ THIS ENTRY IS NOT A LICENCE. It exempts ONE file for ONE stated
+    # architectural reason. If fmp_news ever adopts the adapter's contract, retire
+    # it -- `test_retired_quarantine_entries_are_genuinely_clean` is the check.
+    "api/services/news/adapters/fmp_news.py": "G5 RULING 2026-09-12: contract mismatch, not migration debt -- absorbs transient failure (retry + 429 backoff + pacer) and owns a PER-RUN RequestBudget; the adapter fails fast with a GLOBAL token bucket. Deliberately outside.",
 }
 
 

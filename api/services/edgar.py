@@ -122,3 +122,168 @@ def fetch_edgar_news(hours: int = 24) -> list[dict]:
         })
 
     return results
+
+
+# ── Newest periodic filing, for confirming a staleness flag ───────────────────
+# Cached per ticker per UTC day: SEC asks for under 10 req/s, and a company's
+# newest 10-Q does not change hourly.
+_newest_q_cache: dict[str, tuple[str, str | None]] = {}
+
+_PERIODIC_FORMS = ("10-Q", "10-K", "10-Q/A", "10-K/A", "20-F", "40-F")
+
+
+_cik_resolved: dict[str, str | None] = {}
+
+
+def _ticker_to_cik_bulk() -> dict[str, str]:
+    """{TICKER: zero-padded CIK} from SEC's free bulk file.
+
+    ⛔ INCOMPLETE, and that is the whole reason this module has a chain.
+    Measured 2026-09-12: `company_tickers.json` AND
+    `company_tickers_exchange.json` both return exactly 10,426 entries and both
+    lack MMC, BK, HOLX and EXAS — all real filers. Never read its silence as
+    "this company does not exist"; that is what made `/api/filings/MMC` answer
+    `not found in SEC CIK map` in production.
+    """
+    # `_fetch_cik_ticker_map()` is {cik_str: ticker}; invert it, and pad the CIK
+    # (never the ticker — an earlier version padded the wrong side and produced
+    # {'320193': '000000AAPL'}, which the unit tests could not see because they
+    # stubbed this very function).
+    return {str(t).upper(): str(c).zfill(10)
+            for c, t in _fetch_cik_ticker_map().items() if t}
+
+
+def _fmp_cik(path: str, params: dict, timeout: int = 10):
+    """Indirection so the chain's paid tier is stubbable by name."""
+    from api.services.earnings_estimates import _fmp_get
+    return _fmp_get(path, params, timeout=timeout)
+
+
+def resolve_cik(ticker: str) -> str | None:
+    """Ticker -> zero-padded CIK. Fast and free tiers first, slow one last.
+
+    1. SEC's bulk file — instant, free, and INCOMPLETE (see above).
+    2. FMP's profile `cik` — ~0.15s on a plan we already pay for, and it has the
+       names the bulk file misses. Measured CIKs agree with EDGAR exactly
+       (MMC 0000062709, HOLX 0000859737, EXAS 0001124140).
+    3. `browse-edgar` — authoritative but a legacy CGI that READ-TIMED OUT at 10s
+       on a live call. Last resort only: it cannot sit on a member request path,
+       and relying on it made the fundamentals monitor's staleness oracle fail
+       quiet exactly when it mattered.
+
+    Cached per ticker for the process, negatives included, so a miss is not
+    re-paid on every call.
+    """
+    t = (ticker or "").upper().strip()
+    if not t:
+        return None
+    if t in _cik_resolved:
+        return _cik_resolved[t]
+
+    cik = None
+    try:
+        cik = _ticker_to_cik_bulk().get(t)
+    except Exception:
+        cik = None
+
+    if not cik:
+        try:
+            d = _fmp_cik("/stable/profile", {"symbol": t}, timeout=8)
+            row = d[0] if isinstance(d, list) and d else (d if isinstance(d, dict) else None)
+            raw = (row or {}).get("cik")
+            if raw:
+                cik = str(raw).strip().zfill(10)
+        except Exception:
+            cik = None
+
+    if not cik and _requests is not None:
+        try:
+            r = _requests.get(
+                "https://www.sec.gov/cgi-bin/browse-edgar",
+                params={"action": "getcompany", "CIK": t, "type": "10-Q",
+                        "count": "1", "output": "atom"},
+                headers={"User-Agent": "UCTDashboard contact@unchartedterritory.com"},
+                # ⚠️ BOUNDED TIGHT, and it is best-effort by design. This tier
+                # exists only for a filer neither the bulk map nor FMP covers,
+                # and FMP resolved every real ticker measured. Left unbounded it
+                # made a BOGUS ticker cost ~11s on `/api/filings`, a route that
+                # used to answer "not found" instantly. Negative results are
+                # cached, so the cost is paid once per ticker per process.
+                timeout=8,
+            )
+            r.raise_for_status()
+            m = re.search(r"CIK=(\d{10})", r.text) or re.search(r"<cik>(\d+)</cik>", r.text)
+            if m:
+                cik = m.group(1).zfill(10)
+        except Exception:
+            cik = None
+
+    _cik_resolved[t] = cik
+    return cik
+
+
+def newest_reported_quarter(ticker: str) -> str | None:
+    """The newest fiscal quarter the FILINGS show a periodic report for, as a
+    'YYYY Qn' label — or None when SEC cannot answer.
+
+    This is the independent oracle behind the fundamentals monitor's
+    `stale_reported` check. `reported_staleness` can only say "what we hold is
+    old", which is useful for a member but cannot distinguish a provider that
+    dropped a filed quarter from a company that has not filed one. Measured
+    2026-09-12: six names flagged as stale had filed nothing newer than what we
+    already served, so they were not defects at all.
+
+    ⛔ Reads the SUBMISSIONS INDEX, not an XBRL concept. A filing's form and
+    reportDate are filing-level facts; picking the wrong us-gaap tag silently
+    reports an older quarter, and no tag is universal across filers.
+
+    ⚠️ Non-periodic forms are excluded because an 8-K's `reportDate` is the EVENT
+    date, not a fiscal period end — counting it invents a quarter out of a press
+    release. Labels come from the ONE shared period-end mapper, so this answer is
+    directly comparable to the widget's own labels.
+
+    Returns None rather than a guess on any failure: unknown and current must
+    stay distinguishable, or the monitor manufactures findings during an outage.
+    """
+    t = (ticker or "").upper().strip()
+    if not t or _requests is None:
+        return None
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    hit = _newest_q_cache.get(t)
+    if hit and hit[0] == today:
+        return hit[1]
+
+    label = None
+    cik = resolve_cik(t)
+    if cik:
+        try:
+            r = _requests.get(
+                f"https://data.sec.gov/submissions/CIK{cik}.json",
+                headers={"User-Agent": "UCTDashboard contact@unchartedterritory.com"},
+                timeout=15,
+            )
+            r.raise_for_status()
+            recent = ((r.json() or {}).get("filings") or {}).get("recent") or {}
+            forms = recent.get("form") or []
+            ends = recent.get("reportDate") or []
+            best = None
+            for form, end in zip(forms, ends):
+                if form not in _PERIODIC_FORMS or not end:
+                    continue
+                if best is None or end > best:
+                    best = end
+            if best:
+                from api.services.earnings_estimates import _fiscal_q_from_period_end
+                q, y = _fiscal_q_from_period_end(best)
+                label = f"{y} Q{q}" if q else None
+        except Exception:
+            # A failed lookup is NOT cached as "no filings" — that would pin an
+            # outage for the rest of the day and silence a real gap.
+            return None
+
+    _newest_q_cache[t] = (today, label)
+    return label
+
+
+# Back-compat alias: this was private until a second consumer needed it.
+_resolve_cik = resolve_cik

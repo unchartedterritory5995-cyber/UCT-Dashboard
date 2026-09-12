@@ -95,11 +95,28 @@ Stated plainly so nobody reads this file as a description of shipped behaviour:
   run.
 - ✅ The label, the fresh context per run, the visible-tab assertion, the streaming
   response capture and the pinned ≥1025 px viewport — all implemented.
-- ⛔ **Path B (in-app navigation) is NOT implemented yet.** It needs a run mode that
-  lands on another route, waits for the app to settle, then CLICKS the Options Flow nav
-  entry and measures from the click. **This is required before the Monday RTH session
-  can report a complete result**, and a session that cannot run it must say so rather
-  than report path A alone as "the" number.
+- ✅ **Path B (in-app navigation) — implemented 2026-09-12.** `--path b` (or the
+  default `both`) lands on `--start-route` (default `/dashboard`), waits for the intro
+  to finish on THAT load, asserts the nav link exists, then CLICKS it and measures from
+  the click. It reports **two** signals, not one:
+
+  | signal | selector | what it means |
+  |---|---|---|
+  | `shell_ms` | `.of-mroot` | the page's root rendered |
+  | `picks_ms` | `.of-picks` | the TOP 10 FLOW PICKS table rendered — the PRODUCT of `part=TOP_PICKS` |
+
+  ⛔ **A body-text threshold cannot work on path B** — the page you navigate FROM
+  already exceeds any threshold, so "lots of text" is true before the click. Path B
+  keys on Options Flow's own DOM instead.
+
+  ⛔ **`url_changed` is reported SEPARATELY**, and a run with `url_changed=True` and no
+  `shell_ms` prints an explicit warning. A URL that moves while the screen does not is
+  the 2026-09-10 navigation-freeze signature; collapsing the two into one "it loaded"
+  would make that indistinguishable from a slow render.
+
+  ⚠️ **Instrument overhead is stated, not hidden:** `t0` is taken inside the injected
+  script and the click is a separate round trip a few milliseconds later. That overhead
+  is charged to the page, which is the conservative direction.
 
 ⛔ **CLICK, never `goto`, for path B.** A full page load rebuilds the world and replays
 the intro — that is path A wearing path B's label, and it is the same mistake that hid
@@ -119,3 +136,221 @@ Three outcomes, three different facts — do not collapse them:
 | a completed run with its label | a measurement of what it says it measured |
 | `INCONCLUSIVE` (no credentials, login non-200) | **not a pass** — nothing was measured |
 | parts expected and `parts_served` empty | a **FAILURE**, regardless of the timing |
+
+---
+
+## Path B dry run — 2026-09-12, quiet tape
+
+> ### ⚠️ QUIET TAPE — NOT A MEASUREMENT
+> The parts were already warm and the version never rolled. These numbers are a best
+> case no member hits during RTH. **The rig is being proven here, not the page.**
+
+Member account, `--path b --runs 3`, started on `/dashboard`:
+
+| run | `shell_ms` | `picks_ms` | flow req | wire | parts |
+|---|---|---|---|---|---|
+| 1 | — | — | — | — | **ERROR: login http 502** |
+| 2 | 614 | 15,863 | 8 | 3,536,844 B | `bootstrap`, `TOP_PICKS` |
+| 3 | 462 | **never** | 7 | 2,119,080 B | `bootstrap`, `TOP_PICKS` + 4 deferred |
+
+`url_changed=True` on both successful runs; the shell rendered both times.
+
+**shell median 538 ms**, against path A's 9,890 ms — which is the whole reason the two
+paths are reported separately. Path A's number is ~9.3 s of intro animation plus the
+page; path B is the page.
+
+### 🔴 What the dry run found, and it is a product question, not an instrument one
+
+**`.of-picks` is not reliably reached on in-app navigation.** One run took 15.9 s; the
+next never rendered it inside the 6 s settle window and finished with a body of 2,709
+chars against run 2's 3,852. The parts arrive either way — `part=bootstrap` and
+`part=TOP_PICKS` are served on every run — so this is not the transport. It is the
+TOP 10 table not consistently rendering from parts that the browser already has.
+
+⭐ **A timing-only rig would have reported run 3 as a 462 ms success.** The shell was
+up, the URL had moved, the parts had landed. Reporting the PRODUCT separately from the
+SHELL is what makes the failure visible, and it is why `picks_ms` exists.
+
+⚠️ **Run 2 also shows a duplicate-request storm**: `part=TOP_PICKS` ×3 and
+`part=bootstrap` ×3 in one navigation, plus a `data?days=1`, for 3.5 MB — against run
+3's clean 7 requests. Recorded, not chased.
+
+⚠️ **`login http 502` appeared on 1 of 3 runs here and 3 of 3 on an immediate re-run.**
+It was **not** the product: another workstream pushed five times in six minutes
+(13:54 → 14:08 ET) and every master push rebuilds web, so the rig was logging in
+through a deploy swap. `/api/health` was 502 in the same window and 200 with a 46 s
+uptime afterwards. **A rig run that overlaps someone else's deploy is INCONCLUSIVE,
+never a product failure** — check `railway deployment list --service web` before
+believing a transport error.
+
+---
+
+## ⛔⛔ HARD RULE — a run overlapping any master push is INCONCLUSIVE
+
+> **Every master push rebuilds web. A run that straddles the swap measured two
+> different pods, and it is DISCARDED, never averaged.**
+
+Owner ruling, 2026-09-12. Enforced in the rig, not left to the operator:
+
+- `_uptime()` reads `/api/health`'s `uptime_seconds` **before and after every run**,
+  on both paths.
+- `_swap_verdict(before, after, elapsed, min_pod_age)` invalidates a run **four**
+  ways, and the order is load-bearing:
+
+  | # | condition | what it means |
+  |---|---|---|
+  | 1 | uptime **unreadable** | during a swap `/api/health` itself 502s |
+  | 2 | uptime went **backward** | a swap landed mid-run |
+  | 3 | pod **younger than the run** | a swap landed mid-run even though uptime rose |
+  | 4 | pod **too young at START** (`MIN_POD_AGE_S`, 120 s) | no swap during the run, but the pod is **COLD** |
+
+  ⭐ **(4) is not a variant of (3).** Forward uptime proves only that no swap
+  happened DURING the run; it says nothing about whether the pod was warm enough to
+  measure. Check 3 runs before check 4 so its specific diagnosis is not swallowed by
+  the broader one — a mid-run swap and a cold start are different facts.
+
+  ⚠️ **120 s is a floor derived from one observed pair, not a tuned number**: the
+  same check returned `parts served: NONE` on a 38 s-old pod and all six parts on a
+  232 s-old pod. It is deliberately generous — an extra INCONCLUSIVE costs one re-run,
+  a false failure at the open costs a wrong diagnosis. `--min-pod-age` overrides it.
+- A swapped run prints `!! INCONCLUSIVE` and is filtered out of every median. The
+  summary **says how many were dropped** — a silent discard is as misleading as
+  averaging them in, because nobody can tell `n` fell.
+- ⛔ **An ERROR row carries the verdict too.** The error paths used to return before
+  the second uptime read, so `login http 502` — the exact symptom a swap produces —
+  came back with no verdict at all. That was the one case the rule exists for.
+
+⭐ **FAIL CLOSED on "could not tell".** During a swap `/api/health` itself 502s, so an
+unreadable uptime IS the swap case wearing a blank face. Treating `None` as fine is
+the shape `lesson_a_saturated_instrument_reports_zero` names.
+
+**Every row now prints `pod age at start=... after=...`**, whether or not it was
+discarded — an operator can see the condition rather than having to trust the verdict,
+and the discard summary names the cause **per run** instead of asserting "a swap".
+
+Rail: `tests/test_flow_rig_swap_guard.py` — eleven cases, including a clean warm
+control, a fails-closed sweep over every invalidating input, a pin on the 120 s literal
+(so the default cannot be quietly "fixed" to match a failing run), and a source check
+that `main()` still filters and still counts. Mutation-proved four ways: invert the
+backward comparison; delete the cold-start branch; drop the floor to 0; reorder checks 3
+and 4. Each goes RED naming the right test.
+
+And the WIRING was smoke-tested against the live site, which the pure-function tests
+cannot reach: `--min-pod-age 99999` on a real run printed
+`!! INCONCLUSIVE ... pod was only 677s old at the START (floor 99999s)`, reported
+`1 run(s) DISCARDED`, and left every median as `NOTHING MEASURED`.
+
+⚰️ **Why it is a hard rule and not advice.** On 2026-09-12 the rig reported
+`login http 502` on three consecutive runs and it read exactly like a broken product.
+It was another workstream pushing five times in six minutes. Later the same afternoon
+it happened again on the rig's own verification run, and the deploy in flight was
+*this session's own commit*. Both times the honest answer was "nothing was measured".
+
+---
+
+## Path B, four runs total — the picks result is BIMODAL, and it correlates
+
+> ### ⚠️ QUIET TAPE — NOT A MEASUREMENT. Version frozen at 39819849 throughout.
+
+All four runs verified **not swapped** (uptime monotonic across each), so none of this
+is deploy churn:
+
+| run | `shell_ms` | `picks_ms` | flow req | wire | shape |
+|---|---|---|---|---|---|
+| A | 462 | **never** | 7 | 2,119,080 B | clean |
+| B | 446 | 1,329 | 7 | 2,119,080 B | clean |
+| C | 614 | 15,863 | 8 | 3,536,844 B | storm |
+| D | 719 | 30,547 | 6 | 3,367,123 B | storm |
+
+**`shell_ms` is tight: 446–719 ms.** `picks_ms` spans 1,329 ms → 30,547 ms → never, on
+an identical quiet tape. That is not a slow page; it is two different behaviours.
+
+### ⭐ The correlation that turns two Monday questions into one
+
+The **clean** runs issue 7 flow requests for 2,119,080 B — two un-versioned first-paint
+parts, then the four versioned deferred parts. The **storm** runs issue 6–8 requests
+for ~3.4 MB and spend them **re-requesting `bootstrap` and `TOP_PICKS`** rather than
+proceeding to the deferred remainder. Fast picks appear only on the clean shape.
+
+So the duplicate-request storm and the slow/absent picks table look like **one defect,
+not two**: something re-fires the first-paint fetch instead of advancing, and the table
+waits on a product that keeps being re-requested. That reframes Monday's observation:
+
+⛔ **Count MOUNTS, not requests.** A remount would produce exactly this — repeated
+first-paint parts, no progression to the deferred set, and a table whose gate never
+settles. A render gate below the shell would NOT re-issue the network calls, so the
+request pattern is the discriminator between the two hypotheses.
+
+⚠️ Run A is still the worst case and the most informative: clean shape, 7 requests,
+parts served — and the table never rendered inside the settle window. Whatever the
+storm is, it is not the only way to lose the picks table.
+
+
+---
+
+## Login pacing — the limiter must not cost a measurement window
+
+`/api/auth/login` is `@limiter.limit("5/minute")` keyed by client IP
+(`api/routers/auth.py:246`, slowapi). Every rig run opens a **fresh context** — that IS
+the cache clear — so each run logs in once, and a naive sequence of runs trips on the
+6th login inside any minute.
+
+⚰️ Measured 2026-09-12: three consecutive path-B runs returned `login http 429` and
+read exactly like a broken product. On a Monday open that costs the one thing that
+cannot be re-run.
+
+- `_pace_login()` runs before **every** login on both paths and blocks until a login
+  would not trip the limiter. The ledger is module-level on purpose: the limiter counts
+  per IP across every run, path and account, so per-run state would be blind to exactly
+  the sequence that trips it.
+- **The cap is 4/minute, not 5.** The window is the SERVER's; our clock, request travel
+  time and any retry all shift where a login lands inside it. One slot of headroom turns
+  a boundary race into a non-event. Pinned by a test so it cannot drift up.
+- `_login_wait_s()` is a **pure** decision function, so the waiting path is testable
+  without spending a minute to reach it — a guard whose only route through it is a 60 s
+  sleep is a guard no test will ever exercise.
+- **A 429 is reported as INCONCLUSIVE, not an error**, on both paths, overriding whatever
+  the uptime verdict said. A rate-limited login measured nothing, and calling it a
+  product error is the same misreading as calling a cold pod a parts failure.
+
+Rail: `tests/test_flow_rig_swap_guard.py` — 5 pacing cases including a clear-window
+control and a pin on the cap literal. Mutation-proved three ways: raise the cap to 5,
+make the pacer never wait, delete both 429 branches. Each RED, naming the right test.
+
+
+---
+
+## The GEX crosshair protocol (`tools/gex_crosshair_probe.py`)
+
+Navigates a member to GEX → Chart with Levels, scrolls the chart into a drivable
+band, drives 60 synthetic moves across its width in ~1 s, and **refuses to report
+anything until it proves it is driving the crosshair**.
+
+### ⛔ Four instrument traps, all hit for real on 2026-09-13
+
+1. **The chart is below the fold.** It renders at `y≈1125` in a 1000 px viewport, so
+   a box read before scrolling points off-screen and every synthetic move lands
+   nowhere. The control reported `dom mutations=0` — which a naive harness publishes
+   as "the crosshair never responds". Scroll first, then re-read the box, and require
+   a drivable VISIBLE BAND rather than full containment (demanding containment
+   refused a perfectly good surface whose last 5 px fell below the fold).
+2. **Event Timing does not emit `pointermove`.** Chrome reports discrete
+   interactions, so an input-to-paint metric comes back n=0 on a working chart. Use a
+   listener on the canvas instead — verified: 5 synthetic moves produce 5 pointermove
+   and 5 mousemove, and `elementFromPoint` at the drive centre is the CANVAS.
+3. **This chart renders no DOM legend** that changes on crosshair move, so a
+   MutationObserver reads 0 for a crosshair that works. It is canvas-only.
+4. **`get_by_role("button", name="GEX")` matches nothing here.** The tab bar is plain
+   `<button>`s whose accessible name is not what the role locator resolves, and the
+   miss surfaces 60 s later as "Chart with Levels never appeared" — which reads like
+   the GEX data failing rather than a selector miss. Click by exact button text.
+
+### ⭐ And two rules the results themselves taught
+
+- **A negative needs a POSITIVE CONTROL.** Inject ~25 ms of work per move and confirm
+  the probe reports dropped frames and a LoAF entry. Without that, "0 dropped frames"
+  is indistinguishable from a blind instrument.
+- **Headless and headed disagree, so state which you ran.** Headless showed 0 dropped
+  frames; headed showed 15–17 — and a non-GEX chart headed showed 54. Headed numbers
+  on a shared-GPU dev box are dominated by the environment, so any headed claim needs
+  a same-session control on another surface before it means anything.

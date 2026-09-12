@@ -582,24 +582,33 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
       3. Re-run the three observable classes above against the new type's own
          fixture event, and re-run the mutation proof.
     """
-    # ⛔ FLIPPED 2026-09-12 by GATE-S7-PRICE-LEVEL Checkpoint 1. Updated by
-    # NAMING the new type, never by deleting the assertion -- the docstring's
-    # own instruction.
+    # ⛔ UPDATED BY NAMING, NEVER BY DELETING THE ASSERTION -- the docstring's own
+    # instruction. Flipped twice:
+    #   2026-09-12  `price-level`      GATE-S7-PRICE-LEVEL CP1
+    #   2026-09-12  `event-proximity`  GATE-S7-EVENT-PROXIMITY CP1
     #
-    # ⚠️ STEPS 2 AND 3 ABOVE ARE DELIBERATELY NOT DONE YET, and this is the
-    # record of that decision rather than an oversight. Checkpoint 1 registers
-    # `price-level` and ships NO evaluator, so the type cannot fire:
-    #   - step 2 (an `alerts._s7_durable_alerts` reconstruction branch) guards
-    #     fires being dropped from the member's feed. With no evaluator there
-    #     are no fires to drop. It lands with the evaluator, under its own
-    #     approval, and the sibling test below still demonstrates the hazard.
-    #   - step 3 (re-running the three observable classes against the new
-    #     type's fixture event) needs a fire to run against.
-    # "Cannot fire" is not taken on trust: `test_the_type_is_dark_by_construction_not_by_intention`
-    # in tests/test_alert_taxonomy_price_level_schema.py asserts price_level.py
-    # does not import `delivery`, and `test_the_registration_is_not_wired_yet`
-    # asserts nothing calls its register().
-    _EXPECTED = {"document-arrival", "price-level"}
+    # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
+    # record of that decision rather than an oversight.
+    #
+    # `event-proximity` CP1 registers the type and ships NO evaluator, so it
+    # cannot fire at all -- step 2 guards fires being dropped from the member's
+    # feed, and there are none; step 3 needs a fire to run against.
+    #
+    # ⛔ `price-level` IS DIFFERENT NOW AND THE DISTINCTION MATTERS. It has an
+    # evaluator (CP2) that is WIRED and ARMED (CP3/CP3b), writing real
+    # alert_fires rows for the admin cohort. It still owes no reconstruction
+    # branch only because it delivers NOTHING -- the dark rail
+    # `test_no_cp3_module_imports_delivery` asserts that from the source, with a
+    # non-vacuity control. ⭐ The day price-level flips, step 2 is a PRECONDITION
+    # of that PR, not a follow-up: a fire that reaches the taxonomy store but has
+    # no reconstruction branch is silently absent from the member's feed, which
+    # is the hazard the sibling test below demonstrates.
+    #
+    # ⚰️ This block cited `test_the_registration_is_not_wired_yet`. That test was
+    # INVERTED when CP3 wired register() -- it is now
+    # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
+    # rather than left pointing at a name that no longer exists.
+    _EXPECTED = {"document-arrival", "price-level", "event-proximity"}
 
     files, declared = _declared_trigger_types()
 

@@ -43,6 +43,13 @@ def test_quarantine_is_the_exact_pinned_set():
         "api/services/screener/fundamentals_bulk.py",
         "api/services/ticker_logos.py",
         "api/services/engine.py",
+        # ⛔ ADDED 2026-09-12 by the G5 ruling. ⭐ Unlike every other entry here,
+        # this one is NOT migration debt — it is a deliberate architectural
+        # exemption: fmp_news absorbs transient failure and owns a PER-RUN
+        # request budget; the adapter fails fast with a GLOBAL token bucket.
+        # Retiring it would mean changing that contract, not finishing a
+        # migration. The reason lives in tools/fmp_guard_census.py's QUARANTINE.
+        "api/services/news/adapters/fmp_news.py",
         "api/services/earnings_estimates.py",
     }
     # Every entry must carry a real, non-empty reason -- an exemption with no
