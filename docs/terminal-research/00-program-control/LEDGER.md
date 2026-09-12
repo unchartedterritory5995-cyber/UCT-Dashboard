@@ -178,8 +178,69 @@ them and cannot yet validate them. Five PRs, merged by the owner, in this order:
 | 1 | `feat/s7-filing-watch-parity` | `c46be401f` | ✅ **MERGED** 2026-09-11 22:41 CDT | **`6ed34c4b0`** |
 | 2 | `feat/i1-rails` | `be3474241` | ✅ **MERGED** | **`8bf8e93b1`** |
 | 3 | `fix/alert-bell-filing-icon` | `76f6e2e77` | ✅ **MERGED** ⛔ MEMBER-VISIBLE | **`080297866`** |
-| 4 | `feat/s3-admin-routes` | `3ebe013a5` | ⛔ **HELD — CI RAIL FAILS** (below) | — |
-| 5 | `feat/d1-adoption-sweep` | `638e12f48` | ⏸️ **HELD** — clean, but its value is in being read after #4 | — |
+| — | *(runbook Interpretation section)* | — | ✅ **MERGED** 22:52 | **`5b85e0e6c`** |
+| 4 | `feat/s3-admin-routes` | `3ebe013a5` | ✅ **MERGED** — **flow-worker stranded: ADDITIVE** | **`1667fc64d`** |
+| 5 | `feat/d1-adoption-sweep` | `638e12f48` | ✅ **MERGED** — rail N/A | **`449c3907b`** |
+| 6 | `feat/d1-adapter-gaps-g2-g4` | `c8c1e431f` | ✅ **MERGED** — **flow-worker stranded: ADDITIVE** | **`1a3668eaf`** |
+
+### Strand classifications, under the runbook's Interpretation section
+
+| merge | classification | why, in one line |
+|---|---|---|
+| `1667fc64d` **#4** | **ADDITIVE, safe; redeploy at next window** | **Zero deletions anywhere in `api/`.** Adds a new router, two lines in `main.py` (import + mount), and `store.status_counts()`. flow-worker reaches `entity_master/store.py` transitively via `massive.py` and would run a version lacking only a function **it never invokes**. |
+| `449c3907b` **#5** | **N/A — rail does not fire** | Touches no `api/` file at all (`tools/`, `tests/`, `docs/`). |
+| `1a3668eaf` **G2/G4** | **ADDITIVE, safe; redeploy at next window** | The **only** deletion in the diff is a `typing` import line gaining `Sequence`. Adds twelve new functions to `fmp_client.py`; flow-worker reaches that module but **calls none of them**. |
+
+⛔ **Both ADDITIVE claims were checked against the diff, not the intent** — `git diff <merge-base>..HEAD -- api/ | grep -cE '^-[^-]'` returned **0** for #4 and **1** for G2/G4, and that one was read (the import line).
+
+### ✅ Post-merge verification on production
+
+**Deploy `SUCCESS`** for `1a3668eaf` (confirmed from `railway deployment list --service web --json`,
+matched on the commit hash — not from a health-check guess).
+
+**The first merge in this program with new API surface to actually probe, so it was probed, with a control:**
+
+| probe | result |
+|---|---|
+| `GET /api/admin/entity-master/status` unauthenticated | **401 · `application/json`** — mounted and admin-gated, exactly as specified |
+| `GET /api/admin/entity-master/nope-not-a-route` (control) | **200 · `text/html`** — the SPA catch-all |
+
+⭐ **The control is what makes the 401 mean something.** Without it, a 200 from the catch-all reads
+as a healthy route; with it, the JSON-401-vs-HTML-200 split proves the router is live rather than
+being answered by the frontend shell.
+
+⚠️ **AND IT CAUGHT A REAL INSTRUMENT ERROR OF MINE, worth recording as the session's sixth false
+signal.** My first probe, minutes after the push, returned **200 `text/html` for BOTH** the route and
+the control — i.e. not mounted. The cause was my own deploy watcher: it fired on *any* `uptime < 400`,
+and an earlier push's build was still settling, so it reported "WEB REDEPLOYED" for the **previous**
+deploy. **A watcher that cannot tell two deploys apart will always confirm the wrong one.** The fix
+was to key the watch on the **commit hash** in Railway's deployment list, which reported `BUILDING`
+at exactly the moment the uptime watcher had declared success.
+
+### Both reds, re-measured on the merged tree
+
+| rail | before | after |
+|---|---|---|
+| `test_test_discovery_coverage` | 1 failed / 4 passed | ✅ **5 passed, exit 0 — GREEN** |
+| `test_fmp_guard_census` | 1 failed / 7 passed, quarantine **12** | **1 failed / 9 passed**, quarantine **10** |
+
+The census failure is the unchanged pre-existing `fmp_news.py:37`, blocked by **G5** (that file
+carries a 3-attempt retry loop and a `RequestBudget` ceiling the adapter has no equivalent for). Two
+more tests pass than before, and two stale quarantine entries are gone.
+
+### ⛔ FLOW-WORKER REDEPLOY — OWED, NOT YET DONE
+
+Two ADDITIVE strands are now on master (`entity_master/store.py`, `fmp_client.py`). Per the
+Interpretation section, flow-worker gets redeployed at the next window so staleness never exceeds a
+week. **`RAILWAY_TOKEN` is not set**, so the owner's stated fallback applies — though the `railway`
+CLI *is* authenticated on this machine, so the action is one command away on the owner's word. ⛔ Not
+taken unilaterally: a flow-worker redeploy drops the OPRA websocket and Massive does not replay, and
+the owner reserved this click for themselves in the no-token case.
+
+### F-I1-3 — CLOSED
+
+✅ Delivered inside GATE-I1 slice 1 and merged at `8bf8e93b1`: golden-set adversarial cases B01–B06
+for the hard boundary plus 15 payloads across four families. **No gate line was needed.**
 
 **Master `a10c7c94a` → `080297866`.** Verified per merge: content present, rail OK, and on the final
 stack **361 backend passed / exit 0** and **3 frontend files, 26 tests passed / exit 0**.
