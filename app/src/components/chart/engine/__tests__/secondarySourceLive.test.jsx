@@ -27,8 +27,10 @@ const H = vi.hoisted(() => ({
   addSeriesCalls: [],
   chartContainers: [],
   syncCtx: [],
+  binderApis: [],
   reset() {
-    H.addSeriesCalls.length = 0; H.chartContainers.length = 0; H.syncCtx.length = 0
+    H.addSeriesCalls.length = 0; H.chartContainers.length = 0
+    H.syncCtx.length = 0; H.binderApis.length = 0
   },
 }))
 
@@ -82,7 +84,13 @@ vi.mock('lightweight-charts', () => {
     timeScale: () => timeScale,
     subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {},
     subscribeClick: () => {}, unsubscribeClick: () => {},
-    panes: () => [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div') }],
+    // ⚠️ SEVERAL PANES, because an own-pane definition needs somewhere to go and
+    // `resolvePlacement` fails closed when the layout has no pane for a key.
+    panes: () => [0, 1, 2, 3].map(() => ({
+      getHeight: () => 300, setHeight: () => {},
+      getHTMLElement: () => document.createElement('div'),
+      priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
+    })),
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
@@ -136,6 +144,7 @@ vi.mock('../binder', async (importOriginal) => {
     ...actual,
     createBinder: (args) => {
       const real = actual.createBinder(args)
+      H.binderApis.push(real)
       return {
         ...real,
         sync: (ctx) => { H.syncCtx.push(ctx); return real.sync(ctx) },
@@ -166,14 +175,24 @@ const secondaryBarsFor = (offset) => BARS.map((b) => ({ ...b, c: b.c + offset, v
  *  restored from the un-overridden base before any settings write persists, so an
  *  override can never leak into the global blob". Paired with `onSettingsPersist`
  *  — which routes every in-chart write to a local sink — nothing here can reach
- *  Main Trading's preference row. */
+ *  Main Trading's preference row.
+ *
+ *  ⛔⛔ AND IT CARRIES NO `placement`, WHICH PHASE 1.6 LEARNED THE HARD WAY.
+ *  An earlier fixture wrote `placement: { target: 'pane' }` from memory and the
+ *  series silently never appeared. `paneLayout.paneTargetIds()` builds the
+ *  pane-eligible set from each DEFINITION's declared `placement.target === 'pane'`
+ *  and never consults an instance override; `movingAverage` declares
+ *  `{ target: 'price' }`, so the layout allocates it no pane, `resolvePlacement`
+ *  fails closed, and the binder gets no placement. Letting the definition choose
+ *  is both correct and the only shape that draws. */
 const maOver = (source) => ({
   engineEnabled: true,
+  indicators: { movingAverage: { enabled: true } },
   indicatorInstances: [{
     instanceId: 'legacy:movingAverage',
     defId: 'movingAverage',
     inputs: { source, period: 5, color: MA_INK },
-    placement: { target: 'pane' },
+    hidden: false,
   }],
 })
 
@@ -187,9 +206,6 @@ const draw = (settings, extra = {}) => render(
     {...extra}
   />,
 )
-
-/** Every series the real chart created for a given constructor. */
-const seriesOf = (ctor) => H.addSeriesCalls.filter((c) => c.ctor === ctor)
 
 /** ⚠️ THE SERIES THIS TEST OWNS, FOUND BY ITS COLOUR. A chart draws plenty of
  *  its own lines — the volume moving average alone carries values in the
@@ -215,8 +231,13 @@ beforeEach(() => {
     const u = String(url)
     const hit = /\/api\/bars\/([^?]+)\?/.exec(u)
     const sym = hit ? decodeURIComponent(hit[1]) : null
-    if (sym === SECURITY || sym === BREADTH) {
+    if (sym === SECURITY || sym === BREADTH || sym === 'SPY') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ bars: secondaryBarsFor(1000) }) })
+    }
+    if (sym === '^IXIC') {
+      // What the route really answers for a cash index: empty, WITH a reason.
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({
+        bars: [], sealed: false, note: 'index history not served by /api/bars-history' }) })
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
   }))
@@ -230,8 +251,15 @@ describe('§7, §8 · REAL RENDER — the secondary source reaches the real rend
     // subscribe-driven repaint that follows it.
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
 
-    // The chart drew: candles, volume, the real pipeline ran.
-    expect(seriesOf('CandlestickSeries').length).toBeGreaterThan(0)
+    // ⭐⭐ THE CLOSED LOOP. A real LWC series exists, carrying the SECONDARY's
+    // numbers, created by the real binder through the real placement machinery.
+    const ours = mine()
+    expect(ours, 'no series was created for the symbol source').toBeTruthy()
+    expect(ours.ctor).toBe('LineSeries')
+    const drawn = valuesOf(ours)
+    expect(drawn.length).toBeGreaterThan(0)
+    expect(Math.min(...drawn)).toBeGreaterThan(1000)   // secondary, not primary
+    expect(Math.max(...BARS.map((b) => b.c))).toBeLessThan(1000)
 
     // ⭐⭐ THE INTEGRATION CHAIN, OBSERVED IN ONE OBJECT. The REAL StockChart
     // built this context and handed it to the REAL binder: the member's instance
@@ -253,15 +281,25 @@ describe('§7, §8 · REAL RENDER — the secondary source reaches the real rend
     expect(BARS[0].c).toBeLessThan(1000)
   })
 
-  it.each(FAMILIES)('%s: an UNAVAILABLE symbol draws no fabricated line', async (_label, sym) => {
-    // Nothing primed. The chart must render, and nothing may stand in for the
-    // missing instrument.
-    await act(async () => { draw(maOver(symbolSource(sym, 'close'))) })
+  it('⛔⛔ §20 AN UNSUPPORTED SYMBOL FABRICATES NOTHING — the cash-index case', async () => {
+    // `/api/bars/^IXIC` answers an empty list WITH a note. The stubbed network
+    // reproduces exactly that, so this exercises the real unsupported path rather
+    // than an absent fixture.
+    await act(async () => { draw(maOver('sym:^IXIC:close')) })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
     const ours = mine()
-    // ⛔ Either no series at all, or one with NOTHING in it. What must never
-    // happen is a line carrying the primary's numbers under the secondary's name.
+    // ⛔ THE FORBIDDEN OUTCOMES, EACH ASSERTED ABSENT: no primary fallback, no
+    // ETF proxy, no zero fill, no stale unrelated line. Either no series, or one
+    // carrying nothing.
     expect(valuesOf(ours)).toHaveLength(0)
     expect(H.chartContainers.length).toBeGreaterThan(0)   // the chart still mounted
+
+    // ⭐ AND THE SOURCE CONFIGURATION IS RETAINED — availability is a runtime
+    // fact, not a reason to rewrite what the member asked for.
+    const ctx = H.syncCtx[H.syncCtx.length - 1]
+    const inst = ctx.instances.find((i) => i.defId === 'movingAverage')
+    expect(inst.inputs.source).toBe('sym:^IXIC:close')
   })
 })
 
@@ -498,5 +536,94 @@ describe('§13–§17 · LIFECYCLE THROUGH THE REAL COMPONENT', () => {
     const ctx = ctxNow()
     expect(ctx.secondary.has(SECURITY)).toBe(true)
     expect(ctx.secondary.get(SECURITY).status).toBe(SOURCE_STATUS.AVAILABLE)
+  })
+})
+
+describe('§11–§13, §28 · THE REAL SERIES — pane, type, scale, no duplicates', () => {
+  it.each(FAMILIES)('%s: series type, pane and scale are the ordinary ones', async (_label, sym) => {
+    await act(async () => { draw(maOver(symbolSource(sym, 'close'))) })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    const ours = mine()
+    expect(ours).toBeTruthy()
+    // §12 — the immutable LWC type, and it is the ordinary scalar one.
+    expect(ours.ctor).toBe('LineSeries')
+    expect(ours.ctor).not.toBe('CandlestickSeries')
+    // §11/§13 — `movingAverage` declares a PRICE target, so it overlays the
+    // candles on their own scale. That is the definition's decision, unchanged by
+    // the source family: the secondary supplies numbers, not placement.
+    expect(ours.paneIndex ?? 0).toBe(0)
+    expect(ours.options.priceScaleId).toBe('right')
+  })
+
+  it('⛔ §28 A RERENDER DOES NOT CREATE A SECOND SERIES', async () => {
+    const view = draw(maOver(symbolSource(SECURITY, 'close')))
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    const first = H.addSeriesCalls.filter((c) => c.options?.color === MA_INK).length
+    expect(first).toBe(1)
+
+    await act(async () => {
+      view.rerender(
+        <StockChart sym="NVDA" tf="D" barsOverride={BARS}
+          settingsOverride={maOver(symbolSource(SECURITY, 'close'))} onSettingsPersist={() => {}} />)
+    })
+    await act(async () => { await Promise.resolve() })
+
+    // The pool re-purposes; it does not accumulate. A second LWC object per
+    // render is the leak `pool.js` exists to prevent.
+    expect(H.addSeriesCalls.filter((c) => c.options?.color === MA_INK)).toHaveLength(1)
+  })
+
+  it('§19 a SECONDARY SOURCE CHANGE repoints the plotted values', async () => {
+    const view = draw(maOver(symbolSource(SECURITY, 'close')))
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(valuesOf(mine()).length).toBeGreaterThan(0)
+
+    await act(async () => {
+      view.rerender(
+        <StockChart sym="NVDA" tf="D" barsOverride={BARS}
+          settingsOverride={maOver(symbolSource('SPY', 'close'))} onSettingsPersist={() => {}} />)
+    })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    const ctx = H.syncCtx[H.syncCtx.length - 1]
+    expect(ctx.secondary.has('SPY')).toBe(true)
+    expect(ctx.secondary.has(SECURITY)).toBe(false)
+
+    // ⚠️ ONE LIVE BINDING, NOT ONE LIFETIME CREATION. `addSeriesCalls` is
+    // cumulative, and a source swap legitimately releases the binding for the
+    // pass in which the new symbol is still in flight — a column that does not
+    // exist yet binds nothing — then takes a series again when it lands. What
+    // must never happen is TWO live series for one instance, which is what the
+    // binder's own book is the authority on.
+    const held = H.binderApis[0].bindings()
+      .filter((b) => b.instanceId === 'legacy:movingAverage')
+    expect(held).toHaveLength(1)
+    expect(valuesOf(mine()).length).toBeGreaterThan(0)
+  })
+
+  it('§21 GAPS STAY GAPS — a missing secondary bar is not filled', async () => {
+    // One timestamp removed from the middle of the secondary series. The plotted
+    // column must be short by exactly that bar rather than bridged with a value.
+    const full = secondaryBarsFor(1000)
+    const holed = full.filter((_, i) => i !== 100)
+    globalThis.fetch = vi.fn((url) => {
+      const hit = /\/api\/bars\/([^?]+)\?/.exec(String(url))
+      const sym = hit ? decodeURIComponent(hit[1]) : null
+      if (sym === SECURITY) return Promise.resolve({ ok: true, json: () => Promise.resolve({ bars: holed }) })
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+
+    await act(async () => { draw(maOver(symbolSource(SECURITY, 'close'))) })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    const ctx = H.syncCtx[H.syncCtx.length - 1]
+    expect(ctx.secondary.get(SECURITY).bars).toHaveLength(full.length - 1)
+
+    // ⛔ NOT FORWARD-FILLED. A 5-bar MA over a column with one NaN loses the
+    // window that spans it, so the finite count must be BELOW the no-gap case.
+    const drawn = valuesOf(mine())
+    expect(drawn.length).toBeGreaterThan(0)
+    expect(drawn.length).toBeLessThan(full.length - 4)
   })
 })
