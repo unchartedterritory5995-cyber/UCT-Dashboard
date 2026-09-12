@@ -848,3 +848,89 @@ def test_a_stalled_sweep_INSIDE_the_window_still_exits_nonzero(monkeypatch, dbp)
     text, code = rep.ticking(dbp)
     assert code == 1, "a stale heartbeat is a stall whatever the day"
     assert "STALLED" in text
+
+
+# --- THE DRY-RUN TOOL: it must not be able to reach the live store ----------
+
+def _dryrun_mod():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "s7dry", str(_REPO / "tools" / "s7_price_level_dryrun.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_the_dry_run_refuses_to_write_inside_the_shared_data_root(tmp_path):
+    """⛔ `/data` IS A REAL DIRECTORY ON THIS BOX, and the 2026-09-08 sandbox
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+    that replays past bars into a store MUST NOT be able to reach the live
+    comparison tables — a replay landing there would poison the forward-only
+    run with exactly the data the F-S7-3 ruling forbids.
+    """
+    import os
+    m = _dryrun_mod()
+
+    # A scratch path is allowed (control -- otherwise the guard could pass by
+    # refusing everything).
+    m._assert_scratch(str(tmp_path / "ok.db"))
+
+    existing = [r for r in m._FORBIDDEN_ROOTS if os.path.exists(os.path.realpath(r))]
+    if not existing:
+        pytest.skip("no live data root on this box to test the refusal against")
+    with pytest.raises(SystemExit) as e:
+        m._assert_scratch(os.path.join(existing[0], "alert_taxonomy.db"))
+    assert "REFUSING TO WRITE" in str(e.value)
+
+
+def test_the_dry_run_never_stamps_the_heartbeat():
+    """⛔ A REPLAY MUST NOT BE ABLE TO MAKE A DEAD SWEEP LOOK ALIVE.
+
+    The dry run calls `run_projected_comparison` directly, never `run_dark_sweep`
+    — and that distinction is the whole safety property, so it is asserted from
+    the SOURCE rather than trusted. ⛔ CODE, NEVER PROSE: the docstring discusses
+    the heartbeat at length.
+    """
+    src = (_REPO / "tools" / "s7_price_level_dryrun.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            node.value.value = ""
+    code = ast.unparse(tree)
+    assert "run_projected_comparison" in code, "the scan sees no evaluator call — broken"
+    assert "run_dark_sweep" not in code, (
+        "the dry run calls run_dark_sweep, which stamps the heartbeat — a replay "
+        "would then be indistinguishable from a live tick")
+    assert "_beat" not in code
+
+
+def test_the_dry_run_reports_a_missing_bar_instead_of_substituting_one():
+    """⛔ `get_bars_before` returns the newest bar AT OR BEFORE the date, so a
+    symbol with no bar on the requested session silently yields a DIFFERENT
+    day's bar. Substituting it would answer a different question and nobody
+    would know. It must land in `no_price` instead."""
+    m = _dryrun_mod()
+    import api.services.bars_sqlite as bs
+
+    calls = {}
+
+    def fake(sym, tf, n, to_key):
+        calls[sym] = True
+        if sym == "GOOD":
+            return [(20260911, 10.0, 11.0, 9.0, 10.5, 1)]
+        if sym == "STALE":
+            return [(20260910, 10.0, 11.0, 9.0, 10.5, 1)]   # the day BEFORE
+        return []
+
+    real = bs.get_bars_before
+    bs.get_bars_before = fake
+    try:
+        prices, missing = m._session_prices(["GOOD", "STALE", "NONE"], 20260911, "D")
+    finally:
+        bs.get_bars_before = real
+
+    assert prices == {"GOOD": (10.0, 10.5)}
+    assert any("STALE" in x for x in missing), (
+        "a bar from a different session was substituted instead of reported")
+    assert "NONE" in missing
