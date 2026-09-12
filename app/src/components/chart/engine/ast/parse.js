@@ -489,6 +489,63 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
   return seen.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 }
 
+
+/** ─── ⭐⭐ FOLD-KIND DISCLOSURES: THE SENTENCE IS DECLARED, NEVER COMPOSED ─────
+ *
+ *  A TRANSLATOR-LEVEL fold has no table function to hang a `vendorNote` on.
+ *  `request.security`, `security`, `tf` and `sym` are none of them table
+ *  functions, and the fold's whole point is that the wrapper is GONE from the
+ *  tree — so `vendorNotesForTree` cannot find it by construction, however hard it
+ *  walks. What survives is a DISCLOSURE the translation writes on the output row
+ *  (`baseTimeframeFolds`), and this is the map from that channel to the sentence
+ *  a member reads.
+ *
+ *  ⛔ DERIVED FROM `_folds`, NEVER LISTED HERE, for the reason `vendorNotesOf`
+ *  gives: today exactly one channel declares a note, and a reader written as
+ *  `name === 'baseTimeframeFolds'` would be indistinguishable from this one until
+ *  the day a second fold needs one — at which point the difference is a member
+ *  NOT being told about a divergence we had already measured and accepted.
+ *
+ *  ⛔ AND THE RENDERER COMPOSES NOTHING (owner ruling, 2026-09-12). The string
+ *  goes to the member verbatim, exactly as a refusal message does. A sentence
+ *  assembled in the component would be a second authority over one value.
+ */
+export function foldNotesOf(table) {
+  const out = {}
+  for (const [channel, spec] of Object.entries((table && table._folds) || {})) {
+    if (!spec || typeof spec !== 'object') continue
+    if (typeof spec.memberNote !== 'string' || !spec.memberNote.trim()) continue
+    out[channel] = spec.memberNote
+  }
+  return out
+}
+
+export const FOLD_NOTES = Object.freeze(foldNotesOf(TABLE))
+
+/** Every fold disclosure an OUTPUT ROW carries, in the shape `vendorNotesForTree`
+ *  returns, so the renderer has one list and one spelling.
+ *
+ *  ⭐ THE ROW, NOT THE TREE — that is the whole difference from `vendorNotesForTree`
+ *  and the reason both exist. The tree no longer mentions the fold; the row
+ *  records that it happened, with the line and the timeframe it folded.
+ *
+ *  ⛔ DEDUPED BY CHANNEL. A script folding four `request.security` calls has one
+ *  divergence to disclose, not four; four copies of one sentence read as four
+ *  problems (the same rule `vendorNotesForTree` applies by name).
+ *
+ *  ⚠️ A channel present on the row but NOT declared in `_folds` yields nothing
+ *  here and is not invented — `vendorTruth.test.js` and `test_vendor_truth.py`
+ *  are what make that loud, on the row that claims the member is told. */
+export function foldNotesForOutput(out, notes = FOLD_NOTES) {
+  const seen = []
+  for (const channel of Object.keys(notes)) {
+    const disclosures = out && out[channel]
+    if (!Array.isArray(disclosures) || disclosures.length === 0) continue
+    seen.push({ name: channel, note: notes[channel] })
+  }
+  return seen
+}
+
 /** The declaration that says an entry's OTHER `int` arguments must fit inside
  *  the one its `lookback` names. `closedTable.json::_functions_domain` argues it;
  *  this is the key both lanes match on, and its VALUE names which of the entry's

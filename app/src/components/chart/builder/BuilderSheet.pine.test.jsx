@@ -23,6 +23,7 @@ import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
+import { FOLD_NOTES } from '../engine/ast/parse'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
@@ -306,6 +307,25 @@ describe('a script this engine cannot run says so, at its own token', () => {
     expect(screen.queryByTestId('pine-refusal')).toBe(null)
     expect(screen.getByTestId('pine-formula-0').textContent).toBe('close')
     expect(screen.getByTestId('pine-use').disabled).toBe(false)
+
+    // ⭐⭐ AND THE MEMBER IS TOLD — owner ruling, 2026-09-12. The fold ERASES the
+    // call, so no tree walk can find it; the disclosure rides the output row and the
+    // SENTENCE is declared once in `closedTable.json::_folds`. This asserts the
+    // rendered text against that declaration rather than against a copy of it, so a
+    // reworded note cannot leave this test agreeing with itself.
+    const notes = screen.getByTestId('pine-vendor-notes').textContent
+    expect(notes).toContain(FOLD_NOTES.baseTimeframeFolds)
+  })
+
+  it('⛔ CONTROL: a script with nothing folded gets no fold note', async () => {
+    // Without this, "the note renders" is satisfied by a component that always
+    // renders it — which would tell every member about a divergence their script
+    // never met.
+    mount()
+    await flush()
+    await paste('//@version=5\nindicator("t")\nplot(ta.sma(close, 5))\n')
+    const el = screen.queryByTestId('pine-vendor-notes')
+    expect(el === null || !el.textContent.includes(FOLD_NOTES.baseTimeframeFolds)).toBe(true)
   })
 
   it('one bad plot beside a good one offers the good one and NAMES the bad one', async () => {

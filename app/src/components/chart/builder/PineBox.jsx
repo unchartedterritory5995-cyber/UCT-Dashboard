@@ -31,7 +31,7 @@ import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 import { paramLocatorsIn } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
-import { vendorNotesForTree } from '../engine/ast/parse'
+import { vendorNotesForTree, foldNotesForOutput } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
 import styles from './PineBox.module.css'
@@ -133,7 +133,17 @@ export function inspectPine(source, opts = undefined) {
   const outputs = translated.outputs.map((out) => ({
     ...out,
     ...splitFoldedInputs(out),
-    vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
+    // ⭐⭐ TWO SOURCES, ONE LIST, AND THE SECOND ONE CANNOT COME FROM THE TREE.
+    // A fold ERASES the call it folded — that is what a fold is — so a walk over
+    // the saved tree can never find `request.security` to hang a note on. The
+    // translation records it on the ROW instead, and `foldNotesForOutput` maps
+    // that channel to the sentence declared in `closedTable.json::_folds`.
+    // ⛔ Rendered VERBATIM, like every other note here: this component writes no
+    // sentence of its own (owner ruling, 2026-09-12).
+    vendorNotes: [
+      ...(out.ast ? vendorNotesForTree(out.ast) : []),
+      ...foldNotesForOutput(out),
+    ],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
     downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,
@@ -209,7 +219,17 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
       ...splitFoldedInputs(out),
-      vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
+      // ⭐⭐ TWO SOURCES, ONE LIST, AND THE SECOND ONE CANNOT COME FROM THE TREE.
+    // A fold ERASES the call it folded — that is what a fold is — so a walk over
+    // the saved tree can never find `request.security` to hang a note on. The
+    // translation records it on the ROW instead, and `foldNotesForOutput` maps
+    // that channel to the sentence declared in `closedTable.json::_folds`.
+    // ⛔ Rendered VERBATIM, like every other note here: this component writes no
+    // sentence of its own (owner ruling, 2026-09-12).
+    vendorNotes: [
+      ...(out.ast ? vendorNotesForTree(out.ast) : []),
+      ...foldNotesForOutput(out),
+    ],
       refusal: stamp(out.refusal),
       downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,
     }))

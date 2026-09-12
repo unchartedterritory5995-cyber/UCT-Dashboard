@@ -443,6 +443,38 @@ def vendor_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, s
     return out
 
 
+#: The block that carries the member sentence for a TRANSLATOR-LEVEL fold.
+#: ``closedTable.json::_folds``; ``parse.js::foldNotesOf`` is the same read.
+FOLDS_SECTION = "_folds"
+
+#: The key inside a ``_folds`` entry that holds that sentence.
+MEMBER_NOTE = "memberNote"
+
+
+def fold_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """Every fold DISCLOSURE CHANNEL declaring a ``memberNote`` -> that sentence.
+
+    ⭐ THE FOLD CASE OF ``vendor_notes``, AND IT EXISTS BECAUSE THE TREE CANNOT
+    CARRY IT. A fold erases the call it folded, so there is no function name left
+    for a ``vendorNote`` to hang on; what the translation leaves behind is a
+    disclosure on the OUTPUT ROW (``baseTimeframeFolds``), and the sentence for
+    that channel is declared once in the manifest and read by both lanes.
+
+    ⛔ DERIVED, NEVER LISTED — same argument as ``vendor_notes``: exactly one
+    channel declares a note today, so a reader written against that one name
+    would be indistinguishable from this until the day a second fold is accepted,
+    which is the day a member stops being told.
+    """
+    m = manifest if manifest is not None else TABLE
+    return {
+        channel: spec[MEMBER_NOTE]
+        for channel, spec in (m.get(FOLDS_SECTION) or {}).items()
+        if isinstance(spec, Mapping)
+        and isinstance(spec.get(MEMBER_NOTE), str)
+        and spec[MEMBER_NOTE].strip()
+    }
+
+
 #: The declaration that says an entry's OTHER ``int`` arguments must fit inside
 #: the one its ``lookback`` names. ``closedTable.json::_functions_domain`` argues
 #: it; this is the key both lanes match on, and its VALUE names which of the

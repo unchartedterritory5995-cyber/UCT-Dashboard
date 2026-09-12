@@ -358,7 +358,8 @@ def test_the_shared_schema_is_what_THIS_lane_enforces():
                 "status_vocabulary", "member_hook_kinds",
                 "accepted_requires_member_hook",
                 "decision_required_keys_when_corrected",
-                "corrected_requires_correctedIn"):
+                "corrected_requires_correctedIn",
+                "fold_requires_member_note"):
         assert key in _SCHEMA, f"the shared schema does not declare `{key}`"
     assert _SCHEMA["decision_required_on_status"] == ["accepted"], (
         "`decision` is read only on accepted rows; the schema must say so rather than "
@@ -598,6 +599,18 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
             assert found, (
                 f"{row['id']}: fold hook names `{name}` and NO source emits it. A "
                 f"disclosure channel nobody writes to tells a member nothing.")
+
+            # ⛔⛔ AND EMITTING IT IS NOT TELLING ANYBODY — owner ruling 2026-09-12.
+            # `baseTimeframeFolds` was written on every folded output row while no
+            # surface rendered it: the channel existed and the member heard nothing.
+            # The sentence is declared once in `closedTable.json::_folds`, read here
+            # and by `parse.js::foldNotesOf`, and rendered verbatim by `PineBox`.
+            if _SCHEMA.get("fold_requires_member_note"):
+                from api.services.ast_table import fold_notes
+                assert fold_notes().get(name), (
+                    f"{row['id']}: fold channel `{name}` has no `memberNote` in "
+                    "`closedTable.json::_folds` — the disclosure reaches nobody, which "
+                    "is the difference between ACCEPTED and merely KNOWN.")
             continue
 
         # kind == 'vendorNote': the manifest key is the function.

@@ -25,6 +25,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { translatePine } from './pine.js'
+import { FOLD_NOTES } from './parse.js'
 import { translateThinkScript } from './thinkscript.js'
 import { astHash } from './parse.js'
 
@@ -155,7 +156,9 @@ describe('the divergence roster satisfies the SHARED schema', () => {
       'status_vocabulary', 'member_hook_kinds', 'accepted_requires_member_hook',
       'decision_required_on_status',
       // the corrected-row contract, Python-only until 2026-09-12 (third instance)
-      'decision_required_keys_when_corrected', 'corrected_requires_correctedIn']) {
+      'decision_required_keys_when_corrected', 'corrected_requires_correctedIn',
+      // and the fold obligation, added the same day by ruling
+      'fold_requires_member_note']) {
       expect(schema[key], `the shared schema does not declare \`${key}\``).toBeDefined()
     }
     expect(Object.keys(schema.member_hook_kinds).sort()).toEqual(['fold', 'vendorNote'])
@@ -221,6 +224,11 @@ describe('the divergence roster satisfies the SHARED schema', () => {
     // function the id names. `fold` is for a TRANSLATOR-LEVEL divergence with no table
     // function to hang one on, where the member is told by the disclosure the
     // translation emits on the definition itself.
+    // ⭐ NON-VACUITY FOR THE FOLD BRANCH: without a fold row on the roster the
+    // paragraph below is dead code that reads as coverage.
+    expect(doc.rows.filter((r) => r.status === 'accepted'
+      && (r.member_hook || {}).kind === 'fold').length,
+    'no accepted fold row — the fold branch of this rail would never run').toBeGreaterThan(0)
     for (const row of doc.rows) {
       if (row.status !== 'accepted') continue
       const hook = row.member_hook || { kind: 'vendorNote' }
@@ -252,6 +260,18 @@ describe('the divergence roster satisfies the SHARED schema', () => {
         expect(hits.length,
           `${row.id}: fold hook names \`${hook.name}\` and no engine source emits it`)
           .toBeGreaterThan(0)
+
+        // ⛔⛔ AND EMITTING IT IS NOT TELLING ANYBODY — owner ruling, 2026-09-12.
+        // `baseTimeframeFolds` was emitted on every folded output row for a week and
+        // NO surface read it: the channel existed, the member did not hear a word.
+        // "Accepted" means the member is TOLD, so a fold row owes the SENTENCE too,
+        // declared once in `closedTable.json::_folds` and rendered verbatim.
+        if (schema.fold_requires_member_note) {
+          expect(FOLD_NOTES[hook.name],
+            `${row.id}: fold channel \`${hook.name}\` has no \`memberNote\` in `
+            + '`closedTable.json::_folds` — the disclosure reaches nobody, which is '
+            + 'the difference between accepted and merely known').toBeTruthy()
+        }
       }
     }
   })

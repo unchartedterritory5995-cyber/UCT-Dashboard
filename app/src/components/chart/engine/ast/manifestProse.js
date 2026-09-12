@@ -65,6 +65,14 @@ export const KEEP = Object.freeze([
   // this rail has caught, and the first one it caught by failing the BUILD
   // instead of by somebody noticing.
   '_barstate',
+  // ⛔⛔ READ BY `parse.js::foldNotesOf` AND `PineBox`, AND IT IS THE ONLY COPY OF
+  // THE SENTENCE. `_folds` carries the member-facing note for a TRANSLATOR-LEVEL
+  // fold — a divergence with no table function to hang a `vendorNote` on. Stripping
+  // it does not break a computation, which is exactly why it would ship: every
+  // number stays right and the member is simply never told that their
+  // `request.security` became the chart's own series. That is the failure the
+  // divergence roster calls "merely KNOWN", arriving through the build.
+  '_folds',
 ])
 
 /**
