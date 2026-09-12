@@ -862,6 +862,18 @@ what would make it unacceptable for a real one. The allow-list is one hard-coded
 (`SMOKE_USER_ID`, default `f4433528-…`); any other id gets the same 404 as the flag being off, so
 the endpoint cannot be used as an oracle for which account is the privileged one.
 
+⭐ **Watch-coverage classification for this change (required by `docs/runbooks/deploy-windows.md`,
+which makes a red a REVIEW GATE, not a block) — INERT STRAND, no flow-worker redeploy.**
+`tools/flow_worker_watch_coverage.py` goes red on `api/services/auth_service.py` and
+`api/services/auth_db.py`: flow-worker RUNS them and will not redeploy for them. Traced rather
+than assumed — flow-worker's import closure reaches `auth_service` by exactly one hop
+(`flow_worker_main` → `flow_gap_autofill` → `flow_admin_auth`) for exactly one symbol,
+**`validate_session`**, which this change does not touch; and `api/routers/auth.py` — the *only*
+caller of every changed function — **is not in that closure at all**. The migration is additive
+with `DEFAULT 'reset'`, so even a stale writer produces correct rows. ⛔ Forcing a redeploy via
+the marker would be Tier 2 during market hours: a dropped Massive OPRA socket is a permanent tape
+gap, paid for zero behavioural difference.
+
 ⛔ **`password_resets` now backs two token kinds and the `purpose` column is what keeps them
 apart.** The direction that matters is not the obvious one: without the filter, a leaked
 **password-reset** token would be redeemable as a **login**, turning every reset email into a
