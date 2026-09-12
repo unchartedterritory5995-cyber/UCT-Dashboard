@@ -1,13 +1,16 @@
 {
   "schema_version": 1,
   "generated_by": "tools/build_canonical_address_book.py",
-  "what_this_is": "D2 CP1 — the canonical address book as INERT DATA. Every value is derived from a declaration that already exists in this repo; none is typed here. No product path reads this file, and a rail enforces that. See PRD-D2-CANONICAL-DATA-MODEL and SPEC-D2-CANONICAL-DATA-MODEL.",
+  "what_this_is": "D2 CP2 — the canonical address book. Every value is derived from a declaration that already exists in this repo; none is typed here. CP1 shipped it inert; CP2 adds the first non-screener store (bars_sqlite, derived from its own CREATE TABLE) and exactly ONE product reader, api/services/canonical/address_book.py, which is named by the rail that used to require zero readers. See PRD-D2-CANONICAL-DATA-MODEL and SPEC-D2-CANONICAL-DATA-MODEL.",
   "address_grammar": "uct://<metric>@<entity>/<timeframe>?as_of=<instant>[&provider=<vendor>]",
   "axes": {
     "metric": {
-      "source": "app/src/components/chart/engine/ast/closedTable.json",
-      "read_through": "api.services.ast_lint.TABLE['scalars']",
-      "count": 137
+      "sources": [
+        "app/src/components/chart/engine/ast/closedTable.json (via api.services.ast_lint.TABLE['scalars'])",
+        "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal"
+      ],
+      "count": 142,
+      "note": "a bars metric is table-qualified (ohlcv.c) so a one-letter column cannot shadow a screener scalar"
     },
     "entity": {
       "source": "api/services/alert_taxonomy/predicates.py",
@@ -40,24 +43,66 @@
       "note": "optional in an address; its ABSENCE means 'the value we hold'"
     }
   },
+  "stores": {
+    "screener_rows": {
+      "declared_in": "app/src/components/chart/engine/ast/closedTable.json",
+      "authority": "authoritative",
+      "metric_count": 137
+    },
+    "bars_sqlite": {
+      "declared_in": "api/services/bars_sqlite.py",
+      "table": "ohlcv",
+      "key": [
+        "ticker",
+        "tf",
+        "ts"
+      ],
+      "as_of_column": "ts",
+      "row_projection": [
+        "ts",
+        "o",
+        "h",
+        "l",
+        "c",
+        "v"
+      ],
+      "row_projection_declared_by": "get_bars_since",
+      "row_projection_shared_with": [
+        "get_bars",
+        "get_bars_before"
+      ],
+      "distinct_projections_over_this_table": 11,
+      "authority": "authoritative",
+      "undeclared_by_this_store": [
+        "cadence",
+        "grain",
+        "sentence"
+      ],
+      "metric_count": 5
+    }
+  },
   "axis_report": {
-    "metric_count": 137,
+    "metric_count": 142,
     "stores": {
+      "bars_sqlite": 5,
       "screener_rows": 137
     },
     "cadences": {
+      "(undeclared)": 5,
       "nightly": 137
     },
     "grains": {
+      "(undeclared)": 5,
       "date": 137
     },
     "as_of_columns": {
       "bars_asof": 58,
-      "snapshot_date": 79
+      "snapshot_date": 79,
+      "ts": 5
     },
     "yields": {
       "bool": 22,
-      "num": 115
+      "num": 120
     }
   },
   "metrics": {
@@ -840,6 +885,56 @@
       "yields": "bool",
       "authority": "authoritative",
       "sentence": "whether the bar is the narrowest of the last seven"
+    },
+    "ohlcv.c": {
+      "store": "bars_sqlite",
+      "column": "c",
+      "as_of_column": "ts",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": null
+    },
+    "ohlcv.h": {
+      "store": "bars_sqlite",
+      "column": "h",
+      "as_of_column": "ts",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": null
+    },
+    "ohlcv.l": {
+      "store": "bars_sqlite",
+      "column": "l",
+      "as_of_column": "ts",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": null
+    },
+    "ohlcv.o": {
+      "store": "bars_sqlite",
+      "column": "o",
+      "as_of_column": "ts",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": null
+    },
+    "ohlcv.v": {
+      "store": "bars_sqlite",
+      "column": "v",
+      "as_of_column": "ts",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "authoritative",
+      "sentence": null
     },
     "op_margin": {
       "store": "screener_rows",

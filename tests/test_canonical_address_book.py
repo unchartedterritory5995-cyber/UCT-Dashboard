@@ -1,8 +1,14 @@
-"""D2 CP1 — the derivation rail, and the rail that keeps CP1 inert.
+"""D2 CP1+CP2 — the derivation rail, and the rail that bounds who reads the book.
 
 ⛔ APPROVED SCOPE (owner, 2026-09-12): *"CP1 — inert canonical address data …
 + the derivation rail that fails when a scalar name, store, cadence, or grain
 diverges from closedTable.json."* Those four are asserted BY NAME below.
+
+⛔ CP2 (line 2, NARROWED): *"extend the canonical book to the first non-screener
+store … Derivation rail extended to the new store."* The bars half of this file
+re-derives `bars_sqlite`'s DDL INDEPENDENTLY of the builder — a rail that
+imported the builder's own parser would only prove the builder agrees with
+itself.
 
 ⛔ THE POPULATION IS REPORTED, NEVER ASSERTED AS A COUNT. There is no
 `assert len(metrics) == 137` in this file, deliberately: the manifest is MEANT to
@@ -59,16 +65,38 @@ def test_both_sides_are_non_empty_and_name_a_metric_we_can_point_at():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_every_scalar_NAME_in_the_table_is_in_the_book_and_vice_versa():
-    """The first of the approval's four: a scalar NAME that diverges fails."""
-    scalars, book = set(_scalars()), set(_book()["metrics"])
-    missing = sorted(scalars - book)
-    extra = sorted(book - scalars)
+    """The first of the approval's four: a scalar NAME that diverges fails.
+
+    ⚰️ CP2 WIDENED THE SECOND HALF OF THIS TEST, AND THE RETIRED SENTENCE IS
+    KEPT VERBATIM because it states the property that still matters:
+
+        "the address book carries metrics closedTable.json does not declare. A
+         metric with no declaration is a second authority"
+
+    Still true. What changed is that `closedTable.json` is no longer the only
+    declaration — `bars_sqlite.py`'s own DDL is one too. So an "extra" is now
+    anything the book carries that NO declared store accounts for, and the set
+    of declared stores is read from the book's own `stores` block rather than
+    typed here.
+    """
+    scalars, book = _scalars(), _book()
+    metrics = book["metrics"]
+    missing = sorted(set(scalars) - set(metrics))
     assert not missing, (
         "closedTable.json declares metrics the address book does not carry — "
         f"re-run tools/build_canonical_address_book.py: {missing}")
-    assert not extra, (
-        "the address book carries metrics closedTable.json does not declare. A "
-        f"metric with no declaration is a second authority: {extra}")
+
+    non_screener_stores = sorted(set(book["stores"]) - {"screener_rows"})
+    assert non_screener_stores, (
+        "the book declares no store beyond screener_rows — then this test is "
+        "back to CP1 and the widening below proves nothing")
+
+    unaccounted = sorted(
+        n for n, d in metrics.items()
+        if n not in scalars and d.get("store") not in non_screener_stores)
+    assert not unaccounted, (
+        "the address book carries metrics no declared store accounts for. A "
+        f"metric with no declaration is a second authority: {unaccounted}")
 
 
 @pytest.mark.parametrize("field,table_path", [
@@ -198,15 +226,30 @@ def _code_only(path: pathlib.Path) -> str:
     return ast.unparse(tree)
 
 
-def test_no_product_path_reads_the_address_book():
-    """⛔⛔ CP1 IS INERT BY CONSTRUCTION, NOT BY INTENTION.
+#: The ONE module CP2's approval lets read the book. ⛔ A LIST OF ONE, NOT A
+#: DELETED RAIL: the point was never "nobody reads it", it was "the readers are
+#: countable and named".
+_ALLOWED_BOOK_READERS = ("api/services/canonical/address_book.py",)
 
-    The approval says the data is *"not read by any product path"*. A reader is
-    CP2 and needs a new line. This fails by name if one appears.
+
+def test_exactly_the_named_module_reads_the_address_book():
+    """⛔⛔ THE READERS OF THE BOOK ARE COUNTABLE AND NAMED.
+
+    ⚰️ CP1's version of this test required ZERO readers. Its sentence, kept
+    verbatim because it is the reason this rail exists at all:
+
+        "⛔⛔ CP1 IS INERT BY CONSTRUCTION, NOT BY INTENTION. The approval says
+         the data is 'not read by any product path'. A reader is CP2 and needs a
+         new line. This fails by name if one appears."
+
+    That line was granted. The rail was NOT deleted when the thing it forbade
+    was approved — deleting it would have converted "one reader, on purpose"
+    into "any number of readers, unnoticed", which is how a canonical form
+    becomes a second authority. It now fails by name on the SECOND reader.
 
     ⭐ `lesson_an_unused_parameter_may_be_older_than_its_consumers` runs the
-    other way here: the data ships BEFORE its consumers, on purpose, and the
-    rail is what stops "before" from quietly becoming "instead of".
+    other way here: the data shipped BEFORE its consumers, on purpose, and this
+    is what stops "before" from quietly becoming "instead of".
     """
     offenders = []
     scanned = 0
@@ -216,12 +259,24 @@ def test_no_product_path_reads_the_address_book():
         except SyntaxError:
             continue
         scanned += 1
-        if "canonical_address_book" in code:
-            offenders.append(str(p.relative_to(_REPO)).replace("\\", "/"))
+        rel = str(p.relative_to(_REPO)).replace(chr(92), "/")
+        if "canonical_address_book" in code and rel not in _ALLOWED_BOOK_READERS:
+            offenders.append(rel)
     assert scanned > 100, f"the module walk found almost nothing ({scanned}) — it is broken"
     assert offenders == [], (
-        "a product path reads the CP1 address book. That is CP2 and it needs a "
-        f"new approval line: {offenders}")
+        "a second product path reads the address book. CP2 approved exactly "
+        f"one, {_ALLOWED_BOOK_READERS[0]}; another needs a new line: {offenders}")
+
+
+def test_the_one_allowed_reader_ACTUALLY_READS_IT():
+    """⛔ NON-VACUITY ON THE ALLOWLIST. An allowlist naming a module that does
+    not read the book would make the test above pass by excusing nobody, and
+    the next real reader would slip in beside it looking equally exempt."""
+    for rel in _ALLOWED_BOOK_READERS:
+        path = _REPO / rel
+        assert path.exists(), f"the allowlist names a module that is not there: {rel}"
+        assert "canonical_address_book" in _code_only(path), (
+            f"{rel} is on the allowlist and does not read the book in CODE")
 
 
 def test_the_inertness_rail_can_see_a_real_reference():
@@ -244,3 +299,276 @@ def test_the_book_is_committed_data_not_a_build_artifact():
                         str(_BOOK_PATH.relative_to(_REPO)).replace("\\", "/")],
                        cwd=str(_REPO), capture_output=True, text=True)
     assert r.returncode == 0, "the address book is not tracked by git"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CP2 — THE FIRST NON-SCREENER STORE
+#
+# ⛔ Every oracle below re-reads `bars_sqlite.py` ITSELF. Importing the builder's
+# parser would prove only that the builder agrees with the builder — the shape
+# of green that this programme has been caught by before.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_BARS_MODULE = _REPO / "api" / "services" / "bars_sqlite.py"
+_TICKER_RETURNS = _REPO / "api" / "services" / "ticker_returns.py"
+
+
+def _ohlcv_ddl() -> str:
+    """The `ohlcv` CREATE TABLE literal, read out of CODE.
+
+    ⛔ CODE, NEVER PROSE — and this is not hypothetical here. `bars_sqlite.py`
+    contains THREE string constants matching `CREATE TABLE`; one of them is a
+    docstring saying a recovery helper "would run `CREATE TABLE` against
+    damage". A scan that counted it would be measuring the module's explanation.
+    """
+    import re as _re
+    src = ast.parse(_BARS_MODULE.read_text(encoding="utf-8"))
+    for node in ast.walk(src):
+        if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            node.value.value = ""
+    hits = [n.value for n in ast.walk(src)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and _re.search(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?ohlcv", n.value, _re.I)]
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+    return hits[0]
+
+
+def _ohlcv_columns() -> list:
+    """[(column, SQLTYPE)] in DDL order, parsed here rather than imported."""
+    import re as _re
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+    cols = []
+    for part in _re.split(r",(?![^(]*\))", body):
+        part = part.strip()
+        if not part or _re.match(r"PRIMARY\s+KEY", part, _re.I):
+            continue
+        bits = part.split()
+        cols.append((bits[0], bits[1].upper()))
+    assert cols, "parsed zero columns out of the ohlcv DDL — the oracle is broken"
+    return cols
+
+
+def _bars_store() -> dict:
+    store = _book()["stores"].get("bars_sqlite")
+    assert store, "the book carries no bars_sqlite store record"
+    return store
+
+
+def test_the_bars_side_is_NON_EMPTY_and_names_a_column_we_can_point_at():
+    """⛔ NON-VACUITY FOR THE NEW STORE. Every bars assertion below is over
+    these; `{} == {}` would satisfy all of them."""
+    cols = dict(_ohlcv_columns())
+    assert "c" in cols and cols["c"] == "REAL", (
+        f"the DDL oracle cannot see the close column: {sorted(cols)}")
+    metrics = {n: d for n, d in _book()["metrics"].items() if d["store"] == "bars_sqlite"}
+    assert metrics, "the book carries no bars metrics"
+    assert "ohlcv.c" in metrics
+
+
+def test_every_ohlcv_VALUE_column_is_addressed_and_no_KEY_column_is():
+    """A key is an AXIS, never a metric. `uct://ticker@…` would be an address
+    whose metric is the entity it is already scoped by."""
+    store = _bars_store()
+    key = set(store["key"])
+    declared = {c for c, _ in _ohlcv_columns()}
+    expected = {"%s.%s" % (store["table"], c) for c in declared - key}
+    got = {n for n, d in _book()["metrics"].items() if d["store"] == "bars_sqlite"}
+    assert got == expected, (
+        f"the addressed bars columns are not the DDL's value columns.\n"
+        f"  missing: {sorted(expected - got)}\n  extra:   {sorted(got - expected)}")
+    for k in key:
+        assert "%s.%s" % (store["table"], k) not in got, (
+            f"the key column {k!r} is addressed as a metric")
+
+
+@pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+def test_the_book_agrees_with_the_DDL_about(column, sqltype):
+    """Per-column, so a failure names the column rather than the store."""
+    store = _bars_store()
+    name = "%s.%s" % (store["table"], column)
+    if column in store["key"]:
+        assert name not in _book()["metrics"]
+        return
+    entry = _book()["metrics"][name]
+    assert entry["column"] == column
+    assert entry["store"] == "bars_sqlite"
+    assert entry["yields"] in ("num", "bool")
+    assert entry["as_of_column"] == store["as_of_column"]
+
+
+def test_the_as_of_column_is_the_one_the_store_asks_SINCE_WHEN_about():
+    """⛔ DERIVED FROM THE DELTA QUERY, NOT FROM A NAME THAT LOOKS TEMPORAL.
+
+    An as-of is the thing you compare against to ask "what is new". The store's
+    own `… ts>? ORDER BY ts ASC` is that question written down. A rail that
+    matched on the column being called `ts` would pass for a store that called
+    it `updated_at` and filtered on something else.
+    """
+    import re as _re
+    store = _bars_store()
+    src = _BARS_MODULE.read_text(encoding="utf-8")
+    pat = _re.compile(r"FROM\s+" + store["table"] + r"\b.*?\b(\w+)\s*>\s*\?", _re.I | _re.S)
+    found = {m.group(1) for m in [pat.search(s) for s in [src]] if m}
+    assert found == {store["as_of_column"]}, (
+        f"the store's delta filter is over {sorted(found)}, the book says "
+        f"{store['as_of_column']!r}")
+    assert store["as_of_column"] in store["key"], (
+        "the book calls a non-key column an as-of")
+
+
+def test_THE_ROW_PROJECTION_IS_NOT_THE_SCHEMA_ORDER():
+    """⛔⛔ THE FACT CP2's MIGRATED READER EXISTS FOR.
+
+    `ohlcv`'s DDL order is `ticker, tf, ts, o, h, l, c, v` — the close is column
+    6. The tuple the store's readers hand back is `SELECT ts,o,h,l,c,v` — the
+    close is position 4. Both are true about the same column and only one of
+    them indexes the tuple in your hand. If they ever coincided, this rail would
+    stop distinguishing the two mistakes, so it asserts they do NOT.
+    """
+    store = _bars_store()
+    ddl_order = [c for c, _ in _ohlcv_columns()]
+    projection = store["row_projection"]
+    assert projection, "the book declares no row projection"
+    assert set(projection) <= set(ddl_order), (
+        f"the projection names columns the DDL does not declare: "
+        f"{sorted(set(projection) - set(ddl_order))}")
+    assert ddl_order.index("c") != projection.index("c"), (
+        "the schema position and the projection position now agree. That is not "
+        "a failure of the store — it is a failure of THIS RAIL to distinguish "
+        "them any more. Re-anchor it on a column where they still differ.")
+    print("[cp2] ohlcv.c: DDL column %d, projection position %d"
+          % (ddl_order.index("c") + 1, projection.index("c")))
+
+
+def test_the_projection_is_shared_by_more_than_the_one_function_it_is_read_from():
+    """⭐ THE BAR ROW IS A SHAPE, NOT ONE QUERY'S HABIT.
+
+    ⚰️ The builder first demanded that ALL projections over `ohlcv` agree, and
+    that was wrong: there are eleven, every one of them correct code answering a
+    different question. The bar-row shape is derived from the function carrying
+    the delta query, and this asserts at least one OTHER reader hands back the
+    same tuple — otherwise the book would be describing a single query.
+    """
+    store = _bars_store()
+    assert store["row_projection_declared_by"], "no declaring function recorded"
+    assert store["row_projection_shared_with"], (
+        "only one function returns this tuple — then it is that function's "
+        "shape, not the store's row")
+    assert store["distinct_projections_over_this_table"] > 1, (
+        "the census found one projection; the eleven-shape finding that "
+        "motivated this derivation is no longer observable")
+
+
+def test_the_book_records_an_UNDECLARED_field_as_null_never_as_a_default():
+    """⛔⛔ "WE COULD NOT COMPUTE IT" AND "NIGHTLY" ARE DIFFERENT FACTS.
+
+    `cadence`, `grain` and `sentence` are declared for all 137 screener scalars
+    and for none of the bars columns. Defaulting them to the book's only
+    existing value — a one-word change — would make a continuously-fetched store
+    look like a nightly batch one, in the very field `cadence_ceiling` reasons
+    about. This is `CoverageLine`'s discipline at the metric layer.
+    """
+    store = _bars_store()
+    undeclared = store["undeclared_by_this_store"]
+    assert undeclared, "the store record claims to declare everything"
+    for name, d in _book()["metrics"].items():
+        if d["store"] != "bars_sqlite":
+            continue
+        for field in undeclared:
+            assert d[field] is None, (
+                f"{name}.{field} is {d[field]!r}; the store declares no {field}, "
+                "so the book must say so rather than inherit a neighbour's value")
+    # …and the axis report must SHOW them rather than hide them in a bucket.
+    rep = _book()["axis_report"]
+    assert "(undeclared)" in rep["cadences"], (
+        "the axis report folded the undeclared cadences in with the declared "
+        "ones — then nobody reading it can tell how much of the book is blank")
+
+
+def test_the_declared_fields_are_STILL_declared_for_the_screener_store():
+    """⛔ THE CONTROL FOR THE TEST ABOVE. Without it, a builder that wrote
+    `None` into every field of every metric would satisfy it perfectly."""
+    screener = [d for d in _book()["metrics"].values() if d["store"] == "screener_rows"]
+    assert screener, "no screener metrics — the control has nothing to stand on"
+    assert all(d["cadence"] is not None for d in screener)
+    assert all(d["grain"] is not None for d in screener)
+    assert all(d["sentence"] for d in screener)
+
+
+def test_the_bars_store_record_names_the_module_it_was_derived_from():
+    store = _bars_store()
+    assert store["declared_in"] == "api/services/bars_sqlite.py"
+    assert (_REPO / store["declared_in"]).exists()
+    assert store["authority"] == "authoritative", (
+        "PRD-D2 §7 classifies bars.db AUTHORITATIVE for bars, with the locked "
+        "newest-bar-wins invariant")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE MIGRATED READER — the static half. The dual-compute half is
+# tests/test_d2_dual_read.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _legacy_close_index() -> int:
+    """`LEGACY_CLOSE_INDEX` read off `ticker_returns.py` by AST.
+
+    ⛔ Read from the module rather than imported so this rail still fails if the
+    constant is deleted and a bare `4` reappears at the call sites — an import
+    would raise ImportError, which reads as a broken test rather than as the
+    regression it is.
+    """
+    tree = ast.parse(_TICKER_RETURNS.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "LEGACY_CLOSE_INDEX":
+                    return node.value.value
+    raise AssertionError(
+        "ticker_returns.py no longer declares LEGACY_CLOSE_INDEX. If the bare "
+        "ordinal came back, F-D2-3 came back with it.")
+
+
+def test_the_migrated_readers_ORDINAL_agrees_with_the_book():
+    """⛔ THE STATIC HALF OF THE MIGRATION, and the mutation subject for
+    "rename a book entry".
+
+    `ticker_returns.py` indexes the bars row by a hand-typed integer. The book
+    resolves the same position from the store's declared projection. If a book
+    entry is renamed, `row_position` returns None and this fails BY NAME —
+    which is the difference between an address book and a comment.
+    """
+    from api.services.canonical import address_book as book_mod
+    pos = book_mod.row_position("ohlcv.c")
+    assert pos is not None, (
+        "the book cannot resolve ohlcv.c — either the metric was renamed or the "
+        "store declares no projection. Either way the migrated reader is now "
+        "indexing on faith.")
+    assert pos == _legacy_close_index(), (
+        f"the book says the close is at position {pos}; ticker_returns.py reads "
+        f"position {_legacy_close_index()}. One of them is serving the wrong "
+        "column to the Desk.")
+
+
+def test_the_ordinal_rail_CAN_FAIL(monkeypatch):
+    """⛔ MUTATION A, run in-process: rename the book entry and watch the
+    lookup stop resolving. A rail nobody has seen fail is not a rail."""
+    from api.services.canonical import address_book as book_mod
+    real = book_mod.book()
+    mangled = json.loads(json.dumps(real))
+    mangled["metrics"]["ohlcv.cc"] = mangled["metrics"].pop("ohlcv.c")
+    monkeypatch.setattr(book_mod, "book", lambda: mangled)
+    assert book_mod.row_position("ohlcv.c") is None, (
+        "row_position resolved a metric the book no longer carries — then it "
+        "would resolve a typo too, and every bad address would answer")
+    assert book_mod.row_position("ohlcv.cc") == _legacy_close_index()
+
+
+def test_row_position_returns_None_rather_than_a_plausible_default(monkeypatch):
+    """⛔⛔ THE FAILURE THAT MATTERS IS NOT A MISSING BOOK, IT IS A MISS THAT
+    ANSWERS ANYWAY. `0` for an unknown metric would resolve every bad address to
+    the OPEN price and every consumer would keep working, wrongly, forever."""
+    from api.services.canonical import address_book as book_mod
+    assert book_mod.row_position("no_such_metric") is None
+    monkeypatch.setattr(book_mod, "book", lambda: {})
+    assert book_mod.row_position("ohlcv.c") is None

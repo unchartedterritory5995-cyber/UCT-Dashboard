@@ -19,6 +19,8 @@ from zoneinfo import ZoneInfo
 
 from api.services import bars_sqlite
 from api.services import education_service as edu
+from api.services.canonical import address_book as _book
+from api.services.canonical import dual_read as _dual
 
 _ET = ZoneInfo("America/New_York")
 _TTL_SECS = 600.0
@@ -33,11 +35,49 @@ def _pct(basis: float, close: float) -> float:
     return round((close / basis - 1.0) * 100.0, 2)
 
 
+#: D2 CP2 - the ONE migrated reader, DARK.
+#:
+#: The bare ordinal this module has used since it was written. It indexes the
+#: BARS-STORE ROW PROJECTION `SELECT ts,o,h,l,c,v` declared in
+#: `bars_sqlite.py`, NOT the `ohlcv` schema - in the DDL (`ticker, tf, ts, o, h,
+#: l, c, v`) the close is column 6. Both numbers are true about the same column
+#: and only one of them indexes the tuple in your hand.
+CLOSE_METRIC = "ohlcv.c"
+LEGACY_CLOSE_INDEX = 4
+
+
+def _close(row) -> float:
+    """The close out of one bars-store row. DARK dual-compute.
+
+    The legacy path is the bare ordinal above. The book path resolves the same
+    position from the store's own declared projection. ⛔ THE LEGACY VALUE IS
+    WHAT IS SERVED - `_dual.observe` returns it on every branch, and the rail
+    that proves so is `tests/test_d2_dual_read.py`.
+
+    ⚰️ THIS REPLACES THREE HAND-TYPED `[4]`s. Nothing in the repo would have
+    noticed if that projection changed: `[4]` would silently become the LOW,
+    every since-mention percentage on the Desk would be wrong, and no test,
+    type or assertion would fire. F-D2-3.
+    """
+    legacy = row[LEGACY_CLOSE_INDEX]
+    if not _dual.should_compare():
+        return float(legacy)
+    pos = _book.row_position(CLOSE_METRIC)
+    if pos is None or pos >= len(row):
+        # ⛔ `book_unavailable`, NOT a disagreement. A book that could not
+        # answer and a book that answered wrongly are different facts, and
+        # collapsing them would make a deleted file read as a defect.
+        book_value = _dual.UNAVAILABLE
+    else:
+        book_value = row[pos]
+    return float(_dual.observe(CLOSE_METRIC, legacy, book_value))
+
+
 def _returns_for(ticker: str, anchor_ymd: int) -> dict | None:
     basis_rows = bars_sqlite.get_bars_before(ticker, "D", 1, anchor_ymd)
     if not basis_rows:
         return None
-    basis_c = float(basis_rows[-1][4])
+    basis_c = _close(basis_rows[-1])
     if basis_c <= 0:
         return None
     after = bars_sqlite.get_bars_since(ticker, "D", anchor_ymd)
@@ -48,9 +88,9 @@ def _returns_for(ticker: str, anchor_ymd: int) -> dict | None:
         # The caller drops it from `returns`; anchor_date is unaffected.
         return None
     return {
-        "since_pct": _pct(basis_c, float(after[-1][4])),
-        "d5_pct": _pct(basis_c, float(after[4][4])) if len(after) >= 5 else None,
-        "d21_pct": _pct(basis_c, float(after[20][4])) if len(after) >= 21 else None,
+        "since_pct": _pct(basis_c, _close(after[-1])),
+        "d5_pct": _pct(basis_c, _close(after[4])) if len(after) >= 5 else None,
+        "d21_pct": _pct(basis_c, _close(after[20])) if len(after) >= 21 else None,
     }
 
 
