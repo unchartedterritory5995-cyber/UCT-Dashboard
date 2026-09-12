@@ -217,7 +217,7 @@ un-attributable — the reason §3 gave for not shipping the iOS cue on the nigh
 | **1** | **`escalateCue(action)` — one authority, plus the JS-timed visual for the missing-vibrate case** | §3 above | The escalate branch exists TWICE today (`useJoystick.js` for the gesture door, `HubActionsButton.jsx` for the sheet door). This is the only row that FIXES something members can feel the absence of: `haptics.warn()` returns false wherever `navigator.vibrate` is missing, which is **every iPhone**, so the commit cue for destructive actions is silently absent on iOS. ⛔ Must be a JS-timed static class, never a CSS animation: `tokens.css` zeroes `animation-duration` and `transition-duration` app-wide under `prefers-reduced-motion`, which would delete the cue for exactly the members most likely to need a non-haptic one. |
 | **2** | **A haptic on `HubActionsButton`'s WCAG 2.5.1 path** | this file | Pre-existing, and it rides rank 1 for free: once both doors call one `escalateCue`, the sheet door's missing cue is a call site, not a second implementation. Doing it FIRST would mean writing the third copy of a branch that already exists twice. |
 | **3** | **`scan.flag` commits with no sheet — an undocumented §C2 exception** | this file | ⭐ **Decide before building.** It is either a documentation fix (flag is reversible, one tap, and a sheet would be friction on the most-used action) or a product change (§C2 says a commit gets a sheet). The wrong half of this is cheap to build and expensive to ship — it would put a confirmation in front of a gesture members use constantly. Bring the ruling, not a patch. |
-| **4** | **The CI device job** | §2 above | The largest single item in the programme and **mostly not hub code**: CI plumbing plus a paid BrowserStack **Automate** decision (a Live seat does not fund it, and the account's Automate allowance was exhausted at the Phase-2 run). ⛔ Nightly + manual dispatch, never per-push — a per-push device job exhausts the quota inside a week and then gets disabled, which is worse than not having one. |
+| ~~**4**~~ ✅ | ~~**The CI device job**~~ — **BUILT AND ON MASTER**: `ed9450c09` (the workflow) and `dd01a050d` (the funded-plan classifier). Manual dispatch + a nightly cron, never on push except its own gate files; six outcomes, three of them red; a skip requires POSITIVE PROOF of unfundedness, so a 401, a 5xx or a DNS failure goes red rather than green-skipping. ⛔ The only thing left is the QUOTA — see §5 below. | §2 above | The largest single item in the programme and **mostly not hub code**: CI plumbing plus a paid BrowserStack **Automate** decision (a Live seat does not fund it, and the account's Automate allowance was exhausted at the Phase-2 run). ⛔ Nightly + manual dispatch, never per-push — a per-push device job exhausts the quota inside a week and then gets disabled, which is worse than not having one. |
 
 ### Not in this queue, and not this programme's
 
@@ -255,3 +255,30 @@ already uses is the obvious destination, with the same `DATA_SYNC_*` credentials
 it: a copy is not a backup of a WAL database — `VACUUM INTO`, then `PRAGMA quick_check` on the
 COPY, then upload. And it needs a restore rehearsal, because a backup nobody has restored is a
 belief, not a backup.
+
+## 5. BrowserStack — ANSWERED 2026-09-12 in the dashboard. Not a support question.
+
+⚰️ **This section first framed the mismatch as something to raise with BrowserStack support.** It
+is not. Read in the account's own dashboard on 2026-09-12, signed in as the owner:
+
+| Product | State |
+|---|---|
+| Live | ✅ **PAID** — dashboard loads the device picker |
+| App Live | ✅ **PAID** — dashboard loads |
+| **Automate** | ❌ **NOT ON THE ACCOUNT** — `automate.browserstack.com/dashboard` redirects to `/request_access` |
+| **App Automate** | ❌ **NOT ON THE ACCOUNT** — same redirect |
+
+Invoices, both Paid: `INV02573416` $49 on 7 Sep 2026, `INV02574188` $47.37 on 8 Sep 2026. Username
+`patrickgosz_y3zhil`, the same one `BROWSERSTACK_USERNAME` holds — so this is one account, not two.
+
+⭐ **`plan.json` saying `Free` was RIGHT all along.** The API covers Automate and App Automate only;
+Live and App Live have no plan endpoint, so a paid Live seat is invisible to every check an agent
+can make. "Paid a week ago" and "the API says Free" were about different products.
+
+**What follows for item 4 (the CI device job):** it is an **Automate** job and will keep taking its
+unfunded-skip branch — correctly, on positive proof — until Automate is bought. Real-device work
+today goes through **Live**: a human or an agent driving the screen mirror, not a script.
+
+**Priced once, for information, not proposed** (monthly, 2026-09-12): Automate Chrome $129 ·
+Desktop $129 · **Desktop & Mobile $225** · Desktop & Mobile Pro $275. Only the $225 tier and above
+include real mobile devices, so it is the only one that could run G0-1 or the device matrix.

@@ -792,6 +792,45 @@ the hub is `position: fixed`, so that is null while it is plainly on screen. Mea
 attribute, the computed `display`, and a non-zero box, and keep a fixture that must read SHOWING or
 the checker passes by answering "no" to everything.
 
+### Testing → BrowserStack — WHAT IS PAID FOR, measured 2026-09-12 in the dashboard
+
+> **Live and App Live are paid. Automate and App Automate are NOT on this account at all.**
+> One username, `patrickgosz_y3zhil` — the same one `BROWSERSTACK_USERNAME` holds.
+
+| Product | State | How it was read |
+|---|---|---|
+| **Live** | ✅ **PAID** | `live.browserstack.com/dashboard` loads the real device picker |
+| **App Live** | ✅ **PAID** | `app-live.browserstack.com/dashboard` loads the app/device picker |
+| **Automate** | ❌ **NOT ON THE ACCOUNT** | `automate.browserstack.com/dashboard` **redirects to `/request_access`** — the "Get started with Automate" marketing page |
+| **App Automate** | ❌ **NOT ON THE ACCOUNT** | `app-automate.browserstack.com/dashboard` → same `/request_access` redirect |
+
+**Invoices, both Paid:** `INV02573416` $49 on 7 Sep 2026 · `INV02574188` $47.37 on 8 Sep 2026.
+Card on file ends 0594. So the purchase a week ago was real — it was **Live**.
+
+⭐⭐ **THIS SETTLES THE "PAID A WEEK AGO BUT THE API SAYS FREE" CONTRADICTION, AND THERE NEVER WAS
+ONE.** `GET /automate/plan.json` reporting `{"automate_plan":"Free"}` is **correct**: Automate was
+never purchased. BrowserStack publishes a plan API for **Automate and App Automate only** — *Live
+and App Live have none* — so a paid Live seat is invisible to every endpoint an agent can reach,
+and "the dashboard says paid" and "the API says Free" were describing two different products the
+whole time. ⛔ **No support ticket. No billing glitch. No purchase.**
+
+⛔ **CONSEQUENCE FOR DEVICE WORK, and it is not a small one:** the CI device job
+(`.github/workflows/joystick-device.yml`) is an **Automate** job. It will keep taking its
+unfunded-skip branch — correctly, on positive proof from `plan.json` — until somebody buys
+Automate. Anything that needs a real device today goes through **Live**, which means a human or an
+agent driving the screen mirror in a browser, not a script.
+
+**For information only, priced once and not proposed** (monthly, from the account's own pricing
+page, 2026-09-12): Automate **Chrome $129** · **Desktop $129** · **Desktop & Mobile $225** ·
+**Desktop & Mobile Pro $275**. The cheapest tier that includes **real mobile devices** — the only
+kind that could run G0-1 — is **Desktop & Mobile, $225/month**. The two $129 tiers are desktop
+browsers only and cannot run it.
+
+⚠️ **Live ≠ Automate, and they are metered separately.** This was already recorded in
+`40-phase2-device.md` after run 4 lost three of four devices to *"Automate testing time expired"*:
+*"a Live seat does not fund this suite."* The dashboard now confirms the stronger version — there
+is no Automate seat to expire.
+
 ### Real-device testing — BrowserStack Live (paid)
 
 **Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no
