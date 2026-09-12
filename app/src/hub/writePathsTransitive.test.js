@@ -132,6 +132,28 @@ const ENTRIES = [
         why: 'a cache eviction: it deletes an id from a module-level Map and calls `notify()`. That '
            + "module's one fetch is a GET behind `flush`, which an eviction never calls.",
       },
+      {
+        // ⭐ ADDED BY THE NOTEBOOK WORKSTREAM, 2026-09-12, because this rail went red on the
+        // Wave Q1 door fix and said exactly what to do about it. Recorded here rather than
+        // worked around: `useJ2Note.update` is the shared note PUT that every Notebook surface
+        // goes through, and it now lands the revision that PUT created.
+        name: 'settleNoteWrite',
+        from: '../lib/offline/settleNoteWrite',
+        inModule: 'pages/journal-2-0/lib/offline/settleNoteWrite.js',
+        // ⛔ The proof entry is `settleNoteWrite` ITSELF, which is what lives in `inModule`.
+        // `recordLandedRevision` is in `useDurableNote.js`, reached through a DYNAMIC import, so
+        // naming it here would ask this rail to locate a function in a file the import does not
+        // name — and it correctly refused ("the rail cannot measure what it cannot locate").
+        revalidatesVia: 'settleNoteWrite',
+        why: 'it performs NO network write of any kind — it records the revision the PUT just '
+           + 'returned into this browser\'s own IndexedDB ring, so the offline drain can tell '
+           + "the member's own save from a second writer. "
+           + '⭐ MEASURED, not asserted: the string `fetch(` appears ZERO times in the entire '
+           + 'chain it can reach — settleNoteWrite.js, currentAccount.js, baseline.js, '
+           + 'useDurableNote.js, notebookDb.js, inFlight.js and offlineFlag.js — comments '
+           + 'stripped. The hop is a store write, not a network one, and this rail is about '
+           + 'endpoints the hub can reach. Add a fetch to any of those and re-measure.',
+      },
     ],
   },
 ]
