@@ -816,6 +816,47 @@ toggle is off — an empty string would read as "a capture that recorded nothing
 ⚠️ Computed at RENDER: gesture on `/screener`, then navigate to Settings and the card reads the
 buffer as it stands. It does not live-update, and cannot need to.
 
+⭐ **The read path, proven on a real session 2026-09-12:** BrowserStack Live's own toolbar →
+**DevTools → Safari Web Inspector** attaches a full inspector, *rendered in the operator's own
+browser*, whose Console evaluates in the device's page. `data-hub-trace` is read there, and a
+summary can be computed on-device so only a short string has to come back. **Attaching and
+detaching the inspector does NOT reload the device's tab** — a `window` marker survived two
+cycles — which matters because the trace ring is module state with no sink and a reload destroys
+it. The console *log* is cleared on each attach; `window` is not. Navigate with
+`history.pushState` + `PopStateEvent` from that console, never a document load, for the same
+reason. ⚠️ The attribute is computed at render, so after gesturing you must actually re-mount the
+card (route away and back) — re-reading it in place returns the value from the previous render.
+
+### ⛔⛔ A LIVE SCREEN MIRROR CANNOT MEASURE A SUB-300 ms GESTURE — measured, 2026-09-12
+
+**Floor: 260–427 ms per gesture, on an iPhone 15 Pro / iOS 17.6 Live session, read from the
+device's own clock.** Sixteen gestures, two drag lengths. Anything whose threshold is shorter than
+that — the joystick's `FLICK_MS = 120` is the live example — **cannot be tested through a Live
+mirror at all**, and a run that tries produces a table of the websocket.
+
+⛔ **THE COST IS PER POINTER-EVENT ROUND TRIP, NOT PER PIXEL — so "drag a shorter distance" is not
+a fix.** Shrinking the drag 6× (139 px → 23 px of travel) left the move count at 16–19 (from
+11–22) and made the median *worse*, 280 → 329 ms. There is no shorter drag; the client decides how
+many events to send and the operator does not.
+
+⛔ **SYNTHETIC MOUSE/POINTER EVENTS ON THE MIRROR CANVAS ARE SILENTLY DISCARDED.** Dispatching
+`PointerEvent`/`MouseEvent` on `#flashlight-overlay-native` inside `#flashParent.streaming-container`
+returns plausible local durations (39–60 ms) and changes nothing on the phone. Five attempts left
+the device's own `recorded` counter at **exactly** its previous value — zero events arrived.
+⭐ **It looked like it worked.** The only thing that caught it was reading a counter the *device*
+owns, not the timings the *operator's* browser reported — the same rule as reading the wire instead
+of the call site.
+
+⭐ **What a Live mirror IS good for:** anything untimed — does it render, where is it, does it
+resolve the right target, does the label say the right thing. A deliberate press fired 10/10
+correctly in the same run. Reserve it for those, and route every timing question to a real finger
+or to a transport that owns the clock.
+
+⚠️ **A device-console `PointerEvent` probe is an ENGINE test, never a glass result.** It can prove
+a branch is reachable and that two clocks agree; it cannot say anything about the touch pipeline,
+because no finger touched glass. Label it as such in the artifact or it will be cited as the
+measurement it is not.
+
 ### Testing → BrowserStack — WHAT IS PAID FOR, measured 2026-09-12 in the dashboard
 
 > **Live and App Live are paid. Automate and App Automate are NOT on this account at all.**
