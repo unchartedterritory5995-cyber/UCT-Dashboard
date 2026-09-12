@@ -1,4 +1,4 @@
-import { LOCAL_ONLY, PROMOTABLE, DURABLE } from './engine/conditionCapability'
+import { PROMOTABLE, DURABLE } from './engine/conditionCapability'
 import { TRIGGER_POLICIES, DEFAULT_POLICY } from './engine/triggerPolicy'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
@@ -40,19 +40,22 @@ import styles from './ChartSettingsModal.module.css'
  * @param {Function|null} onExplain  toggles the note below; the ROW owns that state
  */
 export function ConditionAlertBell({
-  cond, state, expanded = false, busy = false,
-  onArm = null, onPromote = null, onExplain = null,
+  cond, state, expanded = false, busy = false, onOpen = null,
 }) {
-  const { cap, definition, armed, action, enabled } = state
+  const { cap, armed, enabled } = state
   const isOn = cap.capability === DURABLE && armed.length > 0
   const policy = TRIGGER_POLICIES[DEFAULT_POLICY]
 
-  // ⚠️ THE HOST'S ABSENCE DISABLES THE ACTION, NOT THE EXPLANATION. A surface
-  // that cannot arm should still be able to say WHY a condition is local-only —
-  // the sentence is the part that teaches, and it costs nothing to render.
-  const canAct = (action === 'arm' && !!onArm)
-    || (action === 'promote' && !!onPromote)
-    || (action === 'explain' && !!onExplain)
+  // ⭐⭐ ONE CLICK, ONE DESTINATION. The bell used to branch three ways — arm,
+  // promote, explain — which meant the same control did something different
+  // depending on a capability the member could not see. It now always opens the
+  // sheet, and the SHEET says what this condition can do. A member learns one
+  // gesture instead of three outcomes.
+  //
+  // ⛔ THE DISABLED CASES STAY DISABLED. `source_unavailable` and `invalid` have
+  // nothing to offer and no next move, so the bell reports that in its title
+  // rather than opening a sheet whose only content is a refusal.
+  const canAct = enabled && !!onOpen
 
   // ⭐ THE TITLE IS THE REFUSAL WHEN THERE IS ONE. `cap.reason` is null for the
   // two capabilities that can act, and for those it says what WILL happen —
@@ -69,56 +72,27 @@ export function ConditionAlertBell({
       className={`${styles.actRowRemove} ${isOn ? styles.toggleOn : ''}`}
       data-capability={cap.capability}
       data-armed={isOn ? 'yes' : 'no'}
-      aria-label={isOn ? `Alerts on for ${cond.name}` : `Alert me — ${cond.name}`}
+      aria-label={isOn
+        ? `Alerts on for ${cond.name} — ${armed.length} alert${armed.length === 1 ? '' : 's'}`
+        : `Alert me — ${cond.name}`}
       aria-pressed={cap.capability === DURABLE ? isOn : undefined}
-      aria-expanded={action === 'explain' ? expanded : undefined}
-      disabled={!enabled || !canAct || busy}
+      aria-haspopup="dialog"
+      aria-expanded={expanded}
+      disabled={!canAct || busy}
       title={title}
-      onClick={() => {
+      onClick={(e) => {
         if (busy) return
-        if (action === 'arm') { onArm?.({ cond, definition, policyId: DEFAULT_POLICY, existing: armed }); return }
-        if (action === 'promote') { onPromote?.({ cond }); return }
-        if (action === 'explain') onExplain?.(cond)
+        // The sheet anchors to THIS button, so the rect travels with the event
+        // rather than being re-measured from an id after the fact.
+        onOpen?.(cond, e.currentTarget.getBoundingClientRect())
       }}
-    ><UIcon name="bell" size={12} /></button>
-  )
-}
-
-/** The refusal, in the member's words, with the useful next move. */
-export function ConditionAlertNote({ cond, state, onBuild = null }) {
-  const { cap } = state
-  if (cap.capability !== LOCAL_ONLY) return null
-  return (
-    <div className={styles.indRow} role="note">
-      <span className={styles.indLabel} />
-      <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, opacity: 0.85 }}>{cap.reason}</span>
-        {/* ⭐ WHAT IT FOLLOWS, NAMED. It is the fact that makes the sentence above
-            concrete, and it is what a member needs in hand to author the
-            standalone version deliberately. */}
-        {cap.boundTo.length > 0 && (
-          <span style={{ fontSize: 11, opacity: 0.65 }}>{`Follows: ${cap.boundTo.join(', ')}`}</span>
-        )}
-        {onBuild && (
-          <button
-            type="button"
-            className={styles.chip}
-            aria-label={`Create an alertable version of ${cond.name}`}
-            // ⛔⛔ THE ORIGINAL IS NOT TOUCHED AND THE FORMULA IS NOT REWRITTEN FOR
-            // THEM. The Builder opens on the member's own text with the bound
-            // sources named beside it; what `a` should become is a decision only
-            // they can make, because `rsi(close, 14)` and "the RSI on this chart"
-            // are different sentences.
-            onClick={() => onBuild({
-              consumerKind: 'condition',
-              prefill: cond.formula,
-              boundTo: cap.boundTo,
-              fromConditionId: cond.id,
-            })}
-          >Create alertable version…</button>
-        )}
-      </span>
-    </div>
+    >
+      <UIcon name="bell" size={12} />
+      {/* ⭐ THE COUNT ONLY WHEN IT SAYS SOMETHING. One alert is already reported
+          by the bell being ON; a "1" beside it is noise on a row that has to stay
+          compact. Two or more is a fact the member cannot otherwise see. */}
+      {armed.length > 1 && <span className={styles.bellCount}>{armed.length}</span>}
+    </button>
   )
 }
 

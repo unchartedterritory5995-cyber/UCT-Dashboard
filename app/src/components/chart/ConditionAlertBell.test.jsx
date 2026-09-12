@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ChartSettingsConditions from './ChartSettingsConditions'
+import ConditionAlertPopover from './ConditionAlertPopover'
 import { bellState } from './engine/conditionBell'
 import { conditionsOf, addCondition } from './engine/conditionControls'
 
@@ -24,7 +25,10 @@ const registry = (over = {}) => ({
   ...over,
 })
 
-const ARMED = [{ id: 1, sym: 'TSLA', indicator: `${DEF_ID}.value`, condition: 'cross_above', threshold: 0.5 }]
+const ARMED = [{
+  id: 1, sym: 'TSLA', tf: 'D', active: true,
+  indicator: `${DEF_ID}.value`, condition: 'cross_above', threshold: 0.5,
+}]
 
 const mount = (props = {}) => {
   const { cs } = props.chart || build()
@@ -34,8 +38,7 @@ const mount = (props = {}) => {
       onChange={() => {}}
       registry={registry()}
       sym="TSLA"
-      onArmAlert={props.onArm === undefined ? vi.fn() : props.onArm}
-      onPromoteCondition={props.onPromote === undefined ? vi.fn() : props.onPromote}
+      onOpenAlerts={props.onOpenAlerts === undefined ? vi.fn() : props.onOpenAlerts}
       {...props}
     />,
   )
@@ -43,12 +46,28 @@ const mount = (props = {}) => {
 
 const bell = (name) => screen.getByRole('button', { name: new RegExp(name) })
 
-describe('the bell — one control, four answers', () => {
+describe('the bell — one gesture, four answers', () => {
   it('⭐⭐ each condition’s bell reports its OWN capability', () => {
     mount()
     expect(bell('Alert me — Self contained').dataset.capability).toBe('promotable')
     expect(bell('Alert me — Follows RSI').dataset.capability).toBe('local_only')
     expect(bell('Alert me — Durable').dataset.capability).toBe('durable')
+  })
+
+  it('⭐⭐ ONE CLICK, ONE DESTINATION — every capability opens the same sheet', () => {
+    // ⚰️ The bell used to branch three ways (arm / promote / explain), so the
+    // same control did something different depending on a capability the member
+    // could not see. It now always opens the sheet and the SHEET decides.
+    const onOpenAlerts = vi.fn()
+    mount({ onOpenAlerts })
+    fireEvent.click(bell('Alert me — Durable'))
+    fireEvent.click(bell('Alert me — Self contained'))
+    fireEvent.click(bell('Alert me — Follows RSI'))
+    expect(onOpenAlerts).toHaveBeenCalledTimes(3)
+    // …and it hands over the anchor rect, so the sheet needs no second lookup
+    expect(onOpenAlerts.mock.calls[0][1]).toBeTruthy()
+    expect(onOpenAlerts.mock.calls.map((c) => c[0].name))
+      .toEqual(['Durable', 'Self contained', 'Follows RSI'])
   })
 
   it('⛔ a DURABLE condition whose definition is gone is disabled, with the sentence', () => {
@@ -57,7 +76,7 @@ describe('the bell — one control, four answers', () => {
       <ChartSettingsConditions
         settings={cs} onChange={() => {}} sym="TSLA"
         registry={{ getDefinition: () => null }}
-        onArmAlert={vi.fn()} onPromoteCondition={vi.fn()}
+        onOpenAlerts={vi.fn()}
       />,
     )
     const b = bell('Alert me — Durable')
@@ -68,8 +87,7 @@ describe('the bell — one control, four answers', () => {
 
   it('⭐ a PROMOTABLE bell says what the extra step IS, before it happens', () => {
     mount()
-    expect(bell('Alert me — Self contained').title)
-      .toMatch(/run when the chart is closed/)
+    expect(bell('Alert me — Self contained').title).toMatch(/run when the chart is closed/)
   })
 
   it('⛔ a LOCAL_ONLY bell is not greyed out — it has something to say', () => {
@@ -80,71 +98,23 @@ describe('the bell — one control, four answers', () => {
   })
 })
 
-describe('what a click does', () => {
-  it('⭐ DURABLE → the host is asked to arm, with the definition and the policy', () => {
-    const onArm = vi.fn()
-    mount({ onArm })
-    fireEvent.click(bell('Alert me — Durable'))
-    expect(onArm).toHaveBeenCalledTimes(1)
-    const call = onArm.mock.calls[0][0]
-    expect(call.cond.id).toBe('cond:durable')
-    expect(call.definition.id).toBe(DEF_ID)
-    expect(call.policyId).toBe('becomes_true')
-  })
-
-  it('⭐ PROMOTABLE → the host is asked to PROMOTE, not to arm', () => {
-    const onArm = vi.fn(); const onPromote = vi.fn()
-    mount({ onArm, onPromote })
-    fireEvent.click(bell('Alert me — Self contained'))
-    expect(onPromote).toHaveBeenCalledTimes(1)
-    expect(onPromote.mock.calls[0][0].cond.name).toBe('Self contained')
-    expect(onArm).not.toHaveBeenCalled()
-  })
-
-  it('⛔⛔ LOCAL_ONLY → NOTHING is created. It explains.', () => {
-    const onArm = vi.fn(); const onPromote = vi.fn()
-    mount({ onArm, onPromote })
-    fireEvent.click(bell('Alert me — Follows RSI'))
-    expect(onArm).not.toHaveBeenCalled()
-    expect(onPromote).not.toHaveBeenCalled()
-    expect(screen.getByRole('note')).toHaveTextContent(/follows an indicator on this chart/)
-  })
-
-  it('⭐ …and the explanation NAMES what it follows', () => {
-    mount()
-    fireEvent.click(bell('Alert me — Follows RSI'))
-    expect(screen.getByRole('note')).toHaveTextContent(/Follows: legacy:rsi/)
-  })
-
-  it('⭐ the handoff opens the Builder on the member’s OWN text, unrewritten', () => {
-    const onBuild = vi.fn()
-    mount({ onBuild })
-    fireEvent.click(bell('Alert me — Follows RSI'))
-    fireEvent.click(screen.getByRole('button', { name: /Create an alertable version/ }))
-    expect(onBuild).toHaveBeenCalledWith({
-      consumerKind: 'condition',
-      prefill: 'a > 50',            // ⛔ NOT `rsi(close, 14) > 50` — that is a different sentence
-      boundTo: ['legacy:rsi'],
-      fromConditionId: expect.any(String),
-    })
-  })
-
-  it('⛔ the note closes again — it is a disclosure, not a permanent error', () => {
-    mount()
-    fireEvent.click(bell('Alert me — Follows RSI'))
-    expect(screen.queryByRole('note')).not.toBeNull()
-    fireEvent.click(bell('Alert me — Follows RSI'))
-    expect(screen.queryByRole('note')).toBeNull()
-  })
-})
-
 describe('already armed', () => {
-  it('⭐ a condition with an alert reads as ON', () => {
+  it('⭐ a condition with an alert reads as ON and says how many', () => {
     mount({ alerts: ARMED })
     const b = screen.getByRole('button', { name: /Alerts on for Durable/ })
     expect(b.dataset.armed).toBe('yes')
     expect(b.getAttribute('aria-pressed')).toBe('true')
-    expect(b.title).toMatch(/Alerting when this becomes true/)
+    expect(b.getAttribute('aria-label')).toMatch(/1 alert\b/)
+  })
+
+  it('⭐⭐ TWO alerts show a COUNT; one does not', () => {
+    // One alert is already reported by the bell being ON; a "1" beside it is
+    // noise on a row that has to stay compact.
+    const one = mount({ alerts: ARMED })
+    expect(one.container.querySelector('[data-armed="yes"]').textContent.trim()).toBe('')
+    one.unmount()
+    const two = mount({ alerts: [...ARMED, { ...ARMED[0], id: 2, tf: '60' }] })
+    expect(two.container.querySelector('[data-armed="yes"]').textContent).toContain('2')
   })
 
   it('⛔ an alert on ANOTHER symbol does not light this chart’s bell', () => {
@@ -161,25 +131,194 @@ describe('the door', () => {
   })
 
   it('⛔ a busy row cannot be clicked twice', () => {
-    const onPromote = vi.fn()
+    const onOpenAlerts = vi.fn()
     const { cs, ids } = build()
     render(
       <ChartSettingsConditions
         settings={cs} onChange={() => {}} registry={registry()} sym="TSLA"
-        onPromoteCondition={onPromote} promotingId={ids.plain}
+        onOpenAlerts={onOpenAlerts} busyId={ids.plain}
       />,
     )
     const b = bell('Alert me — Self contained')
     expect(b).toBeDisabled()
     fireEvent.click(b)
-    expect(onPromote).not.toHaveBeenCalled()
+    expect(onOpenAlerts).not.toHaveBeenCalled()
+  })
+})
+
+// ─── THE SHEET ──────────────────────────────────────────────────────────────
+
+const RECT = { left: 400, top: 200, bottom: 216, width: 16, height: 16 }
+
+const sheet = (condId, props = {}) => {
+  const { cs } = props.chart || build()
+  const cond = conditionsOf(cs).find((c) => c.id === condId)
+  const state = bellState(cond, props.registry || registry(), props.alerts || [], 'TSLA')
+  return {
+    cond,
+    ...render(
+      <ConditionAlertPopover
+        cond={cond} state={state} sym="TSLA" tf="D" anchorRect={RECT}
+        onClose={vi.fn()} {...props}
+      />,
+    ),
+  }
+}
+
+describe('the sheet — the common case is one click', () => {
+  it('⭐⭐ symbol, timeframe and timing are STATED, not asked', () => {
+    sheet('cond:durable')
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent(/TSLA/)
+    // ⭐ `1D`, THE SHIPPED VOCABULARY — `tfLabel` is what the chart's own
+    // timeframe bar and menu render, so the sheet cannot say "Daily" while the
+    // button behind it says "1D". A second labelling is a twin.
+    expect(dlg).toHaveTextContent(/1D/)
+    expect(dlg).toHaveTextContent(/on bar close/)
+    // ⛔ …and there is no form to fill in
+    expect(dlg.querySelectorAll('select, input')).toHaveLength(0)
+  })
+
+  it('⭐ it names the condition and the trigger in member language', () => {
+    sheet('cond:durable')
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent(/Durable/)
+    expect(dlg).toHaveTextContent(/becomes true/i)
+    // ⛔ never the encoding
+    expect(dlg.textContent).not.toMatch(/cross_above|0\.5|u_275/)
+  })
+
+  it('⭐⭐ DURABLE → Create alert asks the host to POST', () => {
+    const onCreate = vi.fn()
+    const { cond } = sheet('cond:durable', { onCreate })
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    expect(onCreate).toHaveBeenCalledTimes(1)
+    const call = onCreate.mock.calls[0][0]
+    expect(call.cond.id).toBe(cond.id)
+    expect(call.definition.id).toBe(DEF_ID)
+    expect(call.policyId).toBe('becomes_true')
+  })
+
+  it('⭐ PROMOTABLE → the same button PROMOTES, and says so first', () => {
+    const { cs, ids } = build()
+    const onPromote = vi.fn(); const onCreate = vi.fn()
+    sheet(ids.plain, { chart: { cs }, onPromote, onCreate })
+    expect(screen.getByRole('dialog'))
+      .toHaveTextContent(/saved so it can keep running when the chart is closed/)
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    expect(onPromote).toHaveBeenCalledTimes(1)
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('⛔ delivery is a SENTENCE, not a checkbox that does nothing', () => {
+    sheet('cond:durable')
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent(/notified in UCT/)
+    expect(dlg.querySelectorAll('input[type="checkbox"]')).toHaveLength(0)
+  })
+})
+
+describe('the sheet — refusals carry the next move', () => {
+  it('⛔⛔ LOCAL_ONLY explains, names what it follows, and offers the handoff', () => {
+    const { cs, ids } = build()
+    const onBuild = vi.fn(); const onCreate = vi.fn()
+    sheet(ids.bound, { chart: { cs }, onBuild, onCreate })
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent(/follows an indicator on this chart/)
+    expect(dlg).toHaveTextContent(/Follows: legacy:rsi/)
+    expect(screen.queryByRole('button', { name: 'Create alert' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Create alertable version/ }))
+    expect(onBuild).toHaveBeenCalledWith({
+      consumerKind: 'condition',
+      prefill: 'a > 50',           // ⛔ NOT the inlined form — a different sentence
+      boundTo: ['legacy:rsi'],
+      fromConditionId: expect.any(String),
+    })
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('⛔ SOURCE_UNAVAILABLE offers nothing but the sentence', () => {
+    sheet('cond:durable', { registry: { getDefinition: () => null } })
+    const dlg = screen.getByRole('dialog')
+    expect(dlg).toHaveTextContent(/no longer available/)
+    expect(screen.queryByRole('button', { name: /Create/ })).toBeNull()
+  })
+})
+
+describe('the sheet — existing alerts', () => {
+  it('⭐ it lists them, and the primary action becomes "Create another"', () => {
+    sheet('cond:durable', { alerts: ARMED })
+    expect(screen.getByRole('dialog')).toHaveTextContent(/TSLA · 1D/)
+    expect(screen.getByRole('button', { name: 'Create another' })).toBeTruthy()
+  })
+
+  it('⭐ pause and delete reach the host by alert id', () => {
+    const onToggle = vi.fn(); const onDelete = vi.fn()
+    sheet('cond:durable', { alerts: ARMED, onToggle, onDelete })
+    fireEvent.click(screen.getByRole('button', { name: /Pause this alert/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Delete this alert/ }))
+    expect(onToggle).toHaveBeenCalledWith(1)
+    expect(onDelete).toHaveBeenCalledWith(1)
+  })
+
+  it('⭐ a paused alert reads as paused and offers Resume', () => {
+    // ⚠️ `onToggle` IS REQUIRED FOR THE CONTROL TO EXIST — absent host, absent
+    // door, the same rule the bell itself follows.
+    sheet('cond:durable', { alerts: [{ ...ARMED[0], active: false }], onToggle: vi.fn() })
+    expect(screen.getByRole('dialog')).toHaveTextContent(/Paused/)
+    expect(screen.getByRole('button', { name: /Resume this alert/ })).toBeTruthy()
+  })
+
+  it('⭐ "Manage in Alerts" hands the host the alert id', () => {
+    const onManage = vi.fn()
+    sheet('cond:durable', { alerts: ARMED, onManage })
+    fireEvent.click(screen.getByRole('button', { name: /Manage in Alerts/ }))
+    expect(onManage).toHaveBeenCalledWith(1)
+  })
+})
+
+describe('the sheet — it behaves like a dialog', () => {
+  it('⭐ Escape closes it', () => {
+    const onClose = vi.fn()
+    sheet('cond:durable', { onClose })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('⭐ a click outside closes it', () => {
+    const onClose = vi.fn()
+    sheet('cond:durable', { onClose })
+    fireEvent.mouseDown(document.body)
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('⭐⭐ it is clamped into the viewport, never off the right edge', () => {
+    // A bell at the far right of a narrow cell would otherwise place a 268px
+    // sheet half off-screen, with no scrollbar to recover it.
+    const { cs } = build()
+    const cond = conditionsOf(cs).find((c) => c.id === 'cond:durable')
+    const state = bellState(cond, registry(), [], 'TSLA')
+    render(
+      <ConditionAlertPopover
+        cond={cond} state={state} sym="TSLA" tf="D"
+        anchorRect={{ left: 4000, top: 100, bottom: 116, width: 16, height: 16 }}
+        onClose={vi.fn()}
+      />,
+    )
+    const dlg = screen.getByRole('dialog')
+    const left = parseFloat(dlg.style.left)
+    expect(left).toBeGreaterThanOrEqual(8)
+    expect(left + 268).toBeLessThanOrEqual(window.innerWidth)
+  })
+
+  it('⭐ focus moves into the sheet', () => {
+    sheet('cond:durable')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Create alert' }))
   })
 })
 
 describe('bellState — the derivation, without mounting', () => {
   it('⛔ NO REGISTRY ⇒ a definition-backed condition is TRUSTED, not reported missing', () => {
-    // The right answer for a surface that holds no registry: reporting
-    // "unavailable" because nothing was asked would be a fault it invented.
     const cond = { id: 'c', name: 'D', definitionId: DEF_ID }
     expect(bellState(cond, null, [], 'TSLA').cap.capability).toBe('durable')
     expect(bellState(cond, null, [], 'TSLA').definition).toBe(null)
@@ -199,17 +338,15 @@ describe('bellState — the derivation, without mounting', () => {
 })
 
 describe('a durable condition does not read as broken', () => {
-  const withDurable = () => {
-    const { cs, ids } = build()
-    return { cs, ids }
+  const openRow = (id) => {
+    const row = document.querySelector(`[data-condition-id="${id}"]`)
+    fireEvent.click([...row.querySelectorAll('button')].find((b) => b.hasAttribute('aria-expanded')
+      && b.getAttribute('aria-label') === null))
+    return row
   }
 
   it('⛔⛔ ITS ROW BADGE IS NOT AN ERROR — the formula lives in the definition', () => {
     mount()
-    // `validateConditionFormula('')` says "a condition needs a formula". Asking it
-    // about a definition-backed row had the settings panel calling a perfectly
-    // good condition broken, on the one screen a member opens when something looks
-    // wrong. The badge that replaces it says WHERE the formula is.
     const row = document.querySelector('[data-condition-id="cond:durable"]')
     expect(row.textContent).not.toMatch(/needs a formula/i)
     expect(row.textContent).toMatch(/saved formula/i)
@@ -220,8 +357,7 @@ describe('a durable condition does not read as broken', () => {
     render(
       <ChartSettingsConditions
         settings={cs} onChange={() => {}} sym="TSLA"
-        registry={{ getDefinition: () => null }}
-        onArmAlert={vi.fn()} onPromoteCondition={vi.fn()}
+        registry={{ getDefinition: () => null }} onOpenAlerts={vi.fn()}
       />,
     )
     const row = document.querySelector('[data-condition-id="cond:durable"]')
@@ -229,28 +365,16 @@ describe('a durable condition does not read as broken', () => {
     expect(row.textContent).not.toMatch(/needs a formula/i)
   })
 
-  /** The row's own disclosure button, not its bell. */
-  const openRow = (id) => {
-    const row = document.querySelector(`[data-condition-id="${id}"]`)
-    fireEvent.click([...row.querySelectorAll('button')].find((b) => b.hasAttribute('aria-expanded')
-      && b.getAttribute('aria-label') === null))
-    return row
-  }
-
   it('⛔⛔ THERE IS NO FORMULA BOX ON A DURABLE ROW — a second editable truth', () => {
-    // An editable box here would write `cond.formula` while the chart went on
-    // evaluating the DEFINITION: the member types and nothing happens.
     mount()
     const row = openRow('cond:durable')
     expect(screen.queryByLabelText('Durable formula')).toBeNull()
-    // …the formula that ACTUALLY runs is shown instead
     expect(row.textContent).toMatch(/rsi\(close, 14\) > 50/)
     expect(row.textContent).toMatch(/Saved formula — edit it in the formula builder/)
   })
 
   it('⭐ a LOCAL row still has its editable box', () => {
     mount()
-    // ⚠️ the id comes from the RENDERED row — `build()` mints a fresh one per call
     const id = bell('Alert me — Self contained').closest('[data-condition-id]').dataset.conditionId
     openRow(id)
     expect(screen.getByLabelText('Self contained formula')).toBeTruthy()

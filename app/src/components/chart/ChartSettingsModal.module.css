@@ -1238,3 +1238,16 @@
   .actChevron { min-width: 34px; min-height: 34px; }
   .indSearch, .indNewFormula, .indBack { height: 38px; }
 }
+
+/* ⭐ THE ALERT COUNT ON A CONDITION'S BELL. Rendered only at two or more — one
+   alert is already reported by the bell being ON, and a "1" beside it is noise
+   on a row that has to stay compact. */
+.bellCount {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  margin-left: 1px;
+  color: var(--menu-accent, #dcbb5e);
+  vertical-align: super;
+}

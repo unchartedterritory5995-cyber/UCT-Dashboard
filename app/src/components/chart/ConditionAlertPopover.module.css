@@ -1,0 +1,195 @@
+/* app/src/components/chart/ConditionAlertPopover.module.css
+ *
+ * ⭐ THE SAME CHROME AS `IndicatorAlertPopover`, DELIBERATELY. A member who has
+ * used one alert surface should recognise the other on sight; two alert popovers
+ * with different grounds, borders and gold would read as two products. The
+ * dimensions differ because the content does — this one asks almost nothing. */
+
+.sheet {
+  position: absolute;
+  z-index: 1400;
+  width: 268px;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: var(--radius-lg, 8px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--menu-text, #ededed);
+}
+
+/* ── the sentence ──────────────────────────────────────────────────────────
+ * ⭐⭐ IT READS AS A SENTENCE, NOT AS A FORM. Symbol, timeframe and timing are
+ * FACTS the chart already knows, so they are stated rather than asked. */
+.lede {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #93939a);
+}
+.what {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--menu-text, #ededed);
+  word-break: break-word;
+}
+.when {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--menu-text-dim, #b3b3b9);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  align-items: baseline;
+}
+.when b {
+  font-weight: 600;
+  color: var(--menu-accent, #dcbb5e);
+}
+.dot { color: var(--menu-text-faint, #93939a); }
+
+.note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--menu-text-dim, #b3b3b9);
+}
+
+/* ── delivery, stated rather than offered ──────────────────────────────────
+ * ⛔ NOT A CHECKBOX. There is no per-alert channel storage yet, and a control
+ * that does nothing is worse than a sentence that is true. */
+.delivery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--menu-text-dim, #b3b3b9);
+  padding-top: 2px;
+  border-top: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.create {
+  flex: 1;
+  background: var(--menu-accent, #dcbb5e);
+  color: #14141a;
+  border: none;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm, 4px);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.create:hover:not(:disabled) { filter: brightness(1.07); }
+.create:disabled { opacity: 0.45; cursor: not-allowed; }
+.create:focus-visible,
+.ghost:focus-visible,
+.link:focus-visible {
+  outline: 2px solid var(--menu-accent, #dcbb5e);
+  outline-offset: 2px;
+}
+.ghost {
+  background: transparent;
+  color: var(--menu-text-dim, #b3b3b9);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  padding: 7px 10px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ghost:hover { color: var(--menu-text, #ededed); }
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--menu-accent, #dcbb5e);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+}
+.link:hover { text-decoration: underline; }
+
+/* ── refusal / result ──────────────────────────────────────────────────────*/
+.refusal {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--menu-text-dim, #b3b3b9);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--menu-text-faint, #93939a);
+  padding: 8px 10px;
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+}
+.error {
+  border-left-color: #d8705f;
+  color: #e8b3a8;
+}
+.ok {
+  border-left-color: #5fbb87;
+  color: #b6dcc6;
+}
+.bound {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  color: var(--menu-text-faint, #93939a);
+}
+
+/* ── the existing-alert list ───────────────────────────────────────────────*/
+.existing {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid transparent;
+}
+.rowMain { flex: 1; min-width: 0; }
+.rowTop {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--menu-text, #ededed);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowSub {
+  font-size: 10.5px;
+  color: var(--menu-text-faint, #93939a);
+  margin-top: 1px;
+}
+.rowOff { opacity: 0.5; }
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: var(--menu-text-faint, #93939a);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+.iconBtn:hover { color: var(--menu-text, #ededed); }
+.iconBtn:focus-visible {
+  outline: 2px solid var(--menu-accent, #dcbb5e);
+  outline-offset: 1px;
+}
+
+/* ⚠️ NARROW. The chart pane can be a small grid cell, and a fixed 268px sheet
+ * plus an 8px gutter is wider than some of them. */
+@media (max-width: 420px) {
+  .sheet { width: calc(100vw - 24px); max-width: 268px; }
+}

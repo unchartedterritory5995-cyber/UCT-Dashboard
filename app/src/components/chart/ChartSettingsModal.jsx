@@ -1213,6 +1213,9 @@ export default function ChartSettingsModal({
               sym={alertSym}
               tf={alertTf}
               chartId={chartId}
+              /* ⭐ "Manage in Alerts" navigates away, so the modal closes itself
+                 first — the same courtesy the Builder door already extends. */
+              onClose={onClose}
             />
           )}
 

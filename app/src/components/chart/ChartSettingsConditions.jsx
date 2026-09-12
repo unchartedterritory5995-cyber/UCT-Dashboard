@@ -8,7 +8,7 @@ import { sourceOptions, parseSource } from './engine/sourceRef'
 import { validateConditionFormula } from './engine/conditions'
 import { CAPABILITY_REASON, SOURCE_UNAVAILABLE } from './engine/conditionCapability'
 import { MARKER_SHAPES, MARKER_POSITIONS, ACTION_CHANNEL } from './engine/conditionActions'
-import { ConditionAlertBell, ConditionAlertNote } from './ConditionAlertBell'
+import { ConditionAlertBell } from './ConditionAlertBell'
 import { bellState } from './engine/conditionBell'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
@@ -76,19 +76,20 @@ export default function ChartSettingsConditions({
   // alert needs a SYMBOL and a TIMEFRAME, which this panel does not own; a bell
   // rendered without a host to arm it would be a control that does nothing on
   // every surface that mounts these settings outside a chart.
-  onArmAlert = null, onPromoteCondition = null, alerts = [], sym = null,
-  promotingId = null,
+  // ⭐ ONE HANDLER NOW, NOT THREE. The bell opens a sheet and the SHEET decides
+  // what this condition can do; the tab only has to say where the sheet goes.
+  onOpenAlerts = null, alerts = [], sym = null, busyId = null,
+  openAlertsFor = null,
 }) {
   const list = useMemo(() => conditionsOf(settings), [settings])
   const [openId, setOpenId] = useState(null)
-  const [bellId, setBellId] = useState(null)
   const [draft, setDraft] = useState({})
 
   // ⛔ ONE DERIVATION FOR THE WHOLE LIST, not a hook per row — a row is rendered
   // from a `.map`, and a capability computed inside one would be a hook in a loop.
   // It is also the cheaper shape: `conditionCapability` parses, and parsing once
   // per render beats once per row per render.
-  const showBell = !!(onArmAlert || onPromoteCondition)
+  const showBell = !!onOpenAlerts
   const bells = useMemo(
     () => (showBell
       ? new Map(list.map((c) => [c.id, bellState(c, registry, alerts, sym)]))
@@ -259,11 +260,9 @@ export default function ChartSettingsConditions({
             <ConditionAlertBell
               cond={c}
               state={bell}
-              expanded={bellId === c.id}
-              busy={promotingId === c.id}
-              onArm={onArmAlert}
-              onPromote={onPromoteCondition}
-              onExplain={() => setBellId(bellId === c.id ? null : c.id)}
+              expanded={openAlertsFor === c.id}
+              busy={busyId === c.id}
+              onOpen={onOpenAlerts}
             />
           )}
           <button
@@ -281,13 +280,6 @@ export default function ChartSettingsConditions({
             onClick={() => commit(removeCondition(settings, c.id))}
           ><UIcon name="close" size={12} /></button>
         </div>
-
-        {/* ⭐ THE REFUSAL IS SHOWN OUTSIDE THE COLLAPSED BODY, because it is the
-            answer to a click on the bell — a member who asked "why not?" should
-            not have to also expand the condition to read it. */}
-        {bell && bellId === c.id && (
-          <ConditionAlertNote cond={c} state={bell} onBuild={onBuild} />
-        )}
 
         {isOpen && (
           <>
