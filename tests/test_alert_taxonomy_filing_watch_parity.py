@@ -582,7 +582,24 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
       3. Re-run the three observable classes above against the new type's own
          fixture event, and re-run the mutation proof.
     """
-    _EXPECTED = {"document-arrival"}
+    # ⛔ FLIPPED 2026-09-12 by GATE-S7-PRICE-LEVEL Checkpoint 1. Updated by
+    # NAMING the new type, never by deleting the assertion -- the docstring's
+    # own instruction.
+    #
+    # ⚠️ STEPS 2 AND 3 ABOVE ARE DELIBERATELY NOT DONE YET, and this is the
+    # record of that decision rather than an oversight. Checkpoint 1 registers
+    # `price-level` and ships NO evaluator, so the type cannot fire:
+    #   - step 2 (an `alerts._s7_durable_alerts` reconstruction branch) guards
+    #     fires being dropped from the member's feed. With no evaluator there
+    #     are no fires to drop. It lands with the evaluator, under its own
+    #     approval, and the sibling test below still demonstrates the hazard.
+    #   - step 3 (re-running the three observable classes against the new
+    #     type's fixture event) needs a fire to run against.
+    # "Cannot fire" is not taken on trust: `test_the_type_is_dark_by_construction_not_by_intention`
+    # in tests/test_alert_taxonomy_price_level_schema.py asserts price_level.py
+    # does not import `delivery`, and `test_the_registration_is_not_wired_yet`
+    # asserts nothing calls its register().
+    _EXPECTED = {"document-arrival", "price-level"}
 
     files, declared = _declared_trigger_types()
 
