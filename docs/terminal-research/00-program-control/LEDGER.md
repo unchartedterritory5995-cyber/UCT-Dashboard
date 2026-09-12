@@ -184,6 +184,21 @@ them and cannot yet validate them. Five PRs, merged by the owner, in this order:
 **Master `a10c7c94a` → `080297866`.** Verified per merge: content present, rail OK, and on the final
 stack **361 backend passed / exit 0** and **3 frontend files, 26 tests passed / exit 0**.
 
+✅ **PRODUCTION TOOK IT — verified by artifact, not inferred.** Push 22:41 CDT; the web pod's
+`/api/health` **uptime reset to 15 s** about two minutes later (a boot, not a rising counter — the
+distinction this program has had to re-learn: a 200 and a rising uptime are compatible with a deploy
+that never swapped). Post-deploy liveness, browser UA because Cloudflare 1010-blocks curl's default:
+
+| route | result |
+|---|---|
+| `/api/health` | **200**, `status: ok`, uptime 32 s, rss 845 MB (down from 1722 MB pre-swap — a fresh process) |
+| `/calendar` | **200**, 14,507 B, SPA shell `id="root"` present |
+| `/research/:sym` | **200** |
+
+⚠️ All three merges were test-only or a single frontend icon entry, so there is **no new API surface
+to probe** — this confirms the deploy swapped and the app serves, not that any new behaviour works.
+The icon is verifiable only in a browser.
+
 ## ⛔⛔ WHY #4 IS HELD — `tools/flow_worker_watch_coverage.py` exits 1
 
 ```
