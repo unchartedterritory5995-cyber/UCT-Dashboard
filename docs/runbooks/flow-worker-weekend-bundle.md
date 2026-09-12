@@ -201,3 +201,75 @@ first prepare after the *bundle* boot took **110,929 ms**, while the first prepa
 after the *flag* boot took **17,503 ms** (pass 1 5,005 ms + cold CSV ~12.5 s; pass 2
 5,357 ms). Both are cold-boot cycles. The gap is unattributed — likely the OPRA
 consumer restarting concurrently — and is not evidence about steady state either way.
+
+---
+
+# Cold-first-paint rig procedure (written 2026-09-12, BEFORE first use)
+
+Written ahead of the run so it is repeatable and so its traps are known in advance
+rather than discovered inside the measurement. **Not yet executed** — it needs a live
+tape.
+
+## ⛔ BLOCKER TO RESOLVE BEFORE THE RUN: there is no synthetic MEMBER account
+
+The measurement is specified as a **member-role session, not admin**. The only
+synthetic production account is `smoke@uctintelligence.internal`, and it is **admin
+by construction**: `api/routers/auth.py` promotes from `ADMIN_EMAILS` at signup
+(`:205-211`) and RE-promotes at login (`:253-257`), and no endpoint sets a role. So
+it cannot be demoted, and every automated sign-in is an admin sign-in.
+
+That matters because it is exactly the caveat already recorded against the bootstrap
+key trace: *"measured on an ADMIN session; a plain member may render fewer regions, so
+a member-only trace could reveal deferrable keys."* An admin cold paint may render
+MORE than a member's and is therefore a pessimistic-but-not-equivalent number.
+
+Three options, all owner calls:
+1. Provision a second synthetic account NOT in `ADMIN_EMAILS`, via the same pod-side
+   `create_user` + `comp_user_access` path the smoke account used — one production
+   write, needs an explicit allow. ⛔ Door B (flipping `COMING_SOON_MODE`) stays
+   permanently refused.
+2. Run as the admin smoke account and **label every number "admin session"**, with the
+   render-surface caveat stated beside it.
+3. Skip item 8 and leave cold paint unmeasured.
+
+**Do not silently pick (2).** An admin number presented as a member number is the
+defect this runbook exists to prevent.
+
+## Procedure
+
+Preconditions, each asserted before measuring — an unasserted one is an INCONCLUSIVE
+run, never a pass:
+- **Tab VISIBLE and focused.** ⛔ A hidden tab never loads Options Flow at all:
+  `shouldFetchVersion` gates on `visibilityState === 'visible'`, so dataVersion never
+  resolves, ZERO `/api/flow/*` fire, and the page sits at `contentLen 244`. A hidden
+  tab also clamps timers and defers render.
+- Viewport PINNED (the left `NavBar` does not exist below 1025px).
+- Cache cleared between runs; state the throttling profile explicitly (none / Fast 3G
+  / 4x CPU) — a number without its profile is not comparable to anything.
+- Opt-in/opt-out per-browser keys ABSENT, not `'0'` — a key left behind by an earlier
+  run reads identically to the default today and inverts after a flip.
+
+Record per run:
+- time to **first content**, measured with a **MutationObserver**, never a timer —
+  a timer is throttled and the state SEQUENCE goes wrong under load. This is the
+  instrument error that once had byte reductions reported while members still saw a
+  full-page spinner.
+- bytes on the wire (transferSize) — ⛔ via a **streaming `PerformanceObserver`**, not
+  `getEntriesByType('resource')`, which caps at 250 entries and DROPS. It once
+  reported "no raw arrays fetched" during a run where they were.
+- which parts came from cache vs were built (`X-Flow-Part` + the ledger's `builds`
+  delta across the run).
+- `X-Flow-Version` on the served parts vs `/api/flow/version` at the moment of paint —
+  a mismatch means a stale-but-honest serve, which is a different reading from a
+  current one.
+
+Run **at least five times, positioned against the roll cycle**: immediately after a
+version roll, mid-cycle, and just before the next roll. The post-roll run is the
+worst case and is the one that decides whether decisions (a)/(b) reopen.
+
+Then **warm re-entry** separately, and compare against UCT20 on DOM commits and bytes
+— the standing claim is that warm re-entry BEATS UCT20 on both, and it should be
+re-confirmed rather than assumed.
+
+⛔ Report median AND worst case. A median alone hides the post-roll case, which is the
+one a member hits after every 60 s roll during RTH.
