@@ -58,14 +58,35 @@ recovered the moment it finished.
 ⛔ **Batch merges, or let each reach SUCCESS before pushing the next.** The
 runbook's "~1 min `/api/*` blip" is per push and does not compose.
 
-## On the GitHub token — not created, and the reason changed
+## ⛔ DECIDED — the GitHub PAT was deliberately NOT created
 
-Its stated purpose was to unlock the REST route for merges. **All four merges
-landed via plain `git push`**, so that purpose is moot. What remained was the MCP
-connecting next session and one draft PR — set against creating a 90-day
-`repo`-scoped credential and persisting it to a User environment variable, where
-any process running as the owner can read it. Flagged for the owner rather than
-done silently.
+Owner ruling, 2026-09-12. Its stated purpose was unlocking the REST route for
+merges; **all merges landed via plain `git push`**, so that purpose was moot. What
+remained was the MCP connecting next session and one draft PR — set against
+creating a 90-day `repo`-scoped credential and persisting it to a User
+environment variable, where any process running as the owner can read it. Not
+worth it for that.
+
+⭐ **Sunday's revert does not depend on it.** `rollback/notebook-offline-default-off`
+@ `3db89e205` is pushed, gated and gauntleted green with the flag false. Opening a
+PR from the branch page and merging it with a **merge commit** is one click.
+
+## ⭐ THE OWNER'S BROWSER NOW RUNS THE LAYER — and is still not a member
+
+Owner ruling, 2026-09-12. `uct.j2.offline.enabled` was **removed** from the
+owner's regular Chrome so a week of real human browsing exercises the offline
+layer. Verified immediately after, on the live build:
+
+```
+flagKey null (default ON) · optInMarker "1" · sync lock HELD 1 · session lock 1
+notebook DB present · no console errors
+```
+
+⛔ **It is labelled `owner browser (rig account, human use)` and counts as
+NEITHER a member NOR the rig.** It shares the rig's account, so identity cannot
+separate the two — and it does not need to, because neither is an independent
+member. `members` counts opt-ins from **any other email**, and that is the only
+number the "zero blocked-baseline events" claim may be divided by.
 
 # 🏁 WAVE Q1 — CLOSED, AND LIVE IN PRODUCTION
 
