@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 
@@ -12,6 +12,10 @@ import DocumentPreviewSheet from './DocumentPreviewSheet'
 // jsdom structurally cannot exercise -- native anchor download, real CSS
 // layout, and now native PDF text-layer selection are the same class).
 
+// ⛔ THE VIEWER IS LAZY NOW (PdfViewerBoundary, 2026-09-12), so every assertion about the props
+// it receives has to AWAIT its first render. Before the boundary these were synchronous; a
+// synchronous read now sees `lastViewerProps === null` and fails for a reason that has nothing
+// to do with what the test is about.
 const HREF = '/api/j2/notes/attachments/u1/n1/file/abc123.pdf'
 
 let lastViewerProps = null
@@ -28,10 +32,10 @@ describe('DocumentPreviewSheet', () => {
     expect(screen.queryByTestId('pdf-viewer-stub')).not.toBeInTheDocument()
   })
 
-  it('renders the bar (filename + download/open-in-new-tab links) and mounts the PDF viewer at the attachment URL', () => {
+  it('renders the bar (filename + download/open-in-new-tab links) and mounts the PDF viewer at the attachment URL', async () => {
     lastViewerProps = null
     render(<DocumentPreviewSheet open href={HREF} name="report.pdf" onClose={vi.fn()} />)
-    expect(screen.getByTestId('pdf-viewer-stub')).toBeInTheDocument()
+    expect(await screen.findByTestId('pdf-viewer-stub')).toBeInTheDocument()
     expect(screen.getByText('report.pdf')).toBeInTheDocument()
     const openLink = screen.getByText('Open in new tab').closest('a')
     expect(openLink.getAttribute('href')).toBe(HREF)
@@ -39,16 +43,16 @@ describe('DocumentPreviewSheet', () => {
     const downloadLink = screen.getByText('Download').closest('a')
     expect(downloadLink.getAttribute('href')).toBe(HREF)
     expect(downloadLink.getAttribute('download')).toBe('report.pdf')
-    expect(lastViewerProps.href).toBe(HREF)
+    await waitFor(() => expect(lastViewerProps.href).toBe(HREF))
   })
 
-  it('threads the page number through as initialPage -- PdfDocumentViewer scrolls to it, not a browser #page= fragment', () => {
+  it('threads the page number through as initialPage -- PdfDocumentViewer scrolls to it, not a browser #page= fragment', async () => {
     lastViewerProps = null
     render(<DocumentPreviewSheet open href={HREF} name="report.pdf" page={17} onClose={vi.fn()} />)
-    expect(lastViewerProps.initialPage).toBe(17)
+    await waitFor(() => expect(lastViewerProps.initialPage).toBe(17))
   })
 
-  it('threads excerpts, onSaveExcerpt, and emphasizeExcerptId through to the viewer', () => {
+  it('threads excerpts, onSaveExcerpt, and emphasizeExcerptId through to the viewer', async () => {
     lastViewerProps = null
     const excerpts = [{ id: 'e1', pageNumber: 3, capturedText: 'x' }]
     const onSaveExcerpt = vi.fn()
@@ -58,7 +62,7 @@ describe('DocumentPreviewSheet', () => {
         excerpts={excerpts} onSaveExcerpt={onSaveExcerpt} emphasizeExcerptId="e1"
       />,
     )
-    expect(lastViewerProps.excerpts).toBe(excerpts)
+    await waitFor(() => expect(lastViewerProps.excerpts).toBe(excerpts))
     expect(lastViewerProps.onSaveExcerpt).toBe(onSaveExcerpt)
     expect(lastViewerProps.emphasizeExcerptId).toBe('e1')
   })

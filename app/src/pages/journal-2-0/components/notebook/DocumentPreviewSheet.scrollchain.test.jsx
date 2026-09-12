@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import sheetStyles from './DocumentPreviewSheet.module.css'
@@ -43,9 +43,9 @@ function block(css, selector) {
 }
 
 describe('the viewer sits in a body this sheet controls', () => {
-  it('renders the viewer INSIDE the element carrying the styled body class', () => {
+  it('renders the viewer INSIDE the element carrying the styled body class', async () => {
     render(<DocumentPreviewSheet open href="/f.pdf" name="report.pdf" onClose={vi.fn()} />)
-    const stub = screen.getByTestId('pdf-viewer-stub')
+    const stub = await screen.findByTestId('pdf-viewer-stub')
     // ⛔ Compare against the IMPORTED token, never a hand-typed class name —
     // CSS-module class names are hashes, not arguments.
     const styled = stub.closest(`.${sheetStyles.body}`)
