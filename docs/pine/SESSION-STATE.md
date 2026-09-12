@@ -1,5 +1,102 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐ VOLUME v2 CAPTURED, AND THE OOS CORPUS IS 40/60 — WITH THE 20 NAMED
+
+### The v2 vendor capture — `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json`
+
+19 studies before · 20 after · 19 after removal · nothing saved. **8 plot channels** in
+`_metaInfo.plots` order over the last 300 of 630 daily bars, AMEX:SPY:
+
+```
+0 Volume            27,422,263 … 165,293,521      na 0   zero 0   ⭐ the live control
+1 (colorer)         4,282,726,130 … 4,287,003,512
+2 Avg Vol Columns   43,318,979 … 92,174,150.66    na 187 — plots only above the average, by design
+3 (colorer)         4,287,003,512 (constant)
+4 Avg Vol Line      43,318,979 … 92,174,150.66    na 0
+5 (colorer)         436,207,615 (constant)
+6 Scale Padding     54,188,427.175 … 206,616,901.25
+7 HVE Trigger       0 on all 300
+```
+
+⚠️ **`HVE Trigger` is 0 throughout and that is not a fault** — SPY has not set a
+2,500-session volume record in the window. It does mean **the HVE path is unread on the
+vendor side**; a capture that exercises it needs a symbol with a recent volume record or
+a smaller window, and the fixture says so rather than implying coverage.
+
+⭐ **THE SOURCE WAS FETCHED, NOT PASTED.** `fetch()` in the page against the committed
+file's raw GitHub URL, sha256 checked before `setValue` and again on read-back. That
+retires the paste wall for anything already committed, and keeps the same receipt a
+paste would have needed.
+
+⚠️ **Tables: one captured, one partial.** `Vol : 45.51M (1.05x)` in full;
+`Range: 127.58%` from the ATR table with cells 2–4 clipped — on a 20-study layout each
+pane is about twenty pixels tall and the legend overlays the table. Reading the rest
+means enlarging the pane, which is a saved-layout change I did not make unasked. The
+route is written in the fixture.
+
+### pine_oos — 30 held-locally scripts, 10 restored, 20 still to fetch
+
+**40 of 60 now present, every one hash-verified against `sha256_source`, zero
+mismatches, and `git status` shows nothing from `tests/fixtures/pine_oos`** — the
+licence-driven ignore holds.
+
+| | |
+|---|---|
+| already present | 30 |
+| **restored this session** | **10** — copied from `tools/c0_oos_fixtures`, each one's sha256 checked against the manifest before it was written |
+| still missing | 20 (named below) |
+| hash mismatches | **0** |
+
+⛔ **TWO BULK ROUTES WERE TRIED AND BOTH FAIL — recorded so nobody spends them again:**
+
+1. **Fetch the script page.** `https://www.tradingview.com/script/<id>/` returns 634 KB
+   of HTML with **no source in it** — no `//@version`, no `"source"` key. TradingView
+   renders the code client-side.
+2. **Fetch pine-facade directly.** `pine-facade/get/PUB;<shortId>/last` answers
+   `404 Script is not found`: the short URL id is not the facade's script id, and the
+   mapping only exists in the page's client state.
+
+⭐ **So the remaining route is per-script and manual-ish**: open each URL in its own tab,
+let the page resolve the script, read the source through the editor, hash it. Twenty
+scripts, and it is the honest cost — no bulk shortcut exists.
+
+**The 20, by name:** `high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo`
+· `…13-ultimate-opening-range-breakout-luxalgo` · `…17-volume-profile-and-volume-indicator-dgt-dgtrd`
+· `…19-anchored-vwap-stuehmer` · `…21-parabolic-sar-deviation-bigbeluga` ·
+`long_tail__01-ny-macro-status` · `…10-mtf-supply-demand` · `…14-vwap-z-score-oscillator`
+· `…15-agreed-upon-dol` · `…18-deltalabs-equal-highs-equal-lows` · `…19-session-fibs-falcon-ai`
+· `…20-cot-pulse-cloud-trend` · `mid_engagement__01-zeiierman-trend-pressure` ·
+`…03-volatility-supply-demand-zones` · `…04-cisd-order-block` · `…05-supertrend-fibonacci-ote`
+· `…08-hourly-alpha-profile-terminal` · `…10-smc-engine` · `…15-multi-timeframe-ma-forecast`
+· `…23-distilled-htf-po3`.
+
+⛔ **Floors stay at 60.** Nothing was substituted and no floor was lowered to match what
+is on disk — the census reds are the honest report that the corpus is 40/60.
+
+### And restoring the corpus exposed two more ruling-1.2 consequences
+
+`documentSize.measure` and `graphSize.measure` both build a document for
+`…03-supertrend`, which now carries no column at all, and both failed as *"the document
+should build"* — which reads like a deleted fixture rather than a ruling. Each now
+asserts the truth by name: **that script builds NO document**, with the two-step history
+(R-F took nine columns, 1.2 took the tenth) written at the line.
+
+### Suite, end of session
+
+```
+app/src/components/chart/   413 files   405 passed   8 failed
+```
+
+| red | why |
+|---|---|
+| `historyDemandCensus`, `capabilityDemandCensus` | 139 vs >150 — the 20 missing scripts |
+| `objectDemandCensus`, `visualDemandCensus` | 40 vs 60 — the same |
+| `visualParitySet` | one ENOENT, `mid_engagement__05-supertrend-fibonacci-ote` |
+| `pineBoxSuggestVoice` ×3, `ImportBox.thinkscript` | `import-suggest` never renders — a UI door, unrelated to the engine, red before this session |
+| `BuilderSheet.pine` | the save-door `sent.id` case, likewise pre-existing |
+
+**Five of the eight are one cause**, and it is the 20 scripts above — not a defect.
+
 ## ⭐⭐ T1 + T1b — `ta.tr(true)` READ FROM THE VENDOR, AND VOLUME'S LINE 189 IS CLEAR
 
 **The capture ran end to end, autonomously, and nothing was saved to the account.**

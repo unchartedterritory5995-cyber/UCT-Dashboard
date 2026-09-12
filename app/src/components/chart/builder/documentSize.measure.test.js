@@ -121,9 +121,20 @@ describe('C2B.2 — the document-size distribution of the frozen 60', () => {
   })
 })
 
-describe('C2B.2/.3 — where the two blocked documents spend their bytes', () => {
-  for (const name of ['high_engagement__03-supertrend-kivancozbilgic',
-    'mid_engagement__22-rsi-levels-regime-map']) {
+describe('C2B.2/.3 — where the blocked document spends its bytes', () => {
+  // ⚰️⚰️ ONE OF THE TWO BLOCKED SCRIPTS CARRIES NOTHING SINCE 2026-09-12, AND THAT
+  // IS TWO RULINGS RATHER THAN A BROKEN FIXTURE. R-F refused nine of
+  // `…03-supertrend`'s ten columns (its band was folding to a 250-bar rolling min) and
+  // ruling 1.2 refused the tenth — the author's untitled `ohlc4` fill edge, which the
+  // door had been OFFERING under the script's own title. A script with no carried
+  // column has no document to size, so it moves out of the measurement and into a named
+  // record, rather than failing as "the document should build" — which reads like a
+  // corpus file somebody deleted.
+  it('⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO document at all', () => {
+    expect(documentFor('high_engagement__03-supertrend-kivancozbilgic')).toBe(null)
+  })
+
+  for (const name of ['mid_engagement__22-rsi-levels-regime-map']) {
     it(name, () => {
       const doc = documentFor(name)
       expect(doc, 'the document should build').toBeTruthy()

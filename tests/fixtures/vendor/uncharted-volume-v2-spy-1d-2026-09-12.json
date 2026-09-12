@@ -1,0 +1,77 @@
+{
+  "_": "⭐ THE VENDOR SIDE OF VOLUME v2 — what TradingView draws for the owner's edited script, so T6 has something to compare a host render against. Eight plot channels over 300 daily bars, plus what the two on-chart tables show on the last bar.",
+  "_script": "tests/fixtures/member/uncharted-volume-v2.pine",
+  "_scriptSha256": "e550e994f5ad04f197b7746b14db21e9e1a0edcee843a2fa568402ac2e22c0c6",
+  "_scriptBytes": 34481,
+  "_studyName": "Uncharted Volume v2",
+  "_capturedUTC": "2026-09-12T15:50:00Z",
+  "_capturedET": "2026-09-12T11:50:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "1D",
+  "_compiles": true,
+  "_transferredBy": "⭐ FETCHED IN-PAGE FROM THE PUBLIC REPO, NOT PASTED. `fetch()` on the raw GitHub URL for the committed file, sha256 checked against the manifest BEFORE `setValue` and again on the buffer read-back. That removes the paste wall entirely for any script already committed, and the receipt is the same one a paste would have needed.",
+  "_rig": {
+    "layout": "e3cTXatd — UCT AGENT VISIT 2026-09-10 (disposable)",
+    "studiesBefore": 19,
+    "studiesAfterAdd": 20,
+    "studiesAfterRemoval": 19,
+    "savedToAccount": false,
+    "gate": "own-text `Add to chart`, visible and enabled, zero `Update on chart`, asserted immediately before the setValue and again immediately before the click"
+  },
+  "plots": {
+    "_": "⛔ ORDER IS `_metaInfo.plots`, NEVER `Object.keys(styles)` — the styles map sorts plot_10 between plot_1 and plot_2.",
+    "count": 8,
+    "roster": [
+      { "i": 0, "id": "plot_0", "type": "line", "title": "Volume" },
+      { "i": 1, "id": "plot_1", "type": "colorer", "title": "(colour of Volume)" },
+      { "i": 2, "id": "plot_2", "type": "line", "title": "Avg Vol Columns" },
+      { "i": 3, "id": "plot_3", "type": "colorer", "title": "(colour of Avg Vol Columns)" },
+      { "i": 4, "id": "plot_4", "type": "line", "title": "Avg Vol Line" },
+      { "i": 5, "id": "plot_5", "type": "colorer", "title": "(colour of Avg Vol Line)" },
+      { "i": 6, "id": "plot_6", "type": "line", "title": "Scale Padding" },
+      { "i": 7, "id": "plot_7", "type": "alertcondition", "title": "HVE Trigger" }
+    ]
+  },
+  "window": { "bars": 300, "from": "2025-07-03", "to": "2026-09-11", "ofTotalRows": 630 },
+  "measured": {
+    "Volume": { "min": 27422263, "max": 165293521, "na": 0, "zero": 0 },
+    "Avg Vol Columns": { "min": 43318979, "max": 92174150.66, "na": 187, "zero": 0 },
+    "Avg Vol Line": { "min": 43318979, "max": 92174150.66, "na": 0, "zero": 0 },
+    "Scale Padding": { "min": 54188427.175, "max": 206616901.25, "na": 0, "zero": 0 },
+    "HVE Trigger": { "min": 0, "max": 0, "na": 0, "zero": 300 },
+    "colorers": {
+      "plot_1": { "min": 4282726130, "max": 4287003512 },
+      "plot_3": { "min": 4287003512, "max": 4287003512 },
+      "plot_5": { "min": 436207615, "max": 436207615 }
+    },
+    "lastBar": {
+      "date": "2026-09-11",
+      "Volume": 45512741,
+      "Avg Vol Columns": 43318979,
+      "Avg Vol Line": 43318979,
+      "Scale Padding": 56890926.25,
+      "HVE Trigger": 0
+    },
+    "firstBarOfWindow": {
+      "date": "2025-07-03",
+      "Volume": 51065789,
+      "Avg Vol Columns": "na — the column plots only where volume exceeds the average, by design",
+      "Avg Vol Line": 69798874.58,
+      "Scale Padding": 87248593.225,
+      "HVE Trigger": 0
+    }
+  },
+  "_the_non_zero_control": "⭐ `Volume` is non-zero and non-na on all 300 bars (27.4M … 165.3M), so this capture is a study that RAN. Without a channel that must move, a table of zeros and nas would look exactly like agreement.",
+  "_why_HVE_is_zero_everywhere": "⚠️ NOT A FAULT — and worth stating so nobody later reads it as one. `HVE Trigger` fires when the day's volume meets the highest of the prior `lookbackBarsHVE` = 2,500 sessions. SPY has not done that in the 300 bars captured, so the channel is legitimately 0 throughout. It also means this capture does NOT exercise the trigger: a capture that does needs either a symbol with a recent volume record or a smaller window, and until then the HVE path is unread on the vendor side.",
+  "tables": {
+    "_": "⚠️ PARTIAL, AND THE REASON IS THE LAYOUT. Pine tables render inside the indicator's own pane; this layout carries 20 studies, so each pane is roughly twenty pixels tall and the tables are clipped by the legend that sits over them. What is legible on the last bar is recorded verbatim; what is not is named rather than reconstructed from the series (a formatted string is exactly what a capture is for).",
+    "volumeTable": { "captured": true, "text": "Vol : 45.51M (1.05x)" },
+    "atrTable": {
+      "captured": "partial",
+      "cell0": "Range: 127.58%",
+      "cells1to3": "NOT LEGIBLE — used / ATRx / DCR are clipped by the pane height and overlaid by the study legend",
+      "_route_next_time": "collapse the Pine editor panel (done — it gives the chart full width), then ENLARGE the v2 pane before reading. Pane geometry is part of the saved layout, so that is a deliberate layout change and was not made unasked."
+    }
+  },
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE WINDOW: AMEX:SPY 1D, the last 300 of 630 computed bars, on 2026-09-12. The colorer channels are palette indices, not values — they are recorded so a renderer comparison can see WHICH colour was chosen, not to be read as numbers. Nothing here exercises the HVE trigger, the weekly branch, or the no-volume/ratio-symbol path that hides the pane."
+}
