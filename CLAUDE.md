@@ -1993,6 +1993,23 @@ said `SKIPPED` — concluding *"every master push restarts web, worker, bars-api
 and flow-worker in lockstep"* and nearly widening the RTH freeze to docs on that
 basis. Counting presence is not reading a verdict.
 
+### 📓 Notebook Wave Q1 — LIVE (not dark) since 2026-09-12 00:45 ET
+
+`OFFLINE_DEFAULT_ON = true` on `master` as of `739218e48`. The durable IndexedDB
+working copy, the outbox, Web Locks leader election and conflict-fork-never-clobber
+are the DEFAULT path for every member, not an opt-in.
+
+⭐ **The closing entry is the authority** — `docs/notebook/wave-q1-RESUME-HERE.md`,
+first section. It carries the verification, the canary table, the Sunday
+18:00 ET keep-or-revert gate, and the per-browser opt-out.
+
+⛔ **Rollback is pre-authored and pushed**: `rollback/notebook-offline-default-off`
+at `3db89e205`, gated and gauntleted green with the flag false. It is a DEPLOY,
+not a variable — see *"Rolling back a FRONTEND flag"* below.
+
+⛔ **Unattended observation**: `tools/nb_observe.py`, Task Scheduler job
+`UCT-WaveQ1-Observe`, every 2 hours into `docs/notebook/wave-q1-observation-log.md`.
+
 ### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
 
 `app/src/hub/rule12Paths.test.js` (`327fa4c70`) asserts *"this branch must not
