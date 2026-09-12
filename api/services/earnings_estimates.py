@@ -759,6 +759,24 @@ def _year_earnings_from_yf(ticker: str, year: int) -> list:
         return []
 
 
+def _is_foreign_shaped(sym: str) -> bool:
+    """A suffixed or digit-bearing symbol (005930.KS, 285A, 000660) — one with
+    no US-provider coverage, for which Yahoo is the only source at any age."""
+    s = (sym or "").upper()
+    return "." in s or any(ch.isdigit() for ch in s)
+
+
+def _is_recent_year(year: int) -> bool:
+    """Is this fiscal year still on screen? The current one and the previous
+    one are: a Q4 reported in January belongs to the previous fiscal year and is
+    the newest row the widget shows for weeks afterwards."""
+    from datetime import datetime, timezone
+    try:
+        return int(year) >= datetime.now(timezone.utc).year - 1
+    except (TypeError, ValueError):
+        return False
+
+
 def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bool = False) -> list:
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
     fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
@@ -812,10 +830,24 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bo
         _fill(_year_earnings_from_fmp(prov, year))
         if len(by_q) < 4:
             _fill(_year_earnings_from_stock(prov, year))
-        # yfinance (Yahoo) covers international markets the US providers miss.
-        # Only for foreign-looking symbols (suffixed/numeric) to avoid adding a
-        # slow yfinance call to every US stock that merely has an FMP gap.
-        if len(by_q) < 4 and ("." in prov or any(ch.isdigit() for ch in prov)):
+        # yfinance (Yahoo) covers international markets the US providers miss,
+        # AND is the only remaining source when FMP and Finnhub both have a hole
+        # in a year that is still on screen.
+        #
+        # ⚰️ This used to be gated on the SYMBOL'S SHAPE — `"." in prov or
+        # any(ch.isdigit())` — so a plain US ticker could never reach the third
+        # provider in a three-provider chain. Measured 2026-09-12: 24 of 300
+        # random universe tickers had a stale reported strip and the Finnhub
+        # gap-fill rescued ZERO of them, because for `MMC` / `BK` / `HOLX` this
+        # line was unreachable. The chain read like defence in depth and was two
+        # deep for exactly the names a member opens.
+        #
+        # The gate is now about WHEN a gap matters. A hole in the current or
+        # previous fiscal year is the member-visible strip; a hole in a
+        # decade-old year is historical trivia that does not justify a slow
+        # call, which is the cost the old gate was really protecting. Foreign
+        # shapes keep reaching Yahoo at any age — it is their only source.
+        if len(by_q) < 4 and (_is_foreign_shaped(prov) or _is_recent_year(year)):
             _fill(_year_earnings_from_yf(prov, year))
 
     # 1. The admin's explicit provider symbol (e.g. 005930.KS) wins; else the

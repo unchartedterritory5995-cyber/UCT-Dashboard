@@ -91,11 +91,22 @@ _CRITICAL_KINDS = ("exception", "bad_shape", "nan", "dup_quarter", "dup_forward"
 _DATA_DIR = os.environ.get("DATA_DIR") or ("/data" if os.path.isdir("/data") else os.path.join(os.getcwd(), "data"))
 DB_PATH = os.environ.get("FUNDAMENTALS_MONITOR_DB", os.path.join(_DATA_DIR, "fundamentals_monitor.db"))
 
+# How often the standing non-critical defects get their one summary.
+_DIGEST_SECONDS = int(os.environ.get("FUNDAMENTALS_MONITOR_DIGEST_SECONDS", "86400"))
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS defect_state (
   sym   TEXT PRIMARY KEY,
   kinds TEXT NOT NULL,
   since TEXT NOT NULL
+);
+-- The digest's "last sent" stamp. On disk for the same reason defect_state is:
+-- an in-memory stamp resets on every web restart, so a pod that redeploys a few
+-- times a day would send a "daily" digest a few times a day — the exact defect
+-- this module is being fixed for.
+CREATE TABLE IF NOT EXISTS monitor_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 """
 
@@ -117,6 +128,7 @@ _state = {
     "blank_sales_last_cycle": 0,
     "last_cycle_at": None,
     "last_alert_at": None,
+    "last_digest_at": None,
 }
 
 
@@ -174,6 +186,98 @@ def _save_defect_state(checked: set[str], flagged: dict[str, list[str]], ts: str
                 )
     except Exception:  # pragma: no cover
         _logger.warning("[fund-monitor] defect_state write failed", exc_info=True)
+
+
+def _meta_get(key: str):
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT value FROM monitor_meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+    except Exception:  # pragma: no cover
+        return None
+
+
+def _meta_set(key: str, value: str) -> None:
+    try:
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO monitor_meta (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, value),
+            )
+    except Exception:  # pragma: no cover
+        _logger.warning("[fund-monitor] monitor_meta write failed", exc_info=True)
+
+
+def _standing_shape_defects() -> list[dict]:
+    """Every ticker currently in defect whose issues are ALL non-critical.
+
+    Read from defect_state rather than from this cycle's flagged list on
+    purpose: one cycle sees ~30 of ~3,700 names, so a digest built from the
+    sample would report a near-random slice of the real set. Criticals are
+    excluded because they already paged individually — repeating them here
+    would teach the reader that the digest is where criticals live."""
+    try:
+        with _connect() as conn:
+            rows = conn.execute(
+                "SELECT sym, kinds, since FROM defect_state ORDER BY sym"
+            ).fetchall()
+    except Exception:  # pragma: no cover
+        return []
+    out = []
+    for sym, kinds, since in rows:
+        ks = [k for k in (kinds or "").split(",") if k]
+        if ks and not any(k in _CRITICAL_KINDS for k in ks):
+            out.append({"sym": sym, "kinds": ks, "since": since})
+    return out
+
+
+def _send_digest(rows: list[dict]) -> None:
+    """One Discord summary of the standing non-critical defects. Best-effort."""
+    kinds: dict[str, int] = {}
+    for r in rows:
+        for k in r["kinds"]:
+            kinds[k] = kinds.get(k, 0) + 1
+    summary = ", ".join(f"{k}×{v}" for k, v in sorted(kinds.items())) or "none"
+    names = ", ".join(r["sym"] for r in rows[:25])
+    more = f" (+{len(rows) - 25} more)" if len(rows) > 25 else ""
+
+    try:
+        from api.services import discord_notify
+        discord_notify._send_webhook({
+            "title": "📋 Fundamentals data gaps — standing",
+            "description": (
+                f"**{len(rows)}** ticker(s) have a provider-side gap our pipeline "
+                f"faithfully reproduces. Not a regression in our code, and nothing "
+                f"to act on tonight — recorded so it does not go unnoticed.\n"
+                f"**Issues:** {summary}\n**Tickers:** {names}{more}\n"
+                f"Detail: `/api/admin/fundamentals-health`"
+            ),
+            "color": 0xC9A84C,
+            "timestamp": _now_iso(),
+        })
+    except Exception:  # pragma: no cover
+        pass
+
+
+def _maybe_digest(now_ts: float) -> bool:
+    """Send the standing-defect digest at most once per `_DIGEST_SECONDS`.
+    Returns True if one went out."""
+    rows = _standing_shape_defects()
+    if not rows:
+        return False
+    last = _meta_get("last_digest_at")
+    try:
+        last_ts = float(last) if last is not None else None
+    except (TypeError, ValueError):
+        last_ts = None
+    if last_ts is not None and (now_ts - last_ts) < _DIGEST_SECONDS:
+        return False
+    _send_digest(rows)
+    _meta_set("last_digest_at", repr(float(now_ts)))
+    with _state_lock:
+        _state["last_digest_at"] = _now_iso()
+    return True
 
 
 def _is_fund(sym: str) -> bool:
@@ -466,12 +570,14 @@ def run_cycle(now=None) -> dict:
 
     if newly:
         _alert(newly)
+    digested = _maybe_digest(time.time() if now is None else float(now))
 
     _logger.info("[fund-monitor] cycle: %d checked, %d healed, %d persistent-flagged, "
                  "%d fund-skipped, %d paged, %d blank-sales",
                  checked, healed, len(flagged), skipped_funds, len(newly), blank_sales)
     return {"checked": checked, "healed": healed, "flagged": len(flagged),
-            "skipped_funds": skipped_funds, "paged": len(newly), "blank_sales": blank_sales}
+            "skipped_funds": skipped_funds, "paged": len(newly),
+            "digested": digested, "blank_sales": blank_sales}
 
 
 def _run_forever() -> None:

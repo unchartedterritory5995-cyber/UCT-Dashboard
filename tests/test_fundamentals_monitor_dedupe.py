@@ -175,3 +175,99 @@ def test_monitor_does_not_flag_a_current_strip_as_stale(tmp_path, monkeypatch):
         quarterly=[_rep("2026 Q1"), _rep("2026 Q2"), _fwd("2026 Q3", "2026-09-30")]))
     r = fm.check_ticker("OK", now=now)
     assert [i["kind"] for i in r["issues"]] == []
+
+
+# ── the daily digest for defects that must not page ──────────────────────────
+# Shape defects are real and worth seeing; what they are not worth is a page at
+# 23:00 that nobody can act on. They accumulate in defect_state and get ONE
+# summary per interval.
+#
+# ⛔ The stamp is on disk for the same reason the defect set is: an in-memory
+# "last sent" would reset on every web restart and fire a digest per redeploy,
+# which is the exact bug this whole change exists to remove.
+_SHAPE_PAYLOAD = _payload(quarterly=[_rep("2025 Q4"), _fwd("2026 Q2", "2026-06-30")])
+
+
+def _digest_mod(tmp_path, monkeypatch, sent):
+    fm = _mod(tmp_path, monkeypatch)
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _SHAPE_PAYLOAD)
+    monkeypatch.setattr(fm, "_sample_tickers", lambda n: ["GAPPY"])
+    monkeypatch.setattr(fm, "_alert", lambda newly: None)
+    monkeypatch.setattr(fm, "_send_digest", lambda rows: sent.append([r["sym"] for r in rows]))
+    return fm
+
+
+def test_a_standing_shape_defect_produces_one_digest(tmp_path, monkeypatch):
+    sent = []
+    fm = _digest_mod(tmp_path, monkeypatch, sent)
+    fm.run_cycle(now=1_000_000.0)
+    assert sent == [["GAPPY"]], f"no digest for a standing shape defect: {sent}"
+
+
+def test_the_digest_does_not_repeat_within_the_interval(tmp_path, monkeypatch):
+    sent = []
+    fm = _digest_mod(tmp_path, monkeypatch, sent)
+    fm.run_cycle(now=1_000_000.0)
+    fm.run_cycle(now=1_000_000.0 + 3600)      # an hour later — same day
+    assert sent == [["GAPPY"]], f"digest repeated inside the interval: {sent}"
+
+
+def test_the_digest_does_not_repeat_after_a_restart(tmp_path, monkeypatch):
+    sent = []
+    fm = _digest_mod(tmp_path, monkeypatch, sent)
+    fm.run_cycle(now=1_000_000.0)
+    assert sent == [["GAPPY"]]
+
+    sent2 = []
+    fm2 = _digest_mod(tmp_path, monkeypatch, sent2)   # redeploy: module state gone
+    fm2.run_cycle(now=1_000_000.0 + 3600)
+    assert sent2 == [], "a redeploy re-sent the digest — the stamp is not durable"
+
+
+def test_the_digest_fires_again_once_the_interval_has_passed(tmp_path, monkeypatch):
+    sent = []
+    fm = _digest_mod(tmp_path, monkeypatch, sent)
+    fm.run_cycle(now=1_000_000.0)
+    fm.run_cycle(now=1_000_000.0 + 86_400 + 1)
+    assert sent == [["GAPPY"], ["GAPPY"]], f"digest never came back: {sent}"
+
+
+def test_no_standing_defects_means_no_digest(tmp_path, monkeypatch):
+    sent = []
+    fm = _mod(tmp_path, monkeypatch)
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _payload(
+        quarterly=[_rep("2026 Q2"), _fwd("2026 Q3", "2026-09-30")]))
+    monkeypatch.setattr(fm, "_sample_tickers", lambda n: ["FINE"])
+    monkeypatch.setattr(fm, "_send_digest", lambda rows: sent.append(rows))
+    fm.run_cycle(now=1_000_000.0)
+    assert sent == []
+
+
+def test_a_critical_defect_pages_and_is_not_also_digested(tmp_path, monkeypatch):
+    # It already paged individually; repeating it in the digest would teach the
+    # reader that the digest is where criticals live.
+    sent, paged = [], []
+    fm = _mod(tmp_path, monkeypatch)
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _CRITICAL_PAYLOAD)
+    monkeypatch.setattr(fm, "_sample_tickers", lambda n: ["BAD"])
+    monkeypatch.setattr(fm, "_alert", lambda newly: paged.append([f["sym"] for f in newly]))
+    monkeypatch.setattr(fm, "_send_digest", lambda rows: sent.append(rows))
+    fm.run_cycle(now=1_000_000.0)
+    assert paged == [["BAD"]]
+    assert sent == [], f"a critical defect was also digested: {sent}"
+
+
+def test_the_digest_reports_standing_defects_the_cycle_did_not_sample(tmp_path, monkeypatch):
+    # THE POINT of reading the digest off defect_state rather than off this
+    # cycle's flagged list: one cycle sees ~30 of ~3,700 names, so a digest
+    # built from the sample would report a near-random slice of the real set.
+    sent = []
+    fm = _digest_mod(tmp_path, monkeypatch, sent)
+    fm.run_cycle(now=1_000_000.0)                     # GAPPY recorded
+    assert sent == [["GAPPY"]]
+
+    monkeypatch.setattr(fm, "_sample_tickers", lambda n: ["OTHER"])
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: (
+        _SHAPE_PAYLOAD if s == "OTHER" else _payload()))
+    fm.run_cycle(now=1_000_000.0 + 86_400 + 1)        # GAPPY not sampled this time
+    assert sent[-1] == ["GAPPY", "OTHER"], f"digest lost an unsampled standing defect: {sent[-1]}"
