@@ -115,3 +115,54 @@ def test_a_current_shape_inside_its_ttl_is_still_served_from_disk(monkeypatch, e
     out, rebuilds = _serve_with(monkeypatch, et, stored, age=60)
     assert rebuilds == 0, "a current snapshot triggered a needless rebuild"
     assert out["ticker"] == "MMC" and "rebuilt" not in out
+
+
+# ── the memory layer needs the same gate as the disk layer ───────────────────
+def _serve_from_memory(monkeypatch, et, pinned):
+    """Wire a MEMORY-cache hit and report whether it was served or rebuilt."""
+    monkeypatch.setattr(et.cache, "get", lambda k: pinned)
+    monkeypatch.setattr(et.cache, "set", lambda k, v, ttl=None, **kw: None)
+    monkeypatch.setattr(et.cache, "invalidate", lambda k: None, raising=False)
+    monkeypatch.setattr(et.snap_store, "get", lambda kind, t, now=None: None)
+    built = {"n": 0}
+
+    def _rebuild(ticker, now=None):
+        built["n"] += 1
+        return {"ticker": ticker, "rebuilt": True, "_v": et._PAYLOAD_VERSION}
+
+    monkeypatch.setattr(et, "_build_and_cache", _rebuild)
+    out = et.get_earnings_table("SJW")
+    return out, built["n"]
+
+
+def test_a_stale_shape_pinned_in_MEMORY_is_rebuilt_not_served(monkeypatch, et):
+    """⚰️ The other half of the 2026-09-12 bug, and the first fix missed it.
+
+    `_snapshot_is_current` was wired into the DISK branch only, while the serve
+    path reads the in-memory TTLCache FIRST and returned it unconditionally:
+
+        hit = cache.get(ckey)
+        if hit is not None:
+            return hit          # <- no version check
+
+    So a payload pinned in memory in the old shape kept serving for up to
+    `_SLOW_TTL` (6h) with the version gate live and doing nothing for it. Caught
+    in production by a watcher polling SJW's member payload: every other ticker
+    reported `_v=2` within minutes while SJW sat at `_v=None` for twenty.
+
+    ⭐ Gating the slower layer and not the faster one is worse than gating
+    neither, because the fix LOOKS present — the constant is there, the disk
+    branch honours it, and the tests for that branch pass.
+    """
+    stale = _payload()                      # correct-looking, no _v
+    out, rebuilds = _serve_from_memory(monkeypatch, et, stale)
+    assert rebuilds == 1, "an old-shape MEMORY entry was served instead of rebuilt"
+    assert out.get("_v") == et._PAYLOAD_VERSION
+
+
+def test_a_current_shape_in_memory_is_still_served(monkeypatch, et):
+    """The hot path must stay hot: a current memory entry serves with no
+    rebuild, which is the whole reason the layer exists."""
+    out, rebuilds = _serve_from_memory(monkeypatch, et, _payload(_v=et._PAYLOAD_VERSION))
+    assert rebuilds == 0, "a current memory entry triggered a needless rebuild"
+    assert "rebuilt" not in out
