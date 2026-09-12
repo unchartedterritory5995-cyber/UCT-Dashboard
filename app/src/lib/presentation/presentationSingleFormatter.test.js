@@ -202,41 +202,57 @@ describe('⚠️ formatPercent is DECLARED AND ADOPTED BY NOTHING — stated, no
   // The named first consumer, when a line authorizes it:
   // `components/chart/drawingLabels.js::formatPercent`, whose six importers all
   // render a percent for a member today.
-  it('nothing outside lib/presentation imports formatPercent from S10', () => {
-    const hits = []
-    const walk = (dir) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name)
-        if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
-        if (!/\.(js|jsx)$/.test(e.name)) continue
-        if (p.startsWith(HERE)) continue
-        const code = stripJsComments(fs.readFileSync(p, 'utf8'))
-        if (/formatPercent[^\n]*presentationPrimitives|presentationPrimitives[^\n]*formatPercent/s.test(code)) {
-          hits.push(path.relative(SRC, p))
+  // ⚰️ THIS WALKED THE WHOLE TREE TWICE — ONCE PER TEST — AND THAT MADE IT
+  // LOAD-SENSITIVE. Each pass read and comment-stripped every `.js`/`.jsx` under
+  // `app/src` (~1,400 files, ~1s alone), so under a parallel multi-file run the
+  // work doubled against the same timeout. It went RED once in an 8-file run on
+  // 2026-09-12 and GREEN both alone and on an immediate re-run of the identical
+  // eight — `lesson_a_rail_can_be_green_alone_and_red_in_company` exactly.
+  //
+  // ⛔ A LOAD-SENSITIVE RED IS NOT BANKED AS PERMITTED BREAKAGE. It leaves a slot
+  // in the baseline that a real failure can occupy unnoticed. Fixed by walking
+  // ONCE and memoizing the stripped corpus.
+  //
+  // ⭐ AND SHARING THE CORPUS MAKES THE NON-VACUITY CONTROL STRONGER, NOT WEAKER.
+  // Two independently-built walks could in principle disagree about which files
+  // they visited, so the control proved a property of ITS OWN walk and not of the
+  // assertion's. One corpus, queried twice, means the control now witnesses the
+  // exact set the assertion ran over.
+  const corpus = (() => {
+    let cached = null
+    return () => {
+      if (cached) return cached
+      const out = []
+      const walk = (dir) => {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, e.name)
+          if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
+          if (!/\.(js|jsx)$/.test(e.name)) continue
+          if (p.startsWith(HERE)) continue
+          out.push({ p, code: stripJsComments(fs.readFileSync(p, 'utf8')) })
         }
       }
+      walk(SRC)
+      cached = out
+      return cached
     }
-    walk(SRC)
+  })()
+
+  it('nothing outside lib/presentation imports formatPercent from S10', () => {
+    const hits = corpus()
+      .filter(({ code }) => /formatPercent[^\n]*presentationPrimitives|presentationPrimitives[^\n]*formatPercent/s.test(code))
+      .map(({ p }) => path.relative(SRC, p))
     expect(hits, 'formatPercent has a consumer now — delete this test and record the change').toEqual([])
   })
 
-  it('non-vacuity: the same walk DOES find the four real S10 adopters', () => {
+  it('non-vacuity: the SAME corpus DOES find the four real S10 adopters', () => {
     // Without this, the assertion above would pass identically if the walk were
     // broken and visited nothing at all.
-    const hits = []
-    const walk = (dir) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name)
-        if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
-        if (!/\.(js|jsx)$/.test(e.name)) continue
-        if (p.startsWith(HERE)) continue
-        const code = stripJsComments(fs.readFileSync(p, 'utf8'))
-        if (/from '.*lib\/presentation\/presentationPrimitives'/.test(code)) {
-          hits.push(path.basename(p))
-        }
-      }
-    }
-    walk(SRC)
+    const files = corpus()
+    expect(files.length, 'the corpus walk visited almost nothing').toBeGreaterThan(500)
+    const hits = files
+      .filter(({ code }) => /from '.*lib\/presentation\/presentationPrimitives'/.test(code))
+      .map(({ p }) => path.basename(p))
     for (const f of ['Provenance.jsx', 'FreshnessBadge.jsx', 'Cited.jsx',
       'CoverageLine.jsx', 'presentationFormat.js']) {
       expect(hits, `expected ${f} to import S10`).toContain(f)
