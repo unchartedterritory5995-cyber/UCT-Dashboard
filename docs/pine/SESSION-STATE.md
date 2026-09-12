@@ -35,6 +35,79 @@ app/src/components/screener/reachable.test.js   union the acknowledgement list, 
 four files, same shapes. So the 45-90 min estimate holds, and the re-measure was worth
 taking rather than quoting the old SHA.
 
+## ⛔ T1 — THE RIG ANSWERED, THE BINDING GATE FIRED, AND THE UNBIND IS THE BLOCKER
+
+**Nothing was written to the owner's account.** 19 studies before and 19 after; no script
+saved, no study added or updated; `__uct*` globals empty throughout.
+
+### What worked, in the runbook's order
+
+```
+list_connected_browsers   1 browser, local          ✅
+visibilityState/hasFocus  visible: true, focused: true   ✅ (the hidden-tab hazard is clear)
+layout                    e3cTXatd "UCT AGENT VISIT 2026-09-10 (disposable)"
+symbol                    AMEX:SPY
+resolution BEFORE         "5"        ⚠️ see below
+setResolution('1D')       asserted after the call: "1D"    ✅ (step 2 of the J2 discipline)
+data, polled from outside 405 bars, status type 2          ✅ (step 3)
+studies                   19, all the prior UCTPROBE_* present
+```
+
+⚰️ **AND IT SETTLES A QUESTION THE LAST VISIT LEFT OPEN.** `capture-procedure.md` records
+that the interrupted `setResolution('5')` of 2026-09-11 *"did NOT persist"* and that the
+chart was found on `1D`. **It was on `5`.** So the interrupted set DID persist, and the
+✅ in that section is wrong. The section's own reasoning still stands — the two outcomes
+are indistinguishable without reading, which is why it was right to record rather than
+assume — but the recorded ANSWER needs correcting.
+
+### 🔴 The blocker: the editor is BOUND, and the unbind route will not drive
+
+```
+"Add to chart"     0
+"Update on chart"  1        ⛔ the gate fired, exactly as designed
+editor title       "Untitled script"
+```
+
+Per S5 every add binds the editor, **including to an unsaved "Untitled script"** — so
+this is the safer of the two binding cases (no NAMED saved script is at risk), but a
+`setValue` + click would have **UPDATED one of the 19 studies already on the chart**
+instead of adding a new one. The gate refused before the buffer was touched, which is the
+ordering that matters.
+
+The documented unbind — script-title dropdown → hover *Create new* → *Indicator* — got as
+far as the dropdown. The menu opens and is correct (Save script · Make a copy · Rename ·
+Version history · Move script to bottom · **Create new ▸** · recents · Open script). The
+submenu **does not render under a synthetic hover**, across two attempts with the pointer
+confirmed on the row.
+
+### ⭐⭐ AND THE REASON THE FIRST TWO ATTEMPTS MISSED IS WORTH MORE THAN THE ATTEMPT
+
+**`getBoundingClientRect()` and the `computer` tool's click frame are different coordinate
+spaces on this page.** Measured: the DOM put *"Create new"* at `(1146, 291)`; it is
+visibly at `(850, 238)` in the 1568×698 click frame. Same element, ~26% apart on x. So a
+click computed from the DOM lands in empty space and returns "Clicked at …" **exactly as
+if it had worked** — a silent miss with a success message, which is the worst shape a
+browser step can have.
+
+⛔ **So: locate by screenshot, not by `getBoundingClientRect`, whenever the click goes
+through `computer`.** The DOM is still right for READING state; it is the CLICK frame that
+disagrees. Two of tonight's three failed interactions were this, not the menu.
+
+### What T1 needs next
+
+Not more poking. Either a real pointer (the owner drives the two-click unbind and hands
+back a chart whose button reads *"Add to chart"*), or a route that does not need the
+submenu. Everything else is prepared and proven: probe committed, runbook written, S1-S5
+route understood, the accessors corrected (`status()`, not `isFailed()` — that method is
+not on the wrapper at all, which my own runbook had wrong until `capture-procedure.md`
+corrected it).
+
+⚠️ **The chart is left on `1D`**, not restored to `5`: that is where T1 wants it and where
+the visit before last left it. Said here so it is a recorded choice rather than a
+surprise.
+
+---
+
 ## ⛔⛔ R-A2 — THE STOP CONDITION FIRED, AND THE FALLBACK SHIPPED
 
 R-A2 authorised a host-lane fold **and set a stop condition**: build it only if

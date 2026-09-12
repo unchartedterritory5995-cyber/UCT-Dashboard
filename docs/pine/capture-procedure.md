@@ -522,6 +522,13 @@ error. Use a top-level `await`.
 3. **Then wait for data** — from outside, per the rule above — before touching
    anything else. A study with no rows yet is not a study that failed.
 
+⚰️ **CORRECTED 2026-09-12 — THIS SAID THE RESOLUTION SURVIVED AND IT DID NOT.**
+The next visit found the chart on **`5`**, so the interrupted `setResolution('5')` of
+2026-09-11 DID persist. The reasoning below is still right — the two outcomes are
+indistinguishable without reading, which is why recording it beat assuming — but the
+ANSWER it recorded was wrong, and a ✅ on a wrong answer is worse than no note.
+The superseded text:
+
 ✅ **And the resolution DID survive**: found `1D`, which is what the visit before
 last left. A `setResolution` interrupted by a reload does not persist, so the
 worry the last visit recorded turned out to be unfounded — but it was right to
