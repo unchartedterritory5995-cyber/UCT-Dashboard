@@ -1536,6 +1536,35 @@ export function buildRuntimeIr(source, opts = {}) {
   return { ok: true, ir, diagnostics }
 }
 
+/** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.
+ *
+ *  `pine.js` owns the refusal vocabulary and this front end reuses its resolver,
+ *  so a `PineRefusal` arrives here carrying a sentence written for a translator
+ *  where a refusal lands on ONE OUTPUT ROW. This lane has no rows: the first
+ *  refusal takes the program. `pine:text-value`'s promise — *"The numeric plots
+ *  still run"* — is therefore true THERE and false HERE, measured on the two
+ *  member scripts this session is about:
+ *
+ *      uncharted-volume-v2.pine   host ok=true, 5 outputs, 0 refusals
+ *                                 IR   ok=false  pine:text-value@153
+ *      uncharted-volume.pine      IR   ok=false  pine:text-value@151
+ *
+ *  ⛔ AN OVERRIDE, NOT A REWRITE OF THE SHARED TABLE. Changing the sentence in
+ *  `pine.js` would make it wrong in the lane where it is currently right, which is
+ *  the same one-value-two-authorities trade in the other direction. The guard, the
+ *  line and the column are untouched — only the prose the member reads changes.
+ *
+ *  ⛔ AND IT MUST COVER EVERY `PER_ROW_PROMISE_GUARDS` ENTRY.
+ *  `pineRuntimeTextLane.test.js` derives the requirement from that export rather
+ *  than listing guards here, so a second per-row promise added to `pine.js`
+ *  without an override fails by name instead of quietly reaching a member. */
+export const RUNTIME_LANE_REFUSALS = Object.freeze({
+  'pine:text-value':
+    'this script uses a text feature our chart does not render yet. This lane stops '
+    + 'at the first one, so none of this script runs here — the screener and host '
+    + 'lanes still translate its numeric plots',
+})
+
 function fail(e, diagnostics) {
   const guard = e instanceof RuntimeRefusal ? e.guard
     : (e instanceof PineRefusal ? e.guard : 'runtime:statement')
@@ -1543,7 +1572,10 @@ function fail(e, diagnostics) {
     ok: false,
     refusal: {
       guard,
-      message: String(e.message || e),
+      // ⛔ RULING D2: a shared-vocabulary refusal whose sentence promises
+      // something about the OTHER rows is re-stated for this lane, which has none.
+      message: (e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard])
+        || String(e.message || e),
       line: e.line != null ? e.line : null,
       column: e.column != null ? e.column : null,
       token: e.token != null ? e.token : null,

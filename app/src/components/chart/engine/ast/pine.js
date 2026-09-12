@@ -385,6 +385,28 @@ export const REFUSALS = Object.freeze({
     'the translator wrote formula text it could not read back, so it emitted none',
 })
 
+/** ⭐⭐ RULING D2 (2026-09-12) — THE GUARDS WHOSE SENTENCE PROMISES SOMETHING
+ *  ABOUT THE *OTHER ROWS*, AND THEREFORE CANNOT BE SHARED BETWEEN LANES.
+ *
+ *  ⚰️ `pine:text-value` says *"The numeric plots still run; the text output is
+ *  skipped and named here"*. In THIS translator that is exactly true — the
+ *  refusal lands on one output row and `uncharted-volume-v2.pine` answers
+ *  `ok: true, 5 outputs, 0 refusals` in the host lane. In `buildRuntimeIr` it is
+ *  false: one text statement takes the whole program (`ok: false` at v2 line 153,
+ *  v1 line 151). The sentence and the behaviour cannot both be right, and the
+ *  reassuring half is the one a member reads.
+ *
+ *  ⛔ DECLARED, NEVER SNIFFED OUT OF THE PROSE. A reader that searched these
+ *  sentences for a phrase like "still run" would be a string match over
+ *  member-facing copy — it would break the day somebody rewords a refusal, and it
+ *  would break SILENTLY, which is how a lane goes back to lying. This is the list,
+ *  and `pineRuntimeFrontend.js` is required by rail to carry an override for every
+ *  entry in it: adding a guard here without one fails BY NAME.
+ *
+ *  ⚠️ A guard belongs here when its sentence makes a claim about what happens to
+ *  the REST of the script — not merely because it is worded differently per lane. */
+export const PER_ROW_PROMISE_GUARDS = Object.freeze(['pine:text-value'])
+
 // --------------------------------------------------------------------------- //
 // the namespaces, by what they mean rather than by a list of members
 // --------------------------------------------------------------------------- //

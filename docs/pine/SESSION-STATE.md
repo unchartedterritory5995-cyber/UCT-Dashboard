@@ -1,5 +1,52 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · D2 (option B) — THE SENTENCE PER LANE, AND THE PANE'S GATE
+
+⚰️ **A REFUSAL PROMISED SOMETHING THE LANE IT FIRED IN CANNOT DELIVER.**
+`pine:text-value` reads *"The numeric plots still run; the text output is skipped and
+named here"*. In `translatePine` that is exactly true. In `buildRuntimeIr` one text
+statement takes the whole program — and the reassuring half is the one a member reads.
+
+**What the IR lane owes, measured and unchanged by this commit:**
+
+| script | lane | verdict |
+|---|---|---|
+| `uncharted-volume-v2.pine` | host (`strict`) | `ok=true`, 5 outputs, **0 refusals** |
+| `uncharted-volume-v2.pine` | IR, told `forming=false` | `ok=false` · `pine:text-value@153` |
+| `uncharted-volume.pine` | IR, told `forming=false` | `ok=false` · `pine:text-value@151` |
+
+⭐ **OPTION B LEAVES THE BEHAVIOUR ALONE** — the text layer is session 3's, and
+changing a lane that is about to be reworked is how a fix gets done twice. What
+changes is the wording, through `pineRuntimeFrontend.js::RUNTIME_LANE_REFUSALS`:
+
+> this script uses a text feature our chart does not render yet. This lane stops at
+> the first one, so none of this script runs here — the screener and host lanes
+> still translate its numeric plots
+
+⛔ **AN OVERRIDE, NOT A REWRITE OF THE SHARED TABLE.** Editing `pine.js` would make
+the sentence wrong in the lane where it is currently right. The guard, line and
+column are untouched. `pine.js::PER_ROW_PROMISE_GUARDS` names the guards whose
+sentence makes a claim about the OTHER rows, and the rail derives the coverage
+requirement from it — a second such guard added without an override fails **by name**
+rather than reaching a member with a false promise. ⛔ Declared, never sniffed out of
+the prose: a phrase match over member-facing copy breaks the day somebody rewords a
+refusal, and breaks silently.
+
+### ⛔⛔ `paneGate.js` — a pane draws the HOST lane's verdict or it draws nothing
+
+T3/T5 read the saved definition the host lane produces, and that decision now has ONE
+home instead of four call-site `if`s.
+
+⛔ **THE SCREENER LANE IS INADMISSIBLE BY CONSTRUCTION, AND THAT IS THE WHOLE
+RULING.** On Volume v2 the lenient lane answers **`ok: true` with FOUR refusals** —
+correct for a screen, which needs one usable column. A pane built on that verdict
+draws one line and silently omits the rest of the member's script.
+
+⛔ **AND `ok` ALONE IS NOT ENOUGH SINCE D1**: an alert-only script translates cleanly
+and answers `selected: -1`. The gate reads lane, `ok`, `selected`, and the selected
+row itself — and returns a REASON, never a bare `false`, because a pane that declines
+owes the member a sentence.
+
 ## ⭐⭐ SESSION 2 · D1 (option C) — A PANE DOES NOT SELECT AN ALERT
 
 ⛔⛔ **THE TWO LANES DISAGREED ABOUT WHAT AN `alertcondition` IS, AND THE HOST LANE
