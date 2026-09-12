@@ -607,21 +607,120 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
-## S7 `price-level` — APPROVED 2026-09-12 · CP1 MERGED · CP2 on branch
+## S7 `price-level` — APPROVED 2026-09-12 · CP1–CP3 MERGED · DARK RUN STARTS MONDAY'S OPEN
 
 | commit | branch | system | files | what |
 |---|---|---|---|---|
 | `37cba8111` | `feat/s7-price-level` | **S7 Alerts** | `api/services/alert_taxonomy/price_level.py` (new), `tests/test_alert_taxonomy_price_level_schema.py` (new), `tests/test_alert_taxonomy_filing_watch_parity.py` (control updated by naming) | **GATE-S7-PRICE-LEVEL Checkpoint 1** (packet `123a30054`, approval block **BLANK**). Registers the type; **no evaluator, no delivery, no read of `watchlist_alerts`, no migration, no scheduler entry**. Legacy path byte-identical (`git diff` empty on `watchlist_alert_service.py` + `auth_db.py`). Two findings below moved the scope. Mutation-proved both ways (M1 drop `trendline` → RED; M2 import `delivery` → RED), restored by edit. **30 passed** across both files |
 
-✅ **APPROVED 2026-09-12**, scope **Checkpoints 1–2 only**. Approval block committed at
-**`644497c6a`** (packet SHA of record `123a30054`). ⛔ **CP3+ needs a new approval line.**
+✅ **APPROVED 2026-09-12** on **two lines** — line 1 CP1–2 at **`644497c6a`**, line 2 CP3 at
+**`b54564bb8`** (both recorded AT SHA `644497c6a`; packet SHA of record `123a30054`).
+⛔ **CP4 (all members), the FLIP, and the LEGACY SWITCH-OFF each need a new line.**
 
 | step | SHA | where |
 |---|---|---|
-| approval block | **`644497c6a`** | `terminal-research` |
+| approval block (line 1, CP1–2) | **`644497c6a`** | `terminal-research` |
 | CP1 merge | **`2fcd33b28`** | `master` |
 | marker bump #2 | **`59388e52c`** | `master` |
-| CP2 | **`c0f88b969`** | `feat/s7-price-level` — **branch only** |
+| CP2 merge | **`6524d7ab8`** | `master` |
+| approval line 2 (CP3) | **`b54564bb8`** | `terminal-research` |
+| CP3 commit | **`169c1fd53`** | `feat/s7-price-level` |
+| **CP3 merge** | **`ea0326717`** | **`master`** |
+| **CP3b — the tick + the report** | **`baea70d76`** | **`master`** |
+
+⛔⛔ **CP3 SHIPPED A DARK RUN THAT NOTHING RAN, AND CP3b IS THE FIX.** At
+`ea0326717` `register()` was wired, the projection and the harness were built, 18 tests were
+green — and **nothing called `run_projected_comparison`**. Monday's open would have produced zero
+rows, and next weekend an empty comparison store reads *exactly* like five sessions of agreement.
+
+⚰️ **How it happened, because the shape is worth more than the fix.** CP1 and CP2 were correctly
+*"registration only, no scheduler entry"* — the type had no evaluator, so arming a predicate nothing
+evaluates was the hazard. That invariant was carried into CP3 **by habit**, written into the
+`api/main.py` comment, and then **enforced by a test asserting `add_job` must NOT appear beside the
+registration**. Approval line 2 says the opposite in as many words: *"the comparison harness **runs**
+against the projected predicates … Verdict gate = five full trading sessions."*
+
+⭐ *Registration is not activation* is true. *Putting the dark evaluator on a tick is the flip* is
+the half that was false — the **flip is delivery plus the legacy switch-off**, both still
+unapproved. The owner's own CP3 ruling warned about classifying by habit; this was that error
+pointing the other way, and it had a green test holding it in place.
+
+⭐ **The rail that would have caught it asserts the WIRE, not the parts** —
+`test_the_dark_sweep_is_actually_wired_to_a_tick`. Every other test in the file calls the evaluator
+itself, which is exactly why eighteen of them said nothing about whether anything would ever run
+(`lesson_built_tested_green_and_unreachable`).
+
+### ⛔ HOW THE DARK RUN IS ARMED — IT IS OFF RIGHT NOW
+
+The sweep is flag-gated and **DEFAULT OFF**, deliberately: it reads REAL member rows (admin
+accounts), so an unset variable must mean **nothing runs** — the `DESK_TSDR_ANNOUNCE_SHOWS`
+contract, where the failure direction is silence rather than exposure. **Until this is set, Monday's
+dark run does not start:**
+
+```
+railway variables --service web --set "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1"
+```
+
+⚠️ A variable set is a **restart**, so do it this weekend, not at Monday's open. And per this repo's
+own measured rule, `--set` has been seen both to stage and to auto-redeploy: **verify a NEW BOOT by
+startup-line timestamp**, then confirm the running process rather than reading `--kv` back. The boot
+line to look for is:
+
+```
+[startup] S7 price-level DARK comparison ENABLED (every minute, weekdays 09:00-16:59 ET, admin cohort, no delivery)
+```
+
+⛔ If it instead prints `S7 price-level DARK comparison OFF`, the flag did not reach the process and
+**the week will collect nothing**. Rollback is unsetting it — no code change, no deploy of ours.
+
+### ⭐ HOW THE OWNER READS THE COMPARISON NEXT WEEKEND
+
+**One command, on the web pod, read-only:**
+
+```
+railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py"
+```
+
+Add `--json` for machine-readable output, `--db <path>` to point at a copy, and `--self-check` to
+prove the report can still tell "no data" from "agreement" before trusting a quiet one.
+
+**What it prints, and why in that order:**
+
+1. **The non-vacuity control first** — predicates seen, spans, recorded outcomes. ⛔ An empty store
+   prints four zeroes per predicate and reads like perfect agreement, so the report **refuses to
+   summarise** and says `NO DATA` instead. *A dark run that never ran and a dark run that found no
+   disagreement are different facts.*
+2. **Per predicate, the four outcomes, never collapsed into a pass rate** — `agreed` / `new-only` /
+   `legacy-only` / `not-comparable`. A single percentage answers the wrong question: **`legacy_only`
+   is an alert somebody LOSES at the flip, `new_only` is one they start getting TWICE** — different
+   defects, different members. `not_comparable` is span time we deliberately refuse to score, and
+   folding it into a denominator would make *moving a trendline* look like agreement.
+3. **`verdict_ready` on its own line, per predicate** — five full trading sessions, and below that
+   it says so in words rather than showing a number. *"Not enough data yet"* and *"they agree"* are
+   different answers.
+4. **Anchor rewrites are annotated** (`anchors rewritten N×`) and **trendlines are named**, because
+   a trendline's level moves between ticks by construction and its disagreements are not the same
+   fact as a fixed level's.
+
+⚠️ **AND IT PRINTS ITS OWN BLIND SPOT EVERY TIME, pointing the flattering way.** The legacy path is
+**one-shot** (`_trigger_alert` sets `is_active = 0`) and the projection reads only active rows, so
+the moment legacy fires, that row **leaves the comparison**. The report therefore sees the FIRST
+divergence per predicate and **cannot see a second crossing at all**. ⛔ So a `new_only` of **0** is
+NOT evidence that persistent-vs-one-shot is harmless — it is a thing this instrument cannot observe,
+and CP4 must not be sized against it. Rail:
+`test_KNOWN_LIMIT_the_one_shot_divergence_is_invisible_to_a_projection`.
+
+### ⚠️ WHAT THE DARK PERIOD IS EXPECTED TO SURFACE — PREDICTED FROM SOURCE, BEFORE THE DATA
+
+Recorded now so the week's result can be checked against a prediction rather than rationalised
+after the fact:
+
+| outcome | expected? | why, from the legacy source |
+|---|---|---|
+| `legacy_only` | **yes, and it is the important one** | legacy fires on a LEVEL TEST (`>=`/`<=`), the dark rule needs a TRANSITION — an alert armed while price is already through its level fires immediately on the legacy path and never on the dark one. **Those members lose that alert at the flip.** |
+| `new_only` | **structurally invisible** | see the blind spot above |
+| `not_comparable` | only if an admin moves a bound trendline | the anchor-move reset, working as ruled |
+| `agreed` | the ordinary case | a genuine crossing, both sides |
 
 **Deploy artifacts for the CP1 merge (`59388e52c`):** web **SUCCESS** 05:26:01Z, uptime reset
 confirmed at `/api/health` (321 s); flow-worker **SUCCESS** 05:26:01Z, advancing `fd735513b →
@@ -629,24 +728,59 @@ confirmed at `/api/health` (321 s); flow-worker **SUCCESS** 05:26:01Z, advancing
 which is the useful half of the artifact: it shows the browser watch-list edit did **not** widen the
 list, so the marker bought a lever and not extra tape gaps.
 
-### ⛔ RAIL CLASSIFICATION — ADDITIVE, AND STRANDING NOTHING (both checkpoints)
+### ⛔ RAIL CLASSIFICATION — ADDITIVE, STRANDING NOTHING, ON ALL THREE CHECKPOINTS
 
-Measured with the rail's **own** `reachable_paths()`, never a hand BFS:
+Measured with the rail's **own** `reachable_paths()`, never a hand BFS. CP3's six changed files:
 
 | file | reachable | watched |
 |---|---|---|
+| `api/main.py` | **False** | False |
 | `alert_taxonomy/price_level.py` | **False** | False |
 | `alert_taxonomy/price_level_compare.py` | **False** | False |
+| `alert_taxonomy/price_level_projection.py` | **False** | False |
 | the three test files | False | False |
 
-**offenders: NONE. Rail exit 0 on both checkpoints.**
+**offenders: NONE. Rail exit 0 on all three checkpoints. NO MARKER BUMP FOR CP3.**
 
-⭐ **Why nothing is stranded, and why that will change.** `price_level.py` is unreachable *because*
-CP1/CP2 never call `register()` — nothing imports it, so flow-worker cannot run a stale copy of code
-it never loads. ⛔ **CP3 breaks that**: `api/services/alerts.py` IS in flow-worker's reachable closure
-and imports the taxonomy modules (that is precisely why `document_arrival.py` is reachable today), so
-the moment `register()` is wired, `price_level.py` becomes reachable-and-unwatched and the next merge
-carries a real strand needing a real window.
+⚰️⚰️ **A PREDICTION THIS ROW PUBLISHED, THE MARKER FILE REPEATED, AND THE MEASUREMENT KILLED.**
+This section used to read:
+
+> ⛔ **CP3 breaks that**: `api/services/alerts.py` IS in flow-worker's reachable closure and imports
+> the taxonomy modules (that is precisely why `document_arrival.py` is reachable today), so the
+> moment `register()` is wired, `price_level.py` becomes reachable-and-unwatched and the next merge
+> carries a real strand needing a real window.
+
+**It is false, and CP3 is merged with `price_level.py` still `reachable=False`.** Two things were
+wrong at once:
+
+1. `alerts.py` does **not** import "the taxonomy modules". It imports **`receipts` and
+   `document_arrival` BY NAME** — which is exactly why `document_arrival.py` is reachable and why
+   nothing else in the package is. The sentence generalised from one sibling to a package.
+2. `register()` is wired in **`api/main.py`**, which is the **WEB** entry. Flow-worker's closure is
+   computed from `api/flow_worker_main.py`; `api/main.py` is not in it and never was.
+
+⭐ **Why it survived long enough to be published twice:** it was derived from a true observation
+(`document_arrival.py` IS reachable) by an inference that was never run through
+`reachable_paths()`, and then it was *restated* in the marker file — where the second copy read as
+corroboration of the first. The repo has a name for this shape already: **a claim about what a
+thing imports is only true if you have asked the import graph.**
+
+### ⛔ THE BEHAVIOUR-CHANGING RECLASSIFICATION — DEFERRED, CONDITIONAL, AND RAILED
+
+The owner ruled: *"From then on the module is BEHAVIOUR-CHANGING under the rail — record that in the
+ledger so nobody classifies a later change as ADDITIVE by habit."* That ruling stands, but its
+**condition — reachability — does not hold yet**, so recording "it is now BEHAVIOUR-CHANGING" here
+would be recording something the rail contradicts.
+
+⭐ **So it is a test, not a sentence.**
+`tests/test_flow_worker_watch_coverage.py::test_price_level_is_STILL_OUTSIDE_flow_workers_closure`
+asserts the measured state today and **fails BY NAME** the day anything in flow-worker's closure
+imports `price_level`, printing the reclassification instruction in its failure message.
+Mutation-proved: adding the import to `alerts.py` turns it RED. ⛔ A ledger line nobody re-reads is
+the artifact that goes stale; a rail fires on the commit that makes it wrong.
+
+**The trip-wire will fire on one of two events, and both are foreseeable:** the FLIP (an evaluator
+wired into a worker tick), or anything in `api/services/alerts.py`'s closure naming `price_level`.
 
 ⚠️ **The marker bump therefore discharged NOTHING, and its row says so.** Of the 29 files master
 gained since flow-worker's running commit, **zero** were reachable-but-unwatched. It was bumped to
