@@ -53,7 +53,27 @@ which needs a note with a document attachment. There is none (below). So this ru
 loads; it does not prove a PDF renders. `iteratorGlobalFloor.test.js` against real built output
 (gate run `2026-09-12T17-57-39`) is the other half of that evidence.
 
-## Preview re-check — NO SUBJECT, and the absence is measured
+## Preview re-check — ATTEMPTED WITH A REAL NOTE, AND UNEXERCISED. Owner ruling: sufficient for closure.
+
+**Second attempt, 2026-09-12, owner-ruled ONE attempt.** A note and a genuine 1-page PDF (553 bytes,
+valid xref, built locally — no member content) were created **via the API from the terminal**
+(`POST /api/j2/notes` -> `POST /api/j2/notes/{id}/attachments`, both 200), not through the mirror's file
+picker. Health was at 433s of clean uptime, satisfying the no-churn rule.
+
+⛔ **The preview could not be opened, and the reason is structural, not a flake.** With the note present
+and the Notebook's own sidebar reporting **"All notes 1 · Unfiled 1"**, the device returned
+`querySelectorAll('[data-note-card-id]').length === 0` — before selecting a folder, after selecting
+"All notes", and after toggling the folders panel. The phone list renders through `ResponsiveTable`,
+whose `rowKey` is a React `key` and never reaches the DOM. So there is no stable selector for a specific
+note on a phone, and text matching is ruled out. Filed as **D-40**.
+
+The note was then trashed via the API (`DELETE` 200, remaining notes **0**), so the account holds no state.
+
+**Recorded verdict, per the owner's ruling:** *preview path unexercised on iOS 17; evidence = isolation on
+glass + shim proven on engine + built-output floor rail.* Follow-up when a member on iOS 17 reports a
+preview problem; the selector blocker is D-40.
+
+## Notes state before that attempt — the absence was measured
 
 ```
 /api/j2/notes -> 200 {"notes":[],"total":0,"limit":100,"offset":0}
