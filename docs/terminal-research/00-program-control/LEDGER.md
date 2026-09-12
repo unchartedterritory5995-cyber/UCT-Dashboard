@@ -871,6 +871,115 @@ measurement settles it.
 ---
 
 
+## Tier 3 — 2026-09-12
+
+| what | commit | base | classification |
+|---|---|---|---|
+| **I1 slice 3** — the tool-registry contract becomes six rails | **`1c426c199`** | `d4b522e89` | ADDITIVE — 1 file, a test, **0** in flow-worker's closure. No product code changed. |
+
+---
+
+### I1 slice 3 — `1c426c199`
+
+SPEC-I1 §2 states five **binding** registration rules over `_DOMAIN_FETCHERS` plus a routing
+budget, and every one of them was a sentence in a document. Each is now derived from
+`ticker_explain.py`'s AST with docstrings blanked, and a control proves the strip did not eat the
+code.
+
+⭐ **The shape:** I1 already has F-I1-4 — *"a model-authored field not in `_full_text()` is
+ungoverned prose."* Every rule here is that idea pointed at a different seam — **a thing you can
+ADD without noticing you have changed a contract.** A ninth composer, a bespoke evidence shape, a
+fifth routed domain, an evidence field the model is shown but the grounding gate never scans: each
+registers cleanly, evaluates cleanly, and silently moves a guarantee.
+
+#### ⛔⛔ The sharpest rail is the one the spec does not state
+
+> **Every evidence field the MODEL IS SHOWN must be either SCANNED by `_evidence_numbers` or
+> excluded with a written reason.**
+
+`_evidence_numbers`'s own docstring records why: Form 13F's *"~45 days"* filing-lag caveat lives in
+the DATE field, the model was shown it, quoted it correctly, and the gate rejected the number as
+unverified. ⭐ **An honest quotation reported as a fabrication is the worst direction for a
+grounding gate to fail in** — the member sees a refusal and nobody sees a bug. The exclusion list
+carries a reason per field (`id`, `type`, `source`, `url`) and a non-vacuity rail refuses an entry
+naming a field nothing shows.
+
+#### ⛔ The budget is PINNED at 4, not compared to itself
+
+Reading `_DOMAIN_BUDGET` and asserting `<= itself` passes at any value — which is exactly the
+*"tuned upward without review"* the spec forbids. The rail also DRIVES the routing table with a
+question naming every domain (which really does match more than the budget — asserted), and checks
+the referential carry-forward respects the same cap the direct path does.
+
+#### Two findings recorded, neither fixed
+
+**F-I1-5 — the spec names a function that does not exist.** SPEC-I1 §2 rule 2 says composers return
+*"the shared `_ev()` shape"*. **There is no `_ev`.** The shape is real —
+`{type, date, source, text, url}` — and six of eight builders emit exactly it; `_rating_evidence`
+and `_earnings_evidence` add bespoke keys (`rating_field`, `value`, `checkup_*`, `eps_actual`,
+`reaction_pct`, `event_date`, …).
+
+⭐ **The extras are NOT a violation and must not be "fixed".** Measured across 3,950 files with
+prose stripped: they are read by `api/services/ticker_explain_eval/golden_set.py` — a **second
+contract, between two composers and the eval harness**, invisible to the model and to the grounding
+gate. Deleting them would break the golden set. So the enforceable rule is the SUBSET (every
+builder emits the five fields the model is shown) and the extras are REPORTED rather than asserted,
+because a ninth composer may legitimately add its own.
+
+**F-I1-6 — a parametrize that computes its cases at import turns a defect into a COLLECTION
+ERROR.** Measured, not theorised: mutation M1 (a second `_DOMAIN_FETCHERS` binding) produced **no
+`FAILED` line at all** — only an interrupted collection, which takes the whole file down and hides
+the other twenty checks behind one fault. Fixed in this commit by giving the decorator a
+non-asserting reader and keeping the assertions inside the tests; M1 then produced 5 clean REDs.
+
+**Mutations, each restored by EDIT:** M1 a second registry binding → **5 RED** · M2 a composer
+reaches `requests` → RED · M3 `_news_evidence` drops `source` → RED · M4 a shown field the gate
+never scans → RED · M5 the dispatch stops catching → RED · M6 the budget tuned to 8 → RED.
+**Measured:** 309 passed, `PYTEST_EXIT=0`.
+
+---
+
+### S4 — spec + gate, docs only, approval block EMPTY
+
+`context-bus-spec.md` (466) + `s4-context-bus-pre-implementation-gate.md` (306). Babel AST over
+**2,702** files in `app/src`, **0 parse failures**, dynamic-`import()` edges re-run as a blind-spot
+check (581 call sites, 231 targets; **zero** dynamic-only non-test importers).
+
+⭐⭐ **THE FINDING THAT CHANGES WHAT S4 IS: the bus was built in August and two files joined it.**
+`useAppFocus.js:8-13` carries the owner's own ruling — *"charts Group A IS the app focus … There is
+exactly ONE value, so there is no second authority to drift"* — so **the symbol gap is an ADOPTION
+gap, not a capability gap.** Timeframe is the real capability gap. Nine distinct mechanisms
+measured, plus the channel nobody designed: **184 non-test files** hold or pass a symbol by prop or
+`useState`, **66** a timeframe. Negative finding with a control: 19 custom window-event names
+exist, **none carries a symbol**.
+
+#### ⛔ Δ3 IS WRONG BY 3.5×, AND IT WAS THIS PROGRAMME'S OWN NUMBER
+
+The build-day plan sized S4 CP1 an **L** on "62 + 22 consumers". Both figures reproduce exactly
+with `grep -rl` and **neither is a consumer count**: 62 = 50 importers + 5 `vi.mock`-only + 6
+comment-only + 1 self. Files that actually READ the context: **24**, of which **18 already have a
+sibling test file**. A per-consumer snapshot suite is an **M**. ⭐ And it is still the wrong CP1 —
+a baseline guarding a migration nobody has approved measures nothing.
+
+#### Four ⚰️ claims retired, each verbatim with its correction
+
+1. `HubContext.jsx:4-7` *"⛔ NOT MOUNTED YET … reached from NO route"* — **false**; `Layout.jsx:124`
+   mounts it app-wide.
+2. `current-ui-architecture.md:157` *"28 consumers … all inside `pages/charts/`"* — 23 call sites,
+   and 10 non-test files outside `pages/charts/` import the raw context.
+3. `drillWorkspace.js:14-15` *"FALLBACK carries 19 members … provider carries 23"* — all three
+   authorities are **23 keys, zero diff** (control: the same differ reports 20 missing against a
+   3-key stub). ⛔ **This also retires the standing note that `WORKSPACE_FALLBACK` is 4 members
+   short.** The rule stands; the count is retired.
+4. `personalization-spec.md:192` *"Neither is reachable from `/breadth`, `/journal`"* — both now
+   mount `WorkspaceContext.Provider`.
+
+⚠️ **Evidence ceiling, stated by the author:** no browser run, no production telemetry, no test run
+— every render-class risk is source-reasoned, *"which is precisely how the 9/10 freeze was missed."*
+
+---
+
+
 ## ✅ THE ROLLOUT SEED RAN. Verified in production, read-only, 2026-09-12.
 
 ⛔ **The RESUME carried this as "Monday's first check" because it was an INFERENCE** — the boot had
