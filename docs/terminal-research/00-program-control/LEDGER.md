@@ -199,6 +199,49 @@ that never swapped). Post-deploy liveness, browser UA because Cloudflare 1010-bl
 to probe** — this confirms the deploy swapped and the app serves, not that any new behaviour works.
 The icon is verifiable only in a browser.
 
+| `c8c1e431f` | `feat/d1-adapter-gaps-g2-g4` | **D1** | `api/services/fmp_client.py` (+344), `tests/test_fmp_client_gaps_g2_g4.py` (new, 365) | ⛔ **HELD — same rail failure.** G2: **11** typed functions (not the 9 the prior sweep estimated), led by `get_company_profile` (8 modules). G4: `get_news_stock_multi` as a **separate** function, with a test asserting the built request is byte-identical for one symbol. **No call site changed.** ⭐ Its endpoint census was derived by AST with a third rule added because the first two **missed six endpoints** bound to module-level constants — *the instrument reproduced its own blind spot and the agent caught it*. 12 mutations each RED with a real totals line, after a first round produced six bogus REDs from a wrong `cwd` and no totals line, caught and rerun |
+
+## ⛔⛔ THE RAIL BLOCKS THIS PROGRAM'S BACKEND WORK — structural, not a one-off
+
+**Two branches now fail `tools/flow_worker_watch_coverage.py` for the same reason**, naming different
+files: `feat/s3-admin-routes` (`api/services/entity_master/store.py`) and
+`feat/d1-adapter-gaps-g2-g4` (`api/services/fmp_client.py`). Both are reachable from
+`api/flow_worker_main.py`; neither is on the watch list.
+
+**Measured on `origin/master` — the number that matters:**
+
+| | count |
+|---|---|
+| files flow-worker **reaches** | **154** |
+| files on its **watch list** | **23** |
+| ⛔ **reachable but UNWATCHED** | **133** — of which **83 are in `api/services/`** |
+
+⭐ **So the rail fires on any change to 133 files, by anyone.** This is not a quirk of our two
+branches — it is the designed behaviour of a rail that is 8 hours old, against a watch list covering
+23 of the 154 files flow-worker actually loads. This program's backend work lives almost entirely in
+`api/services/**`.
+
+⚠️ **CORRECTION TO THE RECOMMENDATION THIS LEDGER CARRIED EARLIER.** I recommended adding
+`api/services/entity_master/**` to flow-worker's watch list. **The tool's own author explicitly
+rejects that remedy** — `.github/workflows/flow-worker-deploy-coverage.yml`'s header reads: *"This
+does NOT widen the watch list. A wider list means more flow-worker restarts, and each one gaps the
+OPRA tape permanently until the T+1 flat file. It makes 'this push deploys nothing to flow-worker'
+visible at review time."* ⭐ **The rail's purpose is VISIBILITY, not prohibition.** I recommended the
+one remedy its designer argued against, having read the tool but not the workflow that runs it.
+
+**It runs on `push` as well as `pull_request` for `api/**`,** so a direct master push trips it too —
+the red is a CI signal either way, not a merge gate that can be routed around.
+
+**The three real options, for the owner:**
+
+1. **Read the red and push anyway** — the tool's own stated intent. Both stranded changes are
+   **additive**: flow-worker would run an older `store.py`/`fmp_client.py` missing functions it never
+   calls. ⚠️ This is a judgement per push, and it stops being safe the moment a change is not additive.
+2. **Force a flow-worker redeploy** by touching a watched file in the same commit (the conventional
+   `api/flow_worker_main.py` header edit). Costs one tape gap — **free tonight, market closed** — but
+   ⛔ barred to this session by the standing "nothing in flow-worker" rule.
+3. **Widen the watch list** — effective, and explicitly against the tool author's design intent.
+
 ## ⛔⛔ WHY #4 IS HELD — `tools/flow_worker_watch_coverage.py` exits 1
 
 ```
