@@ -134,8 +134,8 @@ Measured 2026-09-09 over all 266 committed scripts, in-process, after the
 
 | | before | after |
 |---|---|---|
-| ok **strict** | 30/266 | **30/266** |
-| ok **lenient** | 45/266 | **45/266** |
+| ok **strict** | 32/266 | **32/266** |
+| ok **lenient** | 46/266 | **46/266** |
 
 ⭐ **UNMOVED, AND THAT IS THE CORRECT ANSWER.** The hang masked **zero** scripts.
 `translate_batch.mjs` forks a child per script, so `parabolic-sar__xoeoPMOWGJ.pine`

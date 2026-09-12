@@ -91,7 +91,7 @@ adding all nine moves the strict count by **zero** unless the rest of those scri
 
 ⛔ So this list is a **vocabulary backlog, not an unlock plan**. The unlock plan is
 `r11-vocabulary-gap.md`'s Group C census (31 scripts blocked solely by a dotted name). Working
-this list top-down and expecting 30/266 to move would be measuring the wrong thing — which is
+this list top-down and expecting 32/266 to move would be measuring the wrong thing — which is
 exactly what `lesson_a_refusal_count_is_not_a_progress_metric` warns about.
 
 ✅ **Cheapest first, if the goal is throughput rather than unlock:** `math.pi`, `math.ceil`,

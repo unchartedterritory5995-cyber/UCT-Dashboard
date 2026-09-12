@@ -405,7 +405,26 @@ screen and not a pane is the `window_dependent` ruling working. `pine:reassign` 
 and expected — it was always there and translation never reached it because barstate refused
 first. `pine:window` 233 is the bind-time fold, the **other session's** work.
 
-## Three-number metric: **30/266 host · 45/266 screener — unmoved**
+## Three-number metric: **32/266 host · 46/266 screener** — re-derived 2026-09-11
+
+⚰️ **IT READ 30/266 · 45/266 AND HAD BEEN STALE SINCE BEFORE TONIGHT.** Measured at
+`b72a0bfe7` by `corpusMetric.test.js`, which is now the producer — the old pair came
+from an ad-hoc run nobody could repeat, which is how it drifted through at least two
+capability landings with nothing able to report it.
+
+⭐⭐ **AND TONIGHT'S ENGINE WORK MOVED IT BY ZERO, MEASURED RATHER THAN ASSUMED.** The
+same corpus was run against tonight's starting tip (`606695633`) and against HEAD:
+host 32 → 32, screener 46 → 46, **0 scripts gained and 0 lost**. The destructure fold
+and the tuple `request.security` cleared blockers on `uncharted-volume.pine` — a MEMBER
+fixture, not a `corpus/committed` member — and every corpus script that writes those
+shapes is blocked on something else as well. ⛔ That is the linemap's lesson as a
+number: a capability landing and a metric moving are different events. The 0-lost half
+is also a stronger control than the suite's "no new failures".
+
+⚠️ `translatePine` THREW instead of returning a refusal on ONE committed script —
+`smart-money-breakouts-chartprime__ea79c79a67.pine`, `pine:statement` out of
+`switchBinding`, in BOTH lanes. Pre-existing (my diff does not touch `switchBinding`)
+and routed below; the harness records it as `THREW` rather than swallowing it.
 
 Barstate moved the *pane*, not the corpus: `isconfirmed` already folded for the screener, and
 those scripts are blocked by `pine:function` / `pine:request` / `pine:tuple` regardless.
@@ -918,7 +937,7 @@ refusal list" above says screener `ok=false` with 5 refusals and pane `ok=false`
 with 4 — the three `pine:window` / `isWeekly` refusals at line 233 are GONE (the
 other session's bind-time fold landed) and the screener lane has flipped to
 `ok=true`. The pane lane is now ONE refusal from translating: `pine:reassign` at
-line 250. ⛔ The three-number metric above it ("30/266 host · 45/266 screener —
+line 250. ⛔ The three-number metric above it ("32/266 host · 46/266 screener —
 unmoved") is therefore stale too and should be re-derived before it is quoted.
 
 ## Decisions taken autonomously — 2026-09-10

@@ -1,0 +1,3046 @@
+{
+  "measured_at": "2026-09-11",
+  "scripts": 266,
+  "host_ok": 32,
+  "screener_ok": 46,
+  "threw": [
+    "smart-money-breakouts-chartprime__ea79c79a67.pine"
+  ],
+  "rows": [
+    {
+      "file": "3-level-zigzag-semafor__3078.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:reassign",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "4c-nyse-market-breadth-ratio__722410befd.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:statement",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:statement",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "ad-line-of-sp-sectors__af306a4359.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "adaptive-trend-following-suite-alpha-extract__d615e5a027.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:function-def",
+        "pine:block",
+        "pine:role-order"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:function-def",
+        "pine:block",
+        "pine:role-order"
+      ]
+    },
+    {
+      "file": "advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "adx-and-di-for-v4__932.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:request",
+        "pine:block",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:request",
+        "pine:block",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module"
+      ],
+      "screenerGuards": [
+        "pine:module"
+      ]
+    },
+    {
+      "file": "anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "artemis-oscillator-pro__ea1097ca9e.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "asianrange-and-killzones__ef41eb5ad6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "atr-bands__ad60b125e6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:statement"
+      ],
+      "screenerGuards": [
+        "pine:statement"
+      ]
+    },
+    {
+      "file": "atr-god-strategy-by-tradesmart__4369755a29.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:block",
+        "pine:builtin",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:block",
+        "pine:builtin",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "atr-stop-loss-indicator__LOfv1FvRhL.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "atr-support-and-resistance__3e9ddb38c4.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:statement"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "atr-trailing-stoploss__2JLLfrGRHg.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "atr-trend-bands-misu__a34d44410a.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "auto-harmonic-patterns-open-source__ca6022754b.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "auto-trendline-dojiemoji__c21f83602c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state",
+        "pine:plot-offset",
+        "pine:roundtrip"
+      ],
+      "screenerGuards": [
+        "pine:state",
+        "pine:plot-offset",
+        "pine:roundtrip"
+      ]
+    },
+    {
+      "file": "auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "average-day-range-adr-pivots__38b8c996e9.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [
+        "pine:constant-only"
+      ],
+      "screenerGuards": [
+        "pine:constant-only"
+      ]
+    },
+    {
+      "file": "banknifty-mcclellan-oscillator__A2qCyYWwcs.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "bigbeluga-smart-money-concepts__e41b7abd03.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module"
+      ],
+      "screenerGuards": [
+        "pine:module"
+      ]
+    },
+    {
+      "file": "blackflag-fts__GdkmXaTINI.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function-def",
+        "pine:na"
+      ],
+      "screenerGuards": [
+        "pine:function-def",
+        "pine:na"
+      ]
+    },
+    {
+      "file": "bolingger-bands-inside-bar-boxes__3294017d4f.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "bollinger-band-width-percentile__03JuGF728K.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection"
+      ],
+      "screenerGuards": [
+        "pine:collection"
+      ]
+    },
+    {
+      "file": "boom-hunter-entry-point-screener-alerts__0fc5982548.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "breaks-and-retests-hg__ddba061af8.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:na",
+        "pine:tuple",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:na",
+        "pine:tuple",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "buy-monday-exit-tuesday__8f2f69cc99.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "camarilla-screener__UsBJPF3MkA.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [
+        "pine:constant-only"
+      ],
+      "screenerGuards": [
+        "pine:constant-only"
+      ]
+    },
+    {
+      "file": "camarilla__jw9faob08r.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:request",
+        "pine:arity",
+        "pine:window"
+      ],
+      "screenerGuards": [
+        "pine:request",
+        "pine:arity",
+        "pine:window",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "candelacharts-equal-highslows-eqheql__4485a6c447.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:type"
+      ],
+      "screenerGuards": [
+        "pine:type"
+      ]
+    },
+    {
+      "file": "candlestick-patterns-identified-update-1-17-26__1082.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "candlestick-patterns-on-backtest__c85b9d3ec6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module"
+      ],
+      "screenerGuards": [
+        "pine:module"
+      ]
+    },
+    {
+      "file": "cc-yata__bd898a1af0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "cdc-btc-rainbow-road__d880789793.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function",
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:function",
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "chart-vwap__804099ca2f.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple",
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple",
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "contraction-box-doji-lines__1486658151.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "correlation-matrix__dzN3DMCFJL.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:block",
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:block",
+        "pine:request"
+      ]
+    },
+    {
+      "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:request",
+        "pine:arity"
+      ],
+      "screenerGuards": [
+        "pine:request",
+        "pine:arity"
+      ]
+    },
+    {
+      "file": "cumulative-volume-delta__K07lTKE3tP.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "cumulative-volume-delta__c772250751.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "cvd-cumulative-volume-delta-candles__fb6471a4d9.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:type",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:type",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "cvd-cumulative-volume-delta-chart__84da7a14bf.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:builtin",
+        "pine:type",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:builtin",
+        "pine:type",
+        "pine:tuple",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "delta-imbalance-map-joat__b80f337fb3.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "delta-volume-candles-lucf__qADnaAfCPp.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "delta-volume-v21-by-kernel-phi__uP24atP4R0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "deviation-scaled-moving-average-w-dsl-loxx__878af32b43.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "donchian-channels__5df15aaa23.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "double-topbottom-ultimate-os__bd013ff4f5.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection"
+      ],
+      "screenerGuards": [
+        "pine:collection"
+      ]
+    },
+    {
+      "file": "dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [
+        "pine:constant-only"
+      ],
+      "screenerGuards": [
+        "pine:constant-only"
+      ]
+    },
+    {
+      "file": "elliot-wave-detector-pro__ce1cc9553e.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection",
+        "pine:type"
+      ],
+      "screenerGuards": [
+        "pine:collection",
+        "pine:type"
+      ]
+    },
+    {
+      "file": "elliott-wave-3-finder-v2__451cecfc9d.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "ema-92150-vwap-macd-rsi-pro-v6__014bfba33d.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:state",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:state",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:arity"
+      ],
+      "screenerGuards": [
+        "pine:arity"
+      ]
+    },
+    {
+      "file": "engulfingcandle__0df91dc775.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "extrapolated-pivot-connector__vROeQSQlNs.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "fair-value-gap__1048fa103a.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "fib-retracement__8XcLscnekw.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "fibonacci-dolphintradebot__d93b208611.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection"
+      ],
+      "screenerGuards": [
+        "pine:collection"
+      ]
+    },
+    {
+      "file": "fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "fibonacci-retracement-mtflog__54a8dbfa8e.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function",
+        "pine:statement"
+      ],
+      "screenerGuards": [
+        "pine:function",
+        "pine:statement",
+        "pine:window-dependent"
+      ]
+    },
+    {
+      "file": "fibonacci-retracement-statistics-by-volprofex__999c924fce.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "flawless-victory-strategy__1BVZuaaWOU.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy"
+      ]
+    },
+    {
+      "file": "footprint-iq-pro-tradingiq__3b96428a77.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "fvg-trend__21e364f2ed.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "fx-market-sessions__3KZoMPYziy.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "heat-map-seasons__53acdf3223.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "heikin-ashi-supertrend__2fb7267210.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:strategy-call",
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:strategy-call",
+        "pine:request"
+      ]
+    },
+    {
+      "file": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function-def",
+        "pine:cycle",
+        "pine:function",
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:function-def",
+        "pine:cycle",
+        "pine:function",
+        "pine:state"
+      ]
+    },
+    {
+      "file": "high-low-open-mid-ranges__5715509e0b.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [
+        "pine:constant-only"
+      ],
+      "screenerGuards": [
+        "pine:constant-only"
+      ]
+    },
+    {
+      "file": "higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "highlow-channel-swing__e3692e253c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "ict-institutional-order-flow-fadi__25d4834579.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "ict-ipda-look-back__f85b4c8956.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "ict-killzone-index-version__28962c02dd.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "ict-killzones-pivots-tfo__d0b8be94f1.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "ict-turtle-soup-flux-charts__053c3e6056.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "implied-volatility-suite__CdN3hioOVl.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:request",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:request",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "inside-bar-boxes__2f747d848b.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "inside-bar-strategy-w-sl__b39f395d5d.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call",
+        "pine:arity",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call",
+        "pine:arity",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [
+        "pine:presentation-only"
+      ],
+      "screenerGuards": [
+        "pine:presentation-only"
+      ]
+    },
+    {
+      "file": "ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "k-clustering__8e82f5aa4b.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "kalman-price-filter-backquant__47a601e4bc.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "kalman-psar-backquant__0a389f529b.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "keltner-center-of-gravity-channel__e4a81d76f6.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "keltner-channels-bands__T5FsnX45Dn.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "kernel-channel-backquant__d8c4b7f75c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "linear-regression-channel-200__243d67c804.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "linear-regression-channel-breakout-strategy__3a1cf28800.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy"
+      ]
+    },
+    {
+      "file": "linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "linear-regression-channel__jiDgL4o6Qx.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "liquidation-levels__pi4nVOJgbV.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "liquidity-engulfing-displacement-msf__58824c94f0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:builtin",
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:builtin",
+        "pine:request"
+      ]
+    },
+    {
+      "file": "liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "liquidity-levels-sonarlab__bba13c46c4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "liquidity-pools__fa7b28e733.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy"
+      ]
+    },
+    {
+      "file": "macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "machine-learning-knn-based-strategy__lj1Gjlbycb.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection"
+      ],
+      "screenerGuards": [
+        "pine:collection"
+      ]
+    },
+    {
+      "file": "machine-learning-logistic-regression-v3__TDlqz0q9TN.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "machine-learning-lorentzian-classification__21f5ec5277.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:type",
+        "pine:builtin",
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:type",
+        "pine:builtin",
+        "pine:block"
+      ]
+    },
+    {
+      "file": "machine-learning-lorentzian-classification__5c7960db26.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:type",
+        "pine:builtin",
+        "pine:tuple",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:type",
+        "pine:builtin",
+        "pine:tuple",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "machine-learning-moving-average-backquant__4d7ff59e68.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "machine-learning-rsi-bullvision__50b4566edd.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "madrid-moving-average-ribbon__1025.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "market-profile-with-tpo__b2b119d8ab.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "market-sessions-and-volume-profile-by-leviathan__c85c28c18a.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "market-structure-break-order-block__3a1fb6197f.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "market-structure-by-leviathan__9ca1dae1ac.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "market-structure-trend-targets-chartprime__d3c06abad6.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:statement"
+      ],
+      "screenerGuards": [
+        "pine:statement"
+      ]
+    },
+    {
+      "file": "mcclellan-indicators__29fdf0235d.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "mgi-levels-suite__285168ddfb.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "momentum-based-zigzag__38d39d2d6c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "momentum-volatility-scanner__4d1deaa855.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "moving-averages-as-support-resistance-mtf__gcBksfRvvy.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "mtf-key-levels-support-and-resistance__29f470a089.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function-def",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function-def",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "mtf-watchlist-charts-anan__3453680ea1.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "multi-timeframe-fvg-tfo__adbed9f590.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:request"
+      ]
+    },
+    {
+      "file": "multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "multi-timeframe-trend-indicator__fa4022ecf5.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "multicator-table__486858895c.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:plot-offset",
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:plot-offset",
+        "pine:state"
+      ]
+    },
+    {
+      "file": "multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "neural-network-buy-and-sell-signals__fbbb11d0c7.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:statement"
+      ],
+      "screenerGuards": [
+        "pine:statement"
+      ]
+    },
+    {
+      "file": "nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "open-interest-profile-fixed-range-by-leviathan__875691ab51.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "open-interest-suite-aggregated-by-leviathan__44b150b3df.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "opening-range-initial-balance-opening-price__4a7416ab01.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:builtin",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:builtin",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "optimized-trend-tracker__ZhWiFvtpwE.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "options-max-pain-calculator-backquant__c904837c16.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "order-block-finder__fVSb3j0I87.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:offset-literal",
+        "pine:plot-offset"
+      ],
+      "screenerGuards": [
+        "pine:offset-literal",
+        "pine:plot-offset"
+      ]
+    },
+    {
+      "file": "order-blocks__b324078711.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "pa-zigzag-fibonacci-fan__2001.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "parabolic-sar__xoeoPMOWGJ.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:timeout"
+      ],
+      "screenerGuards": [
+        "pine:timeout"
+      ]
+    },
+    {
+      "file": "pivot-high-low-points__hoTsDQRY3L.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:offset-literal"
+      ],
+      "screenerGuards": [
+        "pine:offset-literal"
+      ]
+    },
+    {
+      "file": "pivot-point-supertrend__HN4w1eNW3B.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:arity"
+      ],
+      "screenerGuards": [
+        "pine:arity"
+      ]
+    },
+    {
+      "file": "pivot-trendlines-with-breaks-hg__f1464ad5b7.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:arity"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:arity"
+      ]
+    },
+    {
+      "file": "pmax-explorer__jN9HBNhynF.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "position-size-calc__a42db1a620.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "position-size-calculator__28sGm8JqI3.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:roundtrip"
+      ],
+      "screenerGuards": [
+        "pine:roundtrip"
+      ]
+    },
+    {
+      "file": "power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "previous-n-daysweeksmonths-high-low__78f5b05522.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "qqe-signals__EhBrwQPjZ1.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "range-filter-bs-signals__eCVFctFlqp.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection"
+      ],
+      "screenerGuards": [
+        "pine:collection"
+      ]
+    },
+    {
+      "file": "range-filter-dw__pshyCmQSql.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:collection"
+      ],
+      "screenerGuards": [
+        "pine:collection"
+      ]
+    },
+    {
+      "file": "rate-of-change__5efd12f955.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:builtin",
+        "pine:tuple",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:function",
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "relative-volume-at-time__gei8CBKbc5.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:text-value",
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:text-value",
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "relative-volume__LnFmPEoFXQ.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:window",
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:window",
+        "pine:function"
+      ]
+    },
+    {
+      "file": "renderingnature-smc-reversal-engine-v71__f8734584d9.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:builtin",
+        "pine:plot-offset",
+        "pine:state",
+        "pine:reassign",
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:builtin",
+        "pine:plot-offset",
+        "pine:state",
+        "pine:reassign",
+        "pine:request"
+      ]
+    },
+    {
+      "file": "renko-candles-overlay__d76a18d49e.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "rolling-vwap__043320bb57.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "rsi-horizontal-resistance-levels__a3f8454f81.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "rsi-swing-indicator__CVZdVmg7ib.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "rsi-trendlines-with-breakouts-hg__033f4cab46.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:arity",
+        "pine:type"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:arity",
+        "pine:type"
+      ]
+    },
+    {
+      "file": "rsi-vwap-indicator__pTI5ZVw9n4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:arity",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:arity",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "rvol__05fcd9e160.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy"
+      ]
+    },
+    {
+      "file": "screener-mean-reversion-channel__nTK2sHWDlB.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "sector-rotation__0fca060bf4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:arity"
+      ],
+      "screenerGuards": [
+        "pine:arity"
+      ]
+    },
+    {
+      "file": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "session-hilo__WM2g5GtC4h.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:builtin"
+      ],
+      "screenerGuards": [
+        "pine:builtin"
+      ]
+    },
+    {
+      "file": "session-tpo-profile__41088ef96d.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "sessions__2677.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "smart-money-breakout-channels-algoalpha__8c2d234156.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "smart-money-breakouts-chartprime__ea79c79a67.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "THREW"
+      ],
+      "screenerGuards": [
+        "THREW"
+      ]
+    },
+    {
+      "file": "smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module"
+      ],
+      "screenerGuards": [
+        "pine:module"
+      ]
+    },
+    {
+      "file": "smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:function",
+        "pine:collection",
+        "pine:reassign",
+        "pine:tuple",
+        "pine:block",
+        "pine:state",
+        "pine:offset-literal"
+      ],
+      "screenerGuards": [
+        "pine:function",
+        "pine:reassign",
+        "pine:block",
+        "pine:offset-literal",
+        "pine:state"
+      ]
+    },
+    {
+      "file": "smart-money-interest-index-algoalpha__effdd7852c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "smart-money-volume-activity-algoalpha__699c36ad31.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "smart-money-volume-index-algoalpha__6663950b80.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "smarter-snr__ac98ab25d5.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "smt-divergence-ict-killzones__c932d56665.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "sonarlab-order-blocks__0df0d45ee6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:block"
+      ]
+    },
+    {
+      "file": "stop-loss-and-take-profit-in-example__YlblCbts4x.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module"
+      ],
+      "screenerGuards": [
+        "pine:module"
+      ]
+    },
+    {
+      "file": "strong-start-rvol-dashboard__36140b1cbe.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "sub__1xYROVYMlX.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "supertrend-explorer__V4MsmtCeKs.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple",
+        "pine:window-dependent"
+      ]
+    },
+    {
+      "file": "supertrend-strategy__rcRbtoBiKG.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy"
+      ]
+    },
+    {
+      "file": "supply-demand-mtf-flux-charts__7fb4bff229.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request",
+        "pine:role-order"
+      ],
+      "screenerGuards": [
+        "pine:request",
+        "pine:role-order"
+      ]
+    },
+    {
+      "file": "support-and-resistance__1505.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function",
+        "pine:na"
+      ],
+      "screenerGuards": [
+        "pine:function",
+        "pine:na"
+      ]
+    },
+    {
+      "file": "support-and-resistance__UgNPprOr8h.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:role-order"
+      ],
+      "screenerGuards": [
+        "pine:role-order"
+      ]
+    },
+    {
+      "file": "support-and-resistance__c4792aabd0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "support-resistance-mtf-flux-charts__dd04862677.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
+      "host": true,
+      "screener": false,
+      "hostGuards": [
+        "pine:constant-only"
+      ],
+      "screenerGuards": [
+        "pine:constant-only"
+      ]
+    },
+    {
+      "file": "swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "take-profit-multi-timeframe__8c16588ae9.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:request",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:request",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "trend-duration-forecast-chartprime__2c5c233f31.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "trend-levels-chartprime__90a5bf4ab1.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "trend-line-harrybot__vMv5yOQxcA.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block"
+      ],
+      "screenerGuards": [
+        "pine:block"
+      ]
+    },
+    {
+      "file": "trend-lines-supports-and-resistances__413ee2ee3b.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "trend-targets-algoalpha__92ff5628d7.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "trendline-pivots-quantvue__3dc9be8b73.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "trendlines__43QQg9nDN0.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "trendlinesample__61d59f90bc.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "twin-range-filter__xF3L2PeXm7.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function-def"
+      ],
+      "screenerGuards": [
+        "pine:function-def"
+      ]
+    },
+    {
+      "file": "ultimate-pivot-points__vRWbsbkQGe.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:request"
+      ],
+      "screenerGuards": [
+        "pine:request"
+      ]
+    },
+    {
+      "file": "vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "visualizing-displacement-tfo__5b861441c2.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "volatility-stop-mtf__K5XG42uHV9.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:module",
+        "pine:tuple"
+      ],
+      "screenerGuards": [
+        "pine:module",
+        "pine:tuple"
+      ]
+    },
+    {
+      "file": "volatility-trend-score-backquant__0794882a37.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:type"
+      ],
+      "screenerGuards": [
+        "pine:type"
+      ]
+    },
+    {
+      "file": "vold-market-breadth__9c5cde9557.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volume-delta-hapharmonic__d5748870fd.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "volume-delta-oi-delta-kioseff-trading__9056fd6b37.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volume-divergence-by-mm__cvG2Djaryv.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:block",
+        "pine:role-order"
+      ],
+      "screenerGuards": [
+        "pine:block",
+        "pine:role-order"
+      ]
+    },
+    {
+      "file": "volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "volume-open-interest-footprint-by-leviathan__f84b8fc7c4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volume-profile-auto-line-v2__b0e947fd20.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:tuple",
+        "pine:reassign"
+      ],
+      "screenerGuards": [
+        "pine:tuple",
+        "pine:reassign"
+      ]
+    },
+    {
+      "file": "volume-profile-plus__91ff446fe0.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:character"
+      ],
+      "screenerGuards": [
+        "pine:character"
+      ]
+    },
+    {
+      "file": "volume-profile-v054beta__PNSKf75832.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volume-profile__X0dKLxdLh4.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "volume-suite-by-leviathan__48da793360.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "volumized-order-blocks-flux-charts__1675b2b8e3.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    },
+    {
+      "file": "vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:declaration-strategy",
+        "pine:function",
+        "pine:strategy-call"
+      ],
+      "screenerGuards": [
+        "pine:declaration-strategy",
+        "pine:function",
+        "pine:strategy-call"
+      ]
+    },
+    {
+      "file": "williams-fractal-trailing-stops__UOOIN5REYl.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:reassign",
+        "pine:plot-offset",
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:reassign",
+        "pine:plot-offset",
+        "pine:state"
+      ]
+    },
+    {
+      "file": "wyckoff-accumulation-distribution__d9ae726e21.pine",
+      "host": false,
+      "screener": true,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
+    },
+    {
+      "file": "zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
+    },
+    {
+      "file": "zigzag-ma-pattern-recognition__1302.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:function"
+      ],
+      "screenerGuards": [
+        "pine:function"
+      ]
+    },
+    {
+      "file": "zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp.pine",
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:no-output"
+      ],
+      "screenerGuards": [
+        "pine:no-output"
+      ]
+    }
+  ]
+}
