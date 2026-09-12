@@ -1533,6 +1533,24 @@ the session, and overwrites it only with a real result.
 
 ### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
 
+### ⛔ A WINDOWS PATH THROUGH THE BASH TOOL LOSES ITS BACKSLASH — quote it, or use PowerShell
+
+2026-09-12, booting the hub sandbox. The command read
+`powershell -File scripts/hub-sandbox.ps1 -DataDir C:\\data-hubtest -Port 8077`, and what the
+launcher actually received was **`--data-dir C:data-hubtest`** — read back from the running
+process's own command line (`Get-CimInstance Win32_Process`), not guessed. `C:data-hubtest` is a
+DRIVE-RELATIVE path: Windows resolves it against the current directory on C:, so the sandbox wrote
+to `...\uct-worktrees\joystick-launch-close\data-hubtest` instead of `C:\data-hubtest`.
+
+⭐ **The guard held and every checkpoint was CLEAN** — pre-boot, +15s and +120s, 53 db files hashed
+each time — because the launcher's protection is the AST-derived env pins and the tripwire on the
+shared root, not the spelling of the sandbox path. That is the design working: a mangled argument
+produced a wrong-but-harmless directory rather than a write into `C:\data`.
+
+⛔ **The fix is the tool boundary, not more escaping.** Pass Windows paths from the PowerShell tool,
+or single-quote them (`-DataDir 'C:\data-hubtest'`). And **verify what the PROCESS received**, not
+what the command said — the same rule as reading the wire instead of the call site.
+
 ### Live-data backup (operator safety net)
 
 ⛔⛔ **HOW MANY USERS ARE IN PRODUCTION: 26** (measured 2026-09-12, `railway ssh` →
