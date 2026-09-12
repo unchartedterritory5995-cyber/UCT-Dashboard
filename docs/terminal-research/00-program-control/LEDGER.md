@@ -446,6 +446,60 @@ not the branch tip — they differ if the merge is a squash or a merge commit), 
 **Nothing else starts before that.** A row left at PENDING-MERGE after its branch is on master is the
 exact drift this ledger exists to prevent.
 
+## ✅ THE STRANDS ARE DISCHARGED — the deploy-marker mechanism, proved by a control
+
+**Owner ruling, 2026-09-12: a deploy-marker file.** `api/flow_worker_deploy_marker.txt` is read by
+nothing. Its only job is to sit on flow-worker's Railway watch list, so that appending a dated line
+forces a rebuild **from master's tip** — picking up every ADDITIVE strand flow-worker would otherwise
+skip forever. Registered in the Railway dashboard through the browser, 2026-09-12; CLI readback
+confirms **24 patterns**, the previous 23 unchanged and in order.
+
+**⭐ The mechanism is proved by a CONTROL, not by a single green.** The same file appears in two
+consecutive pushes, and the ONLY variable between them is whether it was on the watch list yet:
+
+| time (UTC) | commit | marker on watch list? | flow-worker |
+|---|---|---|---|
+| 04:19:08 | `f42b11c65` — **creates** the marker | ❌ not yet registered | **SKIPPED** |
+| 04:25:39 | `f42b11c65` — same commit | (settings save rebuilt master tip) | SUCCESS |
+| 04:31:55 | `fd735513b` — **appends** to the marker | ✅ registered | **BUILDING → deploys** |
+
+⛔ **Do not read the 04:25 SUCCESS as proof of the mechanism.** That build was triggered by the
+watch-pattern *settings save*, which Railway treats as a config change and rebuilds at master tip. It
+proves the registration took; it says nothing about whether appending a line triggers a deploy. Only
+the 04:31 push — whose sole claim on the watch list is the marker file itself — tests the mechanism,
+and only because the 04:19 SKIPPED row sits beside it as the negative control.
+
+**Strands discharged by the bump:**
+
+| strand | system | what was stranded | class |
+|---|---|---|---|
+| `1667fc64d` | **S3** | `api/services/entity_master/store.py` — `status_counts()` | **ADDITIVE** |
+| `1a3668eaf` | **D1** | `api/services/fmp_client.py` — 12 new typed functions (G2/G4) | **ADDITIVE** |
+
+Both add functions flow-worker never calls, so the stranded interval carried nil risk — and that is
+**a property of these two changes, not of the mechanism**. The classification row is required before
+every future push under the standing coverage-rail ruling, and a BEHAVIOUR-CHANGING strand does not
+get to ride a marker bump silently.
+
+**Marker-bump rules (owner, standing):** window only (weekend or after-hours, market closed) ·
+**append, never rewrite** · confirm by the **commit hash advancing**, never by a SUCCESS status ·
+ledger the before/after · and the marker is the ONLY flow-worker path a non-flow-worker program may
+touch. **Market was closed for this bump.**
+
+⚠️ **The mirror is the one in-repo copy and it is now synced.** `_EXTRA_WATCHED` in
+`tools/flow_worker_watch_coverage.py` reads 24; the rail reports `reachable=154 watched=24`, exit 0.
+⛔ The marker **cannot** live in the header's `api/{...}.py` brace list — that list expands as
+`api/<name>.py`, so a `.txt` there becomes `api/flow_worker_deploy_marker.txt.py` and silently
+watches nothing.
+
+⚰️ **AND THE CLI CANNOT DO THIS.** `railway redeploy --service flow-worker` returned exit 0 and went
+BUILDING → DEPLOYING → **SUCCESS on the same commit it started from** (`9efbb34a8`, while master was
+`b272db249`, 04:07:16). The CLI resolves "the latest deployment" to the last **actual** deployment,
+and flow-worker's recent records are mostly SKIPPED. It dropped the OPRA websocket and advanced
+nothing — free only because the market was closed. `railway deployment` offers list, up and redeploy;
+`up` uploads the local directory, which is not an acceptable production deploy source.
+
+
 **Tier verification, 2026-09-11:** all five checked against flow-worker's committed watch list — the
 21 `api/<name>.py` files mirrored in `api/flow_worker_main.py`'s header. **None touches a watched
 file**, so none needs an after-hours window. Two (`feat/i1-rails`, `feat/s3-admin-routes`) touch
