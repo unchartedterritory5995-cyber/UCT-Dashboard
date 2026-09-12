@@ -327,6 +327,21 @@ export default function FundamentalsWidget({
         )}
       </div>
 
+      {/* The reported half can be stale without being empty, and the widget used
+          to present an old quarter as the latest with nothing said. `>= 2` is a
+          DISPLAY threshold, deliberately the same shape as the monitor's
+          `_STALE_QUARTERS`: one quarter behind is an ordinary late filer and
+          saying so would cry wolf every earnings season; two means a quarter the
+          company reported is genuinely missing from every provider we read.
+          An older cached payload has no `stale_quarters` key, and `undefined >= 2`
+          is false — it renders exactly as before. */}
+      {!isPanelView && data?.stale_quarters >= 2 && (
+        <div className={styles.staleNotice} data-testid="fundamentals-stale-notice" role="status">
+          Latest quarter unavailable — reported figures end at{' '}
+          <strong>{data.reported_through}</strong>. Our data providers have not
+          published the {data.stale_quarters} quarters since.
+        </div>
+      )}
       {effectiveView === 'analyst' ? (
         <AnalystPanel sym={sym} />
       ) : effectiveView === 'ownership' ? (

@@ -1,5 +1,54 @@
 # Deploy notes — flow-worker weekend bundle (branch `perf/flow-date-scan`)
 
+> # 🔴 THE HEADLINE OF THE WEEKEND
+>
+> **Every `VITE_*` was dark from `af80e0b91` (2026-09-08 21:53 ET). Members were on
+> whole-D for four days. First paint went from 5.5 MB to 166 KB when it was fixed.**
+>
+> `Dockerfile.web` declared **zero build ARGs**. It builds the web service, and a
+> Docker stage inherits nothing: Railway offers each service variable to the build as
+> a BUILD ARG, and an undeclared build arg is dropped without an error. Nine `VITE_*`
+> were set on `web`, eight to the literal `1`, and **all nine were ineffective**.
+>
+> ⭐ **NOTHING FAILED.** Every one of those flags is read as `=== '1'`, which is false
+> when undefined — indistinguishable from "off on purpose" at every layer a test or a
+> health check can reach. The suite stayed green, `/api/health` stayed 200, and
+> flow-worker built and served the parts cache correctly the whole time. **No browser
+> was asking for it.**
+>
+> ### ⭐ The proof, in one sentence
+>
+> **Four `VITE_*` were changed on Railway and the rebuilt entry chunk came back
+> BYTE-IDENTICAL** — `index-VW7Dk9Ft.js` before and after. A build whose output cannot
+> move when its inputs move is not reading those inputs. After the fix the same
+> operation moves the hash (`index-cZA22Jfk.js`), and the render token's value went
+> from **0 occurrences** in the bundle to **14**.
+>
+> ### Since when — a BOUND, not a date
+>
+> | when | what |
+> |---|---|
+> | 2026-09-07 19:19 ET | `55359ed75` ships the parts client — subject says **"(flag off)"** |
+> | 2026-09-08 21:53 ET | `af80e0b91` replaces the nixpacks build with `Dockerfile.web`; every `VITE_*` goes dark |
+> | 2026-09-12 09:38 ET | `705ee710d` fixes it; verified on the artifact |
+>
+> Members were on whole-D **continuously since 2026-09-08 21:53 ET at the latest**.
+> Whether the parts path was ever live in the ~26 h before that is **not recoverable**:
+> the flag went in deliberately off and the CLI exposes no variable history.
+>
+> ### First paint, measured on the wire
+>
+> | | gzip |
+> |---|---|
+> | `part=bootstrap` | 128,188 B (125.2 KB) |
+> | `part=TOP_PICKS` | 41,533 B (40.6 KB) |
+> | **total** | **169,721 B (165.7 KB)** vs **5,514,328 B** before — **32×** |
+>
+> Detail, evidence and the after-state are in the sections below; the ledger blind spot
+> this exposed is closed by `docs/feature_flags.json`'s `build_flags` section and
+> `tests/test_vite_flag_ledger.py`.
+
+
 `api/flow_db.py` is on flow-worker's watch list, so this deploy RESTARTS the OPRA
 consumer and gaps the tape permanently until the T+1 flat file. **After-hours or
 weekend only.** (The Mon–Fri push freeze is rescinded — see CLAUDE.md, 2026-09-11.
@@ -141,6 +190,46 @@ tick is ~11.7 s (pass 1 ~6.2 s + pass 2 ~5.5 s), so read `blocked_held_ms` again
 a ~12 s tick plus up to 2 s of poll — not 5.
 
 ---
+
+## Monday item 11 — three additions, OBSERVE ONLY (owner, 2026-09-12)
+
+⛔ **Observe and characterise. Do not fix any of these on Monday.**
+
+### 1. `.of-picks` / the TOP 10 table after in-app navigation
+
+Path B's dry run rendered it in 15.9 s on one run and **never** on the next, while
+`part=bootstrap` and `part=TOP_PICKS` were served on both. So the transport is fine and
+something downstream of it is not. Reproduce under a live tape and capture **which of
+three it is**:
+
+- a **render gate** — the table waits on a condition that a navigated-in page does not
+  satisfy (the shell mounted, so the gate is below it);
+- a **race with the version check** — `part=TOP_PICKS` lands against one version while
+  the page has moved to another, and the product is discarded as stale;
+- a **data-shape issue** — `TOP_PICKS` is a DERIVED product (`{generation, variants}`),
+  not a slice of `D`, and a consumer expecting an array would drop it silently.
+
+⭐ Capture the response AND the mount together: a request log alone cannot tell a
+discarded product from one that never arrived.
+
+### 2. The duplicate-request storm
+
+Path B run 2 issued `part=TOP_PICKS` ×3, `part=bootstrap` ×3 **and** a `data?days=1`
+in one navigation — 3.5 MB, against run 3's clean 7 requests. Decide which:
+
+- the **intro/escape trap** — an artifact of how the rig leaves the start route;
+- the **Suspense shell double-mounting** — the app-wide `<Suspense>` remounting the page
+  and re-firing its effects;
+- a **real client bug** that costs members 3.5 MB on some navigations.
+
+⚠️ The third is the one that matters, and it is indistinguishable from the first two
+from the request log alone — count MOUNTS, not requests.
+
+### 3. Real member sessions stay on parts under a live tape
+
+The 2026-09-12 verification was on a QUIET tape with the version frozen. Confirm
+`part=bootstrap` + `part=TOP_PICKS` still serve first paint when the version is ROLLING,
+and that a roll mid-navigation does not fall back to whole-D.
 
 # ✅ MERGED AND VERIFIED — 2026-09-12 (weekend window)
 
@@ -520,3 +609,76 @@ what it reads. It lost runs 2 and 3 and **would have taken Monday's RTH session 
 it.** `sys.stdout.reconfigure(errors="backslashreplace")` at import, for stdout and
 stderr both — one global fix rather than a guard per print site, because the next
 print site is the one you forget.
+
+## ⛔ Instrument traps — four self-corrections from 2026-09-12
+
+Each of these produced a confident wrong answer that looked like a fact about the
+product. All four are properties of the INSTRUMENT.
+
+### 1. A heredoc eats one level of backslash
+
+The `ENV` block was generated with `" \<newline>    "` in a Python script fed through
+a shell heredoc. The shell collapsed the doubled backslash, Python received
+backslash+`n`, and all seventeen exports landed on **one physical line**. Railway
+failed the build in 14 seconds with a log containing nothing past
+`scheduling build on Metal builder`.
+
+⭐ **Measured rule: `\` becomes `\`, and `\n` becomes `n`, in a `python - <<'EOF'`
+heredoc on this box.** A single backslash inside a regex (`\s`, `\.`) survives; a
+doubled one does not. **Build every literal backslash with `chr(92)`** when a heredoc
+is in the path — including a test's own needle, or the same collapse corrupts the check
+that was supposed to catch this.
+
+⚠️ Same family, hit an hour later: **backticks inside a double-quoted bash string are
+command substitution.** An assertion message containing `` `label` `` executed the
+Windows `label` command, which sat waiting on stdin until the call timed out. Use
+single quotes, or no backticks.
+
+### 2. A builder field is a claim; the build log is the artifact
+
+Three config surfaces disagree about how `web` builds and **two of them are wrong**:
+
+| surface | says | true? |
+|---|---|---|
+| `railway.json` → `build.builder` | `NIXPACKS` | no — the dashboard overrides it |
+| Railway API → `serviceInstance.builder` | `RAILPACK` | no — a dashboard `dockerfilePath` overrides it |
+| the deployment's own build log | `Dockerfile.web` | **yes** |
+
+⚰️ This cost a live retraction: a correct finding was walked back on the strength of
+`railway.json`'s `NIXPACKS`, which would have left the defect in place. `railway logs
+--service web --build <FULL-DEPLOYMENT-ID>` is the answer — and the id must be the full
+UUID, since a truncated one returns `Deployment not found`.
+
+### 3. A minified bundle has no identifiers
+
+Five markers were reported as pre-fix evidence. **Three could never have matched:**
+`REQUIRED_PARTS`, `planBundle` and `fetchPartsBundle` are identifiers, and esbuild
+renames every one. A fourth, `part=bootstrap`, is never emitted either — the URL is
+built as `` `${baseUrl}&part=${encodeURIComponent(part)}` ``, so only `&part=` survives.
+
+| needle | before | after | valid? |
+|---|---|---|---|
+| `TOP_PICKS` | 0 | 4 | ✅ string literal in `SERVER_TOPPICKS_PARTS` |
+| `bootstrap` | 1 | 7 | ✅ string literal |
+| `&part=` | 1 | 2 | ✅ template fragment |
+| `/api/flow/ticker-product/` | 0 | 1 | ✅ the server-search endpoint |
+| `part=bootstrap` | 0 | 0 | ❌ never emitted |
+| `REQUIRED_PARTS`, `planBundle`, `fetchPartsBundle` | 0 | 0 | ❌ identifiers, renamed |
+
+⭐ **A needle into a minified bundle must be a STRING the source emits, or a structural
+fold you can read.** The decisive evidence was always the folds — `ComingSoon` bound to
+nothing, `useRealtimeBars` minified to a dead effect holding `!1` — and a VALUE
+(the render token) going 0 → 14. A value cannot be explained by tree-shaking.
+
+### 4. A substring assertion is blind to the syntax around it
+
+`test_each_declared_arg_is_also_exported_to_the_build` asserts `NAME=$NAME` is present.
+That is true of one malformed line exactly as of seventeen good ones, so the rail
+**passed over the very Dockerfile that failed the build**.
+`test_the_env_block_is_physically_well_formed` now checks the physical shape, and is
+mutation-proved by reintroducing the exact mangling: it goes RED while the substring
+test stays green.
+
+⭐ Generalising: when a rail asserts *presence*, ask what a BROKEN version of the thing
+would look like to it. If the broken version also satisfies the assertion, the rail is
+decoration.

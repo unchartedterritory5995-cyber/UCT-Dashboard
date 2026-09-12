@@ -38,46 +38,28 @@ inside `https://`.
 Mutation proof (run BEFORE calling this rail done):
     1. delete one `ARG VITE_…` line from Dockerfile.web      -> test_every_… RED
     2. delete one `NAME=$NAME` from the ENV block            -> test_each_arg… RED
-    3. point `_frontend_sources` at an empty directory       -> test_the_scan… RED
+    3. point vite_flag_index.frontend_root at an empty directory       -> test_the_scan… RED
 """
 from __future__ import annotations
 
 import os
 import re
+import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCKERFILE = os.path.join(REPO, "Dockerfile.web")
-FRONTEND = os.path.join(REPO, "app", "src")
 
-_READ_RE = re.compile(r"import\.meta\.env\.(VITE_[A-Z0-9_]+)")
+sys.path.insert(0, REPO)
+from tools import vite_flag_index          # noqa: E402  the ONE reader of the names
+
 _ARG_RE = re.compile(r"^ARG\s+(VITE_[A-Z0-9_]+)\s*$", re.M)
 
 
-def _frontend_sources(root: str | None = None):
-    """Every shipped frontend source file. Tests are excluded: a flag exercised
-    only by a test needs no build arg, and including them would make the required
-    set depend on test scaffolding rather than on what members run.
-
-    ⚠️ `root` resolves at CALL time, never as a default argument. A default binds
-    once at import, so a harness that reassigns the module’s FRONTEND to point at
-    another checkout silently keeps scanning the original one and reports zero
-    reads — which is how the first draft of this file made its own non-vacuity
-    control fail."""
-    for dirpath, _dirs, files in os.walk(root or FRONTEND):
-        for f in files:
-            if not f.endswith((".js", ".jsx", ".ts", ".tsx")):
-                continue
-            if ".test." in f or f.endswith(".d.ts"):
-                continue
-            yield os.path.join(dirpath, f)
-
-
 def vite_names_read() -> set[str]:
-    out: set[str] = set()
-    for path in _frontend_sources():
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            out |= set(_READ_RE.findall(fh.read()))
-    return out
+    """Delegated on purpose. `tests/test_vite_flag_ledger.py` asks the same module,
+    so the Dockerfile's ARG list and the ledger's build_flags section are held to one
+    derived set and cannot drift apart."""
+    return vite_flag_index.names_read(REPO)
 
 
 def _dockerfile() -> str:

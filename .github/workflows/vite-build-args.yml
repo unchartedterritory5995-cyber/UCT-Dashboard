@@ -29,11 +29,17 @@ on:
       - 'Dockerfile.web'
       - 'app/src/**'
       - 'tests/test_dockerfile_vite_build_args.py'
+      - 'tests/test_vite_flag_ledger.py'
+      - 'tools/vite_flag_index.py'
+      - 'docs/feature_flags.json'
   pull_request:
     paths:
       - 'Dockerfile.web'
       - 'app/src/**'
       - 'tests/test_dockerfile_vite_build_args.py'
+      - 'tests/test_vite_flag_ledger.py'
+      - 'tools/vite_flag_index.py'
+      - 'docs/feature_flags.json'
 
 jobs:
   build-args:
@@ -51,8 +57,13 @@ jobs:
       # ⛔ The rail's own non-vacuity control is the load-bearing assertion here:
       # it fails if the frontend scan returns nothing, so a moved directory or a
       # bad checkout can never pass this job by having nothing left to check.
-      - name: Every VITE_* the frontend reads is declared as a build ARG
-        run: python -m pytest tests/test_dockerfile_vite_build_args.py -q
+      # Two rails over ONE derived name set (tools/vite_flag_index.py): the
+      # Dockerfile must PASS every flag the frontend reads, and the ledger must
+      # DECLARE every one. They fail for different reasons and both matter --
+      # a flag that reaches the build but nobody decided is still undecided.
+      - name: Every VITE_* is a build ARG and has a ledger row
+        run: |
+          python -m pytest tests/test_dockerfile_vite_build_args.py                            tests/test_vite_flag_ledger.py -q
 
       - name: Explain a failure
         if: failure()
