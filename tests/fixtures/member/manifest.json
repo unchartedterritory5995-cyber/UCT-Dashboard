@@ -24,6 +24,21 @@
       "body_lines": 137,
       "body_sha256": "c4eda4b36d857c6b373be4d88fde66aae6e8206c4814c8c101bb0e4ec9fa3472",
       "file_sha256": "92ec396864828ad26f6e8c30999415842a9a64f7fcf85b8e829f58b091df4f57"
+    },
+    {
+      "path": "tests/fixtures/member/uncharted-volume-v2.pine",
+      "author": "AtTheAsk (Uncharted Territory)",
+      "licence": "MPL-2.0",
+      "pine_version": "6",
+      "captured_from": "OWNER-AUTHORED EDIT, ruling of 2026-09-12 — not a translation and not a rewrite by this project. Two changes to v1: `lookbackBarsHVE = input.int(2500, \"HVE lookback (bars)\", minval=50)`, and the unbounded `priorMaxAllTimeDaily` accumulator replaced by `ta.highest(volD[1], lookbackBarsHVE)`. The indicator title gains ` v2` so the two are distinguishable on one chart.",
+      "committed": "2026-09-12",
+      "body_lines": 579,
+      "body_sha256": "93b1959c28e45bd991327bebb5178c4a7d4ec4e90913a9527c427ecbbdfe28db",
+      "file_sha256": "e550e994f5ad04f197b7746b14db21e9e1a0edcee843a2fa568402ac2e22c0c6",
+      "_role": "⭐ THE HOST TARGET FROM HERE. v1 stays in this manifest as the DOCTRINE case — the `pine:state@284` refusal-with-offer that R-A3 ruled on — and must not be edited to make it pass. v2 is what the pane work is measured against: translatePine strict answers ok=true, 5 outputs, 0 refusals.",
+      "_v1": "tests/fixtures/member/uncharted-volume.pine",
+      "_diff": "docs/pine/uncharted-volume-v1-to-v2.md"
     }
-  ]
+  ],
+  "_v1_and_v2": "⛔⛔ BOTH VOLUME REVISIONS ARE HELD ON PURPOSE. v1 is the refusal case the `pine:state` doctrine is pinned against; v2 is the host target. A future session that 'fixes' v1 to translate deletes the only member-scale case this project has for the unbounded-accumulator refusal, and the offer sentence stops being tested against anything a member actually wrote."
 }
