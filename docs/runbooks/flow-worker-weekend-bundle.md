@@ -334,3 +334,90 @@ All four build-time flags ARE set on web (`VITE_FLOW_PARTS=1`, `VITE_FLOW_DEFER_
 reaching them** — 5.5 MB instead of ~161 KB. NOT chased further tonight: characterising
 it means reading the client, and it needs an RTH session to see whether it also holds
 under a live tape. **Top candidate for Monday's item 11.**
+
+### ✅ RESOLVED — it was the BUILD, not the client (2026-09-12)
+
+`Dockerfile.web` carried **zero `ARG` declarations**. It builds the web service —
+the build log says `load build definition from Dockerfile.web` — and a Docker stage
+inherits nothing: Railway offers each service variable to the build as a BUILD ARG,
+and an undeclared build arg is dropped without an error. So every `VITE_*` was
+undefined during `npm run build`, `USE_PARTS` folded to `false`, and the whole parts
+path was tree-shaken out of the bundle. Nine variables were set on `web`, eight to
+the literal `1`, and **all nine were ineffective**.
+
+⛔ **READ THE BUILD LOG, NOT THE BUILD CONFIG.** Three separate config surfaces
+disagree about how `web` builds, and two of them are wrong:
+
+| surface | says | true? |
+|---|---|---|
+| `railway.json` → `build.builder` | `NIXPACKS` | no — dashboard overrides it |
+| Railway API → `serviceInstance.builder` | `RAILPACK` | no — a dashboard `dockerfilePath` overrides it |
+| the deployment's own build log | `Dockerfile.web` | **yes** |
+
+⚰️ This cost a live retraction: the finding was briefly walked back on the strength
+of `railway.json`'s `NIXPACKS`, which would have left the defect in place. The
+artifact is the authority; a builder field is a claim about a build.
+
+⭐ **The cheapest proof that a variable does not reach a build: change it and watch
+the bundle hash.** Four `VITE_*` were changed on `web` and the rebuilt entry chunk
+came back **byte-identical** (`index-VW7Dk9Ft.js` before and after). A build whose
+output cannot move when its inputs move is not reading those inputs.
+
+#### Since when — a BOUND, not a date
+
+| when | what |
+|---|---|
+| 2026-09-07 19:19 ET | `55359ed75` ships the parts client — commit subject says **"(flag off)"** |
+| 2026-09-08 21:53 ET | `af80e0b91` replaces the nixpacks build with `Dockerfile.web`; every `VITE_*` goes dark |
+| 2026-09-12 | measured on the deployed bundle; fix shipped |
+
+**Members have been on whole-D + the full tape continuously since 2026-09-08 21:53 ET
+at the latest.** Whether the parts path was ever live in the ~26 h before that is
+**not recoverable**: the flag went in deliberately OFF, and the CLI exposes no
+variable history.
+
+⛔ **And the ledger cannot answer it either — `docs/feature_flags.json` contains no
+`VITE_` entries at all.** It tracks the server-side `FLOW_*` family and has a
+structural blind spot for exactly the class that just failed silently: build-time
+frontend flags. Recorded as a follow-up, deliberately NOT fixed in this push.
+
+#### Member impact
+
+For at least four days, every member loading Options Flow fetched whole-day aggregate
+plus the entire raw tape — about **5.5 MB where the parts path costs ~161 KB gz** —
+and the first-paint work behind `FLOW_BOOTSTRAP_ENABLED` and `FLOW_PREPARE_ENABLED`
+reached nobody. flow-worker was building the parts cache correctly and serving it
+correctly the whole time; **no browser was asking for it.** Nothing failed while this
+was true: a flag read as `=== '1'` is false when undefined, so the suite stayed green
+and `/api/health` stayed 200. The same build miss also kept the COMING SOON holding
+page from rendering (the public marketing funnel was open while the backend refused
+every signup — reported separately, NOT changed by this deploy) and kept the Massive
+bars push feed from ever subscribing, so every chart ran on the Finnhub poll.
+
+#### The rail
+
+`tests/test_dockerfile_vite_build_args.py` + `.github/workflows/vite-build-args.yml`.
+The required set is **derived** from `app/src/**` — never typed — so the tenth flag is
+covered the day it lands. Mutation-proved in-repo before shipping: drop one `ARG`
+→ RED naming exactly it; drop one `ENV` export → RED naming exactly it; restore → 3
+passed. Restored by re-inserting the line, never `git checkout`.
+
+⚠️ `ENV VITE_X=$VITE_X` turns an unpassed arg into `""` rather than leaving it absent,
+so **every one of the 17 read sites was checked** for a case where `''` and `undefined`
+differ. Three use `??` or `!== '0'` — `VITE_CATALYST_UI_ENABLED`,
+`VITE_TWITTER_UI_ENABLED`, `VITE_GRID_WARM_ENABLED` — and all three evaluate
+identically under both. Re-check this if a read site ever starts distinguishing them.
+
+### ⛔ Credential hygiene — a sentinel is SHAPED like the secret, never IS the secret
+
+When a scan needs a non-vacuity control — proof it can actually see a match before its
+zeros mean anything — **build the control from a value shaped like the secret, not from
+the secret.** On 2026-09-12 a credential sweep proved itself with
+`git hash-object -w --stdin <<< "sentinel-$PW-sentinel"`, which wrote a loose object
+**containing the live credential** into the object store: the check for a planted
+credential planted one. It was removed and verified absent, but the right control never
+creates the exposure it is testing for.
+
+⭐ The control is still mandatory — a scan that cannot demonstrate a hit is not
+evidence of absence. Generate a decoy of the same length and alphabet, plant that, and
+assert the scan finds it.

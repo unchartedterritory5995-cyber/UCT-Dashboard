@@ -51,6 +51,65 @@
 # no later security patches — but not inside an OCR packaging change.
 FROM node:20.18.0-bookworm-slim AS frontend
 WORKDIR /src
+
+# ⛔⛔ EVERY `VITE_*` THE FRONTEND READS MUST BE DECLARED HERE OR IT BUILDS
+# UNDEFINED. This is the one thing the nixpacks build did for free and a Docker
+# build does not: nixpacks ran `npm run build` with the SERVICE's environment, so
+# Railway's `VITE_*` variables were present in `process.env` and Vite inlined
+# them. A Docker stage inherits nothing — Railway offers each service variable
+# as a BUILD ARG, and an undeclared build arg is silently dropped.
+#
+# ⚰️ WHAT THAT COST, measured on the deployed bundle 2026-09-12. Nine `VITE_*`
+# variables were set on `web`, eight of them to the literal `1`, and ALL NINE were
+# undefined in the shipped JS from `af80e0b91` (2026-09-08 21:53 ET) onward:
+#
+#   VITE_COMING_SOON            the COMING SOON holding page never rendered —
+#                               `/` served the real Landing page and the whole
+#                               marketing funnel was public, while the backend's
+#                               COMING_SOON_MODE still refused every signup
+#   VITE_REALTIME_BARS          the Massive bars push feed never subscribed; every
+#                               chart silently fell back to the Finnhub poll
+#   VITE_FLOW_PARTS             Options Flow fetched whole-D + the full tape
+#                               instead of `part=bootstrap` + `part=TOP_PICKS`
+#   VITE_FLOW_DEFER_TAPE        the tape was never deferred
+#   VITE_FLOW_SERVER_SEARCH     search ran client-side over the whole tape
+#   VITE_FLOW_SERVER_TOPPICKS   top picks were recomputed in the browser
+#   VITE_MASSIVE_STREAM         the Live Flow stream rollout never engaged
+#   VITE_DESK_BG_AUDIO_ENABLED  desk background audio stayed off
+#   VITE_CHART_RENDER_TOKEN     folded to `''`, so the `/r/*` renderers' CLIENT
+#                               token check (`if (TOKEN && …)`) never ran
+#
+# ⭐ NOTHING FAILED. A flag read as `=== '1'` is false when undefined, so every
+# one of these is indistinguishable from "deliberately off" at every layer a test
+# or a health check can see — the suite stayed green and `/api/health` stayed 200.
+# The only witness is the built artifact. That is why the rail
+# (`tests/test_dockerfile_vite_build_args.py`) DERIVES this list from `app/src/**`
+# rather than trusting anyone to keep a hand-typed copy current.
+#
+# ⚠️ `ENV` as well as `ARG` on purpose. Docker does expose build args to `RUN`,
+# but that is one sentence of documentation standing between a member and a
+# silently disabled product; the `ENV` makes it true under either reading. This
+# stage is discarded by the multi-stage build, so nothing lands in the runtime
+# image. An unpassed one becomes `""`, which changes nothing: `'' === '1'` is
+# false exactly as `undefined === '1'` is.
+ARG VITE_CATALYST_UI_ENABLED
+ARG VITE_CHART_RENDER_TOKEN
+ARG VITE_COMING_SOON
+ARG VITE_DESK_BG_AUDIO_ENABLED
+ARG VITE_DISCORD_CHART_APP_ID
+ARG VITE_FLOW_DEFER_TAPE
+ARG VITE_FLOW_PARTS
+ARG VITE_FLOW_SERVER_SEARCH
+ARG VITE_FLOW_SERVER_TOPPICKS
+ARG VITE_GRID_WARM_ENABLED
+ARG VITE_LAUNCH_DATE
+ARG VITE_MASSIVE_CURATED_STREAM
+ARG VITE_MASSIVE_STREAM
+ARG VITE_PICOVOICE_ACCESS_KEY
+ARG VITE_REALTIME_BARS
+ARG VITE_TWITTER_UI_ENABLED
+ARG VITE_WS_HOST
+ENV VITE_CATALYST_UI_ENABLED=$VITE_CATALYST_UI_ENABLED \n    VITE_CHART_RENDER_TOKEN=$VITE_CHART_RENDER_TOKEN \n    VITE_COMING_SOON=$VITE_COMING_SOON \n    VITE_DESK_BG_AUDIO_ENABLED=$VITE_DESK_BG_AUDIO_ENABLED \n    VITE_DISCORD_CHART_APP_ID=$VITE_DISCORD_CHART_APP_ID \n    VITE_FLOW_DEFER_TAPE=$VITE_FLOW_DEFER_TAPE \n    VITE_FLOW_PARTS=$VITE_FLOW_PARTS \n    VITE_FLOW_SERVER_SEARCH=$VITE_FLOW_SERVER_SEARCH \n    VITE_FLOW_SERVER_TOPPICKS=$VITE_FLOW_SERVER_TOPPICKS \n    VITE_GRID_WARM_ENABLED=$VITE_GRID_WARM_ENABLED \n    VITE_LAUNCH_DATE=$VITE_LAUNCH_DATE \n    VITE_MASSIVE_CURATED_STREAM=$VITE_MASSIVE_CURATED_STREAM \n    VITE_MASSIVE_STREAM=$VITE_MASSIVE_STREAM \n    VITE_PICOVOICE_ACCESS_KEY=$VITE_PICOVOICE_ACCESS_KEY \n    VITE_REALTIME_BARS=$VITE_REALTIME_BARS \n    VITE_TWITTER_UI_ENABLED=$VITE_TWITTER_UI_ENABLED \n    VITE_WS_HOST=$VITE_WS_HOST
 # The whole tree, because the build reaches outside `app/src`: `npm run build`
 # is `vite build` PLUS two esbuild bundles (`scripts/build-cot-facts.mjs`,
 # `scripts/build-flow-facts.mjs`) whose outputs the BACKEND shells out to.
