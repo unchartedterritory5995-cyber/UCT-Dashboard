@@ -258,10 +258,15 @@ def _prices_for(symbols: list[str]) -> tuple[dict[str, float], list[str]]:
         try:
             from api.services import massive as _massive
             rich = _massive._get_client().get_batch_rich_snapshots(missing) or {}
+            # ⛔ The provider keys its answer by CANONICAL UPPERCASE ticker, and
+            # the projection hands back `watchlist_alerts.sym` verbatim. Looking
+            # the answer up under the original spelling would silently miss every
+            # lowercase row -- and a miss here is indistinguishable from a quiet
+            # market unless it is mapped back and reported.
             still = []
             for sym in missing:
-                row = rich.get(sym) or {}
-                px = row.get("price") or row.get("last") or row.get("close")
+                row = rich.get(sym) or rich.get(sym.upper()) or {}
+                px = row.get("price")
                 if px:
                     prices[sym] = float(px)
                 else:
