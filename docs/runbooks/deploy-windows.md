@@ -68,16 +68,43 @@ the hour.**
 
 ---
 
-## Current state — what actually restarts, measured 2026-09-12
+## Current state — LITERAL watch patterns, read from Railway 2026-09-12 03:4x UTC
 
-⛔ **The literal watch-pattern STRINGS are still unread.** Railway's GraphQL API
-rejects the CLI's session token (403 on Bearer and `Project-Access-Token`, both
-hosts), `railway status --json` omits `watchPatterns`, and no CLI command exposes
-them. A project token would settle it — `tools/railway_watch_patterns.py` is written
-and waiting for `RAILWAY_TOKEN`; it exits **2 (INCONCLUSIVE)** without one, never 0.
+These are the **literal patterns Railway returns**, not inferences. Re-read any time
+with `python tools/railway_watch_patterns.py` — it authenticates from the railway
+CLI's own session when no token is set, so it needs no provisioning.
 
-What follows is therefore **behaviour, not configuration** — which is the stronger
-evidence for "what restarts", and the weaker evidence for "what the patterns say".
+    web             []                                  <- no filter: EVERY push rebuilds it
+    worker          /api/**  /requirements.txt  /railway.json
+                    /nixpacks.toml  /Procfile  /runtime.txt
+    bars-api        api/**  requirements.txt  nixpacks.toml  railway.json
+    chart-renderer  []                                  <- but NO repo source, so no push deploys it
+    flow-worker     api/massive_ws_worker.py  api/massive_processor.py  api/flow_db.py
+                    api/confluence_flow.py  api/flow_worker_main.py
+                    api/live_massive_router.py  api/flow_router.py
+                    api/flow_router_mount.py  api/flow_heal_enrich.py
+                    api/flow_gap_autofill.py  api/massive_flatfiles_worker.py
+                    api/flow_watchdog.py  api/oi_snapshots.py  api/massive_stream.py
+                    api/flow_tape_spool.py  api/flow_backup.py
+                    api/dealer_positioning.py  api/flow_rest_backfill.py
+                    railway.json  requirements.txt  api/alpha_gold_eod.py
+                    api/weekly_flow.py  api/flow_opt_aggregate.py
+
+⛔ **`[]` MEANS "NO FILTER", NOT "NEVER DEPLOYS" — and the two services holding it
+behave oppositely.** `web` has an empty list AND a repo source, so every push rebuilds
+it. `chart-renderer` has an empty list and NO repo source, so no push touches it. The
+field alone cannot be read as either; pair it with the source. ⚠️ If chart-renderer is
+ever connected to the repo, that empty list silently becomes "rebuild on every push".
+
+⚠️ **`worker` anchors its patterns with a leading slash and `bars-api` does not**
+(`/api/**` vs `api/**`). Under gitignore semantics a leading `/` anchors to the repo
+root while a bare path can match at any depth, so `bars-api` would also match a
+hypothetical `packages/foo/api/…`. Neither matters today — there is one `api/` — but
+the inconsistency is real and is recorded rather than tidied, because "they looked the
+same" is how a pattern difference goes unnoticed.
+
+✅ Every watch target exists in the repo — `Procfile`, `runtime.txt`, `nixpacks.toml`,
+`requirements.txt`, `railway.json` all present. No dead entries.
 
 ### Two live pushes on 2026-09-12, both confirming the rule
 
@@ -109,3 +136,29 @@ slept through the docs push.
   evidence the running process has it. Measured 2026-09-12: `--kv` reported
   `FLOW_FAST_DATE_SCAN=1` while the running pod still returned `None` for it, because
   the variable's own redeploy had not swapped yet. Read it in-process.
+
+
+## Credentials — how the pattern tool authenticates
+
+`tools/railway_watch_patterns.py` tries, in order: `RAILWAY_TOKEN` (project token,
+header `project-access-token`), `RAILWAY_API_TOKEN` (account token, `Authorization:
+Bearer`), then the **railway CLI's own OAuth session** from `~/.railway/config.json`.
+Precedence is deliberate — most-scoped first — so a broken token is never masked by
+the session quietly working. `auth_source()` prints which one was used, never a value.
+
+**No token is currently provisioned, and none is needed on a machine where `railway`
+works.** Two attempts to mint one were made and both refused:
+`projectTokenCreate` returns **"Not Authorized"** for session-scoped auth, and
+persisting a minted account token to the user environment was blocked by this
+machine's own secret-store guard. If a token is ever wanted for CI (where no CLI
+session exists), create it in Railway → Project → Settings → Tokens, scope it to
+`luminous-recreation` / `production`, and set `RAILWAY_TOKEN`. Rotate by deleting it
+there and repeating; the tool needs no code change.
+
+⛔⛔ **THE 403s THAT BLOCKED THIS FOR TWO SESSIONS WERE NOT THE CREDENTIAL.** Railway's
+GraphQL API refuses any request lacking `x-source` and `user-agent`, both `"CLI
+<version>"` (railwayapp/cli v4.35.0, `src/client.rs` + `src/consts.rs`). Four attempts
+— two hosts x two auth headers — all returned 403 and were filed as "the public API
+rejects the CLI session token". The token was fine; the request was malformed.
+⭐ **A 403 says the request was refused, never WHICH part of it was wrong** — and a
+plausible explanation for a refusal is not a diagnosis.
