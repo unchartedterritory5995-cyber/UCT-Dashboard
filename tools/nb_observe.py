@@ -19,6 +19,7 @@ would resemble one fake member, and the count exists to size REAL ones.
 from __future__ import annotations
 
 import datetime
+import os
 import pathlib
 import sys
 import traceback
@@ -26,13 +27,29 @@ import traceback
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import window_check as wc                                    # noqa: E402
 
-LOG = pathlib.Path(__file__).resolve().parents[1] / "docs" / "notebook" / "wave-q1-observation-log.md"
+# ⛔ THE LOG PATH IS NOT TIED TO A WORKTREE. This sampler runs unattended for a
+# week; a worktree can be removed in that time and the job would then fail with
+# nothing but Task Scheduler's exit code to say so. `NB_OBSERVE_LOG` names the
+# file explicitly; the fallback sits beside the script, wherever that is.
+_env = os.environ.get("NB_OBSERVE_LOG", "").strip()
+LOG = (pathlib.Path(_env) if _env
+       else pathlib.Path(__file__).resolve().parent / "wave-q1-observation-log.md")
 OPT_IN = "j2:notebook_offline_opt_in"
 BLOCKED = "j2:notebook_blocked_no_baseline"
 
-# ⛔ EVERY opt-in event recorded up to the flip belongs to the RIG, accumulated
-# over tonight's canary runs. Member exposure is what appears ABOVE this line.
-# Measured 2026-09-12T05:17:56Z, immediately after the dedupe check.
+# ⚰️ THE SUBTRACTION THAT COULD ONLY EVER SAY ZERO.
+#
+# This began as `member = total - RIG_OPT_IN_BASELINE`, baseline 20, measured at
+# 2026-09-12T05:17:56Z. Then the log showed total going 20 -> 19, and counts do
+# not decrease: `/api/auth/admin/activity?limit=200` is a WINDOW, and old rows
+# roll off it. So the subtraction is broken in the one direction that matters -
+# a member event arriving while another rolls off leaves total unchanged and
+# `member` reading 0, which is indistinguishable from nobody having come.
+#
+# ⛔ A COLUMN THAT CAN ONLY SAY ZERO IS NOT EVIDENCE. What is trustworthy in a
+# windowed feed is the LATEST timestamp: it moves when something new arrives,
+# whatever rolled off the back. The log now carries that, and the reader
+# compares it against the known canary times rather than trusting a difference.
 RIG_OPT_IN_BASELINE = 20
 
 HEADER = """# Wave Q1 — observation log
@@ -46,11 +63,16 @@ It is covered only by real-door canary runs (rig, layer on) and by member
 reports. A canary any time this weekend fills that datapoint; the sampler does
 not.**
 
-⭐ **Member vs rig.** `opt-in (member)` subtracts the rig's pre-flip baseline of
-%d events, all of which were the canary opting itself in and out. The rig never
-opts in during a sampler run, so it cannot inflate this.
+⛔ **`opt-in (windowed)` IS NOT A LIFETIME COUNT.** It reads the last 200
+population activity rows, so it can DECREASE as old events roll off — it did,
+20 → 19, which is what exposed the original `member = total − %d` column as one
+that could only ever say zero. **Read `latest opt-in` instead:** it moves when a
+new event arrives regardless of roll-off. Every opt-in up to
+`2026-09-12 05:17:56` was the rig opting itself in and out during canary runs;
+the rig never opts in during a sampler run, so a latest NEWER than that, with no
+canary running, is a REAL MEMBER.
 
-| at (ET) | opt-in (member) | opt-in (total) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
+| at (ET) | latest opt-in (UTC) | opt-in (windowed) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
 |---|---|---|---|---|---|---|---|
 """ % RIG_OPT_IN_BASELINE
 
@@ -61,8 +83,8 @@ def et_now() -> str:
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-4))).strftime("%Y-%m-%d %H:%M ET")
 
 
-def row(at, member, total, blocked, conflicts, outbox, errors, flag) -> str:
-    return f"| {at} | {member} | {total} | {blocked} | {conflicts} | {outbox} | {errors} | {flag} |\n"
+def row(at, latest, total, blocked, conflicts, outbox, errors, flag) -> str:
+    return f"| {at} | {latest} | {total} | {blocked} | {conflicts} | {outbox} | {errors} | {flag} |\n"
 
 
 def append(line: str) -> None:
@@ -119,13 +141,11 @@ def main() -> int:
 
             act = page.evaluate(wc.ACTIVITY_JS, [OPT_IN, BLOCKED])
             total = (act.get(OPT_IN) or {}).get("count", "ERR")
+            latest = (act.get(OPT_IN) or {}).get("latest") or "—"
             blocked = (act.get(BLOCKED) or {}).get("count", "ERR")
             notes = page.evaluate(NOTES_JS)
             conflicts = notes.get("conflicts", f"ERR ({notes.get('err')})")
 
-            member = (total - RIG_OPT_IN_BASELINE) if isinstance(total, int) else "ERR"
-            if isinstance(member, int) and member < 0:
-                member = 0
 
             reasons = []
             if errors:
@@ -134,8 +154,8 @@ def main() -> int:
                 reasons.append(f"blocked-baseline events = {blocked}")
             flag = "OK" if not reasons else "**ANOMALY** — " + " · ".join(reasons)
 
-            append(row(at, member, total, blocked, conflicts, 0, len(errors), flag))
-            print(f"{at}  member={member} total={total} blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
+            append(row(at, latest, total, blocked, conflicts, 0, len(errors), flag))
+            print(f"{at}  latest={latest} total={total} blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
     except Exception as e:                                   # noqa: BLE001
         append(row(at, "—", "—", "—", "—", "—", "—",
                    f"**SKIPPED** — {type(e).__name__}: {str(e)[:80]}"))
