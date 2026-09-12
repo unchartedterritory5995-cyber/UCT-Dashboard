@@ -14,9 +14,15 @@ merged and **dark** since `32afb1fd8`; it is dark no longer.
 | verified on `origin/master` | hash ✅ · ancestor ✅ · `offlineFlag.js:66` reads `true` ✅ |
 
 ⭐ **The rollback existed before the flip did**, deliberately: the moment you need
-a rollback is the worst moment to write one. ⛔ It has **no PR page** — `gh` is not
-installed on this box and the REST call is blocked by the harness classifier. The
-escape hatch is the pushed branch, mergeable the same way the flip was.
+a rollback is the worst moment to write one.
+
+⛔ **There is no PR page, so Sunday's revert is a two-step.** `gh` is not installed
+on this box; the GitHub MCP server failed to connect at session start; and
+`GITHUB_PERSONAL_ACCESS_TOKEN` is **not visible in the agent's shell** (the REST
+call returned **401**). **Sunday's revert: open a PR from the branch page for
+`rollback/notebook-offline-default-off` @ `3db89e205`, and merge it with a MERGE
+COMMIT** — not squash, not rebase, because this record cites these hashes. Ten
+seconds, and documented rather than discovered.
 
 ## The deploy — measured per service, not inferred from the tier
 
@@ -123,10 +129,25 @@ production.
 
 ## The observation window — unattended, starting now
 
-`tools/nb_observe.py` appends a row to `docs/notebook/wave-q1-observation-log.md`
-**every 2 hours**, registered as Task Scheduler job **`UCT-WaveQ1-Observe`**
-(`/SC HOURLY /MO 2 /ST 02:00`, status **Ready**, next run 02:00 ET). First row
-written by hand tonight. A run that cannot take the rig profile writes a
+The sampler runs from **`C:\Users\Patrick\uct-q1-observe\`** — deliberately **outside every git
+worktree**, so removing a worktree during the 7-day window cannot kill the job.
+⚠️ The two `.py` files there are **copies taken 2026-09-12** and will not track
+later repo edits; the repo copy is the source of truth, and both must be updated
+together.
+
+It appends a row every 2 hours to `C:\Users\Patrick\uct-q1-observe\wave-q1-observation-log.md`, as Task
+Scheduler job **`UCT-WaveQ1-Observe`** (`/SC HOURLY /MO 2 /ST 02:00`, **Ready**).
+**It has been running unattended since the flip** — rows at 01:20, 03:00, 05:00,
+07:00, 09:00 and 09:20 ET, every one `OK`.
+
+⚰️ **A column that could only ever say zero, caught by its own log.** The table
+began with `opt-in (member) = total − 20`. Then `total` went **20 → 19**, and
+counts do not decrease: the admin activity feed is a **200-row window** and old
+events roll off it. A member event arriving while another rolled off would leave
+`total` unchanged and `member` reading **0** — indistinguishable from nobody
+coming. Replaced with **`latest opt-in (UTC)`**, which moves when something new
+arrives regardless of roll-off. ⛔ **Every opt-in up to `2026-09-12 05:17:56` is
+the rig.** A `latest` newer than that, with no canary running, is a real member. A run that cannot take the rig profile writes a
 **SKIPPED** row with its reason, so **a gap in the log is never silent**.
 
 ⛔ **The limitation, printed in the log's own header so it is discovered now and
@@ -146,6 +167,20 @@ sampler does not.*
 ⭐ Triggers 1, 2 and 4 read **fleet-wide from the log**. ⛔ **Trigger 3 reads
 canary result or member report — NEVER the sampler**, for the reason in the log
 header.
+
+### ⛔⛔ FIRST, CHECK THE JOB RAN — a log with no rows looks exactly like a quiet week
+
+The sampler writes a SKIPPED row when it *runs and cannot proceed*. It writes
+**nothing at all** if the job never fired, and **Task Scheduler's own exit code is
+the only signal for that case**. Run this before reading the table:
+
+```
+schtasks /Query /TN "UCT-WaveQ1-Observe" /FO LIST /V
+```
+
+⭐ Read **`Last Run Time`** (should be within the last 2 hours) and **`Last
+Result`** (`0` = ran). A stale `Last Run Time`, or a non-zero `Last Result`, means
+**the table is incomplete and its silence means nothing.**
 
 ## ⛔ THE ONLY IN-RTH TOOL — per browser, exact text
 
