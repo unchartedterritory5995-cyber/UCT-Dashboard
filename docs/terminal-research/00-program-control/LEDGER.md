@@ -607,6 +607,323 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+## WAVE 3 — three merges, all ADDITIVE, no marker bump, 2026-09-12
+
+| what | commit | classification |
+|---|---|---|
+| **S10 Presentation Primitives** | **`3c539d011`** | ADDITIVE — 9 files, all `app/**`, **0** in flow-worker's 154-file closure |
+| **S7 `catalyst-match` CP1** | **`faaa30146`** | ADDITIVE — 3 files, 0 in the closure |
+| **S7 `catalyst-match` CP2** | **`d9631afa5`** | ADDITIVE — 3 files, 0 in the closure |
+
+⛔ **CLASSIFICATION WAS CONFIRMED, NOT ASSUMED.** `reachable_paths()` was called directly for each
+merge and the intersection with the changed set printed. The owner's instruction for S10 was
+*"should be `app/**` only — confirm rather than assume"*; it is, and the confirmation is the empty
+intersection rather than the file extensions.
+
+---
+
+### S10 — the presentation primitives, and what adopting them found
+
+**Five pure functions** — number, percent, currency, date/time-with-session, freshness — in
+`app/src/lib/presentation/presentationPrimitives.js`, adopted by `<Provenance>`,
+`<FreshnessBadge>`, `<Cited>` and `<CoverageLine>`, and by nothing else.
+
+⭐ **THE MIGRATION WAS ALREADY WRITTEN DOWN, IN THE CODE, BY WHOEVER WROTE THE INTERIM.**
+`presentationFormat.js`'s header has said since 2026-09-02: *"When S10 ships,
+`<Provenance>`/`<FreshnessBadge>` swap onto it … and this file is deleted, not generalized."* This
+build is that swap. It ratified a plan rather than making one.
+
+**⛔ THE FINDING: one formatter, two files, one field apart.** `presentationFormat.formatEtTime`
+(`9:32:15 AM`, ET) and `FreshnessBadge.formatAsOf` (`9:32 AM`, ET) were the SAME function differing
+by `second: '2-digit'`, in two files inside one four-component directory. Each looked correct alone.
+
+**⚠️⚠️ AND A REAL DEFECT THAT IS NOT FIXED.** `<Cited>` renders its `Validated:` timestamp in the
+**VIEWER's timezone** while its two neighbours pin **ET** a few pixels away, and **neither carries a
+zone label**. A member outside ET reads one S8 surface in two timezones and is told about neither.
+⛔ Changing it moves a rendered string for every non-ET member, which is exactly what the approval's
+byte-identity condition forbids. **Recorded in three places and it needs its own line.**
+
+**⛔ BYTE-IDENTITY IS PROVED BY AN ORACLE, NOT A SNAPSHOT FILE — and that is a correction to the
+approval's own wording, made openly rather than quietly.** Three of the four replaced formatters are
+timezone-sensitive and one renders in the viewer's zone, so a committed expected-string is a fact
+about the machine that generated it: run the suite in another timezone and a green snapshot turns
+red for a reason that is not a regression. ⭐ **So the deleted implementations are frozen verbatim
+in the test files and run in the same process** — `newFn(x) === oldFn(x)` over a wide matrix
+(ordinary values, DST boundaries, the ambiguous fall-back hour, every shape of absent), true in
+every timezone at once.
+
+**⚠️ TWO HONEST DEVIATIONS, both inside the approval's boundary:**
+
+1. **`presentationFormat.js` was NOT deleted**, correcting its own plan. It said *"used only by this
+   component family"*; measured, `epochSecondsToIso` has **four importers outside S8's four** —
+   `ProvenanceDemo.jsx` and three research tabs. Deleting it would have migrated four consumers
+   under cover of a refactor, which the approval forbids in those words. It survives narrowed:
+   `formatEtTime` gone, `formatPrice` delegating, `epochSecondsToIso` untouched.
+2. **`formatPercent` ships DECLARED AND ADOPTED BY NOTHING** — none of the four renders a
+   percentage. Built because the approval named five, and the consequence is said out loud in a test
+   that goes **RED the day somebody adopts it**, forcing the next reader to record the change rather
+   than letting the fact quietly become false. ⭐ `lesson_built_tested_green_and_unreachable` caught
+   in the act.
+
+**⛔⛔ AND THE BIGGEST THING IT FOUND IS OUT OF SCOPE: there is a SECOND `formatPrice`.**
+`chart/drawingLabels.js::formatPrice` renders `"123.46"` — no currency symbol, tick-aware decimals,
+**the empty string** rather than an em dash when absent — and has **six importers**. Its own comment
+calls it *"already the one place in the app that knows how a price is rendered"*, a sentence that
+has been false for as long as the other one has existed. Reconciling them moves six call sites
+visibly; it is the first migration S10's next line should consider.
+
+Mutation-proved four ways, each restored by EDIT: seconds ignored → 6 RED · `real_time` suppression
+removed → 3 RED · a raw `toLocaleString` back in component CODE → 1 RED by file name · the comment
+stripper neutered → 6 RED, because the rail reads its own prose.
+
+**Measured: 335 passed / 20 files**, VITEST_EXIT=0.
+Gate packet: `12-decisions/gates/s10-presentation-primitives-pre-implementation-gate.md`.
+
+---
+
+### S7 `catalyst-match` — CP1 + CP2, and the schema was pinned only after reading the code
+
+⛔ **THE LEGACY PATH IS TWO FIRING RULES SHARING ONE DEDUP TABLE**, which the type's name does not
+suggest:
+
+| | rule A — watchlist | rule B — must-know |
+|---|---|---|
+| gate | `CATALYST_ALERTS_ENABLED`, default **ON** | `CATALYST_MUSTKNOW_ALERTS_ENABLED`, default **OFF** |
+| cohort | any user with a watchlist row | **admins only** |
+| condition | ticker is on the member's list | `grade` ∈ `CATALYST_MUSTKNOW_GRADES` (default `A,B`) |
+| needs a watchlist? | yes | **no — that is its entire point** |
+
+Both write `catalyst_alerts_fired` keyed `(user_id, ticker, market_date)`, and rule A runs first.
+**So for an admin who also watches the name, the must-know alert is silently skipped that day.**
+⚠️ Reproduced, not fixed: a dark rule firing both would report `new_only` on every admin's watchlist
+and the comparison would be measuring the fix instead of the migration.
+
+**⛔⛔ `catalyst_type` IS UNCONSTRAINED MODEL OUTPUT — the F-S7-4 lesson one level up.**
+`synthesize.py`'s PROMPT asks for one of fifteen labels; the parser then does
+`"catalyst_type": (parsed.get("catalyst_type") or None)` with **no normalisation at all**, two lines
+under a `grade` that DOES get `_normalize_grade`. ⭐ The tempting reading is *"fifteen types, pin an
+enum"*, and it would have been wrong the first time a model returned `FDA Approval` instead of
+`FDA`. So `catalyst_types` is pinned **OPEN** and matched case-insensitively, and the fifteen are
+recorded as a convention **derived from the prompt by a test** — edit the prompt and it goes red.
+
+⭐ **Pinning one axis as a closed enum (`tag`, which `tagging.py` really does assign by rule) and its
+neighbour as an open list, in one schema, each with its reason, is what this checkpoint was for.**
+
+**⚠️ AND THE MEMBER SET IS NARROWER THAN ITS OWN DOCSTRING.**
+`_collect_user_watchlist_tickers` says *"any watchlist or flagged ticker"* — the flagged list IS a
+`watchlists` row, so that is true — but **the seven colour-tag auto-lists are not in that query**,
+nor are J2 positions or UCT20. A member who tags a name gold and never adds it to a list is
+invisible to this alert. `member_set` pins all four values so the narrowing is DETECTABLE.
+
+**⛔ NO `replay_fn`, for the THIRD distinct reason this programme has met.** `price-level`: a
+trendline has no past. `event-proximity`: a calendar date moves. **`catalyst-match`: the candidate
+set is PAID LLM OUTPUT behind a daily cost cap and a skip-if-stable hash, cut by a quality gate
+tuned between runs.** Replay re-runs today's gate over a row whose grade was written by a call that
+will not be made again.
+
+**CP2 — `would_fire` returns a LIST, not a boolean, and the legacy shape forces it.** One refresh
+fires once PER MATCHING TICKER and dedups per ticker. ⭐ A boolean would collapse *"three names
+alerted"* and *"one name alerted"* into one outcome and make the comparison **structurally unable to
+see a member's inbox double**.
+
+**⭐ THE MIRROR IS RAILED AGAINST THE REAL FUNCTIONS.** `legacy_would_fire` restates the legacy rules
+read-only because the real ones MUTATE and DELIVER — so the rail **drives the real
+`_fire_catalyst_alerts` and `_fire_mustknow_alerts`** with delivery and the dedup store stubbed, and
+asserts the mirror reproduces the decisions they actually made, with a control proving the driver
+can tell a firing decision from a non-firing one.
+
+**§2a, all four:** (1) every shape pinned including the unreachable ones; (2) forward-only, four
+outcomes, `NO DATA`/`QUIET`/`OBSERVED` distinguished, four blind spots printed every time; (3) the
+"what calls this evaluator" answer in writing — *the harness does, and nothing else* — with a rail
+asserting the caller list is **exactly** `[catalyst_match_compare.py]`, failing both if a second
+caller appears and if the harness stops calling it; (4) a heartbeat written on **every** tick
+including the quiet ones.
+
+Mutation-proved five ways, each restored by EDIT: admin guard removed · cross-rule suppression
+removed · `catalyst_types` matched exactly · an ungraded row hidden by `min_grade` · the heartbeat
+beating only on an outcome. **All five RED.**
+
+⚰️ The filing-watch parity control flipped as designed and was **updated BY NAMING**, with the
+reason steps 2–3 stay undone recorded beside it. **Parity 20/20.**
+**Measured: 74 passed** (18 schema + 36 compare + 20 parity), PYTEST_EXIT=0.
+Gate packet: `12-decisions/gates/s7-catalyst-match-pre-implementation-gate.md`.
+
+---
+
+### ⚠️ ONE MEASUREMENT THIS WAVE COULD NOT TAKE, AND IT CHANGED A DECISION
+
+A read-only probe of production `/data/catalysts.db` — the histogram of real `catalyst_type` and
+`grade` values, and the row count in `catalyst_alerts_fired` — was attempted and **refused by
+tooling policy**. Every shape above is therefore source-derived.
+
+⛔ **It is recorded at the point where it bites rather than only here**: it is precisely the argument
+for pinning `catalyst_types` OPEN. The one check that could have said whether the model stays inside
+its fifteen labels is the one that did not run, and an enum guessed from a prompt is the F-S7-4
+mistake made deliberately. Also carried as blind spot 3 of the harness's own report, so it prints
+every time rather than living in a document.
+
+---
+
+### D2 + S12 — DOCS ONLY, nothing authorized
+
+- **D2 Canonical Data Model & Metric Address Book** — PRD + spec + gate packet with an **EMPTY
+  approval block**. ⭐ **The implicit canonical form the owner said existed was found, and it is
+  better than expected**: `closedTable.json` is a genuinely closed **137-entry** manifest, unanimous
+  on store / cadence / grain, **zero** entries whose name differs from their column, read by both
+  the JS parser and the Python evaluator, with `cadence_ceiling` already DERIVING a scheduling
+  decision from it. The spec's schema change is **one field**. ⚠️ Its one real limit: every entry is
+  `store: screener_rows`, so it addresses a nightly screener column and nothing else.
+- **S12 Rollout** — one spec, no code. `user_tags` is written by two admin endpoints and read into
+  two admin screens **and by no gate at all**. First migration named: the two S7 projections'
+  `_cohort_user_ids()`, size **S**, with one ruling the owner still owes — what an EMPTY cohort
+  means.
+
+⚰️ **AND D2's OWN APPENDIX FOUND THE DEFECT IT EXISTS TO PREVENT, INSIDE THE COMMENT THAT WARNS
+AGAINST IT.** `scan_evaluator.py` states *"all **54** declared scalars are unanimous"* and warns
+about *"a **fifty-fifth** scalar"*. The manifest declares **137**. The unanimity claim is **still
+true** at 137 — measured, all three axes — and the derivation the comment describes is exactly
+right. What drifted is the number beside the list, in a comment whose own last line reads
+*"⛔ NOTHING HAND-LISTS WHICH SCALARS ARE NIGHTLY."*
+
+---
+
+## ⛔⛔ A2 STOPPED — `SMOKE_LOGIN_LINK_ENABLED` IS **ARMED IN PRODUCTION**, NOT DARK
+
+**The owner's instruction carried its own stop condition, and the condition fired.**
+Wave 3 asked for a flag-ledger entry reading *"dark-with-reason — owned by the smoke-login
+workstream (`35dca25fd`), unset in production"*, **"unless the flag is actually SET in
+production (read live, not inferred) — then stop and tell me instead, that entry would be
+wrong."**
+
+Read live, 2026-09-12, `railway variables --service web --kv`:
+
+```
+SMOKE_LOGIN_LINK_ENABLED=1
+```
+
+and confirmed in the RUNNING process on a prior read (`IN-PROCESS SMOKE_LOGIN_LINK_ENABLED
+= '1'`, `gate would open: True`) — the `--kv` read alone says only what the SERVICE is
+configured with, which is why both were taken.
+
+**No entry was written.** The declaration rail stays RED, deliberately, and the red is now
+a TRUE statement about the repo rather than a missing row.
+
+### Three artifacts, three different answers, about one live door
+
+| artifact | what it says | true? |
+|---|---|---|
+| `api/routers/auth.py:615` — the code's own comment | *"OFF by default, everywhere"* | true of the DEFAULT, false of production |
+| `docs/feature_flags.json` | **says nothing — no entry at all** | the gap the rail is red about |
+| Railway `web` | `SMOKE_LOGIN_LINK_ENABLED=1` | the only one measured |
+
+⭐ **This is the flag-ledger defect in its purest form and from the opposite direction to
+the usual one.** `project_feature_flag_ledger`'s standing concern is *"off-and-unset is
+indistinguishable from off-on-purpose."* Here the ledger's silence is being read as
+"presumably dark", and the flag is **ARMED**. A ledger that is silent about an armed
+member-facing door is worse than one that is silent about a dark one.
+
+### What the flag actually opens, read from `api/routers/auth.py:607-653`
+
+An **admin-only, single-use, 5-minute login link** for exactly one hard-coded synthetic
+user id (`SMOKE_USER_ID`, default `f4433528-6466-474a-949c-8d5eda8a7b91` — the
+`smoke@uctintelligence.internal` account). Four independent conditions gate it; it refuses
+an account with TOTP enabled; and it answers **404, not 403**, for every other id, so the
+endpoint cannot be used as an oracle for which account is privileged.
+
+⛔ **It is not this program's flag and Terminal-Next did not arm it.** It belongs to the
+smoke-login workstream (`35dca25fd`), whose own documentation in `CLAUDE.md` already
+carries the removal instruction — `railway variables --service web --unset
+SMOKE_LOGIN_LINK_ENABLED` **"to be run when the programme closes"**. Terminal-Next reached
+it only because `test_every_off_by_default_gate_is_declared` names it, by design, as the
+one undeclared gate in the repo:
+
+```
+SMOKE_LOGIN_LINK_ENABLED  (default='', api/routers/auth.py)
+```
+
+**Measured:** `tests/test_feature_flag_ledger.py` — 138 passed, **1 failed**, PYTEST_EXIT=1,
+the failure being exactly that assertion and nothing else. The other 137 gates are declared.
+
+### ⛔ THE DECISION IS THE OWNER'S, AND IT IS A CHOICE OF TWO, NOT A ROW TO TYPE
+
+1. **Declare it `armed`** (`where: ["web"]`, note naming the workstream and the flip) — one
+   docs line, rail goes green, and the ledger then tells the truth about a live door.
+2. **Unset it** on `web` — the smoke-login programme's own recorded exit — then declare it
+   `dark` with that reason, which is the entry Wave 3 asked for and would then be TRUE.
+
+⭐ Both are one command. What must not happen is (1) being written *as if* it were (2),
+which is what the instruction's stop condition was protecting against.
+
+### ⚰️ RESOLVED THE SAME DAY, BY ANOTHER WORKSTREAM, INDEPENDENTLY — and it chose option 1
+
+While this wave was building, `6905906cb` landed on master: *"docs(flags): reconcile the ledger with
+Railway; declare SMOKE_LOGIN_LINK_ENABLED"*. It declares the flag **`armed`**, `where: ["web"]`,
+with a note recording that the CODE default is off everywhere and the SERVICE value is what turns it
+on. `tests/test_feature_flag_ledger.py` is **GREEN** — measured on this branch after the rebase,
+140 passed.
+
+⭐⭐ **AND THAT COMMIT'S OWN MESSAGE RECORDS IT NEARLY MAKING THE EXACT MISTAKE THE STOP CONDITION
+EXISTS FOR:**
+
+> *"I first wrote `SMOKE_LOGIN_LINK_ENABLED` as `dark` on the audit's 'off by default' line and
+> caught it before committing: the flag is SET on web, and declaring it dark would have been exactly
+> the defect this file warns about — a ledger describing an unreleased surface while it is live. The
+> status comes from Railway, not from the code default."*
+
+⛔ **Two independent readers, on the same afternoon, both started from the code default and both had
+to be stopped by a live read.** That is not two people being careless; it is the audit tool's own
+"off by default" framing pointing at the wrong authority, and it is the strongest possible argument
+for the owner's stop condition being a live read rather than an inference.
+
+⚠️ One detail not reconciled: that note says *"read 2026-09-13"* while this session's read was
+2026-09-12. Recorded, not resolved — it is that workstream's row.
+
+---
+
+## ✅ A1 — WEB DEPLOY CONFIRMED BY ANCESTRY, NOT BY STATUS. `07ce46090` IS LIVE.
+
+⚠️ **The obvious check said the wrong thing.** `railway deployment list --service web`
+reports `07ce46090` as **REMOVED**, which reads as a failure and is not one: another
+workstream pushed `ee9c96fa1` while our build was still running, and Railway cancels a
+build superseded by a newer push. **REMOVED is a cancellation, not a rejection**, and the
+newer deploy carries our content.
+
+```
+git merge-base --is-ancestor 07ce46090 ee9c96fa1   ->  0
+```
+
+**`07ce46090` IS an ancestor of the live commit `ee9c96fa1` — its content is deployed.**
+
+| check | reading |
+|---|---|
+| `/api/health` | 200, **uptime 270 s** — a fresh boot, not a stale pod |
+| price-level flag, IN-PROCESS | `'1'` |
+| event-proximity flag, IN-PROCESS | `'1'` |
+| both armed | **True** |
+
+⚠️ **The boot lines were NOT the artifact, and saying so matters.** The 500-line log window
+had already scrolled past startup, so the grep for *"S7 price-level DARK comparison
+ENABLED"* returned nothing. **An empty grep over a window that cannot contain the line is
+not evidence of absence** — the in-process environment read was substituted deliberately as
+the stronger artifact, because it reports what the RUNNING process holds rather than what
+the service is configured with.
+
+### ⚰️ A correction to the expectation this check was given
+
+The instruction expected flow-worker's running commit to be **`a0c2bfee4`**. Measured:
+
+```
+flow-worker  c97e2a501  SKIPPED     <- event-proximity CP3 merge, correctly skipped
+flow-worker  b5133f50d  SKIPPED     <- F-S7-4 merge, correctly skipped
+flow-worker  3b817186c  SUCCESS     <- marker bump #4, rode in with the G1 tranche-1 merge
+```
+
+**The running commit is `3b817186c`, not `a0c2bfee4`.** `a0c2bfee4` was bump **#3**'s merge;
+bump #4 rode in `3b817186c`. Two SKIPPED deploys since, both ADDITIVE, both correct — the
+marker mechanism is still doing exactly what the control proved it does.
+
+---
+
 ## D1 G1 TRANCHE 1 — MERGED `3b817186c`, BEHAVIOUR-CHANGING, marker bump #4
 
 Owner error-semantics ruling: **the adapter's fail-fast contract stands; the CALL SITE

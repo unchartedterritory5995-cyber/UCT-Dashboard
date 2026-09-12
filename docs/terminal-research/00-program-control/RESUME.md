@@ -57,19 +57,26 @@ calendar moved a lot, not that anything is wrong.
   is CLEARED.**
 - **CP4 prepped on a branch, NOT merged**: `feat/s7-price-level-cp4` (`e79635193`) for
   price-level; event-proximity's CP4 flag ships inert on master beside CP3's.
+- **WAVE 3, all ADDITIVE, no marker bump** — **S10 Presentation Primitives** (`3c539d011`,
+  the five primitives adopted by S8's four and nothing else, byte-identity proved against a
+  frozen oracle rather than a snapshot file) · **S7 `catalyst-match` CP1** (`faaa30146`)
+  and **CP2** (`d9631afa5`), dark, harness-armed only, parity 20/20.
+- **D2 and S12 are DOCS ONLY.** D2 has a PRD, a spec and a gate packet whose approval block is
+  **EMPTY**; S12 has one spec and no code. ⛔ Nothing in either is authorized.
 
 ## ⭐ NEXT-SESSION QUEUE
 
 | # | item | note |
 |---|---|---|
 | 1 | **Read both dark runs** | five sessions; `--ticking` first, then the full report |
-| 2 | **G1 tranche 1 remainder** | `darkpool_eod`, `company_about`, `ir_webcast` are locally guarded and unmigrated — no behaviour to preserve that is not already preserved, so they are optional |
-| 3 | **D1 G3 re-scope** | measure the real call sites before authorizing anything |
-| 4 | **CP4** | needs the owner's line AFTER the five-session read |
-| 5 | **F-I1-2** | ⏸️ **STILL PARKED.** Do not re-raise. |
-
-⛔ **Browser checks remain the owner's**: bell icon · Ask-AI provenance · S3 admin
-`/status`.
+| 2 | **Sign or refuse D2 CP1** | PRD + spec + gate packet written 2026-09-12, approval block **EMPTY**. The packet recommends signing CP1 alone (inert data + a derivation rail) or nothing yet |
+| 3 | **S7 `catalyst-match` CP3** | needs a new line; §9 of its packet lists the five things that line must name |
+| 4 | **G1 tranche 1 remainder** | `darkpool_eod`, `company_about`, `ir_webcast` are locally guarded and unmigrated — no behaviour to preserve that is not already preserved, so they are optional |
+| 5 | **D1 G3 re-scope** | measure the real call sites before authorizing anything |
+| 6 | **CP4 (price-level)** | needs the owner's line AFTER the five-session read |
+| 7 | **S10's next line** | three candidates, in order: the `<Cited>` timezone divergence (member-visible), the two `formatPrice`s (six call sites), `formatPercent`'s first consumer |
+| 8 | **S12 first migration** | spec written; needs the EMPTY-cohort ruling before anything is built |
+| 9 | **F-I1-2** | ⏸️ **STILL PARKED.** Do not re-raise. |
 
 ---
 
@@ -223,6 +230,7 @@ do not list them again as a question in a session report.**
 | **OI-08 / OI-18** Bloomberg / Gödel access | validation tier only; nothing depends on either |
 | **OI-21** four read-only telemetry queries + `charts_workspace_layout` distribution | sharpens S6's build order; blocks nothing |
 | **D-003 / DEC-09** decisiveness for two audiences | ✅ **RULED: decisive for everyone, implemented as a configuration value.** ⛔ Does not apply to I1, which is the Explain role and never renders a verdict |
+| **THE THREE BROWSER CHECKS** — bell icon · Ask-AI provenance · S3 admin `/status` as admin | ⛔⛔ **MOVED HERE 2026-09-12 BY OWNER INSTRUCTION so they stop appearing in session reports.** They need a signed-in browser and the owner's own eyes; no session can run them and no session should ask again. They gate no merge |
 
 ## Where to pick up
 
