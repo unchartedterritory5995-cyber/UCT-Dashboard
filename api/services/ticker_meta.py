@@ -142,7 +142,7 @@ def _from_fmp(ticker: str):
         # is the contract its callers were written against. The legacy
         # `_fmp_get` kept it by swallowing everything; the typed adapter raises,
         # so the catch moves HERE rather than the contract changing silently.
-        _log.warning("FMP profile failed for %s: %s", ticker, exc)
+        _logger.warning("FMP profile failed for %s: %s", ticker, exc)
         return {"name": None, "sector": None, "industry": None, "market_cap_musd": None}
     row = _fmp_row(data)
     if not row:
