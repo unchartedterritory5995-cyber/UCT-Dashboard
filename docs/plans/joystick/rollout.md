@@ -16,7 +16,15 @@
 >
 > **What is actually true right now:** the programme is closed to further FEATURE work; the
 > launch sequence is authorized; the rollout is at **stage 1**; and LAUNCHED is defined by the six
-> boxes in `closure.md`, none of which are ticked.
+> boxes in `closure.md`, **one of which is now ticked** (preference-key validation, shipped as
+> Deploy B).
+>
+> **Last verified against Railway: 2026-09-11, 21:0x UTC** — `web` serving **`b63cf9775`**
+> (SUCCESS 2026-09-11T20:58:24Z), **`HUB_PREVIEW_ENABLED=true`**, `ROLLOUT_STAGE = 1` in the
+> deployed source. ⛔ Re-read all three before quoting them: the deployment moves on every master
+> push (including docs-only), and this line is a SNAPSHOT, not an authority. The authorities are
+> `railway status --json`, `railway variables --service web --kv`, and
+> `app/src/hub/rolloutStage.js` at the live SHA — in that order, one per question.
 
 **One question this file answers: who can see the joystick today, and what has to be true
 before more people can.**
