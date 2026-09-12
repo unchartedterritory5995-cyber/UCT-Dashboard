@@ -274,6 +274,46 @@ never exceeds a week" is therefore an assumption about other people's commits, n
 program controls. **That should be corrected in the Interpretation section once the owner rules on
 which path to use.**
 
+### ✅ THE FIX — deploy marker created, pending ONE owner click
+
+| commit | what |
+|---|---|
+| **`f42b11c65`** | `api/flow_worker_deploy_marker.txt` (new) + the corrected `deploy-windows.md` Interpretation section. On master. |
+
+**`api/flow_worker_deploy_marker.txt`** is read by nothing. Its only job is to sit on flow-worker's
+watch list so that appending a dated line forces a rebuild **from master's tip**. Rail checked with it
+committed: **OK** — a `.txt` is not importable, so it creates no strand of its own.
+
+⛔ **NOT LIVE YET. The authenticated CLI CANNOT write service build config.** `railway service` offers
+only `link / status / logs / redeploy / restart / scale`; `railway variables` is *environment*
+variables. There is no `service update` and no settings command. **Owner action, one pattern:**
+
+```
+api/flow_worker_deploy_marker.txt
+```
+
+Added to flow-worker → Settings → Build → Watch Paths, **appended, nothing else changed**. It becomes
+the 24th entry.
+
+⚠️ **And the header mirror cannot be synced by this program.** `api/flow_worker_main.py` carries the
+in-repo mirror of the watch list, and that file is barred by the standing "nothing in flow-worker"
+rule — the narrow exception the owner granted covers **the marker file only**. So once the pattern is
+live the mirror will read 23 while Railway reads 24. ⭐ **That is real drift, and it belongs to
+whoever owns `ops/watch-mirror-sync`** — the workstream that synced it last. Flagged rather than
+fixed, because fixing it would breach the rule that makes the exception meaningful.
+
+### Corrections shipped in `f42b11c65`
+
+- The Interpretation section's *"flow-worker is redeployed at the next window regardless, so stale
+  never exceeds a week"* — **my sentence, and it was an assumption about other workstreams' commits,
+  not a mechanism.** Replaced with the marker.
+- A new **"How a strand is actually discharged"** section recording the 04:07 no-op as a standing
+  hazard: a CLI redeploy returns SUCCESS on the commit it started from, so **the artifact is the
+  commit hash, never the status.**
+- The owner's earlier *"you may run the flow-worker redeploy via CLI"* line is **rescinded** and
+  replaced by the marker rule: window only, append never rewrite, confirm the commit advances,
+  ledger it, and the marker is the only flow-worker path this program may touch.
+
 ### ✅ WATCH PATTERNS — the CLI CAN read them; RAILWAY_TOKEN item is closed
 
 `railway deployment list --service flow-worker --json` exposes
