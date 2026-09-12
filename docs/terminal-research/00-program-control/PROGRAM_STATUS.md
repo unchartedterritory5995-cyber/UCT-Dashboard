@@ -85,7 +85,7 @@ GREEN.
 
 ## Post-Phase-3 work (2026-09-02 17:31 → 2026-09-03 07:19) — added by the 2026-09-11 reconciliation
 
-Five docs commits and five code commits landed after the Phase 3 close above, and **no control file
+Eight docs commits and five code commits landed after the Phase 3 close above, and **no control file
 recorded any of them** until this reconciliation.
 
 **Docs, on `terminal-research`:**
@@ -134,7 +134,7 @@ already consistent with the owner's 2026-09-08 ruling that the durable alert is 
 
 ## How the control files drifted (read before trusting them)
 
-Between 2026-09-02 17:14 and 2026-09-03 07:04, ten commits landed across two repositories' worth of
+Between 2026-09-02 17:14 and 2026-09-03 07:19, thirteen commits landed across several branches' worth of
 branches and not one touched `RESUME.md` or `SESSION_HANDOFF.md`. Those two files went on describing
 "Day 1b, Wave 2 partially complete, seven tasks needing re-dispatch" for nine days, while all but one
 of those tasks had been completed and accepted hours after they were written. A cold-start session
