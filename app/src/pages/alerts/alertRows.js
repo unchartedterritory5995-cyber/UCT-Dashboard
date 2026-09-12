@@ -40,6 +40,11 @@ export const KIND_LABEL = Object.freeze({
 /** `u_<12 hex>.<plotKey>` — an alert on a member's OWN saved formula. */
 const USER_ADDRESS_RE = /^u_[0-9a-f]{12}\.[A-Za-z0-9_][A-Za-z0-9_-]*$/
 
+/** The definition id inside a user address, or `null` for a builtin. */
+export const defIdOf = (address) => (
+  USER_ADDRESS_RE.test(String(address || '')) ? String(address).split('.')[0] : null
+)
+
 // ─── the member-facing state, from the REAL engine model ────────────────────
 //
 // ⛔ FIVE ENGINE STATES AND TWO ORTHOGONAL FLAGS, TRANSLATED — NEVER INVENTED.
@@ -84,8 +89,16 @@ function conditionStatus(a) {
  * policy table is the only thing that knows which is which.
  */
 export function conditionRow(a, { nameOf = null } = {}) {
-  const isUser = USER_ADDRESS_RE.test(String(a.indicator || ''))
+  const defId = defIdOf(a.indicator)
+  const isUser = !!defId
   const policy = policyOf(a)
+  // ⛔⛔ `instance_label` IS THE RAW ADDRESS FOR A USER FORMULA, AND A MEMBER MUST
+  // NEVER READ `u_0b81da2b98a9.value`. That field is computed by
+  // `indicator_alert_evaluator.instance_label`, whose job is naming a BUILTIN's
+  // knobs ("RSI(14)"); handed a member's own formula it has nothing to say and
+  // echoes the address back. The name lives in the definition, so `nameOf`
+  // resolves it — and the address survives only as the last resort, where its
+  // presence on screen is a visible bug report rather than a silent blank.
   const name = (nameOf && nameOf(a)) || a.instance_label || a.indicator
   return {
     key: `ind:${a.id}`,

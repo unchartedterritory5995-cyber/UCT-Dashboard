@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  buildRows, conditionRow, priceRow, countByKind, fireLine,
+  buildRows, conditionRow, priceRow, countByKind, fireLine, defIdOf,
   KIND_CONDITION, KIND_INDICATOR, KIND_PRICE, KIND_DRAWING,
   TONE_OK, TONE_MUTED, TONE_FIRED, TONE_FAULT,
 } from './alertRows'
@@ -180,5 +180,34 @@ describe('history, in the member’s words', () => {
   it('⛔ a fire with no delivery map reports no failures rather than crashing', () => {
     expect(fireLine({ fired_at: 1 }, null).failedChannels).toEqual([])
     expect(fireLine({ fired_at: 1, delivery_channels: 'oops' }, null).failedChannels).toEqual([])
+  })
+})
+
+describe('⛔⛔ a member never reads a raw address', () => {
+  it('the definition NAME wins over `instance_label`, which echoes the address', () => {
+    // `indicator_alert_evaluator.instance_label` exists to name a BUILTIN's knobs
+    // ("RSI(14)"). Handed a member's own formula it has nothing to say and returns
+    // the address — so the Alert Center showed `u_0b81da2b98a9.value`. Measured on
+    // the rendered page, not by a test.
+    const a = ind({ indicator: `${DEF}.value`, instance_label: `${DEF}.value` })
+    const named = conditionRow(a, { nameOf: () => 'Trend Up' })
+    expect(named.what).toBe('Trend Up')
+    expect(named.what).not.toMatch(/^u_/)
+  })
+
+  it('⚠️ the address is the LAST resort, not the first — a visible bug report', () => {
+    const a = ind({ instance_label: null })
+    expect(conditionRow(a, {}).what).toBe(`${DEF}.value`)
+  })
+
+  it('⭐ a BUILTIN keeps its instance label, which is the right name for one', () => {
+    const a = ind({ indicator: 'rsi.value', instance_label: 'RSI(14)' })
+    expect(conditionRow(a, { nameOf: () => null }).what).toBe('RSI(14)')
+  })
+
+  it('⭐ defIdOf splits a user address and refuses a builtin', () => {
+    expect(defIdOf(`${DEF}.value`)).toBe(DEF)
+    expect(defIdOf('rsi.value')).toBe(null)
+    expect(defIdOf(null)).toBe(null)
   })
 })

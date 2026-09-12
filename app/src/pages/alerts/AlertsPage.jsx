@@ -8,8 +8,9 @@ import {
   snoozeIndicatorAlert, rearmIndicatorAlert,
 } from '../../hooks/useIndicatorAlerts'
 import { useAuth } from '../../context/AuthContext'
+import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import {
-  buildRows, countByKind, fireLine, KIND_LABEL,
+  buildRows, countByKind, fireLine, defIdOf, KIND_LABEL,
   KIND_CONDITION, KIND_DRAWING, KIND_PRICE,
 } from './alertRows'
 import { chartsLinkPath } from '../../lib/chartDeepLink'
@@ -73,9 +74,24 @@ export default function AlertsPage() {
   const [muteFor, setMuteFor] = useState(null)
   const [notice, setNotice] = useState(null)
 
+  // ⭐⭐ THE MEMBER'S OWN FORMULA NAMES. An alert row carries only the ADDRESS,
+  // and the server's `instance_label` echoes it back for a user formula — so
+  // without this the Alert Center shows `u_0b81da2b98a9.value` where it should
+  // say "Trend Up". Found by looking at the rendered page.
+  const { rows: defRows } = useUserDefinitions()
+  const nameOf = useMemo(() => {
+    const byId = new Map()
+    for (const r of defRows) {
+      const d = r.definition || {}
+      const nm = (d.meta && d.meta.name) || d.name
+      if (r.def_id && nm) byId.set(r.def_id, nm)
+    }
+    return (a) => byId.get(defIdOf(a.indicator)) || null
+  }, [defRows])
+
   const rows = useMemo(
-    () => buildRows(indicatorAlerts, Array.isArray(wl) ? wl : []),
-    [indicatorAlerts, wl],
+    () => buildRows(indicatorAlerts, Array.isArray(wl) ? wl : [], { nameOf }),
+    [indicatorAlerts, wl, nameOf],
   )
   const counts = useMemo(() => countByKind(rows), [rows])
   const shown = kind === 'all' ? rows : rows.filter((r) => r.kind === kind)
