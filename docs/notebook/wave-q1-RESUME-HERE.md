@@ -20,6 +20,145 @@
 | 7-day window closed (2026-09-19 00:45 ET) | **FALSE** | time |
 | Sunday verdict, KEEP | **FALSE** | regenerates Sunday 18:05 ET |
 
+# ⛔⛔ Q1 DEFECT — SEVEN DOOR FAMILIES, THREE SHAPES (2026-09-12)
+
+> ⚰️ **"THE FOUR DOORS" WAS NEVER FOUR, AND THE LIST'S METHOD WAS THE DEFECT.**
+> Wave Q1 recorded *"the FOUR doors — every path that advances `updatedAt`"* and
+> named body, folder, ticker, tags. That list came from the DERIVED WIRE RAIL,
+> which can only see doors a canary actually opened. No canary ever uploaded a
+> hero image, so `hero` was absent — and shipped to production unsettled.
+>
+> ⭐ Re-derived on 2026-09-12 **from the SQL**, not from behaviour:
+> **SEVEN server-side functions** advance a note's `updated_at`, reached through
+> **nine routes** and **sixteen client call sites**, and the conflict they
+> produce has **THREE SHAPES**, not one.
+
+## The seven, derived (`doorEnumeration.test.js` ①)
+
+| function | how it is reached | client sites |
+|---|---|---|
+| `update_note` | `PUT /notes/{id}` · `POST\|DELETE /notes/{id}/hero` · `POST /versions/{id}/restore` (via `restore_note_version`) | 10 |
+| `append_widget_embed` | `POST /notes/{id}/embeds` | 3 |
+| `append_financial_fact` | `POST /notes/{id}/facts/{id}/insert` | 1 |
+| `append_document_excerpt` | `POST /notes/{id}/excerpts` | 1 |
+| `restore_note` | `POST /notes/{id}/restore` | 1 |
+| `import_confirm` | `POST /notes/import/confirm` | **named exception** |
+| `delete_folder` | `DELETE /note-folders/{id}` | **named exception** |
+
+⛔ `restore_note_version` is an eighth NAME and not an eighth door — it writes no
+SQL of its own and calls `update_note`. Rail ① (b) pins that distinction so a
+real eighth cannot hide behind it.
+
+## The three shapes (`serverChange.js`)
+
+Classified from **the diff of the returned note against the last-known one**,
+never from which endpoint was called — an endpoint's shape can change in a later
+wave; a diff of two documents cannot lie about what is in them.
+
+| shape | proof | what the drain does |
+|---|---|---|
+| `metadata-only` | body, title and subtitle byte-identical | **rebase** onto the new revision and send |
+| `append-only` | the body is the last-known body plus tail blocks, every one of `widgetEmbed` / `financialFact` / `documentExcerpt` | **merge** those blocks into the queued body and send |
+| `body-rewrite` | anything else, **including anything unprovable** | **fork** — preserve both copies |
+
+⛔ **The default is `body-rewrite`.** Missing evidence, an unrecognised node, a
+moved block, a changed title — all fall through to the safe answer. A duplicate
+is recoverable by the member; an overwrite is not.
+
+⭐ **The classifier is the SECOND LINE, and that is the point.** The landed ring
+only knows revisions THIS browser recorded, so a door fired in another tab, a
+door that shipped before its settle, or a door nobody has enumerated yet still
+produces a revision the ring has never heard of. The ring is an enumeration of
+callers, and Wave Q1 proved twice that an enumeration of callers goes stale
+silently. The diff needs no enumeration at all.
+
+## The last-known server copy
+
+The classifier needs a base, and the base is **not** the member's working copy —
+diffing against that reads the member's own unsent edit as the server's change
+and forks every time. So:
+
+- a **clean** record (`dirty: 0`) **is** its own base; storing a second copy
+  would be a second authority over one value;
+- a **dirty** record carries `serverBase`, captured at the clean→dirty
+  transition and moved forward on every ack and every successful drain send;
+- a dirty record with **no** snapshot answers `null`, which classifies as
+  `body-rewrite`, which forks. "We could not read it" is never "it matches".
+
+Cost: one extra body per UNSYNCED note, never per note.
+
+## The named exceptions, and what would close each
+
+| exception | why it cannot land | what would close it |
+|---|---|---|
+| `POST /notes/import/confirm` | creates and writes MANY notes in one call, returns a summary; nothing is open in an editor and nothing can be queued against a note that did not exist yet | return `[{noteId, updatedAt}]` per note touched |
+| `DELETE /note-folders/{id}` | one bulk UPDATE over every note in the folder, returns `{ok: true}`; the revisions exist and are identical, the browser is just never told them | return the moved note ids + the one new `updatedAt` — **cheap; queued as Q1-F1** |
+
+Both are warn-listed **by name** in `doorEnumeration.test.js`, and a rail asserts
+each carries a reason and a closure path, so neither can decay into a shrug.
+
+## What the API changed (ADDITIVE)
+
+`POST /notes/{id}/excerpts` now returns `{excerpt, note}`. `append_document_excerpt`
+advanced that note's `updated_at`, and **a browser cannot record a revision it
+was never told** — every other door route already returned the note; this was the
+one that did not. Rail: `tests/test_journal_two_excerpts_router.py::
+test_create_excerpt_returns_the_note_it_just_advanced`, mutation-proved.
+
+## The emptied working copy — the small defect beside the big one
+
+`settleForked` wrote the SERVER's copy back into the durable record, and every
+field fell back to `''`/`null`. A fork that resolved without a usable server note
+therefore **blanked the member's local copy of that note and marked it clean** —
+and a clean record is not a recovery candidate, so the banner would never offer
+it back either. The words survived in the `(conflicted copy)` sibling; the note
+the member had been looking at did not. It now keeps the content and settles the
+queue; three rails, mutation-proved.
+
+## Two defects this fix introduced, caught by rails before merge
+
+1. **`??` over a baseline, three times** — including one in `settleNoteWrite.js`
+   written earlier and never run against `baseline.test.js`. `''` reads as
+   present to a producer and absent to a consumer; all three now go through
+   `usableBaseline`.
+2. **`(await res.json().catch(() => ({}))).note` throws synchronously** when a
+   response has no `json` — `.catch` only handles a *rejected* promise. In
+   `capturePriceToNotebook` that turned a **successful** price capture into
+   "Capture failed — try again". Body-reading moved INSIDE `settleNoteWrite`,
+   which now accepts a Response, an envelope or a note and cannot throw.
+
+⭐ And a third, in the *instrument*: the enumeration rail's first version matched
+`settleNoteWrite` **inside the ⛔ comment explaining why the settle is there**, so
+deleting the call and leaving the comment passed. It strips comments now. Same
+disease as `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.
+
+## The rails, and what each one can fail for
+
+| rail | owns | mutation-proved |
+|---|---|---|
+| `serverChange.test.js` (30) | the three shapes, one case per append type, the last-known-copy helpers | 4 mutations |
+| `outboxDrain.test.js` (28) | the drain rebases / merges / forks, the record gets the appends, a fork never empties | 5 mutations |
+| `NoteEditorPage.conflict.test.jsx` (9) | the editor merges all three append types and metadata-only; a foreign append still forks | roster shrunk to widgetEmbed → 2 red |
+| `doorFamilies.settle.test.jsx` (17) | every drivable door lands the RIGHT revision, each paired with its negative | via the gauntlet |
+| `doorEnumeration.test.js` (9) | ① the seven from the SQL · ② no unaccounted server writer · ③ every door call lands or is named · ④ variable-URL writes resolved | 3 mutations |
+| per-component rails | the component wires its own door: hero ×2, excerpt, thesis review, trade modal ×2, trash restore | via the gauntlet |
+| `tools/q1_door_settle_gauntlet.py` | one mutation per settle call site; GREEN is a defect | self-checking control |
+
+⛔ **Two layers, one authority each.** A component rail owns "this surface hands
+its response to the settle, for this note". Whether the settle lands the right
+revision from that response is owned once, in `doorFamilies` +
+`settleNoteWrite.test.jsx`. A component rail that asserted the ARGUMENT SHAPE was
+really testing how that component reads a body — and went red the day the read
+moved into the helper, where it belongs.
+
+## Still open, named, with owners
+
+| id | item | why it is not in this merge | owner |
+|---|---|---|---|
+| **Q1-F1** | `delete_folder` returns the moved note ids + revision | ruled a merge-2 exception; cheap (≈15 lines + a rail) | Notebook |
+| **Q1-F2** | `import_confirm` returns per-note revisions | ruled a merge-2 exception; larger (bulk shape change) | Notebook |
+| **Q1-F3** | behavioural rail for `GlobalAddPositionProvider`'s hero door | it is the SAME door as `HeroImagePicker` (5 rails) and the provider ends in `window.location.href`, which jsdom cannot drive without a redesign of the harness. Structural coverage from ③ + gauntlet RED | Notebook |
+
 ## ⛔⛔ THE MEMBER DENOMINATOR HAS A STRUCTURAL PROBLEM, NOT A TIMING ONE
 
 Measured in the owner's own Chrome, 2026-09-12 15:2x UTC, on the live flipped

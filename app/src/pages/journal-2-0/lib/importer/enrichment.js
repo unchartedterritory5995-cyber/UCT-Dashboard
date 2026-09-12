@@ -15,6 +15,7 @@
  * last node, IS the note's exact pre-enrichment body. `revertChartEmbed`
  * does exactly that and PUTs it back, a full write, not a client-side hide.
  */
+import { settleNoteWrite } from '../offline/settleNoteWrite'
 import { buildWidgetEmbedAttrs } from '../widgetEmbedCore'
 
 /**
@@ -58,6 +59,10 @@ export async function addChartEmbed(noteId, ticker) {
     throw new Error(detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`)
   }
   const data = await res.json()
+  // ⛔⛔ THE APPEND MOVED THE REVISION — LAND IT. An enrichment run appends to
+  // many notes at once, so an unlanded revision here is not one fork, it is one
+  // per enriched note the member had unsent work in.
+  await settleNoteWrite(noteId, data.note)
   return data.note?.bodyJson || null
 }
 
@@ -77,4 +82,6 @@ export async function revertChartEmbed(noteId, bodyJsonAfterAppend) {
     body: JSON.stringify({ bodyJson: restored }),
   })
   if (!res.ok) throw new Error(`could not undo (HTTP ${res.status})`)
+  // ⛔ The undo is a write like any other: it advanced the revision too.
+  await settleNoteWrite(noteId, res)
 }

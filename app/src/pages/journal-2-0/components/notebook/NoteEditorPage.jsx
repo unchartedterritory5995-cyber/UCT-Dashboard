@@ -35,6 +35,10 @@ import {
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
+import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import {
+  BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
+} from '../../lib/offline/serverChange'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -709,6 +713,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       subtitle: subtitleRef.current,
       bodyJson: editorRef.current.getJSON(),
       baseUpdatedAt: lastSavedRef.current.updatedAt || null,
+      // ⛔⛔ WHAT THE SERVER LAST HELD, travelling WITH the member's words.
+      // The drain cannot classify a conflict without it — diffing the server's
+      // copy against the member's working copy would read the member's own
+      // unsent edit as somebody else's change and fork every single time. This
+      // is the only moment on this device when both are in hand.
+      serverBase: { ...lastSavedRef.current },
     }
   }
   const saveDraftLocally = (state) => {
@@ -1156,7 +1166,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         }),
       })
       if (!res.ok) throw new Error('save failed')
-      const { excerpt } = await res.json()
+      const { excerpt, note: excerptNote } = await res.json()
+      // ⛔⛔ `append_document_excerpt` ADVANCED THIS NOTE. The editor is open on
+      // it, which makes this the worst door to leave unlanded: the very next
+      // autosave carries a baseline the server has already passed, 409s, and —
+      // before the drain learned to classify — forked the member's note against
+      // their own excerpt. The route was changed to return the note for this.
+      await settleNoteWrite(noteId, excerptNote)
       // ⛔ insertContentAt(selection.to), NOT insertContent -- found live in
       // the browser, and it DESTROYED the member's attachment. Clicking a PDF
       // chip to open the preview leaves ProseMirror holding a NodeSelection
@@ -1381,49 +1397,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
   }, [note?.id, editor, note])
 
-  // A15 conflict reconcile: pull the fresh note, append any widgetEmbed the
-  // server holds that the local doc lacks (the only server-side bodyJson
-  // writer is the Send-to-Journal append, so "missing locally" ≈ "appended
-  // after our baseline"; an embed the user deleted locally in that same
-  // window gets resurrected rather than lost — the safe direction), then
-  // advance the baseline so the caller's retry wins cleanly.
-  const embedKeyOf = (a) => `${a?.widgetId}|${a?.capturedAt}|${a?.searchText}`
-
-  /** Is the server's change provably nothing but APPENDED widget embeds?
-   *
-   * ⛔⛔ THE WHOLE SAFETY OF THE MERGE BRANCH RESTS ON THIS BEING A PROOF, NOT
-   * A GUESS. It compares the server's document against our BASE (what we last
-   * saw), not against our working copy: strip the widget embeds the server has
-   * that the base did not, and if what remains is byte-identical to the base —
-   * and the title and subtitle never moved — then the server's ONLY change was
-   * appending those embeds, and merging them cannot lose anything.
-   *
-   * Anything else, including a change we simply cannot characterise, is NOT
-   * safe to merge (§6: preserve both when safe reconciliation cannot be
-   * PROVEN). */
-  const serverChangeIsAppendOnlyEmbeds = (fresh, base) => {
-    if ((fresh.title || '') !== (base.title || '')) return false
-    if ((fresh.subtitle || '') !== (base.subtitle || '')) return false
-    if (!base.bodyJson || !fresh.bodyJson) return false
-    const baseKeys = new Set()
-    const collect = (node) => {
-      if (!node || typeof node !== 'object') return
-      if (node.type === 'widgetEmbed') baseKeys.add(embedKeyOf(node.attrs))
-      for (const child of node.content || []) collect(child)
-    }
-    collect(base.bodyJson)
-    const strip = (node) => {
-      if (!node || typeof node !== 'object') return node
-      const out = { ...node }
-      if (Array.isArray(node.content)) {
-        out.content = node.content
-          .filter((c) => !(c && c.type === 'widgetEmbed' && !baseKeys.has(embedKeyOf(c.attrs))))
-          .map(strip)
-      }
-      return out
-    }
-    return JSON.stringify(strip(fresh.bodyJson)) === JSON.stringify(base.bodyJson)
-  }
+  // A15 conflict reconcile: pull the fresh note, merge in any block the SERVER
+  // appended that the local doc lacks, then advance the baseline so the
+  // caller's retry wins cleanly.
+  //
+  // ⭐⭐ THE DECISION IS NOT MADE HERE. `classifyServerChange` owns it, and the
+  // drain asks the same function the same question — a guard repeated is a
+  // guard unproved, and the copy that used to live in this file knew about
+  // `widgetEmbed` and nothing else, so a member who saved a price or captured
+  // an excerpt into a note they were also editing got a fork instead of a
+  // merge. See `lib/offline/serverChange.js` for the three shapes.
 
   /** ⚰️⚰️ WAVE Q1 ENTRY GATE — THIS USED TO OVERWRITE THE SERVER.
    *
@@ -1448,19 +1431,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (!fresh) throw new Error('empty note on reconcile')
     const base = lastSavedRef.current
 
-    if (serverChangeIsAppendOnlyEmbeds(fresh, base)) {
+    const shape = classifyServerChange(fresh, base)
+    if (shape !== BODY_REWRITE) {
+      // ⛔ METADATA_ONLY appends nothing — the body never moved, so there is
+      // nothing to merge and the retry carries the member's words unchanged.
+      // The baseline still has to advance, or the retry 409s again for ever.
       const localKeys = new Set()
       editor.state.doc.descendants((n) => {
-        if (n.type.name === 'widgetEmbed') localKeys.add(embedKeyOf(n.attrs))
+        const k = nodeKeyOf({ type: n.type.name, attrs: n.attrs })
+        if (k) localKeys.add(k)
         return true
       })
-      const missing = []
-      const walk = (node) => {
-        if (!node || typeof node !== 'object') return
-        if (node.type === 'widgetEmbed' && !localKeys.has(embedKeyOf(node.attrs))) missing.push(node)
-        for (const child of node.content || []) walk(child)
-      }
-      walk(fresh.bodyJson)
+      const missing = missingServerNodes(appendedServerNodes(fresh, base), localKeys)
       // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
       // position, never a NodeSelection that would swallow a trailing atom.
       // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-

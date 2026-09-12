@@ -239,3 +239,262 @@ describe('⛔⛔ a write that cannot prove it is not clobbering is NEVER sent', 
     expect(results.map((r) => r.outcome).sort()).toEqual([BLOCKED, SENT].sort())
   })
 })
+
+/**
+ * ⚰️⚰️ 2026-09-12 — THE LANDED RING IS AN ENUMERATION, AND ENUMERATIONS GO
+ * STALE SILENTLY.
+ *
+ * The ring only knows revisions THIS browser recorded. A door fired in another
+ * tab, a door that shipped before its settle did, a door nobody has enumerated
+ * yet — each produces a revision the ring has never heard of, and the answer
+ * was always "not ours ⇒ fork": a `(conflicted copy)` of a note only the member
+ * had ever touched.
+ *
+ * So the drain asks the DIFF as well, and the diff has three answers. These
+ * rails drive each one, and each is paired with the neighbour that must still
+ * fork — a fixture that cannot distinguish is not a rail.
+ */
+describe('the drain classifies what the server changed, and only forks when it must', () => {
+  const embed = { type: 'widgetEmbed', attrs: { widgetId: 'w1', capturedAt: 'C1', searchText: 'SPY' } }
+  const fact = { type: 'financialFact', attrs: { factId: 'f1' } }
+  const excerpt = { type: 'documentExcerpt', attrs: { excerptId: 'x1' } }
+
+  /** The note as the server held it when the member started typing. */
+  const SERVER_BASE = { title: 'n1 title', subtitle: '', bodyJson: doc('what the server had'), updatedAt: 'T1' }
+
+  /** A dirty record that REMEMBERS what the server last held — the state a real
+   *  editor leaves behind, and the only thing that makes a diff possible. */
+  async function seedWithBase(noteId, text, { serverBase = SERVER_BASE } = {}) {
+    const entry = entryFor(noteId, text)
+    await putNoteWithIntent(db, {
+      noteId, title: entry.patch.title, subtitle: '', bodyJson: entry.patch.bodyJson,
+      baseUpdatedAt: 'T1', generation: 3, sessionId: 's1', localSavedAt: 20, dirty: 1, serverBase,
+    }, entry)
+    return entry
+  }
+
+  /** The server says "not ours" — exactly what the ring says about a door it
+   *  never recorded — and hands back the document it is holding. */
+  const notOurs = (serverNote) => vi.fn(async () => ({
+    ours: false, identical: false, serverUpdatedAt: serverNote.updatedAt, serverNote,
+    why: 'the server copy differs and is not one of ours',
+  }))
+
+  const serverWith = (content) => ({
+    ...SERVER_BASE, updatedAt: 'T2',
+    bodyJson: { ...SERVER_BASE.bodyJson, content: [...SERVER_BASE.bodyJson.content, ...content] },
+  })
+
+  it('METADATA-ONLY: a door moved the revision and nothing else — rebase and send, never fork', async () => {
+    await seedWithBase('n1', 'the words I typed offline')
+    // ticker/folder/tags/hero: the body, title and subtitle are untouched.
+    const server = { ...SERVER_BASE, updatedAt: 'T2', ticker: 'NVDA' }
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    const fork = vi.fn()
+    const results = await drainOutbox(db, { send, fork, serverCopyIsOurs: notOurs(server) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([SENT])
+    expect(results[0].shape).toBe('metadata-only')
+    expect(fork).not.toHaveBeenCalled()
+    expect(send.mock.calls[1][0].baseUpdatedAt).toBe('T2')
+    // ⛔ The member's words went out unchanged. Only the baseline moved.
+    expect(JSON.stringify(send.mock.calls[1][0].patch.bodyJson)).toContain('the words I typed offline')
+  })
+
+  it.each([
+    ['widgetEmbed (Send to Journal)', embed, 'widgetEmbed'],
+    ['financialFact (a saved price)', fact, 'financialFact'],
+    ['documentExcerpt (an excerpt capture)', excerpt, 'documentExcerpt'],
+  ])('APPEND-ONLY: the server appended a %s — merge and send, never fork', async (_label, node, marker) => {
+    await seedWithBase('n1', 'the words I typed offline')
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    const fork = vi.fn()
+    const results = await drainOutbox(db, {
+      send, fork, serverCopyIsOurs: notOurs(serverWith([node])),
+    })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([SENT])
+    expect(results[0].shape).toBe('append-only')
+    expect(fork).not.toHaveBeenCalled()
+    const sent = send.mock.calls[1][0]
+    expect(sent.baseUpdatedAt).toBe('T2')
+    // ⛔⛔ BOTH SURVIVE. That is the whole claim.
+    expect(JSON.stringify(sent.patch.bodyJson)).toContain('the words I typed offline')
+    expect(JSON.stringify(sent.patch.bodyJson)).toContain(marker)
+  })
+
+  it('⛔⛔ the RECORD gets the append too — or the next drain sends it straight back out', async () => {
+    // ⚰️ The trap: `settleSent` re-queues the RECORD's words whenever they are
+    // ahead of the ack. A merge that only touched the outbox entry would be
+    // undone by the very next drain, which would send a body with the server's
+    // blocks stripped back out — a clobber one pass later.
+    await seedWithBase('n1', 'the words I typed offline')
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    await drainOutbox(db, { send, fork: vi.fn(), serverCopyIsOurs: notOurs(serverWith([embed])) })
+    await settleIdb()
+
+    const rec = await getNote(db, 'n1')
+    expect(JSON.stringify(rec.bodyJson)).toContain('widgetEmbed')
+    expect(JSON.stringify(rec.bodyJson)).toContain('the words I typed offline')
+    // …and with the record and the ack agreeing, nothing is left owed.
+    expect(await listOutbox(db)).toEqual([])
+    expect(rec.dirty).toBe(0)
+  })
+
+  it('⛔ BODY-REWRITE: somebody else changed the prose — fork, preserving both', async () => {
+    await seedWithBase('n1', 'the words I typed offline')
+    const server = { ...SERVER_BASE, updatedAt: 'T2', bodyJson: doc('rewritten on another device') }
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    const fork = vi.fn(async () => server)
+    const results = await drainOutbox(db, { send, fork, serverCopyIsOurs: notOurs(server) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([FORKED])
+    expect(fork).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledTimes(1)          // never re-sent over their words
+  })
+
+  it('⛔ an APPENDED PARAGRAPH is not an append the server makes — it forks', async () => {
+    await seedWithBase('n1', 'the words I typed offline')
+    const server = serverWith([{ type: 'paragraph', content: [{ type: 'text', text: 'typed elsewhere' }] }])
+    // ⛔ Same reason as above: the retry must be ABLE to succeed, or forking
+    // proves nothing about which branch was taken.
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    const fork = vi.fn(async () => server)
+    const results = await drainOutbox(db, { send, fork, serverCopyIsOurs: notOurs(server) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([FORKED])
+    expect(send).toHaveBeenCalledTimes(1)        // it was never re-sent at all
+  })
+
+  it('⛔ NO REMEMBERED BASE, NO CLASSIFICATION — a dirty record that cannot say what the server held forks', async () => {
+    // ⭐ THE CONTROL THAT PROVES THE DIFF IS DOING THE WORK. Same server copy as
+    // the metadata-only rail above; the only thing removed is the memory of
+    // what the server held. Merging on an assumption is how words get lost.
+    await seedWithBase('n1', 'the words I typed offline', { serverBase: null })
+    const server = { ...SERVER_BASE, updatedAt: 'T2', ticker: 'NVDA' }
+    // ⛔⛔ THE SECOND SEND MUST BE ABLE TO SUCCEED. A mock that 409s for ever
+    // forks down BOTH branches, so it cannot tell "refused to classify" from
+    // "classified, merged, and the merge failed" — a fixture that cannot
+    // distinguish is not a rail. With this, a wrong merge shows up as SENT.
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    const fork = vi.fn(async () => server)
+    const results = await drainOutbox(db, { send, fork, serverCopyIsOurs: notOurs(server) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([FORKED])
+  })
+
+  it('⛔ a SECOND 409 on the merged send forks — the ground will not hold still', async () => {
+    await seedWithBase('n1', 'the words I typed offline')
+    const server = serverWith([embed])
+    const send = vi.fn().mockRejectedValue(httpError(409))
+    const fork = vi.fn(async () => server)
+    const results = await drainOutbox(db, { send, fork, serverCopyIsOurs: notOurs(server) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([FORKED])
+    expect(send).toHaveBeenCalledTimes(2)          // tried the merge once, then stopped
+  })
+
+  it('⛔ a non-409 failure on the merged send KEEPS the entry — it is never dropped', async () => {
+    await seedWithBase('n1', 'the words I typed offline')
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockRejectedValue(httpError(503))
+    const fork = vi.fn()
+    const results = await drainOutbox(db, { send, fork, serverCopyIsOurs: notOurs(serverWith([embed])) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([KEPT])
+    expect(fork).not.toHaveBeenCalled()
+    expect((await listOutbox(db)).length).toBe(1)
+  })
+
+  it('⭐ the ring still wins when it CAN vouch — the diff is the second line, not a replacement', async () => {
+    await seedWithBase('n1', 'the words I typed offline')
+    const ours = vi.fn(async () => ({
+      ours: true, identical: false, serverUpdatedAt: 'T2', serverNote: { ...SERVER_BASE, updatedAt: 'T2' },
+      why: 'the server revision T2 is ours',
+    }))
+    const send = vi.fn()
+      .mockRejectedValueOnce(httpError(409))
+      .mockResolvedValue({ id: 'n1', updatedAt: 'T3' })
+    const results = await drainOutbox(db, { send, fork: vi.fn(), serverCopyIsOurs: ours })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([SENT])
+    expect(results[0].shape).toBeUndefined()      // the ring answered; the diff was never asked
+    expect(send).toHaveBeenCalledTimes(2)         // one rebase, not two
+  })
+})
+
+/**
+ * ⚰️ THE EMPTIED WORKING COPY — the small defect that rode alongside the big one.
+ *
+ * `settleForked` writes the SERVER's copy back into the durable record, and
+ * every field of it falls back to `''`/`null`. So a fork that resolved without
+ * a usable server note blanked the member's local copy of that note and marked
+ * it clean — and a clean record is not a recovery candidate, so the banner
+ * would never offer it back either. The words survived in the `(conflicted
+ * copy)` sibling; the note the member had been looking at did not.
+ */
+describe('⛔ a fork never empties the working copy', () => {
+  const emptied = (rec) => !rec || (!rec.bodyJson && !rec.title)
+
+  it('writes the SERVER copy back when there is one — the normal path', async () => {
+    await seed(db, 'n1', 'my offline words')
+    const server = { id: 'n1', title: 'theirs', subtitle: '', bodyJson: doc('what they wrote'), updatedAt: 'T2' }
+    const send = vi.fn().mockRejectedValue(httpError(409))
+    const results = await drainOutbox(db, { send, fork: vi.fn(async () => server) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([FORKED])
+    const rec = await getNote(db, 'n1')
+    expect(rec.title).toBe('theirs')
+    expect(JSON.stringify(rec.bodyJson)).toContain('what they wrote')
+    expect(rec.dirty).toBe(0)
+  })
+
+  it.each([
+    ['the fork resolved with nothing', undefined],
+    ['the fork resolved with null', null],
+    ['the server answered 200 with no note', {}],
+  ])('⛔ %s ⇒ the working copy is KEPT, not blanked', async (_label, forkResult) => {
+    await seed(db, 'n1', 'my offline words')
+    const send = vi.fn().mockRejectedValue(httpError(409))
+    const results = await drainOutbox(db, { send, fork: vi.fn(async () => forkResult) })
+    await settleIdb()
+
+    expect(results.map((r) => r.outcome)).toEqual([FORKED])
+    const rec = await getNote(db, 'n1')
+    expect(emptied(rec), '⛔ the member opened this note and found it blank').toBe(false)
+    expect(JSON.stringify(rec.bodyJson)).toContain('my offline words')
+    // …and the queue IS settled: the fork happened, nothing is owed.
+    expect(await listOutbox(db)).toEqual([])
+    expect(rec.dirty).toBe(0)
+  })
+
+  it('⛔ a stale serverBase never survives a fork — the record IS the base now', async () => {
+    await seed(db, 'n1', 'my offline words')
+    const server = { id: 'n1', title: 'theirs', subtitle: '', bodyJson: doc('theirs'), updatedAt: 'T2' }
+    await drainOutbox(db, { send: vi.fn().mockRejectedValue(httpError(409)), fork: vi.fn(async () => server) })
+    await settleIdb()
+    expect((await getNote(db, 'n1')).serverBase ?? null).toBeNull()
+  })
+})

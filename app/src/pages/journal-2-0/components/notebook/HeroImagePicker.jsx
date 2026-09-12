@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import styles from './HeroImagePicker.module.css'
 
 export default function HeroImagePicker({ noteId, value, onChange }) {
@@ -30,6 +31,9 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
         throw new Error(body.detail || `${res.status}`)
       }
       const body = await res.json()
+      // ⛔ THIS ROUTE ADVANCED THE NOTE'S REVISION. Record it before anything
+      // else, or the drain forks the member's note over our own write.
+      await settleNoteWrite(noteId, body.note)
       onChange(body.heroImageUrl)
     } catch (e) {
       console.error('[notebook] hero upload failed', e)
@@ -46,6 +50,9 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
         method: 'DELETE', credentials: 'include',
       })
       if (!res.ok) throw new Error(`${res.status}`)
+      // ⛔ REMOVE ADVANCES THE REVISION TOO — it is an update_note, not a delete
+      // of the note. Same door, same requirement.
+      await settleNoteWrite(noteId, res)
       onChange(null)
     } catch (e) {
       console.error('[notebook] hero remove failed', e)

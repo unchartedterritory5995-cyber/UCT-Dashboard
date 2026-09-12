@@ -72,7 +72,7 @@ export async function serverCopyIsOursDefault(entry, { landedRevisions = null } 
   // leave it queued.
   if (sameAuthoredContent(server, entry.patch)) {
     return {
-      ours: true, identical: true, serverUpdatedAt: landed,
+      ours: true, identical: true, serverUpdatedAt: landed, serverNote: server,
       why: 'the server copy is byte-identical to this entry',
     }
   }
@@ -80,11 +80,18 @@ export async function serverCopyIsOursDefault(entry, { landedRevisions = null } 
     // ⭐ Ours, but the server does NOT have these words — this is the door case.
     // The revision is safe to build on precisely because nobody else wrote it.
     return {
-      ours: true, identical: false, serverUpdatedAt: landed,
+      ours: true, identical: false, serverUpdatedAt: landed, serverNote: server,
       why: `the server revision ${landed} is ours, but does not contain this entry's words`,
     }
   }
-  return { ours: false, identical: false, serverUpdatedAt: landed, why: 'the server copy differs and is not one of ours' }
+  // ⛔⛔ THE DOCUMENT COMES BACK WITH THE VERDICT. "Not ours" is where the
+  // drain's classifier takes over, and it cannot classify a document it was
+  // never handed — a second GET would be a second answer to one question, one
+  // revision later. See `serverChange.js`.
+  return {
+    ours: false, identical: false, serverUpdatedAt: landed, serverNote: server,
+    why: 'the server copy differs and is not one of ours',
+  }
 }
 
 /** The same compare-and-set PUT the editor uses, byte for byte. */

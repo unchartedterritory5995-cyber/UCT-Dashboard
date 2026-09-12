@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
 
 export const AuthContext = createContext(null)
@@ -39,6 +40,14 @@ export function AuthProvider({ children }) {
   // closure, so the ref tracks the last committed value instead.
   const userRef = useRef(null)
   useEffect(() => { userRef.current = user }, [user])
+  // ⛔⛔ THE SINGLE WRITER of the out-of-React account id. Six client call sites
+  // advance a note's server revision and must record it in the durable landed
+  // ring or the drain forks the member's note (measured 2026-09-12); two of them
+  // are plain lib functions that cannot call a hook. This is the ONE place the
+  // signed-in user is established, so it is the one place that publishes it.
+  // ⛔ Clearing on sign-out is not optional: a stale id points a write at the
+  // PREVIOUS member's IndexedDB store.
+  useEffect(() => { setCurrentAccountId(user?.id ?? null) }, [user])
 
   const fetchUser = useCallback(async () => {
     // The backend did not ANSWER (>=500, or fetch threw). Distinct from a

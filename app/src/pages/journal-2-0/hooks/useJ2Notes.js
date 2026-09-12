@@ -2,6 +2,7 @@
 import { useCallback, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
+import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -170,6 +171,19 @@ export function useJ2Note(noteId) {
         throw err
       }
       const body = await res.json()
+      // ⛔⛔ ONE SETTLE FOR EVERY CALLER OF THIS HOOK. `update` is the shared
+      // note PUT — the editor's body save, PropertiesSection's folder/ticker/
+      // tags, every surface that has ever changed a note through the hook — and
+      // all of them go through `update_note`, which advances the revision.
+      //
+      // ⭐ PUT HERE RATHER THAN AT EACH CALL SITE ON PURPOSE. A settle repeated
+      // at N call sites is N chances to add the N+1th without one, and Wave Q1
+      // has now been caught twice enumerating callers by hand. This is the one
+      // place every caller must pass through.
+      //
+      // ⛔ Idempotent with the editor's own `settleLandedSave`: both record the
+      // same revision into the same ring, and recording twice is free.
+      await settleNoteWrite(noteId, body.note)
       await mutate({ note: body.note }, { revalidate: false })
       // This note's own title/status may have just changed -- evict it from
       // the noteLink batch-resolution cache so any noteLink chip elsewhere

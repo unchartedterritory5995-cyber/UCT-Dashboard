@@ -566,6 +566,26 @@ Closing it requires building an instrument first — that is a task, not a looku
    a re-baseline: Waves L–P shipped afterwards. **The 2026-09-11 charter is the current
    re-baseline and supersedes that stop.**
 
+6. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
+   WRONG BY THREE.** Wave Q1 recorded *"the FOUR doors — every path that advances
+   `updatedAt`"* and named body, folder, ticker, tags. That list came from the
+   DERIVED WIRE RAIL, which can only see doors a canary actually opened; no canary
+   uploaded a hero image, so `hero` never appeared and **shipped to production
+   unsettled**. Re-derived from the SQL on 2026-09-12: **SEVEN server-side functions**
+   advance a note's `updated_at`, through **nine routes** and **sixteen client call
+   sites** — and the conflict they produce has **THREE SHAPES** (metadata-only →
+   rebase · append-only → merge · body-rewrite → fork), not one.
+   ⭐ **The generalisable lesson is about METHOD, not about doors.** An enumeration
+   derived from BEHAVIOUR can only ever contain what was exercised, and it goes stale
+   silently: nothing fails when it is incomplete. The replacement
+   (`doorEnumeration.test.js`) reads the SQL, then the router, then the client, and
+   fails by name on a door that appears without a settle — and the classifier in
+   `serverChange.js` needs no enumeration at all, because it reads the DIFF.
+   ⛔ The same shape is already recorded three times in `CLAUDE.md` (the writer index's
+   `FOUR` beside six, the COT router's "4 routes" beside five, the setup catalog's
+   "24" beside 26). **This one was not a stale count in a doc — it was a stale count
+   the PRODUCT was built on.** Full entry: `docs/notebook/wave-q1-RESUME-HERE.md`.
+
 ### Rows added by §10
 
 | id | feature | status |

@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import * as settleModule from '../../lib/offline/settleNoteWrite'
 
 // jsdom gap, same as NoteEditorPage.attachments.test.jsx.
 Range.prototype.getClientRects = () => []
@@ -246,5 +247,80 @@ describe('NoteEditorPage — Wave J excerpt capture + click-to-source', () => {
 
     await waitFor(() => expect(screen.getByText("Couldn't save that excerpt. Your note is unchanged.")).toBeInTheDocument())
     expect(document.querySelector('[data-document-excerpt]')).toBeNull()
+  })
+})
+
+/**
+ * ⚰️⚰️ THE WORST DOOR TO LEAVE UNLANDED, AND IT WAS UNLANDED.
+ *
+ * `POST /notes/{id}/excerpts` calls `append_document_excerpt`, which advances
+ * the note's `updated_at` — and the member is looking at that note in the
+ * editor while it happens. So the very next autosave carries a baseline the
+ * server has already passed, 409s, and (before the drain learned to classify a
+ * server-side append) forked the member's note against their own excerpt.
+ *
+ * ⭐ WHAT THIS RAIL OWNS AND WHAT IT DOES NOT. It owns "the editor hands the
+ * excerpt door's response to the settle, with this note's id". Whether the
+ * settle then lands the right revision from that response is owned once, in
+ * `doorFamilies.settle.test.jsx` + `settleNoteWrite.test.jsx` — two layers, one
+ * authority each, rather than this file restating how a body is read.
+ */
+describe('⛔⛔ the excerpt door lands its revision', () => {
+  const excerptFetch = (withNote) => (url, opts) => {
+    if (String(url).endsWith('/documents')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          documents: [{ id: 'doc1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/abc.pdf', name: 'report.pdf', status: 'ready', pageCount: 3 }],
+        }),
+      })
+    }
+    if (String(url) === '/api/j2/notes/n1/excerpts' && opts?.method === 'POST') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          excerpt: { id: 'ex1', documentId: 'doc1', pageNumber: 1, capturedText: 'x', documentName: 'report.pdf', annotation: null },
+          ...(withNote ? { note: { id: 'n1', updatedAt: '2026-09-12T14:00:00.000000+00:00' } } : {}),
+        }),
+      })
+    }
+    if (String(url).endsWith('/excerpts')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ excerpts: [] }) })
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+  }
+
+  const saveAnExcerpt = async () => {
+    await renderEditor()
+    const chip = await screen.findByText('report.pdf')
+    fireEvent.click(chip)
+    await waitFor(() => expect(lastViewerProps?.href).toBeTruthy())
+    await act(async () => {
+      await lastViewerProps.onSaveExcerpt({
+        pageNumber: 1, capturedText: 'x', quotePrefix: null, quoteSuffix: null, charStart: 0, charEnd: 1,
+      })
+    })
+  }
+
+  it('hands the excerpt response to the settle, for THIS note', async () => {
+    const spy = vi.spyOn(settleModule, 'settleNoteWrite').mockResolvedValue('T2')
+    fetchMock.mockImplementation(excerptFetch(true))
+    await saveAnExcerpt()
+
+    await waitFor(() => expect(spy, '⛔ the excerpt door did not settle').toHaveBeenCalled())
+    expect(spy.mock.calls[0][0]).toBe('n1')
+    spy.mockRestore()
+  })
+
+  it('⛔ CONTROL — a FAILED excerpt save settles nothing', async () => {
+    const spy = vi.spyOn(settleModule, 'settleNoteWrite').mockResolvedValue('T2')
+    fetchMock.mockImplementation((url, opts) => {
+      if (String(url) === '/api/j2/notes/n1/excerpts' && opts?.method === 'POST') {
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
+      }
+      return excerptFetch(true)(url, opts)
+    })
+    await saveAnExcerpt()
+
+    expect(spy, 'a write that did not happen has no revision').not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })

@@ -10,6 +10,7 @@
  */
 import { assembleTemplateContext } from './templateContext'
 import { getTemplate } from './notebookTemplates'
+import { settleNoteWrite } from './offline/settleNoteWrite'
 
 /** Create a note. Mirrors NotebookTab's own `createNote` request shape
  * exactly (title/bodyJson/tags/ticker/folderId), plus the same best-effort
@@ -37,7 +38,13 @@ export async function createNoteViaApi({ title = '', bodyJson, tags, ticker, fol
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ properties }),
       })
-      if (putRes.ok) created = (await putRes.json()).note
+      if (putRes.ok) {
+        created = (await putRes.json()).note
+        // ⛔ The properties PUT moved the revision of a note that is about to be
+        // opened in the editor. Landing it here is what keeps the first save in
+        // that editor from meeting a revision nobody recorded.
+        await settleNoteWrite(created?.id ?? null, created)
+      }
     } catch { /* best-effort -- note creation itself already succeeded */ }
   }
   return created

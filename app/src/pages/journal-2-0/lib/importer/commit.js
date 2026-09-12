@@ -22,6 +22,8 @@ const CONFIRM_BATCH_SIZE = 200 // server caps a single batch at 500; we stay wel
 // checkExisting
 // ---------------------------------------------------------------------------
 
+import { settleNoteWrite } from '../offline/settleNoteWrite'
+
 /**
  * @param {Array<{importKey: string}>} docs
  * @returns {Promise<{existing: Record<string, {id: string, updatedAt: string, importHash: string}>, checked: number, total: number, truncated: boolean}>}
@@ -425,6 +427,11 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
             reason: `saving final content failed (HTTP ${putRes.status})`,
           })
           if (!summary.attentionKeys.includes(importKey)) summary.attentionKeys.push(importKey)
+        } else {
+          // ⛔ The media-rewrite PUT is a door like any other. An import runs
+          // over many notes, so leaving these unlanded is one unrecorded
+          // revision per imported note.
+          await settleNoteWrite(noteId, putRes)
         }
       } catch (err) {
         summary.failures.push({

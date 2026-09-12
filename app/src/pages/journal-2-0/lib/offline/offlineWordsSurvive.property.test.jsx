@@ -25,7 +25,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
-import { putNoteWithIntent, putMeta, listOutbox } from './notebookDb'
+import { putNoteWithIntent, putMeta, listOutbox, getNote } from './notebookDb'
 import { drainOutbox } from './outboxDrain'
 import { settleLandedSave, recordLandedRevision } from './useDurableNote'
 import { markerFor, markerKeyFor, landedKeyFor, withLanded, IN_FLIGHT_TTL_MS } from './inFlight'
@@ -38,7 +38,16 @@ const OFFLINE = 'typed offline — THIS is the sentence that must survive.'
 const BOTH = `${ONLINE} ${OFFLINE}`
 
 const T0 = '2026-09-10T13:00:00.000000+00:00'
-const DOORS = ['folder', 'ticker', 'tags']
+// ⛔⛔ FIVE DOORS, NOT FOUR. Q1's record named four — body, folder, ticker, tags
+// — and that list was derived from WHAT THE CANARY DROVE, not from what the
+// product does. Enumerating from the code (every server-side update_note writer
+// and every client write to /api/j2/notes/*) found `hero` on 2026-09-12, live on
+// production, unsettled. `embeds` is the sixth and lands in fix 2/2.
+//
+// ⭐ hero is driven with canSeeLocalState:false because HeroImagePicker has NO
+// EDITOR MOUNTED — it records the landed revision and settles nothing, which is
+// exactly what `settleNoteWrite` does and all that is needed to stop the fork.
+const DOORS = ['folder', 'ticker', 'tags', 'hero']
 
 let db
 const connect = async () => db
@@ -172,6 +181,92 @@ const ORDERINGS = {
     await settleIdb(4)
   },
 }
+
+/**
+ * ⛔⛔ THE HERO DOOR — modelled as the PRODUCT implements it, not as a door
+ * should be implemented.
+ *
+ * `HeroImagePicker.jsx:25` (set) and `:45` (remove) issue a RAW `fetch` to
+ * `POST|DELETE /api/j2/notes/{id}/hero`. Server-side that route calls
+ * `notes_service.update_note(..., {"heroImageUrl": ...})`, which ADVANCES
+ * `updatedAt`. `GlobalAddPositionProvider.jsx:163` does the same thing.
+ *
+ * ⛔ NONE of the three calls `settleMetadataRevision`, and therefore none calls
+ * `recordLandedRevision`. So unlike folder/ticker/tags, the revision this door
+ * creates is never recorded as OURS.
+ *
+ * ⭐ THAT IS THE ONLY DIFFERENCE modelled here: same stamp, same missing body,
+ * no record, no settle. If the product is safe, this still passes.
+ */
+async function heroDoorHappens(server) {
+  server.door('hero')          // the revision moves, carrying no body
+  // ⛔ deliberately nothing else — this is the product's behaviour, verbatim
+  await settleIdb(4)
+}
+
+describe('🔬 WHERE DO THE WORDS GO — diagnostic, printed not asserted', () => {
+  it('after a hero write discards the queued entry, what is left on the device?', async () => {
+    const server = makeServer(doc(''))
+    await offlineWorkQueued(server)
+    const before = { note: await getNote(db, 'n1'), outbox: await listOutbox(db) }
+    await heroDoorHappens(server)
+    // ⛔ THE STUB FORK CANNOT ANSWER "are the words safe" - it only counts.
+    // The REAL `forkConflictedCopy` passes `entry.patch?.bodyJson` to
+    // `createNoteViaApi`, so capture exactly what the drain hands it.
+    let forkedBody = null
+    const results = await drainOutbox(db, {
+      send: server.send,
+      fork: async (entry) => { forkedBody = entry?.patch?.bodyJson; return server.fork(entry) },
+      serverCopyIsOurs: server.serverCopyIsOurs,
+    })
+    await settleIdb(4)
+    const after = { note: await getNote(db, 'n1'), outbox: await listOutbox(db) }
+    /* eslint-disable no-console */
+    console.log('BEFORE  outbox entries:', before.outbox.length)
+    console.log('BEFORE  working copy body:', text(before.note?.bodyJson))
+    console.log('DRAIN   results:', JSON.stringify(results.map(r => ({ ok: r.ok, action: r.action, why: r.why || r.report?.reason }))))
+    console.log('AFTER   outbox entries:', after.outbox.length)
+    console.log('AFTER   working copy body:', text(after.note?.bodyJson))
+    console.log('AFTER   working copy dirty flag:', after.note?.dirty)
+    console.log('AFTER   server body:', text(server.state.body))
+    console.log('AFTER   forks created:', server.notes.count - 1)
+    console.log('FORK    body handed to fork():', text(forkedBody))
+    console.log('VERDICT sentence in the FORK?', String(text(forkedBody) || '').includes(OFFLINE))
+    console.log('VERDICT sentence on device?', String(text(after.note?.bodyJson) || '').includes(OFFLINE))
+    /* eslint-enable no-console */
+    expect(true).toBe(true)
+  })
+})
+
+describe('⛔⛔ THE FIFTH DOOR — hero, found by enumeration on 2026-09-12', () => {
+  for (const [label] of [['hero SET (POST /hero)'], ['hero REMOVE (DELETE /hero)']]) {
+    it(`${label} during a queued body save — records, does not settle`, async () => {
+      const server = makeServer(doc(''))
+      await offlineWorkQueued(server)
+      await doorHappens(server, 'hero', { canSeeLocalState: false })
+      await drainOutbox(db, {
+        send: server.send, fork: server.fork,
+        serverCopyIsOurs: server.serverCopyIsOurs,
+      })
+      await settleIdb(4)
+      await assertWordsSurvived(server, label)
+    })
+  }
+
+  it('⭐⭐ CONTROL — an UNSETTLED hero door still loses the sentence, so this rail can detect the defect', async () => {
+    const server = makeServer(doc(''))
+    await offlineWorkQueued(server)
+    server.door('hero')          // ⛔ the pre-fix product: no recordLandedRevision
+    await settleIdb(4)
+    await drainOutbox(db, {
+      send: server.send, fork: server.fork,
+      serverCopyIsOurs: server.serverCopyIsOurs,
+    })
+    await settleIdb(4)
+    expect(text(server.state.body)).not.toContain(OFFLINE)
+    expect(server.notes.count, 'the unsettled door should fork').toBe(2)
+  })
+})
 
 describe('⭐⭐ the member’s offline sentence survives every door × every ordering', () => {
   for (const door of DOORS) {

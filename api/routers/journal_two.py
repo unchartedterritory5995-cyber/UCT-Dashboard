@@ -2757,7 +2757,12 @@ def delete_note_hero_endpoint(
     n = notes_service.update_note(user["id"], note_id, {"heroImageUrl": None})
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"ok": True}
+    # ⛔ THE NOTE COMES BACK. This route ADVANCES updated_at, so the browser that
+    # made the call must record that revision in its durable landed ring or the
+    # offline drain asks "is this server copy ours?", answers no about our own
+    # write, and forks the member's note (measured 2026-09-12). It cannot record
+    # a revision it was never told. `{"ok": True}` is not enough.
+    return {"ok": True, "note": n}
 
 
 @router.post("/notes/{note_id}/attachments")
@@ -3016,7 +3021,13 @@ def create_excerpt_endpoint(
     note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
-    return {"excerpt": excerpt}
+    # Wave Q1 (2026-09-12): ADDITIVE -- the note travels back with the excerpt.
+    # `append_document_excerpt` advanced this note's `updated_at`, and a browser
+    # cannot record a revision it was never told: without this the offline queue
+    # sees a revision it has never heard of, decides somebody else wrote it, and
+    # forks the member's note against their own excerpt capture. Every other
+    # door route already returns the note; this was the one that did not.
+    return {"excerpt": excerpt, "note": note}
 
 
 @router.get("/notes/{note_id}/evidence-candidates")
