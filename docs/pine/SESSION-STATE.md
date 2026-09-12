@@ -1,5 +1,59 @@
 # Session state — `feat/indicator-r0r1`
 
+# ▶️ TOMORROW — THE PLAN, IN ORDER, WITH HONEST MINUTES
+
+⛔⛔ **T0 IS NEW AND IT COMES FIRST, BECAUSE THE SUITE IS RED.** Ruling 3.5 is built,
+measured and WIP-committed at `29d64a2ef`, and twelve tests in nine files still assert
+the behaviour it changed. Nothing else should land on top of a red engine suite — a
+second behaviour change would make attribution impossible.
+
+| # | item | minutes | needs |
+|---|---|---:|---|
+| **T0** | **Land ruling 3.5.** Six mechanical updates with the ruling cited (`pine.test.js` ×4, `pine.timeframe`, `pine.requestOffer`) — **30**. Six that need judgment: `interpret.tfDaily.test.js` (the 2026-09-01 ruling's own test), `doorScorecard` ×2 and `pine.blindCorpus` (staleness rails firing correctly — their rosters/rulings need re-deciding), `pine.community` + `.guards` (the named roster moved 18 → 19) — **60-90**. Then both lanes + rails green. | **90-120** | — |
+| **T1** | **`ta.tr(true)` reading.** Prep is done: probe `docs/pine/probes/r11-tr-true.pine` (12 plots), runbook `T1-RUNBOOK-tr-true.md` (go/no-go, binding gate, Monaco handle, receipt, study gate, poll-from-outside, roster, what the reading decides), fixture name reserved. | **20** | ⛔ **browser** |
+| **T1b** | **Item 5 — pin it**, or record-and-do-not-pin if no corpus case exercises the argument (4 committed scripts write `ta.tr(`). Declaring a BAR name owes a corpus case and re-freezes a cross-lane oracle. | **45** | T1 |
+| **T2** | **Volume: `translatePine` strict + `buildRuntimeIr` both ok.** Two blockers left, and **one of them is a ruling, not a gap**: `pine:state@284` is `priorMaxAllTimeDaily`, a running ALL-TIME maximum, which is exactly what `ta.cum` refuses ("names no anchor"). `pine:text-value@151` is a bind-time string compare in a UDF — the same class as the Kind-4 fold, ~60 min. | **120-180** | ⚠️ **owner ruling on unbounded accumulators** |
+| **T3** | **The IR→pixels list, in order.** Zero-importer gate lifted; `pineRuntimeFrontend.js` wired from a saved definition. ⛔ When the gate goes red, build and **delete the gate in the same commit** — it is not a test to edit. | **90** | T2 |
+| **T4** | **`newestBarIsForming` producer in the JS lane**, which lifts the 3.3 refusal. The producer EXISTS for the served lane (`521a52816`, `9dfe101e0`); what is missing is this lane's path to it, through `/api/bars` → `binder.js` → `nativeRegistry.computeFor` → `interpret`. | **90** | T3 |
+| **T5** | **The pane.** Volume on SPY 1D behind `VITE_PINE_MEMBER_PANE_ENABLED`, sub-pane below price, 4 numeric plots drawn, two-instance no-bleed test, and the flag-off rail becomes non-vacuous (its 5th claim stops being empty the moment the renderer gains an importer). | **120** | T4 |
+| **T6** | **R2 text layer + `table.*`** → both tables rendered and anchored; cell-by-cell string compare vs TradingView, 300 bars, spread control, `ta.cum` notice visible in the screenshot. | **180** | T5 |
+| **T7** | **Mobile**: `tools/mobile_audit.py` at **390×844** and **1024×768**, viewport pinned, 4 screenshots, pass/UNTESTED per row. ⚠️ Do not point it at port 8077 without re-pinning — that port has held a stale backend on live `C:\data`. | **60** | T6 |
+| **T8** | **Merge `origin/master`.** Dry-run measured: **4 conflicts** against `36596a88a` (two are append-vs-append). Merge 45-90, then re-verification 60: both full lanes + rails, Python killed-chunk count back at zero, JS byte-identical claim **re-derived not carried forward**. PR body drafted. ⛔ No `gh pr create` without the word. | **105-150** | T0 |
+
+**Total: 920-1,065 min ≈ 15-18 hours.**
+
+## 🔻 WHERE THE CUT IS, NOW
+
+```
+SESSION 1   T0 + T1 + T1b + T2      275-365 min   (4.5-6 h)   ← T1-T6 do NOT fit one session
+SESSION 2   T3 + T4 + T5            300 min       (5 h)
+SESSION 3   T6 + T7 + T8            345-390 min   (6-6.5 h)
+```
+
+⛔ **T1 through T6 is three sessions, not one.** The single biggest reason is T0, which
+did not exist when the T-list was written: landing 3.5 costs 1.5-2 hours because six of
+its twelve red artifacts are rulings and rosters rather than assertions.
+
+⚠️ **And T2 is gated on a ruling, not on work.** An all-time-high accumulator has no
+bounded equivalent; folding one means choosing an anchor on the member's behalf, which
+is the exact trade `ta.cum` refuses. Volume cannot reach `ok: true` until that is
+decided — so if the ruling comes late, T2 slips and T3-T5 slip with it.
+
+## Two items that are NOT in the T-list and are now owed
+
+- **`pine_oos`'s 30 local-only scripts could not be re-fetched**, and the blocker is not
+  the network. `source_url` is a TradingView **script page** (fetched fine: HTTP 200,
+  395 KB) and `capture_method` is **null**, while `sha256_source` is the hash of the
+  **Pine text**. Reproducing the original capture needs the Pine-editor/facade route —
+  the same browser path T1 needs. ⛔ I did not scrape-and-guess: an extractor differing
+  by one byte would report "sha mismatch" for 30 scripts and the defect would be mine.
+  **Floors stay at 60.** Nothing was committed from that directory (it is ignored —
+  `git status` confirms clean).
+- **`switchBinding` throws past `translatePine`** on one committed script. Comment
+  corrected tonight (`cfaa48014`); the fix itself is routed as a corpus item.
+
+---
+
 **Written 2026-09-09 before a machine restart, so this wave can be picked up cold.**
 Delete or rewrite it when the wave closes; it describes work in flight, not a ruling.
 

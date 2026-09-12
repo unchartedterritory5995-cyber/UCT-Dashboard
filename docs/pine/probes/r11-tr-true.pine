@@ -1,0 +1,62 @@
+//@version=6
+indicator("UCTPROBE_TR_TRUE", overlay = false, max_bars_back = 500)
+
+// ─── THE QUESTION ───────────────────────────────────────────────────────────
+// `ta.tr(true)` is the ONLY Group-B name still unread, and it is on a member's
+// own critical path: `uncharted-volume.pine:189` is
+//     _src = rangeType == 'ATR' ? ta.tr(true) : high - low
+// which feeds the ATR range and therefore the ATR table.
+//
+// `ta.tr(false)` and bare `ta.tr` BOTH already translate in this engine; only the
+// `true` argument refuses (`pine:builtin`). So the argument is the whole gap, and
+// the argument CHANGES THE MATHS — which is why this owes a reading and may not be
+// guessed. The documented difference is bar 0: with `true`, bar 0 is defined as
+// `high - low` instead of being left `na`. That is the claim to verify, plus
+// whether the two forms agree everywhere else.
+//
+// ⛔ READ IT ON A DAILY CHART. Nothing here is intraday-sensitive, and a daily
+// chart is what every other Group-B reading was taken on.
+
+// ─── THE SUBJECT ────────────────────────────────────────────────────────────
+subject      = ta.tr(true)
+sibling      = ta.tr(false)
+
+// ─── THE CANDIDATES, as this engine would have to express it ────────────────
+// A: the three-term max with a guarded first bar (what `true` is documented to do)
+candA = na(close[1]) ? high - low
+      : math.max(high - low, math.max(math.abs(high - close[1]), math.abs(low - close[1])))
+// B: the same WITHOUT the guard (what `false` is documented to do)
+candB = math.max(high - low, math.max(math.abs(high - close[1]), math.abs(low - close[1])))
+
+// ─── THE DIFFERENCES — every reading is a difference that should measure zero ──
+dA = subject - candA
+dB = subject - candB
+dSib = subject - sibling
+
+// ─── ⭐ THE SPREAD CONTROL, non-zero by construction ────────────────────────
+// A difference that measures zero on a study that never ran is indistinguishable
+// from a difference that measures zero because the two agree. This channel MUST
+// be non-zero on every bar; if it is 0 or na the capture is void, not confirming.
+spread = high - low
+
+// ─── ⭐ THE FIRST-BAR DISCRIMINATOR ─────────────────────────────────────────
+// The whole claim about `true` lives on bar 0. These make it readable without
+// comparing floats: on bar 0, `subjIsNa` should be 0 (a value is present) and
+// `subjEqHL` should be 1 (that value is high - low).
+isFirst   = bar_index == 0 ? 1 : 0
+subjIsNa  = na(subject) ? 1 : 0
+sibIsNa   = na(sibling) ? 1 : 0
+subjEqHL  = not na(subject) and subject == high - low ? 1 : 0
+
+plot(subject,  'subject_tr_true',  color = color.new(color.white, 0))
+plot(sibling,  'sibling_tr_false', color = color.new(color.gray, 0))
+plot(candA,    'candA_guarded',    color = color.new(color.lime, 0))
+plot(candB,    'candB_unguarded',  color = color.new(color.red, 0))
+plot(dA,       'diff_vs_candA',    color = color.new(color.yellow, 0))
+plot(dB,       'diff_vs_candB',    color = color.new(color.orange, 0))
+plot(dSib,     'diff_vs_sibling',  color = color.new(color.aqua, 0))
+plot(spread,   'SPREAD_control',   color = color.new(color.fuchsia, 0))
+plot(isFirst,  'is_first_bar',     color = color.new(color.blue, 0))
+plot(subjIsNa, 'subject_is_na',    color = color.new(color.purple, 0))
+plot(sibIsNa,  'sibling_is_na',    color = color.new(color.teal, 0))
+plot(subjEqHL, 'subject_eq_highlow', color = color.new(color.green, 0))
