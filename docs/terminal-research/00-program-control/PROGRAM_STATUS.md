@@ -145,6 +145,20 @@ overlap**, found by diffing master's history against every path this program own
 No other master commit since 2026-09-03 has touched `app/src/components/provenance/`,
 `app/src/lib/marketClock/`, the provenance routers, or `api/services/entity_master/`.
 
+⭐ **This is a two-way seam and the traffic has run one way.** Convergence follow-ups **#1**
+(`nyseCalendar.js COVERED_YEARS`) and **#4** (`_et_now()` naive DST) were **maintenance on
+Terminal-Next's own shipped output**, carried out by a program that did not know this one existed,
+while this program's control files recorded nothing in either direction. Seam 7 also surfaced a
+**third, previously unrecorded NYSE holiday table** in `api/services/voice_temporal_awareness.py`
+(Compass voice narration) and fixed its missing early-close awareness and naive-DST `_et_now()`.
+
+⛔ **STANDING RULE FROM HERE: any work on a program-owned path gets logged in the implementation
+ledger above, whichever program performs it.** The ledger is the manifest the re-scoped rail's check
+(1b) validates against, so an unlogged change — ours or another program's — now reads as an
+unrecorded shipment and fails the rail. That is the intended behaviour: the rail should notice a
+program-owned file moving under us, which is exactly what it failed to do between 09-03 and 09-11.
+The S11 record in `product-architecture.md` carries the same note at the point of use.
+
 ⚠️ **`S7` names two different things.** Here it is the **Alerts & Monitoring** system. In the
 convergence program it is the **filing-watch** feature, live to members since 2026-09-11 12:07:29 ET.
 Unrelated. (Checked: the alerts PRD and spec name `alert_fires` and never `user_alerts`, so they are
