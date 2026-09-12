@@ -466,7 +466,8 @@ markup in note bodies · full multi-hop knowledge graph · foreign listings / op
 symbols / private companies as linkable entities · client-side E2E encryption ·
 two-way connector sync · deep links back to source items · auto-merge of conflicts ·
 offline destructive actions · offline Ask · browser-side OCR · presenting a partial
-local corpus as "My Notebook" · **a service worker**.
+local corpus as "My Notebook" · **a service worker** — ⚖️ **including T-11's native
+POST share service worker, ruled NO and moved here permanently 2026-09-12.**
 
 ---
 
