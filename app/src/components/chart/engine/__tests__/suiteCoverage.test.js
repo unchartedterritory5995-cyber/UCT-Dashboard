@@ -149,3 +149,77 @@ describe('⛔ a NEW engine test directory has to be SEEN, not discovered later',
       .toEqual(['src/pages/Screener.scanmount.test.jsx'])
   })
 })
+
+// ─── ⭐⭐ THE SAME DEFECT, ONE DIRECTORY UP (added 2026-09-11) ───────────────
+//
+// ⚰️ THE RAIL ABOVE WORKED AND ITS SCOPE WAS THE BUG. `test:engine` collects 243
+// files and every one of them lies under the path it names, so both claims above
+// were green all night — while TEN failing files sat in
+// `src/components/chart/builder/`, which no named script ran and nothing
+// acknowledged. They were found by typing a wider path by hand, which is the
+// "a narrower path was reported as the suite" mistake wearing its mirror image:
+// this time the SUITE was narrower than the SUBJECT.
+//
+// ⭐ So the claim is widened rather than duplicated: every test-bearing directory
+// under `src/components/chart` must be reachable from SOME named `test:*` script,
+// and the script paths are DERIVED from package.json, never retyped.
+const CHART = path.join(APP, 'src/components/chart')
+
+/** ⚠️ ACKNOWLEDGEMENT LIST #2 — the whole chart tree, not just the engine.
+ *  Measured on disk 2026-09-11; eleven rows. Adding one means somebody looked. */
+const ACKNOWLEDGED_CHART = [
+  'src/components/chart',
+  'src/components/chart/builder',
+  'src/components/chart/builder/editor',
+  'src/components/chart/engine',
+  'src/components/chart/engine/__tests__',
+  'src/components/chart/engine/ast',
+  'src/components/chart/engine/ast/__tests__',
+  'src/components/chart/engine/runtime/__tests__',
+  'src/components/chart/legend',
+  'src/components/chart/pane',
+  'src/components/chart/patternShapes',
+]
+
+/** Every `src/`-ish path that any `test*` script hands to vitest. */
+function scriptTargets() {
+  const out = []
+  for (const [name, body] of Object.entries(PKG.scripts || {})) {
+    if (!name.startsWith('test')) continue
+    for (const word of String(body).split(/\s+/)) {
+      if (word.includes('src/')) out.push(word.replace(/\/$/, ''))
+    }
+  }
+  return out
+}
+
+describe('⛔ a test directory under chart/ that NO named script runs', () => {
+  it('every test-bearing chart directory is reachable from some `test:*` script', () => {
+    const targets = scriptTargets()
+    // Two controls, because a rail that looked nowhere would pass in silence.
+    expect(targets.length, 'no `test*` script passes a src/ path to vitest').toBeGreaterThan(0)
+    const dirs = engineTests(CHART).dirs
+    expect(dirs.length, 'no test files found under src/components/chart — the walker is '
+      + 'pointed at the wrong root, which would make this whole rail vacuous')
+      .toBeGreaterThan(5)
+
+    const unreachable = dirs.filter((d) => !targets.some((t) => d === t || d.startsWith(t + '/')))
+    expect(unreachable,
+      'these chart test directories are run by NO named npm script, so they go red where '
+      + 'nobody is looking — this is exactly how builder/ hid ten failures:\n  '
+      + unreachable.join('\n  ')
+      + '\n  Add a `test:<name>` script that covers them.')
+      .toEqual([])
+  })
+
+  it('the chart test directories on disk are the ones somebody acknowledged', () => {
+    const found = engineTests(CHART).dirs
+    const added = found.filter((d) => !ACKNOWLEDGED_CHART.includes(d))
+    const gone = ACKNOWLEDGED_CHART.filter((d) => !found.includes(d))
+    expect({ added, gone },
+      'the test directories under src/components/chart moved.\n'
+      + (added.length ? '  NEW (run it, confirm green, then acknowledge):\n    ' + added.join('\n    ') + '\n' : '')
+      + (gone.length ? '  GONE (delete from ACKNOWLEDGED_CHART):\n    ' + gone.join('\n    ') + '\n' : ''))
+      .toEqual({ added: [], gone: [] })
+  })
+})

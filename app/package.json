@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:engine": "vitest run src/components/chart/engine/",
+    "test:builder": "vitest run src/components/chart/builder/",
+    "test:chart": "vitest run src/components/chart/",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -8,9 +8,28 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
   match. ⚠️ **No tip hash is written here on purpose** — this line named one and it went stale
   within the same session, which is the exact defect this repo keeps paying for. Read it with
   `git log --oneline -1`.
-- Working tree clean. The `tests/fixtures/compat_harness/**` rows that show as modified are
-  **CRLF churn with an empty content diff** — do not commit them.
-- Engine suite: `cd app && npm run test:engine` → **4,956 passed, 2 failed** (see *Known reds*)
+- Working tree clean, and it STAYS clean across a suite run now. ⚰️ This said *"the
+  `tests/fixtures/compat_harness/**` rows that show as modified are CRLF churn with an
+  empty content diff — do not commit them"*, which was true and was the wrong shape of
+  answer: **a standing instruction to ignore 21 dirty files every session is a defect
+  with a workaround, not a defect that was fixed.** Fixed as a class in `e7ad2b7a7` —
+  `.gitattributes` gained `tests/fixtures/** text eol=lf` with the 15 binaries (png/jpg/gz,
+  the vendor visual-parity references) declared after it so they stay `-text`. Measured:
+  every text blob was already `i/lf`, so `--renormalize` staged **zero** changes and no
+  recorded hash moved; a full `test:engine` afterwards leaves `git status` empty.
+- Engine suite: `cd app && npm run test:engine` → **243 files · 5,116 passed · 2 failed ·
+  32 skipped** (measured 2026-09-11 at `e7ad2b7a7`; the 2 are the census floors under
+  *Known reds*). ⚰️ This line said **4,956 passed** — stale by 160 tests, which is the
+  hand-typed-count-beside-the-command defect this file keeps re-committing. Re-run it;
+  do not quote this number either.
+- ⚠️ `npm run test:engine` covers **243 files and NOT `src/components/chart/builder/`** —
+  10 failing files live there, routed in the table further down. **`npm run test:chart`
+  (408 files) is the front-end suite**; `test:engine` and `test:builder` are narrower
+  convenience scripts. ⭐ `suiteCoverage.test.js` now asserts that every test-bearing
+  directory under `src/components/chart` is reachable from SOME named `test:*` script,
+  with the paths DERIVED from package.json — it fired on its first run and named four
+  more unwatched directories (`chart`, `chart/legend`, `chart/pane`,
+  `chart/patternShapes`), which is its own mutation proof.
 
 ---
 
