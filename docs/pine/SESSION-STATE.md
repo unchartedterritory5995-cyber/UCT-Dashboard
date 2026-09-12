@@ -1,5 +1,42 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · R-I — THE PARITY HARNESS WAS MEASURING A CONSTANT
+
+⚰️⚰️ `visualParitySet.test.js::documentOf` decided pane placement with
+`t.declaration && t.declaration.overlay`. **`declaration` is the STRING
+`"indicator"`** — the word the script declared itself with — so a string has no
+`overlay` property, the test read `undefined` for **every script ever written**,
+and every document the harness built came out a sub-pane whatever its author
+asked for. The real field is `presentation.overlay`.
+
+**Re-measured on the seven members whose source is committed — two moved, both to
+the answer their `.pine` declares:**
+
+| member | before | after | `.pine` says |
+|---|---|---|---|
+| `long_tail__16-spy-position-helper` | own pane | **price(overlay)** | `overlay=true` |
+| `mid_engagement__22-rsi-levels-regime-map` | own pane | **price(overlay)** | `overlay = true` |
+| the other five | own pane | own pane | `overlay = false` / import refused |
+
+⭐ **NO GRADE MOVED**, because `classify()` never consulted the overlay column —
+which is exactly how a constant sat in a published report unnoticed. The decision
+is now a named function (`placementFor`) with a control that translates one
+`overlay = true` and one `overlay = false` script, and pins that
+`declaration` is a string whose `.overlay` is `undefined`, so the next reader who
+reaches for it sees why it cannot work.
+
+⛔ **AND THE SET IS NOW MEASURED ON 7 OF 10, LOUDLY.** Three members are
+`storage: "local-only"` in `pine_oos/MANIFEST.json` and have never been
+committed. The harness used to die on `readFileSync` and report **nothing** about
+the other seven; it now grades them `SOURCE_MISSING`, prints the seven, and stays
+RED naming the three. Absence is not a pass and it is not a crash either.
+
+⏭️ The full ten-member re-publication is **owed with Part 6**. The
+superseded note is published at `C3A_CLOSE_AND_C3B_CENSUS.md` §1, with the
+before/after table and the reason gate condition #4 is unaffected (it confirmed
+MARKER placement against the vendor's `location` values and says nothing about
+which pane a script lands in).
+
 ## ⛔⛔ SESSION 2 CLOSE-OUT — THE BROWSER LANE STOPPED, THE CODE LANES SHIPPED
 
 ### The stop, first, because it decides three of the seven parts

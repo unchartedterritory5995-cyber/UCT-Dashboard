@@ -20,6 +20,54 @@ that is the owner's call to confirm rather than mine to assume.
 
 ## 1. THE FIXED 10-MEMBER COMPLEX PINE VISUAL PARITY SET, REMEASURED
 
+> ## ⚰️⚰️ SUPERSEDED IN PART — 2026-09-12, ruling R-I
+>
+> **The `pane=` column of the remeasurement below was a constant, not a
+> measurement.** `visualParitySet.test.js::documentOf` decided placement with
+> `t.declaration && t.declaration.overlay`, and `translatePine`'s `declaration`
+> is the STRING `"indicator"` — the word the script declared itself with. A
+> string has no `overlay` property, so the test read `undefined` for **every
+> script ever written** and every document the harness built came out a
+> sub-pane, whatever its author asked for. The real field is
+> `presentation.overlay`, where the translator puts the author's pane intent
+> beside `levels` and `fills`.
+>
+> **Re-measured after the fix, on the seven members whose source is committed:**
+>
+> | member | before | after |
+> |---|---|---|
+> | `long_tail__16-spy-position-helper` | own pane | **price(overlay)** |
+> | `mid_engagement__22-rsi-levels-regime-map` | own pane | **price(overlay)** |
+> | `mid_engagement__09-relative-volume-breakout-context` | own pane | own pane |
+> | `high_engagement__24-coppock-curve-multi-filter-markittick` | own pane | own pane |
+> | `high_engagement__10-rsi-divergence-faytterro` | own pane | own pane |
+> | `long_tail__05-master-line-plus` | own pane | own pane *(import refused)* |
+> | `high_engagement__16-klinger-volume-oscillator-everget` | own pane | own pane *(import refused)* |
+>
+> Two rows moved, and both moved to the answer their source declares — verified
+> against the `.pine`: exactly those two say `overlay = true`, the other three
+> importable ones say `overlay = false`. **No grade moved**: `classify()` never
+> consulted the overlay column, which is precisely why a constant could sit in
+> the report unnoticed. Gate condition **#4 "placement semantically correct"**
+> was confirmed against the vendor's `location` values for MARKERS and says
+> nothing about pane placement; it is unaffected, and it is also not evidence for
+> the column this note corrects.
+>
+> ⛔ **AND THE SET IS NOW MEASURED ON 7 OF 10.** Three members —
+> `mid_engagement__05-supertrend-fibonacci-ote`,
+> `mid_engagement__01-zeiierman-trend-pressure`,
+> `high_engagement__13-ultimate-opening-range-breakout-luxalgo` — are
+> `storage: "local-only"` in `tests/fixtures/pine_oos/MANIFEST.json` and have
+> never been committed. The harness used to die on `readFileSync` and report
+> nothing about the other seven; it now grades them `SOURCE_MISSING`, prints the
+> seven, and **stays red naming the three**. Their `sha256_source` is already
+> recorded, so each is verifiable the moment it is captured.
+>
+> ⏭️ **A full ten-member re-publication is OWED** once those captures land
+> (Part 6). Until then this section's numbers stand for the seven and are
+> withdrawn for the three.
+
+
 Read from `OOS_2_PARITY_SET.json` — the set chosen by a rule committed before
 any result existed. **No member replaced.**
 

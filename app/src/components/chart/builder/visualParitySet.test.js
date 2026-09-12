@@ -80,8 +80,34 @@ function expectedOf(src) {
 
 // ─── the document half: what the product would actually save ────────────────
 
+/** ⭐⭐ R-I — THE PANE DECISION, AS ONE NAMED FUNCTION SO IT CAN BE CONTROLLED.
+ *
+ *  ⚰️⚰️ IT WAS INLINE AND IT READ `t.declaration.overlay`. `declaration` is the
+ *  STRING `"indicator"` — the word the script declared itself with — so a string
+ *  has no `overlay` property, the test was `undefined` for EVERY SCRIPT EVER
+ *  WRITTEN, and every document this instrument built came out a sub-pane
+ *  regardless of what its author asked for. The `pane=` column of the published
+ *  parity report was a constant wearing a measurement's clothes.
+ *
+ *  ⛔ THE FIELD IS `presentation.overlay`, where `translatePine` puts the author's
+ *  pane intent beside `levels` and `fills`. Extracted here because the defect
+ *  survived precisely by being one inline expression nothing could point at. */
+function placementFor(t) {
+  return (t && t.presentation && t.presentation.overlay === true)
+    ? { target: 'price' }
+    : { target: 'pane' }
+}
+
 function documentOf(name) {
-  const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
+  // ⛔ A MISSING SOURCE IS A NAMED GAP, NEVER AN ENOENT. Three of the ten
+  // members are `storage: "local-only"` in `pine_oos/MANIFEST.json` and are not
+  // committed, so this file used to die on `readFileSync` and report NOTHING
+  // about the seven that ARE here. Absence is not a pass and it is not a crash
+  // either: the row says SOURCE_MISSING, the report prints the other seven, and
+  // the assertion at the end names the missing ones and stays red.
+  const file = path.join(OOS, `${name}.pine`)
+  if (!fs.existsSync(file)) return { src: '', importResult: 'SOURCE_MISSING' }
+  const src = fs.readFileSync(file, 'utf8')
   let t
   try {
     t = memberInputTranslation(translatePine, src, { paramManifest: true })
@@ -125,7 +151,7 @@ function documentOf(name) {
       mode: rows[0].mode,
       readback: rows[0].readback,
       plots: rows,
-      placement: { target: (t.declaration && t.declaration.overlay) ? 'price' : 'pane' },
+      placement: placementFor(t),
       paramManifest: Object.keys(manifest).length ? manifest : null,
     })
   } catch (err) {
@@ -166,7 +192,11 @@ describe('C3A-CLOSE — the fixed parity set, remeasured at HEAD', () => {
     expect(set).toHaveLength(10)
     const rows = []
     for (const m of set) {
-      const exp = expectedOf(fs.readFileSync(path.join(OOS, `${m.key}.pine`), 'utf8'))
+      const srcPath = path.join(OOS, `${m.key}.pine`)
+      const exp = fs.existsSync(srcPath)
+        ? expectedOf(fs.readFileSync(srcPath, 'utf8'))
+        : { plot: 0, fill: 0, hline: 0, plotshape: 0, plotchar: 0, bgcolor: 0,
+            barcolor: 0, plotcandle: 0, objects: 0, overlay: false }
       const built = documentOf(m.key)
       const doc = built.doc
       const plots = doc ? (doc.plots || []) : []
@@ -182,7 +212,9 @@ describe('C3A-CLOSE — the fixed parity set, remeasured at HEAD', () => {
         params: doc ? Object.keys((doc.compute || {}).paramManifest || {}).length : 0,
       }
       const valid = doc ? validateDefinition(doc) : { ok: false, errors: ['not built'] }
-      const grade = doc && valid.ok ? classify(exp, act) : 'VISUAL_BLOCKED'
+      const grade = built.importResult === 'SOURCE_MISSING'
+        ? 'SOURCE_MISSING'
+        : (doc && valid.ok ? classify(exp, act) : 'VISUAL_BLOCKED')
       rows.push({ key: m.key, tier: m.tier, exp, act, built, valid, grade })
     }
 
@@ -224,5 +256,33 @@ describe('C3A-CLOSE — the fixed parity set, remeasured at HEAD', () => {
       if (r.exp.objects > 0) expect(r.grade).not.toBe('VISUAL_FULL')
     }
     expect(rows).toHaveLength(10)
+
+    // ⭐⭐ R-I's CONTROL — a known `overlay = true` script must produce a
+    // PRICE-pane document, and an `overlay = false` one must not. Without it
+    // `placement.target` is a column nobody checks, and the defect it replaces
+    // read `undefined` for every script ever written with NOTHING going red.
+    const ov = translatePine(
+      ['//@version=6', 'indicator("ov", overlay = true)', 'plot(sma(close, 20))', ''].join('\n'), {})
+    const sub = translatePine(
+      ['//@version=6', 'indicator("sub", overlay = false)', 'plot(sma(close, 20))', ''].join('\n'), {})
+    expect(ov.presentation.overlay).toBe(true)
+    expect(sub.presentation.overlay).toBe(false)
+    expect(placementFor(ov)).toEqual({ target: 'price' })
+    expect(placementFor(sub)).toEqual({ target: 'pane' })
+    // ⛔ AND THE FIELD THE DEFECT READ IS STILL A STRING — pinned, so the next
+    // reader who reaches for `declaration.overlay` sees why it cannot work.
+    expect(typeof ov.declaration).toBe('string')
+    expect(ov.declaration.overlay).toBeUndefined()
+
+    // ⛔ AND THE GAP IS NAMED AND STAYS RED. Three members are `local-only` in
+    // `pine_oos/MANIFEST.json` and are not committed, so the published numbers
+    // below cover SEVEN of ten. Re-publishing all ten is owed the moment those
+    // captures land.
+    const missing = rows.filter((r) => r.grade === 'SOURCE_MISSING').map((r) => r.key)
+    expect(missing, `these parity members have no committed source, so the set is `
+      + `measured on ${10 - missing.length} of 10:\n  ${missing.join('\n  ')}\n\n`
+      + 'They are `storage: "local-only"` in tests/fixtures/pine_oos/MANIFEST.json '
+      + 'and each needs a fresh capture; their sha256_source is already recorded, '
+      + 'so each one is verifiable on arrival.').toEqual([])
   })
 })
