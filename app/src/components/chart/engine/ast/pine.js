@@ -9525,9 +9525,21 @@ export function translatePine(source, opts = {}) {
       // and the member is told a block "spans several statements", which is true
       // of the shape and useless about the cause: the reducer one function away
       // handles this exact case and is commented for it.
-      // ⛔ IT STAYS AHEAD OF THE CATCH-ALL AND FALLS INTO IT. `switchBinding`
-      // returns null for a shape it cannot take, so a malformed `switch` gets the
-      // refusal it always got rather than a new one.
+      // ⚰️ THIS SAID `switchBinding` "returns null for a shape it cannot take, so a
+      // malformed `switch` gets the refusal it always got rather than a new one" —
+      // AND IT IS MEASURED FALSE. It does not always return null: on
+      // `corpus/committed/smart-money-breakouts-chartprime__ea79c79a67.pine` it THROWS
+      // a `pine:statement` PineRefusal out of `parseWholeExpression`, and that throw
+      // escapes `translatePine` entirely — in BOTH lanes. `translatePine`'s contract is
+      // to RETURN refusals, so a caller without a try/catch gets an exception where a
+      // refusal belongs. Found 2026-09-11 by the first harness to run all 266 scripts
+      // through host mode; recorded as `THREW` in `tools/corpus_metric.json`.
+      // ⛔ NOT FIXED HERE ON PURPOSE: the right repair may be inside `switchBinding`
+      // rather than a catch at this call site, and guessing at a crash path is how a
+      // swallowed error becomes a confident finding. Routed as a corpus item.
+      // ⭐ The comment is corrected rather than deleted because a comment that is
+      // measured false is worse than no comment: it tells the next reader the shape is
+      // already safe.
       if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
         const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
         if (built) { env.set(nameTok.value, built); continue }

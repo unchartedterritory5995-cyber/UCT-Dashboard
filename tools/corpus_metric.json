@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-11",
   "scripts": 266,
-  "host_ok": 32,
-  "screener_ok": 46,
+  "host_ok": 33,
+  "screener_ok": 47,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -575,11 +575,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:request",
         "pine:arity"
       ],
       "screenerGuards": [
-        "pine:request",
         "pine:arity"
       ]
     },
@@ -1086,11 +1084,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:request",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:request",
         "pine:function"
       ]
     },
@@ -2520,11 +2516,9 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:request",
         "pine:role-order"
       ],
       "screenerGuards": [
-        "pine:request",
         "pine:role-order"
       ]
     },
@@ -2756,14 +2750,10 @@
     },
     {
       "file": "ultimate-pivot-points__vRWbsbkQGe.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:request"
-      ],
-      "screenerGuards": [
-        "pine:request"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
