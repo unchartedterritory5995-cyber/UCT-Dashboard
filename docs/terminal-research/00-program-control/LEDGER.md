@@ -748,9 +748,23 @@ first. ⭐ **The suppressed alert is the HIGHER-severity one**, and the suppress
 the names an operator cared enough to watch — while a must-know alert exists to reach somebody
 *regardless* of their watchlist.
 
-⚠️ **Latent, not safe:** `CATALYST_MUSTKNOW_ALERTS_ENABLED` defaults OFF and was not observed set,
-so there are no live victims *today* — and it fires the moment that flag is armed, silently, with
-nothing in the code or the ledger to warn whoever arms it.
+⚰️⚰️ **CORRECTED BY A LIVE READ, SAME DAY.** This row first said *"latent, not safe —
+`CATALYST_MUSTKNOW_ALERTS_ENABLED` defaults OFF and was not observed set, so there are no live
+victims today."* **Wrong.** Read live on `web`: `CATALYST_MUSTKNOW_ALERTS_ENABLED=1`,
+`CATALYST_MUSTKNOW_GRADES=A`, and `CATALYST_ALERTS_ENABLED` unset (code default ON). **Both rules
+are armed. The collision has live victims today.**
+
+⭐ *"Was not observed set"* was true and misleading — the variable had not been looked at, and a
+code default was allowed to stand for a configuration. **The `SMOKE_LOGIN_LINK_ENABLED` shape, for
+the second time in one day, and the second time it was this session's own claim.**
+
+⛔ **AND THE SAME READ EXPOSED A DEFECT IN CP2's MIRROR** (fixed, `ee8bac5e9`): the legacy reads
+`CATALYST_MUSTKNOW_GRADES` **at call time** and production runs `A`, while the mirror answered from
+the `("A","B")` code default. Against production it would have called **every grade-B row
+`new_only`** — a disagreement manufactured by the harness, in the column that means *"this member
+starts getting an alert they do not get today"*. ⚠️ The mirror rail did not catch it because every
+fixture ran with the variable unset, so both sides used the default and agreed: **the rail drove the
+real function correctly, under a configuration production does not use.**
 
 ⚠️ **NOT MEASURED:** how often the two rules actually collide on real data, because a read-only
 probe of production `/data/catalysts.db` was refused by tooling policy. That is the number that

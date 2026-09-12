@@ -263,14 +263,41 @@ suppression is most likely exactly where it hurts: on the names an operator care
 A must-know alert exists to reach somebody *regardless* of their watchlist, and the one population
 guaranteed not to get it is the population that watches the name.
 
-⚠️ **IT IS CURRENTLY LATENT, AND THAT IS TIMING, NOT SAFETY.**
-`CATALYST_MUSTKNOW_ALERTS_ENABLED` defaults **OFF** and was not observed set on `web`. So the
-collision has no live victims *today* — and it fires the moment that flag is armed, silently, with
-nothing in the code or the ledger to warn whoever arms it.
+### ⚰️⚰️ CORRECTED THE SAME DAY BY A LIVE READ — IT IS **NOT** LATENT
+
+⚰️ **This paragraph read:** *"IT IS CURRENTLY LATENT, AND THAT IS TIMING, NOT SAFETY.
+`CATALYST_MUSTKNOW_ALERTS_ENABLED` defaults OFF and was not observed set on `web`. So the collision
+has no live victims today."*
+
+⛔⛔ **THAT WAS WRONG. Read live on `web`, 2026-09-12:**
+
+```
+CATALYST_MUSTKNOW_ALERTS_ENABLED=1        <- ARMED
+CATALYST_MUSTKNOW_GRADES=A                <- narrowed to A only
+CATALYST_ALERTS_ENABLED  (unset)          <- code default is ON
+```
+
+**BOTH RULES ARE ARMED IN PRODUCTION. The collision has live victims today:** every admin who
+watches a name is not receiving the must-know alert for it.
+
+⭐ *"Was not observed set"* was **true and misleading** — I had not looked at that variable; I had
+read the code default and let it stand for a configuration. **This is the `SMOKE_LOGIN_LINK_ENABLED`
+shape for the second time in one day**, and the second time it was my own claim rather than an
+inherited one. ⛔ The rule this keeps re-teaching: *a code default is not a configuration, and only
+a live read settles which one is running.*
 
 ⚠️ **NOT MEASURED:** the row counts in production's `catalyst_alerts_fired`, because a read-only
 probe of `/data/catalysts.db` was refused by tooling policy this pass. **How often the two rules
 actually collide on real data is unknown**, and that is the number that would size the fix.
+
+⚠️ **AND A SECOND DEFECT CAME OUT OF THE SAME LIVE READ — in CP2's own mirror, now fixed
+(`ee8bac5e9`).** `_fire_mustknow_alerts` reads `CATALYST_MUSTKNOW_GRADES` **at call time**;
+production runs **`A`**, not the `A,B` code default. The mirror answered from the constant, so
+against production it would have reported **every grade-B row as `new_only`** — a disagreement
+manufactured by the harness, in the column that means *"this member starts getting an alert they do
+not get today"*. ⛔ The mirror rail did not catch it because every fixture ran with the variable
+unset: **the rail drove the real function correctly, under a configuration production does not
+use.** `test_the_mirror_FOLLOWS_the_env_var_not_the_default` is the rail that would have.
 
 ### ⛔ ONE LINE FOR THE OWNER — is fixing it in the LEGACY path safe before absorption?
 
@@ -297,9 +324,16 @@ comment explaining why.
 
 **The conditions I would attach:**
 
-- ⛔ **Do it while `CATALYST_MUSTKNOW_ALERTS_ENABLED` is OFF, and verify that flag's state LIVE
-  before starting** — not from the code default, which is exactly the read the
-  `SMOKE_LOGIN_LINK_ENABLED` stop condition was built around.
+- ⚰️⚰️ **THIS CONDITION SAID *"do it while the flag is OFF"* AND THE FLAG IS ON.** The condition is
+  therefore **not satisfiable as written**, and the recommendation changes with it: the fix now
+  changes what real people receive, so it is a **member-affecting change that needs its own line and
+  a member-impact sentence**, not a quiet pre-absorption tidy-up.
+  ⭐ The recommendation itself does not flip — fixing before absorption is still the safer order,
+  and the direction of the change is *a member starts receiving an alert they should already have
+  been getting*. What changes is that it can no longer be done invisibly.
+- ⛔ **Verify both flags LIVE at the start of that line**, not from the code default. That is exactly
+  the read the `SMOKE_LOGIN_LINK_ENABLED` stop condition was built around, and it is the read whose
+  absence produced the correction above.
 - ⛔ **Narrow fix only.** Do NOT reorder the two rules, do NOT merge them, do NOT change
   `try_record_alert`'s signature for existing callers. Reordering would change which *wording* a
   member sees for names that collide — a second behaviour change riding along.
