@@ -322,6 +322,37 @@ recorded and unrecorded work are not different processes — one had a manual st
    assignment — the Section 1 row shape. This is the manual step whose absence produced everything
    above; it is now the session's last action, not an afterthought.
 
+## ⛔ THE GATE RULE (owner ruling 6, revised and adopted 2026-09-11)
+
+**a. Scope — any system in the 32-system architecture.** Not "any system with a PRD/spec."
+⭐ **Having no spec is a reason to write a gate, not an exemption from one.** The original scoping
+was precisely inverted: S1, S2, S7 Alerts, I1 and A8 all shipped with no PRD and no spec, which made
+them invisible to a rule keyed on having one.
+
+**b. The binding constraint is a second party, not a date.** A gate packet carries an
+`APPROVED BY / ON / AT SHA / SCOPE` block, filled in **on the owner's instruction** and **committed
+before any Checkpoint 1 commit.**
+⛔ **Date-ordering is kept only as a cheap tripwire, because on its own it is nearly vacuous** — the
+S3 packet satisfied it: written 17:31, Checkpoint 1 at 17:51, same session, same author. Twenty
+minutes of precedence proved nothing. The approval block is what bites.
+
+**c. Three structural requirements, adopted as written:**
+1. **A named approver and an empty approval line** — a SHA and a timestamp someone other than the
+   author fills in.
+2. **Mandatory checkpoints are marked MANDATORY; optional ones are dropped.** The S3 gate's only
+   invitation for a human read *"if desired"* and was therefore skipped — that was its one lapsed
+   condition.
+3. **Scope exclusions get a rail, not a sentence.** Each exclusion names the paths that would
+   evidence a breach; the check is *commits on those paths with no `LEDGER.md` row*.
+
+**First instance of (c)(3) is written and has been watched failing:** the S3 gate packet's own
+exclusion rail returns **S2 10 commits · S7 4 · D1 9** against real history, D1's first landing
+**1h37m after the packet excluded it.** See `12-decisions/gates/entity-master-pre-implementation-gate.md`
+→ *THE EXCLUSION RAIL*.
+
+**First gate to actually precede its implementation:** `GATE-I1`, approved 2026-09-11 at
+`cd1b37cfc`, scope limited to the first slice (F-I1-1, F-I1-4, adversarial cases).
+
 ## How the control files drifted (read before trusting them)
 
 Between 2026-09-02 17:14 and 2026-09-03 07:19, thirteen commits landed across several branches' worth of

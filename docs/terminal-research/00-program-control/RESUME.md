@@ -68,12 +68,25 @@ itself**. Read that section before planning any build work.
 
 ## What is blocked
 
-Nothing is blocked on research. Two things are waiting on the owner:
+Nothing is blocked on research, and the two items that were waiting on the owner are **closed**:
 
-1. **S8's overall completion status** — the PRD/spec frontmatter both read "awaiting owner sign-off." S10 (Presentation Primitives) and the vendor-side entitlement taxonomy (SPEC-S8 §17a) are formally DEFERRED, neither blocking.
-2. **The Entity Master pre-implementation gate packet** — final, presented, awaiting explicit approval.
+- ✅ **S8 completion status — SIGNED OFF 2026-09-11**, with S10 and the vendor-side entitlement taxonomy (SPEC-S8 §17a) formally DEFERRED, neither blocking.
+- ✅ **Entity Master gate packet — APPROVED 2026-09-11** (conditional on the spec re-verification, which came back clean: 34/36 paths VERIFIED, 0 MOVED, 0 CHANGED).
+- ✅ **The 50-commit merge `ed6b1f041` — AUTHORIZED.** Owner's work in a separate session; a **recording failure only**, now recorded in [`LEDGER.md`](LEDGER.md). ⛔ **Closed. Do not re-raise it.**
 
-Standing owner inputs remain open and undecided by silence: OI-03(a)/(b) (Massive tier / FMP DDLA — moves 57 licensing-register rows), OI-06 (one observed desk morning — the highest-leverage input remaining), OI-08/OI-18, OI-21, and D-003 (decisiveness for two audiences).
+## ⛔ OWNER-BOUND OPEN ITEMS — standing, do not re-raise per report
+
+**The owner will supply these unprompted. Never assume a value, never let silence decide one, and
+do not list them again as a question in a session report.**
+
+| item | what it gates |
+|---|---|
+| **OI-03(a)** Massive plan tier (Individual vs Business) | 38 licensing-register rows |
+| **OI-03(b)** FMP Data Display & Licensing Agreement — exists? | 19 rows. ⛔ **57 rows stay FLAGGED between (a) and (b)** |
+| **OI-06** one observed or narrated desk morning | DEC-01 workspace model + DEC-02 command-grammar default. ⛔ **The S1/S2 gate exception stays OPEN until this lands**; its findings then get diffed against the shipped palette and drive a rework list — they are not discarded |
+| **OI-08 / OI-18** Bloomberg / Gödel access | validation tier only; nothing depends on either |
+| **OI-21** four read-only telemetry queries + `charts_workspace_layout` distribution | sharpens S6's build order; blocks nothing |
+| **D-003 / DEC-09** decisiveness for two audiences | ✅ **RULED: decisive for everyone, implemented as a configuration value.** ⛔ Does not apply to I1, which is the Explain role and never renders a verdict |
 
 ## Where to pick up
 

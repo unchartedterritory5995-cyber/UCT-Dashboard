@@ -12,11 +12,20 @@ date: 2026-09-11
 ## ⛔ APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
-APPROVED BY:      ____________________   (owner)
-APPROVED ON:      ____________________   (date, time, timezone)
-APPROVED AT SHA:  ____________________   (origin/master at approval)
-SCOPE APPROVED:   [ ] all of §3   [ ] only: ______________________
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-11
+APPROVED AT SHA:  cd1b37cfc87a806006d5e46e8382ceb25b308457   (this packet as it stood at approval)
+SCOPE APPROVED:   [ ] all of §3   [x] only: FIRST SLICE — F-I1-1 (S8-boundary AST rail),
+                  F-I1-4 (_full_text() completeness rail), and adversarial cases for the
+                  hard boundary. No new capability, no member-visible change, no changes to
+                  the eight composers' behaviour.
+                  ⛔ F-I1-2 and F-I1-3 are NOT in scope — each needs its own approval line.
 ```
+
+✅ **APPROVED 2026-09-11.** Implementation authorized on branch `feat/i1-rails` (Wave 1.5) under
+exactly the scope above. ⚠️ Note the honest asymmetry, recorded rather than smoothed: this packet
+was written and approved **after** I1's Slices 1–3 shipped. It gates the *next* change, which is the
+first one this rule has ever actually preceded.
 
 ⛔ **No Checkpoint 1 commit may be authored until the four lines above are filled in and committed.**
 This block exists because of the S3 case: that gate packet's date *did* precede its first

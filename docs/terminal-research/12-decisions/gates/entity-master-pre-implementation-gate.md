@@ -58,6 +58,47 @@ sources: PRD-S3-ENTITY-MASTER (prds/entity-master-prd.md, all 18 sections, read 
 > ⭐ **The honest read: this packet did not fail. It was a gate in a program that had already become
 > a build program without saying so** — which is the same root cause as the 50 unrecorded commits,
 > seen from a different angle. See `PROGRAM_STATUS.md` → *How 50 commits went unrecorded*.
+>
+> ---
+>
+> ## THE EXCLUSION RAIL — first instance of the pattern (owner ruling 3c, 2026-09-11)
+>
+> §15 excludes **S2, S4, S5, S7, D1, D2** by name. That was a sentence, and a sentence cannot fail.
+> Here is the same exclusion as a runnable query, with the result it returns against real history:
+>
+> ```bash
+> GATE=c46048ae6   # this packet, committed 2026-09-02 17:31:01 -0500
+> for sys in "S2:app/src/components/CommandPalette.jsx" \
+>            "S7:api/services/alert_taxonomy" \
+>            "D1:api/services/fmp_client.py api/services/provider_licensing_class.py" \
+>            "D2:api/services/canonical_model"; do
+>   name="${sys%%:*}"; paths="${sys#*:}"
+>   n=$(git log --format='%h' 9c3df14b9..origin/master -- $paths | wc -l)
+>   echo "$name commits=$n"
+> done
+> ```
+>
+> **Result, run 2026-09-11:**
+>
+> | excluded system | commits on its created paths | first one |
+> |---|---|---|
+> | **S2** | **10** | `0eec8343d` 2026-09-03 10:55 — "Narrow S1+S2 slice: global Ctrl/Cmd+K command palette" |
+> | **S7** | **4** | `e994f5337` 2026-09-03 10:05 — "S7 first slice: alert taxonomy package" |
+> | **D1** | **9** | `de579ec8a` 2026-09-02 **19:08** — "D1: shared error taxonomy and licensing-class lookup" |
+> | S4 · S5 · D2 | **0** | — (D2 has no created paths; it is genuinely unbuilt) |
+>
+> ⛔ **D1's first excluded-system commit lands one hour and thirty-seven minutes after this packet
+> declared it out of scope.** The rail returns non-zero for three of the six excluded systems.
+>
+> ⭐ **This is what an exclusion rail is for, and why it is written here rather than described:
+> it FAILS, on the real history, today.** A rail nobody has watched fail is not a rail — this one has
+> now been watched failing, and its failure is the acceptance evidence for the pattern.
+>
+> **The generalized form, binding on every future gate packet:** each exclusion names the paths that
+> would evidence it being breached, and the check is *"commits on those paths with no
+> [`LEDGER.md`](../../00-program-control/LEDGER.md) row."* A commit with a ledger row is recorded
+> work the owner can see; a commit without one is the failure mode this whole program was
+> reconstructed to prevent.
 
 No application code has been modified to produce this packet. No new research was opened. The PRD
 and technical specification were read in full and independently re-verified against the current

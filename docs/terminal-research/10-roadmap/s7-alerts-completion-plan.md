@@ -117,10 +117,27 @@ first — the substrate's genericness is the asset.
 - **`position-risk` (order 5) inherits the placeholder-stop trap.** A broker import stores
   `stop == entry`; counting that as a real stop fires "at stop" on import. The Awareness Engine
   already solves this — reuse its rule, do not re-derive it.
+## 4a. ⛔ THE ABSORPTION DEFAULT (owner ruling, 2026-09-11) — binding on every trigger type
+
+**For every absorbed legacy path, the default is:**
+
+1. **The legacy path STAYS LIVE.** It is not touched when the new trigger type ships.
+2. **The new trigger type runs DARK — no member delivery** — until the owner flips it, **per type.**
+3. ⛔ **The flip and the legacy switch-off happen in the SAME PR.** Never two PRs, never two deploys.
+
+⭐ **Because shipping two alerts for one event is never acceptable.** A member who gets a
+`watchlist_alerts` email and an `alert_fires` in-app notification for the same price cross has been
+given a worse product by a migration that was supposed to consolidate. The dark period is where the
+new type earns trust against the old one on the same events; the single PR is what guarantees there
+is no window in which both deliver.
+
+**What "dark" means concretely:** the trigger type evaluates, writes its `alert_fires` rows and its
+receipts, and **does not call `delivery.py`.** That makes the dark period directly measurable — the
+fires can be diffed against the legacy path's fires for the same window before anything is flipped.
+
 - **Absorption is a product decision, not a refactor.** Each of orders 1–5 retires or duplicates an
   existing member-visible alert path. ⛔ **Whether the old path is switched off, and when, is the
-  owner's call per type** — shipping S7's version alongside the old one means members get two alerts
-  for one event.
+  owner's call per type** — governed by the default above.
 
 ## 5. Estimated sizes
 
