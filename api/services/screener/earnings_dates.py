@@ -160,7 +160,7 @@ def _fetch_window(d0: datetime.date, d1: datetime.date) -> list | None:
     try:
         data = earnings_estimates._fmp_get(
             "/stable/earnings-calendar",
-            {"from": d0.isoformat(), "to": d1.isoformat()})
+            {"from": d0.isoformat(), "to": d1.isoformat()}, timeout=10)
     except Exception as e:  # noqa: BLE001 — one chunk's failure must never kill the batch
         log.warning("[screener] earnings_dates: chunk %s raised: %s", _window_label(d0, d1), e)
         return None

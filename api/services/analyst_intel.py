@@ -21,7 +21,7 @@ def _round(v, n=1):
 
 # ── FMP slices (mockable; exact paths verified live, fall back to None) ──────
 def _fmp_consensus(ticker):
-    data = ee._fmp_get("/stable/grades-consensus", {"symbol": ticker})
+    data = ee._fmp_get("/stable/grades-consensus", {"symbol": ticker}, timeout=10)
     row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
     if not row:
         return None
@@ -38,7 +38,7 @@ def _fmp_price_target(ticker):
     # /stable/price-target-summary only has monthly AVERAGE aggregates (no
     # low/high) — /stable/price-target-consensus is the range endpoint
     # (targetLow/targetHigh/targetConsensus/targetMedian).
-    data = ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker})
+    data = ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=10)
     row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
     if not row:
         return None
@@ -53,7 +53,7 @@ def _fmp_recent_actions(ticker):
     # /stable/grades-historical is aggregate buy/hold/sell COUNTS per date
     # (no firm) — /stable/grades-news carries the per-firm action fields
     # (gradingCompany/action/previousGrade/newGrade) this function reads.
-    data = ee._fmp_get("/stable/grades-news", {"symbol": ticker, "limit": 20})
+    data = ee._fmp_get("/stable/grades-news", {"symbol": ticker, "limit": 20}, timeout=10)
     if not isinstance(data, list):
         return []
     out = []

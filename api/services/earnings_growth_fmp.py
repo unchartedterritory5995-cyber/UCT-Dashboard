@@ -140,7 +140,7 @@ def _profile(sym: str):
         return None if hit == _SENTINEL else hit
 
     try:
-        rows = _ee._fmp_get("/stable/profile", {"symbol": sym})
+        rows = _ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=10)
     except Exception as exc:                           # noqa: BLE001
         _log.warning("FMP profile failed for %s: %s", sym, exc)
         rows = None
@@ -239,7 +239,7 @@ def earnings_growth_pct(ticker: str) -> float | None:
 
     try:
         rows = _ee._fmp_get("/stable/income-statement",
-                            {"symbol": sym, "period": "quarter", "limit": _QUARTERS})
+                            {"symbol": sym, "period": "quarter", "limit": _QUARTERS}, timeout=10)
     except Exception as exc:                       # noqa: BLE001 - never raise
         _log.warning("FMP income statement failed for %s: %s", sym, exc)
         rows = None

@@ -720,7 +720,7 @@ def _year_earnings_from_fmp_income(ticker: str, year: int) -> list:
         "fmp_is", ticker,
         lambda n: _fmp_get("/stable/income-statement",
                            {"symbol": ticker, "period": "quarter",
-                            "limit": min(int(n), 60)}))
+                            "limit": min(int(n), 60)}, timeout=10))
     if not isinstance(rows, list):
         return []
     out = []

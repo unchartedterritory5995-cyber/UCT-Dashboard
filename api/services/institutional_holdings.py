@@ -146,7 +146,7 @@ def _fmp_ownership(ticker):
     for year, quarter in _recent_13f_quarters():
         try:
             data = ee._fmp_get("/stable/institutional-ownership/extract-analytics/holder",
-                               {"symbol": ticker, "year": year, "quarter": quarter, "limit": 20})
+                               {"symbol": ticker, "year": year, "quarter": quarter, "limit": 20}, timeout=10)
         except Exception:
             continue
         rows = data if isinstance(data, list) else []

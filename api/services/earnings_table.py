@@ -199,7 +199,7 @@ def _next_earnings(ticker):
     # multi-day calendar sweep), so the "one call per day" truncation rule
     # that governs the calendar.py/calendar_alerts.py breadth legs doesn't
     # apply here.
-    fmp_rows = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
+    fmp_rows = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8}, timeout=10)
     if isinstance(fmp_rows, list):
         today_iso = today.isoformat()
         upcoming = [
@@ -309,7 +309,7 @@ def _fmp_forward_quarters(ticker, limit, reported_labels=frozenset()):
     if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
         return []
     data = ee._fmp_get("/stable/analyst-estimates",
-                       {"symbol": ticker, "period": "quarter", "limit": 40})
+                       {"symbol": ticker, "period": "quarter", "limit": 40}, timeout=10)
     if not isinstance(data, list):
         return []
     from datetime import date, timedelta
@@ -389,7 +389,7 @@ def _next_report_date(ticker, now=None):
     made the seam untestable — a pinned-date test drifted into failure the day
     its fixture's scheduled report slipped into the real past."""
     try:
-        data = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
+        data = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8}, timeout=10)
         if isinstance(data, list):
             from datetime import date, datetime, timezone
             today = (date.today().isoformat() if now is None else

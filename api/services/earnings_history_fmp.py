@@ -137,12 +137,12 @@ def fmp_beat_history(ticker: str, limit: int = 8) -> list[dict] | None:
 
     # Ask for more than `limit`: forward (not-yet-reported) rows are filtered
     # out below, and they sit at the TOP of a newest-first list.
-    earnings = _ee._fmp_get("/stable/earnings", {"symbol": sym, "limit": max(limit * 2, 16)})
+    earnings = _ee._fmp_get("/stable/earnings", {"symbol": sym, "limit": max(limit * 2, 16)}, timeout=10)
     if not isinstance(earnings, list):
         return None                      # a shrug, not an answer
 
     income = _ee._fmp_get("/stable/income-statement",
-                          {"symbol": sym, "period": "quarter", "limit": max(limit * 2, 16)})
+                          {"symbol": sym, "period": "quarter", "limit": max(limit * 2, 16)}, timeout=10)
     # A missing income statement costs fiscal identity, NOT the whole history.
     # Rows still carry EPS + revenue; the client falls back to deriving a label
     # from the period date. Degrade, don't disappear.

@@ -137,7 +137,7 @@ def _fetch(symbol: str, year: int, quarter: int) -> Optional[dict]:
     data = ee._fmp_get(
         "/stable/earning-call-transcript",
         {"symbol": symbol, "year": year, "quarter": quarter},
-    )
+    timeout=10)
     if isinstance(data, list) and data and isinstance(data[0], dict):
         return data[0]
     return None
@@ -145,7 +145,7 @@ def _fetch(symbol: str, year: int, quarter: int) -> Optional[dict]:
 
 def _available(symbol: str) -> list[tuple[int, int]]:
     """[(fiscalYear, quarter), ...] newest-first from the transcript-dates index."""
-    data = ee._fmp_get("/stable/earning-call-transcript-dates", {"symbol": symbol})
+    data = ee._fmp_get("/stable/earning-call-transcript-dates", {"symbol": symbol}, timeout=10)
     out: list[tuple[int, int]] = []
     if isinstance(data, list):
         for row in data:
