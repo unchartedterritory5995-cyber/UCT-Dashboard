@@ -1,5 +1,41 @@
 # Capture procedure — driving a live TradingView chart
 
+## ⛔⛔ A THIRD WAY A CAPTURE WINDOW GOES DARK: IT IS NOT ON THE SCREEN
+
+**Measured 2026-09-12**, on the rig tab, before the first write of the layout conversion:
+
+```
+document.visibilityState  "hidden"       document.hasFocus()  true
+window.screenX / screenY   2308 / -1272     outerHeight  1015
+screen.width / height      3440 / 1440      availHeight  1392
+```
+
+The frame spans y = −1272 … −257: **entirely above the top of the display.** Chrome's
+native window-occlusion tracking marks the tab hidden while it still holds keyboard
+focus, and the compositor keeps painting for the capture API — so screenshots come back
+looking healthy and clicks do not land.
+
+⭐ **THE SIGNATURE, so the next session recognises it in one read:**
+`visibilityState === "hidden"` **AND** `hasFocus() === true` **AND** `screenY` outside
+`[0, availHeight)`. Compare:
+
+| case | `visibilityState` | `hasFocus()` | tell |
+|---|---|---|---|
+| minimised (2026-09-11) | hidden | false | dimensions collapse |
+| occluded (2026-09-12) | hidden | false | healthy dimensions, another window on top |
+| **off-screen (2026-09-12)** | **hidden** | **true** | healthy dimensions, `screenY` off the desktop |
+
+⛔ **AND THIS ONE CANNOT BE FIXED FROM THIS SIDE.** The standing instruction is not to
+move or resize the window, and the other two cases' remedies (click to raise, new tab)
+cannot bring a frame back onto the desktop. It is a STOP with a sentence for the owner,
+not a retry.
+
+⚠️ One click was spent before the read — TradingView's own context-menu
+**"Remove 19 indicators"** — and it did not take. A click that silently does nothing is
+consistent with a window that is not hit-testable, and it is the reason the read comes
+BEFORE the click and not after.
+
+
 The rules for taking a vendor capture. The mechanics live in
 `tools/visual_conformance/README.md`; this page is the **procedure**, and it exists because
 every rule below was learned by losing time to it.

@@ -1,5 +1,89 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⛔⛔ SESSION 2 CLOSE-OUT — THE BROWSER LANE STOPPED, THE CODE LANES SHIPPED
+
+### The stop, first, because it decides three of the seven parts
+
+`document.visibilityState` read **`"hidden"`** on the rig tab before the first write of
+Part 0. Under the standing rule — *"if it reads 'hidden' again at any point before an
+add, stop immediately rather than clicking"* — the browser lane stopped there.
+
+⭐ **AND THIS TIME THE CAUSE IS NAMEABLE.** Nothing is covering the window: **it is not
+on the screen.**
+
+```
+document.visibilityState  "hidden"      document.hasFocus()  true
+window.screenX / screenY   2308 / -1272    outerHeight  1015
+screen.width / height      3440 / 1440     availHeight  1392
+```
+
+The window's top edge sits **1,272 px above** the top of the display and its bottom edge
+at **y = −257** — the entire frame is off the top of the desktop. Chrome's native window
+occlusion tracking therefore reports the tab hidden **while it still holds keyboard
+focus**, which is why `hasFocus()` is `true` and the screenshots still render: the
+compositor keeps painting for the capture API. Re-read at the end of the session:
+identical, byte for byte.
+
+⚰️ **THIS IS A THIRD, DISTINCT FAILURE MODE** beside the 2026-09-11 minimised case and
+the 2026-09-12 occluded case. Its signature is the pair `hidden` + `hasFocus() === true`
++ an off-screen `screenY`, and unlike the other two **it cannot be fixed from this side**:
+the standing instruction is not to move or resize the window. One click was spent before
+the read — TradingView's own context-menu item *"Remove 19 indicators"* — and it did not
+take, which is consistent with the window not being hit-testable.
+
+⛔ **NOTHING WAS SAVED TO THE ACCOUNT.** The one permitted layout save never happened,
+because the state it was meant to capture (0 studies) was never reached. The rig still
+holds its 19 studies and its title is still the disposable agent layout.
+
+### What that blocks, exactly
+
+| part | blocked because |
+|---|---|
+| **0 — convert e3cTXatd into the scratch rig** | every removal is a click; the save is a write |
+| **3 — v2 fixture completion + HVE symbol capture** | reading the pane's cells is a capture |
+| **6 — the 20 remaining pine_oos scripts** | all 20 are `storage: "local-only"` in `MANIFEST.json` — every one needs a fresh fetch |
+| **5 — T5's flag-on/flag-off screenshots** | a screenshot |
+
+⭐ The 20 owed scripts are **named**, not counted: 5 high_engagement (08, 13, 17, 19, 21),
+7 long_tail (01, 10, 14, 15, 18, 19, 20), 8 mid_engagement (01, 03, 04, 05, 08, 10, 15,
+23). Their `sha256_source` is already in the manifest, so each capture is verifiable
+against a recorded hash rather than trusted.
+
+### T5 was NOT built, and the reason is not the browser
+
+⛔ **THE PANE COULD NOT DRAW THE ONE SCRIPT IT IS FOR.** T3 measured that
+`uncharted-volume-v2.pine` is refused by the shipped install door at `resolve:window`
+(the bind-time `isweekly` ternary), so a `MemberPane` built today would be a flag-gated
+component whose only exercise is a synthetic script, invisible to every human, with a
+per-series error table that has no vendor numbers to compare against — *built, tested,
+green and unreachable*, which is a shape this repo has paid for repeatedly.
+
+⭐ It unblocks on **one ruling**: whether `interpret.js::ownLookback` (and its Python
+mirror) should learn the bind-foldable fold `lint.js::maxLookback` already performs.
+
+### Numbers
+
+| | |
+|---|---|
+| corpus metric | **31/44 of 266** — unmoved by D1 and D2, correctly: they change which column is OFFERED and which sentence is SHOWN, not what translates |
+| chart suite | 417 files · **8,601 passed · 10 failed · 32 skipped** |
+| the 10 reds | all measured red at HEAD on a byte-identical restore; 5 are the missing pine_oos corpus, 5 are the known UI doors |
+| python lane, run 3 | **23,776 passed · 41 failed · 56 skipped · 10 xfailed**, 12/12 chunks completed, **0 KILLED** |
+| python, every test importing `ast_table` | **1,120 passed · 2 skipped · 1 xfailed** (after the change) |
+| `npx vite build` | succeeds, 21.8 s |
+
+⚠️ Run 3 was in flight before this session's commits, so its 41 reds are the PRE-change
+baseline; the five new `test_alert_condition_note.py` cases are not in it. Red chunks
+1, 5, 7, 8, 9, 10, 11, 12 — identical to run 2 through chunk 5, which is what a stable
+baseline looks like.
+
+### ⚠️ One byte-cost worth knowing
+
+`_alertconditions` is in `manifestProse.KEEP`, and KEEP is all-or-nothing per top-level
+key — so its `_` and `_ruling` prose ship in the bundle, exactly as `_folds`' does. About
+1.5 KB. Recorded rather than trimmed: the rulings are the reason the sentence has one
+home, and a KEEP that dropped sub-keys would be a second stripping rule to get wrong.
+
 ## ⭐⭐ SESSION 2 · T3 — THE MEMBER-PANE PATH, AND THE WALL IT HITS
 
 `app/src/components/chart/builder/memberPane/memberPaneDefinition.js` — the one
