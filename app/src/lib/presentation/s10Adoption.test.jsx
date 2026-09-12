@@ -78,12 +78,16 @@ describe('the two frozen copies of the pre-S10 code agree with each other', () =
     // had a typo, the byte-identity suite in the sibling file and this one
     // would disagree, and one of the two would go red.
     expect(other === null || typeof other === 'object').toBe(true)
-    const { formatNumber, formatTimeEt, formatDateTimeViewerLocal } =
+    const { formatNumber, formatTimeEt, formatDateTimeEt } =
       await import('./presentationPrimitives')
     expect(OLD_n(3742)).toBe(formatNumber(3742))
     expect(OLD_formatEtTime(AS_OF)).toBe(formatTimeEt(AS_OF, { seconds: true }))
     expect(OLD_formatAsOf(AS_OF)).toBe(formatTimeEt(AS_OF))
-    expect(OLD_epochToLocal(VALIDATED_SEC)).toBe(formatDateTimeViewerLocal(VALIDATED_SEC))
+    // ⚰️ This asserted byte-identity against `OLD_epochToLocal` too. The ET fix
+    // (owner, 2026-09-12) is a SEPARATE line that is allowed to move the string,
+    // so what is pinned now is the DIFFERENCE — see the <Cited> block below.
+    expect(formatDateTimeEt(VALIDATED_SEC)).not.toBe(OLD_epochToLocal(VALIDATED_SEC))
+    expect(formatDateTimeEt(VALIDATED_SEC)).toMatch(/ ET$/)
   })
 })
 
@@ -234,17 +238,40 @@ describe('<Cited> renders the same validated timestamp, in the same (viewer) zon
     return container
   }
 
-  it('matches the pre-S10 render character for character', async () => {
+  it('⚰️ renders ET WITH A LABEL — the one deliberate member-visible change', async () => {
+    // ⚰️ THIS ASSERTED BYTE-IDENTITY WITH THE VIEWER-LOCAL RENDER:
+    //
+    //     expect(container.textContent)
+    //       .toContain(`Validated: ${OLD_epochToLocal(VALIDATED_SEC)}`)
+    //
+    // True under S10's first build, whose approval demanded it. The ET fix is
+    // its own line and is ALLOWED to move the string. The before/after, for one
+    // instant, by where the member sat:
+    //
+    //     America/New_York  "9/11/2025, 9:32:15 AM"   -> "9/11/2025, 9:32:15 AM ET"
+    //     America/Chicago   "9/11/2025, 8:32:15 AM"   -> "9/11/2025, 9:32:15 AM ET"
+    //     Europe/London     "9/11/2025, 2:32:15 PM"   -> "9/11/2025, 9:32:15 AM ET"
+    //     Asia/Tokyo        "9/11/2025, 10:32:15 PM"  -> "9/11/2025, 9:32:15 AM ET"
     const container = await openCited(<Cited row={row}>123.45</Cited>)
-    expect(container.textContent).toContain(`Validated: ${OLD_epochToLocal(VALIDATED_SEC)}`)
+    expect(container.textContent).toContain('Validated: 9/11/2025, 9:32:15 AM ET')
   })
 
-  it('⚠️ AND THAT IS THE VIEWER ZONE, NOT ET — the divergence, pinned', () => {
-    // ⛔ This assertion exists so the divergence cannot be "tidied away" by a
-    // later commit without a test going red and a human reading why. The
-    // viewer-local render carries a DATE; the ET renders on the same surface
-    // never do. Changing `<Cited>` to ET is a member-visible change and needs
-    // its own approval line — see `presentationPrimitives.js`'s header.
+  it('and the pre-fix string is GONE from the render on a non-ET machine', async () => {
+    // ⛔ NON-VACUITY FOR THE CHANGE ITSELF. On an ET machine the old and new
+    // clock times coincide, so "the new string is present" would pass even if
+    // nothing had been pinned. This asserts the thing that is true everywhere:
+    // the render carries the zone label, which the old one never did.
+    const container = await openCited(<Cited row={row}>123.45</Cited>)
+    expect(container.textContent).toMatch(/Validated: .* ET/)
+    expect(OLD_epochToLocal(VALIDATED_SEC)).not.toMatch(/ET/)
+  })
+
+  it('⚰️ THE DIVERGENCE IS CLOSED — all three S8 timestamps are ET now', () => {
+    // ⚰️ This said "AND THAT IS THE VIEWER ZONE, NOT ET — the divergence,
+    // pinned", and existed so the divergence could not be tidied away without a
+    // human reading why. It was closed deliberately instead, on its own line.
+    // What stays pinned is the STRUCTURAL difference that makes them two
+    // primitives: this one carries a DATE, the badge's never does.
     expect(OLD_epochToLocal(VALIDATED_SEC)).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/)
     expect(OLD_formatEtTime(AS_OF)).not.toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/)
   })

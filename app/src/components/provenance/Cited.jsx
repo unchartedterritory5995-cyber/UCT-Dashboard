@@ -22,7 +22,7 @@
 
 import { useId, useState } from 'react'
 import UIcon from '../ui/UIcon'
-import { formatDateTimeViewerLocal } from '../../lib/presentation/presentationPrimitives'
+import { formatDateTimeEt } from '../../lib/presentation/presentationPrimitives'
 import styles from './Cited.module.css'
 
 // ⚰️ `epochToLocal` LIVED HERE. It is now S10's
@@ -34,17 +34,31 @@ import styles from './Cited.module.css'
 //     }
 //
 // ⚠️⚠️ AND MOVING IT MADE A REAL DEFECT VISIBLE THAT HAD NO NAME BEFORE.
-// This renders in the VIEWER's timezone. Its two neighbours in this same
-// directory — `<Provenance>`'s "Observed:" line and `<FreshnessBadge>`'s "as
-// of" clause — pin ET. So on one S8 surface a member outside ET reads two
-// timestamps in two different zones, and NEITHER carries a zone label.
+// IT IS NOW FIXED, on its own line (owner, 2026-09-12).
 //
-// ⛔ IT IS NOT FIXED HERE, DELIBERATELY. S10's approved scope is "no
-// member-visible layout change; snapshot tests prove S8 renders byte-identical
-// before and after adoption" — and changing this zone moves a rendered string
-// for every member outside ET, which is exactly what that condition forbids.
-// Recorded in `presentationPrimitives.js`'s own header, railed by
-// `presentationPrimitives.test.js`, and it needs its own approval line.
+// This rendered in the VIEWER's timezone while its two neighbours in this same
+// directory — `<Provenance>`'s "Observed:" line and `<FreshnessBadge>`'s "as of"
+// clause — pinned ET, and NEITHER carried a zone label, which is the half that
+// made it invisible. One instant, one S8 surface, read four different ways
+// depending on where the member sat:
+//
+//     viewer zone        BEFORE                      AFTER
+//     America/New_York   "9/11/2025, 9:32:15 AM"     "9/11/2025, 9:32:15 AM ET"
+//     America/Chicago    "9/11/2025, 8:32:15 AM"     "9/11/2025, 9:32:15 AM ET"
+//     Europe/London      "9/11/2025, 2:32:15 PM"     "9/11/2025, 9:32:15 AM ET"
+//     Asia/Tokyo         "9/11/2025, 10:32:15 PM"    "9/11/2025, 9:32:15 AM ET"
+//
+// ⭐ A LONDON READER WAS SHOWN A BAR VALIDATED AT "2:32 PM" AND NOTHING SAID
+// WHICH AFTERNOON THAT WAS. A provenance surface whose whole job is to say when
+// a value was true cannot leave the reader to guess the zone.
+//
+// ⛔ MEMBER-VISIBLE, DELIBERATELY. S10's first build could not make this change
+// — its approval required byte-identical rendering — which is exactly why this
+// one is a separate line: it is allowed to move a string, and it does.
+//
+// ⛔ THE LABEL IS THE OTHER HALF. Pinning the zone silently would swap one
+// unlabelled timestamp for another, and a London reader would see a number three
+// hours earlier than yesterday's with nothing to explain it.
 
 export default function Cited({ children, row = null }) {
   const panelId = useId()
@@ -68,7 +82,7 @@ export default function Cited({ children, row = null }) {
     ? [
       `${row.ticker} · ${row.tf}`,
       `Source: ${row.source}`,
-      row.validated_at && `Validated: ${formatDateTimeViewerLocal(row.validated_at)}`,
+      row.validated_at && `Validated: ${formatDateTimeEt(row.validated_at)}`,
       row.verified_at ? 'Reconciliation: verified' : 'Reconciliation: not yet verified',
     ].filter(Boolean)
     : [row.uctUri && `Address: ${row.uctUri}`].filter(Boolean)

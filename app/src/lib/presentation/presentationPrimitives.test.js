@@ -33,7 +33,7 @@ import {
   formatPercent,
   formatCurrency,
   formatTimeEt,
-  formatDateTimeViewerLocal,
+  formatDateTimeEt,
   formatFreshnessAsOf,
 } from './presentationPrimitives'
 
@@ -134,10 +134,21 @@ describe('S10 primitives are byte-identical to the helpers they replace', () => 
     }
   })
 
-  it('formatDateTimeViewerLocal reproduces Cited.epochToLocal', () => {
+  it('⚰️ formatDateTimeEt DELIBERATELY DIVERGES from Cited.epochToLocal', () => {
+    // ⚰️ THIS ASSERTED `.toBe(OLD_epochToLocal(v))` AND IT WAS TRUE. S10's first
+    // build kept `<Cited>`'s viewer-local render byte-identical because its
+    // approval demanded it. The ET fix (owner, 2026-09-12) is a SEPARATE line
+    // that is ALLOWED to move the string, so the byte-identity claim is retired
+    // here rather than deleted — and replaced by the record of what changed.
     for (const v of EPOCH_SECOND_INPUTS) {
-      expect(formatDateTimeViewerLocal(v), `formatDateTimeViewerLocal(${String(v)})`)
-        .toBe(OLD_epochToLocal(v))
+      if (!Number.isFinite(v)) {
+        // The ABSENT behaviour is unchanged, and that half still must not move.
+        expect(formatDateTimeEt(v), `formatDateTimeEt(${String(v)})`)
+          .toBe(OLD_epochToLocal(v))
+      } else {
+        expect(formatDateTimeEt(v)).toMatch(/ ET$/)
+        expect(OLD_epochToLocal(v)).not.toMatch(/ ET$/)
+      }
     }
   })
 })
@@ -188,7 +199,7 @@ describe('the absent sentinel is the caller\u2019s choice, not a constant', () =
     expect(formatNumber(NaN)).toBe(ABSENT)
     expect(formatCurrency(NaN)).toBe(ABSENT)
     expect(formatTimeEt(null)).toBe(null)
-    expect(formatDateTimeViewerLocal(NaN)).toBe(null)
+    expect(formatDateTimeEt(NaN)).toBe(null)
   })
 
   it('and every one of them is overridable, because the S8 four disagree', () => {
@@ -284,23 +295,42 @@ describe('formatTimeEt pins the market zone regardless of where the reader is', 
   })
 })
 
-describe('formatDateTimeViewerLocal is the recorded divergence, not a bug to fix here', () => {
-  it('renders in the VIEWER zone while formatTimeEt renders in the market zone', () => {
-    // ⚠️ These two CAN agree — when the test machine is itself in ET, which it
-    // usually is. The point of this test is not that they differ; it is that
-    // they are computed by two different rules, and the assertion below is the
-    // one that stays true everywhere.
-    const sec = Date.UTC(2026, 8, 11, 13, 32, 15) / 1000
-    const local = formatDateTimeViewerLocal(sec)
-    expect(local).toBeTruthy()
-    // The viewer-local render carries a DATE; the ET render never does. That
-    // structural difference is what makes them two primitives, not one.
-    expect(local).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/)
-    expect(formatTimeEt(sec * 1000)).not.toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/)
+describe('⚰️ the recorded divergence is FIXED — the before/after, pinned', () => {
+  // ⛔ S10's first build recorded this as a defect it was not allowed to fix.
+  // The owner's line of 2026-09-12 fixed it. This block is the evidence, and it
+  // is written so a future "tidy-up" that un-pins the zone goes red.
+  const SEC = 1757597535   // 2025-09-11 13:32:15Z
+
+  it('renders the MARKET zone, not the viewer’s, and says so', () => {
+    expect(formatDateTimeEt(SEC)).toBe('9/11/2025, 9:32:15 AM ET')
   })
 
-  it('carries NO zone label — the half that makes the divergence invisible', () => {
-    const local = formatDateTimeViewerLocal(1757603535)
-    expect(local).not.toMatch(/\bET\b|\bUTC\b|\bGMT\b/)
+  it('the BEFORE string depended on where the member sat; the AFTER does not', () => {
+    // The retired rule, reproduced per zone. These are the strings four members
+    // were shown for ONE instant, none of them labelled:
+    const before = (tz) => new Date(SEC * 1000).toLocaleString('en-US', { timeZone: tz })
+    expect(before('America/New_York')).toBe('9/11/2025, 9:32:15 AM')
+    expect(before('America/Chicago')).toBe('9/11/2025, 8:32:15 AM')
+    expect(before('Europe/London')).toBe('9/11/2025, 2:32:15 PM')
+    expect(before('Asia/Tokyo')).toBe('9/11/2025, 10:32:15 PM')
+    // ⭐ A London reader was shown "2:32:15 PM" with nothing saying which
+    // afternoon that was. One answer now, for all four:
+    expect(formatDateTimeEt(SEC)).toBe('9/11/2025, 9:32:15 AM ET')
+  })
+
+  it('carries a zone label — the half that made the old defect invisible', () => {
+    expect(formatDateTimeEt(SEC)).toMatch(/ ET$/)
+    expect(OLD_epochToLocal(SEC)).not.toMatch(/ET|UTC|GMT/)
+  })
+
+  it('still carries a DATE, which is what distinguishes it from formatTimeEt', () => {
+    expect(formatDateTimeEt(SEC)).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/)
+    expect(formatTimeEt(SEC * 1000)).not.toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/)
+  })
+
+  it('absent is unchanged — the one half that had to stay byte-identical', () => {
+    for (const v of [NaN, null, undefined, '', Infinity]) {
+      expect(formatDateTimeEt(v)).toBe(OLD_epochToLocal(v))
+    }
   })
 })

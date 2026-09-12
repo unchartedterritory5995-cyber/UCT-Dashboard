@@ -162,29 +162,51 @@ export function formatTimeEt(value, { seconds = false, zoneSuffix = null, absent
 }
 
 /**
- * A full date-and-time in the VIEWER's own timezone.
+ * A full date-and-time, PINNED TO THE MARKET ZONE, with a visible label.
  *
- * ⚠️⚠️ THIS IS NOT THE SAME ZONE AS `formatTimeEt`, AND THAT DIVERGENCE IS
- * PRESERVED HERE ON PURPOSE, NOT ENDORSED. `Cited.jsx` has always rendered its
- * `Validated:` timestamp with a bare `toLocaleString('en-US')` — viewer-local —
- * while `<Provenance>` and `<FreshnessBadge>` pin ET a few pixels away. So a
- * member outside ET reads one S8 surface in two timezones, with no zone label
- * on either to tell them.
+ * ⚰️ THIS WAS `formatDateTimeViewerLocal`, AND IT WAS A REAL MEMBER-VISIBLE
+ * DEFECT. The retired implementation, verbatim:
  *
- * ⛔ THAT IS A REAL DEFECT AND FIXING IT IS NOT THIS COMMIT'S TO MAKE. S10's
- * approved scope is "no member-visible layout change; snapshot tests prove S8
- * renders byte-identical before and after adoption" — changing `Cited`'s zone
- * would move a rendered string for every member outside ET, which is precisely
- * the class of change the byte-identity condition exists to forbid. Recorded,
- * carried, and named so the next reader cannot mistake it for an oversight; the
- * fix needs its own line.
+ *     export function formatDateTimeViewerLocal(epochSeconds, { absent = null } = {}) {
+ *       if (!Number.isFinite(epochSeconds)) return absent
+ *       return new Date(epochSeconds * 1000).toLocaleString(LOCALE)
+ *     }
+ *
+ * A bare `toLocaleString` renders in the VIEWER's zone. `<Cited>` used it for
+ * its `Validated:` timestamp while `<Provenance>` and `<FreshnessBadge>` pinned
+ * ET a few pixels away — and NEITHER carried a zone label, which is the half
+ * that made it invisible. One instant, one S8 surface, read four different ways:
+ *
+ *     viewer zone        BEFORE                      AFTER
+ *     America/New_York   "9/11/2025, 9:32:15 AM"     "9/11/2025, 9:32:15 AM ET"
+ *     America/Chicago    "9/11/2025, 8:32:15 AM"     "9/11/2025, 9:32:15 AM ET"
+ *     Europe/London      "9/11/2025, 2:32:15 PM"     "9/11/2025, 9:32:15 AM ET"
+ *     Asia/Tokyo         "9/11/2025, 10:32:15 PM"    "9/11/2025, 9:32:15 AM ET"
+ *
+ * ⭐ A LONDON READER WAS SHOWN A BAR VALIDATED AT "2:32 PM" AND NOTHING SAID
+ * WHICH AFTERNOON THAT WAS. A provenance surface whose whole job is to say when
+ * a value was true cannot leave the reader to guess the zone.
+ *
+ * ⛔ S10's FIRST BUILD DELIBERATELY DID NOT FIX THIS — its approval required
+ * byte-identical rendering, and this moves a rendered string for every member
+ * outside ET. It is fixed on its own line (owner, 2026-09-12) and the
+ * before/after strings above are the record the ruling asked for.
+ *
+ * ⛔ THE LABEL IS NOT OPTIONAL. Pinning the zone without saying so would swap
+ * one unlabelled timestamp for another, and a member in London would silently
+ * read a number three hours earlier than the one they read yesterday.
  *
  * @param {*} epochSeconds
  * @param {{absent?: *}} [options]
  */
-export function formatDateTimeViewerLocal(epochSeconds, { absent = null } = {}) {
+export function formatDateTimeEt(epochSeconds, { absent = null } = {}) {
   if (!Number.isFinite(epochSeconds)) return absent
-  return new Date(epochSeconds * 1000).toLocaleString(LOCALE)
+  const text = new Date(epochSeconds * 1000).toLocaleString(LOCALE, {
+    timeZone: MARKET_TIME_ZONE,
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+  })
+  return `${text} ET`
 }
 
 // --------------------------------------------------------------------------
