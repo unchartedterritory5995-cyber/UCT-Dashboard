@@ -172,7 +172,11 @@ def legacy_would_fire(params: dict[str, Any], *,
             t = (r.get("ticker") or "").upper()
             # The real expression, verbatim in shape:
             #     (c.get("grade") or "").upper() in grades
-            if t and (r.get("grade") or "").upper() in _cm.LEGACY_MUSTKNOW_GRADES:
+            # ⛔ THE ENV VAR, NOT THE CONSTANT — the legacy reads
+            # CATALYST_MUSTKNOW_GRADES at call time and production runs `A`, not
+            # the "A,B" code default. Mirroring the default would have reported
+            # every grade-B row as `new_only`.
+            if t and (r.get("grade") or "").upper() in _cm.mustknow_grades():
                 out.append(t)
     else:
         return []

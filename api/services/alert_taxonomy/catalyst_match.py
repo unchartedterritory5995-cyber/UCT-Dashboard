@@ -99,6 +99,7 @@ guessed from a prompt is the F-S7-4 mistake made deliberately.
 """
 from __future__ import annotations
 
+import os as _os
 from typing import Any, Iterable, Optional
 
 from api.services.alert_taxonomy import registry as _registry
@@ -129,10 +130,41 @@ COHORTS = (COHORT_SELF, COHORT_ADMINS)
 #: `_normalize_grade`'s own set, not a second copy of a guess.
 VALID_GRADES = ("A", "B", "C")
 
-#: ⛔ The legacy must-know default, `CATALYST_MUSTKNOW_GRADES` = "A,B". Stated as
-#: the DEFAULT it is, never as the rule: the env var can widen it and a predicate
-#: carries its own `min_grade` so the two cannot silently diverge.
+#: ⛔⛔ THE CODE DEFAULT, AND PRODUCTION DOES NOT RUN IT.
+#:
+#: `_fire_mustknow_alerts` reads `CATALYST_MUSTKNOW_GRADES` from the ENVIRONMENT
+#: at call time and only falls back to "A,B". Read live on `web`, 2026-09-12:
+#:
+#:     CATALYST_MUSTKNOW_ALERTS_ENABLED=1        <- ARMED
+#:     CATALYST_MUSTKNOW_GRADES=A                <- NARROWED to A only
+#:
+#: ⚰️ This constant was the mirror's whole answer for one commit, and that was a
+#: REAL MIRROR DEFECT: against production it would have called every grade-B row
+#: `new_only` — a disagreement manufactured by the harness, in the column that
+#: means "this member starts getting an alert they do not get today".
+#:
+#: ⛔ SO IT IS THE DEFAULT, NOT THE RULE. `mustknow_grades()` below reads the
+#: environment exactly as the legacy does, and
+#: `test_the_mirror_FOLLOWS_the_env_var_not_the_default` is the rail.
+#: ⭐ The lesson is the one this programme keeps paying for: a code default is
+#: not a configuration, and only a live read settles which is running.
 LEGACY_MUSTKNOW_GRADES = ("A", "B")
+
+
+def mustknow_grades() -> tuple:
+    """The must-know grade set the legacy path is ACTUALLY using, right now.
+
+    ⛔ READ AT CALL TIME, never captured at import — the legacy reads it per call
+    and a module-level capture would make the mirror silently correct only until
+    somebody changed the variable.
+
+    ⛔ THIS IS NOT A FLAG OF THIS TYPE'S OWN. CP1–CP2 add no gate and no
+    scheduler entry; this reads the LEGACY's configuration because a mirror that
+    ignored it would not be a mirror. The distinction is asserted in
+    `test_there_is_no_scheduler_entry_and_no_flag_for_this_type`.
+    """
+    raw = _os.environ.get("CATALYST_MUSTKNOW_GRADES", ",".join(LEGACY_MUSTKNOW_GRADES))
+    return tuple(g.strip().upper() for g in raw.split(",") if g.strip())
 
 #: The deterministic tag vocabulary from `tagging.py`. CLOSED — this one really
 #: is an enum, and saying so beside the open one is the point.
@@ -348,7 +380,7 @@ def would_fire(params: dict[str, Any], *,
             g = _norm_grade(r.get("grade"))
             if floor is None:
                 # No floor declared: the legacy default is the env var's A,B.
-                if g not in LEGACY_MUSTKNOW_GRADES:
+                if g not in mustknow_grades():
                     continue
             out.append((r.get("ticker") or "").upper())
 

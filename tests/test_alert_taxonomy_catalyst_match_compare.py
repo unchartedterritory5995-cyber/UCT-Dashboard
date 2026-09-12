@@ -242,6 +242,55 @@ def test_the_mirror_rail_CAN_FAIL(monkeypatch):
     assert [t for (_u, t) in real2] == ["NVDA"]
 
 
+def test_the_mirror_FOLLOWS_the_env_var_not_the_default(monkeypatch):
+    """⛔⛔ THE DEFECT THIS RAIL WAS ADDED FOR, FOUND BY A LIVE READ AFTER MERGE.
+
+    `_fire_mustknow_alerts` reads `CATALYST_MUSTKNOW_GRADES` from the environment
+    at call time. Read live on `web`, 2026-09-12: **`CATALYST_MUSTKNOW_GRADES=A`**
+    — production is NARROWER than the "A,B" code default.
+
+    ⚰️ For one commit the mirror answered from the CONSTANT, so against production
+    it would have called every grade-B row `new_only` — **a disagreement
+    manufactured by the harness, in the column that means "this member starts
+    getting an alert they do not get today".** A harness whose headline number is
+    its own misconfiguration is measuring its own plumbing.
+
+    ⭐ A code default is not a configuration, and only a live read settles which
+    one is running.
+    """
+    rows = _rows(("A1", "A", "Catalyst", "FDA"), ("B1", "B", "News", "Analyst"))
+
+    # the code default
+    monkeypatch.delenv("CATALYST_MUSTKNOW_GRADES", raising=False)
+    assert cm.mustknow_grades() == ("A", "B")
+    assert sorted(cmp_.legacy_would_fire(GRADE_PRED, displayed=rows, is_admin=True)) == ["A1", "B1"]
+    assert sorted(cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True)) == ["A1", "B1"]
+
+    # PRODUCTION's actual value
+    monkeypatch.setenv("CATALYST_MUSTKNOW_GRADES", "A")
+    assert cm.mustknow_grades() == ("A",)
+    assert cmp_.legacy_would_fire(GRADE_PRED, displayed=rows, is_admin=True) == ["A1"]
+    assert cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True) == ["A1"]
+
+    # ⭐ AND BOTH SIDES MOVED TOGETHER, which is the only thing that keeps the
+    # comparison honest: a tick under the production value reports NO
+    # disagreement, where the constant-based mirror would have reported one.
+    monkeypatch.setenv("CATALYST_MUSTKNOW_GRADES", "A")
+    dark = set(cm.would_fire(GRADE_PRED, displayed=rows, is_admin=True))
+    legacy = set(cmp_.legacy_would_fire(GRADE_PRED, displayed=rows, is_admin=True))
+    assert dark == legacy and (dark - legacy) == set() and (legacy - dark) == set()
+
+
+def test_the_env_read_is_at_CALL_TIME_not_import_time(monkeypatch):
+    """⛔ A module-level capture would make the mirror correct only until somebody
+    changed the variable — and correct-until-changed is how a mirror rots."""
+    monkeypatch.setenv("CATALYST_MUSTKNOW_GRADES", "A")
+    first = cm.mustknow_grades()
+    monkeypatch.setenv("CATALYST_MUSTKNOW_GRADES", "A,B,C")
+    second = cm.mustknow_grades()
+    assert first == ("A",) and second == ("A", "B", "C")
+
+
 def test_the_grade_mirror_matches_synthesize_s_normalizer():
     """The other mirror in this type: `_norm_grade` restates
     `synthesize._normalize_grade`. Driven against the real one."""
@@ -477,8 +526,23 @@ def test_there_is_no_scheduler_entry_and_no_flag_for_this_type():
         code = _code_only(path)
         assert "add_job" not in code
         assert "CronTrigger" not in code
-        assert "os.environ" not in code and "getenv" not in code, (
-            f"{path.name} reads an env flag — CP1-CP2 have no flag to read")
+        if path is _COMPARE:
+            assert "os.environ" not in code and "getenv" not in code, (
+                f"{path.name} reads an env var — the harness has none of its own")
+        else:
+            # ⛔ THE TYPE READS EXACTLY ONE ENV VAR AND IT IS THE LEGACY'S, NOT
+            # ITS OWN. `CATALYST_MUSTKNOW_GRADES` configures the rule being
+            # MIRRORED; ignoring it would make the mirror disagree with
+            # production by construction (see
+            # test_the_mirror_FOLLOWS_the_env_var_not_the_default). A gate of
+            # this type's own is still forbidden — that is CP3.
+            reads = [ln for ln in code.splitlines()
+                     if "environ" in ln or "getenv" in ln]
+            assert len(reads) == 1 and "CATALYST_MUSTKNOW_GRADES" in reads[0], (
+                f"{path.name} reads an env var that is not the legacy's grade "
+                f"configuration: {reads}")
+            assert "ENABLED" not in code, (
+                f"{path.name} reads an _ENABLED flag — CP1-CP2 have no gate")
 
 
 def test_the_harness_imports_no_delivery_and_no_legacy_engine():
