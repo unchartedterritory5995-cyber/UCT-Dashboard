@@ -256,8 +256,8 @@ MUTATIONS = [
     # because nothing forces the distinction.
     dict(id="M24", guard="the SHIPPED DEFAULT is what the unset-branch rails assert",
          file=f"{OFF}/offlineFlag.js",
-         find="export const OFFLINE_DEFAULT_ON = false",
-         repl="export const OFFLINE_DEFAULT_ON = true",
+         find="export const OFFLINE_DEFAULT_ON = true",
+         repl="export const OFFLINE_DEFAULT_ON = false",
          note="flipping it silently changes what an unset key means for every member"),
 
     dict(id="M12", guard="the editor emits NOTHING when it sets content itself",

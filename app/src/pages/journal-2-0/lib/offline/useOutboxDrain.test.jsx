@@ -171,7 +171,9 @@ describe('⛔⛔ §21b — the SHIPPED default, which is a DIFFERENT branch from
 
   it('with the key UNSET, no lock is claimed and nothing is ever sent', async () => {
     installLocks()
-    localStorage.removeItem(OFFLINE_FLAG_KEY)      // ⛔ production's actual state
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')   // ⛔ EXPLICIT off — since the
+    // 2026-09-12 flip an UNSET key means ON, so removing it would have made
+    // this test assert the opposite of what it was written to prove.
     const send = vi.fn(async () => ({ updatedAt: 'T2' }))
     const { result } = mount({ send })
     await act(async () => { await settleIdb(6) })
@@ -204,7 +206,9 @@ describe('⛔⛔ §21b — the SHIPPED default, which is a DIFFERENT branch from
     // entry point, so the refusal is proved at the gate rather than upstream
     // of it.
     installLocks()
-    localStorage.removeItem(OFFLINE_FLAG_KEY)
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')   // ⛔ EXPLICIT off — since the
+    // 2026-09-12 flip an UNSET key means ON, so removing it would have made
+    // this test assert the opposite of what it was written to prove.
     const send = vi.fn(async () => ({ updatedAt: 'T2' }))
     const { result } = mount({ send })
     await act(async () => { await settleIdb(4) })

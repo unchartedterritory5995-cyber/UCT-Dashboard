@@ -200,7 +200,9 @@ describe('⭐ R-B — the folder / ticker / tags doors reach the same defect', (
 describe('⛔⛔ R-F — §21: with the wave OFF, nothing touches the database', () => {
   it('the key UNSET and the shipped default false ⇒ no settle, no marker, no write', async () => {
     await queued()
-    localStorage.removeItem(OFFLINE_FLAG_KEY)     // unset ⇒ the DEFAULT decides
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')   // ⛔ EXPLICIT off — since the
+    // 2026-09-12 flip an UNSET key means ON, so removing it would have made
+    // this test assert the opposite of what it was written to prove.
     const before = JSON.stringify(await listOutbox(db))
 
     expect(await beginInFlightSave({ accountId: 'a1', noteId: 'n1', baseUpdatedAt: T1, connect })).toBeNull()

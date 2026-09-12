@@ -22,8 +22,15 @@
  * turning it on for every member at once (which is the gate this exists to
  * respect).
  *
- *     localStorage.setItem('uct.j2.offline.enabled', '1')   // this browser only
- *     localStorage.removeItem('uct.j2.offline.enabled')     // back to the default
+ *     localStorage.setItem('uct.j2.offline.enabled', '0')   // OFF, this browser only
+ *     localStorage.setItem('uct.j2.offline.enabled', '1')   // ON, this browser only
+ *     (deleting the key returns the browser to the SHIPPED DEFAULT, which is ON)
+ *
+ * ⛔⛔ THE DEFAULT IS NOW ON (2026-09-12). `removeItem` no longer means "off" —
+ * it means "whatever ships", and what ships is ON. The only per-browser OFF is
+ * an EXPLICIT '0'. Every test that reached OFF by removing the key was changed
+ * in the flip commit to write '0'; `tools/q1_flag_default_sweep.py` is what
+ * finds them, and it must report zero TESTS-OFF sites before a flip lands.
  *
  * ⛔ TURNING IT ON WAS A MEASUREMENT DECISION, NOT A CLEANUP TASK, and the
  * measurements are in `docs/notebook/wave-q1-browser-certification.md`: Chrome
@@ -56,7 +63,7 @@
  * Per-browser opt-out, no deploy needed:
  *     localStorage.setItem('uct.j2.offline.enabled', '0')
  */
-export const OFFLINE_DEFAULT_ON = false
+export const OFFLINE_DEFAULT_ON = true
 
 export const OFFLINE_FLAG_KEY = 'uct.j2.offline.enabled'
 
