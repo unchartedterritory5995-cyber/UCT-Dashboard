@@ -145,6 +145,43 @@ control asserting it.
   The refusal then looked like a capability gap rather than my own typo — which is
   why the shape of a returned value is now stated in a comment at that line.
 
+## 📐 R6 — MERGE DRY-RUN: **FOUR CONFLICTS**, and the 150-270 min estimate was far too high
+
+Measured 2026-09-11 in a throwaway detached worktree (created, measured, aborted,
+removed — `indicator-r0r1` was never touched; `git status` 3 entries before and the
+same 3 after, all unrelated work in progress).
+
+```
+origin/master                      36596a88a13ac0e1a90f089306cda98f4c806576
+behind / ahead                     549 / 314
+git merge --no-commit --no-ff      exit 1
+conflicted files (UU)              4
+added by master (A)                706
+modified (M)                       221
+```
+
+**The four:**
+
+| file | why it conflicts | resolution |
+|---|---|---|
+| `.gitattributes` | master also edited it; my R1 block is an append | **keep both** — the two additions are disjoint |
+| `.gitignore` | same shape | keep both |
+| `api/services/ticker_explain.py` | the `_DOMAIN_FETCHERS`-bound-twice file, fixed on both sides | read both; this branch's side is the `test_no_shadowed_definitions.py` fix |
+| `app/src/components/screener/reachable.test.js` | the reachability rail's acknowledgement list moved on both sides | **union the lists**, then run it — a merged acknowledgement list is exactly the artifact that drifts |
+
+⭐⭐ **SO TOMORROW'S ESTIMATE DROPS FROM 150-270 MIN TO ROUGHLY 45-90.** Four files,
+and two of them are append-vs-append. The cost is not the conflicts — it is the
+**re-verification after**: both full lanes plus the rails, the Python killed-chunk
+count back at zero, and the JS byte-identical claim re-derived rather than carried
+forward. ⛔ Ruling stands: **merge, not rebase** — 314 commits rewritten against 549
+is not a Friday-night operation, and now it does not need to be.
+
+⚠️ One artifact of the dry run worth knowing: while the merge was conflicted, every
+git command printed `origin/master is not a valid attribute name: .gitattributes:112`
+— git was parsing the conflict marker `>>>>>>> origin/master` as an attribute rule.
+Harmless, and a useful tell that `.gitattributes` is among the conflicts.
+
+
 ## 📋 R2 — THE `builder/` ROUTING TABLE, AND THE CENSUS FLOORS ARE **CORRECT**
 
 ### ⛔⛔ THE CENSUS VERDICT IS NEITHER OF THE TWO OPTIONS: THE FLOORS ARE RIGHT AND THIS WORKTREE IS UNDER-PROVISIONED
