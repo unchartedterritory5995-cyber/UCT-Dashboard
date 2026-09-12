@@ -99,7 +99,7 @@ guessed from a prompt is the F-S7-4 mistake made deliberately.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterable, Optional
 
 from api.services.alert_taxonomy import registry as _registry
 
@@ -224,3 +224,167 @@ def register(*, db_path: str | None = None) -> None:
     rail arrive with CP3 and need a new approval line.
     """
     _registry.register_trigger_type(TYPE_ID, PARAMS_SCHEMA, module=__name__, db_path=db_path)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHECKPOINT 2 — the dark evaluator
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _norm_grade(raw: Any) -> Optional[str]:
+    """`synthesize._normalize_grade`'s rule, restated read-only.
+
+    ⛔ A MIRROR, AND IT IS RAILED. `test_the_grade_mirror_matches_synthesize`
+    drives the real `_normalize_grade` against the same inputs. A mirror without
+    a rail is a second authority over one value
+    (`lesson_rail_the_mirror_not_just_the_lane`).
+    """
+    if not raw:
+        return None
+    g = str(raw).strip().upper()[:1]
+    return g if g in VALID_GRADES else None
+
+
+def _grade_rank(grade: Optional[str]) -> Optional[int]:
+    """A > B > C, as 0 > 1 > 2. `None` stays `None` — NOT a worst rank.
+
+    ⛔ Coercing an unknown grade to "worse than C" would hide it, and the legacy
+    path never hides an ungraded row: `_normalize_grade`'s own docstring says
+    None means *"keep, unknown"*.
+    """
+    if grade is None:
+        return None
+    try:
+        return VALID_GRADES.index(grade)
+    except ValueError:
+        return None
+
+
+def row_matches(params: dict[str, Any], row: dict[str, Any]) -> bool:
+    """Do this predicate's row-level filters admit this catalyst row?
+
+    Entity, tag, catalyst type and minimum grade — the parts that are about the
+    ROW rather than about the member.
+    """
+    ref = params.get("entity_ref")
+    ticker = (row.get("ticker") or "").upper()
+    if ref and ticker != str(ref).upper():
+        return False
+
+    want_tag = params.get("tag")
+    if want_tag and (row.get("tag") or "") != want_tag:
+        return False
+
+    wanted = params.get("catalyst_types")
+    if wanted:
+        # ⛔ CASE-INSENSITIVE, because the vocabulary is model output and the
+        # model is only ASKED to use the fifteen labels. An exact-match filter
+        # would silently drop `fda` and `FDA Approval`.
+        have = (row.get("catalyst_type") or "").strip().lower()
+        if have not in {str(w).strip().lower() for w in wanted}:
+            return False
+
+    floor = _norm_grade(params.get("min_grade"))
+    if floor is not None:
+        rank = _grade_rank(_norm_grade(row.get("grade")))
+        # ⛔ `rank is None` means the row is UNGRADED, and an ungraded row passes.
+        # The legacy path never hides one, so neither does this.
+        if rank is not None and rank > _grade_rank(floor):
+            return False
+
+    return True
+
+
+def would_fire(params: dict[str, Any], *,
+               displayed: Iterable[dict[str, Any]],
+               member_tickers: Iterable[str] = (),
+               is_admin: bool = False,
+               already_fired: Iterable[str] = ()) -> list[str]:
+    """The DARK rule. Returns the tickers this predicate would alert on TODAY.
+
+    ⛔ DELIBERATELY THE LEGACY RULE, NOT AN IMPROVED ONE. CP1–CP2 measure the
+    migration; a rule that fixes something while migrating measures the fix.
+
+    ⭐ IT RETURNS A LIST, NOT A BOOLEAN, and that is forced by the legacy shape:
+    one refresh fires once PER MATCHING TICKER, and the dedup is per ticker too.
+    A boolean would collapse "three names alerted" and "one name alerted" into
+    one outcome and make the comparison unable to see a member's inbox double.
+
+    `already_fired` models `catalyst_alerts_fired` — the tickers this user has
+    already been alerted about for this market date, from EITHER rule. Passing it
+    is what reproduces the cross-rule suppression in F-S7-CM-1 item 1.
+    """
+    rule = params.get("match_rule")
+    if rule not in MATCH_RULES:
+        return []
+
+    rows = list(displayed)
+    if params.get("displayed_only", True) is False:
+        # A declared-but-unauthorized shape: the schema admits it so it is
+        # nameable, and the evaluator treats it exactly as the legacy path would
+        # if handed the wider set — it does not invent a second behaviour.
+        pass
+
+    fired = {str(t).upper() for t in already_fired}
+
+    if rule == RULE_WATCHLIST:
+        if (params.get("member_set") or SET_WATCHLISTS) != SET_WATCHLISTS:
+            # Only `watchlists` is reachable from the legacy query. A predicate
+            # naming another set is pinned-but-unauthorized: it evaluates to
+            # nothing rather than raising, the same call F-S7-2 made.
+            return []
+        mine = {str(t).upper() for t in member_tickers}
+        out = [(r.get("ticker") or "").upper() for r in rows
+               if (r.get("ticker") or "").upper() in mine and row_matches(params, r)]
+    else:  # RULE_GRADE
+        if (params.get("cohort") or COHORT_ADMINS) == COHORT_ADMINS and not is_admin:
+            # ⛔ Admin-only, and this is the guard that keeps a dark comparison
+            # from ever describing a subscriber's inbox.
+            return []
+        floor = _norm_grade(params.get("min_grade"))
+        out = []
+        for r in rows:
+            if not row_matches(params, r):
+                continue
+            g = _norm_grade(r.get("grade"))
+            if floor is None:
+                # No floor declared: the legacy default is the env var's A,B.
+                if g not in LEGACY_MUSTKNOW_GRADES:
+                    continue
+            out.append((r.get("ticker") or "").upper())
+
+    # Dedup, in order, preserving the legacy's "first rule to claim the (user,
+    # ticker, day) wins" behaviour.
+    seen: set[str] = set()
+    result: list[str] = []
+    for t in out:
+        if not t or t in fired or t in seen:
+            continue
+        seen.add(t)
+        result.append(t)
+    return result
+
+
+def predicate_fingerprint(params: dict[str, Any]) -> tuple:
+    """What a change to the predicate's FIRING IDENTITY looks like.
+
+    ⛔ A parameter rewrite makes the pre-change ticks un-attributable to the
+    migration, exactly as a moved anchor does for `price-level` and a moved
+    calendar date does for `event-proximity`. When this tuple changes, the open
+    span CLOSES and its counts are discarded into `not_comparable` — never
+    carried forward as agreement.
+
+    ⛔ `displayed_only` IS IN THE TUPLE. It changes which rows are even eligible,
+    so a predicate that flipped it mid-run would be answering a different
+    question with the same span.
+    """
+    types = params.get("catalyst_types")
+    return (
+        params.get("match_rule"),
+        params.get("member_set") or SET_WATCHLISTS,
+        (str(params.get("entity_ref")).upper() if params.get("entity_ref") else None),
+        params.get("cohort") or COHORT_ADMINS,
+        _norm_grade(params.get("min_grade")),
+        tuple(sorted(str(t).strip().lower() for t in types)) if types else None,
+        params.get("tag"),
+        bool(params.get("displayed_only", True)),
+    )
