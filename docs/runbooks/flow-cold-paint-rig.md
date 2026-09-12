@@ -194,10 +194,25 @@ Owner ruling, 2026-09-12. Enforced in the rig, not left to the operator:
 
 - `_uptime()` reads `/api/health`'s `uptime_seconds` **before and after every run**,
   on both paths.
-- `_swap_verdict(before, after, elapsed)` returns swapped when uptime went
-  **backward**, when the pod is **younger than the run** (uptime can still move
-  forward across a swap if the run is long enough — this is the subtle case), or when
-  the uptime was **unreadable at all**.
+- `_swap_verdict(before, after, elapsed, min_pod_age)` invalidates a run **four**
+  ways, and the order is load-bearing:
+
+  | # | condition | what it means |
+  |---|---|---|
+  | 1 | uptime **unreadable** | during a swap `/api/health` itself 502s |
+  | 2 | uptime went **backward** | a swap landed mid-run |
+  | 3 | pod **younger than the run** | a swap landed mid-run even though uptime rose |
+  | 4 | pod **too young at START** (`MIN_POD_AGE_S`, 120 s) | no swap during the run, but the pod is **COLD** |
+
+  ⭐ **(4) is not a variant of (3).** Forward uptime proves only that no swap
+  happened DURING the run; it says nothing about whether the pod was warm enough to
+  measure. Check 3 runs before check 4 so its specific diagnosis is not swallowed by
+  the broader one — a mid-run swap and a cold start are different facts.
+
+  ⚠️ **120 s is a floor derived from one observed pair, not a tuned number**: the
+  same check returned `parts served: NONE` on a 38 s-old pod and all six parts on a
+  232 s-old pod. It is deliberately generous — an extra INCONCLUSIVE costs one re-run,
+  a false failure at the open costs a wrong diagnosis. `--min-pod-age` overrides it.
 - A swapped run prints `!! INCONCLUSIVE` and is filtered out of every median. The
   summary **says how many were dropped** — a silent discard is as misleading as
   averaging them in, because nobody can tell `n` fell.
@@ -209,9 +224,21 @@ Owner ruling, 2026-09-12. Enforced in the rig, not left to the operator:
 unreadable uptime IS the swap case wearing a blank face. Treating `None` as fine is
 the shape `lesson_a_saturated_instrument_reports_zero` names.
 
-Rail: `tests/test_flow_rig_swap_guard.py` — five cases including a clean-run control,
-plus a source check that `main()` still filters and still counts the discards.
-Mutation-proved by inverting the backward-uptime comparison.
+**Every row now prints `pod age at start=... after=...`**, whether or not it was
+discarded — an operator can see the condition rather than having to trust the verdict,
+and the discard summary names the cause **per run** instead of asserting "a swap".
+
+Rail: `tests/test_flow_rig_swap_guard.py` — eleven cases, including a clean warm
+control, a fails-closed sweep over every invalidating input, a pin on the 120 s literal
+(so the default cannot be quietly "fixed" to match a failing run), and a source check
+that `main()` still filters and still counts. Mutation-proved four ways: invert the
+backward comparison; delete the cold-start branch; drop the floor to 0; reorder checks 3
+and 4. Each goes RED naming the right test.
+
+And the WIRING was smoke-tested against the live site, which the pure-function tests
+cannot reach: `--min-pod-age 99999` on a real run printed
+`!! INCONCLUSIVE ... pod was only 677s old at the START (floor 99999s)`, reported
+`1 run(s) DISCARDED`, and left every median as `NOTHING MEASURED`.
 
 ⚰️ **Why it is a hard rule and not advice.** On 2026-09-12 the rig reported
 `login http 502` on three consecutive runs and it read exactly like a broken product.

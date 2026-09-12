@@ -13,8 +13,13 @@ face — during a swap `/api/health` itself 502s — so `None` must be INCONCLUS
 never a pass. A guard that treats "could not tell" as "fine" is the shape
 `lesson_a_saturated_instrument_reports_zero` names.
 
-Mutation proof: invert the `up_after < up_before` comparison in `_swap_verdict`
--> test_a_backward_uptime_is_a_swap goes RED.
+Mutation proof, all four run BEFORE this rail is called done:
+    1. invert `up_after < up_before`      -> test_a_backward_uptime_is_a_swap RED
+    2. delete the cold-start branch       -> test_a_cold_start_pod_is_inconclusive RED
+    3. drop MIN_POD_AGE_S to 0            -> test_the_default_floor_is_pinned RED
+    4. put the cold check BEFORE the
+       younger-than-run check             -> test_the_younger_than_run_message_
+                                             survives_the_cold_check RED
 """
 from __future__ import annotations
 
@@ -72,3 +77,67 @@ def test_the_summary_discards_swapped_runs_rather_than_averaging_them():
     assert 'discarded = [r for r in cand if r.get("deploy_swapped")]' in src, (
         "main() no longer counts the discarded runs — a silent discard is as bad "
         "as averaging them in, because nobody can tell n dropped")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MINIMUM POD AGE — a pod that is merely UNSWAPPED can still be COLD
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚰️ Measured 2026-09-12: a run that began on a 38-second-old pod reported
+# `parts served: NONE` with the page shell rendered. The deploy had just
+# completed and the parts cache was empty. The same check on a 232-second-old
+# pod served all six parts. The swap guard did NOT flag it, because uptime moved
+# FORWARD (38 -> 83) and exceeded the run length — forward uptime proves only
+# that no swap happened DURING the run.
+#
+# ⭐ At the open, that run reads as a MEMBER FAILURE. This is the guard that
+# stops the misreading.
+
+def test_a_cold_start_pod_is_inconclusive():
+    """The real 2026-09-12 numbers: 38s old at start, 83s after, 44s elapsed."""
+    swapped, why = _rig()._swap_verdict(38.0, 83.0, 44.0)
+    assert swapped is True, "a 38s-old pod is COLD and must not be measured"
+    assert "COLD" in why
+    assert "38" in why and "120" in why, (
+        "the message must name the age AND the floor, or an operator cannot tell "
+        "how far short it fell: %r" % why)
+
+
+def test_a_warm_pod_is_clean():
+    """The control for the branch above. Without it, a guard that called every
+    run cold would satisfy the cold-start test and destroy the instrument."""
+    swapped, why = _rig()._swap_verdict(232.0, 256.0, 24.0)
+    assert swapped is False, why
+
+
+def test_the_younger_than_run_message_survives_the_cold_check():
+    """ORDER IS LOAD-BEARING. (5, 20, 60) trips both branches; the specific
+    'younger than the run' diagnosis must win, because a swap landing mid-run is
+    a different fact from a pod that merely started cold."""
+    swapped, why = _rig()._swap_verdict(5.0, 20.0, 60.0)
+    assert swapped is True
+    assert "younger" in why, "the broader cold-start message swallowed it: %r" % why
+    assert "COLD" not in why
+
+
+def test_the_floor_is_overridable_in_both_directions():
+    rig = _rig()
+    lenient, _ = rig._swap_verdict(38.0, 83.0, 44.0, min_pod_age=10.0)
+    assert lenient is False, "an explicit lower floor must let a young pod through"
+    strict, why = rig._swap_verdict(232.0, 256.0, 24.0, min_pod_age=1000.0)
+    assert strict is True and "COLD" in why
+
+
+def test_the_default_floor_is_pinned_at_120s():
+    """Pins the LITERAL, not just the behaviour. A default that drifts silently is
+    how a threshold gets 'fixed' to match whatever a failing run happened to see."""
+    assert _rig().MIN_POD_AGE_S == 120.0
+
+
+def test_every_branch_fails_closed():
+    """No input may produce a quiet pass except a genuinely clean warm window."""
+    rig = _rig()
+    for args in ((None, 100.0, 10.0), (100.0, None, 10.0), (None, None, 10.0),
+                 (2000.0, 12.0, 30.0), (5.0, 20.0, 60.0), (38.0, 83.0, 44.0)):
+        swapped, why = rig._swap_verdict(*args)
+        assert swapped is True, "%r returned a PASS" % (args,)
+        assert why, "%r returned no reason" % (args,)

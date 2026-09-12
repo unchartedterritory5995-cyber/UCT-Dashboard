@@ -135,10 +135,41 @@ def _uptime():
         return None
 
 
-def _swap_verdict(up_before, up_after, elapsed_s):
-    """(swapped, why). THREE outcomes, not two — an unreadable uptime is
-    INCONCLUSIVE, never a pass: during a swap `/api/health` itself 502s, so
-    "could not tell" is the swap case wearing a blank face."""
+# ⛔ A POD THIS YOUNG IS COLD, NOT MERELY UNSWAPPED. Measured 2026-09-12: a run
+# that began on a 38-second-old pod reported `parts served: NONE` with the page
+# shell rendered, because the deploy had just completed and the parts cache was
+# empty. The same run on a 232-second-old pod served all six parts. At the open
+# that run would read as a MEMBER FAILURE, which is exactly the misreading this
+# threshold exists to prevent.
+#
+# ⭐ 120s is a floor derived from the observed warm/cold pair (38 cold, 232 warm),
+# not a tuned number — it is deliberately generous, because the cost of an extra
+# INCONCLUSIVE is one re-run and the cost of a false failure is a wrong diagnosis
+# at the open. Override with --min-pod-age when there is a reason to.
+MIN_POD_AGE_S = 120.0
+
+
+def _swap_verdict(up_before, up_after, elapsed_s, min_pod_age=None):
+    """(invalid, why) — whether a DEPLOY invalidated this run, and how.
+
+    FOUR ways, checked in this order, and the order is load-bearing: the
+    pod-younger-than-the-run case is reported as such before the cold-start case
+    so its message stays specific rather than being swallowed by the broader one.
+
+        1. uptime unreadable      — during a swap `/api/health` itself 502s, so
+                                    "could not tell" is the swap wearing a blank face
+        2. uptime went BACKWARD   — a swap landed mid-run
+        3. pod younger than run   — a swap landed mid-run even though uptime rose
+        4. pod too young at START — no swap during the run, but the pod is COLD
+
+    ⛔ FAILS CLOSED. Every branch returns True. Forward uptime proves only that no
+    swap happened DURING the run; it says nothing about whether the pod was warm
+    enough to measure, which is what (4) adds.
+
+    The field on a row stays `deploy_swapped` because every one of these is caused
+    by a deploy; `swap_reason` is what distinguishes them.
+    """
+    floor = MIN_POD_AGE_S if min_pod_age is None else min_pod_age
     if up_before is None or up_after is None:
         return True, "uptime unreadable (health 502 during a swap reads like this)"
     if up_after < up_before:
@@ -146,6 +177,10 @@ def _swap_verdict(up_before, up_after, elapsed_s):
     if up_after < elapsed_s:
         return True, ("pod is younger (%.0fs) than the run (%.0fs)"
                       % (up_after, elapsed_s))
+    if up_before < floor:
+        return True, ("pod was only %.0fs old at the START (floor %.0fs) - COLD, "
+                      "caches unwarmed; a parts miss here is not a member failure"
+                      % (up_before, floor))
     return False, ""
 
 
@@ -153,7 +188,7 @@ def _fmt(v, unit=""):
     return "n/a" if v is None else ("%.0f%s" % (v, unit) if isinstance(v, (int, float)) else str(v))
 
 
-def run_once(pw, email, password, idx, certifying):
+def run_once(pw, email, password, idx, certifying, min_pod_age=None):
     """One cold load in a FRESH context. Returns a dict of measurements."""
     from playwright.sync_api import TimeoutError as PWTimeout
 
@@ -171,7 +206,8 @@ def run_once(pw, email, password, idx, certifying):
                              data={"email": email, "password": password})
         if r.status != 200:
             up_after = _uptime()
-            swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+            swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
+                                       min_pod_age)
             return {"run": idx, "error": "login http %s" % r.status,
                     "deploy_swapped": swapped, "swap_reason": why,
                     "uptime_before": up_before, "uptime_after": up_after}
@@ -219,7 +255,8 @@ def run_once(pw, email, password, idx, certifying):
         cur_v = cur.text().strip()[:40] if cur.status == 200 else None
 
         up_after = _uptime()
-        swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+        swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
+                                       min_pod_age)
 
         return {
             "run": idx,
@@ -291,7 +328,8 @@ _NAV_JS = """
 """
 
 
-def run_once_path_b(pw, email, password, idx, certifying, start_route="/dashboard"):
+def run_once_path_b(pw, email, password, idx, certifying,
+                    start_route="/dashboard", min_pod_age=None):
     """One IN-APP navigation into Options Flow, in a FRESH context."""
     from playwright.sync_api import TimeoutError as PWTimeout
 
@@ -305,7 +343,8 @@ def run_once_path_b(pw, email, password, idx, certifying, start_route="/dashboar
                              data={"email": email, "password": password})
         if r.status != 200:
             up_after = _uptime()
-            swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+            swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
+                                       min_pod_age)
             return {"run": idx, "path": "B", "error": "login http %s" % r.status,
                     "deploy_swapped": swapped, "swap_reason": why,
                     "uptime_before": up_before, "uptime_after": up_after}
@@ -366,7 +405,8 @@ def run_once_path_b(pw, email, password, idx, certifying, start_route="/dashboar
         wire = sum(int(x["clen"]) for x in flow if (x["clen"] or "").isdigit())
 
         up_after = _uptime()
-        swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run)
+        swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
+                                       min_pod_age)
 
         return {
             "run": idx, "path": "B", "role": role,
@@ -402,6 +442,10 @@ def main(argv=None):
                          "intro). BOTH is the default because one number alone is "
                          "not a measurement of the page - see "
                          "docs/runbooks/flow-cold-paint-rig.md.")
+    ap.add_argument("--min-pod-age", type=float, default=MIN_POD_AGE_S,
+                    help="a run starting on a pod younger than this (seconds) is "
+                         "INCONCLUSIVE - the caches are cold and a parts miss is "
+                         "not a member failure. Default %(default)s.")
     ap.add_argument("--start-route", default="/dashboard",
                     help="path B starts here, then CLICKS the Options Flow "
                          "nav entry. It must NOT be /options-flow: clicking "
@@ -432,7 +476,7 @@ def main(argv=None):
             print("PATH A - DIRECT LOAD (the intro animation PLAYS and is excluded")
             print("         by the detector; ~9.3s of wall time is not the page)")
             for i in range(1, a.runs + 1):
-                row = run_once(pw, email, password, i, a.certifying)
+                row = run_once(pw, email, password, i, a.certifying, a.min_pod_age)
                 row["path"] = "A"
                 rows.append(row)
                 if row.get("error"):
@@ -456,8 +500,11 @@ def main(argv=None):
                 print("        DIAG path=%s bodylen=%s vis=%s wall=%.0fms"
                       % (d.get("url"), d.get("len"), d.get("vis"),
                          row.get("wall_ms") or 0))
+                print("        pod age at start=%s  after=%s"
+                      % (_fmt(row.get("uptime_before"), "s"),
+                         _fmt(row.get("uptime_after"), "s")))
                 if row.get("deploy_swapped"):
-                    print("        !! INCONCLUSIVE - a deploy swap straddled this run "
+                    print("        !! INCONCLUSIVE - a deploy invalidated this run "
                           "(%s). DISCARDED from the summary." % row.get("swap_reason"))
 
         if a.path in ("b", "both"):
@@ -467,7 +514,7 @@ def main(argv=None):
             print("         no intro, so this is the page's own cost)")
             for i in range(1, a.runs + 1):
                 row = run_once_path_b(pw, email, password, i, a.certifying,
-                                      a.start_route)
+                                      a.start_route, a.min_pod_age)
                 rows.append(row)
                 if row.get("error"):
                     print("run %d: ERROR %s%s" % (
@@ -492,8 +539,11 @@ def main(argv=None):
                 if row["url_changed"] and row["shell_ms"] is None:
                     print("        !! URL MOVED, SHELL NEVER RENDERED - this is the "
                           "navigation-freeze signature, not a slow page")
+                print("        pod age at start=%s  after=%s"
+                      % (_fmt(row.get("uptime_before"), "s"),
+                         _fmt(row.get("uptime_after"), "s")))
                 if row.get("deploy_swapped"):
-                    print("        !! INCONCLUSIVE - a deploy swap straddled this run "
+                    print("        !! INCONCLUSIVE - a deploy invalidated this run "
                           "(%s). DISCARDED from the summary." % row.get("swap_reason"))
 
     print("-" * 72)
@@ -520,8 +570,13 @@ def main(argv=None):
         else:
             print("%-38s no usable runs - NOTHING MEASURED" % row_label)
         if discarded:
-            print("%-38s %d run(s) DISCARDED: a deploy swap straddled them"
-                  % ("", len(discarded)))
+            # ⛔ NOT "a swap straddled them" — that wording was wrong the moment
+            # the cold-start branch landed, and a discard message that names the
+            # wrong cause sends the next operator looking for the wrong thing.
+            print("%-38s %d run(s) DISCARDED as INCONCLUSIVE (deploy swap or a "
+                  "cold pod):" % ("", len(discarded)))
+            for r in discarded:
+                print("%-38s   run %s: %s" % ("", r.get("run"), r.get("swap_reason")))
 
     print("[!] %s" % label)
     if not a.certifying:
