@@ -282,6 +282,23 @@ function fmt(n) {
   if (a >= 1e3) return "$" + (n / 1e3).toFixed(0) + "K";
   return "$" + n;
 }
+// ⛔ MODULE SCOPE, BESIDE `fmt` AND `fK`, BECAUSE A MODULE-LEVEL LAZY SHIM
+// FORWARDS IT. `GexStrikesChart` (below) does `<GexStrikesChartLazy
+// fmtGex={fmtGex} />` at module scope; while this lived as a `const` inside the
+// `dataMode==="gex"` render block it was simply not in scope there, and the GEX
+// tab threw `ReferenceError: fmtGex is not defined` into the error boundary the
+// moment a member opened it. Its two sibling shims forward `fmt` and `fK`, which
+// ARE module-level — which is why only this one broke.
+function fmtGex(v) {
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1e9) return sign + "$" + (abs/1e9).toFixed(2) + "B";
+  if (abs >= 1e6) return sign + "$" + (abs/1e6).toFixed(1) + "M";
+  if (abs >= 1e3) return sign + "$" + (abs/1e3).toFixed(0) + "K";
+  return sign + "$" + abs.toFixed(0);
+}
+
 function fK(n) {
   return n >= 1e6 ? (n/1e6).toFixed(1)+"M" : n >= 1e3 ? (n/1e3).toFixed(1)+"K" : String(n);
 }
@@ -4340,15 +4357,6 @@ export default function OptionsFlowDashboard() {
         })()}
 
         {dataMode==="gex" && (()=>{
-          const fmtGex = v => {
-            if (v === null || v === undefined || isNaN(v)) return "—";
-            const abs = Math.abs(v);
-            const sign = v < 0 ? "-" : "";
-            if (abs >= 1e9) return sign + "$" + (abs/1e9).toFixed(2) + "B";
-            if (abs >= 1e6) return sign + "$" + (abs/1e6).toFixed(1) + "M";
-            if (abs >= 1e3) return sign + "$" + (abs/1e3).toFixed(0) + "K";
-            return sign + "$" + abs.toFixed(0);
-          };
           const quickTickers = ["SPY","QQQ","IWM","SPX","NDX","DIA"];
           // Filter strikes to within ±12% of spot for readability
           const spot = gexData?.spot || 0;
