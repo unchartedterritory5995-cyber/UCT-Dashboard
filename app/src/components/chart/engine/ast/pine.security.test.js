@@ -257,7 +257,13 @@ describe('request.security → tf', () => {
     // refuse HERE rather than translate into a node `interpret` would then
     // refuse — a member should be told by the translator they used, not by an
     // engine two layers down.
-    for (const tf of ['60', 'D', '3M']) {
+    // ⚰️ `'D'` WAS IN THIS LIST AND CAME OUT BY RULING 3.5 (2026-09-11): a literal
+    // naming the engine's own base is now the IDENTITY, not a resample, so it no
+    // longer refuses here. ⛔ `D` is still absent from `TF_RESAMPLABLE` — the
+    // resample path the 2026-09-01 ruling rejected is unchanged. The identity case
+    // has its own describe block at the end of this file, including the non-daily
+    // base where this refusal still holds.
+    for (const tf of ['60', '3M']) {
       const out = translatePine(src(`plot(request.security(syminfo.tickerid, '${tf}', close))`))
       expect(out.refusal, tf).toBeTruthy()
       expect(out.refusal.guard, tf).toBe('pine:request')
@@ -431,17 +437,17 @@ describe('request.security → tf, the TUPLE form', () => {
     expect(r.guard).toBe('pine:request')
   })
 
-  it('⛔ CONTROL: a literal `D` refuses — it is the BASE period, not a resample', () => {
-    // 🔴 AND THIS IS THE ONE BLOCKING `uncharted-volume.pine`. `TF_RESAMPLABLE` is
-    // ['W','M'] because the base bar IS a day, so there is nothing to resample a
-    // day from. `timeframe.period` is recognised as the identity (test above); a
-    // literal 'D' is not, and on a daily-base engine the two are arguably the same
-    // request. Treating them as the same is a MEMBER-VISIBLE semantic change, so it
-    // is routed as a decision rather than taken here — and until it is taken, the
-    // honest answer is this refusal.
-    const r = one(`${F}[p, q] = request.security(syminfo.tickerid, 'D', f(), lookahead = barmerge.lookahead_off)\nplot(p)`)
-    expect(r.ok).toBe(false)
-    expect(r.guard).toBe('pine:request')
+  it('⭐ a literal `D` FOLDS TO THE IDENTITY in the tuple form too (ruling 3.5)', () => {
+    // ⚰️ THIS TEST ASSERTED THE OPPOSITE EIGHT HOURS AGO, and said why: "treating
+    // them as the same is a MEMBER-VISIBLE semantic change, so it is routed as a
+    // decision rather than taken here — and until it is taken, the honest answer is
+    // this refusal." The decision was taken (ruling 3.5), so the assertion flips
+    // and the reason is kept rather than deleted. It is not a test edited to make a
+    // feature pass; it is a test recording which way a ruling went.
+    const r = one(`${F}[p, q] = request.security(syminfo.tickerid, 'D', f(), lookahead = barmerge.lookahead_off)
+plot(p)`)
+    expect(r.ok).toBe(true)
+    expect(r.guard).toBe(null)
   })
 
   it('⛔ CONTROL: more names than the inner call answers still refuses', () => {
@@ -454,5 +460,117 @@ describe('request.security → tf, the TUPLE form', () => {
     const r = one(`${F}var float v = na\nif bar_index > 0\n    [p, q] = request.security(syminfo.tickerid, 'W', f(), lookahead = barmerge.lookahead_off)\n    v := p\nplot(v)`)
     expect(r.guard).toBe(null)
     expect(r.ok).toBe(true)
+  })
+})
+
+// ─── ⭐⭐ RULING 3.5 — A LITERAL NAMING THE BASE IS THE IDENTITY (2026-09-11) ──
+//
+// ⛔⛔ THIS IS NOT A REVERSAL OF THE 2026-09-01 RULING, AND THE DIFFERENCE IS THE
+// WHOLE POINT. That ruling refused to put `D` in `TF_RESAMPLABLE` — the RESAMPLE
+// path — because a `tf` node reads the last CLOSED period, so `tf(close,'D')` on a
+// daily base answers YESTERDAY (measured then: `[null,10,11,12,…]` against
+// `[10,11,12,13,…]`). It was built, moved the corpus 43 → 44, and was reverted for
+// that one-bar step-back. `D` is STILL absent from `TF_RESAMPLABLE`.
+//
+// What changed is that a literal naming the engine's own base is now recognised as
+// the base instead of as a resample of it — the identity, which has no step-back and
+// which `request.security(own, timeframe.period, expr)` has emitted for months. The
+// 2026-09-01 comment names the two spellings as "the same thing on a daily chart,
+// one bar apart"; this closes that gap from the side that does not shift.
+describe('ruling 3.5 — a timeframe literal that names the base', () => {
+  const src = (body) => `//@version=5\nindicator("t")\n${body}\n`
+  const F = 'f() =>\n    [close, high]\n'
+  const read = (body, opts) => {
+    const r = translatePine(src(body), opts)
+    const out = (r.outputs || [])[0] || {}
+    return {
+      ok: !!r.ok,
+      ast: out.ast || null,
+      guard: (out.refusal || r.refusal || {}).guard || null,
+      message: (out.refusal || r.refusal || {}).message || null,
+      folds: out.baseTimeframeFolds || [],
+    }
+  }
+
+  it('(a) ⭐ `D` on a DAILY base is the identity — the child, unwrapped', () => {
+    const r = read("plot(request.security(syminfo.tickerid, 'D', close))")
+    expect(r.guard).toBe(null)
+    expect(r.ast).toEqual({ type: 'series', name: 'close' })
+  })
+
+  it('(a) ⭐ and it reads IDENTICALLY to the `timeframe.period` spelling', () => {
+    // The 2026-09-01 comment's "two spellings of the same thing". Now they agree.
+    expect(read("plot(request.security(syminfo.tickerid, 'D', ta.sma(close, 20)))").ast)
+      .toEqual(read('plot(request.security(syminfo.tickerid, timeframe.period, ta.sma(close, 20)))').ast)
+  })
+
+  it('(a) ⛔ `D` on a NON-DAILY base keeps the existing refusal, verbatim', () => {
+    // The same call, translated for 60-minute bars: `D` is then a genuine resample
+    // ABOVE the base, `TF_RESAMPLABLE` does not hold it, and the sentence a member
+    // gets is the one the namespace already publishes — unchanged by this ruling.
+    const onDaily = read("plot(request.security(syminfo.tickerid, 'D', close))")
+    const onHourly = read("plot(request.security(syminfo.tickerid, 'D', close))", { basePeriod: '60' })
+    expect(onDaily.ok).toBe(true)
+    expect(onHourly.ok).toBe(false)
+    expect(onHourly.guard).toBe('pine:request')
+    // …and it is the SAME sentence an unservable timeframe has always produced.
+    // ⚠️ Compared with the timeframe NAME normalised out: the sentence names the
+    // code a member typed, so a verbatim comparison between a `D` refusal and a
+    // `5` refusal can only ever fail — my first version of this assertion did,
+    // and the difference it reported was the one thing that SHOULD differ.
+    const unservable = read("plot(request.security(syminfo.tickerid, '5', close))")
+    const strip = (m) => String(m).replace(/`[^`]+` is not one of them/, '<tf> is not one of them')
+    expect(strip(onHourly.message)).toBe(strip(unservable.message))
+    expect(onHourly.message).toContain('`D` is not one of them')
+  })
+
+  it('(a) ⭐ the rule follows the BASE, not the literal `D`', () => {
+    // On a 60-minute base, `60` is the identity and `D` is not. Nothing here knows
+    // the string "D" is special; it compares against the engine's own base.
+    const r = read("plot(request.security(syminfo.tickerid, '60', close))", { basePeriod: '60' })
+    expect(r.ok).toBe(true)
+    expect(r.ast).toEqual({ type: 'series', name: 'close' })
+  })
+
+  it('(b) ⛔ THE GUARD FIRES: no identity fold on a FORMING intraday bar', () => {
+    // On an intraday base a literal `D` is the last completed SESSION, not the bars
+    // in hand, so the identity would be off by a session — and while the newest bar
+    // is forming that difference is live. It must never appear silently.
+    const forming = read("plot(request.security(syminfo.tickerid, '60', close))",
+      { basePeriod: '60', newestBarIsForming: true })
+    expect(forming.ok).toBe(false)
+    expect(forming.guard).toBe('pine:request')
+    // ⭐ THE CONTROL: the same base with the bar CLOSED folds. Without this the test
+    // above would pass just as happily if the fold were broken for every base.
+    const closed = read("plot(request.security(syminfo.tickerid, '60', close))",
+      { basePeriod: '60', newestBarIsForming: false })
+    expect(closed.ok).toBe(true)
+  })
+
+  it('(b) ⭐ and a DAILY base is unaffected by the forming flag', () => {
+    // The guard is about an INTRADAY base. A forming daily bar on a closed-bar engine
+    // is not the case it exists for, and widening it would refuse every script.
+    const r = read("plot(request.security(syminfo.tickerid, 'D', close))",
+      { newestBarIsForming: true })
+    expect(r.ok).toBe(true)
+  })
+
+  it('(c) ⭐ the fold is DISCLOSED on the output, not silent', () => {
+    const r = read("plot(request.security(syminfo.tickerid, 'D', close))")
+    expect(r.folds.length).toBe(1)
+    expect(r.folds[0]).toMatchObject({ requested: 'D', base: 'D' })
+    expect(r.folds[0].line).toBe(3)
+  })
+
+  it('(c) ⛔ and nothing is disclosed when nothing was folded', () => {
+    // An empty disclosure list on a real resample is the control: a channel that
+    // always reported something would tell a member nothing.
+    expect(read("plot(request.security(syminfo.tickerid, 'W', close))").folds).toEqual([])
+  })
+
+  it('⭐ the TUPLE form inherits all of it — Volume line 259 is this shape', () => {
+    const r = read(`${F}[p, q] = request.security(syminfo.tickerid, 'D', f(), lookahead = barmerge.lookahead_off)\nplot(q)`)
+    expect(r.guard).toBe(null)
+    expect(r.ast).toEqual({ type: 'series', name: 'high' })
   })
 })

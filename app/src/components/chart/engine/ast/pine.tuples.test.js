@@ -329,12 +329,17 @@ describe('a tuple destructure inside an `if` branch', () => {
     expect(one(hist).ok).toBe(true)
   })
 
-  it('⛔ CONTROL: `request.security` inside a branch still REFUSES', () => {
+  it('⛔ CONTROL: a request this engine cannot serve still REFUSES inside a branch', () => {
+    // ⚰️ THIS CASE USED `'D'`, AND `'D'` NOW TRANSLATES (ruling 3.5, 2026-09-11):
+    // a literal naming the engine's base folds to the identity. The control is kept
+    // and re-pointed at a timeframe that genuinely cannot be served from daily bars,
+    // because the claim under control is "an unservable request still refuses", not
+    // "this particular string refuses".
     // 42 of 63 corpus destructures are this call. If the folder ever hands out
     // its parts by position, a name expecting the third element gets the first
     // and the script is silently wrong. It must stay a refusal until the tuple
     // form is actually built.
-    const rs = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b] = request.security(syminfo.tickerid, 'D', f(), lookahead = barmerge.lookahead_off)\n    v := a\nplot(v)\n`
+    const rs = `${head}${tupleFn}var float v = na\nif bar_index > 0\n    [a, b] = request.security(syminfo.tickerid, '5', f(), lookahead = barmerge.lookahead_off)\n    v := a\nplot(v)\n`
     const r = one(rs)
     expect(r.ok).toBe(false)
     expect(r.guard).not.toBe(null)

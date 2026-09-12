@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf } from './interpret.js'
 import { memberNumber } from './memberValue.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
@@ -4195,6 +4195,14 @@ export class Resolver {
      *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
      *  identical, which is the point: two contracts, one reading. */
     this.strict = opts.strict === true
+    /** ⭐⭐ THE BARS THIS TRANSLATION IS FOR. `interpret.js`'s 2026-09-01 ruling on
+     *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
+     *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
+     *  below is PROVABLE rather than merely present. */
+    this.basePeriod = typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF
+    /** Whether the newest bar in hand is still forming. Consulted ONLY to REFUSE an
+     *  identity fold on an intraday base; never to produce a value. */
+    this.newestBarIsForming = opts.newestBarIsForming === true
     /** The member's own script, when the caller passed it — an offer quotes
      *  their text back rather than re-printing a tree, so what lands in the box
      *  is what they wrote. */
@@ -4238,6 +4246,12 @@ export class Resolver {
     /** Argument bindings, one frame per user-function call in flight. */
     this.frames = []
     this.usedInputs = new Map()
+    /** ⭐ RULING 3.5(c) — every `request.security` timeframe literal folded to the
+     *  identity because it named this engine's own base. Same layering as
+     *  `usedInputs`/`inputsFolded`: recorded here, surfaced on the output, so a member
+     *  can see their `'D'` became the chart's own series. A fold nobody is told about
+     *  is a script that quietly stopped being the one they pasted. */
+    this.baseFolds = new Map()
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
@@ -6633,7 +6647,40 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
-      if (!code || !TF_RESAMPLABLE.includes(code)) return null
+      if (!code) return null
+
+      // ⭐⭐ A LITERAL THAT NAMES THE ENGINE'S OWN BASE IS THE IDENTITY (ruling 3.5,
+      // 2026-09-11). `request.security(own, 'D', expr)` on daily bars asks for the
+      // bars already in hand, and `request.security(own, timeframe.period, expr)`
+      // has folded to exactly that for months — the same request in two spellings.
+      //
+      // ⛔⛔ THIS IS NOT THE THING THE 2026-09-01 RULING REJECTED, AND THE
+      // DIFFERENCE IS THE WHOLE POINT. That ruling refused to put `D` in
+      // `TF_RESAMPLABLE`, which would make this a RESAMPLE — and a `tf` node reads
+      // the last CLOSED period, so `tf(close,'D')` on a daily base answers
+      // YESTERDAY (measured: `[null,10,11,12,…]` against `[10,11,12,13,…]`). That
+      // one-bar step-back is why it was reverted after the corpus moved 43 → 44.
+      // The identity has no step-back: it emits the child unwrapped. `D` stays out
+      // of `TF_RESAMPLABLE`; what changed is that a literal naming the base is
+      // recognised as the base instead of as a resample of it.
+      if (code === this.basePeriod) {
+        // ⛔ THE GUARD THE RULING ASKS FOR, AND IT CAN FIRE. On an INTRADAY base a
+        // literal `'D'` is genuinely the last completed SESSION, not the bars in
+        // hand — so the identity would be off by a session, and if the newest bar
+        // is still forming the difference is live. Refuse rather than fold; the
+        // one-bar difference must never appear silently.
+        if (isIntradayTf(this.basePeriod) && this.newestBarIsForming) return null
+        this.baseFolds.set(`${node.tok ? node.tok.line : '?'}:${code}`, {
+          line: node.tok ? node.tok.line : null,
+          column: node.tok ? node.tok.column : null,
+          requested: code,
+          base: this.basePeriod,
+          foldedTo: 'the chart\u2019s own series',
+        })
+        code = null
+      } else if (!TF_RESAMPLABLE.includes(code)) {
+        return null
+      }
     }
 
     // 3. `lookahead`, wherever it appears.
@@ -9637,6 +9684,7 @@ export function translatePine(source, opts = {}) {
         strict: opts.strict === true,
         // ⭐ THE BUDGET REACHES BOTH RESOLVERS OR IT PROTECTS NEITHER. The object
         // pass below builds its own, and a hang there is just as fatal.
+        basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
         budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
@@ -9702,6 +9750,7 @@ export function translatePine(source, opts = {}) {
         column: out.tok.column,
         formula,
         ast,
+        baseTimeframeFolds: [...resolver.baseFolds.values()],
         inputsFolded: [...resolver.usedInputs.values()].map((e) => (
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
@@ -9859,6 +9908,7 @@ export function translatePine(source, opts = {}) {
       const r = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
           strict: opts.strict === true,
+          basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
       // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns

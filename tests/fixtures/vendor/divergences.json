@@ -425,6 +425,25 @@
         "what_would_reopen_it": "⭐ A row taken between 19:30 and 20:30 ET, which would narrow the isconfirmed bracket to either side of 20:00 and turn the hypothesis into a measurement. ✅ THE PRE-OPEN HALF IS NOW ANSWERED: row 7 (23:57 ET) shows `isrealtime` DOES drop before the next session opens — it does not stay 1 right through — so the open question there has narrowed from whether to when, currently a three-hour bracket (20:55, 23:57) ET that rows in that window would close. ⚠️ And an early-close day is still the one that tests the derived 17:00, which remains a guess about a guess."
       },
       "bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, ONE SESSION, AND A REGULAR-HOURS CHART. Every row is AMEX:SPY on 1D with the chart's session setting on `regular`; `extended` is a different question about the same symbol and was not asked. ⛔ NOTHING HERE COVERS INTRADAY: a 5-minute bar's closing update is its period ending, and this divergence is specifically about a DAILY bar outliving its session. ⛔ And neither mechanism is identified — 20:00 ET is a hypothesis that fits the isconfirmed bracket, not an observed event, and NOTHING is hypothesised for the isrealtime flip: it is bracketed across three hours of the overnight gap and no scheduled instant has been proposed for it."
+    },
+    {
+      "id": "request-security-base-period-identity-vs-lookahead-off-step-back",
+      "shape": "seeded",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "A `request.security(own symbol, <literal naming the engine's base>, expr)` folds to the IDENTITY — the child expression unwrapped, reading the bars already in hand. Ruling 3.5, 2026-09-11. Disclosed per definition on the output as `baseTimeframeFolds`, and refused outright by a guard when the base is INTRADAY and the newest bar is still forming.",
+      "theirs": "TradingView's `request.security(..., 'D', ..., lookahead_off)` reads the last CLOSED daily bar. Viewed from an intraday chart that is the PREVIOUS session while today is forming; viewed from a daily chart on a closed-bar engine it is the bar in hand.",
+      "why_it_matters": "The two coincide exactly on this engine, because it evaluates a daily base and closed bars: 'the last closed daily bar' and 'the bars in hand' are the same series. They diverge by ONE BAR only if the engine ever evaluates an intraday base with a forming newest bar — which is the case the guard refuses rather than folds, so the difference can never appear silently. ⛔ Recorded as ACCEPTED rather than left implicit because the alternative spelling is one the 2026-09-01 ruling measured and rejected: putting `D` in TF_RESAMPLABLE would make this a RESAMPLE, and `tf` reads the last closed period, so `tf(close,'D')` on a daily base answers YESTERDAY (measured then: [null,10,11,12,...] against [10,11,12,13,...]). `D` is still absent from TF_RESAMPLABLE; only the identity path changed.",
+      "decision": "ACCEPTED. Values coincide on a closed-bar daily engine; the one-bar case is guarded and refuses by name, and every fold is disclosed on the definition.",
+      "code": "request.security",
+      "measured": "2026-09-11",
+      "probe": {
+        "case": "request.security(syminfo.tickerid, 'D', close) translated for a DAILY base, then for a 60-minute base",
+        "under_ours": "on a daily base it folds to the identity — plain `close`, the bars in hand, no step-back; on a 60-minute base it refuses `pine:request` naming the servable ladder",
+        "under_theirs": "TradingView answers the last CLOSED daily bar in both cases: identical to ours on a daily chart, one session behind the forming bar on an intraday chart",
+        "discriminates": "the two conventions disagree ONLY when the base is intraday and the newest bar is forming — and that is the exact case the guard refuses rather than folds, so the disagreement cannot reach a member silently"
+      },
+      "observation_ids": []
     }
   ]
 }

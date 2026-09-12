@@ -363,6 +363,89 @@ BOTH modes today"*. Measured tonight: the HOST lane does not refuse it at all
 (0 refusals); only the screener does, 4 times. A decision record resting on a
 number that has moved.
 
+## ⚠️ RULING 3.5 — BUILT AND MEASURED, **NOT LANDED**: 12 artifacts still encode the old ruling
+
+**The implementation works.** Measured, both lanes:
+
+```
+'D' on a DAILY base              -> the identity: plain `close`, no step-back
+'D' == timeframe.period spelling -> byte-identical ASTs (the "two spellings" gap, closed)
+'D' on a 60-minute base          -> pine:request, the SAME sentence as any unservable tf
+'60' on a 60-minute base         -> the identity (the rule follows the BASE, not the string "D")
+intraday base + forming bar      -> REFUSED by the guard, with a closed-bar control proving the fold works
+fold disclosed on the output     -> baseTimeframeFolds [{requested:'D', base:'D', line:3}]
+nothing folded                   -> [] (the control: a channel that always reports tells you nothing)
+the TUPLE form                   -> inherits all of it (Volume line 259's shape)
+```
+
+`BASE_TF` is **derived**, not typed: the ladder rung below the lowest resamplable
+entry, and it throws if `TF_LADDER` and `TF_RESAMPLABLE` ever stop agreeing.
+Divergence row `request-security-base-period-identity-vs-lookahead-off-step-back`
+added at status **accepted**, with the `probe.under_ours` / `under_theirs` /
+`discriminates` shape the `vendorTruth` rail requires.
+
+⛔⛔ **AND IT IS NOT A REVERSAL OF THE 2026-09-01 RULING — I ALMOST MISSED THAT.**
+`interpret.js` carries a dated ruling that `D` is absent from `TF_RESAMPLABLE` **on
+purpose**, and records that it was built, moved a corpus 43 → 44, and was **reverted**
+for the one-bar step-back (`tf` reads the last CLOSED period, so `tf(close,'D')` on a
+daily base answers YESTERDAY — measured `[null,10,11,12,…]` against `[10,11,12,13,…]`).
+3.5 is the OTHER path: the identity, which has no step-back, and which
+`request.security(own, timeframe.period, expr)` has emitted for months. **`D` is still
+absent from `TF_RESAMPLABLE`.** My decision doc did not surface that prior ruling
+because I read the constant's VALUE and not the comment above it.
+
+### 🔴 WHY IT IS NOT COMMITTED AS GREEN: the blast radius is 12 tests in 9 files
+
+Every one of them encodes the behaviour the ruling changed. Two were mine and are
+fixed (`vendorTruth`'s row schema, `pine.tuples`' control re-pointed at `'5'`). The
+remaining twelve split in two, and **half are not mechanical**:
+
+| file | what it asserts | mechanical? |
+|---|---|---|
+| `interpret.tfDaily.test.js` | *"so `request.security(_,'D',_)` refuses, and names the ladder"* — **the 2026-09-01 ruling's own test** | ⛔ **no** — rewriting a prior ruling's test wants the owner's eye |
+| `doorScorecard.test.js` ×2 | *"no ruling names a script that translates — a stale ruling hides a win"*, naming `23-higher-timeframe-ema.pine` | ⛔ **no** — the rail is CORRECTLY firing; a rulings doc needs updating |
+| `pine.blindCorpus.test.js` | *"`request.security` is listed as unserved but TRANSLATES — every histogram is overstating the gap by one name"* | ⛔ **no** — same class, a roster decision |
+| `pine.community.test.js` + `.guards` | the named roster moved **18 → 19** scripts translating | ⛔ **no** — this is the metric moving, and the names want reading |
+| `pine.test.js` ×4 | `request.security → pine:request` cases | ✅ yes, with the ruling cited |
+| `pine.timeframe.test.js` | *"D is not servable and must not translate"* | ✅ yes |
+| `pine.requestOffer.test.js` | the door offers `timeframe.period` for an unresamplable tf | ✅ yes |
+
+⭐⭐ **Two of those are staleness rails doing exactly their job** — `doorScorecard` and
+`pine.blindCorpus` exist to catch "a ruling says X refuses while X now translates",
+and they caught it within a minute of the change. That is the system working, and it
+is also why this is not a 15-minute fix.
+
+### The metric moved, as predicted
+
+```
+before 3.5   host 32/266   screener 46/266
+after  3.5   host 33/266   screener 47/266
+```
+
+One script in each lane. ⭐ Consistent with the 2026-09-01 note that the rejected
+resample path moved its corpus by one as well — the same script, reached the safe way.
+
+### Volume, verbatim, after 3.5
+
+```
+VOLUME [screener] ok=true  outputs=5 refusals=4   4 x pine:function@225 (ta.cum, by ruling)
+VOLUME [host]     ok=false outputs=5 refusals=1   pine:state@284
+VOLUME buildRuntimeIr      ok=false               pine:text-value@151
+```
+
+⛔⛔ **THE FOURTH BLOCKER IS A RULING, NOT A GAP.** Line 284 is
+`var float priorMaxAllTimeDaily = na`, updated at 292 to
+`math.max(priorMaxAllTimeDaily, volD[1])` — a **running ALL-TIME maximum**. The
+engine's accumulator is bounded; an all-time max from bar zero has no anchor, which is
+**precisely what `ta.cum` already refuses by ruling** ("a running total from the first
+bar, and `cum` names no anchor — a translator that picked one would be inventing the
+single number the whole answer turns on"). So Volume's host lane now needs a decision
+about unbounded accumulators, not more capability.
+
+**Blocker chain across the night:** `pine:reassign@250` → `@260` → `pine:request@259`
+→ `pine:state@284`. Three cleared, the fourth is a ruling.
+
+
 ## 🏁 2026-09-11 EVENING — THE CHECKLIST, EVERY ROW FILLED
 
 Re-scoped goal (owner, mid-session): Volume passes `translatePine` strict AND

@@ -171,6 +171,35 @@ export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M
  *  plausible and off by one bar forever. */
 export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
 
+/** ⭐⭐ THE BARS THIS ENGINE IS ACTUALLY HANDED — the "base" the ruling above says
+ *  would unblock `D`, and it is DERIVED rather than typed: the base is the ladder
+ *  rung immediately BELOW the lowest thing `tf` can resample, because `tf` may only
+ *  read STRICTLY ABOVE the bars in hand. Today that is `'D'`. Widen
+ *  `TF_RESAMPLABLE` and this follows on the same day rather than a release later.
+ *
+ *  ⛔ IT IS NOT A SECOND AUTHORITY ON THE LADDER. It reads both arrays above and
+ *  throws if they ever stop agreeing, so a hand-edit that breaks the relationship
+ *  fails loudly here instead of quietly one layer down.
+ */
+export const BASE_TF = (() => {
+  const lowestResamplable = TF_RESAMPLABLE
+    .map((c) => TF_LADDER.indexOf(c))
+    .filter((i) => i >= 0)
+    .sort((x, y) => x - y)[0]
+  if (!(lowestResamplable > 0)) {
+    throw new Error('BASE_TF: TF_RESAMPLABLE and TF_LADDER disagree — '
+      + `resamplable=${TF_RESAMPLABLE.join(',')} ladder=${TF_LADDER.join(',')}`)
+  }
+  return TF_LADDER[lowestResamplable - 1]
+})()
+
+/** Is a timeframe code INTRADAY, i.e. below the daily rung? Used by the one guard
+ *  that must refuse an identity fold on a forming intraday bar. */
+export const isIntradayTf = (code) => {
+  const i = TF_LADDER.indexOf(code)
+  return i >= 0 && i < TF_LADDER.indexOf('D')
+}
+
 /** How many BASE bars one higher-timeframe bar spans, for the lookback sum.
  *  ⚠️ TRADING days, not calendar. Too SMALL is the dangerous direction — it
  *  would let a tree claim it needs fewer bars than it reads.
