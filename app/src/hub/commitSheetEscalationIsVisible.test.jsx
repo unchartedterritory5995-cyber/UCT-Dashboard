@@ -162,7 +162,21 @@ describe('the visible escalation and the haptic one read the SAME flag', () => {
       + 'escalation and iOS is silent again',
     ).toMatch(/escalate:\s*action\.escalate === true/)
 
+    // ⚰️ THIS ONCE READ `useJoystick.js` FOR `action.escalate` DIRECTLY, and went red the day the
+    // branch moved into `escalateCue.js` — correctly, because the rail is about the FLAG being
+    // shared, and it could no longer see where the flag was read. It now follows BOTH HOPS, so
+    // deleting either one still fails it: the gesture door must delegate to the shared cue, and
+    // the shared cue must read the same field the sheet payload does.
     const joystick = readFileSync(path.join(SRC, 'hub/useJoystick.js'), 'utf8')
-    expect(joystick, 'the haptic half stopped reading the same flag').toMatch(/action\?\.escalate|action\.escalate/)
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    expect(
+      joystick,
+      'the gesture door no longer routes its cue through escalateCue, so the two doors can drift '
+      + 'again — which is the defect that made iOS silent on the sheet door for a whole wave',
+    ).toMatch(/escalateCue\(/)
+
+    const cue = readFileSync(path.join(SRC, 'hub/escalateCue.js'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    expect(cue, 'the shared cue stopped reading the same flag').toMatch(/action\?\.escalate|action\.escalate/)
   })
 })

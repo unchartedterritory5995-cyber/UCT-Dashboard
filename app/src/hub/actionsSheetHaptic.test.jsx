@@ -228,23 +228,37 @@ describe('the contract is the CALL, not a vibration (iOS Safari has no navigator
 })
 
 describe('one helper, one vibrate call site', () => {
-  it('HubActionsButton and useJoystick import the SAME haptics module', () => {
+  it('both doors reach the SAME cue module, and only that module imports haptics', () => {
     ran()
-    const IMPORT = /import\s+haptics\s+from\s+'([^']+haptics[^']*)'/
+    // ⚰️ THIS ONCE ASSERTED THAT BOTH FILES IMPORTED `haptics` DIRECTLY — which was the right
+    // check while both owned a copy of the escalate branch, and became the wrong one the moment
+    // the branch moved into `escalateCue.js`. The intent never changed ("one helper, one call
+    // site"); what changed is where the single site lives. Following the mechanism rather than
+    // deleting the rail: both doors must reach the same cue module, and that module must be the
+    // one importing the helper.
+    const CUE_IMPORT = /import\s*\{\s*escalateCue\s*\}\s*from\s*'([^']+escalateCue[^']*)'/
     const buttonSrc = fs.readFileSync(path.join(HERE, 'HubActionsButton.jsx'), 'utf8')
     const joystickSrc = fs.readFileSync(path.join(HERE, 'useJoystick.js'), 'utf8')
 
-    const buttonMatch = buttonSrc.match(IMPORT)
-    const joystickMatch = joystickSrc.match(IMPORT)
-    // Non-vacuity: a regex that matched nothing would make the resolve-and-compare below trivially
-    // true if it were written defensively, so fail here first.
-    expect(buttonMatch).not.toBeNull()
-    expect(joystickMatch).not.toBeNull()
+    const buttonMatch = buttonSrc.match(CUE_IMPORT)
+    const joystickMatch = joystickSrc.match(CUE_IMPORT)
+    // Non-vacuity first: a regex that matched nothing would make the resolve-and-compare below
+    // trivially true if it were written defensively.
+    expect(buttonMatch, 'the sheet door no longer imports the shared cue').not.toBeNull()
+    expect(joystickMatch, 'the gesture door no longer imports the shared cue').not.toBeNull()
 
-    // Compare RESOLVED paths, not the specifier strings — the two files could legally reach the
-    // same module by different relative paths.
-    expect(path.resolve(HERE, buttonMatch[1])).toBe(path.resolve(HERE, joystickMatch[1]))
-    expect(fs.existsSync(path.resolve(HERE, buttonMatch[1]))).toBe(true)
+    // RESOLVED paths, not specifier strings — two files may legally reach one module by different
+    // relative paths.
+    const cuePath = path.resolve(HERE, buttonMatch[1])
+    expect(cuePath).toBe(path.resolve(HERE, joystickMatch[1]))
+    expect(fs.existsSync(cuePath)).toBe(true)
+
+    // ⭐ And the cue module is where the helper is imported — the hop that makes "one vibrate call
+    // site" true rather than merely tidy.
+    const cueSrc = fs.readFileSync(cuePath, 'utf8')
+    const helper = cueSrc.match(/import\s+haptics\s+from\s+'([^']+haptics[^']*)'/)
+    expect(helper, 'the shared cue stopped importing the app haptics helper').not.toBeNull()
+    expect(fs.existsSync(path.resolve(path.dirname(cuePath), helper[1]))).toBe(true)
   })
 
   it('no hub source vibrates directly — every hub cue goes through haptics.js (constants.js:160)', () => {

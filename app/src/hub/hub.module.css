@@ -83,6 +83,26 @@
   transform: scale(1.8);
 }
 
+/* ── The commit cue, for devices with no vibration (every iPhone) ────────────
+   ⛔ A STATIC CLASS HELD BY A JS TIMER, NEVER AN ANIMATION OR A TRANSITION.
+   `tokens.css` zeroes `animation-duration` AND `transition-duration` app-wide
+   with `!important` under `prefers-reduced-motion: reduce`, so an animated
+   flash would be REMOVED for exactly the members most likely to need a
+   non-haptic cue. `escalateCue.js` adds this class, holds it for
+   ESCALATE_CUE_MS and removes it; nothing here animates, so the reset cannot
+   reach it.
+
+   ⚠️ It paints the DOT, not the whole knob: the dot already carries the
+   target action's colour (spec §5), so the member's eye is on it at the
+   moment of fire. It also deliberately overrides the dot's own colour
+   transition for the duration — see the `transition: none` below, which is
+   what stops the 0.15s colour tween from smearing a 180ms cue. */
+.escalateCue .knobDot {
+  background-color: var(--color-warning) !important;
+  transform: scale(1.8);
+  transition: none;
+}
+
 /* ── Fan — bubbles + the quarter-circle wedge backdrop (§5) ──────────────── */
 .fan {
   /* Decorative: selection is by wedge ANGLE, never by hit-testing a bubble

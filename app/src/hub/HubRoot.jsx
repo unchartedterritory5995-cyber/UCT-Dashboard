@@ -33,6 +33,13 @@ import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
 import { modesById, fanFor, isPreviewMode } from './registry'
+// ⛔ THE STYLESHEET, FOR ONE CLASS ONLY. `HubRoot` paints nothing itself — every visual piece is a
+// child component with its own styles — but it OWNS the element `escalateCue` flashes when the
+// device cannot vibrate, so it is the one place that can hand both doors the same hashed class
+// name. Adding this import was not optional: the first version of the cue wiring referenced
+// `styles` here without it and took HubRoot's whole render down with
+// `ReferenceError: styles is not defined`, caught by HubRoot.test.jsx's mount gate.
+import styles from './hub.module.css'
 import { RING_NAMES, EDGE_OFFSET_PX } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
@@ -332,6 +339,11 @@ function HubShell({ setToastMsg }) {
     onTap: handleTap,
     onDoubleTap: handleDoubleTap,
     onHome: goHome,
+    // ⭐ THE VISUAL COMMIT CUE'S TARGET. `escalateCue` flashes this element's knob dot when the
+    // device cannot vibrate — every iPhone. A getter, not `rootRef.current`, because the hook
+    // captures these options and the ref is null on the first render.
+    cueEl: () => rootRef.current,
+    cueClassName: styles.escalateCue,
   })
 
   // The coach mark dismisses itself the first time the fan actually opens — see HubCoachMark.
@@ -549,6 +561,12 @@ function HubShell({ setToastMsg }) {
         disabledReason={reasonFor}
         onAction={runAction}
         hapticsEnabled={settings.haptics !== false}
+        // ⭐ THE SAME ELEMENT AND THE SAME CLASS THE GESTURE DOOR USES. §C2's equal-path rule is
+        // about the CUE as well as the outcome, and this is the only door a VoiceOver or TalkBack
+        // member has. Passing the wiring down (rather than letting the button reach for the
+        // stylesheet) keeps ONE place that decides what the cue looks like.
+        cueEl={() => rootRef.current}
+        cueClassName={styles.escalateCue}
         // ⛔ ONE AUTHORITY OVER "does this member want haptics". Stream E gave the sheet the
         // escalate cue the gesture path has, defaulting the prop to true so it was not shipped
         // built-tested-and-unreachable — but a default is a SECOND answer to a question the member

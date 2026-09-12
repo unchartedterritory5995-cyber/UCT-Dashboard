@@ -7,7 +7,7 @@ import HubScrubRange from './HubScrubRange'
 import UIcon from '../components/ui/UIcon'
 // The app's ONE haptics helper — the same module `useJoystick.js:16` imports for the gesture
 // door. Never a second `navigator.vibrate` call site (constants.js:160).
-import haptics from '../components/mobile/haptics.js'
+import { escalateCue } from './escalateCue.js'
 import styles from './hub.module.css'
 import { PAD_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX } from './constants'
 
@@ -103,6 +103,11 @@ export default function HubActionsButton({
   onFeedback,
   onHide,
   hapticsEnabled = true,
+  // ⭐ The commit cue's wiring, supplied by HubRoot so ONE place decides what the cue looks like.
+  // Both default to "no visual" — unwired, this door degrades to haptics-only, which is what it
+  // did before, rather than crashing on a missing prop.
+  cueEl = null,
+  cueClassName = '',
 }) {
   // ⚰️ THE `open` / `onOpenChange` PAIR IS GONE, with the gesture it existed for. This button was
   // made optionally controlled so the two-finger Peek could open the SAME sheet rather than a
@@ -123,28 +128,23 @@ export default function HubActionsButton({
 
   const handlePick = (action) => {
     if (idsHas(disabledIds, action.id)) return
-    if (hapticsEnabled) {
-      // §C2's equal-path rule is about the CUE too, not only the outcome. The gesture door has
-      // fired a cue on every action since Phase 2 and escalated on `escalate` since B5
-      // (`useJoystick.js:197-198`: `if (target?.action?.escalate) haptics.warn()` / `else
-      // haptics.impact()`); this door — the ONLY door a VoiceOver or TalkBack user has, because
-      // both screen readers eat the two-finger Peek — fired nothing at all. A member who cannot
-      // perform the drag got a silently quieter product on the most destructive actions in the
-      // hub (journal.close among them).
-      //
-      // ⚠️ THIS IS A SECOND COPY OF THE BRANCH AT `useJoystick.js:197`, and that is a known cost,
-      // not an oversight: the shared extraction would have to live in a module `useJoystick.js`
-      // imports, and this stream does not own that file. What keeps the two from drifting is
-      // `actionsSheetHaptic.test.jsx`, which derives the expected cue for EVERY action of a mode
-      // from `registry`'s own `escalate` flag — the same authority line 197 reads — rather than
-      // from a list re-typed next to either copy.
-      //
-      // ⚠️ Fires the HELPER, and asserts nothing about a vibration: iOS Safari exposes no
-      // `navigator.vibrate` at all, so `haptics.warn()` there is a no-op that returns `false`
-      // (`components/mobile/haptics.js:9`). The contract this path owes the member is the CALL.
-      if (action?.escalate) haptics.warn()
-      else haptics.impact()
-    }
+    // ⛔⛔ ONE IMPLEMENTATION, AND THIS DOOR NO LONGER OWNS A COPY OF IT.
+    //
+    // §C2's equal-path rule is about the CUE too, not only the outcome. The gesture door has fired
+    // a cue on every action since Phase 2 and escalated on `escalate` since B5; this door — the
+    // ONLY door a VoiceOver or TalkBack member has, because both screen readers eat the two-finger
+    // Peek — once fired nothing at all, then fired a SECOND COPY of the same branch. Both are gone:
+    // `escalateCue` decides, for both doors, and this passes it the wiring HubRoot supplies.
+    //
+    // ⭐ AND IT IS WHY THE VISUAL FALLBACK MATTERS MOST HERE. `haptics.warn()` returns false
+    // wherever `navigator.vibrate` is absent — every iPhone — so on iOS a member using the
+    // accessible door got no escalation at all on the most destructive actions in the hub.
+    // `escalateCue` consults that return value and paints the knob dot when it is false.
+    escalateCue(action, {
+      el: typeof cueEl === 'function' ? cueEl() : (cueEl?.current ?? cueEl ?? null),
+      className: cueClassName,
+      hapticsEnabled,
+    })
     setOpen(false)
     onAction?.(action)
   }
@@ -200,9 +200,11 @@ export default function HubActionsButton({
           }}
           aria-label="Send feedback"
           onClick={() => {
-            // The same cue the sheet's own rows fire for a non-escalating pick, through the app's
-            // ONE haptics helper — never a second `navigator.vibrate` call site (constants.js:160).
-            if (hapticsEnabled) haptics.impact()
+            // The same cue the sheet's own rows fire for a non-escalating pick — now through
+            // `escalateCue` with no action, which IS the non-escalating branch. ⭐ That keeps the
+            // rail true in the strong form: exactly one non-test file in the hub may call the
+            // haptics helper for a cue, so a third copy cannot appear without failing it.
+            escalateCue(null, { hapticsEnabled })
             onFeedback()
           }}
         >

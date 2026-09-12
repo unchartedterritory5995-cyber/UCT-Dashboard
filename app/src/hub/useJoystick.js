@@ -15,6 +15,7 @@ import {
 import { resolveTarget, ringForPointer } from './fanGeometry.js'
 import { recordGestureEvent } from './gestureTrace.js'
 import haptics from '../components/mobile/haptics.js'
+import { escalateCue } from './escalateCue.js'
 
 // ⭐ THE HOOK RENDERS NOTHING. It owns one pointer-driven state machine and calls back into the
 // six handlers the caller supplies (mode.onTap/onDoubleTap live on the mode object itself — see
@@ -162,6 +163,13 @@ export default function useJoystick({
   // ctx, so HubRoot dispatches — one rule for all four mode callbacks instead of two rules.
   onTap,
   onDoubleTap,
+  // ⛔ OPTIONAL, AND THE DEFAULTS ARE THE OLD BEHAVIOUR. `cueEl` is the element `escalateCue`
+  // flashes when the device cannot vibrate (a ref, an element, or a getter); `cueClassName` is the
+  // CSS-module class it holds. Unwired — which every existing test of this hook is — the cue is
+  // haptics-only, exactly as it shipped. A required option here would have turned a missing wire
+  // into a crash inside the most safety-critical file in the feature.
+  cueEl = null,
+  cueClassName = '',
 } = {}) {
   const travelPx = settings.travelPx ?? TRAVEL_PX
   const holdMs = settings.holdMs ?? HOLD_MS
@@ -239,23 +247,41 @@ export default function useJoystick({
   )
 
   function fireTarget(target) {
-    if (hapticsEnabled) {
-      // Owner ruling (Phase 2 gate), mirrored in constants.js:
-      //   fan open -> tap() · target change -> tap() · fire -> impact()
-      //   action leads to a COMMIT SHEET -> warn()
-      // The triple pulse is the "you are about to be asked to commit something" cue, and it is the
-      // only escalation in the set.
-      //
-      // ⛔ B5 — THIS BRANCHED ON `kind === 'confirm'` AND THAT WAS A PROXY, NOT THE RULE. The
-      // ruling's own words are "commit sheet -> warn()", and `kind` only happened to name that set.
-      // B3 moved journal.moveStop/breakeven/close to kind:'run' to stop two sheets stacking — they
-      // still open a sheet that asks the member to commit, but the cue silently downgraded to
-      // impact() on all three, including Close, the most destructive action in the hub. The marker
-      // is declared in the registry so the cue stops riding on a `kind` that changes for unrelated
-      // reasons; `validateRegistry` requires it on every kind:'confirm' so the old set cannot shrink.
-      if (target?.action?.escalate) haptics.warn()
-      else haptics.impact()
-    }
+    // Owner ruling (Phase 2 gate), mirrored in constants.js:
+    //   fan open -> tap() · target change -> tap() · fire -> impact()
+    //   action leads to a COMMIT SHEET -> warn()
+    // The triple pulse is the "you are about to be asked to commit something" cue, and it is the
+    // only escalation in the set.
+    //
+    // ⛔ B5 — THIS BRANCHED ON `kind === 'confirm'` AND THAT WAS A PROXY, NOT THE RULE. The
+    // ruling's own words are "commit sheet -> warn()", and `kind` only happened to name that set.
+    // B3 moved journal.moveStop/breakeven/close to kind:'run' to stop two sheets stacking — they
+    // still open a sheet that asks the member to commit, but the cue silently downgraded to
+    // impact() on all three, including Close, the most destructive action in the hub. The marker
+    // is declared in the registry so the cue stops riding on a `kind` that changes for unrelated
+    // reasons; `validateRegistry` requires it on every kind:'confirm' so the old set cannot shrink.
+    //
+    // ⛔⛔ ONE IMPLEMENTATION, TWO DOORS. This branch used to live here AND in
+    // `HubActionsButton.jsx`, kept from drifting only by a test that derived the expected cue for
+    // both from the registry. `escalateCue` is now the only place that decides what a commit feels
+    // like — and, on a device with no vibration hardware, what it LOOKS like. Read its header:
+    // `haptics.warn()` is a no-op returning false wherever `navigator.vibrate` is absent, which is
+    // EVERY iPhone, so the escalation for the most destructive actions in the hub has been silence
+    // on iOS since it shipped.
+    //
+    // ⛔ IT IS NO LONGER INSIDE `if (hapticsEnabled)`, and that is the point of the change. The
+    // preference is about VIBRATION: `escalateCue` honours it for the buzz and still paints the
+    // visual cue, because "I don't want buzzing" is not "I don't want to be told this action
+    // commits something". The flag is passed IN so `settings.haptics` stays the one authority.
+    //
+    // ⚠️ `cueEl`/`cueClassName` are optional and default to the old behaviour. Unwired — every
+    // test that mounts this hook directly, and any future caller — the cue is haptics-only,
+    // never nothing and never a throw.
+    escalateCue(target?.action, {
+      el: typeof cueEl === 'function' ? cueEl() : (cueEl?.current ?? cueEl ?? null),
+      className: cueClassName,
+      hapticsEnabled,
+    })
     onFire?.(target)
   }
 
