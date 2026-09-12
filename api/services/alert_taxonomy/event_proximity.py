@@ -58,6 +58,8 @@ date change **resets the clock** exactly as an anchor move does for a trendline.
 """
 from __future__ import annotations
 
+import time as _time
+from datetime import date as _date
 from typing import Any, Optional
 
 from api.services.alert_taxonomy import predicates as _predicates
@@ -130,3 +132,118 @@ def register(*, db_path: str | None = None) -> None:
     rediscovered it.
     """
     _registry.register_trigger_type(TYPE_ID, PARAMS_SCHEMA, module=__name__, db_path=db_path)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHECKPOINT 2 — the dark evaluator
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: The legacy path's two slots, as LEAD DAYS. `run_prereport_alerts` fires for
+#: today's reporters at 07:00 ET and tomorrow's at 18:00 ET, and expresses
+#: nothing else. ⛔ NOT `EARNINGS_PROXIMITY_DEFAULT_DAYS` — see F-S7-EP-1.
+LEGACY_LEAD_DAYS = (0, 1)
+
+
+def _as_date(value: Any) -> Optional[_date]:
+    """`YYYY-MM-DD` -> date, or None. ⛔ None is a REFUSAL, never a default:
+    a malformed date must make the predicate un-evaluable, not make it fire
+    against today."""
+    if isinstance(value, _date):
+        return value
+    try:
+        return _date.fromisoformat(str(value).strip()[:10])
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def days_until(params: dict[str, Any], today: _date) -> Optional[int]:
+    """Whole days from `today` to the predicate's event date.
+
+    ⭐ Negative is meaningful and is NOT clamped: an event that has already
+    happened is a different state from one due today, and collapsing them would
+    make a stale predicate look permanently armed.
+    """
+    ev = _as_date(params.get("event_date"))
+    if ev is None:
+        return None
+    return (ev - today).days
+
+
+def would_fire(params: dict[str, Any], today: _date) -> bool:
+    """The DARK rule: does this predicate's event fall on its lead day?
+
+    ⛔ THIS IS DELIBERATELY THE LEGACY RULE, NOT AN IMPROVED ONE. CP1-CP2 compare
+    *the behaviour that exists*; the whole point of a dark period is to measure
+    the migration, and a rule that "fixes" something while migrating measures the
+    fix instead.
+
+    So: earnings only, day granularity, lead days restricted to what the legacy
+    slots express. A predicate declaring a kind or granularity the legacy path
+    cannot produce evaluates to False rather than raising — those shapes are
+    pinned in the schema, not authorized to fire (gate packet §2).
+    """
+    if params.get("event_kind") != EARNINGS:
+        return False
+    if (params.get("granularity") or DAY) != DAY:
+        return False
+    lead = params.get("lead_days")
+    if lead is None or int(lead) not in LEGACY_LEAD_DAYS:
+        return False
+    d = days_until(params, today)
+    return d is not None and d == int(lead)
+
+
+def event_fingerprint(params: dict[str, Any]) -> tuple:
+    """What a change to the predicate's EVENT IDENTITY looks like.
+
+    ⛔ A calendar date moves — a company reschedules, a provider corrects — and
+    when it does, the pre-change span is NOT COMPARABLE. This is the
+    event-proximity analogue of `price_level_projection._anchor_fingerprint`, and
+    it is detected the same way: BY OBSERVATION, comparing what the evaluator
+    reads now against what the span recorded. No hook in the legacy path, which
+    must stay byte-identical.
+    """
+    return (params.get("event_kind"), params.get("entity_ref"),
+            params.get("event_date"), params.get("granularity"),
+            params.get("lead_days"))
+
+
+def evaluate(*, today: _date, predicate_ids: list[str],
+             db_path: str | None = None,
+             now: Optional[float] = None) -> dict[str, Any]:
+    """One DARK tick over HARNESS-ARMED predicates only.
+
+    ⛔ `predicate_ids` is REQUIRED and has no "all" mode. CP2's approval is
+    explicit that member rows are not projected — that is CP3 — and a default
+    that swept everything would make the restriction a matter of call-site
+    discipline rather than of the signature.
+
+    Writes `alert_fires` + receipts. Imports no delivery path.
+    """
+    now = _time.time() if now is None else now
+    fired, skipped = {}, {}
+    for pid in predicate_ids:
+        row = _predicates.get_predicate(pid, db_path=db_path)
+        if not row:
+            skipped[pid] = "unknown predicate"
+            continue
+        params = row.get("params") or {}
+        if not would_fire(params, today):
+            continue
+        key = "ep:%s:%s:%s" % (params.get("entity_ref"), params.get("event_date"),
+                               params.get("lead_days"))
+        fid = _receipts.record_fire(
+            predicate_id=pid, trigger_type=TYPE_ID, user_id=row.get("user_id"),
+            entity_ref=params.get("entity_ref"), fire_key=key,
+            detail={"event_kind": params.get("event_kind"),
+                    "event_date": params.get("event_date"),
+                    "lead_days": params.get("lead_days"),
+                    "session": params.get("session"), "dark": True},
+            source_data_class="calendar", freshness_class="end_of_day",
+            as_of=now, db_path=db_path)
+        # ⭐ `None` means the fire_key was already recorded. That is the legacy
+        # path's own dedup contract (its PK is (user, ticker, market_date)), so a
+        # repeat tick on the same day is a NO-OP here too, by construction.
+        fired[pid] = fid
+    return {"evaluated": len(predicate_ids), "fired": fired, "skipped": skipped,
+            "at": now, "today": today.isoformat()}

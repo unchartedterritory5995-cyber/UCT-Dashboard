@@ -149,13 +149,27 @@ def test_no_replay_fn_is_registered():
         "comparison is forward-only and a date change resets the clock")
 
 
-def test_CP1_ships_no_evaluator_and_nothing_calls_register():
-    """⛔ CP1 DECLARES THE TYPE. A registered type with a wired evaluator is CP2+;
-    a registered type with an evaluator nobody calls is the defect price-level
-    shipped, so both halves are asserted."""
+def test_the_evaluator_exists_but_NOTHING_CALLS_register():
+    """⚰️ THIS TEST ASSERTED "CP1 ships no evaluator", and that was true for
+    exactly one commit:
+
+        "⛔ CP1 DECLARES THE TYPE. A registered type with a wired evaluator is
+        CP2+; a registered type with an evaluator nobody calls is the defect
+        price-level shipped, so both halves are asserted."
+
+    ⛔ CP2 ADDS THE EVALUATOR BY APPROVAL, so the first half is DISCHARGED, not
+    waived. The second half is the one that still matters and is left standing:
+    **nothing calls `register()`**. Wiring is CP3 and needs its own line.
+
+    ⭐ Rewritten rather than deleted. Deleting it would leave no record that the
+    evaluator is deliberate and no rail on the wire that is still absent — and
+    "registration is not activation" is exactly the distinction price-level got
+    wrong in the other direction.
+    """
     code = _code_only(_MODULE)
-    for evaluator_ish in ("def evaluate", "def run_dark_sweep", "record_fire"):
-        assert evaluator_ish not in code, f"CP1 must ship no evaluator; found {evaluator_ish}"
+    assert "def evaluate" in code, (
+        "CP2's evaluator is gone — if this is a deliberate rollback, rewrite this "
+        "test rather than letting it pass on the CP1 shape")
 
     callers = []
     for path in sorted((_REPO / "api").rglob("*.py")):
@@ -180,8 +194,19 @@ def test_CP1_ships_no_evaluator_and_nothing_calls_register():
                     and node.func.value.id in aliases):
                 callers.append(str(path.relative_to(_REPO)).replace("\\", "/"))
     assert callers == [], (
-        f"event_proximity.register() is wired in {callers}. CP1 declares the type; "
-        "wiring lands with the evaluator under CP3's own approval line.")
+        f"event_proximity.register() is wired in {callers}. CP1-CP2 are DARK and "
+        "harness-driven; wiring lands under CP3's own approval line.")
+
+
+def test_CP2_ships_NO_SCHEDULER_ENTRY_and_no_sweep():
+    """⛔ The other half of "registration is not activation", asserted against
+    `api/main.py` rather than promised. ⭐ The gate packet pre-writes CP3's wire
+    rail precisely so this is a deliberate absence at CP2, not a forgotten one."""
+    main = (_REPO / "api" / "main.py").read_text(encoding="utf-8")
+    assert "event_proximity" not in main, (
+        "event_proximity is referenced in api/main.py — CP1-CP2 put it on no tick")
+    # control: the probe can see a sibling type that IS wired.
+    assert "_at_price_level.register()" in main
 
 
 def test_the_legacy_path_is_byte_identical():
