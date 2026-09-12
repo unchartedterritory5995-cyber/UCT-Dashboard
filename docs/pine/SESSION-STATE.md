@@ -892,6 +892,16 @@ been applied to the merge; only `barstate.md` on this branch was corrected.
 
 ### Item 10's gate is named `VITE_VOLUME_NUMERIC_PANE_ENABLED` and defaults OFF
 
+> ⛔⛔ **IT IS A PLACEMENT FLAG AND IT GATES NOTHING ABOUT PINE RENDERING.** Read
+> plainly because the name cost a full re-read of `resolvePlacement` to rule out on
+> 2026-09-11: `placement.js::volumeNumericPaneEnabled` decides whether a definition
+> **already overlaid on the volume pane** skips the shared LEFT axis and gets its own
+> pane and right-hand scale. Turning it on does **nothing whatsoever** for
+> `uncharted-volume.pine` — the shared word "volume" is a coincidence. The gate on a
+> member's own script reaching a pane is **`VITE_PINE_MEMBER_PANE_ENABLED`**
+> (`memberPaneGate.js`, default OFF, scaffolded 2026-09-11 with its flag-off rail).
+
+
 ⚠️ **THE OWNER NEVER SUPPLIED §6's TAIL.** The message was truncated mid-sentence
 at *"Feature fl…"*, and the runbook's standing instruction was to ask before
 starting M1. The directive of 2026-09-11 overrode that with "ship it behind a

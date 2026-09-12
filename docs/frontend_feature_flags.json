@@ -22,8 +22,18 @@
     "VITE_VOLUME_NUMERIC_PANE_ENABLED": {
       "status": "pending",
       "since": "2026-09-11",
-      "readBy": ["app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled"],
+      "readBy": [
+        "app/src/components/chart/engine/placement.js::volumeNumericPaneEnabled"
+      ],
       "note": "Item 10 (M1) -- a definition overlaid onto the volume pane gets its OWN pane and its own right-hand scale instead of the shared left axis, so a numeric read has a ladder of its own. Shipped dark because the owner's spec message (Section 6) was truncated mid-sentence at 'Feature fl...' and the tail never arrived: the NAME and the default are assumptions this session made explicit rather than guesses it hid. Renameable in one line -- the gate is read in exactly one place. Turning it on is a member-visible change, which is why it is not on."
+    },
+    "VITE_PINE_MEMBER_PANE_ENABLED": {
+      "status": "dark",
+      "since": "2026-09-11",
+      "readBy": [
+        "app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled"
+      ],
+      "note": "Whether a member's own translated Pine script may reach a chart pane. SCAFFOLD: nothing renders one yet -- pineRuntimeFrontend.js has zero importers and a gate test holds it there -- so this ships OFF with its flag-off rail already written, rather than the rail arriving one commit after the incident. DARK because the pane does not exist: it is not 'pending a decision', it is waiting on a producer for opts.newestBarIsForming, without which four barstate columns render blank. NOT to be confused with VITE_VOLUME_NUMERIC_PANE_ENABLED, which is a PLACEMENT flag for definitions already on the volume pane and does nothing for uncharted-volume.pine -- the shared word 'volume' cost a full re-read of resolvePlacement to rule out."
     }
   }
 }
