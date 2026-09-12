@@ -1,6 +1,10 @@
 # Wave Q1 — the seven-day production observation window
 
-> **Q1 is ACTIVE in production.** `OFFLINE_DEFAULT_ON = true` as of 2026-09-09.
+> ⚰️ **SUPERSEDED 2026-09-12 — Q1 IS NOT ACTIVE.** This header said *"Q1 is ACTIVE in
+> production, `OFFLINE_DEFAULT_ON = true` as of 2026-09-09"*. It was rolled back that
+> same day (`ee952041c`) and has been `false` ever since, on the branch, on `master`
+> and on the live bundle. The window below has **never run**; it describes the week of
+> watching that starts *if* the flip is approved.
 > This is the first durable client-side member research state in the Notebook's
 > history, so it gets an isolated week of watching before anything else moves.
 >

@@ -4355,7 +4355,7 @@ is not a gate.
 
 ### check 14 — **2026-09-12T01:35:20Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 | | reading |
 |---|---|
@@ -4388,7 +4388,7 @@ is not a gate.
 
 ### proof-reads-only-exits-3 — **2026-09-11T12:06:13Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 | | reading |
 |---|---|
@@ -4408,7 +4408,7 @@ is not a gate.
 
 ### streak-7-of-7 — **2026-09-11T12:03:30Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4430,7 +4430,7 @@ is not a gate.
 
 ### streak-6-of-7 — **2026-09-11T12:03:15Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4452,7 +4452,7 @@ is not a gate.
 
 ### streak-5-of-7 — **2026-09-11T12:03:01Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4474,7 +4474,7 @@ is not a gate.
 
 ### streak-4-of-7 — **2026-09-11T12:02:46Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4496,7 +4496,7 @@ is not a gate.
 
 ### streak-3-of-7 — **2026-09-11T12:02:33Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4518,7 +4518,7 @@ is not a gate.
 
 ### streak-2-of-7 — **2026-09-11T12:02:16Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4575,7 +4575,7 @@ returned exit **3** with *"READS-ONLY RUN - the canary did not fire."*
 
 ### streak-1-of-7 — **2026-09-11T12:01:44Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4597,7 +4597,7 @@ returned exit **3** with *"READS-ONLY RUN - the canary did not fire."*
 
 ### check 13 — **2026-09-11T04:18:40Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 
@@ -4619,7 +4619,7 @@ returned exit **3** with *"READS-ONLY RUN - the canary did not fire."*
 
 ### check 12 — **2026-09-11T02:56:22Z**
 
-⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a **compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, baked into the frontend bundle — there is no Railway env var behind it. To roll back: revert the flip commit, push to `master`, and wait for the `web` service to rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`). A member with an open tab keeps the OLD bundle until they reload. It stops processing; it destroys nothing. ⚰️ *Corrected in place 2026-09-12 — the rows below were STAMPED with the false env-var line; the tool that printed it is fixed, and nothing else in the row is altered.*
 
 ⛔ **mini-canary suspended pending self-fork round 3** — this row is READS ONLY: nothing was opted in, nothing was created on the account, not a single write. The fork detector and the offline-sentence check remain defined and remain hard reds; re-arming is one constant.
 

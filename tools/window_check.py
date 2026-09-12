@@ -213,8 +213,15 @@ CANARY_SUSPENDED = False
 SUSPENSION_REASON = ""
 
 # ⛔ ON EVERY ROW, AT THE TOP. A reader who needs it is not reading for pleasure.
-ROLLBACK_LINE = ("⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the "
-                 "Railway `web` service. It stops processing; it destroys nothing.")
+ROLLBACK_LINE = (
+    "⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a "
+    "**compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, "
+    "baked into the frontend bundle — there is no Railway env var behind it. To roll "
+    "back: revert the flip commit, push to `master`, and wait for the `web` service to "
+    "rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, "
+    "Railway `createdAt` → process start). A member with an open tab keeps the OLD "
+    "bundle until they reload."
+)
 
 
 def new_since(titles, before):
