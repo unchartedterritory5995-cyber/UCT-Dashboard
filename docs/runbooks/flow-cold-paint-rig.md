@@ -218,3 +218,42 @@ Mutation-proved by inverting the backward-uptime comparison.
 It was another workstream pushing five times in six minutes. Later the same afternoon
 it happened again on the rig's own verification run, and the deploy in flight was
 *this session's own commit*. Both times the honest answer was "nothing was measured".
+
+---
+
+## Path B, four runs total — the picks result is BIMODAL, and it correlates
+
+> ### ⚠️ QUIET TAPE — NOT A MEASUREMENT. Version frozen at 39819849 throughout.
+
+All four runs verified **not swapped** (uptime monotonic across each), so none of this
+is deploy churn:
+
+| run | `shell_ms` | `picks_ms` | flow req | wire | shape |
+|---|---|---|---|---|---|
+| A | 462 | **never** | 7 | 2,119,080 B | clean |
+| B | 446 | 1,329 | 7 | 2,119,080 B | clean |
+| C | 614 | 15,863 | 8 | 3,536,844 B | storm |
+| D | 719 | 30,547 | 6 | 3,367,123 B | storm |
+
+**`shell_ms` is tight: 446–719 ms.** `picks_ms` spans 1,329 ms → 30,547 ms → never, on
+an identical quiet tape. That is not a slow page; it is two different behaviours.
+
+### ⭐ The correlation that turns two Monday questions into one
+
+The **clean** runs issue 7 flow requests for 2,119,080 B — two un-versioned first-paint
+parts, then the four versioned deferred parts. The **storm** runs issue 6–8 requests
+for ~3.4 MB and spend them **re-requesting `bootstrap` and `TOP_PICKS`** rather than
+proceeding to the deferred remainder. Fast picks appear only on the clean shape.
+
+So the duplicate-request storm and the slow/absent picks table look like **one defect,
+not two**: something re-fires the first-paint fetch instead of advancing, and the table
+waits on a product that keeps being re-requested. That reframes Monday's observation:
+
+⛔ **Count MOUNTS, not requests.** A remount would produce exactly this — repeated
+first-paint parts, no progression to the deferred set, and a table whose gate never
+settles. A render gate below the shell would NOT re-issue the network calls, so the
+request pattern is the discriminator between the two hypotheses.
+
+⚠️ Run A is still the worst case and the most informative: clean shape, 7 requests,
+parts served — and the table never rendered inside the settle window. Whatever the
+storm is, it is not the only way to lose the picks table.
