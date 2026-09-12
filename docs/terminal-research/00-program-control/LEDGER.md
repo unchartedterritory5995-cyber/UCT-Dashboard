@@ -673,6 +673,123 @@ line to look for is:
 ⛔ If it instead prints `S7 price-level DARK comparison OFF`, the flag did not reach the process and
 **the week will collect nothing**. Rollback is unsetting it — no code change, no deploy of ours.
 
+### ✅ ARMED — 2026-09-12 (owner-authorized, this one variable only)
+
+```
+railway variables --service web --set "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1"
+```
+
+| | |
+|---|---|
+| set at | **2026-09-12 14:58:47 UTC** |
+| behaviour of `--set` | **AUTO-REDEPLOYED** — a new web deployment appeared 2 s later (14:58:49 UTC). This matches the 2026-09-09 `web` measurement and *not* the 2026-08-30 `chart-renderer` one; the repo's rule that the behaviour is unsettled per-service stands, and this is a third data point, not a settlement. |
+| deploy artifact | web **SUCCESS**, uptime reset at `/api/health` |
+| running commit verified | `329a4a322` (CP3b) proved an **ancestor** of the running commit, and `git show <running>:api/main.py` contains `id="alert_taxonomy_price_level_dark"` exactly once — ⭐ the code is verified present in the artifact that is running, not assumed from the branch |
+| flag ledger | `docs/feature_flags.json` → `status: armed`, with this timestamp |
+
+⛔ **THE SWEEP WILL NOT TICK UNTIL MONDAY, AND THAT IS THE CRON, NOT A FAULT.** Its trigger is
+`day_of_week="mon-fri", hour="9-16"`, so there is **no heartbeat row and no span in the store over
+the weekend**. ⚠️ Anyone running the report today gets `NO DATA`, which is correct and must not be
+read as a failed arming — the first honest liveness reading is **Monday after 09:00 ET**.
+
+### ⭐ THE KNOWN-GOOD BASELINE — captured 2026-09-12, BEFORE any real data
+
+⛔ Recorded now so next weekend's read has something to diff against. **A report you have never
+seen working is not a report**, and the failure this guards is specific: an empty store prints four
+zeroes per predicate and reads exactly like perfect agreement.
+
+`python tools/s7_price_level_report.py --self-check` → **PASS** (exit 0). It builds two throwaway
+stores — one empty, one carrying a real disagreement — and asserts the output tells them apart.
+
+**A. EMPTY STORE — what Monday morning looks like before the first crossing:**
+
+```
+GATE-S7-PRICE-LEVEL - dark comparison, forward-only
+store: <empty>
+
+NON-VACUITY CONTROL
+  predicates seen ....... 0
+  comparison spans ...... 0
+  recorded outcomes ..... 0
+
+NO DATA. The store holds no comparison spans at all.
+This is NOT 'they agree' - nothing was ever compared. Check that
+ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 on the web service and
+that the sweep is printing '[alert_taxonomy] price-level DARK sweep'.
+```
+
+**B. SYNTHETIC FIXTURE — the shape a real week should produce:**
+
+```
+NON-VACUITY CONTROL
+  predicates seen ....... 2
+  comparison spans ...... 2
+  recorded outcomes ..... 17
+
+PER PREDICATE  (legacy watchlist_alerts row id after 'legacy:')
+
+  predicate                   agreed  new-only legacy-only  not-comparable sessions verdict
+  legacy:a1                        3         0           2               4        2 NOT READY (2/5)
+      -> anchors rewritten 1x - the pre-move spans are in not-comparable BY DESIGN, never counted as agreement
+      -> TRENDLINE: its level moves between ticks by construction, so its disagreements are not the same fact as a fixed level's
+  legacy:b2                        7         0           1               0        5 ready
+
+VERDICT GATE
+  five full trading sessions of forward data, per predicate.
+  status: NOT READY - do not read a flip decision out of this yet
+
+!! KNOWN BLIND SPOT, and it points the flattering way.
+  The legacy path is ONE-SHOT (_trigger_alert sets is_active = 0) and the
+  projection reads only active rows, so once legacy fires, that row leaves
+  the comparison. This report sees the FIRST divergence per predicate and
+  CANNOT see a second crossing. A new-only of 0 is therefore not evidence
+  that persistent-vs-one-shot is harmless - it is a thing we cannot observe.
+```
+
+⭐ **Diff next weekend's output against B, not against expectations.** The columns, the ordering,
+the annotation lines and the blind-spot footer are all pinned here; anything structurally different
+means the tool changed, not the market.
+
+⚰️ **The tool crashed the first time it was rendered with real content** — `UnicodeEncodeError:
+'charmap' codec can't encode character '\u21b3'`. The rendered output is now **ASCII by
+construction** (docstrings keep their marks), with a `sys.stdout.reconfigure` backstop and a rail
+that renders a populated report and calls `.encode("cp1252")` on it. ⛔ This repo has paid for this
+exact bug before: `tools/flag_ledger_audit.py` reported *"could not enumerate the project's
+services"* for two days because cp1252 killed a reader thread on the first box-drawing byte — which
+reads as an **auth** problem, not an encoding one, and is why it went unfixed rather than unnoticed.
+
+### ⭐ MONDAY, ~09:05 ET — ONE COMMAND, YES/NO WITH THE ROW COUNT
+
+```
+railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
+```
+
+Exit **0** = ticking · **1** = stalled or never started. Healthy output looks like:
+
+```
+TICKING: YES -- last tick 43s ago, 6 ticks total
+  WRITING: 1 spans, 0 recorded outcomes, 1 predicates projected
+  priced 1, no_price []
+  (0 outcome rows is NORMAL early -- it means nobody's line has been crossed yet, not that the sweep is broken)
+```
+
+⛔ **IT REPORTS TWO FACTS, NOT ONE, BECAUSE THEY FAIL SEPARATELY.**
+
+- **TICKING** is the heartbeat's *age*. ⭐ Nothing else can answer it: a span OPENS once per
+  predicate and thereafter only its counters move, with **no timestamp on them** — so a sweep that
+  died at 09:01 looks, at 15:00, **identical** to one that never stopped. The heartbeat
+  (`price_level_sweep_heartbeat`, one row, stamped on EVERY tick including the empty ones) is the
+  smallest thing that separates them. A heartbeat that only beat on success would be a success
+  detector, not a liveness one.
+- **WRITING** is spans + recorded outcomes. A sweep can tick perfectly and write nothing, and that
+  is a different problem with a different cause.
+
+⚠️ **`0 outcome rows` at 09:05 is the NORMAL answer** and the tool says so in words — nobody's line
+has been crossed yet. ⛔ What is *not* normal is `projected=0`, which means no ACTIVE
+`watchlist_alerts` row belongs to an admin account: the sweep is healthy and comparing **nobody**.
+The tool flags that separately, because a week of that would arrive next weekend looking exactly
+like a week of agreement.
+
 ### ⭐ HOW THE OWNER READS THE COMPARISON NEXT WEEKEND
 
 **One command, on the web pod, read-only:**

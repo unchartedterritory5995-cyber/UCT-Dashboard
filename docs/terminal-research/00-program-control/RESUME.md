@@ -1,6 +1,107 @@
 # RESUME — cold-start entry point (Document B §3A)
 
-**Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `a5173fe41` (2026-09-11). Rail PASS on both checks at that SHA.**
+**Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `68cf6924f` (2026-09-12). Rail PASS.**
+
+---
+
+# ⛔⛔ COLD START — WHERE THINGS ACTUALLY ARE, 2026-09-12 (SATURDAY)
+
+**This block supersedes everything below it. Read it, then `LEDGER.md`.**
+
+## S7 `price-level` — CP3, DARK, **ARMED**, running from Monday's open
+
+| | |
+|---|---|
+| state | **Checkpoints 1–3 merged to master.** Dark: no delivery, no flip, no legacy change. |
+| cohort | **ADMIN-ROLE ACCOUNTS ONLY**, via a read-only projection of `watchlist_alerts`. CP4 (all members) needs its own approval line **after** five sessions of admin data. |
+| armed | `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1` on `web`, **2026-09-12 14:58:47 UTC**. Boot line verified: `[startup] S7 price-level DARK comparison ENABLED (every minute, weekdays 09:00-16:59 ET, admin cohort, no delivery)`. |
+| verdict gate | **five full trading sessions**, per predicate. `verdict_ready` is its own field — *"not enough data yet"* is never rendered as *"they agree"*. |
+| read it | `railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py"` |
+| Monday liveness | same tool, `--ticking`. Exit 0 = ticking, 1 = stalled/never started. |
+
+⛔⛔ **THE COLUMN THAT MATTERS IS `legacy_only`. `new_only` WILL BE ~0 AND THAT IS NOT A FINDING.**
+
+- **`legacy_only`** — legacy fires on a LEVEL TEST (`>=`/`<=`), the new rule needs a TRANSITION. An
+  alert armed while price is already through its level fires immediately on the legacy path and
+  **never** on the dark one. **Those are the members who lose an alert at the flip.** This is the
+  number the flip decision rests on.
+- **`new_only`** — **STRUCTURALLY INVISIBLE, not absent.** Legacy is one-shot (`_trigger_alert` sets
+  `is_active = 0`) and the projection reads only active rows, so the moment legacy fires the row
+  leaves the comparison. The report sees the FIRST divergence per predicate and **cannot see a
+  second crossing at all.** ⛔ Do not size CP4 or the flip against a `new_only` of zero — it is a
+  thing this instrument cannot observe. Rail:
+  `test_KNOWN_LIMIT_the_one_shot_divergence_is_invisible_to_a_projection`.
+- **`not_comparable`** — span time we deliberately refuse to score (an anchor rewrite resets the
+  clock). Never folded into a denominator; folding it in would make *moving a trendline* look like
+  agreement.
+
+⚠️ **A report run before Monday says `NO DATA`, and that is correct.** The cron is `mon-fri
+09:00–16:59 ET`, so there is no heartbeat row and no span over the weekend. `NO DATA` is the
+non-vacuity control doing its job, not a failed arming.
+
+### ⛔ WHY `price_level.py` IS NOT "BEHAVIOUR-CHANGING" YET — and the test that will say when it is
+
+The CP3 ruling said the module becomes BEHAVIOUR-CHANGING under the flow-worker rail from CP3 on.
+**Measured after the wiring landed, it is still `reachable=False`** — `api/services/alerts.py`
+imports `receipts` and `document_arrival` **by name**, not the package, and `register()` is wired in
+`api/main.py`, which is the **WEB** entry and is not in flow-worker's closure at all. The earlier
+claim was a generalisation from one reachable sibling, published in the ledger **and** restated in
+the marker file, where the second copy read as corroboration of the first.
+
+⭐ So the reclassification is **deferred and conditional**, and it is a **rail, not a sentence**:
+
+```
+tests/test_flow_worker_watch_coverage.py::test_price_level_is_STILL_OUTSIDE_flow_workers_closure
+```
+
+It fails **by name** the day anything in flow-worker's closure imports `price_level`, and prints the
+reclassification instruction in its failure message. It will fire on one of two foreseeable events:
+**the flip** (an evaluator on a worker tick), or anything under `api/services/alerts.py`'s closure
+naming `price_level`. ⛔ Until it fires, classifying a `price_level` change as ADDITIVE is correct,
+and classifying it as BEHAVIOUR-CHANGING "because the ruling said so" is classifying by habit.
+
+### ⚰️ THE ONE DEFECT THIS CHECKPOINT SHIPPED, kept because the shape repeats
+
+CP3 merged (`ea0326717`) with `register()` wired, the projection and harness built, **18 tests
+green — and nothing calling the evaluator.** Monday would have produced zero rows, and next weekend
+an empty store reads exactly like five sessions of agreement. Cause: CP1/CP2's correct *"registration
+only, no scheduler entry"* invariant was carried into CP3 **by habit**, written into the `api/main.py`
+comment, and then **enforced by a test** — while approval line 2 says the harness *"runs against the
+projected predicates"*. ⭐ Registration is not activation; but putting the **dark** evaluator on a
+tick is not the **flip** either. Fixed in CP3b (`baea70d76`). The rail that catches it now asserts
+the **wire**, not the parts — every other test called the evaluator itself, which is why eighteen of
+them said nothing.
+
+## ⭐ NEXT-SESSION QUEUE — in this order
+
+| # | item | note |
+|---|---|---|
+| 1 | **G1** | Classify under the flow-worker rail, merge, **marker bump only if it strands** — measure with `reachable_paths()`, never a hand BFS. Held over from 2026-09-12 by owner instruction. |
+| 2 | **D1 G3 / G5 sizing** | G3 = the adapter is JSON-only (blocks `ticker_logos` PNG + `fundamentals_bulk` 30–70 MB CSV). G5 = no retry/backoff/request-ceiling. **Sizing only** — not a build authorization. |
+| 3 | **S7 trigger-type plan, updated with what CP1–CP3 taught** | see the three mandatory items below |
+| 4 | **F-I1-2 gate line** | ⏸️ **STILL PARKED.** Do not re-raise; it is owner-bound. |
+
+### ⛔ WHAT CP1–CP3 ADDS TO THE S7 TRIGGER-TYPE PLAN — mandatory for every future type
+
+1. **BOTH SHAPES IN THE SCHEMA AT REGISTRATION.** `price-level` pinned `price` *and* `trendline` in
+   CP1, before any evaluator existed. A trendline is a first-class shape with **no past** — its level
+   is a function of `now`, so nothing may write a stale-level cleanup against it.
+2. **FORWARD-ONLY COMPARISON, NO REPLAY, EVER.** Both rules evaluated live on the same tick from the
+   moment the dark predicate arms. An anchor rewrite **resets the clock** and the pre-move span is
+   discarded into `not_comparable` — never counted as agreement. Four outcomes, never a pass rate.
+   And every comparison ships with the report that reads it **and a non-vacuity control**, because an
+   empty store renders identically to perfect agreement.
+3. ⛔⛔ **WIRING IS NOT ACTIVATION — A MANDATORY CHECKPOINT ITEM.** Every trigger type's checklist
+   must carry, as its own line: *"name the thing that CALLS this evaluator, and the rail that asserts
+   the call site exists."* Registration, an evaluator, and green tests are all compatible with a
+   feature that never runs. The rail must assert the **wire**, not the parts — a suite whose every
+   test invokes the evaluator directly is structurally blind to the one question that matters.
+
+## Also open
+
+- **Browser checks — owed by the owner**, batched: bell icon · Ask-AI provenance (slice 2 is live) ·
+  S3 admin `/status`.
+- **G1** as queued above.
 
 ---
 
@@ -9,7 +110,13 @@
 **This is a BUILD program.** It has 50+ commits in production. **[`LEDGER.md`](LEDGER.md) is the
 authority on what shipped** — not this file, not the specs, not the architecture documents.
 
-## FIVE PULL REQUESTS ARE PENDING THE OWNER'S MERGE. Merge in this order.
+## ⚰️ HISTORICAL — the five PRs below were MERGED on 2026-09-11/12
+
+⛔ **Kept for the merge-order reasoning, not as a to-do.** Every row shipped; the current
+state is the block at the top of this file and `LEDGER.md`. A cold start that acts on
+this table will re-merge merged work.
+
+### (as originally written) FIVE PULL REQUESTS ARE PENDING THE OWNER'S MERGE
 
 | # | branch | SHA | what | tier |
 |---|---|---|---|---|
