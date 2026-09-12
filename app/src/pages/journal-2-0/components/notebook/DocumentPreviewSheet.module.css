@@ -87,3 +87,18 @@
     justify-content: flex-start;
   }
 }
+
+/* The PDF preview's two non-viewer states (PdfViewerBoundary.jsx). Deliberately plain: this is
+   what a member on an engine the viewer cannot run sees instead of a dead route, so it must read
+   as an explanation rather than as a broken panel. */
+.pdfUnavailable,
+.pdfLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
