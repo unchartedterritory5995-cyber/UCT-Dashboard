@@ -12,6 +12,23 @@ data/
 # Voice KB corpus is version-controlled — deploys with the code
 !api/data/voice_kb/
 !api/data/voice_kb/**
+# D2 CP1 canonical address book is version-controlled ON PURPOSE. It is DERIVED
+# (tools/build_canonical_address_book.py) but it is not scratch output: a
+# generated file that is not committed cannot be diffed in review, and a
+# canonical form nobody reviews is a second authority with extra steps. The
+# derivation rail regenerates and byte-compares it, so the committed copy can
+# never drift from the declarations it is built from.
+#
+# ⛔ IT IS TRACKED BY `git add -f`, NOT BY THE NEGATION BELOW-STYLE PATTERN, AND
+# SAYING SO MATTERS. Git cannot re-include a file whose PARENT DIRECTORY is
+# excluded, and `data/` on line 11 excludes `api/data/` itself — so a
+# `!api/data/<file>` line here would read like a working mechanism and do
+# nothing. (⚠️ That is also true of the `!api/data/voice_kb/**` lines above:
+# those files are tracked because they were force-added, not because of the
+# negation. Recorded, not fixed — they are not this program's.)
+# `tests/test_canonical_address_book.py::test_the_book_is_committed_data_not_a_
+# build_artifact` is what actually holds the line: it asks git whether the file
+# is tracked, which is the property we want, rather than trusting a pattern.
 # Phase 3B Lane A VCP gold-standard validation evidence (rubric, candidate
 # pool, frozen case packets, blinded review results, adjudication + metrics)
 # is version-controlled -- it is the reproducible evidence trail for the

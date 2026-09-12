@@ -227,13 +227,30 @@ _MAX_BARS = 5000
 #: authority.
 #:
 #: ⭐ BUT "WHETHER AN INTRADAY CADENCE IS WANTED" IS ALREADY ANSWERED PER TREE, AND
-#: THE ANSWER IS DERIVED, NOT SET HERE. Measured over the manifest 2026-08-09, all
-#: 54 declared scalars are unanimous: `cadence: nightly`, `store: screener_rows`,
-#: `grain: date`. So a scan naming ANY scalar has a NIGHTLY ceiling no schedule can
-#: lift -- re-running it at noon re-reads the same 03:00 snapshot. A bars-only scan
-#: has no such ceiling. `cadence_ceiling(tree)` reads that off the manifest's own
-#: declarations, so a fifty-fifth scalar with a different cadence moves the answer
-#: with no edit here. ⛔ NOTHING HAND-LISTS WHICH SCALARS ARE NIGHTLY.
+#: THE ANSWER IS DERIVED, NOT SET HERE. EVERY declared scalar in the manifest is
+#: unanimous: `cadence: nightly`, `store: screener_rows`, `grain: date`. So a scan
+#: naming ANY scalar has a NIGHTLY ceiling no schedule can lift -- re-running it at
+#: noon re-reads the same 03:00 snapshot. A bars-only scan has no such ceiling.
+#: `cadence_ceiling(tree)` reads that off the manifest's own declarations, so a
+#: scalar arriving with a different cadence moves the answer with no edit here.
+#: ⛔ NOTHING HAND-LISTS WHICH SCALARS ARE NIGHTLY.
+#:
+#: ⚰️ THIS SENTENCE USED TO CARRY A COUNT, AND THE COUNT DRIFTED -- inside the very
+#: comment whose last line forbids hand-listing. It read, verbatim:
+#:
+#:     "Measured over the manifest 2026-08-09, all 54 declared scalars are
+#:      unanimous: `cadence: nightly`, `store: screener_rows`, `grain: date`.
+#:      ... so a fifty-fifth scalar with a different cadence moves the answer
+#:      with no edit here."
+#:
+#: The manifest had grown well past 54 by 2026-09-12 and the unanimity claim was
+#: STILL TRUE -- the mechanism was right and only the number beside it was stale,
+#: which is this repo's most-repeated defect wearing its most flattering disguise.
+#: ⛔ SO THE COUNT IS GONE AND IS NOW REPORTED BY A TEST:
+#: `tests/test_canonical_address_book.py::test_the_axes_are_REPORTED_not_assumed`
+#: asserts the PROPERTY (one store, one cadence, one grain) and PRINTS the count,
+#: so it stays true when a scalar is added and goes red the day one arrives with a
+#: different cadence -- which is the event this paragraph was always about.
 SWEEP_HOUR_ET = 5
 SWEEP_MINUTE_ET = 0
 
