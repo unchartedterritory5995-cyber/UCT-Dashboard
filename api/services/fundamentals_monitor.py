@@ -412,7 +412,19 @@ def check_ticker(sym: str, now=None) -> dict:
     behind = reported_staleness(q, now=now)
     if behind >= _STALE_QUARTERS:
         ours = rep_labels[-1] if rep_labels else None
-        theirs = sec_newest_reported_quarter(sym)
+        # ⛔ A THIRD-PARTY HTTP CALL MUST NOT BE ABLE TO KILL A CYCLE. `run_cycle`
+        # has no per-ticker try/except and `check_ticker`'s own one wraps only
+        # `get_earnings_table`, so a raise here propagates out of the per-ticker
+        # loop; the daemon catches it one level up and logs, losing the cycle
+        # silently for every remaining ticker in the sample.
+        # `newest_reported_quarter` is written defensively, but that is not the
+        # same as "cannot raise" — an uncaught `requests` subclass, or an odd
+        # payload reaching the shared mapper, is enough.
+        try:
+            theirs = sec_newest_reported_quarter(sym)
+        except Exception:  # pragma: no cover - exercised via monkeypatch
+            _logger.warning("[fund-monitor] SEC confirmation failed for %s", sym, exc_info=True)
+            theirs = None
         if ours and theirs and theirs > ours:
             issues.append({"kind": "stale_reported",
                            "detail": f"reported through {ours}; SEC shows a periodic "

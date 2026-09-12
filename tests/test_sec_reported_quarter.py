@@ -191,3 +191,44 @@ def test_sec_is_only_consulted_when_the_strip_already_looks_stale(tmp_path, monk
                         lambda s: (asked.append(s), "2026 Q2")[1])
     fm.check_ticker("AAPL", now=_now())
     assert asked == [], "spent an SEC lookup on a current strip"
+
+
+def test_a_raising_sec_oracle_cannot_kill_the_check(tmp_path, monkeypatch):
+    """⛔ `run_cycle` has NO per-ticker try/except, and `check_ticker`'s own try
+    block wraps only `get_earnings_table`. So an exception from the SEC lookup
+    propagates out of check_ticker, out of the per-ticker loop, and kills the
+    WHOLE cycle — the daemon catches it one level up and logs, so the cycle is
+    simply lost, silently, for every remaining ticker in the sample.
+
+    `newest_reported_quarter` is written defensively, but "written defensively"
+    is not "cannot raise": a `requests` exception subclass it does not catch, or
+    an unexpected payload shape reaching the shared mapper, is enough. A
+    third-party HTTP call must not be able to take down the monitor.
+    """
+    fm = _monitor(tmp_path, monkeypatch)
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _stale_payload())
+
+    def _boom(sym):
+        raise RuntimeError("sec.gov exploded")
+
+    monkeypatch.setattr(fm, "sec_newest_reported_quarter", _boom)
+    r = fm.check_ticker("HOLX", now=_now())          # must not raise
+    assert "stale_reported" not in [i["kind"] for i in r["issues"]], \
+        "an unconfirmable ticker must not be flagged"
+
+
+def test_a_raising_sec_oracle_does_not_lose_the_rest_of_the_cycle(tmp_path, monkeypatch):
+    fm = _monitor(tmp_path, monkeypatch)
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: _stale_payload())
+    monkeypatch.setattr(fm.cache, "delete_prefix", lambda p: 0)
+    monkeypatch.setattr(fm.cache, "invalidate", lambda k: None, raising=False)
+    monkeypatch.setattr(fm, "_sample_tickers", lambda n: ["A", "B", "C"])
+    monkeypatch.setattr(fm, "_alert", lambda newly: None)
+    monkeypatch.setattr(fm, "_send_digest", lambda rows: None)
+
+    def _boom(sym):
+        raise RuntimeError("sec.gov exploded")
+
+    monkeypatch.setattr(fm, "sec_newest_reported_quarter", _boom)
+    out = fm.run_cycle(now=_now())                   # must not raise
+    assert out["checked"] == 3, f"cycle lost tickers to a provider exception: {out}"
