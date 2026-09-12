@@ -145,6 +145,29 @@ the session reports. These are on feature branches awaiting the owner's merge �
 | `738abc087` | `feat/d1-adoption-sweep` | **D1** | `tools/fmp_guard_census.py`, `tests/test_fmp_guard_census.py` | Retired **2 verified-stale quarantine entries** (`api/routers/calendar.py`, `api/services/econ_calendar_fmp.py`) — both already migrated and measuring zero violations, so their exemptions were **suppressing the rail on clean files**. Added `test_retired_quarantine_entries_are_genuinely_clean` and `test_no_quarantine_entry_is_stale`, the second generalizing the defect |
 | `638e12f48` | `feat/d1-adoption-sweep` | **D1** | `docs/d1-implementation-log.md` | Recorded the five adapter gaps (G1–G5) that block every remaining FMP call site |
 
+| `7f483014b` | `feat/s3-admin-routes` | **S3** | `api/routers/entity_master_admin.py` (new, 272), `api/main.py` (+2 mount), `api/services/entity_master/store.py` (+66 `status_counts()`), `scripts/entity_master_seed.py` (+17 docstring correction), `tests/test_entity_master_admin.py` (new, 576) | **Closes the S3 open item.** `GET /api/admin/entity-master/status` with spec §7.3's exact field names, `last_*_at` **derived** from `MAX(applied_at)` by `entity_events.source` rather than a counter, zero-denominator guarded. `POST /api/admin/entity-master/reconcile?dry_run=true` (default **true**), single-flight with 409, no client-supplied `db_path`, nothing scheduled. **26 tests, independently re-run by the orchestrator: `26 passed … in 6.35s`, exit 0.** Mutation-proved six ways, all reverted |
+
+⛔ **TWO DEVIATIONS ON `feat/s3-admin-routes`, both caused by the orchestrator's brief, both needing
+an owner ruling — neither is the agent's error:**
+
+1. **`/status` is ADMIN-GATED; `entity-master-spec.md` §7.3 specifies a NO-AUTH read.** The spec
+   reasons explicitly that it mirrors `bars-stream-status` and `reconciliation-status` "rather than
+   inventing a third auth posture for the same kind of endpoint." The brief said admin-only and the
+   agent complied, recording the deviation in the module header. ⭐ **Recommendation: keep
+   admin-only and amend the spec** — this program's own **R-17** finding flags unauthenticated
+   endpoints as a live risk in this codebase, and this route exposes counts over the security
+   universe. But it is a spec change, so it is the owner's call.
+2. **`/reconcile`, not `/reseed`.** Correct, and better than the brief: the seed lives in `scripts/`
+   and `reconciliation.py`'s own header forbids the job depending on `scripts/` at runtime, so a
+   `/reseed` route would have broken that boundary. §7.4 names `/reconcile`.
+
+⚠️ **The brief also mis-cited its own precedent**: it claimed `cot.py`'s `/reseed` "uses a background
+thread." **It uses `BackgroundTasks`** (`force_reseed`, line 93); the daemon-thread precedent in that
+file is `POST /narratives/prewarm` (line 129). The agent caught this and followed the thread, for the
+right reason — `BackgroundTasks` borrows the shared 64-slot anyio pool, which is the **2026-07-01
+524-outage mechanism**, for a 60-page Massive walk. ⭐ **The agent's reading of the codebase beat the
+orchestrator's.**
+
 ⛔ **W1-A migrated ZERO call sites, and that is the finding, not a failure.** Every remaining direct
 FMP site is blocked by a missing adapter capability, an explicit in-repo directive, or an owner
 exclusion. Nothing was hacked around and the adapter was not speculatively extended. Detail and

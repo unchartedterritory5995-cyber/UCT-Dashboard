@@ -91,11 +91,22 @@ and never on a request path.
 
 ### Open items — not defects
 
-- ⛔ **`api/routers/entity_master_admin.py` was authorized and never built.** The gate's §15 scope
-  included "the admin routes"; they do not exist on master. The seed script's own docstring
-  acknowledges it, calling the admin `/reconcile` route "Checkpoint 6+, not built yet." **S3 shipped
-  without its ops lever** — there is no `/status` or `/reseed` surface for entity master, so its
-  health is only inspectable by direct DB read. Recorded as an open item per the owner's ruling.
+- ✅ **`api/routers/entity_master_admin.py` — BUILT 2026-09-11 on branch `feat/s3-admin-routes`
+  (`7f483014b`), awaiting the owner's merge.** It was authorized in the gate's §15 scope and never
+  built, leaving S3 without an ops lever for nine days; the seed script's docstring had recorded the
+  gap as "Checkpoint 6+, not built yet" (now corrected on that branch). Shipped: `GET
+  /api/admin/entity-master/status` with §7.3's exact field names — `last_seed_at`/`last_reconcile_at`
+  **derived** from `MAX(applied_at)` by `entity_events.source` rather than kept as a counter, and the
+  `figi_coverage_pct` denominator guarded — plus `POST /api/admin/entity-master/reconcile`,
+  `dry_run` defaulting **true**, single-flight (409), on a dedicated daemon thread, never scheduled,
+  no client-supplied `db_path`. 26 tests, re-run independently by the orchestrator (`26 passed`,
+  exit 0), mutation-proved six ways.
+  ⛔ **Two deviations from this spec need the owner's ruling — see [`LEDGER.md`](../../00-program-control/LEDGER.md)
+  Section 4:** the route is **admin-gated where §7.3 specifies a no-auth read**, and it is
+  **`/reconcile` not `/reseed`** (the latter would have broken `reconciliation.py`'s own
+  no-runtime-dependency-on-`scripts/` boundary — §7.4 names `/reconcile` anyway).
+  ⚠️ Spec line 52's self-report that "`api/routers/entity_master_admin.py` does not exist" is **now
+  false** and should be corrected when the branch merges.
 - **OpenFIGI fallback resolution** and **`watchlist_items` migration** remain deferred, exactly as
   the gate excluded them.
 
