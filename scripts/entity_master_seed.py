@@ -8,9 +8,22 @@ Populates entity_master.db from three existing, unmodified sources:
 
 Idempotent (spec §5.1 step 7): every symbol already resolved to an open
 alias is skipped, never duplicated. Never runs automatically (spec §10.1) —
-an admin runs this by hand, or triggers the admin `/reconcile` route
-(Checkpoint 6+, not built yet). Offline/background only; never on a
+an admin runs this by hand, or triggers `POST /api/admin/entity-master/reconcile`
+(`api/routers/entity_master_admin.py`, `require_admin`, `dry_run=true` by
+default, run on its own daemon thread). Offline/background only; never on a
 request path.
+
+⚰️ This said the admin `/reconcile` route was *"Checkpoint 6+, not built yet"*.
+It is built. ⛔ That route does NOT run THIS file — it runs
+`api/services/entity_master/reconciliation.run_reconciliation`, which is the
+in-package equivalent (spec §9.4: seed and reconcile are "the same operation at
+different points in the store's lifetime"). There is deliberately no HTTP door
+onto this script: `reconciliation.py`'s own header states that the job "must not
+depend on `scripts/` at runtime", and a route that imported `scripts/` from
+`api/` would break that boundary to save a duplicated canonicalization helper
+the two modules already keep in sync by test
+(`test_reconciliation_canonicalization_matches_seed_script`). The full seed
+stays a hand-run command.
 
 Usage:
     python scripts/entity_master_seed.py --dry-run          # read-only, writes nothing
