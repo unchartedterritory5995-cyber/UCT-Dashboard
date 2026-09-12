@@ -125,6 +125,20 @@ export const BAR_FIELD_LABELS = Object.freeze({
   hl2: 'HL2', hlc3: 'HLC3', ohlc4: 'OHLC4', volume: 'Volume',
 })
 
+/**
+ * `QQQ · Close` — what a member reads for a symbol source.
+ *
+ * ⭐ DERIVED, NEVER STORED. The label is not part of identity (see
+ * `symbolSource`), so a vendor renaming an instrument cannot change what the
+ * chart is pointing at. Discovery metadata may later give `UCTA50` a friendlier
+ * name; that belongs to the catalogue, not to this string.
+ */
+export function symbolSourceLabel(parsed) {
+  if (!parsed || parsed.kind !== 'symbol') return ''
+  const field = BAR_FIELD_LABELS[parsed.field] || parsed.field
+  return `${parsed.symbol} · ${field}`
+}
+
 /** The source string naming one output of one instance. */
 export function instanceSource(instanceId, plotKey) {
   if (typeof instanceId !== 'string' || !instanceId) return null
@@ -496,11 +510,26 @@ export function wouldCycle(instances, defOf, instanceId, value) {
  * @param {string} selfInstanceId the instance the control belongs to
  * @returns {{label: string, options: {value: string, label: string}[]}[]}
  */
-export function sourceOptions(cs, defOf, selfInstanceId) {
+export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
   const groups = [{
     label: 'Price data',
     options: SOURCE_BAR_FIELDS.map((f) => ({ value: f, label: BAR_FIELD_LABELS[f] || f })),
   }]
+
+  // ⛔⛔ A VALUE MUST BE REPRESENTABLE IN THE CONTROL THAT EDITS IT.
+  // Phase 1 lets an input hold `sym:QQQ:close`, and this list is what a `<select>`
+  // renders: a stored value with no matching option shows BLANK, and the next
+  // change event then writes whichever option the browser fell back to — silently
+  // rewriting the member's instrument. There is no symbol CATALOGUE here on
+  // purpose (that is a later phase), so the current value is offered as itself,
+  // which is the smallest thing that is correct.
+  const cur = parseSource(currentValue)
+  if (cur && cur.kind === 'symbol') {
+    groups.push({
+      label: 'Symbol',
+      options: [{ value: currentValue, label: symbolSourceLabel(cur) }],
+    })
+  }
 
   const instances = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
   const indicators = []

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  parseSource, symbolSource, symbolsNeeded,
+  parseSource, symbolSource, symbolsNeeded, sourceOptions,
   severReferencesTo, severedSource, isSeveredSource, sourceDependsOn,
 } from './sourceRef'
 
@@ -157,5 +157,39 @@ describe('label independence', () => {
     // Nothing display-shaped is in the string: no name, no colour, no pane,
     // no timeframe.
     expect(a).not.toMatch(/Invesco|Nasdaq|#|pane|1D|line/i)
+  })
+})
+
+describe('⛔⛔ THE PICKER MUST NOT SILENTLY REWRITE A SYMBOL SOURCE', () => {
+  // A `<select>` whose stored value matches no option renders blank, and the
+  // next change event writes whatever the browser fell back to. For a source
+  // that names an INSTRUMENT, that is the member's chart quietly pointing
+  // somewhere else.
+  it.each(FAMILIES)('%s: the current value appears as an option', (_l, sym) => {
+    const value = symbolSource(sym, 'close')
+    const cs = csWith([{ instanceId: 'a', defId: MA, inputs: { source: value } }])
+    const groups = sourceOptions(cs, defOf, 'a', value)
+    const values = groups.flatMap((g) => g.options.map((o) => o.value))
+    expect(values).toContain(value)
+  })
+
+  it('⭐ the label is derived and readable, never the raw string', () => {
+    const groups = sourceOptions(csWith([]), defOf, null, symbolSource(SECURITY, 'volume'))
+    const opt = groups.flatMap((g) => g.options).find((o) => o.value === 'sym:QQQ:volume')
+    expect(opt.label).toBe('QQQ · Volume')
+    expect(opt.label).not.toContain('sym:')
+  })
+
+  it('⛔ no symbol group appears when the value is not a symbol — no empty heading', () => {
+    for (const value of [null, 'close', '@legacy:rsi::rsi', 'sym:QQQ:hl2']) {
+      const groups = sourceOptions(csWith([]), defOf, null, value)
+      expect(groups.some((g) => g.label === 'Symbol')).toBe(false)
+    }
+  })
+
+  it('⛔ the existing two groups are unchanged — bar fields still lead', () => {
+    const groups = sourceOptions(csWith([]), defOf, null, null)
+    expect(groups[0].label).toBe('Price data')
+    expect(groups[0].options.map((o) => o.value)).toContain('close')
   })
 })
