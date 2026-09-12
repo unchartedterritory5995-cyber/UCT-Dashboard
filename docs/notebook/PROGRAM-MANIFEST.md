@@ -393,6 +393,27 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-12 — Q2 proposed ahead of R/S; REJECTED, contract order stands
+
+A session proposed starting Wave Q2 (offline read · conflict UX · attachments) in
+parallel ahead of Waves R and S. **Rejected by the owner the same day.** §2's order
+is the contract and its dependency reasoning is explicit: R adds a **second writer
+to the note save path**, which is why Q1 blocked everything and why R must land on
+the finished save path rather than beside a changing one.
+
+⭐ **What was adopted instead: the order stands, the EXECUTION is parallelised** —
+see §12. K, R, S and Q2-A run concurrently on non-overlapping files; Q2-B/C/D wait
+for R to merge dark and pass its post-merge Q1 canary.
+
+⚰️ **Two errors in the proposal, both from planning off a later doc instead of this
+one** — the trap §10 exists to warn about:
+1. It treated `wave-q2-PRD.md` as Q2's scope. That PRD was written from
+   `wave-q1-observation-window.md`'s passing mention and **omits mobile shell**,
+   which §2 names as part of Q2–Q5.
+2. It proposed a new `ROADMAP.md` as "the single authority", which would have been
+   a second authority over this file — the exact defect §7 exists to resolve.
+
+
 | # | claim | resolution |
 |---|---|---|
 | 1 | Offline editing "lean toward Do-Not-Build" (arch, 09-05) vs "EDITABLE in v1" (wave-q0, 09-09) | **wave-q0 wins** — later, and the charter re-affirms it |
@@ -550,3 +571,83 @@ Closing it requires building an instrument first — that is a task, not a looku
 |---|---|---|
 | S-15 | Tasks / reminders, financial-native (review thesis before earnings, revisit in N days) | 🔴 never built · **SPEC-THIN** — named 3×, specified 0× |
 | S-16 | Note-version retention / pruning policy | 🔴 unowned — nothing prunes `j2_note_versions` today |
+
+---
+
+## 11. COMPLETION CRITERIA — the one-screen definition of done
+
+⛔ **The charter is done when every line below is TRUE.** Not when the code exists —
+when it is *reachable by a member or explicitly ruled not to be.*
+
+| # | criterion | how it is proven |
+|---|---|---|
+| C-1 | Every row in §2's waves Q1, R, S is **SHIPPED-DARK or FLIPPED** | per-row flag column below, plus a merge SHA |
+| C-2 | Every SHIPPED-DARK row has a **flip packet** delivered to the owner | key · railway command · preconditions TRUE with evidence · window + verdict rule · rollback · member-impact paragraph |
+| C-3 | Every FLIPPED row has **run its observation window to a verdict** | window length from its row; verdict recorded |
+| C-4 | §8 **DO-NOT-BUILD is untouched** | a sweep proves none of the 22 named items gained code |
+| C-5 | §9 **OPEN** rows are each resolved **or** deferred with an owner ruling | no row left silently open |
+| C-6 | §6 **Wave T** rows each carry an owner answer | `wave-T-decisions.md`, one line each |
+| C-7 | **T-12 pre-launch smoke passes** | it is the gate that outranks every row (§6) |
+| C-8 | Q1's 7-day window closed **KEEP** | `wave-q1-gate-verdict.md` |
+| C-9 | The manifest's own rows are **`[m]` measured, not `[d]` claimed** | one `[d]` (S-05) survives with its stated reason |
+| C-10 | No capability is member-visible that the owner has not flipped | a rail per track; dark-means-dark |
+
+⛔ **C-4 and C-10 are the two that fail silently.** Everything else announces itself.
+
+---
+
+## 12. EXECUTION PLAN — 2026-09-12
+
+**Contract order stands. Execution is parallel.** Owner ruling, 2026-09-12.
+
+### Deploy rules for this program
+
+⭐ **The Notebook program is `app/**` web-only and has no deploy window.** It never
+touches flow-worker's watch list, so the OPRA-gap reasoning in
+`docs/runbooks/deploy-windows.md` does not apply to it. ⛔ That runbook is the
+Options Flow session's file and is **not edited from here**.
+
+⛔ **Merges serialize: one at a time, Railway web SUCCESS before the next.** This is
+not a window, it is a queue — and it exists because three merges in four minutes on
+2026-09-12 served 502s for several minutes, each push marking the previous deploy
+`REMOVED`. The runbook's "~1 min blip" is per push and does not compose.
+
+### Tracks
+
+| track | scope | starts | gate on |
+|---|---|---|---|
+| **K** | runtime kill switch — server-served config; every other track's flag rides on it | now | — |
+| **R** | the charter's four MUST items: R-1a scanner/screener capture door · R-3b index widget · R-3c market-context widget · R-4a image paste/drop **with coverage** | now | — |
+| **S** | the 16 measured debt rows, **claims-measured-FALSE first** (S-07), then S-03, S-04, S-06, S-08, S-16, rest | now | file overlap with R |
+| **Q2-A** | offline read cache | now | must not touch the save path or R's files |
+| **Q2-B/C/D** | conflict UX · attachment pinning · mobile shell | **when R has merged dark and passed its post-merge Q1 canary** | R |
+| **T** | decision-blocked | ⛔ **do not build** — `wave-T-decisions.md`, owner answers in one pass | owner |
+
+⛔⛔ **R IS THE SECOND WRITER THE MANIFEST WARNED ABOUT.** §2: *"a second writer to
+the note save path is exactly what Wave R's capture work would add."* Q1 went first
+so R could land on a correct save path. **R therefore gets the Q1 treatment in
+full**: real-door canaries with two writers, fork-never-clobber rails proven for
+every capture door, the mutation gauntlet extended to each new write site, and the
+sweep classifying every new default-reading site *before* code lands.
+
+⛔ **Q2-B waits for R** because B's conflict surface must be built on the save path R
+*finishes*, not the one it is about to change. Its spec is written now; it starts the
+hour R lands.
+
+### Per-row columns added to every wave table
+
+`flag key (config)` · `default` · `flip preconditions` · `observation window + verdict
+rule` · `rollback (config after K)` · `owner-bound y/n`.
+
+⛔ **Owner-bound = member-visible and hard to reverse.** Build proceeds on the
+recommendation; the **flip** waits for the owner's override pass.
+
+### The standard every track meets
+
+spec (cites its manifest row id) → rails before code → telemetry with the
+denominator defined first, rig/canary/owner-browser excluded **by identity** →
+flag on config (compile-time fallback until K merges) → gate with `rule12Paths`
+waived and the reason printed → plain-diff cross-check → mutation gauntlet →
+sweep to zero → sandbox canary via the **real door** → BrowserStack matrix →
+**merge dark** → DEPLOY row in the Q1 observation log → **one Q1 real-door canary
+after**.

@@ -12,7 +12,45 @@ conflict-fork-never-clobber — all live by default since 2026-09-12 00:45 ET.
 
 ---
 
-## The three slices
+## ⚰️ CORRECTED AGAINST THE CONTRACT — 2026-09-12
+
+⛔ **This PRD was written from `wave-q1-observation-window.md`'s passing mention of
+Q2, not from the contract.** `PROGRAM-MANIFEST.md` §2 is the authority and it names
+**Q2–Q5 as four items, not three**:
+
+> *Q2–Q5 | Conflict UX · offline read cache · attachment pinning · **mobile shell***
+
+**Mobile shell was missing from this document entirely.** It is added below as
+**Q2-D**. This is manifest §10's trap — *"TRAPS IN THE OLDER DOCS — read before
+planning from any of them"* — caught one layer down.
+
+⛔ **And the order is wrong here too.** §2 places Q2–Q5 **after Waves R and S**, not
+next. The 2026-09-12 ruling (§7) kept the contract order and parallelised
+execution instead: see §12. **Q2-B, Q2-C and Q2-D do not start until R has merged
+dark and passed its post-merge Q1 canary**, because B's conflict surface must be
+built on the save path R *finishes*, not the one it is about to change.
+
+⭐ Slice letters below map to the manifest, and each slice cites its row id rather
+than this document's own earlier framing.
+
+## The four slices
+
+### Q2-D — Mobile shell *(added 2026-09-12; was missing)*
+
+**What a member gets:** the Notebook usable on a phone — not a desktop layout
+scaled down.
+
+**Manifest provenance:** §2 Q2–Q5, fourth item. ⚠️ **Related but NOT the same as
+`S-14` (mobile capture depth on iOS)**, which §5 records as ⛔ *platform — no Web
+Share Target*, and **not** the same as `T-11` (native POST share service worker),
+which §6 blocks on the charter's standing "no service worker" constraint. ⛔ A
+mobile shell must not quietly become either of those.
+
+**Open before it can be specified:** the touch tier for this program is **≤1024,
+not ≤640** — a floor only at ≤640 leaves tablet broken. Scope, storage and
+telemetry for Q2-D are **OWNER-BOUND** and unspecified until R lands.
+
+
 
 ### Q2-A — Offline read
 
