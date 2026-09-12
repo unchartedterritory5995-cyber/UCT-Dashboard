@@ -2,6 +2,15 @@
 
 # ⛔⛔⛔ START HERE — 2026-09-12
 
+⭐ **PRODUCT FINDING, KEPT — rig probe 3, 2026-09-12:** a leader that
+navigates away **hands leadership on**. A waiting follower takes the
+`uct.nb.sync.<accountId>` lock **inside 5 s** and still holds it at 60 s —
+**no deadlock, no leaked drain.** `awaitSyncLeadership` does on the real
+browser exactly what its comment claims. ⛔ This is a PRODUCT result, not an
+instrument one, and it is the half of the lock investigation worth keeping:
+it is the only direct evidence that the account is never left with a leader
+that cannot drain.
+
 ## ⚰️ FIRST, WHAT THE HEADER THAT STOOD HERE GOT WRONG
 
 Until 2026-09-12 this spot said **"the self-fork is NOT fixed"**, ordered a
