@@ -59,6 +59,11 @@
         "name": "src/pages/desk/ArticlesSection.native.test.jsx > clearing the query brings the full archive back",
         "seen": "branch gate at 6891ac335, base 7ed6b2ce5, population 1191",
         "evidence": "passes alone 12/12, that test 535 ms and the file 1661 ms, against 5426 ms in-shard; failure is a Testing Library async settle timeout (\"Unable to find an element with the text: The Rest of the Week — March 31, 2026\"), not a wrong assertion; branch and master's three new commits touch zero desk/ files; last modified c6f163b54 (2026-08-19) and f30842782 (2026-08-24); absent from all four prior manifests at 1188 and 1190; shard 3 resliced 198 -> 199 by master's offlineOptInEvent.test.jsx"
+      },
+      {
+        "name": "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > the wrapper exempts itself by RESOLUTION, and there is exactly one of it",
+        "seen": "launch/closure e05721c4e (merged master), six-shard run 2026-09-12T17:57:39",
+        "evidence": "TIMED OUT at 30000ms in-shard, then PASSED ALONE in 4822ms on the same tree minutes later, box idle. Not an assertion failure — the body is a repo-wide census() sweep, which is the expensive shape. Content held constant, outcome flipped, so the variable was load. NOT a baseline entry: banking a timeout leaves a slot a real failure can occupy unnoticed."
       }
     ]
   },
