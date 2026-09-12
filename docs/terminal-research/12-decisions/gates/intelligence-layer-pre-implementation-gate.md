@@ -22,8 +22,48 @@ SCOPE APPROVED:   [ ] all of §3   [x] only: FIRST SLICE — F-I1-1 (S8-boundary
                   ⛔ F-I1-2 and F-I1-3 are NOT in scope — each needs its own approval line.
 ```
 
-✅ **APPROVED 2026-09-11.** Implementation authorized on branch `feat/i1-rails` (Wave 1.5) under
-exactly the scope above. ⚠️ Note the honest asymmetry, recorded rather than smoothed: this packet
+---
+
+## ⛔ APPROVAL — SLICE 2 (second block; the first slice's block is above and remains as-granted)
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-11
+APPROVED AT SHA:  22a0367fe3ca1c23e013684ec8547a4388e0c47f   (this packet as it stood at approval)
+SCOPE APPROVED:   SLICE 2 — AskAiTab.jsx composes <Cited>/<Provenance> for its citation list
+                  instead of the local CSS-module rendering.
+                  MEMBER-VISIBLE: the Ask-AI answer's provenance affordance becomes identical
+                  to its sibling tabs.
+                  ⛔ NO change to answer content, composers, grounding, or the [E#] evidence-id
+                     mapping. NO other file.
+```
+
+**Why slice 2 exists:** slice 1's F-I1-1 rail found the violation it was built to find. `AskAiTab.jsx`
+renders its own citation list — `[E#]` marks, source, date and link in local CSS-module classes —
+while every sibling tab on the same page composes S8's primitives. ⭐ **This is the Phase-2
+double-ownership defect, which was "fixed" on 2026-09-02 by writing a sentence into an architecture
+document and has been live ever since.** Slice 2 closes it in code.
+
+**Conditions:**
+
+1. **MANDATORY — branch off `origin/master` AFTER the five pending PRs merge, never before.** It
+   depends on `feat/i1-rails`; branching early would either miss the rail or duplicate it.
+2. **MANDATORY — evidence ids map 1:1 to what the backend emits today.** A test must assert the
+   rendered citation count equals the payload's evidence count.
+3. **MANDATORY — remove the `RECORDED_BOUNDARY_DEBT` entry for this violation in the same PR**, so
+   F-I1-1 passes on **the fix itself** rather than on the debt record. ⛔ Confirm the rail goes green
+   **because the violation is gone, not because the entry moved** — that distinction is the whole
+   point of a debt ledger inside a rail, and it is checkable: delete the entry first, watch the rail
+   go red, then apply the fix and watch it go green.
+4. Frontend tests, plus a **before/after screenshot pair** of the Ask-AI tab against a fixture
+   answer. Screenshots are for the owner — no BrowserStack, no device run.
+5. Branch `feat/i1-askai-provenance`. PR only. Ledger row. ⛔ **Flagged MEMBER-VISIBLE by name in the
+   merge list.**
+
+---
+
+✅ **SLICE 1 APPROVED 2026-09-11.** Implementation authorized on branch `feat/i1-rails` (Wave 1.5)
+under exactly the slice-1 scope above. ⚠️ Note the honest asymmetry, recorded rather than smoothed: this packet
 was written and approved **after** I1's Slices 1–3 shipped. It gates the *next* change, which is the
 first one this rule has ever actually preceded.
 

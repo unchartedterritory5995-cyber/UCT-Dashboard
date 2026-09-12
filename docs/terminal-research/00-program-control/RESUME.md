@@ -1,6 +1,67 @@
 # RESUME — cold-start entry point (Document B §3A)
 
-**Last verified against git: `a31cacea1` (2026-09-03 07:04:50 -0500), branch `terminal-research`, in sync with `origin/terminal-research`. Reconciled 2026-09-11.**
+**Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `a5173fe41` (2026-09-11). Rail PASS on both checks at that SHA.**
+
+---
+
+# ⛔⛔ FIRST THING A COLD START MUST KNOW
+
+**This is a BUILD program.** It has 50+ commits in production. **[`LEDGER.md`](LEDGER.md) is the
+authority on what shipped** — not this file, not the specs, not the architecture documents.
+
+## FIVE PULL REQUESTS ARE PENDING THE OWNER'S MERGE. Merge in this order.
+
+| # | branch | SHA | what | tier |
+|---|---|---|---|---|
+| 1 | `feat/s7-filing-watch-parity` | `c46be401f` | filing-watch parity rail — **precondition for every S7 trigger type** | WEB-ONLY |
+| 2 | `feat/i1-rails` | `be3474241` | GATE-I1 slice 1 — F-I1-1, F-I1-4, adversarial cases | WEB-ONLY |
+| 3 | **`fix/alert-bell-filing-icon`** | `76f6e2e77` | ⛔ **MEMBER-VISIBLE** — filing-watch bell icon. Own PR by ruling 2b | WEB-ONLY |
+| 4 | `feat/s3-admin-routes` | `3ebe013a5` | S3 admin `/status` + `/reconcile`; also greens `test_test_discovery_coverage` | WEB-ONLY |
+| 5 | `feat/d1-adoption-sweep` | `638e12f48` | census quarantine cleanup + adapter-gap log | WEB-ONLY |
+
+**All five are WEB-ONLY** — verified against flow-worker's committed watch list (the 21 `api/<name>.py`
+files in `api/flow_worker_main.py`'s header). None touches a watched file, so none needs a
+weekend/after-hours window. Only dependency: **4 before 5**, so the discovery-coverage red clears
+before anyone reads the census red.
+
+⛔ **THE NEXT SESSION'S FIRST ACTION:** when the owner says "merged" — re-run the protection rail
+against `origin/master`, flip every Section-4 ledger row from **PENDING-MERGE** to **MERGED** with
+its merge SHA, and confirm rail PASS. Nothing else starts before that.
+
+## Authorized and waiting on those merges
+
+**GATE-I1 SLICE 2** — `AskAiTab.jsx` composes `<Cited>`/`<Provenance>` instead of its local
+CSS-module citation list. Approved 2026-09-11 at `22a0367fe`; branch `feat/i1-askai-provenance`,
+**off `origin/master` AFTER the five merge, never before** (it depends on `feat/i1-rails`).
+⛔ MEMBER-VISIBLE. Conditions in the gate packet, including: remove the `RECORDED_BOUNDARY_DEBT`
+entry in the same PR and **confirm F-I1-1 goes green because the violation is gone, not because the
+entry moved.**
+
+## Next authorization the owner still owes
+
+**S7 price-level** needs an **absorption ruling** before it can be scheduled — which legacy table it
+absorbs, under the standing default (legacy stays live, new type runs **dark**, and the flip plus the
+legacy switch-off happen in the **same PR**). Draft ruling text is in the next-session queue in
+`PROGRAM_STATUS.md`.
+
+## D1 adoption follow-ups — open, unscheduled
+
+The sweep migrated **zero** call sites, because every remaining one is blocked. The blockers, from
+`docs/d1-implementation-log.md` on `feat/d1-adoption-sweep`:
+
+| gap | what is missing |
+|---|---|
+| **G1** | typed functions don't expose a per-call `timeout` to callers — **blocks all 34 reaches on its own** |
+| **G2** | no typed function for 9 live endpoints; `/stable/profile` alone is reached by 8 modules |
+| **G3** | adapter is JSON-only — can't serve `ticker_logos`' PNG or `fundamentals_bulk`'s 30–70 MB CSVs |
+| **G4** | `get_news_stock` is single-ticker; `engine.py` sends a multi-symbol CSV |
+| **G5** | no retry/backoff/request-ceiling; `fmp_news.py` has all three plus 429 sleep-retry |
+
+Also open: **11 Massive sites** outside `massive.py`, untouched this wave. ⚠️ And the FMP census rail
+is **red on master for a pre-existing reason** — `api/services/news/adapters/fmp_news.py:37`,
+unquarantined, fixable only via G5.
+
+---
 
 Read in this order: this file -> `PROGRAM_STATUS.md` -> `GOVERNING_PRINCIPLES.md` -> `CRITICAL_PATH.md` -> `OWNER_DECISIONS.md` -> `AGENT_REGISTRY.md` §5 -> the charter in `charter/` if any requirement is in doubt.
 

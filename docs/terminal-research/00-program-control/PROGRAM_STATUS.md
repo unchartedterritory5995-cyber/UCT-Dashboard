@@ -347,6 +347,59 @@ when the owner wants it closed: merge `docs/terminal-research/` to master, or re
 citations with something a master-only reader can resolve. ⚠️ Until then, **treat a spec-section
 citation in application code as a pointer into a branch, not into the tree the reader is holding.**
 
+## SESSION SUMMARY — 2026-09-11
+
+**What shipped to branches (nothing merged; the owner merges):** five PRs, all WEB-ONLY.
+`feat/s7-filing-watch-parity` (the filing-watch parity rail, precondition for every S7 trigger type);
+`feat/i1-rails` (GATE-I1 slice 1 — the S8-boundary AST rail, the `_full_text()` completeness rail,
+and adversarial cases); `fix/alert-bell-filing-icon` (member-visible, its own PR by ruling);
+`feat/s3-admin-routes` (S3's admin `/status` + `/reconcile`, closing a nine-day-old open item, plus
+collecting a suite no standard pytest run had ever executed); `feat/d1-adoption-sweep` (zero
+migrations — every remaining FMP call site is blocked, and two quarantine entries were found
+suppressing the rail on already-clean files).
+
+**What the rails found the moment they existed.** F-I1-1 caught a **live** violation on its first
+run: `AskAiTab.jsx` renders its own citation list while every sibling tab composes S8's primitives
+— the Phase-2 double-ownership defect, "fixed" on 2026-09-02 by writing a sentence into an
+architecture document, live ever since. The filing-watch parity rail's M2 mutation is **silent in
+every existing suite**. And `checks._full_text` never read the refusal sentence, so a fabricated
+number inside a refusal passed every mechanical check. ⭐ **Three defects that existed for days and
+were invisible until something was built that could see them.**
+
+**What is pending:** the five merges, then GATE-I1 slice 2 (authorized, gated on them), then S7
+price-level (needs an absorption ruling), then the D1 adapter gaps.
+
+## ⛔⛔ STANDING HAZARD — this session produced FOUR false signals, all from the instrument
+
+Each looked like a finding about the codebase and was a property of the query. Recorded with the
+correct query, because every one of them nearly went into a report as fact.
+
+| # | false signal | why | use instead |
+|---|---|---|---|
+| 1 | **"17 commits"**, and **"no Checkpoint 6 exists in history"** | a **path-filtered** log answers *"what touched this path"*; a **subject-filtered** log answers *"what did I think to grep for"*. Neither answers *"what did this program ship."* Checkpoint 6 (`5ecdae012`) touched paths outside the filter | the merge itself: `git log ed6b1f041^1..ed6b1f041^2` |
+| 2 | **"41 unledgered commits — RAIL FAIL"** | the extraction grep matched Section 3's row shape (`\| \`hash\``) and missed all 50 Section-1 rows, which begin with a row number | match the token, not the row: `grep -oE '\`[0-9a-f]{9}\`'` |
+| 3 | **"`feat/i1-rails` is reverting `CLAUDE.md`, joystick docs and `hub_nav_smoke.py`"** | diffed `origin/master..HEAD` while master had moved **two commits ahead** of the branch point; master's newer commits appear as deletions | always diff from the merge-base: `mb=$(git merge-base origin/master HEAD); git diff $mb..HEAD` |
+| 4 | **"0 URLs in the C2-02 deliverable"** (a sound 47 KB file with 10) | shell quoting mangled the regex's bracket expression | keep backtick/bracket patterns out of shell strings — write the check to a `.py` file and run it |
+
+⭐ **The general form, and it is the same sentence in all four: an absence is only evidence if the
+instrument could have seen a presence.** Three of the four would have been reported as defects in
+someone else's work.
+
+## ⚠️ RELATED PATTERN — documents citing artifacts absent from the reader's tree
+
+Three instances found this session, all verified:
+
+1. `fmp_client.py`, the census tool and its tests cite **`provider-abstraction-spec.md` §4.2/§9.2/§21.1** — `docs/terminal-research/` **does not exist on master**.
+2. Every `api/services/entity_master/*.py` cites **`entity-master-spec.md`** — same absence.
+3. `docs/runbooks/deploy-windows.md`, added to master **today**, instructs the reader to run
+   **`python tools/flow_worker_watch_coverage.py`** — that file is **not on master**. It exists only
+   on the unmerged branch `origin/ci/flow-worker-watch-coverage` (`2db52c8f3`).
+
+⛔ **Treat a cross-artifact citation as a pointer into a branch until proven otherwise.** The first
+two are this program's docs/code split; the third is someone else's runbook shipping ahead of its
+tool — the same shape, a different workstream, which is what makes it a pattern rather than an
+anecdote.
+
 ## ⛔ THE GATE RULE (owner ruling 6, revised and adopted 2026-09-11)
 
 **a. Scope — any system in the 32-system architecture.** Not "any system with a PRD/spec."
@@ -424,6 +477,58 @@ program shipped code for it*; "pre-existing" means UCT capability the program in
 | **A8** | News & Catalyst Intelligence | ✅ News Slice 1 | none | **SHIPPED**; spec not needed, ledger row + licensing check are |
 | **I1** | Intelligence Layer | ✅ 2 slices + eval harness | none | **SHIPPED**; ⭐ **needs a spec — highest-value one outstanding** |
 | A1, A2, A9–A14, E1 | Markets · Charts · Screening · Options · Breadth · Watchlists · Journal · Portfolio | ❌ | none | untouched by this program |
+
+## ⛔ NEXT-SESSION QUEUE (written 2026-09-11, in order — do not start ahead of it)
+
+| # | item | needs from the owner |
+|---|---|---|
+| **1** | **Post-merge rail run + ledger close.** Re-run the rail against `origin/master`; flip every Section-4 row from PENDING-MERGE to MERGED with its merge SHA; confirm PASS. **The session's first action.** | nothing — just the word "merged" |
+| **2** | **GATE-I1 slice 2 — `feat/i1-askai-provenance`.** Already authorized at `22a0367fe`. ⛔ MEMBER-VISIBLE. Branch off `origin/master` only after the five merge | nothing further |
+| **3** | **S7 `price-level` trigger type** | ⛔ **an absorption ruling — draft text below** |
+| **4** | **D1 adoption follow-ups** — the five adapter gaps and the 11 Massive sites. Proposal below | a go, once read |
+| **5** | **F-I1-2 / F-I1-3** — see below; each needs its own gate approval line | one line each |
+
+### 3 — the draft S7 absorption ruling, for the owner to accept or amend
+
+> **S7 `price-level` absorbs `watchlist_alerts` (`api/services/watchlist_alert_service.py`).**
+> Build it under the standing default: **the legacy path stays live and untouched; the new
+> `price-level` trigger type runs DARK** — it evaluates, writes its `alert_fires` rows and receipts,
+> and **does not call `delivery.py`** — until I flip it. **The flip and the legacy switch-off happen
+> in the same PR**, never two. Before the flip, diff the dark fires against the legacy path's fires
+> over the same window and show me the comparison. The filing-watch parity rail must be green
+> throughout, and any change to predicate or receipt shape carries its own parity test first.
+
+⭐ Why `watchlist_alerts` specifically: it is the highest-volume existing alert path (27 references,
+its own service, AlertBell + email + Discord delivery), so it is the absorption that proves the
+taxonomy can *replace* a shipped subsystem rather than sit beside it as a seventh table.
+
+### 4 — D1 follow-ups, proposed order
+
+**Safe to do next: G2 and G4.** Both are additive — new typed functions for the 9 uncovered endpoints
+(`/stable/profile` alone unblocks 8 modules) and a multi-symbol variant of `get_news_stock`. Neither
+changes an existing call path's behaviour.
+
+**G1 next, and it is the one that matters** — exposing a per-call `timeout` on typed functions
+unblocks all 34 reaches on its own. ⚠️ It is a behaviour change for any caller currently inheriting
+the adapter's 25 s default where the old code used a tighter one (`screener/analyst_pass.py`'s 4 s is
+the sharpest case), so it needs a per-call-site review rather than a blanket parameter.
+
+**Defer G3 and G5.** G3 (non-JSON payloads: a PNG, 30–70 MB CSVs needing a 300 s ceiling) is a
+different transport, not a gap in the same adapter. G5 (retry/backoff/request-ceiling) would move
+`fmp_news.py`'s existing 429 handling into shared code — real work, and the only thing that clears
+the pre-existing census red.
+
+**The 11 Massive sites:** leave them. The sweep's own finding was that the mechanical ones are gone
+and the rest touch streaming, bars or flow — owner-reserved paths.
+
+### 5 — F-I1-2 and F-I1-3, one line each
+
+- **F-I1-2 — enrich refusals to name the missing thing.** Shipped refusals are correct but terse;
+  *"no transcript RAG pipeline exists, so I cannot answer from the call"* is useful where *"I cannot
+  answer that"* is not. ⛔ **Member-visible (it changes answer text), so it needs its own gate
+  approval line.**
+- **F-I1-3 — golden-set adversarial cases for the hard boundary.** ✅ **Already delivered inside
+  slice 1** (B01–B06 plus 15 payloads). **No gate line needed — close it** when the merge lands.
 
 ## Next actions — re-planned 2026-09-11
 

@@ -137,8 +137,33 @@ convergence); **`scripts/entity_master_seed.py`** (Seam 1 dot-form alias seeding
 ## Section 4 — Wave 1+ (2026-09-11 onward), owner-authorized, **branches only, unmerged**
 
 Per the standing rule, every application-code commit this program makes gets a row here **before**
-the session reports. These are on feature branches awaiting the owner's merge — **not on
-`origin/master`**, so the rail's check (1b) does not yet return them.
+the session reports.
+
+## ⛔ EVERY ROW IN THIS SECTION IS **PENDING-MERGE**
+
+They live on feature branches, **not on `origin/master`**, so the rail's check (1b) does not return
+them and cannot yet validate them. Five PRs, merged by the owner, in this order:
+
+| # | branch | tip SHA | status | tier |
+|---|---|---|---|---|
+| 1 | `feat/s7-filing-watch-parity` | `c46be401f` | **PENDING-MERGE** | WEB-ONLY |
+| 2 | `feat/i1-rails` | `be3474241` | **PENDING-MERGE** | WEB-ONLY |
+| 3 | `fix/alert-bell-filing-icon` | `76f6e2e77` | **PENDING-MERGE** ⛔ MEMBER-VISIBLE | WEB-ONLY |
+| 4 | `feat/s3-admin-routes` | `3ebe013a5` | **PENDING-MERGE** | WEB-ONLY |
+| 5 | `feat/d1-adoption-sweep` | `638e12f48` | **PENDING-MERGE** | WEB-ONLY |
+
+⛔ **THE NEXT SESSION'S FIRST ACTION, on the owner's word "merged":** re-run the protection rail
+against `origin/master`, flip each row above to **MERGED** with its **merge SHA** (the SHA on master,
+not the branch tip — they differ if the merge is a squash or a merge commit), and confirm rail PASS.
+**Nothing else starts before that.** A row left at PENDING-MERGE after its branch is on master is the
+exact drift this ledger exists to prevent.
+
+**Tier verification, 2026-09-11:** all five checked against flow-worker's committed watch list — the
+21 `api/<name>.py` files mirrored in `api/flow_worker_main.py`'s header. **None touches a watched
+file**, so none needs an after-hours window. Two (`feat/i1-rails`, `feat/s3-admin-routes`) touch
+`api/services/**` or `api/routers/**`, which deploys web + worker + bars-api and **explicitly not**
+flow-worker. ⚠️ `RAILWAY_TOKEN` is not set in this session, so this is reasoned from the committed
+mirror rather than measured against the Railway dashboard, which is the authority.
 
 | commit | branch | system | files | what |
 |---|---|---|---|---|
