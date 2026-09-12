@@ -540,6 +540,25 @@ def alert_note_for(title: Optional[str],
 BIND_TIME_CLOCK = frozenset(
     (TABLE.get("_bind_time_constants") or {}).get("clock") or ())
 
+#: The CONDITIONAL operator, DERIVED — the only operator the table declares at
+#: arity 3.
+#:
+#: ⛔⛔ NEVER SPELLED. `test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy`
+#: walks this module's own source with `ast` and refuses any table name written
+#: as a string literal, because a hand-copy that happened to be byte-correct on
+#: the day it was written would satisfy any equality against today's manifest.
+#: That rail fired on R-G's first cut, which spelled the operator, and it was
+#: right: this module must own no vocabulary.
+#:
+#: ⚠️ `Mapping`, NOT `dict`. `TABLE` is deep-frozen into `mappingproxy`, which is
+#: not a `dict` — the same trap `ast_lint._own_window` documents, where an
+#: `isinstance(spec, dict)` test was False for every real entry and every tree
+#: came back `repaints`. A first cut of this line found ZERO arity-3 operators.
+_TERNARY = next(
+    (name for name, spec in (TABLE.get(OPERATORS_SECTION) or {}).items()
+     if isinstance(spec, Mapping) and spec.get("arity") == 3),
+    None)
+
 
 def bind_foldable_window(node: Any, allow_input_default: bool = False) -> tuple:
     """Does this length settle to a number for ANY binding, and what bounds it?
@@ -597,7 +616,7 @@ def bind_foldable_window(node: Any, allow_input_default: bool = False) -> tuple:
                 return (True, d)
         return (False, None)
 
-    if kind == "op" and node.get("name") == "?:":
+    if kind == "op" and _TERNARY is not None and node.get("name") == _TERNARY:
         args = node.get("args") or []
         if len(args) != 3:
             return (False, None)
