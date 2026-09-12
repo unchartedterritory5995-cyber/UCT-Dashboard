@@ -1,73 +1,100 @@
 # Wave Q1 — RESUME HERE
 
-# ⛔⛔⛔ START HERE — THIS SESSION CLOSED WITH AN **OPEN DEFECT**
+# ⛔⛔⛔ START HERE — 2026-09-12
 
-**The self-fork is NOT fixed.** It fired again — **round 3** — against deploy
-**#4c**, on **streak run 1**, door **`folder`**, at **2026-09-11T00:00:56Z**. The
-measurements are in the next section. The owner has ruled: **NO FOURTH FIX
-TONIGHT, NO FLIP.** ⛔ **The gate is NOT closed. The packet is NO-GO.**
+## ⚰️ FIRST, WHAT THE HEADER THAT STOOD HERE GOT WRONG
 
-⛔ **The next session inherits a PROBLEM, not a hypothesis.** Three steps, in this
-order. Do not reorder them, and do not skip to C.
+Until 2026-09-12 this spot said **"the self-fork is NOT fixed"**, ordered a
+property rail rebuilt *before any fix*, and sent the next session to measure
+**SINGLE WRITER**. All three were superseded **later the same day** — by the
+sections immediately below this one — and the header was never updated. It stood
+for a day pointing every reader at work that must not be done.
 
-## A. THE RAIL FIRST — ⛔⛔ NO FIX IS ATTEMPTED UNTIL THE RAIL IS RED
+⛔ **A SUPERSEDED INSTRUCTION AT THE TOP OF A HANDOFF OUTRANKS A CORRECT ONE IN
+THE MIDDLE.** Nobody reads to line 74 to find out that line 5 is void. This is
+`lesson_a_second_authority_over_one_value` in a document: two authorities over
+"what is open", agreeing only by luck, and the stale one won.
 
-Rebuild the property rail so **every door is driven through the EDITOR'S REAL
-SAVE PATH**: `NoteEditorPage` mounted in jsdom, the **real** autosave, the **real**
-`folder`/`ticker`/`tags` handlers, the **real** drain, and a fake server with CAS
-and revision history.
+| the old header said | the ruling |
+|---|---|
+| "the self-fork is NOT fixed … round 3 … the packet is NO-GO" | ⛔ **VOID.** Round 3 was the **INSTRUMENT**. `window_check.DOOR_JS` fired the metadata door with a raw `fetch()`, so the editor's handlers never ran, `recordLandedRevision` never recorded the revision, and guard 2 correctly answered *"not ours"* and forked — **the right answer to a second writer.** Raw door: **11 lost / 13** (r = 0.85). The member's own door: **0 lost / 36** (r = 0.00). |
+| "A. THE RAIL FIRST — reproduce tonight's failure deterministically" | ⛔ **VOID, AND IT MUST NOT BE BUILT.** There is no product failure to reproduce. A rail built to go red on round 3 would be a rail built to go red on **the product working correctly** — and the jsdom rail that "could not be made red" was already telling us exactly that. |
+| "B. Evaluate SINGLE WRITER" | ⛔ **DECIDED — REVERSED, do not re-open.** The coordination machinery is **not overhead**: it is what makes the member path **rebase** instead of fork. Deleting the in-flight marker, the landed ring and guard 2's two passes would break the path that is currently working. The expected benefit ("the race disappears") was predicated on a race that the measurement says is not there. |
 
-⛔⛔ **NEVER by calling `settleLandedSave` — or any store helper — directly.**
-That shortcut is exactly what let **#4b and #4c through**: the current rail models
-a door by *calling the helper the door calls*, so it is structurally blind to a
-defect that lives in the **wiring**, or in an **ordering the editor creates**. A
-rail that restates the mechanism cannot fail on the mechanism being wired wrong
-(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`,
-[[lesson_built_tested_green_and_unreachable]]).
+⛔ **Do not re-litigate any of the three.** If a future session believes one of
+them is wrong, it needs a NEW measurement, not a re-reading of the old header.
 
-**Reproduce tonight's failure DETERMINISTICALLY through that rail BEFORE touching
-any product code:**
+## ✅ WHAT IS ACTUALLY OPEN — 2026-09-12
 
-1. the **`folder` door with N queued sends already in flight** — **N = 3 minimum**,
-   sweep **1–5** (3 is what was measured tonight, not a guess);
-2. **reload mid-flight**, same path;
-3. **slow PUT**, same path.
+**Q1 is built, merged, and live in production DARK.** The branch
+`notebook-primary-platform` is **fully merged into `origin/master`** (0 ahead) —
+there is nothing to push, and `app/src/pages/journal-2-0/` is byte-identical to
+master. `OFFLINE_DEFAULT_ON = false`. The only thing between here and closure is
+evidence.
 
-⛔⛔ **IF THE RAIL CANNOT GO RED ON THE CURRENT CODE, IT IS NOT MODELLING THE
-FAILURE, AND NO FIX IS ATTEMPTED.** A green rail over an unfixed defect is how
-this wave has now spent three deploys.
-
-## B. THE DESIGN QUESTION — answered by MEASUREMENT, before a fix
-
-**While the layer is on, does a note have ONE writer to the server, or TWO?**
-Today it has **two**: the editor PUTs, and the drain PUTs.
-
-**Evaluate SINGLE WRITER.** When `offlineEnabled()`, the editor's body autosave
-**and all three metadata doors ENQUEUE**, and **the drain is the only thing that
-PUTs a note** — in queue order, the queue **coalescing per note** (latest body +
-latest metadata, one entry, one baseline).
-
-- **Expected:** the race **DISAPPEARS** rather than being guarded. The in-flight
-  marker, the landed ring, guard 2's two passes and `settleMetadataRevision` all
-  become **unnecessary for correctness**. ⭐ Keep guard 2's **409 self-supersede**
-  as defence in depth.
-- **Cost:** latency-to-server for ONLINE saves now goes through the drain tick —
-  ⛔ **MEASURE IT**, do not estimate it. If it must be immediate, the drain runs a
-  tick on enqueue when online.
-- **Compare against "fix round 3 in place"** on three axes: **orderings the rail
-  covers · mutations needed · lines of coordination code.**
-- **Decide, log, continue.** The decision is a ruling in this file, whichever way
-  it goes.
-
-## C. THEN, IN ORDER
-
-fix → **rail red-to-green** → gauntlet → deploy (**flag false**) → clean the
-preserved evidence → **streak of seven with the doors driven through the REAL
-path** → matrix → packet → **flip on GO** → post-flip §15 → task back to full runs
-→ close.
+```
+streak of seven, doors through the REAL path  →  matrix  →  packet  →  flip on GO
+                                              →  post-flip §15  →  task back to
+                                                 full runs  →  close
+```
 
 ⭐ **Same charter, same hard stops, same standing deploy/flip authorisation** —
-conditional on the checklist, exactly as before.
+conditional on the checklist, exactly as before. ⛔ The flip is a member-visible
+production change and needs an explicit go, not an inference from a green row.
+
+## ✅ THE LAST OPEN DEFECT IS CLOSED — and it was the instrument for the fifth time
+
+`cleanup reports locks=1 while opted out` (left open by `3fc55ea37`) was the
+**census counting a FROZEN holder**, not a leaked drain. Three probes on the rig,
+2026-09-12:
+
+| probe | reading |
+|---|---|
+| a plain **opted-out** load of `/journal/notebook` | **0** `uct.nb.sync.*` — the `supported` gate holds, twice over |
+| navigate off the notebook with **nothing waiting** | the previous context's lock still reads **HELD** 5 s later |
+| tab1 leads · tab2 waits · **tab1 navigates away** | tab2 **HOLDS within 5 s**, and still holds at 60 s |
+
+⭐ **So a lock outlives the document that took it, and only while nobody asks for
+it.** Chrome keeps the old page frozen rather than destroying it; nothing evicts
+a frozen holder until the lock is contended. The cleanup page is opted out, so it
+never asks — and counted a holder that is not running.
+
+⛔⛔ **AND THERE IS NO DEADLOCK.** The third probe is the product question hiding
+inside the instrument one — *does a follower ever get leadership when the leader
+leaves?* — and the answer is yes, inside five seconds. `awaitSyncLeadership` does
+on the real browser exactly what its comment claims.
+
+**The fix is a different measurement, NOT a looser threshold.** The row already
+promised *"lock free ⇒ the next run can open it"* and asserted it with a census
+that cannot tell a frozen holder from a live one. It now **asks for the lock**
+(5 s budget, released the instant it is granted): a grant **is** the row's claim;
+no grant means something LIVE holds it and the step stays **RED**. Five
+self-check cases drive it, and the load-bearing pair is
+**`census 1 + claimable True ⇒ GREEN`** against
+**`census 1 + claimable False ⇒ RED`** — the same census, opposite verdicts, so
+the change is a distinction rather than a silenced alarm
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+⚠️ **Counting instrument defects in this wave: this is the fifth**, after the
+raw-fetch door, the baseline-less fork detector, the baseline-less cleanup
+leftovers, and `_doc_text(None) == ''` scoring an unreadable read as absent.
+⛔ **Every one of them made the PRODUCT look broken.** None made it look healthy.
+An instrument whose errors all point the same way is not noisy, it is **biased**,
+and the next unexplained red should be treated as the instrument first
+(`lesson_an_instrument_can_reproduce_its_own_blind_spot`).
+
+## ⚠️ AND THE RIG BIT BACK, IN THE DOCUMENTED WAY
+
+The probe that produced the table above **left the profile opted IN** — on-disk
+`'1'`. Its opt-out sat in a `finally` **outside** `with sync_playwright()`, which
+is precisely the shape `flush_localstorage`'s own docstring warns about ("every
+call came back *Event loop is closed*"). Repaired the same session: relaunched,
+opted out **inside** the block, verified `'0'` on disk with Chrome dead.
+
+⛔ **A throwaway probe against this rig is not throwaway.** It shares the one
+profile, and a profile left opted in silently changes what the next run measures.
+Any ad-hoc script that touches the flag ends with `opt_out` **and**
+`flush_localstorage` inside the Playwright block, then a disk read to prove it.
 
 ---
 
@@ -4317,6 +4344,39 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### check 14 — **2026-09-12T01:35:20Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **21688** · Chrome/152.0.7977.83 · CDP `127.0.0.1:58534` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **7** · latest 2026-09-12 01:28:48 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 13 append(s) · tail `101010101010` |
+| door this run | **`tags`** — `DOORS[20 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:35:42.819954+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `tags` moved the baseline under the queued entry | run **#20** ⇒ `DOORS[20 % 3]` = **`tags`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:36:04.675740+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:36:04.675740+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:36:04.675740+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `tags`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:35:20Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:36:04.675740+00:00`: **False** · door value kept: **True** (`tags` = ['window-check-door']) |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
 ### proof-reads-only-exits-3 — **2026-09-11T12:06:13Z**
 
 ⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
@@ -4929,7 +4989,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of proof-reads-only-exits-3 — 2026-09-11T12:06:13Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 14 — 2026-09-12T01:35:20Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.
@@ -4937,17 +4997,13 @@ checked by eye on the day.
 | # | condition | latest reading |
 |---|---|---|
 | 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
-| 2 | Opted-in browsers (the denominator) | **0** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **8** — need **7** |
+| 2 | Opted-in browsers (the denominator) | **7** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **9** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
-## ⛔ RECOMMENDATION: **NO-GO**
+## ✅ RECOMMENDATION: **GO**
 
-**Met:** zero blocked-baseline events · 8 consecutive green runs
-
-**What is holding it:**
-
-- only **0** opted-in browser(s), need ≥ 5 — zero events over a tiny population is not evidence
+**Met:** zero blocked-baseline events · 7 opted-in browsers · 9 consecutive green runs
 
 ⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
 the numerator 05:06:56Z. A browser that opted in inside that window is
