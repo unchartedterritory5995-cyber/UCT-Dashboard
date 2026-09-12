@@ -175,15 +175,15 @@
       "hostGuards": [
         "pine:declaration-strategy",
         "pine:state",
+        "pine:function",
         "pine:block",
-        "pine:builtin",
         "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:state",
+        "pine:function",
         "pine:block",
-        "pine:builtin",
         "pine:strategy-call"
       ]
     },

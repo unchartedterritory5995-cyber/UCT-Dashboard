@@ -1,5 +1,96 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ T1 + T1b — `ta.tr(true)` READ FROM THE VENDOR, AND VOLUME'S LINE 189 IS CLEAR
+
+**The capture ran end to end, autonomously, and nothing was saved to the account.**
+19 studies before · 20 after each add · 19 at the end · both scratch studies removed by
+the legend's own control · chart left on AMEX:SPY 1D as found.
+
+### The reading
+
+```
+verdict   ta.tr(true) IS the guarded three-term max —
+          na(close[1]) ? high - low : max(high - low, max(abs(high - close[1]), abs(low - close[1])))
+
+away from bar 0   SPY 1D, 2,244 bars across two readings:
+                  diff_vs_candA = diff_vs_candB = diff_vs_sibling = 0.0 on EVERY bar (exact zeros)
+                  SPREAD_control 0.59 … 55.57, zero count 0, na count 0   ⭐ the capture is live
+
+at bar 0          NASDAQ:CRWV 1D (listed 2025-03-28, 366 bars — the whole history fits the window)
+                  is_first_bar 1 · subject_tr_true 4.48 · subject_is_na 0 · subject_eq_highlow 1
+                  candA 4.48, diff_vs_candA 0 · sibling_is_na 1 · candB, diff_vs_candB, diff_vs_sibling all na
+bar 1             all four agree again — which is why only bar 0 can settle it
+```
+
+Fixture: `tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`, probe sha256
+`df8945b2…d941`, 4,604 bytes, receipt verified in-page against the committed file before
+either add.
+
+### ⚰️ The probe could not answer its own question, and the probe was the defect
+
+First attempt: 1,829 output rows and `is_first_bar` **0 on every one**. `max_bars_back =
+500` is spent as warm-up, so TradingView begins output past it — and on the `All` range
+(405 monthly bars) the study produced **nothing at all**, the same fact stated louder.
+The probe needs exactly one bar of history (`close[1]`); the declaration was buying
+nothing and costing the answer. Removed, with the measurement written at the line.
+
+⭐ **And bar 0 is not reachable on SPY at any range** — the study's output window never
+starts at `bar_index == 0`, because TradingView computes from further back than it
+returns. The instrument is the SYMBOL: a recent listing whose whole history fits inside
+the window. Same move `r11-nvi` made to read SPY's 1993 seed on a monthly chart.
+
+### T1b — the pin, and what it cleared
+
+`BUILTIN_SERIES_TREE.trGuarded` is declared, `ta.tr(true)` translates, and the two forms
+stay DIFFERENT columns (collapsing them would answer not-computable where the member's
+chart shows a number, on the first bar of every symbol's history). The guard is
+`na(close[1])`, not `bar_index == 0`: what is missing is the offset, so a hole anywhere
+else in `close` gets Pine's answer rather than a different one.
+
+A non-literal flag still refuses — with a corrected sentence, because the old one said
+`ta.tr(true)` "asks for a bar where no true range is defined … this engine leaves that
+bar not-computable rather than inventing it". That was right while the vendor's answer
+was unread. It is not an invention now that it is measured.
+
+**Corpus case:** four committed scripts write `ta.tr(`, all of them the `true` form —
+`atr-god-strategy-by-tradesmart__4369755a29` (3 sites),
+`kernel-channel-backquant__d8c4b7f75c`, `renko-candles-overlay__d76a18d49e`,
+`smart-money-breakouts-chartprime__ea79c79a67` (2 sites). None of the four flips to
+translating: each is held by something else (`pine:block`, `pine:function`,
+`pine:declaration-strategy`…), which is why the metric does not move.
+
+**Volume v1, both lanes, after T1b — line 189 CLEAR:**
+
+```
+SCREENER (default)   ok=true   outputs=5  refusals=4   pine:function@225   (ta.cum, by ruling)
+HOST/pane (strict)   ok=false  outputs=5  refusals=1   pine:state@284      (R-A3: refuse with offer)
+```
+
+### Re-frozen, with the reason at each site
+
+| artifact | old → new |
+|---|---|
+| `pine.namespacedExpansion` | the `ta.tr(true)` case flips from refusal to the guarded tree, asserted DERIVED (else-branch must equal the bare form) so the three-term max cannot drift between them |
+| `pine.blindCorpusDecomposition` | `volatility-range-contraction-base` loses its last blocker — all three fell to captures rather than arguments; miss floor **21 → 20** |
+| `tools/corpus_metric.json` | host 31/266 · screener 44/266 — **unmoved by T1b**, and that is the honest result |
+
+### Rules added to `capture-procedure.md`
+
+- **The pre-write gate, three readings, immediately before `setValue` AND before the Add
+  click** — visibility, own-text gate, study count — run in the SAME evaluation as the
+  write so nothing can move between them.
+- The gate needs **`height > 0`**: TradingView renders the label twice, once as a
+  zero-height measuring copy, so a width-only test finds two and reports FALSE.
+- ⚰️ **`placement=dialog` is NOT "undocked" on this build** — correcting this morning's
+  rule. The in-tab right panel is `dialog` and it is where the TEXT button lives; the
+  bottom dock has no toolbar and puts the action in the tab's ⋯ menu. The real
+  discriminator is "can this session read the editor's DOM in this tab, and is there a
+  visible, enabled own-text Add to chart".
+- Create new → Indicator lives on the right panel's chevron only; the submenu **did**
+  populate under a synthetic hover (the 2026-09-11 note was measuring the coordinate bug).
+- Bar 0 needs a short-history symbol; `max_bars_back` is spent as warm-up; the `All`
+  range button changes the RESOLUTION (1D → 1M).
+
 ## ⛔ PHASE 1 STOPPED — THE WINDOW IS OCCLUDED, AND NOTHING IN THE PAGE CAN CLEAR IT
 
 Autonomous browser run, 2026-09-12. **Nothing was written: no `setValue`, no click on any

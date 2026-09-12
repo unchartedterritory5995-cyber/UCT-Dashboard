@@ -278,6 +278,91 @@ This is what makes the mechanism trustworthy rather than merely convenient.
 ⚠️ The module id `423129` is a build artifact and **will change**. Re-derive it by the scan;
 never hard-code it. (Same defect class as the scale constant above.)
 
+## ⛔⛔ THE PRE-WRITE GATE — THREE READINGS, IMMEDIATELY BEFORE EACH WRITE
+
+**Owner rule, 2026-09-12. Before `setValue`, and again before the Add click, in the
+same evaluation as the write where possible:**
+
+```
+document.visibilityState === 'visible'        ⛔ hidden = STOP, never click
+exactly one visible+enabled own-text "Add to chart", zero "Update on chart"
+study count === 19                            (20 immediately after the add, 19 at the end)
+```
+
+⭐ **BOTH CHECKS, NOT ONE.** Visibility can change between the buffer write and the
+click — another window comes forward, the operator alt-tabs — and an add on a hidden
+tab reports success and inserts nothing. The gate is cheap; run it twice.
+
+⭐ **PUT THE GATE AND THE WRITE IN ONE `javascript_exec`.** Then nothing can move
+between them, and the call returns `{STOP: true, …}` instead of writing. That is what
+the T1 capture did, and the returned object is the receipt that the gate was true at
+the moment of the write rather than a moment earlier.
+
+⚠️ **AND THE GATE NEEDS `height > 0`, MEASURED.** TradingView renders the button's
+label TWICE — once visibly and once as a zero-height measuring copy — so a gate testing
+only `width > 0 && offsetParent !== null` finds TWO "Add to chart" nodes and reports
+FALSE for a perfectly good state. The button's own text also reads `"Add to chartAdd to
+c…"` for the same reason. Require width, height and `offsetParent`.
+
+## ⚰️ `placement=dialog` IS NOT "UNDOCKED" ON THIS BUILD — CORRECTED SAME DAY
+
+The rule written this morning said *"`placement=dialog` in the Monaco model URI means
+undocked = stop"*. It was derived from a detached OS window and it is **wrong for the
+build the rig runs**, where the Pine editor's normal in-tab home is a right-side panel
+whose models are stamped `placement%3Ddialog`. Measured 2026-09-12:
+
+| placement | what it is | the add control |
+|---|---|---|
+| `dialog` | the right-hand panel **inside the chart tab** (`pine-dialog-button` in the right rail opens it) | a real **`Add to chart` TEXT button** in the editor's own toolbar |
+| `bottom` | the classic bottom dock, reached by the script menu's *Move script to bottom* | **no toolbar at all** — the action lives as a text item in the tab's ⋯ context menu, and reads `Update on chart` (disabled) while the buffer matches a study already on the chart |
+
+⛔ **So the discriminator is not the placement label. It is: can this session READ the
+editor's DOM in this tab, and is there a visible, enabled own-text `Add to chart`?** A
+detached OS window fails the first half — its DOM is unreachable from the chart tab even
+though its Monaco models are visible — and that is the state the original rule was
+reaching for.
+
+## ⭐ CREATE NEW → INDICATOR, WHERE THE MENUS ACTUALLY ARE
+
+- The **script-title chevron** (`∿ Untitled script ⌄`) opens the menu with **Create new ▸**.
+  In the bottom placement the same chevron opens a DIFFERENT menu (Save · Rename ·
+  Version history · Move script to right · Update on chart · Close tab) with no Create
+  new — so unbinding is a right-panel action.
+- The submenu (Indicator · Strategy · Library · Built-in…) **populated on a synthetic
+  hover** on 2026-09-12, first try. The 2026-09-11 note that it "does not render under a
+  synthetic hover" was measuring the coordinate-space bug, not the menu.
+- A fresh Indicator gives a new `file:///<uuid>.pine` model, the 183-byte default
+  template, and flips the toolbar control from the icon-with-tooltip to a text
+  `Add to chart`.
+
+## ⛔⛔ BAR 0 IS NOT REACHABLE ON A LONG-HISTORY SYMBOL — CHANGE THE SYMBOL
+
+**A study's output buffer never starts at `bar_index == 0` on SPY**, whatever the range
+button says. Measured three ways on 2026-09-12: 1,829 output rows starting 2019 with
+`is_first_bar` 0 on every one; the same probe without `max_bars_back` giving 415 rows
+starting 2025, still 0; and the `All` range switching the chart to **1M** (405 bars) and
+producing no study output at all. TradingView computes from further back than it
+returns, so the first computed bar is never in the readable window.
+
+⭐ **THE INSTRUMENT IS THE SYMBOL.** Pick one whose ENTIRE history fits inside the
+window — `NASDAQ:CRWV` listed 2025-03-28, 366 daily bars — and the study's first output
+row IS bar 0, with the discriminator firing on it. Same move `r11-nvi` made when it read
+SPY's 1993 seed on a monthly chart. Restore the symbol afterwards and say so in the
+fixture.
+
+⚠️ **AND A `max_bars_back` DECLARATION IS SPENT AS WARM-UP.** `max_bars_back = 500` on a
+405-bar series produced NOTHING; on a long series it pushed the first output row past
+the bar the probe existed to read. Declare it only when the script genuinely needs the
+history, and never in a probe whose subject is bar 0.
+
+## ⚠️ THE `All` RANGE BUTTON CHANGES THE RESOLUTION
+
+`All` is "all data in 1 month intervals" — it switched the chart from `1D` to `1M`. The
+range buttons are range+interval pairs, not zoom. Restore with `setResolution('1D')` and
+assert the read-back, per the J2 discipline above.
+
+---
+
 ## ⛔⛔ THE BINDING GATE, CORRECTED — OWN TEXT ONLY, TOOLTIPS EXCLUDED
 
 **Rule (owner-adopted, 2026-09-12): the gate is TRUE when exactly one VISIBLE, ENABLED

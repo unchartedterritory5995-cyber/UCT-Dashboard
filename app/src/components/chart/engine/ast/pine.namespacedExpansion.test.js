@@ -106,18 +106,25 @@ describe('the `ta.tr` call forms', () => {
     expect(formulaOf(plot('tr(false) > 0', 4))).toBe(bare)
   })
 
-  it('⛔⛔ `ta.tr(true)` refuses — with the RULING, not the false sentence', () => {
-    const out = plot('ta.tr(true) > 0')
-    expect(out.ok).toBe(false)
-    // ⭐ THE ASSERTION THAT WOULD HAVE FAILED BEFORE: the old message opened with
-    // `pine:function`'s sentence, which is untrue of this name.
-    expect(out.refusal.message).not.toContain(REFUSALS['pine:function'])
-    expect(out.refusal.message).toContain('high - low')
-    expect(out.refusal.message).toMatch(/TO UNBLOCK/)
-    expect(out.refusal.message).toContain('ta.tr')
-    // ⚠️ AND IT LANDS ON A LINE. A refusal without one reads as "somewhere in
-    // your script", which is not a refusal a member can act on.
-    expect(out.refusal.line).toBe(3)
+  it('⭐⭐ `ta.tr(true)` TRANSLATES NOW — the guarded first bar, read from the vendor', () => {
+    // ⚰️⚰️ THIS TEST ASSERTED A REFUSAL UNTIL 2026-09-12, and the refusal was right
+    // while the vendor's answer was unread: serving `true` meant inventing a first
+    // bar. T1 read it instead — `tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`,
+    // NASDAQ:CRWV 1D bar 0 carries `high - low` with `ta.tr(false)` na beside it —
+    // so the guarded form is an identity like every other admissible expansion.
+    // ⭐ The tree is asserted DERIVED, not typed: the else-branch must be exactly
+    // the bare form's tree, so the three-term max can never drift between the two.
+    // the file's own idiom: ask the door, strip the comparison, compare the trees
+    const strip = (f) => f.replace(' > 0 ? 1 : 0', '')
+    const bare = strip(formulaOf(plot('ta.tr > 0')))
+    const guarded = strip(formulaOf(plot('ta.tr(true) > 0')))
+    expect(guarded).toBe(`(na(close[1]) ? high - low : ${bare})`)
+    expect(plot('ta.tr(true) > 0').ok).toBe(true)
+    // ⛔ AND THE TWO FORMS ARE STILL DIFFERENT COLUMNS. Collapsing them would answer
+    // not-computable where the member's chart shows a number, on the first bar of
+    // every symbol's history — which is the whole reason the argument was read.
+    expect(guarded).not.toBe(bare)
+    expect(strip(formulaOf(plot('tr(true) > 0', 4)))).toBe(guarded)
   })
 
   it('⭐ the manifest is the source for WHICH form fills bar 0', () => {
@@ -128,9 +135,19 @@ describe('the `ta.tr` call forms', () => {
     expect(TABLE.functions.atr.vendorNote).toContain('high - low');
   })
 
-  it('⛔ a non-literal argument still refuses', () => {
-    // ⭐ NON-VACUITY: the fix accepts exactly one value, not "anything that is
-    // not `true`".
-    expect(plot('ta.tr(close) > 0').ok).toBe(false)
+  it('⛔ a non-literal argument still refuses, and the sentence says WHY', () => {
+    // ⭐ NON-VACUITY: the door accepts exactly the two written literals, not
+    // "anything that is not `false`". A flag it cannot fold is a question about
+    // which of two different columns the member meant, and the refusal says so
+    // rather than repeating the old "maps to nothing" sentence.
+    const out = plot('ta.tr(close) > 0')
+    expect(out.ok).toBe(false)
+    expect(out.refusal.message).not.toContain(REFUSALS['pine:function'])
+    expect(out.refusal.message).toContain('high - low')
+    expect(out.refusal.message).toMatch(/TO UNBLOCK/)
+    expect(out.refusal.message).toContain('ta.tr')
+    // ⚠️ AND IT LANDS ON A LINE. A refusal without one reads as "somewhere in your
+    // script", which is not a refusal a member can act on.
+    expect(out.refusal.line).toBe(3)
   })
 })

@@ -900,12 +900,19 @@ export function derivedSeriesTree(name, table) {
  *  it. Before the offset it could not be said at all; `DERIVED_SERIES` could not
  *  hold it either, because that map builds a mean and this is not one.
  *
- *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. On the
- *  first bar `close[1]` does not exist, so this expansion is NOT COMPUTABLE
- *  there, like every other lookback in this engine. `ta.tr(true)` asks for Pine's
- *  fallback — bar 0's range as `high - low` — and is refused rather than silently
- *  given this one: the extra NaN is a bar the member can see, and a fabricated
- *  first bar is not.
+ *  ⚠️ ONE BAR DIFFERS FROM PINE ON THIS TREE, AND IT DIFFERS IN THE SAFE
+ *  DIRECTION. On the first bar `close[1]` does not exist, so `tr` is NOT
+ *  COMPUTABLE there, like every other lookback in this engine — which is exactly
+ *  what `ta.tr(false)` does, measured (T1, 2026-09-12).
+ *
+ *  ⭐⭐ AND `ta.tr(true)` IS NO LONGER A REFUSAL — IT IS `trGuarded`, READ FROM THE
+ *  VENDOR RATHER THAN GUESSED. `tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`
+ *  is the capture: on NASDAQ:CRWV 1D, whose whole 366-bar history fits inside the
+ *  study's output window, bar 0 carries `4.48` with `subject_is_na = 0` and
+ *  `subject_eq_highlow = 1`, while `ta.tr(false)` is `na` on that same bar. Away
+ *  from bar 0 all four channels agree to EXACT zero over 2,244 SPY daily bars.
+ *  So the guarded form is an IDENTITY too, and the rule below is satisfied: it
+ *  needed a reading rather than a judgement, and it now has one.
  *
  *  ⚰️ THIS PARAGRAPH SAID THE FALLBACK WAS THE **BARE** `ta.tr`, and it is the
  *  other way round. Three sources in this repo agree it is `ta.tr(true)` that
@@ -927,6 +934,21 @@ const BUILTIN_SERIES_TREE = Object.freeze({
       cCall('max', [gap('high'), gap('low')]),
     ]);
   },
+  /** `ta.tr(true)` — the same column with Pine's first-bar fallback, taken from
+   *  the vendor capture rather than assumed by this file.
+   *
+   *  ⛔ THE GUARD IS `na(close[1])`, NOT `bar_index == 0`. On a clean series they
+   *  pick out the same bar, and they are not the same claim: what is missing is
+   *  the OFFSET, so a hole anywhere else in `close` gets the answer Pine gives it
+   *  rather than a different one. Writing the bar number would put a second
+   *  authority on "where does history start".
+   *
+   *  ⭐ The else-branch reuses `tr()`, so the three-term max is written once. */
+  trGuarded: () => cOp('?:', [
+    cCall('na', [{ type: 'offset', value: 1, args: [cSeries('close')] }]),
+    cOp('-', [cSeries('high'), cSeries('low')]),
+    BUILTIN_SERIES_TREE.tr(),
+  ]),
 })
 
 /** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
@@ -6943,19 +6965,31 @@ export class Resolver {
         // default, `false`, is the column this expansion already builds. It is
         // an identity, and identities are the only expansions this door admits.
         //
-        // ⛔ `ta.tr(true)` IS A DIFFERENT COLUMN AND STAYS REFUSED. It asks for a
-        // first bar whose true range is not defined — `close[1]` does not exist
-        // there — and fabricating one is the invention this lane refuses. The
-        // extra NaN is a bar the member can SEE; a made-up first bar is not.
+        // ⭐⭐ `ta.tr(true)` TRANSLATES SINCE T1 (2026-09-12), AND IT IS STILL A
+        // DIFFERENT COLUMN — both halves matter. It was refused here on the ground
+        // that its first bar "asks for a bar whose true range is not defined" and
+        // that supplying one would be an invention. That was the right refusal
+        // while the vendor's answer was unread. It is not an invention now that it
+        // is measured: bar 0 carries `high - low`, `ta.tr(false)` carries `na`, and
+        // away from bar 0 the two agree to exact zero over 2,244 bars
+        // (`tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`).
+        // ⛔ THE TWO FORMS MAY STILL NOT BE COLLAPSED INTO ONE. Serving `true` with
+        // the unguarded tree would answer not-computable where the member's chart
+        // shows a number, on the first bar of every symbol's history.
         const flag = built.length === 1 && built[0] && built[0].type === 'num'
           ? Number(built[0].value) : null
         if (flag === 0) return BUILTIN_SERIES_TREE.tr()
+        if (flag === 1) return BUILTIN_SERIES_TREE.trGuarded()
+        // ⚠️ A NON-LITERAL FLAG STAYS REFUSED, and that is not caution for its own
+        // sake: the two forms are different columns, so a flag this door cannot
+        // fold is a question about which of them the member meant.
         throw new PineRefusal('pine:builtin',
           `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
-          + '`ta.tr` and `ta.tr(false)` are the same column and both translate; '
-          + '`ta.tr(true)` asks for the Pine fallback, bar 0 as `high - low`, on a '
-          + 'bar where no true range is defined, and this engine leaves that bar '
-          + 'not-computable rather than inventing it — TO UNBLOCK: write `ta.tr`',
+          + '`ta.tr`, `ta.tr(false)` and `ta.tr(true)` all translate, but the '
+          + 'argument decides WHICH column: `true` fills the first bar with '
+          + '`high - low`, and the other two leave it not-computable. This flag is '
+          + 'not a written `true` or `false`, so which column it asks for would '
+          + 'depend on the bar — TO UNBLOCK: write the flag as a literal',
           locate(tok))
       }
       if (bare === 'avg' && built.length < 2) {

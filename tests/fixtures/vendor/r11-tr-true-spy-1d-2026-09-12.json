@@ -1,0 +1,99 @@
+{
+  "_": "⭐⭐ T1 — `ta.tr(true)` ANSWERED, BOTH HALVES. It is the guarded three-term max: identical to `ta.tr(false)` and to both hand-written candidates on every bar that has a predecessor, and at BAR 0 it carries `high - low` while `ta.tr(false)` is `na`. The documented claim, measured rather than assumed.",
+  "_probe": "docs/pine/probes/r11-tr-true.pine",
+  "_probeSha256": "df8945b2aef5379a4af5043cc8a1ebea67b92d3965adec803a12d1bede09d941",
+  "_probeBytes": 4604,
+  "_probeSha256_firstAttempt": "49b13b651ae618c96196c78c1d543371c764ace0cc13a4bd7ccf9aa6b253701f",
+  "_probeBytes_firstAttempt": 3842,
+  "_studyName": "UCTPROBE_TR_TRUE",
+  "_capturedUTC": "2026-09-12T15:20:00Z",
+  "_capturedET": "2026-09-12T11:20:00-04:00",
+  "symbol": "AMEX:SPY",
+  "tf": "1D",
+  "_the_question": "`uncharted-volume.pine:189` is `_src = rangeType == 'ATR' ? ta.tr(true) : high - low`. `ta.tr(false)` and bare `ta.tr` already translate here; only the `true` argument refuses at `pine:builtin`. The argument changes the maths at bar 0 — with `true` the first bar is `high - low` instead of `na` — so the gap could not be closed by reading the docs.",
+  "_compiles": true,
+  "_vendorRoster": 12,
+  "_committedRoster": 12,
+  "verdict": {
+    "answer": "`ta.tr(true)` IS candA — `na(close[1]) ? high - low : max(high - low, max(abs(high - close[1]), abs(low - close[1])))`",
+    "awayFromBarZero": "IDENTICAL to `ta.tr(false)`, to candA and to candB — 0.0 difference on every bar of both readings, no floating-point residue at all.",
+    "atBarZero": "CARRIES A VALUE, and that value is `high - low`. `ta.tr(false)` is `na` on the same bar, and so is the unguarded candB.",
+    "soTheEngineMay": "declare `tr(true)` as the guarded form. The `true`/`false` argument is a REAL semantic difference in exactly one bar, and this engine's `tr` must not treat the two as synonyms."
+  },
+  "measured": {
+    "agreement_leg": {
+      "symbol": "AMEX:SPY",
+      "tf": "1D",
+      "_why": "the convention every other Group-B reading was taken on",
+      "readings": [
+        {
+          "probe": "first attempt, with `max_bars_back = 500`",
+          "rows": 1829,
+          "from": "2019-06-04",
+          "to": "2026-09-11",
+          "diff_vs_candA": "0 on all 1829",
+          "diff_vs_candB": "0 on all 1829",
+          "diff_vs_sibling": "0 on all 1829",
+          "SPREAD_control": { "min": 0.59, "max": 55.57, "zero": 0, "na": 0 },
+          "subject_is_na": "0 on all 1829",
+          "is_first_bar": "0 on all 1829 — bar 0 NOT in the window"
+        },
+        {
+          "probe": "shipped probe, no `max_bars_back`",
+          "rows": 415,
+          "from": "2025-01-16",
+          "to": "2026-09-11",
+          "diff_vs_candA": "0 on all 415",
+          "diff_vs_candB": "0 on all 415",
+          "diff_vs_sibling": "0 on all 415",
+          "SPREAD_control": { "min": 1.7, "max": 55.57, "zero": 0, "na": 0 },
+          "is_first_bar": "0 on all 415 — bar 0 still NOT in the window"
+        }
+      ]
+    },
+    "bar_zero_leg": {
+      "symbol": "NASDAQ:CRWV",
+      "tf": "1D",
+      "_why": "⭐ THE SYMBOL IS THE INSTRUMENT HERE. On SPY the study's output window never reaches `bar_index == 0` — TradingView computes from further back than it returns, so the discriminator cannot fire however long the chart is left to load. CRWV listed 2025-03-28, so its ENTIRE history (366 bars) fits inside the window and the first output row IS bar 0. Same precedent as `r11-nvi`, which had to read SPY's 1993 seed on a monthly chart.",
+      "bars": 366,
+      "bar0": {
+        "date": "2025-03-28",
+        "is_first_bar": 1,
+        "subject_tr_true": 4.479999999999997,
+        "subject_is_na": 0,
+        "subject_eq_highlow": 1,
+        "SPREAD_control": 4.479999999999997,
+        "candA_guarded": 4.479999999999997,
+        "diff_vs_candA": 0,
+        "sibling_is_na": 1,
+        "sibling_tr_false": "na — absent from the row",
+        "candB_unguarded": "na — absent from the row",
+        "diff_vs_candB": "na — absent from the row",
+        "diff_vs_sibling": "na — absent from the row"
+      },
+      "bar1": {
+        "date": "2025-03-31",
+        "is_first_bar": 0,
+        "subject_tr_true": 4,
+        "sibling_tr_false": 4,
+        "candA_guarded": 4,
+        "candB_unguarded": 4,
+        "diff_vs_candA": 0,
+        "diff_vs_candB": 0,
+        "diff_vs_sibling": 0,
+        "_": "one bar later the four are already indistinguishable, which is why only bar 0 can settle the argument"
+      }
+    }
+  },
+  "_the_discriminator_and_why_it_matters": "⛔ THE WHOLE CLAIM LIVES ON ONE BAR, AND A LONG-HISTORY SYMBOL CANNOT SHOW IT. Every difference channel reads 0.0 on SPY over 2,244 bars across two readings — which is agreement, not proof, because bar 0 is outside the study's output window there. The three boolean channels are what make bar 0 readable without comparing floats: `subject_is_na = 0` says a value is present, `subject_eq_highlow = 1` says that value is the spread, and `sibling_is_na = 1` says the `false` form has none. All three fired on CRWV's first bar simultaneously. ⭐ And `SPREAD_control` is non-zero on every bar of every leg (min 0.59, max 55.57, zero count 0), so no leg is the silent-zero shape where a study that never ran reads as agreement.",
+  "_the_probe_defect_this_capture_found": "⚰️ THE FIRST ATTEMPT COULD NOT ANSWER ITS OWN QUESTION, and the probe carried the defect, not the rig. `max_bars_back = 500` was declared for no reason (the script needs exactly one bar of history, `close[1]`), and TradingView spends declared history as warm-up: the study produced 1,829 rows starting 2019 and `is_first_bar` was 0 on every one. On the `All` range — 405 monthly bars — it produced NOTHING AT ALL, which is the same fact stated louder: a 500-bar warm-up cannot be paid out of a 405-bar series. The declaration is removed and the reason is written at the line in the probe.",
+  "_bounds": "⚠️ ONE READING PER LEG, TWO SYMBOLS, ONE TIMEFRAME. The agreement half is SPY 1D over 2019-06-04 → 2026-09-11 and 2025-01-16 → 2026-09-11; the bar-0 half is CRWV 1D, 366 bars, and it rests on the first bar of ONE listing. ⛔ It says nothing about intraday first bars, about a symbol whose first bar has `na` inputs, or about what `ta.tr(true)` does when the series has gaps — none of which this engine has a reason to ask yet. The 0.0 differences are exact zeros, not rounded: no tolerance was applied anywhere in this fixture.",
+  "_rig": {
+    "layout": "e3cTXatd — UCT AGENT VISIT 2026-09-10 (disposable)",
+    "studiesBefore": 19,
+    "studiesAfterAdd": 20,
+    "studiesAfterRemoval": 19,
+    "savedToAccount": false,
+    "_": "The probe was added twice as an unsaved study (once per probe version) and removed both times by the legend's own remove control. Nothing was saved, published, or renamed; the 19 pre-existing studies were never touched. The chart was left on AMEX:SPY 1D, as found."
+  }
+}

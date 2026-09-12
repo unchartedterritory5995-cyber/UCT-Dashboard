@@ -265,9 +265,21 @@ describe('⭐ RISK-004 — confirmed SECONDARY blockers behind the first-reporte
     const kcw = translatePine(['//@version=6', 'indicator("t")', 'x = ta.kcw(close, 20, 1.5)', 'plot(x > 0 ? 1 : 0)'].join('\r\n'))
     expect(kcw.ok).toBe(true)
 
+    // ⚰️⚰️ AND THE THIRD BLOCKER WENT THE SAME WAY ON 2026-09-12, BY THE SAME ROUTE.
+    // The title above calls `ta.tr(true)` "a pre-existing, deliberate parameter-
+    // fidelity refusal, unrelated to this tranche" — true when written, and the
+    // reason it was deliberate was that nobody had READ the vendor's first bar.
+    // T1 read it (`tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json`), so it
+    // is now the guarded tree and this script has no blocker left at all.
+    // ⭐ The pattern is worth naming: all three of this script's blockers fell to a
+    // capture rather than to an argument about what the engine ought to serve.
     const trTrue = translatePine(['//@version=6', 'indicator("t")', 'x = ta.tr(true)', 'plot(x > 0 ? 1 : 0)'].join('\r\n'))
-    expect(trTrue.ok).toBe(false)
-    expect(trTrue.refusal.message).toContain('ta.tr(true)')
+    expect(trTrue.ok).toBe(true)
+    expect(trTrue.outputs[0].formula).toContain('na(close[1]) ? high - low')
+    // ⛔ and the two forms are still different columns — see
+    // `pine.namespacedExpansion.test.js`, which pins that they never collapse.
+    const trFalse = translatePine(['//@version=6', 'indicator("t")', 'x = ta.tr(false)', 'plot(x > 0 ? 1 : 0)'].join('\r\n'))
+    expect(trFalse.outputs[0].formula).not.toContain('na(close[1])')
 
     const falling = translatePine([
       '//@version=6', 'indicator("t")',
@@ -547,7 +559,12 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     // 🔴🔴 RISK-043 (2026-09-07): two prior silent false-passes now correctly refuse.
     expect(misses).toContain('volume-pocket-pivot-up-volume')
     expect(misses).toContain('meanrev-consecutive-down-closes-exhaustion')
-    expect(misses.length).toBe(21)
+    // ⭐ 21 → 20 ON 2026-09-12 (T1b). `volatility-range-contraction-base` was the
+    // last script held by `ta.tr(true)`; the vendor capture cleared it, so it leaves
+    // the miss set the way `candles-doji-at-extension` did — new capability, read
+    // rather than argued. The two RISK-043 correctness misses above stay.
+    expect(misses).not.toContain('volatility-range-contraction-base')
+    expect(misses.length).toBe(20)
   })
 })
 

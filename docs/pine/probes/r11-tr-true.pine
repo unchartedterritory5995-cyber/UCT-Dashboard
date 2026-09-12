@@ -1,5 +1,16 @@
 //@version=6
-indicator("UCTPROBE_TR_TRUE", overlay = false, max_bars_back = 500)
+indicator("UCTPROBE_TR_TRUE", overlay = false)
+
+// ⚰⚰ `max_bars_back = 500` WAS HERE AND IT HID THE ONE READING THIS PROBE EXISTS FOR.
+// Measured 2026-09-12 on the rig, SPY 1D: with it declared, the study produced 1,829
+// output rows starting 2019-06-04 and `is_first_bar` was 0 on EVERY one of them — the
+// discriminator never fired, because TradingView spends the declared history as warm-up
+// and begins output past it. Switched to the "All" range (405 monthly bars) the study
+// produced NOTHING AT ALL, which is the same fact stated louder: a 500-bar warm-up
+// cannot be paid out of a 405-bar series.
+// ⛔ The probe needs exactly ONE bar of history (`close[1]`), so the declaration was
+// buying nothing and costing the answer. Removed rather than lowered: a number here
+// would be a second thing to get wrong.
 
 // ─── THE QUESTION ───────────────────────────────────────────────────────────
 // `ta.tr(true)` is the ONLY Group-B name still unread, and it is on a member's
