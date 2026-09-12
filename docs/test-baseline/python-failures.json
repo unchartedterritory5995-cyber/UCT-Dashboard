@@ -4,7 +4,7 @@
  "method": "tools/python_failure_baseline.py sweep --batch-size 20",
  "counts": {
   "tests": 23849,
-  "failures": 66,
+  "failures": 64,
   "errors": 0,
   "skipped": 55
  },
@@ -67,8 +67,6 @@
   "tests.test_ticker_meta::test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit",
   "tests.test_ticker_meta::test_fmp_market_cap_unit_conversion_asserts_magnitude",
   "tests.test_ticker_meta::test_fmp_missing_marketcap_key_entirely_yields_none",
-  "tests.test_ticker_meta::test_fmp_no_api_key_short_circuits_without_network_call",
-  "tests.test_ticker_meta::test_fmp_none_fields_yield_none_not_fabricated",
   "tests.test_ticker_meta::test_fmp_partial_then_finnhub_fills_remainder",
   "tests.test_two_engines_do_not_agree::test_the_shipped_thresholds_have_not_moved",
   "tests.test_web_capture_coverage.TestAdversarialCoverage::test_a_reference_only_capture_offers_NO_body_text_to_answer_from",
@@ -97,6 +95,19 @@
     "tests/test_down_alert.py"
    ],
    "reason": "rc=1 atrick\\uct-worktrees\\flow-watch-rail\\api\\services\\discord_index_close.py\", line 170, in wait_until_warm\n    sleep(wait)\n+++++++++++++++++++++++++++++++++++ Timeout +++++++++++++++++++++++++++++++++++\n"
+  }
+ ],
+ "fixed_since_sweep": [
+  {
+   "sha": "9111438d0",
+   "date": "2026-09-12",
+   "what": "ticker_meta.py:145 _log -> _logger; the except handler raised NameError",
+   "introduced_by": "553f6b68b (2026-09-12 12:01)",
+   "ids": [
+    "tests.test_ticker_meta::test_fmp_no_api_key_short_circuits_without_network_call",
+    "tests.test_ticker_meta::test_fmp_none_fields_yield_none_not_fabricated"
+   ],
+   "note": "The NameError was the REPORTED error for five ids; fixing it moves only these two. The other three fail underneath it for a second reason from the same introducing commit - they patch earnings_estimates._fmp_get, which _from_fmp no longer calls - and stay in ids as test-fake drift for the cluster session."
   }
  ]
 }

@@ -1,6 +1,7 @@
 # Python test baseline
 
-**Status: COMPLETE. 71 of 71 batches ran.** The sweep did **not** stop on the 3 GB
+**Status: COMPLETE. 71 of 71 batches ran.** — **66 measured; 64 open.** Two have since
+been fixed (`9111438d0`, below). The sweep did **not** stop on the 3 GB
 memory floor — the lowest free-memory reading all run was **11.31 GB**, nowhere near
 it. One group of 10 files is **UNRUNNABLE** and is recorded as such below rather than
 re-run.
@@ -11,7 +12,8 @@ drift.
 
 ## Headline — the "9 pre-existing failures" figure is NO LONGER TRUE
 
-**It is 66, across 21 files.** Not 9, and not concentrated in one place.
+**It is 66, across 21 files** — as measured. Not 9, and not concentrated in one place.
+Two are already fixed, so **64 are open**; see *Fixed since the sweep*.
 
 That said, **66 failing tests is not 66 defects.** Four clusters account for 39 of
 them, and inside each cluster every test dies of one cause:
@@ -23,26 +25,34 @@ them, and inside each cluster every test dies of one cause:
 | `test_web_capture_coverage` | 8 | `KeyError: 'text_origin'` |
 | `test_ticker_meta` | 7 | 5 × `NameError: name '_log' is not defined` + 2 mapping mismatches |
 
-⭐⭐ **One of these is a LIVE PRODUCTION DEFECT, shipped today, and the sweep is what
-surfaced it.** `api/services/ticker_meta.py:145` calls `_log.warning(...)`; every other
-line in that file uses `_logger`, and `_log` is never defined there. It landed at
-**12:01 today in `553f6b68b`** (D1 G1 tranche 1) and **is on `origin/master` now**.
+⭐⭐ **One of these was a LIVE PRODUCTION DEFECT, and it is now FIXED — `9111438d0`.**
+`api/services/ticker_meta.py:145` called `_log.warning(...)`; every other one of that
+module's eight logging calls uses `_logger`, and `_log` was defined nowhere in it. It
+shipped at **12:01 on 2026-09-12 in `553f6b68b`** (D1 G1 tranche 1) and raised
+`NameError` on master for about six hours.
 
-The irony is exact: it sits inside the `except` handler that commit added *to keep* the
+The irony is exact: it sat inside the `except` handler that commit added *to keep* the
 function's docstring promise — *"Never raises — mirrors `_from_finnhub`'s
-all-None-on-failure contract exactly"*. The handler meant to preserve that contract is
-the thing that breaks it.
+all-None-on-failure contract exactly"*. The handler written to preserve the contract was
+the only thing in the function that could break it.
 
-⚠️ **Blast radius, traced not assumed: contained, but it destroys evidence.**
-`_base_meta` catches it one frame up (`except Exception as e_fmp`) and falls back to
-Finnhub, so no request 500s. What is lost is the *real* error: every FMP profile
-failure — network, 5xx, auth, rate limit, all of which the typed adapter now raises —
-is reported as `ticker_meta FMP failed for X: name '_log' is not defined`, with the
-actual provider error destroyed. Diagnosing a genuine FMP outage from these logs would
-be impossible.
+⚠️ **Blast radius, traced not assumed: contained, but it destroyed evidence.**
+`_base_meta` caught it one frame up (`except Exception as e_fmp`) and fell back to
+Finnhub, so nothing 500'd and no member saw anything. What was lost was the *real*
+error: every FMP profile failure — network, 5xx, auth, rate limit, all of which the
+typed adapter now raises by design — was reported as `name '_log' is not defined`, with
+the actual provider error gone. Diagnosing a genuine FMP outage from those logs would
+have been impossible.
 
-⛔ **Not fixed here** — this is a docs-only commit and the fix belongs to whoever owns
-D1. Recorded so it cannot go quiet again.
+⚰️ **AND THE FIX CORRECTED THIS DOCUMENT'S OWN ATTRIBUTION.** This table credits the
+`NameError` with **five** failures, because it was the error five of them *reported*.
+Fixing it moves only **two**. The other three were failing underneath it for a second,
+independent reason from the same introducing commit — they patch
+`api.services.earnings_estimates._fmp_get`, which `_from_fmp` no longer calls, so the
+real adapter runs and answers `FMP_API_KEY not set`. **A loud error hides quiet ones,
+and the count of tests reporting an error is not the count of tests that error causes.**
+Those three are ordinary test-fake drift, the same class as `test_implied_backfill`,
+and stay open for the cluster session.
 
 ⚠️ **Three rows are environment artefacts and must not be counted as code failures** —
 `test_frontend_deps_installed` (no `npm ci` in this worktree),
@@ -56,6 +66,20 @@ failure — which is how the earlier partial write-up reached "1 so far" — and
 then climbed steadily to 66 over the remaining 59 batches. A figure of 9 matches no
 prefix of this run, no single file, and no cluster.
 
+## Fixed since the sweep
+
+| fixed in | what | ids moved | still open in that file |
+|---|---|---|---|
+| **`9111438d0`** (2026-09-12) | `ticker_meta.py:145` `_log` → `_logger` — one identifier | `test_fmp_no_api_key_short_circuits_without_network_call`, `test_fmp_none_fields_yield_none_not_fabricated` | 5 (3 of them revealed by the fix; see above) |
+
+Mutation-proved by reverting exactly that identifier: **7 failed / 13 passed** reverted,
+**5 failed / 15 passed** fixed — 2 green, **0 newly red**. Across all 20 suites importing
+`ticker_meta`: 585 passed, 6 failed, every one of the 6 already in this baseline.
+
+⭐ The rail earned its keep here: had the baseline not been updated in lockstep, `check`
+would have exited **1** with `NOW PASSING`, which is exactly the signal it exists to
+give.
+
 ## Final counts
 
 | | |
@@ -63,7 +87,7 @@ prefix of this run, no single file, and no cluster.
 | batches run | **71 of 71** |
 | test files enumerated | 1407 |
 | tests collected | **23849** |
-| failed | **66** |
+| failed | **66** measured · **64** still open |
 | errors | 0 |
 | skipped | 55 |
 | unrunnable groups | **1** (10 files — below) |
@@ -121,9 +145,10 @@ red**: the baseline records them as unmeasured and `check` will not pretend othe
 ⛔ Left unrunnable deliberately, per instruction. Re-running it needs a per-test
 timeout raise or a fake clock, not another sweep.
 
-## The complete failure table (66)
+## The complete OPEN failure table (64)
 
-Generated from `python-failures.json`.
+Generated from `python-failures.json`, so it cannot drift from the rail. The two ids
+fixed in `9111438d0` are no longer here.
 
 #### `api.services.journal_two.test_obsidian_parity_fixtures` — 1
 
@@ -259,9 +284,9 @@ FMP profile-row parsing returns `None` for both accepted shapes, so the FMP leg 
 | `test_fmp_profile_row_parses_bare_dict_shape` | AssertionError: assert None == {'companyName': 'Apple Inc.'} |
 | `test_fmp_profile_row_parses_list_of_one_shape` | AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'} |
 
-#### `tests.test_ticker_meta` — 7
+#### `tests.test_ticker_meta` — 5
 
-**Two causes, and the first is a REAL production defect:** five raise `NameError: name '_log' is not defined`, which would raise at runtime, not only under test. The other two are FMP-vs-Finnhub mapping mismatches.
+**The `NameError` here is FIXED (`9111438d0`) and its two ids are gone from this table.** What is left is a different defect the NameError was hiding: three of these patch `api.services.earnings_estimates._fmp_get`, which `_from_fmp` no longer calls after `553f6b68b`, so the real adapter runs and answers `FMP_API_KEY not set` - ordinary test-fake drift, same class as `test_implied_backfill`. The remaining two are FMP-vs-Finnhub mapping mismatches.
 
 | test | first line of the failure |
 |---|---|
@@ -269,8 +294,6 @@ FMP profile-row parsing returns `None` for both accepted shapes, so the FMP leg 
 | `test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit` | AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...} Omitting 2 identi |
 | `test_fmp_market_cap_unit_conversion_asserts_magnitude` | NameError: name '_log' is not defined |
 | `test_fmp_missing_marketcap_key_entirely_yields_none` | NameError: name '_log' is not defined |
-| `test_fmp_no_api_key_short_circuits_without_network_call` | NameError: name '_log' is not defined |
-| `test_fmp_none_fields_yield_none_not_fabricated` | NameError: name '_log' is not defined |
 | `test_fmp_partial_then_finnhub_fills_remainder` | AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...} Omitting 3 identi |
 
 #### `tests.test_two_engines_do_not_agree` — 1
