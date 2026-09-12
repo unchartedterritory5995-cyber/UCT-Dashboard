@@ -69,9 +69,18 @@ def bars(monkeypatch):
 
 @pytest.fixture
 def armed(tmp_db, bars):
-    """One armed alert whose condition is true on the fixture bars."""
+    """One armed alert whose condition is true on the fixture bars.
+
+    ⚠️ IT ASKS FOR EMAIL EXPLICITLY, AND IT HAS TO. Since C4 a new alert is
+    created with `["in_app"]` — creating an alert and subscribing to email are
+    separate member decisions — so a fixture that said nothing would produce an
+    alert on which email is SKIPPED, and every case in this file about an email
+    that FAILED would be a statement about a channel nobody attempted. The suite
+    is about multi-channel delivery truth, so its fixture says so.
+    """
     aid = ias.create(user_id="u1", sym="AAPL", indicator="rsi",
-                     condition="above", threshold=50.0, tf="5")
+                     condition="above", threshold=50.0, tf="5",
+                     channels=["in_app", "email"])
     value, triggered, _idx = ev._evaluate_for_cycle(ias.get(aid), _RISING)
     assert triggered is True, (
         "the fixture's condition is not true — every assertion below would be "
