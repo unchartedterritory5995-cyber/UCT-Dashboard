@@ -34,8 +34,17 @@
 // ⚠️ WHAT IT DOES NOT SEE, stated so nobody reads more into a green run than is
 // there: it reads JSX element names and className style keys. A field rendered
 // as bare text — `{c.source} · {c.date}` — is invisible to it. That is a real
-// limit, and it is why the recorded finding below describes the whole Sources
-// block rather than only the three class names that name it.
+// limit, and it is why the finding it recorded (now fixed — see
+// RECORDED_BOUNDARY_DEBT) described the whole Sources block rather than only
+// the three class names that named it.
+//
+// ⚠️ AND WHAT IS OUTSIDE ITS SURFACE BY CONSTRUCTION: it guards the Ask-AI tab
+// `ResearchPage.jsx` mounts, plus what that tab imports. `pages/research/
+// components/ComparisonAskAi.jsx` — a DIFFERENT door, reached from the compare
+// page — still draws its own citation list through the very classes this rail
+// was opened for, and this file cannot see it. Widening the surface to the
+// whole `pages/research/**` tree is a one-line change to `i1Surface`'s roots
+// and a decision somebody has to make, not a gap to paper over here.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -293,42 +302,40 @@ const SURFACE = i1Surface()
 const ALL_FINDINGS = SURFACE.flatMap((f) => boundaryFindings(f))
 
 /**
- * ⛔ RECORDED BOUNDARY DEBT — REPORTED, NOT FIXED.
+ * ⛔ RECORDED BOUNDARY DEBT — EMPTY, AND IT WAS NOT BORN THAT WAY.
  *
- * GATE-I1's first slice is rails only: no member-visible change, and a real
- * violation a rail surfaces is a finding to hand back, never a fix to smuggle
- * in beside the instrument that found it. So the three entries below are the
- * violation this rail was built to detect, recorded at the moment it was
- * measured — and they are the reason the rail is trustworthy: it did not come
- * into existence green.
+ * GATE-I1's FIRST slice was rails only, so the violation this rail was built to
+ * detect was RECORDED here rather than fixed beside the instrument that found
+ * it: three entries naming AskAiTab's own citation list (`explainCitations`,
+ * `explainCitation`, `explainCitationMark`). That is why the rail is
+ * trustworthy — it did not come into existence green.
+ *
+ * ✅ SLICE 2 (owner-authorized, 2026-09-11) FIXED IT IN CODE. The Sources block
+ * composes S8's `<Provenance>` (see `tabs/AskAiTab.jsx`'s own header for why
+ * `<Provenance>` and not `<Cited>`), so the findings are gone and the entries
+ * were deleted in the same PR. ⭐ THE ORDER WAS THE EVIDENCE: the entries were
+ * deleted FIRST, with the violation still in the tree, and this file was run to
+ * watch it go RED naming all three sites with live line numbers — proving the
+ * rail was watching the real thing and not the ledger. Then the fix landed and
+ * it went green. A green that follows only a deletion proves nothing.
  *
  * ⭐ THIS LIST CAN ONLY SHRINK, and two tests enforce that, exactly as
  * `reachable.test.js`'s AWAITING_A_DECISION does. An entry cannot outlive its
- * violation: the day the Sources block is rebuilt on `<Cited>`, this rail goes
- * RED until these lines are deleted. That is the intended behaviour — the
- * alternative is an allow-list that keeps excusing a path nobody is watching
- * any more, and the day somebody re-introduces the local renderer it would
- * stay green.
+ * violation — the alternative is an allow-list that keeps excusing a path
+ * nobody is watching any more, and the day somebody re-introduces the local
+ * renderer it would stay green.
  *
  * ⛔ AND IT IS NOT A PARKING SPACE FOR THE NEXT ONE. Adding a line is a
  * decision recorded in a diff with a reason beside it.
+ *
+ * ⚠️ KNOWN AND DELIBERATELY NOT RECORDED HERE: `pages/research/components/
+ * ComparisonAskAi.jsx` still draws the same local citation list through the
+ * same three CSS classes. It is NOT in this rail's surface (this rail follows
+ * what `ResearchPage.jsx` mounts as the Ask-AI tab, and the compare page is a
+ * different door), so an entry for it would be a line in a ledger nothing
+ * checks. It is a reported finding, not debt this file can hold.
  */
-export const RECORDED_BOUNDARY_DEBT = {
-  'app/src/pages/research/tabs/AskAiTab.jsx::explainCitations':
-    'I1 RENDERS ITS OWN CITATION LIST. The "Sources" block draws each citation '
-    + 'from the raw payload — [E#] mark, source, date, link — in local '
-    + 'ResearchPage.module.css classes, instead of composing <Cited>/<Provenance>. '
-    + 'This IS the S8/I1 double-ownership Phase 2 found, still live. ⚠️ Its sibling '
-    + 'tabs on the same page (NewsTab, OwnershipTab, AnalystRatingsTab) all compose '
-    + 'the S8 primitives, so the Ask-AI answer shows a member a different '
-    + 'provenance affordance from every other tab beside it. Reported under '
-    + 'GATE-I1 first slice; the fix is a separate, member-visible change and is '
-    + 'not this branch\'s to make.',
-  'app/src/pages/research/tabs/AskAiTab.jsx::explainCitation':
-    'Same block — the per-citation row. See the entry above.',
-  'app/src/pages/research/tabs/AskAiTab.jsx::explainCitationMark':
-    'Same block — the [E#] reference mark. See the entry above.',
-}
+export const RECORDED_BOUNDARY_DEBT = {}
 
 describe('🔴 F-I1-1 — the I1 surface composes S8\'s provenance primitives', () => {
   it('the derivation is not vacuous', () => {
@@ -377,22 +384,61 @@ describe('🔴 F-I1-1 — the I1 surface composes S8\'s provenance primitives', 
 })
 
 describe('the controls — a rail nobody has seen fail cannot be trusted', () => {
-  it('⭐ IT SEES THE REAL VIOLATION: with an empty ledger, the live tree is RED', () => {
-    // ⛔ THE STRONGEST CONTROL AVAILABLE, and it is not synthetic: the thing
-    // this rail exists to catch is in the working tree right now. Emptying the
-    // ledger is the whole mutation, and the findings that come back are real
-    // lines of shipped code.
-    expect(ALL_FINDINGS.length,
-      'the rail found NOTHING in the I1 surface, including the citation block that '
-      + 'is demonstrably there — the detector is broken, not the code').toBeGreaterThan(0)
-    const ids = ALL_FINDINGS.map((f) => f.id)
-    expect(ids).toContain('app/src/pages/research/tabs/AskAiTab.jsx::explainCitations')
-    // And it is a real render site with a real line number, not a name matched
-    // out of prose.
-    const site = ALL_FINDINGS.find((f) => f.what === 'explainCitations')
-    expect(site.line).toBeGreaterThan(0)
-    expect(read(path.join(ROOT, site.file)).split('\n')[site.line - 1])
-      .toContain('explainCitations')
+  it('⭐ IT SEES THE VIOLATION IT WAS BUILT FOR: the pre-slice-2 Sources block is RED', () => {
+    // ⛔ UNTIL 2026-09-11 THIS CONTROL WAS NOT SYNTHETIC — the thing this rail
+    // exists to catch was in the working tree, and emptying the ledger was the
+    // whole mutation. GATE-I1 slice 2 fixed it, so that control would now pass
+    // by finding nothing, which is the failure mode
+    // `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` names.
+    //
+    // What replaces it is the SAME violation, reconstructed verbatim from the
+    // block slice 2 deleted (`git show 22a0367fe^:app/src/pages/research/tabs/
+    // AskAiTab.jsx`, the Sources block), classified against the real AskAiTab
+    // anchor so module resolution is the real thing. Three findings, the three
+    // ids the ledger used to carry, at real line numbers — so the day somebody
+    // re-introduces the local renderer, the detector that catches it is one
+    // that has been SEEN catching it.
+    const anchor = path.join(SRC, 'pages', 'research', 'tabs', 'AskAiTab.jsx')
+    const preSlice2 = [
+      "import styles from '../ResearchPage.module.css'",
+      'export default ({ data }) => (',
+      '  <div className={styles.explainCitations}>',
+      '    {data.citations.map(c => (',
+      '      <div key={c.id} className={styles.explainCitation}>',
+      '        <span className={styles.explainCitationMark}>[{c.id}]</span>',
+      '        <span>{c.source} · {c.date}</span>',
+      '      </div>',
+      '    ))}',
+      '  </div>',
+      ')',
+      '',
+    ].join('\n')
+
+    const findings = boundaryFindings(anchor, preSlice2)
+    expect(findings.map((f) => f.id), 'the detector no longer reports the exact block '
+      + 'GATE-I1 was opened for — it is broken, whatever the live tree says').toEqual([
+      'app/src/pages/research/tabs/AskAiTab.jsx::explainCitations',
+      'app/src/pages/research/tabs/AskAiTab.jsx::explainCitation',
+      'app/src/pages/research/tabs/AskAiTab.jsx::explainCitationMark',
+    ])
+    // Real render sites with real line numbers, not names matched out of prose.
+    for (const f of findings) {
+      expect(f.line).toBeGreaterThan(0)
+      expect(preSlice2.split('\n')[f.line - 1]).toContain(f.what)
+    }
+  })
+
+  it('AND THE SHIPPED TAB IS NOW CLEAN — the fix, not the ledger, is what is green', () => {
+    // The other half of the red/green pair, asserted on the real file: slice 2
+    // composes S8 in the Sources block, so the live I1 surface has nothing to
+    // record. Pairing it with the reconstruction above means "green" can only
+    // mean "the code changed", never "the detector stopped looking".
+    const askAi = path.join(SRC, 'pages', 'research', 'tabs', 'AskAiTab.jsx')
+    const src = read(askAi)
+    expect(src, 'AskAiTab stopped composing S8 — the slice-2 fix has been reverted')
+      .toContain('<Provenance')
+    expect(boundaryFindings(askAi, src)).toEqual([])
+    expect(ALL_FINDINGS).toEqual([])
   })
 
   it('AND IT STAYS SILENT ON REAL COMPLIANT CODE: NewsTab composes S8', () => {

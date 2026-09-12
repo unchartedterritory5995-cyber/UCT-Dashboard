@@ -273,3 +273,64 @@ re-confirmed rather than assumed.
 
 ⛔ Report median AND worst case. A median alone hides the post-roll case, which is the
 one a member hits after every 60 s roll during RTH.
+
+
+## ✅ Rig account provisioned + dry-run results (2026-09-12, quiet tape)
+
+### The synthetic MEMBER account
+`member-smoke@uctintelligence.internal` — id `6b0e42a8-bd35-4358-833d-0ba4ef6c728a`.
+Exists so cold paint is measured as a MEMBER sees it; the admin smoke account may
+render more regions, so an admin number is not a member number. Monday's runs use
+this account; the admin smoke account is a **labelled secondary comparison only**.
+
+| | |
+|---|---|
+| role | **`member`** — verified in the DB and across **two** HTTP logins |
+| plan / status | `pro` / `comped`, no Stripe ids · `paid_equiv: true` · trial inactive |
+| `email_verified` | 1 — set via the app's own `create_email_verification` + `verify_email_token` |
+| `/api/flow/aggregate` | **200** for `part=bootstrap` and `part=TOP_PICKS` |
+| credentials | `MEMBER_SMOKE_EMAIL` / `MEMBER_SMOKE_PASSWORD` in the user environment |
+
+⭐ **The role survives a second login, which is the whole point.** `auth.py` re-promotes
+from `ADMIN_EMAILS` at EVERY login (`:253-257`), so "member at creation" proves nothing
+on its own. The address is not in `ADMIN_EMAILS` (4 entries, confirmed), so it stays a
+member. Re-check this if `ADMIN_EMAILS` is ever edited.
+
+⛔ **A MEMBER DOES NOT SKIP EMAIL VERIFICATION — an admin does.** The account was
+created unverified and every page load bounced to `/verify-pending`, with the
+verification mail sent to a deliberately unroutable `.internal` address that can never
+receive it. The admin smoke account never hit this because admins bypass the gate.
+Provisioning: backup first (`/data/backups/auth-2026-09-12T040750Z-pre-member-smoke.db`,
+`quick_check ok`, 27 users), then a set-difference check — `ids_added` exactly one,
+`ids_removed` empty, 27 → 28.
+
+### Dry run — the rig works end to end. **Every number below is quiet-tape, NOT a measurement.**
+
+    first content   median 9,718 ms   worst 9,744 ms   n=3   (detected_via=mutation)
+    flow wire       5,514,327 B per load
+    flow requests   3: version, aggregate (no part=), data?days=1
+    observer        attached=True     tab visible     role=member
+
+⛔ **~9.3 s of that ~9.7 s is the cinematic intro**, which plays on EVERY page load and
+gates content. It is excluded from the *detector* (a naive body-text threshold marked
+the intro itself as first content — a flattering ~470 ms that had nothing to do with
+Options Flow) but it still gates the wall clock on a DIRECT load.
+⭐ **This reframes cold paint:** a direct load (bookmark, refresh, post-deploy reload)
+is intro-dominated, so shaving the flow pipeline is invisible there. In-app navigation
+does NOT replay the intro — that is the path the earlier 74–117 ms figures measured.
+**Monday must measure BOTH and report them separately**; the rig currently does the
+direct-load path only.
+⚠️ Do NOT dismiss the intro with Escape. Tried: the rendered body dropped from 4,402
+chars to 540 and a duplicated aggregate+data round appeared. It disturbs the app rather
+than skipping an overlay.
+
+### 🔴 OPEN, and possibly the biggest finding: the member took the LEGACY path
+The three flow requests were `version`, `aggregate` **without `part=`** (whole-D), and
+`data?days=1` — **the 5.5 MB raw tape**. Not `part=bootstrap` + `part=TOP_PICKS`.
+All four build-time flags ARE set on web (`VITE_FLOW_PARTS=1`, `VITE_FLOW_DEFER_TAPE=1`,
+`VITE_FLOW_SERVER_TOPPICKS=1`, `VITE_FLOW_SERVER_SEARCH=1`), and the parts were warm
+(10 cached entries at the current version), so a cold-build fallback does not explain it.
+**If members are on the whole-D + tape path, the entire first-paint optimisation is not
+reaching them** — 5.5 MB instead of ~161 KB. NOT chased further tonight: characterising
+it means reading the client, and it needs an RTH session to see whether it also holds
+under a live tape. **Top candidate for Monday's item 11.**
