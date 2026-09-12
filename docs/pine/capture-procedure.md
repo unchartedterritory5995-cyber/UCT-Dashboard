@@ -278,6 +278,92 @@ This is what makes the mechanism trustworthy rather than merely convenient.
 ⚠️ The module id `423129` is a build artifact and **will change**. Re-derive it by the scan;
 never hard-code it. (Same defect class as the scale constant above.)
 
+## ⛔⛔ THE BINDING GATE, CORRECTED — OWN TEXT ONLY, TOOLTIPS EXCLUDED
+
+**Rule (owner-adopted, 2026-09-12): the gate is TRUE when exactly one VISIBLE, ENABLED
+element has OWN TEXT exactly `Add to chart`, and no element has own text `Update on
+chart`. Zero matches means the editor is not docked. Any own-text `Update on chart`
+means it is bound. Both are stop states for the Add click.**
+
+```js
+const ownText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3)
+  .map((n) => n.textContent.trim()).join(' ').trim()
+```
+
+⚰️ **WHY THE OLD ONE WAS WRONG, MEASURED.** The runbook's query mapped
+`title || textContent` over every button. In the detached editor that matched a
+**34×34 icon with no text at all**, `title="Update on chart"`, `disabled: true` — so the
+gate reported BOUND for a control nobody could click, and it would have reported bound
+just as confidently on an editor that was perfectly safe. A tooltip is not a state.
+
+⛔ **AND `placement=dialog` IN THE MONACO MODEL URI MEANS UNDOCKED — STOP.**
+
+```
+file:///1b62e8e0-…-1213efe0a372.pine?placement%3Ddialog     ← detached, do not add
+```
+
+Read it from the model, never from the layout: the detached editor renders as its own OS
+window whose DOM this session cannot reach, while its Monaco model is still visible from
+the chart tab. That asymmetry is what made "the editor is open" and "the editor is here"
+look identical.
+
+## ⭐ PHASE 1 — THE DOCKING LADDER, in order
+
+1. Screenshot the tab. Read: bottom panel present? Pine Editor tab selected? Monaco
+   `placement`? study count?
+2. **Panel collapsed** (chart runs to the bottom toolbar): the Pine Editor launcher is
+   `[data-name="pine-dialog-button"]` in the bottom bar — locate it by SCREENSHOT and
+   click, then screenshot again.
+3. **Panel visible, wrong tab**: click the Pine Editor tab.
+4. **Panel says the editor is in another window**: click its dock control.
+5. **Still `placement=dialog`**: reload the layout URL ONCE, wait for all studies,
+   re-assert the count, and start again from 1.
+6. **Unbind**: script-name chevron → hover *Create new* → *Indicator*. Verify all three:
+   the buffer is the ~5-line default template, the name reads *Untitled script*, and the
+   corrected gate is TRUE.
+
+## ⛔⛔ AN OCCLUDED WINDOW READS `hidden` WITH PERFECTLY HEALTHY DIMENSIONS
+
+**Measured 2026-09-12, and it is a DIFFERENT failure from the minimised one this page
+already records.**
+
+```
+visibilityState  "hidden"          ⛔ the gate that matters
+document.hidden  true
+hasFocus()       true              ← after a synthetic click, so focus proves nothing
+innerWidth/H     1920 x 855        ← healthy
+screen           1920 x 1080       ← healthy
+studies          19, fully painted in the screenshot
+```
+
+⚰️ The 2026-09-11 incident was a MINIMISED window: every dimension zero, including
+`screen.width`. This is a window fully covered by another application. The published
+pre-flight (`{vis, w, h}`) cannot tell them apart — the dimensions are fine here — so
+**`visibilityState` is the gate and the dimensions are only the diagnosis.**
+
+⛔ **THREE MECHANICAL ATTEMPTS CLEARED IT; NONE WORKED**, and they are recorded so the
+next session does not spend them again: a synthetic click into the page (focus flipped to
+`true`, visibility unchanged), `resize_window` (reported success, `innerWidth` unchanged,
+visibility unchanged), and creating a second tab in the same window (the chart tab simply
+became a background tab as well). Occlusion is an OS-level fact about which window is on
+top; nothing inside the page can change it.
+
+⭐ **THE DURABLE FIX IS A RIG SETTING, NOT A SESSION ACTION.** Chrome's occlusion
+tracking is what marks a covered window hidden:
+
+- `chrome://flags/#calculate-window-occlusion` → **Disabled**, or launch with
+  `--disable-backgrounding-occluded-windows`, and the capture window keeps reporting
+  `visible` while the operator works in another app.
+- Otherwise the window must be genuinely unobscured — a second monitor, or a terminal
+  that does not cover it. **Partial visibility is enough**; it does not need focus.
+
+⛔ Until one of those holds, an ADD must not be attempted: `insertStudy` reports success
+on a hidden tab and inserts nothing, and a pane added hidden is not rescued by
+`_adjustSize()`. Reads are unaffected and stay allowed — study count, Monaco model, DOM
+state and screenshots were all correct throughout.
+
+---
+
 ## ⛔⛔ THE BINDING HAZARD — "Update on chart" IS NOT "Add to chart"
 
 **Opening a study's source via legend → More → "Source code…" BINDS the editor to that

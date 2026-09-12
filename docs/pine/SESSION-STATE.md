@@ -1,5 +1,60 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⛔ PHASE 1 STOPPED — THE WINDOW IS OCCLUDED, AND NOTHING IN THE PAGE CAN CLEAR IT
+
+Autonomous browser run, 2026-09-12. **Nothing was written: no `setValue`, no click on any
+Add/Update control, 19 studies before and 19 after.**
+
+The MCP tab group from the earlier attempt no longer existed (`No tab group exists for
+this session`), so a fresh tab was opened on the same layout — `e3cTXatd`, AMEX:SPY, 1D —
+and it came up clean: **19 studies, no editor loaded at all, no bound buffer**, which is
+a better starting state than the detached editor holding `UCTPROBE_R11_TIME_TF`.
+
+Then the precondition failed:
+
+```
+visibilityState  "hidden"        ⛔ the gate
+document.hidden  true
+hasFocus()       true            ← after a synthetic click; focus proves nothing here
+innerWidth/H     1920 x 855      ← healthy
+screen           1920 x 1080     ← healthy
+studies          19, fully painted in the screenshot
+Monaco           not instantiated · gate elements: none · `pine-dialog-button` present
+```
+
+⚰️ **THIS IS NOT THE MINIMISED FAILURE THIS PROGRAMME ALREADY KNOWS.** On 2026-09-11 a
+minimised window read every dimension as zero, `screen.width` included. Here every
+dimension is right and the chart paints; the window is simply **covered by another
+application**, and Chrome's occlusion tracking marks a fully covered window hidden. The
+published pre-flight (`{vis, w, h}`) cannot tell the two apart.
+
+⛔ **Three attempts, none of which moved it** — recorded so the next session does not
+spend them again:
+
+| attempt | result |
+|---|---|
+| synthetic click into the page | `hasFocus()` flipped to true, `visibilityState` unchanged |
+| `resize_window` 1680×950 | reported success; `innerWidth` still 1920, visibility unchanged |
+| create a second tab in the same window | the chart tab became a background tab as well |
+
+Occlusion is an OS-level fact about which window is on top. Nothing inside the page
+changes it, and an ADD on a hidden tab is the one thing the runbook forbids outright:
+`insertStudy` reports success and inserts nothing.
+
+⭐ **The durable fix is a rig setting, now written into `capture-procedure.md`:**
+`chrome://flags/#calculate-window-occlusion` → **Disabled** (or launch Chrome with
+`--disable-backgrounding-occluded-windows`). Then the capture window keeps reporting
+`visible` while the operator works in another application. Failing that, the window needs
+to be genuinely unobscured — a second monitor, or a terminal that does not cover it.
+**Partial visibility is enough; focus is not required.**
+
+⚠️ **The tab is left open and ready** (`e3cTXatd`, 19 studies, no editor loaded). The
+moment that window is unobscured, Phases 1–4 run without re-navigating.
+
+Also recorded in `capture-procedure.md` this pass: the corrected binding gate (own text
+only, tooltips excluded, visible + enabled, and `placement=dialog` = undocked = stop) and
+the Phase 1 docking ladder.
+
 ## ⭐ PART 1 RULINGS — BOTH LANDED (2026-09-12)
 
 ### 1.1 — the fold disclosure reaches a member · `df0310fb8`
