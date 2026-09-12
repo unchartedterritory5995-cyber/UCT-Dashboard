@@ -15,34 +15,54 @@
     "        pending= built, no decision yet; note + since MUST be present",
     "",
     "This file records INTENT. It cannot see Railway, so it can drift from reality:",
-    "run tools/flag_ledger_audit.py to compare it against what is actually set."
+    "run tools/flag_ledger_audit.py to compare it against what is actually set.",
+    "",
+    "build_flags: the BUILD-TIME frontend flags, read in app/src/** as",
+    "import.meta.env.VITE_*. They are NOT in `flags` above because that section is",
+    "held to a gate list derived by AST from api/** - Python only.",
+    "",
+    "WHY THIS SECTION EXISTS: on 2026-09-12 nine VITE_* were set on the web service,",
+    "eight to the literal 1, and ALL NINE had been undefined in the shipped bundle",
+    "for four days (Dockerfile.web declared no build ARGs). Nothing in the repo could",
+    "see it because nothing in the repo was looking at this half of the app. That was",
+    "a structural blind spot, not an oversight.",
+    "",
+    "The name list is DERIVED by tools/vite_flag_index.py and never typed;",
+    "tests/test_vite_flag_ledger.py fails BY NAME when a VITE_* ships without a row,",
+    "and tests/test_dockerfile_vite_build_args.py holds Dockerfile.web's ARG list to",
+    "the same derived set.",
+    "",
+    "baked_value is a MEASUREMENT of the deployed bundle at baked_measured_on, not a",
+    "prediction. It goes stale the moment the build changes: the served JS is the",
+    "authority, and a flag read as `=== '1'` is false when undefined, which is",
+    "indistinguishable from off-on-purpose at every layer except the artifact."
   ],
   "flags": {
     "AI_SEARCH_DOSSIER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "AI_SEARCH_MEMORY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "AI_SEARCH_PERSONAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "ALERT_SHADOW_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -67,28 +87,28 @@
     "AUTHDB_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "AWARENESS_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "BARSPACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "BARSPACK_WEB_INGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -120,7 +140,7 @@
     "BARS_PREWARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -134,35 +154,35 @@
     "BARS_UNIVERSE_CRAWLER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "BRAIN_PACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "BRAIN_TOOLS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "BREADTH_HISTORY_BACKFILL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "BREADTH_WICKS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -176,7 +196,7 @@
     "BROKER_SYNC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -185,26 +205,26 @@
       "where": [
         "web"
       ],
-      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. ⚰️ This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
+      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. \u26b0\ufe0f This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
     },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CALENDAR_WEEK_POST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CALL_RECAP_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -215,70 +235,70 @@
     "CATALYST_CURATOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CATALYST_DIGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CATALYST_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CATALYST_HUNTER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CATALYST_MUSTKNOW_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "CATALYST_RATINGS_SIGNAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_ASK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_CHAT_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "COMMUNITY_SIGNALS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -292,14 +312,14 @@
     "COMPASS_AUTOMATION_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "COMPASS_EOD_RECAP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -310,7 +330,7 @@
     "COMPASS_WEEKLY_DIGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -324,49 +344,49 @@
     "DARKPOOL_BIGBLOCK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_EOD_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_FLATFILE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_INTRADAY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_INTRADAY_TIERED_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_MASSIVE_INGEST_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DARKPOOL_RECORDS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -377,49 +397,49 @@
     "DEEP_HISTORY_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DESK_BACKGROUND_AUDIO_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DESK_DAILY_SESSION_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DESK_SESSION_CHAPTERS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DESK_SESSION_DISCORD_RECAP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DESK_TSDR_ANNOUNCE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "DISCORD_INDEX_CLOSE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -430,21 +450,21 @@
     "EXCURSION_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "EXPOSURE_GATE_WATCH_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "FLOW_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -458,14 +478,14 @@
     "FLOW_GAP_AUTOFILL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "FLOW_OPT_AGG_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -483,7 +503,7 @@
     "FLOW_READS_PROXY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -498,14 +518,14 @@
     "FUNDAMENTALS_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "FUNDAMENTALS_WARM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -516,7 +536,7 @@
     "GROUPS_SWING_GATES_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -530,7 +550,7 @@
     "IMPLIED_STORE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -551,77 +571,77 @@
     "INTRADAYPACK_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "J2_ATTACHMENT_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "J2_ATTACHMENT_GC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "J2_SHARE_LINKS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "LIVEFLOW_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_CURATED_STREAM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_RESTHEAL_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_STREAM_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "MASSIVE_WS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "NHNL_SCANNER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -635,7 +655,7 @@
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -692,21 +712,21 @@
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "R2_RECOVERY_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "RATINGS_PERCENTILE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -715,7 +735,7 @@
       "where": [
         "web"
       ],
-      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. ⚰️ THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
+      "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. \u26b0\ufe0f THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
     },
     "S7_FILING_WATCH_ENABLED": {
       "status": "armed",
@@ -731,21 +751,21 @@
     "SCAN_SWEEP_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "SCREENER_ANALYST_PASS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "SCREENER_LIVE_TIER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -759,7 +779,7 @@
     "SNAPSHOT_DELTA_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -770,14 +790,14 @@
     "STREAM_BARS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "THEME_ENGINE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
@@ -791,65 +811,255 @@
     "TRADE_CONDITION_FILTER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "TRANSCRIPT_INDEX_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "TRANSCRIPT_KEYWORD_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "TWITTERAPI_IO_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "VOLUME_PUSH_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "VOLUME_SCANNER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "WEEKLY_FLOW_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "WIRE_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
     },
     "WORKER_ENABLED": {
       "status": "armed",
       "where": [
-        "(set — service not captured)"
+        "(set \u2014 service not captured)"
       ],
       "note": ""
+    }
+  },
+  "build_flags": {
+    "VITE_CHART_RENDER_TOKEN": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "operator",
+      "railway_value": "set (32 chars - a SECRET, never recorded here)",
+      "baked_value": "the set value (present in the bundle)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "2026-09-12 (rotated)",
+      "note": "Not a feature gate - a shared secret, and it is inlined into the PUBLIC bundle by design (api/routers/render_panels.py says so). It must equal CHART_RENDER_TOKEN on web or the /r/* client check fails every render. Rotate BOTH halves together."
+    },
+    "VITE_COMING_SOON": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "0",
+      "baked_value": "0",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "2026-09-12",
+      "note": "HELD pending an owner ruling: open-for-business vs holding page. Set to 0 on 2026-09-12 so the build-args fix could not flip the public front door as a side effect. It was 1 (intent: holding page) while the build made it undefined, so members have been seeing the real Landing page. Backend COMING_SOON_MODE is still on, so signup is refused - the funnel is open and its last step cannot succeed."
+    },
+    "VITE_FLOW_PARTS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "1",
+      "baked_value": "1",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "unknown - the CLI exposes no variable history",
+      "note": "Options Flow load path: first paint assembled from parts instead of whole-day aggregate. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
+    },
+    "VITE_FLOW_DEFER_TAPE": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "1",
+      "baked_value": "1",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "unknown - the CLI exposes no variable history",
+      "note": "Options Flow load path: the raw tape is deferred past first paint. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
+    },
+    "VITE_FLOW_SERVER_TOPPICKS": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "1",
+      "baked_value": "1",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "unknown - the CLI exposes no variable history",
+      "note": "Options Flow load path: TOP 10 picks come from the server as part=TOP_PICKS. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
+    },
+    "VITE_FLOW_SERVER_SEARCH": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "1",
+      "baked_value": "1",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "unknown - the CLI exposes no variable history",
+      "note": "Options Flow load path: ticker search hits /api/flow/ticker-product instead of scanning the tape. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
+    },
+    "VITE_REALTIME_BARS": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "0",
+      "baked_value": "0",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "2026-09-12",
+      "note": "Massive bars push feed. HELD at 0: it was 1 (intent: 100% rollout, per the Bars Push Feed section of CLAUDE.md) while the build made it undefined, so every chart has been on the Finnhub poll. Set to 0 so the build-args fix would change only Options Flow. Turning it on is one variable, no code change."
+    },
+    "VITE_MASSIVE_STREAM": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "0",
+      "baked_value": "0",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "2026-09-12",
+      "note": "Live Flow SSE instant-tape global rollout. HELD at 0 for the same reason as VITE_REALTIME_BARS. Per-browser escapes (localStorage uct.massiveStream, ?stream) still work, so it can be exercised without flipping it for everyone."
+    },
+    "VITE_DESK_BG_AUDIO_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "0",
+      "baked_value": "0",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "2026-09-12",
+      "note": "Desk mobile audio-primary playback. HELD at 0 for the same reason as VITE_REALTIME_BARS."
+    },
+    "VITE_CATALYST_UI_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset and the read defaults ON (`?? '1'`), so the Catalysts UI is live. Setting it to '0' is the kill switch."
+    },
+    "VITE_DISCORD_CHART_APP_ID": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset; DiscordActivity.jsx falls back to a hard-coded app id. Set it only to point the activity at a different app."
+    },
+    "VITE_GRID_WARM_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset and the read defaults ON (`!== '0'`), so multi-chart grid warming is live. Setting it to '0' is the kill switch."
+    },
+    "VITE_LAUNCH_DATE": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset; ComingSoon.jsx uses its FALLBACK_LAUNCH constant. Only matters while the holding page renders."
+    },
+    "VITE_MASSIVE_CURATED_STREAM": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset, so the curated SSE tape is off. Independent of VITE_MASSIVE_STREAM by design so curated can be armed alone."
+    },
+    "VITE_PICOVOICE_ACCESS_KEY": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset, so wake-word is disabled and logs a warning. A SECRET if ever set - record presence here, never the value."
+    },
+    "VITE_TWITTER_UI_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset and the read defaults ON (`?? '1'`), so the tweet icons and TapeFeed are live. Setting it to '0' is the kill switch."
+    },
+    "VITE_WS_HOST": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "1c76f9f38",
+      "last_changed": "never set",
+      "note": "Unset; useFlowWebSocket falls back to window.location.host, which is correct in production. An override is a local-dev affordance."
     }
   }
 }

@@ -95,11 +95,28 @@ Stated plainly so nobody reads this file as a description of shipped behaviour:
   run.
 - ✅ The label, the fresh context per run, the visible-tab assertion, the streaming
   response capture and the pinned ≥1025 px viewport — all implemented.
-- ⛔ **Path B (in-app navigation) is NOT implemented yet.** It needs a run mode that
-  lands on another route, waits for the app to settle, then CLICKS the Options Flow nav
-  entry and measures from the click. **This is required before the Monday RTH session
-  can report a complete result**, and a session that cannot run it must say so rather
-  than report path A alone as "the" number.
+- ✅ **Path B (in-app navigation) — implemented 2026-09-12.** `--path b` (or the
+  default `both`) lands on `--start-route` (default `/dashboard`), waits for the intro
+  to finish on THAT load, asserts the nav link exists, then CLICKS it and measures from
+  the click. It reports **two** signals, not one:
+
+  | signal | selector | what it means |
+  |---|---|---|
+  | `shell_ms` | `.of-mroot` | the page's root rendered |
+  | `picks_ms` | `.of-picks` | the TOP 10 FLOW PICKS table rendered — the PRODUCT of `part=TOP_PICKS` |
+
+  ⛔ **A body-text threshold cannot work on path B** — the page you navigate FROM
+  already exceeds any threshold, so "lots of text" is true before the click. Path B
+  keys on Options Flow's own DOM instead.
+
+  ⛔ **`url_changed` is reported SEPARATELY**, and a run with `url_changed=True` and no
+  `shell_ms` prints an explicit warning. A URL that moves while the screen does not is
+  the 2026-09-10 navigation-freeze signature; collapsing the two into one "it loaded"
+  would make that indistinguishable from a slow render.
+
+  ⚠️ **Instrument overhead is stated, not hidden:** `t0` is taken inside the injected
+  script and the click is a separate round trip a few milliseconds later. That overhead
+  is charged to the page, which is the conservative direction.
 
 ⛔ **CLICK, never `goto`, for path B.** A full page load rebuilds the world and replays
 the intro — that is path A wearing path B's label, and it is the same mistake that hid
@@ -119,3 +136,49 @@ Three outcomes, three different facts — do not collapse them:
 | a completed run with its label | a measurement of what it says it measured |
 | `INCONCLUSIVE` (no credentials, login non-200) | **not a pass** — nothing was measured |
 | parts expected and `parts_served` empty | a **FAILURE**, regardless of the timing |
+
+---
+
+## Path B dry run — 2026-09-12, quiet tape
+
+> ### ⚠️ QUIET TAPE — NOT A MEASUREMENT
+> The parts were already warm and the version never rolled. These numbers are a best
+> case no member hits during RTH. **The rig is being proven here, not the page.**
+
+Member account, `--path b --runs 3`, started on `/dashboard`:
+
+| run | `shell_ms` | `picks_ms` | flow req | wire | parts |
+|---|---|---|---|---|---|
+| 1 | — | — | — | — | **ERROR: login http 502** |
+| 2 | 614 | 15,863 | 8 | 3,536,844 B | `bootstrap`, `TOP_PICKS` |
+| 3 | 462 | **never** | 7 | 2,119,080 B | `bootstrap`, `TOP_PICKS` + 4 deferred |
+
+`url_changed=True` on both successful runs; the shell rendered both times.
+
+**shell median 538 ms**, against path A's 9,890 ms — which is the whole reason the two
+paths are reported separately. Path A's number is ~9.3 s of intro animation plus the
+page; path B is the page.
+
+### 🔴 What the dry run found, and it is a product question, not an instrument one
+
+**`.of-picks` is not reliably reached on in-app navigation.** One run took 15.9 s; the
+next never rendered it inside the 6 s settle window and finished with a body of 2,709
+chars against run 2's 3,852. The parts arrive either way — `part=bootstrap` and
+`part=TOP_PICKS` are served on every run — so this is not the transport. It is the
+TOP 10 table not consistently rendering from parts that the browser already has.
+
+⭐ **A timing-only rig would have reported run 3 as a 462 ms success.** The shell was
+up, the URL had moved, the parts had landed. Reporting the PRODUCT separately from the
+SHELL is what makes the failure visible, and it is why `picks_ms` exists.
+
+⚠️ **Run 2 also shows a duplicate-request storm**: `part=TOP_PICKS` ×3 and
+`part=bootstrap` ×3 in one navigation, plus a `data?days=1`, for 3.5 MB — against run
+3's clean 7 requests. Recorded, not chased.
+
+⚠️ **`login http 502` appeared on 1 of 3 runs here and 3 of 3 on an immediate re-run.**
+It was **not** the product: another workstream pushed five times in six minutes
+(13:54 → 14:08 ET) and every master push rebuilds web, so the rig was logging in
+through a deploy swap. `/api/health` was 502 in the same window and 200 with a 46 s
+uptime afterwards. **A rig run that overlaps someone else's deploy is INCONCLUSIVE,
+never a product failure** — check `railway deployment list --service web` before
+believing a transport error.
