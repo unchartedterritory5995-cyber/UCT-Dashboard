@@ -95,6 +95,34 @@ has a single first-paint reader: every TICKER_DB consumer is a button handler, a
 consumer is `wlPopulate`/`wlPopulateUnusual` or Scanner Suggestions inside the
 Watchlist tab -- NO useMemo/useEffect reads either one. The client pulls both
 immediately AFTER paint and nothing is removed, summarised or reshaped.
+(2026-09-11:) TWO-PASS CONTRACT -- THE GUARD INVARIANT IS "WHAT WAS REQUESTED".
+The preparer runs pass 1 = FIRST_PAINT_PARTS (bootstrap + TOP_PICKS, published)
+then pass 2 = SERVED_PART_NAMES - FIRST_PAINT_PARTS (the deferred keys and the 3b
+raw fallback pair). ⛔ PASS 2'S `only=` SET NEVER CONTAINS `bootstrap`, so
+`build_parts` must judge a stream by whether it carries the parts that were ASKED
+FOR -- not by whether `bootstrap` is in it. That older test predated the `--only=`
+emission filter, when every build emitted everything and "bootstrap is present"
+WAS "the stream is complete".
+⚰️ It was wrong in both directions and both were live. Measured on prod
+2026-09-11: pass 2 spawned node, ran processFlowData IN FULL, piped back
+18,971,776 bytes of NINE valid frames and discarded all of it -- every roll, 5.5 s
+and ~19 MB of IPC, since the emission filter shipped. After 889 prepared rolls the
+parts cache held exactly ['bootstrap', 'TOP_PICKS'] with 22 of 24 slots free, so
+the deferred TICKER_DB/CONV split and the 3b fallback were NEVER pre-warmed.
+`build_failures` read 885 -- one per prepared roll -- while `prepare.failed` read
+0, because pass 2's return value is not checked and its own except arm cannot fire
+on a None. And in the other direction, a stream MISSING a requested part was
+ACCEPTED whenever bootstrap happened to be present.
+⭐ NO MEMBER EVER SAW AN ERROR, which is why it survived: the serving path passes
+no `only=`, so a cold interaction quietly paid a full ~5.8 s build instead of a
+warm hit. A silent loss of an optimisation is the failure mode a fallback creates
+-- the same shape as the `warm_only` NameError that 500'd every miss in prod.
+⛔ DERIVED PARTS STAY BEST-EFFORT: with no ETF replica the bundle emits no
+TOP_PICKS by design, and pass 1 requests it, so only PART_NAMES members are
+required. Rails: `tests/test_flow_parts_requested_guard.py` (mutation-proved
+against the old guard). A rejection now has its OWN counter,
+`parts_rejected_missing`, so the next one cannot hide inside `build_failures`.
+
 ⛔ THIS HEADER EDIT IS THE DEPLOY TRIGGER, AND WITHOUT IT THE SLICE IS INERT.
 The split lives in `app/dist/flow-facts.cjs`, built from `app/**`, and the
 mirrored allowlist lives in `api/services/flow_aggregate.py` -- NEITHER path is
