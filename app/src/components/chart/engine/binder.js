@@ -60,6 +60,7 @@ import { resolvePlotStyle, drawsHistory } from './presentation'
 import {
   orderByDependency, sourceInputsOf, parseSource, barFieldSeries, resolveScaleDomain,
 } from './sourceRef'
+import { projectionFor } from './symbolProjection'
 import { evaluateCondition } from './conditions'
 import { evaluateInfoField } from './infoFields'
 
@@ -669,6 +670,12 @@ export function createBinder({ chart, LWC }) {
     }
 
     const bars = Array.isArray(ctx.bars) ? ctx.bars : []
+    // ⭐ SECONDARY BARS ARRIVE AS DATA, NEVER FETCHED HERE. `sync` runs inside a
+    // paint and must stay synchronous; `secondaryBars.js` owns the cache and the
+    // request, exactly as `serverCompute.js` owns them for the server lane. An
+    // absent map is not an error — it is a chart with no symbol sources, and
+    // every lookup below simply misses.
+    const secondary = ctx.secondary instanceof Map ? ctx.secondary : null
     const adjustTime = typeof ctx.adjustTime === 'function' ? ctx.adjustTime : (t) => t
     const plan = ctx.plan || {}
     const planMode = plan.fresh ? 'fresh' : plan.incr ? 'incr' : plan.noop ? 'noop' : 'fresh'
@@ -762,6 +769,23 @@ export function createBinder({ chart, LWC }) {
         if (parsed && parsed.kind === 'bar') series = barFieldFor(bars, parsed.field)
         else if (parsed && parsed.kind === 'instance') {
           series = columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
+        }
+        // ⭐⭐ THE THIRD FAMILY, AND IT IS THE WHOLE STRUCTURAL CHANGE OF PHASE 1.
+        // A canonical bar-shaped symbol — an ETF, an index, a breadth pseudo-ticker
+        // — becomes a numeric column here and stops being special immediately
+        // afterwards. There is deliberately NO branch below this on what KIND of
+        // symbol it is: `api/routers/bars.py` is the layer that knows breadth from
+        // an ETF, which is the right place because it is the layer that knows what
+        // a symbol IS.
+        //
+        // ⛔ AN UNSUPPLIED SYMBOL IS `null`, WHICH IS NOT-COMPUTABLE — never the
+        // chart's own bars. `interpret.js` states the stake for the formula lane and
+        // it is identical here: falling back to the bars in hand would answer
+        // confidently about the WRONG INSTRUMENT.
+        else if (parsed && parsed.kind === 'symbol') {
+          const entry = secondary ? secondary.get(parsed.symbol) : null
+          const secBars = entry && Array.isArray(entry.bars) && entry.bars.length ? entry.bars : null
+          series = secBars ? projectionFor(secBars, parsed.field, bars) : null
         }
         sourceCols = sourceCols || {}
         sourceCols[key] = series

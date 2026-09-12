@@ -47,6 +47,76 @@ import { bindingKey } from './pool'
 const MARK = '@'
 const SEP = '::'
 
+// ─── THE THIRD FAMILY: A CANONICAL BAR-SHAPED SYMBOL ────────────────────────
+//
+// ⭐⭐ `sym:QQQ:close` — AND IT IS DELIBERATELY NOT AN `@` FORM. `@` already
+// carries two meanings that are told apart only by the presence of `::`: a
+// SOURCE (`@inst:rsi:2::signal`) and a PANE TARGET (`@rsi`, `displayTarget.js`).
+// Hanging a third meaning on that one-character distinction makes a thin rule
+// thinner, and the failure would be silent — a malformed pane target parsing as
+// a source, or the reverse. A distinct prefix cannot collide with either, and
+// cannot collide with a bar field because no bar field contains `:`.
+//
+// ⛔⛔ AND IT NAMES A CANONICAL GLOBAL SOURCE, WHICH IS A DIFFERENT LIFECYCLE
+// FROM AN INSTANCE. `@inst:rsi:2::signal` names something a member OWNS and can
+// DELETE, which is why `severReferencesTo` exists: a re-added RSI mints the same
+// deterministic id and would silently reconnect. `sym:QQQ:close` names an
+// instrument. Nobody deletes QQQ. Removing the last consumer does not retire it,
+// and adding it again later MUST resolve normally — it is the same instrument it
+// always was. So a symbol source is never severed and never gets a gravestone;
+// when the bar layer cannot serve it that is an AVAILABILITY fact (see
+// `sourceAvailability`), not a deletion. Blurring the two would either strand a
+// symbol a member can legitimately re-add, or resurrect an instance reference
+// that was deliberately broken.
+const SYM_MARK = 'sym:'
+
+/**
+ * The fields a symbol source may name.
+ *
+ * ⚠️ A SUBSET OF `SOURCE_BAR_FIELDS`, ON PURPOSE. `hl2`/`hlc3`/`ohlc4` are
+ * derived from a bar's shape, and a breadth pseudo-symbol's shape is synthetic —
+ * `breadth_symbols.py` stores ONE value per metric per day and renders
+ * close-to-close candles, so its open is yesterday's close and its high/low are
+ * derived from the pair rather than observed. Offering a derived field over a
+ * derived bar would be arithmetic on a shape that was never measured.
+ *
+ * ⛔ Phase 1 is SCALAR, and these are the two fields that mean something for
+ * every family a canonical symbol can come from.
+ */
+export const SYMBOL_SOURCE_FIELDS = Object.freeze(['close', 'volume'])
+
+/** `sym:<SYMBOL>:<field>` — the durable identity of a canonical symbol source.
+ *
+ *  ⭐ SYMBOL + FIELD AND NOTHING ELSE. Not the timeframe (that is the CHART's,
+ *  and the same source at 5m and 1D is the same request by the member), not the
+ *  pane, not the style, not the label. Those either belong to the chart or are
+ *  derived at render — and a label baked into identity is an identity that
+ *  changes when a vendor renames something. */
+export function symbolSource(symbol, field) {
+  const sym = canonicalSymbol(symbol)
+  if (!sym) return null
+  if (typeof field !== 'string' || !SYMBOL_SOURCE_FIELDS.includes(field)) return null
+  return `${SYM_MARK}${sym}${':'}${field}`
+}
+
+/**
+ * The one spelling of a symbol, so two spellings cannot be two sources.
+ *
+ * ⚠️ UPPERCASE AND TRIMMED, AND THAT IS ALL. It does NOT resolve aliases:
+ * `delisted_registry._provider_alias` maps a dead bare symbol to its primary and
+ * is explicitly built to never redirect a LIVE ticker, so aliasing belongs at the
+ * bar layer where that registry lives. Rewriting the member's requested
+ * instrument here would change what they asked for, and they would never see it.
+ */
+export function canonicalSymbol(symbol) {
+  if (typeof symbol !== 'string') return null
+  const s = symbol.trim().toUpperCase()
+  // ⛔ A symbol carrying the delimiter could not round-trip through the source
+  // string, so it is not a symbol this form can name. Refused, never mangled.
+  if (!s || s.includes(':')) return null
+  return s
+}
+
 export { SOURCE_BAR_FIELDS }
 
 /** Human words for the bar fields, for any surface that offers them. */
@@ -65,7 +135,10 @@ export function instanceSource(instanceId, plotKey) {
 /**
  * Read a stored source value.
  *
- * @returns {{kind:'bar', field:string} | {kind:'instance', instanceId:string, plotKey:string} | null}
+ * @returns {{kind:'bar', field:string}
+ *        | {kind:'instance', instanceId:string, plotKey:string}
+ *        | {kind:'symbol', symbol:string, field:string}
+ *        | null}
  *
  * ⚠️ `null` MEANS "I CANNOT READ THIS", and every caller treats that as
  * unresolved rather than as a default. Falling back to Close would make a typo,
@@ -75,6 +148,20 @@ export function instanceSource(instanceId, plotKey) {
 export function parseSource(value) {
   if (typeof value !== 'string' || !value) return null
   if (value[0] !== MARK) {
+    // ⭐ TRIED BEFORE THE BAR FIELD, and it cannot shadow one: no member of
+    // `SOURCE_BAR_FIELDS` starts with `sym:`. An unknown field or an empty
+    // symbol returns null here rather than falling through to the bar lookup —
+    // `sym:QQQ:nonsense` is a malformed symbol source, not a missing bar field,
+    // and answering "unresolved" for both is the same correct answer anyway.
+    if (value.startsWith(SYM_MARK)) {
+      const body = value.slice(SYM_MARK.length)
+      const at = body.indexOf(':')
+      if (at <= 0) return null
+      const symbol = canonicalSymbol(body.slice(0, at))
+      const field = body.slice(at + 1)
+      if (!symbol || !SYMBOL_SOURCE_FIELDS.includes(field)) return null
+      return { kind: 'symbol', symbol, field }
+    }
     return SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : null
   }
   const body = value.slice(1)
@@ -84,6 +171,45 @@ export function parseSource(value) {
   const plotKey = body.slice(at + SEP.length)
   if (!instanceId || !plotKey) return null
   return { kind: 'instance', instanceId, plotKey }
+}
+
+/**
+ * Every canonical symbol this chart's instances need, deduped.
+ *
+ * ⭐⭐ THE SIBLING OF `ast_interpret.symbols_named`, AND DELIBERATELY THE SAME
+ * SHAPE OF ANSWER. The Screener's scan evaluator already walks a tree for the
+ * tickers it names, loads each ONCE outside the per-symbol loop, and states why:
+ * "re-reading SPY for each of them would multiply the benchmark read by the
+ * universe size for an answer that is identical every time." A chart has the same
+ * problem one scale down — `QQQ`, `MA(QQQ)` and `QQQ/SPY` name QQQ three times
+ * and mean it once.
+ *
+ * ⛔ IT ASKS THE SOURCE, NOT THE CONSUMER. A hidden instance, an instance feeding
+ * another indicator, and a directly plotted one are indistinguishable here — all
+ * three have a source input, and a source that is needed for a COLUMN is needed
+ * whether or not anything draws it. Filtering by visibility would starve exactly
+ * the dependency chains this phase exists to support.
+ *
+ * ⛔ AND NO FAMILY BRANCH. It never asks whether a symbol is breadth, an ETF or
+ * an index; `parseSource` said `kind: 'symbol'` and that is the whole test.
+ *
+ * @returns {string[]} canonical symbols, sorted — a stable array for a stable key
+ */
+export function symbolsNeeded(instances, defOf) {
+  const list = Array.isArray(instances) ? instances : []
+  const out = new Set()
+  for (const inst of list) {
+    if (!inst) continue
+    const def = defOf ? defOf(inst.defId) : null
+    for (const [, value] of sourceInputsOf(def, inst)) {
+      const parsed = parseSource(value)
+      if (parsed && parsed.kind === 'symbol') out.add(parsed.symbol)
+    }
+  }
+  // ⚠️ SORTED so the same set of symbols is the same array every time. A caller
+  // keying a fetch or a memo on this must not see a new order because an
+  // instance moved.
+  return [...out].sort()
 }
 
 /** The instance id a source depends on, or null for market data. */
