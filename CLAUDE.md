@@ -1493,6 +1493,50 @@ timeout is never banked as permitted breakage, and provenance is `git show <sha>
 
 ## Worktree Directory
 
+### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
+
+> **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
+> BOX UNDER MEMORY PRESSURE.**
+
+What was running at once, none of it aware of the others (31.8 GB box, free memory fell to
+**4.8 GB**):
+
+| PID shape | What | Cost |
+|---|---|---|
+| `python -m pytest tests/ -q -k "journal_two or notebook or j2"` | an **unscoped backend pytest** | **11,854 MB RSS**, still climbing |
+| `python scripts/gate_shards.py --shards 6` + `uct-worktrees/notebook-flip/app/node_modules/.bin/vitest` | **a second six-shard gate**, another worktree | 6 shards |
+| `python -u analysis/4f-r_part_b/motion_lab.py` under `heavy_lock` | render job | ongoing |
+
+**The damage, in order:**
+1. Gate attempt 1 -> `INVALID`: shards 5 and 6 produced **no totals line**.
+2. Gate attempt 2 (`--max-workers 4`) -> `INVALID`: **all six**, in under a minute.
+3. Running one shard by hand gave the real cause: `ERR_MODULE_NOT_FOUND: Cannot find package 'vite'`.
+4. `app/node_modules` was down to **2 entries**, then **0**, then **did not exist** - with **no npm
+   process running**. A killed `npm ci` deletes before it installs.
+5. An `npm ci` started to repair it logged `added 527 packages ... in 10s` and left **nothing on
+   disk** - swept mid-write.
+6. The worktree's **`.git` file was destroyed too**, so the tree was not a repository any more.
+
+**NOTHING WAS LOST, AND THE REASON IS WORTH KNOWING.** A worktree's commits live in the MAIN
+repository's object store, and its branch refs in the main `.git/refs` - so the hotfix branch was
+intact and pushable from the main checkout after verifying the SHA matched on the remote. Recovery
+is `git worktree prune` then `git worktree add <path> <branch>`. Move the damaged tree aside rather
+than deleting it (`_dead-<name>-<date>`) - a post-mortem needs the body.
+
+**`gate_shards.py` REFUSING ITSELF IS THE SYSTEM WORKING.** It wrote `INVALID-*.md` and deleted the
+partial shard logs *precisely so* an empty log directory could not later read as a completed run.
+Both INVALIDs were the environment; neither said anything about the code. **Never read an INVALID
+manifest as a signal about your branch, and never merge on one.**
+
+**`pytest tests/ -q -k "..."` IS NOT A SCOPED RUN.** The `-k` filter selects which tests *execute*;
+every test in the tree is still **collected**, and collection is where the memory goes
+(`--collect-only` alone reached 6.6 GB - see the backend-pytest rule). Scoping means **naming the
+files**.
+
+**The evidence of an OOM sweep is that there is no evidence** - no traceback, no error, a
+suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
+contended box as a killed run until proven otherwise, and check free memory before blaming code.
+
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
 ⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**

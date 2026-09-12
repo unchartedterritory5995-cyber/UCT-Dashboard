@@ -290,6 +290,33 @@ eye is still the input**, and per the switch table below it is (a) alone that de
 
 ---
 
+### G3-1 — ✅ **PASS, measured on glass 2026-09-12** (left-handed dead-zone sweep)
+
+iPhone 15 Pro / iOS 17.6, production, `elementFromPoint` at 3px resolution over the bottom-right
+corner (`x: W-120..W-2`, `y: H-170..H-2`) with the hub mirrored to the left:
+
+| route | hub hits in the bottom-**right** corner | control (bottom-left) |
+|---|---|---|
+| `/dashboard`, `/screener` | 146, 219 — **every one the visible `hub-chip`** | 821 |
+| `/journal` | **0** | 431 |
+| `/morning-wire`, `/breadth`, `/calendar`, `/charts`, `/options-flow` | 21–140 — **all `hub-chip`** | 821 |
+
+⭐ **The invisible container moves.** `hub-root`'s own box measured **[285, 369] → [24, 108]** when
+mirrored, so the 84×84 dead zone its code comment warns about is genuinely gone. Every remaining
+right-corner hit is the *visible* chip growing rightward from its `left: 118px` anchor — a control
+a member can see, not a hole that swallows taps. The bottom-left control fires on every route, so
+the sweep is not measuring nothing.
+
+⚠️ Two instrument notes, because each nearly produced a false finding: a 200px "corner" on a 393px
+screen reaches mid-screen and caught the **coach mark**; and `/notebook` is not a route
+(`/journal/notebook` is — taken from `registry.js`, after a hand-typed path returned a 404).
+
+| # | Surface | Action | Expected | Result |
+|---|---|---|---|---|
+| G3-17 | **⚠️ Mirrored chip growth toward the far edge** (opened 2026-09-12) | Set left-handed. Visit a route with a long mode label (`/options-flow`, `/screener`). Look at the chip's right end. | ⛔ **Opened by the G3-1 sweep, and it is a QUESTION not a defect.** Right-handed the chip is anchored `right: 118px` and grows LEFT, away from the pad. Mirrored it anchors `left: 118px` and grows RIGHT — toward the far edge and toward where a right-handed member's thumb rests. The sweep measured it reaching **140 sample points** into the bottom-right corner on `/options-flow`. ⭐ **PR #109's G3-15 fix moves that anchor 48px further right**, so this gets *more* pronounced once it lands; its `max-width` is symmetric (`100vw - (inset + 24)`) so the chip stays bounded and cannot overflow. Report what you SEE: does the mirrored chip crowd the far edge, and does it ever reach the screen edge on the longest label? | [ ] FINE [ ] CROWDED [ ] REACHES EDGE — ⬜ **OPEN, re-check after #109 merges** |
+
+---
+
 ## Block G4 — FPS, as a RATIO not an absolute
 
 > Gate criterion is hub cost relative to the device's **idle baseline**, not an absolute fps.
