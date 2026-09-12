@@ -1006,3 +1006,74 @@ it beyond this: the owner's own DevTools Performance trace during real cursor mo
 on the real machine — Bottom-Up, sorted by Self Time. If that shows a hot function this
 protocol does not, the protocol is what is wrong, and it is `tools/gex_crosshair_probe.py`
 to fix.
+
+## TOP 10 / request storm — NOT a client defect. It is the cold-pod fallback firing.
+
+Instrumented on path B, runtime injection only, no file edited for the diagnosis: a
+fetch wrapper capturing each request's initiator stack, dispatch time and returned
+`X-Flow-Version`, plus a DOM-level mount/unmount counter for `.of-mroot`, `.of-picks`
+and `.of-tabs`. Discriminator: a render gate does not re-issue network calls, a
+remount does.
+
+### Warm pod (815 s), 8 accepted runs
+
+| | result |
+|---|---|
+| storms | **0 / 8** |
+| picks rendered | **8 / 8** |
+| root mounts / unmounts | **1 / 0** every run |
+| picks mounts / unmounts | **1 / 0** every run |
+| flow fetches | 5 per run, no duplicated first-paint part, no stray tape |
+| picks mount after `part=TOP_PICKS` | **28–84 ms** |
+
+### Cold pod, deliberate experiment (guard overridden, NOT a member number)
+
+| run | pod age | shape | TOP_PICKS arrival | picks lag |
+|---|---|---|---|---|
+| 1 | **39 s** | **STORM** — `TOP_PICKS ×2`, `bootstrap ×2`, +1 tape | **11,628 ms** | 3,014 ms |
+| 2–4 | 76–123 s | clean | 750–913 ms | 15–121 ms |
+
+### Classification — named, with the deciding evidence
+
+**Not a remount.** Root and picks each mounted exactly once in *every* run, the storm
+run included. **Not a render gate, not a data-shape rejection** — picks rendered in
+12/12 runs across both conditions.
+
+**It is `PREHYDRATE_FALLBACK_MS = 3000`** (`flowLoadPolicy.js:362`), fired at
+`OptionsFlow.jsx:1633`. When prehydrate does not answer within 3 s, `_demandTape()`
+sets `tapeDemanded` — which is a dependency of that effect — so the effect re-runs and
+re-issues both first-paint parts *and* demands the tape. Warm responses (~0.6–0.9 s)
+never trip it; the cold response (11.6 s) always does. The file's own comment names the
+case: *"a cold rebuild simply does not answer (prod: 16.5 s after a version bump) and
+only a clock can notice it."*
+
+⭐ **So the storm is the designed safety net working**, not a bug. It exists because
+deferring the tape once left an empty page with nothing to re-arm it.
+
+### NOT FIXED, deliberately
+
+Raising or adapting the 3 s threshold would weaken the recovery path that exists
+because its absence produced an empty page. The cost of leaving it is one duplicate
+first-paint round plus a tape fetch, only in the ~2 minutes after a deploy. **A
+characterised non-defect beats a risky change**, so no diff was landed and none is
+proposed.
+
+⚰️ **This also explains Saturday's four path-B runs** (2 storm, picks 15.9 s / 30.5 s /
+never). Those ran during heavy deploy churn, before the minimum-pod-age guard existed —
+they were cold-pod runs, and the "never rendered" was the rig's 6 s wait being shorter
+than the 14.6 s the cold path takes. Under the guard they would all have been discarded
+as INCONCLUSIVE.
+
+⚠️ **The `planDelta` / `_baseFetchedVer` suspects are NOT implicated.** Neither appears
+in the mechanism: the fetches are re-issued by the effect re-running, not by a guard
+returning `none`. Decision (b) is therefore **not** unblocked for free by this work.
+
+### An instrument trap re-hit, and the void numbers it produced
+
+The first 8 runs reported every mount counter as `0` while picks demonstrably rendered.
+`add_init_script` runs at document-start **before `documentElement` exists**, so the
+unguarded `observe()` threw — and because the throw escaped the IIFE the rAF tick never
+started, while the fetch wrapper installed *above* it survived. Fetches captured, mounts
+always empty. The rig's own `_INIT` documents this exact trap; it was re-hit in a new
+file. Attach is now guarded and the tick survives a throw. **The pre-fix numbers are
+void and are not reported anywhere as results.**
