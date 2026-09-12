@@ -421,3 +421,30 @@ creates the exposure it is testing for.
 ⭐ The control is still mandatory — a scan that cannot demonstrate a hit is not
 evidence of absence. Generate a decoy of the same length and alphabet, plant that, and
 assert the scan finds it.
+
+### ⚰️ The first attempt FAILED the build in 14 seconds — and the rail passed over it
+
+`1f99a950b` was pushed at 09:32:47 ET and web went **FAILED** at 09:33, with a build
+log containing one line: `scheduling build on Metal builder`. No build ran. Members
+were never affected — Railway serves the last SUCCESS on failure — and the fan-out was
+otherwise exactly right (flow-worker, worker, bars-api all **SKIPPED**).
+
+The cause was in the patch, not in Railway. The `ENV` block had been generated with a
+literal backslash+`n` pair where a line continuation belonged, so all seventeen exports
+sat on **one physical line**:
+
+    ENV VITE_CATALYST_UI_ENABLED=$VITE_CATALYST_UI_ENABLED \n    VITE_CHART_RENDER_TOKEN=...
+
+⛔ **The generator was corrupted by the shell, not by Python.** A heredoc collapsed the
+doubled backslash in `" \<newline>    "` down to a single one, leaving backslash+`n`.
+Anything that emits a backslash through a heredoc on this box must build it as
+`chr(92)` — including a test's own needle, or the same collapse corrupts the check.
+
+⭐ **AND THE RAIL PASSED.** `test_each_declared_arg_is_also_exported_to_the_build`
+asserts the substring `NAME=$NAME` is present, and it is present on a single broken
+line exactly as on seventeen good ones. **A substring assertion is blind to the syntax
+around it.** `test_the_env_block_is_physically_well_formed` now checks the physical
+shape — no literal backslash+`n` anywhere, one line per ARG, every line but the last
+ending in a continuation and the last not — and is mutation-proved by reintroducing
+this exact mangling: it goes RED while the substring test stays green, which is the
+whole point.

@@ -118,3 +118,41 @@ def test_each_declared_arg_is_also_exported_to_the_build():
     unexported = sorted(n for n in declared_args() if "%s=$%s" % (n, n) not in body)
     assert not unexported, (
         "declared as ARG but never exported via ENV: %s" % ", ".join(unexported))
+
+
+def test_the_env_block_is_physically_well_formed():
+    """A substring check cannot see a BROKEN continuation — and did not.
+
+    ⚰️ 2026-09-12: the ENV block was generated with a literal backslash+`n`
+    pair instead of a real line continuation, so all seventeen exports sat on ONE
+    physical line. `test_each_declared_arg_is_also_exported_to_the_build` passed
+    happily — `NAME=$NAME` is present either way — and Railway FAILED the build
+    in 14 seconds with no output past "scheduling build". A rail that asserts a
+    substring is blind to the syntax around it.
+
+    ⛔ The mangling came from a shell heredoc collapsing `${BS}${BS}` to
+    `${BS}`, which is why this file builds every backslash with `chr(92)` rather
+    than writing one: the same collapse would corrupt this test's own needle.
+    """
+    BS = chr(92)
+    body = _dockerfile()
+    assert (BS + "n") not in body, (
+        "Dockerfile.web contains a literal backslash+n pair — a line "
+        "continuation was written as two characters instead of a newline, and "
+        "the build will fail before it starts")
+
+    lines = body.split(chr(10))
+    starts = [i for i, l in enumerate(lines) if l.startswith("ENV VITE_")]
+    assert len(starts) == 1, "expected exactly one `ENV VITE_` block, found %d" % len(starts)
+
+    args = declared_args()
+    block = lines[starts[0]:starts[0] + len(args)]
+    assert len(block) == len(args), (
+        "the ENV block is %d physical line(s) for %d ARG(s) — the continuations "
+        "are broken" % (len(block), len(args)))
+    for n, line in enumerate(block[:-1]):
+        assert line.rstrip().endswith(BS), (
+            "ENV block line %d does not end with a continuation: %r" % (n + 1, line))
+    assert not block[-1].rstrip().endswith(BS), (
+        "the ENV block's LAST line ends with a continuation, so it swallows the "
+        "instruction after it: %r" % block[-1])
