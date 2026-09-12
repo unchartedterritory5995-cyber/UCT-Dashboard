@@ -29,7 +29,11 @@ const DIR = path.join(REPO, 'corpus/committed')
 const OUT = path.join(REPO, 'tools/corpus_metric.json')
 
 describe('the committed corpus, both lanes', () => {
-  it('⭐ measures host and screener, and records every row', () => {
+  // ⚠ AN EXPLICIT TIMEOUT, BECAUSE THIS ONE MEASURES 532 TRANSLATIONS. It runs in
+  // ~2.3s alone and crossed vitest's 15s default once under a full-suite load on
+  // 2026-09-12 — a red that says "timed out" beside a console line reporting the very
+  // numbers it was asked for, which reads as a broken producer rather than a busy box.
+  it('⭐ measures host and screener, and records every row', { timeout: 180000 }, () => {
     const files = fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
 
     const run = (src, sp, strict) => {

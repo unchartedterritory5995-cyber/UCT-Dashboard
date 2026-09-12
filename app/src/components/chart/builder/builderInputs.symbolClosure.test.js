@@ -235,23 +235,29 @@ plot(ta.atr(14) * Multiplier, title = "X")
     expect(hit.reason).not.toMatch(/no bound name/)
   })
 
-  it('⚰ one of the eight is down to a single column, and it is the SCAFFOLDING', () => {
+  it('⚰ one of the eight now carries NOTHING — and that is ruling 1.2 working', () => {
     // ⛔ A VACUOUS PASS IS A SILENT LOSS OF COVERAGE unless somebody writes down which
     // row went quiet. Under R-F `…03-supertrend` keeps ONE of its ten columns and the
     // other nine refuse at `pine:state`, so every loop over BLOCKED still visits it and
     // learns nothing about declared names — it declares none.
     //
-    // ⚠⚠ AND THE ONE THAT SURVIVES IS `ohlc4`: the author's fill edge, not the band.
-    // The door therefore SELECTS it — `selected` is that output — so an import of this
-    // script offers a column called Supertrend that is the average of the bar. The
-    // refusals are named beside it, which is the door's stated policy, and whether a
-    // scaffolding column may be the SELECTED one is a product question this test does
-    // not settle. It is written down here because it is now reachable.
+    // ⚰⚰ THE QUESTION THIS TEST ASKED ON 2026-09-12 HAS BEEN ANSWERED BY RULING.
+    // It recorded that the one surviving column was the author's untitled `ohlc4` fill
+    // edge and that the door SELECTED it — "a column called Supertrend that is the
+    // average of the bar" — and left open whether scaffolding may be selected. The
+    // owner ruled it a mistranslation wearing a label: the door refuses instead, adds
+    // `pine:hidden-only` beside the nine visible refusals, and selects nothing.
     const t = translate(read('high_engagement__03-supertrend-kivancozbilgic'))
     const carried = (t.outputs || []).filter((o) => o && o.formula && !o.hidden)
-    expect(carried).toHaveLength(1)
-    expect(carried[0].formula).toBe('(open + high + low + close) / 4')
-    expect(t.outputs[t.selected]).toBe(carried[0])
+    expect(carried).toHaveLength(0)
+    // ⭐ the row is still THERE, hidden and labelled by the name its author gave it —
+    // shown, not dropped, which is the difference between refusing and hiding.
+    const anchor = (t.outputs || []).find((o) => o && o.formula)
+    expect(anchor.hidden).toBe(true)
+    expect(anchor.hiddenReason).toBe('fill-anchor')
+    expect(anchor.handle).toBe('mPlot')
+    expect(anchor.formula).toBe('(open + high + low + close) / 4')
+    expect(t.selected).toBe(-1)
     expect(t.declared || []).toEqual([])
     const guards = (t.outputs || []).filter((o) => o.refusal).map((o) => o.refusal.guard)
     expect(guards).toHaveLength(9)

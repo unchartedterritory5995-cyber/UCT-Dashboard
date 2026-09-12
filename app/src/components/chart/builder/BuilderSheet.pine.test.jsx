@@ -317,6 +317,29 @@ describe('a script this engine cannot run says so, at its own token', () => {
     expect(notes).toContain(FOLD_NOTES.baseTimeframeFolds)
   })
 
+  it('⭐⭐ a hidden helper wears the name its AUTHOR gave it, tagged hidden, never the script title', async () => {
+    // ⛔ RULING 1.2 (owner, 2026-09-12). The script is titled "Band demo"; its first
+    // plot is an untitled `fill()` edge. The row must never borrow that title — that
+    // borrowing is what turned a Supertrend import into `(open+high+low+close)/4`.
+    mount()
+    await flush()
+    await paste('//@version=5\nindicator("Band demo")\n'
+      + 'edge = plot(ohlc4, "")\n'
+      + 'band = plot(ta.sma(close, 20), "Band")\n'
+      + 'fill(edge, band)\n')
+
+    const label = screen.getByTestId('pine-hidden-label-0')
+    expect(label.textContent).toContain('edge')
+    expect(label.textContent).not.toContain('Band demo')
+    expect(screen.getByTestId('pine-hidden-tag-0').textContent.trim()).toBe('hidden')
+    // ⭐ and it is SHOWN rather than dropped — a member told nothing about a plot is
+    // the failure this row exists to prevent — with the reason in its own words.
+    expect(screen.getByTestId('pine-output-hidden-0').textContent)
+      .toMatch(/edge of a fill|scaffolding/)
+    // the real column is still the one on offer
+    expect(screen.getByTestId('pine-use').disabled).toBe(false)
+  })
+
   it('⛔ CONTROL: a script with nothing folded gets no fold note', async () => {
     // Without this, "the note renders" is satisfied by a component that always
     // renders it — which would tell every member about a divergence their script

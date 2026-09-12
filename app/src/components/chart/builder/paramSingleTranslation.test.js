@@ -113,7 +113,12 @@ describe('⚰ the specimen R-F removed, asserted rather than forgotten', () => {
     // where its ten-plot Multiplier is the best locator-spread case the set holds.
     const src = read(REFUSED_BY_RF)
     const guards = [...new Set((translatePine(src).refusals || []).map((r) => r.guard))]
-    expect(guards).toEqual(['pine:state'])
+    // ⚰ `pine:hidden-only` JOINED THIS LIST ON 2026-09-12 (ruling 1.2). R-F left the
+    // script one surviving column — the author's untitled `ohlc4` fill edge — and the
+    // door was OFFERING it under the script's title. It refuses now and says why, so
+    // the specimen carries both sentences: what failed, and why what survived is not
+    // a column.
+    expect(guards.sort()).toEqual(['pine:hidden-only', 'pine:state'])
     const t = memberInputTranslation(translatePine, src, { paramManifest: true })
     const outs = kept(t)
     expect(outs.length).toBeLessThan(2)

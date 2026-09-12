@@ -284,6 +284,8 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:plot-offset', // 03, 12, 14
       'pine:strategy-call', // 19
       'pine:builtin', // 05, 06, 11, 12, 14, 15
+      'pine:hidden-only', // 10 — every visible column refuses and the survivor is
+      // the author's own `display.none` fill edge (ruling 1.2, 2026-09-12)
       // ⚰️ `pine:undefined` LEFT THIS LIST 2026-08-27, and it left because the
       // door stopped being WRONG rather than because it stopped being strict.
       // This module keeps a hand-typed `PINE_KNOWN_BUILTINS` whose own comment
@@ -353,7 +355,14 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // them (`pine:state` ×2, `pine:cycle` ×2). Same shape as the `pine:arity`
     // movement recorded above, run the other way — a guard entering this set
     // means a published script finally exercises a sentence nobody had read.
-    expect(fired.size).toBe(10)
+    // ⭐ 10 → 11 ON 2026-09-12, AND UP IS THE HONEST DIRECTION AGAIN. `pine:hidden-only`
+    // joined because ruling 1.2 gave a name to something this door used to do in
+    // silence: `10-supertrend.pine` refuses on all nine visible columns and keeps one
+    // — the author's `display.none` `ohlc4` fill edge — and the member was told nothing
+    // about why that survivor is not on offer. Same shape as the `pine:cycle` movement
+    // above: a guard entering this set means a published script finally exercises a
+    // sentence nobody had read.
+    expect(fired.size).toBe(11)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {

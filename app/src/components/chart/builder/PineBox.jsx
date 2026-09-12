@@ -998,13 +998,27 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                     <div key={`hid-${out.line}-${i}`} className={styles.outputRow}
                       data-testid={`pine-output-hidden-${i}`}>
                       <span className={styles.outKind}>{out.kind}</span>
-                      <span className={styles.outTitle}>{out.title || `line ${out.line}`}</span>
+                      {/* ⛔⛔ RULING 1.2 (owner, 2026-09-12): A HIDDEN ROW WEARS ITS OWN
+                          NAME, NEVER THE SCRIPT'S. The author's variable is the honest
+                          label for a helper series — `mPlot`, not "Supertrend" — and the
+                          script title is what turned one of these into a mistranslation
+                          when the door offered it. `line N` remains the last resort for a
+                          plot the author neither titled nor bound. */}
+                      <span className={styles.outTitle} data-testid={`pine-hidden-label-${i}`}>
+                        {out.title || out.handle || `line ${out.line}`}
+                        <span className={styles.outHiddenTag} data-testid={`pine-hidden-tag-${i}`}>
+                          {' hidden'}
+                        </span>
+                      </span>
                       <code className={styles.outFormula}>{out.formula}</code>
                       <span className={styles.outReadback}>
                         {out.hiddenReason === 'author'
                           ? 'The script hides this plot, so it is not offered as a column.'
-                          : 'The same number on every bar and every symbol — a screen '
-                            + 'cannot answer from it.'}
+                          : out.hiddenReason === 'fill-anchor'
+                            ? 'The script gave this plot no name and uses it as the edge of '
+                              + 'a fill, so it is scaffolding rather than a column.'
+                            : 'The same number on every bar and every symbol — a screen '
+                              + 'cannot answer from it.'}
                       </span>
                     </div>
                   )

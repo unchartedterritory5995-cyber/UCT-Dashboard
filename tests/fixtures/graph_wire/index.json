@@ -37,13 +37,13 @@
       "plots": 12
     },
     {
-      "name": "high_engagement__03-supertrend-kivancozbilgic",
+      "name": "high_engagement__24-coppock-curve-multi-filter-markittick",
       "id": "u_c2d900000005",
-      "band": "supertrend",
-      "v1Bytes": 1102,
-      "sentBytes": 1102,
+      "band": "multi-filter",
+      "v1Bytes": 27210,
+      "sentBytes": 27210,
       "isGraph": false,
-      "plots": 1
+      "plots": 6
     }
   ]
 }

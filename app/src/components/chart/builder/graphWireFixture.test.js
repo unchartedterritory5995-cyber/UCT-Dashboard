@@ -28,6 +28,14 @@ import { reduceIfOversized, documentBytes } from '../engine/ast/graphDocument'
 const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
 const OUT = path.resolve(process.cwd(), '../tests/fixtures/graph_wire')
 
+/** The carried rows for one script — exposed so the emitter can say WHICH case
+ *  stopped producing columns instead of dying on `rows[0].source`. */
+function productRows(name) {
+  const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
+  const t = memberInputTranslation(translatePine, src, { paramManifest: true })
+  return (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
+}
+
 /** The document the product sends, for one script. */
 function productDocument(name, defId) {
   const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
@@ -73,7 +81,14 @@ const CASES = [
   { name: 'mid_engagement__13-spma-trend', id: 'u_c2d900000002', band: 'median' },
   { name: 'mid_engagement__14-master-line-lite', id: 'u_c2d900000003', band: 'p95' },
   { name: 'mid_engagement__22-rsi-levels-regime-map', id: 'u_c2d900000004', band: 'rsi-levels' },
-  { name: 'high_engagement__03-supertrend-kivancozbilgic', id: 'u_c2d900000005', band: 'supertrend' },
+  // ⚰⚰ THE `supertrend` BAND LEFT ON 2026-09-12 AND IT WAS THE BIGGEST ONE:
+  // `high_engagement__03-supertrend-kivancozbilgic`, 438,263 bytes across ten plots,
+  // the case the graph form shrank 60-fold. R-F refused nine of its columns and ruling
+  // 1.2 refused the tenth — the author's untitled `ohlc4` fill edge — so it now carries
+  // NOTHING and can produce no document to measure. It is replaced rather than dropped,
+  // because the Python lane asserts five bands and a fixture that quietly shrank to four
+  // would read as a passing measurement of a distribution nobody spans any more.
+  { name: 'high_engagement__24-coppock-curve-multi-filter-markittick', id: 'u_c2d900000005', band: 'multi-filter' },
 ]
 
 describe('C2D.9 — emit the wire-size fixture', () => {
@@ -81,6 +96,13 @@ describe('C2D.9 — emit the wire-size fixture', () => {
     fs.mkdirSync(OUT, { recursive: true })
     const index = []
     for (const c of CASES) {
+      // ⛔ A CASE THAT CARRIES NO COLUMNS FAILS BY NAME. Before ruling 1.2 this loop
+      // read `rows[0]` from a script with zero rows and died on `undefined.source`,
+      // which names the line and not the script. A fixture emitter must say WHICH
+      // member of its roster stopped producing anything.
+      const rows = productRows(c.name)
+      expect(rows.length, `${c.name} carries no columns — it cannot be a wire-size case`)
+        .toBeGreaterThan(0)
       const v1 = productDocument(c.name, c.id)
       // ⛔ THE SAVE DOOR DECIDES, not this file. `reduceIfOversized` is what the
       // product calls, so what lands here is what would actually be sent.

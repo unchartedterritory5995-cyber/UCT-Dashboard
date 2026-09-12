@@ -355,6 +355,17 @@ export const REFUSALS = Object.freeze({
   'pine:constant-only':
     'every column this script would offer holds the same number on every bar, so '
     + 'there is nothing here a chart or a screen could move on',
+  // ⛔⛔ OWNER RULING, 2026-09-12, ON A MEASURED MISTRANSLATION. A Supertrend
+  // script refused on all nine of its visible columns and kept ONE: the author's
+  // untitled `ohlc4` fill edge. The door offered it — selected it, in fact — so an
+  // import produced a saveable definition named after a Supertrend that computes the
+  // average of the bar. ⭐ "A column offered under the script's title that is actually
+  // the author's hidden helper is a mistranslation wearing a label." The engine already
+  // refused the `display.none` spelling of this (`outputHidden`, the Butterworth case);
+  // this is the same class arriving as an untitled `fill()` anchor.
+  'pine:hidden-only':
+    'the only outputs that translate are helper series the author hid; nothing this '
+    + 'script displays can be screened',
   // ⚰️⚰️ THIS SENTENCE STOPPED DESCRIBING ITS OWN GUARD. It read "a displaced
   // plot writes its value at a different bar from the one that produced it" — and
   // `pickOutputArgument`'s own docblock already records that this is "true about
@@ -9793,6 +9804,11 @@ export function translatePine(source, opts = {}) {
    *  the final one" is a fact about the PROGRAM and not about the read. */
   const finalBindings = new Map(env)
 
+  /** ⭐ EVERY HANDLE `fill()` JOINS — the author's own statement that a plot is a
+   *  band EDGE rather than a column. Taken here because a `fill` may legally appear
+   *  before either plot it joins, so it is only complete once the walk is over. */
+  const fillHandles = new Set(fills.flatMap((f) => [f.a, f.b]).filter(Boolean))
+
   // ── resolve each output, independently ───────────────────────────────────
   const resolved = []
   for (const out of outputs) {
@@ -9851,6 +9867,37 @@ export function translatePine(source, opts = {}) {
       // Asked ONCE each, because both answers are needed twice below.
       const authorHid = outputHidden(args)
       const flat = !readsBars(ast)
+      // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
+      // TOO. `outputHidden` reads `display = display.none`; this reads the plot the
+      // author gave NO TITLE and then handed to `fill()` as a band edge —
+      //     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
+      //     fill(mPlot, pPlot, …)
+      // which is `high_engagement__03-supertrend-kivancozbilgic` line 29, the script
+      // that made this a ruling. Both facts are required: an untitled plot that nothing
+      // fills is still a column, and a NAMED plot handed to `fill()` is a series the
+      // author labelled and may well want screened.
+      // ⛔ The two tests are ANDed rather than either alone because each on its own
+      // over-refuses a real column — measured against the committed corpus, and the
+      // control in `pine.hiddenOnly.test.js` pins it.
+      // ⚰ AND THE THIRD TEST IS THE ONE MEASUREMENT ADDED. Untitled + filled ALONE
+      // cost `rvol__05fcd9e160.pine` its only column: `pvol = plot(rv)` with
+      // `fill(pvol, pth, …)` against a threshold line, where `rv` is
+      // `volume / sma(volume, 21)` — the indicator itself, merely unnamed. That is an
+      // over-refusal of exactly the kind this door is not allowed to make silently.
+      // ⭐ What separates it from the scaffolding cases is what is PLOTTED: `ohlc4`
+      // and `hl2` are unchanged price sources the script draws WITH, which is the same
+      // thing `pine:presentation-only` already says in words. So the anchor test reads
+      // the argument's SPELLING — a bare price-source name — rather than the folded
+      // tree, because `ohlc4` folds to arithmetic and matching that shape would be
+      // brittle in both directions.
+      // ⚠ UNDER-REFUSES ON PURPOSE: `src = ohlc4` then `plot(src)` is not caught. A
+      // column wrongly OFFERED is visible to the member and to this corpus; a column
+      // wrongly refused is invisible, which is the worse direction to guess in.
+      const plottedName = seriesArg && seriesArg.value && seriesArg.value.type === 'name'
+        ? seriesArg.value.name : null
+      const fillAnchor = !outputTitle(args, out.kind, out.role)
+        && !!out.handle && fillHandles.has(out.handle)
+        && !!plottedName && PLOT_SOURCE_NAMES.has(plottedName)
       // ⛔⛔ A CANDLE'S FOUR ARGUMENTS ARE STRUCTURE, NOT CONTENT.
       // `plotcandle`/`plotbar` take open/high/low/close and say what they MEAN
       // in `color=`. When those four arguments are the unchanged price series,
@@ -9898,7 +9945,11 @@ export function translatePine(source, opts = {}) {
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
         presentation: outputPresentation(args, { env, resolver, kind: out.kind }),
-        hidden: authorHid || flat,
+        // ⭐ THE HANDLE TRAVELS WITH THE ROW so a hidden column can be labelled by the
+        // name its author gave it (`mPlot`) rather than by the SCRIPT's title, which is
+        // the label that made this a mistranslation in the first place.
+        handle: out.handle || null,
+        hidden: authorHid || flat || fillAnchor,
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
         // one definition of usable column, as the paragraph above argues. But a
@@ -9907,7 +9958,10 @@ export function translatePine(source, opts = {}) {
         // author made, the other is a fact about the column. Deriving it at the
         // renderer would put a third authority on a question this row has already
         // answered twice (`lesson_a_second_authority_over_one_value`).
-        hiddenReason: authorHid ? 'author' : flat ? 'constant' : null,
+        // ⛔ ORDERED BY WHOSE STATEMENT IT IS: the author's explicit `display.none`
+        // first, then the author's untitled fill anchor, and only then this engine's
+        // own judgement that the column cannot move.
+        hiddenReason: authorHid ? 'author' : fillAnchor ? 'fill-anchor' : flat ? 'constant' : null,
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
@@ -9964,9 +10018,33 @@ export function translatePine(source, opts = {}) {
   // Butterworth script is the proof: four refusals, one hidden `hlc3`, verdict
   // `translates: true`.
   const usable = resolved.filter((r) => r.refusal === null && !r.hidden)
+
+  // ⛔⛔ RULING 1.2 (owner, 2026-09-12) — A HELPER IS NOT A COLUMN, AND SILENCE
+  // ABOUT IT IS WORSE THAN A REFUSAL. When every visible column refused and the only
+  // survivors are series the AUTHOR hid — `display.none`, or an untitled `fill()`
+  // anchor — the door does not offer them: an offer under the script's title is a
+  // mistranslation wearing a label, which is exactly what a Supertrend script did when
+  // it came back as `(open + high + low + close) / 4`.
+  // ⭐ IT IS ADDED TO the visible plots' refusals, never instead of them. The member
+  // needs both halves: what failed, and why the thing that survived is not on offer.
+  // ⚠ Scoped to the AUTHOR's own reasons. A `constant` or `passthrough` survivor is
+  // this engine's judgement about screening and already has its own sentence
+  // (`pine:constant-only`, `pine:presentation-only`), which is the better one to show.
+  const authorHiddenSurvivors = resolved.filter((r) => r.refusal === null && r.hidden
+    && (r.hiddenReason === 'author' || r.hiddenReason === 'fill-anchor'))
+  const helperOnly = usable.length === 0 && authorHiddenSurvivors.length > 0
+  const helperOnlyRefusal = helperOnly
+    ? refusalValue('pine:hidden-only', REFUSALS['pine:hidden-only'],
+      authorHiddenSurvivors[0].line != null
+        ? { line: authorHiddenSurvivors[0].line, column: authorHiddenSurvivors[0].column,
+          index: null, token: null }
+        : null)
+    : null
+
   const refusals = [
     ...hardRefusals,
     ...resolved.filter((r) => r.refusal).map((r) => r.refusal),
+    ...(helperOnlyRefusal ? [helperOnlyRefusal] : []),
   ].sort(byPosition)
 
   if (resolved.length === 0) {
@@ -10218,6 +10296,13 @@ function chooseOutput(rows, table) {
  *  shape that means "the caller handed this call the bar's own value". Anything
  *  built ON a source is the script's own arithmetic and is content. */
 const PRICE_SOURCES = new Set(['open', 'high', 'low', 'close', 'volume'])
+
+/** ⭐ THE NAMES PINE CALLS A "SOURCE" — the five bars plus the four averages every
+ *  `input.source` menu offers. Used by the fill-anchor test in `translatePine`, which
+ *  asks what the author PLOTTED rather than what it folded to: `ohlc4` folds to
+ *  `(open + high + low + close) / 4`, and matching that arithmetic would refuse a
+ *  member who computed the same average deliberately. */
+const PLOT_SOURCE_NAMES = new Set([...PRICE_SOURCES, 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
 export function isBareSource(node) {
   return !!node && node.type === 'series' && PRICE_SOURCES.has(node.name)
 }

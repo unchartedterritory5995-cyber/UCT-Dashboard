@@ -45,6 +45,20 @@ const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
 
 /** The document `BuilderSheet.save()` would hand `saveUserDefinition` — the
  *  carried multi-plot rows AND the Track F manifest `PineBox` produces. */
+/** The translation the product would run — exposed because a script can now carry
+ *  ZERO columns, and a test about that fact must be able to say so without going
+ *  through a document builder that has nothing to build. */
+function translation(name) {
+  const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
+  return memberInputTranslation(translatePine, src, { paramManifest: true })
+}
+
+/** The carried rows, in the product's own order. */
+function productRows(name) {
+  const t = translation(name)
+  return (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
+}
+
 function productDocument(name) {
   const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
   // ⭐⭐ C2D.1 — ONE TRANSLATION. This used to make PineBox's second,
@@ -138,28 +152,21 @@ describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save d
     })
   }
 
-  it(`⚰ ${NO_LONGER_OVERSIZED} no longer reaches the budget at all`, () => {
-    // ⛔ THE MEASUREMENT THIS REPLACES WAS REAL AND IS GONE: 70,000-odd bytes with a
-    // 666-locator manifest, reduced 48-fold by the graph form. Under R-F the script
-    // refuses at `pine:state` on all but its `ohlc4` fill edge, so there is no large
-    // document left to reduce — and "it fits now" must not be allowed to read as the
-    // representation having solved something. It is asserted as what it is.
-    const doc = productDocument(NO_LONGER_OVERSIZED)
-    // Measured 2026-09-12: 1,041 bytes, from 70,000-odd. The tight bound is deliberate
-    // — "under the budget" would also be satisfied by a document that still carried
-    // nine columns, and the point is that only the fill edge is left.
-    expect(documentBytes(doc)).toBeLessThan(2000)
-    expect(doc.compute.paramManifest).toBeFalsy()
-    expect(doc.compute.source).toBe('(open + high + low + close) / 4')
-    expect(doc.compute.plots || []).toHaveLength(0)
-    expect(reduceIfOversized(doc)).toBe(doc)
-    // ⭐ AND THE GRAPH FORM DECLINES IT, WHICH IS THE CLEAREST STATEMENT OF HOW SMALL
-    // IT GOT: the representation exists to share sub-trees between several plots, and
-    // there is only one tree left to share. The refusal sentence says exactly that,
-    // so it is asserted rather than paraphrased.
-    const g = toGraphDocument(doc)
-    expect(g.ok).toBe(false)
-    expect(g.reason).toMatch(/not a multi-tree document/)
+  it(`⚰ ${NO_LONGER_OVERSIZED} produces NO DOCUMENT AT ALL now`, () => {
+    // ⚰⚰ TWO RULINGS, TWO STEPS DOWN, AND THIS RECORDS BOTH SO NEITHER READS AS AN
+    // ACHIEVEMENT. The original measurement was real: ~70,000 bytes with a 666-locator
+    // manifest, reduced 48-fold by the graph form. R-F then refused nine of the ten
+    // columns and left the author's `ohlc4` fill edge, which briefly made this a
+    // 1,041-byte one-tree document. Ruling 1.2 refuses that edge too — a helper the
+    // author hid is not a column — so the script now carries nothing at all and there
+    // is no document to size.
+    // ⛔ "It fits now" must never read as the representation having solved something.
+    const rows = productRows(NO_LONGER_OVERSIZED)
+    expect(rows).toHaveLength(0)
+    const t = translation(NO_LONGER_OVERSIZED)
+    expect([...new Set((t.outputs || []).filter((o) => o.refusal).map((o) => o.refusal.guard))])
+      .toEqual(['pine:state'])
+    expect(t.selected).toBe(-1)
   })
 
   it('⛔ THE CONTROL: a document that fits is not reduced at all', () => {

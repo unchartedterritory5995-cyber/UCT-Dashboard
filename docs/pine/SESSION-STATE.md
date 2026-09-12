@@ -1,5 +1,92 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐ PART 1 RULINGS — BOTH LANDED (2026-09-12)
+
+### 1.1 — the fold disclosure reaches a member · `df0310fb8`
+
+`baseTimeframeFolds` was emitted on every folded output row and **no surface read it**;
+by the roster's own words that is *merely KNOWN*. Now: the sentence is declared once in
+`closedTable.json::_folds` and `PineBox` renders it verbatim in `pine-vendor-notes`,
+composing nothing. One declaration, two readers (`parse.js::foldNotesOf`,
+`api/services/ast_table.py::fold_notes`), one renderer.
+
+> This script's daily `request.security` was folded to the chart's own daily series —
+> identical on a closed daily chart; would differ by one bar intraday.
+
+⛔ It cannot come from the tree — a fold ERASES the call, so `vendorNotesForTree` can
+never find it. `_folds` is registered in `manifestProse.KEEP`, and the keep-list rail
+caught it as *"kept but never read"* before the reader existed, which is the rail
+working. Rails from the shared schema (`fold_requires_member_note`): an accepted fold row
+owes the note; a non-vacuity control that an accepted fold row exists; and the sentence is
+asserted at the member's door against `FOLD_NOTES` rather than a copy, with a control that
+an unfolded script gets no note.
+
+### 1.2 — a helper the author hid is not a column · this commit
+
+`high_engagement__03-supertrend-kivancozbilgic` refused on all nine visible columns, kept
+the author's untitled `ohlc4` fill edge, and the door **selected** it. Ruled a
+mistranslation wearing a label. New guard, wording as ruled:
+
+```
+pine:hidden-only — the only outputs that translate are helper series the author hid;
+                   nothing this script displays can be screened
+```
+
+**Branch A** — every survivor is author-hidden ⇒ refuse, name the visible plots'
+refusals, and ADD that line (never instead of them). Scoped to the AUTHOR's own reasons:
+a `constant` or `passthrough` survivor keeps `pine:constant-only` /
+`pine:presentation-only`, which are the more precise sentences.
+**Branch B** — a helper beside a real column is shown, not offered, and wears **its own
+variable name plus a `hidden` tag**, never the script title (`pine-hidden-label-*`,
+`pine-hidden-tag-*`).
+
+⭐ **THE PREDICATE TOOK A MEASUREMENT TO GET RIGHT, AND THE FIRST VERSION WAS WRONG.**
+"Untitled AND filled" cost `rvol__05fcd9e160.pine` its only column — `pvol = plot(rv)`
+with `fill(pvol, pth, …)`, where `rv` is `volume / sma(volume, 21)`: the indicator itself,
+merely unnamed. The published predicate adds the third test that separates the two:
+
+```
+hidden as `fill-anchor`  ⇔  no title  AND  handle consumed by fill()  AND
+                             the plotted argument is a BARE PRICE SOURCE NAME
+                             (open|high|low|close|volume|hl2|hlc3|ohlc4|hlcc4)
+```
+
+It reads the argument's SPELLING, not the folded tree, because `ohlc4` folds to
+arithmetic a member might have written deliberately. ⚠️ It under-refuses on purpose:
+`src = ohlc4` then `plot(src)` is not caught — a column wrongly offered is visible to the
+member and to this corpus; one wrongly refused is invisible.
+
+### Metric, re-derived — old → new, movers named
+
+```
+after R-F (db9ea2f2e)   host 31/266   screener 46/266
+after ruling 1.2        host 31/266   screener 44/266     measured_at 2026-09-12
+```
+
+| mover | what it was offering |
+|---|---|
+| `supertrend-explorer__V4MsmtCeKs.pine` | `ohlc4` under a Supertrend title — the ruling's own case, a second time |
+| `market-structure-trend-targets-chartprime__d3c06abad6.pine` | `hl2` under a market-structure title |
+
+Ten further corpus scripts gained the sentence beside refusals they already had; their
+verdicts did not move. Host is unchanged: both movers were screener-lane passes.
+
+### Re-frozen for 1.2, with the reason at each site
+
+| artifact | change |
+|---|---|
+| `pine.corpus` guard coverage | 10 → 11 guards; `pine:hidden-only` joins, from `10-supertrend` |
+| `paramSingleTranslation` | the R-F specimen rail now expects both sentences |
+| `builderInputs.symbolClosure` | the "single column, and it is SCAFFOLDING" case answered by ruling: **zero** carried, `selected: -1`, the row still shown as `mPlot`/`fill-anchor` |
+| `graphSaveDoor` | that script produces **no document at all** now; the case records both steps down (438KB → 1KB → nothing) so neither reads as an achievement |
+| `graphWireFixture` | the `supertrend` band is replaced by `…24-coppock-curve-multi-filter` (the Python lane asserts five bands; a quietly-four fixture would read as a passing measurement) and the emitter now fails BY NAME on a case that carries nothing |
+| `graphRuntime` | roster loses that script, gains `…24-coppock`; the expand-cost case moves to `…22-rsi-levels`; a new rail asserts the removed script carries no trees, so the day it translates again this goes red |
+| `corpusMetric` | explicit 180s timeout — it crossed vitest's 15s default once under full-suite load and reported "timed out" beside a console line carrying the numbers |
+
+**Chart suite: 402/413 files green.** The 11 reds are the routed pre-existing set
+(`pine_oos/*.pine` absent → 5 files + 4 census floors; three UI-door files unrelated to
+the engine).
+
 ## ⛔⛔ R-F — THE SHIPPED DEFECT IS FIXED, AND IT COST FIVE PUBLISHED SCRIPTS ON PURPOSE
 
 **Ruling R-F (owner, 2026-09-12): fix, not route.** `forgetsItsSeed` admits `+` only; a

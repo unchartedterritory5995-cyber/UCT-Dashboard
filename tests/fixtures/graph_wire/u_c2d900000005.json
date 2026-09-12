@@ -4,59 +4,3363 @@
   "version": 1,
   "compute": {
     "kind": "ast",
-    "fn": "sha256:9c27aa88b22a0ab79b3d08d61831b305b058231028c0769186fb51970befd1b6",
+    "fn": "sha256:da6f7cc0a4c3f2edf5e5f9b9415bf2695e7fed8c74b6eb37985ded920b8d20f5",
     "rev": 1,
     "ast": {
       "type": "op",
-      "name": "/",
+      "name": "&&",
       "args": [
         {
           "type": "op",
-          "name": "+",
+          "name": "&&",
           "args": [
             {
-              "type": "op",
-              "name": "+",
+              "type": "call",
+              "name": "crossOver",
               "args": [
                 {
-                  "type": "op",
-                  "name": "+",
+                  "type": "call",
+                  "name": "wma",
                   "args": [
                     {
-                      "type": "series",
-                      "name": "open"
+                      "type": "op",
+                      "name": "+",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "/",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "*",
+                              "args": [
+                                {
+                                  "type": "num",
+                                  "value": 100
+                                },
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "offset",
+                                      "value": 14,
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "offset",
+                              "value": 14,
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "op",
+                          "name": "/",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "*",
+                              "args": [
+                                {
+                                  "type": "num",
+                                  "value": 100
+                                },
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "offset",
+                                      "value": 11,
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "offset",
+                              "value": 11,
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
                     },
                     {
-                      "type": "series",
-                      "name": "high"
+                      "type": "num",
+                      "value": 10
                     }
                   ]
                 },
                 {
-                  "type": "series",
-                  "name": "low"
+                  "type": "num",
+                  "value": 0
                 }
               ]
             },
             {
-              "type": "series",
-              "name": "close"
+              "type": "op",
+              "name": "||",
+              "args": [
+                {
+                  "type": "op",
+                  "name": "!",
+                  "args": [
+                    {
+                      "type": "num",
+                      "value": 0
+                    }
+                  ]
+                },
+                {
+                  "type": "op",
+                  "name": ">=",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "adx",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "high"
+                        },
+                        {
+                          "type": "series",
+                          "name": "low"
+                        },
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 14
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 20
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
         {
-          "type": "num",
-          "value": 4
+          "type": "op",
+          "name": "||",
+          "args": [
+            {
+              "type": "op",
+              "name": "!",
+              "args": [
+                {
+                  "type": "num",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "abs",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "wma",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "+",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "/",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "*",
+                                  "args": [
+                                    {
+                                      "type": "num",
+                                      "value": 100
+                                    },
+                                    {
+                                      "type": "op",
+                                      "name": "-",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "offset",
+                                          "value": 14,
+                                          "args": [
+                                            {
+                                              "type": "series",
+                                              "name": "close"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "offset",
+                                  "value": 14,
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "op",
+                              "name": "/",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "*",
+                                  "args": [
+                                    {
+                                      "type": "num",
+                                      "value": 100
+                                    },
+                                    {
+                                      "type": "op",
+                                      "name": "-",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "offset",
+                                          "value": 11,
+                                          "args": [
+                                            {
+                                              "type": "series",
+                                              "name": "close"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "offset",
+                                  "value": 11,
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 10
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "op",
+                  "name": "*",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "stdev",
+                      "args": [
+                        {
+                          "type": "call",
+                          "name": "wma",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "+",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "/",
+                                  "args": [
+                                    {
+                                      "type": "op",
+                                      "name": "*",
+                                      "args": [
+                                        {
+                                          "type": "num",
+                                          "value": 100
+                                        },
+                                        {
+                                          "type": "op",
+                                          "name": "-",
+                                          "args": [
+                                            {
+                                              "type": "series",
+                                              "name": "close"
+                                            },
+                                            {
+                                              "type": "offset",
+                                              "value": 14,
+                                              "args": [
+                                                {
+                                                  "type": "series",
+                                                  "name": "close"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "offset",
+                                      "value": 14,
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "op",
+                                  "name": "/",
+                                  "args": [
+                                    {
+                                      "type": "op",
+                                      "name": "*",
+                                      "args": [
+                                        {
+                                          "type": "num",
+                                          "value": 100
+                                        },
+                                        {
+                                          "type": "op",
+                                          "name": "-",
+                                          "args": [
+                                            {
+                                              "type": "series",
+                                              "name": "close"
+                                            },
+                                            {
+                                              "type": "offset",
+                                              "value": 11,
+                                              "args": [
+                                                {
+                                                  "type": "series",
+                                                  "name": "close"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "offset",
+                                      "value": 11,
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "num",
+                              "value": 10
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         }
       ]
     },
-    "source": "(open + high + low + close) / 4"
+    "source": "crossOver(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 0) && (!0 || adx(high, low, close, 14) >= 20) && (!0 || abs(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)) > stdev(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 20) * 0.5)",
+    "paramManifest": {
+      "__uct_param_3": {
+        "sourceName": "i_wmaLen",
+        "title": "WMA Smoothing Length",
+        "type": "int",
+        "default": 10,
+        "min": 1,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_4": {
+        "sourceName": "i_useAdxFilter",
+        "title": "📈 Use ADX Filter",
+        "type": "bool",
+        "default": 0,
+        "min": null,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          }
+        ]
+      },
+      "__uct_param_5": {
+        "sourceName": "i_adxLen",
+        "title": "ADX Length",
+        "type": "int",
+        "default": 14,
+        "min": 1,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              3
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              3
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              3
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              3
+            ]
+          }
+        ]
+      },
+      "__uct_param_6": {
+        "sourceName": "i_adxThresh",
+        "title": "ADX Threshold",
+        "type": "float",
+        "default": 20,
+        "min": 0,
+        "max": null,
+        "step": 0.5,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_8": {
+        "sourceName": "i_useVolatZeroFilter",
+        "title": "🌊 Use Volatility-Adjusted Zero Line",
+        "type": "bool",
+        "default": 0,
+        "min": null,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0
+            ]
+          }
+        ]
+      },
+      "__uct_param_9": {
+        "sourceName": "i_volatZeroLen",
+        "title": "Volatility Zero Band Length",
+        "type": "int",
+        "default": 20,
+        "min": 1,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_10": {
+        "sourceName": "i_volatZeroMult",
+        "title": "Volatility Zero Band Multiple",
+        "type": "float",
+        "default": 0.5,
+        "min": 0.1,
+        "max": null,
+        "step": 0.1,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out6",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "trees": {
+      "value": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "call",
+                "name": "crossOver",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "wma",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "+",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "/",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "*",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 100
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "-",
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 14,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "offset",
+                                "value": 14,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": "/",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "*",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 100
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "-",
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 11,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "offset",
+                                "value": 11,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 10
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "||",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "!",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "adx",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "high"
+                          },
+                          {
+                            "type": "series",
+                            "name": "low"
+                          },
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 14
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "||",
+            "args": [
+              {
+                "type": "op",
+                "name": "!",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "wma",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "+",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 14,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 14,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 11,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 11,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 10
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "stdev",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "wma",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "+",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 14,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 14,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 11,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 11,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 10
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "out2": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "call",
+                "name": "crossUnder",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "wma",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "+",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "/",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "*",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 100
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "-",
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 14,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "offset",
+                                "value": 14,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": "/",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "*",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 100
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "-",
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 11,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "offset",
+                                "value": 11,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 10
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "||",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "!",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "adx",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "high"
+                          },
+                          {
+                            "type": "series",
+                            "name": "low"
+                          },
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 14
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "||",
+            "args": [
+              {
+                "type": "op",
+                "name": "!",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "wma",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "+",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 14,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 14,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 11,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 11,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 10
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "stdev",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "wma",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "+",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 14,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 14,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 11,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 11,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 10
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "out3": {
+        "type": "call",
+        "name": "wma",
+        "args": [
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 100
+                      },
+                      {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 14,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "offset",
+                    "value": 14,
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 100
+                      },
+                      {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 11,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "offset",
+                    "value": 11,
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      },
+      "out4": {
+        "type": "call",
+        "name": "wma",
+        "args": [
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 100
+                      },
+                      {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 14,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "offset",
+                    "value": 14,
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 100
+                      },
+                      {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 11,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "offset",
+                    "value": 11,
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      },
+      "out5": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "crossOver",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "wma",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "+",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 14,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 14,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 11,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 11,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 10
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "||",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "!",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": ">=",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "adx",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "high"
+                              },
+                              {
+                                "type": "series",
+                                "name": "low"
+                              },
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "num",
+                                "value": 14
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "||",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "!",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "abs",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "wma",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "+",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 14,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 14,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 11,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 11,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 10
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "stdev",
+                            "args": [
+                              {
+                                "type": "call",
+                                "name": "wma",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "+",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "/",
+                                        "args": [
+                                          {
+                                            "type": "op",
+                                            "name": "*",
+                                            "args": [
+                                              {
+                                                "type": "num",
+                                                "value": 100
+                                              },
+                                              {
+                                                "type": "op",
+                                                "name": "-",
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  },
+                                                  {
+                                                    "type": "offset",
+                                                    "value": 14,
+                                                    "args": [
+                                                      {
+                                                        "type": "series",
+                                                        "name": "close"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 14,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "/",
+                                        "args": [
+                                          {
+                                            "type": "op",
+                                            "name": "*",
+                                            "args": [
+                                              {
+                                                "type": "num",
+                                                "value": 100
+                                              },
+                                              {
+                                                "type": "op",
+                                                "name": "-",
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  },
+                                                  {
+                                                    "type": "offset",
+                                                    "value": 11,
+                                                    "args": [
+                                                      {
+                                                        "type": "series",
+                                                        "name": "close"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 11,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "num",
+                                    "value": 10
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 20
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 0.5
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "wma",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 100
+                          },
+                          {
+                            "type": "op",
+                            "name": "-",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 14,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "offset",
+                        "value": 14,
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 100
+                          },
+                          {
+                            "type": "op",
+                            "name": "-",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 11,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "offset",
+                        "value": 11,
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "out6": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "crossUnder",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "wma",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "+",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 14,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 14,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "op",
+                                "name": "/",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "*",
+                                    "args": [
+                                      {
+                                        "type": "num",
+                                        "value": 100
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 11,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 11,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 10
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "||",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "!",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": ">=",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "adx",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "high"
+                              },
+                              {
+                                "type": "series",
+                                "name": "low"
+                              },
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "num",
+                                "value": 14
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "||",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "!",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "abs",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "wma",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "+",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 14,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 14,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "/",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "*",
+                                        "args": [
+                                          {
+                                            "type": "num",
+                                            "value": 100
+                                          },
+                                          {
+                                            "type": "op",
+                                            "name": "-",
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              },
+                                              {
+                                                "type": "offset",
+                                                "value": 11,
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "offset",
+                                        "value": 11,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 10
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "stdev",
+                            "args": [
+                              {
+                                "type": "call",
+                                "name": "wma",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "+",
+                                    "args": [
+                                      {
+                                        "type": "op",
+                                        "name": "/",
+                                        "args": [
+                                          {
+                                            "type": "op",
+                                            "name": "*",
+                                            "args": [
+                                              {
+                                                "type": "num",
+                                                "value": 100
+                                              },
+                                              {
+                                                "type": "op",
+                                                "name": "-",
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  },
+                                                  {
+                                                    "type": "offset",
+                                                    "value": 14,
+                                                    "args": [
+                                                      {
+                                                        "type": "series",
+                                                        "name": "close"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 14,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "/",
+                                        "args": [
+                                          {
+                                            "type": "op",
+                                            "name": "*",
+                                            "args": [
+                                              {
+                                                "type": "num",
+                                                "value": 100
+                                              },
+                                              {
+                                                "type": "op",
+                                                "name": "-",
+                                                "args": [
+                                                  {
+                                                    "type": "series",
+                                                    "name": "close"
+                                                  },
+                                                  {
+                                                    "type": "offset",
+                                                    "value": 11,
+                                                    "args": [
+                                                      {
+                                                        "type": "series",
+                                                        "name": "close"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "offset",
+                                            "value": 11,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "num",
+                                    "value": 10
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 20
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 0.5
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "wma",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 100
+                          },
+                          {
+                            "type": "op",
+                            "name": "-",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 14,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "offset",
+                        "value": 14,
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 100
+                          },
+                          {
+                            "type": "op",
+                            "name": "-",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 11,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "offset",
+                        "value": 11,
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 10
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "treesHash": "sha256:0b6859653d9322a2f09ec40d7cecb68bedfac4f3f185ca910cc48abf48354e46",
+    "scanPlot": "value",
+    "sources": {
+      "value": "crossOver(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 0) && (!0 || adx(high, low, close, 14) >= 20) && (!0 || abs(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)) > stdev(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 20) * 0.5)",
+      "out2": "crossUnder(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 0) && (!0 || adx(high, low, close, 14) >= 20) && (!0 || abs(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)) > stdev(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 20) * 0.5)",
+      "out3": "wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)",
+      "out4": "wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)",
+      "out5": "crossOver(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 0) && (!0 || adx(high, low, close, 14) >= 20) && (!0 || abs(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)) > stdev(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 20) * 0.5) ? wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10) : 0 / 0",
+      "out6": "crossUnder(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 0) && (!0 || adx(high, low, close, 14) >= 20) && (!0 || abs(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10)) > stdev(wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10), 20) * 0.5) ? wma(100 * (close - close[14]) / close[14] + 100 * (close - close[11]) / close[11], 10) : 0 / 0"
+    }
   },
   "meta": {
-    "name": "high_engagement__03-supertrend-kivancozb",
+    "name": "high_engagement__24-coppock-curve-multi-",
     "shortName": "high_engagem",
     "category": "Custom",
-    "description": "(((open plus high) plus low) plus close) divided by 4",
+    "description": "(((the 10-bar weighted average of (((100 times (close minus (close 14 bars ago))) divided by (close 14 bars ago)) plus ((100 times (close minus (close 11 bars ago))) divided by (close 11 bars ago)))) crossing above 0) and ((1 when 0 is zero, 0 when it is not zero, and nothing while it is unknown) or (1 when (the 14-bar ADX of high, low and close) is greater than or equal to 20 and 0 otherwise))) and ((1 when 0 is zero, 0 when it is not zero, and nothing while it is unknown) or (1 when (the absolute value of (the 10-bar weighted average of (((100 times (close minus (close 14 bars ago))) divided by (close 14 bars ago)) plus ((100 times (close minus (close 11 bars ago))) divided by (close 11 bars ago))))) is greater than ((the 20-bar standard deviation of (the 10-bar weighted average of (((100 times (close minus (close 14 bars ago))) divided by (close 14 bars ago)) plus ((100 times (close minus (close 11 bars ago))) divided by (close 11 bars ago))))) times 0.5) and 0 otherwise))",
     "tags": [
       "custom"
     ],
@@ -82,16 +3386,146 @@
       "min": 1,
       "max": 4,
       "step": 1
+    },
+    {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Zero Cross Down colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Zero Cross Down width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Coppock colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Coppock width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out4Color",
+      "type": "color",
+      "label": "Histogram colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out4Width",
+      "type": "int",
+      "label": "Histogram width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out5Color",
+      "type": "color",
+      "label": "Zero Up colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out5Width",
+      "type": "int",
+      "label": "Zero Up width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out6Color",
+      "type": "color",
+      "label": "Zero Down colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out6Width",
+      "type": "int",
+      "label": "Zero Down width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
     }
   ],
   "plots": [
     {
       "key": "value",
-      "label": "high_engagem",
+      "label": "Zero Cross Up",
       "style": "line",
       "color": "$color",
       "width": "$lineWidth",
       "role": "primary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out2",
+      "label": "Zero Cross Down",
+      "style": "line",
+      "color": "$out2Color",
+      "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out3",
+      "label": "Coppock",
+      "style": "line",
+      "color": "$out3Color",
+      "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out4",
+      "label": "Histogram",
+      "style": "line",
+      "color": "$out4Color",
+      "width": "$out4Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out5",
+      "label": "Zero Up",
+      "style": "line",
+      "color": "$out5Color",
+      "width": "$out5Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out6",
+      "label": "Zero Down",
+      "style": "line",
+      "color": "$out6Color",
+      "width": "$out6Width",
+      "role": "secondary",
       "legend": {
         "decimals": 2
       }

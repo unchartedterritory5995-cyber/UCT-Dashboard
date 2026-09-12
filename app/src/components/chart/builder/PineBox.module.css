@@ -89,6 +89,9 @@
 }
 
 .outTitle { font-size: 12px; color: var(--text-bright); }
+/* the hidden tag rides the row's own label so a helper series can never read as
+   an offered column (ruling 1.2, 2026-09-12) */
+.outHiddenTag { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin-left: 6px; }
 
 .outFormula {
   grid-column: 1 / -1;

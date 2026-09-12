@@ -65,12 +65,34 @@ function columns(trees, inputs, crossMemo) {
   return out
 }
 
+// ⚰⚰ `high_engagement__03-supertrend-kivancozbilgic` LEFT THIS ROSTER ON 2026-09-12
+// and it was the headline case: ten plots sharing one Supertrend band, which is what
+// made the shared memo worth measuring. R-F refused nine of its columns and ruling 1.2
+// refused the tenth — the author's untitled `ohlc4` fill edge — so it now carries no
+// trees, and `buildGraph` correctly answers "an empty trees map names no plot".
+// ⛔ A SCRIPT THAT CARRIES NOTHING IS NOT A MEMO CASE, and it must not be skipped
+// silently either: `NO_TREES` below asserts that this is exactly why it is gone, so the
+// day it translates again the roster gains it back by failing here.
 const SCRIPTS = [
-  'high_engagement__03-supertrend-kivancozbilgic',
   'mid_engagement__22-rsi-levels-regime-map',
   'mid_engagement__14-master-line-lite',
   'high_engagement__12-cm-ultimate-rsi-mtf-chrismoody',
+  'high_engagement__24-coppock-curve-multi-filter-markittick',
 ]
+
+const NO_TREES = 'high_engagement__03-supertrend-kivancozbilgic'
+
+describe('⚰ the script that left the roster, asserted rather than forgotten', () => {
+  it(`${NO_TREES} carries no trees at all`, () => {
+    // ⛔ THE POINT IS THE DAY THIS GOES RED. If the fold or the hidden rule is ever
+    // narrowed, this script produces columns again and belongs back in SCRIPTS — it is
+    // the only case in the frozen set where ten plots share one band, which is the
+    // shape the shared memo exists for.
+    const d = document(NO_TREES)
+    expect(Object.keys(d.trees)).toEqual([])
+    expect(() => buildGraph(d.trees)).toThrow(/empty trees map/)
+  })
+})
 
 describe('C2C.11 — the shared memo computes the SAME numbers', () => {
   for (const name of SCRIPTS) {
@@ -165,7 +187,8 @@ describe('C2C.19 — what the sharing costs, and what it saves', () => {
   it('expanding a graph costs about what walking the trees costs', { timeout: 60000 }, () => {
     // ⛔ THE COST NOBODY BUDGETED FOR. A read now materialises the forest; if
     // that were expensive the storage win would be paid back on every open.
-    const d = document('high_engagement__03-supertrend-kivancozbilgic')
+    // ⚰ the specimen moved with the roster above; this is the largest forest left.
+    const d = document('mid_engagement__22-rsi-levels-regime-map')
     const graph = buildGraph(d.trees)
     const t0 = Date.now()
     for (let i = 0; i < 20; i += 1) expandGraph(graph)
