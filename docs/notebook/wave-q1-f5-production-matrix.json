@@ -1,4 +1,8 @@
 {
+  "append_document_excerpt|drain-first (the editor could NOT report local state)": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the `append_document_excerpt` door was rig limitation: the PDF preview would not open: {'ok': False, 'why': 'preview pages=0 textLayer spans=0', 'pages': 0, 'spans': 0}"
+  },
   "append_document_excerpt|settle-first": {
     "verdict": "N/A",
     "why": "the product cannot reach this state \u2014 an append door records a landed revision and never settles with local state (f5Freeze.test.js asserts it from the source)"
@@ -7,8 +11,16 @@
     "verdict": "N/A",
     "why": "the product cannot reach this state \u2014 an append door records a landed revision and never settles with local state (f5Freeze.test.js asserts it from the source)"
   },
+  "append_widget_embed|drain-first (the editor could NOT report local state)": {
+    "verdict": "RED",
+    "why": "offline sentence in the server body: **False** \u00b7 appended node present: **True** \u00b7 queued 1 entry(s), baseline `2026-09-13T15:39:54.015453+00:00` \u00b7 3 request(s) carried the sentence (last \u2192 None) \u00b7 wire: POST /\u2192200 \u00b7 POST /1878fcd5afa2480b958e042122a07020/opened\u2192200 \u00b7 PUT /1878fcd5afa2480b958e042122a07020[15+00:00]\u2192200 \u00b7 POST /1878fcd5afa2480b958e042122a07020/opened\u2192200 \u00b7 PUT /1878fcd5afa2480b958e042122a07020+SENT[53+00:00]\u2192None \u00b7 PUT /1878fcd5afa2480b958e042122a07020+SENT[53+00:00]\u2192None \u00b7 PUT /1878fcd5afa2480b958e042122a07020+SENT[53+00:00]\u2192None \u00b7 POST /1878fcd5afa2480b958e042122a07020/embeds\u2192200 \u00b7 POST /1878fcd5afa2480b958e042122a07020/opened\u2192200 \u00b7 POST /1878fcd5afa2480b958e042122a07020/images\u2192200 \u00b7 PUT /1878fcd5afa2480b958e042122a07020[21+00:00]\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via Send to Journal \u2192 Current note \u00b7 sends before the door: 6 \u00b7 navigated offline to {'path': '/charts', 'offline': True} \u00b7 130s"
+  },
   "append_widget_embed|settle-first": {
     "verdict": "N/A",
     "why": "the product cannot reach this state \u2014 an append door records a landed revision and never settles with local state (f5Freeze.test.js asserts it from the source)"
+  },
+  "folder|drain-first (the editor could NOT report local state)": {
+    "verdict": "GREEN",
+    "why": "offline sentence in the server body: **True** \u00b7 queued 1 entry(s), baseline `2026-09-13T15:46:11.538699+00:00` \u00b7 5 request(s) carried the sentence (last \u2192 200) \u00b7 wire: POST /\u2192200 \u00b7 POST /11f2a42ff654447784ac608ceb69bedd/opened\u2192200 \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd[97+00:00]\u2192200 \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd+SENT[99+00:00]\u2192None \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd+SENT[99+00:00]\u2192None \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd+SENT[99+00:00]\u2192None \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd\u2192200 \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd+SENT[99+00:00]\u2192409 \u00b7 PUT /11f2a42ff654447784ac608ceb69bedd+SENT[55+00:00]\u2192200 \u00b7 POST /11f2a42ff654447784ac608ceb69bedd/opened\u2192200 \u00b7 forks: 0 \u00b7 outbox left: 0 \u00b7 conflicts: 0 \u00b7 door via select.change \u00b7 sends before the door: 0 \u00b7 38s"
   }
 }
