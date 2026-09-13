@@ -11,8 +11,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 function timeAgo(ts) {
   if (!ts) return ''
   const s = Math.max(0, Math.floor(Date.now() / 1000 - Number(ts)))
@@ -66,7 +66,7 @@ export default function TweetsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     fetch(`/api/r/tweets?token=${encodeURIComponent(token)}&n=${n}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setTweets(Array.isArray(d.tweets) ? d.tweets : []))
