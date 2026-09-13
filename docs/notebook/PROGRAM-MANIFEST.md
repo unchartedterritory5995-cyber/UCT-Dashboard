@@ -975,6 +975,46 @@ Closing it requires building an instrument first — that is a task, not a looku
     change again, and the next change must break the gate rather than quietly
     move a trigger one column to the left.
 
+20. ⛔ **THREE WAYS A NEW INSTRUMENT LIED ABOUT ITSELF IN ITS FIRST HOUR** — the
+    C-4 DO-NOT-BUILD sweep, 2026-09-13. Recorded together because they are the
+    same hour's work and none of them was about the thing being measured.
+
+    - **IT SCANNED ITSELF.** `tools/q1_do_not_build_sweep.py` necessarily
+      contains every construct it looks for, so its own probe table came back as
+      six matches — and buried the one real one. ⭐ Same shape as
+      `lesson_an_instrument_can_reproduce_its_own_blind_spot`, one step over: the
+      instrument did not merely share the blind spot, it *was* the evidence.
+    - **AN ASCII-SAFETY PASS RE-AIMED THE PARSER.** Replacing every `·` in the
+      file to make the output console-safe also replaced the one the parser
+      **splits §8 on**, so the roster came back as fragments of its own items
+      (*"out only) · third"*, *"click full"*). ⛔ A cosmetic sweep over a file
+      that contains a delimiter is a change to the parser. The delimiter is now
+      named by codepoint, so the next cosmetic pass cannot reach it.
+    - **IT DIED PRINTING ITS OWN VERDICT.** `UnicodeEncodeError` on this cp1252
+      console, after the hit list had been computed and before any of it was
+      shown — the exact bug that made `tools/flag_ledger_audit.py` read as an
+      auth failure for a month. Output is ASCII now and `sys.stdout` is
+      reconfigured as a second line of defence.
+
+    ⭐ **AND THE ONE FINDING IT DID PRODUCE WAS A QUESTION, NOT A VERDICT.**
+    `main.jsx:26` matches `navigator.serviceWorker.register` — and is exempt,
+    with the argument written beside it: the call sits inside
+    `getRegistrations().then(regs => if (regs.length > 0))`, so a clean install
+    registers nothing, and **that call is what makes "there is no service worker"
+    true**. Deleting it would strand every browser still carrying the legacy
+    cache-first worker, which would then serve a stale bundle straight through a
+    revert — the one failure the Wave Q1 rollback reasoning leans on being
+    impossible. ⛔ A probe is never narrowed until it goes quiet; a legitimate
+    match is exempted with its reasoning, so a later reader can disagree with the
+    argument rather than only with the outcome.
+
+    ⚠️ **`browser-side OCR` needed a SCOPE, not an exemption.** It is the same
+    library as the server-side OCR that shipped and closed in production, so a
+    probe on the bare word reported six files — five of them the *opposite* of
+    the forbidden thing, including two app-side rails asserting the engine name
+    never reaches member-visible copy. Some §8 items are defined by WHERE code
+    runs, and the probe now says so.
+
 ### Rows added by §10
 
 | id | feature | status |
@@ -994,7 +1034,7 @@ when it is *reachable by a member or explicitly ruled not to be.*
 | C-1 | Every row in §2's waves Q1, R, S is **SHIPPED-DARK or FLIPPED** | per-row flag column below, plus a merge SHA |
 | C-2 | Every SHIPPED-DARK row has a **flip packet** delivered to the owner | key · railway command · preconditions TRUE with evidence · window + verdict rule · rollback · member-impact paragraph |
 | C-3 | Every FLIPPED row has **run its observation window to a verdict** | window length from its row; verdict recorded |
-| C-4 | §8 **DO-NOT-BUILD is untouched** | a sweep proves none of the 22 named items gained code |
+| C-4 | ✅ **TRUE** — §8 **DO-NOT-BUILD is untouched** | `tools/q1_do_not_build_sweep.py`, built 2026-09-13 by owner ruling and run in **every gate** from now on (wired into `scripts/gate_shards.py` and `tools/nb_gate.py`). ⭐ The roster is **parsed out of §8 at run time** — an item added tomorrow with no probe fails the sweep BY NAME, because *"I do not know how to check this one"* must never read as *"this one is clean"*. ⛔ This row used to say **22** items; the sweep reads **20** and no count is typed anywhere now — the list is the authority. Result: **0 matches** across `app/src`, `api`, `scripts`, `tools`. One legitimate match is exempted WITH its argument: `main.jsx:26` registers `/sw.js` only for a browser that already has a worker, which is what makes *"there is no service worker"* true |
 | C-5 | §9 **OPEN** rows are each resolved **or** deferred with an owner ruling | no row left silently open |
 | C-6 | ✅ **TRUE** — §6 **Wave T** rows each carry an owner answer | `wave-T-decisions.md`, one line each, **RATIFIED by the owner 2026-09-13**: *"nothing in T waits on me except flips"*. ⭐ The answers were recorded 2026-09-12; what closed C-6 was the ratification, because until then the file read as proposals a reader could not distinguish from decisions |
 | C-7 | **T-12 pre-launch smoke passes** | it is the gate that outranks every row (§6) |
