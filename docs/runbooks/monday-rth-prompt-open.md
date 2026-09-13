@@ -68,6 +68,28 @@ Name it after the item it serves (`rig-item3a.json`, `rig-item3b.json`, `rig-ite
 JSON under `raw.rig_out`. A run whose output exists only in a scrolled-past stdout buffer
 did not happen, as far as the close session is concerned.
 
+## ⛔ AUTOMATIC RECOVERY FROM SOMEBODY ELSE'S DEPLOY
+
+A web rebuild mid-run invalidates whatever the rig was measuring. The rig already marks
+those runs INCONCLUSIVE; on its own that just turns a contaminated morning into a blank
+one.
+
+**So, after each measurement item (8–13):** if that item's guard rejected **half or more**
+of its runs for swap / cold-pod / version-changed reasons, do not move on. Instead:
+
+1. wait until pod age ≥ 120 s (poll `/api/health`; the rig's own floor is `MIN_POD_AGE_S`),
+2. re-run that item **once**,
+3. record **both** attempts in the item's JSON — `raw.attempt1` and `raw.attempt2`, each
+   with its own rejection count — and set `"recovered": true|false`.
+
+⛔ **Once only.** A loop that keeps retrying through a deploy storm burns the session and
+still produces nothing; two attempts and an honest `status` is the better trade. If the
+second attempt is also mostly rejected, the item's `status` is `inconclusive` with the
+reason, and you move on.
+
+⭐ Keep both attempts even when the second succeeds. "It took two tries because someone
+deployed at 10:14" is exactly the context that makes a number defensible later.
+
 ## HARD RULES — carried over verbatim, they still bind
 
 - No push to master touching anything on flow-worker's watch list between 09:00 and

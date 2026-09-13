@@ -70,6 +70,12 @@ function Write-RunJson([int]$code, [string]$verdict) {
     Say ("run.json -> {0} (verdict={1}, exit={2})" -f $runJson, $verdict, $code)
 }
 
+
+function Send-Alert([string]$Level,[string]$Title,[string]$Message,[string]$Fix='') {
+    try { & (Join-Path $repo 'scripts\rth-alert.ps1') -Level $Level -Title $Title -Message $Message -Fix $Fix }
+    catch { Say ("alert failed: {0}" -f $_.Exception.Message) }
+}
+
 Say "=== RTH $Phase launcher ==="
 Say ("repo        : {0}" -f $repo)
 Say ("prompt      : {0}" -f $PromptFile)
@@ -126,6 +132,7 @@ if ($refusals.Count -gt 0) {
     foreach ($x in $refusals) { Say ("  refusal: {0}" -f $x) }
     Say 'No session was started. Nothing was measured.'
     Write-RunJson 3 'refused'
+    Send-Alert 'FAIL' "$Phase run REFUSED" ($refusals -join '; ') 'Fix the named precondition, then: schtasks /run /tn "UCT RTH Open"'
     exit 3
 }
 
@@ -159,6 +166,18 @@ $denied = @(
     'Bash(railway run*)','Bash(npm run deploy*)','WebFetch','WebSearch'
 ) -join ','
 
+# Master pushes since 09:00 ET today: someone else's deploy churn contaminates a
+# measurement morning, and the only way to know later is to record it now.
+$pushes = 'unknown'
+try {
+    & git fetch origin master --quiet 2>&1 | Out-Null
+    $sinceLocal = (Get-Date).Date.AddHours(8)          # 09:00 ET == 08:00 local (Central)
+    $pushLines = & git log origin/master --since=$($sinceLocal.ToString('yyyy-MM-dd HH:mm:ss')) --format='%h %ad %s' --date=format:'%H:%M' 2>$null
+    $pushes = if ($pushLines) { ($pushLines | Select-Object -First 8) -join ' | ' } else { 'none since 09:00 ET' }
+} catch { $pushes = 'could not read: ' + $_.Exception.Message }
+Say ("master pushes since 09:00 ET: {0}" -f $pushes)
+Send-Alert 'INFO' "$Phase run STARTED" ("pod/health OK, free {0} GB. Master pushes since 09:00 ET: {1}" -f $freeGB, $pushes)
+
 Say 'preconditions passed - starting headless session'
 Say ("allowedTools: {0}" -f $allowed)
 Say ("disallowed  : {0}" -f $denied)
@@ -182,4 +201,22 @@ try {
 
 Say ("--- claude exited {0} ---" -f $code)
 Write-RunJson $code $(if ($code -eq 0) { 'completed' } else { 'failed' })
+
+# Count what the run actually produced, rather than trusting its exit code.
+$items = @(Get-ChildItem (Join-Path $outDir 'item*.json') -ErrorAction SilentlyContinue)
+$measured = 0; $inconclusive = 0; $unmeasured = 0
+foreach ($f in $items) {
+    try { $st = (Get-Content -Raw $f.FullName | ConvertFrom-Json).status } catch { $st = 'unreadable' }
+    switch ($st) { 'measured' { $measured++ } 'inconclusive' { $inconclusive++ } default { $unmeasured++ } }
+}
+$incidentFile = Join-Path $outDir 'INCIDENT.md'
+if (Test-Path $incidentFile) {
+    $head = (Get-Content $incidentFile -TotalCount 6) -join ' '
+    Send-Alert 'FAIL' "$Phase run wrote an INCIDENT" ("INCIDENT.md exists. First lines: {0}" -f $head) `
+        ("type: {0}" -f $incidentFile)
+} else {
+    Send-Alert $(if ($code -eq 0) { 'OK' } else { 'WARN' }) "$Phase run FINISHED" `
+        ("exit={0} in {1}s. items: {2} measured, {3} INCONCLUSIVE, {4} unmeasured/other (of {5} files)." -f `
+         $code, [math]::Round(((Get-Date)-$started).TotalSeconds), $measured, $inconclusive, $unmeasured, $items.Count)
+}
 exit $code

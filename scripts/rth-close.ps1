@@ -55,6 +55,12 @@ function Write-RunJson([int]$code, [string]$verdict) {
     Say ("run.json -> {0} (verdict={1}, exit={2})" -f $runJson, $verdict, $code)
 }
 
+
+function Send-Alert([string]$Level,[string]$Title,[string]$Message,[string]$Fix='') {
+    try { & (Join-Path $repo 'scripts\rth-alert.ps1') -Level $Level -Title $Title -Message $Message -Fix $Fix }
+    catch { Say ("alert failed: {0}" -f $_.Exception.Message) }
+}
+
 Say "=== RTH $Phase launcher ==="
 Say ("local now   : {0}" -f $started.ToString('yyyy-MM-dd HH:mm:ss zzz'))
 $etNow = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId($started, 'Eastern Standard Time')
@@ -88,7 +94,9 @@ if ($etNow.Hour -lt 16 -or ($etNow.Hour -eq 16 -and $etNow.Minute -lt 15)) {
 if ($refusals.Count -gt 0) {
     Say '--- REFUSING TO START ---'
     foreach ($x in $refusals) { Say ("  refusal: {0}" -f $x) }
-    Write-RunJson 3 'refused'; exit 3
+    Write-RunJson 3 'refused'
+    Send-Alert 'FAIL' "$Phase run REFUSED" ($refusals -join '; ') 'Fix the precondition, then: schtasks /run /tn "UCT RTH Close"'
+    exit 3
 }
 
 $promptPath = Join-Path $repo $PromptFile
@@ -135,4 +143,14 @@ try {
 
 Say ("--- claude exited {0} ---" -f $code)
 Write-RunJson $code $(if ($code -eq 0) { 'completed' } else { 'failed' })
+
+$final = Join-Path $repo 'docs\runbooks\monday-rth-results\FINAL-REPORT.md'
+if (Test-Path $final) {
+    Send-Alert $(if ($code -eq 0) { 'OK' } else { 'WARN' }) "$Phase run FINISHED - report ready" `
+        ("exit={0}. Read: {1}" -f $code, $final) ("notepad `"{0}`"" -f $final)
+} else {
+    Send-Alert 'WARN' "$Phase run FINISHED - NO REPORT" `
+        ("exit={0} but FINAL-REPORT.md was not written. Check {1}" -f $code, $log) `
+        ("type `"{0}`"" -f $log)
+}
 exit $code
