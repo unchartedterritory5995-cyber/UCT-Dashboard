@@ -12,16 +12,17 @@ function bgFor(sym) {
   return `hsl(${h} 32% 26%)`
 }
 
-export default function CompanyLogo({ sym, size = 38, round = false, name = null, alt = null }) {
+export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null }) {
   const [failed, setFailed] = useState(false)
   const [retry, setRetry] = useState(0)   // bumped to re-fetch (cache-busted) while a cold logo resolves
   const timerRef = useRef(null)
   const s = (sym || '').toUpperCase()
   const px = `${size}px`
   const rc = round ? ` ${styles.round}` : ''
+  const tc = tile ? ` ${styles.tile}` : ''   // uniform rounded-square tile (contain + hairline) so mismatched logo shapes read as one system
   if (failed || !s) {
     return (
-      <span className={`${styles.mono}${rc}`} aria-label={`${s} logo`}
+      <span className={`${styles.mono}${rc}${tc}`} aria-label={`${s} logo`}
             style={{ width: px, height: px, background: bgFor(s), fontSize: size * 0.4 }}>
         {s.slice(0, 1) || '?'}
       </span>
@@ -50,7 +51,7 @@ export default function CompanyLogo({ sym, size = 38, round = false, name = null
   if (retry) q.push(`_r=${retry}`)   // cache-bust the 60s placeholder so the retry re-hits the server
   const src = `/api/ticker-logo/${s}?${q.join('&')}`
   return (
-    <span className={`${styles.wrap}${rc}`} style={{ width: px, height: px }}>
+    <span className={`${styles.wrap}${rc}${tc}`} style={{ width: px, height: px }}>
       <img className={styles.img} src={src} alt={`${s} logo`}
            loading="lazy" onError={() => setFailed(true)} onLoad={handleLoad} />
     </span>

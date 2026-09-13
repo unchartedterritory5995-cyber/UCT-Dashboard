@@ -43,40 +43,46 @@ function mergeMineFlagIntoMonthDay(monthDay, mySets, activeSources) {
 }
 
 // ── MonthGrid cell ─────────────────────────────────────────────────────────
+// A month cell is ~1/5 the page width, so it can't carry the week view's big
+// logo+ticker rows. Instead each timing band keeps the week's gold/blue header
+// but renders a compact wrapped grid of small logo tiles (click → day drawer
+// for the full list). This stays tidy even on heavy earnings days.
 
-// One timing band (BMO or AMC) inside a month cell.
-function TimingBand({ label, icon, syms, mineSyms }) {
-  const MAX_LOGOS = 5
-  const shown = syms.slice(0, MAX_LOGOS)
-  const overflow = syms.length - MAX_LOGOS
+const MONTH_MAX_PER_TIMING = 8   // compact logo tiles; overflow collapses to "+N"
+
+function MonthTimingGroup({ label, icon, hdClass, syms, mineSyms }) {
+  const shown = syms.slice(0, MONTH_MAX_PER_TIMING)
+  const overflow = syms.length - MONTH_MAX_PER_TIMING
   return (
-    <div className={styles.gband}>
-      <span className={styles.gbandLbl}>
-        <span className={styles.gbandIcon} aria-hidden="true">{icon}</span>{label}
-      </span>
+    <div className={styles.mband}>
+      <div className={`${styles.mbandHd} ${hdClass}`}>
+        <span aria-hidden="true">{icon}</span> {label}
+      </div>
       {shown.length ? (
-        <div className={styles.glogos}>
+        <div className={styles.mlogos}>
           {shown.map(s => (
-            <span key={s} className={mineSyms.has(s) ? styles.mineRing : ''}>
-              <CompanyLogo sym={s} size={18} />
+            <span key={s} className={mineSyms.has(s) ? styles.mineTile : undefined} title={s}>
+              <CompanyLogo sym={s} size={22} tile />
             </span>
           ))}
-          {overflow > 0 && <span className={styles.gmore}>+{overflow}</span>}
+          {overflow > 0 && <span className={styles.mmoreChip}>+{overflow}</span>}
         </div>
       ) : (
-        <span className={styles.gbandEmpty}>—</span>
+        <div className={styles.mbandEmpty}>—</div>
       )}
     </div>
   )
 }
 
 function MonthCell({ cell, onOpenDay }) {
+  const empty = cell.bmoSyms.length === 0 && cell.amcSyms.length === 0
   return (
     <div
       className={[
         styles.gcell,
         cell.isToday  ? styles.gcellToday : '',
         !cell.inMonth ? styles.gcellOff   : '',
+        empty && cell.inMonth ? styles.gcellEmpty : '',
       ].join(' ')}
       onClick={() => cell.inMonth && onOpenDay(cell.ds)}
     >
@@ -84,9 +90,17 @@ function MonthCell({ cell, onOpenDay }) {
         {cell.dayNum}
         {cell.hasMacro && <span className={styles.macroStar}> ★</span>}
       </div>
-      <TimingBand label="BMO" icon="☀" syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
-      <div className={styles.gbandDivider} />
-      <TimingBand label="AMC" icon="🌙" syms={cell.amcSyms} mineSyms={cell.mineSyms} />
+      {empty ? (
+        <div className={styles.mempty}>
+          <span className={styles.wemptyDot} aria-hidden="true" />
+          No earnings
+        </div>
+      ) : (
+        <div className={styles.mtimings}>
+          <MonthTimingGroup label="BMO" icon="☀" hdClass={styles.bmoHd} syms={cell.bmoSyms} mineSyms={cell.mineSyms} />
+          <MonthTimingGroup label="AMC" icon="🌙" hdClass={styles.amcHd} syms={cell.amcSyms} mineSyms={cell.mineSyms} />
+        </div>
+      )}
     </div>
   )
 }

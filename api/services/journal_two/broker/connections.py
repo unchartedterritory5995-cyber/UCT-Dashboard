@@ -1,0 +1,454 @@
+"""Broker-connection persistence + SnapTrade↔j2_account mapping.
+
+This module is the DB layer for broker sync. It is provider-agnostic and
+synchronous (testable against an in-memory SQLite). The SnapTrade network
+calls live in `snaptrade_client`; the async orchestration that ties them
+together lives in `sync` / the router.
+
+Tables: j2_broker_users (one SnapTrade identity per UCT user, encrypted
+secret) and j2_broker_accounts (each connected brokerage account mapped
+1:1 to a j2_accounts row).
+"""
+
+from __future__ import annotations
+
+import sqlite3
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from api.services.auth_db import get_connection
+from api.services import crypto_box
+from api.services.journal_two import accounts as accounts_service
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ── Broker user (SnapTrade identity) ─────────────────────────────────────────
+
+def save_broker_user(
+    user_id: str,
+    snaptrade_user_id: str,
+    user_secret: str,
+    conn: sqlite3.Connection | None = None,
+    *,
+    record_consent: bool = True,
+) -> None:
+    """Upsert the user's SnapTrade identity, encrypting the secret at rest.
+    Sets consent_at on first save (or when record_consent and currently null)."""
+    enc = crypto_box.encrypt(user_secret)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        now = _now_iso()
+        existing = conn.execute(
+            "SELECT user_id, consent_at FROM j2_broker_users WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        if existing is None:
+            conn.execute(
+                """
+                INSERT INTO j2_broker_users
+                    (user_id, snaptrade_user_id, user_secret_enc, consent_at,
+                     created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (user_id, snaptrade_user_id, enc,
+                 now if record_consent else None, now, now),
+            )
+        else:
+            consent = existing["consent_at"]
+            if record_consent and not consent:
+                consent = now
+            conn.execute(
+                """
+                UPDATE j2_broker_users
+                   SET snaptrade_user_id = ?, user_secret_enc = ?,
+                       consent_at = ?, updated_at = ?
+                 WHERE user_id = ?
+                """,
+                (snaptrade_user_id, enc, consent, now, user_id),
+            )
+        conn.commit()
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_broker_user(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Return {snaptradeUserId, userSecret, consentAt} with the secret
+    DECRYPTED, or None if the user has no SnapTrade identity.
+
+    Raises crypto_box.CryptoBoxError if the stored secret cannot be
+    decrypted (encryption key lost/rotated) — caller should mark the
+    connection broken and prompt reconnect, not crash."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_broker_users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        secret = crypto_box.decrypt(row["user_secret_enc"])
+        return {
+            "userId": row["user_id"],
+            "snaptradeUserId": row["snaptrade_user_id"],
+            "userSecret": secret,
+            "consentAt": row["consent_at"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def has_broker_user(user_id: str, conn: sqlite3.Connection | None = None) -> bool:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        return conn.execute(
+            "SELECT 1 FROM j2_broker_users WHERE user_id = ?", (user_id,)
+        ).fetchone() is not None
+    finally:
+        if owned:
+            conn.close()
+
+
+def delete_broker_user(user_id: str, conn: sqlite3.Connection | None = None) -> None:
+    """Remove the SnapTrade identity + every broker-account mapping + the
+    raw activity ledger for this user. Does NOT delete imported trades —
+    that's a separate, explicit choice in the disconnect flow."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute("BEGIN")
+        conn.execute("DELETE FROM j2_broker_accounts WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM j2_broker_activities WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM j2_broker_users WHERE user_id = ?", (user_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── SnapTrade account → our fields ───────────────────────────────────────────
+
+def _mask_number(raw: Any) -> str | None:
+    """Keep only the last 4 chars of an account number. SnapTrade may
+    already mask it; we mask again defensively so we never store a full
+    account number."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    tail = s[-4:]
+    return f"••{tail}"
+
+
+def summarize_account(raw: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a raw SnapTrade account dict into the fields we persist.
+    Defensive about field names across SDK versions."""
+    institution = raw.get("institution_name") or raw.get("brokerage")
+    auth = raw.get("brokerage_authorization")
+    if not institution and isinstance(auth, dict):
+        # Connection object can carry the brokerage name nested.
+        brk = auth.get("brokerage")
+        if isinstance(brk, dict):
+            institution = brk.get("name") or brk.get("display_name")
+        institution = institution or auth.get("name")
+    # balance/currency may be nested under balance/total
+    currency = None
+    bal = raw.get("balance")
+    if isinstance(bal, dict):
+        cur = bal.get("total") or {}
+        if isinstance(cur, dict):
+            currency = cur.get("currency")
+    meta = raw.get("meta") if isinstance(raw.get("meta"), dict) else {}
+    return {
+        "snaptrade_account_id": raw.get("id"),
+        "brokerage_name": institution or meta.get("brokerage_name"),
+        "account_number_masked": _mask_number(raw.get("number")),
+        "account_type": raw.get("raw_type") or raw.get("type") or meta.get("type"),
+        "currency": currency,
+        "name": raw.get("name") or institution or "Brokerage account",
+    }
+
+
+# ── Broker account mapping ───────────────────────────────────────────────────
+
+_BROKER_COLORS = [
+    "blue", "purple", "teal", "magenta", "orange", "lime",
+    "cyan", "pink", "slate", "sky", "emerald", "amber",
+]
+
+
+def _next_color(user_id: str, conn: sqlite3.Connection) -> str:
+    used = {
+        r["color"]
+        for r in conn.execute(
+            "SELECT color FROM j2_accounts WHERE user_id = ?", (user_id,)
+        ).fetchall()
+    }
+    for c in _BROKER_COLORS:
+        if c not in used:
+            return c
+    return "slate"
+
+
+def list_broker_accounts(
+    user_id: str, conn: sqlite3.Connection | None = None
+) -> list[dict[str, Any]]:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_broker_accounts WHERE user_id = ? ORDER BY created_at ASC",
+            (user_id,),
+        ).fetchall()
+        return [_row_to_broker_account(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_broker_account(
+    user_id: str, broker_account_id: str, conn: sqlite3.Connection | None = None
+) -> dict[str, Any] | None:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_broker_accounts WHERE id = ? AND user_id = ?",
+            (broker_account_id, user_id),
+        ).fetchone()
+        return _row_to_broker_account(row) if row else None
+    finally:
+        if owned:
+            conn.close()
+
+
+def map_snaptrade_account(
+    user_id: str,
+    raw_account: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+    *,
+    starting_balance: float = 1.0,
+) -> dict[str, Any]:
+    """Ensure a j2_broker_accounts row exists for this SnapTrade account,
+    creating a matching j2_account (balance_source='broker') the first
+    time. Idempotent on (user_id, snaptrade_account_id). Returns the
+    broker-account dict.
+
+    `starting_balance` seeds the new j2_account; for broker accounts the
+    real equity comes from the balance sync and the resolver prefers it,
+    so this is only a placeholder until the first balance pull."""
+    summary = summarize_account(raw_account)
+    snap_id = summary["snaptrade_account_id"]
+    if not snap_id:
+        raise ValueError("SnapTrade account missing id")
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT * FROM j2_broker_accounts WHERE user_id = ? AND snaptrade_account_id = ?",
+            (user_id, snap_id),
+        ).fetchone()
+        if existing:
+            # Refresh descriptive fields (broker may have updated them).
+            conn.execute(
+                """
+                UPDATE j2_broker_accounts
+                   SET brokerage_name = ?, account_number_masked = ?,
+                       account_type = ?, currency = ?, updated_at = ?
+                 WHERE id = ?
+                """,
+                (summary["brokerage_name"], summary["account_number_masked"],
+                 summary["account_type"], summary["currency"], _now_iso(),
+                 existing["id"]),
+            )
+            conn.commit()
+            return _row_to_broker_account(
+                conn.execute("SELECT * FROM j2_broker_accounts WHERE id = ?",
+                             (existing["id"],)).fetchone()
+            )
+
+        # New mapping → create a dedicated j2_account.
+        acct_name = _unique_account_name(user_id, summary, conn)
+        j2 = accounts_service.create_account(
+            user_id,
+            {
+                "name": acct_name,
+                "color": _next_color(user_id, conn),
+                "broker": summary["brokerage_name"] or "Brokerage",
+                "startingBalance": float(starting_balance),
+            },
+            conn=conn,
+        )
+        # Mark it broker-sourced so the balance resolver uses real equity.
+        conn.execute(
+            "UPDATE j2_accounts SET balance_source = 'broker', updated_at = ? WHERE id = ? AND user_id = ?",
+            (_now_iso(), j2["id"], user_id),
+        )
+
+        new_id = str(uuid.uuid4())
+        now = _now_iso()
+        conn.execute(
+            """
+            INSERT INTO j2_broker_accounts
+                (id, user_id, snaptrade_account_id, brokerage_name,
+                 account_number_masked, account_type, currency, j2_account_id,
+                 sync_enabled, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'active', ?, ?)
+            """,
+            (new_id, user_id, snap_id, summary["brokerage_name"],
+             summary["account_number_masked"], summary["account_type"],
+             summary["currency"], j2["id"], now, now),
+        )
+        conn.commit()
+        return _row_to_broker_account(
+            conn.execute("SELECT * FROM j2_broker_accounts WHERE id = ?", (new_id,)).fetchone()
+        )
+    finally:
+        if owned:
+            conn.close()
+
+
+def _unique_account_name(user_id: str, summary: dict, conn: sqlite3.Connection) -> str:
+    base = summary["brokerage_name"] or "Brokerage"
+    masked = summary["account_number_masked"]
+    name = f"{base} {masked}".strip() if masked else base
+    name = name[:60]
+    # Disambiguate collisions (e.g. two IRAs at the same broker).
+    existing = {
+        r["name"]
+        for r in conn.execute(
+            "SELECT name FROM j2_accounts WHERE user_id = ?", (user_id,)
+        ).fetchall()
+    }
+    if name not in existing:
+        return name
+    for i in range(2, 100):
+        candidate = f"{name} ({i})"[:60]
+        if candidate not in existing:
+            return candidate
+    return f"{name} {uuid.uuid4().hex[:4]}"[:60]
+
+
+# ── Sync-state mutations ─────────────────────────────────────────────────────
+
+def set_sync_enabled(
+    user_id: str, broker_account_id: str, enabled: bool,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    return _update_account_fields(
+        user_id, broker_account_id, {"sync_enabled": 1 if enabled else 0}, conn
+    )
+
+
+def set_status(
+    user_id: str, broker_account_id: str, status: str,
+    conn: sqlite3.Connection | None = None, *, error: str | None = None,
+) -> bool:
+    if status not in ("active", "broken", "disabled"):
+        raise ValueError(f"invalid status {status!r}")
+    return _update_account_fields(
+        user_id, broker_account_id,
+        {"status": status, "last_error": error}, conn,
+    )
+
+
+def update_cursor(
+    user_id: str, broker_account_id: str, cursor: str | None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    return _update_account_fields(
+        user_id, broker_account_id, {"activities_cursor": cursor}, conn
+    )
+
+
+def record_sync_result(
+    user_id: str, broker_account_id: str, *, ok: bool, error: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    return _update_account_fields(
+        user_id, broker_account_id,
+        {
+            "last_sync_at": _now_iso(),
+            "last_sync_status": "ok" if ok else "error",
+            "last_error": None if ok else error,
+        },
+        conn,
+    )
+
+
+def _update_account_fields(
+    user_id: str, broker_account_id: str, fields: dict[str, Any],
+    conn: sqlite3.Connection | None,
+) -> bool:
+    if not fields:
+        return False
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        params = list(fields.values()) + [_now_iso(), broker_account_id, user_id]
+        cur = conn.execute(
+            f"UPDATE j2_broker_accounts SET {sets}, updated_at = ? "
+            f"WHERE id = ? AND user_id = ?",
+            params,
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def delete_broker_account(
+    user_id: str, broker_account_id: str, conn: sqlite3.Connection | None = None
+) -> bool:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            "DELETE FROM j2_broker_accounts WHERE id = ? AND user_id = ?",
+            (broker_account_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def _row_to_broker_account(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    return {
+        "id": row["id"],
+        "userId": row["user_id"],
+        "snaptradeAccountId": row["snaptrade_account_id"],
+        "brokerageName": row["brokerage_name"],
+        "accountNumberMasked": row["account_number_masked"],
+        "accountType": row["account_type"],
+        "currency": row["currency"],
+        "j2AccountId": row["j2_account_id"],
+        "syncEnabled": bool(row["sync_enabled"]),
+        "status": row["status"],
+        "activitiesCursor": row["activities_cursor"],
+        "lastSyncAt": row["last_sync_at"],
+        "lastSyncStatus": row["last_sync_status"],
+        "lastError": row["last_error"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }

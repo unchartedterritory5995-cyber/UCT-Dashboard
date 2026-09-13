@@ -115,3 +115,43 @@ def test_52w_high_breakout_bonus():
     base = score(_c(near_52w_high=False))
     breakout = score(_c(near_52w_high=True))
     assert breakout - base >= 8
+
+
+# ── Regional-bank earnings de-weight ─────────────────────────────────────
+def test_regional_bank_earnings_penalized():
+    """A small regional bank on earnings scores below an identical non-bank
+    earnings mover — the mid-July bank-season noise gets pushed down."""
+    bank = score(_c(earnings_just_reported=True, industry="Banks—Regional",
+                    market_cap=2e9))
+    non_bank = score(_c(earnings_just_reported=True, industry="Software—Application",
+                        market_cap=2e9))
+    assert (non_bank - bank) >= 15
+
+
+def test_money_center_bank_not_penalized():
+    """A money-center giant (cap above the floor) keeps its full earnings score
+    — we only de-weight small/mid regionals."""
+    giant = score(_c(earnings_just_reported=True, industry="Banks—Diversified",
+                     market_cap=6e11))            # ~$600B, above $50B floor
+    non_bank = score(_c(earnings_just_reported=True, industry="Software—Application",
+                        market_cap=6e11))
+    assert giant == pytest.approx(non_bank)
+
+
+def test_bank_not_penalized_without_earnings():
+    """A regional bank gapping on non-earnings news is a legit catalyst and
+    keeps its full score."""
+    news_mover = score(_c(earnings_just_reported=False, industry="Banks—Regional",
+                          market_cap=2e9))
+    non_bank = score(_c(earnings_just_reported=False, industry="Software—Application",
+                        market_cap=2e9))
+    assert news_mover == pytest.approx(non_bank)
+
+
+def test_bank_deweight_env_tunable(monkeypatch):
+    monkeypatch.setenv("CATALYST_SCORE_W_REGIONAL_BANK", "-40")
+    bank = score(_c(earnings_just_reported=True, industry="Banks—Regional",
+                    market_cap=2e9))
+    non_bank = score(_c(earnings_just_reported=True, industry="Software—Application",
+                        market_cap=2e9))
+    assert (non_bank - bank) == pytest.approx(40)

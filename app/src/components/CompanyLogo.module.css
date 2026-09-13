@@ -6,3 +6,18 @@
         border-radius: 9px; color: #cfd6e0; font-weight: 800; flex: none; }
 /* Circular variant (Model Book gallery) — coin look with a subtle ring. */
 .round { border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1); }
+
+/* Tile variant (calendar week/month) — every logo becomes a uniform rounded
+   white square so circular + square + monogram marks all share one outer shape.
+   `contain` shows the full logo (no crop) inside a little padding. */
+.tile {
+  border-radius: 24%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.tile.wrap { background: #fff; }
+.tile .img {
+  object-fit: contain;
+  padding: 11%;
+  box-sizing: border-box;
+  background: #fff;
+}

@@ -21,6 +21,9 @@
   --cal-green: var(--gain);
   --cal-red: var(--loss);
   --cal-blue: var(--info);
+  /* Uniform text size for everything inside the month grid (weekday header,
+     day number, BMO/AMC labels, icon, empty dash, +N overflow). */
+  --cal-month-fs: 11px;
 }
 
 /* ── Task 9: EarningsCard ────────────────────────────────────────────────── */
@@ -515,6 +518,15 @@
   text-align: center;
 }
 
+/* Weekday header labels (Mon/Tue/…) — match the cell label tier for uniformity. */
+.scolLbl {
+  font-size: var(--cal-month-fs);
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--cal-muted);
+  text-transform: uppercase;
+}
+
 .mgrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -525,9 +537,9 @@
 .gcell {
   background: var(--cal-panel);
   border: 1px solid var(--cal-line);
-  border-radius: 10px;
-  padding: 7px 8px;
-  min-height: 104px;
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 132px;
   cursor: pointer;
   transition: border-color 0.12s;
   display: flex;
@@ -540,17 +552,114 @@
 
 .gcellToday {
   border-color: rgba(201, 168, 76, 0.55);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.08), var(--cal-panel));
+}
+
+/* Filled gold "today" chip — instant where-am-I anchor in a dense month. */
+.gcellToday .dn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  background: var(--cal-gold);
+  color: #161616;
+  padding: 1px 9px;
+  border-radius: 999px;
+}
+
+.gcellToday .macroStar {
+  color: #161616;
 }
 
 .gcellOff {
   opacity: 0.35;
 }
 
+/* Empty in-month days recede (page bg instead of raised panel) so the eye goes
+   straight to days that actually have reporters. Date stays fully legible. */
+.gcellEmpty {
+  background: var(--cal-bg);
+  border-style: dashed;
+}
+
 .dn {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 800;
-  color: var(--cal-dim);
-  margin-bottom: 4px;
+  color: var(--cal-gold);
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+
+/* ── Month cell content — keeps the week view's gold/blue BMO·AMC headers but
+   renders compact wrapped logo tiles (no per-row ticker text) so a narrow month
+   cell stays tidy. BMO band stacks above AMC band, each using the full width. ── */
+.mtimings {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.mband {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Colored timing header (.bmoHd gold / .amcHd blue applied alongside). */
+.mbandHd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--cal-month-fs);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.mlogos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Mine-set highlight — gold ring hugging the rounded logo tile. */
+.mineTile {
+  display: inline-flex;
+  border-radius: 28%;
+  box-shadow: 0 0 0 1.5px var(--cal-gold);
+}
+
+.mmoreChip {
+  font-size: var(--cal-month-fs);
+  font-weight: 700;
+  color: var(--cal-muted);
+  align-self: center;
+  padding: 0 2px;
+}
+
+.mbandEmpty {
+  font-size: var(--cal-month-fs);
+  font-weight: 700;
+  color: var(--cal-line2);
+  line-height: 1;
+}
+
+.mempty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-height: 80px;
+  color: var(--cal-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  opacity: 0.7;
 }
 
 /* ── BMO / AMC split bands ─────────────────────────────────────────────── */
@@ -568,7 +677,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 8px;
+  font-size: var(--cal-month-fs);
   font-weight: 800;
   letter-spacing: 0.6px;
   color: var(--cal-muted);
@@ -576,7 +685,7 @@
 }
 
 .gbandIcon {
-  font-size: 9px;
+  font-size: var(--cal-month-fs);
   line-height: 1;
   filter: saturate(0.85);
 }
@@ -588,7 +697,7 @@
 }
 
 .gbandEmpty {
-  font-size: 11px;
+  font-size: var(--cal-month-fs);
   font-weight: 700;
   color: var(--cal-line2);
   line-height: 1;
@@ -597,7 +706,7 @@
 .glogos {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
 }
 
@@ -608,7 +717,7 @@
 }
 
 .gmore {
-  font-size: 8px;
+  font-size: var(--cal-month-fs);
   color: var(--cal-muted);
   font-weight: 700;
   padding: 1px 3px;

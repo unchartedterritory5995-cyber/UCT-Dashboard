@@ -14,6 +14,11 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
   const { mutate } = useSWRConfig()
   const others = allAccounts.filter((a) => a.id !== account.id)
   const [moveTo, setMoveTo] = useState(others[0]?.id || '')
+  // When blocked, the user picks how to resolve it: 'move' (relocate trades to
+  // another account, then delete) or 'purge' (delete the account AND all its
+  // trades/positions outright). Purge requires an explicit confirm checkbox.
+  const [mode, setMode] = useState('move')
+  const [purgeConfirmed, setPurgeConfirmed] = useState(false)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -27,12 +32,13 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
     (conflict.openPositionCount || 0) > 0 ||
     (conflict.tradeCount || 0) > 0
   )
+  const isPurge = isBlocked && mode === 'purge'
 
   const doDelete = async () => {
     setError(null)
     setBusy(true)
     try {
-      if (isBlocked) {
+      if (isBlocked && mode === 'move') {
         if (!moveTo) {
           setError('Pick an account to move trades to.')
           setBusy(false)
@@ -48,11 +54,11 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
           throw new Error(body.detail || `Move failed: ${moveRes.status}`)
         }
       }
-      // Delete
-      const delRes = await fetch(`/api/j2/accounts/${account.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
+      // Delete (purge=true when wiping the account's trades along with it)
+      const delRes = await fetch(
+        `/api/j2/accounts/${account.id}${isPurge ? '?purge=true' : ''}`,
+        { method: 'DELETE', credentials: 'include' },
+      )
       if (!delRes.ok) {
         const body = await delRes.json().catch(() => ({}))
         throw new Error(body.detail?.message || body.detail || `${delRes.status}`)
@@ -66,6 +72,15 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
       setBusy(false)
     }
   }
+
+  const primaryDisabled = busy
+    || (isBlocked && mode === 'move' && !moveTo)
+    || (isPurge && !purgeConfirmed)
+
+  let primaryLabel = 'Delete Account'
+  if (busy) primaryLabel = 'Working…'
+  else if (isPurge) primaryLabel = 'Delete Everything'
+  else if (isBlocked) primaryLabel = 'Move + Delete'
 
   return (
     <div className={styles.backdrop} onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}>
@@ -90,24 +105,67 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
                 </strong>
                 {' are in this account.'}
               </p>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
-                Move them to another account first, then this account will be deleted.
-              </p>
-              <label className={styles.field}>
-                <span className={styles.label}>Move all to</span>
-                <select
-                  value={moveTo}
-                  onChange={(e) => setMoveTo(e.target.value)}
-                  className={styles.select}
-                >
-                  <option value="" disabled>— pick an account —</option>
-                  {others.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      ● {a.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+
+              <div role="radiogroup" aria-label="How to delete this account" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', fontSize: 13 }}>
+                  <input
+                    type="radio"
+                    name="deleteMode"
+                    checked={mode === 'move'}
+                    onChange={() => setMode('move')}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>
+                    <strong>Move trades, then delete</strong>
+                    <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>
+                      Relocate everything to another account first.
+                    </span>
+                  </span>
+                </label>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', fontSize: 13 }}>
+                  <input
+                    type="radio"
+                    name="deleteMode"
+                    checked={mode === 'purge'}
+                    onChange={() => setMode('purge')}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>
+                    <strong style={{ color: 'var(--loss)' }}>Delete the account and all its trades</strong>
+                    <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>
+                      Permanently remove this account along with its {conflict.tradeCount} trades and {conflict.openPositionCount} positions.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {mode === 'move' ? (
+                <label className={styles.field}>
+                  <span className={styles.label}>Move all to</span>
+                  <select
+                    value={moveTo}
+                    onChange={(e) => setMoveTo(e.target.value)}
+                    className={styles.select}
+                  >
+                    <option value="" disabled>— pick an account —</option>
+                    {others.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        ● {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', fontSize: 12, color: 'var(--loss)' }}>
+                  <input
+                    type="checkbox"
+                    checked={purgeConfirmed}
+                    onChange={(e) => setPurgeConfirmed(e.target.checked)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>This cannot be undone. Delete "{account.name}" and all of its trades permanently.</span>
+                </label>
+              )}
             </>
           ) : (
             <p style={{ margin: 0, fontSize: 13 }}>
@@ -127,9 +185,9 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
             className={styles.primary}
             style={{ background: 'var(--loss)', color: '#fff' }}
             onClick={doDelete}
-            disabled={busy || (isBlocked && !moveTo)}
+            disabled={primaryDisabled}
           >
-            {busy ? 'Working…' : (isBlocked ? 'Move + Delete' : 'Delete Account')}
+            {primaryLabel}
           </button>
         </div>
       </div>

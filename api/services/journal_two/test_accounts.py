@@ -313,6 +313,81 @@ def test_cannot_delete_only_account(db_conn):
         delete_account("u1", default["id"], conn=db_conn)
 
 
+def test_purge_deletes_account_with_trades_and_positions(db_conn):
+    """purge=True wipes the account's trades + positions and deletes it,
+    without requiring a move."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, create_account, delete_account,
+        get_account,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+    get_or_migrate_default_account("u1", conn=db_conn)
+    paper = create_account("u1", {
+        "name": "Paper", "color": "purple", "startingBalance": 5_000,
+    }, conn=db_conn)
+    _add_trade(db_conn, "u1", account_id=paper["id"])
+    _add_trade(db_conn, "u1", account_id=paper["id"])
+    _add_position(db_conn, "u1", account_id=paper["id"])
+
+    assert delete_account("u1", paper["id"], conn=db_conn, purge=True) is True
+    assert get_account("u1", paper["id"], conn=db_conn) is None
+    # Its trades + positions are gone too.
+    n_tr = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_trades WHERE account_id = ?",
+        (paper["id"],),
+    ).fetchone()["n"]
+    n_pos = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_positions WHERE account_id = ?",
+        (paper["id"],),
+    ).fetchone()["n"]
+    assert n_tr == 0 and n_pos == 0
+
+
+def test_purge_only_touches_target_account(db_conn):
+    """Purging one account leaves another account's data intact."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, create_account, delete_account,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+    default = get_or_migrate_default_account("u1", conn=db_conn)
+    paper = create_account("u1", {
+        "name": "Paper", "color": "purple", "startingBalance": 5_000,
+    }, conn=db_conn)
+    _add_trade(db_conn, "u1", account_id=default["id"])
+    _add_trade(db_conn, "u1", account_id=paper["id"])
+
+    delete_account("u1", paper["id"], conn=db_conn, purge=True)
+
+    kept = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_trades WHERE account_id = ?",
+        (default["id"],),
+    ).fetchone()["n"]
+    assert kept == 1
+
+
+def test_cannot_purge_only_account(db_conn):
+    """The last remaining account can't be purged either — guard runs
+    before any data is wiped."""
+    from api.services.journal_two.accounts import (
+        get_or_migrate_default_account, delete_account, AccountConflictError,
+    )
+    _add_user(db_conn, "u1", "u1@x.com")
+    _add_settings(db_conn, "u1")
+    default = get_or_migrate_default_account("u1", conn=db_conn)
+    _add_trade(db_conn, "u1", account_id=default["id"])
+
+    with pytest.raises(AccountConflictError):
+        delete_account("u1", default["id"], conn=db_conn, purge=True)
+    # Data must survive a refused purge.
+    n_tr = db_conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_trades WHERE account_id = ?",
+        (default["id"],),
+    ).fetchone()["n"]
+    assert n_tr == 1
+
+
 def test_user_isolation(db_conn):
     """User A can't see / update / delete user B's accounts."""
     from api.services.journal_two.accounts import (

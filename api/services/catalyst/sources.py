@@ -167,6 +167,7 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
             "vol_x": vol_x,
             "market_cap": m.get("market_cap"),
             "sector": m.get("sector"),
+            "industry": m.get("industry"),
             "change_pct": float(change_pct) if change_pct is not None else None,
             "open_gap_pct": open_gap_pct,  # frozen at 9:30 ET, None pre-market
             # Raw volumes carried through for the quality gate (dollar-volume
@@ -722,6 +723,7 @@ def collect_all() -> list[dict]:
             "avg_volume_30d": snap.get("avg_volume_30d"),
             "today_volume": snap.get("today_volume"),
             "sector": sector,
+            "industry": snap.get("industry"),
             "tweets": tweets,
             "rss": rss,
             "earnings_meta": em,

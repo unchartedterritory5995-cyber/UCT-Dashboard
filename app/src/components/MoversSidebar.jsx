@@ -2,7 +2,6 @@
 import { useMemo, useState } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import useBatchTweetCounts from '../hooks/useBatchTweetCounts'
-import useTapeFeed from '../hooks/useTapeFeed'
 import useTickerTweets from '../hooks/useTickerTweets'
 import { timeAgo } from '../utils/timeAgo'
 import TickerPopup from './TickerPopup'
@@ -14,7 +13,7 @@ import { prefetchBarOnIntent } from '../utils/prefetchBars'
 
 const fetcher = (url) => fetch(url).then((r) => r.json())
 
-// Master kill-switch for the tweet surfaces (icon + ON THE TAPE).
+// Master kill-switch for the tweet surfaces (per-row 🐦 icon + expand).
 // Default ON; set VITE_TWITTER_UI_ENABLED="0" to hide everything.
 const UI_ENABLED = (import.meta.env.VITE_TWITTER_UI_ENABLED ?? '1') !== '0'
 
@@ -74,7 +73,7 @@ function MoverSection({ label, items, positive, tweetCounts }) {
                 onFocus={() => prefetchBarOnIntent(item.sym, 'D')}
               >
                 <span className={styles.symWrap}>
-                  <CompanyLogo sym={item.sym} size={18} />
+                  <CompanyLogo sym={item.sym} size={18} tile />
                   <TickerPopup sym={item.sym}>
                     <span className={styles.sym}>{item.sym}</span>
                   </TickerPopup>
@@ -94,58 +93,6 @@ function MoverSection({ label, items, positive, tweetCounts }) {
                 )}
               </div>
               {isExpanded && <TweetExpand sym={item.sym} />}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function TapeSection() {
-  const { data: tape } = useTapeFeed({ hours: 12, limit: 15 })
-  const [expandedSym, setExpandedSym] = useState(null)
-  if (!tape || tape.length === 0) return null
-  return (
-    <div className={`${styles.section} ${styles.tapeSection}`}>
-      <div className={`${styles.sectionLabel} ${styles.tape}`}>
-        📰 ON THE TAPE
-      </div>
-      <div className={styles.rows}>
-        {tape.map((row) => {
-          const isExpanded = expandedSym === row.ticker
-          const sample = row.sample_tweet
-          return (
-            <div key={row.ticker} className={styles.rowGroup}>
-              <div className={styles.row}>
-                <span className={styles.symWrap}>
-                  <CompanyLogo sym={row.ticker} size={18} />
-                  <TickerPopup sym={row.ticker}>
-                    <span className={styles.sym}>{row.ticker}</span>
-                  </TickerPopup>
-                </span>
-                <span className={styles.tapeMeta}>
-                  {row.n_tweets}t · {timeAgo(row.latest_at)}
-                </span>
-                <button
-                  type="button"
-                  className={styles.birdBtn}
-                  onClick={() => setExpandedSym(isExpanded ? null : row.ticker)}
-                >
-                  🐦
-                </button>
-              </div>
-              {sample && !isExpanded && (
-                <a
-                  className={styles.tapePreview}
-                  href={sample.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  ▸ &quot;{sample.text.slice(0, 80)}{sample.text.length > 80 ? '…' : ''}&quot; — @{sample.author_handle}
-                </a>
-              )}
-              {isExpanded && <TweetExpand sym={row.ticker} />}
             </div>
           )
         })}
@@ -188,7 +135,6 @@ export default function MoversSidebar({ data: propData }) {
                 <MoverSection label="RIPPING" items={data.ripping ?? []} positive tweetCounts={tweetCounts} />
                 <MoverSection label="DRILLING" items={data.drilling ?? []} positive={false} tweetCounts={tweetCounts} />
               </div>
-              {UI_ENABLED && <TapeSection />}
             </div>
           )}
         </div>
