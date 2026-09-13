@@ -19,6 +19,20 @@
  * ever found wrong on production, the investigation has to start from the code
  * that was measured, not from code that moved underneath it.
  *
+ * ⚖️ AMENDED 2026-09-13 — ONE CHANGE MADE UNDER THE FREEZE, ON AN OWNER RULING.
+ * The freeze's reason was *"investigate from the measured code"*, and that
+ * investigation COMPLETED: widening the property rail to seven families found
+ * that the append-only merge was unreachable for any door this browser fired,
+ * with the mechanism traced to two lines — the ring-vouched rebase that ran
+ * before the diff was read, pre-send and again on the 409. The freeze protected
+ * exactly what it was meant to protect: nobody had moved that code, so the
+ * defect was found in the code the measurement was taken against.
+ *
+ * ⭐ So the freeze was AMENDED, not broken. `outboxDrain.js` gained
+ * `ringVouchedPlan` — one authority for "the ring vouched, now what" — and the
+ * three append CALL SITES below are untouched, which is what the freeze is
+ * actually about. The classifier and the settle are otherwise still frozen.
+ *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day the
  * seven-family × six-ordering table has zero INCONCLUSIVE rows, and this file
  * then asserts only that the frozen set is still correctly enumerated — an
@@ -97,6 +111,37 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
     const sc = read('app/src/pages/journal-2-0/lib/offline/serverChange.js')
     for (const shape of ['metadata-only', 'append-only', 'body-rewrite']) {
       expect(sc, `the ${shape} shape is part of what F5 must prove`).toContain(shape)
+    }
+  })
+
+  it('⛔⛔ an APPEND door records its revision and NEVER settles with local state', () => {
+    // ⭐ THE PROPERTY RAIL'S MATRIX DEPENDS ON THIS, so it is measured here
+    // rather than assumed there. `offlineWordsSurvive.property.test.jsx` clamps
+    // every append family to the records-only shape — a `settle-first` append
+    // row would model something the product cannot produce, and a rail that
+    // models an impossible shape proves nothing about a real one.
+    //
+    // ⛔ The claim: `settleMetadataRevision` — the ONLY path that hands `current`
+    // to `settleLandedSave` — belongs to the metadata doors. An append door calls
+    // `settleNoteWrite`, which records the revision and deliberately does not
+    // settle ("an editor-only optimisation that needs local state").
+    const editor = read('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx')
+    const settles = [...editor.matchAll(/settleMetadataRevision\(await update\(\{\s*(\w+)/g)]
+      .map((m) => m[1]).sort()
+    expect(settles, 'the settle-with-local-state path belongs to the metadata doors only')
+      .toEqual(['folderId', 'tags', 'ticker'])
+
+    const settleSrc = read('app/src/pages/journal-2-0/lib/offline/settleNoteWrite.js')
+    const code = settleSrc.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    expect(code, 'settleNoteWrite must RECORD, never settle — the append doors all route through it')
+      .not.toMatch(/settleLandedSave\s*\(/)
+
+    // …and no append call site reaches a settle by another route.
+    for (const [family, file] of FROZEN_CALLS.filter(([f]) => f.startsWith('append_'))) {
+      const src = read(file).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+      if (file.endsWith('NoteEditorPage.jsx')) continue   // the editor settles for its OWN save
+      expect(src, `${family} (${file}) must not settle with local state`)
+        .not.toMatch(/settleLandedSave\s*\(/)
     }
   })
 

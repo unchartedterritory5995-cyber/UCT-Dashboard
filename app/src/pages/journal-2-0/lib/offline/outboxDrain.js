@@ -146,6 +146,45 @@ async function settleBlocked(db, entry, error) {
  * member, a dropped write is not.
  */
 /**
+ * The ring vouched for this revision — now what? Q1 fix 3, owner ruling 2026-09-13.
+ *
+ * ONE AUTHORITY, TWO CALL SITES. This decision is taken twice — once BEFORE
+ * sending (an expired in-flight marker turned out to be ours) and once on a 409
+ * — and both used to answer it the same wrong way: rebase and resend the queued
+ * body. Two copies of a decision drift the day it changes, and this one just did.
+ *
+ * WHAT IT COST: "ours => rebase" ran before the diff was ever read, so when the
+ * server's change was an APPEND (a widget sent to the journal, a saved price, a
+ * PDF excerpt) the member's queued body was re-sent over it and the captured
+ * block was gone. The append-only merge existed and was UNREACHABLE for any door
+ * this browser fired, because a door we fired is always in the landed ring.
+ * Measured across seven families x six orderings: 24/24 metadata green, 0/18
+ * append.
+ *
+ * THE RING IS NOT WEAKENED. It still answers "we made this revision", which is
+ * what stops the spurious fork; it simply stops DECIDING before the diff is read.
+ *
+ * @returns plan 'merge'  - the server's only change was blocks it appended itself
+ *               'rebase' - metadata-only, or no evidence to classify with
+ *               'fork'   - the body was rewritten and appends cannot be proven
+ */
+function ringVouchedPlan(mine, noteRec) {
+  const base = lastKnownServerCopy(noteRec)
+  // NO EVIDENCE IS NOT BODY-REWRITE *HERE*. classifyServerChange answers
+  // BODY_REWRITE with no base, because for an UNVOUCHED revision "missing
+  // evidence is never a licence to merge". But the ring HAS vouched: we made
+  // this revision, so forking on absent evidence would manufacture the very
+  // "(conflicted copy)" the ring exists to prevent. With no base, behave exactly
+  // as this code did before the classification was hoisted above it.
+  if (!mine?.serverNote || !base) return { plan: 'rebase', base: null, shape: null }
+  const shape = classifyServerChange(mine.serverNote, base)
+  if (shape === APPEND_ONLY) return { plan: 'merge', base, shape }
+  if (shape === BODY_REWRITE) return { plan: 'fork', base, shape }
+  return { plan: 'rebase', base, shape }
+}
+
+
+/**
  * Move a queued entry onto a newer baseline WITHOUT touching its content.
  *
  * ⛔⛔ THE ENTRY'S WORDS ARE NOT NEGOTIABLE. Only `baseUpdatedAt` moves. This is
@@ -243,6 +282,9 @@ export async function drainOutbox(db, {
     // suppress a rebase in the next.
     let rebased = null
     let retriedRebase = false
+    // ⭐ Reported, so an operator reading the drain result can tell a plain
+    // rebase from a merge that carried the server's appended blocks back.
+    let appendMerged = false
     if (excludeNoteId && entry.noteId === excludeNoteId) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SKIPPED })
       continue
@@ -381,16 +423,40 @@ export async function drainOutbox(db, {
           continue
         }
         if (mine?.ours && mine.serverUpdatedAt) {
-          // ⭐⭐ OURS, BUT THE SERVER DOES NOT HAVE THESE WORDS ⇒ REBASE AND SEND.
+          // ⭐⭐ OURS, BUT THE SERVER DOES NOT HAVE THESE WORDS ⇒ BUILD ON IT.
           //
           // ⚰️ This branch is the fix for the door case, and its absence cost a
           // member their offline sentence: a folder change moved the revision,
           // the ring said "ours", and the entry was DELETED with its words
           // unsent. "Ours" tells us the revision is safe to build on — nobody
           // else wrote it — which is a reason to REBASE, never a reason to drop.
-          // eslint-disable-next-line no-await-in-loop
-          entry = await rebaseEntry(db, entry, mine.serverUpdatedAt)
-          rebased = mine.serverUpdatedAt
+          //
+          // ⛔⛔ AND *WHAT* TO BUILD DEPENDS ON THE DIFF, NOT ON THE RING.
+          // Rebasing unconditionally re-sent the queued body over a server copy
+          // that had grown its own appended block — the widget the member had
+          // just captured — and this path never 409s, so nothing downstream
+          // could catch it. `ringVouchedPlan` is the one authority; the 409
+          // handler below asks it the same question.
+          const ring = ringVouchedPlan(mine, noteRec)
+          if (ring.plan === 'merge') {
+            // eslint-disable-next-line no-await-in-loop
+            const mergedEntry = await mergeAppends(
+              db, entry, appendedServerNodes(mine.serverNote, ring.base),
+              mine.serverUpdatedAt, snapshotOfServerCopy(mine.serverNote, mine.serverUpdatedAt),
+            )
+            if (mergedEntry) {
+              entry = mergedEntry
+              rebased = mine.serverUpdatedAt
+              appendMerged = true
+            }
+          } else if (ring.plan === 'rebase') {
+            // eslint-disable-next-line no-await-in-loop
+            entry = await rebaseEntry(db, entry, mine.serverUpdatedAt)
+            rebased = mine.serverUpdatedAt
+          }
+          // ⛔ 'fork' rebases NOTHING and sends as it stands: the stale baseline
+          // earns a 409, and the 409 path preserves both copies. Forking here
+          // would duplicate that decision in a second place.
         }
       } catch {
         // ⛔ Unknown, not "not ours". Fall through and send; a 409 will ask again.
@@ -414,7 +480,17 @@ export async function drainOutbox(db, {
       const saved = await send(entry)
       // eslint-disable-next-line no-await-in-loop
       await settleSent(db, entry, saved)
-      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SENT })
+      results.push({
+        mutationId: entry.mutationId,
+        noteId: entry.noteId,
+        outcome: SENT,
+        // ⭐ A merge and a rebase are different events and an operator reading a
+        // drain result must be able to tell them apart: one carried the server's
+        // own appended blocks back onto the queued body, the other did not.
+        ...(appendMerged
+          ? { shape: APPEND_ONLY, reason: `the server's change was append-only — merged onto ${rebased} and sent` }
+          : {}),
+      })
     } catch (e) {
       if (e?.status === 409) {
         // ⛔⛔ THE TERMINAL GUARD: A 409 IS NOT PROOF SOMEBODY ELSE WROTE.
@@ -449,10 +525,54 @@ export async function drainOutbox(db, {
             })
             continue
           }
-          if (mine?.ours && mine.serverUpdatedAt && !retriedRebase) {
-            // ⭐⭐ OURS BUT DIFFERENT ⇒ REBASE AND RESEND ONCE. The 409 said the
-            // server moved; the ring says WE moved it; so the words are still
-            // owed and now have a baseline that can succeed.
+          // ⭐⭐ CLASSIFY BEFORE CHOOSING — Q1 fix 3, owner ruling 2026-09-13.
+          // The same question the pre-send path asks, asked through the same
+          // authority: `ringVouchedPlan`. Two copies of it is how the pre-send
+          // path and this one drifted into answering it identically wrong.
+          const ring = (mine?.ours && !retriedRebase)
+            ? ringVouchedPlan(mine, noteRec)
+            : { plan: null, base: null, shape: null }
+          if (mine?.serverUpdatedAt && ring.plan === 'merge') {
+            // ⭐ The server appended and we still owe it the member's words.
+            // Both survive: `mergeAppends` puts the server's blocks back onto
+            // the queued body before it goes out.
+            // eslint-disable-next-line no-await-in-loop
+            const mergedEntry = await mergeAppends(
+              db, entry, appendedServerNodes(mine.serverNote, ring.base),
+              mine.serverUpdatedAt, snapshotOfServerCopy(mine.serverNote, mine.serverUpdatedAt),
+            )
+            if (mergedEntry) {
+              entry = mergedEntry
+              retriedRebase = true
+              rebased = mine.serverUpdatedAt
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                const saved = await send(entry)
+                // eslint-disable-next-line no-await-in-loop
+                await settleSent(db, entry, saved)
+                results.push({
+                  mutationId: entry.mutationId,
+                  noteId: entry.noteId,
+                  outcome: SENT,
+                  reason: `409 on our own revision — the server's change was append-only, `
+                    + `merged onto ${rebased} and resent`,
+                })
+                continue
+              } catch (re) {
+                if (re?.status !== 409) {
+                  results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: KEPT, error: re })
+                  continue
+                }
+                // a second 409 ⇒ fall through and fork, preserving both copies
+              }
+            }
+          }
+          if (mine?.serverUpdatedAt && ring.plan === 'rebase') {
+            // ⭐⭐ OURS, AND THE SERVER'S CHANGE WAS NOT A BODY REWRITE ⇒ REBASE
+            // AND RESEND ONCE. The 409 said the server moved; the ring says WE
+            // moved it; so the words are still owed and now have a baseline that
+            // can succeed. This is byte-for-byte what every metadata door did
+            // before the classification was hoisted above it.
             // ⛔ ONCE. A rebase loop against a server that keeps moving would
             // spin the network; a second 409 falls through to the fork, which
             // preserves both copies.

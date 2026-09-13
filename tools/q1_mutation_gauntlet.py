@@ -282,6 +282,22 @@ MUTATIONS = [
          repl="export const OFFLINE_DEFAULT_ON = false",
          note="flipping it silently changes what an unset key means for every member"),
 
+    # ⛔⛔ Q1 FIX 3 — CLASSIFY BEFORE CHOOSING. The append-only merge existed and
+    # was UNREACHABLE for any door this browser fired: the landed ring vouched
+    # for the revision first and the drain rebased-and-resent the queued body
+    # over the server's own appended block. A widget sent to the journal, a saved
+    # price, a PDF excerpt — captured, confirmed, then gone when a queued edit
+    # drained. Measured 24/24 metadata green and 0/18 append before the fix.
+    # ⭐ The mutation is permanent BY OWNER RULING: this ordering is the whole
+    # fix, it is one line, and a future refactor that hoists the ring back above
+    # the classifier would restore the defect in silence.
+    dict(id="M25", guard="Q1 fix 3 — the ring does not decide before the diff is read",
+         file=f"{OFF}/outboxDrain.js",
+         find="  if (shape === APPEND_ONLY) return { plan: 'merge', base, shape }",
+         repl="  if (false && shape === APPEND_ONLY) return { plan: 'merge', base, shape }",
+         note="with the merge unreachable, every append family loses the block the "
+              "member just captured — and no metadata family notices"),
+
     # ══════════════════════════════════════════════════════════════════════
     # WAVE K — the runtime kill switch. K-R1 … K-R10.
     # ══════════════════════════════════════════════════════════════════════

@@ -151,12 +151,31 @@ function makeServer(startBody) {
 }
 
 /** The member typed online (it landed), went offline, typed more (it queued). */
-async function offlineWorkQueued(server) {
+async function offlineWorkQueued(server, { withBase = true } = {}) {
   server.state.body = doc(ONLINE)
   const base = server.state.updatedAt
   await putNoteWithIntent(db, {
     noteId: 'n1', title: 'note', subtitle: '', bodyJson: doc(BOTH),
     baseUpdatedAt: base, generation: 1, sessionId: 's1', localSavedAt: 5, dirty: 1,
+    // ⛔⛔ A DIRTY RECORD CARRIES THE LAST KNOWN SERVER COPY, and this fixture
+    // did not — a second way it was unfaithful, found 2026-09-13. The product
+    // sets it at the moment a record goes dirty:
+    //   useDurableNote.js:385 — `record.serverBase = record.dirty
+    //       ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase)) : null`
+    // Without it `lastKnownServerCopy` returns null, `classifyServerChange`
+    // answers BODY_REWRITE for everything ("missing evidence is never a licence
+    // to merge"), and no classification-based outcome can be observed AT ALL.
+    // ⭐ THE CONTROL THAT MAKES THIS A CORRECTION AND NOT A PASS: with the base
+    // present and the drain UNCHANGED, all eighteen append rows stayed RED —
+    // measured before the fix. The base alone changes nothing; the decision
+    // ORDER is the defect.
+    // ⛔ DERIVED FROM THE SERVER, NEVER TYPED. A hand-written base drifted from
+    // what the fake server actually returns — it carried `title: 'note'` where
+    // the server carries none — and `classifyServerChange` compares titles
+    // FIRST, so every metadata door read as BODY_REWRITE and four green rows
+    // went red. The base is the server's own copy at this instant, by
+    // construction, so the two cannot disagree.
+    serverBase: withBase ? { ...server.state, bodyJson: server.state.body, updatedAt: base } : null,
   }, {
     mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
     patch: { title: 'note', subtitle: '', bodyJson: doc(BOTH) },
@@ -194,9 +213,25 @@ async function assertWordsSurvived(server, label, door) {
  * step 3 is what forked the member's note in 12 of these 18 cases.
  */
 async function doorHappens(server, which, { canSeeLocalState }) {
+  // ⛔⛔ AN APPEND DOOR CANNOT SETTLE WITH LOCAL STATE, and this is measured
+  // from the product, not assumed. `settleMetadataRevision` — the only path that
+  // passes `current` to `settleLandedSave` — is called by exactly three doors:
+  // folder, ticker and tags. The three APPEND doors call `settleNoteWrite`,
+  // which RECORDS the revision and deliberately does not settle ("an editor-only
+  // optimisation that needs local state"). So a `settle-first` append row would
+  // model a shape the product cannot produce, and a rail that models an
+  // impossible shape proves nothing about a real one. The structural claim is
+  // asserted below, from the source, rather than taken on trust here.
+  // ⛔ THE FAMILY UNDER TEST, NOT THE ORDERING'S HARD-CODED NAME. Each ordering
+  // spells `'folder'` and the matrix substitutes the real family by replacing
+  // `server.door` — so `which` here is always `'folder'` and reading it would
+  // silently un-clamp every append row. Caught by `settle-first` staying red
+  // while `drain-first`, its identical twin after clamping, went green.
+  const family = server.familyUnderTest || which
+  const canSettle = canSeeLocalState && !appendedNode(family)
   const s = server.door(which)
   await recordLandedRevision({ accountId: 'a1', noteId: 'n1', updatedAt: s.updatedAt, connect })
-  if (canSeeLocalState) {
+  if (canSettle) {
     await settleLandedSave({
       accountId: 'a1', noteId: 'n1',
       acked: { bodyJson: s.body }, current: { bodyJson: doc(BOTH) },
@@ -318,7 +353,18 @@ describe('⛔⛔ THE FIFTH DOOR — hero, found by enumeration on 2026-09-12', (
 
   it('⭐⭐ CONTROL — an UNSETTLED hero door still loses the sentence, so this rail can detect the defect', async () => {
     const server = makeServer(doc(''))
-    await offlineWorkQueued(server)
+    // ⛔⛔ NO LAST-KNOWN SERVER COPY. The control must drive a case the product
+    // genuinely cannot rescue, and since 2026-09-13 the drain CAN rescue an
+    // unvouched revision whose diff classifies — so a record that still carries a
+    // base is no longer a losing case, and this control would have started
+    // passing by being FIXED rather than by detecting anything.
+    // ⭐ No base is the honest pre-fix state: "missing evidence is never a licence
+    // to merge", so the classifier declines, the ring never heard of this
+    // revision, and the words are lost exactly as they were.
+    // ⚰️ Written first as a re-`put` with a null intent — which DELETES the queued
+    // entry, so nothing drained, nothing forked, and the control "failed" for a
+    // reason that had nothing to do with the product.
+    await offlineWorkQueued(server, { withBase: false })
     server.door('hero')          // ⛔ the pre-fix product: no recordLandedRevision
     await settleIdb(4)
     await drainOutbox(db, {
@@ -341,6 +387,7 @@ describe('⭐⭐ the member’s offline sentence survives every door × every or
         // matrix is genuinely doors × orderings and not one door six times.
         const orig = server.door.bind(server)
         server.door = (_which) => orig(door)
+        server.familyUnderTest = door
         await arrange(server)
 
         // The drain runs to completion — twice, because an ordering that leaves
