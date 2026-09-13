@@ -31,3 +31,7 @@ e8ee4ea51 2026-07-21 themes: resolve all 53 dead/re-tickered holdings (v4.18.0 -
 - The WIP commit is NOT reviewed and may not pass tests.
 - If this branch tracks `origin/master`, push with an explicit refspec (`git push origin HEAD:refs/heads/<branch>`).
 - One master merge at a time repo-wide; scoped pytest only (named files); see the root `CLAUDE.md`.
+
+## Addendum — gitignored 2026-09-13 (by the discord-render session)
+
+`app/tests/fixtures/_raw_flow10.csv` was withheld from the capture (6.5 MB fixture) and is now in `.gitignore`, so a `git add -A` cannot publish it to this PUBLIC repo. The file is untouched on disk. Remove the line if you need it tracked.

@@ -30,3 +30,6 @@ tools/.snaptrade_captures/
 
 # Local Python virtual environment (local dev only)
 .venv/
+
+# Withheld from the 2026-09-13 restart capture (6.5 MB fixture) — never publish to this repo.
+app/tests/fixtures/_raw_flow10.csv
