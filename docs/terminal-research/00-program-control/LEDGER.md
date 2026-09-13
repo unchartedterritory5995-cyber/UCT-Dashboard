@@ -607,6 +607,21 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+# ⛔⛔ STANDING RULE — A DATE IN ANY PROGRAM DOC IS THE GIT COMMIT DATE IN America/Chicago
+
+**Owner ruling, 2026-09-12.** The authority for every date written here is the commit's own date
+rendered in `America/Chicago` — `git log --date=iso-local` with `TZ=America/Chicago`. **Session
+framing never sets a date.**
+
+⚰️ **WHY.** Day 2 was worked under the label *"Sunday 2026-09-13"* and its provenance rows were
+dated 2026-09-13, while every commit those rows point at is dated **2026-09-12 CDT**. Day-1 rows
+agreed with git; Day-2 rows did not. A provenance table that disagrees with the commits it cites is
+the same defect class as a fabricated SHA — it just fails a reader's trust more slowly.
+
+⭐ The heading below keeps its session label because that is what the working day was CALLED, and
+renaming it would erase the thing the rule exists to warn about. **The label is prose; the dates
+are measurements.**
+
 # ⛒ DAY 2 — Sunday 2026-09-13. Weekend window.
 
 ## ⛒ END OF DAY 2 — the marker decision, MEASURED
@@ -788,7 +803,7 @@ unilaterally rewrite the two existing rows — session-day and commit-day are bo
 readings of that column — but a provenance table that disagrees with the commits it points at is
 precisely this repo's recurring defect class, so it needs one answer.
 
-## S4 CP1 — MERGED `76c62c494`. Gate `8007ad097`.
+## S4 CP1 — MERGED `76c62c494`. Gate `0868299a8`.
 
 ⭐⭐ **S4 IS AN ADOPTION GAP, NOT A CAPABILITY GAP.** The bus was built in August and two files
 joined it. `useAppFocus.js` carries the owner's own ruling — *"charts Group A IS the app focus …
@@ -837,7 +852,7 @@ flow-worker's closure. Zero of the 24 measured consumers migrated.
 ---
 
 
-## H14 — one placeholder-stop detector. MERGED `94209e962`. Gate `4486f5cbc`.
+## H14 — one placeholder-stop detector. MERGED `94209e962`. Gate `a9a06224d`.
 
 | | |
 |---|---|
@@ -951,7 +966,7 @@ tree" and "green on master" stopped being the same sentence today.
 
 ---
 
-### D2 CP2 — `ffa8102c7`. Gate line 2 `eee16c59e`, marked **NARROWED**.
+### D2 CP2 — `ffa8102c7`. Gate line 2 `5a12aefc3`, marked **NARROWED**.
 
 **The book stops describing the screener and starts being an address book.** `bars_sqlite` joins
 it — five metrics, `ohlcv.o/h/l/c/v` — and exactly ONE reader resolves through it, dark, serving
@@ -1066,7 +1081,7 @@ what moved.
 
 ---
 
-### S12 second migration — `78ba40fe8`. Gate line 2 `9891d29f0`, marked **PROVISIONAL**.
+### S12 second migration — `78ba40fe8`. Gate line 2 `def2cd246`, marked **PROVISIONAL**.
 
 #### What is gone, and how the emptiness was measured
 
@@ -1159,7 +1174,7 @@ means all → RED · E the tool writes without `--apply` → RED.
 
 ---
 
-### S10 CP2 — `6576f044e`. Gate line 2 `db1314f23`.
+### S10 CP2 — `6576f044e`. Gate line 2 `1eca32570`.
 
 **F-S10-1 is settled, and not by reconciling anything.** `formatPriceDisclosure` → `$12.50`, em
 dash absent. `formatPriceTick` → `123.46`, tick-aware, **empty string** absent. Both named in S10;
@@ -1365,7 +1380,7 @@ measurement rather than a vacuous green.
 
 ---
 
-### D5 CP1 — `9458ea641`. Gate `96fa0e5d4`, CP1 only.
+### D5 CP1 — `9458ea641`. Gate `6adb32f1e`, CP1 only.
 
 **An instrument before a table.** `tools/corp_actions_census.py` derives every corporate-action
 site in `api/**` and classifies each one *outstanding · migrated · outside (with a written
@@ -1558,7 +1573,7 @@ inferred from file extensions.** No marker bump on any of the four.
 
 ---
 
-### D2 CP1 — `b9783d509`. Gate `1a0adb471`. Rulings A / YES / A / YES; CP1 signed.
+### D2 CP1 — `b9783d509`. Gate `84590f220`. Rulings A / YES / A / YES; CP1 signed.
 
 **137 metrics, derived, inert.** Every value comes from a declaration that already exists —
 `closedTable.json` via `ast_lint.TABLE`, `resolve_entity_scope`, `_BARS_STORE_TF_KEYS`,
@@ -1599,7 +1614,7 @@ are `store: screener_rows`, so the book can address a nightly screener column an
 
 ---
 
-### S12 first migration — `56df6803f`. Gate `afdd4adf5`.
+### S12 first migration — `56df6803f`. Gate `84590f220`.
 
 Both S7 projections' cohorts are one SQL predicate over `user_tags` now. **A rollout gate that was
 written as a role check**, duplicated across two modules, with a third copy already scheduled.

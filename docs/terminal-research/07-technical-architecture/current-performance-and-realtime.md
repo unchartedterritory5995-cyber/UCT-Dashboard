@@ -759,7 +759,7 @@ the 2026-06-09 outage: *"a climbing thread_count points to a thread leak; flat t
 with climbing rss_mb points to memory pressure."*
 
 `api/main.py:6778-6800` — `/api/ready` is **observability only**, and its docstring
-records that pointing `healthcheckPath` at it on 2026-07-26 (deploy `650865d5`) caused
+records that pointing `healthcheckPath` at it on 2026-07-26 (deploy `2908ab227`) caused
 a **~3-minute outage**: *"Railway does NOT keep the old pod serving while the new one
 healthchecks — the old pod is already gone, so a 503-until-warm probe does not hold
 traffic on the warm pod, it takes the site DOWN until the gate releases … Slow-but-

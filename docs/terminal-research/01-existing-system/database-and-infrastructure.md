@@ -700,7 +700,7 @@ PROD DEPLOY" implies the latter.
 **EVIDENCE.** `api/main.py:6764-6776` (`/api/health` returns `status`, `wire_date`,
 `uptime_seconds`, `thread_count`, `rss_mb`) and `api/main.py:6779-6810`, whose docstring
 states: the claim that `healthcheckPath` pointed at `/api/ready` "was FALSE for over a
-month"; pointing it there **was tried in production on 2026-07-26 (deploy `650865d5`) and
+month"; pointing it there **was tried in production on 2026-07-26 (deploy `2908ab227`) and
 caused a ~3 MINUTE OUTAGE** — Railway does not keep the old pod serving while the new one
 healthchecks, so a 503-until-warm probe takes the site down (`Attempt #1..#8 failed with
 service unavailable`, 502 for ~3 min). "Slow-but-serving beats hard-down."
