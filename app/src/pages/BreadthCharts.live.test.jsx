@@ -11,16 +11,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import BreadthCharts from './BreadthCharts'
+import { todayET, shiftISO } from './breadth/sessionDates'
 
 let captured = null
 vi.mock('echarts-for-react', () => ({
   default: (props) => { captured = props.option; return <div data-testid="echart" /> },
 }))
 
+// Session dates are Eastern (A-35). A UTC fixture date is tomorrow after 8 PM ET
+// and would fall outside the window the component builds.
 function isoDaysAgo(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return shiftISO(todayET(), -n)
 }
 const TODAY = isoDaysAgo(0)
 

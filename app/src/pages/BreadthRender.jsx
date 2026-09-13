@@ -18,8 +18,8 @@ import { useSearchParams } from 'react-router-dom'
 import { COLS } from './Breadth'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 // tier → cell background (matches Breadth.module.css .bgG3..bgR3)
 const TIER_BG = {
   g3: 'rgba(10,50,22,0.97)', g2: 'rgba(22,100,48,0.80)', g1: 'rgba(74,222,128,0.16)',
@@ -76,7 +76,7 @@ export default function BreadthRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     fetch(`/api/r/breadth-monitor?days=${days + 4}&token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => {

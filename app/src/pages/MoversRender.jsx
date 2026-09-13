@@ -15,8 +15,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 const BUCKET_STYLE = {
   small_up: { color: '#22c55e' },
   big_up: { color: '#22c55e' },
@@ -76,7 +76,7 @@ export default function MoversRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     const t = setTimeout(() => { window.__panelReady = true }, 2400) // logos settle
     return () => clearTimeout(t)
   }, [token, payload])

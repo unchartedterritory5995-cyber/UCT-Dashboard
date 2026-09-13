@@ -1274,7 +1274,36 @@ def run_check(label: str, with_canary: bool, number: int = 0) -> Check:
             page.wait_for_timeout(6000)
             me = page.evaluate(AUTH_JS)
             healed = ""
-            if me.get("status") != 200 or me.get("id") != ACCOUNT_ID:
+
+            # ⛔⛔ A 502 IS NOT A SIGNED-OUT RIG, AND THIS TOOL SAID IT WAS.
+            #
+            # ⚰️ 2026-09-13T14:00:01Z, the daily run. Another session had pushed to
+            # master at 13:58:43 and `web` was mid-swap, so `/api/auth/me` could not
+            # answer. Any non-200 became `needs_signin`, so the run wrote
+            # **"SIGN-IN REQUIRED — the rig profile is signed out"** into the resume
+            # doc, fired a desktop balloon, and wrote NO check row — losing that
+            # day’s K-window evidence. The rig was signed in the whole time: runs at
+            # 15:05Z the same morning read `/api/auth/me` **200** on the same profile.
+            #
+            # ⛔ The cost is not just a wasted run. A SIGN-IN REQUIRED block tells
+            # the owner to go and sign in — a 30-DAY event dressed as a session
+            # event — and the next scheduled run would have said it again.
+            #
+            # ⭐ Three answers, kept apart:
+            #   200  → signed in.
+            #   401  → genuinely signed out. THAT is sign-in required.
+            #   else → production could not answer. Retry, then report the run as
+            #          unreadable — which is a different fact from signed out, and
+            #          must not fire the sign-in alarm.
+            for _attempt in range(5):
+                if me.get("status") in (200, 401):
+                    break
+                page.wait_for_timeout(20000)
+                page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+                page.wait_for_timeout(5000)
+                me = page.evaluate(AUTH_JS)
+
+            if me.get("status") == 401 or (me.get("status") == 200 and me.get("id") != ACCOUNT_ID):
                 # ⭐ SELF-HEAL FIRST. A signed-out rig is the one thing that can
                 # break an unattended run, so try to fix it before reporting it.
                 ok, detail = reauthenticate(page)
@@ -1285,10 +1314,22 @@ def run_check(label: str, with_canary: bool, number: int = 0) -> Check:
                     healed = f" · ⭐ **self-healed**: {detail}"
                 else:
                     healed = f" · re-auth unavailable: {detail}"
-            if me.get("status") != 200 or me.get("id") != ACCOUNT_ID:
+
+            if me.get("status") == 401 or (me.get("status") == 200 and me.get("id") != ACCOUNT_ID):
                 chk.needs_signin = True
                 chk.add("signed in", False,
                         error=f"/api/auth/me returned {me.get('status')}{healed}")
+                return chk
+
+            if me.get("status") != 200:
+                # ⛔ UNREADABLE, NOT SIGNED OUT. No sign-in block, no balloon — and
+                # no check row either, because a row assembled from nothing reads as
+                # evidence. The run says which of the two happened.
+                chk.add("signed in", False,
+                        error=f"⛔ INCONCLUSIVE — `/api/auth/me` never answered "
+                              f"({me.get('status')}) after 5 tries. Production was "
+                              f"unreachable, which is what a deploy swap looks like. "
+                              f"This is NOT a signed-out rig and needs no sign-in.")
                 return chk
             chk.add("signed in", True, f"`/api/auth/me` **200**, account `{me.get('id')}`{healed}")
 

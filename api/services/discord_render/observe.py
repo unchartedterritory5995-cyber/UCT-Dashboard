@@ -1,0 +1,345 @@
+"""Observability for the V2 path: structured events, SLOs from the durable jobs table,
+the render-health payload, and alert rules. Step 2.2 of docs/discord-render/03-architecture.md.
+
+Three rules this module exists to keep:
+
+1. **Metrics come from the jobs table, never from process memory.** `web` served a median of
+   8.4 minutes per deployment over 2026-08-30..09-13; an in-memory counter on that pod
+   resets before it can say anything, and reads as health straight through an outage.
+2. **Every event line carries the word `drender`.** Railway's log search cannot match a
+   bracketed prefix (`"[flow]"` returns nothing — measured), so the searchable token is a
+   bare word, and `tools/railway_env_logs.py --filter drender` finds every V2 event.
+3. **No token, webhook path or query string is ever logged.** The chart-renderer logged the
+   render token in plaintext on every page-load timeout for two weeks (C-13). Values are
+   scrubbed here, at the one place events are written.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import math
+import os
+import re
+import threading
+import time
+from contextlib import contextmanager
+
+from api.services.discord_render import contract
+
+log = logging.getLogger("discord_render")
+
+EVENT_TOKEN = "drender"
+WINDOWS = {"1h": 3600, "24h": 86400, "7d": 7 * 86400}          # what health reports
+ALERT_WINDOWS = {"5m": 300, "30m": 1800, "1h": 3600}           # what the alert rules read (03 §3.9)
+STUCK_AFTER_S = 60
+RENDERER_MISSES_TO_ALERT = 2
+
+_SECRETISH = re.compile(r"(token=[^&\s]+|/webhooks/\d+/[A-Za-z0-9_\-.]+|[?&][A-Za-z_]+=[^&\s]*)")
+_FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key")
+ALERT_WEBHOOK_ENV = "DISCORD_RENDER_ALERT_WEBHOOK"
+
+
+def scrub(value):
+    """Strip anything shaped like a credential or a query string from a logged value."""
+    if isinstance(value, str):
+        return _SECRETISH.sub("[redacted]", value)[:300]
+    return value
+
+
+def event(evt: str, **fields) -> dict:
+    """Emit one structured event line and return the dict (tests read the return)."""
+    payload = {"t": EVENT_TOKEN, "evt": evt}
+    for k in _FIELDS:
+        v = fields.get(k)
+        if v is not None:
+            payload[k] = round(v, 1) if isinstance(v, float) else scrub(v)
+    log.info("%s %s", EVENT_TOKEN, json.dumps(payload, separators=(",", ":"), default=str))
+    return payload
+
+
+@contextmanager
+def hop(cid: str, name: str, **fields):
+    """Time one hop and emit `evt=hop` with its ms, even when the hop raises."""
+    started = time.perf_counter()
+    status = "ok"
+    try:
+        yield
+    except Exception:
+        status = "error"
+        raise
+    finally:
+        event("hop", cid=cid, hop=name, ms=(time.perf_counter() - started) * 1000.0, status=status, **fields)
+
+
+def scrub_text(text: str) -> str:
+    """`scrub` for long text (a traceback): every credential-shaped span removed, nothing cut."""
+    return _SECRETISH.sub("[redacted]", str(text or ""))
+
+
+def exception(evt: str, **fields) -> dict:
+    """Log the exception being handled as an event plus its SCRUBBED traceback.
+
+    ⛔ Never `log.exception` on this path. An httpx error's traceback carries the request URL,
+    and for a Discord edit that URL is `/webhooks/<app>/<interaction token>/messages/@original`
+    — `log.exception` would write a live 15-minute bearer credential to the logs, which is the
+    renderer-token leak (C-13) in a new place."""
+    import sys
+    import traceback
+    exc = sys.exc_info()[1]
+    payload = event(evt, detail=f"{type(exc).__name__}: {scrub_text(exc)}"[:300] if exc else None, status="error", **fields)
+    tb = scrub_text("".join(traceback.format_exc()))
+    log.error("%s traceback cid=%s\n%s", EVENT_TOKEN, fields.get("cid"), tb)
+    return payload
+
+
+# ── SLOs from the jobs table ────────────────────────────────────────────────
+
+def pct(values, p: float):
+    """Nearest-rank percentile (rank = ceil(p/100 * n)); None for no samples.
+    ⛔ Not round(): Python rounds half to even, which made the median of two samples the
+    max in the first version of the bench."""
+    xs = sorted(v for v in values if v is not None)
+    if not xs:
+        return None
+    rank = max(1, min(len(xs), math.ceil((p / 100.0) * len(xs))))
+    return xs[rank - 1]
+
+
+def _summary(rows: list[dict]) -> dict:
+    terminal = [r for r in rows if r.get("state") in ("delivered", "messaged", "abandoned", "superseded")]
+    user_errors = [r for r in terminal if r.get("failure_class") in contract.USER_ERROR_CLASSES]
+    counted = [r for r in terminal if r not in user_errors]
+    delivered = [r for r in counted if r.get("state") == "delivered"]
+    failures = [r for r in counted if r.get("state") != "delivered"]
+    by_class: dict = {}
+    for r in failures:
+        k = r.get("failure_class") or "unclassified"
+        by_class[k] = by_class.get(k, 0) + 1
+    acks = [r.get("ack_ms") for r in rows]
+    finals = [r.get("final_ms") for r in delivered]
+    return {
+        "jobs": len(rows), "terminal": len(terminal), "user_errors": len(user_errors),
+        "delivered": len(delivered),
+        "success_rate": round(len(delivered) / len(counted), 4) if counted else None,
+        "image_rate": round(sum(1 for r in delivered if r.get("quality") == "image") / len(delivered), 4) if delivered else None,
+        "ack_ms": {"p50": pct(acks, 50), "p95": pct(acks, 95), "p99": pct(acks, 99),
+                   "over_3s": sum(1 for a in acks if a is not None and a > 3000)},
+        "final_ms": {"p50": pct(finals, 50), "p95": pct(finals, 95), "p99": pct(finals, 99),
+                     "over_15s": sum(1 for f in finals if f is not None and f > 15000)},
+        "resumed": sum(1 for r in rows if r.get("resumed")),
+        "failures_by_class": by_class,
+    }
+
+
+def slo_snapshot(store, now: float | None = None, windows: tuple[str, ...] | None = None) -> dict:
+    """Per-command SLO summary for 5 min / 30 min / 1 h / 24 h / 7 d (or just `windows`), plus
+    the most recent failures by id. The observer asks for the alert windows only: it runs every
+    minute."""
+    now = now or time.time()
+    spans = {**ALERT_WINDOWS, **WINDOWS}
+    wanted = {label: spans[label] for label in (windows or tuple(spans))}
+    rows = store.recent(max(wanted.values()), limit=50_000)
+    out: dict = {"windows": {}}
+    for label, seconds in wanted.items():
+        in_window = [r for r in rows if r.get("created_at", 0) >= now - seconds]
+        commands: dict = {}
+        for r in in_window:
+            commands.setdefault(r.get("command") or "?", []).append(r)
+        out["windows"][label] = {"all": _summary(in_window), "by_command": {c: _summary(rs) for c, rs in sorted(commands.items())}}
+    recent_failures = [r for r in rows if r.get("state") in ("messaged", "abandoned")
+                       and r.get("failure_class") not in contract.USER_ERROR_CLASSES]
+    out["last_failures"] = [{"cid": r["corr_id"], "command": r.get("command"), "class": r.get("failure_class"),
+                             "at": r.get("created_at"), "detail": scrub(r.get("detail") or "")}
+                            for r in sorted(recent_failures, key=lambda r: r.get("created_at", 0), reverse=True)[:10]]
+    out["stuck"] = len(store.stuck(STUCK_AFTER_S))
+    return out
+
+
+# ── alert rules (03 §3.9) ───────────────────────────────────────────────────
+
+def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[str, str]]:
+    """(alert_key, message) for every rule breached right now (03-architecture §3.9). Pure:
+    sending and the durable cooldown are the caller's (`Observer`, `JobsStore.alert_due`).
+
+    Each rule reads the spec's window, not one hour for everything: five failures in five
+    minutes diluted into an hour read as noise, and an hour's p95 still carries a slow spell
+    50 minutes after it ended. `renderer_misses` counts CONSECUTIVE not-ready probes — one miss
+    is a blip, two are an outage."""
+    alerts = []
+    w = snapshot["windows"]
+    five, half, hour = w["5m"]["all"], w["30m"]["all"], w["1h"]["all"]
+    if half["jobs"] >= 10 and (half["final_ms"]["p95"] or 0) > 8000:
+        alerts.append(("slo_final_p95", f"Delivery p95 {half['final_ms']['p95']:.0f} ms over the last 30 minutes (SLO 5,000 ms, alert at 8,000)."))
+    counted = hour["terminal"] - hour["user_errors"]
+    if counted >= 20 and hour["success_rate"] is not None and hour["success_rate"] < 0.995:
+        alerts.append(("slo_success", f"Success {hour['success_rate'] * 100:.1f}% over the last hour across {counted} jobs (SLO 99.5%)."))
+    if hour["ack_ms"]["over_3s"]:
+        alerts.append(("ack_over_3s", f"{hour['ack_ms']['over_3s']} acknowledgement(s) over 3 s in the last hour — Discord will have failed them."))
+    if snapshot.get("stuck"):
+        alerts.append(("stuck_jobs", f"{snapshot['stuck']} job(s) still not terminal after {STUCK_AFTER_S} s."))
+    if renderer_misses >= RENDERER_MISSES_TO_ALERT:
+        alerts.append(("renderer_not_ready", f"chart-renderer not ready on {renderer_misses} consecutive probes."))
+    burst = sum(five["failures_by_class"].values())
+    if burst >= 5:
+        classes = ", ".join(f"{k}×{v}" for k, v in sorted(five["failures_by_class"].items(), key=lambda kv: -kv[1]))
+        alerts.append(("failure_burst", f"{burst} failures in the last 5 minutes: {classes}."))
+    return alerts
+
+
+def health_payload(runtime, store, *, renderer: dict | None = None, now: float | None = None,
+                   renderer_misses: int | None = None) -> dict:
+    """What `/renderhealth` and GET /api/discord/render-health print. `renderer_misses` is the
+    observer's consecutive count when there is one; a lone reading counts as one miss at most,
+    so `alerts` here is exactly what the observer would page on."""
+    snap = slo_snapshot(store, now=now)
+    if renderer_misses is None:
+        renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
+    return {
+        "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12],
+        "owner": getattr(runtime, "owner", None),
+        "queue": runtime.depth() if runtime is not None else None,
+        "renderer": renderer,
+        "slo": snap,
+        "alerts": [k for k, _ in evaluate_alerts(snap, renderer_misses=renderer_misses)],
+    }
+
+
+def _secs(ms) -> str:
+    return "—" if ms is None else f"{ms / 1000.0:.1f}s"
+
+
+def _window_line(label: str, s: dict) -> str:
+    if not s or not s.get("jobs"):
+        return f"{label}: no jobs"
+    rate = "—" if s["success_rate"] is None else f"{s['success_rate'] * 100:.1f}%"
+    f = s["final_ms"]
+    return (f"{label}: {s['jobs']} jobs · success {rate} · delivered p50 {_secs(f['p50'])} p95 {_secs(f['p95'])} "
+            f"p99 {_secs(f['p99'])} · acks over 3s {s['ack_ms']['over_3s']} · resumed {s['resumed']}")
+
+
+def format_health_text(payload: dict) -> str:
+    """The /renderhealth reply: plain text inside Discord's 2,000-character limit."""
+    q = payload.get("queue")
+    r = payload.get("renderer")
+    if r is None:
+        renderer = "not configured"
+    elif r.get("ready") is None:
+        renderer = r.get("note") or "unknown"
+    elif r.get("ready"):
+        renderer = "ready"
+    else:
+        renderer = f"NOT READY ({r.get('error') or r.get('status') or 'no answer'})"
+    slo = payload.get("slo") or {}
+    win = slo.get("windows") or {}
+    lines = [f"Render V2 · commit {payload.get('commit') or '?'} · {payload.get('owner') or 'runtime not started'}",
+             (f"Queue: {q.get('interactive', 0)} waiting · {q.get('active', 0)} active of {q.get('workers', 0)} workers"
+              f" · background {q.get('background', 0)}") if q else "Queue: runtime not started",
+             f"Renderer: {renderer}"]
+    lines += [_window_line(label, win[label]["all"]) for label in WINDOWS if label in win]
+    classes = ((win.get("1h") or {}).get("all") or {}).get("failures_by_class") or {}
+    lines.append("Failures (1h): " + (", ".join(f"{k}×{v}" for k, v in sorted(classes.items(), key=lambda kv: -kv[1]))
+                                       or "none"))
+    lines.append(f"Stuck: {slo.get('stuck', 0)} · Alerts: {', '.join(payload.get('alerts') or []) or 'none'}")
+    fails = slo.get("last_failures") or []
+    if fails:
+        lines.append("Recent failures: " + " · ".join(f"{f['cid']} {f.get('command')} {f.get('class')}" for f in fails[:5]))
+    return "\n".join(lines)[:1900]
+
+
+# ── alert delivery + the slow loop ──────────────────────────────────────────
+
+def post_webhook(url: str, content: str, timeout_s: float = 5.0) -> bool:
+    """POST one plain message. Never raises. Never logs the URL: a webhook URL is a credential."""
+    try:
+        import httpx
+        r = httpx.post(url, json={"content": content[:2000], "allowed_mentions": {"parse": []}}, timeout=timeout_s)
+        if not r.is_success:
+            event("alert_send_refused", status=str(r.status_code))
+        return bool(r.is_success)
+    except Exception as e:  # noqa: BLE001
+        event("alert_send_error", detail=type(e).__name__)
+        return False
+
+
+class Observer:
+    """The slow loop beside the 1 s watchdog: alert rules every `interval_s`, the durable
+    cooldown, the jobs-table purge, and a cached renderer reading for /renderhealth.
+
+    Its own thread because the renderer probe is an HTTP call with a 2 s budget, and the
+    watchdog's deadline check must never wait behind it.
+
+    ⛔ An alert is recorded as sent only AFTER Discord accepted it: recording first would turn
+    one failed POST into a 30-minute silence about the breach in progress. With no webhook
+    configured the alert is still a log event under the same cooldown — a blank
+    DISCORD_RENDER_ALERT_WEBHOOK is quiet in Discord, not in the logs."""
+
+    def __init__(self, store, *, renderer_fn=None, post_fn=post_webhook, webhook_fn=None,
+                 interval_s: float = 60.0, cooldown_s: float = 1800.0, purge_every_s: float = 3600.0,
+                 commit: str = ""):
+        self.store = store
+        self.renderer_fn = renderer_fn
+        self.post_fn = post_fn
+        self.webhook_fn = webhook_fn or (lambda: (os.environ.get(ALERT_WEBHOOK_ENV) or "").strip())
+        self.interval_s = interval_s
+        self.cooldown_s = cooldown_s
+        self.purge_every_s = purge_every_s
+        self.commit = commit
+        self.renderer: dict | None = None
+        self.renderer_at: float | None = None
+        self.renderer_misses = 0
+        self._last_purge = 0.0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def run_once(self, now: float | None = None) -> dict:
+        now = now or time.time()
+        out: dict = {"breached": [], "sent": [], "logged": [], "failed": [], "purged": None}
+        if self.renderer_fn is not None:
+            try:
+                self.renderer = self.renderer_fn()
+            except Exception as e:  # noqa: BLE001 — a crashed probe is a renderer we could not reach
+                self.renderer = {"reachable": False, "ready": False, "error": type(e).__name__}
+            self.renderer_at = now
+            missed = self.renderer is not None and self.renderer.get("ready") is False
+            self.renderer_misses = self.renderer_misses + 1 if missed else 0
+        webhook = self.webhook_fn()
+        snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
+        for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses):
+            out["breached"].append(key)
+            if not self.store.alert_due(key, self.cooldown_s, record=False):
+                continue
+            if not webhook:
+                self.store.record_alert(key)
+                event("alert", key=key, detail=msg, outcome="logged_only")
+                out["logged"].append(key)
+            elif self.post_fn(webhook, f"Discord render alert · {key} — {msg} · commit {self.commit or '?'}"
+                                       " · GET /api/discord/render-health"):
+                self.store.record_alert(key)
+                event("alert", key=key, detail=msg, outcome="sent")
+                out["sent"].append(key)
+            else:
+                event("alert", key=key, detail=msg, outcome="send_failed")
+                out["failed"].append(key)
+        if now - self._last_purge >= self.purge_every_s:
+            out["purged"] = self.store.purge()
+            self._last_purge = now
+            event("purge", outcome=f"tokens_nulled={out['purged']['tokens_nulled']} rows_deleted={out['purged']['rows_deleted']}")
+        return out
+
+    def start(self) -> "Observer":
+        if self._thread is None:
+            self._stop.clear()
+            self._thread = threading.Thread(target=self._loop, name="drender-observer", daemon=True)
+            self._thread.start()
+        return self
+
+    def _loop(self) -> None:
+        while not self._stop.wait(self.interval_s):
+            try:
+                self.run_once()
+            except Exception:  # noqa: BLE001 — the loop must outlive one bad pass
+                exception("observer_error")
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread = None

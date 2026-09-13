@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import BreadthCharts from './BreadthCharts'
+import { todayET, shiftISO } from './breadth/sessionDates'
 
 // Capture the option ECharts is actually handed — assert on the rendered
 // artifact, not on component state.
@@ -10,10 +11,10 @@ vi.mock('echarts-for-react', () => ({
   default: (props) => { captured = props.option; return <div data-testid="echart" /> },
 }))
 
+// Session dates are Eastern (A-35). A UTC fixture date is tomorrow after 8 PM ET
+// and would fall outside the window the component builds.
 function isoDaysAgo(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return shiftISO(todayET(), -n)
 }
 
 // 30 rows inside the component's default 90-day window.
@@ -312,17 +313,41 @@ describe('axis framing', () => {
   })
 })
 
-describe('reference lines from a preset', () => {
+describe('reference lines belong to metrics', () => {
+  const lineSeries = opt => opt.series.filter(s => s.name.startsWith('__ref_lines_'))
+
   it('draws the parity and thrust levels on the ratio axis', async () => {
     render(<BreadthCharts />)
     await chart()
     clickPreset('Breadth Thrust')
-
-    await waitFor(() => expect(seriesNamed(captured, '__ref_lines__')).toBeTruthy())
-    const ref = seriesNamed(captured, '__ref_lines__')
-    expect(ref.markLine.data.map(d => d.yAxis)).toEqual([1.0, 2.0])
+    await waitFor(() => expect(lineSeries(captured)).toHaveLength(1))
+    const [ref] = lineSeries(captured)
+    expect(ref.markLine.data.map(d => d.yAxis)).toEqual([1, 2])
     // Ratios took the left axis, so the levels belong there.
     expect(ref.yAxisIndex).toBe(0)
+  })
+
+  // A-03: the lines drew only while the selection exactly equalled a preset.
+  it('keeps the lines when the selection is edited by hand', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('Breadth Thrust')
+    await waitFor(() => expect(lineSeries(captured)).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: /^Regime/ }))
+    fireEvent.click(screen.getByLabelText('VIX'))
+    await waitFor(() => expect(realSeries(captured)).toHaveLength(6))
+    expect(lineSeries(captured).flatMap(s => s.markLine.data.map(d => d.yAxis)))
+      .toEqual(expect.arrayContaining([1, 2]))
+  })
+
+  // A-02: the flat line sat at ratio 0 on the ratio axis instead of at net 0.
+  it('draws Volume Thrust\'s flat line on the net axis and parity on the ratio axis', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('Volume Thrust')
+    await waitFor(() => expect(lineSeries(captured)).toHaveLength(2))
+    expect(seriesNamed(captured, '__ref_lines_0__').markLine.data.map(d => d.yAxis)).toEqual([1])
+    expect(seriesNamed(captured, '__ref_lines_1__').markLine.data.map(d => d.yAxis)).toEqual([0])
   })
 
   it('suppresses a line that would expand an auto-framed axis', async () => {
@@ -332,7 +357,7 @@ describe('reference lines from a preset', () => {
     // line drawn anyway would drag the framed axis back to zero.
     clickPreset('A/D Line')
     await waitFor(() => expect(realSeries(captured).length).toBeGreaterThan(0))
-    expect(seriesNamed(captured, '__ref_lines__')).toBeUndefined()
+    expect(lineSeries(captured)).toEqual([])
   })
 })
 
@@ -360,10 +385,10 @@ describe('metric readout', () => {
     clickPreset('New Highs vs Lows')
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
     // Fixture 52W highs run 100..129, so the last point is the highest.
-    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile' }))
+    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile of 30 readings shown' }))
       .toBeInTheDocument()
     // 52W lows cycle 10..16, so the last value sits mid-range, not at an extreme.
-    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile$/ }))
+    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile of 30 readings shown$/ }))
       .toBeInTheDocument()
   })
 
@@ -476,6 +501,7 @@ describe('stored selection', () => {
     }))
 
     render(<BreadthCharts />)
-    await waitFor(() => expect(captured?.series?.map(s => s.name)).toEqual(['VIX']))
+    // Metric series only: VIX owns its canonical 20 line (D-009), drawn as a marker series beside it.
+    await waitFor(() => expect(captured && realSeries(captured).map(s => s.name)).toEqual(['VIX']))
   })
 })

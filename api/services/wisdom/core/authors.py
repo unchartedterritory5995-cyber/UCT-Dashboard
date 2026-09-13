@@ -35,10 +35,35 @@ def call_authors() -> frozenset:
     return frozenset(a["author_id"] for a in authors() if a.get("can_author_calls") is True)
 
 
+#: CONTRACTS §8a.2. A label that cannot name ONE person, resolved per session only with
+#: cited evidence; with insufficient evidence the speaker is this, and it may author
+#: MENTION only — never CALL, never a PRINCIPLE attribution.
+TEAM_UNRESOLVED = "team-unresolved"
+
+
+def ambiguous_labels() -> list[str]:
+    """Labels that are NOT an alias of anybody (CONTRACTS §8a.2)."""
+    return [str(entry["label"]) for entry in (load_authors().get("ambiguous_speaker_labels") or [])
+            if entry.get("label")]
+
+
+def is_ambiguous_label(label: Optional[str]) -> bool:
+    if not label or not str(label).strip():
+        return False
+    key = str(label).strip().casefold()
+    return any(key == name.strip().casefold() for name in ambiguous_labels())
+
+
 def author_for_alias(label: Optional[str]) -> Optional[str]:
     if not label or not label.strip():
         return None
     key = label.strip().casefold()
+    # ⛔ Ambiguous beats alias, deliberately. If a label is ever declared ambiguous AND
+    # left in some author's alias list, the safe answer is "nobody", not that author —
+    # a mistake in the data must not become an attribution. The rail in
+    # tests/test_wisdom_authors_aliases.py stops the two lists overlapping at all.
+    if is_ambiguous_label(key):
+        return None
     for author in authors():
         names = [author["author_id"], author.get("display_name") or ""] + list(author.get("aliases") or [])
         if any(name and key == name.strip().casefold() for name in names):

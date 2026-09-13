@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
+import { renderTokenOk } from '../lib/renderToken'
 const MONO = "'IBM Plex Mono',monospace"
 const GRID = { display: 'grid', gridTemplateColumns: '66px 140px 54px 40px 56px 78px 46px 1fr', gap: 9, alignItems: 'baseline' }
 const URGC = { hot: '#e8a34d', near: '#9aa7b4', mid: '#8b96a3', leap: '#6b7480' }
@@ -84,7 +84,7 @@ export default function FlowRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     fetch(`/api/r/flow?token=${encodeURIComponent(token)}&n=${n}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setOrders(Array.isArray(d.orders) ? d.orders : []))
