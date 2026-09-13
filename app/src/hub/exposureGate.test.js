@@ -173,12 +173,22 @@ describe('⛔ EXPOSURE — who can see the hub', () => {
 
     // ⛔ AND AN EXPLICIT CHOICE NEVER REACHES THAT DEFAULT. This is the half the old literal
     // carried implicitly; without it, stage 3 would override a member who switched the hub OFF.
+    // ⚰️ THE SPELLING MOVED ON 2026-09-13 AND THE PROPERTY GOT STRICTER. This pinned
+    // `explicitEnabled === undefined ? unsetDefault(…)`, under which a stored `null` fell to the
+    // ELSE branch and became `!!null` -> OFF, while `JoystickSettingsCard.jsx:60` counted the same
+    // `null` as "never chose" via `typeof storedEnabled === 'boolean'`. Two answers to one
+    // question; stage 2 made the disagreement member-visible (card offered as a never-chose
+    // member, toggle showing OFF). The guard now matches the card's test exactly, so "is this a
+    // choice?" has ONE definition.
+    // ⭐ The OUTCOME is asserted behaviourally in `useHubSettings.test.jsx`
+    // ("an explicit false STILL beats the stage-2 default"); this remains a source-order guard,
+    // which is what this file is for.
     const src = read(resolve(APP, 'hub/useHubSettings.js'))
     expect(
       src,
-      `${stage}, FACT 2: useHubSettings no longer guards the rollout default behind `
-      + '`explicitEnabled === undefined`, so an explicit false could be overridden by the stage.',
-    ).toMatch(/explicitEnabled === undefined\s*\?\s*unsetDefault\(/)
+      `${stage}, FACT 2: useHubSettings no longer reaches the rollout default ONLY for a `
+      + 'non-boolean, so an explicit false could be overridden by the stage.',
+    ).toMatch(/typeof\s+explicitEnabled\s*===\s*'boolean'\s*\?\s*explicitEnabled\s*:\s*unsetDefault\(/)
   })
 
   it(`3. at stage ${ROLLOUT_STAGE}, the Settings card is visible as the table says`, () => {

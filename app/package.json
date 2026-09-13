@@ -10,6 +10,7 @@
     "lint:css": "stylelint \"src/**/*.css\"",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:hub": "node scripts/run-hub-rails.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

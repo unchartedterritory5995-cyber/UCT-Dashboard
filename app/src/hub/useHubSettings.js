@@ -160,9 +160,23 @@ export default function useHubSettings() {
   // other is the Settings card's own visibility). Both now ask `hub/rolloutStage.js`, so a stage
   // cannot half-ship. An explicit boolean never reaches `unsetDefault` — "never chosen" and
   // "explicitly false" stay opposite things, which is the distinction this whole block exists for.
+  // ⚰️⚰️ "IS A STORED `null` A CHOICE?" WAS ANSWERED TWO DIFFERENT WAYS, and stage 2 made the
+  // disagreement member-visible. This test was `=== undefined`, so `{"enabled":null}` fell to
+  // `!!null` -> hub OFF; `JoystickSettingsCard.jsx:60` asks `typeof storedEnabled === 'boolean'`,
+  // so the SAME preference counted as "never chose" -> card shown. At stage 1 both answers looked
+  // alike (no card, no hub) and nothing could tell them apart. At member preview the member is
+  // handed the card as someone who never chose, and finds the toggle OFF while every other
+  // never-chose member has it ON.
+  //
+  // ⭐ ONE DEFINITION OF "A CHOICE", AND IT IS THE CARD'S, because that is the one the recovery
+  // path depends on. `typeof x === 'boolean'` accepts exactly `true`/`false`; every other shape
+  // `parsePref` can yield — absent, null, unparseable, non-object, no `enabled` key — is "never
+  // chosen" and takes the rollout's unset default.
+  // Rail: `JoystickSettingsCard.test.jsx` ("`enabled: null` is NOT a choice"), which asserts the
+  // two shapes land on OPPOSITE toggle states so a collapse cannot pass.
   const resolveEnabled = useCallback(
     (explicitEnabled) => (
-      explicitEnabled === undefined ? unsetDefault({ isAdmin }) : !!explicitEnabled
+      typeof explicitEnabled === 'boolean' ? explicitEnabled : unsetDefault({ isAdmin })
     ),
     [isAdmin],
   )

@@ -122,13 +122,23 @@ describe('⛔⛔ the invariants no stage may break', () => {
   })
 
   it('⛔ an EXPLICIT false is honoured at every stage — stage 3 is a default, not an override', () => {
-    // `unsetDefault` is only ever consulted for `undefined`; this asserts the CALL SITE keeps that
-    // true, because a stage-3 that overrode an explicit opt-out would be turning the hub back on
-    // for someone who switched it off.
+    // `unsetDefault` is consulted ONLY when there is no stored boolean; this asserts the CALL
+    // SITE keeps that true, because a stage that overrode an explicit opt-out would be turning the
+    // hub back on for someone who switched it off.
+    // ⚰️ THE SPELLING MOVED ON 2026-09-13 AND THE PROPERTY GOT STRICTER. This pinned
+    // `explicitEnabled === undefined ? unsetDefault(…)`, under which a stored `null` fell to the
+    // ELSE branch and became `!!null` -> OFF, while `JoystickSettingsCard.jsx:60` counted the same
+    // `null` as "never chose" via `typeof storedEnabled === 'boolean'`. Two answers to one
+    // question; stage 2 made the disagreement member-visible (card offered as a never-chose
+    // member, toggle showing OFF). The guard now matches the card's test exactly, so "is this a
+    // choice?" has ONE definition.
+    // ⭐ The OUTCOME is asserted behaviourally in `useHubSettings.test.jsx`
+    // ("an explicit false STILL beats the stage-2 default"); this remains a source-order guard,
+    // which is what this file is for.
     const src = stripComments(readFileSync(path.join(HERE, 'useHubSettings.js'), 'utf8'))
-    expect(src, 'useHubSettings no longer guards unsetDefault behind `explicitEnabled === '
-      + 'undefined` — an explicit false could now be overridden by the rollout stage')
-      .toMatch(/explicitEnabled === undefined\s*\?\s*unsetDefault\(/)
+    expect(src, 'useHubSettings no longer reaches unsetDefault only for a NON-BOOLEAN — an '
+      + 'explicit false could now be overridden by the rollout stage')
+      .toMatch(/typeof\s+explicitEnabled\s*===\s*'boolean'\s*\?\s*explicitEnabled\s*:\s*unsetDefault\(/)
   })
 
   it('⛔ the kill switch still outranks the stage', () => {

@@ -21,7 +21,9 @@ import styles from '../Settings.module.css'
 
 export default function JoystickSettingsCard() {
   const { settings, storedEnabled, updateHubSettings } = useHubSettings()
-  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  const authUser = useContext(AuthContext)?.user
+  const isAdmin = authUser?.role === 'admin'
+  const hasUser = Boolean(authUser)
   // ⛔ THE STATUS LINE LIVES HERE, ABOVE THE BUTTONS THAT WRITE IT, and neither button unmounts
   // this card. CLAUDE.md, "Assert user-facing feedback by RENDERED TEXT": the hub has already
   // shipped two toasts that were destroyed in the same commit that set them and rendered for zero
@@ -58,6 +60,18 @@ export default function JoystickSettingsCard() {
   // argued above: no rollout stage may take away the only way back for a member who already
   // turned the hub on with this card.
   const everChose = typeof storedEnabled === 'boolean'
+
+  // ⛔⛔ AN AUTHENTICATED USER, FIRST. `cardVisible` answers a ROLLOUT question ("has the audience
+  // widened to this identity?") and at stage >= 2 its answer is yes for everyone — including a
+  // visitor with no session at all, for whom `isAdmin` is false and `everChose` is false but
+  // `stage >= 2` is true regardless. At stage 1 the absence of a user made the card disappear by
+  // accident (no user -> not admin -> hidden); widening the rollout removed that accident.
+  //
+  // ⭐ DEFENCE IN DEPTH, NOT THE BOUNDARY. `App.jsx` nests the Settings route inside `AuthGuard`,
+  // so no signed-out visitor reaches this component in the running app — which is precisely why
+  // the gap was invisible until a test rendered the component directly. The boundary stays where
+  // it is; this makes the component honest on its own terms rather than relying on its caller.
+  if (!hasUser) return null
   if (!cardVisible({ isAdmin, everChose })) return null
 
   // ⛔ WRITES ONLY ON CHANGE, NEVER ON MOUNT. `hubHideRestore.test.jsx:205` asserts

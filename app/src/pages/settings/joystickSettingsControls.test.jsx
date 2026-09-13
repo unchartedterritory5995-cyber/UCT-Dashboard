@@ -19,6 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 import { AuthContext } from '../../context/AuthContext'
+import { ROLLOUT_STAGE } from '../../hub/rolloutStage'
 
 let mockPrefs = {}
 const setPrefMerged = vi.fn()
@@ -134,14 +135,53 @@ describe('B13 — every §8 key has a control', () => {
     expect(next.overrides).toEqual({})
   })
 
-  it('⛔ the card is still admin-gated — B13 adds controls, not exposure', () => {
+  // ⚰️ WAS "the card is still admin-gated — B13 adds controls, not exposure", asserting a member
+  // reaches NEITHER the toggle NOR the controls. That was the STAGE-1 rule; `ROLLOUT_STAGE = 2`
+  // changes it deliberately. ⛔ B13's actual claim survives the stage change and is what this pair
+  // now asserts: **B13 added CONTROLS, it did not decide EXPOSURE.** Who sees the card is
+  // `rolloutStage.js`'s answer at every stage, never this file's.
+  //
+  // ⭐ Branching on the constant, with literal expectations in each arm — so stage 3 (same
+  // exposure, framing only) needs no edit here, and a broken `cardVisible` still fails.
+  const MEMBER_PREVIEW = ROLLOUT_STAGE >= 2
+
+  it(`⛔ a member ${MEMBER_PREVIEW ? 'REACHES the controls at member preview' : 'is gated out'}`, () => {
     mockPrefs = {}
     render(
       <AuthContext.Provider value={{ user: { role: 'member' } }}>
         <JoystickSettingsCard />
       </AuthContext.Provider>,
     )
-    expect(screen.queryByTestId('joystick-enabled-toggle')).toBeNull()
-    expect(screen.queryByTestId('joystick-handedness'), 'a member reached the new controls').toBeNull()
+    if (MEMBER_PREVIEW) {
+      // They have the hub, so they must be able to reach the switch that turns it off — and the
+      // controls B13 added come with it. Hiding the card here would be the strand defect inverted.
+      expect(screen.queryByTestId('joystick-enabled-toggle'),
+        'a member with the hub could not reach the toggle that turns it off').not.toBeNull()
+      expect(screen.queryByTestId('joystick-handedness'),
+        'the member reached the card but not the controls on it').not.toBeNull()
+      // ⛔ AND THE PREVIEW FRAMING IS STILL ON THE LABEL AT STAGE 2. Stage 3 is the rung that
+      // removes it; if this ever reads clean at stage 2 the framing left early.
+      expect(screen.getByText(/Joystick shortcuts \(preview\)/),
+        'the "(preview)" framing left the label before stage 3').toBeTruthy()
+    } else {
+      expect(screen.queryByTestId('joystick-enabled-toggle')).toBeNull()
+      expect(screen.queryByTestId('joystick-handedness'),
+        'a member reached the new controls').toBeNull()
+    }
+  })
+
+  it('⛔ NEGATIVE CONTROL — a signed-out visitor gets no card and no controls, at any stage', () => {
+    // ⭐ Without this, the assertions above are compatible with a card that renders for anyone at
+    // all. At stage 1 the absence of a user hid the card by ACCIDENT (no user -> not admin);
+    // widening the rollout removed that accident, so the component now checks for a user itself.
+    mockPrefs = {}
+    render(
+      <AuthContext.Provider value={{ user: null }}>
+        <JoystickSettingsCard />
+      </AuthContext.Provider>,
+    )
+    expect(screen.queryByTestId('joystick-enabled-toggle'),
+      'the card rendered with no authenticated user').toBeNull()
+    expect(screen.queryByTestId('joystick-handedness')).toBeNull()
   })
 })

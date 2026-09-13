@@ -2080,6 +2080,39 @@ the dependencies of useMemo change on every render"* — in a file whose pre-exi
 `rules-of-hooks` errors made one more red line invisible. A lint finding on a file you touch is a
 report, not noise.
 
+### ⛔⛔ A SCOPED RUN IS NOT A GATE — and the hub subset is an ARTIFACT, not a phrase (Testing)
+
+> **`app/vitest.hubGlob.js` is the hub rail subset. Run it with `npm run test:hub` from `app/`.
+> Passing it means "the hub's own rails are green", never "the branch is green" — only
+> `scripts/gate_shards.py` can say the second.**
+
+⚰️ **2026-09-13, and this cost a reported-as-verified branch.** "The hub rails" was a phrase, not
+an artifact: it meant whatever `src/hub` somebody happened to type. The stage-2 branch ran exactly
+that, got **84 files / 1118 tests, all green**, and was reported as verified — while **nine** tests
+under `src/pages/settings/` were red. They assert the EXPOSURE rule (who sees the Joystick settings
+card), they live outside `src/hub`, and only the six-shard gate could see them.
+
+⭐ **A subset that omits the files most likely to break is worse than no subset, because it reads
+as coverage.** Three guards now make that hard to repeat:
+
+1. **The list is an artifact** — `app/vitest.hubGlob.js`, with `src/pages/settings/*` and the two
+   `src/styles` rails in it, not only `src/hub/**`.
+2. **The list is RAILED, not trusted** — `src/hub/hubGlobCoverage.test.js` DERIVES every test file
+   that imports the rollout/exposure authority (`hub/rolloutStage`) and fails if one is not matched
+   by the subset. A future exposure test is covered the day it lands, not the day someone remembers.
+   It also fails on a pattern that matches no file, and carries a matcher-discriminates control.
+3. **The runner expands the globs ITSELF and refuses a small subset.** ⚰️ Vitest's positional
+   arguments are **filename FILTERS, not globs** — passing `src/hub/**/*.test.{js,jsx}` straight to
+   `vitest run` matched **nothing**, ran 5 files, and exited 0. `scripts/run-hub-rails.mjs` expands
+   to concrete paths and hard-fails below a file-count floor, because a near-empty run exits 0 and
+   reads as a pass.
+
+⛔ **Two authorities over one question is the underlying defect, and it was live.** The same branch
+found `useHubSettings.js` answering *"is a stored `null` a choice?"* with `=== undefined` (so `null`
+→ `!!null` → OFF) while `JoystickSettingsCard.jsx` answered with `typeof === 'boolean'` (so `null`
+→ "never chose"). At stage 1 both answers looked identical; widening the rollout made the
+disagreement member-visible. One definition now, the card's.
+
 ### ⛔ A test run without a totals line is not a run (Testing)
 
 > **Assert the totals line before reading the exit code.**
