@@ -10,20 +10,48 @@ pairs_with: SPEC-D4-CACHING-AND-SERVING
 
 # ⛔ D4 pre-implementation gate — UNAPPROVED
 
-## ⛔ APPROVAL
+## ⛔ APPROVAL — THREE LINES, one per checkpoint
+
+⚰️ **THIS BLOCK HELD ONE LINE READING "CP1 - THE FIRST TWO OF THE FIVE NAMED ADOPTERS".**
+It contradicted §4 of this very packet, where CP1 is a derived rail with *"no product code
+changes"* and the adopters are CP2 and CP3. A build against it would have been unreviewable:
+the scope named a checkpoint the packet did not describe. ⛔ **And the contradiction hid a
+hazard** — "the first two adopters" spans CP2 (outside flow-worker's closure) and CP3 (inside
+it), so the one line silently authorized a stranding change alongside a free one.
+**Owner re-numbered it 2026-09-13; scope and packet now agree.**
 
 ```
 APPROVED BY:      Patrick (owner), via Claude Chat middleman
-APPROVED ON:      2026-09-12
-APPROVED AT SHA:  37bfe4251
-SCOPE APPROVED:   CP1 - THE FIRST TWO OF THE FIVE NAMED ADOPTERS,
-                  additive, with a hit-rate counter. Snapshot-identity on the
-                  SERVED VALUES: the two adopters must return byte-identical
-                  results before and after. Name which two and why. The counter
-                  is observability, never a gate on serving; a cache that can
-                  refuse to serve because its counter is unhappy is a new
-                  failure mode.
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:      40caca541
+SCOPE APPROVED:   CP1 - THE DERIVED RAIL, and NO PRODUCT CODE. A test that
+                  enumerates every per-set cache key by AST (the SPEC §3.4
+                  population) and fails when a NEW one appears that is not
+                  declared as a deliberate fast path or a batch-provider key.
+                  No key renamed, no module touched, api/services/cache.py
+                  UNTOUCHED.
+
+                  CP2 - ADOPTER 1: api/services/watchlist_performance.py,
+                  INCLUDING THE `wl_perf:` CACHE-KEY FIX. Per-ticker keying so
+                  one failed ticker's all-None row can NEVER be cached against
+                  healthy peers in the same request. The set key stays as a
+                  fast path. A hit-rate counter, which is observability and
+                  NEVER a gate on serving. Snapshot-identity on the served
+                  values. A test using EXACTLY that scenario - a batch where
+                  one ticker fails and its peers succeed. Mutation: restore the
+                  set-hash key -> RED. cache.py UNTOUCHED.
+
+                  CP3 - ADOPTER 2: theme_performance.py + groups.py.
+                  ⛔ CLASSIFICATION PRE-DECLARED: **BEHAVIOUR-CHANGING**. Both
+                  modules are INSIDE flow-worker's import closure and neither is
+                  watched; this merges in the weekend window with a marker bump
+                  and both artifacts. If the window has closed before it is
+                  ready, it HOLDS on the branch with the reason in §6.
+                  cache.py UNTOUCHED.
 ```
+
+⛔ **`api/services/cache.py` IS IN NO CHECKPOINT**, per D4-D. If an implementation turns out to
+need a `TTLCache` API change, that is a stop-and-re-gate condition, not a scope stretch.
 
 > ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** The block above is empty and that is its
 > current, correct state. No checkpoint below may be built, merged, or partially started until
