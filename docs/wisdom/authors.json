@@ -50,8 +50,8 @@
       "role": "team",
       "can_author_calls": true,
       "discord_user_id": "806378356966424596",
-      "discord_username": null,
-      "discord_verified": "PENDING — ID from prior session memory; to be confirmed by #manrav channel authorship after the bot grant",
+      "discord_username": "manrav",
+      "discord_verified": "50/50 most recent #manrav messages (bot read after the 2026-09-13 grant)",
       "x_handle": null,
       "aliases": ["Manrav", "Manav", "manrav"],
       "substack_sections": []
