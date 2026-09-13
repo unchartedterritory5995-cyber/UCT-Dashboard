@@ -193,18 +193,50 @@ DEC-01…DEC-09 in `READINESS_REVIEW_DAY1.md`; DEC-10…DEC-15 in
 **third numbering** and is almost certainly a typo for DEC-01. **Recorded, not corrected** — a
 silent renumber in an audit is exactly the drift this file exists to catch.
 
-### 3.4 ⛔ H\* AND G\* — THE PREFIX COLLISIONS, registered here as new findings
+### 3.4 ✅ F-AUDIT-1 — CLOSED. The hypothesis register is now `HY-nn`.
 
-- **F-AUDIT-1 (new):** `H14` is BOTH a hazard rule (*a hazard class found while the code is live
-  is a hard stop*) and a hypothesis in `hypothesis-register.md`. Same for the whole H1–H35 range:
-  the charter's H-rules and the synthesis's H-hypotheses overlap completely.
-- **F-AUDIT-2 (new):** `G1`–`G5` are D1 provider gaps; `G7`–`G12` are capability-ledger gaps;
-  `G20`, `G53` are something else again.
+⭐⭐ **AND IT WAS THREE REGISTERS, NOT TWO.** The audit reported `H` as a two-way
+collision. Doing the rename found a third meaning:
 
-**What closes them:** a prefix rename in one of the two registers (`HR-` for rules, `HY-` for
-hypotheses; `DG-` for D1 gaps). **PROVISIONAL recommendation: rename the HYPOTHESIS register**,
-because the rules are cited in commit messages and code comments across the estate and the
-hypotheses are cited only inside `13-executive-synthesis/`.
+| `H5` means | where | renamed? |
+|---|---|---|
+| a hazard **RULE** (`H4` roll back first, `H14` a live hazard is a hard stop) | `charter/C-master-directive.md`, commit messages, code comments across the estate | **no** — largest blast radius, keeps its ids |
+| a **HYPOTHESIS** | `13-executive-synthesis/` | ✅ **renamed to `HY-nn`** — 327 ids across two files |
+| a **capability-ledger ROW id** (`D3, D6–D8, G6, H5, H9, K3, L8, N4` — a grid coordinate) | `capability-ledger.md`, cited in `executive-questions.md` | **no** — a different namespace entirely; renaming it would have been the real damage |
+
+⛔ **A BLIND RENAME WOULD HAVE CORRUPTED THE THIRD ONE.** The row ids look
+identical to the hypothesis ids and sit in the same sentence as other letters. The
+rename was scoped to the two files that own the hypothesis register, and the eight
+residual `H`s in `executive-questions.md` were **left alone deliberately** after
+being read.
+
+**G is still open**: `G1`–`G5` are D1 provider gaps, `G7`–`G12` are
+capability-ledger gaps, `G20`/`G53` are something else again. Not renamed this
+pass — recorded so it is not mistaken for done.
+
+### 3.4a F-D4-1 (new) — the derived cache detector, preserved not lost
+
+The D4 CP1 AST detector failed five times and its sixth fix was O(n²). Replaced by
+a declared manifest (`f2a2a68a6`). **The working copy is at
+`scratchpad/d4cp1/test_d4_per_set_cache_keys.py`.** The five defects are listed in
+§6 Unit 2. ⛔ Not blocking anything; it would only ever be an *addition* to the
+manifest rail, never a replacement for it.
+
+### 3.4b F-S7-RC-2 (registered here from code, 2026-09-13)
+
+⛔ **THIS FINDING EXISTED ONLY IN CODE AND WAS INVISIBLE TO EVERY DOC-SIDE AUDIT.**
+It was found by noticing a gap in a sequence — the harvester returned RC-1, RC-3
+and RC-4 and no RC-2.
+
+**The finding:** `voice_proactive_service.py`'s regime path derives the previous
+label by **substring match over the lowercased text of the member's last session
+summary**, so `"choppy"` yields `chop`; its five labels are a **second, hand-typed
+copy** of the vocabulary, and first-match-in-tuple-order wins. Reproduced, not
+fixed, and railed against both source sites by AST in
+`api/services/alert_taxonomy/regime_change.py`.
+
+**Status:** OPEN. **What closes it:** the same ruling as F-S7-RC-1 and RC-3 —
+owner form item **B5**. All three die at the S7 flip if the flip happens.
 
 ### 3.5 The `.gitignore` force-add hazard
 

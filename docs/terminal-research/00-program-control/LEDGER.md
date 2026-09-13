@@ -638,6 +638,31 @@ only the CLAIM, everything before the ⚰️ marker.
 
 ---
 
+# ⛔⛔ STANDING RULE — TWO MUTATION CYCLES, THEN DECLARE
+
+**Owner ruling, 2026-09-13.** *Any rail whose build exceeds TWO mutation cycles of
+self-correction gets replaced by a DECLARATION plus an EXISTENCE CHECK and a follow-up — not a
+sixth attempt.*
+
+⚰️ **THE CASE THAT PRODUCED IT.** D4 CP1 tried to *derive* the per-set cache-key population by
+walking the AST. It was wrong five times, each differently: a glob that matched nothing; reading
+the call argument instead of what it held; `{"get","set"}` matching every `dict.get` in the
+estate; one assignment hop too few — which hid the very site the spec holds up as CORRECT; and a
+module-wide assignment map matching a `key` across unrelated functions. The sixth fix was O(n²)
+and hung the suite. Replaced by a hand-written manifest (`f2a2a68a6`) that merged the same day.
+
+⭐ **WHY THE RULE IS RIGHT AND NOT JUST PRAGMATIC.** A derived population is a research project
+wearing a rail's clothes: it keeps *almost* working, and each near-miss feels like one fix away.
+A declared population is a **decision**, and a decision is what a rail should encode. The
+declaration is also honest about its limit — it says out loud that a NEW site is invisible to it,
+which is exactly the claim the detector could never make.
+
+⚠️ **THE COUNT IS OF SELF-CORRECTIONS, NOT OF MUTATIONS RUN.** Mutating a finished rail to prove
+it fails is the job. Fixing the rail because the mutation revealed the rail itself is broken is
+the thing being counted.
+
+---
+
 # ⛔⛔ STANDING RULE — A DATE IN ANY PROGRAM DOC IS THE GIT COMMIT DATE IN America/Chicago
 
 **Owner ruling, 2026-09-12.** The authority for every date written here is the commit's own date

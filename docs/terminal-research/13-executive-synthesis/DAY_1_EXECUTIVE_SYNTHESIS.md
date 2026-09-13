@@ -73,7 +73,7 @@ are fixable by engineering. The program does not have a licensing problem of 81 
 two questions for the owner and a residue of roughly fourteen genuine contract rows. 🟢 on the
 arithmetic, 🔴 on the answers.
 
-**1.5 The desk's workflows are not in the repository.** Hypothesis H21 ("desk workflows can be
+**1.5 The desk's workflows are not in the repository.** Hypothesis HY-21 ("desk workflows can be
 reconstructed from the repo alone") is UNSUPPORTED (`hypothesis-register.md`, F-08). Q7 finds
 eleven per-ticker doors and four histories that never join; Q8 and Q10 are 🔴 because thinkorswim
 appears in no repository and the desk's 06:30–10:00 CT loop was never observed. Observation, not
@@ -169,8 +169,8 @@ Ten scoreboard greens, seven supported hypotheses, and a set of verified vendor 
 - **Q32, Q33** — the hallucination map: report card 12/50 with rungs 3–5 at zero; fast lane
   13/30 with eleven retrieval misses; and the `--grounding-audit` that measures retrieval for $0.
 
-**Supported hypotheses (F-08):** H6, H7 (provisional), H11, H14, H23, H29, H31, H35. The register
-recommends carrying H14, H23, H29 and H35 into GOVERNING_PRINCIPLES as constraints, and this file
+**Supported hypotheses (F-08):** HY-06, HY-07 (provisional), HY-11, HY-14, HY-23, HY-29, HY-31, HY-35. The register
+recommends carrying HY-14, HY-23, HY-29 and HY-35 into GOVERNING_PRINCIPLES as constraints, and this file
 concurs (§16).
 
 **Accepted artifacts that are 🟢 in their own frontmatter or on their load-bearing claims:**
@@ -213,7 +213,7 @@ documentation, fetched 2026-09-02 by the citing role):**
 
 The seven scoreboard reds and the twelve Unknown hypotheses share a small number of causes.
 
-**Cluster A — the desk was never observed (Q8, Q10, Q26; H21 UNSUPPORTED; OI-06).** The
+**Cluster A — the desk was never observed (Q8, Q10, Q26; HY-21 UNSUPPORTED; OI-06).** The
 program has a 1,187-route map and no map of the 06:30–10:00 CT morning. thinkorswim is in no
 repo. Q26 (the desk's real navigation cost) cannot be scored from code because the code does
 not contain the tools the desk opens by hand. Only an observed morning moves these, and it is
@@ -225,7 +225,7 @@ labelled assumptions: an as-is stack near $830/mo, a fixed block of $3.5k–7k/m
 below about 1,000 members, per-member $0.58 delayed versus $3.13 real-time, break-even at 19–36
 paying members at $200 list. Every one of those is a forecast until derived.
 
-**Cluster C — table stakes cannot be decided without the workspace answer (Q2; H1, H5
+**Cluster C — table stakes cannot be decided without the workspace answer (Q2; HY-01, HY-05
 UNKNOWN).** Q2 lists a workspace and a command surface as table stakes; the hypothesis register
 holds both Unknown. C5-01 §6 could not find one vendor telemetry write-up or third-party study
 on whether users customise — the only route that closes it is UCT's own `charts_workspace_layout`
@@ -437,7 +437,7 @@ settle claims against code: R2 (paywall direction), R4 (five services, not three
 ledger stale on all five dark entries), R16 (Sentry unconfigured), R21 (every Desk show uploads
 public), R23 (`BrokerEquityCurve` live, not deleted).
 
-**6.2 Capability ledger — 178 rows.** A13 B12 C9 D12 E17 F10 G12 H9 I6 J10 K13 L11 M8 N13 O12
+**6.2 Capability ledger — 178 rows.** A13 B12 C9 D12 E17 F10 G12 HY-09 I6 J10 K13 L11 M8 N13 O12
 P11. 168 active, 5 dormant, 2 deprecated, 2 duplicated, 1 absent (P6, per-user cohort
 targeting). Reconciliations L-1..L-6: Claude synth ON; the awareness tile unmounted; the
 ticker-mentions door NOT DETERMINED.
@@ -643,7 +643,7 @@ the set. That is the defensible ground and every dossier's Part XXVI paragraph s
 independently.
 
 **10.2 The desk's morning is unknown and is the highest-value observation available.** Q8 and
-Q10 are 🔴; H21 is unsupported; OI-06 is unanswered. C4-01's whole grammar decision turns on the
+Q10 are 🔴; HY-21 is unsupported; OI-06 is unanswered. C4-01's whole grammar decision turns on the
 desk's *tenth* action of a session versus the member's *first*, and neither number exists. The
 reallocation advice from the scoreboard stands unchanged: one owner-observed 06:30–10:00 CT
 timeline moves more rows than any further reading.
@@ -734,7 +734,7 @@ and ship all four as "the command surface". C4-01 §11 is explicit that Grammar 
 Grammar B (verb-first palette) are the sharpest fork in the file and TERMINAL-NEXT cannot have
 both as its default; the decision is made against the desk's tenth action and the member's first,
 neither of which has been measured. The tell that this temptation is live: Q2 already lists "a
-command surface" as table stakes while H5 is Unknown.
+command surface" as table stakes while HY-05 is Unknown.
 
 **Temptation 2 — research-terminal envy.** Bolt AlphaSense's document corpus, Quartr's live
 transcripts, Koyfin's 300-metric financial analysis and Fiscal.ai's 20-year statements onto a
@@ -860,9 +860,9 @@ under-used. *Reconciliation:* the claims document is stale; the ledger is derive
 *Status:* closed for the map; open as a retirement/consolidation decision (§8.3).
 
 **13.3 Workspace and command surface: table stakes or unknown?**
-*A (executive-questions Q2):* both are table stakes. *B (hypothesis register H1, H5):* Unknown.
+*A (executive-questions Q2):* both are table stakes. *B (hypothesis register HY-01, HY-05):* Unknown.
 *Reconciliation:* Q2's classification rests on benchmark ubiquity, which the program's own
-discipline says is never an argument; H1/H5 rest on the absence of any adoption evidence,
+discipline says is never an argument; HY-01/HY-05 rest on the absence of any adoption evidence,
 internal or external. The register's position is the safer one until `charts_workspace_layout`
 is queried. *Status:* open; tension recorded in F-08; resolves with one query the owner can run.
 
@@ -966,31 +966,31 @@ own L/I carried as stated.
 ## 15. Hypotheses strengthened and weakened
 
 From `hypothesis-register.md` (F-08): 8 supported, 12 partially, 3 unsupported, 12 unknown, out
-of H1–H35.
+of HY-01–HY-35.
 
 **Strengthened by Day 1 (and by this file's cross-read).**
-- **H14, H23, H29, H35** — supported and recommended for GOVERNING_PRINCIPLES as constraints. This
+- **HY-14, HY-23, HY-29, HY-35** — supported and recommended for GOVERNING_PRINCIPLES as constraints. This
   file concurs and adds that the benchmark set independently converged on the same constraints
   where they are visible (one authority per value; the honest blank; measure, don't quote).
-- **H6, H11, H31** — supported on internal evidence.
-- **H7** — provisional support; the Wave 1b workspace survey (§12.1) neither strengthens nor
+- **HY-06, HY-11, HY-31** — supported on internal evidence.
+- **HY-07** — provisional support; the Wave 1b workspace survey (§12.1) neither strengthens nor
   weakens it further because nothing was observed running.
 - **The grounding thesis** (not a numbered H, but the register's tension with Q32/Q33): the C-wave
   found that UCT's producer-side gates exceed every vendor's published posture (C6-02 §9), which
   strengthens the case that the AI investment belongs on the reader side, not on more lanes.
 
 **Weakened or unsupported.**
-- **H21** (desk workflows reconstructable from the repo) — UNSUPPORTED; §1.5, §3 Cluster A.
-- **H24** (the setup library as-is is a terminal asset) — UNSUPPORTED; D-13's four-population
+- **HY-21** (desk workflows reconstructable from the repo) — UNSUPPORTED; §1.5, §3 Cluster A.
+- **HY-24** (the setup library as-is is a terminal asset) — UNSUPPORTED; D-13's four-population
   vocabulary (48/32/26/24, 15 shared) is evidence of the second-authority class inside the asset
   itself.
-- **H30** (the Exposure Rating is portable) — UNSUPPORTED; its yfinance input is Unsuitable under
+- **HY-30** (the Exposure Rating is portable) — UNSUPPORTED; its yfinance input is Unsuitable under
   the licensing register.
-- **H1** (workspaces) and **H3** (existing providers suffice) — the register's two most at risk.
-  H1 waits on one table query; H3 was weakened further by the provider ledger's zero
+- **HY-01** (workspaces) and **HY-03** (existing providers suffice) — the register's two most at risk.
+  HY-01 waits on one table query; HY-03 was weakened further by the provider ledger's zero
   CONTRACT-ACTIVE rows and the seven retirement candidates.
 
-**Still Unknown, and what moves them.** H1, H5, H8, H13, H15, H19, H20, H26, H28, H32, H33, H34.
+**Still Unknown, and what moves them.** HY-01, HY-05, HY-08, HY-13, HY-15, HY-19, HY-20, HY-26, HY-28, HY-32, HY-33, HY-34.
 The register names three owner facts that move the most rows — OI-03(a), OI-06, OI-15 — and one
 test — the observed morning. Nothing read for this file changes that ordering.
 
@@ -1093,7 +1093,7 @@ Each with the reason it is closed and where the answer lives.
 
 Ranked, each tied to a critical-path item or scoreboard red, with the instrument that answers it.
 
-1. **The desk's morning, 06:30–10:00 CT, observed once.** Moves Q8, Q10, Q26, H21, and the grammar
+1. **The desk's morning, 06:30–10:00 CT, observed once.** Moves Q8, Q10, Q26, HY-21, and the grammar
    fork (§11 Temptation 1). Instrument: the owner records or narrates one session (OI-06). Ties to
    CP-01/CP-02.
 2. **OI-03(a) Massive tier and OI-03(b) FMP DDLA.** Moves 57 licensing rows and D-002. Instrument:
@@ -1102,7 +1102,7 @@ Ranked, each tied to a critical-path item or scoreboard red, with the instrument
    `ai_search_log`. Moves Q18, Q36, Q37, and P-δ. Instrument: the owner runs four queries against
    a copy of `auth.db`. Ties to the Business reds.
 4. **One query of `charts_workspace_layout`** — fraction of members with a row; widget-count and
-   distinct-type distribution; rows byte-identical to a shipped template. Moves H1, H5, Q2, R-07.
+   distinct-type distribution; rows byte-identical to a shipped template. Moves HY-01, HY-05, Q2, R-07.
    Ties to C5-03.
 5. **The popout spike** — does a dock library's popout preserve the opener's React tree? Moves
    §12.1's build-versus-adopt. An afternoon. Ties to C5-03.
@@ -1113,7 +1113,7 @@ Ranked, each tied to a critical-path item or scoreboard red, with the instrument
 8. **Adjustment scope on the fallback path** — does yfinance's series include dividend adjustment?
    Instrument: one known dividend-paying non-splitting name compared across the two sources
    (C7-02 §3.1). Ties to C7-03.
-9. **F-09 provider master ledger** with the owner's A–G taxonomy (DL-022). Moves H3 and the
+9. **F-09 provider master ledger** with the owner's A–G taxonomy (DL-022). Moves HY-03 and the
    retirement decisions. Ties to the next wave.
 10. **Whether `sec_filings.py` polls on a schedule or only on request.** Sizes the cheapest alert
     idea in the set (C2-01 §6). One file read outside C2-01's allowlist.
@@ -1180,7 +1180,7 @@ dispatches.
    with id, as-of, inputs, calculation version — or the named reason it has none.
 10. **Dispatch A-06** with D-02's route table: the full unauthenticated `/api/*` data-route list,
     read-only.
-11. **Dispatch the GOVERNING_PRINCIPLES revision** carrying H14, H23, H29, H35 as constraints, the
+11. **Dispatch the GOVERNING_PRINCIPLES revision** carrying HY-14, HY-23, HY-29, HY-35 as constraints, the
     decisiveness-for-two-audiences decision (§16.1), and the derived-counts rail.
 12. **Dispatch C5-03** only after items 3, 8 and 11 land; stamp any earlier ARCH artifact
     PROVISIONAL.
