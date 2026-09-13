@@ -252,3 +252,16 @@ def test_a_firing_with_nothing_due_exits_quietly(monkeypatch, capsys):
     assert m.main([]) == 0
     assert posted == [], "a not-due firing posted to Discord"
     assert "nothing due" in capsys.readouterr().out
+
+
+def test_the_discord_post_sends_a_browser_user_agent():
+    """⚰️ MEASURED 2026-09-13 on the first live trigger: the post returned
+    `HTTP 403` with body `error code: 1010`. 1010 is CLOUDFLARE, not Discord —
+    it blocks a default `Python-urllib/3.x` agent, exactly as CLAUDE.md already
+    records for curl. The webhook was fine; the agent was not.
+
+    ⭐ The failure reads as 'your webhook is dead', which sends you to rotate a
+    credential that was never broken."""
+    code = _code_only(_MON)
+    assert "User-Agent" in code, "the Discord post sends no User-Agent — Cloudflare will 1010 it"
+    assert "Mozilla/5.0" in code

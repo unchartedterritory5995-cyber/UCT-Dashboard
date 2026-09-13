@@ -94,9 +94,20 @@ def post(title: str, body: str, *, alert: bool = False) -> bool:
         print("[monitor] NO ADMIN WEBHOOK SET — would have posted:\n" + text)
         return False
     try:
+        # ⚰️⚰️ THE USER-AGENT IS LOAD-BEARING, AND ITS ABSENCE COSTS AN HOUR.
+        # Measured 2026-09-13 on the first live trigger: the post came back
+        # `HTTP 403 Forbidden` with body `error code: 1010`. **1010 is
+        # CLOUDFLARE, not Discord** — it blocks a default `Python-urllib/3.x`
+        # agent, exactly as this repo's CLAUDE.md already records for curl. The
+        # webhook was fine the whole time.
+        # ⭐ The failure reads as "your webhook is dead / your token is wrong",
+        # which sends you to rotate a credential that was never broken. Anything
+        # this service sends outbound carries a browser UA.
         req = urllib.request.Request(
             url, data=json.dumps({"content": text}).encode("utf-8"),
-            headers={"Content-Type": "application/json"})
+            headers={"Content-Type": "application/json",
+                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                   "terminal-next-monitor"})
         urllib.request.urlopen(req, timeout=30).read()
         return True
     except Exception as e:                                   # noqa: BLE001
