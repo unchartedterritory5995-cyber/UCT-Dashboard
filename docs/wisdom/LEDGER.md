@@ -173,6 +173,81 @@ fires only for one that has not. `put_immutable`, `get` and `list_prefix` all fu
 ⚠️ **Scope, stated rather than implied:** this is a *pytest* rail. A bare `python tools/...` run
 still reaches the live bucket, exactly as the conftest tripwire is a test-suite rail only.
 
+### Drift #4 — the first-name attribution path, answered in full (owner ruling, checkpoint 2)
+
+The owner called this "the most dangerous finding in the program so far" and asked for four
+confirmations. All four are closed. Merged to master as `2e6f3453e` (web SUCCESS 21:33:55Z,
+`/api/health` `uptime_seconds: 34` on a fresh boot).
+
+**(a) The path is DELETED, not disabled.** Removing `"Patrick"`, `"Blake"` and `"Manav"` from the
+alias lists fixed the INSTANCE and left the door open — re-adding any bare given name would have
+silently restored it. `core/authors.author_for_alias` now refuses **any** one-word alphabetic label
+that is not declared in `authors.json` `single_token_aliases_reviewed` with a reason. Measured: with
+`"Patrick"` put BACK into tsdr's alias list, `author_for_alias("Patrick")` → `None` and
+`normalize_speaker` → `team-unresolved`, while `Patrick (TSDR)`, `TSDR`, `Brac`, `braczyy`,
+`1ChartMaster`, `Joe Walburn` and `Manrav` all still resolve.
+
+**(b) Blast radius: ZERO records, and the zero is a measurement.** Five independent instruments over
+`golden-v1.jsonl` (125), `golden-v0.draft` (30), `review-queue-v1` (13), all 319 transcript files
+(56,397 labelled cues / 409,701 lines) and all six `*.db` files — every one negative. The source
+label IS stored for all 125 records (`expected.speaker_label` 125/125, `evidence.attribution.method`
+125/125), so this is not a gap filled with a guess: 43 records resolved by `speaker_label` (the
+defect's path), 32 by signed section, 27 by Discord user id, 19 by the D4 ruling, 2 guest, 1
+self-identification, 1 alias-pending.
+
+⭐ **The control that makes the zero worth anything: `Zack` — 142 cues in session 308, a bare given
+name used as a Zoom display name by a non-author in this very room.** The collision the ruling is
+about is REAL and OBSERVED; it simply never landed on one of the three names that happened to be
+aliases. Had "Zack" been an alias, 142 cues would have been misattributed. The defect was live
+ammunition that did not fire.
+
+**7 records came through the shared "Uncharted Territory" label** (a different §8a.2 path, not the
+first-name one), each now with cited evidence: G-044, G-045, G-051 keep `tsdr` on same-morning
+Discord corroboration (G-051 is Δ0.7 min — textbook §8a.2 same-minute evidence); G-057 → `bracco`;
+G-034 → `team-unresolved` (its cue is in an uncorroborated stretch of a UT-only session);
+**G-035 and G-052 stay provisional per the owner's ruling** — `team-unresolved`, MENTION only, out
+of the UCT-see rate and out of every publish path, pending his answer.
+
+**(c) The regression case ships** as a SESSION, not a unit assertion: a live session containing
+attendees named "Patrick", "patrick", "  PATRICK  ", "Blake" and "Manav", the shared host label, the
+real owner and a real teammate. Exactly one cue may author as `tsdr` — the owner's own Zoom label.
+⚠️ Scope is stated in the test rather than implied: the record WRITER is S-D and unmerged, so this
+asserts at the layer that decides authorship. The end-to-end assertion over written rows is **owed
+at the S-D merge**.
+
+**(d) The tables were read, not inferred from the dark flags.** Read-only (`mode=ro` URI), bounded
+queries, nothing heavy on the live pod:
+
+| store | measured | result |
+|---|---|---|
+| Brain KB `knowledge_base` (`/data/brain/…`) | 9,677 rows, every column swept for `wisdom` / `wisdom:` / `G-0NN` | **0** (the single "wisdom" hit is a pre-existing Sunday-Scans row titled *Billy Joel 'Vienna' Wisdom Applied to Trading*) |
+| Brain semantic index `brain_chunks` | 9,982 rows | **0** |
+| `ticker_mentions` → `edu_videos.ticker_moments` | 320 videos, 291 with moments | **0** (5 whole-DB hits are chapter titles using the English word) |
+| `pattern_exemplars` | table exists | **0 rows at all** |
+| `modelbook.db` (9 tables) | every non-blob column | **0** |
+| `wisdom_publish_log` | — | **0 rows — not even a dark-mode `would_publish` preview** |
+| `/data/wisdom.db` (34 tables) | every table | every content table **0**; only `wisdom_migrations` 6 and `wisdom_job_heartbeats` 2 |
+| 7 further member DBs (43 tables) | `wisdom:` / `G-0NN` | **0** |
+
+⭐ **The switch is confirmed from the artifact, not the config:** both wisdom jobs on the pod record
+`last_status='skipped'`, `last_error='master switch WISDOM_INGEST_ENABLED is off'`. The skeleton is
+live on production and has written nothing anywhere.
+
+⛔ **The gap the pod could not show, now closed.** The pod's brain pack is a ~1.5-day-old snapshot
+and the merge map's KB write is **PC-side**, so a row inserted there after 2026-09-12 02:00 would be
+invisible to every pod query and would reach members at the next pack export. Checked directly:
+`C:\Users\Patrick\uct-intelligence\data\uct_intelligence.db` (87.5 MB) — **0 rows with Wisdom
+provenance**, row count and newest timestamp identical to the pod snapshot (so nothing was written
+since), and **`scripts/wisdom_kb_sync.py` does not exist**: the PC-side writer was never built, so
+there is no mechanism that could have written. Verified on both sides.
+
+**Still unmeasured, stated rather than implied:** four large DBs (`bars.db` 25 GB, `darkpool.db`,
+`flow.db`, `auth.db`) were not swept — none is a publish target per the merge map, but they were not
+inspected; the other four Railway services were not checked (every publish target lives on `web`);
+and content matching was provenance-shaped (`wisdom:` / `G-0NN`), so a row published with no
+provenance marker at all would not be caught by shape — though an empty `wisdom_publish_log` argues
+no adapter ran in any mode.
+
 ### Owner-task evidence (W1 GO Part 2)
 
 | Task | Done | How verified |

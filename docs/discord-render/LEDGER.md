@@ -215,6 +215,31 @@ whatever the flag says (read-only admin diagnostic, most useful *before* the fli
 PEEKS `_runtime` and opens a store only if the database already exists — mirroring
 `GET /api/discord/render-health`. Two new rails cover the flag-off path.
 
+### Step 1.2b — `/renderhealth` registered · Step 1.3 — blocked (2026-09-13)
+
+**`/renderhealth` is registered.** Commands here are **per-guild, not global** (`GET
+/applications/{id}/commands` → `[]`; the guild set held `chart, c, chartsettings, buzz, flow`), so a
+`--global` PUT would have given every member a *second* copy of every command. Registered into
+`882293203485720596` only, after `89c6b12bf` was SUCCESS so the code that answers it was already live:
+
+    chart · c · chartsettings · buzz · flow · renderhealth (default_member_permissions "8")
+
+The other five are byte-identical to what was there. Live state at the end of Step 1: running
+`89c6b12bf1de`, `/api/health` 200, `/api/discord/render-health` 401 unauthenticated, V2 flag still
+absent, alert webhook present, flow-worker **SKIPPED** on both pushes.
+
+**Step 1.3 (`#render-alerts` must be invisible to Contributor) — NOT DONE, blocked two ways.**
+
+1. The Claude browser extension is disconnected since the restart, so the Discord UI is unavailable.
+2. The API route does not work either: `DISCORD_BOT_TOKEN` is the **same app** that serves `/chart`
+   (`UCT Intelligence`, `1474900505917653142`), and it gets **403 `Missing Access` (50001)** on
+   `GET /channels/1548783155354403046`. It is not a member of that private channel and cannot edit
+   its overwrites. Granting it access needs the same permission that is missing.
+
+⚠️ Not a data-exposure issue: `#render-alerts` carries operational figures (queue depth, latency
+percentiles, failure classes, correlation ids) and no member data. The webhook is unaffected —
+posting does not require channel read access, which is why the test alert landed.
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
@@ -276,6 +301,8 @@ is not walked into twice.
 | 2.4a | Two of 22 mutations stayed **green**. **S4:** the "swap" case in the one-edit test was APPL → AAPL, which is a substitution — only one position differs — so deleting the transposition branch changed nothing (the docstring example was wrong the same way). **S9:** the kill-switch test made `resolve` raise, but the check fails open, so the exception was swallowed and the request queued exactly as it would with the switch honoured. | The harness verdict `GREEN UNDER MUTATION`. | S4: a real adjacent swap (NDVA → NVDA) plus a two-position non-swap; docstring corrected. S9: the fake records calls and the test asserts none happened. Harness re-run; a rail whose failure the code under test swallows is not a rail. |
 | Step 0 | The restart capture withheld three files for "credential-shaped content". All three were **false positives**: the scanner's `sk-[A-Za-z0-9_-]{20,}` matched hyphenated slugs — `v2-ri`**`sk-register-and`**`-directives.md` and `feat/de`**`sk-sharpen-workshop-card`**. One session's reconstructed resume and a design doc were withheld for nothing. | Reading each match **in context** rather than trusting the hit count. | Verified in context, then committed and pushed (`944231be4` on `feat/catalyst-coverage-precision`). ⭐ A secret regex anchored on a two-letter prefix inside a hyphen-rich corpus is an instrument that manufactures findings; the fix for the next capture is a boundary (`(?<![A-Za-z0-9-])sk-`) plus an entropy floor, not a longer block list. |
 | 1.1a | The patch that rewired the 14 render pages detected each file's line ending **from disk** and wrote that back. Git stores these files LF; the working copies were CRLF, so every file came back as a whole-file rewrite — `918` changed lines on `ChartRender.jsx` instead of 2. A 14-file whole-file diff would have conflicted with every other session touching those pages. | `git diff --numstat` after the patch: 14 files, every line changed. | Normalised all 14 back to LF (a byte transform, never a `git checkout`), re-measured: **2 lines changed per file**. ⭐ The rule the script had wrong: an EOL-preserving patch must write the ending the **index** stores, not the one it finds on disk — on a box with `core.autocrlf=true` those differ by design. |
+| 2.4b | The SAME line-ending trap, a second time — `docs/feature_flags.json` came back as a 1,199-line whole-file diff after a 7-line edit. A Python `newline=""` round trip preserves what is ON DISK, and on this box git checks these files out CRLF while the index stores LF. | `git diff --numstat` again. | Normalised to LF; the diff became `0 7`. ⛔ **Standing rule, now that it has cost two edits:** any repo file written from Python on this box is written **LF**, matching the index — never "whatever was on disk". |
+| 2.4b | The merge with master produced a **duplicate** `ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED` in `docs/feature_flags.json`: I declared it (status `dark`) to unblock the gate, and the owning S7 session declared it in the same window (status `armed`). `json.load` keeps the LAST duplicate, so the "every gate is declared" rail passed while the file carried two entries — only `test_no_flag_is_declared_twice` caught it. | The scoped gate: 838 passed, 1 failed. | Removed mine, kept theirs: they own the flag and they know it is armed. ⭐ `lesson_a_clean_merge_can_still_duplicate_a_key`, exactly — and the reason two rails exist for one file. |
 
 ## Phase summaries
 
