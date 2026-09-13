@@ -328,7 +328,9 @@ def minimal_pdf(line: str) -> bytes:
     return bytes(out).replace(b"NLMARK", b"\n")
 
 
-EXCERPT_LINE = "F5 MATRIX EXCERPT SOURCE PASSAGE ALPHA BRAVO CHARLIE DELTA"
+# A phrase the fixture really contains, so the driver selects something real and
+# can prove THAT string came back. Read from the PDF, not invented beside it.
+EXCERPT_LINE = "CONDENSED CONSOLIDATED STATEMENTS OF INCOME"
 
 SELECT_AND_SAVE_JS = """async ({want}) => {
   // THE MEMBER'S OWN SELECTION, not a scripted POST. `PdfDocumentViewer`
@@ -366,10 +368,20 @@ OPEN_PREVIEW_JS = """async () => {
   if (!chip) return {ok:false, why:'no attachment chip in the note body'};
   chip.scrollIntoView({block:'center'});
   chip.click();
-  await new Promise(r => setTimeout(r, 3500));
-  const pages = document.querySelectorAll('[data-pdf-page-number]').length;
-  const spans = document.querySelectorAll('.textLayer span').length;
-  return {ok: pages > 0, why: 'preview pages=' + pages + ' textLayer spans=' + spans,
+  // ⛔ POLL, DO NOT WAIT A FIXED 3.5s. pdf.js has to fetch its own lazy chunk and
+  // the document before it lays out a text layer, and how long that takes is not
+  // this rig's to choose. Measured 2026-09-13: the SAME pdf rendered 2 pages /
+  // 25 spans on one run and 0 / 0 on the next — a flaky rig limitation that
+  // would have been recorded against the DOOR.
+  let pages = 0, spans = 0;
+  for (let i = 0; i < 40; i++) {
+    pages = document.querySelectorAll('[data-pdf-page-number]').length;
+    spans = document.querySelectorAll('.textLayer span').length;
+    if (pages > 0 && spans > 0) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return {ok: pages > 0 && spans > 0,
+          why: 'preview pages=' + pages + ' textLayer spans=' + spans + ' (polled)',
           pages, spans};
 }"""
 
@@ -384,9 +396,22 @@ def prepare_family(page, family, note_id, stamp, log):
     """
     if family != "append_document_excerpt":
         return {"ok": True}
-    import tempfile
-    pdf = pathlib.Path(tempfile.gettempdir()) / ("f5-excerpt-" + stamp + ".pdf")
-    pdf.write_bytes(minimal_pdf(EXCERPT_LINE))
+    # ⛔⛔ A REAL PDF, NOT A SYNTHETIC ONE. Owner ruling 2026-09-13.
+    #
+    # ⚰️ The first version generated a minimal PDF by hand. It was structurally
+    # valid — pypdf read it, the upload succeeded, the server extracted it and
+    # marked the document `ready` — and **pdf.js rendered 0 pages and 0 text-layer
+    # spans**, so the excerpt door could not be reached at all. The cell reported
+    # a rig limitation for a PDF the rig itself had invented.
+    #
+    # ⭐ Wave P's certification corpus already holds real ones. `native_text.pdf`
+    # carries NATIVE TEXT (not a scan), which is what makes pdf.js build the
+    # `.textLayer` spans a real selection needs — a scanned page renders something
+    # the rig can SEE and cannot SELECT.
+    pdf = REPO / "tools" / "wave_p_cert_corpus" / "native_text.pdf"
+    if not pdf.exists():
+        return {"ok": False, "rig_limitation": True,
+                "why": f"the excerpt fixture is missing: {pdf}"}
     try:
         page.set_input_files('input[aria-label="Upload file attachment"]', str(pdf))
     except Exception as e:  # noqa: BLE001
@@ -422,16 +447,24 @@ def prepare_family(page, family, note_id, stamp, log):
 # owns: pushState plus a PopStateEvent, with the route's chunk already warmed
 # while the run was online. The door is then one click away the instant the
 # transport comes back.
+FORCE_NAV = {"on": False, "path": "/charts"}
+SPA_RETURN = {"on": False}
+
 WARM_ROUTES = {
     "append_widget_embed": "/charts",
     "append_financial_fact": "/dashboard",
 }
 
 SPA_NAV_JS = """async ({path}) => {
-  history.pushState({}, '', path);
+  history.pushState({}, '', path);   // path may carry a query string
   window.dispatchEvent(new PopStateEvent('popstate', {state: {}}));
   await new Promise(r => setTimeout(r, 4000));
-  return {path: location.pathname, offline: !navigator.onLine};
+  // ⛔ REPORT THE WHOLE URL. Reporting only `pathname` hid whether the note
+  // query survived the route change — and "the drain never ran" and "the editor
+  // never reopened" are different findings.
+  return {path: location.pathname, search: location.search,
+          editor: !!document.querySelector('.ProseMirror'),
+          offline: !navigator.onLine};
 }"""
 
 
@@ -447,6 +480,120 @@ def warm_route(page, family, base, log):
     page.goto(base + path, wait_until="domcontentloaded")
     page.wait_for_timeout(9000)
     return {"ok": True, "warmed": path}
+
+
+
+def select_with_the_pointer(page, log):
+    """Drag a REAL selection across a rendered pdf.js text span, then click the
+    popover that selection creates.
+
+    ⛔⛔ NOT A SCRIPTED RANGE. Owner ruling 2026-09-13: *"a real pointer selection
+    over a rendered range... no synthetic selection, no scripted fetch."* And the
+    scripted version did not work anyway — `document.createRange()` +
+    `addRange()` left `sel.toString()` empty and produced no popover, so the
+    first attempt failed one step later than the fixture did and for a different
+    reason. A mouse drag is both the required evidence AND the thing that works.
+
+    ⛔ It picks a span by MEASURED GEOMETRY, not by index: pdf.js emits spans of
+    wildly different widths (single glyphs among whole lines), and dragging
+    across a 3px span selects nothing while looking like it did.
+    """
+    spans = page.query_selector_all(".textLayer span")
+    best, best_box = None, None
+    for sp in spans:
+        try:
+            box = sp.bounding_box()
+            txt = (sp.inner_text() or "").strip()
+        except Exception:  # noqa: BLE001
+            continue
+        if not box or not txt or len(txt) < 6:
+            continue
+        if box["width"] < 60 or box["height"] < 4:
+            continue
+        if best_box is None or box["width"] > best_box["width"]:
+            best, best_box = sp, box
+    if best is None:
+        return {"ok": False, "rig_limitation": True,
+                "why": f"no pdf.js text span wide enough to drag across "
+                       f"({len(spans)} span(s) rendered)"}
+
+    text = (best.inner_text() or "").strip()
+    y = best_box["y"] + best_box["height"] / 2
+    x0 = best_box["x"] + 2
+    x1 = best_box["x"] + best_box["width"] - 2
+    best.scroll_into_view_if_needed()
+    page.wait_for_timeout(400)
+    box = best.bounding_box() or best_box          # re-read: scrolling moved it
+    y = box["y"] + box["height"] / 2
+    x0, x1 = box["x"] + 2, box["x"] + box["width"] - 2
+
+    # ⛔ WHAT IS ACTUALLY UNDER THE CURSOR? A drag that starts on an overlay
+    # never reaches the text layer, and "the selection was empty" cannot tell
+    # those apart. pdf.js stacks a canvas, a text layer and a highlight overlay
+    # in the same box.
+    at = page.evaluate(
+        """([x, y]) => {
+          const el = document.elementFromPoint(x, y);
+          if (!el) return {none: true};
+          const cs = getComputedStyle(el);
+          return {tag: el.tagName, cls: (el.className || '').toString().slice(0, 40),
+                  userSelect: cs.userSelect, pointerEvents: cs.pointerEvents,
+                  parentCls: (el.parentElement && el.parentElement.className || '').toString().slice(0, 40),
+                  txt: (el.textContent || '').slice(0, 30)};
+        }""", [x0, y])
+    log(f"      under the cursor at the drag start: {at}")
+
+    sel_of = lambda: page.evaluate(
+        "() => (window.getSelection() || {toString: () => ''}).toString()")
+
+    # ⛔ A DOUBLE-CLICK IS A REAL POINTER SELECTION, and a more reliable one than
+    # a synthetic-speed drag. Chrome decides a drag is a selection from the
+    # timing and granularity of the moves it receives; CDP delivers them far
+    # faster than a hand does, and a 598px sweep in twelve instant steps left
+    # `getSelection()` empty even though the span under the cursor reported
+    # `user-select: text` and `pointer-events: auto`. Word-select first, then a
+    # SLOW drag to widen it — both are the member's own pointer, which is the
+    # part the ruling is about.
+    page.mouse.move(x0 + 20, y)
+    page.wait_for_timeout(120)
+    page.mouse.dblclick(x0 + 20, y)
+    page.wait_for_timeout(600)
+    got = sel_of()
+    log(f"      after double-click: {got[:40]!r}")
+
+    if not (got or "").strip():
+        page.mouse.move(x0, y)
+        page.wait_for_timeout(150)
+        page.mouse.down()
+        page.wait_for_timeout(150)
+        for frac in (0.25, 0.5, 0.75, 1.0):
+            page.mouse.move(x0 + (x1 - x0) * frac, y, steps=4)
+            page.wait_for_timeout(120)
+        page.mouse.up()
+        page.wait_for_timeout(900)
+        got = sel_of()
+        log(f"      after a slow drag: {got[:40]!r}")
+    log(f"      pointer selection: {got[:60]!r} over {text[:40]!r}")
+    if not (got or "").strip():
+        return {"ok": False, "rig_limitation": True,
+                "why": f"a real pointer drag across a {int(box['width'])}x{int(box['height'])}px "
+                       f"span selected nothing — the rig cannot make a selection this "
+                       f"renderer accepts"}
+
+    save = None
+    for b in page.query_selector_all("button"):
+        try:
+            if "save excerpt" in (b.inner_text() or "").strip().lower():
+                save = b
+                break
+        except Exception:  # noqa: BLE001
+            continue
+    if save is None:
+        return {"ok": False,
+                "why": f"the selection took ({got[:40]!r}) but produced no "
+                       f'"Save excerpt" popover'}
+    save.click()
+    return {"ok": True, "via": f"pointer drag then Save excerpt", "selected": got[:60]}
 
 
 def drive_append(page, family, base, log):
@@ -488,7 +635,7 @@ def drive_append(page, family, base, log):
             return {"ok": False, "rig_limitation": True,
                     "why": "the PDF preview would not open: " + str(opened)}
         page.wait_for_timeout(2500)
-        return page.evaluate(SELECT_AND_SAVE_JS, {"want": EXCERPT_LINE})
+        return select_with_the_pointer(page, log)
 
     return {"ok": False, "why": f"no driver for {family}"}
 
@@ -857,10 +1004,23 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         #      families' destination: NoteEditorPage writes `uct.jw.lastNote`. ──
         page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
         page.wait_for_timeout(7000)
-        pm = page.query_selector(".ProseMirror")
+        # ⛔ ONE PROBE IS NOT A VERDICT, here either. The editor is a lazy chunk
+        # behind an auth gate; a slow first paint or a pod that has just swapped
+        # loses the cell for a reason that has nothing to do with the property
+        # under test. Retry the MOUNT before spending the window on it.
+        pm = None
+        for _try in range(4):
+            pm = page.query_selector(".ProseMirror")
+            if pm is not None:
+                break
+            page.wait_for_timeout(5000)
+            if _try == 1:
+                page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+                page.wait_for_timeout(6000)
         if pm is None:
             return {"verdict": "INCONCLUSIVE",
-                    "why": "the editor never mounted for the probe note — nothing was measured"}
+                    "why": "the editor never mounted for the probe note after 4 tries and a "
+                           "reload — nothing was measured"}
         pm.click()
         page.keyboard.type(f"{SENTINEL} baseline {stamp}.")
         page.wait_for_timeout(5000)
@@ -920,6 +1080,14 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         #      OFFLINE (pushState, warmed chunk), so the click lands the instant
         #      the transport returns and the drain has no head start.
         nav_note = ""
+        # ⭐ THE ROUTE CHANGE AS A CONTROLLED VARIABLE, not a property of the
+        # family. `folder` is GREEN without it and `append_widget_embed` is RED
+        # with it — but those cells differ in TWO ways at once, which settles
+        # nothing. Forcing the same offline route change onto a door this rig can
+        # drive perfectly isolates it: if folder goes RED with the navigation,
+        # the navigation is the cause and the family is irrelevant.
+        if FORCE_NAV.get("on") and family not in WARM_ROUTES:
+            WARM_ROUTES[family] = FORCE_NAV["path"]
         if family in WARM_ROUTES:
             navd = page.evaluate(SPA_NAV_JS, {"path": WARM_ROUTES[family]})
             nav_note = f" · navigated offline to {navd}"
@@ -987,7 +1155,19 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # not a stall, just nothing there to drive it. A member who sends a chart
         # to their journal has that queued edit drained when they go back to the
         # Notebook, so the cell does what the member does.
-        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+        # ⭐ HOW THE RUN RETURNS IS THE VARIABLE UNDER TEST.
+        #
+        # The embed cell differs from the GREEN metadata cell in TWO ways at
+        # once: it leaves the Notebook, and it comes BACK through a document
+        # load. A document load tears the whole app down and rebuilds it from
+        # the server; an SPA route change does not. `--spa-return` changes only
+        # the second of those, so a colour change between the two runs names the
+        # document load and nothing else.
+        if SPA_RETURN["on"]:
+            back = page.evaluate(SPA_NAV_JS, {"path": f"/journal/notebook?note={note_id}"})
+            log(f"      SPA return (no document load): {back}")
+        else:
+            page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
         page.wait_for_timeout(6000)
         drained, waited = False, 0
         for _ in range(12):
@@ -1130,11 +1310,28 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--spa-return", action="store_true",
+                    help="come back to the Notebook by SPA route change instead "
+                         "of a document load. A CONTROLLED EXPERIMENT, never a row.")
+    ap.add_argument("--force-nav", metavar="PATH",
+                    help="apply the offline route change to EVERY family, so the "
+                         "navigation can be isolated from the family. Marks the "
+                         "cell so it is never mistaken for a plain row.")
     ap.add_argument("--ignore-window", action="store_true",
                     help="run anyway. Only for a window verified by hand; "
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
 
+    if args.spa_return:
+        SPA_RETURN["on"] = True
+        FORCE_NAV["on"] = FORCE_NAV["on"]  # independent switches
+        print("⚠️ SPA RETURN: the run comes back without a document load. "
+              "CONTROLLED EXPERIMENT, not a table row.")
+    if args.force_nav:
+        FORCE_NAV["on"] = True
+        FORCE_NAV["path"] = args.force_nav
+        print(f"⚠️ FORCED NAVIGATION: every family takes the offline route change to "
+              f"{args.force_nav}. This is a CONTROLLED EXPERIMENT, not a table row.")
     stamp = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
     st = load_state()
 
@@ -1310,6 +1507,12 @@ def main() -> int:
                     res = {"verdict": "INCONCLUSIVE",
                            "why": f"the cell raised {type(e).__name__}: {str(e)[:200]}"}
                 print(f"   ⇒ {res['verdict']}  {res['why'][:150]}")
+                if FORCE_NAV["on"] or SPA_RETURN["on"]:
+                    # ⛔ A FORCED-NAV CELL IS NOT A TABLE CELL. It answers a
+                    # different question, and banking it would put an answer to
+                    # the wrong question in the artifact the freeze lifts on.
+                    print("   (controlled experiment — NOT written to the table)")
+                    continue
                 st[f"{f}|{o}"] = res
                 save_state(st)                     # ⛔ after EVERY cell
                 pathlib.Path(args.out).write_text(render(st, stamp), encoding="utf-8")
