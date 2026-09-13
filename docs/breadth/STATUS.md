@@ -177,3 +177,27 @@ owner action, Phase 6.
 >
 > Test-only, and not part of the Data Charts tab: `3512348c5` — `AuthContext.test.jsx` "503 on a refetch", the
 > `authTransient` read moved into the existing `waitFor` (React 19 late flush under load). No product code changed.
+
+## Phase 3 — C3 in production, and the member pass (2026-09-13)
+
+- Merge commit `a9290e7f4` (parents `9087bc196` master, `9d0512297` branch — a real merge, so the five C3 commits stay
+  individually visible). Pushed 21:39:56Z / **17:39:56 ET**; Railway web deploy `a442266e-b30d-4042-8c67-5530181a368b`
+  **SUCCESS 21:42:25Z / 17:42:25 ET**; `/api/health` uptime 16 → 28 → 40 s on the new boot.
+- **Post-deploy smoke** (member-smoke, 1280): the tab renders with no placeholder, four presets apply, the readout
+  populates, **zero console errors**, **exactly one** `/api/breadth-monitor?days=365` on the tab switch and **zero**
+  further data calls across 13 interactions, CLS 0.0 (0.0001 on a date change). Frames local, gitignored:
+  `screenshots/deploys/a9290e7f4/`.
+- **A-19 measured on the live build** (`00-discovery.md` §7, manifests in `screenshots/after-c3/<width>/`):
+
+| width | controls under 44 px, default state | picker expanded |
+|---|---|---|
+| 390 | 4 → **1** | 65 → **30** |
+| 768 | 14 → **1** | 77 → **30** |
+
+  17 of 17 states improved at each width, none regressed. Every residual is an 18 × 18 native checkbox glyph inside a
+  `<label>` row that now carries `min-height: var(--tap-min)` — the member's tap target is the 44 px row, so this is a
+  residual, not a failure.
+- ⚠️ **Out of scope, raised for the Monitor owner:** at 768 the Breadth page lands on Monitor, whose Time Navigator fires
+  32 sequential `days=150&end=…` requests back to 2008 on page load — 66 API calls before a member can reach Data Charts.
+  Pre-existing (identical in `before.json`), not caused by this program, and it cost this pass one capture: the tab's own
+  call missed a 45 s wait while the pod was busy, and 768 had to be re-run alone.
