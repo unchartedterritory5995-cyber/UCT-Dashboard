@@ -1476,6 +1476,27 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
+## ⛔ Resume after restart — read `docs/plans/joystick/RESUME.md` FIRST
+
+The machine was restarted on **2026-09-13**, which closed every PowerShell and Claude Code session
+mid-programme. **`docs/plans/joystick/RESUME.md` is the checkpoint** and it is the first thing a
+resuming session should open — before this section, before `closure.md`, before anything.
+
+It carries, each with a `file:line` or a SHA: where the programme actually is (LAUNCHED **2 of 6**;
+the owner run still pending); the next actions in order with the exact command lines; the
+environment and tooling checklists to verify after reboot (⛔ two of which were wrong on disk and
+are recorded as MEASURED, not expected); the worktree table; the standing rules; the open ledger
+with owners; and a production snapshot.
+
+⛔ **The one thing not to get wrong on resume:** `launch/stage-2-member-preview` at **`e60545210`**
+is **prepared, pushed and UNGATED**, and it is **frozen** — it must not be opened as a PR until
+Patrick's marked-up `owner-run.md` and trace are in and boxes 1 and 2 are ticked on evidence. It
+advances `ROLLOUT_STAGE` to 2, which turns the hub on for every member, and **Patrick merges it**,
+not an agent.
+
+⚠️ `RESUME.md` is on **master**, not on `launch/closure` — that branch is already merged and 176
+commits behind, and a resume file on a dead branch is not findable from a normal checkout.
+
 ## Joystick hub — the one section to read before touching it
 
 > **What it is.** A glass thumb-joystick pinned to the bottom corner on phones and tablets. Drag
