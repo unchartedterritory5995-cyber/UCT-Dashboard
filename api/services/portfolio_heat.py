@@ -9,6 +9,7 @@ under-reports heat and would green-light an over-cap add. Never raises."""
 from __future__ import annotations
 
 import logging
+from api.services.placeholder_stop import is_placeholder_stop
 
 _log = logging.getLogger("portfolio_heat")
 
@@ -29,16 +30,30 @@ _DEFAULT_AGG_CAP_PCT = 10.0
 # calculation, a different provider's rounding) leaves the two a few ULPs apart
 # and the guard stops firing — with NO error, just quietly under-reported heat.
 # A relative tolerance costs nothing and removes that trapdoor.
-_PLACEHOLDER_STOP_REL_TOL = 1e-9
-
-
-def _is_placeholder_stop(stop: float, entry: float) -> bool:
-    """True when `stop` is a non-stop: unusable, or indistinguishable from entry."""
-    if stop <= 0:
-        return True
-    if entry <= 0:
-        return True
-    return abs(stop - entry) <= abs(entry) * _PLACEHOLDER_STOP_REL_TOL
+# ⚰️ H14 — THIS MODULE'S OWN COPY IS RETIRED. Its body, verbatim, and its
+# reasoning was RIGHT — a relative tolerance really does remove the ULP
+# trapdoor its comment describes:
+#
+#     _PLACEHOLDER_STOP_REL_TOL = 1e-9
+#
+#     def _is_placeholder_stop(stop: float, entry: float) -> bool:
+#         """True when `stop` is a non-stop: unusable, or indistinguishable
+#         from entry."""
+#         if stop <= 0:
+#             return True
+#         if entry <= 0:
+#             return True
+#         return abs(stop - entry) <= abs(entry) * _PLACEHOLDER_STOP_REL_TOL
+#
+# ⛔ WHAT IT WAS WRONG ABOUT IS THE SIZE. 1e-9 relative is 1.3e-7 at $126, and
+# the drift that actually occurred was 1.0e-4 — so this guard, the one its own
+# comment calls SAFETY-CRITICAL, also failed on the real row. Unified onto
+# `api/services/placeholder_stop.py` at max(0.001, |entry| * 1e-5).
+#
+# The name is kept as a one-line forward so this module's own call sites and
+# tests do not move.
+def _is_placeholder_stop(stop, entry) -> bool:
+    return is_placeholder_stop(stop, entry)
 
 
 def _regime_ceiling_pct(exposure_rating) -> float:

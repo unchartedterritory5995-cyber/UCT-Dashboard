@@ -32,6 +32,7 @@ from typing import Any
 from api.services.auth_db import get_connection
 from api.services.journal_two import timeutil
 from api.services.journal_two.broker.snaptrade_adapter import normalize_symbol
+from api.services.placeholder_stop import is_placeholder_stop
 
 
 def _now_iso() -> str:
@@ -454,10 +455,18 @@ def reconcile_positions(
                 # never touched.
                 prior_entry = existing["entry_price"]
                 prior_stop = existing["stop_price"]
+                # ⚰️ H14 — the inline copy is retired; the tolerance it
+                # carried is the one that WON, and it is now the shared
+                # definition. Retired verbatim:
+                #
+                #     stop_is_placeholder = (
+                #         prior_entry is not None and prior_stop is not None
+                #         and abs(float(prior_stop) - float(prior_entry))
+                #         <= max(0.001, abs(float(prior_entry)) * 1e-5)
+                #     )
                 stop_is_placeholder = (
                     prior_entry is not None and prior_stop is not None
-                    and abs(float(prior_stop) - float(prior_entry))
-                    <= max(0.001, abs(float(prior_entry)) * 1e-5)
+                    and is_placeholder_stop(prior_stop, prior_entry)
                 )
                 if entry_estimated == 0:
                     # Fresh real fills (FIFO agrees with the broker). Refresh the
@@ -680,10 +689,13 @@ def apply_intraday_growth(
                 continue  # not an add (shrinks belong to the shrink path)
             prior_entry = existing["entry_price"]
             prior_stop = existing["stop_price"]
+            # ⚰️ H14 — the SECOND inline copy of the same expression, in the
+            # same file, retired onto the shared definition. Two copies of one
+            # judgement in one module is how the third copy elsewhere went
+            # unnoticed.
             stop_is_placeholder = (
                 prior_entry is not None and prior_stop is not None
-                and abs(float(prior_stop) - float(prior_entry))
-                <= max(0.001, abs(float(prior_entry)) * 1e-5)
+                and is_placeholder_stop(prior_stop, prior_entry)
             )
             conn.execute(
                 "UPDATE j2_positions SET shares = ?, original_shares = ?, "
