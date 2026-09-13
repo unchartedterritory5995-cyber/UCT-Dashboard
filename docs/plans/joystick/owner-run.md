@@ -20,6 +20,22 @@ facts:
 ⛔ **On your own phone none of this applies.** You are signed in already, your finger is a real
 finger, and the screen is full size.
 
+### ⭐ What changed under this document on 2026-09-13, before you run it
+
+**Nothing here changes a step.** Recorded because two of them change what you will SEE or HEAR, and
+an unexplained difference during a run reads as a defect.
+
+| what | where you would notice it |
+|---|---|
+| **The knob is now named `Joystick, <mode>`** — it was `<mode> mode`. | Only with VoiceOver or TalkBack on (§C-iOS, §C). It is deliberate: the product noun comes first so a member landing on the knob is told WHAT they are on, not only which mode it is in. |
+| **Focus returns to the knob when any hub sheet closes** (D-46). Previously it returned to `<body>`, because nothing had ever put the knob into `document.activeElement` — and the knob was not focusable at all. | Only with a screen reader. Close a sheet and the cursor should land back on the joystick rather than at the top of the page. ⭐ If it does NOT, that is a real finding and worth writing on the sheet. |
+| The Actions button gained a `data-testid`; the rule-12 rail learned whose branch it is on; §C2 of the spec records why the knob carries a `tabIndex`. | Nowhere — instruments and documents only. |
+
+⚠️ **And one thing that is NOT new but is worth knowing before §A:** a drag WITHOUT the hold is a
+**fan push**, not a scrub — it resolves by direction and fires that bubble (`useJoystick.js:408`).
+A previous session logged one of those as a passing scrub. If a drag navigates somewhere you did
+not expect, that is what happened, and the row is a FAIL rather than a pass.
+
 ---
 
 ## A — iPhone: the flick block and the trace (the one that matters most)
