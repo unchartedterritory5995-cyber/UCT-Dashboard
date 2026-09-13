@@ -392,24 +392,32 @@ async def handle(interaction: dict, received: float) -> dict | None:
 # ── worker-side handlers ────────────────────────────────────────────────────
 
 def _chart_kwargs(ctx: JobContext, guild_id: str) -> dict:
-    from api.routers import discord_interactions as router
+    """⛔ THE UPSTREAMS COME FROM ADAPTERS, NOT FROM THE ROUTER'S RAW FUNCTIONS (P2.1, §3.8).
+
+    The callables have the same shapes `produce_chart` has always called — `(ticker, tf, n)`,
+    `(ticker)`, `(sym, tf, stats, options)`, `None` for "did not work" — so the render function is
+    unchanged and the pre-V2 path (which binds the raw functions in `discord_interactions.py`) is
+    untouched. What changes is behind them: every call is bounded by `min(the dependency's timeout,
+    the JOB's remaining time)`, behind its own breaker, and its `Result` is kept on the context so
+    the reason is available to the reply instead of being thrown away as a `None`."""
     from api.services import discord_chart_context as chart_context
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
-    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,
-                house_fn=house.render_house_chart if house.house_enabled() else None,
-                quote_fn=router.fetch_ext_quote,
+    from api.services.discord_render.adapters import bindings
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png, edit_fn=ctx.edit,
+                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
+                quote_fn=bindings.quote_fn(ctx),
                 context_fn=chart_context.context_line if chart_context.enabled() else None,
                 components_fn=functools.partial(di.chart_components, guild_id=guild_id), fail_fn=ctx.fail)
 
 
 def _multi_kwargs(ctx: JobContext) -> dict:
-    from api.routers import discord_interactions as router
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
-    return dict(bars_fn=router.fetch_bars, render_fn=render_chart_png, edit_fn=ctx.edit,
-                house_fn=house.render_house_chart if house.house_enabled() else None,
-                quote_fn=router.fetch_ext_quote, components_fn=di.multi_components, fail_fn=ctx.fail)
+    from api.services.discord_render.adapters import bindings
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png, edit_fn=ctx.edit,
+                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
+                quote_fn=bindings.quote_fn(ctx), components_fn=di.multi_components, fail_fn=ctx.fail)
 
 
 def _rebuilt(ctx: JobContext) -> dict:
@@ -464,11 +472,26 @@ def _handle_popup(ctx: JobContext):
 
 
 def _handle_flow(ctx: JobContext):
+    """⛔ THE FETCH GOES THROUGH THE ADAPTER; THE POSTING, THE CARD AND THE COPY DO NOT MOVE.
+
+    `run_flow_card_job` already exposes a `fetch_fn(ticker, days)` seam, so the adapter slots in
+    without touching the card render or the "no significant options flow" sentence. `fail_fn` is
+    wrapped because the router's `fail_cls` is a local a `fetch_fn` cannot set: without the wrapper
+    every flow failure would read `flow_error`, which is strictly worse than today. With it, the
+    member gets the class the adapter actually observed — the point of C-08."""
     from api.routers import discord_interactions as router
+    from api.services.discord_render.adapters import bindings
+    from api.services.discord_render.adapters.switch import adapters_enabled
     job, inter = ctx.job, _rebuilt(ctx)
     tkr, days = di.parse_flow_command(inter)
-    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit, fail_fn=ctx.fail,
-                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id, source=symbols.flow_source(tkr))
+    source = symbols.flow_source(tkr)
+    extra = {}
+    if adapters_enabled():
+        extra = {"fetch_fn": bindings.flow_fetch_fn(ctx, source=source),
+                 "fail_fn": bindings.flow_fail_fn(ctx)}
+    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit,
+                             fail_fn=extra.pop("fail_fn", ctx.fail), timeout_s=FLOW_TIMEOUT_S,
+                             cid=job.corr_id, source=source, **extra)
     return "flow"
 
 

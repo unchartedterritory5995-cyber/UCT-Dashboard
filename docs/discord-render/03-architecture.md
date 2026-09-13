@@ -284,6 +284,10 @@ ETF or index underlying (`massive_processor.is_index_source`, then the liquid-ET
 V2 path only. Kill switch: `DISCORD_RENDER_V2_SYMBOLS_ENABLED`. The market clock, the freshness
 envelope, the STALE badge, per-dependency timeouts and breakers, and the cached flow card are 2.4b.
 
+📄 **What a member actually SEES when any of this is off — the badge, the stand-in label, the
+footer — is `04-visual-spec.md`.** One home for the copy, so a new surface cannot invent a fourth
+sentence for a state that already has one.
+
 ### 3.8b Freshness semantics — a SESSION verdict, never a fixed age (owner ruling R-1, 2026-09-13)
 
 ⛔⛔ **DO NOT RE-INTRODUCE AN AGE BUDGET OUTSIDE RTH-INTRADAY.** The first implementation of 2.4b used
@@ -314,6 +318,69 @@ The rule, in full:
 
 Built in 2.4b (`api/services/discord_render/freshness.py`, `4984e6207`), 35 tests, 9/9 mutations red.
 ⚠️ **2.4a did NOT ship this** — 2.4a was symbol resolution and the `/flow` ETF partition only.
+
+### 3.8c Provider adapters — the only place an upstream is spoken to (P2.1, 2026-09-13)
+
+One module per upstream under `api/services/discord_render/adapters/`, each exposing
+`fetch(request) -> Result`. **Timeouts, retries, breakers, fallback and the freshness stamp live
+here and nowhere else.** A command handler asks an adapter for data; it never holds a client, a
+timeout, or a retry loop of its own. Rail: `tests/test_discord_render_adapter_boundary.py`.
+
+| adapter | wraps | ceiling | attempts | breaker | vintage from |
+|---|---|---|---|---|---|
+| `bars` | `/api/bars` in-process | 8 s | 2, jittered | `bars` | the newest bar's `t` |
+| `quote` | `massive` ext snapshot | 1.5 s | 1 | `quote` | none — `stale` stays `None` (OI-22) |
+| `flow` | flow-worker HTTP → in-process | 10 s (connect 2 s) | 1 | `flow` | `window.end`, never `query_date` |
+| `renderer` | chart-renderer `/render` | **20 s** | 1 | `renderer` | carried through from the bars call |
+| `entity` | `symbols.resolve` | 0.6 s | 1 | `entity` | none — a verdict, not data |
+
+⛔⛔ **A DEPENDENCY TIMEOUT IS NOT A DEADLINE.** The effective ceiling is
+`min(the dependency's timeout, the JOB's remaining time)` — `Job.remaining_s()`, measured from
+`created_at` (the ack), not from when a worker picked the job up, because the queue wait is time the
+member has already spent. This exists because of a measured live defect (**OI-21**):
+`discord_chart_house.RENDER_TIMEOUT_S` is **60 s** over **two** attempts behind a **15 s** deadline,
+so the watchdog fires and the request runs on for another 105 seconds holding a worker.
+
+⛔ **A FAILURE IS A VALUE WITH A NAMED CLASS**, never an exception and never a bare `None`:
+`timeout · breaker_open · unreachable · upstream_error · empty · bad_shape · not_carried ·
+deadline`, plus `stale` and `cached`, which are **not** failures — a labelled stand-in is a delivery
+(S8), and counting it as a failure would hide a renderer outage inside a green success rate. C-08
+was one `except` turning four causes into one sentence that was wrong for three of them.
+
+⛔⛔ **`unreachable` AND `upstream_error` MUST NEVER MERGE AGAIN.** "We could not reach it" and "it
+answered with an error" are a different sentence to a member, a different next action for us, and —
+in the flow adapter — they decide whether the in-process fallback is attempted at all. A 5xx means
+flow-worker *answered*, and `web`'s own copy would very likely answer the same. `adapters/classes.py`
+maps `(upstream, reason) -> contract class`, total over the cross-product and raising on an unmapped
+pair, so a new reason fails the suite until its copy exists instead of rendering as "something went
+wrong on our side" forever.
+
+⭐ **AND AN EMPTY `/flow` TAPE IS AN ANSWER, NOT A FAILURE** — the C-08 mistake pointed the other
+way. A quiet session with no significant options flow is true and useful, the router already has the
+sentence for it, and classing it as a failure would put a correct answer in the failure counters and
+lose the window phrase that sentence needs. It comes back as `ok` with `contract_count == 0`. An
+empty **bars** answer is a failure (`no_bars`), because there is no chart to draw — the same
+observation, a different meaning, which is why the mapping is a pair and not a lookup on the reason.
+
+⛔ **A PYTHON THREAD CANNOT BE CANCELLED.** Every upstream here is sync and blocking, so a timeout
+means *we stop waiting*, not *it stops running*. Each dependency therefore gets its **own bounded
+pool** (`_call.POOL_SIZE`): a wedged upstream can consume its own threads and nothing else — that is
+C-02's lesson, where member jobs and the dashboard drained one shared pool of 64 — and
+`_call.abandoned_calls()` reports the count separately, because an abandoned call is not a failure
+and no success/failure ratio can show it.
+
+⛔ **THE FALLBACK IS CONDITIONAL AND EVERY CONDITION IS A REASON.** `/flow` falls back in-process
+only on a transport error or an open breaker, never on a timeout (the budget is already gone and the
+local leg is the slower of the two), never after the remote leg *answered* (asking a second source
+for a different answer to the same question is how two callers get two truths), and never with less
+than `LOCAL_MIN_S` left (a computation abandoned halfway still costs `web` the whole thread). A
+served fallback is a **degraded** delivery and carries why the first leg failed.
+
+⭐ **The handlers are wired through `adapters/bindings.py`**, which hands `produce_chart` callables
+with the shapes it already expects (`None` still means "did not work"), so the render function is
+unchanged and the pre-V2 path is untouched — the P2 ground rule. What the path gains anyway: every
+call bounded, breakered, and its `Result` kept on the job context, so the reason survives instead of
+being discarded at three separate layers.
 
 ### 3.9 Observability (C-12)
 

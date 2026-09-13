@@ -70,6 +70,21 @@ class Job:
     deadline_s: float = 15.0
     resumed: bool = False
 
+    def remaining_s(self, now: float | None = None) -> float:
+        """Seconds left before the deadline watchdog (§3.2) sends the failure message. Clamped at 0.
+
+        ⛔ EVERY OUTBOUND CALL IS BOUNDED BY THIS, NOT BY ITS OWN CONSTANT. Measured 2026-09-13:
+        `discord_chart_house.RENDER_TIMEOUT_S` is **60 s**, over **two** attempts, behind a **15 s**
+        deadline — so the watchdog fires, the member is told the render failed, and the request is
+        still in flight for another 105 seconds holding a worker. A per-dependency timeout answers
+        "how long is this upstream allowed to take"; only the job knows "how long is there left".
+        Take the smaller of the two, always.
+
+        ⚠️ Measured from `created_at` (the ack), not from `started` (the worker picking it up), and
+        the difference is the queue wait — which the member has already spent. A deadline measured
+        from the worker would silently grant a queued job the whole budget twice over."""
+        return max(0.0, self.deadline_s - ((now if now is not None else time.time()) - self.created_at))
+
     def row(self) -> dict:
         return {"corr_id": self.corr_id, "interaction_id": self.interaction_id, "created_at": self.created_at,
                 "command": self.command, "kind": "component" if self.interaction_type == COMPONENT_INTERACTION else "slash",
@@ -107,6 +122,10 @@ class JobContext:
         self.last_delivery_failure: delivery_mod.DeliveryResult | None = None
         self.edit_calls = 0
         self._lock = threading.Lock()
+
+    def remaining_s(self, now: float | None = None) -> float:
+        """The job's remaining budget — what an adapter bounds its call by. See `Job.remaining_s`."""
+        return self.job.remaining_s(now)
 
     # The edit a job function receives in place of `di.edit_original`.
     def edit(self, app_id, token, **kw):

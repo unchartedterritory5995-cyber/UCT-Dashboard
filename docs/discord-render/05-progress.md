@@ -197,3 +197,80 @@ fixed on master by its owner):
 | Running commit, read in-process | `d623baf1d836` |
 | `/api/health` · bad signature · render-health without bearer | 200 · 401 · 401 |
 | V2 flag / alert webhook in the running process | both absent |
+
+---
+
+## Step 2.4b P2.1 — the provider adapters, and the hot path wired to them (branch)
+
+**What it is:** one module per upstream under `api/services/discord_render/adapters/`, each exposing
+`fetch(request) -> Result`. Timeouts, retries, breakers, fallback and the freshness stamp live there
+and nowhere else; the V2 handlers bind adapter-backed callables through `bindings.py` with the exact
+shapes `produce_chart` already calls, so the render function is unchanged and the pre-V2 path is
+untouched. Design and the per-adapter table: `03` §3.8c.
+
+### What reading the call sites found, before a single test ran
+
+Three of these are live defects. None was found by a test — they came from reading what the code
+does at the boundary, which is the same discipline as *read the wire, not the call site*.
+
+| # | Measured | Why it matters |
+|---|---|---|
+| **OI-21** | `discord_chart_house.RENDER_TIMEOUT_S` = **60 s**, over **two** attempts, behind a **15 s** job deadline | The watchdog fires at 15 s and tells the member the render failed; the request keeps a worker for up to another **105 s**. And `breakers.DEFAULTS["renderer"]`, tuned for this exact dependency, had **zero production callers** — built, tested, green and unwired. |
+| **OI-25** | `produce_chart._fetch` already retries twice with a **fixed 1.5 s** delay | An adapter retry on top would make **four** bars fetches per chart and sleep ~2.9 s inside a 15 s deadline. Both layers are individually correct; only the composition is wrong. |
+| **OI-22** | A quote failure is indistinguishable from "no extended-hours print" — swallowed at **three** layers | A quote outage looks like a quiet overnight, so no breaker can ever see it. The call also had **no timeout of any kind**, on the path that must answer Discord in 3 s. |
+| **OI-23** | **Three** unreconciled failure vocabularies (member contract · adapter taxonomy · the `/flow` router's inline classes) | A class in one and not the others renders as a generic apology — C-08 one level up. Closed by `adapters/classes.py`: `(upstream, reason) -> contract class`, total over the cross-product, raising on an unmapped pair rather than quietly becoming `internal`. |
+| **OI-24** | `discord-chart-produce` is spawned without `ids.carry` | Every `drender` event from inside a chart production is unattributable — on the one path where a member's complaint has to be traceable to a job. Queued for 2.8 (pre-V2 file). |
+
+### The properties, and the number each one is
+
+- **The ceiling is `min(dependency timeout, the JOB's remaining time)`** — `Job.remaining_s()`,
+  measured from `created_at` (the ack), not from when a worker picked the job up, because the queue
+  wait is time the member has already spent. §3.8's per-dependency numbers are the other half:
+  bars 8 s · quote 1.5 s · flow 10 s (connect 2 s) · renderer **20 s** · entity 0.6 s.
+- **A failure is a value with a named class**, never an exception and never a bare `None`. `stale`
+  and `cached` are deliberately **not** failures, because a labelled stand-in is a delivery (S8) and
+  counting it as one would hide a renderer outage inside a green success rate.
+- ⛔⛔ **`unreachable` and `upstream_error` are separate and must stay separate.** "We could not
+  reach it" and "it answered with an error" are a different sentence to a member, a different next
+  action for us, and they decide whether `/flow`'s in-process fallback runs at all — a 5xx means
+  flow-worker *answered*, and `web`'s copy would very likely answer the same. They were one `except`
+  for two weeks, which is C-08. ⚠️ **Found by writing the wiring, not by a test:** the first version
+  of this layer had them merged and the flow tests still passed, because every case in them happened
+  to want the same outcome.
+- ⭐ **An empty `/flow` tape is an answer, not a failure** — the same mistake pointed the other way.
+  A quiet session is true and useful, the router already has the sentence for it, and classing it as
+  a failure would put a correct answer in the failure counters and lose the window phrase the
+  sentence needs. It comes back `ok` with `contract_count == 0`. An empty **bars** answer *is* a
+  failure (`no_bars`) — there is no chart to draw. Same observation, different meaning, which is why
+  `classes.py` maps a **pair** and not a reason.
+- **One bounded pool per dependency** (`renderer`/`flow`/`bars` 4, `quote`/`entity` 2). A Python
+  thread cannot be cancelled, so a timeout means *we* stopped waiting; the bound is what keeps a
+  wedged upstream from consuming anything but its own threads — C-02's lesson, where member jobs and
+  the dashboard drained one shared pool of 64. `abandoned_calls()` reports them separately, because
+  an abandoned call is not a failure and no success/failure ratio can show it.
+- **The vintage is the data's, never the wall clock.** Bars: the newest bar's `t`. Flow:
+  `window.end`, **not** `query_date` — a card built from Friday's tape at Sunday noon would otherwise
+  stamp itself Sunday and read as live. The renderer has no vintage of its own and is given the
+  bars', so the picture is exactly as old as the data drawn in it (§3.10).
+- **The `/flow` fallback is conditional and every condition is a reason**: in-process only on a
+  transport error or an open breaker; never on a timeout (the budget is gone and the local leg is the
+  slower of the two); never after the remote leg *answered*; never below `LOCAL_MIN_S`. A served
+  fallback is a **degraded** delivery and carries why the first leg failed.
+
+### Rails
+
+`tests/test_discord_render_result.py` · `tests/test_discord_render_adapters.py` ·
+`tests/test_discord_render_failure_classes.py` · `tests/test_discord_render_adapter_boundary.py` —
+the boundary rail walks an **AST**, not a grep, and carries both halves: nothing outside `adapters/`
+may hold a network client, and the exemption list for the two legitimate transports
+(`delivery.py` §3.4, `observe.py` §3.9) must be exactly the modules that still need it.
+
+⭐ **The P2 ground rule is proved STRUCTURALLY, not by a golden.**
+`test_the_pre_v2_path_cannot_reach_the_adapters` asserts that neither `discord_interactions.py`
+imports the adapters package. A golden diff proves two runs agreed on the inputs somebody chose;
+this proves there is no path at all, for every input. The companion rail asserts `commands.py`
+*does* import them, so the layer cannot quietly become unwired.
+
+**Kill switch:** `DISCORD_RENDER_V2_ADAPTERS_ENABLED` — under the V2 master, **unset = ON**, read
+per call (railed), declared `dark`. Set it to `0` and the handlers bind the raw functions again: a
+rollback of P2.1 with no deploy, and a switch rather than a delete.

@@ -157,7 +157,40 @@ def slo_snapshot(store, now: float | None = None, windows: tuple[str, ...] | Non
 
 # ── alert rules (03 §3.9) ───────────────────────────────────────────────────
 
-def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[str, str]]:
+def _breaker_alerts(snapshot: dict | None) -> list[tuple[str, str]]:
+    """One alert per OPEN dependency breaker (§3.8, step 2.4b P2.4).
+
+    ⛔ ONE KEY PER DEPENDENCY. A single "a breaker is open" key would let a long renderer
+    outage silence the first alert about flow-worker going down — two different outages, two
+    different people to wake, and the durable cooldown is per key.
+
+    ⛔ `half_open` IS NOT AN ALERT. It means the cooldown elapsed and the next caller gets the
+    probe — the system recovering, exactly as designed. Paging on recovery is how a channel
+    gets muted, and then it is quiet on the day it matters.
+
+    ⛔ AND THERE IS DELIBERATELY NO "RECOVERED" PUSH. Breaker state is per-process and this
+    pod's median deployment served 8.4 minutes (C-01), so a recovery computed from in-memory
+    previous state would simply never fire across a restart — the rotating-sample suppression
+    defect CLAUDE.md records, which produced pages nobody could act on. The alert repeats on
+    its durable cooldown while the breaker stays open, and SILENCE is the recovery signal. The
+    message says so, because otherwise silence reads as "the alerting broke"."""
+    out = []
+    for name, b in sorted((snapshot or {}).items()):
+        if (b or {}).get("state") != "open":
+            continue
+        held = b.get("opened_for_s")
+        out.append((f"breaker_open:{name}",
+                    f"{name} breaker OPEN"
+                    + (f" for {held:.0f}s" if isinstance(held, (int, float)) else "")
+                    + f" after {b.get('recent_failures', 0)} failure(s) in the last"
+                      f" {b.get('recent_calls', 0)} call(s); trip #{b.get('trips', 0)}."
+                    f" {b.get('short_circuits', 0)} request(s) refused without waiting."
+                    " This repeats while it stays open — silence means it closed."))
+    return out
+
+
+def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0,
+                    breakers: dict | None = None) -> list[tuple[str, str]]:
     """(alert_key, message) for every rule breached right now (03-architecture §3.9). Pure:
     sending and the durable cooldown are the caller's (`Observer`, `JobsStore.alert_due`).
 
@@ -179,6 +212,7 @@ def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[s
         alerts.append(("stuck_jobs", f"{snapshot['stuck']} job(s) still not terminal after {STUCK_AFTER_S} s."))
     if renderer_misses >= RENDERER_MISSES_TO_ALERT:
         alerts.append(("renderer_not_ready", f"chart-renderer not ready on {renderer_misses} consecutive probes."))
+    alerts += _breaker_alerts(breakers)
     burst = sum(five["failures_by_class"].values())
     if burst >= 5:
         classes = ", ".join(f"{k}×{v}" for k, v in sorted(five["failures_by_class"].items(), key=lambda kv: -kv[1]))
@@ -186,8 +220,18 @@ def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0) -> list[tuple[s
     return alerts
 
 
+def _live_breakers() -> dict:
+    """The breakers this process holds. ⭐ ONE source for both the push and the pull, so an
+    operator reading /renderhealth cannot see something the alert disagrees with."""
+    try:
+        from api.services.discord_render import breakers as breakers_mod
+        return breakers_mod.snapshot_all()
+    except Exception:  # noqa: BLE001 — observability must never be the thing that breaks
+        return {}
+
+
 def health_payload(runtime, store, *, renderer: dict | None = None, now: float | None = None,
-                   renderer_misses: int | None = None) -> dict:
+                   renderer_misses: int | None = None, breakers: dict | None = None) -> dict:
     """What `/renderhealth` and GET /api/discord/render-health print. `renderer_misses` is the
     observer's consecutive count when there is one; a lone reading counts as one miss at most,
     so `alerts` here is exactly what the observer would page on."""
@@ -200,7 +244,10 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
         "queue": runtime.depth() if runtime is not None else None,
         "renderer": renderer,
         "slo": snap,
-        "alerts": [k for k, _ in evaluate_alerts(snap, renderer_misses=renderer_misses)],
+        "breakers": breakers if breakers is not None else _live_breakers(),
+        "alerts": [k for k, _ in evaluate_alerts(
+            snap, renderer_misses=renderer_misses,
+            breakers=breakers if breakers is not None else _live_breakers())],
     }
 
 
@@ -304,7 +351,8 @@ class Observer:
             self.renderer_misses = self.renderer_misses + 1 if missed else 0
         webhook = self.webhook_fn()
         snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
-        for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses):
+        for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses,
+                                        breakers=_live_breakers()):
             out["breached"].append(key)
             if not self.store.alert_due(key, self.cooldown_s, record=False):
                 continue
