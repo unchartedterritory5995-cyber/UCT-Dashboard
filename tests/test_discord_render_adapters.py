@@ -710,6 +710,130 @@ def test_the_kill_switch_also_takes_the_flow_handler_back_to_the_routers_own_fet
         "fail_fn wrapper makes every flow failure read `flow_error`")
 
 
+# ── the stamp: what the member actually sees (P2.6/P2.7) ────────────────────
+
+def _stale_ctx(**kw):
+    from api.services.discord_render.adapters import bindings
+    ctx = _Ctx(**kw)
+    bindings.record(ctx, "bars", R.ok([{"t": "2026-08-01"}], provider="bars_store",
+                                      envelope=fr.envelope("2026-08-01", tf="D", now=NOW)))
+    return ctx
+
+
+def test_a_healthy_delivery_carries_no_stamp_at_all():
+    """⛔ RARE, OR IT IS FURNITURE. On a healthy path this is every delivery, and a badge that shows
+    when nothing is wrong is not there on the day it matters."""
+    from api.services.discord_render.adapters import bindings
+    ctx = _Ctx()
+    bindings.record(ctx, "bars", R.ok([{"t": FRIDAY}], provider="bars_store",
+                                      envelope=fr.envelope(FRIDAY, tf="D", now=NOW)))
+    bindings.record(ctx, "renderer", R.ok(PNG, provider="renderer"))
+    assert bindings.stamp_suffix(ctx) == ""
+    assert bindings.stamp(ctx, "**NVDA** · Daily") == "**NVDA** · Daily"
+
+
+def test_a_stale_delivery_is_labelled_with_the_envelopes_own_sentence():
+    """⛔ ONE OWNER FOR THE SENTENCE. The badge is `Envelope.badge`; a second copy here would be the
+    second-authority defect on the one string a member actually reads."""
+    from api.services.discord_render.adapters import bindings
+    ctx = _stale_ctx()
+    out = bindings.stamp(ctx, "**NVDA** · Daily")
+    assert bindings.last_result(ctx, "bars").badge in out
+    assert out.startswith("**NVDA** · Daily"), "the original content is not replaced"
+    assert f"id {ctx.job.corr_id}" in out, "a degraded delivery always carries the id to quote"
+
+
+def test_a_fallback_delivery_says_so_in_words_a_member_can_act_on():
+    from api.services.discord_render.adapters import bindings
+    ctx = _Ctx()
+    bindings.record(ctx, "flow", R.ok({"ok": True}, provider="in_process").with_reason(R.UNREACHABLE))
+    out = bindings.stamp(ctx, "**NVDA** flow")
+    assert "backup source" in out and "degraded" not in out, (
+        "'degraded' means nothing to a member; name what happened")
+
+
+def test_the_stamp_is_idempotent_across_the_second_edit():
+    """⛔ `produce_chart` edits the same message more than once — a stand-in, then the real chart.
+    Appending on each pass gives the member the same warning twice, and a test that calls it once
+    cannot see that."""
+    from api.services.discord_render.adapters import bindings
+    ctx = _stale_ctx()
+    once = bindings.stamp(ctx, "**NVDA** · Daily")
+    assert bindings.stamp(ctx, once) == once
+    assert bindings.stamp(ctx, bindings.stamp(ctx, once)) == once
+
+
+def test_when_it_does_not_fit_the_CONTENT_is_trimmed_and_the_STAMP_is_kept():
+    """⛔ THE OTHER WAY ROUND IS THE S8 VIOLATION WITH EXTRA STEPS. A 2,000-character reply whose
+    last clause fell off is exactly the unlabelled stand-in C-06 describes — and it would happen
+    only on the longest replies, which are usually the most degraded."""
+    from api.services.discord_render.adapters import bindings
+    ctx = _stale_ctx()
+    out = bindings.stamp(ctx, "x" * (bindings.CONTENT_MAX - 5))
+    assert len(out) <= bindings.CONTENT_MAX
+    assert bindings.stamp_suffix(ctx) in out, "the stamp survived; the content gave way"
+    assert out.count("x") < bindings.CONTENT_MAX - 5
+
+
+def test_the_edit_wrapper_stamps_every_path_the_render_function_can_take():
+    """⛔ STAMPING IN THE WRAPPER, NOT AT FOUR CALL SITES. 'Remember to label it' is how C-06
+    produced three unlabelled stand-ins."""
+    from api.services.discord_render.adapters import bindings
+    ctx, sent = _stale_ctx(), []
+    ctx.edit = lambda app_id, token, **kw: sent.append(kw) or True
+    wrapped = bindings.edit_fn(ctx)
+    wrapped("a", "t", content="first")                      # the stand-in
+    wrapped("a", "t", content="second", png=b"\x89PNG")     # the real chart
+    wrapped("a", "t", components=[])                        # a components-only edit: nothing to stamp
+    assert all(bindings.stamp_suffix(ctx) in k["content"] for k in sent[:2])
+    assert "content" not in sent[2], "an edit with no content must not grow one"
+
+
+@pytest.mark.parametrize("builder", ["_chart_kwargs", "_multi_kwargs"])
+def test_every_v2_handler_stamps_its_edits(builder):
+    """⛔ THE WIRING RAIL FOR THE STAMP. `bindings.edit_fn` can be perfect and unused — which is
+    exactly the state C-06 describes, where the label existed and three stand-ins went out without
+    it. This asserts the handler hands over the WRAPPER, by sending through it and looking for the
+    suffix, not by comparing function identities."""
+    from api.services.discord_render import commands
+    from api.services.discord_render.adapters import bindings
+    ctx = _stale_ctx()
+    sent = []
+    ctx.edit = lambda app_id, token, **kw: sent.append(kw) or True
+    kwargs = commands._chart_kwargs(ctx, "g") if builder == "_chart_kwargs" else commands._multi_kwargs(ctx)
+    kwargs["edit_fn"]("a", "t", content="**NVDA** · Daily")
+    assert sent and bindings.stamp_suffix(ctx) in sent[0]["content"], (
+        f"{builder} passed an edit that does not stamp — a degraded delivery would go out unlabelled")
+
+
+def test_the_flow_handler_stamps_its_edits_too(monkeypatch):
+    from api.services.discord_render import commands
+    from api.services.discord_render.adapters import bindings
+    seen = {}
+    monkeypatch.setattr("api.routers.discord_interactions.run_flow_card_job",
+                        lambda *a, **k: seen.update(k))
+    monkeypatch.setattr(commands.di, "parse_flow_command", lambda inter: ("NVDA", "1"))
+    monkeypatch.setattr(commands.symbols, "flow_source", lambda s: "stocks")
+    ctx = _stale_ctx()
+    sent = []
+    ctx.edit = lambda app_id, token, **kw: sent.append(kw) or True
+    commands._handle_flow(ctx)
+    seen["edit_fn"]("a", "t", content="**NVDA** flow")
+    assert bindings.stamp_suffix(ctx) in sent[0]["content"]
+
+
+def test_the_kill_switch_takes_the_edit_back_to_the_raw_one(monkeypatch):
+    from api.services.discord_render.adapters import bindings, switch
+    ctx = _stale_ctx()
+    monkeypatch.setenv(switch.ENV, "0")
+    # ⚠️ `==`, not `is`: attribute access on a bound method builds a NEW method object every time,
+    # so `ctx.edit is ctx.edit` is already False and an identity check here would fail on a correct
+    # implementation. Equality compares __self__ and __func__, which is the property meant.
+    assert bindings.edit_fn(ctx) == ctx.edit
+    monkeypatch.delenv(switch.ENV, raising=False)
+    assert bindings.edit_fn(ctx) != ctx.edit, "with the switch on it must be the stamping wrapper"
+
+
 def test_commands_no_longer_names_a_raw_upstream_function():
     """⛔ AN AST, NEVER A GREP — this file's own docstrings name those functions on purpose."""
     import ast

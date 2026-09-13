@@ -146,6 +146,84 @@ def flow_fetch_fn(ctx, *, source: str = "stocks", top_n: int = 15):
     return _fetch
 
 
+# ── the stamp: what the member actually sees (P2.6/P2.7, 04-visual-spec) ────
+#
+# ⛔⛔ A DEGRADED ARTIFACT ALWAYS CARRIES ITS LABEL (S8). C-06 measured three unlabelled stand-ins,
+# two of which never healed: a member was handed a lower-quality chart and told nothing, so they
+# read it as the product. An unlabelled stand-in is worse than a failure message — a failure is
+# honest and a silent substitution is not.
+#
+# ⛔ AND IT MUST BE RARE OR IT IS FURNITURE. Nothing is appended when every upstream answered at
+# house quality, which on a healthy path is every time. The opposite failure is just as real: the
+# first freshness design would have drawn a badge on every chart all weekend (§3.8b), and a badge
+# that shows when nothing is wrong is not there on the day it matters.
+
+#: Discord's hard limit. The stamp is never the thing that gets trimmed — see `stamp`.
+CONTENT_MAX = 2000
+
+
+def stamp_suffix(ctx) -> str:
+    """The one line appended to a degraded delivery, or `""` when there is nothing to say.
+
+    Order is vintage · provenance · id (04-visual-spec §4). Each clause has ONE owner: the badge is
+    `Envelope.badge`, never a second copy of that sentence."""
+    results = all_results(ctx)
+    parts = []
+    badge = next((r.badge for r in results.values() if r.stale is True and r.badge), None)
+    if badge:
+        parts.append(badge)
+    providers = {r.provider for r in results.values() if r.ok and r.provider in ("in_process", "cache")}
+    if providers:
+        # ⭐ Named, not "degraded". "a slower backup source" is something a member can act on;
+        # "degraded" is a word that means nothing to them and everything to us.
+        parts.append("served from a slower backup source")
+    if not parts:
+        return ""
+    cid = ctx.job.corr_id if getattr(ctx, "job", None) else None
+    return " · ".join(parts) + (f" · id {cid}" if cid else "")
+
+
+def stamp(ctx, content) -> str:
+    """Append the stamp to a message, once.
+
+    ⛔ WHEN IT DOES NOT FIT, THE CONTENT IS TRIMMED AND THE STAMP IS KEPT. The other way round is
+    the S8 violation with extra steps: a 2,000-character reply whose last clause fell off is exactly
+    the unlabelled stand-in C-06 describes, and it would happen only on the longest — usually the
+    most degraded — replies.
+
+    ⛔ IDEMPOTENT. `produce_chart` edits the same message more than once (a stand-in, then the real
+    chart); appending on each pass would give a member the same warning twice and would not be
+    caught by a test that only ever calls it once."""
+    text = str(content or "")
+    suffix = stamp_suffix(ctx)
+    if not suffix or text.endswith(suffix):
+        return text
+    joined = f"{text}\n{suffix}" if text else suffix
+    if len(joined) <= CONTENT_MAX:
+        return joined
+    keep = CONTENT_MAX - len(suffix) - 2
+    return (text[:max(0, keep)].rstrip() + "\n" + suffix) if keep > 0 else suffix[:CONTENT_MAX]
+
+
+def edit_fn(ctx):
+    """`ctx.edit`, with the stamp applied to whatever content is being sent.
+
+    ⛔ THE WRAPPER, NOT THE RENDER FUNCTION. `produce_chart` builds the content and knows nothing
+    about adapters; stamping here means every path it can take — the fast cached reply, the
+    stand-in, the final chart, the multi-chart — is labelled by construction rather than by
+    remembering to label it at four call sites. That "remember at every site" is how C-06 produced
+    three unlabelled stand-ins."""
+    inner = ctx.edit
+    if not adapters_enabled():
+        return inner
+
+    def _edit(app_id, token, **kw):
+        if "content" in kw:
+            kw = {**kw, "content": stamp(ctx, kw.get("content"))}
+        return inner(app_id, token, **kw)
+    return _edit
+
+
 def flow_fail_fn(ctx):
     """`(cls, detail) -> bool` — `ctx.fail`, with the class corrected from what the adapter saw."""
     def _fail(cls, detail=""):

@@ -33,6 +33,9 @@ WINDOWS = {"1h": 3600, "24h": 86400, "7d": 7 * 86400}          # what health rep
 ALERT_WINDOWS = {"5m": 300, "30m": 1800, "1h": 3600}           # what the alert rules read (03 §3.9)
 STUCK_AFTER_S = 60
 RENDERER_MISSES_TO_ALERT = 2
+#: One blocked second is a third of the whole 3 s acknowledgement budget (§3.9, C-02).
+LOOP_STALL_ALERT_MS = 1000.0
+LOOP_NOISE_MS = 50.0
 
 _SECRETISH = re.compile(r"(token=[^&\s]+|/webhooks/\d+/[A-Za-z0-9_\-.]+|[?&][A-Za-z_]+=[^&\s]*)")
 _FIELDS = ("cid", "cmd", "sym", "tf", "hop", "ms", "outcome", "cls", "attempt", "status", "detail", "lane", "state", "key")
@@ -157,6 +160,27 @@ def slo_snapshot(store, now: float | None = None, windows: tuple[str, ...] | Non
 
 # ── alert rules (03 §3.9) ───────────────────────────────────────────────────
 
+def _loop_alerts(loop: dict | None) -> list[tuple[str, str]]:
+    """The ONE event loop being blocked (C-02, step 2.4b P2.9).
+
+    ⛔ A STALL IS INVISIBLE TO EVERY OTHER RULE HERE. They all read the durable jobs table, and a
+    loop blocked before the ack means there is no job row to read — the outage that produced
+    C-02's 37x co-occurrence would leave this file silent.
+
+    ⛔ THE THRESHOLD IS THE MAXIMUM, NOT A PERCENTILE OF A PERCENTILE. Discord closes the request
+    at 3 s; one stall past ~1 s has already eaten a third of the whole acknowledgement budget,
+    whatever the rest of the window looked like."""
+    if not loop or not loop.get("samples"):
+        return []                          # a probe that did not run reports nothing, not "fine"
+    worst = loop.get("max_ms") or 0
+    if worst < LOOP_STALL_ALERT_MS:
+        return []
+    return [("loop_stalled",
+             f"The event loop was blocked for {worst:.0f} ms (worst of {loop['samples']} probes); "
+             f"{loop.get('stalls') or 0} reading(s) over {int(LOOP_NOISE_MS)} ms. Discord closes an "
+             "interaction at 3,000 ms, and the renderer's page load fails in the same window (C-02).")]
+
+
 def _breaker_alerts(snapshot: dict | None) -> list[tuple[str, str]]:
     """One alert per OPEN dependency breaker (§3.8, step 2.4b P2.4).
 
@@ -213,11 +237,21 @@ def evaluate_alerts(snapshot: dict, *, renderer_misses: int = 0,
     if renderer_misses >= RENDERER_MISSES_TO_ALERT:
         alerts.append(("renderer_not_ready", f"chart-renderer not ready on {renderer_misses} consecutive probes."))
     alerts += _breaker_alerts(breakers)
+    alerts += _loop_alerts(snapshot.get("loop"))
     burst = sum(five["failures_by_class"].values())
     if burst >= 5:
         classes = ", ".join(f"{k}×{v}" for k, v in sorted(five["failures_by_class"].items(), key=lambda kv: -kv[1]))
         alerts.append(("failure_burst", f"{burst} failures in the last 5 minutes: {classes}."))
     return alerts
+
+
+def _live_loop() -> dict:
+    """The loop-stall reading this process holds."""
+    try:
+        from api.services.discord_render import loopwatch
+        return loopwatch.snapshot()
+    except Exception:  # noqa: BLE001 — observability must never be the thing that breaks
+        return {}
 
 
 def _live_breakers() -> dict:
@@ -236,6 +270,7 @@ def health_payload(runtime, store, *, renderer: dict | None = None, now: float |
     observer's consecutive count when there is one; a lone reading counts as one miss at most,
     so `alerts` here is exactly what the observer would page on."""
     snap = slo_snapshot(store, now=now)
+    snap["loop"] = _live_loop()
     if renderer_misses is None:
         renderer_misses = 1 if renderer is not None and renderer.get("ready") is False else 0
     return {
@@ -351,6 +386,7 @@ class Observer:
             self.renderer_misses = self.renderer_misses + 1 if missed else 0
         webhook = self.webhook_fn()
         snap = slo_snapshot(self.store, now=now, windows=tuple(ALERT_WINDOWS))
+        snap["loop"] = _live_loop()
         for key, msg in evaluate_alerts(snap, renderer_misses=self.renderer_misses,
                                         breakers=_live_breakers()):
             out["breached"].append(key)

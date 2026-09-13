@@ -404,7 +404,8 @@ def _chart_kwargs(ctx: JobContext, guild_id: str) -> dict:
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
     from api.services.discord_render.adapters import bindings
-    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png, edit_fn=ctx.edit,
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,
+                edit_fn=bindings.edit_fn(ctx),
                 house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
                 quote_fn=bindings.quote_fn(ctx),
                 context_fn=chart_context.context_line if chart_context.enabled() else None,
@@ -415,7 +416,8 @@ def _multi_kwargs(ctx: JobContext) -> dict:
     from api.services import discord_chart_house as house
     from api.services.discord_chart_render import render_chart_png
     from api.services.discord_render.adapters import bindings
-    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png, edit_fn=ctx.edit,
+    return dict(bars_fn=bindings.bars_fn(ctx), render_fn=render_chart_png,
+                edit_fn=bindings.edit_fn(ctx),
                 house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,
                 quote_fn=bindings.quote_fn(ctx), components_fn=di.multi_components, fail_fn=ctx.fail)
 
@@ -489,7 +491,7 @@ def _handle_flow(ctx: JobContext):
     if adapters_enabled():
         extra = {"fetch_fn": bindings.flow_fetch_fn(ctx, source=source),
                  "fail_fn": bindings.flow_fail_fn(ctx)}
-    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit,
+    router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=bindings.edit_fn(ctx),
                              fail_fn=extra.pop("fail_fn", ctx.fail), timeout_s=FLOW_TIMEOUT_S,
                              cid=job.corr_id, source=source, **extra)
     return "flow"

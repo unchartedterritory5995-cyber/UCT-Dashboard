@@ -29,6 +29,8 @@ SW = "api/services/discord_render/adapters/switch.py"
 OBS = "api/services/discord_render/observe.py"
 B = "tests/test_discord_render_adapter_boundary.py::"
 BA = "tests/test_discord_render_breaker_alerts.py::"
+LW = "api/services/discord_render/loopwatch.py"
+LT = "tests/test_discord_render_loopwatch.py::"
 TRT = T
 
 MUTATIONS = [
@@ -226,6 +228,67 @@ MUTATIONS = [
      "old": "        return max(0.0, self.deadline_s - ((now if now is not None else time.time()) - self.created_at))\n",
      "new": "        return max(0.0, self.deadline_s)\n",
      "tests": [TRT + "test_the_remaining_budget_counts_down_from_the_ack"]},
+
+    # ── P2.9: the event-loop stall probe ───────────────────────────────────
+    {"name": "A56 an unrun probe reads as a healthy loop", "file": LW,
+     "old": '            return {"running": self._task is not None, "samples": 0, "max_ms": None,\n'
+            '                    "p95_ms": None, "stalls": None}\n',
+     "new": '            return {"running": self._task is not None, "samples": 0, "max_ms": 0.0,\n'
+            '                    "p95_ms": 0.0, "stalls": 0}\n',
+     "tests": [LT + "test_a_probe_that_never_ran_is_not_reported_as_healthy"]},
+    {"name": "A57 the worst reading is replaced by the average", "file": LW,
+     "old": '        return {"running": self._task is not None, "samples": n,\n'
+            '                "max_ms": round(ordered[-1], 1), "p95_ms": round(ordered[idx], 1),\n',
+     "new": '        return {"running": self._task is not None, "samples": n,\n'
+            '                "max_ms": round(sum(ordered) / n, 1), "p95_ms": round(ordered[idx], 1),\n',
+     "tests": [LT + "test_the_snapshot_reports_the_worst_reading_not_the_average",
+               LT + "test_it_really_measures_a_real_blocked_loop"]},
+    {"name": "A58 a backwards clock is discarded, shrinking the denominator", "file": LW,
+     "old": "        self.samples.append(max(0.0, overshoot_ms))\n",
+     "new": "        if overshoot_ms < 0:\n            return\n        self.samples.append(overshoot_ms)\n",
+     "tests": [LT + "test_a_clock_that_runs_backwards_is_clamped_and_still_counted"]},
+    {"name": "A59 a stalled loop pages nobody", "file": OBS,
+     "old": '    alerts += _loop_alerts(snapshot.get("loop"))\n', "new": "",
+     "tests": [LT + "test_the_health_payload_and_the_observer_both_carry_the_loop_reading"]},
+    {"name": "A60 the stall threshold is set past the Discord budget", "file": OBS,
+     "old": "LOOP_STALL_ALERT_MS = 1000.0\n", "new": "LOOP_STALL_ALERT_MS = 4000.0\n",
+     "tests": [LT + "test_the_threshold_is_a_fraction_of_the_discord_budget"]},
+    {"name": "A61 the probe starts in the worker thread, attaching to no loop", "file": LW,
+     "old": "            try:\n                asyncio.get_running_loop()\n            except RuntimeError:\n                return self\n",
+     "new": "            pass\n",
+     "tests": [LT + "test_starting_it_off_the_loop_reports_not_running_rather_than_raising"]},
+
+    # ── P2.6/P2.7: the stamp reaches the member ────────────────────────────
+    {"name": "A49 a healthy delivery is stamped too (the badge becomes furniture)", "file": BIND,
+     "old": "    if not parts:\n        return \"\"\n",
+     "new": "    if not parts:\n        parts = [\"checked\"]\n",
+     "tests": [T + "test_a_healthy_delivery_carries_no_stamp_at_all"]},
+    {"name": "A50 the badge is a second copy of the sentence, not the envelope's", "file": BIND,
+     "old": "    badge = next((r.badge for r in results.values() if r.stale is True and r.badge), None)\n",
+     "new": "    badge = \"(stale)\" if any(r.stale is True for r in results.values()) else None\n",
+     "tests": [T + "test_a_stale_delivery_is_labelled_with_the_envelopes_own_sentence"]},
+    {"name": "A51 the stamp is appended on every edit (the member is warned twice)", "file": BIND,
+     "old": "    if not suffix or text.endswith(suffix):\n", "new": "    if not suffix:\n",
+     "tests": [T + "test_the_stamp_is_idempotent_across_the_second_edit"]},
+    {"name": "A52 the STAMP is trimmed instead of the content (S8 with extra steps)", "file": BIND,
+     "old": "    keep = CONTENT_MAX - len(suffix) - 2\n"
+            "    return (text[:max(0, keep)].rstrip() + \"\\n\" + suffix) if keep > 0 else suffix[:CONTENT_MAX]\n",
+     "new": "    return joined[:CONTENT_MAX]\n",
+     "tests": [T + "test_when_it_does_not_fit_the_CONTENT_is_trimmed_and_the_STAMP_is_kept"]},
+    {"name": "A53 a degraded delivery loses the id a member would quote", "file": BIND,
+     "old": "    return \" · \".join(parts) + (f\" · id {cid}\" if cid else \"\")\n",
+     "new": "    return \" · \".join(parts)\n",
+     "tests": [T + "test_a_stale_delivery_is_labelled_with_the_envelopes_own_sentence"]},
+    {"name": "A54 an edit with no content grows one", "file": BIND,
+     "old": "        if \"content\" in kw:\n", "new": "        if True:\n",
+     "tests": [T + "test_the_edit_wrapper_stamps_every_path_the_render_function_can_take"]},
+    {"name": "A55 the chart handler edits without the stamp", "file": CMD,
+     "old": "                edit_fn=bindings.edit_fn(ctx),\n                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,\n"
+            "                quote_fn=bindings.quote_fn(ctx),\n                context_fn=chart_context.context_line if chart_context.enabled() else None,\n",
+     "new": "                edit_fn=ctx.edit,\n                house_fn=bindings.house_fn(ctx) if house.house_enabled() else None,\n"
+            "                quote_fn=bindings.quote_fn(ctx),\n                context_fn=chart_context.context_line if chart_context.enabled() else None,\n",
+     "tests": [T + "test_the_v2_handlers_bind_adapters_and_not_the_raw_clients",
+               T + "test_every_v2_handler_stamps_its_edits"]},
 
     # ── P2.4: a tripped breaker reaches #render-alerts ─────────────────────
     {"name": "A43 a tripped breaker pages nobody", "file": OBS,
