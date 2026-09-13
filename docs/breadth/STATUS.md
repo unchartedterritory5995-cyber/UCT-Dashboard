@@ -201,3 +201,16 @@ owner action, Phase 6.
   32 sequential `days=150&end=…` requests back to 2008 on page load — 66 API calls before a member can reach Data Charts.
   Pre-existing (identical in `before.json`), not caused by this program, and it cost this pass one capture: the tab's own
   call missed a 45 s wait while the pod was busy, and 768 had to be re-run alone.
+
+## Phase 3 — R1 Task 1 (2026-09-13)
+
+- `0dd21c248` — `app/src/pages/breadth/heatmapRegistry.golden.{test.js,json}`. The golden pins what the heatmap
+  registry is today, before R1 moves it under `chartMetrics.js`: 53 rows (46 tiles, 16 drill keys), the treemap's 29
+  items, the 5 forward-filled keys and the 29 percentile keys, serialised field by field with `getTier`/`getFmt` by
+  source so an object rebuilt elsewhere still compares equal only if every field matches.
+- Generated once with `WRITE_HM_GOLDEN=1` on the pre-move tree, then re-run without it — 7 passed. Five controls prove
+  the comparison can fail (renamed label, dropped drill key, reordered list, changed tier function, nudged treemap
+  weight) plus a size floor so an empty serialisation cannot satisfy an empty golden.
+- `src/pages/breadth` green: 90 files, 1,007 tests. ⚠️ "Run its shard alone" is not addressable — Vitest partitions by
+  hashing spec paths and `vitest list` ignores `--shard` — so the directory was run instead, which is the superset.
+- Next: R1 Task 2 (`METRIC_META`), then Task 3 (the heatmap reads the registry), then gate and merge.
