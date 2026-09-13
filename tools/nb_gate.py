@@ -51,6 +51,21 @@ GATE_REPO = pathlib.Path(os.environ.get("NB_GATE_REPO", "") or _REPO_DEFAULT)
 def do_not_build() -> str:
     """One line for the verdict: did any DO-NOT-BUILD item gain code?
 
+    !! THE BUDGET IS 900s, AND THAT IS A MEASUREMENT, NOT A GUESS.
+
+    The sweep reads 4,711 files / 60 MB and matches 75 patterns; the read costs
+    0.3s and the matching costs ~66s, because a 75-way regex alternation runs at
+    a few MB/s. Standalone it takes 60-85s. At the gate's first budget of 180s it
+    TIMED OUT under a loaded box (another session's six-shard gate was running),
+    and the verdict printed "DID NOT RUN ... this is not a clean result" - a
+    TOOLING failure wearing a verdict's clothes, on the one run of the week that
+    decides keep-or-revert.
+
+    * 900s is ~10x the measured cost, which is headroom for a contended box
+    rather than a number chosen to make a red go away. The gate writes a file and
+    has no deadline of its own, so waiting is free; being unable to say whether
+    §8 is intact is not.
+
     !! IT IS NOT A TRIGGER. This gate decides whether to revert Wave Q1 over an
     OBSERVATION WINDOW; a static sweep of the repo says nothing about that
     window, and wiring it to the verdict would let a regex revert a healthy
@@ -62,7 +77,7 @@ def do_not_build() -> str:
     try:
         proc = subprocess.run([sys.executable, str(tool), '--quiet'], cwd=str(GATE_REPO),
                               capture_output=True, text=True, encoding='utf-8',
-                              errors='replace', timeout=180)
+                              errors='replace', timeout=900)
     except (OSError, subprocess.SubprocessError) as e:
         return f"DID NOT RUN - {type(e).__name__}: {e} (this is not a clean result)"
     out = ((proc.stdout or '') + (proc.stderr or '')).strip().splitlines()
@@ -134,6 +149,10 @@ _COLUMNS = {
     "at (et)": "at",
     "opt-in (member, old schema)": "optin_member_old",
     "latest opt-in (utc)": "latest_optin",
+    # Renamed 2026-09-13 when the column became three populations. The OLD
+    # spelling stays mapped: every row already in the log carries it, and a
+    # gate that cannot read its own history reports the window as unreadable.
+    "opt-ins by population (utc)": "latest_optin",
     "opt-in (windowed)": "optin_windowed",
     "config-served (members)": "config_served",
     "blocked-baseline": "blocked",
@@ -251,6 +270,7 @@ def is_skipped(rec: dict) -> bool:
 
 def main() -> int:
     at = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-4))).strftime("%Y-%m-%d %H:%M ET")
+    NLV = chr(10)
     last_run, last_result = heartbeat()
     recs, gripes = parsed_rows()
     r = [x['_cells'] for x in recs]
@@ -345,78 +365,59 @@ def main() -> int:
     if errs:
         fails.append(f"trigger 4: console errors at {errs[0]['at']}")
 
-    # ⭐ THE MEMBER COUNT COMES FROM THE SAMPLER, WHICH KNOWS IDENTITIES.
-    # The timing rule below is kept only as a fallback for rows written before
-    # the sampler recorded `members` - it cannot see the owner's own browsing,
-    # which is exactly how 14:00:28 was misread as the first member.
-    member_counts = []
+    # =========================================================================
+    # THREE POPULATIONS, PRINTED EVERY TIME, NEVER SUMMED. Owner ruling 2026-09-13.
+    # =========================================================================
+    # !!!! ONE `members` FIGURE IS WHAT PUBLISHED OUR OWN TEST ACCOUNT AS SEVEN
+    # INDEPENDENT MEMBERS. The sampler counted opt-in ROWS from any address not
+    # on a two-item exclusion list; the T-12 smoke account was not on it, and the
+    # 15:00 ET row read `members 7`. This gate would have printed
+    # `organic members exposed = 7` into the artifact the K window is judged on.
+    #
+    # * ORGANIC is a person who is not us -- the only number the wave's claims may
+    # be divided by. SYNTHETIC is an account we provisioned: it proves the path is
+    # reachable and proves nothing about adoption. RIG/OWNER is the instrument.
+    # They are three facts and they are never added together.
+    def _pop(cell, name):
+        """The count for one population, read from the row's own text."""
+        m = re.search(name + r'\s+(\d+)', cell)
+        return int(m.group(1)) if m else None
+
+    organic = synthetic = rigowner = 0
+    unknown_internal = 0
+    legacy_rows = 0
     for x_ in recs:
         cell = str(x_.get('latest_optin') or x_.get('optin_member_old') or '')
-        if "members " in cell:
-            try:
-                member_counts.append(int(cell.split("members ")[1].split()[0].strip("()")))
-            except (ValueError, IndexError):
-                pass
-    # !!!! THE IDENTITY COUNT WAS COMPUTED AND THROWN AWAY.
-    #
-    # This block used to assign `member` from the sampler's identity count and
-    # then OVERWRITE it unconditionally on the very next line, so the
-    # authoritative answer never reached the verdict file. Worse, the branch
-    # also emptied `cans`, so the timing fallback then ran against ZERO canary
-    # windows - and every canary opt-in would have been reported as a member.
-    #
-    # * IT SURVIVED BECAUSE A SECOND BUG HID IT. The fallback read the WHOLE
-    # cell (`2026-09-12 15:45:46 · members 0`), which no date parser
-    # accepts, and `is_rig` answers True for anything unparseable - never claim a
-    # member from a value you could not read. Fixing the parsing to address
-    # columns by name made the cell parse, and the hidden bug came straight out:
-    # the live log then read FIRST MEMBER OPT-IN 2026-09-12 15:45:46, on a row
-    # whose own identity count says `members 0`.
-    #
-    # * So the two answers are ordered, not merged. The sampler KNOWS identities;
-    # the timing rule only guesses from when an event landed, and it cannot see
-    # the owner's own browsing - which is exactly how 14:00:28 was misread as the
-    # first member. Identity wins whenever it is present.
-    if member_counts:
-        m = max(member_counts)
-        member = (f"none - 0 independent members ({len(member_counts)} row(s) "
-                  "counted by identity)"
-                  if m == 0 else f"{m} INDEPENDENT MEMBER OPT-IN(S) - see the log")
-    else:
-        # No row carries an identity count - every row predates the sampler
-        # learning to take one. Fall back to the timing rule, WITH its canary
-        # windows, and say in the line itself which rule answered.
-        cans = canary_times()
-        member = ("none - every opt-in is the rig" + chr(39) + "s ("
-                  + str(len(cans)) + " canary run(s) excluded; timing rule, "
-                  "no identity count in any row)")
-        for x in recs:
-            cell = str(x.get('latest_optin') or x.get('optin_member_old') or '')
-            stamp = cell.split(' ' + chr(183) + ' ')[0].strip()
-            if stamp not in ('-', '', chr(8212), '0') and not is_rig(stamp, cans):
-                member = ('FIRST MEMBER OPT-IN ' + stamp + ' (row ' + x['at']
-                          + ', timing rule)')
-                break
+        o = _pop(cell, 'organic')
+        if o is None:
+            # !! A ROW IN THE OLD `members N` SHAPE. Its number counted ROWS from
+            # every non-excluded address, so it is NOT an organic count and must
+            # not be read as one. Counted separately and reported, never folded in.
+            if 'members ' in cell:
+                legacy_rows += 1
+            continue
+        organic = max(organic, o)
+        synthetic = max(synthetic, _pop(cell, 'synthetic') or 0)
+        rigowner = max(rigowner, _pop(cell, 'rig/owner') or 0)
+        unknown_internal = max(unknown_internal, _pop(cell, 'UNKNOWN INTERNAL') or 0)
 
-    # !!!! ORGANIC MEMBERS. Owner ruling 2026-09-13: say it in every verdict
-    # and every end-of-day report until it changes.
-    #
-    # The sampler counts members BY IDENTITY and excludes the rig, the owner's
-    # own browser and the smoke account. What is left is an ORGANIC member: a
-    # person who is not us. Zero of them have opened the Notebook since the
-    # flip, and a window whose whole purpose is member exposure has to say so
-    # in the same breath as its verdict -- otherwise KEEP reads as 'a week of
-    # members found nothing' when it means 'nobody looked'.
-    #
-    # * A SYNTHETIC member is counted SEPARATELY and never folded in. The
-    # member-smoke account is provisioned by us, so an opt-in from it proves
-    # the path is reachable and proves nothing about adoption.
-    organic = 0 if not member_counts else max(member_counts)
+    member = (
+        'none - 0 organic members (nobody outside this programme has opened the '
+        'Notebook in this window)' if organic == 0
+        else str(organic) + ' ORGANIC MEMBER IDENTITY(S) - see the log'
+    )
     organic_line = (
         'organic members exposed = ' + str(organic)
-        + ('  (nobody outside the rig has opened the Notebook in this window)'
-           if organic == 0 else '  -- attributed by identity, see the log')
+        + '  |  synthetic = ' + str(synthetic)
+        + '  |  rig/owner = ' + str(rigowner)
+        + (('  |  !! UNKNOWN INTERNAL = ' + str(unknown_internal)) if unknown_internal else '')
+        + ('  (counted by distinct identity, never summed)')
     )
+    if legacy_rows:
+        organic_line += (NLV + '           ! ' + str(legacy_rows) + ' row(s) predate the '
+                         'three-population split and carry the old `members N` count, '
+                         'which counted ROWS from any non-excluded address. Those numbers '
+                         'are NOT organic counts and are excluded from the three above.')
 
     dnb = do_not_build()
     # ! AN UNREADABLE ROW IS NOT A CLEAN ONE. It does not make the wave bad, so it
@@ -451,7 +452,7 @@ at:        {at}
 heartbeat: Last Run Time {last_run} | Last Result {last_result}
 rows read: {len(r)} ({len(skipped)} skipped){skip_note}  ({r[0][0] if r else 'none'} .. {r[-1][0] if r else 'none'})
 member:    {member}
-ORGANIC:   {organic_line}
+POPULATION: {organic_line}
 do-not-build: {dnb}
 
 | trigger | result |
@@ -462,7 +463,7 @@ do-not-build: {dnb}
 | 4 · member console error | {t4} |
 
 """
-    NLV = chr(10)
+    # (NLV is defined once, near the top of main() -- a second binding of the same value is the shape `lesson_a_second_authority_over_one_value` names.)
     if fails:
         body += '## Why this is not a clean KEEP' + NLV + NLV
         body += NLV.join('- ' + f for f in fails) + NLV + NLV
