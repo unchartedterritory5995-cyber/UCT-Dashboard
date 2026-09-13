@@ -20,7 +20,7 @@ alone; that undercounted the Terminal-Next program twice.
 
 ```bash
 # Section 1 — the program's own branch, before merge
-git log --format='%h %ci %s' origin/master..feat/wisdom-loop
+git log --format='%h %ci %s' --shortstat origin/master..feat/wisdom-loop
 
 # Section 1 — after a merge M (substitute its SHA)
 git log --format='%h %ci %s' M^1..M^2
@@ -43,19 +43,47 @@ master push (one master merge at a time, repo-wide).
 
 ## Section 1 — the program's own build: `feat/wisdom-loop`
 
-Branch cut from `origin/master` at **`f4fc5d1c1`** (2026-09-13). Not merged.
+Branch cut from `origin/master` at `f4fc5d1c1`. **Rebased 2026-09-13 12:20 CDT onto `origin/master` `f34ce660b`**
+(29 + 8 commits behind; rebase rule CLAUDE.md), so the Session 0 SHAs were rewritten; the old SHAs are kept in the
+subject column. Not merged.
 
 | # | commit | when (CDT) | wave | files | subject |
 |---|---|---|---|---|---|
-| 1 | `37e84831e` | 2026-09-13 09:29 | **S0** | 5 | docs(wisdom): Session 0 discovery — manifest, schema v0, vocabulary v0, golden verifier |
-| 2 | `b5e51c37b` | 2026-09-13 09:54 | **S0** | 2 | docs(wisdom): owner rulings D1-D10 (all YES), D6 merge map, D11-D20, expanded scope |
+| 1 | `1b72193b8` | 2026-09-13 12:20 (orig. `37e84831e` 09:29) | **S0** | 5 | docs(wisdom): Session 0 discovery — manifest, schema v0, vocabulary v0, golden verifier |
+| 2 | `d04f86650` | 2026-09-13 12:20 (orig. `b5e51c37b` 09:54) | **S0** | 2 | docs(wisdom): owner rulings D1-D10 (all YES), D6 merge map, D11-D20, expanded scope |
+| 3 | `7c3f282ba` | 2026-09-13 12:20 | **W1** | 4 | docs(wisdom): W1 contracts (db v0 DDL, extraction schema), discord sources, authors |
+| 4 | `4b0eba32b` | 2026-09-13 12:20 | **W1** | 1 | docs(wisdom): W1 build contracts — 29 resolved contradictions, layout, registry/store API, flags, schedule |
+| 5 | `ca0b9b801` | 2026-09-13 12:20 | **W1** | 38 | feat(wisdom): W1 skeleton — registry, wisdom.db store, gates, jobs runner, R2, authors, owner gate, core routes |
+| 6 | `1363d588b` | 2026-09-13 12:26 | **W1** | 2 | docs(wisdom): #manrav granted + verified; volume-alerts, uncharted-scanners, test-chartmaster-alerts bot-authored, out of scope |
+
+Ledger-only commits (exempt): `a89b4f5aa`, `f786ac72a`.
+
+**Row 5 evidence.**
+- `tests/test_wisdom_skeleton.py`: 19 passed.
+- Rails run by name after the rebase (`test_wisdom_skeleton`, `test_feature_flag_ledger`, `test_no_shadowed_definitions`,
+  `test_lifespan_scheduler_binds_before_use`, `test_cross_module_imports_resolve`): 209 passed, 1 failed.
+- The one failure is `test_cross_module_imports_resolve` on `api/services/discord_render/commands.py:34`
+  (`INTERACTIVE`). It was introduced on master by the Discord render program and is not a Wisdom import.
+- Before the rebase, `test_feature_flag_ledger` was also red on four `ALERT_TAXONOMY_*_DARK_ENABLED` gates (S7).
+  Master `f34ce660b` fixes it.
+- `python tools/flow_worker_watch_coverage.py` at base `f34ce660b`: `reachable=154 watched=24 changed=47 OK`.
+  No Wisdom module is in flow-worker's import closure.
+
+### Owner-task evidence (W1 GO Part 2)
+
+| Task | Done | How verified |
+|---|---|---|
+| §2.1 Discord grants | Bot role `1474903498700230668` given VIEW on #tsdr, #1chartmaster and #manrav, and VIEW+HISTORY on #bracco (@everyone denies history there). Granted in the Discord web UI as the server owner; the bot lacks MANAGE_ROLES. | `GET /channels/{id}/messages?limit=50` with the bot token returned HTTP 200 for all four channels on 2026-09-13. |
+| §2.1 author IDs | tsdr `339816805805588480` (46/50; the other 4 are the UCT Intelligence webhook bot) · bracco `427798118935953410` (50/50) · chartmaster `1203080759141736508` (50/50) · manrav `806378356966424596` (50/50) | Authorship of the latest 50 messages in each author's own channel (IDs only). |
+| §2.1 other trade-alert channels | #volume-alerts (Scripted Trading app), #uncharted-scanners (Uncharted Scanners app) and #test-chartmaster-alerts (ChartMaster Alerts app) are OUT OF SCOPE, not granted. | Read in the owner's Discord session 2026-09-13; every visible message is app-authored. |
+| §2.2 Zoom recovery | IN PROGRESS. The S2S token scopes are exactly `cloud_recording:delete:meeting_recording:admin cloud_recording:read:list_recording_files:admin cloud_recording:read:recording:admin`. | `GET /meetings/{uuid}/recordings` → 404 "This recording does not exist" (in trash). Trash listing via `users/me` and `accounts/me` → 400 naming the missing list scopes. The portal sign-in needs the owner's password (the agent may not enter one). |
 
 ## Section 2 — merges to master
 
 | # | branch | tip SHA | merge SHA | flow-worker classification | web SUCCESS observed |
 |---|---|---|---|---|---|
 
-*(none — Session 0 merges nothing)*
+*(none yet — planned order S-B → S-A → S-C → S-D → S-E → S-F, one at a time; CONTRACTS.md §8)*
 
 ## Section 3 — other programs' commits on paths this program created
 
@@ -66,9 +94,32 @@ Branch cut from `origin/master` at **`f4fc5d1c1`** (2026-09-13). Not merged.
 
 ## Section 4 — flags declared by this program
 
-| flag | declared in commit | read site | status | flipped by / when |
-|---|---|---|---|---|
+All declared in `ca0b9b801` with their read site in `api/services/wisdom/core/flags.py`; status `dark`; nobody has flipped any.
 
-*(none — Session 0 declares no gate. A flag is declared in `docs/feature_flags.json` in the SAME
-commit as its read site, because `tests/test_feature_flag_ledger.py` fails on a declaration
-with no gate.)*
+| flag | member-visible | status | flipped by / when |
+|---|---|---|---|
+| `WISDOM_INGEST_ENABLED` | no (master switch) | dark | — |
+| `WISDOM_CAPTURE_ENABLED` | no | dark | — |
+| `WISDOM_X_BACKFILL_ENABLED` | no (spends) | dark | — |
+| `WISDOM_VOCAB_AUTOPROMOTE_ENABLED` | no | dark | — |
+| `WISDOM_DISCORD_LISTENER_ENABLED` | no | dark | — |
+| `WISDOM_SOURCES_INGEST_ENABLED` | no | dark | — |
+| `WISDOM_EXTRACT_ENABLED` | no (spends) | dark | — |
+| `WISDOM_VISION_ENABLED` | no (spends) | dark | — |
+| `WISDOM_EXTRACT_AUDIT_ENABLED` | no (spends) | dark | — |
+| `WISDOM_OUTCOMES_ENABLED` | no | dark | — |
+| `WISDOM_CONTEXT_SNAPSHOT_ENABLED` | no | dark | — |
+| `WISDOM_REPLAY_ENABLED` | no | dark | — |
+| `WISDOM_METRICS_ENABLED` | no | dark | — |
+| `WISDOM_RETRIEVAL_INDEX_ENABLED` | no | dark | — |
+| `WISDOM_WEEKLY_REPORT_ENABLED` | owner-facing | dark | — |
+| `WISDOM_BRAINKB_PUBLISH_ENABLED` | **yes** — owner flips | dark | — |
+| `ASKAI_WISDOM_RETRIEVAL_ENABLED` | **yes** — owner flips (cohort `wisdom-askai`) | dark | — |
+| `WISDOM_DESK_MARKERS_ENABLED` | **yes** — owner flips | dark | — |
+| `WISDOM_BADGES_ENABLED` | **yes** — owner flips | dark | — |
+| `WISDOM_PV_EXAMPLES_ENABLED` | **yes** — owner flips | dark | — |
+| `WISDOM_MODELBOOK_DRAFTS_ENABLED` | **yes** — owner flips | dark | — |
+| `WISDOM_VOICE_PROFILE_ENABLED` | **yes** — owner flips | dark | — |
+| `WISDOM_DOSSIER_ENABLED` | **yes** — owner flips | dark | — |
+| `WISDOM_LEVEL_ALERTS_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |
+| `WISDOM_LOOKALIKE_ENABLED` | **yes** — owner flips; code-gated n ≥ 100 + 14 days | dark | — |

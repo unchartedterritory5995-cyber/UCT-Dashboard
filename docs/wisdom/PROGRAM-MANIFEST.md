@@ -1,9 +1,9 @@
 ---
 id: WISDOM-LOOP-MANIFEST
 title: UCT Wisdom Loop — Program Manifest
-status: Session 0 complete · D1–D10 ANSWERED YES (owner, 2026-09-13) · D6 resolved as the MERGE MAP (§3) · D11–D20 open · nothing merged · no flag declared
-branch: feat/wisdom-loop (cut from origin/master f4fc5d1c1, 2026-09-13)
-owner: Patrick (TSDR) · decisions: §12 · owner-only tasks: §13
+status: Wave 1 IN BUILD (owner GO v2.0, 2026-09-13) · D1–D20 YES · D16 split (D16a YES / D16b DEFERRED) · build contract = CONTRACTS.md · 25 gates declared dark · nothing merged to master
+branch: feat/wisdom-loop (cut from f4fc5d1c1; rebased on origin/master f34ce660b, 2026-09-13)
+owner: Patrick (TSDR) · decisions: §12 · former owner-only tasks, now agent-run: §13
 ---
 
 # UCT Wisdom Loop — Program Manifest
@@ -21,6 +21,10 @@ and visual and everything to just better inform and teach our system … We have
 stocks price data, news, twitter/X, fundamentals, catalysts, etc. Use it to our advantage."*
 
 Companion files:
+- `CONTRACTS.md` (**the Wave 1 build contract — it wins over §4, §8 and §11 of this file wherever they differ**)
+- `SESSION-STATE.md` (continuation handoff) · `RUNBOOK.md` (jobs, flags, kill switches, recovery, cost controls)
+- `contracts/wisdom-db-v0.sql` (schema authority) · `contracts/extraction-output-v0.schema.json`
+- `discord-sources.json` + `authors.json` (IDs only)
 - `LEDGER.md` (commit ledger)
 - `vocabulary/setup-vocabulary-v0.draft.json` (Setup Vocabulary v0)
 - `golden/golden-v0.provenance.json` (quote-free provenance of the 30 draft golden records)
@@ -63,9 +67,10 @@ Companion files:
    - Machine drafts (`%LOCALAPPDATA%\uct\sunday_scan\drafts\*.html`) are machine output, not his writing, and are never a source.
 10. **Attribution is exact.**
     - A guest teacher's lesson (Oliver Kell, Stockbee, 1ChartMaster, Ameet Rai …) is recorded under the guest, never credited to TSDR.
-    - Only TSDR and Bracco author CALLs (D3).
+    - Only the four authors in `authors.json` — TSDR, Bracco, Manrav, Chartmaster — author CALLs (the owner's W1 GO §2.1 widened D3's two). Ravi and every guest author MENTION or guest PRINCIPLE only (D14).
     - Unsigned Sunday Scans sections are TSDR (D4).
-11. **Owner-private stays owner-private.** Share sizes, P&L, broker trades (D16) and Notebook notes (D16) are stored for the owner's own review surface. **No member-facing route may ever return them**, and a route test asserts that.
+11. **Owner-private stays owner-private (D16a).** Private data from the CONTENT streams only — position sizes, share counts, stated entries on open positions — lives in the encrypted owner-only store (`WISDOM_PRIVATE_DB_PATH`, key `WISDOM_PRIVATE_KEY`). It is import-banned from every member-facing module and returned only through `require_owner` routes, with a route test.
+12. ⛔⛔ **Journal / J2 / Notebook / broker-synced fills are OUT OF SCOPE — D16b DEFERRED, no date (owner W1 GO Part 10).** No reading, ingestion, matching, reconciliation or search, and nothing built, scheduled or scaffolded for it. Reason for the record: the Journal is linked to family accounts handled under separate rules. The Journal import-ban rail enforces it in CI and pre-merge.
 
 ---
 
@@ -78,7 +83,7 @@ Companion files:
 | Ask-AI memory / dossier | `api/services/ai_search_memory.py` (`/data/ai_search_memory.db`); `ai_search_dossier.py` ("UCT HOUSE VIEW") | ⚠ The dossier is a synthesized house view injected ahead of prior answers. Wisdom must **feed** it, or it becomes a second authority that contradicts what UCT said |
 | Ask-AI exam | `api/services/ai_search_eval/` (`run_exam`, `run_grounding_audit`) | Home of the grounding eval |
 | Voice principles | `api/services/voice_embeddings_service.py`, `voice_kb_service.py`, `api/data/voice_kb/trading_principles.json` (36 **unsourced** entries → `lookup_trading_principle`) | ⚠ A second authority on principles that Compass's mentor lane cites. Link each to a sourced Wisdom principle; retire only with owner approval (D18) |
-| Desk ticker mentions | `api/services/ticker_mentions.py` | Declared **single authority** for Desk chart markers and the TickerPopup Desk tab. Wisdom CALL/MENTION join as a provider inside it |
+| Desk ticker mentions | `api/services/ticker_mentions.py` | Declared **single authority** for Desk chart markers (measured 2026-09-13: there is no TickerPopup Desk tab). Wisdom CALL/MENTION join as a provider inside it |
 | Desk transcripts | `/data/education.db` `edu_videos` (`transcript`, `chapters`, `ticker_moments`, `setups`, `media_started_at`); `education_search.py` FTS5 | Zoom/workshop/interview source of record; FTS is the W4 baseline |
 | Desk insights | `api/services/desk_session_insights.py` (VTT → transcript; `setups` via Haiku mapped to `_SETUP_TAXONOMY`; `ticker_moments` via Sonnet 5; headline/summary polished by Opus) | Consumed as weak labels and segmentation hints, never re-extracted |
 | Desk articles | `/data/desk.db` `substack_posts` (`body_raw` published HTML incl. `<img>`, `sections_json`) + FTS; `desk_article_anchors` (**publish-time close**); `desk_article_links` (letter ↔ video) | Sunday Scans source of record, chart-image source, call-date anchor price, cross-stream links |
@@ -89,9 +94,9 @@ Companion files:
 | Sunday Scans libraries | `uct-sunday-scan/sunday_scan/{prep_sheet,roster,boilerplate,corpus,etf_walk,facts}.py` | Imported read-only as parsers. ⛔ never `publish`/`run`/`promo` (§0.9) |
 | Session recaps | `uct-recaps/daily_recap.py` (deep recap generated via `claude -p`, **then discarded**), `desk_insights_polish.py` | Proposal: keep the deep recap as a source instead of discarding it |
 | Legacy #tsdr | `uct_intelligence/data/raw/tsdr_export_20260221_154219.json`, `processed/processed_messages.json` (7,766 msgs), `trader_profile.json`, `trading_rules.json` | Seed import (source version 0) |
-| Owner trades / notes | J2 broker sync (`api/services/journal_two/broker/`); Ask Notebook `journal_two/ask_retrieval.retrieve(user_id, …)` (per-user FTS) | Read-only through existing services, owner only, D16 consent |
+| ~~Owner trades / notes~~ | — | ⛔ **D16b DEFERRED (§0.12): not read, not queried, not scaffolded** |
 | Curriculum | `docs/curriculum/uct_method_scripts.json` (16 modules / 79 lessons / 395 chapters, AI-drafted, 40-term glossary) | **Not** owner speech. Reconcile its glossary with the vocabulary |
-| S3 / S8 / D2 / S7 / S12 | `entity_master/api.py::resolve`; `components/provenance/`; `api/services/canonical/`; `alert_taxonomy/`; `rollout.py` | Consumed unchanged. S7 `price_level` is the D20 alert type. D2 `uctUri` is needed for `<Cited>` |
+| S3 / S8 / D2 / S7 / S12 | `entity_master/api.py::resolve`; `components/provenance/`; `api/services/canonical/`; `alert_taxonomy/`; `rollout.py` | Consumed unchanged. D20 is built in W1 as a Wisdom-internal silent scorer; registering an S7 trigger type waits for the S7 owner's CP3 (CONTRACTS §0 #13). D2 `uctUri` is needed for `<Cited>` |
 | Bars / replay | `bars_sqlite.py` (`get_bars_before`, `closes_asof`); `pattern_engine.detect_all`; `screener/backtest.py`; recorded outputs (`leadership_snapshots` from 2026-02-19, `setup_triggers` from 2026-07-30, `pattern_detections` 120-day, `catalysts.db`) | Outcomes, replay, look-alike |
 | Clip pipeline | `uct-clips/media/{source.acquire, scan.sample_at, layout.decide, croptrim}`, `words.py`; `tools/heavy_lock.py` | Chart frames at call timestamps (D13), under the heavy lock |
 | Flags | `docs/feature_flags.json` (+ `build_flags`), `tests/test_feature_flag_ledger.py`, `tools/flag_ledger_audit.py` | Declarations |
@@ -541,34 +546,18 @@ Every metric is a `tools/wisdom_*.py` script with a versioned `docs/wisdom/metho
 
 ---
 
-## 8. Flags (names reserved; none declared yet)
+## 8. Flags — declared 2026-09-13 in the W1 skeleton (authority: CONTRACTS.md §4)
 
-All are enablement gates, unset = OFF, each declared in the same commit as its read site.
+All 25 gates are read ONLY through `api/services/wisdom/core/flags.py` and declared `dark` in `docs/feature_flags.json` in the same commit as that read site. Unset = OFF. Member-visible gates are the owner's to flip; ingest gates are armed by the integrator after the W1 merges.
 
-| Flag | Gates | Wave |
+| Kind | Flags | Cohort predicate |
 |---|---|---|
-| `WISDOM_INGEST_ENABLED` | master switch for scheduled jobs | W1 |
-| `WISDOM_CAPTURE_SCANS_ENABLED` | candidates and `pattern_detections` capture (D7) | W1 |
-| `WISDOM_CONTEXT_ARCHIVE_ENABLED` | daily capture-now archive (D12) | W1 |
-| `WISDOM_ZOOM_INGEST_ENABLED` | Zoom / workshop / interview / back catalog (D14) | W1 |
-| `WISDOM_EXTRACT_ENABLED` + `WISDOM_EXTRACT_DAILY_USD_CAP` | Batch extraction | W1 |
-| `WISDOM_CONTEXT_SNAPSHOT_ENABLED` | per-call context fingerprint (D11) | W1 |
-| `WISDOM_SUNDAY_SCANS_INGEST_ENABLED` | published text | W2 |
-| `WISDOM_CHART_VISION_ENABLED` | Sunday Scans charts + video frames (D13) | W2/W4 |
-| `WISDOM_OUTCOMES_ENABLED` | outcome engine | W2 |
-| `WISDOM_PRINCIPLE_LAB_ENABLED` | principle tests (D15) | W2 |
-| `WISDOM_WEEKLY_REPORT_ENABLED` | Sunday report | W2 |
-| `WISDOM_KB_PUBLISH_ENABLED` | export feed consumed by `wisdom_kb_sync.py` (D6/D18) | W2 |
-| `WISDOM_DISCORD_INGEST_ENABLED` | Discord | W3 |
-| `WISDOM_X_INGEST_ENABLED` | official-account persistence + backfill (D17) | W3 |
-| `WISDOM_OWNER_LEDGER_ENABLED` | owner trades/notes reconciliation (D16) | W3 |
-| `WISDOM_REVIEW_UI_ENABLED` | admin review surface | W1/W3 |
-| `ASKAI_WISDOM_RETRIEVAL_ENABLED` + cohort `rollout:wisdom-askai` | Ask-AI retrieval | W4 |
-| `WISDOM_BADGES_ENABLED` + `VITE_WISDOM_BADGES_ENABLED` | badges via `ticker_mentions` | W5 |
-| `WISDOM_CLIP_HANDOFF_ENABLED` | clip handoff | W5 |
-| `WISDOM_TEACHING_DRAFTS_ENABLED` | Model Book / playbook / voice drafts (D19) | W5 |
-| `WISDOM_LEVEL_ALERTS_ENABLED` | S7 stated-level alerts, admin (D20) | W6 |
-| `WISDOM_LOOKALIKE_ENABLED` | look-alike list, admin (D20) | W6 |
+| Master + ingest (internal) | `WISDOM_INGEST_ENABLED` · `WISDOM_CAPTURE_ENABLED` · `WISDOM_X_BACKFILL_ENABLED` · `WISDOM_VOCAB_AUTOPROMOTE_ENABLED` · `WISDOM_DISCORD_LISTENER_ENABLED` · `WISDOM_SOURCES_INGEST_ENABLED` · `WISDOM_EXTRACT_ENABLED` · `WISDOM_VISION_ENABLED` · `WISDOM_EXTRACT_AUDIT_ENABLED` · `WISDOM_OUTCOMES_ENABLED` · `WISDOM_CONTEXT_SNAPSHOT_ENABLED` · `WISDOM_REPLAY_ENABLED` · `WISDOM_METRICS_ENABLED` · `WISDOM_RETRIEVAL_INDEX_ENABLED` · `WISDOM_WEEKLY_REPORT_ENABLED` | admin surfaces only |
+| Member-visible consumers (owner flips) | `WISDOM_BRAINKB_PUBLISH_ENABLED` · `ASKAI_WISDOM_RETRIEVAL_ENABLED` · `WISDOM_DESK_MARKERS_ENABLED` · `WISDOM_BADGES_ENABLED` · `WISDOM_PV_EXAMPLES_ENABLED` · `WISDOM_MODELBOOK_DRAFTS_ENABLED` · `WISDOM_VOICE_PROFILE_ENABLED` · `WISDOM_DOSSIER_ENABLED` | admin cohort first; Ask-AI through the S12 cohort `wisdom-askai` (bare name in code) |
+| D20 — also hard-gated in code on CALL-REPLAY n ≥ 100 and 14 days of silent scoring | `WISDOM_LEVEL_ALERTS_ENABLED` · `WISDOM_LOOKALIKE_ENABLED` | admin cohort |
+| Default-ON kill switches (no ledger row) | `DESK_TRANSCRIPT_COVERAGE_GUARD_DISABLED` · `DESK_VTT_ARCHIVE_DISABLED` | — |
+
+Reserved names retired without ever being declared: `WISDOM_CAPTURE_SCANS_ENABLED`, `WISDOM_CONTEXT_ARCHIVE_ENABLED`, `WISDOM_ZOOM_INGEST_ENABLED`, `WISDOM_SUNDAY_SCANS_INGEST_ENABLED`, `WISDOM_CHART_VISION_ENABLED`, `WISDOM_PRINCIPLE_LAB_ENABLED`, `WISDOM_KB_PUBLISH_ENABLED`, `WISDOM_DISCORD_INGEST_ENABLED`, `WISDOM_X_INGEST_ENABLED`, `WISDOM_OWNER_LEDGER_ENABLED` (D16b), `WISDOM_REVIEW_UI_ENABLED`, `VITE_WISDOM_BADGES_ENABLED`, `WISDOM_CLIP_HANDOFF_ENABLED`, `WISDOM_TEACHING_DRAFTS_ENABLED`. `WISDOM_EXTRACT_DAILY_USD_CAP` is replaced by the per-run cap `WISDOM_EXTRACT_BUDGET_USD` (default 120 = the $80 catalog estimate × 1.5).
 
 ---
 
@@ -577,7 +566,7 @@ All are enablement gates, unset = OFF, each declared in the same commit as its r
 - **Speakers:** unknown labels become `attendee` before the write; the name is never stored.
 - **Discord:** allowlisted channel IDs **and** author IDs only; member messages are never stored.
 - **Paid content:** `require_paid` plus S12 cohort during dark phases.
-- **Owner-private:** trades, notes, share sizes and P&L go to the owner review surface only; a route test enforces it.
+- **Owner-private (D16a):** content-stream sizes, share counts and open-position entries go to the encrypted private store, returned only through `require_owner`; a route test enforces it. Journal / J2 / Notebook / broker data: never (D16b deferred).
 - **Public repo** (§0.7): samples, golden labels, owner data and chart readings with owner positions stay out of git.
 - **Substack:** published posts only, with no credential and no write-capable import (§0.9).
 - **Storage:** §3 table.
@@ -588,7 +577,7 @@ All are enablement gates, unset = OFF, each declared in the same commit as its r
 
 - **Golden set v0:** 30 records (CALL 14 · NEGATIVE_CALL 4 · MENTION 5 · PRINCIPLE 7), gitignored at `data/wisdom/golden/golden-v0.draft.jsonl`.
   - Verified: every quote occurs exactly once (`python tools/wisdom_golden_verify.py`; `--self-check` PASS).
-  - Awaiting owner corrections.
+  - W1 (owner GO §2.4): agent-verified against source text, the positions section inside each Sunday Scans issue, and bars; expanded to ≥ 100 stratified records with a dev/test split (CONTRACTS §6.4). Owner vetoes through the review queue.
   - **Added label sources for W1:** owner Model Book setup examples, owner `pattern_feedback`, ≥ 10 Discord messages, and a chart golden set of ≥ 30 images.
 - **Setup Vocabulary v0:** 32 candidates (23 setup · 5 level · 4 market_signal), in `vocabulary/setup-vocabulary-v0.draft.json`.
   - D9 = YES: the owner's names are canonical.
@@ -597,18 +586,18 @@ All are enablement gates, unset = OFF, each declared in the same commit as its r
 
 ---
 
-## 11. Wave order (updated for the expanded scope)
+## 11. Wave order (owner W1 GO v2.0, 2026-09-13 — supersedes the earlier table)
 
-| Wave | Delivers (dark) | Exit criterion (measured) |
+| Wave | Delivers (dark) | Exit / Definition of Done |
 |---|---|---|
-| **W1** | **Capture first** (D7 + D12 daily archive); schema + `wisdom.db`; the Substack import-ban rail (§0.9); speaker and ASR tables; **back catalog + Zoom ingestion** (D14) with the coverage gate; per-call context snapshot v0 (D11); golden set ≥ 50 plus minimal golden review; extractor v1 through the gate; CALL-REPLAY v0 on replayable detectors | Archive rows land daily with named gaps; the import-ban rail fails on a planted import; golden gate passes; 319 sources ingested with named `incomplete` ones; first UCT-see rate as `k/n` |
-| **W2** | Sunday Scans text **and charts** (D13) with the chart golden gate; outcome engine; principle lab v0 (D15); **KB publish feed + `wisdom_kb_sync.py`** staged admin-only (D6/D18); weekly report | One Sunday cycle reconciled; ≥ 1 principle test pre-registered and run; KB rows for the admin cohort cite a dated, signed source |
-| **W3** | Discord (D2); X persistence + backfill (D17); owner trades/notes reconciliation (D16); full admin review surface | A real #tsdr call extracted within one poll; official tweets survive past day 7; owner ledger visible only to the owner |
-| **W4** | Ask-AI retrieval (FTS baseline → Wisdom block) with S8 citations; D18 supersede of the misattributed KB rows for the admin cohort; video frames at calls (D13) | Grounding eval with Wisdom beats without it (median of 3); 0 unresolvable citations; 0 "Bonde"-attributed TSDR rows in admin answers |
-| **W5** | Badges via `ticker_mentions`; clip handoff; teaching drafts + voice refresh (D19) | Owner approves ≥ 1 drafted Setup Library example; `owner_voice` rebuilt from the current corpus |
-| **W6** | Monthly recognition proposal; look-alike list + stated-level alerts, admin-only (D20); setup lists deriving from the vocabulary | Owner decision recorded; look-alike hit rate shown beside its base rate |
+| **W1 (in build)** | S-A capture & archive (D12, ships first) · S-B schema, private store (D16a), four import-ban rails in CI + pre-merge, entity / alias / STT, vocabulary authority + maps · S-C Discord (four author channels, full backfill reconciled with the 7,766 legacy messages, listener), Zoom recovery + ≥ 98 % deletion guard + raw VTT to R2, Sunday Scans verification + publish-only check · S-D segmentation, extractor v0, Batch runner + budget guard, golden ≥ 100 + gate, smaller-model trial · S-E outcomes, CONTEXT_SNAPSHOT, CALL-REPLAY, metrics 6.1–6.3, grounding eval 6.4 · S-F admin review queue + dashboard, every publish adapter dark, D20 built and disabled, weekly report, RUNBOOK | Owner GO §9.1, walked line by line in the W1 report. Scheduled gates: 3 consecutive sessions of capture health; first WEEKLY WISDOM REPORT Sunday 2026-09-20; D20 enablement only after CALL-REPLAY n ≥ 100 and two weeks of silent scoring |
+| **W2** | D11 context snapshots for all historical CALLs from archived + reconstructable data; D13 chart ingestion behind the 50-image cost gate; D15 test specs and first results | Owner GO §9.2 |
+| **W3** | D18 Brain KB repair (build → eval → diff → admin swap → archive); voice-principle sourcing / retirement; Morning Wire profile refresh live for admins | |
+| **W4** | Ask-AI retrieval dark for the admin cohort; desk markers; dossiers; grounding eval before / after in the weekly report | |
+| **W5** | Badges; Pattern Vision examples; Model Book drafts and the 17 playbooks in the queue; clip-pipeline export; D20 enabled after the two-week silent scoring | |
+| **W6** | First monthly recognition proposal: candidate scan / detector definition changes and vocabulary-driven renames (21EMA↔20EMA, HVE↔HVC) with measured effect on 6.1 / 6.2, each shipped dark for the owner's gate | |
 
-Members' "This week in UCT" stays out of scope until the admin loop has run for ≥ 4 weeks.
+Members' "This week in UCT" not before the admin loop has run four consecutive weeks and the owner reopens it. Nothing in W2–W6 starts without the W1 report.
 
 ---
 
@@ -619,27 +608,27 @@ Members' "This week in UCT" stays out of scope until the admin loop has run for 
 | # | Decision | Answer |
 |---|---|---|
 | D1 | Keep paid text, golden labels and position details out of the public repo | **YES** |
-| D2 | Grant the bot read on #tsdr; ingest only owner and team there | **YES** (grant pending: §13) |
-| D3 | CALL authors = TSDR and Bracco; others MENTION | **YES** |
+| D2 | Grant the bot read on #tsdr; ingest only owner and team there | **YES** — done 2026-09-13 (§13) |
+| D3 | CALL authors = TSDR and Bracco; others MENTION | **YES**, widened to the four `authors.json` authors by the W1 GO §2.1 |
 | D4 | Unsigned Sunday Scans sections = TSDR | **YES** |
 | D5 | `claude-opus-5` via Batch; smaller models only on a golden-set tie | **YES** |
 | D6 | Storage — owner: *"check everything first and merge with existing systems … your call"* | **YES → resolved as the MERGE MAP (§3)** |
 | D7 | Capture scanner candidates and detections from W1 | **YES** |
 | D8 | Hindsight examples excluded from UCT-see rate, used for outcomes and clips | **YES** |
 | D9 | Owner's names canonical; code names map to them | **YES** |
-| D10 | Recover the Stockbee workshop from Zoom trash; hand the defect to the Desk owner | **YES** (recovery pending: §13) |
+| D10 | Recover the Stockbee workshop from Zoom trash; hand the defect to the Desk owner | **YES** — agent-run under W1 GO §2.2; the pipeline fix is built in this repo (§13) |
 | — | Sunday Scans: published posts only, never drafts | **RULE** (§0.9) |
 
-### Open — D11–D20 (yes/no; recommendation stated)
+### Answered — owner W1 GO v2.0, 2026-09-13: D11–D20 **all YES, with the rails in the GO text** (D16 split)
 
-| # | Decision | Rec. |
+| # | Decision | Answer |
 |---|---|---|
 | **D11** | **Context fingerprint on every call.** Snapshot, as of the minute he said it: index position vs MAs, UCT exposure/regime, breadth, VIX, the name's theme/sector, RS rank, relative volume, extension, days to earnings and last reaction, catalysts/news/tweets ±48h, growth numbers, flow/dark pool — with named gaps. Result: learn *which conditions he acts in and which conditions made calls work*. | **YES** |
 | **D12** | **Daily capture-now archive** of everything §2.8 shows being pruned or overwritten (intraday breadth path, intraday VIX, tweets, news-tile headlines, screener rows, RS ranks, wire payload, theme memberships, short interest/float/price targets, GEX, classification), to R2. Without it, context for today's calls is gone within 7 days. | **YES** |
 | **D13** | **Learn from the visuals.** Read all 2,953 published Sunday Scans charts plus the screen-share frame at every call timestamp with Opus vision (timeframe, drawn levels/trendlines/boxes, MAs, setup). Link each chart to its call; confirmed ones feed Pattern Vision exemplars and Model Book examples. ≈ $15–50 once, ≈ $2–5/month. | **YES** |
 | **D14** | **Ingest the whole back catalog**: all 319 transcripts (live sessions, Mental Game, Setups & Strategies, 35 interviews, 24 workshops, Options & Flow, Risk…), with guest teachings attributed to the guest. ≈ $30–80 once. | **YES** |
 | **D15** | **Principle lab.** Test every principle that makes a factual claim ("ER gap-ups continue better than gap-downs", "mid-30s win rate", "20EMA tap after a wedge pop") on UCT data with n and confidence intervals, pre-registered, so Ask-AI can answer *"does it work?"* with numbers. Measurement only. | **YES** |
-| **D16** | **Owner ground truth, private.** Reconcile your stated calls with your own broker-synced J2 trades (fills, exits, results) and let Wisdom search your own Notebook notes — read-only, owner-only, never shown to members. | **YES** |
+| **D16** | Split by the owner (W1 GO Part 10). **D16a** — the owner-only private store for content-stream private data, plus the Journal import-ban rail. **D16b** — any ingestion, reading, matching, reconciliation or search of Journal / J2 / Notebook content or broker-synced fills. | **D16a YES (W1) · D16b DEFERRED, no date** |
 | **D17** | **More streams.** Persist TSDR_Trading / Braczyy / 1ChartMaster tweets (already polled, deleted after 7 days) plus a paid X history backfill; team Discord channels; your Model Book examples, playbooks, pattern thumbs and wire-feedback notes as labeled data. | **YES** |
 | **D18** | **Repair what the system already recalls.** Replace the 7-month-stale brain-KB Sunday Scans rows (456 credited to "Bonde", only 30 actually his) with dated, signed, linked Wisdom rows; source or retire the 36 unsourced voice principles; normalize trader names. Changes what Ask-AI and Compass cite: admin cohort first. | **YES** |
 | **D19** | **Teach back in your voice — drafts only.** Refresh the Morning Wire owner-voice profile weekly from the full corpus; create a TSDR register for Desk titles; draft the 17 missing Setup Library playbooks and Model Book examples from your own words and best outcome-verified calls. Every draft owner-approved; never auto-published; never Substack. | **YES** |
@@ -647,10 +636,18 @@ Members' "This week in UCT" stays out of scope until the admin loop has run for 
 
 ---
 
-## 13. Owner-only tasks
+## 13. Former owner-only tasks — now agent-run (owner W1 GO §0.1)
 
-1. **Answer D11–D20.**
-2. **Discord (D2):** grant the bot's role *View Channel* + *Read Message History* on `#tsdr` and each trade-alert or team channel; reply with those channel IDs and the team members' Discord user IDs.
-3. **Zoom (D10):** Recordings → Trash → recover "Workshop with Stockbee" (2026-09-11) before ~2026-10-11.
-4. **Golden labels:** review the 30 draft records (Session 0 report); reply with corrections by `gid` or "confirmed".
-5. **If D16 = YES:** confirm which J2 account(s) are yours to reconcile.
+1. **D11–D20:** answered YES (§12).
+2. **Discord — DONE 2026-09-13.**
+   - The bot role has View Channel (plus Read Message History where @everyone denies it) on #tsdr, #bracco, #1chartmaster and #manrav.
+   - Each channel is verified with an HTTP 200 bot read.
+   - Author IDs are verified by measured authorship (`authors.json`).
+   - #volume-alerts, #uncharted-scanners and #test-chartmaster-alerts are app-authored. They are out of scope and were not granted.
+3. **Zoom — IN PROGRESS.**
+   - The S2S app lacks the list-recordings and recover scopes (measured by API).
+   - The web portal asks for the owner's password, which the agent may not enter. One owner sign-in in the shared Chrome profile is requested.
+   - The deletion guard, transcript pairing and VTT archive are built in this repo.
+   - Fallback: Whisper re-transcription from R2 session audio, which carries no speaker labels.
+4. **Golden labels:** agent-verified and expanded (W1 GO §2.4). The owner vetoes through the review queue.
+5. ~~Confirm J2 accounts~~: removed (D16b deferred).
