@@ -229,3 +229,39 @@ front end differs, and alternating runs share whatever the network and the pod a
 
 **Why.** D-018. A mock of exported rows would put paid data in a public repository; seeded random walks shaped like each
 metric show the design as faithfully without it.
+
+### D-024 · Phase 3 runs inline, one written plan per merge
+
+**Decision.** Each merge gets its own plan in `docs/superpowers/plans/`, executed in this session task by task (failing test
+first, mutation proofs), not dispatched to subagents.
+
+**Why.** This machine has recorded agent-isolation incidents (a dispatched agent's writes and commits landing outside the
+dispatching session's branch), it runs one test gate at a time, and the repository is public, where one stray staged file
+is an exposure (D-018). Each of those outweighs the parallelism a dispatch would buy.
+
+### D-025 · C1 asks `utils/marketSession` which session should exist; the new date module only formats
+
+**Decision.** "Is the newest stored session overdue?" uses `expectedLatestDailySessionET()` — holiday- and early-close-aware,
+threshold the close. `breadth/sessionDates.js` holds Eastern date labels only (`todayET`, `shiftISO`, `shortSessionDate`).
+
+**Why.** A second, weekday-only session rule would disagree with the existing one on every NYSE holiday. The authority's
+threshold is 4:00 PM, not the collector's 4:15–4:30 write, so returning to the tab in that half hour can cost one throttled
+request that finds nothing new; the superseded transition (A-09) is what picks the recorded row up.
+
+### D-026 · C1 ships the design's copy, not the audit's first wording
+
+**Decision.** Percentile chip "8th of 62 shown" (accessible name "…8th percentile of 62 readings shown"); stale badge
+"last Aug 7" with a clock glyph (accessible name "not reported since Aug 7"); load-state sentences from `02-design.md` §6.
+"No data in selected range." stays until V2 replaces the empty state.
+
+**Why.** `02-design.md` superseded the audit's draft sentences; shipping the audit wording now would change the copy twice.
+"Readings", not "sessions", in the accessible name: the count is of numeric observations, and a series with gaps has fewer
+than the sessions on screen.
+
+### D-027 · Refreshing on the close and on return to the tab is revalidation, not polling
+
+**Decision.** No polling-registry row for C1.
+
+**Why.** The polling rail defines a polling site as `useSWR(…, {refreshInterval})`; C1 adds none. Both refreshes fire on
+events — the live hook's superseded transition (that hook already polls) and `visibilitychange` — one request each, the
+second throttled to one per ten minutes.
