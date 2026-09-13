@@ -1,6 +1,7 @@
 {
   "_readme": [
     "UCT Setup Vocabulary v0 — DRAFT, owner approval pending. Nothing may carry a setup_name outside the APPROVED list; until approval every entry is status=candidate.",
+    "D9 ANSWERED YES (owner, 2026-09-13): the authors' own names are canonical. This vocabulary is the ONE setup-name authority; the six existing lists (setupGroups.js, setupCatalog.js, desk _SETUP_TAXONOMY, pattern_vision FOCUSED_SETUPS, voice_chart_vision list, curriculum glossary) and pattern-engine ids MAP to it via wisdom_vocab_maps (W1) and derive from it later (W6). It must never become a seventh list.",
     "Built ONLY from the Session 0 samples (Sunday Scans 2026-08-30 + 2026-09-06; Zoom edu_videos 355 live session + 356 workshop, both 2026-09-11). Names are spelled as the authors use them.",
     "definition_quote is verbatim ONLY for Sunday Scans (a free, publicly published newsletter). Transcript-sourced evidence is a LOCATOR (edu_videos id + cue timestamp) plus a paraphrase, because this repository is public and the live sessions / workshops are paid content. The verbatim sentences are in the Session 0 report and in the gitignored samples.",
     "kind: setup = an entry/trigger pattern · level = a price reference that setups key off · market_signal = a context read about the market, never a ticker setup.",
