@@ -377,7 +377,7 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 4 | **position-risk CP3** | `ec2b197f8` | ✅ **DONE** | **`6a67a4b5d`** |
 | 5 | **scan-membership-change CP3** | `d0415f251` | ✅ **DONE** | **`df937146c`** |
 | — | A-series re-sort + A9 CP1 | — | ✅ **RE-SORTED. A9 CP1 is NOT BUILDABLE** — see below | — |
-| 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
+| 6 | **catalyst-match CP3** | `3ee80dc13` | ✅ **DONE** | **`4fa45489f`** |
 | 7 | **regime-change CP3** | `9f0575340` | ⬜ | — |
 | 8 | **S6 CP1** — ⚠️ reconcile first: no packet exists. Write from the S6 PRD/spec, sign, build. **If the PRD/spec do not support a CP1 scope, say so and mark SPEC-BLOCKED.** | — | ⬜ | — |
 | — | `indicator-condition` CP3 | `148af5293` | ⬜ queued after D2 §9.5 CP1 | — |

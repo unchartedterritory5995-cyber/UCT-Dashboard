@@ -609,6 +609,50 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## catalyst-match CP3 — MERGED `4fa45489f`. Fingerprint `3ee80dc13`. **Daily dark.**
+
+**In-pod:** the registry holds **6** trigger types (catalyst-match joined) and **all three** new
+dark flags read **`None` in the running process**. ⛔ Nothing is armed. `/api/health` ok, uptime
+33 s on a fresh boot.
+
+Built against the packet's **§9**, which IS this type's CP3 definition — each of its five items has
+a test named for it: the cohort is S12's tag (**not** a third copy of the admin SQL, which §9 calls
+"the third authority") · the reconstruction branch is stated as unreached, because a projection
+that writes no durable alert has nothing to reconstruct · `already_fired` from the real dedup
+table · the wire and its rail · **the cadence DAILY**, because the dedup is per day and a
+per-minute sweep would re-ask a question whose answer cannot change until tomorrow.
+
+### ⛔⛔ A FINDING THE BUILD TURNED UP — AND THE HARNESS HAD TO ABSORB IT
+
+**`would_fire`'s `already_fired` parameter is RULE-AGNOSTIC; the legacy dedup namespace is
+RULE-SPECIFIC.** Both branches compare the bare upper-cased ticker, while the must-know rule stores
+`mustknow:TICKER` (F-S7-5 — so an admin who also WATCHES a name still receives the higher-severity
+alert). Hand the raw table to the grade rule and it compares `AAA` against `MUSTKNOW:AAA`, never
+matches, and **re-fires an alert the legacy suppressed: a false `new_only`, on exactly the names an
+operator cared most about.**
+
+⭐ `already_fired_for()` splits the set per rule, reading the prefix from
+`store.MUSTKNOW_DEDUP_PREFIX` — the one declaration. **That is the harness reproducing which key
+each rule was actually asked about, not the harness fixing the rule.** Mutation-proved.
+
+The ordering hazard recurs in this type's own shape — the dedup is per MARKET DATE and the legacy
+engine writes today's rows as it fires — so the read excludes today. Mutation-proved (`<` → `<=`).
+
+### ⛔ TWO SELF-INFLICTED DEFECTS IN THIS UNIT'S OWN TESTS, BOTH REPEATS
+
+1. **A hand-typed Unix epoch, for the second time today.** `T0` resolved to **2025-09-04** — a year
+   off the fixture's `DAY` — so every sweep looked up a market date with no rows and recorded
+   nothing, **while every test that never calls `market_date()` passed.** `T0` now derives from
+   `DAY`, with a control asserting the two agree.
+2. **The eighth `CODE, NEVER PROSE`.** The one-declaration probe tripped on the module's own
+   docstring, because `ast.unparse` drops comments but **keeps docstrings** — they are string
+   expressions, not comments. Both probes now blank them.
+
+⭐ Worth naming as a pattern rather than two slips: **a test fixture is an instrument too**, and
+both failures are the same one this programme keeps recording — the instrument describing itself.
+
+**87 tests green** across the four suites. Nothing stranded; web-only, no bump.
+
 ## scan-membership-change CP3 — MERGED `df937146c`. Fingerprint `d0415f251`. **Nightly dark.**
 
 **In-pod after the deploy:** the registry holds **5** trigger types (scan-membership-change
