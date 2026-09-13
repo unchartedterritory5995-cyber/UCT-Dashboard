@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from api.services.discord_render import contract
+from api.services.discord_render import contract, observe
 from api.services.discord_render import delivery as delivery_mod
 from api.services.discord_render.jobs_store import TOKEN_LIFETIME_S, JobsStore
 
@@ -114,7 +114,7 @@ class JobContext:
         # terminal, and must still land; a job another pod reclaimed must not.
         if not self.runtime.store.held_by(self.job.corr_id, self.runtime.owner):
             # A newer pod reclaimed this job; its result is the one the member gets.
-            log.info("drender evt=edit_skipped_not_owner cid=%s", self.job.corr_id)
+            observe.event("edit_skipped_not_owner", cid=self.job.corr_id, cmd=self.job.command)
             return False
         has_image = kw.get("png") is not None or bool(kw.get("pngs"))
         sent = self.runtime.edit_fn(app_id, token, **kw)
@@ -251,7 +251,7 @@ class JobRuntime:
             try:
                 q.put_nowait(job)
                 resumed += 1
-                log.info("drender evt=resumed cid=%s cmd=%s age_s=%.0f", job.corr_id, job.command, time.time() - job.created_at)
+                observe.event("resumed", cid=job.corr_id, cmd=job.command, ms=(time.time() - job.created_at) * 1000.0)
             except queue.Full:
                 self._finish_unanswerable(row, "queue_full")
                 abandoned += 1
@@ -280,8 +280,8 @@ class JobRuntime:
             res = self.delivery.followup(job.app_id, job.token, content=content, components=comps, ephemeral=True)
         else:
             res = self.delivery.edit_text(job.app_id, job.token, content=content, components=comps)
-        log.info("drender evt=failure_message cid=%s cls=%s ok=%s status=%s code=%s",
-                 job.corr_id, cls, res.ok, res.status, res.code)
+        observe.event("failure_message", cid=job.corr_id, cmd=job.command, cls=cls,
+                      outcome="sent" if res.ok else "refused", status=f"{res.status}:{res.code}")
         return bool(res.ok)
 
     # ── threads ─────────────────────────────────────────────────────────────
@@ -296,7 +296,7 @@ class JobRuntime:
                 elif item[0] == "update":
                     self.store.update(item[1], **item[2])
             except Exception:  # noqa: BLE001
-                log.exception("drender evt=writer_error")
+                observe.exception("writer_error")
 
     def _next_job(self) -> Job | None:
         with self._cv:
@@ -382,7 +382,7 @@ class JobRuntime:
             else:
                 outcome = handler(ctx)
         except Exception as e:  # noqa: BLE001 — a handler may raise; the member must still hear back
-            log.exception("drender evt=handler_crash cid=%s cmd=%s", job.corr_id, job.command)
+            observe.exception("handler_crash", cid=job.corr_id, cmd=job.command)
             ctx.failure_class = ctx.failure_class or "internal"
             ctx.failure_detail = type(e).__name__
         finally:
@@ -416,13 +416,14 @@ class JobRuntime:
         self._release_user(job)
         self._deadline_sent.discard(job.corr_id)
         summary = {"state": state, **fields}
-        log.info("drender evt=job_done cid=%s cmd=%s state=%s cls=%s final_ms=%s queue_ms=%s",
-                 job.corr_id, job.command, state, fields.get("failure_class"), fields.get("final_ms"), fields["queue_ms"])
+        observe.event("job_done", cid=job.corr_id, cmd=job.command, state=state, cls=fields.get("failure_class"),
+                      ms=fields.get("final_ms"), lane=job.lane, detail=fields.get("detail"),
+                      status=fields.get("discord_status"), outcome=fields.get("outcome"))
         if self.on_terminal:
             try:
                 self.on_terminal(job, summary)
             except Exception:  # noqa: BLE001
-                log.exception("drender evt=on_terminal_error")
+                observe.exception("on_terminal_error", cid=job.corr_id, cmd=job.command)
         return summary
 
     def _release_user(self, job: Job) -> None:

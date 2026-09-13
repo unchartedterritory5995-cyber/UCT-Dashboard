@@ -1054,10 +1054,25 @@ def build_launch_command() -> dict:
             "default_member_permissions": "8"}
 
 
-def build_commands(activity: bool = False) -> list:
+RENDERHEALTH_COMMAND = "renderhealth"
+
+
+def build_renderhealth_command() -> dict:
+    """Admin-only Discord render V2 health (docs/discord-render, OI-09). NOT in the default
+    set: registering it changes the command list in every server, so it is registered at
+    flip time (`tools/discord_chart_commands.py register --renderhealth`). The handler checks
+    the admin bit again, because `default_member_permissions` is a default a server can
+    override per role."""
+    return {"name": RENDERHEALTH_COMMAND, "type": 1,
+            "description": "Chart and flow render health (admins)",
+            "default_member_permissions": "8"}
+
+
+def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
-    are enabled on the app)."""
+    are enabled on the app); `renderhealth=True` adds the admin-only render
+    health command (V2 flip time)."""
     # `/charts` is retired: `/chart NVDA AMD AVGO` is the same thing through one
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
@@ -1065,6 +1080,8 @@ def build_commands(activity: bool = False) -> list:
             build_settings_command(), build_buzz_command(), build_flow_command()]
     if activity:
         cmds.append(build_launch_command())
+    if renderhealth:
+        cmds.append(build_renderhealth_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]
 
 
