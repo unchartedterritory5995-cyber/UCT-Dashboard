@@ -218,10 +218,12 @@ GEOMETRY_JS = """() => {
   }
   // ⚰️ Matching leaf DIVS with a straight apostrophe missed the ErrorState on
   // 2026-09-13: its text is a <p>-like leaf and uses a curly ’ ("Couldn’t load").
-  // Match any leaf element, and either apostrophe.
+  // Match any leaf element, and either apostrophe. C1 (A-01) replaced that
+  // ErrorState with one sentence per failure; each is listed so a real state
+  // never reads as "no placeholder".
   out.placeholder = [...root.querySelectorAll('*')]
     .map(d => d.children.length === 0 ? (d.textContent || '').trim() : '')
-    .filter(t => /^(Loading data|No data in selected range|Pick a preset|Couldn['’]t load)/.test(t))
+    .filter(t => /^(Loading data|No data in selected range|Pick a preset|Couldn['’]t (load|refresh)|Breadth history didn['’]t load|Your session has ended|Data Charts is part of)/.test(t))
     .slice(0, 3);
   return out;
 }"""
