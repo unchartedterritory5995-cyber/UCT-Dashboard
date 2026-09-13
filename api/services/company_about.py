@@ -2,7 +2,7 @@
 
 Facts (identity, classification, trader snapshot) come from FMP /stable/profile
 (cached 12h). Peers reuse the groups service. The brief (what-they-do +
-what-moves-it) is ONE grounded Haiku call, cached 30d and regenerated on demand —
+what-moves-it) is ONE grounded workhorse-tier call, cached 30d and regenerated on demand —
 so it's one cheap call per name, not per tab-open. Everything is fail-soft: a
 failure degrades to "facts only", never an error.
 """
@@ -12,9 +12,11 @@ import json
 import logging
 import os
 
+from api.services import llm_models
+
 log = logging.getLogger("company_about")
 
-_BRIEF_MODEL = os.environ.get("ABOUT_BRIEF_MODEL", "claude-haiku-4-5")
+_BRIEF_MODEL = llm_models.name("ABOUT_BRIEF_MODEL", llm_models.WORKHORSE)
 _BRIEF_ENABLED = os.environ.get("ABOUT_BRIEF_ENABLED", "1") == "1"
 _BRIEF_TTL = 30 * 86400          # a business narrative changes slowly
 _PROFILE_TTL = 12 * 3600
@@ -107,7 +109,7 @@ def get_peers(sym: str) -> list:
 
 
 def get_brief(sym: str, profile: dict) -> dict:
-    """One grounded Haiku call → {whatTheyDo, whatMovesIt}, cached 30d."""
+    """One grounded LLM call → {whatTheyDo, whatMovesIt}, cached 30d."""
     if not _BRIEF_ENABLED:
         return {}
     c = _cache()
@@ -137,11 +139,11 @@ def get_brief(sym: str, profile: dict) -> dict:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
         msg = client.messages.create(
-            model=_BRIEF_MODEL, max_tokens=380, temperature=0.5,
+            model=_BRIEF_MODEL, max_tokens=380,
             system=sys_prompt,
             messages=[{"role": "user", "content": grounding}],
         )
-        txt = (msg.content[0].text if msg and msg.content else "").strip()
+        txt = llm_models.text_of(msg).strip()
         if txt.startswith("```"):
             txt = txt.strip("`")
             if txt[:4].lower() == "json":

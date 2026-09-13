@@ -29,6 +29,8 @@ import logging
 import os
 import re
 
+from api.services import llm_models
+
 log = logging.getLogger("ai_search_agent")
 
 _MAX_STEPS = 6
@@ -46,7 +48,7 @@ _AGENT_ALLOWED = [
 
 
 def _model() -> str:
-    return os.environ.get("AI_SEARCH_AGENT_MODEL", "claude-sonnet-5").strip()
+    return llm_models.name("AI_SEARCH_AGENT_MODEL", llm_models.WORKHORSE)
 
 
 def _cost_cap() -> float:

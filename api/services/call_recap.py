@@ -11,7 +11,8 @@ All functions:
   - Are cost-guarded via catalyst cost_guard (reuses the daily cap)
   - Are null-safe — return None on any error, never raise
 
-Model: claude-opus-4-7 per feedback_opus_for_synthesis.
+Model: the FLAGSHIP tier per feedback_opus_for_synthesis — see `llm_models`,
+which owns which model that is. Overridable per surface by CALL_RECAP_OPUS_MODEL.
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ import threading
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
-from api.services import llm_timeouts
+from api.services import llm_models, llm_timeouts
 
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
@@ -45,7 +46,14 @@ _SENTIMENT_TTL = 12 * 3600  # 12 hours
 _WEBCAST_TTL  = 24 * 3600   # 24 hours
 _RATINGS_TTL  = 6 * 3600    # 6 hours
 
-_OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-opus-4-7")
+# ⛔ ITS OWN ENV VAR, DELIBERATELY. This read `CATALYST_OPUS_MODEL` and defaulted
+# to Opus 4.7 while `calendar_sector_read.py` read the SAME variable and
+# defaulted to Opus 4.8 — so which model ran here depended on which of the two
+# files you happened to read, and setting the catalyst engine's override silently
+# moved the calendar's Call panel too. One value, two authorities
+# (`lesson_a_second_authority_over_one_value`). The tier is now the policy and
+# CALL_RECAP_OPUS_MODEL is this surface's own escape hatch.
+_OPUS_MODEL = llm_models.name("CALL_RECAP_OPUS_MODEL", llm_models.FLAGSHIP)
 
 # ── lazy imports ─────────────────────────────────────────────────────────────
 
@@ -341,7 +349,10 @@ def _web_fallback_synthesis(sym: str, ck: str):
             max_tokens=800,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = (response.content[0].text or "").strip()
+        # NEVER content[0]: adaptive thinking is on by default, so block 0 is
+        # often a ThinkingBlock and `.text` raises inside this broad except —
+        # a real fault reported as "no recap".
+        raw = llm_models.text_of(response).strip()
 
         # Record cost
         guard.record(
@@ -457,7 +468,10 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = (response.content[0].text or "").strip()
+        # NEVER content[0]: adaptive thinking is on by default, so block 0 is
+        # often a ThinkingBlock and `.text` raises inside this broad except —
+        # a real fault reported as "no recap".
+        raw = llm_models.text_of(response).strip()
 
         guard.record(
             market_date=market_date,

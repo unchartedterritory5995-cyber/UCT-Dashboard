@@ -23,7 +23,7 @@ import time
 from datetime import date as _date, datetime, timedelta, timezone
 from urllib.parse import quote_plus, urlparse
 
-from api.services import significant_catalysts
+from api.services import llm_models, significant_catalysts
 from api.services.cache import cache
 from api.services.news_catalysts import store
 
@@ -32,7 +32,11 @@ _logger = logging.getLogger(__name__)
 HIST_PERIOD = "ytd2026_v10"  # v10 = drop vague 'moved on optimism' non-catalysts
 YTD_LO = "2026-01-01"
 
-_MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+# WORKHORSE: per-request extraction/summarization of a headline set. The env
+# chain is unchanged (NEWS_LLM_MODEL wins, else MODELBOOK_LLM_MODEL); only the
+# DEFAULT moved out of this file and into `llm_models`.
+_MODEL = (os.environ.get("NEWS_LLM_MODEL")
+          or llm_models.name("MODELBOOK_LLM_MODEL", llm_models.WORKHORSE))
 _TWEET_HOURS = int(os.environ.get("NEWS_TWEET_WINDOW_HOURS", "48") or 48)
 # Only the real news WIRES carry breaking catalysts — not the lower-signal
 # aggregator/retail accounts the tweet store also ingests (AIStockSavvy,

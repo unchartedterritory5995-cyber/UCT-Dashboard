@@ -28,13 +28,18 @@ import threading
 import time
 from datetime import datetime, timezone
 
+from api.services import llm_models
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.stock_brief import store
 
 _logger = logging.getLogger(__name__)
 
-_MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+# WORKHORSE: per-request synthesis of a short brief. The env chain is unchanged
+# (STOCK_BRIEF_LLM_MODEL wins, else MODELBOOK_LLM_MODEL); only the DEFAULT moved
+# out of this file and into `llm_models`.
+_MODEL = (os.environ.get("STOCK_BRIEF_LLM_MODEL")
+          or llm_models.name("MODELBOOK_LLM_MODEL", llm_models.WORKHORSE))
 # 15 min, matching _EARN_TTL. Was 120s, which sat UNDER the bars layer's own
 # 300s daily TTL (`bars_fetch._CACHE_TTL['D']`) — so a recompute reliably
 # outlived the cache it read from, and every third view or so paid the full

@@ -63,15 +63,16 @@ from contextlib import closing
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
-from api.services import cot_service
+from api.services import cot_service, llm_models
 
 logger = logging.getLogger(__name__)
 
 ENABLED_ENV = "COT_NARRATIVE_ENABLED"    # default "1"
-MODEL_ENV   = "COT_NARRATIVE_MODEL"      # default "claude-opus-5"
+MODEL_ENV   = "COT_NARRATIVE_MODEL"      # default: llm_models.FLAGSHIP
 CAP_ENV     = "COT_NARRATIVE_DAILY_CAP"  # default 300 (generations per UTC day)
 
-DEFAULT_MODEL     = "claude-opus-5"
+# The weekly read is member-facing prose — the words ARE the product.
+DEFAULT_MODEL     = llm_models.FLAGSHIP
 DEFAULT_DAILY_CAP = 300
 MAX_FACTS_BYTES   = 12_000
 MAX_TOKENS        = 450
@@ -115,7 +116,7 @@ def _enabled() -> bool:
 
 
 def _model() -> str:
-    return os.environ.get(MODEL_ENV, "").strip() or DEFAULT_MODEL
+    return llm_models.name(MODEL_ENV, DEFAULT_MODEL)
 
 
 def _daily_cap() -> int:

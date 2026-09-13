@@ -36,13 +36,15 @@ import json
 import logging
 import os
 
-from api.services import llm_timeouts
+from api.services import llm_models, llm_timeouts
 
 _logger = logging.getLogger(__name__)
 
 _TRANSCRIPT_CACHE_TTL_HIT  = 86_400   # 24h — transcripts don't change
 _TRANSCRIPT_CACHE_TTL_MISS = 3_600    # 1h — retry window
-_TRANSCRIPT_AI_MODEL       = "claude-sonnet-4-6"  # upgraded Haiku→Sonnet 2026-05-27 (richer transcript summaries)
+# Summarization off a transcript = the workhorse tier (upgraded off the cheap
+# tier 2026-05-27 for richer summaries). TRANSCRIPT_AI_MODEL overrides.
+_TRANSCRIPT_AI_MODEL       = llm_models.name("TRANSCRIPT_AI_MODEL", llm_models.WORKHORSE)
 _TRANSCRIPT_AI_MAX_TOKENS  = 800      # 5-7 detailed bullets from full call
 _MAX_TRANSCRIPT_CHARS      = 12_000   # truncation threshold
 _HEAD_CHARS                = 3_000    # CEO/CFO prepared remarks
@@ -172,7 +174,7 @@ def _fetch_latest_transcript(symbol: str) -> dict | None:
 
 
 def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int | None) -> dict | None:
-    """Summarize transcript via Claude Haiku → structured JSON."""
+    """Summarize transcript via `_TRANSCRIPT_AI_MODEL` → structured JSON."""
     try:
         import anthropic
 
@@ -218,7 +220,10 @@ def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int |
             metadata={"user_id": "transcript_summary:global"},
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = msg.content[0].text.strip()
+        # NEVER content[0]: adaptive thinking puts a ThinkingBlock there and
+        # `.text` would AttributeError inside this broad except (a real fault
+        # reported as "no summary").
+        raw = llm_models.text_of(msg).strip()
 
         # Strip markdown code fences
         if raw.startswith("```"):

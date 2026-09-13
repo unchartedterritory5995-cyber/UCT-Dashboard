@@ -25,6 +25,8 @@ import threading
 import time
 from datetime import datetime, timezone
 
+from api.services import llm_models
+
 log = logging.getLogger("ai_search_dossier")
 
 _LOCK = threading.Lock()
@@ -51,7 +53,7 @@ def _enabled() -> bool:
 
 
 def _model() -> str:
-    return os.environ.get("AI_SEARCH_DOSSIER_MODEL", "claude-sonnet-4-6")
+    return llm_models.name("AI_SEARCH_DOSSIER_MODEL", llm_models.WORKHORSE)
 
 
 def _min_q() -> int:

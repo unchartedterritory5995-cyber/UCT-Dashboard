@@ -13,12 +13,17 @@ import os
 import threading
 import time
 
+from api.services import llm_models
+
 _logger = logging.getLogger(__name__)
 
 _ask_lock = threading.Lock()
 _ask_last = {}   # user_id -> epoch (per-user throttle)
 _ASK_COOLDOWN = int(os.environ.get("COMMUNITY_ASK_COOLDOWN", "20"))
-_ASK_MODEL = os.environ.get("COMMUNITY_ASK_MODEL", "claude-haiku-4-5-20251001")
+# The member-facing 'UCT Mentor' answer posted into community chat — the words
+# ARE the product here, so the workhorse tier, not the cheap one. (This pinned a
+# date-suffixed Haiku id that no longer matched the canonical one.)
+_ASK_MODEL = llm_models.name("COMMUNITY_ASK_MODEL", llm_models.WORKHORSE)
 
 
 def enabled() -> bool:

@@ -30,6 +30,8 @@ import time
 import zlib
 from pathlib import Path
 
+from api.services import llm_models
+
 _UNSET = object()
 
 HISTORY_KEEP = 60
@@ -283,7 +285,7 @@ def _llm_kwargs(system: str, user: str) -> dict:
     """The exact messages.create call shape. Kept kwarg-minimal on purpose:
     every extra kwarg is a way for an SDK bump to TypeError the whole desk."""
     return {
-        "model": os.environ.get("DESK_CREATIVE_MODEL", "claude-opus-5"),
+        "model": llm_models.name("DESK_CREATIVE_MODEL", llm_models.FLAGSHIP),
         "max_tokens": 800,
         # Claude 5 emits a thinking block by default, which eats max_tokens and
         # truncates the structured JSON (same trap the wire's title desk hit).

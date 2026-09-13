@@ -14,6 +14,7 @@ from api.flow_admin_auth import require_flow_admin, require_flow_user
 # security fix that rewrites forty lines of a partner's file is a merge conflict
 # waiting to undo itself.
 from api.services import schwab_oauth_state as oauth_state
+from api.services import llm_models
 logger = logging.getLogger(__name__)
 # Yahoo Finance uses different symbols for indices
 YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
@@ -286,13 +287,13 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
         elif weekday == 6:
             day_note = " (Sunday — markets closed, summarize Friday's action)"
         client = anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH))
+        # Member-facing prose, and the answer is day-cached down to roughly ONE
+        # real call per day, so the flagship rate is negligible here. The tier
+        # is `llm_models`' to decide — this file never names a model, which is
+        # also why a pinned dated snapshot 404'd this route once before.
+        model = llm_models.name("MARKET_NARRATIVE_MODEL", llm_models.FLAGSHIP)
         response = client.messages.create(
-            # Was "claude-sonnet-4-20250514" — Anthropic deprecated that pinned
-            # snapshot. Using the stable alias "claude-sonnet-4-6" so future
-            # Sonnet versions roll forward without another 404 outage. If you
-            # ever need to pin to a specific version, use a dated string from
-            # https://docs.anthropic.com/en/docs/about-claude/models
-            model="claude-sonnet-4-6",
+            model=model,
             max_tokens=250,
             metadata={"user_id": "market_narrative:global"},
             system="You are a financial news writer. Respond with ONLY 2-3 concise sentences. No preamble. No search commentary. No disclaimers. No 'based on my search' or 'I found'. Just the market summary as if writing a Bloomberg terminal flash.",
@@ -302,7 +303,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
                 "content": f"Today is {today_str}{day_note}. Write 2-3 sentences: How did US markets close on the most recent trading day? Include S&P 500, Nasdaq, Dow moves and the main catalyst."
             }],
         )
-        narrative_cost_guard.record_from_response("schwab_market_narrative", "claude-sonnet-4-6", response)
+        narrative_cost_guard.record_from_response("schwab_market_narrative", model, response)
         text = " ".join(
             block.text for block in response.content
             if hasattr(block, "text")

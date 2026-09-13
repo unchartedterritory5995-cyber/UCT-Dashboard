@@ -42,6 +42,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
+from api.services import llm_models
+
 log = logging.getLogger("ai_search_deep")
 
 _LOCK = threading.Lock()
@@ -62,12 +64,12 @@ def _peruser_cap() -> int:
 
 
 def _plan_model() -> str:
-    return os.environ.get("AI_SEARCH_DEEP_PLAN_MODEL", "claude-sonnet-5").strip()
+    return llm_models.name("AI_SEARCH_DEEP_PLAN_MODEL", llm_models.WORKHORSE)
 
 
 def _synth_model() -> str:
     # Opus for synthesis — owner standing rule (feedback_opus_for_synthesis).
-    return os.environ.get("AI_SEARCH_DEEP_MODEL", "claude-opus-5").strip()
+    return llm_models.name("AI_SEARCH_DEEP_MODEL", llm_models.FLAGSHIP)
 
 
 def _cost_cap() -> float:

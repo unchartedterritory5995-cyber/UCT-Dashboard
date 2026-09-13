@@ -62,7 +62,7 @@ WIRE_DATA_FILE = os.path.join(MORNING_WIRE_PATH, "data", "wire_data.json")
 PERSISTENT_WIRE_DATA_FILE = os.environ.get(
     "PERSISTENT_WIRE_DATA_FILE", "/data/wire_data.json")  # Railway volume mount
 
-from api.services import yf_util
+from api.services import llm_models, yf_util
 from api.services.cache import cache
 import logging as _logging
 _logger = _logging.getLogger(__name__)
@@ -118,7 +118,11 @@ _EARNINGS_CACHE_TTL_MISS    = 300      # 5 min — retry window on failure
 _ENRICHMENT_LEG_KEYS = ("pre_earnings", "hist_moves", "revisions",
                         "beat_surprises", "implied_move", "key_quotes")
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
-_EARNINGS_AI_MODEL          = os.environ.get("EARNINGS_AI_MODEL", "claude-sonnet-5")  # Haiku→Sonnet 4.6 (2026-05-27)→Sonnet 5 (2026-07-12, richer previews; now generate-once + disk-persisted so the better model is affordable). Env-overridable.
+# WORKHORSE: per-request earnings preview/analysis synthesis. History:
+# Haiku→Sonnet 4.6 (2026-05-27)→the workhorse tier (2026-07-12, richer previews;
+# generate-once + disk-persisted, so the better model is affordable). Which model
+# the tier is now lives in `llm_models`; EARNINGS_AI_MODEL stays the override.
+_EARNINGS_AI_MODEL          = llm_models.name("EARNINGS_AI_MODEL", llm_models.WORKHORSE)
 
 _anthropic_lock = _threading.Lock()
 

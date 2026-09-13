@@ -16,9 +16,14 @@ import logging
 import os
 from typing import Any
 
+from api.services import llm_models
+
 _log = logging.getLogger(__name__)
 
-_HAIKU_MODEL = "claude-haiku-4-5-20251001"
+# A bounded extraction behind a 20s timeout, never member-facing prose — the
+# cheap tier. (This hand-typed a DATE-SUFFIXED haiku id that no longer matched
+# the canonical one; the tier owns the id now. TRADER_PROFILE_MODEL overrides.)
+_HAIKU_MODEL = llm_models.name("TRADER_PROFILE_MODEL", llm_models.CHEAP)
 _MAX_SUGGESTIONS_PER_SESSION = 4
 _MIN_TRANSCRIPT_TURNS = 4   # Don't bother with tiny sessions
 

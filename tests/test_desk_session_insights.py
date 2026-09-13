@@ -10,6 +10,7 @@ import pytest
 
 from api.services import desk_session_insights as si
 from api.services import education_service as edu
+from api.services import llm_models
 
 
 def test_parse_vtt_basic():
@@ -116,8 +117,10 @@ def test_generate_insights_overrides_short_shared_client_timeout(monkeypatch):
     assert out["chapters"] == [{"t": 5, "title": "Open"}]
 
 
-def test_model_defaults_to_haiku():
-    assert si._MODEL == "claude-haiku-4-5"
+def test_model_defaults_to_the_workhorse_tier():
+    # DERIVED, never a second copy of the id: llm_models is the one authority
+    # over which model a tier names (2026-08-28 migration).
+    assert si._MODEL == llm_models.WORKHORSE
 
 
 # ── _hms_to_secs ─────────────────────────────────────────────────────────────────
@@ -730,8 +733,9 @@ def test_recap_polish_enabled_default_on(monkeypatch):
     assert not si._recap_polish_enabled()
 
 
-def test_recap_model_defaults_to_opus():
-    assert "opus" in si._RECAP_MODEL
+def test_recap_model_defaults_to_the_flagship_tier():
+    # The polished recap is the most member-visible Desk text — flagship tier.
+    assert si._RECAP_MODEL == llm_models.FLAGSHIP
 
 
 # ── _merge_chapter_titles (2026-08-27: polish-pass chapter-title rewrites) ───────
@@ -1188,9 +1192,16 @@ def _stub_ticker_client(monkeypatch, moments, captured=None):
     return captured
 
 
-def test_ticker_model_defaults_to_sonnet():
-    assert si._TICKER_MODEL == "claude-sonnet-5"
-    assert si._TICKER_MODEL != si._MODEL  # chapters-fallback stays haiku, independent knob
+def test_ticker_model_defaults_to_the_workhorse_tier(monkeypatch):
+    assert si._TICKER_MODEL == llm_models.WORKHORSE
+    # The two knobs default to the same TIER but stay separately tunable: the
+    # independence that matters is the ENV VAR, not a difference in the default
+    # value (which is what this asserted before the 2026-08-28 tier migration,
+    # and would have pinned the two surfaces to different models forever).
+    monkeypatch.delenv("DESK_CHAPTERS_MODEL", raising=False)
+    monkeypatch.setenv("DESK_TICKERS_MODEL", "claude-ticker-only")
+    assert llm_models.name("DESK_TICKERS_MODEL", llm_models.WORKHORSE) == "claude-ticker-only"
+    assert llm_models.name("DESK_CHAPTERS_MODEL", llm_models.WORKHORSE) == llm_models.WORKHORSE
 
 
 def test_generate_ticker_moments_uses_ticker_model(monkeypatch):

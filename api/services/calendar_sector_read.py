@@ -25,14 +25,17 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
-from api.services import llm_timeouts
+from api.services import llm_models, llm_timeouts
 
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
-# Inherit the catalyst Opus override on prod if set; else current Opus 4.8
-# (owner preference: Opus for synthesis, never a stale/cheaper default).
-_OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL") or "claude-opus-4-8"
+# ⛔ ITS OWN ENV VAR, DELIBERATELY. This inherited `CATALYST_OPUS_MODEL` and
+# defaulted to Opus 4.8 while `call_recap.py` read the SAME variable and
+# defaulted to Opus 4.7 — one value with two authorities, so which model ran
+# depended on which file you read (`lesson_a_second_authority_over_one_value`).
+# Owner preference stands: FLAGSHIP for synthesis, never a stale/cheaper default.
+_OPUS_MODEL = llm_models.name("CALENDAR_SECTOR_READ_MODEL", llm_models.FLAGSHIP)
 _READ_TTL = 12 * 3600           # refresh ~twice a day ("per sector per day")
 _NULL_TTL = 3600                # short negative cache — retry within the hour
 _MAX_REPORTERS = 12             # grounding context cap (prompt stays cheap)
@@ -173,7 +176,10 @@ def _generate(sector: str, week: str, reporters: list[dict]) -> None:
             max_tokens=120,
             messages=[{"role": "user", "content": prompt}],
         )
-        line = (resp.content[0].text or "").strip().strip('"').strip()
+        # NEVER content[0] — with adaptive thinking on by default that block is
+        # often a ThinkingBlock, and `.text` would raise into the except below
+        # and cache this sector as "__null__" for the hour.
+        line = llm_models.text_of(resp).strip().strip('"').strip()
         guard.record(
             market_date=market_date,
             ticker=f"sector:{sector}",

@@ -21,7 +21,7 @@ import re
 import time
 import urllib.request
 
-from api.services import education_service
+from api.services import education_service, llm_models
 
 
 def is_enabled() -> bool:
@@ -40,8 +40,9 @@ def _webhook_url(category: str = "") -> str:
 
 
 # Recap quality is the whole point of the feature (it replaces a human writing
-# meeting minutes), and the input is one transcript — cents per session on Opus.
-_MODEL = os.environ.get("DESK_DISCORD_RECAP_MODEL", "claude-opus-4-8")
+# meeting minutes), and the input is one transcript — cents per session on the
+# flagship tier.
+_MODEL = llm_models.name("DESK_DISCORD_RECAP_MODEL", llm_models.FLAGSHIP)
 
 # Discord hard-caps content at 2000 chars/message; stay under with headroom.
 _CHUNK_LIMIT = 1900

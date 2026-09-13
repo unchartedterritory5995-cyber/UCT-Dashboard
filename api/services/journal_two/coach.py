@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Protocol, runtime_checkable
 
+from api.services import llm_models
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
 from api.services.journal_two import coach_prompts
@@ -43,7 +44,11 @@ class CoachClientProto(Protocol):
 class AnthropicClient:
     """Thin wrapper around the Anthropic Python SDK for Compass coach calls."""
 
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    # The coaching IS the product here — a weekly review, a profile update and
+    # an EOD recap are all judgment a member acts on, at weekly/daily cadence
+    # rather than per-request. That is what FLAGSHIP is for. The interactive
+    # chat surface (`coach_chat`) stays on WORKHORSE, where latency dominates.
+    DEFAULT_MODEL = llm_models.name("COMPASS_COACH_MODEL", llm_models.FLAGSHIP)
 
     def __init__(self, api_key: str | None = None) -> None:
         import anthropic  # deferred so the module is importable without the package installed
@@ -76,7 +81,6 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.4,
             metadata={"user_id": f"compass_weekly_review:{user_id}"},
             system=[
                 {
@@ -87,7 +91,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         summary = _extract_first_paragraph(body)
         return {"body": body, "summary": summary, "key_observations": []}
 
@@ -103,7 +107,6 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.3,
             metadata={"user_id": f"compass_profile_update:{user_id}"},
             system=[
                 {
@@ -114,7 +117,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        text = msg.content[0].text if msg.content else ""
+        text = llm_models.text_of(msg)
         return {"updated_profile": text.strip()}
 
     # ------------------------------------------------------------------
@@ -122,11 +125,10 @@ class AnthropicClient:
     # ------------------------------------------------------------------
 
     def write_eod_recap(self, *, system_prompt: str, user_message: str, user_id: str = "unknown") -> dict:
-        """Call Claude to produce an EOD recap. Different temperature + lower max_tokens than weekly."""
+        """Call Claude to produce an EOD recap. Lower max_tokens than the weekly review."""
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=1200,
-            temperature=0.5,
             metadata={"user_id": f"compass_eod_recap:{user_id}"},
             system=[
                 {
@@ -137,7 +139,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         summary = _extract_first_paragraph(body)
         return {"body": body, "summary": summary, "key_observations": []}
 

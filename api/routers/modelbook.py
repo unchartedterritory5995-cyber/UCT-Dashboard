@@ -42,6 +42,7 @@ from pydantic import BaseModel
 from api.middleware.auth_middleware import (
     get_current_user_with_plan, is_paid_user, require_admin,
 )
+from api.services import llm_models
 from api.services import modelbook_service as svc
 from api.services import significant_catalysts
 
@@ -616,7 +617,7 @@ def get_stock_bars(stock_id: int, _user: dict = Depends(require_paid)):
 import os as _os
 import time as _time_mod
 _DESC_ENABLED = _os.environ.get("MODELBOOK_DESC_ENABLED", "1") == "1"
-_DESC_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_DESC_MODEL = llm_models.name("MODELBOOK_LLM_MODEL", llm_models.WORKHORSE)
 _DESC_RETRY_AFTER = 3 * 3600  # re-attempt a failed/empty generation after ~3h (self-heals on re-view)
 _gen_lock = _threading.Lock()
 _generating = set()  # stock ids with a description generation in flight
@@ -713,13 +714,13 @@ def _generate_descriptions(symbol, company, year, gain_pct):
         # relisted / renamed / delisted, or a still-in-progress year) make the model
         # answer with a prose caveat instead of the JSON — e.g. SNDK: "SanDisk was
         # acquired by Western Digital in 2016…" — which parses to nothing. Re-ask a
-        # few times; at temperature 0.7 a later attempt returns the JSON.
+        # few times; a later attempt usually returns the JSON.
         obj = None
         for attempt in range(4):
             text = None
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=700, temperature=0.7,
+                    model=_DESC_MODEL, max_tokens=700,
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
@@ -826,7 +827,7 @@ def debug_desc(sym: str, year: int = Query(default=0)):
             system, prompt = _desc_messages(sym.upper(), company, y, None)
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=700, temperature=0.7,
+                    model=_DESC_MODEL, max_tokens=700,
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content)
@@ -936,7 +937,7 @@ def warm_all_stats() -> None:
 # ── AI-generated catalysts (the year's most impactful, move-driving events) ───
 
 _CATALYST_ENABLED = _os.environ.get("MODELBOOK_CATALYSTS_ENABLED", "1") == "1"
-_CATALYST_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_CATALYST_MODEL = llm_models.name("MODELBOOK_LLM_MODEL", llm_models.WORKHORSE)
 
 
 def _fetch_year_bars(symbol: str, year: int, stock_id=None) -> list:
@@ -1066,7 +1067,9 @@ def _generate_catalysts_for(stocks, max_workers=2):
 # ── AI year recaps (hover a year tab → a recap of that market year) ───────────
 
 _RECAP_ENABLED = _os.environ.get("MODELBOOK_RECAP_ENABLED", "1") == "1"
-_RECAP_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+# Members read this prose — flagship tier, with its own override so the recap
+# can be retuned without moving the description/catalyst surfaces.
+_RECAP_MODEL = llm_models.name("MODELBOOK_RECAP_MODEL", llm_models.FLAGSHIP)
 _RECAP_RETRY_AFTER = 86400  # don't re-attempt a failed generation for ~1 day
 _MIN_RECAP_YEAR = 1990
 _gen_recap_lock = _threading.Lock()
@@ -1231,7 +1234,7 @@ def _generate_year_recap(year: int):
             "trading methodology or system."
         )
         msg = client.messages.create(
-            model=_RECAP_MODEL, max_tokens=700, temperature=0.85,
+            model=_RECAP_MODEL, max_tokens=700,
             system=system, messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content).strip()
@@ -1410,7 +1413,7 @@ def _ai_watermark_meta(symbol, company, year):
         for attempt in range(2):
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=150, temperature=0.2,
+                    model=_DESC_MODEL, max_tokens=150,
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
@@ -1688,7 +1691,7 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
 # ── AI-generated setup descriptions ("why this setup worked") ─────────────────
 # Manual, admin-only, on-demand. The result is stored PERMANENTLY in the setup's
 # `notes` (generate once → kept forever → zero Anthropic spend on later views).
-# Opus 4.8 distills WHY the setup worked into a few short bullets (fundamental /
+# The flagship tier distills WHY the setup worked into a few short bullets (fundamental /
 # technical / thematic), grounded on the real daily price action around the setup
 # day, without naming any trader or methodology. Web search is opt-in (off by
 # default — it was the source of multi-minute "stuck" runs). Wired to a button,
@@ -1697,7 +1700,8 @@ def remove_setup(setup_id: int, _admin: dict = Depends(require_admin)):
 _SETUP_DESC_ENABLED = _os.environ.get("MODELBOOK_SETUP_DESC_ENABLED", "1") == "1"
 # The smartest model on purpose — this is the "test how well it does" feature, and
 # it's a manual admin click whose output is cached forever, so cost is bounded.
-_SETUP_DESC_MODEL = _os.environ.get("MODELBOOK_SETUP_DESC_MODEL", "claude-opus-4-8")
+_SETUP_DESC_MODEL = llm_models.name("MODELBOOK_SETUP_DESC_MODEL",
+                                    llm_models.FLAGSHIP)
 # Web search is OFF by default. The server-tool loop (multiple searches + retries)
 # is what made generation slow and prone to getting "stuck" for minutes — and the
 # model already knows these iconic historical setups. We ground it on the real
@@ -1837,7 +1841,7 @@ _SETUP_DESC_SYSTEM = (
 
 
 def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
-    """Claude (Opus 4.8) + web search → a web-grounded teaching note for one setup.
+    """Claude (flagship tier) + web search → a web-grounded teaching note for one setup.
     Raises on hard failure (so the endpoint can surface it); returns None only when
     the model genuinely produced no text."""
     if not _SETUP_DESC_ENABLED:
@@ -1960,7 +1964,7 @@ def _generate_setup_description(setup: dict, stock: dict) -> Optional[str]:
         kwargs = dict(
             model=_SETUP_DESC_MODEL,
             max_tokens=2000,
-            thinking={"type": "adaptive"},          # Opus 4.8: adaptive only (no budget_tokens / temperature)
+            thinking={"type": "adaptive"},          # adaptive only (no budget_tokens; sampling params 400)
             system=_SETUP_DESC_SYSTEM,
             messages=msgs,
         )

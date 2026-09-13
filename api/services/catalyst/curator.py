@@ -29,13 +29,15 @@ import logging
 import os
 from typing import Optional
 
+from api.services import llm_models
 from api.services.catalyst import cost_guard, selection, store, synthesize
 
 logger = logging.getLogger(__name__)
 
-# Sonnet 5 does the ranking/curation (fast, strong judgment, ~5x cheaper than
-# Opus); Opus stays on the written theses in synthesize.py. Env-overridable.
-CURATOR_MODEL = os.environ.get("CATALYST_CURATOR_MODEL", "claude-sonnet-5")
+# Ranking a scored pool against an explicit rubric is WORKHORSE work — fast,
+# strong judgment, well under the flagship rate. `llm_models` owns which model
+# that is; CATALYST_CURATOR_MODEL stays the operator's per-surface override.
+CURATOR_MODEL = llm_models.name("CATALYST_CURATOR_MODEL", llm_models.WORKHORSE)
 
 # Per-date curation verdicts, keyed by ticker, for the /explain endpoint:
 #   {market_date: {"TICKER": {"keep": bool, "rank": int|None}}}
@@ -315,17 +317,22 @@ def _call(model: str, prompt: str) -> tuple:
     """One Anthropic call. Returns (text, input_tokens, output_tokens, stop_reason).
     Raises on API error so curate() can fall back.
 
-    Thinking is DISABLED: Sonnet 5 does extended thinking by default, which on a
-    big 40-name pool burned the whole output-token budget on reasoning and left
-    the JSON truncated (out_tok=3000 but only ~260 chars of answer → parse fail →
-    silent fallback, 2026-07-23). Curation is a deterministic ranking task with an
-    explicit rubric — it doesn't need thinking, and disabling it sends every
-    output token to the JSON. Retries once dropping any kwarg the model rejects
-    (thinking / temperature) so a different model id stays usable."""
+    Thinking is DISABLED: the workhorse tier does extended thinking by default,
+    which on a big 40-name pool burned the whole output-token budget on reasoning
+    and left the JSON truncated (out_tok=3000 but only ~260 chars of answer →
+    parse fail → silent fallback, 2026-07-23). Curation is a deterministic
+    ranking task with an explicit rubric — it doesn't need thinking, and
+    disabling it sends every output token to the JSON.
+
+    NO SAMPLING PARAMS ARE SENT — every Claude 5 model rejects `temperature` with
+    a 400, and this call used to send one and pay a 400-then-retry round-trip on
+    every single curation. The retry below stays as a guard for an
+    OPERATOR-PINNED model (CATALYST_CURATOR_MODEL): it drops a rejected kwarg
+    this call actually sent — `thinking` today — and re-raises otherwise."""
     from api.services.engine import _get_anthropic_client
     client = _get_anthropic_client()
     max_tokens = _intenv("CATALYST_CURATOR_MAX_TOKENS", 3000)
-    kwargs = dict(model=model, max_tokens=max_tokens, temperature=0.2,
+    kwargs = dict(model=model, max_tokens=max_tokens,
                   thinking={"type": "disabled"},
                   system=SYSTEM_PROMPT + _learned_rules_block() + _owner_notes_block(),
                   messages=[{"role": "user", "content": prompt}])
@@ -334,10 +341,11 @@ def _call(model: str, prompt: str) -> tuple:
     except Exception as e:
         es = str(e).lower()
         dropped = False
-        if "thinking" in es:
-            kwargs.pop("thinking", None); dropped = True
-        if "temperature" in es:
-            kwargs.pop("temperature", None); dropped = True
+        # Drop only a kwarg this call ACTUALLY sent — otherwise the "retry"
+        # re-sends a byte-identical request and buys a second 400.
+        for k in ("thinking", "temperature", "top_p", "top_k"):
+            if k in es and k in kwargs:
+                kwargs.pop(k, None); dropped = True
         if not dropped:
             raise
         msg = client.messages.create(**kwargs)
@@ -487,8 +495,8 @@ def curate(scored: list[dict], *, market_date: str) -> list[dict]:
             _ORDER_BY_DATE[market_date] = [(c.get("ticker") or "").upper() for c in ordered]
 
         _RAN_BY_DATE[market_date] = True
-        logger.info("[catalyst-curator] curated %d/%d names (kept %d, cut %d) — Sonnet judgment",
-                    len(ordered), len(pool), len(keep), len(cut))
+        logger.info("[catalyst-curator] curated %d/%d names (kept %d, cut %d) via %s",
+                    len(ordered), len(pool), len(keep), len(cut), CURATOR_MODEL)
         return ordered
     except Exception as e:
         logger.exception("[catalyst-curator] LLM curation raised — mechanical fallback")

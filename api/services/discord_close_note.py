@@ -31,9 +31,13 @@ import logging
 import os
 import re
 
+from api.services import llm_models
+
 log = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-5"           # plenty for sixty words; DISCORD_CLOSE_NOTE_MODEL overrides
+# ~60 words of member-facing prose, once per trading day — the flagship rate is
+# pennies here. DISCORD_CLOSE_NOTE_MODEL overrides per-surface.
+MODEL = llm_models.FLAGSHIP
 MIN_WORDS, MAX_WORDS = 25, 90
 MAX_TOKENS = 400
 
@@ -133,7 +137,7 @@ def compose(moves: dict, *, client_fn=None, model: str | None = None) -> str:
                 # ⛔ No temperature kwarg: the pinned SDK raises on it and the
                 # Claude 5 family rejects sampling params.
                 r = c.messages.create(
-                    model=model or os.environ.get("DISCORD_CLOSE_NOTE_MODEL", MODEL),
+                    model=model or llm_models.name("DISCORD_CLOSE_NOTE_MODEL", MODEL),
                     max_tokens=MAX_TOKENS,
                     messages=[{"role": "user", "content": prompt}])
                 return "".join(getattr(b, "text", "") for b in (r.content or []))

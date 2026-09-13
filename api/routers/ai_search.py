@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from api.middleware.auth_middleware import (
     get_current_user_with_plan, is_paid_user, require_admin,
 )
-from api.services import ai_search_personal, perplexity_search
+from api.services import ai_search_personal, llm_models, perplexity_search
 
 router = APIRouter(prefix="/api/ai-search", tags=["ai-search"])
 
@@ -1856,7 +1856,7 @@ def _desk_only_answer(query: str, system: str, meta: dict, history: list) -> dic
         client = _get_anthropic_client()
         if client is None:
             return None
-        model = os.environ.get("AI_SEARCH_DEGRADED_MODEL", "claude-sonnet-5").strip()
+        model = llm_models.name("AI_SEARCH_DEGRADED_MODEL", llm_models.WORKHORSE)
         msgs: list[dict] = []
         for h in (history or []):
             q, a = (h.get("q") or "").strip(), (h.get("a") or "").strip()

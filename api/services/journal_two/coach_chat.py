@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from api.services import llm_models
 from api.services import llm_timeouts
 from api.services.journal_two import db as j2_db
 
@@ -435,7 +436,7 @@ class _TurnDeadline:
 class AnthropicChatClient:
     """Thin streaming wrapper. Returns an event iterator compatible with the
     orchestrator's expectations."""
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.name("COMPASS_CHAT_MODEL", llm_models.WORKHORSE)
 
     def __init__(self, api_key: str | None = None, timeout: float | None = None):
         import anthropic
@@ -459,7 +460,6 @@ class AnthropicChatClient:
         return client.messages.stream(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.4,
             metadata={"user_id": f"compass_chat:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
@@ -972,14 +972,13 @@ class _DefaultSummaryClient:
             timeout=float(timeout) if timeout else summary_call_timeout_secs(),
         )
         msg = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=llm_models.name("COMPASS_SUMMARY_MODEL", llm_models.WORKHORSE),
             max_tokens=600,
-            temperature=0.2,
             metadata={"user_id": f"compass_chat_summary:{user_id}"},
             system="You compress trading-coach conversations. Preserve any user-stated focus, behavioral commitments, or Compass observations of trader patterns. Drop tool-call mechanics. ≤500 tokens.",
             messages=[{"role": "user", "content": text}],
         )
-        return msg.content[0].text if msg.content else ""
+        return llm_models.text_of(msg)
 
 
 def _audit_ground_truth(_conn, row) -> dict:

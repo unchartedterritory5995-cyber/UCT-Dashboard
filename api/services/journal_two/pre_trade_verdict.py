@@ -4,7 +4,8 @@ Pre-Trade Verdict — two-stage decision pipeline.
 Stage 1 (hard checks, no LLM): muted setups, paper-only days, risk cap,
 daily-loss-limit, account size. ANY failure → return immediately.
 
-Stage 2 (LLM via Sonnet 4.6): structured JSON verdict on soft factors.
+Stage 2 (LLM, flagship tier — a GO/HOLD/SKIP is expensive to get wrong):
+structured JSON verdict on soft factors.
 
 Every verdict is logged to `j2_verdicts` for audit.
 """
@@ -16,13 +17,14 @@ import uuid
 from datetime import datetime, timezone, timedelta, date
 from typing import Any
 
+from api.services import llm_models
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
 
 
 class AnthropicVerdictClient:
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.name("COMPASS_VERDICT_MODEL", llm_models.FLAGSHIP)
 
     def __init__(self, api_key: str | None = None):
         import anthropic
@@ -43,13 +45,12 @@ class AnthropicVerdictClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=600,
-            temperature=0.3,
             metadata={"user_id": f"compass_pre_trade_verdict:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         return {"body": body}
 
 

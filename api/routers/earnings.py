@@ -4,6 +4,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException, Request
+from api.services import llm_models
 from api.services.engine import get_earnings, _generate_earnings_analysis, _generate_earnings_preview
 from api.services.earnings_estimates import get_earnings_intel
 from api.services.cache import cache
@@ -158,12 +159,17 @@ def debug_earnings_sources(sym: str):
             from api.services.engine import _get_anthropic_client
             client = _get_anthropic_client()
             msg = client.messages.create(
-                model="claude-haiku-4-5",
+                # An operator health probe — is the key live and the SDK wired?
+                # Nothing about the answer is the product: CHEAP tier.
+                model=llm_models.name("EARNINGS_PING_MODEL", llm_models.CHEAP),
                 max_tokens=20,
                 metadata={"user_id": "earnings_ping_test:global"},
                 messages=[{"role": "user", "content": "Say 'pong' and nothing else."}],
             )
-            out["anthropic"] = f"OK: {msg.content[0].text[:50]}"
+            # `text_of`, never `content[0]` — a ThinkingBlock first would make a
+            # HEALTHY key report as an AttributeError, which is the exact
+            # opposite of what this probe exists to tell an operator.
+            out["anthropic"] = f"OK: {llm_models.text_of(msg)[:50]}"
         except Exception as e:
             out["anthropic"] = f"exception: {type(e).__name__}: {e}"
 

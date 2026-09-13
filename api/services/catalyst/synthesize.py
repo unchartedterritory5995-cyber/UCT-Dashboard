@@ -1,5 +1,9 @@
-"""Opus 4.7 catalyst synthesis with skip-if-stable hash, Haiku fallback,
-malformed-JSON recovery, no-sources enforcement, and cost guarding."""
+"""Catalyst synthesis with skip-if-stable hash, cheap-tier fallback,
+malformed-JSON recovery, no-sources enforcement, and cost guarding.
+
+The model is NOT named here — `llm_models` owns that choice (WORKHORSE for the
+thesis, CHEAP for the fallback), overridable per surface by the env vars below.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -9,21 +13,21 @@ import os
 import time
 from typing import Optional
 
+from api.services import llm_models
 from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
 
-# Primary synthesis model = Sonnet 4.6 (2026-06-10). History: the 2026-05-27
-# cost pass pinned Haiku because Opus 4.7 was silently failing for this key and
-# falling through to Haiku anyway. Re-tested 2026-06-10 against the live key:
-# claude-sonnet-4-6 works cleanly and produces materially sharper theses +
-# grades than Haiku (the grader decides what gets hidden, so grade quality
-# directly drives signal quality). Cost stays within the $8/day soft cap.
-# claude-opus-4-8 rejects the `temperature` param (deprecated) — _call_anthropic
-# now retries without it, so Opus is selectable via env for max quality.
-# Revert to the cheap profile: set CATALYST_OPUS_MODEL=claude-haiku-4-5.
-OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-sonnet-4-6")
-HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
+# Per-request synthesis of a structured thesis = WORKHORSE work. History: the
+# 2026-05-27 cost pass pinned Haiku because Opus 4.7 was silently failing for
+# this key and falling through to Haiku anyway; 2026-06-10 moved it to the
+# Sonnet tier, which produces materially sharper theses + grades than Haiku (the
+# grader decides what gets hidden, so grade quality directly drives signal
+# quality). Cost stays within the $8/day soft cap. The env vars stay the
+# operator's per-surface override; the TIER is the policy and lives in
+# llm_models. Revert to the cheap profile: CATALYST_OPUS_MODEL=claude-haiku-4-5.
+OPUS_MODEL = llm_models.name("CATALYST_OPUS_MODEL", llm_models.WORKHORSE)
+HAIKU_FALLBACK = llm_models.name("CATALYST_HAIKU_FALLBACK_MODEL", llm_models.CHEAP)
 
 SYSTEM_PROMPT = """You are a SKEPTICAL sell-side analyst writing catalyst summaries for a professional trader's morning dashboard. Your default stance is doubt: most "catalysts" surfaced by news feeds are noise. Your job is to tell the trader, honestly, how real the catalyst is.
 
@@ -248,20 +252,29 @@ def _call_anthropic(model: str, prompt: str, system: str) -> tuple:
     """Make one Anthropic API call. Returns (response_message, input_tokens, output_tokens).
     Raises on transport/API errors so caller can handle fallback.
 
-    Newer models (e.g. Opus 4.8) reject the `temperature` param as deprecated;
-    on that specific 400 we retry once without it so any model id stays usable."""
+    NO SAMPLING PARAMS ARE SENT. Every Claude 5 model rejects `temperature` /
+    `top_p` / `top_k` with a 400; this call used to send `temperature=0.3` and
+    pay a 400-then-retry round-trip on EVERY single synthesis. The defensive
+    retry below stays because CATALYST_OPUS_MODEL is an operator escape hatch —
+    a pinned model may reject a kwarg this module does send — but it drops only
+    a kwarg actually present and re-raises otherwise, so it can never turn one
+    failure into two identical requests."""
     from api.services.engine import _get_anthropic_client
     client = _get_anthropic_client()
-    kwargs = dict(model=model, max_tokens=500, temperature=0.3,
+    kwargs = dict(model=model, max_tokens=500,
                   system=system, messages=[{"role": "user", "content": prompt}])
     try:
         msg = client.messages.create(**kwargs)
     except Exception as e:
-        if "temperature" in str(e).lower():
-            kwargs.pop("temperature", None)
-            msg = client.messages.create(**kwargs)
-        else:
+        es = str(e).lower()
+        dropped = False
+        for k in ("temperature", "top_p", "top_k", "thinking"):
+            if k in es and k in kwargs:
+                kwargs.pop(k, None)
+                dropped = True
+        if not dropped:
             raise
+        msg = client.messages.create(**kwargs)
     return msg, msg.usage.input_tokens, msg.usage.output_tokens
 
 

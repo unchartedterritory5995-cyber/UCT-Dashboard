@@ -16,10 +16,11 @@ than rendered. So a quote on screen is either genuinely in the transcript and
 correctly attributed, or it does not exist — a fabricated quote cannot reach the
 UI, and a real quote cannot carry the wrong speaker's name.
 
-Model: `CALL_RECAP_MODEL` (default claude-sonnet-5). This is extraction plus
-verification rather than open-ended synthesis, and the gate above closes the
-failure mode a larger model would be protecting against, so the Sonnet tier is
-the right default here — deliberately NOT the catalyst engine's Opus setting.
+Model: `CALL_RECAP_MODEL` (default: the WORKHORSE tier — `llm_models` owns which
+model that is). This is extraction plus verification rather than open-ended
+synthesis, and the gate above closes the failure mode a larger model would be
+protecting against, so the workhorse tier is the right default here —
+deliberately NOT the flagship the catalyst engine's synthesis runs on.
 Measured ~17.5k input tokens per transcript (DIS/AAPL/JPM, 2026-08).
 """
 from __future__ import annotations
@@ -29,12 +30,14 @@ import os
 import re
 from typing import Any, Optional
 
+from api.services import llm_models
+
 _log = logging.getLogger(__name__)
 
 # Deliberately its own knobs. `get_call_recap` used to read CATALYST_OPUS_MODEL
 # and spend from the catalyst engine's daily cap, so a morning of stepping
 # through reporters could silently disable catalyst synthesis for the day.
-_MODEL  = os.environ.get("CALL_RECAP_MODEL", "claude-sonnet-5")
+_MODEL  = llm_models.name("CALL_RECAP_MODEL", llm_models.WORKHORSE)
 _EFFORT = os.environ.get("CALL_RECAP_EFFORT", "medium")
 _MAX_TOKENS = int(os.environ.get("CALL_RECAP_MAX_TOKENS", "8000"))
 

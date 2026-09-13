@@ -4,7 +4,7 @@ Anthropic pricing (USD per million tokens, 2026):
   claude-opus-5:     $5.00  input, $25.00 output
   claude-opus-4-8:   $5.00  input, $25.00 output
   claude-opus-4-7:   $5.00  input, $25.00 output
-  claude-sonnet-5:   $3.00  input, $15.00 output
+  claude-sonnet-5:   $2.00  input, $10.00 output
   claude-sonnet-4-6: $3.00  input, $15.00 output
   claude-haiku-4-5:  $1.00  input, $5.00  output
 Server-side web search: $10 per 1,000 searches.
@@ -30,7 +30,12 @@ _PRICING = {
     "claude-opus-5":     {"input": 5.0,  "output": 25.0},
     "claude-opus-4-8":   {"input": 5.0,  "output": 25.0},
     "claude-opus-4-7":   {"input": 5.0,  "output": 25.0},
-    "claude-sonnet-5":   {"input": 3.0,  "output": 15.0},
+    # ⛔ Sonnet 5 is CHEAPER than the Sonnet 4.6 it replaced — $2/$10 vs $3/$15
+    # per 1M. This row read $3/$15 (4.6's rate) until 2026-08-28, which
+    # over-billed every curator/learner/synthesis call against the daily caps.
+    # Do NOT "correct" it back to match the row below it: the newer model is the
+    # cheaper one, and the two rates differing is the point.
+    "claude-sonnet-5":   {"input": 2.0,  "output": 10.0},
     "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0},
     "claude-haiku-4-5":  {"input": 1.0,  "output": 5.0},
 }

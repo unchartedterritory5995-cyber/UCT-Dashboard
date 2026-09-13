@@ -21,8 +21,8 @@ DESIGN — autonomous but not dangerous (the owner picked "fully autonomous"):
   - KILLABLE: `CATALYST_RULE_LEARNER_ENABLED=0` stops learning;
     `CATALYST_LEARNED_RULES_ENABLED=0` stops the curator applying them. Either is
     an instant, no-deploy revert.
-  - Never raises; cost-guarded (one Sonnet-5 call per run, only when new notes
-    exist — near-zero on a day with no notes).
+  - Never raises; cost-guarded (one workhorse-tier call per run, only when new
+    notes exist — near-zero on a day with no notes).
 """
 from __future__ import annotations
 
@@ -33,13 +33,17 @@ import re
 import time
 from typing import Optional
 
+from api.services import llm_models
 from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
 
-# Reuse the curator's model for the distillation (strong judgment, cheap).
-LEARNER_MODEL = os.environ.get("CATALYST_RULE_LEARNER_MODEL",
-                               os.environ.get("CATALYST_CURATOR_MODEL", "claude-sonnet-5"))
+# Distilling notes into rules is WORKHORSE work, and it deliberately rides the
+# curator's setting so the learner and the curator it teaches can never end up
+# on different models. The env chain is unchanged; only the DEFAULT moved out of
+# this file and into llm_models.
+LEARNER_MODEL = (os.environ.get("CATALYST_RULE_LEARNER_MODEL")
+                 or llm_models.name("CATALYST_CURATOR_MODEL", llm_models.WORKHORSE))
 
 
 def _enabled() -> bool:
@@ -117,14 +121,19 @@ def _build_prompt(notes: list[dict], active_rules: list[dict]) -> str:
 
 
 def _call_llm(prompt: str) -> Optional[dict]:
-    """One distillation call. Returns parsed JSON dict or None. Never raises."""
+    """One distillation call. Returns parsed JSON dict or None. Never raises.
+
+    NO SAMPLING PARAMS ARE SENT — every Claude 5 model rejects `temperature`
+    with a 400, and this call used to send one and eat a 400-then-retry on every
+    run. The retry below stays as a guard for an OPERATOR-PINNED model: it drops
+    a rejected kwarg this call actually sent (`thinking` today) and re-raises
+    otherwise, so it can never re-send a byte-identical request."""
     try:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
         kwargs = dict(
             model=LEARNER_MODEL,
             max_tokens=_intenv("CATALYST_RULE_LEARNER_MAX_TOKENS", 1200),
-            temperature=0.2,
             thinking={"type": "disabled"},
             system=_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
@@ -134,10 +143,9 @@ def _call_llm(prompt: str) -> Optional[dict]:
         except Exception as e:
             es = str(e).lower()
             dropped = False
-            if "thinking" in es:
-                kwargs.pop("thinking", None); dropped = True
-            if "temperature" in es:
-                kwargs.pop("temperature", None); dropped = True
+            for k in ("thinking", "temperature", "top_p", "top_k"):
+                if k in es and k in kwargs:
+                    kwargs.pop(k, None); dropped = True
             if not dropped:
                 raise
             msg = client.messages.create(**kwargs)

@@ -4,6 +4,9 @@ position-aware answer. Read-only. Every sub-read is best-effort — a failure dr
 that slice, never the answer. Personal data NEVER reaches Perplexity or the log."""
 from __future__ import annotations
 import logging, os, threading, time
+
+from api.services import llm_models
+
 _log = logging.getLogger(__name__)
 
 _BLOCK_CAP = 3600            # mirror the router's _CTX_BUDGET (2600→3600, 2026-08-28)
@@ -192,7 +195,7 @@ def assemble(user_id, account_id, query, tickers):
 # (from assemble() above) into one prose answer. Personal data goes into this
 # prompt ONLY — never to Perplexity, never to the capture log.
 
-_SYNTH_MODEL = os.environ.get("AI_SEARCH_SYNTH_MODEL", "claude-sonnet-5")
+_SYNTH_MODEL = llm_models.name("AI_SEARCH_SYNTH_MODEL", llm_models.WORKHORSE)
 _SYNTH_MAX_TOKENS = int(os.environ.get("AI_SEARCH_SYNTH_MAX_TOKENS", "800"))
 _SYNTH_TIMEOUT = float(os.environ.get("AI_SEARCH_SYNTH_TIMEOUT", "45"))
 _SYNTH_PERUSER_CAP = int(os.environ.get("AI_SEARCH_SYNTH_PERUSER_CAP", "20"))
@@ -282,8 +285,10 @@ def SYNTH_SYSTEM(personal_block, live_desk):
 async def synthesize(query, draft, personal_block, live_desk, history):
     """Streams token deltas from a personal-context-aware Anthropic call that
     folds the fresh web draft together with the member's own positions/heat/
-    edge. LOCKED config: no `temperature` kwarg (Sonnet tier 400s on it),
-    thinking disabled, explicit timeout."""
+    edge. LOCKED config: no `temperature` kwarg (every model `llm_models` names
+    answers 400 on a sampling parameter — the tier here is Sonnet today, but the
+    rule is the model FAMILY's, not this tier's), thinking disabled, explicit
+    timeout."""
     system = SYNTH_SYSTEM(personal_block, live_desk)
     msgs = []
     for h in (history or [])[-3:]:
@@ -296,7 +301,7 @@ async def synthesize(query, draft, personal_block, live_desk, history):
     async with client.messages.stream(
         model=_SYNTH_MODEL, max_tokens=_SYNTH_MAX_TOKENS, system=system,
         messages=msgs, thinking={"type": "disabled"},
-        timeout=_SYNTH_TIMEOUT,     # NO temperature (Sonnet tier 400s)
+        timeout=_SYNTH_TIMEOUT,     # NO temperature (Claude 5 answers 400)
     ) as stream:
         async for delta in stream.text_stream:
             yield delta

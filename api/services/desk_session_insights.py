@@ -21,7 +21,7 @@ import os
 import re
 import time
 
-from api.services import education_service
+from api.services import education_service, llm_models
 
 # ── Observability (2026-07-02) ───────────────────────────────────────────────────
 # Per-video failures used to only print — logs are flooded, so a failing pass is
@@ -36,24 +36,24 @@ _FAIL_STREAK_ALERT_AT = 4
 # Zoom's AI Companion SUMMARY file gives chapters/headline/summary for free on
 # most sessions (see parse_zoom_summary below), so the LLM is now only needed
 # for (a) the rare fallback when no usable summary file exists and (b) the
-# small best-effort ticker-moments call. Haiku is plenty for both — cheaper
-# default than the old Opus-only path (DESK_CHAPTERS_MODEL env still overrides).
-_MODEL = os.environ.get("DESK_CHAPTERS_MODEL", "claude-haiku-4-5")
+# small best-effort ticker-moments call. Structured extraction off a transcript
+# = WORKHORSE (DESK_CHAPTERS_MODEL env still overrides per-surface).
+_MODEL = llm_models.name("DESK_CHAPTERS_MODEL", llm_models.WORKHORSE)
 
 # Ticker-moments timestamp fidelity is a reasoning task (copy the EXACT
 # preceding [h:mm:ss] marker, never estimate) — audit found real chips
 # drifting onto neighboring topics' timestamps and even past the video's end.
-# Sonnet is materially more careful here for ~5 cents/video; independent knob
-# from _MODEL (the chapters-fallback path) so this can be tuned/rolled back
-# on its own. Used ONLY by generate_ticker_moments.
-_TICKER_MODEL = os.environ.get("DESK_TICKERS_MODEL", "claude-sonnet-5")
+# The workhorse tier is materially more careful here for ~5 cents/video;
+# independent knob from _MODEL (the chapters-fallback path) so this can be
+# tuned/rolled back on its own. Used ONLY by generate_ticker_moments.
+_TICKER_MODEL = llm_models.name("DESK_TICKERS_MODEL", llm_models.WORKHORSE)
 
 # Recap polish (headline + key-takeaway bullets) is the most user-visible text
 # in the product — Zoom's own summary prose is generic ("Patrick and Uncharted
 # discussed…") and was shipped verbatim. The polish input is TINY (Zoom summary
 # + chapter titles + a sampled transcript excerpt, never the full transcript),
-# so the per-session cost stays cents even on Opus.
-_RECAP_MODEL = os.environ.get("DESK_RECAP_MODEL", "claude-opus-4-8")
+# so the per-session cost stays cents even on the flagship tier.
+_RECAP_MODEL = llm_models.name("DESK_RECAP_MODEL", llm_models.FLAGSHIP)
 
 
 def is_enabled() -> bool:

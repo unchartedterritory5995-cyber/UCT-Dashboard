@@ -4,11 +4,13 @@ import logging
 import os
 import re
 
+from api.services import llm_models
 from api.services.theme_engine import store
 from api.services.theme_engine.invalidate import post_engine_run
 
 _logger = logging.getLogger(__name__)
-_MODEL = os.environ.get("THEME_ENGINE_LLM_MODEL", "claude-opus-4-8")
+# Adjudication that PERSISTS into member-facing themes — flagship tier.
+_MODEL = llm_models.name("THEME_ENGINE_LLM_MODEL", llm_models.FLAGSHIP)
 
 
 def _env_f(name, dflt):

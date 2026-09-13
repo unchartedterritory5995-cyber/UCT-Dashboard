@@ -28,11 +28,13 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from typing import Any
 
+from api.services import llm_models
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
 
-_CLAUDE_MODEL = os.environ.get("DEEP_RESEARCH_MODEL", "claude-sonnet-4-6")
+# Per-request synthesis over a fetched bundle — the workhorse tier.
+_CLAUDE_MODEL = llm_models.name("DEEP_RESEARCH_MODEL", llm_models.WORKHORSE)
 _CLAUDE_TIMEOUT = 30
 _FETCH_TIMEOUT = 12
 

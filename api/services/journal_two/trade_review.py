@@ -12,13 +12,15 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+from api.services import llm_models
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
 
 
 class AnthropicReviewClient:
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.name("COMPASS_TRADE_REVIEW_MODEL",
+                                    llm_models.FLAGSHIP)
 
     def __init__(self, api_key: str | None = None):
         import anthropic
@@ -38,13 +40,12 @@ class AnthropicReviewClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=600,
-            temperature=0.4,
             metadata={"user_id": f"compass_trade_review:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         return {"body": body}
 
 

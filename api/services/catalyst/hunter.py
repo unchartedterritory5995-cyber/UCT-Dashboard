@@ -13,8 +13,9 @@ source_url, when, moving_yet}, ... ]}. We instruct the model to return JSON
 have to coexist with the server-tool loop; parsing is defensive.
 
 Cost controls (2026-07-02 — the hunter was ~$28/day before these):
-  - deep sweeps use CATALYST_HUNTER_MODEL (default claude-opus-4-8); light
-    follow-ups use CATALYST_HUNTER_LIGHT_MODEL (default claude-sonnet-5)
+  - deep sweeps use CATALYST_HUNTER_MODEL (default: the FLAGSHIP tier); light
+    follow-ups use CATALYST_HUNTER_LIGHT_MODEL (default: WORKHORSE). Which model
+    each tier is lives in `llm_models`, not here.
   - web_search capped via max_uses (CATALYST_HUNTER_MAX_SEARCHES_DEEP=12 /
     _LIGHT=4); search fees ($10/1k) are cost-logged alongside tokens
   - prompt caching on pause_turn continuations (re-reads bill ~0.1x)
@@ -32,12 +33,15 @@ import os
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from api.services import llm_models
+
 logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
-# Deep sweep model: CATALYST_HUNTER_MODEL (default claude-opus-4-8).
-# Light sweeps use CATALYST_HUNTER_LIGHT_MODEL (default claude-sonnet-5) —
-# "what's new in the last 30 minutes" is a search-and-list task, not Opus work.
+# Deep sweep = FLAGSHIP (CATALYST_HUNTER_MODEL): an open-ended, adversarial
+# web sweep where a missed catalyst is the expensive outcome.
+# Light sweeps = WORKHORSE (CATALYST_HUNTER_LIGHT_MODEL) — "what's new in the
+# last 30 minutes" is a search-and-list task, not flagship work.
 # Both resolved per-call inside run_hunt().
 _MAX_ITERS = int(os.environ.get("CATALYST_HUNTER_MAX_ITERATIONS", "8"))
 
@@ -194,10 +198,10 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
         return []
 
     if mode == "light":
-        model = os.environ.get("CATALYST_HUNTER_LIGHT_MODEL", "claude-sonnet-5")
+        model = llm_models.name("CATALYST_HUNTER_LIGHT_MODEL", llm_models.WORKHORSE)
         max_searches = int(os.environ.get("CATALYST_HUNTER_MAX_SEARCHES_LIGHT", "4"))
     else:
-        model = os.environ.get("CATALYST_HUNTER_MODEL", "claude-opus-4-8")
+        model = llm_models.name("CATALYST_HUNTER_MODEL", llm_models.FLAGSHIP)
         max_searches = int(os.environ.get("CATALYST_HUNTER_MAX_SEARCHES_DEEP", "12"))
 
     kwargs = dict(

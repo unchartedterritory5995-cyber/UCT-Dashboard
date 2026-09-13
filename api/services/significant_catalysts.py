@@ -28,9 +28,10 @@ def _is_uncertain(title, description) -> bool:
     blob = f"{title or ''} {description or ''}".lower()
     return any(k in blob for k in _UNCERTAIN_MARKERS)
 
-# Default model mirrors the Model Book generator (MODELBOOK_LLM_MODEL).
-import os as _os
-_DEFAULT_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+# Structured extraction from a bar series — the workhorse tier, with its own
+# override so this surface can be retuned without moving the Model Book's.
+from api.services import llm_models
+_DEFAULT_MODEL = llm_models.name("SIGNIFICANT_CATALYSTS_MODEL", llm_models.WORKHORSE)
 
 
 def rank_big_move_days(bars: list, top_n: int = 12, direction: str = "up") -> list:
@@ -218,7 +219,7 @@ def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=No
             return None
         system, prompt = _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items, grounding)
         msg = client.messages.create(
-            model=model or _DEFAULT_MODEL, max_tokens=900, temperature=0.5,
+            model=model or _DEFAULT_MODEL, max_tokens=900,
             system=system, messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content).strip()

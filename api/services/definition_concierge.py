@@ -69,7 +69,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from api.services import (ast_freshness, ast_lint, ast_table, concept_vocabulary,
-                          scan_definition, user_definitions)
+                          llm_models, scan_definition, user_definitions)
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TF_RESAMPLABLE, TableRefusal, interpret
 from api.services.catalyst import cost_guard
@@ -87,7 +87,7 @@ _ET = ZoneInfo("America/New_York")
 #: at the priciest known rate -- never $0, because a $0 estimate makes every cap
 #: unenforceable. Both readings keep the cap enforced; the named one keeps it
 #: honest.
-MODEL: str = os.environ.get("CONCIERGE_MODEL", "claude-opus-5")
+MODEL: str = llm_models.name("CONCIERGE_MODEL", llm_models.FLAGSHIP)
 
 #: A ceiling on THINKING PLUS the tool call. Opus 5 thinks by default when
 #: ``thinking`` is omitted and ``max_tokens`` caps both, so 1200 — sized for the

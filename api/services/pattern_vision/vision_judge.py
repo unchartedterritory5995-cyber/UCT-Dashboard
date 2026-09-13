@@ -9,7 +9,14 @@ import base64
 import json
 import re
 
+from api.services import llm_models
+
 from .rubrics import rubric_for, SETUP_LABEL
+
+# The vision verdict persists into member-facing pattern surfaces — flagship
+# tier. ONE authority for this pipeline's model: the orchestrator reads this
+# constant rather than restating the id (see orchestrator.judge_ticker).
+MODEL = llm_models.name("PATTERN_VISION_MODEL", llm_models.FLAGSHIP)
 
 _HEADER = (
     "You are a professional swing trader judging the MOST RECENT action on a daily stock chart.\n"
@@ -92,7 +99,7 @@ def parse_verdict(text: str) -> dict:
             "checks": _parse_checks(d.get("checks"))}
 
 
-def judge(setup: str, png_bytes: bytes, *, client, model: str = "claude-opus-4-8",
+def judge(setup: str, png_bytes: bytes, *, client, model: str = MODEL,
           key_level=None, example_pngs=None) -> dict:
     msg = client.messages.create(
         model=model, max_tokens=900,

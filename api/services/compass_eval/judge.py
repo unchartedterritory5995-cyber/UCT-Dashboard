@@ -4,9 +4,13 @@ from __future__ import annotations
 import json
 import re
 
+from api.services import llm_models
 from api.services.compass_eval.golden_set import RUNG_BARS
 
-JUDGE_MODEL = "claude-haiku-4-5"
+# A grader, not the product: volume and latency dominate, so this is the CHEAP
+# tier. (Haiku is also the only 200K-context tier, which matters for a judge fed
+# a large transcript.)
+JUDGE_MODEL = llm_models.CHEAP
 
 _RUBRIC = """Score the ANSWER on four axes, integers 0-4 each:
 - correctness: 0 = wrong/fabricated number; 4 = every fact tool-sourced and accurate.
@@ -144,7 +148,11 @@ def judge_answer(transcript: dict, *, client, model: str = JUDGE_MODEL,
         model=model, max_tokens=500,
         messages=[{"role": "user", "content": f"{rubric or _RUBRIC}\n\n{user}"}],
     )
-    text = resp.content[0].text if getattr(resp, "content", None) else ""
+    # `text_of`, never `content[0]`: adaptive thinking is on by default, so the
+    # first block is often a ThinkingBlock and an index read raises
+    # AttributeError — which would land here as a judge_error (NO SCORE) on
+    # every question, silently emptying the exam's denominator.
+    text = llm_models.text_of(resp)
     usage = getattr(resp, "usage", None)
     out: dict = {"_usage": {"in_tok": getattr(usage, "input_tokens", 0),
                             "out_tok": getattr(usage, "output_tokens", 0)}}

@@ -16,6 +16,7 @@ import os
 import threading
 import time
 
+from api.services import llm_models
 from api.services.cache import cache
 from api.services.ticker_meta import _TIER_RANK
 
@@ -30,7 +31,9 @@ _SIZES_TTL = 3600.0
 _ETF_THEME_CACHE = {"map": None, "at": 0.0}
 _ETF_THEME_TTL = 3600.0
 
-_AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", "claude-haiku-4-5")
+# A peer-ticker lookup behind a 6-second timeout: latency dominates, quality is
+# not the product here, so this is the CHEAP tier.
+_AI_PEERS_MODEL = llm_models.name("GROUPS_AI_PEERS_MODEL", llm_models.CHEAP)
 _AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cache 6h
 _AI_PEERS_REFUSAL_TTL = 300.0         # missing name = ticker_meta's yfinance+Finnhub legs
                                        # both blipped OR a genuinely bad ticker — indistin-

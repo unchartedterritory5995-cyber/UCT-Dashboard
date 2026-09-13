@@ -55,10 +55,16 @@ logger = logging.getLogger(__name__)
 DEFAULT_CAP_USD = 5.0
 
 # $ per million tokens.
+# ⛔ SONNET 5 IS CHEAPER THAN THE 4.6 IT REPLACED — $2/$10, not $3/$15. This
+# table read $3/$15 for it (Sonnet 4.6's rate) purely because the new row was
+# copied from the old one; the two are NOT the same price. Do not "correct" it
+# back to match its neighbour. (The tokenizer emits ~30% more tokens for the
+# same text, so the realized saving is ~10-15%, not the 33% these list prices
+# suggest — that is a measurement question, not a reason to change this number.)
 _PRICES = {
     "claude-opus-4-8": (5.0, 25.0),
     "claude-opus-4-7": (5.0, 25.0),
-    "claude-sonnet-5": (3.0, 15.0),
+    "claude-sonnet-5": (2.0, 10.0),
     "claude-sonnet-4-6": (3.0, 15.0),
     "claude-haiku-4-5": (1.0, 5.0),
 }

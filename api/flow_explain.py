@@ -43,6 +43,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services import llm_models
 
 logger = logging.getLogger("flow_explain")
 
@@ -80,10 +81,15 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 _FALLBACK_MODEL_NAME = "deterministic-fallback"
 
-# $/1M tokens. Opus 4.8 list price is $5 in / $25 out (claude-api skill,
-# cached 2026-06). Unknown model ids fall back to a deliberately conservative
+# $/1M tokens. Opus list price is $5 in / $25 out (claude-api skill, cached
+# 2026-06). Unknown model ids fall back to a deliberately conservative
 # $15/$75 so the daily cap trips EARLY rather than late.
+# ⛔ These are LOOKUP KEYS, not a model choice — `_model_name()` decides which
+# model runs. A key missing here is not an error, it is a 3x over-charge that
+# trips the daily cap early and degrades members to the deterministic
+# fallback, so keep a row for whatever tier `llm_models` currently points at.
 _PRICING = {
+    "claude-opus-5": (5.0, 25.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-opus-4-7": (5.0, 25.0),
     "claude-sonnet-4-6": (3.0, 15.0),
@@ -101,7 +107,10 @@ def _db_path() -> str:
 
 
 def _model_name() -> str:
-    return os.environ.get("FLOW_EXPLAIN_MODEL", "claude-opus-4-8")
+    # Member-facing plain-English narration of a print they are looking at:
+    # the words ARE the product, so this is the flagship tier. The env var
+    # stays the operator's per-surface escape hatch.
+    return llm_models.name("FLOW_EXPLAIN_MODEL", llm_models.FLAGSHIP)
 
 
 def _daily_cap_usd() -> float:

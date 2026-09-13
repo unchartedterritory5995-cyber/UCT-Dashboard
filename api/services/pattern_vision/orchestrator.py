@@ -124,7 +124,8 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
             log.warning("[pv] judge %s/%s failed: %s", ticker, setup, e)
             continue
         u = v.get("usage", {})
-        model = v.get("model", "claude-opus-4-8")
+        # DERIVED from the judge's own default, never a second copy of the id.
+        model = v.get("model", vision_judge.MODEL)
         cost = _cost(model, u.get("input_tokens", 0), u.get("output_tokens", 0))
         store.log_cost(day, ticker, model, u.get("input_tokens", 0), u.get("output_tokens", 0), cost)
         # Calibration knob: require the model's confirm AND confidence >= floor.
