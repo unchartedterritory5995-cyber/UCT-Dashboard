@@ -5,7 +5,9 @@
 >
 > **CLOSED 2026-09-13:** D-42 and D-43, merged `d153215d0`, live in `4beb06c00`. §1 moves from
 > INCOMPLETE to COMPLETE-PENDING-OWNER-RUN. One new instrument defect (**D-44**) was found on
-> glass in the same session and is filed, owned and non-blocking.
+> glass in the same session — and closed the same day, `462d8f3d7`, merged `2b4fc75cc`. **All three glass
+> defects this audit found are now shipped fixes.** Nothing in the programme waits on anyone
+> but Patrick.
 
 Audit SHA: **`ccbab9bcd`** (master tip at the start of the audit; `de519c969` by the end — master
 moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim below cites a
@@ -20,7 +22,7 @@ moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim
 | 3 | `owner-run.md` §C — four Android/TalkBack rows on your own phone | 10 min |
 | 3b | `owner-run.md` **§C-iOS** — three VoiceOver rows (G2-3, G2-4, D1-iOS). ⭐ These were BLOCKED on a BrowserStack limitation, not a product one, and your own iPhone lifts it | 10 min |
 | 4 | `owner-run.md` §D/§E — two eye rows, one weekend row, two fps ratios | 10 min + a Saturday |
-| 5 | Rule on **D-44** — the glass sheet’s expected results are derived from the binding KEY alone, so the scrub step omits its mandatory 500 ms hold and `home`’s four rows describe a mode that does not exist. Fix the generator, or accept that six rows carry a correction note | ruling only |
+| ~~5~~ | ~~Rule on **D-44**~~ — ✅ **CLOSED 2026-09-13**, `462d8f3d7`: the generator now reads the gesture model and each mode's controller instead of the binding name, so no row carries a correction note and nothing here needs a ruling. ~~ — the glass sheet’s expected results are derived from the binding KEY alone, so the scrub step omits its mandatory 500 ms hold and `home`’s four rows describe a mode that does not exist.~~ | — |
 
 Nothing else in this programme waits on anybody.
 
@@ -160,7 +162,7 @@ Record: `15pro-new-rows-2026-09-13.md`. iPhone 15 Pro / iOS Safari 17.6, Web Ins
 | Steps | Outcome |
 |---|---|
 | `GS-wire-b1` | ✅ **PASS.** Two taps, each advancing **exactly one segment** and scrolling it into view. |
-| `GS-home-b1` | ⚠️ **PASS on the spec.** The tap navigated to the last-used section (Morning Wire) — `homeSection.js:200`, spec §C3:905. The sheet expected cursor-stepping, which `home` does not do → **D-44**. |
+| `GS-home-b1` | ⚠️ **PASS on the spec.** The tap navigated to the last-used section (Morning Wire) — `homeSection.js:200`, spec §C3:905. The sheet expected cursor-stepping, which `home` does not do → **D-44**, ✅ since fixed (`462d8f3d7`): that row now reads *“The **ROUTE changes** — spec §C3 says **“last-used section”**”* and carries the inert-on-a-first-visit caveat. |
 | 3 × Reverse (`*-b2`) | ⛔ **INCONCLUSIVE-TRANSPORT** → `owner-run.md` B10–B12. 280 ms window vs a 260–427 ms floor. |
 | 9 × scrub / commit / readout (`*-b3/b4/b5`) | ⛔ **INCONCLUSIVE-TRANSPORT** → `owner-run.md` B13–B15. A scrub is a **500 ms hold** that turns into a drag (`useJoystick.js:408`); the mirror has no way to hold a press. |
 
@@ -184,11 +186,14 @@ to ask **what else would produce this exact observation**, and the answer was si
 > needs two presses inside 280 ms against a 260–427 ms floor, and a scrub needs a 500 ms HOLD
 > before the drag which the mirror has no way to perform.
 >
-> ⛔ **One new defect, and it is the sheet’s prose, not the product: D-44.** Every behaviour
+> ✅ **One new defect, and it was the sheet’s prose, not the product: D-44 — NOW CLOSED** (`462d8f3d7`,
+> merged `2b4fc75cc`). Every behaviour
 > measured on glass matched the SPEC; what did not match was the generated expected-result text.
 > It is an instrument defect of exactly D-42’s class one layer up — D-42 was the sheet not knowing
-> a binding EXISTS, D-44 is the sheet not knowing what it DOES — and it blocks nothing, because
-> the six affected rows are transport-limited anyway and now carry the correction inline.
+> a binding EXISTS, D-44 was the sheet not knowing what it DOES. The generator now derives every
+> expected result from `constants.js`, the mode’s own controller and spec §C3, and its self-check
+> grew to 36 cases with fixtures for a navigate, a cursor and a cycle mode. **No row on the owner
+> run carries a correction note any more** — the sheet says what the product does.
 
 ---
 
