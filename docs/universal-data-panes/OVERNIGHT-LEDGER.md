@@ -315,3 +315,82 @@ one plot → one column vs coordinated OHLC fields is an architecture review).
 
 ### STOP CONDITIONS
 None active.
+
+---
+
+## CONCIERGE CONSUMER CONTRACT — 2026-09-13
+
+### STATUS
+Complete and checkpointed. `feat/universal-data-series` @ `719b94d22`
+(previous good `dbf762445`). Tree clean.
+
+### WHAT `indicator` AND `scan` ACTUALLY MEAN
+Traced through `ConciergeBox` → `POST /api/user-definitions/propose` →
+`api/routers/user_definitions.py` → `api/services/definition_concierge.py`:
+
+- `KINDS = ("indicator", "scan")`. An unrecognised kind refuses at `kind:unknown`.
+- `_KIND_BRIEF[INDICATOR_KIND]`: "an INDICATOR: a column of numbers drawn on a
+  chart" — the numeric/series contract.
+- `_KIND_BRIEF[SCAN_KIND]`: "the tree must be a yes-or-no CONDITION… An
+  expression that produces a price or an average is an indicator, not a screen".
+  ⭐ This is GATED, not hinted: `_validate` raises `scan:not-a-condition` unless
+  `scan_definition.is_boolean_tree(tree)` agrees.
+- The success payload is byte-identical in shape for both kinds
+  (`ok/ast/source/sentence/repaint/freshness/cadence/kind/concepts/terms/…`).
+  Nothing in it is screener-specific; `freshness` and `cadence` are derived facts
+  about the tree.
+- `_validate` runs `interpret(tree, bars)` for BOTH kinds and refuses
+  `compute:empty`, so every proposal is already computed over the chart's bars.
+
+### MAPPING (proven, then implemented)
+| consumer | request kind | why |
+|---|---|---|
+| `indicator` | `indicator` | numeric column; unchanged |
+| `condition` | `scan` | the boolean contract, gated by `is_boolean_tree` |
+| `infoValue` | `indicator` | wants a number; a boolean is refused downstream |
+
+No third server kind was invented. The criteria picker still sends `scan`
+regardless of consumer, which is what the screener's own mount relies on.
+
+### CHART-EVALUABILITY
+Already protected, in two places, both pre-existing:
+1. Server — `_validate` interprets every proposal over the bars it was sent.
+2. Client — `consumerAdapters.validateFor` runs `chartEvaluability(ast)` for
+   `condition` and `infoValue`. Its own comment names this case: a screener
+   scalar is NaN on every bar, "the picker hides those columns; this is the gate
+   that means a formula arriving by any OTHER door cannot slip past". The
+   concierge is one of those doors. No second validator was added.
+
+### IMPLEMENTATION
+`ConciergeBox` gains `copyKind` — vocabulary only, never sent — and `KIND_COPY`
+gains `condition` and `infoValue` entries. `BuilderSheet` derives both from one
+place: `conciergeRequest` (contract) and `conciergeCopy` (words). The screener
+path is byte-unchanged: default consumer + picker mode still asks for `scan` and
+still reads "Describe the screen in plain English".
+
+### EVIDENCE
+- Focused: `BuilderSheet.consumerCopy.test.jsx` 12 pass — copy AND request for
+  all three consumers, plus the downstream `validateFor` refusals including a
+  screener scalar. Bite-checked: reverting the request mapping → 1 red.
+- `src/components/chart/builder` 1,617 pass.
+- Full frontend suite **19,577 pass / 16 fail / 9 skipped** — the same 16.
+  ⚠️ One run showed 17: `journal-2-0/.../CaptureHost.test.jsx` "closing returns
+  the dialog to nothing" (an Escape-key race). It passes alone and did not recur;
+  unrelated to this work. Worth knowing it is flaky under load.
+- Build clean.
+- Browser: all three consumers checked in the harness — title, concierge label,
+  placeholder, Name example, `data-kind` vs `data-copy-kind`, and the OUTGOING
+  REQUEST BODY captured via a local fetch intercept (no model call, no spend):
+  `indicator`, `scan`, `indicator`. No "screen" wording anywhere on a chart
+  consumer. Console clean.
+
+### MAIN TRADING
+Never opened; `40d361fa…` → 5,354 bytes, `ea9ebaeee302`, unchanged.
+
+### REMAINING ARCHITECTURAL QUESTION
+None from this investigation. The existing contracts already expressed the
+correct semantics, which is why nothing new was created.
+
+### NEXT AUTHORIZED ACTION
+Blake's call. Still not started, deliberately: OHLC/candles for secondary
+symbols.
