@@ -609,6 +609,59 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## scan-membership-change CP3 — MERGED `df937146c`. Fingerprint `d0415f251`. **Nightly dark.**
+
+**In-pod after the deploy:** the registry holds **5** trigger types (scan-membership-change
+joined), and **both** dark flags — `ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED` and
+`ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED` — read **`None` in the running process**.
+⛔ Nothing is armed. `/api/health` ok, uptime 27 s on a fresh boot.
+
+### ⛔⛔ THE ORDERING HAZARD — THE DEFECT THIS UNIT WOULD OTHERWISE HAVE SHIPPED
+
+**The legacy job WRITES `screen_alerts_fired`**, at `SWEEP_MINUTE_ET + 10`. This sweep runs at
+`+ 20`. `observe()` hands the SAME `already_fired` set to both rules — so a naive read of that
+table would find tonight's own row, **both** rules would answer `deduped`, neither would fire, and
+the tick would record **a tally of ZEROS. Every night.** Not agreement, not disagreement: nothing.
+A week of that is indistinguishable from a week of quiet markets — the exact failure the whole
+dark programme exists to prevent, arriving through the back door of job ordering.
+
+⭐ **The fix reconstructs the state the legacy rule ACTUALLY DECIDED AGAINST** —
+`already_fired_before()` returns only sessions strictly older than tonight, which is what the table
+held when `run_nightly` asked its dedup question. ⛔ That is not the harness fixing the rule; it is
+the harness refusing to feed the rule **an input from its own future.**
+
+⚠️ **Mutation-proved by ONE CHARACTER:** `<` → `<=` and the rail goes red.
+
+⚠️ **Declared blind spot:** a session that becomes covered inside the ten-minute gap between the
+two jobs is diffed here and not there. Forward-only over many nights makes that noise, not bias —
+recorded rather than assumed away.
+
+**Finding B honoured structurally:** `hits_by_as_of` is keyed from `scan_coverage`, never from
+`scan_hits`, so a swept session that matched nothing declares itself with an empty list instead of
+vanishing. Mutation-proved. **One receipt per ALERT, never per symbol** — the legacy grain is
+(user, definition, session), so three names moving is one alert naming three.
+
+⭐ The cadence **derives** from `scan_evaluator`'s own constants, with a rail: the +20 offset is
+load-bearing, and a typed 05:20 would silently detach if the sweep moved.
+
+**Three mutations, each restored by EDIT** (ordering · finding B · cohort), plus an in-suite
+cohort-widening mutation. **92 tests green** across the four suites. Nothing stranded.
+
+### ⚰️ THE A9 RE-SORT — **A9 DOES NOT UNBLOCK, AND THE AUDIT'S CLAIM WAS TOO OPTIMISTIC**
+
+`RESUME.md` states the condition exactly: *"CP1–CP2 fires nothing; **A9 needs fires**."* CP3 now
+merged, and what it delivers is a **dark projection** — fires written for a comparison, behind a
+flag that reads `None` in production, for the admin cohort, with no delivery import anywhere.
+
+⭐ **The fires exist and no member can receive one.** A9's capability is delivered by **CP4 + the
+FLIP**, each needing its own approval line, neither of which is build work. **A9 moves
+BLOCKED-DEPENDENCY → BLOCKED-OWNER** — real movement, not an unblock. And **A9 CP1 is NOT
+BUILDABLE** for a second, independent reason: A9 has no gate packet, and writing one now would
+design against a flip decision the owner has not made.
+
+⛔ **The same correction applies to A11 and A13** — their CP3s move them to the same owner-bound
+flip. The audit's *"one CP3 unblocks a whole application"* was measuring the wrong boundary.
+
 ## position-risk CP3 — MERGED `6a67a4b5d`. Gate fingerprint `ec2b197f8`. **The dark projection.**
 
 **In-pod verified after the deploy** (`railway ssh --service web`, read-only): the registry now

@@ -110,7 +110,7 @@ blocker class.
 | **A1** Markets | live surface | no quote field is addressable | **BLOCKED-DEPENDENCY** — D2 |
 | **A2** Charts & Analytics | live surface | S1 + S2 both gated on OI-06 | **BLOCKED-OWNER** — OI-06 |
 | **A3/A4** · **A5** · **A6/A7** · **A8** | SHIPPED | none | **DONE** (4 rows) |
-| **A9** Screening | live surface | needs `scan-membership-change` **CP3** | **BLOCKED-DEPENDENCY** |
+| **A9** Screening | live surface | ✅ `scan-membership-change` CP3 merged `df937146c` — but it fires **dark, flag OFF**. A9 needs CP4 + the FLIP, both owner-bound | **BLOCKED-OWNER** — arm the dark flag, read it, sign CP4 + FLIP |
 | **A10** Options & Flow | live, partner-owned | D3 + D4 as systems | **BLOCKED-DEPENDENCY** |
 | **A11** Breadth & Regime | live surface | one-regime ruling + `regime-change` CP3 + D2 coverage | **BLOCKED-OWNER** + **BLOCKED-DEPENDENCY** |
 | **A12** Watchlists | half-live | S5 + S6 | **BLOCKED-DEPENDENCY** |
@@ -314,6 +314,36 @@ the ones to watch: each retires only when its type flips, and nothing today forc
 
 ## 5. WHAT THIS AUDIT CHANGES ABOUT THE PLAN
 
+### ⚰️ THE A9 RE-SORT, RUN 2026-09-13 AFTER `scan-membership-change` CP3 MERGED — **A9 DOES NOT UNBLOCK, AND THE CLAIM BELOW WAS TOO OPTIMISTIC**
+
+> **A9 CP1 is NOT BUILDABLE. A9 moves from BLOCKED-DEPENDENCY to BLOCKED-OWNER, and that is
+> real movement — but it is not an unblock.**
+
+`RESUME.md` states A9's condition precisely: *"CP1–CP2 fires nothing; **A9 needs fires**."* CP3
+now merged (`df937146c`), and what it delivers is a **dark projection**: `alert_fires` + receipts
+written for a comparison, behind `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED`, which reads
+**`None` in the running process** (verified in-pod), for the `rollout:s7-dark` cohort only, with
+no delivery import anywhere in the three modules.
+
+⭐ **So the fires exist and no member can receive one.** A9's capability — a member being told a
+name entered or left their screen — is delivered by **CP4 plus the FLIP**, each of which needs its
+own approval line and neither of which is build work. The audit's "one CP3 unblocks a whole
+application" was measuring the wrong boundary.
+
+⛔ **AND A9 HAS NO GATE PACKET AT ALL**, so "build A9 CP1 if BUILDABLE" has a second, independent
+answer: there is nothing to cite. Writing one now would design against a flip decision the owner
+has not made.
+
+**What closes A9, exactly:** the owner arms `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1`, reads
+the dark comparison, then signs `scan-membership-change` **CP4** and the **FLIP** line. A9's packet
+follows the flip, not the other way round.
+
+⚠️ **The same correction applies to A11 and A13 below** — `regime-change` CP3 and `position-risk`
+CP3 move each of them from a build dependency to the same owner-bound flip, and neither is an
+unblock either. Recorded here rather than discovered again next weekend.
+
+---
+
 ⭐ **The largest single unblock is not a system, it is one CP3.** A9 waits on exactly one thing —
 `scan-membership-change` CP3 — while A11 and A13 each wait on three. Ranked by unblock-per-unit:
 
@@ -345,7 +375,8 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 3 | **S5 CP2** — the additions-only rail | **`9c7c634da`** signed 2026-09-13 | ✅ **DONE** | **`26120fada`** |
 | — | ~~S5 CP1~~ (as line 1 described it: the extraction) | `37e1823a6` | ⏸️ **DEFERRED — F-S5-1.** Second adopter + Wave Q1 live 30 days (**2026-10-12**). Not in any §4 row. | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ✅ **DONE** | **`6a67a4b5d`** |
-| 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
+| 5 | **scan-membership-change CP3** | `d0415f251` | ✅ **DONE** | **`df937146c`** |
+| — | A-series re-sort + A9 CP1 | — | ✅ **RE-SORTED. A9 CP1 is NOT BUILDABLE** — see below | — |
 | 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
 | 7 | **regime-change CP3** | `9f0575340` | ⬜ | — |
 | 8 | **S6 CP1** — ⚠️ reconcile first: no packet exists. Write from the S6 PRD/spec, sign, build. **If the PRD/spec do not support a CP1 scope, say so and mark SPEC-BLOCKED.** | — | ⬜ | — |
