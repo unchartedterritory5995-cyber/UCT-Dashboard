@@ -1,5 +1,112 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ SESSION 3 · ITEM 0 — THE FORCED-DEPTH SPY RE-CAPTURE, AND THE RAIL WAS RIGHT
+
+`tests/fixtures/vendor/uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json`.
+Gate v2.1 PASS on the driving tab before every click; nothing saved.
+
+```
+study_bars_loaded   4,633     2008-04-14 -> 2026-09-11     window 2,751     FULL_WINDOW
+```
+
+### ⚰️⚰️ THE SHALLOW CAPTURE HAD ONE COLUMN WRONG, AND SAID SO CONFIDENTLY
+
+At ~640 bars, `7f94f4404`'s capture recorded `HVE Trigger` as **flat 0** and I
+wrote that it was *"correct, and useless as a test of the condition — it is the
+alertcondition, not a series."*
+
+**At 4,633 bars the same script fires 25 times.**
+
+```
+2008-09-16  2008-09-17  2008-09-18   ← the week Lehman failed
+2008-10-10  2010-05-06               ← the Flash Crash
+2011-08-04  2011-08-05  2011-08-08  2011-08-09   ← the US downgrade
+2013-06-20  2014-10-15  2015-08-24   … 25 in all
+```
+
+The second half of that sentence was true and the first was **an artefact of the
+load**. This is precisely the failure `tools/vendor_window.py` was written to
+catch, one capture after it was written.
+
+### ⭐⭐ AND THE PER-COLUMN RULE IS VINDICATED, NOT MERELY UNHARMED
+
+The four drawn series are **byte-for-byte identical** between the 640-bar capture
+and the 4,633-bar one, on all four rows:
+
+```
+bars_back 0  2026-09-11  [45512741, …, 43318979, …, 43318979, …, 56890926.25, 0]
+bars_back 1  2026-09-10  [42740375, …, null,     …, 43350741.74, …, 54188427.175…, 0]
+bars_back 2  2026-09-09  [32812411, …, null,     …, 43608454.94, …, 54510568.675, 0]
+bars_back 5  2026-09-03  [43531581, …, null,     …, 45040146.1,  …, 56300182.625, 0]
+```
+
+⛔ `Volume` (window 0) and the three 50-bar columns were never at risk; only the
+2,751-bar column was. **A rule that had voided the whole capture would have thrown
+away four correct series** — which is the argument the per-column exclusion was
+written on, now measured rather than reasoned.
+
+### ⛔ HOW THE DEPTH WAS FORCED — recorded, because two obvious routes DO NOT WORK
+
+| route | result |
+|---|---|
+| `chartWidget.setVisibleTimeRange(from, to)` | throws **`Error: Not implemented`** |
+| `model.loadRange(from, to)` | **returns cleanly and loads nothing** — 641 bars before, 641 after |
+| **bottom-left `Go to` → Date → `2010-01-04`** | **641 → 4,523 chart bars**, first 2008-09-18; the study then computed over **4,633** |
+
+⚠️ The second is the dangerous one: no error, no change, and a capture that
+trusted it would be shallow *while looking driven*. ⛔ And `ALL` is still the
+documented trap — it switches the resolution to 1M.
+
+### The receipt, and a false positive worth keeping
+
+The editor buffer was **already** the committed script: 34,378 chars, LF, sha
+`518a6b22…b28a` — equal to `tests/fixtures/member/uncharted-volume-v2.pine`.
+Nothing was typed or pasted.
+
+⚰️ **THE MONACO ID WAS DERIVED WRONG FIRST.** Scanning 10,438 module SOURCES for
+`editor.getModels` + `editor.create` returned **`899463`**, which exports only
+`EditorBaseLayout` — it merely *mentions* the API. The discriminator is the
+EXPORT: `typeof m.editor.getModels === 'function'`, which returns **`423129`**,
+the same id as 2026-09-12. ⭐ Same rule as "code, never prose", one layer up: **a
+source-text needle answers a question about text, not about what a module is.**
+
+### Everything else the capture owed
+
+- **Add gate** — the zero-height duplicate is there again (93×24 and 93×0), one
+  visible/enabled/non-zero, zero `Update on chart`: **SAFE TO ADD**.
+- **Plot roster** — eight, with `plot_7` typed `alertcondition` by TradingView
+  itself. D1 confirmed by the vendor a third time.
+- **Both tables, every cell**, read as strings at the draw call with `fillText`
+  restored in the same call: `ATR : $6.21 (0.81%)` (19) · `| Range: 137.58%` (16)
+  · `| ATRx: 0.92` (12) · **`Vol : 45.51M (1.05x) ` (21, trailing space)** — the
+  trailing space on a third capture.
+- **Spread control** — four distinct values on Volume, Avg Vol Line and Scale
+  Padding; `Avg Vol Columns` two; `HVE Trigger` 0 on these four bars **and not
+  flat across the series**, which is now stated where the old fixture claimed the
+  opposite.
+- **Adjustment settings** recorded on this capture too: `dividendsAdjustment`
+  false, `backAdjustment` false, exchange `NYSE Arca`.
+
+### The old capture is marked, not rewritten
+
+`7f94f4404`'s fixture keeps its numbers and gains `_SUPERSEDED`, a corrected
+`window_check.verdict: UNMEASURED`, and a note on the wrong column. ⛔ **A fixture
+that quietly changed its mind teaches nothing** — the pair is the lesson.
+
+It stays in `PREDATES_THE_MEASUREMENT` for the same reason: its own depth is
+still unrecoverable, and the entry is the record of why there are two SPY
+captures.
+
+### Teardown
+
+Study removed, **0 indicators** by the corrected probe (`studies: 2` = Splits +
+Earnings, `controlProbeSawSomething: true`), nothing saved. The chart keeps the
+forced history.
+
+**Rails:** `test_vendor_capture_window.py` + `test_vendor_truth.py` — **44
+passed** (was 40; the new capture adds four parametrised cases and passes all of
+them).
+
 ## ⭐⭐⭐ R-N — THE CORPUS IS RE-FROZEN AT 59/59, AND EVERY PART 6 RED IS GONE
 
 **Owner ruling, 2026-09-13: re-freeze, do not substitute, do not lower

@@ -197,7 +197,8 @@
         "note": "⚠️ FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series. Recorded as flat rather than quietly dropped."
       }
     },
-    "_alignment_rule": "⛔⛔ ALIGN ON `time`, NEVER ON `date`. `time` is what TradingView returned; `date` is a convenience label written beside it, and on 2026-09-12 one of them was a day out. A comparison that keys on the label can invent a divergence of any size — this one invented 28% on a bar that agrees to 8.6e-4."
+    "_alignment_rule": "⛔⛔ ALIGN ON `time`, NEVER ON `date`. `time` is what TradingView returned; `date` is a convenience label written beside it, and on 2026-09-12 one of them was a day out. A comparison that keys on the label can invent a divergence of any size — this one invented 28% on a bar that agrees to 8.6e-4.",
+    "_HVE_TRIGGER_IS_WRONG_HERE": "⚰️ `spread_control.HVE Trigger` says \"FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series.\" THE SECOND HALF IS TRUE AND THE FIRST IS AN ARTEFACT. At 4,633 bars the column fires 25 times, starting the week Lehman failed. Left in place, marked, because a fixture that quietly changed its mind teaches nothing."
   },
   "tables": {
     "_": "⛔⛔ READ AS STRINGS, NOT AS PIXELS. These are the exact arguments TradingView passed to `fillText`, captured by wrapping `CanvasRenderingContext2D.prototype.fillText` for one redraw and restoring it immediately (`restored: true` asserted). A screenshot read cannot recover a TRAILING SPACE, and one of these cells has one.",
@@ -308,7 +309,8 @@
     ],
     "_why_unmeasured": "⚰️ THIS CAPTURE PREDATES THE RULING BY HOURS. The rig depth was never probed, and it cannot be recovered from the artifact — only from the chart, on another visit. Named in `tests/test_vendor_capture_window.py::PREDATES_THE_MEASUREMENT`, which is a CLOSED list: a capture taken after 2026-09-12 that lands at UNMEASURED fails that rail by name.",
     "_what_the_capture_still_suggests": "⚠️ AN OBSERVATION, DELIBERATELY NOT PROMOTED TO A MEASUREMENT. `Avg Vol Line` reads 43,318,979 on the last bar and a 50-bar `sma` is `na` until it has 50 bars, so the three 50-bar columns demonstrably had their window. That is an argument, and the rule takes a reading — so they stay excluded until `bars_loaded` is read off the rig. ⛔ The exclusion is what makes not measuring cost something; reasoning around it here is how the rule would stop being one.",
-    "_depth_evidence_2026_09_13": "⛔⛔ AND IT IS PROBABLY NOT JUST UNRECORDED — IT IS PROBABLY SHORT. A fresh load of this very layout on SPY 1D gives **640 bars** (2024-02-23 → 2026-09-11), measured 2026-09-13. The AGEN capture had to FORCE 4,066 bars with `Go to → 2012-01-03` to clear the 2,751 window, and the SPY capture records no such forcing. So the honest reading is that this capture was taken shallow and its `HVE Trigger` flat 0 may be an artefact of the load rather than the script's answer. ⭐ THAT IS WHY UNMEASURED IS NOT FLIPPED BY A PROBE: reading the depth TODAY measures today's chart, not the capture's, and the fix is a RE-CAPTURE at forced depth."
+    "_depth_evidence_2026_09_13": "⛔⛔ AND IT IS PROBABLY NOT JUST UNRECORDED — IT IS PROBABLY SHORT. A fresh load of this very layout on SPY 1D gives **640 bars** (2024-02-23 → 2026-09-11), measured 2026-09-13. The AGEN capture had to FORCE 4,066 bars with `Go to → 2012-01-03` to clear the 2,751 window, and the SPY capture records no such forcing. So the honest reading is that this capture was taken shallow and its `HVE Trigger` flat 0 may be an artefact of the load rather than the script's answer. ⭐ THAT IS WHY UNMEASURED IS NOT FLIPPED BY A PROBE: reading the depth TODAY measures today's chart, not the capture's, and the fix is a RE-CAPTURE at forced depth.",
+    "_verdict_note": "Kept at UNMEASURED rather than back-filled. The depth of THIS capture was never read and cannot be recovered; 640 bars is what a fresh load of the same layout gives today, which is evidence about the layout and not a measurement of this capture."
   },
   "volume_granularity": {
     "_": "⭐⭐ R-L (owner ruling, 2026-09-12): an INTEGER series compares EXACTLY after the coarser side's granularity is applied; anything the unit does not explain is a real divergence. ⛔ NOT A TOLERANCE — `seriesCompare` snaps BOTH sides to the unit and then demands equality, so a bar off by 101 shares still fails at unit 100. ⛔ AND IT IS DECLARED HERE, NEVER SNIFFED: 'every bar in this capture happens to be a multiple of 100' is not the same claim as 'this store rounds to 100'.",
@@ -373,5 +375,6 @@
       "AGEN": "NASDAQ"
     },
     "_exchange_is_a_witness_check": "⭐ `NYSE Arca` is exactly the store spelling `symbolScope.json::confirmed` maps to Pine `AMEX`, witnessed by `AMEX:SPY`. The witness table is right, independently."
-  }
+  },
+  "_SUPERSEDED": "⛔⛔ SUPERSEDED 2026-09-13 by `uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json`, which was taken with the study holding 4,633 bars. THIS ONE IS `WINDOW_UNMEASURED` and its `HVE Trigger` column is WRONG: it reads flat 0 because the chart held ~640 bars against a 2,751-bar window, and at full depth the same script fires 25 times. ⭐ ITS FOUR DRAWN SERIES ARE STILL GOOD — byte-for-byte identical to the deep capture on all four rows — which is the per-column exclusion rule working: only the window-dependent column was ever at risk."
 }

@@ -43,6 +43,12 @@ REQUIRED_KEYS = ("script", "script_sha256", "bars_loaded", "largest_declared_win
 # lands here fails this rail by name. Delete the entry the moment the depth is
 # measured — do not add to it.
 PREDATES_THE_MEASUREMENT = frozenset({
+    # ⭐ SUPERSEDED 2026-09-13 by `…-forced-depth-2026-09-13.json`, which was taken
+    # with the study holding 4,633 bars. It stays here at UNMEASURED rather than
+    # being deleted, because the entry is the record of WHY there are two SPY
+    # captures — and because its own depth is still unrecoverable, which is the
+    # thing this list exists to say. ⛔ The re-capture is what retires it; a
+    # back-filled number never could.
     "uncharted-volume-v2-spy-1d-2026-09-12.json",
 })
 
