@@ -55,9 +55,9 @@ named. **Recorded as a follow-up in §3.4; not silently disambiguated here.**
 
 | | count | which |
 |---|---|---|
-| **SIGNED** | **17** | D2, D5, H14, I1, S10, S12, S4, all seven S7 types, **+ D3, D4, S5 signed 2026-09-12** |
-| **UNSIGNED** | **1** | entity-master (S3) — and S3 is already BUILT |
-| **NO PACKET AT ALL** | **4** | **S6**, **S1**, **S2**, **S9** — named on the roster, no gate written |
+| **SIGNED** | **17** of 21 | D2, D5, H14, I1, S10, S12, S4, all seven S7 types, **+ D3, D4, S5 signed 2026-09-12** |
+| **UNSIGNED** | **4** | entity-master (S3, already BUILT) + **S1, S2, S9** — written 2026-09-13 so the owner has something to read |
+| **NO PACKET AT ALL** | **1** | **S6** only — S1/S2/S9 packets written 2026-09-13, EMPTY approval blocks, each naming the owner input it waits on |
 
 ⭐ **UPDATED AFTER THE PRE-SIGNED BATCH (`f3235f4f7`).** D3/D4/S5 CP1 and five S7 CP3 lines were
 signed on the owner's instruction. ⛔ **THAT MOVES THEM OUT OF BLOCKED-SPEC-READ AND INTO A STATE
