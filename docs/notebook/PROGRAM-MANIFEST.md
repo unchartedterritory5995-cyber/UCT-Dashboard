@@ -807,7 +807,7 @@ when it is *reachable by a member or explicitly ruled not to be.*
 | C-3 | Every FLIPPED row has **run its observation window to a verdict** | window length from its row; verdict recorded |
 | C-4 | §8 **DO-NOT-BUILD is untouched** | a sweep proves none of the 22 named items gained code |
 | C-5 | §9 **OPEN** rows are each resolved **or** deferred with an owner ruling | no row left silently open |
-| C-6 | §6 **Wave T** rows each carry an owner answer | `wave-T-decisions.md`, one line each |
+| C-6 | ✅ **TRUE** — §6 **Wave T** rows each carry an owner answer | `wave-T-decisions.md`, one line each, **RATIFIED by the owner 2026-09-13**: *"nothing in T waits on me except flips"*. ⭐ The answers were recorded 2026-09-12; what closed C-6 was the ratification, because until then the file read as proposals a reader could not distinguish from decisions |
 | C-7 | **T-12 pre-launch smoke passes** | it is the gate that outranks every row (§6) |
 | C-8 | Q1's 7-day window closed **KEEP** | `wave-q1-gate-verdict.md` |
 | C-9 | The manifest's own rows are **`[m]` measured, not `[d]` claimed** | one `[d]` (S-05) survives with its stated reason |

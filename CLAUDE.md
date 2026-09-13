@@ -2207,6 +2207,15 @@ restart is expensive.
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
 
+⛔⛔ **ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the
+next push.** Owner ruling 2026-09-13. Stacked pushes are what caused the 2026-09-12
+502 (two merges four minutes apart, each marking the previous deploy `REMOVED`,
+serving Bad Gateway through the swap) and the 23:00 sampler **SKIP** that followed
+it — an observation row lost to somebody else's deploy, inside a 7-day window whose
+whole point is that a hole stays visible. ⭐ This is a QUEUE, not a window: the cost
+is not the blip, it is that two sessions pushing inside one swap make every
+instrument in flight unreadable, and neither session can tell whose change did it.
+
 `python tools/flow_worker_watch_coverage.py` prints what this branch touches and what
 flow-worker reaches. `railway deployment list --service flow-worker --json` reports
 **`SKIPPED`** for a push that missed the list — it was SKIPPED on **14 of 14** pushes to

@@ -5,6 +5,34 @@ verified on a live judge slot, the S7 filing-watch UI is live to members, and
 every follow-up, seam and open item below is SHIPPED, CLOSED, or ASSIGNED to a
 named program. Nothing is pending and nothing is awaiting a word.
 
+## 📨 CROSS-SESSION NOTICES
+
+⛔ **A SHARED RAIL MOVED UNDER YOU — `tests/test_feature_flag_ledger.py`, 2026-09-13.**
+Left by the Notebook session; the owner is pointing you here.
+
+`test_the_ledger_does_not_describe_gates_that_no_longer_exist` used to subtract
+*"gates needing declaration"*, which conflated two different things: an entry for a
+gate that **no longer exists** (rot) and an entry for a gate that **exists and
+defaults ON** (surplus, and often the most useful entry in the file). It demanded
+the deletion of **`D2_SAMPLE_PERSIST_ENABLED`** — your entry, armed on `web`, whose
+note reads *"it is a KILL SWITCH so unset already defaults ON — set deliberately so
+'on on purpose' stays distinguishable from 'nobody decided'."* **That sentence is
+the ledger's founding purpose**, so the rule was sharpened rather than the entry
+deleted: rot is now an entry for a gate the code does not read **AT ALL**, with a
+control driving both directions so the loosening cannot become "anything goes".
+
+⭐ **Why it surfaced at all, which is the part worth taking away.** The AST flag
+index matched a string CONSTANT at the call site, so
+`ENABLED_ENV = "D2_SAMPLE_PERSIST_ENABLED"` followed by
+`os.environ.get(ENABLED_ENV, "1")` was **invisible to it** — your gate looked
+retired because the index could not see it. That is good code the tool could not
+read, not bad code. `_module_str_consts` now resolves it (mutation-proved).
+
+⚠️ **And the same blindness was hiding a live flag: `J2_OCR_ENABLED=1` on `web`,
+armed, with no ledger entry at all.** Declared 2026-09-13 with its live reading.
+If you have gates read through a constant, they are now visible and the ledger will
+ask for an entry.
+
 ### What is live to members, and since when
 
 | feature | live? | since (ET) | flag | how to turn it off |
