@@ -328,7 +328,17 @@ export const coverageOf = key => METRIC_META[key]?.coverage ?? {}
 // Derived from the registry, so the readout's staleness rule and the heatmap's
 // forward-fill list cannot drift apart — they were two typed copies of these five keys.
 // A reading a few sessions old is the survey's cadence, not a stopped feed.
-export const WEEKLY_METRICS = new Set(Object.keys(METRIC_META).filter(k => cadenceOf(k) === W))
+// ⛔ CATALOG ORDER, NOT ALPHABETICAL. `heatmapMetrics.FFILL_KEYS` is this set spread into
+// an array, and it read bulls → neutral → bears → spread → naaim: the order the AAII survey
+// is published in. METRIC_META is sorted by key, so deriving straight from it silently
+// reordered that artifact to bears → bulls → neutral, which the R1 golden caught. The fill
+// loop is order-independent, so nothing behaved differently — but an artifact that changes
+// for no reason is how a golden stops being trusted. Catalog order reproduces it exactly.
+export const WEEKLY_METRICS = new Set([
+  ...ALL_METRICS.map(m => m.key).filter(k => cadenceOf(k) === W),
+  // any weekly metric the picker does not offer (none today) still belongs in the set
+  ...Object.keys(METRIC_META).filter(k => cadenceOf(k) === W),
+])
 
 /** Sessions a metric's latest reading may trail the newest row before the readout dates it (A-10). */
 export function staleAllowance(key) {
