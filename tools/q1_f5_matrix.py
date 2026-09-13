@@ -529,7 +529,8 @@ def rig_window_refusal(now=None, query=None):
             ps = (
                 "Get-ScheduledTask | Where-Object { $_.TaskName -match 'WaveQ1|Wave Q1' } | "
                 "ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
-                "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime} } | ConvertTo-Json"
+                "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime; "
+                "state=[string]$_.State} } | ConvertTo-Json"
             )
             out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                                  capture_output=True, text=True, encoding="utf-8",
@@ -548,6 +549,25 @@ def rig_window_refusal(now=None, query=None):
         name = str(row.get("name") or "")
         if name not in RIG_TASKS:
             continue
+        # ⛔⛔ A TASK THAT IS RUNNING RIGHT NOW IS THE THING THIS GUARD EXISTS TO
+        # AVOID, and the first version could not see it.
+        #
+        # ⚰️ 2026-09-13, and it cost a sampler run. The guard asked only when the
+        # NEXT run is due — and once a task STARTS, its NextRunTime jumps to the
+        # following slot. So at 10:05, with the 10:00 sampler still running, the
+        # guard read "next run 12:00, 115 minutes away" and said CLEAR. The F5
+        # run then took the one profile out from under it; the sampler died
+        # mid-import, its task sat in Running for an hour, and the 10:00
+        # observation row was never written. The heartbeat read
+        # `267009 = SCHED_S_TASK_RUNNING`, which the Sunday gate correctly
+        # reports as "the window is UNOBSERVED, not clean".
+        #
+        # ⭐ "Due soon" and "happening now" are different facts, and the second
+        # one is the dangerous one.
+        if str(row.get("state") or "").strip().lower() == "running":
+            return (name + " is RUNNING RIGHT NOW and holds the one signed-in profile. "
+                    "Wait for it to finish — taking the profile from it loses that "
+                    "interval's observation row, which is a hole in the K window.")
         nxt = row.get("next")
         if not nxt:
             continue
