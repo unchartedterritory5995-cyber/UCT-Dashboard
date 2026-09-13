@@ -929,9 +929,14 @@ railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
 ```
 
 ⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
-lands in their session recording and in this app's own access log as a query string. Five-minute
-expiry plus single-use is what makes that acceptable **for a synthetic account** and is exactly
-what would make it unacceptable for a real one. The allow-list is one hard-coded id
+lands in their session recording. ⭐ **Since 2026-09-12 it rides in the URL FRAGMENT**
+(`/smoke-login#token=…`), which is never sent to any server — so it does NOT appear in this app's
+access log, at a CDN, or at a search engine if the URL is mistyped into a search box. The page reads
+`location.hash`, POSTs the token in a request body, and scrubs it from the address bar.
+⚰️ It was a query string until a mistyped navigation on a Live mirror ran a GOOGLE SEARCH for the
+whole URL and sent a live token to a third party. **Two-minute** expiry plus single-use plus
+fragment-only is what makes this acceptable **for a synthetic account** and is exactly what would
+make it unacceptable for a real one. The allow-list is one hard-coded id
 (`SMOKE_USER_ID`, default `f4433528-…`); any other id gets the same 404 as the flag being off, so
 the endpoint cannot be used as an oracle for which account is the privileged one.
 

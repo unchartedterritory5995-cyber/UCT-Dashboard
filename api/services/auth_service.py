@@ -602,7 +602,12 @@ def execute_password_reset(token: str, new_password: str) -> bool:
 #: so it passes through their client and lands in their session recording and in this app's own
 #: access log as a query string. Single-use plus a five-minute floor is what makes that acceptable
 #: for a synthetic account and would NOT make it acceptable for a real one.
-SMOKE_LOGIN_TTL = timedelta(minutes=5)
+# ⛔ TWO MINUTES, NOT FIVE (hardened 2026-09-12). The link is a bearer credential typed into a
+# third party's client, and the operator mints it seconds before using it — five minutes was
+# three minutes of pure exposure buying nothing. ⚰️ It was shortened after a mistyped
+# navigation sent a live token to a search engine: the token had already expired by the time
+# that was noticed, and the smaller this number is the more often that is true.
+SMOKE_LOGIN_TTL = timedelta(minutes=2)
 
 
 def create_smoke_login_token(user_id: str) -> str:

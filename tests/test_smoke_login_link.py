@@ -69,7 +69,7 @@ def member_client():
 @pytest.fixture
 def flag_on(monkeypatch):
     monkeypatch.setenv("SMOKE_LOGIN_LINK_ENABLED", "1")
-    monkeypatch.setenv("SMOKE_USER_ID", SMOKE_ID)
+    monkeypatch.setenv("SMOKE_ID", SMOKE_ID)
 
 
 def _seed_user(user_id: str, email: str) -> None:
@@ -108,9 +108,9 @@ def test_issuance_refuses_any_other_user_id(admin_client, flag_on):
 def test_issuance_refuses_an_allow_listed_id_with_no_user_row(admin_client, flag_on, monkeypatch):
     """⭐ FOUND BY THIS FILE, NOT BY REVIEW. `password_resets.user_id` is a foreign key, so minting
     for an id the database has never seen raised `IntegrityError` -> 500 with a traceback, for what
-    is really a misconfigured SMOKE_USER_ID. It is a 404 like every other refusal now."""
+    is really a misconfigured SMOKE_ID. It is a 404 like every other refusal now."""
     ghost = str(uuid.uuid4())
-    monkeypatch.setenv("SMOKE_USER_ID", ghost)
+    monkeypatch.setenv("SMOKE_ID", ghost)
     r = admin_client.post("/api/auth/smoke-login-link", json={"user_id": ghost})
     assert r.status_code == 404, r.text
 
@@ -131,7 +131,7 @@ def test_issuance_returns_a_url_carrying_a_token(admin_client, flag_on):
     r = admin_client.post("/api/auth/smoke-login-link", json={"user_id": SMOKE_ID})
     assert r.status_code == 200, r.text
     url = r.json()["url"]
-    assert "/smoke-login?token=" in url
+    assert "/smoke-login#token=" in url
     assert len(url.split("token=", 1)[1]) >= 32
 
 
@@ -201,7 +201,7 @@ def test_an_expired_token_is_refused(admin_client, flag_on):
 
 def test_redemption_requires_the_flag(admin_client, monkeypatch):
     monkeypatch.setenv("SMOKE_LOGIN_LINK_ENABLED", "1")
-    monkeypatch.setenv("SMOKE_USER_ID", SMOKE_ID)
+    monkeypatch.setenv("SMOKE_ID", SMOKE_ID)
     _seed_user(SMOKE_ID, "smoke@uctintelligence.internal")
     token = auth_service.create_smoke_login_token(SMOKE_ID)
     monkeypatch.delenv("SMOKE_LOGIN_LINK_ENABLED", raising=False)
@@ -209,7 +209,7 @@ def test_redemption_requires_the_flag(admin_client, monkeypatch):
 
 
 def test_redemption_rechecks_the_allow_list(admin_client, flag_on, monkeypatch):
-    """A token minted for one id must stop working the moment SMOKE_USER_ID names another —
+    """A token minted for one id must stop working the moment SMOKE_ID names another —
     narrowing the allow-list has to reach tokens already in flight, not five minutes later."""
     other = str(uuid.uuid4())
     _seed_user(other, "other@example.test")
@@ -265,9 +265,57 @@ def test_issuing_a_login_link_does_not_cancel_a_pending_password_reset():
 # ── Non-vacuity control ──────────────────────────────────────────────────────
 
 def test_the_allow_listed_id_is_the_one_the_router_ships():
-    """If SMOKE_USER_ID_DEFAULT ever changes, every refusal test above would still pass while
+    """If SMOKE_ID_DEFAULT ever changes, every refusal test above would still pass while
     testing a different id than production uses. This pins the two together."""
     assert SMOKE_ID == "f4433528-6466-474a-949c-8d5eda8a7b91"
     assert os.getenv("SMOKE_LOGIN_LINK_ENABLED", "") != "1", (
         "the flag is set in this environment, so the 'off by default' tests prove nothing"
     )
+
+
+def test_the_token_is_in_the_FRAGMENT_and_never_a_query_string(admin_client, flag_on):
+    _seed_user(SMOKE_ID, "smoke@uctintelligence.internal")
+    """⛔⛔ THE HARDENING PROPERTY. A fragment is never sent to any server -- ours, a CDN, or a
+    search engine if the URL is mistyped into a search box -- and never lands in an access log or
+    a Referer header.
+
+    ⚰️ It was `?token=` until 2026-09-12, when a mistyped navigation on a BrowserStack mirror ran
+    a GOOGLE SEARCH for the whole URL and handed a live token to a third party. This test is the
+    thing that stops it silently going back."""
+    url = admin_client.post("/api/auth/smoke-login-link",
+                            json={"user_id": SMOKE_ID}).json()["url"]
+    assert "#token=" in url, url
+    # ⭐ The load-bearing half: the token must not ALSO appear before the '#'. A URL carrying it in
+    # both places would pass a naive "is there a fragment" check and still leak on every request.
+    before_fragment = url.split("#", 1)[0]
+    assert "token=" not in before_fragment, before_fragment
+    assert "?" not in before_fragment, before_fragment
+
+
+def test_the_link_lives_two_minutes_not_five(admin_client, flag_on):
+    """⛔ The TTL is asserted as a VALUE, not just 'some expiry exists'. It was 5 minutes; the
+    shorter it is, the more often a leaked link is already dead by the time anyone notices."""
+    from api.services import auth_service
+    assert auth_service.SMOKE_LOGIN_TTL == timedelta(minutes=2)
+
+
+def test_a_token_older_than_the_ttl_is_refused(admin_client, flag_on, monkeypatch):
+    """Non-vacuity for the number above: prove the TTL is ENFORCED, not merely declared. A constant
+    nothing reads is indistinguishable from no expiry at all.
+
+    ⭐ The clock is moved by minting with a NEGATIVE ttl, so the token is born already expired and
+    the redemption runs its real comparison against a real stored expiry. No production test-only
+    helper exists for this and none is added -- inventing one would put a second, weaker door next
+    to the real one."""
+    from api.services import auth_service
+    _seed_user(SMOKE_ID, "smoke@uctintelligence.internal")
+
+    # Control first: a normal token redeems, so a 400 below means expiry and not something else.
+    good = admin_client.post("/api/auth/smoke-login-link",
+                             json={"user_id": SMOKE_ID}).json()["url"].split("#token=", 1)[1]
+    assert admin_client.post("/api/auth/smoke-login", json={"token": good}).status_code == 200
+
+    monkeypatch.setattr(auth_service, "SMOKE_LOGIN_TTL", timedelta(seconds=-1))
+    stale = admin_client.post("/api/auth/smoke-login-link",
+                              json={"user_id": SMOKE_ID}).json()["url"].split("#token=", 1)[1]
+    assert admin_client.post("/api/auth/smoke-login", json={"token": stale}).status_code == 400
