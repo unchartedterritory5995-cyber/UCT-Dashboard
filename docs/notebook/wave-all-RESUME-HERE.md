@@ -20,9 +20,20 @@ done
 #     ⛔ NOT notebook-primary-platform — see §5.
 
 # (3) the three scheduled tasks are Ready, and the rig is opted OUT on disk
-powershell -NoProfile -Command "Get-ScheduledTask | ? { \$_.TaskName -match 'WaveQ1' } | % { \$i=\$_|Get-ScheduledTaskInfo; '{0,-20} {1,-7} next={2}' -f \$_.TaskName,\$_.State,\$i.NextRunTime }"
-python -X utf8 -c "import importlib.util,sys; s=importlib.util.spec_from_file_location('w','tools/window_check.py'); m=importlib.util.module_from_spec(s); sys.modules['w']=m; s.loader.exec_module(m); m.use_profile(m.resolve_profile(None)); print(m.localstorage_on_disk(m.FLAG_KEY))"
-#     expect value '0'.  Anything else => fix BEFORE the next sampler run.
+powershell -NoProfile -Command "Get-ScheduledTask | ? { $_.TaskName -match 'WaveQ1' } | % { $i=$_|Get-ScheduledTaskInfo; '{0,-20} {1,-7} next={2}' -f $_.TaskName,$_.State,$i.NextRunTime }"
+
+#  EXPORT THE PROFILE FIRST, IN THE SAME SHELL -- and this line must come
+#  BEFORE the python call. resolve_profile(None) falls back to THIS worktree's
+#  .worktrees/, which does not exist, and then reports exists:False value:None.
+#  Absence reads as OPTED IN under the server default, so the wrong path hands
+#  you a FALSE ALARM about the rig. Caught doing exactly this during the
+#  pre-restart check, 2026-09-13.
+export UCT_Q1_RIG_PROFILE='C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent'
+python -X utf8 -c "import importlib.util,sys; s=importlib.util.spec_from_file_location('w','tools/window_check.py'); m=importlib.util.module_from_spec(s); sys.modules['w']=m; s.loader.exec_module(m); m.use_profile(m.resolve_profile(None)); print(m.PROFILE); print(m.localstorage_on_disk(m.FLAG_KEY))"
+#     expect the printed profile to be the notebook-primary-platform one,
+#     exists=True, and value '0'.
+#     exists=False => WRONG PROFILE PATH, not a rig problem. Re-export, retry.
+#     value != '0' => the rig is opted IN; fix BEFORE the next sampler run.
 
 # (4) if it is past 17:15 CT, read the Sunday verdict and post it VERBATIM
 cat "/c/Users/Patrick/uct-q1-observe/wave-q1-gate-verdict.md"
