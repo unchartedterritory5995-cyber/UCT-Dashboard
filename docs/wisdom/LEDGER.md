@@ -280,8 +280,9 @@ no adapter ran in any mode.
 | # | branch | tip SHA | merge SHA | flow-worker classification | web SUCCESS observed |
 |---|---|---|---|---|---|
 | 1 | `wisdom/w1-b-rails` | `010fadbe2` | `e5dfb23fb` | **OK** — `reachable=154 watched=24 changed=75`, no Wisdom module in flow-worker's import closure, so web-only | **SUCCESS 2026-09-13 21:10:33Z** on `e5dfb23fb`; `/api/health` `status: ok`, `uptime_seconds: 36` (a fresh boot, not the old pod answering) |
+| 2 | `wisdom/w1-a-capture` | `7a456bcd6` | `fb62a44d9` | **OK** — `reachable=154 watched=24 changed=42`, web-only | **SUCCESS** on `fb62a44d9`; `/api/health` `uptime_seconds: 38` (fresh boot). Anonymous probes: `/capture/health`, `/capture/runs`, `/core/status` and **`POST /capture/run-family/detections?dry_run=false&as_of=2027-06-15`** each **401** |
 
-*(next in the §8.4 order: S-A → S-C → S-D → S-E → S-F, one at a time, web SUCCESS between)*
+*(next in the §8.4 order: S-C → S-D → S-E → S-F, one at a time, web SUCCESS between)*
 
 **Merge 1 evidence.**
 - Base `89c6b12bf`. Master moved TWICE during the gate (`d623baf1d` → `834034622` → `89c6b12bf`,
@@ -348,6 +349,152 @@ interrupted the agent mid-proof. The rail was correct and the code was wrong —
 owner-private data (`assert 200 == 403`). Restored byte-exact to `Depends(require_owner)`.
 **A sweep of all seven stream branches** for the marker found 280 pre-existing prose matches on every
 branch and 281 on `w1-b-rails` — exactly one extra, this one. No other stranded mutation exists.
+
+### S-A pre-merge gate (branch `wisdom/w1-a-capture`, tip `7a456bcd6`) — 2026-09-13
+
+**The finding this merge closes, named as §8c.1.5 requires.**
+
+> **An unbounded `as_of`, behind the same gate as a read, turned one admin call into a
+> permanent outage with no repair route.** Executed by the S-A adversarial reviewer against
+> the real `runner` with a fake bucket — not argued:
+>
+> ```
+> POST /api/admin/wisdom/capture/run-family/detections?dry_run=false&as_of=2027-06-15
+> watermark healthy=1789445820  poisoned=1813033020        (delta_days = 273.0)
+> nightly 2026-09-16 → {'status':'ok','health':'zero','rows':0,'paged':True} ['window_empty']
+> nightly 2026-09-17 → same        nightly 2026-09-18 → same
+> ```
+>
+> Three things the scout's version did not have, each of which raises the severity:
+> 1. **the watermark advanced on a run that captured ZERO rows.** `_record` gated on
+>    `status == "ok"`, which says the reader returned and the put did not raise — and says
+>    nothing about whether anything was captured or landed;
+> 2. **`detection_outcomes` and `vision` poison SILENTLY.** Both declare
+>    `pages=_PAGE_MISSING`, so `zero` never pages. Measured: three consecutive poisoned
+>    nights, **0 pages**. The loud case was the safe one;
+> 3. **there is no repair route.** The route census is three endpoints; recovery was a
+>    hand-written `UPDATE` against `wisdom.db`.
+
+**Verdict: FIX BEFORE MERGE**, on three findings that are one mechanism — `as_of` is a
+trusted, unbounded input that three readers turn into a **watermark** and every reader turns
+into an **immutable R2 key**.
+
+| # | finding | disposition |
+|---|---|---|
+| **F1** | unbounded `as_of` → poisoned watermark; silent on two of three datasets | **fixed** |
+| **F2** | a past-dated zero-row run wrote an EMPTY object to the canonical immutable key, exiling the later genuine backfill to a sha-suffixed key **forever** | **fixed** |
+| **F3** | `last_as_of` / `last_r2_key` written unconditionally while the watermark beside them was monotonic — **every** legitimate backfill walked the consumer's pointer back | **fixed** |
+
+**The five §8c.1 requirements, each against the thing that satisfies it.**
+
+1. **Authenticates and authorizes.** Already authenticated — premise corrected in §8c.1.1.
+   *Authorization* was the missing half: `dry_run=false` now requires
+   `WISDOM_CAPTURE_ENABLED`. ⚰️ The admin route consulted **no flag at all**, so "every
+   `WISDOM_*` variable is unset" read as "nothing can write" while this route wrote R2
+   objects and run rows — the reviewer established that by execution, not by reading. A
+   backdated write additionally needs `confirm=<as_of>`. **A dry run stays open**: refusing
+   it would make the operator's only diagnostic depend on the flag being diagnosed.
+2. **A watermark advances only past a verified, non-empty write.** `_advanceable()` —
+   rows existed **and** an object was written **and** it read back as what we wrote.
+   ⚠️ Consequence stated rather than hidden: a genuinely quiet window no longer advances, so
+   the next run re-reads it against a wider `hi`. The safe direction, not a free one.
+3. **Canonical keys via staging + a verified move.** `archive.put_versioned`'s default
+   putter is `core.r2.put_verified` (integrator-owned, `ef0393790`).
+   ⛔ **`put_verified`'s empty-BYTES guard cannot see F2** — `{"payload": [], "rows": 0}`
+   gzips to plenty of bytes — so the empty-**capture** refusal had to live at the runner.
+   Two different emptinesses need two different guards.
+4. **A regression test plants the attack and asserts it is refused.**
+   `test_the_as_of_attack_is_refused_and_a_write_is_gated_harder_than_a_read` (future date ·
+   ancient date · flagless write · unconfirmed backdate, with a control proving only the
+   three 200s reached the runner) · `test_a_zero_row_capture_writes_no_object_and_moves_no_watermark`
+   · `test_a_backfill_of_an_older_day_never_walks_the_current_pointer_back` ·
+   `test_an_object_that_does_not_read_back_moves_no_watermark` ·
+   `test_an_archive_that_did_not_verify_moves_no_watermark_even_when_the_run_reads_ok`.
+5. **This row.**
+
+⚰️⚰️ **THE RAIL THAT WAS SUPPOSED TO PROTECT THIS PATH WAS ASSERTING THE DEFECT.**
+`test_a_dry_run_writes_nothing_anywhere` used a **zero-row** reader, and its control asserted
+that the same capture "for real" wrote an object and set `watermark == 123` — precisely what
+§8c.1.2 forbids. **A test asserting a defect is indistinguishable from coverage**, which is
+why review did not catch F1. It is now split: the dry-run test uses a non-empty capture (so it
+still proves a dry run computes key and bytes and writes nothing), and the zero-row case is its
+own rail asserting the opposite of what its predecessor did.
+
+**Mutation proof — 9 guards, and the first pass had a SURVIVOR.** Each guard broken once,
+rails re-run, source restored byte-exact (sha256 verified on all four files).
+
+| guard | mutant result |
+|---|---|
+| `as_of` future refused · backfill horizon · write needs the flag · backdated needs confirm | 1 failed each |
+| pointer write is ordered · zero rows are not archived | 1 failed each |
+| canonical keys go via `put_verified` | 3 failed |
+| foreign-journal carve-out stays narrow | 1 failed |
+| **watermark needs a verified write** | ⛔ **38 passed — SURVIVED** |
+
+⭐ The survivor is the finding. Neutering `_advanceable` changed nothing any test could see,
+because every other rail reaches the watermark through a guard that fires *earlier* — a
+zero-row capture leaves `arch is None`, a failed checksum leaves `status == "failed"`. The
+invariant was implicit in two unrelated short-circuits and therefore unprotected: change
+either one and the watermark is silently unguarded again. A ninth rail now drives
+`_advanceable` at its own decision point (an archive result with no `verified` key, with a
+control), and the same mutant reds.
+
+**A second instrument was measuring itself.** `tools/wisdom/core_journal_exclusion_grep.py`
+went red on `wire_inputs.py:31` — `morning-wire data/{wire_journal,…}`, the **morning wire's**
+own ledger, named in a dict of PC-only sources Wisdom declares it does **not** read. Flagging
+it reported the opposite of what is true. Carved out by exact spelling (`FOREIGN_JOURNAL_RE`),
+the same shape as the `journal_mode` carve-out already beside it, **occurrence-scoped never
+line-scoped**, with a control asserting `wire_journal and the J2 journal` still reads as
+journal sense. ⭐ Pre-existing on S-A at `6b2d347a8` (established with `git show`, not
+`git status`); it surfaced only because S-A merged the integration branch **first**, which is
+the standing rule from drift #2 doing exactly its job.
+
+**Gate evidence.**
+- Gated on the **MERGE**, not the branch: **754 passed** (131s) on the first merge commit,
+  then **774 passed / 1 failed** (203s) after master moved again.
+- **Master moved three times during this gate** — `4fb4f9daf` → `0cd09a212` → `368520647`,
+  all other programmes. Re-measured each time; **zero file overlap** with this branch on every
+  measurement, so each was a clean merge rather than a rebase (this branch carries merge
+  commits by design — each stream is brought current before its reviewer runs).
+- **The one failure is master's, not this program's**, and the provenance was established from
+  the committed versions rather than the working tree:
+  `test_feature_flag_ledger::test_every_off_by_default_gate_is_declared` names
+  **`TERMINAL_NEXT_MONITOR_ENABLED`** in `api/terminal_next_monitor_main.py`, a file **master**
+  added in `6a7a8ee73`. `git show origin/master:docs/feature_flags.json` does **not** declare
+  it, and this branch has not touched that file since `e5dfb23fb`. **origin/master is red on
+  that rail right now.** ⛔ Not fixed here on purpose: the ledger records a programme's
+  **intent** (`armed` / `dark` / `pending`), and only the terminal-next programme can state
+  theirs. Writing a verdict on their behalf would be inventing one. **Raised for the owner.**
+- `core_check_bans.py` → **PASS** (substack 70 · journal 70 · private_store 1312 · offlimits 42,
+  0 violations).
+- **Member impact: none.** Every `WISDOM_*` flag is `dark` and none is set on any service; no
+  job is scheduled; nothing member-facing imports `api.services.wisdom`. The capture write path
+  is now doubly inert — dark flag *and* admin gate.
+
+**The other reviewer findings, each with a verdict and evidence — none "probably fine"
+(§8c.2).** Eight scout findings were verified or refuted by execution; five more were new.
+
+| # | finding | verdict | disposition |
+|---|---|---|---|
+| F4 | a page of foreign-author results ends a PAID walk mid-history (`new == 0` trips `no_new_ids`) | **VERIFIED** (3-page fixture: stopped at page 2, page 3's real post never reached, billed for 2 pages) | **before the first paid run**, not before merge — dark, gated, manual |
+| F5 | an unresolved tweet author is stamped with the **queried handle**, defeating the `:161` guard for the one case it was written to catch | **VERIFIED — NEW**, and the SS8b.2 "unmapped must never become a named person" shape applied to authorship | with F4 |
+| F6 | casing splits archived per-handle counts | **VERIFIED** | with F4 |
+| F7 | the spend cap is enforced against an **unverified** `PAGE_SIZE_ESTIMATE = 20` and never reconciles against `settle()` | **VERIFIED — NEW** | with F4; bounded ≈ $2.25 against `HARD_MAX_USD = 25` |
+| F8 | the spend cap is in-memory only; a crash mid-walk re-charges from page 1 | **VERIFIED — NEW** | with F4 |
+| F9 | `run_family` has no durable claim, only a per-process set | **VERIFIED, bounded** — the scheduled path claims durably; F3 was the unabsorbed half and is fixed | follow-up |
+| F10 | "the only product store not opened through `ro_connect`" | **PARTIALLY REFUTED** — there are **two** (`themes` *and* `catalysts`), and deleting the named call would not have fixed either | follow-up: `ro_connect` both, or amend the docstring to name the exceptions |
+| F11 | abandoned `short_interest` futures could corrupt a store | **REFUTED by reading the body** — it writes **nothing to disk**, only a module-level `TTLCache` | one comment at the call site |
+| F12 | a `hash_on_change` flip "mis-compares forever" | **PARTIALLY REFUTED** — it mis-compares exactly **once** and self-heals; no second object (one key across four runs) | NIT: `schema.py` docstring |
+| F13 | 15 unbounded history queries in `health.py` | **VERIFIED, severity LOW** (~12k rows/year; 2 s busy_timeout 503s rather than hanging the shared pool) | follow-up: one `LIMIT` |
+| F14 | `runner.py`'s docstring says it never raises; it can | **VERIFIED as a false docstring, harmless in behaviour** — caught by `registry._run_job`, recorded and paged as intended | follow-up: amend the docstring |
+| F15 | S-A's mutation proof was a **gitignored hand-run script**, not a committed rail (SS8b.4: "a claim about a moment") | **VERIFIED** | **partly closed here** — the nine guards above are committed rails, mutation-proved. The x_backfill spend-cap and dry-run guards still need in-process neutering; carried with F4 |
+
+⚠️ **What the reviewer could NOT do, stated rather than smoothed over:** no reader was run
+against production-shaped product stores, so `detections_retention`'s byte-per-row cost basis
+(taken from a *stale local mirror*) and the 13.6 GB claim in `detections.py` are unvalidated;
+no real TwitterAPI.io call was made, so `PAGE_SIZE_ESTIMATE`, the `has_next_page`/`next_cursor`
+field names and `since_time`/`until_time` remain assumptions that only `smoke_test(execute=True)`
+can settle — and that needs the flag on and the owner's consent to spend.
 
 ## Section 3 — other programs' commits on paths this program created
 
