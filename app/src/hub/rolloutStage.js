@@ -12,6 +12,35 @@
 //   2  the Settings card is visible to members; the default stays OFF. Opt-in.
 //   3  an unset preference resolves to ON. An explicit `false` is still honoured.
 //
+// [!] THE THREE LINES ABOVE DESCRIBE THE CODE. THEY ARE NOT THE RULING ANY MORE.
+//
+// Owner ruling 2026-09-13 (`docs/plans/joystick/rollout.md`, "THE STAGE DEFINITIONS") redefines
+// the ladder, and the numbers DO NOT LINE UP with what this file implements:
+//
+//   ruled 1  unset -> isAdmin ................. == code stage 1, identical
+//   ruled 2  unset -> true for EVERY user ..... == code stage 3 (`unsetDefault: stage >= 3`)
+//   ruled 3  same exposure, preview framing off == nothing here; the code has no such rung
+//   (retired) the opt-in rung - card visible, default OFF - is dropped by the ruling
+//
+// [!] SO `ROLLOUT_STAGE = 2` IN TODAY'S SOURCE SHIPS THE RETIRED OPT-IN RUNG - the hub still OFF
+// for every member - under a member-impact paragraph that would say "member preview". That is the
+// trap this comment exists to spring, and it is why the ruling is recorded at the call site and
+// not only in a document nobody has open while editing this line.
+//
+// [*] NOTHING IS RENUMBERED YET, DELIBERATELY. Renumbering is a member-facing exposure change and
+// belongs to the stage-2 PR (rollout.md section 3a), which Patrick merges - not to the commit that
+// writes the ruling down. When that PR is written it moves TOGETHER: `ROLLOUT_STAGE`,
+// `STAGE_NAMES`, `unsetDefault()`, the `STAGE_TABLE` row in `exposureGate.test.js` AND that row's
+// `ROW_DIGESTS` entry, plus `rolloutStages.test.js`, which asserts the stage has not moved and is
+// MEANT to go red when it does. Until then `STAGE_NAMES` below is the code's own vocabulary and is
+// correct about the code; the ruling is correct about the plan; this block is the one place that
+// says which is which, so the two can never quietly disagree.
+//
+// [!] AND THE PREVIEW FRAMING IS NOT DRIVEN FROM HERE. The chip hint comes from `PREVIEW_MODES`
+// (`registry.js`), not from this constant - so ruled stage 3's "the hint becomes the real hint" is
+// a change to that Set, and on 2026-09-13 it still holds `home` and `flow`. Emptying it exposes
+// two full fans, which is new behaviour. See rollout.md section 2(b): an open question, not a task.
+//
 // ⛔ A STAGE IS A DEPLOY, DELIBERATELY. This is a build-time constant, not a Railway variable,
 // because each stage is meant to be a reviewed change with a member-impact paragraph and a smoke
 // run behind it — not something that can drift between what is deployed and what is configured.

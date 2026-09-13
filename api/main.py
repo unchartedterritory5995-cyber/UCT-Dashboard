@@ -3113,6 +3113,8 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import event_proximity as _at_event_prox
         from api.services.alert_taxonomy import position_risk as _at_position_risk
         from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
+        from api.services.alert_taxonomy import catalyst_match as _at_catalyst_match
+        from api.services.alert_taxonomy import regime_change as _at_regime_change
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3171,6 +3173,8 @@ async def lifespan(app: FastAPI):
         # so the sixth cannot be discovered the same way the fifth was.
         _at_position_risk.register()
         _at_scan_membership.register()
+        _at_catalyst_match.register()
+        _at_regime_change.register()
         logging.getLogger(__name__).info(
             "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
             "beyond document-arrival). A type appears here when its CP3 is "
@@ -6881,6 +6885,87 @@ async def lifespan(app: FastAPI):
             print("[startup] S7 scan-membership-change DARK comparison OFF "
                   "(set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)")
 
+        # GATE-S7-CATALYST-MATCH CP3 -- the fifth DARK comparison.
+        # Owner approval line 2 (fingerprint 3ee80dc13), answering the packet's
+        # §9 "what CP3 would have to name" item by item.
+        #
+        # ⛔ DEFAULT OFF. It reads real member watchlists.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS DAILY -- §9 item 5, verbatim: "the catalyst engine
+        # refreshes every 5 minutes pre-market and every 30 midday, and the dedup
+        # is per DAY -- so a per-minute sweep would re-ask a question whose answer
+        # cannot change until tomorrow". 17:30 ET is after the close and after the
+        # engine's last refresh, so the day's ranked set is settled.
+        if os.environ.get("ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED", "0") == "1":
+            def _catalyst_match_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.catalyst_match_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep: "
+                          f"members={r['members']} displayed={r['displayed']} "
+                          f"evaluated={r['evaluated']} fires={r['fires']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _catalyst_match_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=30,
+                                    timezone=_ET),
+                id="alert_taxonomy_catalyst_match_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 catalyst-match DARK comparison ENABLED "
+                  "(17:30 ET weekdays, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 catalyst-match DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-REGIME-CHANGE CP3 -- the sixth DARK comparison.
+        # Owner approval line 2 (fingerprint 9f0575340). §4 warns this type's
+        # projection is UNUSUAL: the predicate is global, so "projecting member
+        # rows" means projecting the STAKE TEST over the cohort.
+        #
+        # ⛔ DEFAULT OFF. ⛔ ARMING IT IS THE OWNER'S FLIP.
+        #
+        # ⛔⛔ IT MUST NEVER WRITE THE REGIME LEDGER. `_compute_regime_component`
+        # does a read-then-APPEND on `awareness_regime_snapshots`; a dark run
+        # calling it would corrupt the prev_label the LIVE R4 rule reads next
+        # cycle -- a comparison turning into an intervention. The projection
+        # reads the ledger's newest two rows instead, which IS the record of
+        # what R4 saw, and costs no classifier call.
+        #
+        # ⛔⛔ CADENCE SHADOWS THE AWARENESS ENGINE (*/20, weekdays 4-20 ET),
+        # offset by 7 minutes so each of its appends is observed after it lands.
+        # A watermark on the ledger's own id makes each row observable ONCE --
+        # without it, re-counting one flip every tick would make `agreed` a
+        # function of the sweep's cadence rather than of the market.
+        if os.environ.get("ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED", "0") == "1":
+            def _regime_change_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.regime_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] regime-change DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"ledger_id={r['ledger_id']} skipped={r['skipped']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] regime-change DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _regime_change_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="4-20",
+                                    minute="7-59/20", timezone=_ET),
+                id="alert_taxonomy_regime_change_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 regime-change DARK comparison ENABLED (every 20 min "
+                  "behind the awareness scan, weekdays 04:00-20:59 ET, no delivery)")
+        else:
+            print("[startup] S7 regime-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)")
+
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
@@ -7543,6 +7628,24 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] event-loop watchdog failed to start (non-fatal): {_e}")
 
+    # -- Discord render V2 runtime (docs/discord-render/03-architecture.md) ---
+    # Dark unless DISCORD_RENDER_V2_ENABLED. On boot it RESUMES the jobs a dead pod
+    # left mid-render (web's median deployment served 8.4 minutes over 2026-08-30..
+    # 09-13, and each restart used to strand every in-flight chart reply on
+    # "thinking..."). Non-fatal: a failure here leaves the pre-V2 path answering.
+    try:
+        # ⛔ LOCAL import. main.py has no module-level `import asyncio`; the only ones live
+        # inside other blocks thousands of lines up. Relying on them would raise here, the
+        # `except` below would call it non-fatal, and V2 would silently never start.
+        import asyncio as _v2_boot_aio
+        from api.services.discord_render import commands as _render_v2
+        if _render_v2.enabled():
+            _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
+            print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
+                  f"abandoned={_v2_boot['abandoned']}")
+    except Exception as _e:
+        print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
+
     yield
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
     # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
@@ -7575,6 +7678,19 @@ async def lifespan(app: FastAPI):
                   f"{'clean' if _lf_clean else 'join timed out (daemon finishing in drain window)'}")
     except Exception as e:
         print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
+    # -- Discord render V2: hand every held job lease back before the pod goes ---
+    # Inside uvicorn's 5 s graceful window. Releasing the leases NOW lets the
+    # replacement pod resume those renders at once instead of waiting out a 20 s
+    # lease. Thread joins run off the loop. Non-fatal either way: a lease that is
+    # not released simply lapses and the next pod resumes it 20 s later.
+    try:
+        import asyncio as _v2_aio
+        from api.services.discord_render import commands as _render_v2_stop
+        if _render_v2_stop.enabled():
+            _v2_released = await _v2_aio.to_thread(_render_v2_stop.stop)
+            print(f"[shutdown] discord-render V2 released {_v2_released} lease(s)")
+    except Exception as e:
+        print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
 

@@ -1015,6 +1015,46 @@ Closing it requires building an instrument first — that is a task, not a looku
     never reaches member-visible copy. Some §8 items are defined by WHERE code
     runs, and the probe now says so.
 
+21. ⛔⛔ **SEVEN INSTRUMENT FAULTS IN ONE MORNING — every fault made the PRODUCT
+    look broken; every one was caught by a CONTROL, never by review.**
+
+    F5's production matrix, 2026-09-13. Seven faults stood between the rig and
+    the first honest cell. They are recorded together because the pattern is the
+    lesson: **not one of them was found by reading the code, and every one of
+    them pointed the same way — at the product.**
+
+    | # | the fault | the control that caught it |
+    |---|---|---|
+    | 1 | **The rig is opted OUT by default.** The sampler runs opted out on purpose, so the durable layer never engaged and the first cell reported the member's offline sentence missing from the server | a pre-door read of the durable store: *on screen `True`, in durable copy `False`, queued `0`* — typed, never stored |
+    | 2 | **A 502 was reported as "SIGN-IN REQUIRED."** Another session's merge was mid-swap | `/api/auth/me` answering `502`, which is neither `200` nor `401` — three answers, not two |
+    | 3 | **Response statuses were matched by URL.** Three PUTs go to the same path in one cell, so statuses landed on whichever entry was unfilled — dressing three FAILED offline PUTs as `200`s | matching by **request identity** instead; the same run then read `None, None, None` |
+    | 4 | **The server was read while work was still queued** — which measures the clock, not the product | waiting for the outbox to empty, and reporting **STILL QUEUED** rather than calling late words lost |
+    | 5 | **The drain runs where the Notebook is mounted.** After the door fired on `/charts` the entry sat queued 60 s | the same wait, which showed the queue never moving on a route with nothing to drive it |
+    | 6 | **The rig's own litter stalled the queue head.** Each cell deletes its note; the outbox entry survives, and a queued write to a deleted note blocks an ordered queue | a purge of entries whose note is `404` — **and only those**, because an entry for a live note is a member's unsent words |
+    | 7 | **The race guard fired on the HEALTHY case.** It counted every PUT issued before the door, including the three that failed *because we were offline* — the normal shape of every cell | the metadata control going INCONCLUSIVE while its own wire showed the product working perfectly |
+
+    ⭐ **AND AN EIGHTH, IN THE RESTORE ITSELF.** The opt-out restore ran in the
+    outer `finally`, **after** the Playwright context had closed, so every call
+    hit a closed event loop and returned `ERR: Error`. *The restore whose entire
+    job is to fail loudly was itself failing* — caught only because it printed
+    its own alarm. It runs in-session now, and the outer `finally` proves it **on
+    disk with Chrome dead** and retries once.
+
+    ⛔ **THE SHAPE WORTH CARRYING:** an instrument fault does not announce itself
+    as one. Every fault above produced a plausible, coherent, *product-shaped*
+    story — "the member's words were lost", "the rig is signed out", "the words
+    were sent and the server dropped them", "the drain never finishes". Faults 2
+    and 3 even pointed the same direction at the same time, which is how a
+    finding gets published. **A control is what separates them, and a control
+    only works if it can distinguish** — each one above answers a question the
+    verdict cannot answer by itself.
+
+    ⭐ **RAILS:** the controls are in `tools/q1_f5_matrix.py` and run on every
+    cell, not as tests beside it — a cell that cannot separate instrument from
+    product returns **INCONCLUSIVE** and says which. `tests/test_q1_rig_window.py`
+    rails the window rule, and `tests/test_window_check_auth.py` rails fault 2's
+    twin in the canary, mutation-proved by restoring the `!= 200` guard.
+
 ### Rows added by §10
 
 | id | feature | status |

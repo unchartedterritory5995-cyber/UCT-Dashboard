@@ -87,13 +87,27 @@ class S7DarkRead(Gate):
         except Exception as e:                          # noqa: BLE001
             return UNREADABLE, f"taxonomy store unreachable: {e}", None
         return NOT_READY, (
-            f"{self.flag}={armed}; session count is read by "
+            f"{self.flag}={armed}; session count and liveness are read by "
             "tools/s7_price_level_report.py --ticking, which owns the staleness bounds "
-            "(180s price-level, 26h event-proximity — they differ by design)"), None
+            "for ALL SIX armed dark sweeps and derives them per type: 180s for the "
+            "per-minute ones (price-level, position-risk), 3600s for regime-change "
+            "(*/20 behind the awareness scan), 26h for the daily ones "
+            "(event-proximity, scan-membership, catalyst-match). ⛔ They differ BY "
+            "DESIGN — a 180s bound applied to a daily sweep reports a healthy run as "
+            "stalled every time, and a liveness command that cries wolf gets ignored."), None
 
 
 class S7CP3Unbuilt(Gate):
-    """The four CP3s: authorized 2026-09-12, not built. Not a data gate yet."""
+    """A CP3 that is authorized and NOT YET BUILT — not a data gate yet.
+
+    ⚰️ THIS HELD FOUR TYPES UNTIL 2026-09-13. `scan-membership-change`,
+    `regime-change`, `position-risk` and `catalyst-match` were all built, merged
+    and ARMED that day, so each moved to `S7DarkRead` below. ⛔ The class stays
+    because `indicator-condition` is still in this state and, more importantly,
+    because the DISTINCTION is the point: "authorized but unbuilt" and "armed but
+    no data yet" are different facts with different fixes, and collapsing them
+    would let an unbuilt checkpoint read as a quiet dark run.
+    """
 
     def __init__(self, type_id, depends=None):
         self.id = f"S7 {type_id} CP3"
@@ -111,12 +125,18 @@ class S7CP3Unbuilt(Gate):
 
 GATES = [
     D2CP3(),
+    # ⭐ SIX ARMED DARK READS as of 2026-09-13 16:00:29 UTC, all six flags set in
+    # ONE pass so `web` rebuilt once, each verified by artifact (uptime reset,
+    # in-PROCESS value, boot line in the live log).
     S7DarkRead("price-level", "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED"),
     S7DarkRead("event-proximity", "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED"),
-    S7CP3Unbuilt("scan-membership-change"),
-    S7CP3Unbuilt("regime-change"),
-    S7CP3Unbuilt("position-risk"),
-    S7CP3Unbuilt("catalyst-match"),
+    S7DarkRead("position-risk", "ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED"),
+    S7DarkRead("scan-membership-change", "ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED"),
+    S7DarkRead("catalyst-match", "ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED"),
+    S7DarkRead("regime-change", "ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED"),
+    # ⛔ THE SEVENTH IS STILL UNBUILT and its approval line is VOID until its
+    # precondition merges — a different state from the six above, deliberately
+    # not flattened into them.
     S7CP3Unbuilt("indicator-condition", depends="D2 §9.5 CP1"),
 ]
 
