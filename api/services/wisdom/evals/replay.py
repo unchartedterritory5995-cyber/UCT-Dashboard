@@ -509,9 +509,6 @@ def default_adapters(*, now: Optional[datetime] = None, engine_db: Optional[str]
         return store._DB_PATH
 
     def _pv():
-        pv = os.environ.get("PATTERN_VISION_DB_PATH")
-        if pv:
-            return pv
         from api.services.pattern_vision import store
         return store.get_db_path()
 
