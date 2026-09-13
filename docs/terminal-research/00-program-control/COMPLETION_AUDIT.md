@@ -252,7 +252,56 @@ with an in-pod verification. Four more of those is not an afternoon.
 
 ---
 
-## 6. ⛔⛔ WHAT IS NOT DONE, AND THE STATE IT IS IN
+## 6. ⛒ THE BUILD QUEUE — AUTHORIZED-AND-UNBUILT, in dependency order
+
+⛔ **THIS SECTION IS THE RESUME POINT. A session that runs out stops between units and the next
+one starts HERE, not from memory.** One unit in flight at a time; never two on shared lines.
+
+**ORDER, dependency-driven, owner-set 2026-09-13:**
+
+| # | unit | authorized | state | SHA |
+|---|---|---|---|---|
+| 1 | **D3 CP1** — ratification rail, no runtime | `00ebb5e80` | ✅ **DONE** | **`302f99e8e`** |
+| 2 | **D4 CP1** — two adopters, hit-rate counter, snapshot-identity | `37bfe4251` | ⬜ next | — |
+| 3 | **S5 CP1** — extract Notebook's pattern, Notebook unchanged | `37e1823a6` | ⬜ | — |
+| 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
+| 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
+| 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
+| 7 | **regime-change CP3** | `9f0575340` | ⬜ | — |
+| 8 | **S6 CP1** — ⚠️ reconcile first: no packet exists. Write from the S6 PRD/spec, sign, build. **If the PRD/spec do not support a CP1 scope, say so and mark SPEC-BLOCKED.** | — | ⬜ | — |
+| — | `indicator-condition` CP3 | `148af5293` | ⛔ **BLOCKED-DEPENDENCY** on D2 §9.5 (B4, owner's form) | — |
+
+**Every S7 CP3 carries the identical SCOPE:** read-only projection of the legacy rows · admin
+cohort via the S12 tag · forward-only comparison with anchor/reschedule-style reset where the type
+has a moving input · flag-gated sweep **OFF by default** with the caller-rail · no delivery import ·
+no legacy change · dry-run in-pod against Friday's data before merge · projected N reported.
+⛔ **DO NOT ARM ANY FLAG.**
+
+**Deploy rule from Monday 09:00 ET:** docs/tests/tools/`app/**` and unwatched `api/**` merge any
+time. Anything in flow-worker's closure that would strand waits for **16:05 ET or later** — no
+marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
+merge, and record the reason here.
+
+### Unit 1 — D3 CP1 · ✅ DONE · `302f99e8e`
+
+ADDITIVE, 0 files in flow-worker's closure, no bump. 9 tests, `PYTEST_EXIT=0`, 3 mutations RED.
+**In-pod verified** (read-only): `realtime_stream._WS_URL` = `wss://ws.finnhub.io`,
+`bar_stream._WS_URL` = `wss://socket.massive.com/stocks`, `subscribe_symbols` carries `owner`,
+`add_trade_listener` present, `start_stream` consults `vendor_socket_guard` and `_run_websocket`
+does not.
+
+⭐ **The scope's last clause did the work: three documented claims were false and the DOCUMENT was
+corrected.** `CLAUDE.md` named the wrong vendor, wrong URL and wrong API key for
+`realtime_stream.py` (Finnhub, not Massive/Polygon) and gave the push feed's disengage as 300 s
+against a constant of 150000 ms.
+
+⚰️ **And the rail collided with the ⚰️ idiom.** Its first version forbade the word "Massive" on any
+`realtime_stream.py` line — which forbids the tombstone recording the correction. It now reads only
+the CLAIM, before the ⚰️ marker.
+
+---
+
+## 7. ⛔⛔ WHAT IS NOT DONE, AND THE STATE IT IS IN (superseded by §6's queue)
 
 **The definition of complete allows three states. Eight items are in a fourth —
 AUTHORIZED-AND-UNBUILT — and that is this drive's outstanding work, not a discovered
@@ -260,7 +309,7 @@ blocker.**
 
 | item | authorized | built | what it needs |
 |---|---|---|---|
-| D3 CP1 | `00ebb5e80` | ❌ | the ratification rail |
+| D3 CP1 | `00ebb5e80` | ✅ `302f99e8e` | — |
 | D4 CP1 | `37bfe4251` | ❌ | two adopters + hit-rate counter |
 | S5 CP1 | `37e1823a6` | ❌ | the Notebook-pattern extraction |
 | S6 CP1 | ❌ **no packet** | ❌ | a gate packet FIRST |

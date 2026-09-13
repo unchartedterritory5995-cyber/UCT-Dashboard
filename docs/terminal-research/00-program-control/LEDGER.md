@@ -607,6 +607,37 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+# ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
+
+## D3 CP1 — MERGED `302f99e8e`. Gate fingerprint `00ebb5e80`.
+
+**Ratification made checkable. ZERO runtime change** — no socket opened, no subscriber added, no
+stream touched; every check is a text/AST read.
+
+⭐ **THE SCOPE'S LAST CLAUSE IS WHAT MADE IT WORTH BUILDING:** *"if the rail and the documentation
+disagree, the DOCUMENT is what gets corrected."* Three documented claims were false —
+`CLAUDE.md` gave `realtime_stream.py` the wrong vendor, wrong URL and wrong API key
+(**Finnhub**, not Massive/Polygon), attributed to it a socket that belongs to `bar_stream.py`, and
+stated a push-feed disengage of 300 s against a constant of **150000 ms**. All three corrected.
+
+**Pinned:** three vendor sockets with three owners (a FOURTH anywhere under `api/**` fails by
+name); the one-connection gate **at the startup entry point and not in the reconnect loop** —
+⭐ the LAYER is the invariant, because moving it inside `_run_websocket` re-litigates a boot
+decision on every reconnect and short-circuits the connect/backoff/circuit-breaker tests;
+`subscribe_symbols`' `owner` refcount; and that disengage exceeds engage or the feed thrashes.
+
+**In-pod verified, read-only:** both URL constants, the `owner` parameter, `add_trade_listener`,
+and that `start_stream` consults `vendor_socket_guard` while `_run_websocket` does not.
+
+⚰️ **THE RAIL COLLIDED WITH THE ⚰️ IDIOM AND THE RAIL WAS WRONG.** Its first version forbade the
+word "Massive" on any `realtime_stream.py` line — which forbids the tombstone that records the
+correction. A rail that outlaws the idiom for recording a fix is worse than no rail. It now reads
+only the CLAIM, everything before the ⚰️ marker.
+
+3 mutations RED, restored by edit. 9 tests, `PYTEST_EXIT=0`. ADDITIVE, no bump.
+
+---
+
 # ⛔⛔ STANDING RULE — A DATE IN ANY PROGRAM DOC IS THE GIT COMMIT DATE IN America/Chicago
 
 **Owner ruling, 2026-09-12.** The authority for every date written here is the commit's own date
