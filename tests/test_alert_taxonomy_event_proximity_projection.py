@@ -376,27 +376,26 @@ def test_a_heartbeat_failure_never_takes_the_comparison_down(world, dbp, monkeyp
 
 # --- CP4 prep, default OFF --------------------------------------------------
 
-def test_CP4_unset_changes_nothing_AND_SO_DOES_SET(world, monkeypatch):
-    """⚰️ CP4's FLAG IS NO LONGER A CODE PATH — S12, owner instruction 2026-09-12:
-    *"CP4's all-members flag becomes a tag assignment, not a code path (keep the
-    flag test asserting 'unset changes nothing' until the flag is deleted in a
-    later line)."*
+def test_the_CP4_FLAG_IS_GONE_and_widening_is_a_tag(world, monkeypatch):
+    """⚰️ S12'S SECOND MIGRATION DELETED THE FLAG THIS TEST WAS GUARDING.
 
-    The retired assertion, verbatim, and it was true when it was written:
+    Two retired assertions, both verbatim, both true when written:
 
         monkeypatch.setenv(proj.CP4_ALL_MEMBERS_FLAG, "1")
         refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
         assert member in refs and admin in refs, "an explicit yes must widen it"
 
-    ⭐ The flag no longer reaches a branch, so this asserts the STRONGER fact
-    that is now true by construction: **unset changes nothing, and so does set.**
-    Widening the dark run to all members is a tag assignment, which is why the
-    last block below adds a TAG and the cohort widens with no variable at all.
+        ⛔ The constant and `all_members_enabled()` stay declared-and-uncalled
+        until a later line deletes them — this test is the record of why they
+        are still here.
 
-    ⛔ The constant and `all_members_enabled()` stay declared-and-uncalled until a
-    later line deletes them — this test is the record of why they are still here.
+    They are not here any more, and the reason the FIRST of those was retired is
+    the reason the second could be: the flag stopped deciding anything, so the
+    only thing left to prove is that no variable can widen the cohort and a TAG
+    can. ⭐ Setting the old flag is now indistinguishable from setting any other
+    unknown variable — which is the correct end state, and this asserts it by
+    setting a name the code has never heard of alongside the retired one.
     """
-    monkeypatch.delenv(proj.CP4_ALL_MEMBERS_FLAG, raising=False)
     admin, member = _user("admin"), _user("member")
     world["mine"] = {admin: {"NVDA"}, member: {"AAPL"}}
     world["reporters"] = {TODAY.isoformat(): {"NVDA", "AAPL"}}
@@ -406,21 +405,20 @@ def test_CP4_unset_changes_nothing_AND_SO_DOES_SET(world, monkeypatch):
     assert admin in baseline, "the admin row must project, or this proves nothing"
     assert member not in baseline
 
-    for junk in ("", "0", "false", "no", "off", "maybe", "2", " ", "1", "true", "YES", "on"):
-        monkeypatch.setenv(proj.CP4_ALL_MEMBERS_FLAG, junk)
-        refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
-        assert refs == baseline, (
-            f"the flag value {junk!r} changed the cohort — it is supposed to "
-            f"reach no branch at all now")
+    for name in ("ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ALL_MEMBERS",
+                 "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_EVERYBODY_HONEST"):
+        for junk in ("1", "true", "YES", "on", "0", ""):
+            monkeypatch.setenv(name, junk)
+            refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
+            assert refs == baseline, (
+                f"{name}={junk!r} moved the cohort — no environment variable is "
+                "supposed to reach this decision any more")
+        monkeypatch.delenv(name, raising=False)
 
-    # ⭐ And THIS is how CP4 widens now: a tag, not a variable.
-    conn = _auth_db.get_connection()
-    try:
-        conn.execute("INSERT OR IGNORE INTO user_tags (id, user_id, tag) VALUES (?,?,?)",
-                     ("t-" + member, member, _rollout.tag_for(_rollout.S7_DARK)))
-        conn.commit()
-    finally:
-        conn.close()
-    refs = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
-    assert member in refs and admin in refs, (
-        "a tag assignment must widen the cohort — that is the whole migration")
+    # ⭐ AND THE TAG DOES WIDEN IT. Same population the flag used to reach, by a
+    # mechanism that can be listed, diffed and undone one member at a time.
+    from api.services import rollout as _rollout
+    _rollout.assign_cohort(_rollout.S7_DARK, [member])
+    widened = {p["user_id"] for p in proj.project_admin_event_predicates(TODAY)}
+    assert widened == baseline | {member}
+

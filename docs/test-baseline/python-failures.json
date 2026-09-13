@@ -99,7 +99,7 @@
  ],
  "fixed_since_sweep": [
   {
-   "sha": "9111438d0",
+   "sha": "614036147",
    "date": "2026-09-12",
    "what": "ticker_meta.py:145 _log -> _logger; the except handler raised NameError",
    "introduced_by": "553f6b68b (2026-09-12 12:01)",

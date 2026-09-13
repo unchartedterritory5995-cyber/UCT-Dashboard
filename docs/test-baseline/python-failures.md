@@ -1,7 +1,7 @@
 # Python test baseline
 
 **Status: COMPLETE. 71 of 71 batches ran.** — **66 measured; 64 open.** Two have since
-been fixed (`9111438d0`, below). The sweep did **not** stop on the 3 GB
+been fixed (`614036147`, below). The sweep did **not** stop on the 3 GB
 memory floor — the lowest free-memory reading all run was **11.31 GB**, nowhere near
 it. One group of 10 files is **UNRUNNABLE** and is recorded as such below rather than
 re-run.
@@ -25,7 +25,7 @@ them, and inside each cluster every test dies of one cause:
 | `test_web_capture_coverage` | 8 | `KeyError: 'text_origin'` |
 | `test_ticker_meta` | 7 | 5 × `NameError: name '_log' is not defined` + 2 mapping mismatches |
 
-⭐⭐ **One of these was a LIVE PRODUCTION DEFECT, and it is now FIXED — `9111438d0`.**
+⭐⭐ **One of these was a LIVE PRODUCTION DEFECT, and it is now FIXED — `614036147`.**
 `api/services/ticker_meta.py:145` called `_log.warning(...)`; every other one of that
 module's eight logging calls uses `_logger`, and `_log` was defined nowhere in it. It
 shipped at **12:01 on 2026-09-12 in `553f6b68b`** (D1 G1 tranche 1) and raised
@@ -70,7 +70,7 @@ prefix of this run, no single file, and no cluster.
 
 | fixed in | what | ids moved | still open in that file |
 |---|---|---|---|
-| **`9111438d0`** (2026-09-12) | `ticker_meta.py:145` `_log` → `_logger` — one identifier | `test_fmp_no_api_key_short_circuits_without_network_call`, `test_fmp_none_fields_yield_none_not_fabricated` | 5 (3 of them revealed by the fix; see above) |
+| **`614036147`** (2026-09-12) | `ticker_meta.py:145` `_log` → `_logger` — one identifier | `test_fmp_no_api_key_short_circuits_without_network_call`, `test_fmp_none_fields_yield_none_not_fabricated` | 5 (3 of them revealed by the fix; see above) |
 
 Mutation-proved by reverting exactly that identifier: **7 failed / 13 passed** reverted,
 **5 failed / 15 passed** fixed — 2 green, **0 newly red**. Across all 20 suites importing
@@ -148,7 +148,7 @@ timeout raise or a fake clock, not another sweep.
 ## The complete OPEN failure table (64)
 
 Generated from `python-failures.json`, so it cannot drift from the rail. The two ids
-fixed in `9111438d0` are no longer here.
+fixed in `614036147` are no longer here.
 
 #### `api.services.journal_two.test_obsidian_parity_fixtures` — 1
 
@@ -286,7 +286,7 @@ FMP profile-row parsing returns `None` for both accepted shapes, so the FMP leg 
 
 #### `tests.test_ticker_meta` — 5
 
-**The `NameError` here is FIXED (`9111438d0`) and its two ids are gone from this table.** What is left is a different defect the NameError was hiding: three of these patch `api.services.earnings_estimates._fmp_get`, which `_from_fmp` no longer calls after `553f6b68b`, so the real adapter runs and answers `FMP_API_KEY not set` - ordinary test-fake drift, same class as `test_implied_backfill`. The remaining two are FMP-vs-Finnhub mapping mismatches.
+**The `NameError` here is FIXED (`614036147`) and its two ids are gone from this table.** What is left is a different defect the NameError was hiding: three of these patch `api.services.earnings_estimates._fmp_get`, which `_from_fmp` no longer calls after `553f6b68b`, so the real adapter runs and answers `FMP_API_KEY not set` - ordinary test-fake drift, same class as `test_implied_backfill`. The remaining two are FMP-vs-Finnhub mapping mismatches.
 
 | test | first line of the failure |
 |---|---|
