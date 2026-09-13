@@ -3114,6 +3114,7 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import position_risk as _at_position_risk
         from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
         from api.services.alert_taxonomy import catalyst_match as _at_catalyst_match
+        from api.services.alert_taxonomy import regime_change as _at_regime_change
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3173,6 +3174,7 @@ async def lifespan(app: FastAPI):
         _at_position_risk.register()
         _at_scan_membership.register()
         _at_catalyst_match.register()
+        _at_regime_change.register()
         logging.getLogger(__name__).info(
             "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
             "beyond document-arrival). A type appears here when its CP3 is "
@@ -6919,6 +6921,50 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 catalyst-match DARK comparison OFF "
                   "(set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-REGIME-CHANGE CP3 -- the sixth DARK comparison.
+        # Owner approval line 2 (fingerprint 9f0575340). §4 warns this type's
+        # projection is UNUSUAL: the predicate is global, so "projecting member
+        # rows" means projecting the STAKE TEST over the cohort.
+        #
+        # ⛔ DEFAULT OFF. ⛔ ARMING IT IS THE OWNER'S FLIP.
+        #
+        # ⛔⛔ IT MUST NEVER WRITE THE REGIME LEDGER. `_compute_regime_component`
+        # does a read-then-APPEND on `awareness_regime_snapshots`; a dark run
+        # calling it would corrupt the prev_label the LIVE R4 rule reads next
+        # cycle -- a comparison turning into an intervention. The projection
+        # reads the ledger's newest two rows instead, which IS the record of
+        # what R4 saw, and costs no classifier call.
+        #
+        # ⛔⛔ CADENCE SHADOWS THE AWARENESS ENGINE (*/20, weekdays 4-20 ET),
+        # offset by 7 minutes so each of its appends is observed after it lands.
+        # A watermark on the ledger's own id makes each row observable ONCE --
+        # without it, re-counting one flip every tick would make `agreed` a
+        # function of the sweep's cadence rather than of the market.
+        if os.environ.get("ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED", "0") == "1":
+            def _regime_change_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.regime_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] regime-change DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"ledger_id={r['ledger_id']} skipped={r['skipped']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] regime-change DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _regime_change_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="4-20",
+                                    minute="7-59/20", timezone=_ET),
+                id="alert_taxonomy_regime_change_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 regime-change DARK comparison ENABLED (every 20 min "
+                  "behind the awareness scan, weekdays 04:00-20:59 ET, no delivery)")
+        else:
+            print("[startup] S7 regime-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)")
 
         def _compass_daily_focus_run():
             try:

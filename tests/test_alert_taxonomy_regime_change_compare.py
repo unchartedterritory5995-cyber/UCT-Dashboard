@@ -616,6 +616,9 @@ def test_the_harness_is_the_only_caller_of_would_fire():
             continue
         if "regime_change.would_fire" in code or "_rc.would_fire" in code:
             callers.append(str(p.relative_to(_REPO)).replace("\\", "/"))
+    # ⚰️ MOVED AT CP3: the projection drives the evaluator through `observe()`,
+    # so the caller list is unchanged — but it stays EXACT so a direct call added
+    # anywhere else fails by name.
     assert callers == ["api/services/alert_taxonomy/regime_change_compare.py"], (
         f"expected the harness to be the ONLY caller; found {callers}")
 
@@ -669,10 +672,19 @@ def test_the_ONE_legacy_import_is_the_PURE_rule_and_it_really_is_pure():
 
 def test_there_is_no_scheduler_entry_and_no_flag_for_this_type():
     """⛔ REGISTRATION IS NOT ACTIVATION, and putting a dark evaluator on a tick
-    is not the FLIP. CP1-CP2 add neither."""
+    is not the FLIP.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, 9f0575340): the assertion inverts and tightens.
+    ⛔ The two MODULES keep their own constraints below — the gate lives in
+    `main.py` and the sweep in the projection, so the evaluator and the harness
+    stay decision-free.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "alert_taxonomy import regime_change" not in main
-    assert "regime_change.register" not in main
+    assert "add_job" in main, "the main.py probe read nothing — it is broken"
+    # ⚠️ Matched against the UNPARSED source, which normalises quoting.
+    assert ("os.environ.get('ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED', '0') == '1'"
+            in main), (
+        "the regime-change dark sweep is not flag-gated, or its default is not OFF")
     for path in (_MODULE, _COMPARE):
         code = _code_only(path)
         assert "add_job" not in code
