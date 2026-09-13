@@ -126,19 +126,30 @@ commit.
 3. **S6 CP2–CP5** — **SPEC-BLOCKED** on four owner rulings, each named in §4: SET-vs-WEIGHTED-SET,
    derive-vs-mirror, `personal_edge`, paid-gating.
 
-## 7. Open findings registered this session
+## 7. ✅ VERDICT — BUILD-COMPLETE TO GATE (verified 2026-09-13)
 
-| id | what |
+> **Every buildable-and-signed unit is built and verified. The remaining 21 items are blocked on
+> data, owner or spec-read only.**
+
+**11 DONE · 21 blocked (5 DATA · 8 OWNER · 5 SPEC-READ · 2 DEPENDENCY) · 1 EXCLUDED = 32.**
+AUTHORIZED-AND-UNBUILT **0** · NOT-YET-CLASSIFIED **0** · signed-and-unbuilt **0** ·
+built-and-unsigned **1** (S3, the recorded historical case).
+
+⭐ **No dependency chain bottoms out in a buildable-and-unsigned item.** Every terminal is an
+unsigned gate line awaiting the owner's read, never something this programme may sign for itself.
+
+### Findings from the verification pass: **3 opened → 0 open**
+
+| id | closed by |
 |---|---|
-| **F-S7-IC-2** | collapse `(indicator, tf)` into one `address` param — sequenced with the first change that already touches predicate registration, **never standalone**. |
-| **F-S7-PL-2** | per-sweep windows narrow what `--ticking` calls a stall (§2). PROVISIONAL; recommendation is to keep it. |
-| **F-D2-3** | `warmup_bars` is UNDECLARED (not 0) on all thirty indicator axis entries. No authority declares it, and deriving it as "max integer parameter" is a heuristic whose failure corrupts the head of every series. |
-| **F-CAT-2** | the catalyst `__hunter__` billed ~$0.10/call on prompts of **14–18 input tokens** (vs 17k–42k healthy) while still emitting ~2,000 output tokens. A sub-100-token prompt is not a query. Bounded for now by the F-CAT-1 kill switch. |
+| **F-S7-PL-3** | `9b1d6c537` — the report's self-check derives its count from the registry `--ticking` reads; control registers a throwaway eighth descriptor and watches the count follow |
+| **F-GATE-1** | `80247f2f5` — `s7-event-proximity` line 2 re-pinned to `4f522011c`, derived from git history; line 1 untouched; the convention written once into PROGRAM_STATUS.md's gate rule as **b-2** |
+| **F-FLAG-1** | `bd57ffaf7` (docstring) + ledger advisory — **advisory only**, no flag and no audit behaviour changed; follow-up named to the **flow workstream** |
 
+⚠️ **Still open, and each is somebody's decision rather than a build:** F-S7-IC-2, F-S7-PL-2
+(PROVISIONAL — recommend KEEP), F-D2-3, F-CAT-2, F-D2-1, F-S7-RC-1, F-S7-RC-3, F-I1-2 (parked).
+PART D of `OWNER_INPUTS.md` carries the three that need a CHOOSE.
 
----
-
-# ⛒ WEEKEND CLOSED — 2026-09-12. Nothing else builds until the owner reads.
 
 ## 1. BUILT — the roster
 
