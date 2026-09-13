@@ -598,6 +598,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     #   2026-09-13  `position-risk`           GATE-S7-POSITION-RISK CP1-CP2
     #   2026-09-13  `scan-membership-change`  GATE-S7-SCAN-MEMBERSHIP-CHANGE CP1-CP2
     #   2026-09-13  `regime-change`           GATE-S7-REGIME-CHANGE CP1-CP2
+    #   2026-09-13  `indicator-condition`     GATE-S7-INDICATOR-CONDITION CP1-CP2
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.
@@ -679,13 +680,30 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # no reconstruction branch is silently absent from the member's feed, which
     # is the hazard the sibling test below demonstrates.
     #
+    # `indicator-condition` CP1-CP2 is the catalyst-match case again, for a
+    # STRICTER reason still, and the reason is worth reading before anyone marks
+    # steps 2 and 3 as owed. It has an evaluator (`would_fire`) and a
+    # forward-only harness, NOTHING WIRES EITHER (an AST sweep of `api/**` in
+    # `test_the_harness_is_the_only_caller_of_the_type_module` asserts that the
+    # harness is the ONLY module whose code names the type module), it imports
+    # neither `receipts` nor `delivery`, and it records no fire at all. On top of
+    # that its CP1 cadence gate REFUSES every predicate the legacy lane can
+    # express today -- the legacy lane's 31 addresses and D2's 142 book metrics
+    # have an EMPTY intersection (F-S7-IC-1, measured in
+    # `test_the_legacy_alert_lane_and_the_book_share_NO_metric_names`). So there
+    # is no fire to reconstruct and no feed row to drop, and step 3 has no fire
+    # to run against.
+    # ⛔ Step 2 becomes a PRECONDITION at CP3, when a projection first writes a
+    # real member's fire -- not a follow-up.
+    #
     # ⚰️ This block cited `test_the_registration_is_not_wired_yet`. That test was
     # INVERTED when CP3 wired register() -- it is now
     # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
     # rather than left pointing at a name that no longer exists.
     _EXPECTED = {"document-arrival", "price-level", "event-proximity",
                  "catalyst-match", "position-risk",
-                 "scan-membership-change", "regime-change"}
+                 "scan-membership-change", "regime-change",
+                 "indicator-condition"}
 
     files, declared = _declared_trigger_types()
 
