@@ -3107,9 +3107,11 @@ async def lifespan(app: FastAPI):
     # scheduler. Idempotent upsert -- safe on every boot.
     try:
         from api.services.alert_taxonomy import db as _at_db
+        from api.services.alert_taxonomy import registry as _at_registry
         from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
         from api.services.alert_taxonomy import price_level as _at_price_level
         from api.services.alert_taxonomy import event_proximity as _at_event_prox
+        from api.services.alert_taxonomy import position_risk as _at_position_risk
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3133,8 +3135,46 @@ async def lifespan(app: FastAPI):
         # DARK sweep is wired further down under
         # ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED.
         _at_event_prox.register()
+        # GATE-S7-POSITION-RISK: registration, beside its siblings. The DARK
+        # sweep is wired further down under
+        # ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED.
+        #
+        # ⛔⛔ WIRING A TYPE HERE IS CP3's ACT, NOT CP1's -- and that is a RAILED
+        # boundary, not a convention. Every type's CP1/CP2 suite asserts its own
+        # name is absent from this file, in those words:
+        #
+        #     assert "catalyst_match" not in main, (
+        #         "api/main.py wires catalyst-match -- that is CP3 and needs a
+        #          new approval line")
+        #
+        # So `regime_change`, `scan_membership_change`, `catalyst_match` and
+        # `indicator_condition` are ABSENT ON PURPOSE. They sit at CP2; their
+        # CP3s are the next units in the queue and each will wire its own.
+        #
+        # ⚰️ A DRAFT OF THIS COMMIT WIRED ALL FIVE, on the reading that CP1's
+        # "registration + params schema" scope had shipped a `register()` nobody
+        # called -- five types "built, tested, green and unreachable". The pod
+        # agreed: `alert_trigger_registry` held THREE rows while the package
+        # ships EIGHT modules defining `register()`. ⭐ **The reading was wrong
+        # and the four boundary rails caught it.** Three registered types is the
+        # CORRECT state of a programme where three types have reached CP3;
+        # "registration" at CP1 means the module OFFERS one, and the process
+        # takes it up when the dark run is approved.
+        #
+        # ⭐ The lesson is the one this file keeps re-teaching: a gap between
+        # what a module provides and what the process uses is not automatically
+        # a defect. Ask what the boundary is FOR before closing it.
+        #
+        # ⭐ `tests/test_alert_taxonomy_registration_is_wired.py` now fails BY
+        # NAME for any module that defines `register()` and is not called here,
+        # so the sixth cannot be discovered the same way the fifth was.
+        _at_position_risk.register()
         logging.getLogger(__name__).info(
-            "alert_taxonomy: document-arrival + price-level + event-proximity (DARK) trigger types registered")
+            "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
+            "beyond document-arrival). A type appears here when its CP3 is "
+            "signed, not when its module is written."
+            % (len(_at_registry.list_trigger_types()),
+               ", ".join(sorted(r["type_id"] for r in _at_registry.list_trigger_types()))))
     except Exception as e:
         logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
 
@@ -6745,6 +6785,53 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 event-proximity DARK comparison OFF "
                   "(set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-POSITION-RISK CP3 -- the third DARK forward-only comparison.
+        # Owner approval line 2 (fingerprint ec2b197f8): read-only PROJECTION of
+        # real member rows, the rollout:s7-dark cohort ONLY, forward-only, four
+        # outcomes, the sweep behind its OWN flag DEFAULT OFF, with a caller-rail
+        # proving the evaluator is reachable from the sweep and from nothing else.
+        #
+        # ⛔ DEFAULT OFF. It reads real member positions, so an unset variable
+        # must mean NOTHING RUNS -- the same contract as its two siblings above.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ legacy_only MEANS SOMETHING DIFFERENT FOR THIS TYPE. Every stop
+        # breach already clears awareness' _DELIVER_IMPORTANCE_FLOOR = 8, so it
+        # emails and Discords the member TODAY. A legacy_only row is a message a
+        # member stops receiving at the flip, not a card they must go find.
+        #
+        # Cadence matches price-level's (every minute, RTH): the legacy rule runs
+        # off the shared live-price cache, which is what the 15 s poll refreshes,
+        # and a stop breach is a within-the-minute fact.
+        if os.environ.get("ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED", "0") == "1":
+            def _position_risk_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.position_risk_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    # ⭐ no_price is printed EVERY tick, not only when non-empty:
+                    # a symbol the cache did not hold is a blind spot, and a
+                    # sweep that swallowed it would bank agreement about ticks
+                    # that never happened.
+                    print(f"[alert_taxonomy] position-risk DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"priced={r['priced']} no_price={r['no_price']} "
+                          f"fires={r['fires']} outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] position-risk DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _position_risk_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_position_risk_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 position-risk DARK comparison ENABLED (every minute, "
+                  "weekdays 09:00-16:59 ET, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 position-risk DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)")
 
         def _compass_daily_focus_run():
             try:
