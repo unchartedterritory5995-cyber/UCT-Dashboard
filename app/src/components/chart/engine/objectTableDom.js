@@ -41,6 +41,7 @@
 // repo keeps paying for, and here it would have been VISIBLE: two dashboards,
 // one under the other, a few pixels apart. `layoutTables` stays where it is.
 import { TEXT_SIZE_PX, TABLE_ANCHORS, TABLE_MARGIN } from './objectCanvas'
+import CLOSED_TABLE from './ast/closedTable.json'
 
 /** ⭐ THE FONT STACK IS THE CANVAS PAINTER'S, VERBATIM. The two adapters draw
  *  one document and the labels are still on the canvas, so a table in a
@@ -219,4 +220,100 @@ export function renderTables(root, tabs, doc) {
     out.cells += built.cells
   }
   return out
+}
+
+
+// ─── ⭐⭐ R-R — FITTING A TABLE TO A PHONE, WITHOUT LOSING A NUMBER ─────────
+//
+// ⚰️ MEASURED at the phone tier: the plot is 286px wide (390 screen − 104 price
+// scale) and `uncharted-volume-v2.pine`'s Range table needs 287px at its
+// defaults and 356px with the toggles on. The table starts exactly where it
+// should; it is simply wider than the space.
+//
+// ⛔ THE RULING'S PRIORITY ORDER decides what may be given up, and it rules out
+// almost everything: never lose a NUMBER (clipping is out), never cover the
+// price labels (an opaque background is out), keep the author's declared row
+// shape. What survives is a UNIFORM SCALE — one factor for font, padding and
+// cell widths together — with a readable floor, and wrapping only when the floor
+// would otherwise be broken.
+//
+// ⭐ THE SAME FACTOR FOR EVERY TABLE. Scaling each table to its own need would
+// silently re-rank them: the author made the Range table wider than the Volume
+// table, and two independent factors would erase that. One factor, chosen so the
+// WIDEST table fits, keeps their relative sizes as written.
+
+/** The readable floor and the member's sentence — both from the manifest, which
+ *  is the one owner of each (`closedTable.json::_tables_fit`). */
+export const TABLES_FIT = Object.freeze({
+  floorPx: (CLOSED_TABLE._tables_fit && CLOSED_TABLE._tables_fit.floorPx) || 9,
+  memberNote: (CLOSED_TABLE._tables_fit && CLOSED_TABLE._tables_fit.memberNote) || '',
+})
+
+/**
+ * ⭐⭐ THE DECISION, AS ARITHMETIC — no DOM, so it is testable and has one answer.
+ *
+ * @param {number[]} neededWidths what each table wants, in CSS px
+ * @param {number}   plotWidth    the width it must fit into
+ * @param {number}   basePx       the author's declared text size in px
+ * @returns {{factor, wrap, scaled, widest}}
+ */
+export function fitFactor({ neededWidths = [], plotWidth = 0, basePx = TEXT_SIZE_PX.normal,
+  floorPx = TABLES_FIT.floorPx } = {}) {
+  const widths = neededWidths.filter((w) => Number.isFinite(w) && w > 0)
+  const widest = widths.length ? Math.max(...widths) : 0
+  // ⛔ NOTHING TO DO IS A REAL ANSWER, and it must be distinguishable from a
+  // scale of 1 that was chosen: `scaled` is what the disclosure keys off.
+  if (!widest || !plotWidth || widest <= plotWidth) {
+    return { factor: 1, wrap: false, scaled: false, widest }
+  }
+  const want = plotWidth / widest
+  const floorFactor = floorPx / basePx
+  if (want >= floorFactor) return { factor: want, wrap: false, scaled: true, widest }
+  // ⛔ THE FLOOR HELD, SO THE ROW SHAPE GOES. Scaling past the floor would keep
+  // the shape and make the numbers unreadable, which loses the value in a way a
+  // member cannot even see they have lost.
+  return { factor: floorFactor, wrap: true, scaled: true, widest }
+}
+
+/** Apply one factor to every table under `root`, anchored at its own corner.
+ *
+ *  ⭐ A CSS TRANSFORM IS THE UNIFORM SCALE. Font, padding and the content-driven
+ *  cell widths all move by exactly one number, which is what the ruling asks for
+ *  and what setting three properties by hand would only approximate.
+ *  ⛔ THE ORIGIN MATCHES THE ANCHOR, or a right-anchored table would shrink away
+ *  from the corner it is pinned to and stop being anchored.
+ */
+export function applyFit(root, fit) {
+  if (!root) return
+  for (const t of root.querySelectorAll('[data-uct-object-table]')) {
+    const pos = t.getAttribute('data-uct-table-position') || 'top_right'
+    const originX = pos.endsWith('_right') ? 'right' : pos.endsWith('_center') ? 'center' : 'left'
+    const originY = pos.startsWith('bottom') ? 'bottom' : pos.startsWith('middle') ? 'center' : 'top'
+    if (!fit.scaled) {
+      t.style.transform = ''
+      t.style.transformOrigin = ''
+      t.removeAttribute('data-uct-table-scaled')
+      continue
+    }
+    t.style.transformOrigin = `${originY} ${originX}`
+    t.style.transform = `scale(${fit.factor.toFixed(4)})`
+    t.setAttribute('data-uct-table-scaled', fit.factor.toFixed(4))
+    if (fit.wrap) {
+      // ⛔ WRAPPING IS A LAST RESORT AND IS MARKED. The cells flow onto a second
+      // line rather than being squeezed; the TEXT is untouched, so `textContent`
+      // — and the trailing space the vendor compare reads — is unchanged.
+      const row = t.querySelector('tr')
+      if (row) {
+        row.style.display = 'flex'
+        row.style.flexWrap = 'wrap'
+      }
+      t.style.display = 'block'
+      t.setAttribute('data-uct-table-wrapped', '1')
+    } else {
+      const row = t.querySelector('tr')
+      if (row) { row.style.display = ''; row.style.flexWrap = '' }
+      t.style.display = ''
+      t.removeAttribute('data-uct-table-wrapped')
+    }
+  }
 }

@@ -73,6 +73,13 @@ export const KEEP = Object.freeze([
   // `request.security` became the chart's own series. That is the failure the
   // divergence roster calls "merely KNOWN", arriving through the build.
   '_folds',
+  // ⭐ THE SENTENCE AND THE FLOOR. `_tables_fit` carries the note a member reads
+  // when a table had to be SCALED to fit a phone (R-R), plus the 9px readable
+  // floor the layer scales down to. Stripping it would not break the fit — it
+  // would make a scaled table SILENT about being scaled, which is the same
+  // failure shape as `_folds` and `_alertconditions`: the member sees a number
+  // rendered differently from the author's script and is never told why.
+  '_tables_fit',
   // ⛔⛔ READ BY `parse.js::alertNotesOf` AND `PineBox`, AND IT IS THE ONLY COPY OF
   // THE SENTENCE. `_alertconditions` carries the note a member reads when the HOST
   // lane declines to draw an `alertcondition` (ruling D1, option C). Stripping it does

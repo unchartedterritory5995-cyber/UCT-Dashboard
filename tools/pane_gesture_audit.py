@@ -69,7 +69,15 @@ PROBE_JS = """() => {
     position: t.getAttribute('data-uct-table-position'),
     rect: rect(t),
     cells: [...t.querySelectorAll('td')].map((td) => td.textContent),
+    // ⭐ R-R — WHAT THE LAYER SAYS IT DID, beside what the rect shows it did.
+    // A width alone cannot tell "scaled to fit" from "the author wrote a
+    // narrower table"; the stamp can.
+    scaled: t.getAttribute('data-uct-table-scaled'),
+    wrapped: t.hasAttribute('data-uct-table-wrapped'),
   }));
+  // one stamp per attached pane — two documents on one chart are two layers
+  const fits = [...document.querySelectorAll('[data-uct-table-layer]')]
+    .map((l) => l.getAttribute('data-uct-tables-fit'));
 
   // the chart container and the indicator pane
   const chart = document.querySelector('.tv-lightweight-charts');
@@ -94,6 +102,15 @@ PROBE_JS = """() => {
     .filter((e) => e.children.length === 0 && /HVE Trigger|request\\.security|bars here/i.test(e.textContent || ''))
     .map((e) => ({ text: (e.textContent || '').trim().slice(0, 70), rect: rect(e) }));
 
+  // ⛔ THE R-R SENTENCE IS MATCHED VERBATIM, never by keyword. The words have
+  // one owner (`closedTable.json::_tables_fit.memberNote`) and a loose match
+  // would report a PASS for a paraphrase nobody approved.
+  const FIT_NOTE = 'Tables are scaled to fit this screen width; '
+    + "text size differs from the author's.";
+  const fitNotes = [...document.querySelectorAll('li,p,div')]
+    .filter((e) => e.children.length === 0 && (e.textContent || '').trim() === FIT_NOTE)
+    .map((e) => rect(e));
+
   const canvas = document.querySelector('[data-uct-object-layer]');
   return {
     layerPresent: !!layer,
@@ -101,6 +118,8 @@ PROBE_JS = """() => {
     unreadable: canvas ? canvas.getAttribute('data-uct-objects-unreadable') : null,
     boundTf: canvas ? canvas.getAttribute('data-uct-object-tf') : null,
     tables,
+    fits,
+    fitNotes,
     chartRect,
     priceScale,
     toolbar,
@@ -224,7 +243,53 @@ def static_rows(probe):
             "verdict": "PASS" if not unreadable else "FAIL",
             "why": f"{len(d)} line(s), {len(unreadable)} with zero layout",
         }
+
+    rows["tables-fit"] = fit_row(probe)
     return rows
+
+
+# ⭐⭐ R-R — THE ROW THAT GRADES THE FIT, AND IT IS TIER-AWARE.
+#
+# The ruling makes scaling PHONE-ONLY, so "no scaling" is the right answer at
+# 1024 and the WRONG answer at 390 for a table that overflows. One row cannot be
+# a constant expectation; it reads `innerW` and grades against the tier.
+#
+# ⛔ AND A SCALED TABLE MUST NOT BE SILENT. The sentence is half the ruling: if
+# a stamp says a table was scaled and the verbatim note is not on the page, that
+# is a FAIL, not a cosmetic gap.
+PHONE_MAX = 640
+
+
+def fit_row(probe):
+    fits = [f for f in (probe.get("fits") or []) if f]
+    notes = probe.get("fitNotes") or []
+    inner = probe.get("innerW")
+    if inner is None:
+        return {"verdict": "UNTESTED", "why": "the probe reported no viewport width"}
+    if not fits:
+        return {"verdict": "UNTESTED", "why": "no table layer carried a fit stamp"}
+
+    scaled = [f for f in fits if f != "none"]
+    wrapped = [f for f in fits if ":wrap" in f]
+    shown = [t for t in probe["tables"] if t.get("scaled")]
+
+    if inner > PHONE_MAX:
+        if scaled or notes:
+            return {"verdict": "FAIL",
+                    "why": f"scaling above the phone tier at {inner}px: "
+                           f"stamps={fits} notes={len(notes)}"}
+        return {"verdict": "PASS",
+                "why": f"{inner}px is not the phone tier; stamps={fits}, no note"}
+
+    if not scaled:
+        return {"verdict": "PASS",
+                "why": f"nothing needed scaling at {inner}px; stamps={fits}"}
+    if not notes:
+        return {"verdict": "FAIL",
+                "why": f"{len(scaled)} pane(s) scaled ({scaled}) and the member note is ABSENT"}
+    return {"verdict": "PASS",
+            "why": f"scaled {scaled}, wrapped={len(wrapped)}, "
+                   f"{len(shown)} table(s) carry a factor, note shown x{len(notes)}"}
 
 
 def main(argv=None):
@@ -249,7 +314,35 @@ def main(argv=None):
         bad = [k for k, r in v.items() if r["verdict"] != "FAIL"]
         print("[self-check]", json.dumps(v, indent=1))
         print("[self-check]", "OK - all three can FAIL" if not bad else f"BROKEN: {bad} did not fail")
-        return 0 if not bad else 1
+
+        # ⛔ R-R's row has THREE answers and a wrong one in either direction is
+        # the point, so each is driven — with a PASS case beside them, because a
+        # row that only ever fails is as useless as one that only ever passes.
+        cases = [
+            ("a phone pane scaled and SILENT",
+             {"innerW": 390, "fits": ["0.758"], "fitNotes": [],
+              "tables": [{"scaled": "0.7584"}]}, "FAIL"),
+            ("scaling ABOVE the phone tier",
+             {"innerW": 1024, "fits": ["0.758"], "fitNotes": [],
+              "tables": [{"scaled": "0.7584"}]}, "FAIL"),
+            ("a phone pane scaled and disclosed",
+             {"innerW": 390, "fits": ["0.758"], "fitNotes": [{"x": 0, "y": 0, "w": 300, "h": 16}],
+              "tables": [{"scaled": "0.7584"}]}, "PASS"),
+            ("the touch tier, left alone",
+             {"innerW": 1024, "fits": ["none"], "fitNotes": [], "tables": [{"scaled": None}]},
+             "PASS"),
+            ("no stamp at all",
+             {"innerW": 390, "fits": [], "fitNotes": [], "tables": []}, "UNTESTED"),
+        ]
+        fitbad = []
+        for what, probe, want in cases:
+            got = fit_row(probe)["verdict"]
+            print(f"[self-check] tables-fit / {what}: {got} (expected {want})")
+            if got != want:
+                fitbad.append(what)
+        if fitbad:
+            print(f"[self-check] BROKEN: tables-fit misgraded {fitbad}")
+        return 0 if not bad and not fitbad else 1
 
     OUT.mkdir(parents=True, exist_ok=True)
     report = {"base": args.base, "route": args.route, "tiers": {}}

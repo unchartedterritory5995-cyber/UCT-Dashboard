@@ -3227,6 +3227,15 @@
       "_row": "tests/fixtures/vendor/divergences.json::request-security-base-period-identity-vs-lookahead-off-step-back"
     }
   },
+  "_tables_fit": {
+    "_": "⭐⭐ R-R (owner ruling, 2026-09-13) — WHAT A MEMBER IS TOLD WHEN A TABLE HAD TO BE SCALED TO FIT THEIR SCREEN. At the PHONE tier a table can need more width than the plot has: measured on `uncharted-volume-v2.pine`, the Range table needs 287px (defaults) and 356px (the toggles-on document) against a 286px plot on a 390px screen, and a right-anchored table then runs under the price scale.",
+    "_the_priority_order": "⛔ THE RULING SETS WHAT MAY BE LOST, IN ORDER: never lose a NUMBER (so clipping is out), never cover the price labels (so an opaque background is out), keep the author's declared row shape. What survives all three is a UNIFORM SCALE — one factor for font, padding and cell widths together, and the SAME factor for every table so their relative sizes stay as the author set them — down to a readable floor of 9 CSS px. Wrapping to a second row is the fallback used ONLY when the floor would otherwise be violated: the row shape is given up only when the alternative is unreadable.",
+    "_scope": "⛔ PHONE TIER ONLY (<= 640, `breakpoints.js::BP.phone`). Never at the touch tier and never on desktop — those have the width, and scaling them would change an author's text size for no reason.",
+    "floorPx": 9,
+    "memberNote": "Tables are scaled to fit this screen width; text size differs from the author's.",
+    "_memberNote_is_the_disclosure": "⛔ THE SENTENCE LIVES HERE, ONCE, exactly like `_folds[].memberNote` and `_alertconditions.memberNote`. The LAYER decides whether the condition applies and the existing disclosure strip renders this string verbatim, so the wording has one owner and a scaled table can never be silent about it. A sentence composed in the renderer would be a second authority over one value (ruling 1.1)."
+  },
+
   "_alertconditions": {
     "_": "⛔⛔ THE ONE PLACE THE ALERT-CONDITION SENTENCE IS WRITTEN (owner ruling D1, option C, 2026-09-12). An `alertcondition` draws NOTHING in Pine — it registers a condition the platform offers under Alerts — and this engine's two lanes had disagreed about what kind of thing it is: `translatePine` made it a first-class boolean column and `chooseOutput` PREFERRED it over every plot, while `buildRuntimeIr` classified it as PRESENTATION and emitted no series for it. The ruling makes the runtime lane's reading the single answer for a PANE: a host target never selects one, a screen still may, and the member is told where it went in this sentence.",
     "_how_to_extend": "`parse.js::alertNotesOf` and `api/services/ast_table.py::alert_notes` read this block in both lanes; `PineBox` renders the result VERBATIM beside the vendor and fold notes. `namePlaceholder` is the literal substring the alert condition's own title replaces — the substitution happens in the note producer, never in the component, for the same reason ruling 1.1 gives.",

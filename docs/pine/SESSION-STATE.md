@@ -110,8 +110,18 @@ each, send `^1`…`^9`, and stop when the window TITLE matches the page you want
 (`*complete trading desk*`). `focus_tab.ps1` in the scratchpad does this.
 
 **Rig tab, expected state:** `https://www.tradingview.com/chart/e3cTXatd/?symbol=AMEX%3ASPY`
-— *"UCT AGENT VISIT 2026-09-10 (disposable)"*, **0 studies, editor closed**. One
-read confirms the reconnect.
+— *"UCT AGENT VISIT 2026-09-10 (disposable)"*, **0 studies**, and the chart's own
+visible, enabled **own-text `Add to chart`** button present. One read confirms the
+reconnect.
+
+⛔⛔ **THE BINDING GATE IS THOSE TWO FACTS, NOT "EDITOR CLOSED"** (owner, 2026-09-13).
+This line said *"0 studies, editor closed"* and that third clause is wrong: **the
+open Pine Editor with "Untitled script" is the OWNER'S, from reconnecting the
+extension, and it is to be left alone.** An editor being open says nothing about
+whether a capture is bound to a study — `0 studies` plus a live `Add to chart`
+does, and it is what every capture in this wave was actually gated on. A checklist
+demanding a closed editor would have this session close the owner's window to
+satisfy a condition that never measured the thing it names.
 
 ### 5. Rulings this next action depends on — pointers only
 
@@ -193,6 +203,119 @@ Their owners will need to re-run.
 - **Nothing to master.** No `gh pr create`. Branch pushes any time.
 
 ---
+## ⭐⭐⭐ R-R — THE PHONE-TIER TABLE FIT. THE LAST RED ROW FROM ITEM 4 IS GREEN.
+
+Owner ruling, 2026-09-13, and it settles a choice item 4 measured but refused to
+make: at the phone tier a table can want more width than the plot has. The ruling
+states what may be lost, in order — **never a NUMBER** (so clipping is out),
+**never the price labels** (so an opaque background is out), then the author's
+declared row shape. What survives all three is a uniform scale to a **9px floor**,
+with wrapping only if the floor would otherwise break.
+
+### What ships
+
+`fitFactor()` in `objectTableDom.js` is the arithmetic — pure, no DOM — returning
+`{factor, wrap, scaled, widest}`. `applyFit()` writes ONE factor onto every table
+in the pane with an **anchor-matched `transform-origin`**, so a `top_right` table
+scales toward its own corner and does not drift off it. `objectLayer.draw()`
+measures `scrollWidth` **unscaled** (a second pass over an already-scaled table
+would compound the factor into nothing), gates on `window.innerWidth <= 640`, and
+stamps `data-uct-tables-fit` on the layer.
+
+⛔ **ONE FACTOR PER PANE, from that pane's widest table.** The ruling's reason is
+the author's: two dashboards sized relative to each other must stay that way. Two
+attached documents are two panes and therefore two factors — which is what the
+live audit shows below, and is correct: they are different authors' documents.
+
+⭐ **THE SENTENCE IS THE OTHER HALF OF THE RULING.** `closedTable.json` gained a
+top-level `_tables_fit` section carrying `floorPx: 9` and the memberNote, and
+`manifestProse.js::KEEP` gained `'_tables_fit'` — a `_`-key is stripped from the
+shipped bundle unless kept, and a stripped one here would not break the fit, it
+would make a scaled table **silent**. Same failure shape as `_folds` and
+`_alertconditions`. **Verified in the built bundle**, not only in the test:
+`grep` finds the sentence in `app/dist/assets/sentence-*.js`.
+
+`paneFitNotice.js` (new) is a one-value subscribe store crossing the subtree
+between the layer and `AttachedPineDisclosures`. It publishes only WHETHER the
+condition holds; the words come from the manifest, so the wording keeps one owner.
+It is session state, never persisted — a viewport is not a document property.
+
+### The measured arithmetic, both numbers
+
+```
+plot   = 390 - 104 (price scale)                 = 286   the ruling's "available"
+usable = 286 - 8 (near margin) - 8 (far margin)  = 270   what the layer computes
+doc A  = 287 needed -> 270/287 = 0.941           11.3px type
+doc B  = 356 needed -> 270/356 = 0.758            9.1px type
+floor  = 9/12                                    = 0.75
+```
+
+⛔⛔ **DOC B DOES NOT REACH THE FLOOR, AND THE RULING'S TEST ASKED.** It asked
+whether doc B "scales to the floor and states whether it wraps" — measured, it
+scales to **0.758 against a 0.75 floor** and does **not** wrap, by about half a
+pixel of type. **Neither real document wraps.** So the wrap branch is exercised in
+the tests by a width that does cross it, and the crossing point is asserted: at
+270px usable, 360 is the widest table that still scales, and 361 wraps at the
+floor. A fallback nothing can reach is not a fallback, it is dead code.
+
+### The re-run — `tools/pane_gesture_audit.py --base http://127.0.0.1:8129`
+
+| row | phone390 | touch1024 |
+|---|---|---|
+| tables drawn, both corners | **PASS** | **PASS** |
+| quarter-height pane | **PASS** — 652px | **PASS** — 528px |
+| disclosures readable | **PASS** — 3 lines | **PASS** — 3 lines |
+| scrub · pinch · scroll · rotate (anchored / artefacts) | **PASS** ×8 | **PASS** ×8 |
+| **no overlap — price scale / toolbar / hub** | ⭐ **PASS** *(was 🔴 FAIL)* | **PASS** |
+| **tables-fit** | **PASS** — scaled `['0.758','0.941']`, wrapped 0, 4 tables carry a factor, note shown ×1 | **PASS** — "1024px is not the phone tier; stamps `['none','none']`, no note" |
+| capture @100% · @125% | **PASS** — gate v2.1 true | **PASS** — gate true |
+
+Every table's right edge now lands at **x=278** on the phone — the plot edge minus
+the margin — where before the fix a right-anchored table ran to 382 over a scale
+starting at 286. `data-uct-objects-unreadable: 0` and `boundTf: D` at both tiers.
+
+⭐ **THE HARNESS LEARNED THE ROW, TIER-AWARE.** `tables-fit` cannot be a constant
+expectation: "no scaling" is right at 1024 and wrong at 390 for a table that
+overflows. It reads `innerW` and grades against the tier, and **a pane that scaled
+without the note is a FAIL**, not a cosmetic gap. Five self-check cases drive both
+failure directions plus two passes and the UNTESTED — a row that only ever fails
+is as useless as one that only ever passes.
+
+### Two rails this work found and fixed
+
+**1. `objectLayer` crashed on a host without `querySelectorAll`.** The first draft
+called it unguarded and took `objectLayer.test.js` from 7 green to 5 failed — its
+host is a hand-rolled stub. Fixed by asking the node for the capability, with the
+honest answer being *no measurement* rather than a `scaled: false` that would
+publish a claim about a viewport nobody read.
+
+**2. `check_scope_paths.py` refused a DIRECTORY scope.** The tool I built two
+commits ago to stop a scope list failing open refused the sweep scope, which names
+three directories — `is_file()` and nothing else. **A gate that cries wolf gets
+muted**, which is the failure it exists to prevent. It now accepts a directory
+*that selects at least one test file*, because "the directory exists" is not the
+question — a scope naming a directory with no test in it still exits 0, which is
+the same silent shrink one level up. `--self-check` drives all three answers,
+including a positive control.
+
+### Suites
+
+```
+scope: app/src/components/chart/{engine,builder,pane}
+356 files -> 7,336 passed · 32 skipped · 5 failed in 3 files · 0 timeouts
+```
+
+Baseline was 354 / 7,316 / 32 / 5 / 0. The **+2 files** are `irSymbolFold.test.js`
+(step 5) and `paneTablesFit.test.jsx` (13 cases, this commit); the five reds are
+the same pre-existing HEAD trio by name. The sweep-scope timeouts stayed gone.
+
+**Mutation-checked three ways**, each reverted by hand, never by `git checkout`:
+delete the tier gate → 2 red · delete `setPaneScaled` → 1 red · make the strip
+stop rendering the note → 2 red. ⚰️ The first pass of the tier tests was
+**vacuous** and the mutation found it: at 1024 the real tables FIT, so forcing
+`isPhone` true left every assertion green. The controls now use a width that
+overflows the touch tier's own plot, so they fail when the gate goes.
+
 ## ⭐⭐⭐ ITEM 4 — MOBILE AUDIT. ONE REAL DEFECT FOUND AND FIXED; ONE ROW STILL RED AND ROUTED.
 
 Both touch tiers, both definitions instanced, backend `127.0.0.1:8129`, Chromium
@@ -241,7 +364,14 @@ After the fix, re-audited by the same harness: **touch1024 fully green**, and th
 phone's right-anchored tables clear the scale (x=160…278 against a plot ending at
 286).
 
-### 🔴 STILL RED, AND IT IS NOT AN ANCHORING BUG — ROUTED, NOT WAIVED
+### 🔴 STILL RED WHEN THIS WAS WRITTEN — ✅ CLOSED BY R-R, THE SECTION ABOVE
+
+> ⭐ **Resolved 2026-09-13.** The owner ruled the priority order (never a number,
+> never the price labels, then the row shape), the layer now scales phone-tier
+> tables to fit with a 9px floor, and the re-audit's `no-overlap` row is **PASS at
+> both tiers** with a new `tables-fit` row beside it. **The measurement below is
+> kept verbatim** — it is what the ruling was made against, and the option table
+> is the record of what each alternative would have cost a member.
 
 At **phone390 only**, the *left*-anchored Range table is **wider than the plot**:
 
@@ -268,6 +398,10 @@ CHOICE IS THE OWNER'S:**
 
 ⏭️ Routed as a ruling, with the measurement above. Everything else at phone tier
 passes, and the touch tier is clean.
+
+✅ **The ruling came back as R-R** — uniform scale, one factor per pane, 9px floor,
+wrap only below it, disclosed once from the manifest. See the R-R section above for
+the arithmetic and the green re-audit.
 
 ## ⭐⭐⭐ STEP-5 FOLLOW-THROUGH — THE IR LANE READS THE SYMBOL. v2:249 CLEARS.
 

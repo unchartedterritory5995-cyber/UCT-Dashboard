@@ -47,6 +47,24 @@ def find_basename(root: pathlib.Path, name: str, limit: int = 5):
     return hits
 
 
+def count_tests(root: pathlib.Path, limit: int = 1) -> int:
+    """How many test files a DIRECTORY scope would actually select.
+
+    ⛔ The same silent-shrink defect, one level up: `vitest run src/does/exist`
+    on a directory holding no `*.test.*` runs nothing and exits 0, so "is the
+    directory there" is not the question — "does it select a test" is.
+    """
+    seen = 0
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for f in filenames:
+            if ".test." in f or ".spec." in f:
+                seen += 1
+                if seen >= limit:
+                    return seen
+    return seen
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Assert every path in a scope list exists.")
     ap.add_argument("paths", nargs="*", help="the scope list, exactly as the runner will get it")
@@ -61,26 +79,54 @@ def main(argv=None):
         ap.error("give at least one path (or --self-check)")
 
     if args.self_check:
-        # ⛔ A GATE NOBODY HAS SEEN FAIL IS NOT A GATE (`lesson_gate_that_cannot_fail`).
-        bogus = "__definitely_not_a_real_path__.test.js"
-        ok = main([bogus])
-        print(f"[self-check] a bogus path returned {ok} (expected 1)", file=sys.stderr)
-        return 0 if ok == 1 else 1
+        # ⛔ A GATE NOBODY HAS SEEN FAIL IS NOT A GATE (`lesson_gate_that_cannot_fail`),
+        # and it now has TWO ways to fail, so both are driven — plus a POSITIVE
+        # control, because a checker that refused everything would sail through a
+        # self-check made only of refusals.
+        import tempfile
+        results = []
+        results.append(("a bogus path", main(["__definitely_not_a_real_path__.test.js"]), 1))
+        with tempfile.TemporaryDirectory() as td:
+            empty = pathlib.Path(td) / "no_tests_here"
+            empty.mkdir()
+            (empty / "readme.md").write_text("not a test", encoding="utf-8")
+            results.append(("a directory with no test file", main([str(empty)]), 1))
+            real = pathlib.Path(td) / "has_tests"
+            real.mkdir()
+            (real / "a.test.js").write_text("// a test", encoding="utf-8")
+            results.append(("a directory that holds one", main([str(real)]), 0))
+        bad = [r for r in results if r[1] != r[2]]
+        for what, got, want in results:
+            print(f"[self-check] {what} returned {got} (expected {want})", file=sys.stderr)
+        return 1 if bad else 0
 
     root = pathlib.Path(args.root).resolve()
     missing = []
     for p in args.paths:
-        if not pathlib.Path(p).is_file():
-            missing.append(p)
+        node = pathlib.Path(p)
+        if node.is_file():
+            continue
+        # ⭐ A DIRECTORY IS A LEGITIMATE SCOPE, and refusing one would make this
+        # cry wolf on the sweep scope, which names three — and a gate that cries
+        # wolf gets muted, which is the failure this file exists to prevent.
+        # ⛔ But "it exists" is not enough for a directory: a scope naming one
+        # that holds no test file selects nothing and STILL exits 0, which is the
+        # same silent shrink one level up.
+        if node.is_dir():
+            if count_tests(node):
+                continue
+            missing.append((p, "selects no test file"))
+            continue
+        missing.append((p, "does not exist"))
 
     if not missing:
         print(f"[scope] {len(args.paths)} path(s), all present")
         return 0
 
-    print(f"[scope] REFUSED - {len(missing)} of {len(args.paths)} path(s) do not exist:",
+    print(f"[scope] REFUSED - {len(missing)} of {len(args.paths)} path(s) select nothing:",
           file=sys.stderr)
-    for p in missing:
-        print(f"  MISSING  {p}", file=sys.stderr)
+    for p, why in missing:
+        print(f"  {why.upper():<22} {p}", file=sys.stderr)
         if args.suggest:
             for hit in find_basename(root, pathlib.Path(p).name):
                 try:

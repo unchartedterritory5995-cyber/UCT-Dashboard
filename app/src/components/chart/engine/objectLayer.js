@@ -23,9 +23,17 @@
 // scheduler. A host that cannot provide them gets no drawings and no error —
 // the columns, the legend and the scan are untouched.
 import { paintObjects, layoutTables } from './objectCanvas'
-import { renderTables } from './objectTableDom'
+import { renderTables, fitFactor, applyFit, TABLES_FIT } from './objectTableDom'
+import { setPaneScaled } from './paneFitNotice'
 
 const noop = () => {}
+
+/** ⭐ THE PHONE TIER, from the one place the app defines it (`breakpoints.js`
+ *  BP.phone = 640). R-R applies at this tier and no other. */
+const PHONE_MAX = 640
+
+/** Both side margins the adapter reserves — `TABLE_MARGIN` on each side. */
+const TABLE_MARGIN_TOTAL = 16
 
 /**
  * @param {object} host
@@ -142,6 +150,40 @@ export function createObjectLayer(host) {
       lastRightInset = wantRight
       tableRoot.style.right = `${wantRight}px`
     }
+    // ⭐⭐ R-R — FIT THE TABLES TO THE PLOT, PHONE TIER ONLY.
+    //
+    // ⛔ THE TIER IS THE BREAKPOINT, NOT THE PLOT WIDTH. A narrow WIDGET on a
+    // desktop is not a phone, and scaling an author's text there would be a
+    // change nobody asked for; the ruling says phone only and `BP.phone` is the
+    // one place that number lives.
+    // ⛔ AND IT MEASURES ONLY WHAT IT MUST. `scrollWidth` is the table's natural
+    // width — what it WANTS — which cannot be derived from the model, so it is
+    // read here in the layer rather than in the adapter, whose freedom from
+    // measurement is what keeps a resize free.
+    // ⛔ A NODE THAT CANNOT BE QUERIED CANNOT BE MEASURED, AND SAYS SO BY DOING
+    // NOTHING. Every real browser document has `querySelectorAll`; a hand-rolled
+    // host stub does not, and the honest answer there is "no measurement", not a
+    // `scaled: false` that would publish a claim about a viewport nobody read.
+    // ⚠️ Deliberately NOT a `typeof document` check — the layer is handed its
+    // document by the host and must ask THAT node, not a global.
+    const plotWidth = Math.max(0, w - wantRight - TABLE_MARGIN_TOTAL)
+    const isPhone = (typeof window !== 'undefined' ? window.innerWidth : w) <= PHONE_MAX
+    const els = typeof tableRoot.querySelectorAll === 'function'
+      ? [...tableRoot.querySelectorAll('[data-uct-object-table]')]
+      : []
+    if (els.length) {
+      // ⚠️ MEASURED UNSCALED. `scrollWidth` on an already-scaled table reports the
+      // scaled width, so a second pass would compound the factor into nothing.
+      for (const el of els) el.style.transform = ''
+      const needed = els.map((el) => el.scrollWidth)
+      const fit = isPhone
+        ? fitFactor({ neededWidths: needed, plotWidth, floorPx: TABLES_FIT.floorPx })
+        : { factor: 1, wrap: false, scaled: false, widest: 0 }
+      applyFit(tableRoot, fit)
+      tableRoot.setAttribute('data-uct-tables-fit',
+        fit.scaled ? `${fit.factor.toFixed(3)}${fit.wrap ? ':wrap' : ''}` : 'none')
+      setPaneScaled(String((host.instanceId) || '1'), !!fit.scaled)
+    }
     const ctx = canvas.getContext ? canvas.getContext('2d') : null
     if (!ctx) return
     if (ctx.setTransform) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -242,6 +284,9 @@ export function createObjectLayer(host) {
       tables = []
       lastSig = ''
       tableStats = { tables: 0, cells: 0, skipped: 0 }
+      // ⛔ AND THE NOTICE GOES WITH IT. A disclosure about scaling that outlived
+      // the pane it described would be a sentence about nothing on screen.
+      setPaneScaled(String((host.instanceId) || '1'), false)
       try {
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas)
       } catch { noop() }

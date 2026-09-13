@@ -50,7 +50,9 @@
 // mean that deploy silently strips the sentences off drawings that keep drawing.
 // So the rule is: the flag decides whether a member can ATTACH one; nothing
 // decides whether an attached one discloses.
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { anyPaneScaled, onPaneScaleChange } from '../engine/paneFitNotice'
+import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
 import styles from './AttachedPineDisclosures.module.css'
@@ -147,10 +149,26 @@ export default function AttachedPineDisclosures({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings, registry, barsLoaded, generation],
   )
-  if (!rows.length) return null
+  // ⭐⭐ R-R — THE ONE DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT.
+  // Whether a table had to be scaled depends on the VIEWPORT, so it cannot ride
+  // on `meta.disclosures` with the alert and fold notes; the layer publishes the
+  // condition and this reads it. ⛔ The SENTENCE still comes from the manifest —
+  // `closedTable.json::_tables_fit.memberNote` — so the wording has one owner.
+  const [scaled, setScaled] = useState(() => anyPaneScaled())
+  useEffect(() => {
+    setScaled(anyPaneScaled())
+    return onPaneScaleChange(() => setScaled(anyPaneScaled()))
+  }, [])
+
+  // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
+  // one fact about the screen, not two sentences.
+  const all = scaled && TABLES_FIT.memberNote
+    ? [...rows, { name: 'Tables', note: TABLES_FIT.memberNote }]
+    : rows
+  if (!all.length) return null
   return (
     <ul data-testid="pine-attached-disclosures" className={styles.notes}>
-      {rows.map((n) => <li key={`${n.name}::${n.note}`}>{n.note}</li>)}
+      {all.map((n) => <li key={`${n.name}::${n.note}`}>{n.note}</li>)}
     </ul>
   )
 }
