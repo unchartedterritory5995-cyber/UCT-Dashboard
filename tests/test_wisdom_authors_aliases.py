@@ -118,17 +118,25 @@ def test_ambiguous_beats_alias_even_if_the_data_is_wrong(monkeypatch):
 
 
 def test_the_rail_can_fire(monkeypatch):
-    """Plant the exact F1 defect and prove the checks above would catch it."""
+    """Plant the exact F1 defect and prove the checks above would catch it.
+
+    ⚰️ This asserted `author_for_alias("Patrick") == "tsdr"` until the owner's drift #4 ruling
+    ("deleted, not just disabled") moved the guard from the DATA into the RESOLVER. The plant
+    no longer restores the defect, and that is the improvement — so the assertion is now the
+    opposite one. Re-adding a bare given name is caught twice over: the resolver refuses it at
+    runtime, and the declaration check names it here."""
     doc = json.loads(json.dumps(authors.load_authors()))
     doc["ambiguous_speaker_labels"] = [e for e in doc["ambiguous_speaker_labels"]
                                        if e["label"] != "Patrick"]
     doc["authors"][0]["aliases"].append("Patrick")
     monkeypatch.setattr(authors, "load_authors", lambda: doc)
 
-    assert authors.author_for_alias("Patrick") == "tsdr"          # the defect is back...
+    # 1. the capability is gone: the data-only plant does NOT restore the defect
+    assert authors.author_for_alias("Patrick") is None
+    # 2. and the declaration check still fires by name, so the mistake is visible, not merely inert
     declared = doc.get("single_token_aliases_reviewed", {}).get("aliases", {})
-    assert "Patrick" not in declared                              # ...and undeclared, so the
-    undeclared = [a for _, a in _all_aliases(doc)                 # declaration check would red
+    assert "Patrick" not in declared
+    undeclared = [a for _, a in _all_aliases(doc)
                   if SINGLE_TOKEN_ALPHA.match(a) and a not in declared]
     assert "Patrick" in undeclared
 
@@ -152,3 +160,69 @@ def test_a_real_guest_is_still_a_guest():
 
 def test_an_attendee_is_still_nobody():
     assert speakers.normalize_speaker("Dave Wilson", SESSION_TITLE, None) is None
+
+
+# ── the capability, not just the instance (owner ruling, drift #4) ───────────
+
+def test_a_bare_given_name_cannot_resolve_even_if_put_back_into_an_alias_list(monkeypatch):
+    """⛔ 'Deleted, not just disabled.' Removing 'Patrick' from the alias list fixed the
+    INSTANCE. This proves the DOOR is shut: re-committing the exact mistake — adding a bare
+    given name back as an alias — resolves to nobody at runtime, not to a CALL author."""
+    doc = json.loads(json.dumps(authors.load_authors()))
+    doc["ambiguous_speaker_labels"] = [e for e in doc["ambiguous_speaker_labels"]
+                                       if e["label"] != "Patrick"]
+    doc["authors"][0]["aliases"].append("Patrick")      # the mistake, re-committed
+    monkeypatch.setattr(authors, "load_authors", lambda: doc)
+
+    assert authors.author_for_alias("Patrick") is None
+    assert authors.author_for_alias("Blake") is None
+    assert authors.author_for_alias("Dave") is None
+    # and the control: a DECLARED single-token alias is unaffected
+    assert authors.author_for_alias("Brac") == "bracco"
+
+
+def test_a_session_with_an_attendee_named_patrick_yields_no_tsdr_attribution():
+    """The owner's regression case, drift #4(c), written as a SESSION rather than a unit
+    assertion: a live session in which a member happens to be called Patrick must produce
+    zero records attributed to the owner from that member's speech.
+
+    ⚠️ Scope, stated rather than implied: the record WRITER is S-D and is not merged, so this
+    asserts at the layer that decides authorship — every speaker label in the session. A
+    record cannot be attributed to tsdr unless this function returns 'tsdr' for its cue, so
+    zero tsdr here is zero tsdr records from those cues. The end-to-end assertion over
+    written rows belongs to S-D's suite and is named in the ledger as owed."""
+    title = "Live Trading Session — September 12, 2026"
+    description = "Patrick (TSDR) on the open with the desk"
+    # A realistic Zoom cue list: the host, two teammates, and THREE attendees whose display
+    # names collide with author first names.
+    session_cues = [
+        ("Patrick (TSDR)", "I'm taking NVDA here above 182"),          # the owner, genuinely
+        ("Patrick", "should I be buying this dip in TSLA?"),           # an ATTENDEE
+        ("patrick", "same question for AMD"),                          # ...and casing variants
+        ("  PATRICK  ", "and MSFT?"),
+        ("Blake", "what's your stop on that"),                         # an ATTENDEE, not Bracco
+        ("Manav", "thanks guys"),                                      # an ATTENDEE, not Manrav
+        ("Bracco", "I'm long SKHY from yesterday"),                    # a teammate, genuinely
+        ("Uncharted Territory", "watch 4,600 on the index"),           # the SHARED host account
+        ("Dave Wilson", "good morning"),                               # an ordinary attendee
+    ]
+    resolved = [(label, speakers.normalize_speaker(label, title, description))
+                for label, _ in session_cues]
+
+    tsdr_cues = [label for label, author in resolved if author == "tsdr"]
+    assert tsdr_cues == ["Patrick (TSDR)"], (
+        f"only the owner's own Zoom label may author as tsdr; got {tsdr_cues}")
+
+    by_label = dict(resolved)
+    for attendee in ("Patrick", "patrick", "  PATRICK  ", "Blake", "Manav"):
+        assert by_label[attendee] == authors.TEAM_UNRESOLVED, (
+            f"attendee {attendee!r} resolved to {by_label[attendee]!r}")
+    assert by_label["Uncharted Territory"] == authors.TEAM_UNRESOLVED
+    assert by_label["Dave Wilson"] is None                  # an attendee: no name is stored
+    # Controls: the real people are still resolvable, or this test passes by breaking everything.
+    assert by_label["Bracco"] == "bracco"
+    assert by_label["Patrick (TSDR)"] == "tsdr"
+    # And nothing in this session may author a CALL except a real CALL author.
+    authored = {a for a in by_label.values() if a and not str(a).startswith(speakers.GUEST_PREFIX)}
+    assert authored - {authors.TEAM_UNRESOLVED} <= authors.call_authors()
+    assert authors.TEAM_UNRESOLVED not in authors.call_authors()

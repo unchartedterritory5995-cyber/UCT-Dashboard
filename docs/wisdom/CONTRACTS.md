@@ -466,3 +466,59 @@ A run counts only with its totals line. Never `pytest tests/` unscoped. One test
 3. Master merges: S-B → S-A → S-C → S-D → S-E → S-F, one at a time, each after `git fetch` + rebase, the flow-worker coverage
    classification, a check of other programs' in-flight merges, and outside 17:50–18:30 ET and ±3 min of an odd ET hour;
    the next waits for Railway `web` SUCCESS verified by `/api/health` uptime reset.
+
+---
+
+## 8b. Owner rulings at checkpoint 2 (2026-09-13) — binding on every stream
+
+Given after merge 1 (S-B → master `e5dfb23fb`). §8a still stands; these are additional.
+
+1. **A stream branch is brought current BEFORE its reviewer runs.** Every stream merges
+   `feat/wisdom-loop` into itself first, so **no reviewer ever verdicts a branch that predates an
+   owner ruling**. ⚰️ Written because S-B's reviewer could not quote §8a — the branch forked before
+   §8a existed — and merging that tip alone would have landed an `authors.json` on master in which
+   "Uncharted Territory" was still an alias of TSDR, the very thing §8a.2 reverses.
+
+2. **A data change and its code path ship in the SAME commit.** ⚰️ §8a.2 was first applied to the
+   data alone: moving the shared host label out of `aliases` stopped it resolving to TSDR and
+   started it resolving to **`guest:uncharted_territory`** — the resolver invented a person. A
+   ruling applied to one side of a data/code pair is not applied.
+   **Reviewer checklist item, mandatory on every stream:** *does the resolver invent an entity when
+   a label is unmapped?* The answer must be **no**. Unmapped means `unresolved`, never a new person.
+
+3. **The first-name attribution path is DELETED, not disabled.** A one-word alphabetic label can be
+   matched to an author only if it is declared in `authors.json` `single_token_aliases_reviewed`
+   with a reason; `core/authors.author_for_alias` enforces this at runtime, so re-adding a bare
+   given name to an alias list resolves to **nobody**, not to a CALL author. Removing the three
+   names fixed the instance; this closes the door.
+
+4. **Every guard carries a test that fails when the guard is removed** — the four import-ban rails
+   and the R2 test-isolation guard, and anything added later. `tests/test_wisdom_guard_mutation.py`
+   neuters each guard in-process and asserts the catch stops, with a CONTROL proving the plant is
+   real first. A mutation proof run by hand is a claim about a moment; the guard can be weakened the
+   next day and the old proof still reads true.
+
+5. **Re-measure "behind master" and sync `feat/wisdom-loop` IMMEDIATELY BEFORE every Wisdom master
+   merge**, not at checkpoint time — master moves under this program from the other workstreams
+   (three merges during merge 1's gate alone). **Every ledger row records the master SHA it merged
+   onto.**
+
+6. **G-030 (the 50SMA contradiction): do NOT write the proposed rule.** "The 50SMA is an entry
+   anchor only with confluence" is a **trading-philosophy ruling only the owner authors**. It is not
+   a PRINCIPLE record and not a vocabulary note. The pair stays in the Contradictions queue with the
+   analysis attached **as a recommendation, not a record**, until the owner states the rule in his
+   own words. G-030 stays non-canonical.
+
+7. **G-035 and G-052 default state until the owner answers:** speaker `team-unresolved`, **MENTION
+   only**, excluded from the UCT-see rate, and excluded from every publish path.
+
+8. **Follow-up findings close with the stream that owns them.** F6 (`ticker_inferred` has a column
+   but no writer binds the bar-range pass to it — the §8a.4 "inferred from adjacent line" rule)
+   **must close in S-D before S-D merges**. F7–F10 close before the stream that owns each merges.
+   F4 (the Substack rail covers imports and two path strings, not `subprocess`/HTTP) **stays open
+   with a ledger note until any Substack-adjacent surface exists**.
+
+9. **The D16a property test's member-facing half re-runs at the S-F merge.** It is SKIPPED today
+   because `api.services.wisdom.publish.adapters` does not exist, so the half that covers
+   member-facing OUTPUT has never executed. **The Definition of Done line for the import-ban rails
+   is not checked until it passes un-skipped.**
