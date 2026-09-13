@@ -70,7 +70,8 @@ def _close(row) -> float:
         book_value = _dual.UNAVAILABLE
     else:
         book_value = row[pos]
-    return float(_dual.observe(CLOSE_METRIC, legacy, book_value))
+    return float(_dual.observe(CLOSE_METRIC, legacy, book_value,
+                               reader="ticker_returns._close"))
 
 
 def _returns_for(ticker: str, anchor_ymd: int) -> dict | None:
