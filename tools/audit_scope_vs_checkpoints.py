@@ -91,6 +91,9 @@ DECLARED: list[tuple] = [
      "Left as granted, UNBUILT; the extraction is deferred as F-S5-1"),
     ("s5-persistence-user-state", "line 2", ["CP2"], "table", OK,
      "signed 2026-09-13 against §4's CP2 row verbatim"),
+    ("s6-personalization", "line 1", ["CP1"], "table", OK,
+     "written 2026-09-13 — S6 had no packet at all. CP2–CP5 are SPEC-BLOCKED on four "
+     "owner rulings the spec says it cannot make, each named in the §4 row"),
     ("s7-catalyst-match", "line 1", ["CP1", "CP2"], "headings+bold", OK, ""),
     ("s7-catalyst-match", "line 2", ["CP3"], "headings+bold", OK, ""),
     ("s7-event-proximity", "line 1", ["CP1", "CP2"], "headings", OK, ""),

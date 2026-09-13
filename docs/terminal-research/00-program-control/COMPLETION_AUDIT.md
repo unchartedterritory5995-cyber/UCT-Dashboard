@@ -84,7 +84,7 @@ blocker class.
 | **S3** Entity Master | **SHIPPED** CP1–8 `ed6b1f041` | entity-master-spec §all | ⚠️ its gate packet is **UNSIGNED** despite the system being built — a bookkeeping gap, not a build gap | **DONE** (packet noted in §2) |
 | **S4** Context Bus | **CP1 MERGED** `76c62c494` | context-bus-spec §3.1 — one bus, both contexts as thin adapters, every consumer unchanged | CP1 is the divergence DETECTOR only; the bus adoption itself is CP2+ | **BLOCKED-SPEC-READ** — CP2 line unsigned |
 | **S5** Persistence & User State | spec + gate written, **UNSIGNED** | persistence-user-state-spec — a typed store for list/preference documents | no CP1 authorized | **BLOCKED-SPEC-READ** |
-| **S6** Personalization | PRD + spec written, **NO GATE** | personalization-spec | no packet exists | **BLOCKED-SPEC-READ** (packet owed first) |
+| **S6** Personalization | ✅ packet written + **CP1 built** `12b6c3946` | personalization-spec | CP2–CP5 need four owner rulings the spec says it cannot make | **BLOCKED-OWNER** — SET-vs-WEIGHTED-SET, derive-vs-mirror, `personal_edge`, paid-gating |
 | **S7** Alerts | **8 of 8 types registered**; 4 live, 4 dark CP1–CP2 | alerts-monitoring-spec §5 — every type registered, comparable, and flipped | four types need CP3 (projection) then a flip | **BLOCKED-DEPENDENCY** — own CP3s |
 | **S8** Provenance & Freshness | SHIPPED | provenance-freshness-spec | full `<Cited>` still D2-gated | **BLOCKED-DEPENDENCY** — D2 |
 | **S9** Entitlements | not built, **NO GATE** | — | owner-bound | **BLOCKED-OWNER** — OI-03(a)(b), OI-12 |
@@ -412,7 +412,8 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | — | A-series re-sort + A9 CP1 | — | ✅ **RE-SORTED. A9 CP1 is NOT BUILDABLE** — see below | — |
 | 6 | **catalyst-match CP3** | `3ee80dc13` | ✅ **DONE** | **`4fa45489f`** |
 | 7 | **regime-change CP3** | `9f0575340` | ✅ **DONE** | **`506eeee6d`** |
-| 8 | **S6 CP1** — ⚠️ reconcile first: no packet exists. Write from the S6 PRD/spec, sign, build. **If the PRD/spec do not support a CP1 scope, say so and mark SPEC-BLOCKED.** | — | ⬜ | — |
+| 8 | **S6 CP1** — the source-vocabulary rail | **`b3073c67c`** signed 2026-09-13 | ✅ **DONE** | **`12b6c3946`** |
+| — | S6 **CP2–CP5** | packet written, unsigned | ⛔ **SPEC-BLOCKED** — four owner rulings, each named in §4: SET-vs-WEIGHTED-SET (SPEC §2), derive-vs-mirror (§5.1·2), `personal_edge` (§5.1·3), paid-gating | — |
 | — | `indicator-condition` CP3 | `148af5293` | ⬜ queued after D2 §9.5 CP1 | — |
 | 9 | **D2 §9.5 CP1** — the indicator axis | ⚠️ SIGNED by the owner 2026-09-13 | ⬜ **next after regime-change; must not slip a third session** | — |
 | 10 | **S2 CP1** — chord table + collision rail | **`7ae6d9ca2`** signed 2026-09-13 | ⬜ last in the queue | — |

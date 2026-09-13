@@ -609,6 +609,55 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## S6 CP1 — MERGED `12b6c3946`. Fingerprint `b3073c67c`. **The packet, and the one buildable row.**
+
+**S6 had NO packet by instruction** (SPEC-S6 §7). It has one now, and **only CP1 is signed** —
+because the spec stops itself: §2 ends *"it is a ruling, and the spec stops here until it is made."*
+
+⭐ **THE TEST FOR A RULING-INDEPENDENT CHECKPOINT, AND CP1 PASSES IT.** The SET-vs-WEIGHTED-SET
+ruling decides what a resolver RETURNS; it does not change the fact that three places today
+enumerate the same four source names by hand. Under **SET** the rail still holds; under **WEIGHTED
+SET** the rail is the precondition, because §5 promises the migration *"can be provably a no-op"*
+and nothing could prove that — there was no artifact saying what the copies agreed on.
+⛔ **A checkpoint that is only correct under one answer is that answer smuggled in as engineering.**
+
+### ⛔⛔ THE SPEC COUNTED TWO IMPLEMENTATIONS. MEASURED, IT IS THREE.
+
+| # | where | how it is written |
+|---|---|---|
+| 1 | `get_user_ticker_sets` | the four dict KEYS it returns — **the authority** |
+| 2 | `Calendar.jsx` `ALL_SOURCES` | a hand-typed array literal |
+| 3 | `importance.js` `impEff` | a hand-typed if-chain (+3.0 / +2.0 / +1.0) |
+
+**A fifth server source is invisible TWICE:** `ALL_SOURCES` does not contain it, so the picker
+cannot offer it and `_sources` never carries it; and `impEff` does not name it, so it scores a boost
+of **exactly 0.0** — the member's strongest new signal ranked as though it were not theirs. Neither
+fails loudly anywhere. `importance.js` says it *"mirrors the my-sets join"* — **a comment claiming
+agreement is a record that nobody wired them together.**
+
+### ⛔ THE RAIL'S FIRST RUN PRODUCED A FALSE FINDING, AND IT WAS MINE
+
+The `impEff` probe's character class was `[a-z_]+` — **it excludes digits**, so `uct20` did not match
+and the probe reported a THREE-name client vocabulary against the server's four. That reads exactly
+like the rail's own headline defect, and it was **the instrument describing itself**.
+
+⭐ **The NON-VACUITY CONTROL caught it first** — *"found 3, expected >= 4"* — before the comparison
+could publish it. That is the entire reason that control exists, and it earned its place on the
+first run of the file it guards.
+
+Two further controls keep the probes honest: `impEff` is read from the **function body** (a
+whole-file scan would pass while the function had lost a branch) and `ALL_SOURCES` from its
+**declaration** (the name appears at four sites). `all_mine` is excluded ONCE with the reason —
+treating the union as a source would make every comparison disagree by one name, and the obvious
+"fix" would give the union its own boost and double-count every ticker.
+
+**Two mutations, restored by EDIT** (a dropped source · a fifth server source). **10 tests green.**
+The three copies **do** currently agree, and that agreement is now the artifact CP2 can diff against.
+
+⛔ **CP2–CP5 ARE SPEC-BLOCKED, NOT UNSIGNED** — a distinction the audit needs: an unsigned
+checkpoint waits on the owner reading the packet; a spec-blocked one waits on a product ruling the
+spec says it cannot make. **S6 moves BLOCKED-SPEC-READ → BLOCKED-OWNER.**
+
 ## ⭐⭐ ALL FOUR NEW DARK SWEEPS ARMED — owner-authorized, 2026-09-13 16:00:29 UTC
 
 **One pass, one rebuild.** `POSITION_RISK` · `SCAN_MEMBERSHIP` · `CATALYST_MATCH` · `REGIME_CHANGE`
