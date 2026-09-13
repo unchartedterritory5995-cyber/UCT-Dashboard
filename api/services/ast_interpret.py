@@ -381,6 +381,16 @@ REFUSALS: Mapping[str, str] = {
     "interpret:steps": (
         "warming this running value up over these bars would take more steps than "
         "the engine will spend"),
+    # ⭐⭐ R-K (owner ruling, 2026-09-12). ``BIND_TIME_NODE_TYPES`` above already
+    # says these are "settled by the fold before anything computes, and refused
+    # by ``interpret`` if one ever reaches it" -- and until today the refusal it
+    # promised was ``interpret:node -- unknown node type 'textop', legal types
+    # are ... str, symtext, textop``: a sentence naming the type inside its own
+    # list of accepted types. The declaration was right and the branch was
+    # missing, in BOTH lanes, which is why this key lands in both.
+    "interpret:bind-time-text": (
+        "a value that a symbol settles reached the evaluator unsettled — the "
+        "binding did not supply the symbol field it names"),
 }
 
 #: The ceiling on ``bars x warmup`` for one recurrence -- the ONE cost in this
@@ -2311,7 +2321,13 @@ def _flatten(root: Any) -> List[dict]:
         node = stack.pop()
         _assert_node(node)
         order.append(node)
-        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live"):
+        # ⭐ ``textop`` CARRIES ARGS TOO -- added with R-K, mirroring
+        # ``interpret.js::flatten``. Leaving it out meant a malformed operand
+        # inside a bind-time text question was never asserted, so the one node
+        # type most likely to arrive UNFOLDED was the one whose children nothing
+        # checked.
+        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live",
+                            "textop"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -2320,6 +2336,30 @@ def _flatten(root: Any) -> List[dict]:
                 stack.append(arg)
     order.reverse()          # a reversed pre-order puts every child before its parent
     return order
+
+
+def _bind_time_fields_in(root: Any) -> List[str]:
+    """Every ``syminfo.*`` field a bind-time text subtree needs, sorted.
+
+    ⭐ THE REFUSAL'S WHOLE VALUE IS THIS LIST. ``str.contains(syminfo.tickerid,
+    "/")`` and ``str.contains(syminfo.ticker, "/")`` fail for DIFFERENT reasons
+    -- ``ticker`` is the string our own store is keyed by and always resolvable,
+    while ``tickerid`` needs a witnessed exchange spelling -- so a refusal that
+    named only the node type would send a member to rewrite a script that is
+    fine. Mirrors ``interpret.js::bindTimeFieldsIn``.
+    """
+    out: set = set()
+    stack = [root]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, Mapping):
+            continue
+        if n.get("type") == "symtext" and isinstance(n.get("name"), str):
+            out.add(f"syminfo.{n['name']}")
+        args = n.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return sorted(out)
 
 
 def symbols_named(ast: Any) -> tuple:
@@ -3786,6 +3826,28 @@ def interpret(ast: Any, bars: List[dict],
             if n["name"] in _BAR_FN:
                 return _bar_column(n["name"], bars, args, length)
             return FN[n["name"]](*args)
+        if kind in BIND_TIME_NODE_TYPES:
+            # ⭐⭐ R-K -- BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
+            #
+            # These are settled before anything computes: the fold replaces the
+            # whole subtree with the number it decides. Reaching here means the
+            # fold could not decide it -- the text fold raised on a ``syminfo.*``
+            # field the binding did not supply -- so the refusal names THAT
+            # FIELD, which is what a member can act on, rather than the node
+            # type, which they cannot.
+            #
+            # ⛔ AND IT REFUSES RATHER THAN EVALUATING. Text lives only inside the
+            # fold pass by design; an evaluator arm that started answering text
+            # questions would be a second value system in every walk that prices,
+            # lints and evaluates a tree.
+            fields = _bind_time_fields_in(n)
+            return _refuse(
+                "interpret:bind-time-text",
+                ("this value is decided when a symbol is chosen, and this "
+                 f"binding did not settle {', '.join(fields)}")
+                if fields else
+                ("a bind-time text value survived the fold with no symbol field "
+                 "to blame — the fold ran without constants, or did not run"))
         # ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. Written as a refusal rather
         # than a `return NaN` because a tree nobody authored must refuse, not draw
         # a blank line that reads exactly like a warmup.

@@ -777,6 +777,18 @@ describe('the refusals', () => {
         Array.from({ length: Math.floor(MAX_RECURRENCE_STEPS / 500) + 10 },
           (_, i) => ({ o: 1, h: 2, l: 0.5, c: 1 + (i % 7) * 0.1, v: 1000 })),
         {}),
+      // ⭐⭐ R-K (2026-09-12). The shape T5 measured 18 times in the member pane:
+      // `str.contains(syminfo.tickerid, "/")`, unfolded because the chart lane
+      // hands the fold a bare ticker STRING while `symbolConstants` takes an
+      // object. It used to come out as `interpret:node — unknown node type
+      // "textop"`, in a message listing `textop` among the legal types.
+      // `interpret.bindTimeText.test.js` is where the FIELD-NAMING half is
+      // proved; this table only requires that the guard can fire at all.
+      'interpret:bind-time-text': () => interpret(
+        { type: 'textop', name: 'contains', args: [
+          { type: 'symtext', name: 'tickerid' },
+          { type: 'str', value: '/' }] },
+        BARS, {}),
     }
     expect(Object.keys(triggers).sort()).toEqual(Object.keys(REFUSALS).sort())
     for (const [guard, fire] of Object.entries(triggers)) {

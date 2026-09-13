@@ -127,6 +127,19 @@ export const REFUSALS = Object.freeze({
   'interpret:timeframe': 'a higher-timeframe read names a timeframe this engine cannot serve from the bars it was given',
   'interpret:symbol': 'a read of another instrument sits where this engine cannot align it to the bars in hand',
   'interpret:steps': 'warming this running value up over these bars would take more steps than the engine will spend',
+  // ⭐⭐ R-K (owner ruling, 2026-09-12). A `str`/`symtext`/`textop` is settled by
+  // the BINDING, before anything computes — `bind.js::foldBound` replaces the
+  // whole subtree with the number it decides. One reaching the evaluator means
+  // the binding could not settle it, and that is a statement about the SYMBOL,
+  // not about the tree.
+  //
+  // ⚰️ IT USED TO COME OUT AS `interpret:node — unknown node type "textop",
+  // legal types are … str, symtext, textop`: a refusal naming the type in its own
+  // list of accepted types. The same sentence-contradicts-the-branch defect
+  // `lint.js` fixed during R-G, one lane over, and it cost the member pane three
+  // of Volume v2's four series with a message that read like an engine bug.
+  'interpret:bind-time-text':
+    'a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names',
 })
 
 /** ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH — the mirror of
@@ -2163,8 +2176,13 @@ function flatten(root) {
     const node = stack.pop()
     assertNode(node)
     order.push(node)
+    // ⭐ `textop` CARRIES ARGS TOO — added with R-K. Leaving it out meant a
+    // malformed operand inside a bind-time text question was never asserted, so
+    // the one node type most likely to arrive UNFOLDED was the one whose
+    // children nothing checked.
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
-        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live') {
+        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live'
+        || node.type === 'textop') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -2173,6 +2191,27 @@ function flatten(root) {
   }
   order.reverse()          // a reversed pre-order puts every child before its parent
   return order
+}
+
+/** Every `syminfo.*` field a bind-time text subtree needs, sorted.
+ *
+ *  ⭐ THE REFUSAL'S WHOLE VALUE IS THIS LIST. `str.contains(syminfo.tickerid,
+ *  "/")` and `str.contains(syminfo.ticker, "/")` fail for DIFFERENT reasons —
+ *  `ticker` is the string our own store is keyed by and always resolvable, while
+ *  `tickerid` needs a witnessed exchange spelling — so a refusal that named only
+ *  the node type would send a member to rewrite a script that is fine.
+ *
+ *  ⛔ ITERATIVE, like `flatten`, and for the same reason. */
+function bindTimeFieldsIn(root) {
+  const out = new Set()
+  const stack = [root]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'symtext' && typeof n.name === 'string') out.add(`syminfo.${n.name}`)
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return [...out].sort()
 }
 
 function assertNode(node) {
@@ -3107,12 +3146,37 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
         return FN[n.name](...args)
       }
+      case 'str':
+      case 'symtext':
+      case 'textop': {
+        // ⭐⭐ R-K — BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
+        //
+        // These three are settled before anything computes: `bind.js::foldBound`
+        // folds a `textop` WHEREVER IT SITS and replaces the subtree with the
+        // number it decides. Reaching here means the fold could not decide it —
+        // `foldText` threw `NotFoldable` naming a `syminfo.*` field the binding
+        // did not supply — so the honest refusal names THAT FIELD, which is what
+        // a member can act on, rather than the node type, which they cannot.
+        //
+        // ⛔ AND IT REFUSES RATHER THAN EVALUATING. Text lives only inside the
+        // fold pass, by design: `bind.js` is explicit that nothing there returns
+        // a string to a caller, because a second value system in every walk that
+        // prices, lints and evaluates a tree is the cost the closed table exists
+        // to avoid. An evaluator arm that started answering text questions would
+        // be exactly that second system.
+        const fields = bindTimeFieldsIn(n)
+        return refuse('interpret:bind-time-text', fields.length
+          ? `this value is decided when a symbol is chosen, and this binding did not settle `
+            + `${fields.join(', ')}`
+          : `a bind-time text value survived the fold with no symbol field to blame — `
+            + `the fold ran without constants, or did not run`)
+      }
       default:
         // ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. `assertNode` above already
-        // refuses anything outside the four types, so this is unreachable while
-        // the two agree — and it is written as a refusal rather than a `return
-        // NaN` because a tree nobody authored must refuse, not draw a blank line
-        // that reads exactly like a warmup.
+        // refuses anything outside the declared types, so this is unreachable
+        // while the two agree — and it is written as a refusal rather than a
+        // `return NaN` because a tree nobody authored must refuse, not draw a
+        // blank line that reads exactly like a warmup.
         return refuse('interpret:node',
           `unknown node type ${JSON.stringify(n.type)} — legal types are ${NODE_TYPES.join(', ')}`)
     }
