@@ -294,7 +294,9 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | # | unit | authorized | state | SHA |
 |---|---|---|---|---|
 | 1 | **D3 CP1** — ratification rail, no runtime | `00ebb5e80` | ✅ **DONE** | **`302f99e8e`** |
-| 2 | **D4 CP1** — the derived per-set-key rail | `40caca541` | ⬜ **ATTEMPTED, NOT MERGED** — the detector is not trustworthy yet; see below | — |
+| 2 | **D4 CP1** — declared manifest + existence rail | `40caca541` | ✅ **DONE** | **`f2a2a68a6`** |
+| 2b | **D4 CP2** — adopter 1, per-ticker keying | `40caca541` | ✅ **DONE** | **`388cad07c`** |
+| 2c | **D4 CP3** — adopter 2, theme/groups, IN CLOSURE | `40caca541` | ⏸ **HOLDS for 16:05 ET** — BEHAVIOUR-CHANGING, needs a bump; the weekend window closed at Mon 09:00 | — |
 | 3 | **S5 CP1** — extract Notebook's pattern, Notebook unchanged | `37e1823a6` | ⬜ | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
@@ -314,43 +316,38 @@ time. Anything in flow-worker's closure that would strand waits for **16:05 ET o
 marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
 merge, and record the reason here.
 
-### Unit 2 — D4 CP1 · ⛔ ATTEMPTED, NOT MERGED. Nothing is on master.
+### Unit 2 — D4 · CP1 ✅ `f2a2a68a6` · CP2 ✅ `388cad07c` · CP3 ⏸ holds
 
-✅ **THE SCOPE CONFLICT IS RESOLVED.** The owner re-numbered the packet 2026-09-13 and signed
-three lines at fingerprint **`40caca541`**: CP1 the derived rail (no product code), CP2 adopter 1
-`watchlist_performance.py` with the `wl_perf` key fix, CP3 adopter 2 `theme_performance`+`groups`
-with its classification **pre-declared BEHAVIOUR-CHANGING**. `cache.py` is in no checkpoint.
+**CP1 — the declared manifest.** 12 rows across the six SPEC §3.4 modules, TEXT anchors (not line
+numbers — `watchlist_performance`'s cache line moved 47→48 between writing and first run). 26
+tests, 2 mutations RED. Tests only, no closure.
 
-⛔ **THE RAIL WAS BUILT AND IS NOT TRUSTWORTHY, SO IT WAS NOT MERGED.** The working copy is kept
-at `scratchpad/d4cp1/` and the repo tree is clean — **nothing partial is on master.**
+⭐ **One row earns its place by NOT being a cache key:** `live_prices`' per-entity
+`cache.get(_px_key(tk))`. It is what makes the set key above it legitimate — §2.4 permits a set
+key as a fast path over a per-entity tier and forbids it as the only cache. Delete that line and
+`live_prices` silently becomes the anti-pattern; the rail fails by name.
 
-**Five defects in my own detector, each caught by the rail's own controls, in order:**
+⛔ **The rail states what it CANNOT do** — a new per-set key is invisible to it — and a test
+asserts the statement stays. That is precisely the claim the derived detector could not make.
 
-| # | defect | caught by |
-|---|---|---|
-| 1 | `ROOT.rglob("api/**/*.py")` matches nothing — `rglob` already recurses | the non-vacuity control (scan returned **0** across six known modules) |
-| 2 | read only the ARGUMENT expression; every real site assigns the key to a local first and passes a bare Name | still 0 |
-| 3 | `_KEYED = {"get","set",…}` matched `dict.get`, `session.get` — six unrelated modules reported as undeclared cache sites | the declaration list becoming absurd |
-| 4 | one assignment hop was not enough — `live_prices` builds the key TWO hops back, so **the one site the spec holds up as CORRECT was the one the detector could not see** | its own declared-site test |
-| 5 | the assignment map was MODULE-WIDE, so a `key` built from a join in one function matched a `key` in another | two false positives in `api/main.py`, `massive.py` |
+**CP2 — adopter 1.** Per-entity tier under the kept fast path; completeness moved inside the loop
+so a failed ticker carries its own 30s TTL and its peers keep 300s. Snapshot-identity asserted.
+10 tests, 2 mutations RED. **In-pod verified:** `_ticker_key` present, `wl_returns::NVDA::2026-09-13`,
+TTLs 300/30, fast path kept, completeness inside the loop, `hit_rate()` → `None`.
 
-⛔ **The fix for #5 (resolve each call against its innermost enclosing scope) is O(n²) as written
-and hangs the suite.** That is where it stands.
+⛔ **MY OWN TEST FOUND A REAL DEFECT:** damaging the counter dict raised `KeyError` straight out
+of `get_batch_returns` — a broken counter WAS a gate on serving, which the scope forbids in as
+many words.
 
-⭐ **WHY THIS IS RECORDED RATHER THAN PUSHED THROUGH.** A rail whose population is wrong does not
-fail safe — it produces a DECLARATION LIST, and a false positive declared as a real cache site is
-a lie that outlives the session. Declaring `api/main.py` and `massive.py` to make it green would
-have been the fastest path and the worst outcome.
+⛔ **AND A MUTATION STAYED GREEN, WHICH WAS A GAP IN MY TESTS.** Flipping the per-ticker
+`complete=ok` to `complete=True` passed everything, because the retry test invalidates by hand
+rather than relying on the TTL. With `complete=True` a failed ticker's all-None row sits at the
+full 300s — the original defect wearing per-ticker keys. Closed with a spy test; the mutation now
+fails by name.
 
-**WHAT THE NEXT SESSION SHOULD DO:** replace the innermost-scope walk with a single pass that
-carries a parent stack (`ast.iter_child_nodes` with an explicit scope stack), so ownership is
-O(n). The rest of the rail — the six DECLARED rows, the four verdict classes, the anti-pattern
-rows naming their checkpoint, the CP1-touched-no-product-code assertion — is written and was
-passing 11 of 12.
-
-⚠️ **CP2 AND CP3 ARE NOT STARTED.** CP2 is outside flow-worker's closure and free to merge any
-time; CP3 is inside it, pre-declared BEHAVIOUR-CHANGING, and needs the weekend window with a
-marker bump — **the window closed at Monday 09:00 ET**, so CP3 now holds for 16:05 ET or later.
+**CP3 — HOLDS.** `theme_performance.py` + `groups.py` are IN flow-worker's closure, pre-declared
+BEHAVIOUR-CHANGING. The weekend window closed at Monday 09:00 ET, so it merges at **16:05 ET or
+later** with a marker bump and both artifacts.
 
 ---
 
