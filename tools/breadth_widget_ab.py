@@ -85,10 +85,57 @@ LAYOUT = {"widgets": [{"id": "ab-breadth", "type": "breadth",
 READY_JS = """() => {
   const t = (document.body.innerText || '').toUpperCase();
   if (/UNKNOWN WIDGET TYPE/.test(t)) return 'unknown-widget';
+  // ⛔ PRESENT IS NOT SHOWING. The cinematic intro plays on EVERY page load (~9.3s) and
+  // covers the whole viewport, while the widget sits behind it in the DOM — so innerText
+  // reads "ready" over a member who can see none of it. One 1280 capture caught the
+  // "Welcome, Member." overlay: text IDENTICAL, 100% of pixels different, and the pixel
+  // number was the only thing that noticed.
+  if (/CHARTING THE MARKET|NAVIGATE THE MARKET, EFFECTIVELY/.test(t)) return '';
   const caps = ['PRIMARY BREADTH', 'MA BREADTH', 'REGIME', 'SENTIMENT'];
   if (caps.every(c => t.includes(c))) return 'ok';
+  // ⛔ Below 640px `ChartsWorkspace` bypasses react-grid-layout entirely and renders
+  // `MobileWorkspace`, which understands CHART widgets only. The Breadth widget does
+  // not exist at phone width — that is the product, not a slow load, and calling it a
+  // timeout would report a missing surface as a broken harness.
+  if (/NO CHART IN THIS LAYOUT YET|OPEN A CHART/.test(t)) return 'mobile-workspace';
   if (/COULDN.T|DIDN.T LOAD|SESSION HAS ENDED|PART OF/.test(t)) return 'refused';
   return '';
+}"""
+
+
+# ⭐ THE VERDICT IS THE WIDGET'S OWN TEXT, NOT PIXELS.
+# A full-page pixel diff of this surface is a NOISY instrument: the gold UIcon shimmer and
+# the voice orb animate, so two captures of an unchanged page differ by ~2,200 scattered
+# pixels at 1280 regardless of the change under test. Reporting that as the answer would
+# either cry wolf or force a tolerance so loose it could hide a real label change.
+#
+# Every tile label, every value and every section caption is text, and text is exactly
+# what the registry controls — so an exact string comparison answers the actual question
+# and is immune to animation. The pixel diff stays as supporting evidence.
+#
+# The one wall-clock element (`Updated H:MM AM/PM ET`) is normalised: the two runs are
+# minutes apart by construction and that stamp is not the registry's doing.
+#
+# ⛔ SCOPED TO THE WIDGET, NOT THE BODY. Comparing whole-page text made the first run
+# report a difference of exactly one line: `9+`, the Community unread badge in the nav,
+# which arrived between the two captures. Any long-lived page chrome — a badge, a toast,
+# a coach mark — will eventually differ between two runs minutes apart, and a verdict
+# that reds on somebody else's notification is a verdict people stop reading.
+CONTENT_JS = r"""() => {
+  // Smallest element containing every section caption = the widget subtree. Derived at
+  // runtime because the workspace's classes are CSS-module hashes, and a selector built
+  // on a hash breaks on the next build.
+  const caps = ['PRIMARY BREADTH', 'MA BREADTH', 'REGIME', 'SENTIMENT'];
+  let best = null;
+  for (const el of document.querySelectorAll('div,section,article,main')) {
+    const up = (el.innerText || '').toUpperCase();
+    if (caps.every(c => up.includes(c))) {
+      if (!best || (el.innerText || '').length < (best.innerText || '').length) best = el;
+    }
+  }
+  const t = best ? (best.innerText || '') : '';
+  return t.replace(/Updated\s+\d{1,2}:\d{2}\s*(AM|PM)\s*ET/gi, 'Updated <clock> ET')
+          .split('\n').map(s => s.trim()).filter(Boolean).join('\n');
 }"""
 
 
@@ -231,7 +278,7 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
     say(f"  [{tag}] serving {dist.name} at {origin} (identity verified)")
     rec = {"tag": tag, "origin": origin, "shots": {}, "proxied": 0,
            "pref_writes_blocked": 0, "pref_write_keys": [], "auth_probe": None,
-           "ready": {}, "errors": []}
+           "ready": {}, "content": {}, "errors": []}
     try:
         with sync_playwright() as pw:
             rq = pw.request.new_context(base_url=BASE, user_agent=UA)
@@ -284,6 +331,16 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
                 page = ctx.new_page()
                 page.on("pageerror", lambda e: rec["errors"].append(scrub(e)[:200]))
                 page.goto(origin + "/charts", wait_until="commit", timeout=60000)
+                # The intro is skippable; click it rather than waiting out ~9.3s twice a
+                # width. Best-effort — if it is already gone, READY_JS settles anyway.
+                for label in ("Skip", "SKIP"):
+                    try:
+                        b = page.get_by_role("button", name=label, exact=True)
+                        if b.count() and b.first.is_visible():
+                            b.first.click()
+                            break
+                    except Exception:                           # noqa: BLE001
+                        pass
                 # Non-vacuity control: the rewrite must actually reach production AS
                 # the member. Without this the page can be a signed-out shell and
                 # every screenshot below would still be "captured".
@@ -297,6 +354,20 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
                         break
                     page.wait_for_timeout(500)
                 rec["ready"][str(width)] = state or "timeout"
+                # ⚰️ The first-visit "Meet Compass" coach mark is app chrome that sits over
+                # the lower right of the widget. It is DISMISSED before capture, not
+                # screenshotted into every frame — the same call `breadth_charts_rig`
+                # makes. The dismissal writes a preference, which this run blocks and
+                # counts like any other, so the account is still never written to.
+                try:
+                    got = page.get_by_role("button", name="Got it", exact=True)
+                    if got.count() and got.first.is_visible():
+                        got.first.click()
+                        rec.setdefault("notes", []).append(f"{width}px: coach mark dismissed")
+                        page.wait_for_timeout(400)
+                except Exception:                               # noqa: BLE001
+                    pass
+                rec["content"][str(width)] = page.evaluate(CONTENT_JS)
                 page.wait_for_timeout(2500)          # ECharts settle
                 out_dir.mkdir(parents=True, exist_ok=True)
                 shot = out_dir / f"charts-breadth__{width}__{tag}.png"
@@ -394,16 +465,19 @@ def main(argv=None) -> int:
     if not (email and password):
         say("INCONCLUSIVE: MEMBER_SMOKE_EMAIL / MEMBER_SMOKE_PASSWORD not set.")
         return 2
-    if subprocess.run(["git", "status", "--porcelain"], cwd=str(REPO),
-                      capture_output=True, text=True).stdout.strip():
-        say("INCONCLUSIVE: the worktree is dirty; the byte-swap harness refuses to run.")
-        return 2
 
     out_dir = (REPO / a.out) if not os.path.isabs(a.out) else pathlib.Path(a.out)
     work = pathlib.Path(a.work) if a.work else pathlib.Path(os.environ.get("TEMP", "/tmp")) / "uct_ab"
     work.mkdir(parents=True, exist_ok=True)
 
     if a.build_both:
+        # ⛔ Only the SWAP path needs a clean tree: it rewrites two tracked files and
+        # restores them by bytes. Gating the pre-built path on it too refused a re-run
+        # that touches nothing (and did, on the run that produced this comment).
+        if subprocess.run(["git", "status", "--porcelain"], cwd=str(REPO),
+                          capture_output=True, encoding="utf-8", errors="replace").stdout.strip():
+            say("INCONCLUSIVE: the worktree is dirty; the byte-swap harness refuses to run.")
+            return 2
         before_dist, after_dist = build_both(work)
     else:
         before_dist, after_dist = pathlib.Path(a.before_dist), pathlib.Path(a.after_dist)
@@ -423,24 +497,61 @@ def main(argv=None) -> int:
         if rec["pref_writes_blocked"] and any(k for k in rec["pref_write_keys"]):
             say(f"  [{tag}] blocked {rec['pref_writes_blocked']} preference write(s): {rec['pref_write_keys']}")
         for w, st in rec["ready"].items():
-            if st != "ok":
+            if st == "mobile-workspace":
+                say(f"  [{tag}] {w}px  NOT APPLICABLE — /charts renders MobileWorkspace at this "
+                    f"width; the Breadth widget has no phone surface to compare.")
+            elif st != "ok":
                 say(f"INCONCLUSIVE [{tag}] {w}px: widget never rendered ({st}).")
                 bad = True
     if bad:
         (out_dir / "ab-report.json").write_text(json.dumps(report, indent=2))
         return 2
 
-    worst = 0.0
+    # ── PRIMARY: the widget's own text, compared exactly ──────────────────────────
+    text_same, compared = True, 0
+    for w in sorted(WIDTHS):
+        states = {report["runs"][t_]["ready"].get(str(w)) for t_ in ("before", "after")}
+        if states == {"mobile-workspace"}:
+            report["diff"][str(w)] = {"not_applicable": "MobileWorkspace — no widget at this width"}
+            continue
+        cb = report["runs"]["before"]["content"].get(str(w), "")
+        ca = report["runs"]["after"]["content"].get(str(w), "")
+        if not cb or not ca:
+            say(f"  {w}px  TEXT INCONCLUSIVE — one side captured nothing")
+            (out_dir / "ab-report.json").write_text(json.dumps(report, indent=2))
+            return 2
+        compared += 1
+        same = cb == ca
+        text_same &= same
+        report["diff"][str(w)] = {"text_identical": same, "chars": len(ca)}
+        say(f"  {w}px  TEXT {'IDENTICAL' if same else 'DIFFERS'}  ({len(ca)} chars, "
+            f"{len(ca.splitlines())} lines)")
+        if not same:
+            import difflib
+            delta = [l for l in difflib.unified_diff(cb.splitlines(), ca.splitlines(),
+                                                     "before", "after", lineterm="", n=1)][:40]
+            (out_dir / f"text-diff__{w}.txt").write_text("\n".join(delta), encoding="utf-8")
+            for line in delta[:12]:
+                say("      " + line)
+
+    # ── SUPPORTING: pixels, reported but never the verdict (animated chrome) ───────
     for w in sorted(WIDTHS):
         b = out_dir / f"charts-breadth__{w}__before.png"
         f = out_dir / f"charts-breadth__{w}__after.png"
         pct, note = diff(b, f, out_dir / f"charts-breadth__{w}__diff.png")
-        report["diff"][str(w)] = {"pct": pct, "note": note, "verdict": verdict(pct, a.tolerance)}
-        say(f"  {w}px  {verdict(pct, a.tolerance):<12} {('%.4f%% pixels' % pct) if pct is not None else '—'}  ({note})")
-        worst = max(worst, pct or 0.0)
+        report["diff"].setdefault(str(w), {}).update({"pixel_pct": pct, "pixel_note": note})
+        say(f"  {w}px  pixels {('%.4f%%' % pct) if pct is not None else '—'} "
+            f"(supporting only — the orb and icon shimmer animate)  ({note})")
+
     (out_dir / "ab-report.json").write_text(json.dumps(report, indent=2))
     say(f"report → {out_dir / 'ab-report.json'}")
-    return 0 if worst <= a.tolerance else 1
+    if compared == 0:
+        # ⛔ "Nothing differed" over zero comparisons is not a pass.
+        say("INCONCLUSIVE: no width rendered the widget on both sides — nothing was compared.")
+        return 2
+    say("VERDICT: " + ("the /charts Breadth widget renders IDENTICAL text before and after"
+                       if text_same else "TEXT DIFFERS — a finding"))
+    return 0 if text_same else 1
 
 
 if __name__ == "__main__":
