@@ -173,6 +173,24 @@ fires only for one that has not. `put_immutable`, `get` and `list_prefix` all fu
 ⚠️ **Scope, stated rather than implied:** this is a *pytest* rail. A bare `python tools/...` run
 still reaches the live bucket, exactly as the conftest tripwire is a test-suite rail only.
 
+### Open, carried deliberately — the provenance-marker gap (owner ruling, checkpoint 3 §8c.3)
+
+**The audit that says "nothing reached the member-facing tables" is shape-based.** It searches for
+`wisdom:` provenance and the `G-0NN` record-id glob. A row published with **no marker at all** would
+not be caught by that shape. The owner accepted the empty `wisdom_publish_log` as *today's*
+argument — no adapter has run in any mode, not even a dark `would_publish` preview — and ruled the
+gap closed **structurally** rather than by argument:
+
+> Every Wisdom publish adapter (Part 5) writes a provenance marker on every write, and **a CI check
+> fails if any adapter code path can write to a consumer table without the marker.** Then the
+> shape-based audit becomes a real audit.
+
+**Ships with S-F2 publish.** Until then this note is the record that the audit's negative result
+rests on an argument rather than an enforced invariant. Also still unmeasured and NOT closed by that
+fix: four large non-target DBs (`bars.db` 25 GB, `darkpool.db`, `flow.db`, `auth.db`) and the four
+non-`web` Railway services — every publish target lives on `web`, so that is a coverage gap rather
+than a known hole.
+
 ### Drift #4 — the first-name attribution path, answered in full (owner ruling, checkpoint 2)
 
 The owner called this "the most dangerous finding in the program so far" and asked for four
