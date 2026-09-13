@@ -21,18 +21,23 @@
 // would pile every off-screen line onto the last visible bar and look like a
 // cluster the author never drew.
 //
-// ⭐⭐ TABLES ARE VIEWPORT-ANCHORED AND ARE DRAWN THAT WAY. Their position is
-// `top_right`, not a price and a time, so `layoutTables` gives a grid plus a PANE
-// FRACTION and `paintTables` places it against the pane's own corners. Forcing a
-// table into price/time coordinates is what the wave forbids; drawing it on a
-// pane-anchored overlay is not that — the canvas IS the viewport.
+// ⭐⭐ TABLES ARE VIEWPORT-ANCHORED AND ARE NO LONGER DRAWN HERE. Their position
+// is `top_right`, not a price and a time, so `layoutTables` (still below, still
+// the one authority for what the grid IS) gives a grid plus a PANE FRACTION —
+// and R2 step 6 gave that grid to `objectTableDom.js`, which builds a real
+// `<table>`. Read that file's header for the three reasons; the short one is
+// that a raster cannot carry a trailing space and the vendor comparison needs
+// the string. This file keeps the lines, labels, boxes and fills, which do live
+// in price/time and do belong on a canvas.
 //
 // ⚰️ AND FOR ONE ROUND OF EVIDENCE THEY WERE NOT DRAWN AT ALL. `layoutTables`
 // existed, was tested, and had no consumer: the live run reported `tables: 1`
 // beside `pixels: 0`, and the comment that used to sit here said a DOM layer
 // would place them — a layer nobody had written. 19 of the reachable 27 scripts
 // are table-driven, so that was the majority of the population rendering nothing
-// while every count looked right.
+// while every count looked right. ⛔ That layer exists NOW, and the canvas
+// painter was removed in the same commit rather than kept beside it: two
+// renderers over one layout would put the same dashboard on the pane twice.
 
 /** Pine's label styles → where the label body sits relative to its anchor.
  *  ⛔ A STYLE WE DO NOT KNOW DRAWS A PLAIN BOX AT THE ANCHOR rather than
@@ -62,9 +67,14 @@ const LABEL_ANCHOR = Object.freeze({
   text_outline: { dx: 0, dy: 0 },
 })
 
-const LABEL_FONT_PX = Object.freeze({
+/** Pine's text-size words in pixels. ⭐ EXPORTED because the DOM table
+  *  adapter reads the SAME vocabulary — a `size = size.small` label on the
+  *  canvas and a `text_size = size.small` cell in the table must mean one
+  *  number, and two private copies is how they stop meaning one number. */
+export const TEXT_SIZE_PX = Object.freeze({
   tiny: 8, small: 10, normal: 12, large: 16, huge: 22, auto: 12,
 })
+const LABEL_FONT_PX = TEXT_SIZE_PX
 
 const DASH = Object.freeze({
   solid: [], dashed: [6, 4], dotted: [2, 3], arrow_left: [], arrow_right: [], arrow_both: [],
@@ -224,12 +234,21 @@ export function paintObjects(ctx, state, m) {
     drawn.label += 1
   }
 
-  // ── the viewport-anchored layer, last: a dashboard sits OVER the drawings
-  const tabs = layoutTables(state)
-  for (const tb of tabs) {
-    if (paintTable(ctx, tb, width, height, seen)) drawn.table += 1
-    else skipped.table += 1
-  }
+  // ⚰⚰ THE TABLE USED TO BE PAINTED HERE, AND IS NOT ANY MORE. R2 step 6
+  // moved it to `objectTableDom.js`, which reads the same `layoutTables(state)`
+  // and builds a real `<table>`: the cell text becomes readable by an
+  // instrument (a raster cannot carry a TRAILING SPACE, and the vendor
+  // captures this is compared against were taken by wrapping `fillText` for
+  // exactly that reason), the type stays crisp at any `devicePixelRatio`
+  // without a backing store to scale, and nine CSS corners re-place it on a
+  // resize with nothing having run.
+  //
+  // ⛔ IT IS A MOVE, NOT AN ADDITION. Leaving `paintTable` here beside the DOM
+  // layer would draw one table twice, from one layout, through two different
+  // sets of measured column widths — the second-authority-over-one-value defect
+  // this repo keeps paying for, in its most visible possible form.
+  // `drawn.table` and `skipped.table` stay in the shape below and stay ZERO:
+  // the counters an observer reads are the DOM layer's own, on its own node.
 
   return {
     drawn,
@@ -240,72 +259,9 @@ export function paintObjects(ctx, state, m) {
   }
 }
 
-const CELL_PAD = 6
-const TABLE_MARGIN = 8
-
-/**
- * One table, placed against the pane's own corners.
- *
- * ⛔ THE COLUMN WIDTHS ARE MEASURED FROM THE TEXT, not fixed. A dashboard whose
- * numbers are clipped is a dashboard that lies about its own values, and Pine
- * sizes its columns to content for exactly that reason.
- */
-function paintTable(ctx, tb, width, height, seen) {
-  if (!tb || !tb.rows || !tb.cols) return false
-  const size = (c) => LABEL_FONT_PX[(c && c.text_size) || 'normal'] || 12
-  const colW = []
-  const rowH = []
-  for (let r = 0; r < tb.rows; r += 1) {
-    let h = 0
-    for (let c = 0; c < tb.cols; c += 1) {
-      const cell = tb.grid[r][c]
-      const px = size(cell)
-      ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
-      const w = cell && cell.text ? ctx.measureText(String(cell.text)).width : 0
-      colW[c] = Math.max(colW[c] || 0, w + CELL_PAD * 2)
-      h = Math.max(h, px + CELL_PAD)
-    }
-    rowH[r] = Math.max(h, 14)
-  }
-  const totalW = colW.reduce((a, b) => a + b, 0)
-  const totalH = rowH.reduce((a, b) => a + b, 0)
-  if (!totalW || !totalH) return false
-  const x0 = TABLE_MARGIN + (width - totalW - TABLE_MARGIN * 2) * tb.anchor.h
-  const y0 = TABLE_MARGIN + (height - totalH - TABLE_MARGIN * 2) * tb.anchor.v
-  ctx.save()
-  if (tb.bgcolor) { ctx.fillStyle = tb.bgcolor; ctx.fillRect(x0, y0, totalW, totalH) }
-  let y = y0
-  for (let r = 0; r < tb.rows; r += 1) {
-    let x = x0
-    for (let c = 0; c < tb.cols; c += 1) {
-      const cell = tb.grid[r][c]
-      if (cell) {
-        if (cell.bgcolor) { ctx.fillStyle = cell.bgcolor; ctx.fillRect(x, y, colW[c], rowH[r]) }
-        if (cell.text) {
-          const px = size(cell)
-          ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
-          ctx.textBaseline = 'middle'
-          ctx.textAlign = cell.text_halign === 'left' ? 'left' : cell.text_halign === 'right' ? 'right' : 'center'
-          ctx.fillStyle = cell.text_color || '#D1D4DC'
-          const tx = ctx.textAlign === 'left' ? x + CELL_PAD
-            : ctx.textAlign === 'right' ? x + colW[c] - CELL_PAD : x + colW[c] / 2
-          ctx.fillText(String(cell.text), tx, y + rowH[r] / 2)
-        }
-      }
-      x += colW[c]
-    }
-    y += rowH[r]
-  }
-  if (tb.frame_width > 0 && tb.frame_color) {
-    ctx.strokeStyle = tb.frame_color
-    ctx.lineWidth = tb.frame_width
-    ctx.setLineDash([])
-    ctx.strokeRect(x0, y0, totalW, totalH)
-  }
-  ctx.restore()
-  if (seen) { seen(x0, y0); seen(x0 + totalW, y0 + totalH) }
-  return true
-}
+/** ⭐ THE MARGIN IS THE TABLE'S, AND THE DOM ADAPTER READS IT. How far a
+ *  dashboard sits off the pane edge is one number, not one per renderer. */
+export const TABLE_MARGIN = 8
 
 /** Pine's nine table positions → a pane-fraction anchor.
  *  ⛔ FRACTIONS, NOT PIXELS. The consumer knows its own size; handing it pixels

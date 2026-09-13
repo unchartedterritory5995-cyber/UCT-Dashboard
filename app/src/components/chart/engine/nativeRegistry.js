@@ -1228,24 +1228,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
   // returns null rather than a default, because a guessed `isdaily` is a
   // confident wrong length.
-  const bindConsts = bindingConstants({
-    timeframe: timeframeFlags(ctx && ctx.tf),
-    inputs,
-    // ⭐⭐ R-K (2026-09-13) — THE OBJECT, NOT THE STRING. `symbolConstantsWith`
-    // needs `{ticker, exchange}`: the ticker resolves `syminfo.ticker` for every
-    // symbol, and the exchange resolves `syminfo.tickerid` / `syminfo.prefix`
-    // ONLY where `symbolScope.json::confirmed` holds a witness for that
-    // exchange's spelling.
-    // ⚰️ THIS READ `ctx.sym` — a STRING — AND `symbolConstantsWith` RETURNS `{}`
-    // FOR ANYTHING THAT IS NOT AN OBJECT. So `bindConsts` was empty on every
-    // chart binding, every `syminfo.*` was NotFoldable, and the bind-time text
-    // predicates survived into the evaluator. Measured on the member pane:
-    // three of `uncharted-volume-v2`'s four columns refused.
-    // ⛔ AND IT IS NOT COERCED HERE. A caller that fails to thread the object
-    // gets `{}` and a refusal that names the field, which is loud; accepting a
-    // bare string as `{ticker}` would half-resolve it and hide the miswiring.
-    symbol: (ctx && ctx.symbol) || null,
-  })
+  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
@@ -1463,6 +1446,40 @@ export function hasAnyFinite(col) {
  * column set is the same thing `hasData` already reads for a warmup pad: the
  * binding draws nothing this paint and draws on the next.
  */
+/**
+ * ⭐⭐ THE BIND-TIME CONSTANTS, ASSEMBLED IN ONE PLACE FOR EVERY LANE.
+ *
+ * ⛔ EXPORTED BECAUSE THERE ARE TWO EVALUATORS OVER ONE DOCUMENT. `computeFor`
+ * folds a PLOT's tree with these before interpreting it; `objectColumns.js`
+ * folds an OBJECT's tree with them before interpreting that. Two copies of this
+ * assembly is the second-authority-over-one-value shape, and it has already
+ * been paid for once on this exact call: the plot lane's `symbol` was fixed at
+ * R-K and the object lane's was never written at all, so `uncharted-volume-v2`
+ * drew four correct columns and no table — eighteen of its twenty-seven object
+ * trees refused with *"a value that a symbol settles reached the evaluator
+ * unsettled"*, and six more with a window length nothing had folded.
+ */
+export function bindConstsFor({ tf, inputs, symbol } = {}) {
+  return bindingConstants({
+    timeframe: timeframeFlags(tf),
+    inputs,
+    // ⭐⭐ R-K (2026-09-13) — THE OBJECT, NOT THE STRING. `symbolConstantsWith`
+    // needs `{ticker, exchange}`: the ticker resolves `syminfo.ticker` for every
+    // symbol, and the exchange resolves `syminfo.tickerid` / `syminfo.prefix`
+    // ONLY where `symbolScope.json::confirmed` holds a witness for that
+    // exchange's spelling.
+    // ⚰️ THIS READ `ctx.sym` — a STRING — AND `symbolConstantsWith` RETURNS `{}`
+    // FOR ANYTHING THAT IS NOT AN OBJECT. So `bindConsts` was empty on every
+    // chart binding, every `syminfo.*` was NotFoldable, and the bind-time text
+    // predicates survived into the evaluator. Measured on the member pane:
+    // three of `uncharted-volume-v2`'s four columns refused.
+    // ⛔ AND IT IS NOT COERCED HERE. A caller that fails to thread the object
+    // gets `{}` and a refusal that names the field, which is loud; accepting a
+    // bare string as `{ticker}` would half-resolve it and hide the miswiring.
+    symbol: symbol || null,
+  })
+}
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'server') {
     return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)

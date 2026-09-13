@@ -55,7 +55,7 @@ import { createEarningsBadgePrimitive } from './chart/earningsBadgePrimitive'
 import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
-import ChartToolbar from './chart/ChartToolbar'
+import ChartToolbar, { CHART_TOOLBAR_FOOTPRINT_PX } from './chart/ChartToolbar'
 import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
@@ -10147,6 +10147,16 @@ export default function StockChart({
         createObjectLayer: (inst) => createObjectLayer({
           instanceId: inst && inst.instanceId,
           container: chart.chartElement ? chart.chartElement() : null,
+          // ⭐⭐ THE CHROME THIS HOST FLOATS OVER ITS OWN CHART, so a table
+          // anchored to a TOP corner lands where a member can see it. The
+          // drawing toolbar is `absolute; top: 4px; height: 26px; z-index: 5`
+          // over this very container — measured live on the first run, both of
+          // Volume v2's dashboards drew correctly and were painted over by it.
+          // ⛔ It reaches the layer as a NUMBER FROM THE COMPONENT THAT OWNS THE
+          // TOOLBAR, never as a measurement inside the adapter: the adapter's
+          // freedom from `getBoundingClientRect` is what makes a pane resize cost
+          // nothing, and one `insets` argument is the price of keeping it.
+          insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
           mapping: () => {
             const series = candleSeriesRef.current
             const ts = chart.timeScale ? chart.timeScale() : null

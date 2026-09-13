@@ -23,6 +23,7 @@
 // scheduler. A host that cannot provide them gets no drawings and no error —
 // the columns, the legend and the scan are untouched.
 import { paintObjects, layoutTables } from './objectCanvas'
+import { renderTables } from './objectTableDom'
 
 const noop = () => {}
 
@@ -67,12 +68,49 @@ export function createObjectLayer(host) {
   canvas.style.zIndex = '3'
   container.appendChild(canvas)
 
+  // ⭐⭐ R2 STEP 6 — THE TABLE LAYER IS DOM, AND IT IS A SIBLING, NOT A SECOND
+  // SCHEDULE. One node, over the canvas, holding a real `<table>` per table the
+  // state describes.
+  //
+  // ⛔ IT IS NOT DRIVEN BY `draw()` AND MUST NOT BE. A table is anchored to the
+  // PANE, so panning, zooming and resizing the chart change nothing about where
+  // it goes — nine CSS corners already put it there and keep it there. Hanging
+  // it off the repaint loop would rebuild it sixty times a second to produce the
+  // identical DOM, and the cost of that on a page already running a live feed is
+  // the incident this file's own header warns about.
+  const tableRoot = doc.createElement('div')
+  if (tableRoot.setAttribute) {
+    tableRoot.setAttribute('data-uct-table-layer', String((host.instanceId) || '1'))
+    tableRoot.setAttribute('data-uct-tables-drawn', '')
+  }
+  tableRoot.style.position = 'absolute'
+  // ⛔⛔ THE INSET IS THE HOST'S CHROME, AND ONLY THE TABLE LAYER GETS IT. Lines,
+  // labels and boxes live in price/time and must keep the canvas's exact
+  // coordinate space; a table is anchored to a CORNER, and the corner a member
+  // means is the one they can SEE. On this chart a drawing toolbar floats over
+  // the container's top 30px at `z-index: 5`, so `top_left` and `top_right`
+  // landed underneath it — drawn, correct, and invisible.
+  // ⭐ The HOST supplies the number (`ChartToolbar.CHART_TOOLBAR_FOOTPRINT_PX`)
+  // because the host owns the chrome; the adapter still measures nothing.
+  const ins = (host && host.insets) || {}
+  const px = (v) => `${Math.max(0, Math.round(Number(v) || 0))}px`
+  tableRoot.style.top = px(ins.top)
+  tableRoot.style.right = px(ins.right)
+  tableRoot.style.bottom = px(ins.bottom)
+  tableRoot.style.left = px(ins.left)
+  tableRoot.style.pointerEvents = 'none'
+  // ⭐ ABOVE THE CANVAS. The z-order manifest's rule is that a plot can never
+  // appear on top of a table; the drawings layer is `3`, so the dashboard is `4`.
+  tableRoot.style.zIndex = '4'
+  container.appendChild(tableRoot)
+
   let state = null
   let dead = false
   let frame = 0
   let lastSig = ''
   let stats = { drawn: {}, skipped: {} }
   let tables = []
+  let tableStats = { tables: 0, cells: 0, skipped: 0 }
 
   const draw = () => {
     frame = 0
@@ -135,6 +173,14 @@ export function createObjectLayer(host) {
       state = next || null
       lastSig = signature
       tables = state ? layoutTables(state) : []
+      // ⛔ REBUILT ON STATE, AND ONLY ON STATE — including the state going away,
+      // which is what takes a switched-off indicator's dashboard off the pane.
+      // A layer that stopped updating but left its last table there reads as
+      // "the indicator is still on", the ghost-state defect `clear()` exists for.
+      tableStats = renderTables(tableRoot, tables, doc)
+      if (tableRoot.setAttribute) {
+        tableRoot.setAttribute('data-uct-tables-drawn', JSON.stringify(tableStats))
+      }
       // ⭐⭐ THE LIFECYCLE FACTS THE ENGINE ALREADY COMPUTED, MADE OBSERVABLE.
       // ⛔ THE IDS ARE THE IDENTITY DISCRIMINATOR. Object ids are a creation
       // counter, so a renderer that quietly re-created an object on every update
@@ -145,6 +191,12 @@ export function createObjectLayer(host) {
           (state && state.lines ? [] : []).concat(meta.liveIds || []).join(','))
         canvas.setAttribute('data-uct-object-stats', JSON.stringify(meta.stats || {}))
         canvas.setAttribute('data-uct-object-bars', (meta.createdBars || []).join(','))
+        // ⛔ HOW MANY OF THE DOCUMENT'S NODES THE OBJECT LANE COULD NOT EVALUATE.
+        // Non-zero means every value that depends on one of them reaches a cell
+        // as `NaN`, and the reason is the ENGINE'S refusal rather than the
+        // script's `na` — two facts a member cannot tell apart on the pane.
+        canvas.setAttribute('data-uct-objects-unreadable',
+          String(meta.unreadableNodes === undefined ? '' : meta.unreadableNodes))
       }
       if (changed) schedule()
       return tables
@@ -153,17 +205,27 @@ export function createObjectLayer(host) {
     invalidate: schedule,
     tables: () => tables,
     stats: () => stats,
+    tableStats: () => tableStats,
     clear() {
       dead = true
       if (frame) { cancel(frame); frame = 0 }
       state = null
       tables = []
       lastSig = ''
+      tableStats = { tables: 0, cells: 0, skipped: 0 }
       try {
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas)
       } catch { noop() }
+      // ⛔ BOTH NODES, OR THE DASHBOARD OUTLIVES THE INDICATOR. The canvas
+      // going while the `<table>` stayed would leave the numbers frozen on the
+      // pane with nothing left to update them — worse than the frozen raster
+      // this path was written for, because a crisp stale number reads as live.
+      try {
+        if (tableRoot.parentNode) tableRoot.parentNode.removeChild(tableRoot)
+      } catch { noop() }
     },
-    /** exposed for tests and for a host that wants to position it itself */
+    /** exposed for tests and for a host that wants to position them itself */
     canvas,
+    tableRoot,
   }
 }

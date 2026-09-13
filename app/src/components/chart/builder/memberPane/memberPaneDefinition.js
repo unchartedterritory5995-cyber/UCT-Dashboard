@@ -183,6 +183,25 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         ? { target: 'price' }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: Object.keys(manifest).length ? manifest : null,
+      // ⭐⭐ R2 STEP 6 — THE OBJECT PROGRAM RIDES ON THE PANE DOCUMENT TOO, OR
+      // THE TABLES CANNOT REACH A CHART.
+      //
+      // ⚰⚰ MEASURED 2026-09-13, and it is T5b's defect in a second place.
+      // `objectReaderFor` reads `definition.objects` and nothing else; the SCAN
+      // document has carried it since C3B (`BuilderSheet.jsx` passes
+      // `objectProgram` to both `save()` and the preview), and this document —
+      // the one that actually reaches a member's chart through
+      // `indicatorInstances` — did not name it. So a script whose whole product
+      // is two dashboards saved, installed, drew its four plots, and drew NO
+      // TABLE, with every count on the way green: `translatePine` reported 6
+      // cells, `paneGate` passed, the binder asked for an object reader and got
+      // `null` because the field was absent.
+      //
+      // ⛔ `buildDefinition` already takes this argument. Nothing needed
+      // inventing; the pane document simply did not pass what it had —
+      // `lesson_a_projection_drops_what_it_does_not_name`, on the same document
+      // that taught it for `meta.disclosures` one item ago.
+      objects: (t.objects && (t.objects.ops || []).length) ? t.objects : null,
     })
   } catch (err) {
     return no(`the document could not be built: ${String((err && err.message) || err)}`, null, t)

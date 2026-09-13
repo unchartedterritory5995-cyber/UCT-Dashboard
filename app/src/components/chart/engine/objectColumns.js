@@ -25,7 +25,8 @@
 import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
 import { interpret } from './ast/interpret'
-import { resolveInputs } from './nativeRegistry'
+import { resolveInputs, bindConstsFor } from './nativeRegistry'
+import { foldBound } from './ast/bind'
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //
@@ -71,9 +72,10 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
   const wanted = graphNodesReferenced(program)
+  const fold = opts.fold || ((t) => t)
   for (const node of wanted) {
     try {
-      const tree = nodeTree(graph, node)
+      const tree = fold(nodeTree(graph, node))
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget,
         undefined, { tf: opts.tf })
       columns.set(node, col)
@@ -127,10 +129,34 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // ⭐ ONE RESOLUTION FOR BOTH FORMS, and it is the PLOT lane's function — an
   // object's coordinate and the plot beside it now read the same knob.
   const inputs = resolveInputs(definition, opts.inputs)
+  // ⭐⭐ R2 STEP 6 — THE BIND-TIME FOLD REACHES THE OBJECT LANE, from the same
+  // assembly the PLOT lane uses.
+  //
+  // ⚰⚰ MEASURED 2026-09-13 ON `uncharted-volume-v2.pine`, whose product IS two
+  // tables. Twenty-four of its twenty-seven object trees refused before ever
+  // reaching a coordinate — eighteen with *"a value that a symbol settles
+  // reached the evaluator unsettled"* (`syminfo.ticker`, never folded) and six
+  // with *"a window must be a whole-number literal … got {type:'op'}"* (a length
+  // behind a `timeframe.*` test, never folded). `computeFor` has folded both
+  // since R-K; this module called `interpret` on the RAW tree.
+  //
+  // ⛔ SO THE PLOT AND THE OBJECT BESIDE IT WERE READING TWO DIFFERENT
+  // DOCUMENTS — the exact asymmetry this file's own header records for `inputs`,
+  // one argument over. `bindConstsFor` is exported for that reason: the two
+  // lanes now make one call, and a constant added to it cannot reach one lane
+  // and miss the other.
+  //
+  // ⚠️ `symbol` COMES FROM THE CALLER AND IS NOT GUESSED. Without it
+  // `symbolConstantsWith` returns `{}` and every `syminfo.*` stays NotFoldable,
+  // which refuses loudly and names the field — the behaviour R-K deliberately
+  // chose over half-resolving a bare string.
+  const bindConsts = bindConstsFor({ tf: opts.tf, inputs, symbol: opts.symbol })
+  const fold = (tree) => foldBound(tree, bindConsts)
   const evalOpts = {
     inputs,
     budget: definition.compute && definition.compute.budget,
     tf: opts.tf,
+    fold,
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
@@ -147,7 +173,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const failed = []
   for (const i of graphNodesReferenced(bound)) {
     try {
-      columns.set(i, interpret(trees[i], bars, evalOpts.inputs, evalOpts.budget,
+      columns.set(i, interpret(fold(trees[i]), bars, evalOpts.inputs, evalOpts.budget,
         undefined, { tf: evalOpts.tf }))
     } catch { failed.push(i) }
   }

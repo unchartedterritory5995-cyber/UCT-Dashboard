@@ -99,13 +99,32 @@ export function evaluateObjects(program, ctx) {
     let opsThisBar = 0
 
     /**
-     * ⭐ PINE'S `str.tostring` FORMAT, honestly and narrowly.
+     * ⭐⭐ PINE'S `str.tostring` FORMAT — `#` AND `0` ARE DIFFERENT CHARACTERS.
      *
-     * ⛔ ONLY THE `#.##` FAMILY IS IMPLEMENTED, because that is what the
-     * reachable corpus writes. A format string this does not understand falls
-     * back to the plain number rather than being approximated into a different
-     * one — a cell reading `3.14` where the author asked for `3` is a smaller
-     * lie than a cell reading something invented.
+     * `#` is an OPTIONAL digit and `0` is a REQUIRED one, which is the whole
+     * difference between the two formats the reachable corpus writes:
+     *
+     *     str.tostring(6.2,  '#.##')  ->  '6.2'      trailing zeros TRIMMED
+     *     str.tostring(6.0,  '#.##')  ->  '6'        …and the point goes too
+     *     str.tostring(1.007, '0.00') ->  '1.01'     always two decimals
+     *     str.tostring(45.5,  '0.00') ->  '45.50'    a zero the author asked for
+     *
+     * ⚰⚰ THIS READ ONLY THE `#.##` FAMILY, and the `0.00` FAMILY FELL THROUGH
+     * TO THE RAW NUMBER. Measured 2026-09-13 on `uncharted-volume-v2.pine`, whose
+     * Volume cell is `str.tostring(volMult, '0.00')`: the dashboard drew
+     * `Vol : 45.187M (1.0070985212342736x)` where the vendor draws
+     * `Vol : 45.51M (1.05x)`. The old regex tested `^#*\.?(#*|0*)$`, which a
+     * leading `0` cannot match, so the guard fired and returned `String(n)` —
+     * the "honest fallback" doing seventeen significant figures inside a cell
+     * eight characters wide. ⛔ A fallback that has never been SEEN is not a
+     * fallback, it is an unreached branch, and this one was reached by two of
+     * v2's four visible cells.
+     *
+     * ⛔ STILL NARROW, AND STILL HONEST ABOUT IT. A thousands separator
+     * (`'#,###'`) is NOT implemented: ignoring the comma would print the right
+     * digits in the wrong grouping, which is a number the author did not ask
+     * for, so a format containing one falls back to the plain value exactly as
+     * before. Nothing in the reachable 27 writes one.
      */
     const formatNumber = (n, fmt) => {
       if (!Number.isFinite(n)) return 'NaN'
@@ -113,11 +132,34 @@ export function evaluateObjects(program, ctx) {
         // Pine's default: up to 10 significant digits, trailing zeros trimmed.
         return String(Number(n.toPrecision(10)))
       }
-      const m = /^#*\.?(#*|0*)$/.exec(fmt.replace(/[^#.0]/g, ''))
-      if (!m) return String(n)
+      // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
+      // formatting the remainder is how `'#,###'` would silently become `'####'`.
+      if (!/^[#0]*(\.[#0]*)?$/.test(fmt)) return String(n)
       const dot = fmt.indexOf('.')
-      const decimals = dot < 0 ? 0 : (fmt.length - dot - 1)
-      return n.toFixed(Math.max(0, Math.min(10, decimals)))
+      const frac = dot < 0 ? '' : fmt.slice(dot + 1)
+      const intPart = dot < 0 ? fmt : fmt.slice(0, dot)
+      const max = Math.max(0, Math.min(10, frac.length))
+      // Required decimals are the `0`s; Pine writes them contiguously after the
+      // optional `#`s, and counting them is enough for either order.
+      const min = Math.min(max, (frac.match(/0/g) || []).length)
+      let out = n.toFixed(max)
+      if (max > min) {
+        // Trim only the OPTIONAL tail, never a digit the author demanded.
+        out = out.replace(/0+$/, (z) => z.slice(0, Math.max(0, min - (max - z.length))))
+        out = out.replace(/\.$/, '')
+      }
+      // `'00.0'` asks for a leading zero. Rare, but it is a request like any
+      // other, and padding is the only way to answer it.
+      const wantInt = (intPart.match(/0/g) || []).length
+      if (wantInt > 1) {
+        const neg = out.startsWith('-')
+        const body = neg ? out.slice(1) : out
+        const head = body.split('.')[0]
+        if (head.length < wantInt) {
+          out = (neg ? '-' : '') + '0'.repeat(wantInt - head.length) + body
+        }
+      }
+      return out
     }
 
     const textOf = (t) => {

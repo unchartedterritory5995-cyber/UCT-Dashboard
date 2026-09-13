@@ -9006,6 +9006,25 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    * operation is dropped and counted. A blank cell where the author wrote a
    * number reads as a working dashboard and is not one.
    */
+  /** ⭐⭐ R2 STEP 6 — ENUM LEAVES, FOR ENUM SLOTS ONLY.
+   *
+   *  `textNodeOf` refuses a bare `name` it cannot open, which is right in a TEXT
+   *  slot: `position.top_left` is not a caption. In a `position` slot it is the
+   *  whole answer, and `uncharted-volume-v2.pine` reaches it the long way —
+   *  `table.new(f_getTablePos(atrTablePosition), 4, 1)`, a user function whose
+   *  body is a chain of ternaries over an `input.string`, with a `position.*`
+   *  constant at every leaf. Every step of that walk already exists here (step
+   *  2a taught the reader to inline a helper, step 3 to follow a bound node);
+   *  the only thing missing was what to do at the leaf.
+   *
+   *  ⛔ A FLAG AND NOT A PARAMETER, deliberately: `textNodeOf` recurses from
+   *  nine places and threading a sixth positional argument through all of them
+   *  is nine chances to drop it in the one branch that mattered. It is set only
+   *  around `enumNodeOf`'s single call and cleared in a `finally`, so a text
+   *  slot's read is byte-identical to what it was — which is the property
+   *  `textEnumSlot.test.js`'s control asserts. */
+  let enumLeaves = false
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
@@ -9075,6 +9094,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return { t: 'if', cond, then, else: other }
     }
     if (node.type === 'name') {
+      // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
+      // `valueRef` already produces for a table written with a literal position,
+      // so a script that computes its position and one that types it reach the
+      // render state through one vocabulary (`OBJECT_ENUM_VALUES`).
+      if (enumLeaves) {
+        const enumLit = objectEnumValue(node.name)
+        if (enumLit !== undefined) return { t: 'lit', s: String(enumLit) }
+      }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
       // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
       // The Resolver reads one out of `this.frames`; this reader has the same
@@ -9194,6 +9221,25 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const TEXT_SLOTS = new Set(['text', 'tooltip'])
   const isColourSlot = (k) => k === 'bgcolor' || k.includes('color')
 
+  /** ⛔⛔ ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only
+   *  enum a reachable script COMPUTES rather than types — measured on the 27:
+   *  `table.new(f_getTablePos(…), …)` and `table.set_position(t, …)`. Every
+   *  other enum slot (`style`, `xloc`, `extend`, `text_halign`, …) is written as
+   *  a literal, so widening this set would buy nothing and would put a reader
+   *  that can now produce a LITERAL from a name in front of slots whose current
+   *  refusal is load-bearing. Add a slot here when a script needs it, with the
+   *  script named. */
+  const ENUM_SLOTS = new Set(['position'])
+
+  /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
+   *  Returns a `text` template because that is what the object runtime already
+   *  evaluates per bar — and a position genuinely can vary per bar, since
+   *  `table.set_position` is an ordinary op. */
+  const enumNodeOf = (node, scope) => {
+    enumLeaves = true
+    try { return textNodeOf(node, scope) } finally { enumLeaves = false }
+  }
+
   const valueRef = (node, slot) => {
     if (!node) return null
     if (slot && TEXT_SLOTS.has(slot)) {
@@ -9203,6 +9249,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (slot && isColourSlot(slot)) {
       const c = colorNodeOf(node, scopeEnv)
       return c ? { v: 'color', node: c } : null
+    }
+    // ⭐ A COMPUTED POSITION. The literal cases below still answer first for a
+    // plain `position.top_right`, so nothing that resolved before changes shape;
+    // this is only reached for the name a script COMPUTED, which used to be a
+    // dropped prop and a table silently anchored to `top_right`, Pine's default,
+    // in the opposite corner from the one the author asked for.
+    if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
+      const e = enumNodeOf(node, scopeEnv)
+      if (e) return { v: 'text', node: e }
     }
     if (node.type === 'string') return { v: 'const', value: node.value }
     if (node.type === 'colour') return { v: 'const', value: node.value }
@@ -9221,6 +9276,31 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (hex) return { v: 'const', value: hex }
     if (node.type === 'number') return { v: 'const', value: Number(node.value) }
     return resolveTree(node)
+  }
+
+  /** ⛔⛔ A COUNT IS NOT A DIAGNOSTIC, AND A DROPPED PROP IS NOT ALL THE SAME
+   *  THING. `droppedProps: 10` cannot tell an engineer that ONE of those ten was
+   *  a table's `position` — the property that decides which corner of the
+   *  member's chart a dashboard lands in, and the one place where a fallback is
+   *  an invented answer rather than Pine's own default.
+   *
+   *  ⚰️ MEASURED ON `uncharted-volume-v2.pine`: `table.new(f_getTablePos(volPosName), …)`
+   *  where `volPosName = hasRecentHV ? 'Top Center' : volTablePosition` — a
+   *  string chosen at RUNTIME, so the comparison inside the helper cannot fold to
+   *  a numeric condition and the whole enum read refuses. The renderer then uses
+   *  `OBJECT_DEFAULTS.table.position`, which is `top_right`; for v2's Volume
+   *  table that happens to be the corner the vendor draws, and a coincidence is
+   *  not a result. Named here so it reads as the approximation it is.
+   *  ⏭ ROUTED: distributing a call over a ternary ARGUMENT (`f(c ? a : b)` →
+   *  `c ? f(a) : f(b)`) is what would resolve it, and it is its own capability. */
+  const dropProp = (family, k, node) => {
+    diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.droppedPropNames = diagnostics.droppedPropNames || []
+    if (!diagnostics.droppedPropNames.includes(entry)) {
+      diagnostics.droppedPropNames.push(entry)
+    }
   }
 
   /** ⛔ GEOMETRY IS REQUIRED, STYLING IS NOT. A line with no `y1` is not a line
@@ -9478,7 +9558,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const v = valueRef(node, k)
         if (!v) {
           if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) { bad = true; break }
-          diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
+          dropProp(op.family, k, node)
           continue
         }
         props[k] = v
@@ -9533,7 +9613,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           // as "the value is empty", which is a different and worse claim than
           // "we could not import this row".
           if (k === 'text') { badCell = true; break }
-          diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
+          dropProp('cell', k, node)
           continue
         }
         props[k] = v

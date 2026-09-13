@@ -22,7 +22,31 @@ function fakeHost() {
     stroke() { painted.push(['stroke']) }, fill() {}, fillRect() {}, strokeRect() {},
     fillText() {}, setLineDash() {}, measureText: (s) => ({ width: s.length * 6 }),
   }
-  const canvas = { style: {}, width: 0, height: 0, getContext: () => ctx, parentNode: null }
+  const canvas = {
+    tagName: 'CANVAS', style: {}, width: 0, height: 0, getContext: () => ctx,
+    parentNode: null, attrs: {}, setAttribute(k, v) { this.attrs[k] = v },
+  }
+  /** ⭐ THE FACTORY IS TAG-AWARE NOW, because the layer owns TWO nodes: the
+   *  canvas for the drawings and a `<div>` holding the DOM tables. Returning one
+   *  shared stub for every tag made `createElement('div')` hand back the canvas,
+   *  and the table root then wrote its attributes onto it. */
+  const el = (tag) => ({
+    tagName: String(tag).toUpperCase(),
+    style: {},
+    attrs: {},
+    children: [],
+    parentNode: null,
+    firstChild: null,
+    textContent: '',
+    setAttribute(k, v) { this.attrs[k] = v },
+    appendChild(c) { this.children.push(c); c.parentNode = this; this.firstChild = this.children[0]; return c },
+    removeChild(c) {
+      this.children = this.children.filter((x) => x !== c)
+      c.parentNode = null
+      this.firstChild = this.children[0] || null
+      return c
+    },
+  })
   const container = {
     clientWidth: 800,
     clientHeight: 400,
@@ -31,7 +55,7 @@ function fakeHost() {
     removeChild(c) { this.children = this.children.filter((x) => x !== c); c.parentNode = null },
   }
   const frames = []
-  const doc = { createElement: () => canvas }
+  const doc = { createElement: (tag) => (tag === 'canvas' ? canvas : el(tag)) }
   return {
     painted,
     container,
@@ -58,7 +82,13 @@ describe('C3B — the object layer', () => {
   it('⭐ attaches ONE canvas and paints the state it is given', () => {
     const f = fakeHost()
     const layer = createObjectLayer(f.host)
-    expect(f.container.children).toHaveLength(1)
+    // ⭐ TWO NODES, AND EXACTLY ONE OF THEM IS A CANVAS. R2 step 6 added the DOM
+    // table root beside it, so the count moved from 1 to 2 — what this case is
+    // actually about is that the layer attaches ONE canvas, which is asserted by
+    // tag rather than by a total that any future sibling would break again.
+    expect(f.container.children).toHaveLength(2)
+    expect(f.container.children.filter((c) => c.tagName === 'CANVAS')).toHaveLength(1)
+    expect(f.container.children.filter((c) => c.tagName === 'DIV')).toHaveLength(1)
     layer.set(oneLine(), 'sig-1')
     f.flush()
     expect(f.painted.filter((p) => p[0] === 'stroke')).toHaveLength(1)
@@ -95,6 +125,8 @@ describe('C3B — the object layer', () => {
     layer.set(oneLine(), 'sig-1')
     f.flush()
     layer.clear()
+    // ⛔ BOTH nodes, not just the canvas — a `<table>` left behind is a crisp
+    // stale number over the chart, which reads MORE live than a frozen raster.
     expect(f.container.children).toHaveLength(0)
     // …and a later set cannot resurrect a drawing on a detached node
     const before = f.painted.length
@@ -113,6 +145,13 @@ describe('C3B — the object layer', () => {
     expect(tables).toHaveLength(1)
     expect(tables[0].anchor).toEqual({ h: 1, v: 0 })
     expect(tables[0].grid[0][0].text).toBe('RSI')
+    // ⭐⭐ …AND THE PIXELS ARE NOW DOM. The layout above is still the contract a
+    // Builder could one day produce without Pine; what CONSUMES it is a real
+    // `<table>` on the layer's own node, and the layer stamps what it built.
+    const root = f.container.children.find((c) => c.tagName === 'DIV')
+    expect(root.attrs['data-uct-tables-drawn']).toBe('{"tables":1,"cells":1,"skipped":0}')
+    expect(root.children).toHaveLength(1)
+    expect(root.children[0].attrs['data-uct-object-table']).toBe('7')
   })
 
   it('⛔ a host that cannot provide a container gets NO layer and no error', () => {

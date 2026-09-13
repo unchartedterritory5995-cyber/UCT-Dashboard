@@ -360,3 +360,72 @@ describe('C3B — typed refs refuse cross-family misuse AT THE DOOR', () => {
     expect(NA_REF.id).toBe(-1)
   })
 })
+
+// ─── ⭐⭐ R2 STEP 6 — `str.tostring`'s FORMAT, AS THE MEMBER WROTE IT ─────────
+//
+// ⚰⚰ `formatNumber` READ THE `#.##` FAMILY AND FELL THROUGH ON `0.00`, and
+// the fallthrough returned `String(n)`. Measured on `uncharted-volume-v2.pine`,
+// whose Volume cell is `str.tostring(volMult, '0.00')`: the pane drew
+// `Vol : 45.187M (1.0070985212342736x) ` where the vendor draws
+// `Vol : 45.51M (1.05x) `. Seventeen significant figures inside a cell eight
+// characters wide, produced by the branch whose comment called itself the
+// honest fallback — which it is, for a format nobody writes, and this is a
+// format two of v2's four visible cells write.
+describe('⭐⭐ `#` is an OPTIONAL digit and `0` is a REQUIRED one', () => {
+  /** One cell whose text is one formatted number, read back as the string. */
+  const cellText = (value, fmt) => {
+    const r = evaluateObjects(P({
+      regs: [{ id: 't', family: 'table' }],
+      ops: [
+        { k: 'create', family: 'table', site: 'a', into: 't', when: null, props: {} },
+        {
+          k: 'cell',
+          target: { r: 'reg', id: 't' },
+          when: null,
+          col: { v: 'const', value: 0 },
+          row: { v: 'const', value: 0 },
+          props: { text: { v: 'text', node: { t: 'num', node: 0, ...(fmt ? { fmt } : {}) } } },
+        },
+      ],
+    }), ctxOf(1, { 0: [value] }))
+    return r.live[0].cells[0].props.text
+  }
+
+  const CASES = [
+    // ⭐ THE TWO THE CORPUS WRITES, AND THE DIFFERENCE BETWEEN THEM.
+    ['0.00', 1.0070985212342736, '1.01', 'v2 volume multiplier — the reported defect'],
+    ['0.00', 45.5, '45.50', 'a REQUIRED zero the author asked for is kept'],
+    ['0.00', 0.21571926319781465, '0.22', 'v2 ATRx cell'],
+    ['#.##', 6.2149, '6.21', 'the family that already worked, unchanged'],
+    ['#.##', 137.5849, '137.58', 'v2 Range cell'],
+    ['#.##', 6.2, '6.2', 'an OPTIONAL zero is trimmed — `toFixed` alone would say 6.20'],
+    ['#.##', 6, '6', '…and with no fraction left the point goes too'],
+    ['#', 3.7, '4', 'no fraction at all rounds to a whole number'],
+    ['0.0#', 1.5, '1.5', 'one required, one optional — the mixed form'],
+    ['0.0#', 1.567, '1.57', '…and the optional one is used when there is a digit for it'],
+    ['00.0', 5, '05.0', 'a leading zero is a request like any other'],
+  ]
+  for (const [fmt, value, want, why] of CASES) {
+    it(`\`${fmt}\` on ${value} → \`${want}\` — ${why}`, () => {
+      expect(cellText(value, fmt)).toBe(want)
+    })
+  }
+
+  it('⛔ A THOUSANDS SEPARATOR IS NOT IMPLEMENTED, AND FALLS BACK RATHER THAN GUESSING', () => {
+    // Ignoring the comma would print the right digits in the wrong grouping,
+    // which is a number the author did not ask for. Nothing in the reachable 27
+    // writes one; the day something does, this case is where it lands.
+    expect(cellText(1234.5, '#,###')).toBe('1234.5')
+  })
+
+  it('⛔ CONTROL — an unformatted number still reads the Pine default, trimmed', () => {
+    // Without this the cases above could be passing over a formatter that
+    // applies `toFixed(2)` to everything.
+    expect(cellText(1.5, null)).toBe('1.5')
+    expect(cellText(1 / 3, null)).toBe('0.3333333333')
+  })
+
+  it('⛔ and a non-finite value says so rather than printing a format', () => {
+    expect(cellText(NaN, '0.00')).toBe('NaN')
+  })
+})

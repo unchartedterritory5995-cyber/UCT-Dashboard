@@ -389,14 +389,40 @@ export function createBinder({ chart, LWC }) {
         // step 1 below hands them to `registry.computeFor`. Passing neither is
         // what made a member input invisible to an object coordinate while the
         // plot beside it honoured the same knob — see `objectColumns`'s header.
-        const reader = objectReaderFor(def, bars, { inputs: inst.inputs, tf: ctx.tf })
+        // ⭐ AND THE SYMBOL, for the same reason step 1 threaded it into
+        // `computeFor`: `syminfo.*` is settled at BIND time, and an object tree
+        // that reads one refuses outright without it. Passing `inputs` and `tf`
+        // and not `symbol` is what made v2's two tables the only part of that
+        // document a member could not see.
+        const reader = objectReaderFor(def, bars, {
+          inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
+        })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
           barCount: bars.length,
           readNode: reader.readNode,
           readTime: (i) => bars[i] && bars[i].t,
         })
-        return { run, state: toRenderState(run.live, { bars }), form: reader.form }
+        return {
+          run,
+          state: toRenderState(run.live, { bars }),
+          form: reader.form,
+          // ⛔⛔ THE NODES THE OBJECT LANE COULD NOT EVALUATE, CARRIED OUT OF THE
+          // ATTEMPT INSTEAD OF DISCARDED. `objectReaderFor` has always answered
+          // this and nobody has ever read it, and the cost is a specific,
+          // member-visible lie: a refused node reads `NaN` through `readNode`,
+          // and a `NaN` in a text template renders the four characters `NaN`
+          // INSIDE A DASHBOARD CELL. Measured on `uncharted-volume-v2.pine` at
+          // the chart's own depth — 8,000 SPY daily bars — 22 of its 133 graph
+          // nodes refuse `interpret:steps` (`accum over 8000 bars with a
+          // 250-bar warm-up is 2000000 steps and the ceiling is 1000000`), and
+          // both tables draw `Vol : NaN (NaNx)`. At 3,000 bars the same document
+          // computes and matches the vendor cell for cell.
+          // ⭐ So the count is stamped on the layer: a NaN a member can see now
+          // has a number beside it saying the engine refused rather than the
+          // script having said `na`.
+          unreadableNodes: (reader.failed || []).length,
+        }
       })
       if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
@@ -413,6 +439,7 @@ export function createBinder({ chart, LWC }) {
         // look identical in a screenshot. This is the fact that discriminates
         // them, and it is the engine's own record rather than a re-derivation.
         createdBars: built.value.run.live.map((o) => o.createdBar),
+        unreadableNodes: built.value.unreadableNodes,
         stats: {
           created: built.value.run.stats.created,
           updated: built.value.run.stats.updated,
