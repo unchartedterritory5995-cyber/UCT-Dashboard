@@ -214,3 +214,20 @@ owner action, Phase 6.
 - `src/pages/breadth` green: 90 files, 1,007 tests. ⚠️ "Run its shard alone" is not addressable — Vitest partitions by
   hashing spec paths and `vitest list` ignores `--shard` — so the directory was run instead, which is the superset.
 - Next: R1 Task 2 (`METRIC_META`), then Task 3 (the heatmap reads the registry), then gate and merge.
+
+## Security — member-smoke credential rotated (2026-09-13 18:50 ET / 22:50 UTC)
+
+- **Leak.** `tools/breadth_widget_ab.py` printed a raw Playwright teardown exception; its call log carried a live
+  `Cookie:` header, putting a `MEMBER_SMOKE` session token into a run log and the agent's tool output.
+- **Rotation** (18:38–18:45 ET): `POST /api/auth/admin/reset-password` → member login with the new value (200) →
+  `POST /api/auth/sessions/revoke-others` → **104 revoked**, control re-run **0**. Member-view probe
+  `/api/breadth-monitor?days=5` → **200**.
+- **Leaked token verified dead**: `/api/auth/me` → **401** (one read-only request, tokens redacted everywhere).
+- **Where the value was updated**: the operator's user environment only. All five Railway services swept by key name —
+  none carries `MEMBER_SMOKE_PASSWORD`. **No redeploy, no deploy in flight.**
+- ⚠️ `setx` does not reach a running agent: shells spawned by this session inherited the pre-rotation environment, so
+  rig runs read the value from the registry at run time until the agent restarts.
+- **Artifacts**: run logs and task outputs deleted; `git log -S` and `git grep` both clean across every commit and file.
+- **Hardening** `7117c87fa` — one shared scrubber (`tools/secret_scrub.py`), `brief(exc)` replaces raw exception
+  printing, `tests/test_secret_scrub.py` (6 passed) with a planted-leak non-vacuity control, and
+  `docs/runbooks/rig-credential-hygiene.md`. Ledger: D-038.
