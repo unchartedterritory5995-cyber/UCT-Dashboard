@@ -275,10 +275,21 @@ find is that nothing looked.
       — which is the state the gate already covers exhaustively and the state production
       is in anyway. The reading K actually needs is *what the payload served a real
       signed-in member*, and only the rig can take it
-- [ ] **one Q1 production real-door canary after** — held for the window: the
-      `UCT-WaveQ1-Observe` task fires at 22:00 CT and the standing rule is that the rig
-      runs only when no Q1 scheduled task is due within the hour. ⛔ Recorded as OPEN
-      rather than skipped
+- [x] **one Q1 production real-door canary after** — ✅ **check 16, 2026-09-13T03:07:01Z,
+      GREEN and stamped**, run after the 22:00 CT sampler so the rig's one profile was
+      never contended. ⭐ **The row Wave K exists for:**
+      `notebook config served: notebook_attachments_on=false · notebook_conflict_ux_on=false
+      · notebook_offline_default_on=true · notebook_offline_read_on=false` — the four keys,
+      at their defaults, on the payload a REAL SIGNED-IN MEMBER received from the deployed
+      pod. That is the end-to-end proof of K's server half, and it is the reading K-1's
+      precondition will be measured from.
+      Q1 itself stayed green through it: door `folder`, the offline sentence IN the server
+      body, no fork, note count 37 → 38 exactly, cleanup clean, opted back out `'0'`.
+      ⚠️ The FIRST attempt refused to stamp — its last read-back timed out during another
+      session's deploy churn — and the refusal was right: a log whose rows might be partial
+      reads as evidence. ⭐ It did NOT leave the rig opted in, and that is measured rather
+      than hoped: the next run's opening read found the on-disk key at `'0'` with 61
+      appends, so the write had reached disk and only the read-back was lost.
 - [ ] flip packet posted — **the first packet the owner expects**
 
 ## 10. Open, named

@@ -105,7 +105,7 @@ about the same failure, over the transport that actually exists.
 | K-e | The answer cannot move under a running tab | ✅ TRUE | K-R9, plus the CONTROL that a NEW tab does see the new answer |
 | K-f | K merges **dark**: nothing set ⇒ behaviour is what it was before K | ✅ TRUE | `notebookFlags.test.jsx` "K merges DARK", and the four-key defaults rail in `tests/test_notebook_flags.py` |
 | K-g | The reach statement is identical in all five places it lives | ✅ TRUE | `tests/test_k_reach_statement.py` (K-R8) derives it from the spec and compares |
-| K-h | Gate · plain-diff · flag-default sweep · sandbox canary | *stamped in §7* | — |
+| K-h | Gate · plain diff · flag-default sweep · production canary | ✅ TRUE | Gate `2026-09-12T21-19-17`: 1305 runnable files, 19,296 passed, **0 NEW attributable**. Plain diff read line by line (it found two comment-only defects, fixed with a byte-level proof). Sweep: 53 sites, self-check PASS. **Canary check 16 GREEN**, and its `notebook config served` row is the live end-to-end proof |
 
 ---
 
@@ -127,6 +127,23 @@ change — it is the measurement K-1 needs.**
   `false` so an unreachable payload fails to OFF — is **QUEUED, NOT PARKED**, and
   its precondition is *config-served rate 100% over the K window, measured by
   identity, rig excluded.* It ships as K's own **second** flip packet.
+
+### The window's first reading — check 16, 2026-09-13T03:07:01Z
+
+```
+notebook config served: notebook_attachments_on=false · notebook_conflict_ux_on=false
+                      · notebook_offline_default_on=true · notebook_offline_read_on=false
+```
+
+Taken signed in as the rig account against the deployed pod, so it is the payload a
+real member receives, not a function call in a test. All four keys present, all four
+at their defaults — K's server half is live and dark, exactly as this packet says.
+
+⛔ **One reading is not a rate, and this one is the RIG.** The precondition says
+*rig excluded*, so this row proves the mechanism works end to end and contributes
+**nothing** to K-1's numerator. What it also proves is that the instrument can tell
+the two failures apart: had this pod predated K, the same row would have said *no
+`notebook_*` keys on `/api/auth/me`* — absent, which is not off.
 
 ---
 
