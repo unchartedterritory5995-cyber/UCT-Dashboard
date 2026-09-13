@@ -16,9 +16,29 @@ NOTEBOOK SMOKE" (2026-09-05)**, which has never been run. Manifest row: **T-12**
 > A product can pass either one and fail the other. **Neither closes the program
 > alone. Both must be PASS, by name, in this file.**
 
-**Who runs it:** the owner, on his own device, signed in as himself. ~15 minutes.
-**This is not automation. Nothing in this repo runs it, and no agent may run it
-or fill in its results.**
+**Who runs it:** ⚖️ **AMENDED BY THE OWNER, 2026-09-13 — automation may execute it.**
+
+⚰️ ~~*"the owner, on his own device, signed in as himself. This is not automation.
+Nothing in this repo runs it, and no agent may run it or fill in its results."*~~
+
+> **The amendment, in the owner's words:** *"the owner delegates execution; the
+> owner reviews the evidence; automation may not substitute a scripted fetch for a
+> real interaction at any step."*
+
+⭐ The human-observation requirement is met by **evidence a human reviews
+afterward** — screenshots before and after each step, the network calls each step
+produced, console errors, and the pass/fail wording below — not by a human at the
+keyboard. **Everything this gate was protecting stands.** The standing
+prohibitions are untouched, and one sentence now does the load-bearing work:
+
+⛔ **A SCRIPTED `fetch` IS NOT A STEP.** If a step cannot be driven through the
+control a member uses, it is **INCONCLUSIVE with the rig limitation named** —
+never a pass. The amendment moves who presses the keys, not what counts as
+evidence.
+
+⚠️ Any automated run says **"automated per charter amendment 2026-09-13"** at the
+top of its results file. A reader must never have to infer that a green T-12 was
+produced by a machine.
 
 ---
 
