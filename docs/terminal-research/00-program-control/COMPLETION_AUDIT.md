@@ -4,7 +4,7 @@ title: Completion audit — every system and every registered follow-up in exact
 role: the day's control file. Updated at every merge.
 status: measurement. Every state cites a SHA, a gate, or a measured absence.
 date: 2026-09-12
-measured_against: origin/master @ 40bf07c99 · docs @ e1708826b
+measured_against: origin/master @ f3109e1af · docs @ 8cbd6ec56
 ---
 
 # Completion audit
@@ -55,9 +55,14 @@ named. **Recorded as a follow-up in §3.4; not silently disambiguated here.**
 
 | | count | which |
 |---|---|---|
-| **SIGNED** | **14** | D2, D5, H14, I1, S10, S12, S4, and all seven S7 types |
-| **UNSIGNED** | **4** | D3, D4, S5, entity-master (S3) |
-| **NO PACKET AT ALL** | **≥3** | **S6**, **S1**, **S2**, **S9** — named on the roster, no gate written |
+| **SIGNED** | **17** | D2, D5, H14, I1, S10, S12, S4, all seven S7 types, **+ D3, D4, S5 signed 2026-09-12** |
+| **UNSIGNED** | **1** | entity-master (S3) — and S3 is already BUILT |
+| **NO PACKET AT ALL** | **4** | **S6**, **S1**, **S2**, **S9** — named on the roster, no gate written |
+
+⭐ **UPDATED AFTER THE PRE-SIGNED BATCH (`f3235f4f7`).** D3/D4/S5 CP1 and five S7 CP3 lines were
+signed on the owner's instruction. ⛔ **THAT MOVES THEM OUT OF BLOCKED-SPEC-READ AND INTO A STATE
+THE DEFINITION OF COMPLETE DOES NOT ALLOW: authorized-and-unbuilt.** Named here rather than
+smoothed over — see §6.
 
 ⚠️ **"UNSIGNED" and "NO PACKET" are different blockers.** An unsigned packet is BLOCKED-SPEC-READ
 (the owner reads and signs). A missing packet is work this programme owes before the owner can
@@ -243,3 +248,34 @@ the ones to watch: each retires only when its type flips, and nothing today forc
 ⛔ **AND THE HONEST COUNT OF WHAT A CP3 COSTS:** price-level's CP3 was projection + admin cohort +
 forward-only comparison + a flag-gated sweep + a caller-rail, and it merged across several commits
 with an in-pod verification. Four more of those is not an afternoon.
+
+
+---
+
+## 6. ⛔⛔ WHAT IS NOT DONE, AND THE STATE IT IS IN
+
+**The definition of complete allows three states. Eight items are in a fourth —
+AUTHORIZED-AND-UNBUILT — and that is this drive's outstanding work, not a discovered
+blocker.**
+
+| item | authorized | built | what it needs |
+|---|---|---|---|
+| D3 CP1 | `00ebb5e80` | ❌ | the ratification rail |
+| D4 CP1 | `37bfe4251` | ❌ | two adopters + hit-rate counter |
+| S5 CP1 | `37e1823a6` | ❌ | the Notebook-pattern extraction |
+| S6 CP1 | ❌ **no packet** | ❌ | a gate packet FIRST |
+| D2 §9.5 CP1 | ❌ unsigned (B4 in the form) | ❌ | the owner's reading |
+| S7 `scan-membership-change` CP3 | `d0415f251` | ❌ | the projection |
+| S7 `regime-change` CP3 | `9f0575340` | ❌ | the projection |
+| S7 `position-risk` CP3 | `ec2b197f8` | ❌ | the projection |
+| S7 `catalyst-match` CP3 | `3ee80dc13` | ❌ | the projection |
+| S7 `indicator-condition` CP3 | `148af5293`, VOID until §9.5 | ❌ | §9.5 first |
+
+⭐ **AND THE HONEST SIZE OF IT.** `price-level` CP3 — the template all four S7 CP3s copy — was a
+projection, an admin cohort, a forward-only comparison, a flag-gated sweep and a caller-rail, and
+it landed across several commits with an in-pod verification. **Four more of those, plus three
+CP1s and a spec that changes what the address book is, is not one session's work at this rigor.**
+Recording that is more useful than a partial build that reads as progress.
+
+⛔ **NOTHING WAS BUILT PARTIALLY TO CLOSE THE GAP.** No half-projection, no unflagged sweep, no
+CP1 without its gate. The eight rows above are each one clean unit of work with a signed scope.
