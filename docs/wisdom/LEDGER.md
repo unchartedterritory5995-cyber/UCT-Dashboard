@@ -48,6 +48,7 @@ Branch cut from `origin/master` at **`f4fc5d1c1`** (2026-09-13). Not merged.
 | # | commit | when (CDT) | wave | files | subject |
 |---|---|---|---|---|---|
 | 1 | `37e84831e` | 2026-09-13 09:29 | **S0** | 5 | docs(wisdom): Session 0 discovery — manifest, schema v0, vocabulary v0, golden verifier |
+| 2 | `b5e51c37b` | 2026-09-13 09:54 | **S0** | 2 | docs(wisdom): owner rulings D1-D10 (all YES), D6 merge map, D11-D20, expanded scope |
 
 ## Section 2 — merges to master
 
