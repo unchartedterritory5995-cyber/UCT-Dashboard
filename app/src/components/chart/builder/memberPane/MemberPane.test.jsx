@@ -104,7 +104,19 @@ describe('⭐⭐ flag ON — the pane is handed the member\'s own script', () =>
     expect(p.showTfBar).toBe(false)
     // ⛔ NO SECOND STREAM AND NO SECOND WARM. The member's real chart already
     // does both for this symbol.
-    expect(p.stockChartProps).toEqual({ liveUpdates: false, backgroundWarm: false })
+    expect(p.stockChartProps.liveUpdates).toBe(false)
+    expect(p.stockChartProps.backgroundWarm).toBe(false)
+    // ⭐ AND THE BAR COUNT COMES BACK, because the window-dependent badge names
+    // it. `_requirement_tags.window_dependent.why_the_pane_may` is why the pane
+    // is allowed to serve `ta.cum` at all: "the pane additionally shows a
+    // disclosure badge naming the bar count when the value is DISPLAYED."
+    // ⛔ `onDrawnBarCount`, not `onBarsReady` — ready fires on a fatal error too,
+    // so a badge built on it would read "0 bars here" on a dead ticker.
+    expect(typeof p.stockChartProps.onDrawnBarCount).toBe('function')
+    // The prop set is still CLOSED: a fourth key is a second stream or a second
+    // warm sneaking back in, which is what this assertion has always been for.
+    expect(Object.keys(p.stockChartProps).sort())
+      .toEqual(['backgroundWarm', 'liveUpdates', 'onDrawnBarCount'])
   })
 
   it('⛔⛔ the pane holds the member\'s definition and NOTHING ELSE', () => {

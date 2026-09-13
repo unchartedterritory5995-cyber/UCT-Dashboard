@@ -152,7 +152,7 @@
       },
       {
         "bars_back": 5,
-        "date": "2026-09-04",
+        "date": "2026-09-03",
         "time": 1788442200,
         "values": [
           43531581,
@@ -163,7 +163,8 @@
           436207615,
           56300182.625,
           0
-        ]
+        ],
+        "_date_corrected": "⚰️ CORRECTED 2026-09-12 (T5). This row was labelled `2026-09-04` while its own `time` (1788442200 = 2026-09-03 13:30 UTC) says 2026-09-03 — and bars_back 5 from 2026-09-11 IS 09-03, because 09-07 was Labor Day and 09-05/09-06 the weekend. ⛔ THE LABEL WAS THE ONLY THING WRONG; every value on the row is the vendor's. T5's comparison aligned on the LABEL first and reported our volume 34,015,600 against the vendor's 43,531,581 — a 28% divergence that does not exist. Aligned on `time` the same pair is 43,494,000 vs 43,531,581, rel 8.6e-4, in line with every other bar. ⭐ COMPARE BY TIMESTAMP; a human-written date beside a machine-written one is a second authority over one value."
       }
     ],
     "spread_control": {
@@ -195,7 +196,8 @@
         "value": 0,
         "note": "⚠️ FLAT AT 0 ACROSS THIS WINDOW, and correctly so — it is the alertcondition, not a series. Recorded as flat rather than quietly dropped."
       }
-    }
+    },
+    "_alignment_rule": "⛔⛔ ALIGN ON `time`, NEVER ON `date`. `time` is what TradingView returned; `date` is a convenience label written beside it, and on 2026-09-12 one of them was a day out. A comparison that keys on the label can invent a divergence of any size — this one invented 28% on a bar that agrees to 8.6e-4."
   },
   "tables": {
     "_": "⛔⛔ READ AS STRINGS, NOT AS PIXELS. These are the exact arguments TradingView passed to `fillText`, captured by wrapping `CanvasRenderingContext2D.prototype.fillText` for one redraw and restoring it immediately (`restored: true` asserted). A screenshot read cannot recover a TRAILING SPACE, and one of these cells has one.",

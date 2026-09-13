@@ -26,7 +26,9 @@ import { translatePine } from '../../engine/ast/pine'
 import { paneGate } from '../../engine/ast/paneGate'
 import { memberInputTranslation } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
-import { alertNoteForOutput } from '../../engine/ast/parse'
+import {
+  alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
+} from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
@@ -134,6 +136,15 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       style: typeof p.style === 'string' ? p.style : 'line',
       color: typeof p.color === 'string' ? p.color : undefined,
       hidden: false,
+      // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
+      // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
+      // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
+      // whole job is to SET THE SCALE and never be seen. Without the opacity it
+      // drew as a solid white line across the sub-pane — the most prominent thing
+      // on it, and an artefact of the import rather than anything the script asks
+      // for. `defSchema` validates it and the renderer reads it (I-4, "an author's
+      // declaration dropped on the floor — Wired"); only this step was missing.
+      ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
     }
   })
@@ -180,8 +191,71 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // produced here rather than left for the pane to compose. A member whose script
   // declares an alert should be told where it went, on the surface that did not
   // draw it.
-  const notes = (t.outputs || []).flatMap((o) => alertNoteForOutput(o))
-  return { ok: true, definition, reason: null, guard: null, translation: t, rows, notes }
+  // ⭐ AND THE FOLDS, ON THE SAME LIST. `baseTimeframeFolds` is a divergence this
+  // project has already measured and accepted; the row records that it happened,
+  // and a member reading a folded series is owed the sentence beside it.
+  // ⛔ DEDUPED BY CHANNEL ACROSS THE WHOLE DOCUMENT, not per row —
+  // `foldNotesForOutput` dedupes within one output, and four outputs folding the
+  // same call would otherwise put four copies of one sentence on screen, which
+  // reads as four problems.
+  const notes = []
+  const seen = new Set()
+  for (const o of (t.outputs || [])) {
+    for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
+      const key = `${n.name} :: ${n.note}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      notes.push(n)
+    }
+  }
+  return {
+    ok: true,
+    definition,
+    reason: null,
+    guard: null,
+    translation: t,
+    rows,
+    notes,
+    // ⚠️ NOT A NOTE YET — a tag needs the BAR COUNT, which only the chart knows.
+    // The pane finishes the sentence with `parse.js::requirementNote` once the
+    // series has loaded; the producer still owns the wording.
+    requirementTags: requirementTagsRaised(t),
+  }
+}
+
+/** ─── ⭐⭐ WHICH REQUIREMENT TAGS THIS DOCUMENT RAISES ───────────────────────
+ *
+ *  ⛔⛔ DERIVED FROM THE MANIFEST'S OWN ROSTERS, NEVER TYPED. Each tag names the
+ *  `calls` and `series` that set it; this walks the document's trees for those
+ *  names. A literal `['cum']` here would be a second authority over a roster
+ *  `_requirement_tags` already owns, and the next name added to a tag would
+ *  silently stop being disclosed — the same argument `parse.js::hostAdmissible`
+ *  makes for the same rosters.
+ *
+ *  ⚠️ AND IT IS THE PANE'S OWN DOCUMENT, so it answers about what is DRAWN. The
+ *  full translation's alertcondition is not here — D1 removed it — which is the
+ *  correct answer: a tag is a disclosure about a value on screen.
+ */
+export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
+  const names = new Set()
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return
+    if (Array.isArray(node)) { node.forEach(walk); return }
+    if ((node.type === 'call' || node.type === 'series') && typeof node.name === 'string') {
+      names.add(node.name)
+    }
+    for (const k of Object.keys(node)) {
+      if (k === 'type' || k === 'name') continue
+      walk(node[k])
+    }
+  }
+  for (const o of (translation && translation.outputs) || []) walk(o.ast || o.tree || null)
+
+  const raised = []
+  for (const [tag, spec] of Object.entries(notes || {})) {
+    if ((spec.names || []).some((n) => names.has(n))) raised.push(tag)
+  }
+  return raised.sort()
 }
 
 /** The member's OWN declared inputs, as `buildDefinition` wants them.

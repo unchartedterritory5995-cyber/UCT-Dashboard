@@ -1,0 +1,53 @@
+/* app/src/components/chart/builder/memberPane/MemberPane.module.css
+ *
+ * ⚰️ WHY THIS FILE EXISTS — measured on the real chart, 2026-09-12 (T5 pixels).
+ *
+ * The pane shipped with an UNSTYLED wrapper. Mounted in `BuilderSheet` it drew a
+ * frame 248px tall, and inside it the chart's own chrome — toolbar, drawing bar,
+ * time axis, price scale — left the two panes **29px and 28px**. Four series and
+ * a quarter-height sub-pane were all there, all correct, and all invisible: the
+ * console said `paneLayout: the chart has 1 panes, expected at least 2` and the
+ * screenshot was a black rectangle.
+ *
+ * ⛔ NOTHING OFFLINE COULD HAVE CAUGHT IT. `MemberPane.test.jsx` mocks
+ * `ChartPane`, so every case is about what the pane is HANDED; a wrapper with no
+ * height hands the same props and passes every one. `PreviewPane`'s own header
+ * records the same class of bug one step earlier — `styles.preview` resolving to
+ * `undefined` renders a zero-height div and nothing reddens.
+ *
+ * ⭐ THE HEIGHT IS NOT A GUESS. `MEMBER_PANE_HEIGHT = 0.25` puts the member's
+ * series in a sub-pane a quarter of the plot high, so the frame has to carry the
+ * chart's fixed chrome PLUS a plot tall enough that a quarter of it is still a
+ * chart. Measured at 248px the chrome took ~190px; 420px leaves ~230px of plot,
+ * so the sub-pane lands near 58px — thin, and legible, which is what the
+ * screenshot has to show.
+ */
+
+.pane {
+  height: 420px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ⭐ THE DISCLOSURES ARE PART OF THE PANE, NOT DEBRIS BELOW IT. Unstyled, the
+ * `<ul>` took the browser default: full bleed, a bullet outside the card, and
+ * the alert note reading like an error the sheet had thrown. A member is
+ * supposed to read these next to the drawing they describe. */
+.notes {
+  margin: 8px 0 0;
+  padding: 8px 10px 8px 26px;
+  list-style: disc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev, var(--bg));
+  color: var(--color-text-muted, #9aa0a6);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.notes li + li {
+  margin-top: 6px;
+}

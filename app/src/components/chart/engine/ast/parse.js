@@ -645,6 +645,57 @@ export function alertNoteForOutput(out, notes = ALERT_NOTES) {
   }]
 }
 
+/** ─── ⭐⭐ THE REQUIREMENT-TAG DISCLOSURE: A NUMBER THAT DEPENDS ON THE FETCH ──
+ *
+ *  `_requirement_tags.window_dependent.why_the_pane_may` has said since it was
+ *  written that the pane "shows a disclosure badge naming the bar count when the
+ *  value is DISPLAYED". ⚰️ Nothing rendered it. The pane drew `ta.cum`'s running
+ *  total with nothing beside it, which is precisely the reading the five
+ *  comparability consumers refuse the value FOR.
+ *
+ *  ⛔ THE SENTENCE IS DECLARED ONCE, IN THE MANIFEST, like `_folds[].memberNote`
+ *  and `_alertconditions.memberNote`. The producer substitutes the count; the
+ *  component renders the finished string verbatim. A renderer assembling
+ *  "… — 5,000 bars here" would be the second-authority defect ruling 1.1 closed.
+ *
+ *  ⚠️ A tag with no `memberNote` yields NOTHING and is not invented. Tags exist
+ *  to be refused by consumers as much as to be disclosed; silence here means
+ *  "this tag has no member sentence yet", never "this tag is harmless".
+ */
+export function requirementNotesOf(table) {
+  const out = {}
+  for (const [tag, spec] of Object.entries((table && table._requirement_tags) || {})) {
+    if (tag.startsWith('_') || !spec || typeof spec !== 'object') continue
+    if (typeof spec.memberNote !== 'string' || !spec.memberNote.trim()) continue
+    out[tag] = {
+      memberNote: spec.memberNote,
+      barsPlaceholder: (typeof spec.barsPlaceholder === 'string' && spec.barsPlaceholder)
+        ? spec.barsPlaceholder : '<bars>',
+      // ⭐ THE ROSTER THE TAG ITSELF NAMES — calls AND series, because `isfirst`
+      // is a series with exactly the property and reading only `calls` would
+      // disclose half of them. `_requirement_tags.window_dependent.what` says so.
+      names: [...(spec.calls || []), ...(spec.series || [])],
+    }
+  }
+  return out
+}
+
+export const REQUIREMENT_NOTES = Object.freeze(requirementNotesOf(TABLE))
+
+/** The finished sentence for one tag at one bar count.
+ *
+ *  ⚠️ `bars` UNKNOWN yields the sentence with the placeholder's own words rather
+ *  than `undefined` or a guess — a disclosure that cannot name the count is still
+ *  a disclosure, and inventing a number here would be worse than a vague one.
+ *  (Same fallback rule `alertNoteForOutput` uses for an untitled condition.) */
+export function requirementNote(tag, bars, notes = REQUIREMENT_NOTES) {
+  const spec = notes && notes[tag]
+  if (!spec || typeof spec.memberNote !== 'string') return null
+  const count = Number.isFinite(bars) && bars > 0
+    ? Number(bars).toLocaleString('en-US') : 'an unknown number of'
+  return { name: tag, note: spec.memberNote.split(spec.barsPlaceholder).join(count) }
+}
+
 /** The declaration that says an entry's OTHER `int` arguments must fit inside
  *  the one its `lookback` names. `closedTable.json::_functions_domain` argues it;
  *  this is the key both lanes match on, and its VALUE names which of the entry's

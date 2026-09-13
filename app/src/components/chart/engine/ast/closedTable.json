@@ -3171,7 +3171,10 @@
       "na_rule": "⭐ `na` before the first finite input; `na` ON an `na` bar; the total HELD across it — it neither advances nor resets — and resumes on the next finite bar. Measured: 7330 -> na -> 7331, and the final value equals the count of finite inputs exactly. NOT 'contributes 0 and keeps drawing', which would paint a value on a bar the vendor leaves blank.",
       "series": [
         "isfirst"
-      ]
+      ],
+      "barsPlaceholder": "<bars>",
+      "memberNote": "This script counts from the first bar that was loaded, so what it shows depends on how much history is on the chart — <bars> bars here. Load more history and every value moves by the same amount.",
+      "_memberNote_is_the_badge": "⭐ THIS IS THE DISCLOSURE `why_the_pane_may` ALREADY PROMISED and nothing rendered. That field says the pane 'shows a disclosure badge naming the bar count when the value is DISPLAYED' — an obligation written down and never met, which is how a pane ends up showing a window-dependent number with nothing beside it. ⛔ The sentence lives HERE, once, like `_folds[].memberNote` and `_alertconditions.memberNote`; `parse.js::requirementNotesOf` and the Python mirror read it, the PRODUCER substitutes `<bars>`, and the component renders the finished string verbatim. A count interpolated in the renderer would be a second authority over one value (ruling 1.1)."
     }
   },
   "_bind_time_constants": {

@@ -113,6 +113,7 @@ import { applyParamEdit } from './paramEdit'
 // a VIEW: it installs the document this form would save under one fixed id and
 // forgets it the moment the draft stops evaluating or the sheet closes.
 import PreviewPane from './editor/PreviewPane'
+import MemberPane from './memberPane/MemberPane'
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
@@ -2386,6 +2387,27 @@ export default function BuilderSheet({
           />
           {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
           <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
+
+          {/* ⭐⭐ T5 — THE MEMBER'S OWN PINE, ON A PANE, BEHIND A FLAG.
+              The importer `MemberPane.jsx` was written for, and the reason its
+              flag-off rail stops being vacuous: with no consumer, "renders
+              nothing when the flag is off" was a claim about a component
+              nobody could reach.
+
+              ⛔ IT IS FED `pineText`, NOT `source`. `source` is the FORMULA the
+              sheet edits — one tree, already drawn by `PreviewPane` above.
+              `pineText` is the script the member PASTED, whose whole document
+              (four drawn series on v2, plus the disclosures the translation
+              emits) is what this pane exists to show. Handing it `source` would
+              put a second drawing of the same single tree on screen and none of
+              the document.
+
+              ⛔ NO GUARD HERE, DELIBERATELY. `memberPaneEnabled()` is read
+              INSIDE the component, before any build, so a default build
+              installs nothing, registers nothing and renders nothing. A second
+              flag read at the call site would be a second authority over one
+              value — and the one on the inside is the one the rails measure. */}
+          <MemberPane sym={sym} tf={tf} source={pineText} settings={settings} />
 
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
               `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`

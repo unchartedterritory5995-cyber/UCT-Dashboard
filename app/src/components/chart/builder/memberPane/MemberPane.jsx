@@ -26,13 +26,15 @@
 // HANDED, never about pixels. Whether four series actually paint, whether Scale
 // Padding is invisible and scale-setting, and whether the sub-pane is a quarter
 // high are SCREENSHOT questions and are owed against the real chart.
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ChartPane from '../../pane/ChartPane'
 import * as engineRegistry from '../../engine/nativeRegistry'
 import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
+import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import styles from './MemberPane.module.css'
 
 const noop = () => {}
 
@@ -57,6 +59,21 @@ export default function MemberPane({
   // nobody asked for, on the render path.
   const enabled = memberPaneEnabled()
   const live = !!(enabled && sym && tf && source)
+
+  // ⭐⭐ THE BAR COUNT IS A DISCLOSURE, NOT DIAGNOSTICS.
+  // `_requirement_tags.window_dependent.why_the_pane_may` is the reason the pane
+  // is the ONE consumer allowed to serve `ta.cum`: "a pane is one symbol, one
+  // fetch, and the member can see where the data starts… the pane additionally
+  // shows a disclosure badge naming the bar count when the value is DISPLAYED."
+  // Without this number that permission rests on a badge nobody rendered.
+  // ⛔ `onDrawnBarCount`, NOT `onBarsReady`. Ready says the bars question
+  // SETTLED — it fires on a fatal error too — and a badge reading "0 bars here"
+  // on a dead ticker would be a disclosure about nothing. This is the count that
+  // was actually handed to the chart, which is the quantity the sentence names.
+  const [drawnBars, setDrawnBars] = useState(null)
+  const onDrawnBarCount = useCallback((n) => {
+    setDrawnBars((prev) => (Number.isFinite(n) && n !== prev ? n : prev))
+  }, [])
 
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
   // on a real script is milliseconds, and milliseconds on every keystroke is a
@@ -107,6 +124,18 @@ export default function MemberPane({
     return addInstance(bare, defId, engineRegistry)
   }, [installed, settings, defId])
 
+  // ⭐ THE THREE DISCLOSURE CHANNELS ON ONE LIST, each produced where its
+  // sentence is declared and rendered here verbatim: the D1 alert note and the
+  // `baseTimeframeFolds` note come off the document (`memberPaneDefinition`),
+  // the requirement badge is finished here ONLY because it needs the bar count
+  // the chart just reported — `parse.js::requirementNote` still owns the wording.
+  const disclosures = useMemo(() => {
+    const base = (built && built.ok && built.notes) || []
+    const tags = (built && built.ok && built.requirementTags) || []
+    const badges = tags.map((t2) => requirementNote(t2, drawnBars)).filter(Boolean)
+    return [...base, ...badges]
+  }, [built, drawnBars])
+
   if (!enabled) return null
   if (!live) return null
   // ⭐ A REFUSAL IS A SENTENCE, NEVER A BLANK. `paneGate` already produced one;
@@ -120,22 +149,29 @@ export default function MemberPane({
 
   return (
     <div data-testid="pine-member-pane" data-def-id={defId}>
-      <ChartPane
-        sym={sym}
-        tf={tf}
-        density="mini"
-        showTfBar={false}
-        stored={stored}
-        onStore={noop}
-        stockChartProps={MEMBER_CHART_PROPS}
-      />
+      {/* ⚰️ THE FRAME CARRIES THE HEIGHT, AND IT IS LOAD-BEARING. Unstyled, this
+          pane drew at 248px and the chart's own chrome left the two panes 29px
+          and 28px — four correct series, a correct quarter-height sub-pane, and
+          a black rectangle. `MemberPane.module.css` records the measurement;
+          `MemberPane.test.jsx` cannot see it, because it mocks `ChartPane`. */}
+      <div className={styles.pane}>
+        <ChartPane
+          sym={sym}
+          tf={tf}
+          density="mini"
+          showTfBar={false}
+          stored={stored}
+          onStore={noop}
+          stockChartProps={{ ...MEMBER_CHART_PROPS, onDrawnBarCount }}
+        />
+      </div>
       {/* ⭐ THE DISCLOSURES THE RULINGS OWE A MEMBER, rendered VERBATIM and
           composed nowhere: the D1 alert note comes from `memberPaneDefinition`,
           which interpolates the condition's name from the one sentence declared
           in `closedTable.json::_alertconditions`. */}
-      {built.notes.length > 0 && (
-        <ul data-testid="pine-member-pane-notes">
-          {built.notes.map((n) => <li key={n.name}>{n.note}</li>)}
+      {disclosures.length > 0 && (
+        <ul data-testid="pine-member-pane-notes" className={styles.notes}>
+          {disclosures.map((n) => <li key={n.name}>{n.note}</li>)}
         </ul>
       )}
     </div>

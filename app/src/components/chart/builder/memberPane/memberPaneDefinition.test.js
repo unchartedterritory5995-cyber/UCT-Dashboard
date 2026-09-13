@@ -113,11 +113,44 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     expect(MEMBER_PANE_HEIGHT).toBeLessThan(1)
   })
 
-  it('⭐ and the member is told where the alert went', () => {
+  it('⭐ and the member is told where the alert went — and about the fold', () => {
     const r = memberPaneDefinition({ source: V2 })
-    expect(r.notes).toHaveLength(1)
-    expect(r.notes[0].note).toContain("'HVE Trigger'")
-    expect(r.notes[0].note).toContain('not drawn on the chart')
+    const byName = Object.fromEntries(r.notes.map((n) => [n.name, n.note]))
+    expect(Object.keys(byName).sort()).toEqual(['alertcondition', 'baseTimeframeFolds'])
+
+    // Ruling D1: the condition is not drawn, and the member is told where it went.
+    expect(byName.alertcondition).toContain("'HVE Trigger'")
+    expect(byName.alertcondition).toContain('not drawn on the chart')
+
+    // ⭐ Ruling 3.5 / 1.1: the daily `request.security` folded to the chart's own
+    // series. A divergence this project has MEASURED and ACCEPTED still owes the
+    // member the sentence, and it is declared once in `closedTable.json::_folds`.
+    // ⚰️ It was emitted on the row and rendered by nobody on this surface until
+    // 2026-09-12 — `baseTimeframeFolds` has a whole rail (`fold_requires_member_note`)
+    // asserting the sentence exists, and the pane still showed only the alert.
+    expect(byName.baseTimeframeFolds).toContain('request.security')
+
+    // ⛔ ONE SENTENCE PER CHANNEL ACROSS THE DOCUMENT. v2 folds on more than one
+    // output; four copies of one disclosure read as four problems.
+    expect(r.notes.filter((n) => n.name === 'baseTimeframeFolds')).toHaveLength(1)
+  })
+
+  it('⭐⭐ and the window-dependent tag is raised, from the manifest\'s own roster', () => {
+    // `ta.cum` is why the PANE is the only consumer allowed to serve this script:
+    // `_requirement_tags.window_dependent` lists it, every comparability consumer
+    // refuses it, and the pane's permission is conditional on showing the badge.
+    const r = memberPaneDefinition({ source: V2 })
+    expect(r.requirementTags).toEqual(['window_dependent'])
+  })
+
+  it('⛔ a script that raises no tag gets no badge — the probe can say no', () => {
+    // Without this, "v2 raises window_dependent" is equally satisfied by a
+    // function that returns every tag for every script.
+    const r = memberPaneDefinition({
+      source: '//@version=6\nindicator("plain")\nplot(sma(close, 20))\n',
+    })
+    expect(r.ok).toBe(true)
+    expect(r.requirementTags).toEqual([])
   })
 
   it('⛔ an overlay script gets the PRICE pane, not a sub-pane', () => {

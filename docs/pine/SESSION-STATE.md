@@ -1,5 +1,190 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ SESSION 2 · T5 — THE PIXELS, AND WHAT THEY FOUND (2026-09-12)
+
+**v2 on SPY 1D, behind `VITE_PINE_MEMBER_PANE_ENABLED`, on a real browser.** The
+pane had an importer for the first time; the screenshots are the deliverable and
+**four defects only pixels could have found** came with them.
+
+Receipt: the script the browser ran hashes to
+`518a6b22…b28a` — byte-identical to `tests/fixtures/member/uncharted-volume-v2.pine`
+and to what TradingView ran for the vendor capture.
+
+### ⛔⛔ THE PANE NOW HAS A CONSUMER — `BuilderSheet`, fed `pineText`
+
+`MemberPane.jsx` had **zero importers outside its own tests**, so "renders nothing
+when the flag is off" was a claim about a surface no member could reach. It is now
+mounted beside `PreviewPane` and handed the member's PASTED script — not `source`,
+which is the single formula the sheet edits and `PreviewPane` already draws.
+
+`memberPaneWire.test.js` reads `BuilderSheet.jsx`'s own **AST** and fails on a cut
+wire, a missing mount, or the wrong prop — the half every component test is blind
+to. Mutation-checked both ways. ⚰️ Its first cut asserted
+`expect(src).not.toMatch(/memberPaneEnabled/)` and went red against **the comment
+saying the flag is read inside the component** — the repo's most repeated
+instrument defect, caught by its own rail and rewritten over the AST.
+
+### ⚰️ FOUR THINGS THE OFFLINE TESTS COULD NOT SEE
+
+**1. The frame had no height, so nothing was visible.** Mounted, the pane drew at
+248px and the chart's own chrome left the two panes **29px and 28px**. Four
+correct series, a correct quarter-height sub-pane, and a black rectangle. The
+console said `paneLayout: the chart has 1 panes, expected at least 2`.
+`MemberPane.test.jsx` mocks `ChartPane`, so it hands the same props and passes.
+Fixed with `MemberPane.module.css` (420px), which is the same defect `PreviewPane`
+records one step earlier (`styles.preview` → `undefined` → a zero-height div).
+
+**2. Two of the three disclosures were not rendered at all.** The pane showed the
+D1 alert note and nothing else:
+
+- **`baseTimeframeFolds`** was emitted on the row and rendered by nobody here —
+  while `fold_requires_member_note` rails that the sentence EXISTS. Now produced
+  by `memberPaneDefinition`, deduped by channel across the document.
+- **The `ta.cum` disclosure did not exist as a sentence anywhere.**
+  `_requirement_tags.window_dependent.why_the_pane_may` has said since it was
+  written that the pane *"shows a disclosure badge naming the bar count when the
+  value is DISPLAYED"* — that is the CONDITION on the pane being the only consumer
+  allowed to serve `ta.cum`, and nothing rendered it. The sentence is now declared
+  in the manifest with a `<bars>` placeholder, read by `parse.js::requirementNotesOf`,
+  finished by the producer, and the count comes from `onDrawnBarCount` (**not**
+  `onBarsReady`, which fires on a fatal error too and would badge "0 bars" on a
+  dead ticker).
+
+All three now render verbatim in the flag-on screenshot:
+
+```
+This script's alert condition 'HVE Trigger' is available under Alerts; it is not drawn on the chart.
+This script's daily request.security was folded to the chart's own daily series — identical on a
+  closed daily chart; would differ by one bar intraday.
+This script counts from the first bar that was loaded, so what it shows depends on how much history
+  is on the chart — 8,462 bars here. Load more history and every value moves by the same amount.
+```
+
+⭐ 8,462 is a control in its own right: the manifest records TradingView at
+**8,459** bars on SPY 1D, measured 2026-09-08.
+
+**3. `presentation.opacity` was dropped, so the invisible series was the loudest
+thing on the pane.** v2's fourth plot is `Scale Padding` — `#FFFFFF, opacity 0,
+width 1`, a series whose whole job is to set the scale and never be seen.
+`defSchema` validates opacity and the renderer reads it (I-4, *"an author's
+declaration dropped on the floor — Wired"*); only the row builder was missing.
+Now carried.
+
+**4. The pane does not resize.** Measured: frame 420px → price pane **292px**,
+member sub-pane **97px**, axis 28px. **97 / 389 = 0.249**, so
+`MEMBER_PANE_HEIGHT = 0.25` is honoured to within a pixel. ⛔ Setting the frame to
+640px and waiting 1.2s left every canvas at 292/97/28 — the chart is sized once at
+mount and does not follow its container. Harmless in a fixed-width modal; not
+harmless the day this pane goes on a phone.
+
+### ⛔⛔ AND THE FINDING THAT MATTERS MOST: **1 OF 4 SERIES COMPUTES**
+
+Three of the four columns refuse, with the same guard:
+
+```
+value  out3  out4   interpret:node
+  not a canonical node unknown node type "textop" —
+  legal types are num, series, op, call, offset, tf, sym, tf_live, str, symtext, textop
+```
+
+⚠️ **The message lists `textop` among the legal types while refusing it** — the
+roster and the dispatcher are two authorities, and the sentence a member would
+read is self-contradictory.
+
+**The cause is a shape mismatch at one seam, and it is measured, not inferred:**
+
+| | |
+|---|---|
+| the nodes | 18 of them, all `str.contains(syminfo.ticker \| syminfo.tickerid, "/")` — the script's forex/crypto test |
+| the fold | `bind.js::foldBound` folds a `textop` **wherever it sits** and has since R-G. It is wired. |
+| what it needs | `symbolConstants(symbol)` → `syminfo.*`, and it takes an **object** `{ticker, exchange}` |
+| what it gets | `astColumnsFor` passes `symbol: ctx.sym`, and `ctx.sym` on the chart lane is the **string** `"SPY"`. `symbolConstantsWith` returns `{}` for anything that is not an object. |
+| so | `bindingConstants(...)` = `{}`, every `syminfo.*` is `NotFoldable`, every text predicate survives into the evaluator, and the evaluator has no arm for it |
+
+⭐ **The witnesses are not the blocker — they exist.** `symbolScope.json::confirmed`
+carries six exchanges captured 2026-09-10, including **`NYSE Arca → AMEX`,
+witnessed by `AMEX:SPY`**. (`bind.js`'s own comment saying "`confirmed` is empty
+today" is stale prose.) What is missing is the exchange being THREADED: StockChart
+passes `sym` to `binder.sync`, the binder passes `ctx.sym` on, and nothing on the
+path ever knew an exchange.
+
+⛔ **NOT FIXED TONIGHT, DELIBERATELY.** The narrow half — normalising a bare string
+to `{ticker}` — would resolve `syminfo.ticker` and still leave every one of these
+trees refusing, because each predicate is an OR over `ticker` **and** `tickerid`,
+and `tickerid` needs the exchange. The full fix threads a symbol object from
+StockChart through the binder into `computeFor`: the chart's hot path, with a
+Python twin (`ast_table` / `ast_lint`) that must move with it. **That is an owner
+call, not an improvisation at the end of a session.**
+
+### The per-series comparison against `7f94f4404`, run through `seriesCompare.js`
+
+```
+series                   kind   bars   cmp    blank  max rel      abs there      worst bar  verdict
+Volume                   int    4      4      0      —            —              0          4 integer values differ
+Avg Vol Columns          float  4      1      3      1.235e-4     5.349e+3       0          max relative error 1.235e-4 exceeds 1e-9
+Avg Vol Line             float  4      0      0      0.000e+0     0.000e+0       0          4 bars are blank on one side only
+Scale Padding            float  4      0      0      0.000e+0     0.000e+0       0          4 bars are blank on one side only
+```
+
+⭐ **The comparator discriminated on its first meeting with real vendor numbers** —
+which is exactly why it was built and exercised before it ever saw them.
+
+| bar | our Volume | vendor Volume | Δ | rel |
+|---|---|---|---|---|
+| 2026-09-11 | 45,477,300 | 45,512,741 | +35,441 | 7.79e-4 |
+| 2026-09-10 | 42,740,400 | 42,740,375 | −25 | 5.85e-7 |
+| 2026-09-09 | 32,812,400 | 32,812,411 | +11 | 3.35e-7 |
+| 2026-09-03 | 43,494,000 | 43,531,581 | +37,581 | 8.63e-4 |
+
+⛔⛔ **"VOLUME EXACT" CANNOT PASS, AND NOT BECAUSE OF THE TAPE: OUR STORE QUANTISES
+VOLUME TO 100 SHARES.** Every one of our values ends in `00`. Two of these four
+bars differ by **25 and 11 shares** — pure rounding, invisible at any float
+tolerance and fatal to an integer-exact test. The other two carry a real ~35k
+difference on top of it. ⭐ Same shape as the AGEN row, on a different symbol:
+`agen-historical-volume-differs-by-1-8-percent-before-2016` is **not
+symbol-specific**, and this is evidence for it.
+
+⭐ `Avg Vol Columns` **agrees on WHEN it draws**: null on 09-10, 09-09 and 09-03 on
+both sides, a value on 09-11 on both. The two-tone cap fires on the same bars; the
+value differs by 5,349 (1.2e-4) because it is a 50-bar average of volumes that
+already differ.
+
+### ⚰️ AND THE FIXTURE HAD A DAY-OUT LABEL, WHICH INVENTED A 28% DIVERGENCE
+
+`plots.rows[3]` was labelled **`2026-09-04`** while its own `time`
+(1788442200 = 2026-09-03 13:30 UTC) says **2026-09-03** — and bars_back 5 from
+09-11 IS 09-03, because 09-07 was Labor Day. Aligning on the label put our
+34,015,600 against the vendor's 43,531,581 and read as a **28% divergence that does
+not exist**; aligning on `time` gives 43,494,000 vs 43,531,581, rel 8.6e-4, in line
+with every other bar.
+
+⛔ **The label is corrected in the fixture and `plots._alignment_rule` now says to
+key on `time`.** A human-written date beside a machine-written one is a second
+authority over one value, and this one was wrong within a day of being written.
+
+### Flag OFF — proved against the real product, not a mock
+
+A second dev server with the variable unset, the same script pasted into the same
+sheet:
+
+```
+memberPaneEnabled()                     false
+[data-testid=pine-member-pane]          absent
+[data-testid=pine-member-pane-refusal]  absent
+[data-testid=pine-member-pane-notes]    absent
+listUserDefinitions()                   ["u_64f29c909667"]   ← the member's own, and nothing else
+```
+
+⭐ **The registry line is the one that matters**: a leaked definition rides
+`listUserDefinitions()` onto the member's real chart, and that is the claim that
+was structurally unprovable while the component had no importer.
+
+### Realtime: **UNTESTED**, and not inferred
+
+`MEMBER_CHART_PROPS` sets `liveUpdates: false` deliberately — the member's real
+chart already streams the symbol. Nothing drove a tick at this pane, so nothing is
+claimed about realtime behaviour on it.
+
 ## ⭐⭐ SESSION 2 — THE TWO AGEN DIVERGENCES, RULED AND RAILED (2026-09-12)
 
 Owner ruled both; this is what landed.
