@@ -360,10 +360,10 @@ describe('metric readout', () => {
     clickPreset('New Highs vs Lows')
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
     // Fixture 52W highs run 100..129, so the last point is the highest.
-    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile' }))
+    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile of 30 readings shown' }))
       .toBeInTheDocument()
     // 52W lows cycle 10..16, so the last value sits mid-range, not at an extreme.
-    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile$/ }))
+    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile of 30 readings shown$/ }))
       .toBeInTheDocument()
   })
 
