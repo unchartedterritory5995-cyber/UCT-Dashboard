@@ -1,0 +1,68 @@
+# The Wisdom Loop ban rails (W1 §0.4, Part 10; docs/wisdom/CONTRACTS.md §6.2, §8).
+#
+# Four rails, all standard-library Python, so this job installs nothing but pytest:
+#   substack       no Wisdom module imports the Substack publisher or the Sunday Scans
+#                  publish/run/promo modules, or names the saved login or a drafts path
+#   journal        no Wisdom module imports, queries or names Journal / J2 / Notebook /
+#                  broker-sync code, tables or paths (D16b is deferred)
+#   private_store  the owner-private store is importable only from its three owners
+#   offlimits      a feat/wisdom-loop or wisdom/* branch touches no off-limits path
+# plus the vocabulary authority check: a setup-name constant with no map row fails by name.
+#
+# ⛔ --noconftest is load-bearing: the repo conftests import the product (FastAPI,
+# SQLite stores), which this job does not install. The rails import nothing from api.*.
+# ⛔ fetch-depth 0 is load-bearing: the off-limits rail diffs against the merge base with
+# origin/master, and a shallow clone has no merge base. The rail reports INCONCLUSIVE
+# (exit 2) rather than passing when it cannot compute one.
+name: wisdom rails
+
+# ⛔ NO `paths:` FILTER, DELIBERATELY. S-B reviewer finding F5, 2026-09-13: both triggers
+# carried a paths list of Wisdom paths and the seven vocabulary source lists — and no
+# off-limits path. So a wisdom/* branch whose diff touched ONLY
+# `app/src/pages/journal-2-0/NotebookTab.jsx` did not start this workflow at all, and the
+# off-limits rail never ran on the one diff shape it is written for. The rail existed, was
+# green, and was structurally unable to fire.
+#
+# The fix is not a longer paths list: that would be a third hand-typed mirror of CONTRACTS §1
+# (the second was finding F2) and would drift the same way. This job installs nothing but
+# pytest and the rails are standard-library only, so it runs on every push and PR and decides
+# for itself — `rail_applies_to_branch` no-ops the diff rail off a program branch, and the
+# source rails scan a fixed, small scope.
+on:
+  push:
+  pull_request:
+
+jobs:
+  rails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: python -m pip install --quiet pytest
+
+      - name: The four ban rails (the pre-merge gate the integrator also runs)
+        run: python tools/wisdom/core_check_bans.py
+
+      - name: Rail tests and the vocabulary authority check
+        run: |
+          python -m pytest --noconftest -p no:cacheprovider \
+            tests/test_wisdom_bans.py tests/test_wisdom_vocab_authority.py -q
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::A Wisdom ban rail or the vocabulary authority check failed; the log above names the file and line."
+          echo ""
+          echo "Exit 1 is a violation: remove the import, string or path it names. Do NOT add the file to"
+          echo "an allow list: the exemptions are exact sets asserted by tests/test_wisdom_bans.py."
+          echo "Exit 2 is INCONCLUSIVE: the rail could not measure (a scan below its floor, no merge base)."
+          echo "A setup name with no map row: add a row to docs/wisdom/vocabulary/setup-vocabulary-v1.json."
+          echo ""
+          echo "Run locally: python tools/wisdom/core_check_bans.py"
