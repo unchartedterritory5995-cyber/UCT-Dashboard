@@ -1571,7 +1571,7 @@ regex-based twice and wrong twice (D-42, D-44).
 | `hub/surfaceMatrixIsCurrent.test.js` | a registry/exposure change shipped without regenerating the docs |
 | `hub/contractArity.test.js` | a callback's shape drifting from its call site |
 | `hub/writePaths.test.js` | a new endpoint the hub can write, undeclared |
-| `hub/rule12Paths.test.js` | this branch editing `app/src/pages/journal-2-0/**` (⚠️ has **no branch identity check** — known-open B7) |
+| `hub/rule12Paths.test.js` | a JOYSTICK change set editing `app/src/pages/journal-2-0/**` — it identifies whose change set it is from the DIFF first and the branch name second (B7, closed 2026-09-13) |
 | `hub/knobFocusReturn.test.jsx` | focus not returning to the knob when a sheet closes (D-46) |
 | `hub/peekRemoved.test.jsx` | the two-finger gesture coming back |
 | `hub/analyticsMarker.test.js` | the single `TODO(hub-analytics)` marker going missing or multiplying |
@@ -2417,25 +2417,47 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
+### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 
-`app/src/hub/rule12Paths.test.js` (`327fa4c70`) asserts *"this branch must not
-edit the Notebook workstream's files"* and enforces it by diffing
-`merge-base(origin/master, HEAD)..HEAD` for anything under
+`app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit
+the Notebook workstream's files"* and enforces it by diffing
+`merge-base(origin/master, HEAD)..HEAD` plus the working tree for anything under
 `app/src/pages/journal-2-0/`.
 
-⛔ **It has no branch identity check, so it fires on EVERY branch that edits
-those paths — including the Notebook workstream editing its own code.** It
-cannot distinguish the case it was written for from that case's exact opposite
-(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). It is on `master`
-today, which means the Notebook cannot hold a green suite while doing its own
-work.
+⚰️ **It used to fire on EVERY branch that edits those paths — including the
+Notebook workstream editing its own code**, so it could not distinguish the case
+it was written for from that case's exact opposite
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), and the Wave Q1 flip
+gate was waived by the owner on 2026-09-11 rather than modified. A first fix by
+the Notebook workstream named ONE literal branch (`notebook-primary-platform`) —
+right about the mechanism, too narrow by a family, since they also ship from
+`feat/notebook-*`, `hotfix/notebook-*`, `notebook-flip` and `rollback/notebook-*`.
 
-**Waived once, by the owner, 2026-09-11**, for the Wave Q1 flip gate — excluded
-by name with the reason printed in the gate manifest, never modified. ⭐ **The
-fix belongs to the joystick session**: gate the rail on being ON a joystick
-branch (or on the diff containing hub changes), so it only fires where rule 12
-applies. Until then every Notebook gate carries a waiver it should not need.
+⭐ **The fix identifies the change set, not the branch name, because a name is
+typed and a diff is evidence.** `rule12Applies({branch, changed})` scopes out on
+any `notebook`-family branch first, then fires on a `joystick`/`hub`-named branch,
+then — the load-bearing clause — on any change set touching `app/src/hub/`,
+`docs/plans/joystick/`, `tools/hub_` or `scripts/hub`. That last clause is what
+actually carries this programme: **not one** of `fix/d46-d48-closeout`,
+`docs/scope-reconciliation`, `launch/closure` or `docs/d45-ruling` contains the
+word "joystick" or "hub", and every one of them touches those paths.
+
+⚠️ **The residual hole is stated in the file rather than hidden:** a joystick
+branch whose name says nothing and whose diff touches ONLY `journal-2-0/` files
+reads as Notebook work and is scoped out. From a diff alone those two cases are
+genuinely indistinguishable; the programme is closed, so that branch is close to
+hypothetical, while the false positive it replaces was firing daily on somebody
+else's gate.
+
+⛔ **Rails, in the same file:** fifteen table cases over REAL branch names read
+off `git branch -r`, a discriminator proving the table is not quietly one answer,
+a check that every owned prefix matches real tracked files (a typo matches
+nothing), and a check that no prefix claims the forbidden paths. Mutation-proved
+four ways — predicate pinned true (10 red), pinned false (6 red), a prefix typo
+(4 red), and the branch-name word boundary dropped, which alone reds
+`fix/github-actions-cache`, the branch that contains "hub" inside "git**hub**".
+End-to-end proof separately: a planted file under `journal-2-0/` still makes the
+real check fire.
 
 ### ⛔ Rolling back the Notebook wave — TWO levers since Wave K, and the fast one IS a variable
 
