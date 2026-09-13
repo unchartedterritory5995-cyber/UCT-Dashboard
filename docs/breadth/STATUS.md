@@ -117,3 +117,5 @@ owner action, Phase 6.
 > Axis dates carry their year. Zooming in holds while you change metrics or while the chart updates during the session, a
 > hidden series stays hidden, and the chart no longer replays its drawing every minute. When one line is too small to read
 > beside another on the same axis, the chart says so. Notable Extremes appears only under MA Breadth, where it draws.
+
+- 2026-09-13 15:10 ET — Checkpointed for machine restart at 15:10 ET; see [RESUME.md](RESUME.md).
