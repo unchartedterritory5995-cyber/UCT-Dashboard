@@ -8190,6 +8190,28 @@ function ifBranches(stmts, i) {
  *  ⛔ A NAME A BRANCH DECLARES FRESH DOES NOT ESCAPE IT. Only names that already
  *  existed before the `if` are rebound — `float entry = close` inside a branch is
  *  a local, and letting it leak would invent a binding Pine does not have. */
+/** ⭐⭐ R2 STEP 3 — WHAT AN `if` CHAIN REASSIGNS, RECORDED AGAINST THE CHAIN.
+ *
+ *  ⚰️ MEASURED 2026-09-13. `uncharted-volume-v2.pine`'s Range table declares
+ *  `string atrMultText = ''` and then fills it with `:=` inside an `if`. The
+ *  object pass read the binding recorded for the DECLARING statement — the empty
+ *  string — and rendered a cell containing `""`. ⛔ THAT IS WORSE THAN THE DROP
+ *  IT REPLACED: a blank cell where the author wrote a number reads as "the value
+ *  is empty", which is a claim they never made, and nothing anywhere said so.
+ *
+ *  ⛔ THE VALUE IS `foldIfChain`'S OWN, not a second reading. This records the
+ *  binding the `touched` loop directly above has just installed — the ternary
+ *  over the branch value and the value before the chain — keyed by the `if`
+ *  statement, which is the statement `collectObjectOps` also sees. One reader,
+ *  one value, joined by identity.
+ */
+function recordReassign(ctx, stmt, name, env) {
+  if (!ctx || !ctx.bindingByStatement || !stmt || !env.has(name)) return
+  let byName = ctx.bindingByStatement.get(stmt)
+  if (!byName) { byName = new Map(); ctx.bindingByStatement.set(stmt, byName) }
+  byName.set(name, env.get(name))
+}
+
 function foldIfChain(stmts, i, ctx, env) {
   const chain = ifBranches(stmts, i)
   if (!chain) throw new PineRefusal('pine:block', REFUSALS['pine:block'], locate(stmts[i].header[0]))
@@ -8246,6 +8268,7 @@ function foldIfChain(stmts, i, ctx, env) {
       }
       env.set(name, stateBinding(
         wasState.seed, wasState.seedEnv, update, new Map(before), wasState.at))
+      recordReassign(ctx, stmts[i], name, env)
       continue
     }
 
@@ -8257,6 +8280,7 @@ function foldIfChain(stmts, i, ctx, env) {
       node = { type: 'ternary', test: arms[k].cond, yes: armBinding(arms[k]), no: node, tok: arms[k].tok }
     }
     env.set(name, exprBinding(node, before, locate(chain.branches[0].tok)))
+    recordReassign(ctx, stmts[i], name, env)
   }
 
   // The chain's own value — only ever read by `x = if …`.
@@ -8851,7 +8875,8 @@ function objectEnumValue(name) {
 }
 
 function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement) {
-  const collected = collectObjectOps(stmts, { isPunct, findTop, parseArguments, Cursor })
+  const collected = collectObjectOps(stmts,
+    { isPunct, findTop, parseArguments, Cursor, boundName })
   const diagnostics = {
     loopBlocked: collected.diagnostics.loopBlocked.length,
     loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
@@ -8912,7 +8937,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  exists only in the frame the caller built. Resolving that against the
    *  caller's scope answers `undefined` for the parameter and refuses the cell.
    *  Every existing call site passes nothing and behaves exactly as before. */
-  const canonicalOf = (node, inline) => {
+  const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
     try {
@@ -8934,7 +8959,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ `frame` STILL WINS: an inlined user-function body must resolve its
       // parameters against the caller's arguments, and that frame is layered on
       // top of whichever scope the op already had.
-      return makeResolver(scopeEnv).resolve(node)
+      // ⭐⭐ R2 STEP 3 — THE BINDING'S OWN ENV WHEN THE READER IS INSIDE ONE.
+      // A `bound` node followed out of an `if` arm carries the BRANCH's scope,
+      // and the numeric leaves under it (`atrMult`, declared inside that branch)
+      // exist nowhere else. Resolving them against the op's scope answered
+      // "undefined name" and dropped the cell. ⛔ Safe only because `scopeFor`
+      // no longer re-parses — an earlier attempt at this welded a member's input
+      // shut (`objectParams.test.js`), and the re-parse was why.
+      return makeResolver(envOverride || scopeEnv).resolve(node)
     } catch {
       diagnostics.unresolvedValues += 1
       return null
@@ -8953,7 +8985,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     byFormula.set(f, i)
     return { v: 'tree', tree: i }
   }
-  const resolveTree = (node, inline) => internTree(canonicalOf(node, inline))
+  const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
    *  way `staticColourOf` already opens a colour behind a name. */
@@ -8974,7 +9006,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    * operation is dropped and counted. A blank cell where the author wrote a
    * number reads as a working dashboard and is not one.
    */
-  const textNodeOf = (node, scope, depth = 0, inline = null) => {
+  const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
     //
@@ -9009,7 +9041,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return ref ? { t: 'num', tree: ref.tree } : null
     }
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
-      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline)
+      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const ref = internTree(ast)
       const fmtNode = node.args && node.args[1] && node.args[1].value
@@ -9025,19 +9057,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // a value for a binding kind it does not understand.
     if (node.type === 'bound' && node.binding && node.binding.kind === 'expr'
       && node.binding.node) {
-      const viaBinding = textNodeOf(node.binding.node, scope, depth + 1, inline)
+      const viaBinding = textNodeOf(node.binding.node, node.binding.env || scope, depth + 1, inline,
+        node.binding.env || envAt)
       if (viaBinding) return viaBinding
     }
     if (node.type === 'binary' && node.op === '+') {
-      const a = textNodeOf(node.left, scope, depth + 1, inline)
-      const b = textNodeOf(node.right, scope, depth + 1, inline)
+      const a = textNodeOf(node.left, scope, depth + 1, inline, envAt)
+      const b = textNodeOf(node.right, scope, depth + 1, inline, envAt)
       if (!a || !b) return null
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
-      const cond = resolveTree(node.test, inline)
-      const then = textNodeOf(node.yes, scope, depth + 1, inline)
-      const other = textNodeOf(node.no, scope, depth + 1, inline)
+      const cond = resolveTree(node.test, inline, envAt)
+      const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
+      const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
       if (!cond || !then || !other) return null
       return { t: 'if', cond, then, else: other }
     }
@@ -9129,12 +9162,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
     }
     const opened = openName(node, scope, depth)
-    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline)
+    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
     // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
     // required a string, so this is a value the author already stringified some
     // way this door cannot read — carrying the NUMBER is closer to the truth
     // than carrying nothing, and it is the only branch here that guesses.
-    const ast = canonicalOf(node, inline)
+    const ast = canonicalOf(node, inline, envAt)
     if (!ast) return null
     const ref = internTree(ast)
     return ref ? { t: 'num', tree: ref.tree } : null
@@ -9399,6 +9432,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
       if (bound) { scoped.set(b.name, bound); continue }
+      // ⛔ A MISS IS ONLY A MISS IF NOTHING AT ALL BOUND THE NAME. ⚰️ R2 step 3
+      // widened what the collector records (typed declarations, `:=` targets),
+      // and the counter promptly read 98 over 14 names — every one of them a
+      // TOP-LEVEL `var float volD = na` the walk binds perfectly well as state,
+      // just not through `recordTop`. The copied `env` already carries those, so
+      // the object pass was never short of them; the number was measuring the
+      // record's coverage rather than the resolver's. A diagnostic that cries
+      // wolf gets muted, and this one is load-bearing for steps 2 and 3.
+      if (scoped.has(b.name)) continue
       diagnostics.unboundLocals = (diagnostics.unboundLocals || 0) + 1
       diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
       if (!diagnostics.unboundLocalNames.includes(b.name)) diagnostics.unboundLocalNames.push(b.name)

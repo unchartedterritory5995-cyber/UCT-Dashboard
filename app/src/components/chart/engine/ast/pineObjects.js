@@ -113,7 +113,31 @@ export function collectObjectOps(stmts, h) {
     const dot = word.indexOf('.')
     return dot > 0 ? word.slice(0, dot) : null
   }
-  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
+  const methodOf = (word) => word.slice(word.indexOf('.') + 1)
+
+  /** Every name a block REASSIGNS with `:=`, at any depth inside it.
+   *
+   *  ⛔ `:=` ONLY. A plain `=` inside the block declares a name local to THAT
+   *  block, which is invisible to the statement after the chain; a `:=` writes a
+   *  name that already exists outside it, which is exactly the one a later cell
+   *  can read. Treating the two alike would put a block-local name into the
+   *  outer scope under a value the member cannot reach. */
+  const reassignedIn = (list) => {
+    const out = new Set()
+    const scan = (items) => {
+      for (const s2 of items || []) {
+        const ts = s2.header || []
+        for (let k = 1; k < ts.length; k += 1) {
+          if (h.isPunct(ts[k], ':=') && ts[k - 1] && ts[k - 1].kind === 'ident') {
+            out.add(ts[k - 1].value)
+          }
+        }
+        if (s2.sub && s2.sub.length) scan(s2.sub)
+      }
+    }
+    scan(list)
+    return out
+  }
 
   /**
    * `guards` is a stack of `{ toks, negate }`; the runtime AND of all of them.
@@ -146,6 +170,19 @@ export function collectObjectOps(stmts, h) {
         const cond = t.slice(1, condEnd)
         prevIfCond = cond
         walk(st.sub || [], [...guards, { toks: cond, negate: false }], inLoop, localScope)
+        // ⭐⭐ R2 STEP 3 — A NAME THE CHAIN REASSIGNS IS A NEW BINDING FOR EVERY
+        // STATEMENT AFTER IT. `string atrMultText = ''` then `atrMultText := …`
+        // inside an `if` leaves TWO bindings for one name, and the cell below the
+        // chain must read the second. `foldIfChain` records the ternary it built
+        // against this very statement; adding the name here is what makes
+        // `scopeFor` prefer it, because a later entry in `localScope` overwrites
+        // an earlier one — Pine's own order.
+        // ⛔ WITHOUT IT THE CELL RENDERS THE DECLARED INITIAL VALUE, which for
+        // v2 is the empty string: a blank cell where the author wrote a number,
+        // reading as "the value is empty" — a claim they never made.
+        for (const name of reassignedIn(st.sub || [])) {
+          localScope = [...localScope, { name, toks: t, st }]
+        }
         continue
       }
       if (word === 'else') {
@@ -159,6 +196,12 @@ export function collectObjectOps(stmts, h) {
           next.push({ toks: cond, negate: false })
         }
         walk(st.sub || [], next, inLoop, localScope)
+        // ⭐ R2 STEP 3 — same as the `if` arm: an `else` body may reassign too,
+        // and `foldIfChain` keys its record on the chain's FIRST statement, so
+        // this points at `st` for the join the same way.
+        for (const name of reassignedIn(st.sub || [])) {
+          localScope = [...localScope, { name, toks: t, st }]
+        }
         continue
       }
       if (word === 'for' || word === 'while') {
@@ -263,14 +306,33 @@ export function collectObjectOps(stmts, h) {
           }
         }
       }
-      if (word && t[1] && h.isPunct(t[1], '=') && t.length > 2) {
-        // ⭐⭐ R2 STEP 1 — `st` IS THE JOIN KEY, and it is why `toks` is no
-        // longer the value. `buildObjectProgram` reads the binding the WALK made
-        // for this statement rather than re-parsing these tokens; the statement
-        // object is shared between the two walks (`blockStatements` runs once),
-        // so the pairing is by identity and two same-named locals in sibling
-        // blocks cannot be confused. `toks` stays for the diagnostics only.
-        localScope = [...localScope, { name: word, toks: t.slice(2), st }]
+      // ⭐⭐ R2 STEP 1 — `st` IS THE JOIN KEY, and it is why `toks` is no longer
+      // the value. `buildObjectProgram` reads the binding the WALK made for this
+      // statement rather than re-parsing these tokens; the statement object is
+      // shared between the two walks (`blockStatements` runs once), so the
+      // pairing is by identity and two same-named locals in sibling blocks
+      // cannot be confused. `toks` stays for the diagnostics only.
+      //
+      // ⭐⭐ R2 STEP 3 — AND THE NAME COMES FROM `boundName`, THE WALK'S OWN
+      // READER. ⚰️ This tested `t[1] === '='`, which is only true of an UNTYPED
+      // declaration. Pine lets an author write the type — `string atrMultText =
+      // ''`, `color dcrColor = color.gray` — and then the `=` sits at index 2
+      // and the name at index 1, so the statement was invisible here.
+      // `uncharted-volume-v2.pine`'s Range table is exactly that: two of its
+      // four cells read names declared with a type, and both were dropped.
+      //
+      // ⛔ THE TYPE ROSTER IS NOT COPIED INTO THIS FILE. `boundName` already
+      // knows which words are types and already returns the identifier before
+      // the `=` unless it is one of them — it is what the walk itself uses to
+      // decide this same question. A second roster here would be the exact
+      // second authority steps 1 and 2 spent their time deleting.
+      const declEq = h.findTop(t, (x) => h.isPunct(x, '='))
+      const isArrow = h.findTop(t, (x) => h.isPunct(x, '=>')) >= 0
+      if (declEq > 0 && !isArrow && t.length > declEq + 1) {
+        const nameTok = h.boundName(t, declEq)
+        if (nameTok) {
+          localScope = [...localScope, { name: nameTok.value, toks: t.slice(declEq + 1), st }]
+        }
       }
       // any other statement may still hide a nested block
       if (st.sub && st.sub.length) walk(st.sub, guards, inLoop, localScope)
