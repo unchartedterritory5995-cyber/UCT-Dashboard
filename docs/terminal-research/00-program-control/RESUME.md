@@ -2,70 +2,40 @@
 
 ---
 
-# ❄️ COLD START 2026-09-13 — READ THIS FIRST, IT NEEDS NOTHING ELSE
+# 🧭 RESUME — 2026-09-13. **§6 is EMPTY; the programme is waiting on a MEASUREMENT.**
 
-> Written immediately before an operator-initiated **machine restart**. Everything below was
-> measured at the time of writing, not remembered.
+> The 2026-09-13 restart is over and its COLD START block is retired. Everything below was
+> measured, not remembered.
 
-## 0. State at shutdown
+## 0. Where things stand
 
 | | |
 |---|---|
-| `origin/master` | **`7bd9c8785`** |
-| docs branch `terminal-research` | **the commit carrying this block, or later** — a file cannot state its own SHA, so `f6d528869` was its parent. **Verify with §1's command; do not trust a literal here.** |
-| both trees | **clean**, both branches **on origin** |
-| doc-SHA rail | **OK** — 190 files, 272 SHA candidates, every cited SHA resolves |
-| flag audit | **0 / 0 / 0 / 0** |
-| in flight | **nothing.** Both units of the session landed and merged. |
+| §6 build queue | ✅ **EMPTY** — every numbered row DONE with its SHA. **AUTHORIZED-AND-UNBUILT = 0.** |
+| audit counts | DONE **11** · BLOCKED-DATA **5** · BLOCKED-OWNER **8** · BLOCKED-SPEC-READ **5** · BLOCKED-DEPENDENCY **2** · EXCLUDED **1** = **32**. ⛔ NOT-YET-CLASSIFIED **0**. |
+| S7 | **8 of 8 types registered; every CP3 merged and ARMED.** Seven dark sweeps ticking. |
+| next decision | **next weekend's dark read** — not a build. |
 
-## 1. Reopen — the worktrees that matter
+## 1. Reopen
 
 ```sh
-# code (pushes to master)
-cd /c/Users/Patrick/uct-worktrees/s7-price-level      # branch feat/s7-price-level
-# docs
+cd /c/Users/Patrick/uct-worktrees/s7-price-level      # branch feat/s7-price-level -> pushes to master
 cd /c/Users/Patrick/uct-worktrees/terminal-research   # branch terminal-research
 ```
 
-**One command to verify each matches origin** (run in each tree):
+**Verify each against origin** (run in each tree):
 
 ```sh
 git fetch -q origin && git status -sb && git log --oneline -1
 ```
 
-Expect `feat/s7-price-level` == `origin/master` == `7bd9c8785`, and
-`terminal-research` == `origin/terminal-research` == `f6d528869`, both with an empty status body.
+⚠️ `git worktree list` shows ~60 trees. **They belong to other workstreams — do not prune, reuse
+or merge them.** In particular `feat/s7-indicator-condition` @ `4e04f43f0` (a locked agent tree) is
+a redundant re-derivation of `ccbab9bcd`, already on master; its only unique content is a stale
+parity test whose `_EXPECTED` is missing three types, so merging it would **regress three
+siblings**. Abandon it unmerged.
 
-⚠️ **Unit worktrees still on disk are OTHER sessions', not this programme's.** `git worktree list`
-shows ~60. Four are locked agent trees. **Do not prune, do not reuse, do not merge them.** In
-particular `feat/s7-indicator-condition` @ `4e04f43f0` (locked agent tree) is a **redundant
-re-derivation of `ccbab9bcd`, which is already on master** — its only unique content is a stale
-parity test whose `_EXPECTED` is missing three types, so merging it would REGRESS three siblings.
-**Abandon it unmerged.**
-
-## 2. The next §6 row
-
-| | |
-|---|---|
-| unit | **`indicator-condition` CP3** |
-| §4 checkpoint ID | **CP3** of `GATE-S7-INDICATOR-CONDITION` (§4 roster, approval line 2) |
-| signed fingerprint | **`148af5293`** |
-| branch | **`feat/s7-price-level`** (worktree `/c/Users/Patrick/uct-worktrees/s7-price-level`) |
-| dependency | ✅ **CLEARED.** Its line was *"void unless D2 §9.5 CP1 has merged first."* §9.5 is now signed as **GATE-D2 CP4**, fingerprint **`3257cc319`**, merged **`404b808c5`**. |
-
-⛔⛔ **DO NOT START IT BLIND — THERE IS AN UNRESOLVED SHAPE CONFLICT, AND IT IS THE FIRST THING TO
-PUT TO THE OWNER.** SPEC-S7 §5.2's corrected cell specifies the predicate as
-`{address, condition, threshold}` **with the timeframe riding inside the address**, and calls the
-eight-column `{indicator, condition, threshold, tf, …}` form the thing that *"predates D2."* **The
-merged CP1–CP2 code ships the eight-column form.** Spec and code disagree about the predicate
-shape. Under the standing rule a scope that does not match its artifact is not something to build
-against — resolve this before CP3 writes a line.
-
-⭐ Related and already measured (F-S7-IC-1): the legacy lane's **31** addresses and D2's **142**
-book metrics have an **empty intersection** — **one rename** (`close` ↔ `ohlcv.c`) and **thirty
-genuine absences**. D2 CP4 now declares that second axis, flag-OFF.
-
-## 3. Monday 09:05 ET — verbatim, covers all six sweeps
+## 2. The Monday 09:05 ET command — verbatim, all seven dark sweeps
 
 **PowerShell / cmd:**
 
@@ -81,75 +51,90 @@ MSYS_NO_PATHCONV=1 railway ssh --service web "/opt/venv/bin/python tools/s7_pric
 ```
 
 Exit **0** = ticking, or legitimately outside the window · **1** = stalled, or never started while
-INSIDE the window. `--ticking` covers **all six** sweeps with per-type staleness bounds.
+INSIDE the window. Per-type staleness bounds, **derived from the sweep table, never typed**:
+`PRICE-LEVEL=180s · EVENT-PROXIMITY=26h · POSITION-RISK=180s · SCAN-MEMBERSHIP=26h ·
+CATALYST-MATCH=26h · REGIME-CHANGE=1h · INDICATOR-COND=180s`.
 
-## 4. Flags — ARMED, and none of them changes on restart
+⚠️ **F-S7-PL-2, PROVISIONAL:** per-sweep windows **narrow** what `--ticking` calls a stall — a
+sweep that dies mid-window and is only checked after the close now reports `0`. Recommendation:
+**keep the narrowing** (the alternative flags every sweep every weekend and gets muted). The 09:05
+check is inside every window, so it is not a gap today.
 
-⛔ **A restart changes NO flag.** Every one is a Railway service variable; they live on Railway,
-not on this box. Nothing here needs re-arming, and **nothing may be armed on the way back up.**
+## 3. ⭐ What next weekend's read decides — and `legacy_only` is the deciding column
 
-This programme's six dark sweeps, all `armed` on **`web`** (+ `document_arrival`, which is live):
+Four outcomes per predicate: `agreed` · `new_only` · **`legacy_only`** · `not_comparable`.
+
+⛔ **Read `legacy_only` first.** Agreement is cheap when both sides are quiet, and a high `agreed`
+count mostly measures how often the sweep ran. **`legacy_only` is the only column that can say the
+new lane would have DROPPED a member's alert** — it is the number that decides whether a flip is
+safe. `new_only` is the mirror (the new lane fires where legacy did not) and is a product question,
+not a safety one.
+
+⛔⛔ **AND FOR `indicator-condition`, EXPECT `not_comparable` TO BE ESSENTIALLY EVERYTHING.** F-S7-IC-1:
+31 legacy addresses vs 142 book metrics, **empty intersection** — one rename (`close` ↔ `ohlcv.c`)
+and thirty genuine absences. The two lanes never met; a comparison is undefined, not a
+disagreement. Production also holds **zero active indicator alerts** today, so its honest projected
+N is **0 with that reason**. Its heartbeat is the liveness signal, not its outcome counts.
+
+## 4. Flags — seven dark sweeps armed, and what must NOT change
+
+All armed on **`web`**, all verified reading `1` in-process (never `--kv`):
 
 ```
 ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED        ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED
 ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED    ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED
 ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED      ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED
-ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED   (live, not dark)
+ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED    (armed 2026-09-13 20:48:30 UTC)
+ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED   (live, not dark)   D2_SAMPLE_PERSIST_ENABLED
 ```
 
-**118 flags are armed in total.** ⛔ That roster is deliberately NOT restated here — a hand-typed
-list beside the artifact that owns it is this programme's most-repeated defect. Derive it from
-`docs/feature_flags.json` (`status == "armed"`), or run `python tools/flag_ledger_audit.py`, which
-compares the ledger against Railway itself.
+⛔ **`CANONICAL_INDICATOR_AXIS_ENABLED` stays UNSET.** D2 CP4 declares the indicator axis; nothing
+reads it for real yet, so arming it lights a door with no room behind it.
 
-⚠️ New this session: **`CANONICAL_INDICATOR_AXIS_ENABLED`** — declared **`dark`**, `where: []`,
-UNSET is the shipped state. **DO NOT ARM**: nothing reads the axis yet, so arming it lights a door
-with no room behind it.
+**Derive the full armed roster — never hand-list it** (118+ flags; a typed list beside the artifact
+that owns it is this programme's most-repeated defect):
 
-## 5. Environment prerequisites, each with its one-command check
+```sh
+python -c "import json,io; d=json.load(io.open('docs/feature_flags.json',encoding='utf-8')); \
+print(*[k for k,v in d['flags'].items() if v.get('status')=='armed'], sep=chr(10))"
+```
 
-| need | confirm | if it fails |
-|---|---|---|
-| **Railway CLI authenticated** — account-based, survives a reboot | `railway whoami` | `railway login` (opens a browser) |
-| **Railway project linked** in the tree | `railway status --json` | `railway link` → project `luminous-recreation` |
-| **`node_modules`** in `app/` (gitignored, NOT copied by `git worktree add`) | `test -d app/node_modules && echo OK` | `cd app && npm ci` — until then every vitest claim is a config-load error, not a result |
-| **Python imports** | run pytest from the worktree ROOT; `railway ssh` probes need `PYTHONPATH=/app` **and** `/opt/venv/bin/python` (bare `python3` is the Nix system python with no app deps) | — |
-| **Git Bash path mangling** | any `railway ssh` with an absolute pod path needs `MSYS_NO_PATHCONV=1` | see §3 |
-| no venv is assumed | system Python 3.14 | — |
+`python tools/flag_ledger_audit.py` compares the ledger against Railway itself. **0/0/0/0** at this
+commit.
 
-## 6. ⛔ What a fresh session must NOT do
+## 5. ⛔ What a session must NOT do
 
-1. **No unscoped `pytest tests/`.** Collection alone reached 6.6 GB and an unscoped run reached
-   18 GB and was OOM-killed. **Name the files.** `-k` does NOT scope — every test is still collected.
-2. **No `railway redeploy`.** A `--set` on `web` has been measured to auto-redeploy; verify a NEW
-   BOOT by `/api/health` `uptime_seconds` resetting, never by `--kv`.
+1. **No unscoped `pytest tests/`.** Collection alone reached 6.6 GB; an unscoped run reached 18 GB
+   and was OOM-killed. **Name the files.** `-k` does not scope — everything is still collected.
+2. **No `railway redeploy`.** A `--set` on `web` auto-redeploys (now **five** measurements). Verify
+   a NEW BOOT by `/api/health` `uptime_seconds` resetting, never by `--kv`.
 3. **No marker bump without a MEASURED strand.** `python tools/flow_worker_watch_coverage.py`
    decides it. A bump during RTH drops the Massive OPRA socket and that tape gap is PERMANENT
    until the T+1 flat file.
 4. **No flag changes.** Arming is the owner's flip.
 5. **No master push Mon–Fri 09:00–16:00 ET**, and **one master merge at a time repo-wide** —
-   Railway `web` must read SUCCESS before the next push. Other sessions push to this same master.
-6. **Do not touch the one stash** — `stash@{0}` *"On feat/catalyst-coverage-precision: broker-sync
-   WIP (deploy unblock)"* is **another session's**, pre-existing. The stash stack is shared.
+   Railway `web` must read SUCCESS before the next push. Other sessions push to this same master
+   (the discord-render workstream moved it 9 commits during this session).
+6. **Do not touch other sessions' work** — `stash@{0}` *"broker-sync WIP"* is not ours; the
+   wisdom-loop extraction job and its worktrees are not ours.
 
-## 7. The three owner items — UNCHANGED
+## 6. The three owner items — UNCHANGED
 
-1. **A9 / A11 / A13** — **BLOCKED-OWNER** on the flips after the dark reads. Nothing to do until
-   next weekend.
+1. **A9 / A11 / A13** — **BLOCKED-OWNER** on the flips after the dark reads.
 2. **F-S2-1** — baselined is correct; tightening the guards is member-visible and waits for
    **OI-06**, with its own PR then.
 3. **S6 CP2–CP5** — **SPEC-BLOCKED** on four owner rulings, each named in §4: SET-vs-WEIGHTED-SET,
-   derive-vs-mirror, `personal_edge`, and paid-gating.
+   derive-vs-mirror, `personal_edge`, paid-gating.
 
-## 8. Cross-program, landed this session — F-CAT-1
+## 7. Open findings registered this session
 
-The catalyst engine spent money and wrote nothing for four trading days. Root cause, fix, rail and
-the open follow-up **F-CAT-2** are in `LEDGER.md` under *"CROSS-PROGRAM — F-CAT-1"*. Merged
-`f49da5ed6`, live and verified by artifact (`/api/health` uptime 23s on a fresh boot).
-**Not Terminal-Next scope; fixed because it was live.**
+| id | what |
+|---|---|
+| **F-S7-IC-2** | collapse `(indicator, tf)` into one `address` param — sequenced with the first change that already touches predicate registration, **never standalone**. |
+| **F-S7-PL-2** | per-sweep windows narrow what `--ticking` calls a stall (§2). PROVISIONAL; recommendation is to keep it. |
+| **F-D2-3** | `warmup_bars` is UNDECLARED (not 0) on all thirty indicator axis entries. No authority declares it, and deriving it as "max integer parameter" is a heuristic whose failure corrupts the head of every series. |
+| **F-CAT-2** | the catalyst `__hunter__` billed ~$0.10/call on prompts of **14–18 input tokens** (vs 17k–42k healthy) while still emitting ~2,000 output tokens. A sub-100-token prompt is not a query. Bounded for now by the F-CAT-1 kill switch. |
 
-
-**Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `ccbab9bcd` (2026-09-12). Rail PASS.**
 
 ---
 
