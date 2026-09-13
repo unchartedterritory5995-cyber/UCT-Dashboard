@@ -4,7 +4,64 @@
 
 ---
 
-# ⛔⛔ COLD START — BUILD DAY, 2026-09-12 (evening). This block supersedes the one below it.
+# ⛔⛔ COLD START — DAY 2, Sunday 2026-09-13. This block supersedes the one below it.
+
+## What merged on day 2
+
+| # | what | commit | classification |
+|---|---|---|---|
+| 1 | **H14** — one placeholder-stop detector, five call sites | `94209e962` | ADDITIVE, 7 files · **MEMBER-VISIBLE** (a false alert stops being possible) |
+| 2 | **S4 CP1** — the focus-divergence detector | `76c62c494` | ADDITIVE, 3 files, all `app/**` |
+
+Day 1's five (`ffa8102c7`, `78ba40fe8`, `6576f044e`, `1c426c199`, `9458ea641`) are all live.
+
+## ⛔ IN FLIGHT AT THE TIME OF WRITING — four S7 types, parallel worktrees
+
+`position-risk` · `scan-membership-change` · `regime-change` · `indicator-condition`, each CP1+CP2,
+each on its own branch, **none merged**. All four packets are signed CP1–CP2.
+
+⛔ **THEY MERGE SERIALLY AND EACH ONE REBASES ONTO THE PREVIOUS.** They all edit ONE line —
+`tests/test_alert_taxonomy_filing_watch_parity.py`'s `_EXPECTED` set — so four parallel branches
+means four conflicts on that line, resolved by ADDING one name each time, never by taking one side.
+Pre-merge baseline measured: that suite is **20 passed** at `76c62c494`.
+
+## ⛔ D2 CP3 IS HELD, AND ITS GATE IS UNREACHABLE AS WRITTEN
+
+Measured in the pod today: the dual-compute is armed and correct (fraction **100 %**, the book
+resolves `ohlcv.c` to position **4**) and the sample count is **0**.
+
+⛔ Zero here means *"the reader has not been called"*, not *"no disagreements"* —
+`ticker_returns._close` is reached only through the Desk's since-mention returns, which is neither
+scheduled nor hot. ⛔⛔ **And the ledger is in-process: it resets on every deploy, and web
+redeployed six times on Saturday.** A 200-sample threshold cannot be reached by a counter that dies
+on each push — the `_FAIL_STREAKS` shape the desk-session audit already documents.
+
+**Needs a ruling:** a durable counter, a scheduled reader, or a different reader. CP3 stays held.
+
+## ⛔ NO MARKER BUMP ON EITHER DAY — measured per commit, never assumed
+
+`reachable_paths()` = 154, `watched_paths()` = 24. In-closure changed files: **0 for all seven
+merges**. A strand exists only when flow-worker RUNS a changed file and will not redeploy for it.
+Bumping to discharge nothing would drop the Massive OPRA socket, and Massive does not replay.
+
+## The A-series instruction resolved to nothing to build
+
+**BUILDABLE = 0 of 8.** Six are GATE-ONLY *because the surface already exists and works* — a CP1
+over a live page is a second authority. Two are BLOCKED on owner-bound lines. ⭐ **A9 is the one
+that moves** the day `scan-membership-change` merges, and that is in flight.
+
+## Standing rulings confirmed by the owner, day 2
+
+1. **D2 CP2's narrowing to `bars_sqlite`** — correct; fundamentals' JSON blob has no declaration to
+   ratify. F-D2-1 stands with its prerequisite.
+2. **S12 converts the cohort tag only.** ⛔⛔ **STANDING RULE FOR ALL FUTURE KILL SWITCHES:
+   stopping a dark run must NEVER be a `DELETE` against member data.** The two `_DARK_ENABLED`
+   flags stay env vars.
+3. **D5 CP1 is census only**; the loader and its scheduling are CP2 and get classified on that line.
+
+---
+
+# ⛔⛔ DAY 1 COLD START (superseded by the block above) — BUILD DAY, 2026-09-12
 
 **Read this, then `LEDGER.md`'s build-day sections, then the block below for the two dark runs.**
 
