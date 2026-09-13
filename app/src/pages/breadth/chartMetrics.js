@@ -59,8 +59,10 @@ export const CHART_GROUPS = [
       { key: 'qqq_close',     label: 'QQQ' },
       { key: 'vix',           label: 'VIX' },
       { key: 'mcclellan_osc', label: 'McClellan Osc' },
-      { key: 'stage2_count',  label: 'Stage 2 Count' },
-      { key: 'stage4_count',  label: 'Stage 4 Count' },
+      // A-34: the MA-stack qualifier the Monitor and Views already carry — these
+      // are not Weinstein stage classifications.
+      { key: 'stage2_count',  label: 'Stage 2 (MA Stack)' },
+      { key: 'stage4_count',  label: 'Stage 4 (MA Stack)' },
       { key: 'rsp_spy_ratio', label: 'RSP/SPY (Equal-Wt)' },
       { key: 'iwm_qqq_ratio', label: 'IWM/QQQ (Small-Cap)' },
       { key: 'vxn',           label: 'VXN (Nasdaq)' },
@@ -211,6 +213,17 @@ export const METRIC_UNITS = {
  *  `every metric has a unit` test is the gate that keeps that from happening. */
 export function unitOf(key) {
   return METRIC_UNITS[key] ?? UNIT.COUNT
+}
+
+// ── Reporting cadence ─────────────────────────────────────────────────────────
+// Surveys published once a week — the same set `heatmapMetrics.FFILL_KEYS` may
+// carry forward. A reading a few sessions old is the survey's cadence, not a
+// stopped feed; everything else prints every session.
+export const WEEKLY_METRICS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim'])
+
+/** Sessions a metric's latest reading may trail the newest row before the readout dates it (A-10). */
+export function staleAllowance(key) {
+  return WEEKLY_METRICS.has(key) ? 7 : 1
 }
 
 // ── Axis framing ──────────────────────────────────────────────────────────────

@@ -328,7 +328,9 @@ def minimal_pdf(line: str) -> bytes:
     return bytes(out).replace(b"NLMARK", b"\n")
 
 
-EXCERPT_LINE = "F5 MATRIX EXCERPT SOURCE PASSAGE ALPHA BRAVO CHARLIE DELTA"
+# A phrase the fixture really contains, so the driver selects something real and
+# can prove THAT string came back. Read from the PDF, not invented beside it.
+EXCERPT_LINE = "CONDENSED CONSOLIDATED STATEMENTS OF INCOME"
 
 SELECT_AND_SAVE_JS = """async ({want}) => {
   // THE MEMBER'S OWN SELECTION, not a scripted POST. `PdfDocumentViewer`
@@ -366,10 +368,20 @@ OPEN_PREVIEW_JS = """async () => {
   if (!chip) return {ok:false, why:'no attachment chip in the note body'};
   chip.scrollIntoView({block:'center'});
   chip.click();
-  await new Promise(r => setTimeout(r, 3500));
-  const pages = document.querySelectorAll('[data-pdf-page-number]').length;
-  const spans = document.querySelectorAll('.textLayer span').length;
-  return {ok: pages > 0, why: 'preview pages=' + pages + ' textLayer spans=' + spans,
+  // ⛔ POLL, DO NOT WAIT A FIXED 3.5s. pdf.js has to fetch its own lazy chunk and
+  // the document before it lays out a text layer, and how long that takes is not
+  // this rig's to choose. Measured 2026-09-13: the SAME pdf rendered 2 pages /
+  // 25 spans on one run and 0 / 0 on the next — a flaky rig limitation that
+  // would have been recorded against the DOOR.
+  let pages = 0, spans = 0;
+  for (let i = 0; i < 40; i++) {
+    pages = document.querySelectorAll('[data-pdf-page-number]').length;
+    spans = document.querySelectorAll('.textLayer span').length;
+    if (pages > 0 && spans > 0) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return {ok: pages > 0 && spans > 0,
+          why: 'preview pages=' + pages + ' textLayer spans=' + spans + ' (polled)',
           pages, spans};
 }"""
 
@@ -384,9 +396,22 @@ def prepare_family(page, family, note_id, stamp, log):
     """
     if family != "append_document_excerpt":
         return {"ok": True}
-    import tempfile
-    pdf = pathlib.Path(tempfile.gettempdir()) / ("f5-excerpt-" + stamp + ".pdf")
-    pdf.write_bytes(minimal_pdf(EXCERPT_LINE))
+    # ⛔⛔ A REAL PDF, NOT A SYNTHETIC ONE. Owner ruling 2026-09-13.
+    #
+    # ⚰️ The first version generated a minimal PDF by hand. It was structurally
+    # valid — pypdf read it, the upload succeeded, the server extracted it and
+    # marked the document `ready` — and **pdf.js rendered 0 pages and 0 text-layer
+    # spans**, so the excerpt door could not be reached at all. The cell reported
+    # a rig limitation for a PDF the rig itself had invented.
+    #
+    # ⭐ Wave P's certification corpus already holds real ones. `native_text.pdf`
+    # carries NATIVE TEXT (not a scan), which is what makes pdf.js build the
+    # `.textLayer` spans a real selection needs — a scanned page renders something
+    # the rig can SEE and cannot SELECT.
+    pdf = REPO / "tools" / "wave_p_cert_corpus" / "native_text.pdf"
+    if not pdf.exists():
+        return {"ok": False, "rig_limitation": True,
+                "why": f"the excerpt fixture is missing: {pdf}"}
     try:
         page.set_input_files('input[aria-label="Upload file attachment"]', str(pdf))
     except Exception as e:  # noqa: BLE001
@@ -422,16 +447,24 @@ def prepare_family(page, family, note_id, stamp, log):
 # owns: pushState plus a PopStateEvent, with the route's chunk already warmed
 # while the run was online. The door is then one click away the instant the
 # transport comes back.
+FORCE_NAV = {"on": False, "path": "/charts"}
+SPA_RETURN = {"on": False}
+
 WARM_ROUTES = {
     "append_widget_embed": "/charts",
     "append_financial_fact": "/dashboard",
 }
 
 SPA_NAV_JS = """async ({path}) => {
-  history.pushState({}, '', path);
+  history.pushState({}, '', path);   // path may carry a query string
   window.dispatchEvent(new PopStateEvent('popstate', {state: {}}));
   await new Promise(r => setTimeout(r, 4000));
-  return {path: location.pathname, offline: !navigator.onLine};
+  // ⛔ REPORT THE WHOLE URL. Reporting only `pathname` hid whether the note
+  // query survived the route change — and "the drain never ran" and "the editor
+  // never reopened" are different findings.
+  return {path: location.pathname, search: location.search,
+          editor: !!document.querySelector('.ProseMirror'),
+          offline: !navigator.onLine};
 }"""
 
 
@@ -447,6 +480,120 @@ def warm_route(page, family, base, log):
     page.goto(base + path, wait_until="domcontentloaded")
     page.wait_for_timeout(9000)
     return {"ok": True, "warmed": path}
+
+
+
+def select_with_the_pointer(page, log):
+    """Drag a REAL selection across a rendered pdf.js text span, then click the
+    popover that selection creates.
+
+    ⛔⛔ NOT A SCRIPTED RANGE. Owner ruling 2026-09-13: *"a real pointer selection
+    over a rendered range... no synthetic selection, no scripted fetch."* And the
+    scripted version did not work anyway — `document.createRange()` +
+    `addRange()` left `sel.toString()` empty and produced no popover, so the
+    first attempt failed one step later than the fixture did and for a different
+    reason. A mouse drag is both the required evidence AND the thing that works.
+
+    ⛔ It picks a span by MEASURED GEOMETRY, not by index: pdf.js emits spans of
+    wildly different widths (single glyphs among whole lines), and dragging
+    across a 3px span selects nothing while looking like it did.
+    """
+    spans = page.query_selector_all(".textLayer span")
+    best, best_box = None, None
+    for sp in spans:
+        try:
+            box = sp.bounding_box()
+            txt = (sp.inner_text() or "").strip()
+        except Exception:  # noqa: BLE001
+            continue
+        if not box or not txt or len(txt) < 6:
+            continue
+        if box["width"] < 60 or box["height"] < 4:
+            continue
+        if best_box is None or box["width"] > best_box["width"]:
+            best, best_box = sp, box
+    if best is None:
+        return {"ok": False, "rig_limitation": True,
+                "why": f"no pdf.js text span wide enough to drag across "
+                       f"({len(spans)} span(s) rendered)"}
+
+    text = (best.inner_text() or "").strip()
+    y = best_box["y"] + best_box["height"] / 2
+    x0 = best_box["x"] + 2
+    x1 = best_box["x"] + best_box["width"] - 2
+    best.scroll_into_view_if_needed()
+    page.wait_for_timeout(400)
+    box = best.bounding_box() or best_box          # re-read: scrolling moved it
+    y = box["y"] + box["height"] / 2
+    x0, x1 = box["x"] + 2, box["x"] + box["width"] - 2
+
+    # ⛔ WHAT IS ACTUALLY UNDER THE CURSOR? A drag that starts on an overlay
+    # never reaches the text layer, and "the selection was empty" cannot tell
+    # those apart. pdf.js stacks a canvas, a text layer and a highlight overlay
+    # in the same box.
+    at = page.evaluate(
+        """([x, y]) => {
+          const el = document.elementFromPoint(x, y);
+          if (!el) return {none: true};
+          const cs = getComputedStyle(el);
+          return {tag: el.tagName, cls: (el.className || '').toString().slice(0, 40),
+                  userSelect: cs.userSelect, pointerEvents: cs.pointerEvents,
+                  parentCls: (el.parentElement && el.parentElement.className || '').toString().slice(0, 40),
+                  txt: (el.textContent || '').slice(0, 30)};
+        }""", [x0, y])
+    log(f"      under the cursor at the drag start: {at}")
+
+    sel_of = lambda: page.evaluate(
+        "() => (window.getSelection() || {toString: () => ''}).toString()")
+
+    # ⛔ A DOUBLE-CLICK IS A REAL POINTER SELECTION, and a more reliable one than
+    # a synthetic-speed drag. Chrome decides a drag is a selection from the
+    # timing and granularity of the moves it receives; CDP delivers them far
+    # faster than a hand does, and a 598px sweep in twelve instant steps left
+    # `getSelection()` empty even though the span under the cursor reported
+    # `user-select: text` and `pointer-events: auto`. Word-select first, then a
+    # SLOW drag to widen it — both are the member's own pointer, which is the
+    # part the ruling is about.
+    page.mouse.move(x0 + 20, y)
+    page.wait_for_timeout(120)
+    page.mouse.dblclick(x0 + 20, y)
+    page.wait_for_timeout(600)
+    got = sel_of()
+    log(f"      after double-click: {got[:40]!r}")
+
+    if not (got or "").strip():
+        page.mouse.move(x0, y)
+        page.wait_for_timeout(150)
+        page.mouse.down()
+        page.wait_for_timeout(150)
+        for frac in (0.25, 0.5, 0.75, 1.0):
+            page.mouse.move(x0 + (x1 - x0) * frac, y, steps=4)
+            page.wait_for_timeout(120)
+        page.mouse.up()
+        page.wait_for_timeout(900)
+        got = sel_of()
+        log(f"      after a slow drag: {got[:40]!r}")
+    log(f"      pointer selection: {got[:60]!r} over {text[:40]!r}")
+    if not (got or "").strip():
+        return {"ok": False, "rig_limitation": True,
+                "why": f"a real pointer drag across a {int(box['width'])}x{int(box['height'])}px "
+                       f"span selected nothing — the rig cannot make a selection this "
+                       f"renderer accepts"}
+
+    save = None
+    for b in page.query_selector_all("button"):
+        try:
+            if "save excerpt" in (b.inner_text() or "").strip().lower():
+                save = b
+                break
+        except Exception:  # noqa: BLE001
+            continue
+    if save is None:
+        return {"ok": False,
+                "why": f"the selection took ({got[:40]!r}) but produced no "
+                       f'"Save excerpt" popover'}
+    save.click()
+    return {"ok": True, "via": f"pointer drag then Save excerpt", "selected": got[:60]}
 
 
 def drive_append(page, family, base, log):
@@ -488,7 +635,7 @@ def drive_append(page, family, base, log):
             return {"ok": False, "rig_limitation": True,
                     "why": "the PDF preview would not open: " + str(opened)}
         page.wait_for_timeout(2500)
-        return page.evaluate(SELECT_AND_SAVE_JS, {"want": EXCERPT_LINE})
+        return select_with_the_pointer(page, log)
 
     return {"ok": False, "why": f"no driver for {family}"}
 
@@ -529,7 +676,8 @@ def rig_window_refusal(now=None, query=None):
             ps = (
                 "Get-ScheduledTask | Where-Object { $_.TaskName -match 'WaveQ1|Wave Q1' } | "
                 "ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
-                "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime} } | ConvertTo-Json"
+                "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime; "
+                "state=[string]$_.State} } | ConvertTo-Json"
             )
             out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                                  capture_output=True, text=True, encoding="utf-8",
@@ -548,6 +696,25 @@ def rig_window_refusal(now=None, query=None):
         name = str(row.get("name") or "")
         if name not in RIG_TASKS:
             continue
+        # ⛔⛔ A TASK THAT IS RUNNING RIGHT NOW IS THE THING THIS GUARD EXISTS TO
+        # AVOID, and the first version could not see it.
+        #
+        # ⚰️ 2026-09-13, and it cost a sampler run. The guard asked only when the
+        # NEXT run is due — and once a task STARTS, its NextRunTime jumps to the
+        # following slot. So at 10:05, with the 10:00 sampler still running, the
+        # guard read "next run 12:00, 115 minutes away" and said CLEAR. The F5
+        # run then took the one profile out from under it; the sampler died
+        # mid-import, its task sat in Running for an hour, and the 10:00
+        # observation row was never written. The heartbeat read
+        # `267009 = SCHED_S_TASK_RUNNING`, which the Sunday gate correctly
+        # reports as "the window is UNOBSERVED, not clean".
+        #
+        # ⭐ "Due soon" and "happening now" are different facts, and the second
+        # one is the dangerous one.
+        if str(row.get("state") or "").strip().lower() == "running":
+            return (name + " is RUNNING RIGHT NOW and holds the one signed-in profile. "
+                    "Wait for it to finish — taking the profile from it loses that "
+                    "interval's observation row, which is a hole in the K window.")
         nxt = row.get("next")
         if not nxt:
             continue
@@ -578,6 +745,73 @@ def rig_window_refusal(now=None, query=None):
         return (n + " runs at " + st.strftime("%H:%M") + ", in " + str(int(m)) + " min. "
                 "It drives the SAME signed-in profile; wait for it, then re-run.")
     return None
+
+
+
+# ==============================================================================
+# THE CONTROL THAT SEPARATES THE INSTRUMENT FROM THE PRODUCT
+# ==============================================================================
+# A RED that cannot tell "the product lost the words" from "the rig never typed
+# them" is not a finding -- it is the shape that cost this wave three deploys.
+# So before the door is fired, the cell PROVES the sentence is in the durable
+# working copy and that the outbox is holding work. If it is not, the cell is
+# INCONCLUSIVE and names the rig as the reason.
+QUEUED_JS = """async ({acct, noteId, sentence}) => {
+  const open = () => new Promise((res, rej) => {
+    const r = indexedDB.open('uct_notebook_' + acct);
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  let db; try { db = await open() } catch (e) { return {err: 'open failed: ' + e} }
+  const all = (store) => new Promise((res) => {
+    if (![...db.objectStoreNames].includes(store)) return res([]);
+    const tx = db.transaction(store, 'readonly');
+    const q = tx.objectStore(store).getAll();
+    q.onsuccess = () => res(q.result || []); q.onerror = () => res([]);
+  });
+  const one = (store, key) => new Promise((res) => {
+    if (![...db.objectStoreNames].includes(store)) return res(null);
+    const tx = db.transaction(store, 'readonly');
+    const q = tx.objectStore(store).get(key);
+    q.onsuccess = () => res(q.result || null); q.onerror = () => res(null);
+  });
+  const outbox = await all('outbox');
+  const mine = outbox.filter(e => e.noteId === noteId);
+  const rec = await one('notes', noteId);
+  const recText = JSON.stringify(rec || {});
+  const queuedText = JSON.stringify(mine);
+  // What the EDITOR currently shows, so "typed" and "stored" stay separable.
+  const pm = document.querySelector('.ProseMirror');
+  const onScreen = pm ? (pm.innerText || '') : null;
+  // ⛔ WHY it is still queued is a different question from WHETHER it is, and
+  // only the entry's own bookkeeping and the lock state can answer it.
+  const entry = mine[0] || null;
+  let locks = 'unread', claimable = 'unread';
+  try {
+    const q = await navigator.locks.query();
+    locks = (q.held || []).filter(l => (l.name || '').startsWith('uct.nb.sync')).length
+          + '/' + (q.pending || []).filter(l => (l.name || '').startsWith('uct.nb.sync')).length;
+    claimable = await Promise.race([
+      navigator.locks.request('uct.nb.sync.probe', {ifAvailable: true}, l => !!l),
+      new Promise(r => setTimeout(() => r('timeout'), 1500)),
+    ]);
+  } catch (e) { locks = 'ERR ' + e.name }
+  return {
+    entryStatus: entry ? (entry.status || null) : null,
+    entryAttempts: entry ? (entry.attempts ?? null) : null,
+    entryError: entry ? String(entry.lastError || entry.error || '').slice(0, 80) : null,
+    entryKeys: entry ? Object.keys(entry).join(',') : null,
+    locksHeldPending: locks,
+    lockClaimable: claimable,
+    onLine: navigator.onLine,
+    outboxTotal: outbox.length,
+    queuedForThisNote: mine.length,
+    sentenceInDurableCopy: recText.includes(sentence),
+    sentenceInQueuedEntry: queuedText.includes(sentence),
+    sentenceOnScreen: onScreen === null ? null : onScreen.includes(sentence),
+    baseUpdatedAt: mine.length ? (mine[0].baseUpdatedAt || null) : null,
+    dirty: rec ? !!rec.dirty : null,
+  };
+}"""
 
 
 def load_state():
@@ -648,15 +882,108 @@ def render(st, stamp):
 # one cell
 # ══════════════════════════════════════════════════════════════════════════════
 
+
+PURGE_JS = """async ({acct}) => {
+  // ⛔ THE RIG'S OWN LITTER STALLS THE NEXT CELL. Each cell deletes the note it
+  // made; the outbox entry for that note survives, and a queued write to a
+  // DELETED note cannot succeed — it sits at the head of an ordered queue and
+  // every later cell's entry waits behind it. Six had accumulated before this
+  // was noticed, and the symptom was "the drain never finishes", which reads as
+  // a product defect.
+  //
+  // ⛔ It removes ONLY entries whose note is gone from the server. An entry for
+  // a live note is a member's unsent words, and this tool does not touch those.
+  const open = () => new Promise((res, rej) => {
+    const r = indexedDB.open('uct_notebook_' + acct);
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  let db; try { db = await open() } catch (e) { return {err: String(e)} }
+  if (![...db.objectStoreNames].includes('outbox')) return {entries: 0, removed: 0};
+  const all = await new Promise((res) => {
+    const tx = db.transaction('outbox', 'readonly');
+    const q = tx.objectStore('outbox').getAll();
+    q.onsuccess = () => res(q.result || []); q.onerror = () => res([]);
+  });
+  const ids = [...new Set(all.map(e => e.noteId).filter(Boolean))];
+  const dead = [];
+  for (const id of ids) {
+    try {
+      const r = await fetch('/api/j2/notes/' + id, {credentials: 'include'});
+      if (r.status === 404) dead.push(id);
+    } catch { /* unknown is not dead */ }
+  }
+  let removed = 0;
+  for (const e of all) {
+    if (!dead.includes(e.noteId)) continue;
+    await new Promise((res) => {
+      const tx = db.transaction('outbox', 'readwrite');
+      tx.objectStore('outbox').delete(e.mutationId);
+      tx.oncomplete = () => { removed += 1; res(true) };
+      tx.onerror = () => res(false);
+    });
+  }
+  return {entries: all.length, deadNotes: dead.length, removed};
+}"""
+
+
+def _baseline_in(body: str):
+    """The `baseUpdatedAt` a request actually carried, read off the wire.
+
+    A CAS write whose baseline is absent and a CAS write whose baseline is stale
+    fail the same way from the outside and are different defects.
+    """
+    import re
+    m = re.search(r'"baseUpdatedAt"\s*:\s*("([^"]*)"|null)', body or "")
+    if not m:
+        return "<absent>"
+    return m.group(2) if m.group(2) is not None else None
+
+
 def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
     from_cell = time.time()
     offline = rig._offliner(cdp)
     sentence = f"{SENTINEL} {family} {ordering.split(' (')[0]} {stamp} the member's offline words"
 
+    # !!!! READ THE WIRE, NOT THE CALL SITE. This wave published "the doors send
+    # no baseline" in four artifacts while the wire said
+    # `keys=['baseUpdatedAt','ticker']`. A cell that reports the member's words
+    # missing must be able to say whether a PUT CARRYING THEM was ever sent, and
+    # what the server answered -- otherwise "lost" and "never sent" are one
+    # observation, and they have completely different fixes.
     posts: list[dict] = []
-    handler = lambda r: posts.append({"m": r.method, "u": r.url}) \
-        if "/api/j2/notes" in r.url and r.method in ("POST", "PUT", "DELETE") else None
+
+    def handler(r):
+        if "/api/j2/notes" not in r.url or r.method not in ("POST", "PUT", "DELETE"):
+            return
+        body = ""
+        try:
+            body = r.post_data or ""
+        except Exception:  # noqa: BLE001
+            body = "<unreadable>"
+        posts.append({"m": r.method, "u": r.url.split("uctintelligence.com")[-1],
+                      "carries_sentence": sentence in body,
+                      "body_has_sentence": '"bodyJson"' in body and sentence in body,
+                      "base": _baseline_in(body), "status": None, "_req": r})
+
+    def on_response(resp):
+        # ⛔ MATCH THE REQUEST OBJECT, NEVER THE URL. Three PUTs go to the SAME
+        # path in one cell, so a URL match assigns statuses to whichever entry
+        # happens to be unfilled — and the whole question here is whether a
+        # particular PUT got 200 or 409. An instrument that can mis-assign the
+        # one number the finding turns on is not evidence.
+        try:
+            if "/api/j2/notes" not in resp.url:
+                return
+            req = resp.request
+            for rec in posts:
+                if rec.get("_req") is req:
+                    rec["status"] = resp.status
+                    return
+        except Exception:  # noqa: BLE001
+            pass
+
     page.on("request", handler)
+    page.on("response", on_response)
 
     note_id = None
     try:
@@ -677,10 +1004,23 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         #      families' destination: NoteEditorPage writes `uct.jw.lastNote`. ──
         page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
         page.wait_for_timeout(7000)
-        pm = page.query_selector(".ProseMirror")
+        # ⛔ ONE PROBE IS NOT A VERDICT, here either. The editor is a lazy chunk
+        # behind an auth gate; a slow first paint or a pod that has just swapped
+        # loses the cell for a reason that has nothing to do with the property
+        # under test. Retry the MOUNT before spending the window on it.
+        pm = None
+        for _try in range(4):
+            pm = page.query_selector(".ProseMirror")
+            if pm is not None:
+                break
+            page.wait_for_timeout(5000)
+            if _try == 1:
+                page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+                page.wait_for_timeout(6000)
         if pm is None:
             return {"verdict": "INCONCLUSIVE",
-                    "why": "the editor never mounted for the probe note — nothing was measured"}
+                    "why": "the editor never mounted for the probe note after 4 tries and a "
+                           "reload — nothing was measured"}
         pm.click()
         page.keyboard.type(f"{SENTINEL} baseline {stamp}.")
         page.wait_for_timeout(5000)
@@ -710,6 +1050,24 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
             page.keyboard.type(" " + sentence)
         page.wait_for_timeout(6000)
 
+        # ── 3b. THE CONTROL: are the member's words actually queued? ──
+        q = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
+        log(f"      queued: {q}")
+        if not isinstance(q, dict) or q.get("err"):
+            return {"verdict": "INCONCLUSIVE",
+                    "why": f"the durable store could not be read ({q}) — nothing was measured"}
+        if not q.get("sentenceInQueuedEntry"):
+            # ⛔ THE RIG, NOT THE PRODUCT. Without this the cell would report the
+            # member's words lost when they were never typed — a product finding
+            # manufactured by the instrument, which is this wave's signature error.
+            return {"verdict": "INCONCLUSIVE",
+                    "why": (f"the rig never got the sentence into a queued outbox entry "
+                            f"(on screen: {q.get('sentenceOnScreen')}, in durable copy: "
+                            f"{q.get('sentenceInDurableCopy')}, entries for this note: "
+                            f"{q.get('queuedForThisNote')}) — an INSTRUMENT answer, not a finding")}
+        queued_note = (f"queued {q.get('queuedForThisNote')} entry(s), "
+                       f"baseline `{q.get('baseUpdatedAt')}`")
+
         # ── 4. arrange the ordering in the durable store ──
         arr = page.evaluate(ARRANGE_JS, {"acct": acct, "noteId": note_id,
                                          "ordering": ordering, "ttl": 10000})
@@ -722,6 +1080,14 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         #      OFFLINE (pushState, warmed chunk), so the click lands the instant
         #      the transport returns and the drain has no head start.
         nav_note = ""
+        # ⭐ THE ROUTE CHANGE AS A CONTROLLED VARIABLE, not a property of the
+        # family. `folder` is GREEN without it and `append_widget_embed` is RED
+        # with it — but those cells differ in TWO ways at once, which settles
+        # nothing. Forcing the same offline route change onto a door this rig can
+        # drive perfectly isolates it: if folder goes RED with the navigation,
+        # the navigation is the cause and the family is irrelevant.
+        if FORCE_NAV.get("on") and family not in WARM_ROUTES:
+            WARM_ROUTES[family] = FORCE_NAV["path"]
         if family in WARM_ROUTES:
             navd = page.evaluate(SPA_NAV_JS, {"path": WARM_ROUTES[family]})
             nav_note = f" · navigated offline to {navd}"
@@ -730,9 +1096,21 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                 return {"verdict": "INCONCLUSIVE",
                         "why": (f"the offline route change to {WARM_ROUTES[family]} did not take "
                                 f"({navd}) — the door was never reachable with work still queued")}
-        sent_before = len([p for p in posts if note_id in p["u"]])
+        # ⛔ "DID THE DRAIN WIN?" IS ABOUT A SUCCESSFUL SEND, NOT AN ATTEMPT.
+        #
+        # ⚰️ This counted every note PUT issued before the door — including the
+        # three that failed BECAUSE WE WERE OFFLINE, which is the normal shape of
+        # every cell. So the metadata control, whose wire shows the product doing
+        # exactly the right thing (409 → rebase → 200 carrying the sentence), was
+        # reported INCONCLUSIVE "the drain sent it before the door fired". A guard
+        # that fires on the healthy case is worse than no guard: it hides the
+        # measurement it was written to protect.
+        door_at = len(posts)
+        landed_before = [p for p in posts
+                         if p.get("carries_sentence") and isinstance(p.get("status"), int)
+                         and 200 <= p["status"] < 300]
         offline(False)
-        before_door = sent_before
+        before_door = len(landed_before)
         if family in METADATA:
             if family == "hero":
                 res = rig._fire_hero_door(page)
@@ -760,11 +1138,53 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                                 f"`{ENDPOINT[family]}` — a label is not a door. "
                                 f"note calls this cell: {len(posts)}")}
 
-        # ── 6. let the drain run, then read the SERVER ──
-        # Back to the note: the drain leader lives on whichever tab holds the
-        # lock, and reopening the editor is also what a member would do.
-        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
-        page.wait_for_timeout(11000)
+        # ── 5b. WAIT FOR THE DRAIN TO ACTUALLY FINISH ──────────────────
+        #
+        # ⛔⛔ READING THE SERVER WHILE WORK IS STILL QUEUED MEASURES THE CLOCK,
+        # NOT THE PRODUCT. Measured 2026-09-13: three PUTs carrying the member's
+        # sentence were still in flight when the cell read the server, the words
+        # were absent, and the cell called it RED — a product defect invented by
+        # reading too early. (The same run also had the statuses mis-assigned by
+        # URL, which dressed those PUTs as 200s. Two instrument faults pointing
+        # the same way is how a finding gets published.)
+        #
+        # ⭐ "Gone" and "late" are different findings, so the cell waits for the
+        # queue to empty and says so when it does not.
+        # ⭐ THE DRAIN RUNS WHERE THE NOTEBOOK IS MOUNTED. Measured 2026-09-13:
+        # after the door fired on /charts the entry was STILL QUEUED 60s later —
+        # not a stall, just nothing there to drive it. A member who sends a chart
+        # to their journal has that queued edit drained when they go back to the
+        # Notebook, so the cell does what the member does.
+        # ⭐ HOW THE RUN RETURNS IS THE VARIABLE UNDER TEST.
+        #
+        # The embed cell differs from the GREEN metadata cell in TWO ways at
+        # once: it leaves the Notebook, and it comes BACK through a document
+        # load. A document load tears the whole app down and rebuilds it from
+        # the server; an SPA route change does not. `--spa-return` changes only
+        # the second of those, so a colour change between the two runs names the
+        # document load and nothing else.
+        if SPA_RETURN["on"]:
+            back = page.evaluate(SPA_NAV_JS, {"path": f"/journal/notebook?note={note_id}"})
+            log(f"      SPA return (no document load): {back}")
+        else:
+            page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+        page.wait_for_timeout(6000)
+        drained, waited = False, 0
+        for _ in range(12):
+            page.wait_for_timeout(5000)
+            waited += 5
+            q2 = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
+            if isinstance(q2, dict) and q2.get("queuedForThisNote") == 0:
+                drained = True
+                break
+        log(f"      drain: {'emptied' if drained else 'STILL QUEUED'} after {waited}s")
+        if not drained:
+            return {"verdict": "INCONCLUSIVE",
+                    "why": (f"the outbox still held this note's entry after {waited}s — the drain "
+                            f"had not finished, so the server read would measure the clock rather "
+                            f"than the product. Not 'lost'; not yet delivered")}
+
+        # ── 6. read the SERVER (the editor is already open on the note) ──
         served = page.evaluate("""async (id) => {
           try {
             const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
@@ -784,6 +1204,18 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         note = served.get("note") or {}
         body = json.dumps(note.get("bodyJson") or note.get("body") or {})
         survived = sentence in body
+        # ⛔ WHEN A MEMBERSHIP TEST SAYS "NO", PRINT THE HAYSTACK. Three separate
+        # explanations for this RED were plausible from the outside — smart
+        # quotes rewriting the apostrophe, the door landing on a different note,
+        # the drain never writing — and none of them is distinguishable from
+        # `sentence in body == False`. The body itself separates them in one run.
+        if not survived:
+            import re as _re
+            plain = _re.sub(r'"[a-zA-Z]+":', '', body)
+            log(f"      body ({len(body)}B): {plain[:400]}")
+            log(f"      looking for: {sentence!r}")
+            log(f"      stem 'F5-MATRIX' present: {'F5-MATRIX' in body} · "
+                f"'offline words' present: {'offline words' in body}")
         boxes = page.evaluate(OUTBOX_JS, {"acct": acct})
 
         # Did the door's own node survive the drain? Only an append family has one.
@@ -803,12 +1235,32 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                                           && (n.title || '').includes(s)).length;
         }""", SENTINEL)
 
+        carrying = [p for p in posts if p.get("carries_sentence")]
+        # ⛔ EVERY CALL, NOT THE FIRST TEN. A truncated wire is how an
+        # ordering question gets answered from the half that happened to fit.
+        wire = " · ".join(f"{p['m']} {p['u'].replace('/api/j2/notes','')[:46] or '/'}"
+                          f"{'+SENT' if p.get('carries_sentence') else ''}"
+                          f"{'' if p.get('base') == '<absent>' else '[' + str(p.get('base'))[-8:] + ']'}"
+                          f"→{p.get('status')}" for p in posts) or "no note calls"
+        log(f"      wire: {wire}")
+        log(f"      the door fired after call #{door_at}; "
+            f"successful sends carrying the sentence before it: {before_door}")
+        # ⛔ "LOST" AND "NEVER SENT" ARE DIFFERENT FINDINGS. If no request ever
+        # carried the sentence, the drain did not lose the member's words -- it
+        # never offered them, and the defect is upstream of the merge.
+        sent_note = (f"{len(carrying)} request(s) carried the sentence"
+                     + (f" (last → {carrying[-1].get('status')})" if carrying else
+                        " — **the words were never put on the wire**"))
         ok = survived and node_ok and forks == 0 and (boxes or {}).get("conflicts", 0) == 0
         why = (f"offline sentence in the server body: **{survived}**{node_note} · "
+               f"{queued_note} · {sent_note} · wire: {wire} · "
                f"forks: {forks} · outbox left: {(boxes or {}).get('outbox')} · "
                f"conflicts: {(boxes or {}).get('conflicts')} · "
                f"door via {res.get('via', 'n/a')} · sends before the door: {before_door}"
                f"{nav_note} · {int(time.time() - from_cell)}s")
+        # ⛔ And it is only a spoiled cell if the words LANDED first. A door that
+        # fired after a failed attempt still met queued work, which is the case
+        # the matrix is about.
         if before_door and ok:
             # THE DRAIN WON, so this cell proves the product is fine in a case it
             # was not asked about. Green here would be a green for the wrong
@@ -820,10 +1272,11 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         return {"verdict": "GREEN" if ok else "RED", "why": why}
 
     finally:
-        try:
-            page.remove_listener("request", handler)
-        except Exception:  # noqa: BLE001
-            pass
+        for evt, fn in (("request", handler), ("response", on_response)):
+            try:
+                page.remove_listener(evt, fn)
+            except Exception:  # noqa: BLE001
+                pass
         try:
             offline(False)
         except Exception:  # noqa: BLE001
@@ -857,11 +1310,28 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--spa-return", action="store_true",
+                    help="come back to the Notebook by SPA route change instead "
+                         "of a document load. A CONTROLLED EXPERIMENT, never a row.")
+    ap.add_argument("--force-nav", metavar="PATH",
+                    help="apply the offline route change to EVERY family, so the "
+                         "navigation can be isolated from the family. Marks the "
+                         "cell so it is never mistaken for a plain row.")
     ap.add_argument("--ignore-window", action="store_true",
                     help="run anyway. Only for a window verified by hand; "
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
 
+    if args.spa_return:
+        SPA_RETURN["on"] = True
+        FORCE_NAV["on"] = FORCE_NAV["on"]  # independent switches
+        print("⚠️ SPA RETURN: the run comes back without a document load. "
+              "CONTROLLED EXPERIMENT, not a table row.")
+    if args.force_nav:
+        FORCE_NAV["on"] = True
+        FORCE_NAV["path"] = args.force_nav
+        print(f"⚠️ FORCED NAVIGATION: every family takes the offline route change to "
+              f"{args.force_nav}. This is a CONTROLLED EXPERIMENT, not a table row.")
     stamp = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
     st = load_state()
 
@@ -894,8 +1364,16 @@ def main() -> int:
 
     from playwright.sync_api import sync_playwright
 
+    # ⛔ --resume SKIPS A DECIDED READING, NOT AN UNDECIDED ONE. GREEN, RED and
+    # N/A are answers; INCONCLUSIVE means the cell measured NOTHING, and banking
+    # one would leave a hole in the table wearing a verdict's clothes — the same
+    # flattering-direction failure as banking a timeout in a suite baseline. A
+    # cell whose limitation is permanent simply says so again, which is the
+    # "named rig limitation per row" the table is allowed to carry.
+    DECIDED = {"GREEN", "RED", "N/A"}
     todo = [(f, o) for f, o in cells(args.family, args.ordering)
-            if not (args.resume and st.get(f"{f}|{o}")) and (f, o) not in NOT_APPLICABLE]
+            if not (args.resume and (st.get(f"{f}|{o}") or {}).get("verdict") in DECIDED)
+            and (f, o) not in NOT_APPLICABLE]
     print(f"⭐ {len(todo)} cell(s) to run · stamp {stamp}")
     if not todo:
         pathlib.Path(args.out).write_text(render(st, stamp), encoding="utf-8")
@@ -921,19 +1399,104 @@ def main() -> int:
             cdp.send("Network.enable")
             rig._offliner(cdp)(False)
 
-            page.goto(args.base + "/journal/notebook", wait_until="domcontentloaded")
-            page.wait_for_timeout(6000)
-            me = page.evaluate(rig.AUTH_JS)
-            if me.get("status") != 200:
+            # ── AUTH, AND THE THREE ANSWERS IT CAN GIVE ─────────────────
+            # ⛔⛔ A 502 IS NOT A SIGNED-OUT RIG, and the first version of this
+            # block said it was. Measured 2026-09-13T15:00Z: another session's
+            # merge (PR #127) was mid-swap, `/api/auth/me` answered **502**, and
+            # this tool printed "SIGN-IN REQUIRED" — which reads as *the rig lost
+            # its session*, the one failure that ends an unattended run and the
+            # one thing a session must never ask a human to fix casually. A
+            # sign-in is a 30-DAY event, not a session event.
+            #
+            # ⭐ Three answers, kept apart:
+            #   200  → signed in, proceed
+            #   401  → genuinely signed out. THAT is sign-in required.
+            #   else → the API could not answer. INCONCLUSIVE, and retried,
+            #          because a Tier-1 deploy blips `/api/*` for about a minute
+            #          and the instrument must survive one rather than crash into
+            #          it (`docs/runbooks/deploy-windows.md`).
+            me = {}
+            for attempt in range(6):
+                page.goto(args.base + "/journal/notebook", wait_until="domcontentloaded")
+                page.wait_for_timeout(6000)
+                me = page.evaluate(rig.AUTH_JS) or {}
+                # ⛔ NOT `st` — that is the state dict this run appends every cell
+                # to, and shadowing it turned the first real measurement into
+                # `TypeError: 'int' object does not support item assignment`
+                # AFTER the cell had been driven. The reading was taken and
+                # thrown away.
+                code = me.get("status")
+                if code in (200, 401):
+                    break
+                print(f"   /api/auth/me → {code} · production is not answering "
+                      f"(deploy in flight?) — waiting ({attempt + 1}/6)")
+                page.wait_for_timeout(20000)
+
+            if me.get("status") == 401:
                 ok, detail = rig.reauthenticate(page)
                 if ok:
                     page.goto(args.base + "/journal/notebook", wait_until="domcontentloaded")
                     page.wait_for_timeout(5000)
-                    me = page.evaluate(rig.AUTH_JS)
+                    me = page.evaluate(rig.AUTH_JS) or {}
                 if me.get("status") != 200:
-                    print(f"⛔ SIGN-IN REQUIRED ({me.get('status')}) — nothing measured. {detail if not ok else ''}")
+                    print(f"⛔ SIGN-IN REQUIRED — /api/auth/me returned 401 and the rig could "
+                          f"not self-heal ({detail}). Nothing measured.")
                     return 2
+
+            if me.get("status") != 200:
+                # ⛔ NOT A FINDING AND NOT A SIGN-OUT. Say which, and say that
+                # nothing was measured, so the empty table cannot read as a clean one.
+                print(f"⛔ INCONCLUSIVE — /api/auth/me never came back "
+                      f"({me.get('status')}) after 6 tries. Production was unreachable, "
+                      f"which is what a deploy swap looks like. Nothing measured; "
+                      f"re-run when `railway deployment list --service web` shows SUCCESS.")
+                return 6
+
+            # ── THE RIG IS OPTED OUT BY DEFAULT, AND THAT IS NOT A DETAIL ──
+            #
+            # !!!! The sampler runs OPTED OUT on purpose -- its outbox is
+            # structurally 0, which is what makes its rows readable. So the rig
+            # profile carries `uct.j2.offline.enabled = '0'`, the durable layer
+            # never engages, and EVERY CELL OF THIS MATRIX WOULD MEASURE A
+            # BROWSER THAT HAS NO OUTBOX.
+            #
+            # * It did. The first real cell reported the member's offline
+            # sentence missing from the server -- a RED that read exactly like a
+            # product defect. The control said `sentenceOnScreen: True`,
+            # `queuedForThisNote: 0`, `dirty: None`: typed, never stored, because
+            # the layer this matrix exists to measure was switched off in this
+            # browser. Product correct; instrument in the wrong mode.
+            #
+            # The key is REMOVED rather than set to '1': the server payload says
+            # `notebook_offline_default_on: true`, so absence IS opted in, and
+            # writing '1' would put a second authority next to the default.
+            before_key = page.evaluate(
+                "(k) => { try { return localStorage.getItem(k) } catch { return 'ERR' } }",
+                rig.FLAG_KEY)
+            page.evaluate("(k) => { try { localStorage.removeItem(k) } catch {} }", rig.FLAG_KEY)
+            page.goto(args.base + "/journal/notebook", wait_until="domcontentloaded")
+            page.wait_for_timeout(5000)
+            after_key = page.evaluate(
+                "(k) => { try { return localStorage.getItem(k) } catch { return 'ERR' } }",
+                rig.FLAG_KEY)
+            print(f"opt-in: key was {before_key!r} -> {after_key!r} "
+                  f"(None = opted in by the server default)")
+            if after_key not in (None, "1"):
+                print("STOP -- the rig could not be opted in; every cell would measure a "
+                      "browser with no durable layer. Nothing measured.")
+                return 7
+
             acct = me.get("id")
+            if not acct:
+                # ⛔ A 200 WITH NO ACCOUNT ID IS NOT A SIGNED-IN RIG. The
+                # IndexedDB name is `uct_notebook_<accountId>`, so a blank id
+                # would open a database nobody owns and every cell would
+                # measure an empty store while looking busy.
+                print("⛔ INCONCLUSIVE — /api/auth/me returned 200 with no account id. "
+                      "Nothing measured.")
+                return 6
+            purged = page.evaluate(PURGE_JS, {"acct": acct})
+            print(f"outbox litter from earlier runs: {purged}")
             print(f"signed in · account {acct} · notebook config: {me.get('nb')}")
 
             for f, o in todo:
@@ -944,11 +1507,73 @@ def main() -> int:
                     res = {"verdict": "INCONCLUSIVE",
                            "why": f"the cell raised {type(e).__name__}: {str(e)[:200]}"}
                 print(f"   ⇒ {res['verdict']}  {res['why'][:150]}")
+                if FORCE_NAV["on"] or SPA_RETURN["on"]:
+                    # ⛔ A FORCED-NAV CELL IS NOT A TABLE CELL. It answers a
+                    # different question, and banking it would put an answer to
+                    # the wrong question in the artifact the freeze lifts on.
+                    print("   (controlled experiment — NOT written to the table)")
+                    continue
                 st[f"{f}|{o}"] = res
                 save_state(st)                     # ⛔ after EVERY cell
                 pathlib.Path(args.out).write_text(render(st, stamp), encoding="utf-8")
+
+            # ⛔⛔ RESTORE THE OPT-OUT HERE, INSIDE THE PLAYWRIGHT CONTEXT.
+            #
+            # ⚰️ It was in the outer `finally`, which runs AFTER
+            # `with sync_playwright()` has exited — so every call went to a
+            # closed event loop and came back `ERR: Error`. The restore whose
+            # whole job is to fail loudly was itself failing, and the only
+            # reason it was caught is that it printed its own alarm. The rig was
+            # left OPTED IN, which would have handed the next sampler row a
+            # non-zero outbox — product state, as the Sunday gate reads it.
+            try:
+                ok_out, got = rig.opt_out(page)
+                print(f"opt-out restored in-session: {got!r} "
+                      f"({'ok' if ok_out else 'NOT PROVEN — see the on-disk check below'})")
+            except Exception as e:  # noqa: BLE001
+                print(f"⛔ opt-out restore raised {type(e).__name__} — see the on-disk check")
     finally:
+        # ⛔ THE AUTHORITY IS THE DISK, WITH CHROME DEAD. An in-memory read-back
+        # of '0' is truthful about memory and says nothing about the profile the
+        # NEXT run opens — measured 2026-09-10, twice: a removal read back as gone
+        # in memory and was still on disk on the next open. The in-context restore
+        # now happens inside the playwright block; this is its proof.
         rig.teardown()
+        try:
+            disk = rig.localstorage_on_disk(rig.FLAG_KEY)
+            val = (disk or {}).get('value')
+            print(f"opt-out ON DISK (browser dead): {val!r} "
+                  f"{'the rig IS opted out' if val == '0' else 'THE RIG IS NOT OPTED OUT'}")
+            if val != '0':
+                # ⛔ RETRY ONCE, DO NOT JUST WARN. `opt_out`'s flush and
+                # `teardown`'s SIGKILL race: the in-session read-back says '0'
+                # and the newest on-disk append can still be the removal. A
+                # warning leaves the next sampler run measuring an opted-in rig,
+                # which is the state this whole restore exists to prevent.
+                print("   on-disk restore did not stick — respawning once to redo it")
+                try:
+                    from playwright.sync_api import sync_playwright as _spw
+                    _proc, _ep, _ver = rig.spawn_rig()
+                    if _ver:
+                        with _spw() as _pw:
+                            _b = _pw.chromium.connect_over_cdp(_ep)
+                            _c = _b.contexts[0]
+                            _pg = _c.pages[0] if _c.pages else _c.new_page()
+                            _pg.goto(rig.PROD + "/api/health", wait_until="domcontentloaded")
+                            _pg.wait_for_timeout(1500)
+                            print("   retry opt_out ->", rig.opt_out(_pg))
+                    rig.teardown()
+                    val = (rig.localstorage_on_disk(rig.FLAG_KEY) or {}).get('value')
+                    print(f"   after retry, ON DISK: {val!r}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"   retry raised {type(e).__name__}")
+            if val != '0':
+                print('⛔⛔ FIX THIS BEFORE THE NEXT SAMPLER RUN. An opted-in rig '
+                      'gives the sampler a non-zero outbox, and the Sunday gate reads that '
+                      'as product state rather than as this tool leftovers.')
+        except Exception as e:  # noqa: BLE001
+            print(f'⛔ could not read the on-disk opt-in key ({type(e).__name__}) — '
+                  'unknown is not clear; check it by hand before the next sampler run')
 
     print(f"\ntable → {args.out}")
     return 0

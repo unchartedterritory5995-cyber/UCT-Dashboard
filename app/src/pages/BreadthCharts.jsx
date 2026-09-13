@@ -4,8 +4,9 @@ import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../utils/chartFont'
 import UIcon from '../components/ui/UIcon'
-import ErrorState from '../components/ErrorState'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
+import jsonFetcher from '../utils/jsonFetcher'
+import { expectedLatestDailySessionET } from '../utils/marketSession'
 import {
   CHART_GROUPS, LABEL_MAP, CHART_PRESETS, PRESET_GROUP_ORDER,
   UNIT, UNIT_LABEL, unitOf, resolveAxes, matchPreset, axisForUnit,
@@ -14,9 +15,9 @@ import {
 import { ftdMarkers } from './breadth/ftdMarkers'
 import PresetRow from './breadth/PresetRow'
 import MetricReadout from './breadth/MetricReadout'
+import { describeLoadError, describeRefreshError, shouldRetryLoad } from './breadth/chartLoadError'
+import { todayET, shiftISO } from './breadth/sessionDates'
 import styles from './BreadthCharts.module.css'
-
-const fetcher = url => fetch(url).then(r => r.json())
 
 const PREF_KEY = 'breadth_charts_state'
 const DEFAULT_SELECTED = ['breadth_score', 'pct_above_50sma']
@@ -43,20 +44,44 @@ const MA_EXTREME_LINES = [
   { yAxis: 5,  color: '#15803d', opacity: 0.95 },
 ]
 
-function offsetDate(days) {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+const DEFAULT_WINDOW_DAYS = 90
+// A market holiday leaves "overdue" true all day; one ask per ten minutes is enough.
+const REVISIT_THROTTLE_MS = 10 * 60 * 1000
+
+/** The failure panel (no chart yet) or the inline notice (a chart is already on screen). A-01. */
+function LoadProblem({ error, onRetry, inline = false }) {
+  const d = inline ? describeRefreshError(error) : describeLoadError(error)
+  return (
+    <div className={inline ? styles.refreshNotice : styles.loadProblem} role={inline ? 'status' : 'alert'}>
+      <UIcon name="warning" size={inline ? 14 : 20} gold={false} />
+      <div className={styles.loadProblemText}>
+        <p className={styles.loadProblemTitle}>{d.title}</p>
+        <p className={styles.loadProblemBody}>{d.body}</p>
+      </div>
+      {d.action.retry
+        ? <button type="button" className={styles.loadProblemAction} onClick={onRetry}>{d.action.label}</button>
+        : <a className={styles.loadProblemAction} href={d.action.href}>{d.action.label}</a>}
+    </div>
+  )
 }
 
 export default function BreadthCharts() {
-  const { data, isLoading, error, mutate } = useSWR('/api/breadth-monitor?days=365', fetcher)
+  const { data, isLoading, error, mutate } = useSWR('/api/breadth-monitor?days=365', jsonFetcher, {
+    // An ended session or a lapsed plan is not fixed by asking again.
+    shouldRetryOnError: shouldRetryLoad,
+  })
   const live = useLiveBreadth()
   const { prefs, setPref } = usePreferences()
 
   const [expanded, setExpanded] = useState({})
-  const [fromDate, setFromDate] = useState(() => offsetDate(-90))
-  const [toDate, setToDate]     = useState(() => offsetDate(0))
+  // A-35: the window is built on the Eastern date, re-read when the tab becomes
+  // visible so a tab left open overnight follows the calendar. A date the member
+  // typed is an override and stays where they put it.
+  const [today, setToday] = useState(() => todayET())
+  const [fromOverride, setFromOverride] = useState(null)
+  const [toOverride, setToOverride] = useState(null)
+  const fromDate = fromOverride ?? shiftISO(today, -DEFAULT_WINDOW_DAYS)
+  const toDate = toOverride ?? today
 
   // The stored selection is DERIVED from prefs rather than copied into state by
   // an effect — SWR resolves after mount, so an effect would mean a cascading
@@ -116,6 +141,39 @@ export default function BreadthCharts() {
     [rows, live.row],
   )
 
+  // A-09: the history is fetched once per mount. When the 4:15 PM collector
+  // records the day, the live hook withdraws its provisional point as
+  // `superseded` — and nothing fetched the row that replaced it, so a tab open
+  // across the close ended at yesterday. One revalidation, on that transition
+  // only: a point withdrawn because the read degraded is not a recorded close.
+  const hadLiveRow = useRef(false)
+  useEffect(() => {
+    const hasLiveRow = Boolean(live.row)
+    if (hadLiveRow.current && !hasLiveRow && live.meta?.superseded) mutate()
+    hadLiveRow.current = hasLiveRow
+  }, [live.row, live.meta, mutate])
+
+  // Returning to the tab: follow the Eastern calendar, and ask once if the newest
+  // stored session is older than the last session that has closed (D-025).
+  const newestStored = useMemo(
+    () => (data?.rows ?? []).reduce((newest, r) => (r.date > newest ? r.date : newest), ''),
+    [data],
+  )
+  const lastRevisit = useRef(0)
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return
+      setToday(todayET())
+      const now = Date.now()
+      if (newestStored && newestStored < expectedLatestDailySessionET() && now - lastRevisit.current > REVISIT_THROTTLE_MS) {
+        lastRevisit.current = now
+        mutate()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [newestStored, mutate])
+
   const activePreset = useMemo(() => matchPreset(selected), [selected])
   const activePresetDef = useMemo(
     () => CHART_PRESETS.find(p => p.id === activePreset) ?? null,
@@ -140,8 +198,8 @@ export default function BreadthCharts() {
     // what the reader framed. Only ad-line asks: adv_decline_cum keeps just 55%
     // of its travel at the 90-day default, with the April trough off-screen.
     if (preset.minWindowDays) {
-      const earliest = offsetDate(-preset.minWindowDays)
-      setFromDate(prev => (earliest < prev ? earliest : prev))
+      const earliest = shiftISO(today, -preset.minWindowDays)
+      if (earliest < fromDate) setFromOverride(earliest)
     }
   }
 
@@ -479,7 +537,7 @@ export default function BreadthCharts() {
               className={styles.dateInput}
               value={fromDate}
               max={toDate}
-              onChange={e => setFromDate(e.target.value)}
+              onChange={e => setFromOverride(e.target.value)}
             />
           </label>
           <label className={styles.dateLabel}>
@@ -489,11 +547,11 @@ export default function BreadthCharts() {
               className={styles.dateInput}
               value={toDate}
               min={fromDate}
-              onChange={e => setToDate(e.target.value)}
+              onChange={e => setToOverride(e.target.value)}
             />
           </label>
           {rows.length > 0 && (
-            <span className={styles.rowCount}>{rows.length} days</span>
+            <span className={styles.rowCount}>{rows.length} {rows.length === 1 ? 'session' : 'sessions'}</span>
           )}
           {/* Default off — an existing view must not change shape unasked. */}
           <label className={styles.ftdToggle}>
@@ -509,9 +567,7 @@ export default function BreadthCharts() {
 
       {/* ── Chart ────────────────────────────────────────────────────── */}
       <div className={styles.chartWrap}>
-        {error && !data && (
-          <ErrorState message="Couldn't load breadth history right now." onRetry={mutate} compact />
-        )}
+        {error && !data && <LoadProblem error={error} onRetry={() => mutate()} />}
         {!error && isLoading && <div className={styles.placeholder}>Loading data…</div>}
         {!error && !isLoading && rows.length === 0 && (
           <div className={styles.placeholder}>No data in selected range.</div>
@@ -521,6 +577,7 @@ export default function BreadthCharts() {
         )}
         {!isLoading && rows.length > 0 && selected.length > 0 && (
           <>
+            {error && <LoadProblem error={error} onRetry={() => mutate()} inline />}
             <MetricReadout
               rows={rows}
               selected={selected}

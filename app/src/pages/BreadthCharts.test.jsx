@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import BreadthCharts from './BreadthCharts'
+import { todayET, shiftISO } from './breadth/sessionDates'
 
 // Capture the option ECharts is actually handed — assert on the rendered
 // artifact, not on component state.
@@ -10,10 +11,10 @@ vi.mock('echarts-for-react', () => ({
   default: (props) => { captured = props.option; return <div data-testid="echart" /> },
 }))
 
+// Session dates are Eastern (A-35). A UTC fixture date is tomorrow after 8 PM ET
+// and would fall outside the window the component builds.
 function isoDaysAgo(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return shiftISO(todayET(), -n)
 }
 
 // 30 rows inside the component's default 90-day window.
@@ -360,10 +361,10 @@ describe('metric readout', () => {
     clickPreset('New Highs vs Lows')
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
     // Fixture 52W highs run 100..129, so the last point is the highest.
-    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile' }))
+    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile of 30 readings shown' }))
       .toBeInTheDocument()
     // 52W lows cycle 10..16, so the last value sits mid-range, not at an extreme.
-    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile$/ }))
+    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile of 30 readings shown$/ }))
       .toBeInTheDocument()
   })
 

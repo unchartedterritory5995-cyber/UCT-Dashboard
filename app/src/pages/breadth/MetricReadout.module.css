@@ -31,3 +31,12 @@
 .name  { font-size: 12px; color: var(--text); }
 .value { font-size: 12px; color: var(--text-bright); font-weight: 600; }
 .pct   { font-size: 11px; color: var(--text-muted); }
+
+/* A reading older than its cadence allows (A-10) — warning ink, never the series colour. */
+.stale {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--warn);
+}
