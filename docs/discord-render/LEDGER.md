@@ -139,6 +139,34 @@ answers successfully with nothing, and every assertion over an empty list passes
 Fourteen copies cannot be mutation-proved (memory `lesson_a_guard_repeated_is_a_guard_unproved`) and
 a rotation would have to edit all fourteen correctly. `app/src/lib/renderToken.js` is now the one copy.
 
+### Step 1.1b — the rotation itself (2026-09-13, Sunday, ~16:30 ET)
+
+⚠️ **The stated blocker did not exist, and the opposite was true.** The rotation was parked because
+"Morning Wire holds the live token and rotating breaks Monday's 07:35 wire". Measured against
+production before touching anything: Morning Wire's `.env` token was **already being refused**
+(`GET /api/r/econ` → **403**) while Railway's token returned 200. The wire's Substack panels have
+been failing that gate for some time. Rotating could not break what was already broken, and fixing
+that file is an improvement to Monday's wire rather than a risk to it.
+
+⛔ **And the first probe of this said the opposite.** `GET /api/r/movers` returned **200 for a
+made-up token** — there is no `/r/movers` route, so the request fell through to the SPA catch-all
+and answered 200 with an HTML page. Re-probed against real routes (`/r/econ`, `/r/themes`) with a
+content-type check, the gate was working correctly all along. A status code without a body check is
+not a measurement (same family as the broker_sync 405).
+
+| What | Evidence |
+|---|---|
+| New token generated | `secrets.token_urlsafe(24)`, 32 chars, never printed — fingerprints only |
+| Applied | ONE `railway variables --set` on `web` carrying all four values, so ONE rebuild: `CHART_RENDER_TOKEN` + `VITE_CHART_RENDER_TOKEN` → new (`fp c6cc0765`), `…_PREVIOUS` ×2 → old (`fp 15bec268`) |
+| No breakage window | Each pod is self-consistent (its own backend token + its own bundle); the swap is per-pod and atomic. Deploy BUILDING 20:36:09 → SUCCESS **20:37:30 UTC** |
+| Dual acceptance live | `/api/r/econ`: new → **200 JSON**, old → **200 JSON**, made-up → **403 REFUSED** |
+| Morning Wire config | `morning-wire/.env` rewritten atomically, one line; 54 lines / 30 keys / no duplicates / no malformed lines afterwards; now `fp c6cc0765` → **200** where it was 403 |
+| End-to-end proof | `substack.panelshot.render_panels` — the wire's OWN renderer — against production: `econ` 116 KB and `themes` 949 KB PNGs in 10.8 s. The page only sets `window.__panelReady` after the token is accepted, so a PNG **is** the proof. |
+| Renderer logs | 496 lines, **0** containing `token=` in any form; 244 render lines all `path=/r/chart` with no query. C-13 closed in production. |
+| Log rail | `tests/test_render_token_never_logged.py` (`a8872fbc5`) — AST over the renderer and both web senders; fails if any logging call is handed a URL without `scrub()`/`url_path()`. Includes a planted-violation control. |
+| Retire job | Task Scheduler **`UCT Render Token Retire`**, Monday 2026-09-14 **07:15 CT = 08:15 ET**, one-shot, `StartWhenAvailable`, 30-min limit → `uct-q1-observe/render_token_retire.cmd`. Gated on `morning_wire_state.json::last_run_date == today`; aborts if the CURRENT token is not already 200; idempotent; posts the outcome to `#render-alerts`. Opt out with `render_token_retire.disabled`. |
+| Retire job proven today | Ran it live: `WIRE MARKER ABSENT — last_run_date=2026-09-11 today=2026-09-13. Changing nothing.` exit 0, all four variables unchanged, skip notice posted. The gate is measured, not assumed. |
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
