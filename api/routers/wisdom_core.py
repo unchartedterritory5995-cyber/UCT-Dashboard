@@ -99,7 +99,7 @@ def wisdom_run_job(job_id: str, dry_run: bool = Query(True), force: bool = Query
 
 @router.get("/private/{record_id}")
 def wisdom_private_record(record_id: str, response: Response,
-                          _owner: dict = Depends(require_admin)) -> dict:  # MUTATION R-a
+                          _owner: dict = Depends(require_owner)) -> dict:
     """The owner-private fields stored for one record, decrypted. Owner only."""
     response.headers["Cache-Control"] = "no-store"
     if not private.is_configured():
