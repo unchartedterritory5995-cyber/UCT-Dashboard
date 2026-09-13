@@ -193,10 +193,14 @@ describe('⭐⭐ v2 — the running measurement, step by step', () => {
   //   before step 1   cells 0   cell:text 6   unboundLocals 41 over 20 names
   //   after  step 1   cells 2   cell:text 4   unboundLocals 22 over  9 names
   //   after  step 2a  cells 3   cell:text 3   unboundLocals  0
+  //   after  step 2b  cells 4   cell:text 2   unboundLocals  0
   //   target          cells 6   cell:text 0   unboundLocals  0
-  it('cells 3, cell:text 3 — the Range pair plus one Volume cell', () => {
-    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(3)
-    expect(t.objectDiagnostics.dropReasons['cell:text']).toBe(3)
+  it('cells 4, cell:text 2 — both Volume cells and both Range cells', () => {
+    // ⭐ 2b lit `volCellText`, the cell a member actually reads. What is left is
+    // the Range table's `atrMultText` and `dcrText`, both built across `if`
+    // branches with `:=` — step 3.
+    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(4)
+    expect(t.objectDiagnostics.dropReasons['cell:text']).toBe(2)
   })
 
   it('⭐⭐ EVERY BLOCK LOCAL IS BOUND BY THE WALK — unboundLocals is 0', () => {

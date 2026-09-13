@@ -236,6 +236,33 @@ export function collectObjectOps(stmts, h) {
       // ⭐ AN ORDINARY BINDING JOINS THE BLOCK'S SCOPE for every statement
       // AFTER it, which is exactly Pine's own order. A copy is taken rather
       // than mutating, so a sibling block cannot see a name declared in this one.
+      // ⭐⭐ R2 STEP 2b — A DESTRUCTURE IS A BLOCK LOCAL TOO, and it is the one
+      // shape this scope never recorded. `[tableUnit, tableDivisor] =
+      // f_getVolumeUnit(volDisplay)` opens with `[`, not an ident, so the test
+      // below cannot see it — and the object pass then meets `tableUnit` as an
+      // unknown name and drops the cell that used it. Both names join on the
+      // same statement; the walk's record holds one binding per name.
+      //
+      // ⚰️⚰️ THIS WAS REMOVED IN 2a AS DEAD CODE AND THAT WAS WRONG. Two
+      // instruments said so and both were blind: mutation M6 survived, and an
+      // A/B on `uncharted-volume-v2.pine` read identical on every number with
+      // and without it. Neither could see it, because v2's ONE surviving Volume
+      // cell reaches `tableUnit` by another route — so the only script in the
+      // measurement could not distinguish the two worlds. `textTupleLocal.test.js`
+      // is the reproduction that can: without this, its cell count is 0.
+      // ⛔ AN ABSENCE IS ONLY EVIDENCE IF THE INSTRUMENT COULD HAVE SEEN A
+      // PRESENCE, and a single fixture is not an instrument.
+      if (h.isPunct(t[0], '[')) {
+        const close = t.findIndex((x) => h.isPunct(x, ']'))
+        const eq = close > 0 ? t.findIndex((x, xi) => xi > close && h.isPunct(x, '=')) : -1
+        if (close > 0 && eq > close) {
+          for (const nameTok of t.slice(1, close)) {
+            if (nameTok.kind === 'ident') {
+              localScope = [...localScope, { name: nameTok.value, toks: t.slice(eq + 1), st }]
+            }
+          }
+        }
+      }
       if (word && t[1] && h.isPunct(t[1], '=') && t.length > 2) {
         // ⭐⭐ R2 STEP 1 — `st` IS THE JOIN KEY, and it is why `toks` is no
         // longer the value. `buildObjectProgram` reads the binding the WALK made

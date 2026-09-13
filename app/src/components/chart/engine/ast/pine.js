@@ -8042,6 +8042,15 @@ export function boundName(toks, eqIndex) {
 
 /** A binding wrapper so a Pine sub-tree can carry the environment it was written
  *  in. `{type:'bound'}` is the only Pine node this module manufactures. */
+/** ⭐ HOW DEEP A TEXT EXPRESSION MAY NEST BEFORE `textNodeOf` gives up.
+ *
+ *  ⚰️ It was 12 and silently cost `uncharted-volume-v2.pine` its Volume cell at
+ *  depth 13. Measured 2026-09-13: the deepest text expression across the
+ *  59-script `pine_oos` corpus is 10; v2's is 13. Sixty-four leaves ~5x headroom
+ *  over the deepest real shape while still bounding a cyclic binding, and
+ *  `objectDiagnostics.textTooDeep` names any script that reaches it. */
+const TEXT_MAX_DEPTH = 64
+
 const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
 
 /** ⭐⭐ PINE'S `var` IS THE ENGINE'S `accum`, AND THIS IS THE WHOLE WIRE.
@@ -8966,7 +8975,34 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    * number reads as a working dashboard and is not one.
    */
   const textNodeOf = (node, scope, depth = 0, inline = null) => {
-    if (!node || depth > 12) return null
+    if (!node) return null
+    // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
+    //
+    // ⚰️ MEASURED 2026-09-13. The cap was 12, chosen when this reader walked
+    // literals, `+` chains and one ternary. It now also steps into user-function
+    // bodies, tuple parts and `bound` nodes — each of which costs levels — and
+    // `uncharted-volume-v2.pine`'s Volume cell needs THIRTEEN. One level over,
+    // and the cell was dropped with `cell:text`, which reads as "we cannot read
+    // this text" rather than "we stopped early". Its sibling AVol cell is one
+    // concatenation shorter and rendered perfectly, so the two sat side by side
+    // in the same table with no way to tell why only one of them worked.
+    //
+    // ⭐ THE NUMBER IS DERIVED FROM WHAT REAL SCRIPTS NEED, not picked: the
+    // deepest text expression in the 59-script `pine_oos` corpus is 10, and v2's
+    // is 13. `TEXT_MAX_DEPTH` is 64 — roughly five times the deepest measured
+    // shape — so it remains a guard against a cyclic binding while no honest
+    // script can reach it.
+    //
+    // ⛔ AND HITTING IT IS NAMED NOW, never a silent null. A script that does is
+    // recorded with its line, so the next time this number is wrong it says so
+    // instead of dropping a cell and calling it unreadable text.
+    if (depth > TEXT_MAX_DEPTH) {
+      diagnostics.textTooDeep = diagnostics.textTooDeep || []
+      const at = node.tok ? locate(node.tok) : null
+      const entry = `depth>${TEXT_MAX_DEPTH}@${at ? at.line : '?'}`
+      if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+      return null
+    }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
     if (node.type === 'number') {
       const ref = internTree({ type: 'num', value: Number(node.value) })
