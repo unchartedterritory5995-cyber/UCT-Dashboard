@@ -281,6 +281,11 @@ No stack trace, exception text or URL ever reaches a member (railed on the build
   final > 8 s with ≥10 jobs; 1-h success < 99.5 % with ≥20), renderer not ready for 2 probes,
   breaker open, ≥5 failures in 5 minutes, any job non-terminal at 60 s. Cooldown **durable** in
   the jobs DB (an in-memory cooldown resets every 8 minutes and pages on every pod).
+  *Built in 2.2* (`observe.evaluate_alerts`, run every 60 s by `observe.Observer`): every rule above
+  except **breaker open**, which arrives with the breakers in 2.4 — plus **any acknowledgement over
+  3 s in the last hour** (S1's hard ceiling: Discord has already failed that interaction). A blank
+  webhook still writes each alert as a `drender` log event under the same cooldown; a failed POST
+  records no cooldown. The observer also runs `store.purge()` hourly.
 - **Running SHA:** `/api/discord/render-health` reports `RAILWAY_GIT_COMMIT_SHA`, which is how
   every merge in `05-progress.md` proves the deployed code.
 
