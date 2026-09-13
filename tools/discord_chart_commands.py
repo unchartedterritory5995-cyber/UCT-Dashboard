@@ -40,11 +40,12 @@ def show(client: httpx.Client) -> dict:
     return r.json()
 
 
-def register(client: httpx.Client, app_id: str, guild_id: str | None, *, clear: bool = False, activity: bool = False) -> list:
+def register(client: httpx.Client, app_id: str, guild_id: str | None, *, clear: bool = False, activity: bool = False,
+             renderhealth: bool = False) -> list:
     """PUT the command set. `guild_id=None` registers GLOBALLY (every server the
     app is installed in — the right choice when it lives in more than one);
     a guild id registers for that server only (instant, useful for testing)."""
-    body = [] if clear else build_commands(activity=activity)
+    body = [] if clear else build_commands(activity=activity, renderhealth=renderhealth)
     path = (f"/applications/{app_id}/commands" if guild_id is None
             else f"/applications/{app_id}/guilds/{guild_id}/commands")
     r = client.put(path, json=body)
@@ -99,6 +100,8 @@ def main(argv=None) -> int:
     reg.add_argument("--activity", action="store_true", help="also register the Entry Point (Activity launch) command - only once Activities are enabled on the app")
     reg.add_argument("--global", dest="global_", action="store_true",
                      help="register globally: every server the app is installed in")
+    reg.add_argument("--renderhealth", action="store_true",
+                     help="also register the admin-only /renderhealth command - only with DISCORD_RENDER_V2_ENABLED on")
     reg.add_argument("--clear", action="store_true")
     ep = sub.add_parser("endpoint")
     ep.add_argument("--url", required=True)
@@ -119,14 +122,16 @@ def main(argv=None) -> int:
         print(f"interactions_endpoint_url={info.get('interactions_endpoint_url')}")
     elif args.cmd == "register":
         if args.global_:
-            out = register(client, app_id, None, clear=args.clear, activity=args.activity)
+            out = register(client, app_id, None, clear=args.clear, activity=args.activity,
+                           renderhealth=args.renderhealth)
             print(f"registered {len(out)} GLOBAL command(s): {[c.get('name') for c in out]}")
         else:
             guild = args.guild or os.environ.get("DISCORD_CHART_GUILD_ID", "").strip()
             if not guild:
                 print("--guild, DISCORD_CHART_GUILD_ID, or --global required", file=sys.stderr)
                 return 2
-            out = register(client, app_id, guild, clear=args.clear, activity=args.activity)
+            out = register(client, app_id, guild, clear=args.clear, activity=args.activity,
+                           renderhealth=args.renderhealth)
             print(f"registered {len(out)} command(s) in guild {guild}: {[c.get('name') for c in out]}")
     elif args.cmd == "endpoint":
         info = set_endpoint(client, args.url)

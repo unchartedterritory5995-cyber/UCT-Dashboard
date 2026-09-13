@@ -943,7 +943,64 @@ def _should_hide_grade_c(hide_c: bool, grade, gap_pct, min_move_pct: float) -> b
     return gap_abs < min_move_pct
 
 
+def _safe_enrich(summary: dict, fn, *args) -> bool:
+    """Run ONE best-effort enrichment so it can never cost the whole refresh.
+
+    ⚰️ **F-CAT-1, the four-day outage this exists to make impossible.** Between
+    `curator.curate()` (which bills an LLM) and the first `store.upsert_catalyst()`
+    there were eight bare calls. Every one of those functions promises in its own
+    docstring to be best-effort — but the SPAN made no such promise, so a single
+    exception propagated out of `run_refresh`, skipping the synthesis loop and the
+    unranked backfill together. Measured cost: 118 billed `_CURATOR` calls across
+    2026-09-09/10/11 and **zero persisted rows**.
+
+    ⭐ Returns True on success so a caller can branch, but the contract that
+    matters is the one it never breaks: **it does not raise**. The failure is
+    logged AND recorded on `summary["errors"]`, because a swallowed error with no
+    durable record is exactly why this took four days to find — the summary was
+    logged and never persisted (see `store.record_run`).
+    """
+    name = getattr(fn, "__name__", str(fn))
+    try:
+        fn(*args)
+        return True
+    except Exception as e:
+        logger.exception("[catalyst-engine] enrichment %s failed — continuing", name)
+        summary.setdefault("errors", []).append(f"{name}: {type(e).__name__}: {e}")
+        return False
+
+
 def run_refresh(hunt: Optional[bool] = None) -> dict:
+    """Single full pass, wrapped in the F-CAT-1 spend rail.
+
+    ⭐ This is a THIN wrapper on purpose. `_run_refresh_inner` has four return
+    points (market closed, source collection failed, no candidates, normal end)
+    and a fifth is one refactor away; recording the receipt at each of them is
+    the kind of enumeration that silently goes stale. One wrapper cannot miss a
+    return, so the receipt and the rail are unconditional by construction.
+
+    ⛔ The kill-switch check happens BEFORE the inner call, because every
+    expensive call in the pipeline is inside it.
+    """
+    from api.services.catalyst import spend_rail
+
+    started_at = int(time.time())
+    md = _today_market_date()
+
+    blocked = spend_rail.block_reason()
+    if blocked:
+        logger.error("[catalyst-engine] REFUSING TO SPEND — %s", blocked)
+        summary = {"market_date": md, "candidates": 0, "scored": 0, "selected": 0,
+                   "synthesized": 0, "errors": [], "skipped": f"spend blocked: {blocked}"}
+        store.record_run(market_date=md, started_at=started_at,
+                         skipped=summary["skipped"])
+        return summary
+
+    summary = _run_refresh_inner(hunt=hunt)
+    return spend_rail.record_and_check(md, started_at, summary)
+
+
+def _run_refresh_inner(hunt: Optional[bool] = None) -> dict:
     """Single full pass. Returns summary dict for logging.
     Never raises — all errors swallowed + logged.
 
@@ -1087,37 +1144,47 @@ def run_refresh(hunt: Optional[bool] = None) -> dict:
     from api.services.catalyst import curator_health
     curator_health.check_and_alert(md)
 
+    # ⛔⛔ EVERY CALL IN THIS SPAN GOES THROUGH `_safe_enrich`. F-CAT-1.
+    #
+    # ⚰️ 2026-09-08 → 2026-09-11: these eight calls were UNGUARDED. Each
+    # enrichment documents itself as best-effort, but the SPAN did not, so one
+    # exception escaped run_refresh — past the synthesis loop AND past the
+    # unranked backfill at the bottom of this function. Result: the curator was
+    # billed 31-52x a day and ZERO rows were persisted, for four trading days.
+    # The spend happens ABOVE this line; everything that makes it worth paying
+    # for happens BELOW it. Never put a bare call between the two again.
+
     # Tier 1C: enrich top-12 with broader Twitter search before synthesis.
     # Bounded — skips tickers that already have ≥5 tweets from curated accounts.
-    _enrich_with_twitter_search(top_12)
+    _safe_enrich(summary, _enrich_with_twitter_search, top_12)
 
     # Analyst-action enrichment: catch analyst-driven movers pre-wire-push.
-    _enrich_with_analyst_actions(top_12)
+    _safe_enrich(summary, _enrich_with_analyst_actions, top_12)
 
     # Display-only analyst rating-change signal (gated, default OFF). Does NOT
     # feed synthesis or the skip-if-stable hash — purely decorates the row.
-    _enrich_with_rating_changes(top_12)
+    _safe_enrich(summary, _enrich_with_rating_changes, top_12)
 
     # Free per-mover "why" fetch: pull Google News for THIN candidates first
     # so the paid Perplexity zero-signal fallback below fires less often.
-    _enrich_with_ticker_news(top_12)
+    _safe_enrich(summary, _enrich_with_ticker_news, top_12)
 
     # Tier 2-1: Perplexity fallback for tickers with zero source signals.
     # Runs AFTER Twitter search so it only fires when even broad search
     # turned up nothing. Bounded by zero-signals check.
-    _enrich_with_perplexity(top_12)
+    _safe_enrich(summary, _enrich_with_perplexity, top_12)
 
     # P1-C1: Earnings-tagged rows get a Perplexity deep-dive for guidance +
     # sell-side context that Finnhub's eps/rev numbers don't carry.
-    _enrich_earnings_with_perplexity(top_12)
+    _safe_enrich(summary, _enrich_earnings_with_perplexity, top_12)
 
     # P2-B1 superseded: DEEP reasoning-mode pass over the top movers — confirmed
     # catalyst + market read + key levels + extend/reverse. Cost-capped by per-day
     # per-ticker cache + top-N; anti-hallucination drops unconfirmed answers.
     # (Old fast top-3 pass `_enrich_top_3_with_deep_context` kept for rollback.)
-    _enrich_top_movers_deep_context(top_12, md)
+    _safe_enrich(summary, _enrich_top_movers_deep_context, top_12, md)
 
-    store.clear_ranks_for_date(md)
+    _safe_enrich(summary, store.clear_ranks_for_date, md)
 
     # Synthesize everything first, then hide grade-C rows from the RANKED list.
     # They still get stored (unranked) for history + the "Why isn't X" explainer.
