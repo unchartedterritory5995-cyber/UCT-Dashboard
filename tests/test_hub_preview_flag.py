@@ -164,3 +164,62 @@ def test_the_technical_tab_gate_is_read_per_request(access_payload, a_member, mo
     assert access_payload(a_member, "free")["research_technical_tab_enabled"] is False
     monkeypatch.setenv("RESEARCH_TECHNICAL_TAB_ENABLED", "1")
     assert access_payload(a_member, "free")["research_technical_tab_enabled"] is True
+
+
+# ---------------------------------------------------------------------------
+# NOTEBOOK_* — Wave K puts four more flags on this same payload.
+#
+# ⛔⛔ THE PER-REQUEST PROPERTY IS ASSERTED HERE, FOR THEM TOO, AND THE ROSTER IS
+# DERIVED. This file is where "the value is read at request time" lives, and a
+# rail that covered one flag on the payload while four neighbours went uncovered
+# would be satisfied by exactly the mistake it exists to catch — a module-level
+# capture creeping back in on the new keys, where every OTHER test still passes
+# and the no-redeploy rollback quietly becomes a fiction.
+#
+# ⭐ The keys come from `auth.NOTEBOOK_FLAGS` through `_notebook_flag_key`, never
+# from a list typed here: a fifth flag added tomorrow is covered the day it
+# lands, and a hand-typed list would drift in the flattering direction (fewer
+# flags checked, nothing red).
+# ---------------------------------------------------------------------------
+
+def _notebook_env_names():
+    mod = importlib.import_module("api.routers.auth")
+    names = sorted(mod.NOTEBOOK_FLAGS)
+    assert names, "no Notebook flags found — this rail would pass over an empty set"
+    return names
+
+
+@pytest.mark.parametrize("env_name", _notebook_env_names())
+def test_each_notebook_flag_is_read_PER_REQUEST(access_payload, a_member, monkeypatch, env_name):
+    """Same process, same imported module, no reload — one env change between
+    two calls. ⛔ This is the one that a module-level capture fails."""
+    mod = importlib.import_module("api.routers.auth")
+    key = mod._notebook_flag_key(env_name)
+
+    monkeypatch.setenv(env_name, "1")
+    assert access_payload(a_member, "free")[key] is True
+    monkeypatch.setenv(env_name, "0")                    # no reimport between these
+    assert access_payload(a_member, "free")[key] is False, (
+        f"{env_name} did not change without a reimport — it is captured at import, "
+        "and every 'no redeploy needed' claim about it is false")
+    monkeypatch.setenv(env_name, "1")
+    assert access_payload(a_member, "free")[key] is True
+
+
+def test_the_notebook_flags_ride_the_SAME_payload_helper_as_the_hub_flag(a_member):
+    """⛔ One helper, or the flip reaches some auth paths and not others.
+
+    `_access_payload` is what signup, login and /api/auth/me all build. A
+    Notebook key defined anywhere else would work for whichever door happened to
+    call that other code — and the door people forget is signup, the one a NEW
+    member takes.
+    """
+    mod = importlib.import_module("api.routers.auth")
+    src = open(mod.__file__, encoding="utf-8").read()
+    helper_at = src.index("def _access_payload")
+    splice_at = src.index("_notebook_flags()", helper_at)
+    assert splice_at > helper_at, "the Notebook flags must be spliced inside _access_payload"
+    # …and the payload really carries them, so the splice is not decorative.
+    payload = mod._access_payload(a_member, "free")
+    for env_name in _notebook_env_names():
+        assert mod._notebook_flag_key(env_name) in payload

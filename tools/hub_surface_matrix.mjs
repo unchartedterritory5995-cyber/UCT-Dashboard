@@ -16,11 +16,18 @@
 //   3. `app/src/hub/writePaths.test.js` — the write-path MANIFEST, which is already the repo's
 //      single claim about what the hub can write, joined here rather than restated.
 //
-// ⛔ COMMENTS ARE STRIPPED BEFORE ANY MATCH, and `--self-check` proves it. This repo has paid six
-// times in one session for an instrument that matched the prose describing a call instead of the
-// call — including in this very directory (`writePaths.test.js` says so in its own header). Every
-// controller here writes `onScrub` in its comments; a scanner that counts those reports bindings
-// nobody wired.
+// ⛔ PROSE IS NEVER MATCHED. Two mechanisms, and the difference matters: the GESTURE BINDINGS are
+// read from a parse tree (`bindingsIn`), where a comment is not a node at all; everything else —
+// the handler arms, the write join — still runs over `strip()`ed source, and `--self-check` proves
+// both. This repo has paid six times in one session for an instrument that matched the prose
+// describing a call instead of the call, including in this very directory (`writePaths.test.js`
+// says so in its own header). Every controller here writes `onScrub` in its comments; a scanner
+// that counts those reports bindings nobody wired.
+//
+// ⚰️ AND IT PAID A SEVENTH TIME HERE. `bindingsIn` was a regex for the COLON form, so ES6
+// shorthand — `{ onTap, onDoubleTap, onScrub, onScrubCommit, readout }`, which is how `wire`,
+// `home` and half of `journal` declare theirs — was invisible, and this file published
+// "— none —" for two modes that wire everything. See `bindingsIn` below: **D-42**.
 //
 // ── WHAT IT DOES NOT CLAIM ─────────────────────────────────────────────────────────────────────
 // The write column is a JOIN, not a dataflow proof: an action is credited with an endpoint when its
@@ -37,6 +44,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -53,6 +61,46 @@ const BASELINE = arg('--baseline', 'febe8ee67')
 
 /** ⛔ Strip block comments, then line comments — nothing below ever matches prose. */
 const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+
+/**
+ * ⛔ THE REPO'S OWN PARSER, RESOLVED THE WAY THE APP RESOLVES IT — this adds no dependency.
+ *
+ * `acorn` + `acorn-jsx` are already imported directly by two standing rails
+ * (`components/screener/reachable.test.js:48` and
+ * `chart/engine/__tests__/singleWriterIndex.test.js:51`), which is what makes them "the repo's
+ * existing parser" rather than a new one. They live in `app/node_modules` and this script runs
+ * from the repo ROOT, so the require is anchored at `app/package.json` instead of being left to
+ * walk up from `tools/` and find nothing.
+ */
+const appRequire = createRequire(pathToFileURL(path.join(REPO, 'app', 'package.json')))
+let PARSER = null
+function parseJs(src) {
+  if (!PARSER) {
+    try {
+      const { Parser } = appRequire('acorn')
+      PARSER = Parser.extend(appRequire('acorn-jsx')())
+    } catch (e) {
+      // ⛔⛔ NO SILENT FALLBACK TO A REGEX. A scanner that quietly degrades and keeps printing a
+      // confident table is exactly how D-42 shipped a glass sheet asserting the opposite of the
+      // product. A missing parser is a FAILED INVOCATION, not a clean tree (rule 14).
+      throw new Error('hub_surface_matrix: acorn is unavailable — run `npm ci` in app/ '
+        + `(resolution is anchored at app/package.json). Original: ${e?.message || e}`)
+    }
+  }
+  return PARSER.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
+}
+
+/** Depth-first over every node. Positional fields are skipped — they carry no children, and a
+ *  `loc` object would otherwise be walked once per node for nothing. */
+function walk(node, visit) {
+  if (!node || typeof node !== 'object') return
+  if (Array.isArray(node)) { for (const n of node) walk(n, visit); return }
+  if (typeof node.type === 'string') visit(node)
+  for (const k of Object.keys(node)) {
+    if (k === 'type' || k === 'start' || k === 'end' || k === 'loc' || k === 'range') continue
+    walk(node[k], visit)
+  }
+}
 
 /** Gesture bindings a mode controller can declare. Keys, not mentions. */
 const BINDING_KEYS = ['onTap', 'onDoubleTap', 'onScrub', 'onScrubCommit', 'readout', 'onPeek']
@@ -77,8 +125,213 @@ const controllersFor = (modeId, ctrls) => ctrls
   .filter((c) => c.file === `${modeId}Section.js` || c.src.includes(`'${modeId}.`))
   .map((c) => c.file)
 
-/** Bindings a controller DEFINES (`onScrub:` as an object key), never ones it talks about. */
-const bindingsIn = (src) => BINDING_KEYS.filter((k) => new RegExp(`(^|[^\\w.])${k}\\s*:`, 'm').test(src))
+/**
+ * Bindings a controller DEFINES — the keys of an object LITERAL, read from the parse tree.
+ *
+ * ⚰️⛔⛔ THIS MATCHED THE COLON FORM ONLY (`key` followed by `:`) AND WAS THEREFORE BLIND TO ES6
+ * SHORTHAND. `wireSection.js:282-286` and `homeSection.js:240-244` return
+ * `{ onTap, onDoubleTap, onScrub, onScrubCommit, readout }` and this file printed **“— none —”**
+ * for both. `journalSection.js:642-646` writes `onTap:`/`onDoubleTap:` with a colon and
+ * `onScrub,`/`onScrubCommit,`/`readout,` shorthand, so its SCRUB — the stop-adjust flagship — was
+ * missing from a matrix that confidently listed its tap.
+ *
+ * `glass-acceptance-steps.md` is GENERATED from this output, so ten shipped surfaces had no glass
+ * step at all and `GS-wire-0` published *“Tap, double-tap and scrub do **nothing** here”* for a
+ * mode that wires all four. An operator running that sheet files a FAIL against working code, or
+ * passes a broken one. Filed **D-42** by the completion audit, 2026-09-13; fixed here.
+ *
+ * ⭐ THE SELF-CHECK COULD NOT HAVE CAUGHT IT. Its case 2 fixture was `{ onScrub: (ctx, s) => s }`
+ * — the colon form — so the control only ever exercised the one shape the scanner could see. A
+ * fixture that cannot distinguish is not a rail, and this one sat inside the instrument built to
+ * make exactly this class of gap visible.
+ *
+ * ⛔ AN AST, NOT A WIDER REGEX. Accepting a comma or a brace after the key would also match a
+ * destructuring pattern (`const { onScrub } = props`), an argument list, and a key inside a
+ * string — every one of them a MENTION, which is the defect this file's header is about. The
+ * parse tree separates them by construction: only the properties of an **ObjectExpression**
+ * count, a computed key is skipped because `{ [k]: v }` names nothing statically, and an
+ * **ObjectPattern** is a different node type, so a destructure can never read as a declaration.
+ *
+ * ⭐ IT ALSO RETIRES `strip()` HERE, so this reads the RAW file: a parser never sees a comment at
+ * all, which is a stronger guarantee than deleting them first — and `strip`'s line-comment pass
+ * would truncate a `'https://…'` literal on its way past and fail the parse.
+ *
+ * ⚠️ SCOPE, stated rather than discovered later from a blank cell: an object literal's own keys.
+ * A binding attached afterwards (`config.onTap = fn`) is not seen. No controller does that today;
+ * if one ever does, widen this deliberately.
+ *
+ * ── MUTATION PROOF, PERFORMED 2026-09-13 ──────────────────────────────────────────────────────
+ * ⛔ Not a claim — a run. The AST body below was replaced, IN PLACE, with the colon-only regex it
+ * supersedes, and `--self-check` was re-run. It exited 1 with eleven named failures, among them:
+ *
+ *     ES6 shorthand bindings were missed
+ *     the mixed colon + comma-list form was missed
+ *     wireSection.js declares onScrubCommit and the scanner did not see it
+ *
+ * ⭐ Nine cases stayed GREEN — the colon-form positive, the destructure and computed-key
+ * negatives, the manifest parse, the controller lookup, the write map and both dispatch cases —
+ * which is what proves the red came from the PARSER and not from the harness falling over. A
+ * mutation run where everything goes red proves only that something broke.
+ *
+ * The mutation was reverted by writing the original bytes back, never `git checkout`
+ * (`feedback_mutation_check_never_git_checkout`), and the restored file was byte-compared.
+ */
+const bindingsIn = (src) => {
+  const found = new Set()
+  walk(parseJs(src), (n) => {
+    if (n.type !== 'ObjectExpression') return
+    for (const p of n.properties || []) {
+      if (p.type !== 'Property' || p.computed) continue
+      const k = p.key
+      const name = k?.type === 'Identifier' ? k.name : (k?.type === 'Literal' ? k.value : null)
+      if (typeof name === 'string' && BINDING_KEYS.includes(name)) found.add(name)
+    }
+  })
+  // Ordered by BINDING_KEYS, never by source position: the glass sheet numbers its steps off this
+  // list, so a step id must not move because a controller reordered its own object.
+  return BINDING_KEYS.filter((k) => found.has(k))
+}
+
+/**
+ * The spec's own words for what each mode's gestures DO — §C3, read from the spec of record.
+ *
+ * ⛔ THE SPEC FILE IS DERIVED, never typed. A rail pinned to `v1.6` stops reading the spec the day
+ * `v1.7` lands and passes for ever against a document nobody edits any more.
+ *
+ * §C3 gives each mode one line of the shape
+ *   `- Primary: next note. Reverse: previous note. Scrub: scroll the notes list.`
+ * under a `### <mode> — <route>` heading. Anything it does not state comes back `null`, and a
+ * `null` prints as UNSTATED rather than as a sentence this file invented.
+ */
+function specPromises() {
+  const dir = path.join(REPO, 'docs', 'plans', 'joystick')
+  const versioned = readdirSync(dir)
+    .filter((f) => /^00-master-spec-v[\d.]+\.md$/.test(f))
+    .sort((a, b) => {
+      const n = (s) => s.match(/v([\d.]+)\./)[1].split('.').map(Number)
+      const [x, y] = [n(a), n(b)]
+      for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
+        if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0)
+      }
+      return 0
+    })
+  if (!versioned.length) throw new Error(`hub_surface_matrix: no 00-master-spec-v*.md under ${dir}`)
+  const file = versioned[versioned.length - 1]
+  const text = readFileSync(path.join(dir, file), 'utf8')
+  const out = new Map()
+  let mode = null
+  for (const line of text.split(/\r?\n/)) {
+    const h = line.match(/^### (\S+)\s*—/)
+    if (h) mode = h[1]
+    if (!mode || !line.startsWith('- Primary:')) continue
+    const grab = (label) => {
+      const m = line.match(new RegExp(`${label}:\\s*([^.]+)\\.`))
+      return m ? m[1].trim() : null
+    }
+    out.set(mode, { primary: grab('Primary'), reverse: grab('Reverse'), scrub: grab('Scrub') })
+  }
+  return { file, promises: out }
+}
+
+/**
+ * Resolve a binding to the FUNCTION that runs, through the two indirections controllers use.
+ *
+ * ⛔ A SHORTHAND PROPERTY IS A REFERENCE, NOT A BODY. `wireSection.js` returns `{ onTap, … }` where
+ * `onTap` is `useCallback(() => { next() }, …)` declared 70 lines above; reading the property's
+ * value node alone yields an Identifier and tells you nothing. So: shorthand → the `const` it
+ * names → the first argument of the `use*` hook wrapping it.
+ */
+function resolveBindingFn(ast, key) {
+  const decls = new Map()
+  walk(ast, (n) => {
+    if (n.type === 'VariableDeclarator' && n.id?.type === 'Identifier') decls.set(n.id.name, n.init)
+  })
+  const unwrap = (node) => {
+    if (!node) return null
+    if (node.type === 'CallExpression' && node.callee?.type === 'Identifier'
+        && /^use[A-Z]/.test(node.callee.name)) return node.arguments?.[0] ?? null
+    return node
+  }
+  let found = null
+  walk(ast, (n) => {
+    if (n.type !== 'ObjectExpression') return
+    for (const p of n.properties || []) {
+      if (p.type !== 'Property' || p.computed) continue
+      const name = p.key?.type === 'Identifier' ? p.key.name : p.key?.value
+      if (name !== key) continue
+      let v = p.value
+      if (p.shorthand && v?.type === 'Identifier') v = unwrap(decls.get(v.name))
+      else v = unwrap(v)
+      if (v) found = { fn: v, decls }
+    }
+  })
+  return found
+}
+
+/** Every function name a node calls, bare or through a member. */
+function callsIn(node) {
+  const out = new Set()
+  walk(node, (n) => {
+    if (n.type !== 'CallExpression') return
+    const c = n.callee
+    if (c?.type === 'Identifier') out.add(c.name)
+    else if (c?.type === 'MemberExpression') {
+      const prop = c.property?.type === 'Identifier' ? c.property.name : c.property?.value
+      if (prop) out.add(prop)
+    }
+  })
+  return out
+}
+
+/**
+ * What a binding DOES, classified from the controller rather than guessed from its name.
+ *
+ * ⚰️ THIS EXISTS BECAUSE THE SHEET PUBLISHED FOUR SENTENCES ABOUT `home` THAT WERE NEVER TRUE.
+ * Every expected result used to be a lookup on the binding KEY, so every mode was described as
+ * stepping a cursor and revealing a row. `home` NAVIGATES — Primary to the last-used section,
+ * Reverse to Wire, release to the section under the cursor — and `homeSection.js` says in so many
+ * words that nothing on its page moves during a scrub. An operator running those rows on a fresh
+ * account sees nothing happen, reads the sheet, and files a FAIL against code obeying spec
+ * §C3:915. That is **D-44**, found on glass 2026-09-13, and it is D-42's defect one layer up:
+ * D-42 was the sheet not knowing a binding EXISTS, D-44 was it not knowing what the binding DOES.
+ *
+ * Three outcomes, decided in this order and each from a DIFFERENT source so they cannot all be
+ * wrong the same way:
+ *   · `navigate` — the body reaches a `navigate` call. A route change beats everything: `home`
+ *     declares a cursor AND navigates, and what the member sees is the route change.
+ *   · `cursor`   — the mode declares `cursor.listId` in the registry.
+ *   · `cycle`    — neither: it steps a fixed set in place (breadth's tabs, chart's timeframes).
+ * A binding whose function cannot be resolved returns `unresolved` and PRINTS as unresolved. A
+ * guess here would be indistinguishable from a measurement, which is the whole disease.
+ */
+function bindingSemantics(ast, key, hasCursor) {
+  const resolved = resolveBindingFn(ast, key)
+  if (!resolved) return { kind: 'unresolved', guarded: false }
+  const calls = callsIn(resolved.fn)
+  const kind = calls.has('navigate') ? 'navigate' : (hasCursor ? 'cursor' : 'cycle')
+  return { kind, guarded: hasEarlyReturnGuard(resolved.fn), calls: [...calls] }
+}
+
+/**
+ * Does the body open with a guard that can make the whole gesture do nothing?
+ *
+ * ⭐ THIS IS THE OTHER HALF OF D-44. `homeSection.js`'s Primary begins
+ * `if (!lastSection || !DECLARED_SECTION_ORDER.includes(lastSection)) return` — spec §C3:915
+ * requires it to be inert on a first-ever visit, because defaulting it to Wire would make Primary
+ * and Reverse fire the same destination. An operator who is not told that reads "nothing happened"
+ * as a failure. The shape is cheap to detect and precise: the first statement is an `if` whose
+ * consequent is a bare `return`.
+ */
+function hasEarlyReturnGuard(fn) {
+  const body = fn?.body
+  if (!body || body.type !== 'BlockStatement') return false
+  const first = body.body?.[0]
+  if (!first || first.type !== 'IfStatement' || first.alternate) return false
+  const c = first.consequent
+  if (c?.type === 'ReturnStatement' && !c.argument) return true
+  return c?.type === 'BlockStatement' && c.body.length === 1
+    && c.body[0].type === 'ReturnStatement' && !c.body[0].argument
+}
 
 /** The manifest in `writePaths.test.js`, read from the array literal itself. */
 function writeManifest() {
@@ -224,6 +477,11 @@ function snapshot(M) {
 }
 
 async function build() {
+  // ⛔ THE NUMBERS COME FROM `constants.js`, NEVER FROM THIS FILE. The sheet used to type
+  //    "(`DOUBLE_TAP_MS` 280)" beside the constant it was describing — a hand-typed count next to
+  //    its own source, which is the drift this whole tool exists to stop.
+  const K = await import(pathToFileURL(path.join(HUB, 'constants.js')).href)
+  const spec = specPromises()
   const ctrls = controllerFiles()
   const files = dispatchFiles(ctrls)
   const manifest = writeManifest()
@@ -234,11 +492,21 @@ async function build() {
   const rows = []
   for (const m of now.modes) {
     const modeControllers = controllersFor(m.id, ctrls)
-    const bindings = [...new Set(modeControllers.flatMap((f) => bindingsIn(ctrls.find((c) => c.file === f).src)))]
+    const bindings = [...new Set(modeControllers.flatMap((f) => bindingsIn(ctrls.find((c) => c.file === f).raw)))]
+    // What each binding DOES, read from the controller that serves this mode (D-44).
+    const semantics = {}
+    for (const f of modeControllers) {
+      const ast = parseJs(ctrls.find((c) => c.file === f).raw)
+      for (const k of bindings) {
+        const s = bindingSemantics(ast, k, !!m.cursor)
+        if (s.kind !== 'unresolved' || !semantics[k]) semantics[k] = s
+      }
+    }
     const was = base.modes.find((x) => x.id === m.id)
     rows.push({
       row: 'mode', mode: m.id, label: m.label, route: m.route, cursor: m.cursor,
       tapHint: m.tapHint, preview: m.preview, controllers: modeControllers,
+      semantics,
       bindings: bindings.map((b) => ({ key: b, role: BINDING_ROLE[b] })),
       newlyLive: was?.preview === true && m.preview === false,
       cursorNew: !was?.cursor && !!m.cursor,
@@ -261,7 +529,8 @@ async function build() {
       })
     }
   }
-  return { baseline: BASELINE, generatedFrom: 'tools/hub_surface_matrix.mjs', manifest, rows }
+  return { baseline: BASELINE, generatedFrom: 'tools/hub_surface_matrix.mjs', manifest, rows,
+    constants: { HOLD_MS: K.HOLD_MS, DOUBLE_TAP_MS: K.DOUBLE_TAP_MS }, spec }
 }
 
 function markdown({ baseline, rows }) {
@@ -288,14 +557,53 @@ function markdown({ baseline, rows }) {
 
 function selfCheck() {
   const fails = []
-  const ok = (cond, what) => { if (!cond) fails.push(what) }
-  // 1. A binding mentioned ONLY in a comment must not count.
-  ok(bindingsIn(strip('// onScrub: the thing\nconst x = 1\n')).length === 0, 'comment-only onScrub was counted')
-  // 2. A real binding must count — the control that proves case 1 is not vacuous.
-  ok(bindingsIn(strip('const cfg = { onScrub: (ctx, s) => s }')).includes('onScrub'), 'a real onScrub was missed')
+  let cases = 0
+  // ⛔ THE CASE COUNT IS DERIVED. The line this printed read "9 cases" while the function
+  //    held nine — and a hand-typed number beside the thing it counts is the drift this whole
+  //    file exists to stop (`lesson_a_second_authority_over_one_value`).
+  const ok = (cond, what) => { cases += 1; if (!cond) fails.push(what) }
+  // ── BINDING DISCOVERY ────────────────────────────────────────────────────────────────────────
+  // ⛔ RAW SOURCE, NOT `strip()`ed. These cases test the PARSER, which is what refuses prose now;
+  // passing pre-stripped text would have tested `strip` and left the real mechanism unproved —
+  // the shape of D-42 itself, whose only binding fixture was the one form the scanner could see.
+  //
+  // 1. A binding mentioned ONLY in a comment must not count — neither comment style.
+  ok(bindingsIn('// onScrub: the thing\n/* onTap: nor this */\nconst x = 1\n').length === 0,
+    'a comment was counted as a binding')
+  // 2. A real colon-form binding must count — the control that proves case 1 is not vacuous.
+  ok(bindingsIn('const cfg = { onScrub: (ctx, s) => s }').includes('onScrub'),
+    'a real colon-form onScrub was missed')
+  // 2b. ⛔⛔ D-42, THE CASE THAT DID NOT EXIST. `{ onScrub }` is the same declaration as
+  //     `{ onScrub: onScrub }`, and the colon-only matcher this replaced read it as ABSENT — for
+  //     all of `wire`, all of `home`, and the scrub half of `journal`.
+  ok(bindingsIn('const cfg = { onTap, onDoubleTap }').join() === 'onTap,onDoubleTap',
+    'ES6 shorthand bindings were missed')
+  // 2c. …and the comma-list form as the controllers actually write it: a spread, a colon key, then
+  //     a run of shorthand keys, inside the `useMemo` every section returns.
+  ok(bindingsIn('const c = useMemo(() => ({ ...mode, onTap: f, onDoubleTap, onScrub, onScrubCommit,'
+    + ' readout, listAdapter }), [])').join() === 'onTap,onDoubleTap,onScrub,onScrubCommit,readout',
+    'the mixed colon + comma-list form was missed')
+  // 2d. A quoted key is still a key.
+  ok(bindingsIn("const c = { 'onPeek': f }").includes('onPeek'), 'a quoted key was missed')
   // 3. The needle this repo keeps tripping on: a comment that NAMES the key it forbids.
-  ok(bindingsIn(strip('/* never add onPeek: here */\nconst c = { onTap: () => {} }')).join() === 'onTap',
+  ok(bindingsIn('/* never add onPeek: here */\nconst c = { onTap: () => {} }').join() === 'onTap',
     'a forbidding comment was read as a binding')
+  // 3b. ⛔ A DESTRUCTURE IS NOT A DECLARATION — the false positive a merely-widened regex would
+  //     have introduced. `const { onScrub } = props` CONSUMES a binding; it does not offer one.
+  ok(bindingsIn('const { onScrub, readout } = props').length === 0,
+    'a destructuring pattern was counted as a declaration')
+  // 3c. …nor is a member read, a call argument, or a string that happens to contain the key.
+  ok(bindingsIn('mode.onScrub(ctx); const s = "onTap: x"; f({ a: 1 })').length === 0,
+    'a member read, an argument or a string literal was counted')
+  // 3d. A computed key names nothing statically, so it is skipped rather than guessed at.
+  ok(bindingsIn('const k = "onTap"; const c = { [k]: f }').length === 0, 'a computed key was counted')
+  // 3e. ⭐ THE CONTROL ON THE REAL TREE. Cases 2b-2d are fixtures; this is the shipped file that
+  //     D-42 reported as "— none —". Named members, never a count: a count drifts the day a
+  //     controller gains a binding and turns a correct change into a red self-check.
+  const wireBindings = bindingsIn(controllerFiles().find((c) => c.file === 'wireSection.js').raw)
+  for (const k of ['onTap', 'onDoubleTap', 'onScrub', 'onScrubCommit', 'readout']) {
+    ok(wireBindings.includes(k), `wireSection.js declares ${k} and the scanner did not see it`)
+  }
   // 4. The manifest must parse to the same count the file declares.
   const man = writeManifest()
   const declared = (readFileSync(path.join(HUB, 'writePaths.test.js'), 'utf8').match(/\n\s{4}endpoint:/g) || []).length
@@ -312,11 +620,89 @@ function selfCheck() {
   const f = dispatchFiles(controllerFiles())
   ok(handlerFor('journal.moveStop', f)?.file === 'sections/journalSection.js', 'map-literal dispatch was missed')
   ok(handlerFor('scan.voice', f)?.file === 'HubRoot.jsx', 'HubRoot suffix dispatch for .voice was missed')
+
+  // ── D-44: WHAT A BINDING DOES, NOT WHAT IT IS CALLED ──────────────────────────────────────────
+  // Every case below existed only after the sheet was caught publishing four sentences about
+  // `home` that were never true, and a scrub step that omitted the hold it requires.
+  const astOf = (src) => parseJs(src)
+
+  // 9. A NAVIGATE mode: the body reaches `navigate`, and that beats a declared cursor.
+  ok(bindingSemantics(astOf('const c = { onTap: (ctx) => ctx?.navigate?.(x) }'), 'onTap', true).kind === 'navigate',
+    'a navigating binding was not classified as navigate')
+  // 10. A CURSOR mode: no navigate, and the registry declares a cursor list.
+  ok(bindingSemantics(astOf('const c = { onTap: () => next() }'), 'onTap', true).kind === 'cursor',
+    'a cursor binding was not classified as cursor')
+  // 11. A CYCLE mode: no navigate, no cursor — it steps a fixed set in place.
+  ok(bindingSemantics(astOf('const c = { onTap: () => step(+1) }'), 'onTap', false).kind === 'cycle',
+    'a cycling binding was not classified as cycle')
+  // 12. ⛔ SHORTHAND AGAIN, one level deeper. `wireSection.js` returns `{ onTap }` where onTap is a
+  //     `useCallback` declared far above; reading the property's value alone yields an Identifier
+  //     and classifies nothing. This is the case that makes the other three reach real code.
+  ok(bindingSemantics(astOf('const onTap = useCallback(() => { next() }, [next])\nconst c = { onTap }'),
+    'onTap', true).kind === 'cursor', 'a shorthand binding was not resolved to its useCallback body')
+  // 13. An absent binding is UNRESOLVED and must never be guessed at.
+  ok(bindingSemantics(astOf('const c = { readout: () => 1 }'), 'onTap', true).kind === 'unresolved',
+    'a missing binding was given a classification anyway')
+  // 14. ⭐ THE GUARD. `homeSection.js`'s Primary opens with `if (!lastSection) return` because spec
+  //     §C3:915 requires it to be inert on a first-ever visit. An operator not told that reads
+  //     "nothing happened" as a failure.
+  ok(bindingSemantics(astOf('const c = { onTap: (ctx) => { if (!x) return; ctx.navigate(x) } }'), 'onTap', false).guarded,
+    'an early-return guard was not detected')
+  // 15. …and the control: an unguarded body must not claim a precondition.
+  ok(!bindingSemantics(astOf('const c = { onTap: (ctx) => { ctx.navigate(x) } }'), 'onTap', false).guarded,
+    'an unguarded binding was reported as having a precondition')
+
+  // 16. ⛔⛔ THE HOLD SENTENCE. A scrub is a HOLD that turns into a drag (`useJoystick.js`, C1); a
+  //     drag without it is a fan push resolved by DIRECTION. The sheet omitted this, and on glass
+  //     it made the operator fire `wire.voice` and raise a microphone prompt instead of measuring
+  //     a row. Delete the sentence and this case goes red — that is its mutation proof.
+  const scrubFixture = bindingStep(
+    { mode: 'x', tapHint: 't', cursor: 'x', controllers: ['xSection.js'], semantics: { onScrub: { kind: 'cursor' }, onScrubCommit: { kind: 'cursor' } } },
+    { key: 'onScrub', role: 'Scrub (drag y)' },
+    { HOLD_MS: 500, DOUBLE_TAP_MS: 280 },
+    { primary: 'next x', reverse: 'previous', scrub: 'the list' },
+  )
+  ok(/hold 500 ms/.test(scrubFixture.step), 'the scrub step no longer states the 500 ms hold')
+  ok(/fan push/.test(scrubFixture.step), 'the scrub step no longer warns that a drag alone is a fan push')
+  // 17. The numbers are READ, not typed: a different constant must reach the sentence.
+  const altHold = bindingStep(
+    { mode: 'x', tapHint: 't', cursor: 'x', controllers: [], semantics: { onScrub: { kind: 'cursor' }, onScrubCommit: { kind: 'cursor' } } },
+    { key: 'onScrub', role: 'r' }, { HOLD_MS: 999, DOUBLE_TAP_MS: 1 }, null,
+  )
+  ok(/hold 999 ms/.test(altHold.step), 'the hold is hard-coded rather than read from constants.js')
+
+  // 18. ⭐ A NAVIGATE MODE MUST NOT BE TOLD ITS CURSOR STEPS — the D-44 sentence itself.
+  const navStep = bindingStep(
+    { mode: 'home', tapHint: 'tap: last section', cursor: 'home', controllers: ['homeSection.js'], semantics: { onTap: { kind: 'navigate' }, onScrubCommit: { kind: 'navigate' } } },
+    { key: 'onTap', role: 'Primary (tap)' }, { HOLD_MS: 500, DOUBLE_TAP_MS: 280 },
+    { primary: 'last-used section', reverse: 'Morning Wire', scrub: null },
+  )
+  ok(/ROUTE changes/.test(navStep.expected) && !/cursor steps \*\*once\*\*/.test(navStep.expected),
+    'a navigate mode is still described as stepping a cursor')
+  // 19. …and the control, so case 18 is not passing by emptiness: a cursor mode still says so.
+  const curStep = bindingStep(
+    { mode: 'wire', tapHint: 'tap: next segment', cursor: 'wire', controllers: ['wireSection.js'], semantics: { onTap: { kind: 'cursor' }, onScrubCommit: { kind: 'cursor' } } },
+    { key: 'onTap', role: 'Primary (tap)' }, { HOLD_MS: 500, DOUBLE_TAP_MS: 280 },
+    { primary: 'next segment', reverse: 'previous', scrub: 'read progress' },
+  )
+  ok(/cursor steps \*\*once\*\*/.test(curStep.expected), 'a cursor mode is no longer described as stepping a cursor')
+
+  // 20. The spec of record resolves and states something for a mode we know it covers.
+  const sp = specPromises()
+  ok(/^00-master-spec-v[\d.]+\.md$/.test(sp.file), 'the spec of record was not resolved by version')
+  ok((sp.promises.get('home')?.primary || '') === 'last-used section',
+    'spec §C3 no longer states home\'s Primary where this generator reads it')
+  // 21. ⭐ THE CONTROL ON THE REAL TREE, named not counted: `home` navigates, `wire` does not.
+  const realAst = (f) => parseJs(controllerFiles().find((c) => c.file === f).raw)
+  ok(bindingSemantics(realAst('homeSection.js'), 'onTap', true).kind === 'navigate',
+    'homeSection.js onTap no longer reads as a navigation')
+  ok(bindingSemantics(realAst('wireSection.js'), 'onTap', true).kind === 'cursor',
+    'wireSection.js onTap no longer reads as a cursor step')
   if (fails.length) {
     console.error('SELF-CHECK FAILED:\n  ' + fails.join('\n  '))
     process.exit(1)
   }
-  console.log(`self-check OK — 9 cases, ${man.length} manifest entries parsed`)
+  console.log(`self-check OK — ${cases} cases, ${man.length} manifest entries parsed`)
 }
 
 // ── THE GLASS SHEET ────────────────────────────────────────────────────────────────────────────
@@ -354,7 +740,72 @@ function expectedForAction(r) {
   return `The action runs once and the fan closes.${r.escalate ? ' The fire haptic ESCALATES (`warn`, not `impact`) — this is a write to a live position.' : ''}`
 }
 
-function glassSheet({ baseline, rows }) {
+/**
+ * One binding step's instruction and expected result.
+ *
+ * ⛔ BOTH HALVES ARE DERIVED. The instruction takes its numbers from `constants.js` (`HOLD_MS`,
+ * `DOUBLE_TAP_MS`) so a tuning change cannot leave the sheet describing a gesture nobody can
+ * perform. The expectation takes its VERB from the controller (`bindingSemantics`) and its NOUN
+ * from spec §C3, so the sheet cannot promise cursor-stepping for a mode that navigates — D-44.
+ */
+function bindingStep(m, b, K, promise) {
+  const sem = (m.semantics && m.semantics[b.key]) || { kind: 'unresolved' }
+  const commit = (m.semantics && m.semantics.onScrubCommit) || sem
+  const phrase = { onTap: promise?.primary, onDoubleTap: promise?.reverse }[b.key] || null
+  const said = phrase ? `spec §C3 says **“${phrase}”**` : '⛔ **spec §C3 states nothing for this one**'
+  const cursorList = m.cursor ? ` over the \`${m.cursor}\` list` : ''
+
+  const step = {
+    onTap: `Tap the pad once. (The chip says “${m.tapHint}”.)`,
+    onDoubleTap: `Tap twice, the second press inside **${K.DOUBLE_TAP_MS} ms** of the first.`,
+    onScrub: `Press the pad and **hold ${K.HOLD_MS} ms** — until the knob dot enlarges — then drag `
+      + `along y without lifting; release to commit. ⛔ A drag WITHOUT the hold is a fan push, not a `
+      + `scrub: it aims at a bubble by direction and fires that action.`,
+    onScrubCommit: `Release the scrub from the step above.`,
+    readout: `While still dragging, read the chip.`,
+    onPeek: 'Perform the Peek gesture.',
+  }[b.key]
+
+  const guard = sem.guarded
+    ? ' ⚠️ **This one has a precondition and is deliberately inert without it** — if nothing happens, '
+      + 'that is not automatically a FAIL; check spec §C3 for what it needs first.'
+    : ''
+
+  const tapLike = {
+    navigate: `The **ROUTE changes** — ${said}. No cursor steps and nothing on this page scrolls; `
+      + `the whole effect is that you are somewhere else. ⛔ Exactly one navigation per gesture.${guard}`,
+    cursor: `The cursor steps **once**${cursorList} — ${said} — and the target scrolls into view. `
+      + `⛔ Exactly one step per gesture; a double step is the gesture firing twice.${guard}`,
+    cycle: `The selection steps **once** in place — ${said} — and the page updates to match. It `
+      + `**CLAMPS** at each end and must never wrap. ⛔ Exactly one step per gesture.${guard}`,
+    unresolved: `⛔ **UNRESOLVED — do not run this row.** The generator could not resolve this `
+      + `binding's body in ${m.controllers.join(', ') || 'any controller'}, so it has no expectation `
+      + `to offer. An invented one is worse than none. Fix the derivation, not this sentence.`,
+  }[sem.kind]
+
+  const expected = {
+    onTap: tapLike,
+    onDoubleTap: tapLike,
+    onScrub: commit.kind === 'navigate'
+      ? `The cursor moves with your thumb and **nothing on the page moves** — by design. The chip is `
+        + `the ONLY thing telling you where release will take you, so read it.`
+      : `The cursor moves with your thumb${cursorList}, and the page follows it`
+        + `${promise?.scrub ? ` — spec §C3 says **“${promise.scrub}”**` : ''}.`,
+    onScrubCommit: commit.kind === 'navigate'
+      ? `Releasing **NAVIGATES** to whatever the chip was naming. Nothing is "revealed" on this page, `
+        + `because you have left it. ⛔ Releasing on the section you are already on must not reload it.`
+      : `The landing row is **revealed** — scrolled into view, not merely selected.`,
+    readout: commit.kind === 'navigate'
+      ? `The chip names the **destination** you would land on — a section name, never a bare index.`
+      : `The chip names the thing under the cursor in the page's OWN words (a ticker, a note title, `
+        + `a date), never a bare index.`,
+    onPeek: 'The Peek sheet opens once.',
+  }[b.key]
+
+  return { step, expected }
+}
+
+function glassSheet({ baseline, rows, constants: K, spec }) {
   const L = []
   L.push('# Joystick hub — the per-surface glass sweep (GENERATED)')
   L.push('')
@@ -393,37 +844,31 @@ function glassSheet({ baseline, rows }) {
     L.push('')
     L.push('| # | Step | Expected | Device | Runner | Result |')
     L.push('|---|---|---|---|---|---|')
-    let n = 0
+    // ⛔⛔ TWO COUNTERS, AND THE `b` PREFIX IS LOAD-BEARING. Binding steps are numbered `b1, b2…`
+    // and action steps keep their own plain sequence, because a step id is what an operator writes
+    // a result against and a SINGLE counter makes every id positional. When D-42's fix added five
+    // binding rows to `wire`, a single counter moved `GS-wire-1` from "Chart it" to "Primary
+    // (tap)" and shifted every action row in four modes — silently, in a file whose whole purpose
+    // is to be filled in by hand. Nothing was lost that day only because no result had been
+    // recorded yet (the sheet is gated behind G0-1). Separate sequences make a binding change
+    // purely ADDITIVE: `GS-wire-3` means the same step before and after.
+    let nb = 0
+    let na = 0
     for (const b of m.bindings) {
-      n += 1
-      const step = {
-        onTap: `Tap the pad once. (The chip says “${m.tapHint}”.)`,
-        onDoubleTap: 'Tap twice inside the double-tap window (`DOUBLE_TAP_MS` 280).',
-        onScrub: 'Press and drag along y to scrub.',
-        onScrubCommit: 'Release the scrub.',
-        readout: 'While scrubbing, read the chip.',
-        onPeek: 'Perform the Peek gesture.',
-      }[b.key]
-      const expected = {
-        onTap: `The cursor steps **once** and the target scrolls into view. ⛔ Exactly one step per tap — a double step is the tap firing twice.`,
-        onDoubleTap: 'The cursor steps **back** one. A single tap must not also fire.',
-        onScrub: `The cursor moves with the thumb${m.cursor ? ` over the \`${m.cursor}\` list` : ''}, and the page follows it.`,
-        onScrubCommit: 'The landing row is revealed — scrolled into view, not merely selected.',
-        readout: 'The chip names the thing under the cursor in the page\'s OWN words (a ticker, a note title, a date), never a bare index.',
-        onPeek: 'The Peek sheet opens once.',
-      }[b.key]
-      L.push(`| GS-${m.mode}-${n} | **${b.role}.** ${step} | ${expected} | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+      nb += 1
+      const { step, expected } = bindingStep(m, b, K, spec.promises.get(m.mode))
+      L.push(`| GS-${m.mode}-b${nb} | **${b.role}.** ${step} | ${expected} | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
     }
     if (!m.bindings.length) {
-      L.push(`| GS-${m.mode}-0 | _This mode declares no gesture bindings._ | Tap, double-tap and scrub do **nothing** here, and the chip does not promise otherwise. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+      L.push(`| GS-${m.mode}-b0 | _This mode declares no gesture bindings._ | Tap, double-tap and scrub do **nothing** here, and the chip does not promise otherwise. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
     }
     for (const a of acts) {
-      n += 1
+      na += 1
       const req = a.requires.length
         ? ` Then repeat with **no ${a.requires.join('/')}** in context: the bubble must render **DISABLED with a reason, never hidden**.`
         : ''
       const tag = a.isNew ? ' 🆕' : a.becameReachable ? ' ⭐' : ''
-      L.push(`| GS-${m.mode}-${n} | **${a.label}**${tag} (\`${a.id}\`) — flick to it from the pad.${req} | ${expectedForAction(a)} | ${deviceFor(a)} | ${runnerFor(a)} | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+      L.push(`| GS-${m.mode}-${na} | **${a.label}**${tag} (\`${a.id}\`) — flick to it from the pad.${req} | ${expectedForAction(a)} | ${deviceFor(a)} | ${runnerFor(a)} | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
     }
     L.push('')
   }

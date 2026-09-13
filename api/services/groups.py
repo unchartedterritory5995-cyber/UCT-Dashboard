@@ -51,6 +51,11 @@ _TODAY_CACHE = {}                    # {sym-set key: (out, at)} — tiny, self-p
 _TODAY_POOL = _cf.ThreadPoolExecutor(max_workers=4, thread_name_prefix="grp-today")
 
 
+def _today_sym_key(sym: str) -> str:
+    """D4 CP3 — one entry per entity in the SHARED cache, not the bespoke dict."""
+    return f"groups_today::{sym}"
+
+
 def normalize_sym(s: str) -> str:
     """App-canonical form for charting/search/cells: uppercase, dot->hyphen."""
     return (s or "").strip().upper().replace(".", "-")
@@ -214,14 +219,31 @@ def _today_map(syms: list) -> dict:
     norm = sorted({normalize_sym(s) for s in syms if s})
     if not norm:
         return {}
+    # ── D4 CP3 — per-entity addressing (gate fingerprint 40caca541) ──────────
+    # ⚰️ THIS WAS A BESPOKE MODULE DICT OUTSIDE TTLCache ENTIRELY, with a
+    # hand-checked TTL and hand-rolled eviction at >256 entries. The set key is
+    # kept as a fast path; the per-symbol rows now live in the shared cache, so
+    # two calls whose sym-sets overlap share the overlap.
     key = ",".join(norm)
     hit = _TODAY_CACHE.get(key)
     if hit is not None and (time.monotonic() - hit[1]) < _TODAY_CACHE_TTL:
         return hit[0]
 
+    per_sym: dict = {}
+    missing = []
+    for _s in norm:
+        _row = cache.get(_today_sym_key(_s))
+        if _row is not None:
+            per_sym[_s] = _row
+        else:
+            missing.append(_s)
+    if not missing:
+        _TODAY_CACHE[key] = (per_sym, time.monotonic())
+        return per_sym
+
     def _fetch():
         from api.services.massive import get_etf_snapshots
-        raw = get_etf_snapshots(norm) or {}
+        raw = get_etf_snapshots(missing) or {}
         return {normalize_sym(k): v for k, v in raw.items()}
 
     try:
@@ -229,6 +251,12 @@ def _today_map(syms: list) -> dict:
     except Exception:
         out = {}                     # timeout OR fetch error -> RS fallback in rank_holdings
     if out:                          # cache only real data (a stall retries next call)
+        for _s, _v in out.items():
+            # ⛔ Only a symbol the provider actually answered for is cached. A
+            # symbol missing from the response keeps NO row, so the next call
+            # retries it rather than inheriting a silent gap.
+            cache.set(_today_sym_key(_s), _v, _TODAY_CACHE_TTL)
+        out = {**per_sym, **out}
         now = time.monotonic()
         if len(_TODAY_CACHE) > 256:  # bound the map: drop expired entries first
             for k in [k for k, v in _TODAY_CACHE.items() if (now - v[1]) >= _TODAY_CACHE_TTL]:

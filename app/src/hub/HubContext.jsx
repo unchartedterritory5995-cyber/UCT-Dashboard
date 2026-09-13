@@ -1,18 +1,30 @@
 // Joystick hub — HubProvider + useHub(): mode, shared cross-section state, lastSection.
 // See docs/plans/joystick/00-master-spec-v1.3.md §2b (streaming), §2e (adaptability), §4 (Phase 1), Part C (home — lastSection).
 //
-// ⛔ NOT MOUNTED YET — PHASE 1 SHIPS THIS UNWIRED, DELIBERATELY.
-// Today the only thing that imports this file is its own test (or another
-// equally unmounted hub module). It is reached from NO route. Phase 2 wires it:
-// `HubProvider` goes around `<main>` in `Layout.jsx`, and the section
-// integrators call `useHubMode` / `useHubCursor` from their pages.
+// ✅ MOUNTED APP-WIDE. `HubProvider` wraps `<main>` in `Layout.jsx`, so every
+// route has it. Phase 2 did exactly what the retired note below said it would.
 //
-// It is recorded here rather than left to be discovered because this repo has
-// been bitten by the opposite: an agent read a green test file as the precedent
-// for its own work before noticing the page it tested reached no route. A test
-// is not a door. Until Phase 2, treat this module as a design, not a feature —
-// and if Phase 2 is cancelled, DELETE these files rather than leaving them
-// looking shipped.
+// ⚰️ THE HEADER SAID THE OPPOSITE FOR LONG ENOUGH THAT TWO PASSES BELIEVED IT.
+// Retired verbatim, because its warning is still the right warning and only its
+// FACT went stale:
+//
+//     ⛔ NOT MOUNTED YET — PHASE 1 SHIPS THIS UNWIRED, DELIBERATELY.
+//     Today the only thing that imports this file is its own test (or another
+//     equally unmounted hub module). It is reached from NO route. Phase 2 wires
+//     it: `HubProvider` goes around `<main>` in `Layout.jsx`, and the section
+//     integrators call `useHubMode` / `useHubCursor` from their pages.
+//
+//     It is recorded here rather than left to be discovered because this repo
+//     has been bitten by the opposite: an agent read a green test file as the
+//     precedent for its own work before noticing the page it tested reached no
+//     route. A test is not a door. Until Phase 2, treat this module as a
+//     design, not a feature — and if Phase 2 is cancelled, DELETE these files
+//     rather than leaving them looking shipped.
+//
+// ⭐ The irony is exact: a note written to stop somebody trusting a stale claim
+// about reachability BECAME one. Corrected by S4 CP1, which needs this context
+// to be live and therefore had to check. Rail:
+// `lib/context/focusDivergence.test.jsx`.
 
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'

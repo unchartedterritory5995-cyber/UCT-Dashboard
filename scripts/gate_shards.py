@@ -284,6 +284,38 @@ class GateError(RuntimeError):
     """Raised for every condition that invalidates a run. The message NAMES the cause."""
 
 
+
+def do_not_build_sweep(run=None) -> dict:
+    """C-4 — has any DO-NOT-BUILD item quietly gained code? Owner ruling 2026-09-13:
+    run it in every gate.
+
+    ⛔ IT REPORTS, IT DOES NOT DECIDE. A hit is a QUESTION -- several of the §8
+    names sit next to code that is supposed to exist -- so the gate prints the
+    matches and the verdict stays with the failing-set comparison. Making a
+    regex the arbiter of a merge is how a probe gets narrowed until it is quiet.
+
+    ⛔ AND ITS ABSENCE IS REPORTED TOO. A sweep that could not run must not read
+    as a sweep that found nothing: `lesson_a_swallowed_error_becomes_a_confident_finding`.
+    """
+    tool = REPO / "tools" / "q1_do_not_build_sweep.py"
+    if not tool.exists():
+        return {"ran": False, "why": "tools/q1_do_not_build_sweep.py is not in this tree"}
+    run = run or (lambda argv: subprocess.run(
+        argv, cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace"))
+    try:
+        proc = run([sys.executable, str(tool)])
+    except OSError as e:
+        return {"ran": False, "why": f"the sweep could not be launched: {e}"}
+    out = (proc.stdout or "") + (proc.stderr or "")
+    # A hit line is `<item>: <path>:<line>  `<fragment>``. Matching that SHAPE
+    # beats matching item names -- the roster is derived, so a list of names here
+    # would be the typed second authority the sweep itself refuses to have.
+    hits = [ln.strip() for ln in out.splitlines()
+            if re.match(r"\s+\S.*: \S+:\d+\s", ln)]
+    return {"ran": True, "clean": proc.returncode == 0,
+            "hits": hits[:20], "output": out.strip()[-2000:]}
+
+
 def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
              run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2,
              exclude: tuple[str, ...] = (), exclude_reasons: tuple[str, ...] = ()) -> dict:
@@ -398,6 +430,7 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
         "vs_baseline": compare_failures(failures, base.get("failures") or []),
+        "do_not_build": do_not_build_sweep(),
     }
 
 
@@ -460,6 +493,24 @@ def render(manifest: dict) -> str:
     lines.append("")
     lines.append("✅ **The failing set matches the baseline exactly.**" if v.get("matches_baseline")
                  else "⛔ **The failing set DIFFERS from the baseline** — read the two lists above.")
+
+    # ── C-4 — DO-NOT-BUILD, swept every gate (owner ruling 2026-09-13) ───────
+    # ⛔ A SECTION THAT ALWAYS PRINTS. "The sweep did not run" and "the sweep
+    # found nothing" are different facts, and a section that appears only on a
+    # hit makes them look identical to anyone reading a clean manifest.
+    dnb = manifest.get("do_not_build") or {"ran": False, "why": "not recorded by this run"}
+    lines += ["", "## §8 DO-NOT-BUILD sweep", ""]
+    if not dnb.get("ran"):
+        lines.append(f"⛔ **DID NOT RUN** — {dnb.get('why')}. This is not a clean result.")
+    elif dnb.get("clean"):
+        lines.append("✅ No §8 item has gained code in `app/src`, `api`, `scripts`, `tools`.")
+    else:
+        lines.append("⛔ **The sweep reported matches — each is a QUESTION, not a verdict.**")
+        for h in dnb.get("hits") or []:
+            lines.append(f"    - {h}")
+        lines.append("")
+        lines.append("A legitimate match is exempted in the tool WITH its argument written out — "
+                     "never by narrowing the probe until it goes quiet.")
     return "\n".join(lines) + "\n"
 
 

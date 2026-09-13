@@ -5,6 +5,7 @@ Pure business logic, no HTTP concerns.
 
 import uuid
 import time
+import base64
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -519,6 +520,31 @@ PURPOSE_RESET = "reset"
 PURPOSE_SMOKE_LOGIN = "smoke-login"
 
 
+def _mint_token(purpose: str) -> str:
+    """Mint the token body for `purpose`. 256 bits of entropy either way — only the ALPHABET differs.
+
+    ⚰️ WHY SMOKE-LOGIN IS DIFFERENT. 2026-09-12, Pixel 8 on BrowserStack Live: the Android mirror
+    keyboard AUTO-CAPITALISES, and `token_urlsafe` is case-sensitive base64url, so the link could not
+    be typed onto the device at all — the whole Android glass leg was lost to it. Read back off the
+    device, an intended `...TT8786rRI3sGUWFyQHKb8Ep4OK4PxBFozzXw` arrived as
+    `:786rri3sguwfyqhkb8ep4ok4pxbfozzxw`.
+
+    ⭐ base32 IS THE FIX, not a shortened alphabet. RFC 4648 base32 is case-insensitive BY
+    DEFINITION, so lowercasing on the way in is lossless rather than a collision risk, and 32 random
+    bytes still carry their full 256 bits — this trades no entropy for the typeability. A hand-rolled
+    "lowercase letters and digits" alphabet would have had to be lengthened to keep the same entropy
+    and would have invited exactly that arithmetic to be got wrong.
+
+    ⛔ PASSWORD-RESET TOKENS ARE UNCHANGED AND MUST STAY THAT WAY. They are a MEMBER-facing
+    credential that arrives by email and is never typed by hand, so they gain nothing here; widening
+    the change to them would be a security-relevant edit made for a testing convenience.
+    `test_reset_tokens_are_untouched_by_the_smoke_login_alphabet` is the rail on that.
+    """
+    if purpose != PURPOSE_SMOKE_LOGIN:
+        return secrets.token_urlsafe(32)
+    return base64.b32encode(secrets.token_bytes(32)).decode("ascii").rstrip("=").lower()
+
+
 def _create_single_use_token(user_id: str, purpose: str, ttl: timedelta) -> str:
     """One implementation of "mint a single-use, expiring token for this user and purpose".
 
@@ -527,7 +553,7 @@ def _create_single_use_token(user_id: str, purpose: str, ttl: timedelta) -> str:
     issuing a login link would silently cancel a password reset the same member had in flight
     (and vice versa), producing a "the link in my email stopped working" report with no trace.
     """
-    token = secrets.token_urlsafe(32)
+    token = _mint_token(purpose)
     row_id = str(uuid.uuid4())
     expires_at = datetime.now(timezone.utc) + ttl
     conn = get_connection()
@@ -602,7 +628,12 @@ def execute_password_reset(token: str, new_password: str) -> bool:
 #: so it passes through their client and lands in their session recording and in this app's own
 #: access log as a query string. Single-use plus a five-minute floor is what makes that acceptable
 #: for a synthetic account and would NOT make it acceptable for a real one.
-SMOKE_LOGIN_TTL = timedelta(minutes=5)
+# ⛔ TWO MINUTES, NOT FIVE (hardened 2026-09-12). The link is a bearer credential typed into a
+# third party's client, and the operator mints it seconds before using it — five minutes was
+# three minutes of pure exposure buying nothing. ⚰️ It was shortened after a mistyped
+# navigation sent a live token to a search engine: the token had already expired by the time
+# that was noticed, and the smaller this number is the more often that is true.
+SMOKE_LOGIN_TTL = timedelta(minutes=2)
 
 
 def create_smoke_login_token(user_id: str) -> str:
@@ -622,6 +653,11 @@ def redeem_smoke_login_token(token: str) -> str | None:
     `UPDATE ... WHERE id = ? AND used = 0` touches zero rows and that caller is refused. Checking
     `used` and then setting it in two statements would leave exactly that race open.
     """
+    # ⭐ NORMALISE AT THIS BOUNDARY, NOT INSIDE THE SHARED HELPER. Smoke-login tokens are base32,
+    # which is case-insensitive by definition; password-reset tokens are base64url, where case is
+    # meaningful. Lowercasing inside `_redeem_single_use_token` would therefore be correct for one
+    # purpose and silently wrong for the other.
+    token = (token or "").strip().lower()
     conn = get_connection()
     try:
         row = _redeem_single_use_token(conn, token, PURPOSE_SMOKE_LOGIN)

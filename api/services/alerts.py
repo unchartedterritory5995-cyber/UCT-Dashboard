@@ -61,7 +61,29 @@ _logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
 # Discord webhook (optional — only fires if env var is set)
-_DISCORD_WEBHOOK = os.environ.get("DISCORD_ALERT_WEBHOOK", "")
+#
+# ⚰️ THIS WAS A MODULE CONSTANT, CAPTURED AT IMPORT:
+#
+#     _DISCORD_WEBHOOK = os.environ.get("DISCORD_ALERT_WEBHOOK", "")
+#
+# ⛔ SO SETTING OR CLEARING THE VARIABLE REACHED NOTHING UNTIL THE PROCESS
+# RESTARTED, AND THE DANGEROUS DIRECTION IS THE CLEAR. Blanking the webhook is
+# how this estate turns an alert channel OFF (the standing rule is that a kill
+# switch is a variable, never a delete) — and against an import-time capture the
+# operator reads the variable back as empty, sees `--kv` agree, and the running
+# process keeps posting. `railway variables --set` has been measured NOT to
+# restart on some services, so "set it and it takes effect" was not reliably
+# true either.
+#
+# ⭐ Read at CALL time. Same defect class as F-S7-5, where a mirror answered
+# from a module constant while production ran a different value and the harness
+# manufactured the disagreement it existed to detect.
+DISCORD_WEBHOOK_ENV = "DISCORD_ALERT_WEBHOOK"
+
+
+def discord_webhook() -> str:
+    """The alert webhook as it stands RIGHT NOW. Never cached."""
+    return os.environ.get(DISCORD_WEBHOOK_ENV, "") or ""
 
 # Alert severity levels
 SEVERITY_INFO = "info"
@@ -326,7 +348,7 @@ def add_alert(
 
     # Fire Discord webhook for warning/critical
     fires_discord = alert["severity"] in (SEVERITY_WARNING, SEVERITY_CRITICAL)
-    if _DISCORD_WEBHOOK and fires_discord:
+    if discord_webhook() and fires_discord:
         landed = _fire_discord(alert)
         if channels is not None:
             channels[CHANNEL_DISCORD] = CHANNEL_OK if landed else CHANNEL_FAILED
@@ -479,7 +501,7 @@ def _fire_discord(alert: dict) -> bool:
             "footer": {"text": f"UCT Alert · {alert['type']} · {alert['timestamp'][:16]}"},
         }
         resp = requests.post(
-            _DISCORD_WEBHOOK,
+            discord_webhook(),
             json={"embeds": [embed]},
             timeout=5,
         )

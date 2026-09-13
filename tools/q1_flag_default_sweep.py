@@ -22,6 +22,17 @@ prove, or breaks. Reading found four. Reading cannot prove there is no fifth.
       cannot prove there is no fifth"; neither can this tool, and it had already
       missed a fourth while saying so.
 
+   5. ⛔⛔ THE SERVER SAYING NOTHING — Wave K, 2026-09-12. The default is now
+      reached by a SECOND authority: `offlineEnabled()` asks the latch first,
+      and a tab where no auth payload has carried `notebook_offline_default_on`
+      falls back to the compile-time constant. So a test that never latches, or
+      that calls `__resetNotebookFlags()`, is running on the default just as
+      surely as one that removes the localStorage key — with no localStorage
+      call anywhere to grep for.
+      ⭐ The inverse is NOT a default site: `latchNotebookFlags({
+      notebook_offline_default_on: false })` is an EXPLICIT answer and must not
+      be listed, or the flip list fills with sites that need no change.
+
 ⛔ CLASSIFICATION IS THE POINT, not the list. Each site is one of:
    · TESTS-OFF          the property is "with the wave off, X does not happen".
                         After the flip, off must be written EXPLICITLY: '0'.
@@ -59,7 +70,9 @@ KEY_CONST = "OFFLINE_FLAG_KEY"
 DEFAULT_CONST = "OFFLINE_DEFAULT_ON"
 # Names that mean "this file can observe the flag at all".
 TOUCHES = (KEY_LITERAL, KEY_CONST, DEFAULT_CONST, "offlineEnabled", "useOutboxDrain",
-           "useDurableNote", "settleLandedSave", "beginInFlightSave", "drainOutbox")
+           "useDurableNote", "settleLandedSave", "beginInFlightSave", "drainOutbox",
+           # Wave K: the served answer is the other authority over the same value.
+           "notebookFlag", "latchNotebookFlags", "notebookFlagsReady")
 
 RE_REMOVE = re.compile(r"removeItem\(\s*(?:" + KEY_CONST + r"|['\"]" + re.escape(KEY_LITERAL) + r"['\"])\s*\)")
 RE_CLEAR = re.compile(r"localStorage\.clear\(\s*\)")
@@ -77,6 +90,12 @@ RE_GLOBAL_STUB = re.compile(r"stubGlobal\(\s*['\"]localStorage"
 RE_MODULE_MOCK = re.compile(r"vi\.mock\(\s*['\"][^'\"]*offlineFlag")
 RE_STUB = re.compile(r"store\(\s*\{\s*\}\s*\)"
                      r"|getItem\s*:\s*\(\s*\)\s*=>\s*(?:null|undefined)")
+# ⛔ WAVE K — the served answer is a route to the default with no localStorage
+# call in it. `__resetNotebookFlags()` is a deliberate "nothing has latched",
+# which is exactly what a fresh tab talking to an older pod sees.
+RE_UNLATCH = re.compile(r"__resetNotebookFlags\s*\(")
+# ...and the EXPLICIT answer, which is the opposite and must never be listed.
+RE_LATCH_EXPLICIT = re.compile(r"latchNotebookFlags[^\n]*notebook_offline_default_on")
 
 
 def classify(path: pathlib.Path, text: str) -> list[tuple[int, str, str]]:
@@ -84,6 +103,10 @@ def classify(path: pathlib.Path, text: str) -> list[tuple[int, str, str]]:
     out = []
     lines = text.splitlines()
     for i, line in enumerate(lines, 1):
+        if RE_LATCH_EXPLICIT.search(line):
+            # ⭐ NOT A DEFAULT SITE. The server answer is stated outright here,
+            # so a flip of the constant cannot change what this line asserts.
+            continue
         if RE_ASSERT_DEFAULT.search(line):
             out.append((i, "TESTS-THE-DEFAULT", line.strip()[:96]))
         elif RE_REMOVE.search(line):
@@ -99,6 +122,11 @@ def classify(path: pathlib.Path, text: str) -> list[tuple[int, str, str]]:
                 # read. Calling it TESTS-OFF told the operator it needed an
                 # explicit '0' - and post-flip all six of these sites are
                 # CORRECT as they stand, asserting the ON default deliberately.
+                out.append((i, "REACHES-DEFAULT", line.strip()[:96]))
+        elif RE_UNLATCH.search(line):
+            # Wave K (docstring item 5): no payload has latched, so `offlineEnabled()`
+            # answers with the compile-time constant.
+            if any(t in text for t in TOUCHES):
                 out.append((i, "REACHES-DEFAULT", line.strip()[:96]))
         elif RE_GLOBAL_STUB.search(line) or RE_MODULE_MOCK.search(line):
             # ⭐ FORWARD-LOOKING. None of these exist in the tree today; the
@@ -168,6 +196,17 @@ def self_check() -> int:
     case("CONTROL: mocking some OTHER module is not a default-reach",
          "REACHES-DEFAULT" not in [k for _, k, _ in classify(
              pathlib.Path("x.test.jsx"), fake_touch + "vi.mock('../offline/notebookDb')\n")])
+    case("⛔ WAVE K: `__resetNotebookFlags()` REACHES-DEFAULT — the sixth way",
+         classify(pathlib.Path("x.test.jsx"), fake_touch + "__resetNotebookFlags()\n")[0][1]
+         == "REACHES-DEFAULT")
+    case("CONTROL: an EXPLICIT served answer is NOT a default site",
+         "REACHES-DEFAULT" not in [k for _, k, _ in classify(
+             pathlib.Path("x.test.jsx"),
+             fake_touch + "latchNotebookFlags({ notebook_offline_default_on: false })\n")])
+    case("CONTROL: a file naming only the LATCH still counts as touching the flag",
+         classify(pathlib.Path("x.test.jsx"),
+                  "import { notebookFlag } from './notebookFlags'\n__resetNotebookFlags()\n")
+         != [])
     case("localStorage.clear() in a flag-touching file is UNSET-INCIDENTAL",
          classify(pathlib.Path("x.test.jsx"), fake_touch + "localStorage.clear()\n")[0][1] == "UNSET-INCIDENTAL")
     # ⛔ THE CONTROL: a file that has nothing to do with the flag must not appear,

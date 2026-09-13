@@ -36,8 +36,23 @@ LEAP_PREM_MIN = float(os.environ.get("CONFLUENCE_LEAP_PREM_MIN", "3000000"))
 BUILDING_FRAC = float(os.environ.get("CONFLUENCE_BUILDING_FRAC", "0.40"))
 
 _TTL = float(os.environ.get("CONFLUENCE_BOARD_TTL", "1800"))            # 30 min
-_CACHE: dict = {"at": 0.0, "board": None}
-_COMPUTE_LOCK = threading.Lock()                                        # single-flight compute
+# Selectable lookback windows (trading days). The default (DAYS) is kept warm by
+# the scheduler; the others warm on first request (background build) and refresh
+# when stale — never on the request path.
+_ALLOWED_DAYS = sorted({DAYS} | {int(x) for x in
+    os.environ.get("CONFLUENCE_ALLOWED_DAYS", "20,30,60,90").split(",")
+    if str(x).strip().isdigit()})
+_CACHES: dict = {}                        # days -> {"at": float, "board": dict}
+_LOCKS: dict = {}                         # days -> threading.Lock (single-flight per window)
+_LOCKS_GUARD = threading.Lock()
+
+
+def _lock_for(days: int) -> threading.Lock:
+    with _LOCKS_GUARD:
+        lk = _LOCKS.get(days)
+        if lk is None:
+            lk = _LOCKS[days] = threading.Lock()
+        return lk
 
 _BANDS = {"Large Cap": "L", "Mid Cap": "M", "Small Cap": "S"}
 _BAND_META = {"L": ("Large Cap", "$10B – $500B"), "M": ("Mid Cap", "$2B – $10B"),
@@ -65,34 +80,48 @@ def _pctile(vals):
     return {v: (s.index(v) + 1) / n for v in set(vals)}
 
 
-def compute_board() -> dict:
-    """Full recompute of the confluence board. Slow (~4 min: two 120s flow legs +
-    fast 5d legs + dark-pool read). Runs off the request path via the scheduler."""
-    # options-flow leg — 30d (conviction) + 5d (freshness), large + mid_small
+def compute_board(days: int = DAYS) -> dict:
+    """Full recompute of the confluence board for a lookback of `days` trading days.
+    Slow (~4 min: two ~120s flow legs + fast 5d legs + dark-pool read). Runs off the
+    request path via the scheduler / background window builds."""
+    # options-flow leg — `days` (conviction) + 5d (freshness), large + mid_small
     flow, flow5, warnings = {}, {}, []
+    legs_pending = False
     for cap in ("large", "mid_small"):
-        d = _flow_leg(cap, DAYS)
+        d = _flow_leg(cap, days)
         if d.get("ok"):
             flow.update(d.get("names") or {})
         else:
-            warnings.append(d.get("reason", "flow leg failed"))
+            reason = d.get("reason") or d.get("status") or "flow leg failed"
+            warnings.append(reason)
+            if "comput" in str(reason).lower():
+                legs_pending = True         # the worker is still BUILDING this leg
         d5 = _flow_leg(cap, 5)
         if d5.get("ok"):
             flow5.update(d5.get("names") or {})
+
+    # A leg still computing on the worker means the board would be PARTIAL (e.g. only
+    # mid-small if the large leg isn't ready). Do NOT cache a thin board over a good
+    # one — report warming so the client keeps polling (fast) and the next compute,
+    # once the worker's leg is ready, gets the full board. (Caching 37/254 for a full
+    # 30-min TTL was the 2026-09-12 post-deploy thin-board bug.)
+    if legs_pending:
+        return {"ok": False, "status": "warming", "days": days, "rows": [],
+                "reason": "flow leg still computing on the worker"}
 
     # If the flow leg produced nothing (both bands failed / timed out), this is a
     # DEGRADED compute — return ok:false so get_board keeps the last-good board
     # instead of caching an empty 0-row result over it (the 2026-08-31 regression).
     if not flow:
-        return {"ok": False, "status": "flow_unavailable", "rows": [],
+        return {"ok": False, "status": "flow_unavailable", "rows": [], "days": days,
                 "reason": "; ".join(warnings) or "flow leg empty"}
 
-    # dark-pool 30d aggregate — local (web owns darkpool.db)
-    if not dpa.is_window_warm(days=DAYS):
-        dpa.build_window_background(days=DAYS)
-        return {"ok": False, "status": "warming", "reason": "dark-pool 30d window building",
-                "rows": []}
-    dp = dpa.get_aggregated(days=DAYS)
+    # dark-pool aggregate for the window — local (web owns darkpool.db)
+    if not dpa.is_window_warm(days=days):
+        dpa.build_window_background(days=days)
+        return {"ok": False, "status": "warming", "days": days,
+                "reason": f"dark-pool {days}d window building", "rows": []}
+    dp = dpa.get_aggregated(days=days)
     dpmap = {x["t"]: x for x in (dp.get("allItems") or [])}
     window = dp.get("meta", {}).get("dateRange", "")
 
@@ -134,8 +163,13 @@ def compute_board() -> dict:
         leap_share = f.get("leap_share") or 0
         if not (leap_share >= LEAP_SHARE_MIN or leap_prem >= LEAP_PREM_MIN):
             continue                                    # LEAP-led gate
-        bull_ok = net > 0 and acc == "Acc" and bull >= FLOW_MIN and dpn >= DP_MIN
-        bear_ok = net < 0 and acc == "Dist" and bear >= FLOW_MIN and dpn >= DP_MIN
+        # Dark-pool DIRECTION is no longer gated on the accumulation call — a single
+        # unsigned dark print names a price, not a buyer, so it can't reveal intent
+        # (owner decision 2026-09-12). The dark-pool leg now contributes SIZE
+        # (dpn >= DP_MIN); direction comes from the options flow, and the card shows
+        # price-vs-their-average-price as live context instead of an Acc/Dist verdict.
+        bull_ok = net > 0 and bull >= FLOW_MIN and dpn >= DP_MIN
+        bear_ok = net < 0 and bear >= FLOW_MIN and dpn >= DP_MIN
         if not (bull_ok or bear_ok):
             continue
         # Survivor is a real confluence candidate — spend one cached FMP profile
@@ -172,6 +206,12 @@ def compute_board() -> dict:
             "leapPrem": leap_prem, "leapShare": round(leap_share, 3),
             "status": status, "freshRatio": round(ratio, 2),
             "bigPrint": d.get("bigPrintN") or 0, "bigDate": d.get("bigPrintDate"),
+            # dark-pool structure for the price-vs-zone ladder. The frontend overlays
+            # the LIVE price on top of these to compute the green/red performance vs
+            # the average (vwap). dpLast (last dark-pool session price) is the fallback
+            # when no live quote is available, so the ladder always renders.
+            "dpLo": d.get("lo"), "dpHi": d.get("hi"), "dpAvg": d.get("vwap"),
+            "dpLast": d.get("last"), "bigPrice": d.get("bigPrint"),
             "sector": sector,
         })
 
@@ -193,36 +233,54 @@ def compute_board() -> dict:
               "bull": sum(1 for r in rows if r["dir"] == "BULL"),
               "bear": sum(1 for r in rows if r["dir"] == "BEAR"),
               "building": sum(1 for r in rows if r["status"] == "BUILDING")}
-    return {"ok": True, "window": window, "days": DAYS, "rows": rows,
+    return {"ok": True, "window": window, "days": days, "rows": rows,
             "counts": counts, "band_meta": _BAND_META,
-            "warnings": warnings or None}
+            "allowedDays": _ALLOWED_DAYS, "warnings": warnings or None}
 
 
 _WARMING = {"ok": False, "status": "warming",
             "reason": "board is computing — try again shortly", "rows": []}
 
 
-def get_board(force: bool = False) -> dict:
-    """READ path: serve the cached board (or the last good one, or 'warming') —
-    NEVER computes inline, so /api/confluence can't hang the request/gateway.
-    Only force=True (scheduler / boot warm / admin refresh) computes, single-flight."""
-    if not force:
-        return _CACHE["board"] or _WARMING          # stale is fine; scheduler refreshes
-    if not _COMPUTE_LOCK.acquire(blocking=False):    # a compute is already running
-        return _CACHE["board"] or _WARMING
+def _compute_and_cache(days: int) -> dict:
+    """Compute ONE window under its single-flight lock and cache on success."""
+    lk = _lock_for(days)
+    if not lk.acquire(blocking=False):               # a build for this window is running
+        return (_CACHES.get(days) or {}).get("board") or _WARMING
     try:
-        board = compute_board()
+        board = compute_board(days)
         if board.get("ok"):
-            _CACHE["at"] = time.time()
-            _CACHE["board"] = board
-        return _CACHE["board"] or board
+            _CACHES[days] = {"at": time.time(), "board": board}
+        return (_CACHES.get(days) or {}).get("board") or board
     finally:
-        _COMPUTE_LOCK.release()
+        lk.release()
+
+
+def _build_background(days: int) -> None:
+    threading.Thread(target=_compute_and_cache, args=(days,), daemon=True,
+                     name=f"confluence-build-{days}d").start()
+
+
+def get_board(days: int = DAYS, force: bool = False) -> dict:
+    """READ path: serve the cached board for `days`. NEVER computes inline, so
+    /api/confluence can't hang the request/gateway. A cold or stale window is
+    (re)built in the BACKGROUND and the last-good board is served meanwhile; the
+    default window is also kept warm by the scheduler. force=True (scheduler /
+    admin) computes inline, single-flight per window."""
+    days = days if days in _ALLOWED_DAYS else DAYS
+    if force:
+        return _compute_and_cache(days)
+    entry = _CACHES.get(days) or {}
+    board = entry.get("board")
+    if board is None or (time.time() - entry.get("at", 0)) >= _TTL:
+        _build_background(days)                       # warm / refresh off the request path
+    return board or _WARMING                          # stale-but-good while rebuilding
 
 
 def scheduled_refresh():
-    """APScheduler entry — force a recompute so the cache stays warm."""
+    """APScheduler entry — force a recompute of the DEFAULT window so its cache
+    stays warm. Other windows warm on demand and self-refresh when stale."""
     try:
-        get_board(force=True)
+        get_board(days=DAYS, force=True)
     except Exception:  # noqa: BLE001
         pass

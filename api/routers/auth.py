@@ -109,6 +109,61 @@ ADMIN_EMAILS.add("unchartedterritory5995@gmail.com")  # Owner always admin
 ADMIN_EMAILS.add("blake.bracco67@gmail.com")  # Admin
 
 
+# ── Wave K — the Notebook's capability flags ────────────────────────────────
+#
+# ⛔⛔ ONE CAPABILITY, TWO NAMES, DERIVED — NEVER TYPED TWICE. The Railway
+# variable is SCREAMING_SNAKE (and is what `docs/feature_flags.json` keys on);
+# the payload key is its lowercase form. `_notebook_flag_key` is the only place
+# that relationship exists, so a rename cannot leave one side behind. The flip
+# queue once listed `NOTEBOOK_OFFLINE_DEFAULT_ON` beside `notebook.offlineReadOn`
+# — two conventions for one kind of thing, in one table.
+#
+# ⛔ READ PER REQUEST, NEVER AT IMPORT, for the same reason the three flags below
+# this block are: a module-level capture makes the no-redeploy rollback a
+# fiction. `tests/test_hub_preview_flag.py` is the rail on that, and Wave K
+# extends it to these keys.
+#
+# ⛔ DEFAULT POLARITY IS PER CAPABILITY, and it is not a style choice.
+# `NOTEBOOK_OFFLINE_DEFAULT_ON` is a KILL switch over a SHIPPED wave, so unset
+# means "not killed" — a forgotten variable must never be indistinguishable from
+# a deliberate shutdown. The Q2 keys are ENABLEMENT gates over dark features, so
+# unset means "not turned on yet".
+NOTEBOOK_FLAGS = {
+    "NOTEBOOK_OFFLINE_DEFAULT_ON": True,    # kill switch  — unset means ON
+    "NOTEBOOK_OFFLINE_READ_ON": False,      # enablement   — unset means OFF
+    "NOTEBOOK_CONFLICT_UX_ON": False,       # enablement   — unset means OFF
+    "NOTEBOOK_ATTACHMENTS_ON": False,       # enablement   — unset means OFF
+}
+
+_TRUTHY = ("1", "true", "yes", "on")
+_FALSY = ("0", "false", "no", "off")
+
+
+def _notebook_flag_key(env_name: str) -> str:
+    """The payload key for a Notebook capability's Railway variable.
+
+    ⛔ The ONLY place the two names are related. K-R6 asserts every capability's
+    pair agrees by calling this, rather than comparing two hand-written lists.
+    """
+    return env_name.lower()
+
+
+def _notebook_flags() -> dict:
+    """Every Notebook capability flag, read from the environment PER REQUEST."""
+    out = {}
+    for env_name, default_on in NOTEBOOK_FLAGS.items():
+        raw = os.environ.get(env_name)
+        if raw is None:
+            value = default_on
+        else:
+            v = raw.strip().lower()
+            # ⛔ An unrecognised value takes the DEFAULT, never the opposite of
+            # it. A typo'd "flase" must not kill a shipped wave.
+            value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
+        out[_notebook_flag_key(env_name)] = value
+    return out
+
+
 def _access_payload(user: dict, plan: str) -> dict:
     """Shared access fields for every auth response (signup/login/me).
 
@@ -183,6 +238,15 @@ def _access_payload(user: dict, plan: str) -> dict:
         "s7_filing_watch_enabled": os.environ.get(
             "S7_FILING_WATCH_ENABLED", "0"
         ).strip().lower() in ("1", "true", "yes", "on"),
+        # ── Wave K — the Notebook's capability flags, read per request ──────
+        # ⭐ RIDES THIS PAYLOAD RATHER THAN A NEW ENDPOINT. `kill-switch-spec.md`
+        # first specified `GET /api/config`; that was struck on the day it was
+        # written, because this app records the absence of a config endpoint as
+        # deliberate and this payload already carries three flags. A second
+        # mechanism would have been a second authority — and it would have
+        # reached members LATER, since a boot-read needs a reload while this
+        # arrives on the next authenticated request.
+        **_notebook_flags(),
     }
 
 
@@ -673,7 +737,16 @@ def smoke_login_link(
         details=f"target={req.user_id}",
         ip_address=client_ip(request),
     )
-    return {"url": f"{DASHBOARD_URL.rstrip('/')}/smoke-login?token={token}"}
+    # ⛔⛔ THE TOKEN GOES IN THE FRAGMENT, NEVER A QUERY STRING (hardened 2026-09-12).
+    # A fragment is never sent to ANY server: not to us, not to a CDN, not to a search engine
+    # if the URL is mistyped into a search box, and it does not appear in an access log or a
+    # Referer header. ⚰️ This changed after a mistyped navigation on a Live mirror ran a
+    # GOOGLE SEARCH for the whole URL, sending a live token to a third party. With the token
+    # after the `#`, that same mistake leaks the path and nothing else.
+    # ⭐ `/smoke-login` reads it from `location.hash` in the browser and POSTs it to
+    # `/api/auth/smoke-login`, so the secret still reaches this server -- in a request BODY,
+    # which is the part that is not logged.
+    return {"url": f"{DASHBOARD_URL.rstrip('/')}/smoke-login#token={token}"}
 
 
 class SmokeLoginRequest(BaseModel):

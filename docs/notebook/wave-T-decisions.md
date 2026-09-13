@@ -49,5 +49,21 @@ would otherwise sit in this file for the length of the charter.
 | **T-11** | **NO, and it goes to §8 DO-NOT-BUILD permanently** — the charter's standing "no service worker" constraint |
 | T-12 | not a decision — completion criterion **C-7** |
 
+## ✅ RATIFIED — owner, 2026-09-13
+
+> *"my ruling of 09-12 answered every T item on your recommendations, T-03/T-04
+> included. Nothing in T waits on me except flips."*
+
+⭐ **C-6 IS THEREFORE TRUE**, and this line is what proves it. The criterion reads
+*"§6 Wave T rows each carry an owner answer — `wave-T-decisions.md`, one line
+each"*, and every row in the table above carries one. What was missing was not an
+answer but the RATIFICATION: the rulings were recorded on 2026-09-12 and this file
+still read as a set of proposals somebody might yet revisit, so a reader auditing
+C-6 could not tell a recommendation from a decision.
+
+⛔ **The only owner-bound step left in Wave T is a FLIP**, which is true of every
+row in the charter and is not a Wave T condition. Nothing here is scheduled behind
+a further word.
+
 ⛔ **Zero rows in this file are waiting on the owner.** T-03/T-04's only remaining
 owner-bound step is the flip, which is true of every row in the charter.

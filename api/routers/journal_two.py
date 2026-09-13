@@ -80,6 +80,13 @@ _J2_TELEMETRY_EVENTS = {
     # funnels through (sendToJournal.js::sendCaptureToJournal), covering all
     # three destinations (current note / new note / inbox) uniformly.
     "notebook_tab_visit", "notebook_capture_saved",
+    # Wave K — did this browser RECEIVE the capability flags? K-1's precondition
+    # is a config-served RATE measured by identity, and nothing recorded the
+    # numerator OR the denominator: the rig can only report on the rig. One
+    # event carries both, `served: false` being the state that matters — a pod
+    # predating K sends no keys, the client falls back to the compile-time
+    # constant, and the kill switch reaches that member not at all.
+    "notebook_config_served",
     # Wave Q1 — the outbox drain refused to send a write with no compare-and-set
     # (`baseUpdatedAt` missing/blank). Nine driven paths failed to reproduce the
     # 2026-09-09 incident's `null` baseline, so it is INSTRUMENTED instead of

@@ -1,0 +1,14 @@
+{
+  "append_document_excerpt|settle-first": {
+    "verdict": "N/A",
+    "why": "the product cannot reach this state \u2014 an append door records a landed revision and never settles with local state (f5Freeze.test.js asserts it from the source)"
+  },
+  "append_financial_fact|settle-first": {
+    "verdict": "N/A",
+    "why": "the product cannot reach this state \u2014 an append door records a landed revision and never settles with local state (f5Freeze.test.js asserts it from the source)"
+  },
+  "append_widget_embed|settle-first": {
+    "verdict": "N/A",
+    "why": "the product cannot reach this state \u2014 an append door records a landed revision and never settles with local state (f5Freeze.test.js asserts it from the source)"
+  }
+}

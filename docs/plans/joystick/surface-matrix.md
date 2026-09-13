@@ -3,7 +3,7 @@
 > **Regenerate, never hand-edit.** Everything from the `<!-- GENERATED … -->` marker down is the
 > tool's stdout; replace that half, keep this prose half:
 > ```
-> node tools/hub_surface_matrix.mjs --self-check     # 9 cases; proves the scanner can fail
+> node tools/hub_surface_matrix.mjs --self-check     # proves the scanner can fail
 > node tools/hub_surface_matrix.mjs                  # the table, to stdout
 > ```
 > Baseline for the "Since Inc 2" column is **`febe8ee67`**, the Increment-2 manifest-of-record
@@ -39,6 +39,47 @@ week or unhidden last week; both are untested on real glass.
 `goneActions`: `journal.addTrade` (renamed to `journal.planTrade`, R-10) and `calendar.earnings`
 (removed, not deferred).
 
+
+## ⚰️ D-42 — this table reported ten shipped surfaces as not existing (fixed 2026-09-13)
+
+`bindingsIn` in the generator matched an object key only in its **colon** form, so ES6 **shorthand**
+properties were invisible to it. The result was not a gap but an inversion:
+
+| mode | what the controller declares | what this table printed |
+|---|---|---|
+| `wire` | all four gestures + readout, shorthand (`wireSection.js:282-286`) | **“— none —”** |
+| `home` | all four gestures + readout, shorthand (`homeSection.js:240-244`) | **“— none —”** |
+| `journal` | `onTap:`/`onDoubleTap:` colon, `onScrub,`/`onScrubCommit,`/`readout,` shorthand (`:642-646`) | tap and double-tap only — **no scrub**, the stop-adjust flagship |
+
+⛔ **`glass-acceptance-steps.md` is generated from this output**, so those surfaces had no glass
+step at all and `GS-wire-0` published *“Tap, double-tap and scrub do **nothing** here”* for a mode
+that wires everything. An operator running that sheet files a FAIL against working code, or passes
+a broken one.
+
+⭐ **The generator's own `--self-check` could not have caught it**: its only binding fixture was
+`{ onScrub: (ctx, s) => s }` — the colon form — so the control exercised the one shape the scanner
+could see. A fixture that cannot distinguish is not a rail, and this one lived inside the
+instrument built to make exactly this class of gap visible.
+
+`bindingsIn` now reads an **acorn parse tree** (the same parser two standing rails already use), so
+shorthand, the comma-list form and quoted keys all count while a destructure, a member read, a
+computed key and a string never can. The sheet went from **95 to 107 steps**: fourteen real
+surfaces appeared and the two false *“does nothing”* rows disappeared. The one that remains,
+`GS-flow-0`, is **true** — `flow` has no section controller.
+
+⛔ **Step ids were re-sequenced once, and then made stable.** A binding step is now `GS-<mode>-b1`
+and an action step keeps its own plain `GS-<mode>-1` sequence. Under the single counter the sheet
+used before, adding five binding rows to `wire` moved `GS-wire-1` from *"Chart it"* to *"Primary
+(tap)"* and shifted every action row in seven modes — silently, in a document whose entire purpose
+is to be filled in by hand. Nothing was lost that day only because the sheet is gated behind G0-1
+and **not one box had been ticked**. Compared by step IDENTITY (mode + text) rather than by id:
+**93 steps carried through unchanged, 14 were gained, and exactly 2 were lost — the two false
+"declares no gesture bindings" rows for `wire` and `home`.**
+
+**D-43 rode in on the same fix.** Once `wire` and `home` stopped reading as empty, `notebook`
+standing alone without `onDoubleTap` became legible: spec §C3 promises *“Reverse: previous note”*
+and it had never shipped. It is wired now, in `notebookSection.js`, with its own rail.
+
 ## ⚠️ What the Write path column does and does not claim
 
 `—  (route only)` is structural: `navigate` and `home` change the route and nothing else.
@@ -57,14 +98,14 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 
 | Mode | Surface | Kind | Ring | Flick | Esc | Requires | Write path | Handled in | Since Inc 2 |
 |---|---|---|---|---|---|---|---|---|---|
-| **wire** | _mode_ · /morning-wire · chip “tap: next segment” · — none — · cursor `wire` | | | | | | | wireSection.js |  |
+| **wire** | _mode_ · /morning-wire · chip “tap: next segment” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `wire` | | | | | | | wireSection.js |  |
 | wire | `wire.chartIt` “Chart it” | navigate → chart | outer | yes |  | symbol | — (route only) | — |  |
 | wire | `wire.flag` “Flag” | run | outer | yes |  | symbol | ? | — |  |
 | wire | `wire.note` “Note” | run | outer | yes |  | symbol | ? | — |  |
-| wire | `wire.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| wire | `wire.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | wire | `wire.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
 | **breadth** | _mode_ · /breadth · chip “tap: next tab” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout | | | | | | | breadthSection.js |  |
-| breadth | `breadth.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| breadth | `breadth.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | breadth | `breadth.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
 | **scan** | _mode_ · /screener · chip “tap: next result” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `scan` | | | | | | | screenerSection.js |  |
 | scan | `scan.chartIt` “Chart it” | navigate → chart | outer | yes |  | symbol | — (route only) | sections/screenerSection.js:260 |  |
@@ -73,7 +114,7 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | scan | `scan.planTrade` “Plan trade” | run | outer | yes |  | symbol | ? | sections/screenerSection.js:311 |  |
 | scan | `scan.scans` “Scans” | run | inner | yes |  |  | ? | sections/screenerSection.js:321 |  |
 | scan | `scan.why` “Why?” | navigate → /ai-search | inner | yes |  | symbol | — (route only) | sections/screenerSection.js:270 |  |
-| scan | `scan.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| scan | `scan.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | scan | `scan.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
 | **chart** | _mode_ · /charts · chip “tap: next timeframe” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout | | | | | | | chartSection.js | **LEFT PREVIEW** |
 | chart | `chart.planTrade` “Plan trade” | run | outer | yes |  | symbol | ? | sections/chartSection.js:195 | **newly reachable** |
@@ -83,16 +124,16 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | chart | `chart.compare` “Compare” | run | outer | yes |  | chart | ? | sections/chartSection.js:201 | **newly reachable** |
 | chart | `chart.logTrade` “Log trade” | run | inner | yes |  | symbol | ? | sections/chartSection.js:202 | **newly reachable** |
 | chart | `chart.note` “Note” | run | inner | yes |  | symbol | ? | sections/chartSection.js:189 | **newly reachable** |
-| chart | `chart.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| chart | `chart.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | chart | `chart.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
-| **journal** | _mode_ · /journal/trades · chip “tap: next position” · Primary (tap) · Reverse (double-tap) · cursor `journal` | | | | | | | journalSection.js |  |
+| **journal** | _mode_ · /journal/trades · chip “tap: next position” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `journal` | | | | | | | journalSection.js |  |
 | journal | `journal.chartIt` “Chart it” | navigate → chart | outer | yes |  | symbol | — (route only) | — |  |
 | journal | `journal.moveStop` “Move stop” | run | outer | yes | yes | position | ? | sections/journalSection.js:610 |  |
 | journal | `journal.breakeven` “Breakeven” | run | outer | yes | yes | position | ? | sections/journalSection.js:612 |  |
 | journal | `journal.close` “Close” | run | outer | ⛔ no | yes | position | ? | sections/journalSection.js:613 |  |
 | journal | `journal.planTrade` “Plan trade” | run | inner | yes |  | position | ? | sections/journalSection.js:620 | **NEW action** |
 | journal | `journal.note` “Note” | run | inner | yes |  | symbol | ? | — |  |
-| journal | `journal.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| journal | `journal.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | journal | `journal.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
 | **catalysts** | _mode_ · in place · chip “tap: next row” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `catalysts` | | | | | | | catalystsSection.js | **LEFT PREVIEW** |
 | catalysts | `catalysts.chartIt` “Chart it” | navigate → chart | outer | yes |  | symbol | — (route only) | sections/catalystsSection.js:87 | **newly reachable** |
@@ -100,23 +141,23 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | catalysts | `catalysts.why` “Why?” | navigate → /ai-search | outer | yes |  | symbol | — (route only) | sections/catalystsSection.js:94 | **newly reachable** |
 | catalysts | `catalysts.filter` “Filter” | run | inner | yes |  |  | ? | sections/catalystsSection.js:115 | **newly reachable** |
 | catalysts | `catalysts.note` “Note” | run | inner | yes |  | symbol | ? | sections/catalystsSection.js:109 | **newly reachable** |
-| catalysts | `catalysts.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| catalysts | `catalysts.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | catalysts | `catalysts.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
-| **notebook** | _mode_ · /journal/notebook · chip “tap: next note” · Primary (tap) · Scrub (drag y) · Chip readout · cursor `notebook` | | | | | | | notebookSection.js | **LEFT PREVIEW** |
-| notebook | `notebook.newNote` “New note” | run | outer | yes |  |  | POST /api/j2/notes | sections/notebookSection.js:526 | **newly reachable** |
-| notebook | `notebook.voiceNote` “Voice note” | run | outer | yes |  |  | ? | sections/notebookSection.js:532 | **NEW action** |
-| notebook | `notebook.linkTicker` “Set ticker” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:542 | **newly reachable** |
-| notebook | `notebook.templates` “Templates” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:536 | **newly reachable** |
+| **notebook** | _mode_ · /journal/notebook · chip “tap: next note” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Chip readout · cursor `notebook` | | | | | | | notebookSection.js | **LEFT PREVIEW** |
+| notebook | `notebook.newNote` “New note” | run | outer | yes |  |  | POST /api/j2/notes | sections/notebookSection.js:571 | **newly reachable** |
+| notebook | `notebook.voiceNote` “Voice note” | run | outer | yes |  |  | ? | sections/notebookSection.js:577 | **NEW action** |
+| notebook | `notebook.linkTicker` “Set ticker” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:587 | **newly reachable** |
+| notebook | `notebook.templates` “Templates” | confirm | outer | yes | yes |  | ? | sections/notebookSection.js:581 | **newly reachable** |
 | notebook | `notebook.dailyPlan` “Daily plan” | navigate → /journal/notebook?new=daily-prep | inner | yes |  |  | — (route only) | — | **newly reachable** |
 | notebook | `notebook.postMortem` “Postmortem” | navigate → /journal/notebook?new=trade-review | inner | yes |  |  | — (route only) | — | **newly reachable** |
-| notebook | `notebook.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| notebook | `notebook.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | notebook | `notebook.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
 | **calendar** | _mode_ · /calendar · chip “tap: next day” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `calendar` | | | | | | | calendarSection.js | **LEFT PREVIEW** |
 | calendar | `calendar.macro` “Macro” | run | outer | yes |  |  | ? | sections/calendarSection.js:64 | **newly reachable** |
 | calendar | `calendar.myNames` “My names” | navigate → /calendar/mystocks | outer | yes |  |  | — (route only) | — | **newly reachable** |
-| calendar | `calendar.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| calendar | `calendar.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | calendar | `calendar.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
-| **home** | _mode_ · /dashboard · chip “tap: last section” · — none — · cursor `home` | | | | | | | homeSection.js | **cursor added** |
+| **home** | _mode_ · /dashboard · chip “tap: last section” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `home` | | | | | | | homeSection.js | **cursor added** |
 | home | `home.scan` “Scan” | navigate → scan | outer | yes |  |  | — (route only) | — |  |
 | home | `home.chart` “Chart” | navigate → chart | outer | yes |  |  | — (route only) | — |  |
 | home | `home.breadth` “Breadth” | navigate → breadth | outer | yes |  |  | — (route only) | — |  |
@@ -125,7 +166,7 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | home | `home.journal` “Journal” | navigate → journal | inner | yes |  |  | — (route only) | — |  |
 | home | `home.notebook` “Notebook” | navigate → notebook | inner | yes |  |  | — (route only) | — |  |
 | home | `home.calendar` “Calendar” | navigate → calendar | inner | yes |  |  | — (route only) | — | **newly reachable** |
-| home | `home.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| home | `home.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | **flow** | _mode_ · /options-flow · chip “navigate only” · — none — | | | | | | | — no controller — |  |
-| flow | `flow.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:158 |  |
+| flow | `flow.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | flow | `flow.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |

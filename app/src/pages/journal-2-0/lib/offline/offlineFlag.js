@@ -63,15 +63,28 @@
  * Per-browser opt-out, no deploy needed:
  *     localStorage.setItem('uct.j2.offline.enabled', '0')
  */
+import { notebookFlag } from './notebookFlags'
+
 export const OFFLINE_DEFAULT_ON = true
 
 export const OFFLINE_FLAG_KEY = 'uct.j2.offline.enabled'
 
 export function offlineEnabled(storage = globalThis.localStorage) {
+  // ⛔⛔ THE MEMBER'S OWN CHOICE OUTRANKS EVERYTHING — the server, the latch and
+  // the constant alike. A member who switched this wave off must never be
+  // switched back on by a value somebody set in Railway. Checked FIRST, and it
+  // is the only branch that can answer before the flag is consulted at all.
   try {
     const v = storage?.getItem(OFFLINE_FLAG_KEY)
     if (v === '1') return true
     if (v === '0') return false
-  } catch { /* private mode: fall through to the default */ }
-  return OFFLINE_DEFAULT_ON
+  } catch { /* private mode: fall through */ }
+  // ⭐ WAVE K: the server's answer, LATCHED for the life of this tab
+  // (`notebookFlags.js`). `null` means no auth payload has carried the key yet —
+  // an older backend, a signed-out visitor, or simply too early — and in every
+  // one of those cases the compile-time constant is the answer, unchanged from
+  // before K. That is what makes K safe to merge dark: with no variable set and
+  // no payload key, `offlineEnabled()` returns exactly what it returned before.
+  const served = notebookFlag('notebook_offline_default_on')
+  return served === null ? OFFLINE_DEFAULT_ON : served
 }

@@ -929,9 +929,14 @@ railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
 ```
 
 ⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
-lands in their session recording and in this app's own access log as a query string. Five-minute
-expiry plus single-use is what makes that acceptable **for a synthetic account** and is exactly
-what would make it unacceptable for a real one. The allow-list is one hard-coded id
+lands in their session recording. ⭐ **Since 2026-09-12 it rides in the URL FRAGMENT**
+(`/smoke-login#token=…`), which is never sent to any server — so it does NOT appear in this app's
+access log, at a CDN, or at a search engine if the URL is mistyped into a search box. The page reads
+`location.hash`, POSTs the token in a request body, and scrubs it from the address bar.
+⚰️ It was a query string until a mistyped navigation on a Live mirror ran a GOOGLE SEARCH for the
+whole URL and sent a live token to a third party. **Two-minute** expiry plus single-use plus
+fragment-only is what makes this acceptable **for a synthetic account** and is exactly what would
+make it unacceptable for a real one. The allow-list is one hard-coded id
 (`SMOKE_USER_ID`, default `f4433528-…`); any other id gets the same 404 as the flag being off, so
 the endpoint cannot be used as an oracle for which account is the privileged one.
 
@@ -1376,7 +1381,7 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   alias-resolved with shadowing respected) and fails BY NAME on a seventh writer or a
   deleted guard. **Do not re-type a count here — read that test.**
 - **`delivering` is recency-gated with hysteresis** (`barsStreamManager.js`): engage when a bar
-  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after 300s (`BARS_LIVE_DISENGAGE_MS`)
+  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after **150s** (`BARS_LIVE_DISENGAGE_MS = 150000`) — ⚰️ this said 300s
   so a thin ticker doesn't thrash push↔Finnhub. A silent-but-heartbeating feed hands the bar back
   to Finnhub within ~10s (watchdog `_notifyAllStatus`). NEVER make delivering sticky/no-recency.
 - **Rollout + revert.** `export const BARS_PUSH_ROLLOUT_PCT = 100` in `StockChart.jsx` = % of
@@ -1470,6 +1475,145 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Admin role check: `user.role === 'admin'`; set via `ADMIN_EMAILS` env var
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
+
+## Joystick hub — the one section to read before touching it
+
+> **What it is.** A glass thumb-joystick pinned to the bottom corner on phones and tablets. Drag
+> opens a fan of that page's actions; tap/double-tap/scrub drive the page's own list. It is
+> **mobile-only by construction** — `app/src/hub/useHubActive.js:84` requires
+> `(max-width: 1023px) and (pointer: coarse)`, and there is no mouse or keyboard path to build.
+> Mounted once from `Layout.jsx`; `App.jsx` gates `<GlobalVoiceGate/>` on the same
+> `hub/useHubActive.js` so the hub owns the corner rather than overlapping the voice orb.
+
+⛔ **The programme is CLOSED.** Everything remaining is one owner device session —
+`docs/plans/joystick/owner-run.md`, §A–§E. Do not start new hub work against the plan files; start
+here, then read `closure.md`.
+
+### The registry is the single authority
+
+**`app/src/hub/registry.js`.** Every mode and every action is data in that one file; adding a
+section is a data change, not a component. Use `defineMode()` (`:84`) — it runs `validateRegistry`,
+which is what keeps the fan well-formed.
+
+An action declares:
+
+| field | meaning |
+|---|---|
+| `id` | `'<mode>.<action>'`, unique across the whole registry (`registry.js:23`) |
+| `kind` | `'run'` · `'confirm'` · `'navigate'` · `'home'` |
+| `ring` | `0` = outer (Actions, max **5**), `1` = inner (Tools, max **4**) — `OUTER_MAX`/`INNER_MAX`, `registry.js:64-65` |
+| `confirmText` | `(ctx) => string`. **REQUIRED** when `kind === 'confirm'` (`registry.js:32`) |
+| `requires` | one of `HUB_REQUIREMENTS` (`registry.js:68`); an unmet requirement renders the bubble **disabled with a reason, never hidden** |
+| `flickable` | default `true`. `false` = deliberate selection only; a sub-`FLICK_MS` flick opens the fan instead of firing |
+| `escalate` | `warn()` haptic instead of `impact()`. Required on `confirm` |
+
+⛔ **`tier` is rejected outright** (`registry.js:994`) — there are no membership tiers (D-23).
+⭐ **Only `journal.close` is `flickable: false`**, and the reason its neighbours are not is written
+beside the declaration (D-45): they are sheet-mediated, so the sheet is the guard.
+
+A mode declares `route`, `label`, `tapHint`, `color`, `fan`, and optionally
+`cursor: { listId }` — the shared cursor a section registers through `useHubCursor`.
+
+### Controllers and the contract
+
+Section controllers live in `app/src/hub/sections/*.js`, one per mode. A controller returns a
+config object whose callbacks are `onTap` · `onDoubleTap` · `onScrub` · `onScrubCommit` · `readout`.
+
+⛔ **`app/src/hub/contracts.js` is the contract, and `hub/contractArity.test.js` is the rail.** It
+reads the argument list from the file that actually CALLS each callback (`HubRoot.jsx`,
+`useJoystick.js`) and fails if the typedef or a test harness disagrees. `onScrub(ctx, scrub)` —
+context first. A validator cannot catch arity (a wrong-arity function is still a function), which
+is why that rail exists.
+
+⛔ `validateSectionConfig` refuses an `onScrub` without a `readout()`: a scrub the chip cannot
+narrate is invisible.
+
+### Gestures and tuning
+
+**Every number lives in `app/src/hub/constants.js`. Point at it; never restate it here** — a
+hand-typed constant beside its source is the drift this feature has paid for repeatedly (D-44).
+
+`TRAVEL_PX` (`:10`) · `OPEN_AT_PX` (`:20`) · `RING_SPLIT` (`:34`) · `REACH_PX` (`:71`) ·
+`HOLD_MS` (`:88`) · `DOUBLE_TAP_MS` · `FLICK_MS`.
+
+The vocabulary: tap = Primary · double-tap = Reverse · hold 0.5s = Home · **hold then drag = Scrub**
+· soft drag = inner fan · hard drag = outer fan · drag past `REACH_PX` = reach mode · flick under
+`FLICK_MS` = fire without opening.
+
+⛔ **A drag WITHOUT the hold is a fan push, not a scrub** (`useJoystick.js:408`). It resolves by
+DIRECTION and fires that bubble. This has been mistaken for a broken scrub on a real device.
+
+⚰️ **Two-finger tap is REMOVED** (`ccd661051`, rail `hub/peekRemoved.test.jsx`): screen readers
+consume it, and two pointers fails WCAG 2.5.1. **The Actions button is the no-drag door.**
+
+### Exposure — the highest-leverage edit in the feature
+
+`PREVIEW_MODES` (`registry.js:720`) decides which modes are still a teaser. **Deleting one id from
+that Set is one line and can expose nineteen already-declared actions to members.**
+`ROLLOUT_STAGE` (`hub/rolloutStage.js:23`) is the stage gate.
+
+⛔ Any change to either **must arrive with regenerated artifacts in the same commit**:
+
+```
+node tools/hub_surface_matrix.mjs          > docs/plans/joystick/surface-matrix.md   (below its GENERATED marker)
+node tools/hub_surface_matrix.mjs --glass  > docs/plans/joystick/glass-acceptance-steps.md
+node tools/hub_surface_matrix.mjs --self-check
+```
+
+`hub/surfaceMatrixIsCurrent.test.js` byte-compares both and fails otherwise. The generator reads
+bindings from an **acorn parse tree** and expectations from the controller + spec §C3 — it was
+regex-based twice and wrong twice (D-42, D-44).
+
+### The rails, and what each is for
+
+| rail | catches |
+|---|---|
+| `hub/surfaceMatrixIsCurrent.test.js` | a registry/exposure change shipped without regenerating the docs |
+| `hub/contractArity.test.js` | a callback's shape drifting from its call site |
+| `hub/writePaths.test.js` | a new endpoint the hub can write, undeclared |
+| `hub/rule12Paths.test.js` | a JOYSTICK change set editing `app/src/pages/journal-2-0/**` — it identifies whose change set it is from the DIFF first and the branch name second (B7, closed 2026-09-13) |
+| `hub/knobFocusReturn.test.jsx` | focus not returning to the knob when a sheet closes (D-46) |
+| `hub/peekRemoved.test.jsx` | the two-finger gesture coming back |
+| `hub/analyticsMarker.test.js` | the single `TODO(hub-analytics)` marker going missing or multiplying |
+| `styles/themeIslands.test.js` | a `--hub-*` token added without pinning it in every theme island |
+| `styles/tapFloor.test.js` | a sub-44px touch target |
+| `components/screener/reachable.test.js` | a hub module built and wired to nothing |
+| `scripts/gate_shards.py` | the six-shard gate; refuses a dirty tree, records the tree hash at both ends |
+
+### Flags, rollback, devices
+
+- **`HUB_PREVIEW_ENABLED`** — kill switch on `web`. **Unset or `true` = ON**; `false` hides the hub
+  for everyone on their next authenticated request, **no redeploy**. Read per request in
+  `api/routers/auth.py::_access_payload`; rail `tests/test_hub_preview_flag.py`.
+- **Rollback runbook:** `docs/plans/joystick/rollback-runbook.md`.
+- **Devices: BrowserStack LIVE only.** Automate is not on this account, so there is no scripted
+  device path — a human or an agent drives a screen mirror. ⛔ A Live mirror **cannot measure a
+  sub-300 ms gesture** (measured floor 260–427 ms per gesture) and **cannot hold a press**, so
+  flick, double-tap and scrub rows are INCONCLUSIVE-TRANSPORT there by construction.
+- **Signing a device in:** `python tools/smoke_login_link.py` mints a 2-minute, single-use link for
+  `smoke@uctintelligence.internal`; the token rides in the URL **fragment** and is scrubbed from the
+  address bar. Never type a password into a mirrored phone.
+
+### Where the records are
+
+- **Ledgers:** `docs/plans/joystick/deferred.md` (D-numbers) and `requests.md` (R-numbers).
+- **Scope vs reality:** `docs/plans/joystick/scope-reconciliation.md` — 81 rows, every promise mapped.
+- **Closure:** `closure.md`. **Owner's remaining run:** `owner-run.md`.
+
+### Known gaps (open D-numbers)
+
+| # | gap | owner |
+|---|---|---|
+| **D-38** | toast duration — accepted as-is | joystick |
+| **D-39** | chip vs page furniture — cosmetic, non-blocking | joystick |
+| **D-40** | Notebook phone list exposes no per-note DOM id | **Notebook** (rule 12) |
+| **D-41** | two `iteratorGlobalFloor` corrections | **Notebook** (rule 12) |
+| **D-47** | per-mode action editor: count + reset shipped, reorder/remove deferred post-launch | joystick |
+
+⛔ And one live rail defect that is not the hub's: `reachable.test.js` reds on master for
+`app/src/lib/context/focusDivergence.js` — filed as **R-29** for the S4 workstream.
+
+---
 
 ## Active feature branches
 
@@ -2202,6 +2346,15 @@ restart is expensive.
   restart drops the Massive OPRA socket, and Massive does not replay: the gap is
   permanent until the T+1 flat file. Physics, not policy.
 
+⛔⛔ **ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the
+next push.** Owner ruling 2026-09-13. Stacked pushes are what caused the 2026-09-12
+502 (two merges four minutes apart, each marking the previous deploy `REMOVED`,
+serving Bad Gateway through the swap) and the 23:00 sampler **SKIP** that followed
+it — an observation row lost to somebody else's deploy, inside a 7-day window whose
+whole point is that a hole stays visible. ⭐ This is a QUEUE, not a window: the cost
+is not the blip, it is that two sessions pushing inside one swap make every
+instrument in flight unreadable, and neither session can tell whose change did it.
+
 `python tools/flow_worker_watch_coverage.py` prints what this branch touches and what
 flow-worker reaches. `railway deployment list --service flow-worker --json` reports
 **`SKIPPED`** for a push that missed the list — it was SKIPPED on **14 of 14** pushes to
@@ -2242,37 +2395,127 @@ not a variable — see *"Rolling back a FRONTEND flag"* below.
 ⛔ **Unattended observation**: `tools/nb_observe.py`, Task Scheduler job
 `UCT-WaveQ1-Observe`, every 2 hours into `docs/notebook/wave-q1-observation-log.md`.
 
-### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
+### 📓 Wave K — the Notebook kill switch is LIVE (but nothing is flipped), 2026-09-12
 
-`app/src/hub/rule12Paths.test.js` (`327fa4c70`) asserts *"this branch must not
-edit the Notebook workstream's files"* and enforces it by diffing
-`merge-base(origin/master, HEAD)..HEAD` for anything under
+`53a181082` on master, `web` SUCCESS, `/api/health` `uptime_seconds` 39 on a fresh
+boot. **Shipped DARK: no `NOTEBOOK_*` variable is set on any service** (read live
+before the push), so every browser reads the four keys at their defaults and behaves
+exactly as it did before K.
+
+- **The switch:** `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web` — read per request in
+  `_access_payload`, no rebuild. Kill switch, so **unset means ON**. The three Q2
+  keys are enablement gates and **unset means OFF**; they are declared `dark` in
+  `docs/feature_flags.json`.
+- **Rollback and reach:** the section *"Rolling back the Notebook wave"* above. The
+  reach sentence is verbatim in five places and `tests/test_k_reach_statement.py`
+  keeps them identical.
+- **Flip packet:** `docs/notebook/kill-switch-flip-packet.md` — ⛔ named for the
+  mechanism, because `wave-k-*.md` in that directory already means the OTHER Wave K
+  (Ask Notebook). Manifest §10 trap 1.
+- ⛔ **K-1 is QUEUED, NOT PARKED:** flipping the constant to `false` so an
+  unreachable payload fails to OFF. Its precondition is a measured config-served
+  rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
+  and **off** as different facts, because a pod predating K serves no keys at all.
+
+### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
+
+`app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit
+the Notebook workstream's files"* and enforces it by diffing
+`merge-base(origin/master, HEAD)..HEAD` plus the working tree for anything under
 `app/src/pages/journal-2-0/`.
 
-⛔ **It has no branch identity check, so it fires on EVERY branch that edits
-those paths — including the Notebook workstream editing its own code.** It
-cannot distinguish the case it was written for from that case's exact opposite
-(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). It is on `master`
-today, which means the Notebook cannot hold a green suite while doing its own
-work.
+⚰️ **It used to fire on EVERY branch that edits those paths — including the
+Notebook workstream editing its own code**, so it could not distinguish the case
+it was written for from that case's exact opposite
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), and the Wave Q1 flip
+gate was waived by the owner on 2026-09-11 rather than modified. A first fix by
+the Notebook workstream named ONE literal branch (`notebook-primary-platform`) —
+right about the mechanism, too narrow by a family, since they also ship from
+`feat/notebook-*`, `hotfix/notebook-*`, `notebook-flip` and `rollback/notebook-*`.
 
-**Waived once, by the owner, 2026-09-11**, for the Wave Q1 flip gate — excluded
-by name with the reason printed in the gate manifest, never modified. ⭐ **The
-fix belongs to the joystick session**: gate the rail on being ON a joystick
-branch (or on the diff containing hub changes), so it only fires where rule 12
-applies. Until then every Notebook gate carries a waiver it should not need.
+⭐ **The fix identifies the change set, not the branch name, because a name is
+typed and a diff is evidence.** `rule12Applies({branch, changed})` scopes out on
+any `notebook`-family branch first, then fires on a `joystick`/`hub`-named branch,
+then — the load-bearing clause — on any change set touching `app/src/hub/`,
+`docs/plans/joystick/`, `tools/hub_` or `scripts/hub`. That last clause is what
+actually carries this programme: **not one** of `fix/d46-d48-closeout`,
+`docs/scope-reconciliation`, `launch/closure` or `docs/d45-ruling` contains the
+word "joystick" or "hub", and every one of them touches those paths.
 
-### ⛔ Rolling back a FRONTEND flag is a deploy, not a variable
+⚠️ **The residual hole is stated in the file rather than hidden:** a joystick
+branch whose name says nothing and whose diff touches ONLY `journal-2-0/` files
+reads as Notebook work and is scoped out. From a diff alone those two cases are
+genuinely indistinguishable; the programme is closed, so that branch is close to
+hypothetical, while the false positive it replaces was firing daily on somebody
+else's gate.
 
-Constants like `OFFLINE_DEFAULT_ON`
+⛔ **Rails, in the same file:** fifteen table cases over REAL branch names read
+off `git branch -r`, a discriminator proving the table is not quietly one answer,
+a check that every owned prefix matches real tracked files (a typo matches
+nothing), and a check that no prefix claims the forbidden paths. Mutation-proved
+four ways — predicate pinned true (10 red), pinned false (6 red), a prefix typo
+(4 red), and the branch-name word boundary dropped, which alone reds
+`fix/github-actions-cache`, the branch that contains "hub" inside "git**hub**".
+End-to-end proof separately: a planted file under `journal-2-0/` still makes the
+real check fire.
+
+### ⛔ Rolling back the Notebook wave — TWO levers since Wave K, and the fast one IS a variable
+
+☠️ ~~*"Rolling back a FRONTEND flag is a deploy, not a variable"*~~ — **struck
+2026-09-12, superseded by Wave K.** Left marked rather than deleted, because a
+reader who remembers only the old heading will revert a commit where one Railway
+variable would have done it, and this file has twice had a rescinded rule
+re-derived from its surviving rationale.
+
+**(1) THE SWITCH — `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web`.** Wave K puts four
+Notebook capability flags on the **auth payload** (`_access_payload` in
+`api/routers/auth.py`, the same helper `HUB_PREVIEW_ENABLED` rides — **there is
+still no feature-flag endpoint in this app, and K deliberately did not add one**).
+The value is read PER REQUEST, so the app needs no rebuild. Polarity is per
+capability: `NOTEBOOK_OFFLINE_DEFAULT_ON` is a KILL switch (unset = ON, nothing
+killed); the other three are enablement gates (unset = OFF, not released).
+⚠️ `railway variables --set` has been measured BOTH ways — verify a NEW BOOT and
+read the value in-process, never from `--kv`.
+
+> **REACH — verbatim, §2b of `docs/notebook/kill-switch-spec.md`, owner ruling
+> 2026-09-12:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
+
+⭐ The client **latches** the answer for the tab's lifetime
+(`lib/offline/notebookFlags.js`), deliberately: §21 requires that a tab which has
+already decided it may write never sees "am I allowed to write" change between a
+PUT going out and its ack coming back. A later poll disagreeing is COUNTED, not
+applied.
+
+**(2) THE DEPLOY — still real, and still the only way to remove CODE.** Constants
+like `OFFLINE_DEFAULT_ON`
 (`app/src/pages/journal-2-0/lib/offline/offlineFlag.js`) are **compiled into the
-bundle**. There is no Railway variable behind them, and setting one named after
-the constant changes nothing while looking like it worked. Rollback = revert the
+bundle**. There is no Railway variable behind THE CONSTANT — ⚠️ and that is a
+narrower claim than it looks now that lever (1) exists: `NOTEBOOK_OFFLINE_DEFAULT_ON`
+governs the same DECISION at runtime, but a variable named after the constant
+(`OFFLINE_DEFAULT_ON=0`) still reaches nothing and still looks like it worked. Rollback = revert the
 commit, push to `master`, wait for the `web` rebuild (**~2–3 min**; one
 measurement, 138 s), and **every member with an open tab keeps the OLD bundle
 until they reload** — there is no service worker and no new-version prompt, by
 charter. ⚰️ For most of Wave Q1 the canary stamped the opposite instruction on
-every evidence row; it was corrected 2026-09-12.
+every evidence row; it was corrected 2026-09-12. **The constant is also the
+fallback lever (1) cannot replace:** a browser talking to a pod that predates K
+receives no `notebook_*` keys at all and reads the constant — which is why
+"absent" and "off" are reported as different facts by the canary's
+`notebook config served` row, and why **K-1** (flipping the constant to `false`
+so an unreachable payload fails to OFF) is queued behind a measured
+config-served rate rather than assumed.
+
+⭐ **"THERE IS NO SERVICE WORKER" — PRECISELY, because the rollback reasoning
+leans on it.** Measured 2026-09-12: `app/src/main.jsx` registers **no caching
+service worker**, and §8 DO-NOT-BUILD is untouched. What DOES exist is
+`/sw.js`, a **self-uninstalling KILL SWITCH** (2026-04-26) that the app fetches
+*only* for a browser that still carries the LEGACY cache-first SW — it deletes
+that SW's caches, unregisters itself and reloads. So the sentence is true for
+every clean browser, and for a browser still carrying the legacy worker it
+becomes true the first time it loads the app. ⛔ The reason to state it this
+exactly rather than leave it absolute: a cache-first SW would serve a STALE
+bundle straight through a revert, which is the one failure the rollback text
+tells a reader not to worry about.
 
 ### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
 
@@ -3055,7 +3298,7 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - `app/src/components/tiles/ThemeTracker.jsx` — dashboard tile
 - `api/services/theme_performance.py` — background compute + live overlay + taxonomy enrichment
 - `api/services/theme_db.py` — SQLite schema + seed from JSON
-- `api/services/realtime_stream.py` — Massive/Polygon WebSocket tick-by-tick streaming
+- `api/services/realtime_stream.py` — **Finnhub** WebSocket tick-by-tick trade streaming (`wss://ws.finnhub.io`, `FINNHUB_API_KEY`). ⚰️ This said *"Massive/Polygon"* — wrong vendor, and the line below said the wrong URL and key with it. Pinned by `tests/test_d3_realtime_topology_rail.py` (D3 CP1).
 - `api/routers/stream.py` — SSE endpoint for real-time price push to browser
 - `themes_taxonomy.json` — source of truth. **Measure it, don't quote it** (`json.load(...)` → `version`, `len(themes)`, `len(sectors)`, `sum(len(t["holdings"]))`). At 2026-08-07 it reads **v4.22.0, 112 themes, 2029 holdings, 12 sectors**. ⚰️ This line said *111 themes, 2049 holdings, v4.16.0* — three of the four numbers had moved across six minor versions while calling itself "source of truth", which is precisely what discourages re-measuring. It matters for anyone reasoning about coverage before a version-gated reseed, or sizing what the Theme Membership Engine's orphan absorption works against.
 - `morning-wire/morning_wire_engine.py` — reads taxonomy, fetches holdings, pushes to Railway
@@ -3077,7 +3320,7 @@ Autonomous AI overlay that absorbs orphan stocks (in no theme) and refines membe
 - **Provenance in UI**: dim dot on engine-sourced Multi-Chart grid cell badges + Theme Tracker holding chips. The engine overlay survives version-gated taxonomy reseeds (separate tables).
 
 ### Real-Time Streaming
-- **WebSocket**: `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`
+- **WebSocket**: `wss://ws.finnhub.io` via `FINNHUB_API_KEY` — ⚰️ this said `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`, which is a DIFFERENT socket owned by `bar_stream.py`. ⛔ **THERE ARE THREE VENDOR SOCKETS AND THEY ARE NOT INTERCHANGEABLE:** `realtime_stream.py` → Finnhub ticks · `bar_stream.py` → `wss://socket.massive.com/stocks` bar aggregates · `api/massive_ws_worker.py` → `wss://socket.massive.com/options`, the OPRA tape on flow-worker. D3 CP1 ratifies that topology and its rail fails by name on a fourth.
 - **Channels**: `T.*` (tick-by-tick trades) + `AM.*` (per-minute aggregates)
 - **SSE endpoint**: `GET /api/stream/prices?tickers=X,Y,Z` — pushes to browser every 100ms
 - **Frontend hook**: `useRealtimePrices` — EventSource client, falls back to REST polling

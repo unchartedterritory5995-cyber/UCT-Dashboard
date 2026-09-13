@@ -5,6 +5,61 @@ verified on a live judge slot, the S7 filing-watch UI is live to members, and
 every follow-up, seam and open item below is SHIPPED, CLOSED, or ASSIGNED to a
 named program. Nothing is pending and nothing is awaiting a word.
 
+## 📨 CROSS-SESSION NOTICES
+
+⛔ **`tools/nb_gate.py` IS AHEAD OF MASTER AND THE DEPLOYED COPY MATCHES THE
+BRANCH, NOT MASTER — 2026-09-13.** Left by the Notebook session.
+
+Four faults in how the Sunday gate READS its observation log were fixed on
+`feat/notebook-kill-switch` (`eddea6a92`); each one alone printed **REVERT**
+against the live log, on the run that decides keep-or-revert. The **deployed**
+copy at `C:\Users\Patrick\uct-q1-observe\nb_gate.py` was synced and
+hash-verified, so tonight's 17:05 run is correct.
+
+⚠️ **What this means for you:** `tests/test_nb_observe.py::test_the_deployed_copy_matches_the_repo_or_the_drift_is_named[nb_gate.py]` compares
+the deployed copy against **your worktree's** `tools/nb_gate.py`. Until the fix
+reaches master, that rail is RED in every worktree that has not merged it — and
+it is red for the right reason: your copy really is not what runs. **Do not
+"fix" it by copying your older file over the deployed one**, which would put the
+four faults back on the one run of the week that matters. Merge master once the
+fix lands there, or merge `feat/notebook-kill-switch`.
+
+⚠️ **AND THREE `web` DEPLOYS LANDED INSIDE FIFTY MINUTES THIS MORNING** —
+13:58, 14:28 and 14:37 UTC all `REMOVED`, 14:44 `SUCCESS` (PR #126). That is the
+stacked-push shape the owner ruled against on 2026-09-13: *one master merge at a
+time, repo-wide, Railway `web` SUCCESS before the next.* It is not a style note —
+stacked pushes caused the 09-12 502 and the 09-12 23:00 sampler SKIP, and a swap
+mid-run makes every instrument in flight unreadable without telling anyone whose
+change did it.
+
+---
+
+⛔ **A SHARED RAIL MOVED UNDER YOU — `tests/test_feature_flag_ledger.py`, 2026-09-13.**
+Left by the Notebook session; the owner is pointing you here.
+
+`test_the_ledger_does_not_describe_gates_that_no_longer_exist` used to subtract
+*"gates needing declaration"*, which conflated two different things: an entry for a
+gate that **no longer exists** (rot) and an entry for a gate that **exists and
+defaults ON** (surplus, and often the most useful entry in the file). It demanded
+the deletion of **`D2_SAMPLE_PERSIST_ENABLED`** — your entry, armed on `web`, whose
+note reads *"it is a KILL SWITCH so unset already defaults ON — set deliberately so
+'on on purpose' stays distinguishable from 'nobody decided'."* **That sentence is
+the ledger's founding purpose**, so the rule was sharpened rather than the entry
+deleted: rot is now an entry for a gate the code does not read **AT ALL**, with a
+control driving both directions so the loosening cannot become "anything goes".
+
+⭐ **Why it surfaced at all, which is the part worth taking away.** The AST flag
+index matched a string CONSTANT at the call site, so
+`ENABLED_ENV = "D2_SAMPLE_PERSIST_ENABLED"` followed by
+`os.environ.get(ENABLED_ENV, "1")` was **invisible to it** — your gate looked
+retired because the index could not see it. That is good code the tool could not
+read, not bad code. `_module_str_consts` now resolves it (mutation-proved).
+
+⚠️ **And the same blindness was hiding a live flag: `J2_OCR_ENABLED=1` on `web`,
+armed, with no ledger entry at all.** Declared 2026-09-13 with its live reading.
+If you have gates read through a constant, they are now visible and the ledger will
+ask for an entry.
+
 ### What is live to members, and since when
 
 | feature | live? | since (ET) | flag | how to turn it off |

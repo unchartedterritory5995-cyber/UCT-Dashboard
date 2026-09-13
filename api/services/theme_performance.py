@@ -878,6 +878,42 @@ def returns_index_from_result(themes: list) -> dict:
     return idx
 
 
+#: D4 CP3 — observability ONLY, never a gate on serving.
+_d4_counters = {"set_hit": 0, "sym_hit": 0, "miss": 0}
+
+
+def _d4_bump(name: str) -> None:
+    """⛔ A counter may never raise into the serving path — the CP2 test that
+    damaged the counter dict caught a bare `+= 1` throwing KeyError straight out
+    of the caller."""
+    try:
+        _d4_counters[name] = _d4_counters.get(name, 0) + 1
+    except Exception:                                   # noqa: BLE001
+        pass
+
+
+def _ts_extra_key(sym: str) -> str:
+    """One entry per entity, shared across every member — §2.4 rule 1."""
+    return f"theme_ts_extra::sym::{_ts_key(sym)}"
+
+
+def d4_counters() -> dict:
+    return dict(_d4_counters)
+
+
+def d4_hit_rate():
+    """⛔ None when nothing has been observed: a rate over zero calls is 0.0,
+    which reads as 'never hits' rather than 'nobody asked'."""
+    total = sum(_d4_counters.values())
+    return None if total == 0 else (
+        (_d4_counters["set_hit"] + _d4_counters["sym_hit"]) / total)
+
+
+def d4_reset_counters() -> None:
+    _d4_counters.clear()
+    _d4_counters.update({"set_hit": 0, "sym_hit": 0, "miss": 0})
+
+
 def live_returns_for_syms(syms: list) -> dict:
     """Mini-compute live+historical returns for OFF-taxonomy syms a user added (not in the base
     result). Reuses the base primitives (daily bars -> _compute_returns_with_refs, then the same
@@ -886,9 +922,15 @@ def live_returns_for_syms(syms: list) -> dict:
     syms = list(dict.fromkeys(syms))
     if not syms:
         return {}
+    # ── D4 CP3 — per-entity addressing (gate fingerprint 40caca541) ──────────
+    # ⚰️ theme_ts_extra:: joined every sym into ONE key around a loop that is
+    # already per-symbol, so two members whose extra-sym lists differ by one
+    # name shared nothing. The set key is KEPT as a fast path (§2.4 rule 2);
+    # what changes is that a miss now falls through to per-symbol rows.
     ck = "theme_ts_extra::" + ",".join(sorted(_ts_key(s) for s in syms))
     hit = cache.get(ck)
     if hit is not None:
+        _d4_bump("set_hit")
         return hit
 
     from api.services.massive import get_agg_bars
@@ -896,10 +938,24 @@ def live_returns_for_syms(syms: list) -> dict:
     to_d = _date.today().isoformat()
     from_d = (_date.today() - _td(days=560)).isoformat()   # ~1y+ of trading days for the 1y ref
 
-    live_map = _fetch_live_1d_map(syms) or {}
-    open_map = _fetch_live_open_map(syms) or {}
+    # TIER 2 — the per-entity cache, which is the real one.
     out: dict = {}
+    missing = []
     for s in syms:
+        row = cache.get(_ts_extra_key(s))
+        if row is not None:
+            out[_ts_key(s)] = row
+            _d4_bump("sym_hit")
+        else:
+            missing.append(s)
+            _d4_bump("miss")
+    if not missing:
+        cache.set(ck, out, ttl=_LIVE_1D_TTL)
+        return out
+
+    live_map = _fetch_live_1d_map(missing) or {}
+    open_map = _fetch_live_open_map(missing) or {}
+    for s in missing:
         try:
             bars = get_agg_bars(s, from_d, to_d)
         except Exception:
@@ -919,8 +975,13 @@ def live_returns_for_syms(syms: list) -> dict:
         ov = open_map.get(s)
         if ov is not None:
             returns[_OPEN_PERIOD] = round(float(ov), 2)
-        out[_ts_key(s)] = {"sym": s, "name": s, "returns": returns,
-                           "ref_prices": refs, "source": "user"}
+        row = {"sym": s, "name": s, "returns": returns,
+               "ref_prices": refs, "source": "user"}
+        out[_ts_key(s)] = row
+        # ⛔ Per-symbol, so a symbol whose bars came back empty cannot pin its
+        # neighbours. Same TTL as the set key: this is a LIVE window, and a
+        # longer per-symbol TTL would serve a stale 1d against a fresh one.
+        cache.set(_ts_extra_key(s), row, ttl=_LIVE_1D_TTL)
     cache.set(ck, out, ttl=_LIVE_1D_TTL)
     return out
 

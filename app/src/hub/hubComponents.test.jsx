@@ -281,8 +281,60 @@ describe('no literal hex colour in any hub component source (tokens only — §2
   }
 })
 
+/**
+ * ⛔ THE ACTIONS BUTTON IS FOUND BY A HOOK, AND NAMED FOR A HUMAN. Two properties, two assertions
+ * — owner-approved follow-up, 2026-09-12 (`71-open-items-proposals.md`).
+ *
+ * ⚰️ `tools/hub_chip_clearance.py`, the real-glass half of G3-15, used to locate this button by
+ * testing every `button[aria-label]` against `/actions$/i`. That is a selector built out of
+ * MEMBER-VISIBLE COPY: reword the label and the rail guarding a shipped 40x28px overlap stops
+ * finding its subject and reports *"no Actions button rect — nothing was measured"*. The person
+ * who rewords the label is not the person who notices.
+ */
+describe('⭐ the Actions button carries a selector hook AND an accessible name', () => {
+  const TESTID = 'hub-actions'
+
+  it('the hook is on the button element itself, not a wrapper', () => {
+    ran()
+    render(<HubActionsButton mode={scanMode.label} actions={scanMode.fan} />)
+    const byHook = document.querySelector(`[data-testid="${TESTID}"]`)
+    expect(byHook, `nothing carries data-testid="${TESTID}"`).not.toBeNull()
+    // A hook on a wrapper measures the wrapper's box, which is not what the sweep is about.
+    expect(byHook.tagName).toBe('BUTTON')
+  })
+
+  it('⛔ the hook and the accessible name are the SAME element, found two different ways', () => {
+    ran()
+    render(<HubActionsButton mode={scanMode.label} actions={scanMode.fan} />)
+    const byHook = document.querySelector(`[data-testid="${TESTID}"]`)
+    const byName = screen.getByRole('button', { name: `${scanMode.label} actions` })
+    // ⛔ This is the whole point of splitting them: if they ever diverge, an instrument using the
+    // hook and a person using a screen reader are talking about different controls.
+    expect(byHook).toBe(byName)
+    // …and the name is still asserted AS a name, with the mode actually in it.
+    expect(byHook.getAttribute('aria-label')).toBe(`${scanMode.label} actions`)
+  })
+
+  it('⛔ the glass sweep selects on that exact literal — the two files cannot drift apart', () => {
+    ran()
+    const tool = fs.readFileSync(
+      path.join(HERE, '..', '..', '..', 'tools', 'hub_chip_clearance.py'), 'utf8')
+    // ⛔ CODE, NEVER PROSE. That file explains the hook in its comments, so a bare search for the
+    // literal would match its own explanation (the repo's most-repeated instrument defect). Match
+    // the call shape instead, which only appears where the selector is actually used.
+    const CALL = `document.querySelector('[data-testid="${TESTID}"]')`
+    expect(tool.includes(CALL),
+      `tools/hub_chip_clearance.py does not select on ${CALL} — the component and the glass sweep `
+      + 'have drifted, and the sweep will silently fall back to matching member-visible copy.')
+      .toBe(true)
+
+    // CONTROL: prove the check could have failed. A literal the tool does NOT contain must not match.
+    expect(tool.includes(`document.querySelector('[data-testid="hub-actions-XX"]')`)).toBe(false)
+  })
+})
+
 describe('rail integrity', () => {
   it('actually executed its cases — a vitest -t regex matching nothing exits 0 and reads as a PASS', () => {
-    expect(executed).toBeGreaterThanOrEqual(27)
+    expect(executed).toBeGreaterThanOrEqual(30)
   })
 })

@@ -20,6 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from api.services.placeholder_stop import is_placeholder_stop
+
 
 @dataclass(frozen=True)
 class InsightCandidate:
@@ -71,7 +73,24 @@ def rule_stop_watch(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
         source = pos.get("source")
         if not sym or side not in ("Long", "Short") or stop is None or entry is None:
             continue
-        if source == "broker" and abs(float(stop) - float(entry)) < 1e-9:
+        # ⚰️ H14 — THIS WAS THE NARROWEST OF THREE TOLERANCES AND IT MISSED THE
+        # ROW THAT ACTUALLY HAPPENED. Retired verbatim:
+        #
+        #     if source == "broker" and abs(float(stop) - float(entry)) < 1e-9:
+        #         continue  # placeholder stop -- nothing real to watch
+        #
+        # ORCL: a later sync refreshed entry_price to 126.0049 and left the
+        # placeholder at 126.005 — a drift of 1.0e-4, five orders of magnitude
+        # past this test. The row then reached the distance test below, and a
+        # stop at-or-through the price emits `stop_hit` at importance 10, which
+        # away-delivers by email and Discord. A stop alert about a stop the
+        # member never set.
+        #
+        # ⛔ THE SOURCE GATE STAYS HERE, ON PURPOSE. `is_placeholder_stop`
+        # answers one numeric question; whether a placeholder should be SKIPPED
+        # is this rule's policy and differs from portfolio_heat's, which
+        # excludes them from its confident number and then SURFACES them.
+        if source == "broker" and is_placeholder_stop(stop, entry):
             continue  # placeholder stop -- nothing real to watch
 
         price = live_prices.get(sym)

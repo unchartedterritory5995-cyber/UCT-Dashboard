@@ -61,17 +61,35 @@ from api.services.alert_taxonomy import event_proximity_compare as _cmp
 from api.services.alert_taxonomy import receipts as _receipts
 
 PROJECTED_PREFIX = "ep:"
-ADMIN_ROLE = "admin"
 
-#: ⛔ CP4 — all members. Default OFF, its own flag, read at call time. Same
-#: shape and same reasoning as price-level's: one variable arms the sweep, a
-#: different one decides WHO it reads, so the owner can change either alone.
-CP4_ALL_MEMBERS_FLAG = "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ALL_MEMBERS"
-
-
-def all_members_enabled() -> bool:
-    raw = (os.environ.get(CP4_ALL_MEMBERS_FLAG) or "").strip().lower()
-    return raw in ("1", "true", "yes", "on")
+# ⚰️ S12'S SECOND MIGRATION DELETED THREE DECLARATIONS HERE. Retired verbatim:
+#
+#     ADMIN_ROLE = "admin"
+#
+#     #: ⛔ CP4 — all members. Default OFF, its own flag, read at call time.
+#     #: Same shape and same reasoning as price-level's: one variable arms the
+#     #: sweep, a different one decides WHO it reads, so the owner can change
+#     #: either alone.
+#     CP4_ALL_MEMBERS_FLAG = "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ALL_MEMBERS"
+#
+#     def all_members_enabled() -> bool:
+#         raw = (os.environ.get(CP4_ALL_MEMBERS_FLAG) or "").strip().lower()
+#         return raw in ("1", "true", "yes", "on")
+#
+# ⭐ THE FLAG'S SENTENCE WAS RIGHT AND ITS INSTRUMENT WAS WRONG. "One variable
+# arms the sweep, a different one decides WHO it reads" is exactly the
+# separation S12 wanted — the mistake was that the WHO was a boolean. Widening
+# is now `rollout.seed_cohort_all_members(S7_DARK)`: rows somebody can list,
+# diff and remove one at a time, instead of a service-wide flip that could only
+# be undone by a redeploy.
+#
+# ⛔ `ADMIN_ROLE` went with it because the first migration removed the role from
+# the QUERY and left it in the CONSTANT — two modules each declaring their own
+# `"admin"` is the second authority S12 exists to remove. `rollout.LEGACY_S7_ROLE`
+# is the one authority, and it is used only to SEED, never to decide.
+#
+# Rail: tests/test_rollout.py::test_the_CP4_flag_and_the_role_constants_are_GONE
+# (matches CODE, so this comment cannot keep it alive).
 
 
 def projected_predicate_id(user_id: str, ticker: str) -> str:

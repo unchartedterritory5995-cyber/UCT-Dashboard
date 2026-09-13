@@ -133,7 +133,7 @@ def channels_up(monkeypatch):
 
     monkeypatch.setattr(wls, "_get_user_email", lambda uid: "u@example.test")
     monkeypatch.setattr(wls, "send_email", _send_email)
-    monkeypatch.setattr(alerts_svc, "_DISCORD_WEBHOOK", "https://discord.test/hook")
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "https://discord.test/hook")
     monkeypatch.setattr(alerts_svc, "cache",
                         _CacheProxy(alerts_svc.cache, sent["down"]))
 
@@ -356,7 +356,7 @@ def test_a_SKIPPED_channel_is_not_a_FAILED_one(armed, channels_up, monkeypatch):
     that does not exist — and, worse, a fire with every channel skipped would
     release its lease and retry forever.
     """
-    monkeypatch.setattr(alerts_svc, "_DISCORD_WEBHOOK", "")
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "")
     monkeypatch.setattr(wls, "_get_user_email", lambda uid: None)
 
     assert ias.record_trigger(armed, last_value=75.0) is True

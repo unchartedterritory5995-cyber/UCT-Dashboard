@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
+import { latchNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 
 export const AuthContext = createContext(null)
 
@@ -26,6 +27,51 @@ export function AuthProvider({ children }) {
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
   const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
+  // ⛔ WAVE K KEEPS NO REACT STATE FOR THE NOTEBOOK'S FLAGS, deliberately.
+  // They are LATCHED for the life of the tab (`notebookFlags.js`), so they can
+  // never change — and a `useState` that can never change is a second copy of a
+  // value that already has one authority, which is how the two halves drift.
+  // The Notebook asks `notebookFlag()`; nothing re-renders on a flag.
+
+  /**
+   * ⛔⛔ ONE MAP, FOUR PATHS. Every server-served flag is applied here and only
+   * here: the initial `/api/auth/me` (and every `refetch` through it), login,
+   * the TOTP second factor, and signup.
+   *
+   * ⚰️ This said "signup, login, refresh and the initial /api/auth/me" — wrong
+   * twice, and a comment naming a mechanism is a claim about a run. `refetch` IS
+   * the /me path, so that list double-counted one seat and omitted the real
+   * fourth, the second factor. An auditor would have hunted a "refresh" seat
+   * that does not exist and left `verifyTotp` unexamined.
+   *
+   * ⚰️ It was four hand-copied blocks of three lines. Adding Wave K's flags
+   * would have made it four blocks of SEVEN — and the failure mode of that
+   * shape is silent: a flag wired into three paths and missed in the fourth
+   * works everywhere except the one entry point nobody tested, which is
+   * typically signup. `K-R10` asserts every flag reaches all four paths.
+   *
+   * ⛔ EACH TEST IS WRITTEN OUT, not generalised to truthiness. `!== false` and
+   * `=== true` are DIFFERENT DEFAULTS on purpose (kill switch vs enablement
+   * gate) and collapsing them to `!!` would silently flip a polarity —
+   * `lesson_chosen_with_nullish_consumed_with_truthiness`.
+   */
+  const SERVER_FLAGS = [
+    ['hub_preview_enabled', (d) => d.hub_preview_enabled !== false, setHubPreviewEnabled],
+    ['research_technical_tab_enabled', (d) => d.research_technical_tab_enabled === true, setResearchTechnicalTabEnabled],
+    ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
+  ]
+
+  const applyServerFlags = (data) => {
+    for (const [, read, set] of SERVER_FLAGS) set(read(data || {}))
+    // ⛔ The Notebook LATCHES its own answer for the life of the tab (K-R9).
+    // This call is what feeds the latch; the latch decides whether to take it.
+    latchNotebookFlags({
+      notebook_offline_default_on: (data || {}).notebook_offline_default_on,
+      notebook_offline_read_on: (data || {}).notebook_offline_read_on,
+      notebook_conflict_ux_on: (data || {}).notebook_conflict_ux_on,
+      notebook_attachments_on: (data || {}).notebook_attachments_on,
+    })
+  }
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
   // (5xx, or the fetch itself threw) must never read as "logged out" — only a
@@ -71,9 +117,7 @@ export function AuthProvider({ children }) {
         setSubscription(data.subscription || null)
         setTrial(data.trial || null)
         setAnnualAvailable(!!(data.billing && data.billing.annual_available))
-        setHubPreviewEnabled(data.hub_preview_enabled !== false)
-        setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
-        setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
+        applyServerFlags(data)
         setAuthTransient(false)
         return { plan: data.plan, role: data.user?.role }
       } else if (res.status >= 500) {
@@ -115,9 +159,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
-    setHubPreviewEnabled(data.hub_preview_enabled !== false)
-    setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
-    setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
+    applyServerFlags(data)
     return data
   }
 
@@ -140,9 +182,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
-    setHubPreviewEnabled(data.hub_preview_enabled !== false)
-    setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
-    setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
+    applyServerFlags(data)
     return data
   }
 
@@ -163,9 +203,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
-    setHubPreviewEnabled(data.hub_preview_enabled !== false)
-    setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
-    setS7FilingWatchEnabled(data.s7_filing_watch_enabled === true)
+    applyServerFlags(data)
     return data
   }
 

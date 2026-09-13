@@ -23,6 +23,7 @@
  * times a second with 50 drawings on screen.
  */
 import { colorLuminance } from './drawingColors'
+import { formatPriceTick } from '../../lib/presentation/presentationPrimitives'
 
 // ─── text measurement cache ─────────────────────────────────────────────────
 //
@@ -72,27 +73,46 @@ export function _clearLabelCache() { _widths = new Map() }
  * otherwise the magnitude decides.
  */
 export function formatPrice(value, { tick = null, maxDecimals = 6 } = {}) {
-  // Number(null) is 0 and Number('') is 0, so a missing value would print a
-  // real number nothing is actually at. Reject the empties BEFORE coercing.
-  if (value === null || value === undefined || value === '') return ''
-  const v = Number(value)
-  if (!Number.isFinite(v)) return ''
-  if (tick && Number.isFinite(tick) && tick > 0) {
-    const dp = Math.min(maxDecimals, Math.max(0, Math.ceil(-Math.log10(tick) - 1e-9)))
-    return v.toFixed(dp)
-  }
-  const a = Math.abs(v)
-  if (a === 0) return '0.00'
-  if (a < 1) return v.toFixed(4)
-  if (a < 1000) return v.toFixed(2)
-  return v.toFixed(2)
+  // ⚰️ S10 CP2 MOVED THIS BODY INTO A NAMED PRIMITIVE. It was, verbatim:
+  //
+  //     // Number(null) is 0 and Number('') is 0, so a missing value would
+  //     // print a real number nothing is actually at. Reject the empties
+  //     // BEFORE coercing.
+  //     if (value === null || value === undefined || value === '') return ''
+  //     const v = Number(value)
+  //     if (!Number.isFinite(v)) return ''
+  //     if (tick && Number.isFinite(tick) && tick > 0) {
+  //       const dp = Math.min(maxDecimals, Math.max(0, Math.ceil(-Math.log10(tick) - 1e-9)))
+  //       return v.toFixed(dp)
+  //     }
+  //     const a = Math.abs(v)
+  //     if (a === 0) return '0.00'
+  //     if (a < 1) return v.toFixed(4)
+  //     if (a < 1000) return v.toFixed(2)
+  //     return v.toFixed(2)
+  //
+  // ⛔ THE NAME AND THE SIGNATURE STAY so the six importers do not move, and
+  // `formatPriceTick` is byte-identical to the body above — proved against a
+  // frozen oracle in `presentationPrimitives.test.js`, run in-process, because
+  // one of these call sites seeds an EDITABLE INPUT and a changed decimal rule
+  // would be a behaviour change wearing a formatter's clothes.
+  return formatPriceTick(value, { tick, maxDecimals })
 }
 
 /**
  * ─── the tick table ─────────────────────────────────────────────────────────
  *
  * The minimum price increment, by price. It lives HERE, beside `formatPrice`, because this is
- * already the one place in the app that knows how a price is rendered — `formatPrice` has taken a
+ * where a CHART decides a price's precision.
+ *
+ * ⚰️ THAT SENTENCE USED TO READ *"because this is already the one place in the app that knows how
+ * a price is rendered"*, and it was FALSE for as long as
+ * `components/provenance/presentationFormat.js` has existed — the
+ * `lesson_a_comment_claiming_agreement_is_not_agreement` shape exactly, recorded as F-S10-1. There
+ * are two right answers: a disclosure must be unambiguous (`$12.50`, em dash when absent) and a
+ * chart label must be tick-aware and must not spend pixels on a currency symbol (`123.46`, empty
+ * string when absent). S10 CP2 gave both a NAME rather than picking one — `formatPriceDisclosure`
+ * and `formatPriceTick` — and this function now forwards to the second. `formatPrice` has taken a
  * `tick` since it was written and nothing ever computed one, so every caller fell through to the
  * magnitude branch and every price input in the app stepped by a cent (deferred D-31).
  *

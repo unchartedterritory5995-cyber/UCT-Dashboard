@@ -122,6 +122,86 @@ export function formatCurrency(value, { decimals = 2, absent = ABSENT } = {}) {
 }
 
 // --------------------------------------------------------------------------
+// 3b. PRICE — TWO NAMED PRIMITIVES, ON PURPOSE  (S10 CP2 / F-S10-1)
+// --------------------------------------------------------------------------
+
+/**
+ * ⛔⛔ THERE ARE TWO CORRECT WAYS TO RENDER A PRICE IN THIS APP AND S10 OWNS
+ * BOTH BY NAME. This is the resolution of F-S10-1, and it is deliberately NOT
+ * a reconciliation.
+ *
+ * The finding: `provenance/presentationFormat.formatPrice` renders `"$12.50"`
+ * with an em dash when absent, and `chart/drawingLabels.formatPrice` renders
+ * `"123.46"` — no symbol, tick-aware decimals, EMPTY STRING when absent — and
+ * `drawingLabels`'s own comment called itself *"already the one place in the
+ * app that knows how a price is rendered"*, a sentence false for as long as the
+ * other one has existed.
+ *
+ * ⭐ THE GATE'S RULING, AND THE REASON IT IS RIGHT: *"the answer is probably
+ * 'both, for different surfaces'. A chart drawing label must be tick-aware and
+ * must not waste pixels on a currency symbol; a provenance disclosure must be
+ * unambiguous. That is a case for S10 owning TWO named primitives with stated
+ * call-site rules, not for collapsing them into one."*
+ *
+ * ⛔ AND THE ABSENT SENTINELS ARE READ BY LAYOUT, NOT BY A HUMAN. An em dash
+ * HOLDS a column; an empty string COLLAPSES it. Picking whichever spelling is
+ * more common and migrating the rest would move a member-visible layout on four
+ * product surfaces to save one function.
+ *
+ * ⛔⛔ NEITHER FUNCTION MAY CHANGE WHAT ANY CALL SITE RENDERS. Both are
+ * byte-identical to the implementation they name, proved against FROZEN ORACLES
+ * in `presentationPrimitives.test.js` — the pre-CP2 bodies, run in-process, not
+ * a stored expected string.
+ */
+
+/**
+ * A price for a DISCLOSURE — provenance, a receipt, a coverage line. Currency
+ * symbol, fixed decimals, an em dash when there is nothing.
+ *
+ * Byte-identical to `presentationFormat.formatPrice`, which is already
+ * `formatCurrency` under S10. Named separately because the CALL-SITE RULE is
+ * the thing worth writing down: a reader of a disclosure must not have to guess
+ * whether a bare number is dollars.
+ */
+export function formatPriceDisclosure(value, { decimals = 2, absent = ABSENT } = {}) {
+  return formatCurrency(value, { decimals, absent })
+}
+
+/**
+ * A price for a CHART SURFACE — a drawing label, a plan sheet, a stop input.
+ * No currency symbol, decimals from the instrument's tick, EMPTY STRING when
+ * there is nothing.
+ *
+ * Byte-identical to `chart/drawingLabels.formatPrice`, including every branch
+ * of its magnitude fallback and its rejection of `''`/`null`/`undefined`
+ * BEFORE coercion (`Number(null)` is 0, and a missing value would otherwise
+ * print a real number nothing is actually at).
+ *
+ * ⚠️ ONE OF ITS CALL SITES IS BEHAVIOUR, NOT PRESENTATION. `StopConfirmSheet`
+ * seeds an EDITABLE INPUT from `formatPrice(roundToTick(stop, tick), {tick})`,
+ * so what this returns is what a member sees, edits and submits. Any future
+ * change to the decimal rule is a member-visible behaviour change and needs its
+ * own line.
+ *
+ * ⛔ `maxDecimals` caps the tick-derived precision at 6. A tick of 1e-9 would
+ * otherwise ask for nine decimals on a price nobody quotes that way.
+ */
+export function formatPriceTick(value, { tick = null, maxDecimals = 6 } = {}) {
+  if (value === null || value === undefined || value === '') return ''
+  const v = Number(value)
+  if (!Number.isFinite(v)) return ''
+  if (tick && Number.isFinite(tick) && tick > 0) {
+    const dp = Math.min(maxDecimals, Math.max(0, Math.ceil(-Math.log10(tick) - 1e-9)))
+    return v.toFixed(dp)
+  }
+  const a = Math.abs(v)
+  if (a === 0) return '0.00'
+  if (a < 1) return v.toFixed(4)
+  if (a < 1000) return v.toFixed(2)
+  return v.toFixed(2)
+}
+
+// --------------------------------------------------------------------------
 // 4. DATE / TIME WITH SESSION
 // --------------------------------------------------------------------------
 

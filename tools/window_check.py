@@ -213,15 +213,55 @@ CANARY_SUSPENDED = False
 SUSPENSION_REASON = ""
 
 # ⛔ ON EVERY ROW, AT THE TOP. A reader who needs it is not reading for pleasure.
-ROLLBACK_LINE = (
-    "⛔ **ROLLBACK — IT IS A DEPLOY, NOT A VARIABLE.** `OFFLINE_DEFAULT_ON` is a "
-    "**compile-time constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`, "
-    "baked into the frontend bundle — there is no Railway env var behind it. To roll "
-    "back: revert the flip commit, push to `master`, and wait for the `web` service to "
-    "rebuild and redeploy (**~2–3 min**; measured once at **138 s** on `b63cf9775`, "
-    "Railway `createdAt` → process start). A member with an open tab keeps the OLD "
-    "bundle until they reload."
+# ⛔⛔ THE REACH STATEMENT — VERBATIM, AND THIS IS ITS SOURCE IN CODE.
+#
+# Owner ruling 2026-09-12. The same sentence appears in K's flip packet, in this
+# tool's rollback text, in `wave-q1-RESUME-HERE.md`, in `CLAUDE.md` and in the
+# Sunday gate. It is not paraphrased, shortened or softened anywhere, and
+# `tests/test_k_reach_statement.py` (K-R8) derives it from the spec and fails on
+# any copy that drifts — the last rollback sentence that drifted took eleven
+# evidence rows to find.
+REACH_LINE = (
+    "a flip reaches a member on their next authenticated request or reload; it does "
+    "not reach a tab mid-session (latched for §21). If the auth payload is "
+    "unreachable, the wave stays ON — the switch kills a decision, not an outage, "
+    "until K-1."
 )
+
+ROLLBACK_LINE = (
+    "⛔ **ROLLBACK — TWO LEVERS, AND THE FAST ONE IS A VARIABLE.** "
+    "☠️ ~~*\"IT IS A DEPLOY, NOT A VARIABLE\"*~~ — **struck 2026-09-12, "
+    "superseded by Wave K**, which puts the kill switch on the auth payload. Left marked "
+    "rather than deleted: a reader who remembers the old sentence would revert a commit "
+    "where one Railway variable would have done it. "
+    "**(1) THE SWITCH:** set `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web`. The value is read "
+    "PER REQUEST in `_access_payload`, so the app needs no rebuild — but `railway "
+    "variables --set` has been measured BOTH ways, so verify a NEW BOOT either way and "
+    "read the value in-process, never from `--kv`. "
+    "**(2) THE DEPLOY, still real:** `OFFLINE_DEFAULT_ON` remains a **compile-time "
+    "constant** in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js` and is what a "
+    "browser falls back to when the payload carries no Notebook keys at all (an older pod, "
+    "or K not yet live). Removing the CODE is a revert + push to `master` + a `web` rebuild "
+    "(**~2–3 min**; measured once at **138 s** on `b63cf9775`, Railway `createdAt` → "
+    "process start). A member with an open tab keeps the OLD bundle until they reload. "
+    "**REACH — verbatim, §2b of the kill-switch spec:** " + REACH_LINE
+)
+
+
+def render_config_served(nb: dict) -> str:
+    """What the auth payload served this browser. PURE, so `--self-check` drives it.
+
+    ⛔ EMPTY IS A REAL ANSWER AND IT IS NOT "off". A pod that predates Wave K
+    returns no `notebook_*` keys at all, and the browser then falls back to the
+    compile-time constant — which is ON. "The switch said nothing" and "the
+    switch said off" are different facts; collapsing them is how K-1 would get
+    flipped in front of a fleet that never received a flag.
+    """
+    if not nb:
+        return ("⛔ **no `notebook_*` keys on `/api/auth/me`** — this pod predates Wave K, "
+                "so this browser is on the compile-time constant. K-1 must not flip while "
+                "this row reads this way.")
+    return " · ".join(f"`{k}`=**{str(nb[k]).lower()}**" for k in sorted(nb))
 
 
 def new_since(titles, before):
@@ -789,7 +829,12 @@ def bring_to_front():
 AUTH_JS = """async () => {
   const r = await fetch('/api/auth/me', {credentials:'include'});
   let b = null; try { b = await r.json() } catch {}
-  return {status: r.status, id: b?.user?.id ?? b?.id ?? null};
+  // WAVE K: the Notebook capability flags ride THIS payload. The keys are
+  // collected BY PREFIX, never from a list typed here, so a fifth capability is
+  // measured the day it lands instead of the day somebody remembers to add it.
+  const nb = {};
+  for (const k of Object.keys(b || {})) if (k.startsWith('notebook_')) nb[k] = b[k];
+  return {status: r.status, id: b?.user?.id ?? b?.id ?? null, nb};
 }"""
 
 
@@ -1246,6 +1291,17 @@ def run_check(label: str, with_canary: bool, number: int = 0) -> Check:
                         error=f"/api/auth/me returned {me.get('status')}{healed}")
                 return chk
             chk.add("signed in", True, f"`/api/auth/me` **200**, account `{me.get('id')}`{healed}")
+
+            # ⛔⛔ WAVE K — CONFIG-SERVED, MEASURED BY IDENTITY, NOT ASSUMED.
+            # K-1's precondition is "config-served rate 100% over the K window,
+            # measured by identity, rig excluded". Something has to MEASURE it,
+            # and the only honest place is a signed-in read of the payload a
+            # member actually receives. A pod that predates K returns NO
+            # notebook keys and the browser falls back to the compile-time
+            # constant — correct behaviour, and exactly the state K-1 must not
+            # be flipped in front of.
+            nb = me.get("nb") or {}
+            chk.add("notebook config served", True, render_config_served(nb))
 
             puts = []
             page.on("request", lambda r: puts.append({
@@ -3073,6 +3129,24 @@ def self_check() -> int:
                   and any("a run that GAINS a note" in n for n in _names)))
     cases.append(("CONTROL: that sweep can see a name that is NOT there",
                   not any("a rail nobody wrote" in n for n in _names)))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔ WAVE K — WHAT THE PAYLOAD SERVED, AND THE DIFFERENCE BETWEEN "off" AND
+    # "nothing". K-1's precondition is a config-served RATE, so the row that
+    # measures it has to be able to report the absent case as absent.
+    # ══════════════════════════════════════════════════════════════════════════
+    _served = render_config_served({"notebook_offline_default_on": True,
+                                    "notebook_attachments_on": False})
+    cases.append(("⛔ DRIVEN: served flags are named WITH their values",
+                  "`notebook_offline_default_on`=**true**" in _served
+                  and "`notebook_attachments_on`=**false**" in _served))
+    cases.append(("⛔ DRIVEN: a pod with NO notebook keys reads as ABSENT, never as off",
+                  "no `notebook_*` keys" in render_config_served({})
+                  and "false" not in render_config_served({})))
+    cases.append(("…and it says K-1 must not flip on that reading",
+                  "K-1 must not flip" in render_config_served({})))
+    cases.append(("CONTROL: the renderer names only the keys it was given",
+                  "notebook_conflict_ux_on" not in _served))
 
     bad_ct = 0
     for name, ok in cases:

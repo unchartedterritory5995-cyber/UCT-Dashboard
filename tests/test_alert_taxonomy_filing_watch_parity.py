@@ -230,7 +230,7 @@ def real_delivery(monkeypatch):
     """The REAL delivery path with only the outbound transports stubbed, so the
     ephemeral in-app row filing watch actually renders really gets written."""
     monkeypatch.setattr(_was, "_get_user_email", lambda user_id: None)
-    monkeypatch.setattr(_alerts, "_DISCORD_WEBHOOK", "")
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "")
 
 
 def _arm_watch(sec: _SecStub, *, form_type: str | None = None) -> str:
@@ -583,10 +583,31 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
          fixture event, and re-run the mutation proof.
     """
     # ⛔ UPDATED BY NAMING, NEVER BY DELETING THE ASSERTION -- the docstring's own
-    # instruction. Flipped twice:
-    #   2026-09-12  `price-level`      GATE-S7-PRICE-LEVEL CP1
-    #   2026-09-12  `event-proximity`  GATE-S7-EVENT-PROXIMITY CP1
-    #   2026-09-12  `catalyst-match`   GATE-S7-CATALYST-MATCH CP1
+    # instruction. The LIST is the authority; there is deliberately no count
+    # beside it.
+    #
+    # ⚰️ This line said "Flipped twice" next to a list of three, and then
+    # "Flipped four times" next to a list of four that was about to become five.
+    # A hand-typed count sitting beside the list it counts is the drift this
+    # repo keeps re-committing — inside the very control that exists to catch
+    # drift. The count is gone; read the list.
+    #
+    #   2026-09-12  `price-level`             GATE-S7-PRICE-LEVEL CP1
+    #   2026-09-12  `event-proximity`         GATE-S7-EVENT-PROXIMITY CP1
+    #   2026-09-12  `catalyst-match`          GATE-S7-CATALYST-MATCH CP1
+    #   2026-09-12  `position-risk`           CP1-CP2  merged 2b0547949
+    #   2026-09-12  `scan-membership-change`  CP1-CP2  merged 0c6caf25b
+    #   2026-09-12  `regime-change`           CP1-CP2  merged 0392c78bf
+    #   2026-09-12  `indicator-condition`     CP1-CP2  merged ccbab9bcd
+    #
+    # ⚰️ THE LAST FOUR ROWS WERE DATED 2026-09-13 AND EVERY COMMIT THEY NAME IS
+    # DATED 2026-09-12 CDT. They took their date from the label the working
+    # session was running under ("Day 2 — Sunday") instead of from the commit.
+    # ⛔ OWNER RULING 2026-09-12: **a date in any program artifact is the git
+    # commit date in America/Chicago, always. Session framing never sets a date.**
+    # The merge SHA is carried on each Day-2 row now so the date is checkable from
+    # the row itself — `git log -1 --date=format-local:%Y-%m-%d <sha>` — rather
+    # than being a number someone has to trust.
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.
@@ -604,6 +625,60 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # ⛔ Step 2 becomes a PRECONDITION the moment CP3 projects real cohort rows,
     # not a follow-up -- same rule as price-level's below.
     #
+    # `position-risk` CP1-CP2 is the same case as `catalyst-match` and the
+    # reason is worth stating rather than inheriting: it HAS a dark evaluator
+    # and it RECORDS NO FIRE. `position_risk.py` imports neither `receipts` nor
+    # `delivery`; `position_risk_compare.py` owns exactly two tables of its own
+    # (`position_risk_comparison_spans`, `position_risk_heartbeat`) and calls
+    # `record_fire` nowhere --
+    # `test_the_harness_records_no_fire_and_writes_no_member_visible_row` reads
+    # both facts off the source, and
+    # `test_the_harness_is_the_only_caller_of_would_fire` keeps the evaluator
+    # reachable from the harness and from nothing else. So there is no fire to
+    # reconstruct and no feed row to drop, and step 3 has no fire to run
+    # against.
+    # ⛔ AND FOR THIS TYPE STEP 2 IS THE LOUDEST OF THE FOUR AT CP3. Its legacy
+    # already away-delivers: `stop_hit` scores 10, clears
+    # `engine._DELIVER_IMPORTANCE_FLOOR = 8`, and emails + Discords the member.
+    # A projected fire that reached the taxonomy store with no reconstruction
+    # branch would be silently absent from the feed of a member who is used to
+    # being TOLD when a stop is hit. Precondition of the CP3 PR, never a
+    # follow-up.
+    #
+    # `scan-membership-change` CP1-CP2 is the same case as `catalyst-match`, and
+    # its own rails say so from the source: it imports neither `receipts` nor
+    # `delivery`, it reads NO screener table (it is handed the two sessions and
+    # their hit sets), every predicate it sees is armed by its own comparison
+    # harness, and `test_the_harness_is_the_only_caller_of_would_fire` keeps that
+    # true. It records no fire, so there is nothing to reconstruct and no feed
+    # row to drop. ⛔ Step 2 is a PRECONDITION at CP3, when the projection first
+    # writes a real fire against `screen_alert_subs`.
+    # ⚠️ This one is an ABSORPTION of a path that is COMPLETE, WIRED AND LIVE
+    # (`screen_alerts.run_nightly`, job `screener_screen_alerts`, 05:10 ET, both
+    # gates open on `web` as of a live read 2026-09-12). So its step 3 has a
+    # second half the other three did not: at the FLIP, the legacy switch-off --
+    # removing that job and the three `require_paid` router endpoints -- is
+    # MEMBER-VISIBLE and needs a member-impact paragraph in the same PR.
+    #
+    # `regime-change` CP1-CP2 is catalyst-match's case again -- an evaluator that
+    # NOTHING wires, importing neither `receipts` nor `delivery`, every predicate
+    # armed by its own harness, with
+    # `test_the_harness_is_the_only_caller_of_would_fire` keeping that true. No
+    # fire, so nothing to reconstruct and no feed row to drop.
+    # ⛔⛔ BUT ITS STEP 2 HAS A WRINKLE THE OTHER THREE DO NOT, AND IT IS RECORDED
+    # HERE RATHER THAN DISCOVERED AT CP3: `_s7_durable_alerts` reconstructs an
+    # alert shape from a fire, and every existing shape is TICKER-BEARING. A
+    # regime flip is market-wide and carries `entity_ref = None` -- pinned as a
+    # FIXED VALUE in `regime_change.PARAMS_SCHEMA`, because it is the same field
+    # `awareness/engine.py:241` uses to decide away-delivery. So this type's
+    # reconstruction branch will be the first symbol-less one, and writing it is
+    # a PRECONDITION of CP3, not a follow-up.
+    # ⚠️ ALSO WORTH SEEING FROM HERE: `api/services/alerts.py` -- the module that
+    # OWNS this bridge -- already ships a legacy alert type string
+    # `regime_change`, one character from this trigger type's `regime-change`
+    # (F-S7-RC-4). They are different events from different authorities. Whoever
+    # writes the branch must not conflate them.
+    #
     # ⛔ `price-level` IS DIFFERENT NOW AND THE DISTINCTION MATTERS. It has an
     # evaluator (CP2) that is WIRED and ARMED (CP3/CP3b), writing real
     # alert_fires rows for the admin cohort. It still owes no reconstruction
@@ -614,11 +689,30 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # no reconstruction branch is silently absent from the member's feed, which
     # is the hazard the sibling test below demonstrates.
     #
+    # `indicator-condition` CP1-CP2 is the catalyst-match case again, for a
+    # STRICTER reason still, and the reason is worth reading before anyone marks
+    # steps 2 and 3 as owed. It has an evaluator (`would_fire`) and a
+    # forward-only harness, NOTHING WIRES EITHER (an AST sweep of `api/**` in
+    # `test_the_harness_is_the_only_caller_of_the_type_module` asserts that the
+    # harness is the ONLY module whose code names the type module), it imports
+    # neither `receipts` nor `delivery`, and it records no fire at all. On top of
+    # that its CP1 cadence gate REFUSES every predicate the legacy lane can
+    # express today -- the legacy lane's 31 addresses and D2's 142 book metrics
+    # have an EMPTY intersection (F-S7-IC-1, measured in
+    # `test_the_legacy_alert_lane_and_the_book_share_NO_metric_names`). So there
+    # is no fire to reconstruct and no feed row to drop, and step 3 has no fire
+    # to run against.
+    # ⛔ Step 2 becomes a PRECONDITION at CP3, when a projection first writes a
+    # real member's fire -- not a follow-up.
+    #
     # ⚰️ This block cited `test_the_registration_is_not_wired_yet`. That test was
     # INVERTED when CP3 wired register() -- it is now
     # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
     # rather than left pointing at a name that no longer exists.
-    _EXPECTED = {"document-arrival", "price-level", "event-proximity", "catalyst-match"}
+    _EXPECTED = {"document-arrival", "price-level", "event-proximity",
+                 "catalyst-match", "position-risk",
+                 "scan-membership-change", "regime-change",
+                 "indicator-condition"}
 
     files, declared = _declared_trigger_types()
 

@@ -157,3 +157,7 @@ docs/notebook/gate-runs/*.log
 # nb_gate.py regenerates this beside itself on every run; the LOG is the record
 tools/wave-q1-gate-verdict.md
 docs/plans/joystick/gate-runs/INVALID-*.md
+
+# RTH scheduled-run logs - per-run, regenerated, and potentially large. The RESULTS
+# live in docs/runbooks/monday-rth-results/ and are committed; the transcript does not.
+/logs/

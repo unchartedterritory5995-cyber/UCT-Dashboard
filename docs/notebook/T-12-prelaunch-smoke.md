@@ -40,9 +40,25 @@ not do it "just to see the rest", do not come back and mark the earlier steps PA
    its own anti-gaming discipline exists precisely to stop a power user's session
    being read as adoption. Tag everything this run creates (step 0) so it can be
    excluded, and say so when you record the result.
-4. ⛔ **Do not flip `OFFLINE_DEFAULT_ON`.** It is false for every member, the flip
-   is blocked behind an open defect (manifest Q1-11/Q1-18), and this gate does not
-   touch it. You are smoking the ONLINE save path.
+4. ⛔ **Do not flip `OFFLINE_DEFAULT_ON`, and do not opt this browser out.**
+   The prohibition stands; **its reason has changed and the old one is struck.**
+
+   ⚰️ ~~*"It is false for every member, the flip is blocked behind an open
+   defect (manifest Q1-11/Q1-18) … you are smoking the ONLINE save path."*~~ —
+   **false since 2026-09-12 00:45 ET.** `OFFLINE_DEFAULT_ON = true` on master
+   (`739218e48`), Q1-11 is fixed, and **Wave Q1 is the default path for every
+   member.** Corrected 2026-09-13; verified by reading the constant on
+   `origin/master`, not from memory.
+
+   ⭐ **So this run is NOT a smoke of a bare online save.** Every save you make
+   goes through the durable per-account working copy and the ordered outbox,
+   because that is what a member gets. **That is the point** — smoking a path
+   no member is on would prove nothing about the product being launched.
+
+   ⛔ **Which is exactly why the flag must not move mid-run**, in either
+   direction: flipping it changes the product underneath the measurement, and a
+   run in which the product changed is not a measurement of the product
+   (prohibition 5, same reasoning).
 5. ⛔ **Do not fix anything mid-run.** A defect found here is recorded and the run
    continues to the next *independent* step, or stops if the step was a
    precondition. A run in which you repaired the product is not a measurement of
@@ -140,9 +156,13 @@ typing and in the 5 seconds after.
 - **FAIL** — the sentence is missing, truncated, or altered after reload; or
   `Save failed` / `Reconnecting…` appeared and did not clear before you reloaded.
   **STOP.** ⛔ **This is the one step whose failure ends the run unconditionally.**
-  Everything else in the product is downstream of the save path, and the wave
-  in flight (Q1) is a live defect in exactly this area. Record the exact status
-  text you saw.
+  Everything else in the product is downstream of the save path, and Wave Q1 —
+  **live for every member since 2026-09-12, not "in flight"** — sits directly
+  under it. Record the exact status text you saw.
+  ⚠️ **If this step fails, say whether the words came back after a SECOND
+  reload.** The durable copy and the outbox mean a save can land late rather
+  than not at all, and "gone" and "late" are different findings with different
+  fixes. One reload is the gate; the second reload is the diagnosis.
 
 ⭐ **Why the reload and not the status chip:** a status chip is the product's
 claim about the save. The reload asks the server. Manifest §1 and the Q1 rows

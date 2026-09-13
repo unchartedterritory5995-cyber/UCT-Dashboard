@@ -14,6 +14,9 @@
  * ⛔ Q5 — off-route, the mode registers nothing. No guard in the product; a rail instead.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { render, screen, renderHook, act, cleanup } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
@@ -99,6 +102,30 @@ describe('the DOM reading — cards in render order', () => {
  * the test author knows what tap should do; the tap the product ships opened note ONE for weeks
  * behind exactly that shape (R-05's lesson, in this file).
  */
+
+/**
+ * The spec of record, DERIVED — the highest-numbered `00-master-spec-v*.md` on disk.
+ *
+ * ⛔ Not a typed filename. This repo has shipped a plan citing a document that did not say the
+ * thing, and a rail pinned to `v1.6` would quietly stop reading the spec the day `v1.7` lands —
+ * passing for ever against a file nobody edits any more.
+ */
+function specOfRecord() {
+  const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..',
+    'docs', 'plans', 'joystick')
+  const versioned = readdirSync(dir)
+    .filter((f) => /^00-master-spec-v[\d.]+\.md$/.test(f))
+    .sort((a, b) => {
+      const n = (s) => s.match(/v([\d.]+)\./)[1].split('.').map(Number)
+      const [x, y] = [n(a), n(b)]
+      for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
+        if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0)
+      }
+      return 0
+    })
+  if (!versioned.length) throw new Error(`no 00-master-spec-v*.md under ${dir} — a missing spec is a failed lookup, not a passed rail`)
+  return path.join(dir, versioned[versioned.length - 1])
+}
 function harness(initial) {
   const seen = { search: null, pathname: null, config: null }
   function Probe() {
@@ -220,6 +247,69 @@ describe('B11 — the cursor is painted, and tap advances it', () => {
     expect(new URLSearchParams(seen.search).get('note')).toBe('c')
   })
 
+  it('⛔ D-43 — double-tap REVERSES and opens the PREVIOUS note, which spec §C3 has always promised', () => {
+    // ⚰️ THIS ROW DID NOT SHIP. `notebookSection.js` declared `onTap`, `onScrub` and `readout` and
+    // no `onDoubleTap` at all, so Reverse did nothing on the note grid — while every other
+    // cursor-bearing mode had it. No D-number tracked it for months, and the reason is worth
+    // keeping: the instrument that lists bindings (`tools/hub_surface_matrix.mjs`) matched the
+    // COLON form only, so it reported `wire` and `home` as declaring NOTHING (D-42). "Notebook is
+    // missing one of four" cannot stand out from nine modes reported as missing everything.
+    //
+    // ⛔ THE PROMISE IS READ FROM THE SPEC, never restated here. A citation that cannot be quoted
+    // is struck; this one quotes itself on every run and goes red the day the spec drops the
+    // promise — which forces a decision instead of letting the gap reopen in silence.
+    const spec = readFileSync(specOfRecord(), 'utf8')
+    expect(spec.length, 'the spec of record read empty — an empty string satisfies almost any '
+      + 'assertion placed after it (rule 14)').toBeGreaterThan(10000)
+    expect(spec, 'spec §C3 no longer promises Reverse for the notebook. If that is deliberate, '
+      + 'delete this rail AND the binding in the same commit — do not soften one of them.')
+      .toContain('Primary: next note. Reverse: previous note.')
+
+    grid(['a', 'b', 'c'])
+    const seen = harness(`${NOTEBOOK_ROUTE}?note=a`)
+    expect(typeof seen.config?.onDoubleTap, 'the controller registers no onDoubleTap — this is '
+      + 'D-43 exactly').toBe('function')
+
+    // ⛔ WALK FORWARD FIRST. Reverse from the first note has nowhere to go, so a rail that opened
+    // at index 0 and only checked the clamp would pass against a binding that does nothing at all.
+    act(() => { seen.config.onTap() })
+    act(() => { seen.config.onTap() })
+    expect(seen.api.index).toBe(2)
+    expect(new URLSearchParams(seen.search).get('note')).toBe('c')
+
+    act(() => { seen.config.onDoubleTap() })
+    expect(seen.api.index, 'double-tap did not step the cursor back').toBe(1)
+    expect(new URLSearchParams(seen.search).get('note'), 'Reverse opened the wrong note — it must '
+      + 'open the one the cursor LANDED on, exactly as tap does').toBe('b')
+
+    act(() => { seen.config.onDoubleTap() })
+    expect(seen.api.index).toBe(0)
+    expect(new URLSearchParams(seen.search).get('note')).toBe('a')
+
+    // Clamped, never wrapped — the mirror of tap's third press holding on the last note.
+    act(() => { seen.config.onDoubleTap() })
+    expect(seen.api.index, 'Reverse wrapped onto the last note instead of holding at the first').toBe(0)
+    expect(new URLSearchParams(seen.search).get('note')).toBe('a')
+  })
+
+  it('⛔ the REGISTERED config satisfies `contracts.js`, Reverse included', async () => {
+    const { validateSectionConfig } = await import('../contracts')
+    // ⛔ NON-VACUITY FIRST. `validateSectionConfig` reports through `report()`, which only THROWS
+    // in dev — so `.not.toThrow()` on the real config proves nothing until this environment is
+    // shown to be one where it CAN throw. This is the contract's own named violation.
+    expect(() => validateSectionConfig({ id: 'notebook', onScrub: () => {} }, 'control'),
+      'the contract cannot fail here, so the assertion below measures nothing').toThrow(/readout/)
+
+    grid(['a', 'b'])
+    const seen = harness(NOTEBOOK_ROUTE)
+    expect(() => validateSectionConfig(seen.config, 'notebook registered config')).not.toThrow()
+    // Asserted against the contract's OWN key list, never a copy of it here: R-05 is the case
+    // where a test restated a contract, agreed with itself, and disagreed with the product.
+    for (const k of ['onTap', 'onDoubleTap', 'onScrub', 'readout']) {
+      expect(typeof seen.config[k], `the notebook config lost ${k}`).toBe('function')
+    }
+  })
+
   it('an empty grid paints nothing and does not throw', () => {
     document.body.innerHTML = '<div></div>'
     const seen = harness(NOTEBOOK_ROUTE)
@@ -258,3 +348,26 @@ describe('⛔ the list identity is the FILTER, not the selection', () => {
     expect(other.api.index).toBe(0)
   })
 })
+
+// ── MUTATION PROOF FOR D-43, PERFORMED 2026-09-13 ──────────────────────────────────────────────
+// ⛔ Not a claim — a run, and these are the numbers it printed. The `onDoubleTap` arm was deleted
+// from `notebookSection.js` IN PLACE and this file re-run:
+//
+//     Tests  2 failed | 17 passed (19)
+//     × ⛔ D-43 — double-tap REVERSES and opens the PREVIOUS note …
+//     × ⛔ the REGISTERED config satisfies `contracts.js`, Reverse included
+//     AssertionError: the controller registers no onDoubleTap — this is D-43 exactly:
+//                     expected 'undefined' to be 'function'
+//
+// ⭐ SEVENTEEN STAYED GREEN, and that is the half that matters: the tap rail, the cursor paint,
+// the identity cases and the searchNavigation contract all still passed, so the red came from the
+// DELETED BINDING and not from the harness falling over. A mutation run where everything goes red
+// proves only that something broke.
+//
+// The mutation was reverted by writing the original bytes back, never `git checkout`
+// (`feedback_mutation_check_never_git_checkout`), and the restored file was byte-compared.
+//
+// ⚠️ AND THE FIRST ATTEMPT LEFT THE MUTATION ON DISK. The harness printed its captured output to a
+// cp1252 console, died on a ⛔ in the test name, and never reached the restore — the tree was left
+// with the binding removed and only a `git diff` line-count to notice it by. Capture to a FILE and
+// restore in a `finally`, or a mutation check becomes an unreviewed deletion.

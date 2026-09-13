@@ -30,6 +30,7 @@ import { drainOutbox } from './outboxDrain'
 import { settleLandedSave, recordLandedRevision } from './useDurableNote'
 import { markerFor, markerKeyFor, landedKeyFor, withLanded, IN_FLIGHT_TTL_MS } from './inFlight'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
+import { nodeKeyOf } from './serverChange'
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 const text = (bodyJson) => JSON.stringify(bodyJson || {})
@@ -47,7 +48,33 @@ const T0 = '2026-09-10T13:00:00.000000+00:00'
 // ⭐ hero is driven with canSeeLocalState:false because HeroImagePicker has NO
 // EDITOR MOUNTED — it records the landed revision and settles nothing, which is
 // exactly what `settleNoteWrite` does and all that is needed to stop the fork.
-const DOORS = ['folder', 'ticker', 'tags', 'hero']
+// ⛔⛔ SEVEN FAMILIES, NOT FOUR — Q1-F5. The four above are METADATA doors: they
+// move `updatedAt` and carry no body. The three below are APPEND doors, and they
+// are different in kind — the server adds a NODE to the body. A matrix that
+// models them as metadata doors would be seven copies of one case wearing seven
+// names (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+//
+// ⭐ AND THE PROPERTY HAS TO WIDEN WITH THEM. "The member's offline sentence is
+// in the server body" is satisfied by a merge that keeps the sentence and
+// DISCARDS the appended node — losing the widget the member just inserted, on a
+// rail that stays green. For an append family the node must survive too.
+const METADATA_DOORS = ['folder', 'ticker', 'tags', 'hero']
+
+/** The three append families, and the node each one makes the server add.
+ *  ⛔ The attrs are the REAL identity fields — `nodeKeyOf` reads exactly these,
+ *  so a merge that re-applies the node has to match on the same key the product
+ *  matches on, not on a shape invented for the test. */
+const APPEND_DOORS = {
+  append_widget_embed: {
+    type: 'widgetEmbed',
+    attrs: { widgetId: 'w-1', capturedAt: '2026-09-13T00:00:00Z', searchText: 'NVDA chart' },
+  },
+  append_financial_fact: { type: 'financialFact', attrs: { factId: 'f-1' } },
+  append_document_excerpt: { type: 'documentExcerpt', attrs: { excerptId: 'x-1' } },
+}
+
+const DOORS = [...METADATA_DOORS, ...Object.keys(APPEND_DOORS)]
+const appendedNode = (door) => APPEND_DOORS[door] || null
 
 let db
 const connect = async () => db
@@ -71,8 +98,17 @@ function makeServer(startBody) {
   return {
     state,
     notes,
-    /** the door: a metadata PUT that moves the revision and carries NO body */
+    /** The door. A METADATA door moves the revision and carries no body; an
+     *  APPEND door adds the server's own node to the body and then moves it.
+     *  ⛔ Both stamp, because both are writes — the difference is the body. */
     door(which) {
+      const node = appendedNode(which)
+      if (node) {
+        state.body = {
+          ...state.body,
+          content: [...(state.body?.content || []), { ...node, attrs: { ...node.attrs } }],
+        }
+      }
       stamp()
       state.lastDoor = which
       return { ...state }
@@ -87,25 +123,59 @@ function makeServer(startBody) {
       return { ...state }
     }),
     fork: vi.fn(async () => { notes.count += 1; return { ...state } }),
-    /** guard 2's question, answered honestly against this server */
+    /** guard 2's question, answered honestly against this server.
+     *
+     * ⛔⛔ IT RETURNS THE DOCUMENT, because the real one does
+     * (`useOutboxDrain.js`: *"THE DOCUMENT COMES BACK WITH THE VERDICT … the
+     * drain's classifier cannot classify a document it was never handed"*).
+     *
+     * ⚰️ THIS FIXTURE OMITTED `serverNote` AND MANUFACTURED A FINDING, 2026-09-13.
+     * Without it, `mine?.serverNote` is undefined, the whole classification
+     * branch is skipped, and every append-family case fell through to the
+     * ring-based rebase and dropped the server's node. All eighteen went red and
+     * read exactly like a product defect in the append-only merge. ⭐ It is the
+     * third time this wave that the instrument, not the product, was wrong — and
+     * the tell was that ALL eighteen failed, including orderings where the
+     * classifier is the only code that could possibly run.
+     */
     serverCopyIsOurs: async (entry, { landedRevisions } = {}) => {
+      const serverNote = { ...state, bodyJson: state.body }
       const identical = text(state.body) === text(entry.patch?.bodyJson)
-      if (identical) return { ours: true, identical: true, serverUpdatedAt: state.updatedAt, why: 'byte-identical' }
+      if (identical) return { ours: true, identical: true, serverUpdatedAt: state.updatedAt, serverNote, why: 'byte-identical' }
       if (landedRevisions && landedRevisions.has(state.updatedAt)) {
-        return { ours: true, identical: false, serverUpdatedAt: state.updatedAt, why: 'ours, body differs' }
+        return { ours: true, identical: false, serverUpdatedAt: state.updatedAt, serverNote, why: 'ours, body differs' }
       }
-      return { ours: false, identical: false, serverUpdatedAt: state.updatedAt, why: 'not ours' }
+      return { ours: false, identical: false, serverUpdatedAt: state.updatedAt, serverNote, why: 'not ours' }
     },
   }
 }
 
 /** The member typed online (it landed), went offline, typed more (it queued). */
-async function offlineWorkQueued(server) {
+async function offlineWorkQueued(server, { withBase = true } = {}) {
   server.state.body = doc(ONLINE)
   const base = server.state.updatedAt
   await putNoteWithIntent(db, {
     noteId: 'n1', title: 'note', subtitle: '', bodyJson: doc(BOTH),
     baseUpdatedAt: base, generation: 1, sessionId: 's1', localSavedAt: 5, dirty: 1,
+    // ⛔⛔ A DIRTY RECORD CARRIES THE LAST KNOWN SERVER COPY, and this fixture
+    // did not — a second way it was unfaithful, found 2026-09-13. The product
+    // sets it at the moment a record goes dirty:
+    //   useDurableNote.js:385 — `record.serverBase = record.dirty
+    //       ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(state?.serverBase)) : null`
+    // Without it `lastKnownServerCopy` returns null, `classifyServerChange`
+    // answers BODY_REWRITE for everything ("missing evidence is never a licence
+    // to merge"), and no classification-based outcome can be observed AT ALL.
+    // ⭐ THE CONTROL THAT MAKES THIS A CORRECTION AND NOT A PASS: with the base
+    // present and the drain UNCHANGED, all eighteen append rows stayed RED —
+    // measured before the fix. The base alone changes nothing; the decision
+    // ORDER is the defect.
+    // ⛔ DERIVED FROM THE SERVER, NEVER TYPED. A hand-written base drifted from
+    // what the fake server actually returns — it carried `title: 'note'` where
+    // the server carries none — and `classifyServerChange` compares titles
+    // FIRST, so every metadata door read as BODY_REWRITE and four green rows
+    // went red. The base is the server's own copy at this instant, by
+    // construction, so the two cannot disagree.
+    serverBase: withBase ? { ...server.state, bodyJson: server.state.body, updatedAt: base } : null,
   }, {
     mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
     patch: { title: 'note', subtitle: '', bodyJson: doc(BOTH) },
@@ -115,10 +185,22 @@ async function offlineWorkQueued(server) {
 }
 
 /** ⭐ THE ONLY ASSERTION. Everything above is arrangement. */
-async function assertWordsSurvived(server, label) {
+async function assertWordsSurvived(server, label, door) {
   expect(text(server.state.body), `${label}: the offline sentence is NOT in the server body`).toContain(OFFLINE)
   expect(server.notes.count, `${label}: a note was forked`).toBe(1)
   expect(await listOutbox(db), `${label}: work left queued and unsent`).toHaveLength(0)
+
+  // ⛔⛔ THE APPEND HALF. Without this, a drain that resolved the conflict by
+  // sending the member's body and dropping the server's node would pass every
+  // assertion above — and the member would watch the widget they just inserted
+  // disappear a second later. Both sides of an append-only merge survive, or it
+  // was not a merge.
+  const node = appendedNode(door)
+  if (node) {
+    const key = nodeKeyOf(node)
+    const present = (server.state.body?.content || []).some((n) => nodeKeyOf(n) === key)
+    expect(present, `${label}: the server's appended ${node.type} was DROPPED by the merge`).toBe(true)
+  }
 }
 
 /**
@@ -131,9 +213,25 @@ async function assertWordsSurvived(server, label) {
  * step 3 is what forked the member's note in 12 of these 18 cases.
  */
 async function doorHappens(server, which, { canSeeLocalState }) {
+  // ⛔⛔ AN APPEND DOOR CANNOT SETTLE WITH LOCAL STATE, and this is measured
+  // from the product, not assumed. `settleMetadataRevision` — the only path that
+  // passes `current` to `settleLandedSave` — is called by exactly three doors:
+  // folder, ticker and tags. The three APPEND doors call `settleNoteWrite`,
+  // which RECORDS the revision and deliberately does not settle ("an editor-only
+  // optimisation that needs local state"). So a `settle-first` append row would
+  // model a shape the product cannot produce, and a rail that models an
+  // impossible shape proves nothing about a real one. The structural claim is
+  // asserted below, from the source, rather than taken on trust here.
+  // ⛔ THE FAMILY UNDER TEST, NOT THE ORDERING'S HARD-CODED NAME. Each ordering
+  // spells `'folder'` and the matrix substitutes the real family by replacing
+  // `server.door` — so `which` here is always `'folder'` and reading it would
+  // silently un-clamp every append row. Caught by `settle-first` staying red
+  // while `drain-first`, its identical twin after clamping, went green.
+  const family = server.familyUnderTest || which
+  const canSettle = canSeeLocalState && !appendedNode(family)
   const s = server.door(which)
   await recordLandedRevision({ accountId: 'a1', noteId: 'n1', updatedAt: s.updatedAt, connect })
-  if (canSeeLocalState) {
+  if (canSettle) {
     await settleLandedSave({
       accountId: 'a1', noteId: 'n1',
       acked: { bodyJson: s.body }, current: { bodyJson: doc(BOTH) },
@@ -249,13 +347,24 @@ describe('⛔⛔ THE FIFTH DOOR — hero, found by enumeration on 2026-09-12', (
         serverCopyIsOurs: server.serverCopyIsOurs,
       })
       await settleIdb(4)
-      await assertWordsSurvived(server, label)
+      await assertWordsSurvived(server, label, 'folder')
     })
   }
 
   it('⭐⭐ CONTROL — an UNSETTLED hero door still loses the sentence, so this rail can detect the defect', async () => {
     const server = makeServer(doc(''))
-    await offlineWorkQueued(server)
+    // ⛔⛔ NO LAST-KNOWN SERVER COPY. The control must drive a case the product
+    // genuinely cannot rescue, and since 2026-09-13 the drain CAN rescue an
+    // unvouched revision whose diff classifies — so a record that still carries a
+    // base is no longer a losing case, and this control would have started
+    // passing by being FIXED rather than by detecting anything.
+    // ⭐ No base is the honest pre-fix state: "missing evidence is never a licence
+    // to merge", so the classifier declines, the ring never heard of this
+    // revision, and the words are lost exactly as they were.
+    // ⚰️ Written first as a re-`put` with a null intent — which DELETES the queued
+    // entry, so nothing drained, nothing forked, and the control "failed" for a
+    // reason that had nothing to do with the product.
+    await offlineWorkQueued(server, { withBase: false })
     server.door('hero')          // ⛔ the pre-fix product: no recordLandedRevision
     await settleIdb(4)
     await drainOutbox(db, {
@@ -278,6 +387,7 @@ describe('⭐⭐ the member’s offline sentence survives every door × every or
         // matrix is genuinely doors × orderings and not one door six times.
         const orig = server.door.bind(server)
         server.door = (_which) => orig(door)
+        server.familyUnderTest = door
         await arrange(server)
 
         // The drain runs to completion — twice, because an ordering that leaves
@@ -293,7 +403,7 @@ describe('⭐⭐ the member’s offline sentence survives every door × every or
           // eslint-disable-next-line no-await-in-loop
           await settleIdb(4)
         }
-        await assertWordsSurvived(server, `${door} · ${name}`)
+        await assertWordsSurvived(server, `${door} · ${name}`, door)
       })
     }
   }
