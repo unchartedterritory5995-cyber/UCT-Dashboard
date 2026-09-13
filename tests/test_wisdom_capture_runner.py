@@ -246,6 +246,17 @@ def test_a_stale_source_is_recorded_against_the_session_it_failed(wisdom_db, fak
     out = runner.run_family("wire", now=NOW)
     assert (out["session_date"], out["status"], out["health"]) == ("2026-09-14", "unreachable", "missing")
     assert out["r2_key"] == "wisdom/context/2026-09-11/wire.json.gz" and out["paged"] is True
+    reg = _registry("wire")
+    assert reg is not None and reg["last_r2_key"] is None and reg["last_as_of"] is None, \
+        "a stale run must not record itself as the dataset's latest good capture"
+
+
+def test_rows_that_exist_on_a_holiday_are_archived_and_still_read_holiday(wisdom_db, fake_r2, pages, monkeypatch):
+    _only(monkeypatch, _dataset("catalysts", _reader("catalysts", [{"ticker": "AAA"}], data_as_of="2026-09-07"),
+                                session_shaped=True))
+    out = runner.run_family("catalysts", now=NOW)
+    assert (out["status"], out["health"], out["paged"]) == ("ok", "holiday", False)
+    assert out["r2_key"] == "wisdom/context/2026-09-07/catalysts.json.gz" and fake_r2.puts == [out["r2_key"]]
 
 
 def test_classify_covers_every_state():
@@ -265,19 +276,21 @@ def test_the_trailing_median_counts_only_ok_runs_on_trading_sessions(wisdom_db):
         if timeutil.is_trading_day(cur):
             trading.append(cur.isoformat())
         cur -= dt.timedelta(days=1)
-    rows = [(s, "ok", 100) for s in trading[:10]] + [(trading[10], "ok", 5)]      # 11th session: too old
-    rows += [("2026-09-07", "ok", 1), ("2026-09-12", "ok", 1), ("2026-09-13", "ok", 1)]  # holiday + weekend
-    rows += [(trading[1], "failed", 0), (trading[2], "ok", 60)]                    # failed + a lower second run
+    # distinct counts, so dropping ANY exclusion moves the median: trading sessions 100, 90, ... 10 newest-first
+    rows = [(s, "ok", 100 - 10 * i) for i, s in enumerate(trading[:10])] + [(trading[10], "ok", 5)]  # 11th: too old
+    rows += [("2026-09-07", "ok", 1000), ("2026-09-12", "ok", 1000), ("2026-09-13", "ok", 1000)]  # holiday + weekend
+    rows += [(trading[1], "failed", 5000), (trading[2], "ok", 1)]                  # failed + a lower second run
     with store.write() as conn:
         for i, (session, status, n) in enumerate(rows):
             conn.execute("INSERT INTO wisdom_capture_runs (run_id, dataset, session_date, started_at, status, "
                          "row_count) VALUES (?, 'x', ?, '2026-09-14T00:00:00-04:00', ?, ?)", (f"r{i}", session, status, n))
     with store.read() as conn:
-        # ten trading sessions of 100: the older 5, the holiday, the weekend and the failed run are all excluded
-        assert health.trailing_median(conn, "x", "2026-09-14") == (100.0, 10)
-        # before the 9th session only two samples remain (100 and the old 5): too few to call anything low
-        assert health.trailing_median(conn, "x", trading[8]) == (52.5, 2)
-        assert health.classify(status="ok", row_count=1, median=52.5, samples=2, holiday=False) == "ok"
+        # median of 10..100 = 55: the older 5, the holiday and weekend 1000s and the failed 5000 are all excluded
+        # (without the trading-session filter the 1000s enter and the median reads 85)
+        assert health.trailing_median(conn, "x", "2026-09-14") == (55.0, 10)
+        # before the 9th session only two samples remain (10 and the old 5): too few to call anything low
+        assert health.trailing_median(conn, "x", trading[8]) == (7.5, 2)
+        assert health.classify(status="ok", row_count=1, median=7.5, samples=2, holiday=False) == "ok"
 
 
 # ── 7. watermark state ──────────────────────────────────────────────────────
