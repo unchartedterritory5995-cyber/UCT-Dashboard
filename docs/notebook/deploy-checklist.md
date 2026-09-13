@@ -76,6 +76,7 @@ the deploy regardless of what any row here says.
 | 2026-09-11 | `3f3abe3cd` | Wave R, flags OFF | 1277 files, 18,884 passed, 0 NEW, exit 0 | n/a — not a flag-on deploy | shipped |
 | 2026-09-11 | `3f3abe3cd` | (instrument validation) | — | **PASS** — 19 routes, 4 surfaces stable | `r27-smoke-waveR-flagsoff.json` |
 | 2026-09-12 | `53a181082` | **Wave K — the runtime kill switch, DARK** | 1305 runnable files, 19,296 passed, **0 NEW attributable** (manifest `2026-09-12T21-19-17`) | **n/a — not a flag-on deploy**, see below | shipped dark |
+| 2026-09-13 | `54393f890` | **Q1 fix 3: append merge reachable for ring-vouched doors** | 1306 runnable files, 19,329 passed, **0 NEW attributable** (`2026-09-13T08-02-16`) | n/a — not a flag-on deploy; Q1 is already live | shipped |
 
 ### Wave K, 2026-09-12 — what this row does and does not certify
 
