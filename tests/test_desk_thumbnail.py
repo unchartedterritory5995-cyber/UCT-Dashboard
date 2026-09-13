@@ -386,3 +386,79 @@ def test_candle_skyline_never_escapes_the_canvas():
     img = Image.new("RGBA", (t._W, t._H), (0, 0, 0, 255))
     tops = t._candle_skyline(img, 518, 30, 160, seed=3)
     assert all(20 < y < 518 for _, y in tops)
+
+
+# --- Sharpen (whetstone + blade glint + spark shower) -----------------------
+
+def test_sharpen_eyebrow_routes_to_sharpen():
+    assert t._resolve_theme(None, "SHARPEN YOUR TRADING SKILLS").layout == "sharpen"
+    assert t._resolve_theme(None, "Sharpen Your Options Skills").layout == "sharpen"
+    # Untouched: an unrelated workshop still auto-derives to classic.
+    assert t._resolve_theme(None, "LIVE TRADING SESSION").layout == "classic"
+
+
+def test_sharpen_variant_override_routes_to_sharpen():
+    assert t._resolve_theme("sharpen", "LIVE TRADING SESSION").layout == "sharpen"
+
+
+def test_sharpen_render_is_1280x720_jpeg_under_2mb_and_distinct():
+    data = t.render_session_thumbnail("August 4, 2026", eyebrow_label="SHARPEN YOUR TRADING SKILLS")
+    im = Image.open(io.BytesIO(data))
+    assert im.size == (1280, 720) and im.format == "JPEG"
+    assert len(data) < 2_000_000            # YouTube thumbnails.set hard limit
+    default = t.render_session_thumbnail("August 4, 2026", eyebrow_label="LIVE TRADING SESSION")
+    assert data != default
+
+
+def test_sharpen_is_deterministic_for_the_same_episode():
+    a = t.render_session_thumbnail("August 4, 2026", eyebrow_label="SHARPEN YOUR TRADING SKILLS")
+    b = t.render_session_thumbnail("August 4, 2026", eyebrow_label="SHARPEN YOUR TRADING SKILLS")
+    assert a == b                            # same episode -> byte-identical
+    c = t.render_session_thumbnail("August 11, 2026", eyebrow_label="SHARPEN YOUR TRADING SKILLS")
+    assert c != a                            # a different date varies the shower
+
+
+def test_sharpen_smoke_and_long_name():
+    _smoke("SHARPEN YOUR TRADING SKILLS")
+    _smoke("SHARPEN YOUR TRADING SKILLS WITH THE WHOLE DESK TEAM AND FRIENDS EXTRA LONG")
+
+
+def test_sharpen_throws_warm_sparks_over_a_dark_ground():
+    # The card's whole identity is a warm gold spark shower off a lit blade
+    # against a cool dark ground — assert the actual PIXELS, so a regression
+    # that drops the shower (leaving a flat gradient) fails here, not just a
+    # size/format check.
+    data = t.render_session_thumbnail("August 4, 2026", eyebrow_label="SHARPEN YOUR TRADING SKILLS")
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    region = img.crop((100, 380, 460, 600))          # box around the spark origin
+    px = list(region.getdata())
+    warm_bright = sum(1 for r, g, b in px if r > 150 and r >= b + 20 and (r + g + b) > 300)
+    assert warm_bright > 800, f"spark shower too faint/missing (warm_bright px={warm_bright})"
+    # Upper-left corner, clear of the shower, stays cool/dark graphite.
+    cr, cg, cb = img.getpixel((4, 4))
+    assert max(cr, cg, cb) < 60
+
+
+def test_sharpen_handles_a_long_eyebrow_without_clipping():
+    data = t.render_session_thumbnail(
+        "August 4, 2026",
+        eyebrow_label="SHARPEN YOUR TRADING SKILLS WITH THE ENTIRE DESK TEAM THIS EVENING")
+    assert Image.open(io.BytesIO(data)).size == (1280, 720)
+
+
+def test_angled_quad_is_a_rectangle_of_the_right_size():
+    # Regression rail for the stone/blade geometry helper: opposite edges
+    # equal length (length, thick), diagonals equal (a true rectangle, not a
+    # skewed quad) — catches a sign/order slip in the corner math.
+    import math as _m
+    corners = t._angled_quad(100.0, 200.0, 40.0, 10.0, _m.radians(-23))
+    assert len(corners) == 4
+
+    def _dist(p, q):
+        return ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5
+
+    assert abs(_dist(corners[0], corners[1]) - 40.0) < 1e-6
+    assert abs(_dist(corners[1], corners[2]) - 10.0) < 1e-6
+    assert abs(_dist(corners[2], corners[3]) - 40.0) < 1e-6
+    assert abs(_dist(corners[3], corners[0]) - 10.0) < 1e-6
+    assert abs(_dist(corners[0], corners[2]) - _dist(corners[1], corners[3])) < 1e-6

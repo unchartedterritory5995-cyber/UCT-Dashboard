@@ -28,6 +28,11 @@ recoloured:
     sparkline tiles, one picked out by a soft scan beam. Deliberately inverts
     the Live Trading card (light low instead of high, many small charts instead
     of one big uptrend) so the two never read alike in the library.
+  - "SHARPEN YOUR TRADING SKILLS" -> sharpen: a whetstone/blade-glint card — a
+    bright edge throwing a fan of gold sparks up across a dark forge-lit
+    graphite sky, the workshop's own name stamped as a two-line metallic-gold
+    hero. No candlesticks, no leather, no water, no disc, no horizon — reads as
+    unmistakably its own thing next to every other card.
 
 Theme/layout is picked from the eyebrow label (auto-derived from the Zoom webinar
 name) so a new content type needs no code change here; pass `variant` to override.
@@ -35,6 +40,7 @@ name) so a new content type needs no code change here; pass `variant` to overrid
 from __future__ import annotations
 
 import io
+import math
 import os
 import random
 import re
@@ -146,6 +152,22 @@ _SUNDAY_THEME = Theme(
     layout="sunday",
 )
 
+# "Sharpen Your Trading Skills" — a whetstone/blade-glint card: a fan of gold
+# sparks off a bright edge against a dark forge-lit graphite sky. Distinct
+# from every other card (no candlesticks, no leather, no water, no disc, no
+# horizon) so a workshop can never be mistaken for a regular session in the
+# library. Keyed off "sharpen" so any future "Sharpen …" workshop inherits it
+# automatically — not a one-off hardcoded card.
+_SHARPEN_THEME = Theme(
+    bg_top=(22, 25, 32),
+    bg_bottom=(4, 4, 6),
+    wordmark=(236, 240, 246),
+    eyebrow=_GOLD,
+    date=(248, 236, 210),
+    tagline=(150, 155, 168),
+    layout="sharpen",
+)
+
 _THEMES = {
     "default": _DEFAULT_THEME,
     "live": _DEFAULT_THEME,
@@ -156,6 +178,7 @@ _THEMES = {
     "zen": _ZEN_THEME,
     "sunday": _SUNDAY_THEME,
     "scans": _SUNDAY_THEME,
+    "sharpen": _SHARPEN_THEME,
 }
 
 
@@ -176,6 +199,10 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     # "Sunday Scans" (and any "Sunday …" weekend show) — the dawn scanner card.
     if "sunday" in low:
         return _SUNDAY_THEME
+    # "Sharpen Your Trading Skills" (and any "Sharpen …" workshop) — the
+    # blade-glint card.
+    if "sharpen" in low:
+        return _SHARPEN_THEME
     return _DEFAULT_THEME
 
 
@@ -1295,6 +1322,191 @@ def _render_sunday(theme: Theme, date_text: str, eyebrow_label: str, *,
     return _grain(out, alpha=5.0, seed=7 + seed)
 
 
+# ---------------------------------------------------------------------------
+# Sharpen (Sharpen Your Trading Skills) — blade glint + spark shower, super-sampled
+# ---------------------------------------------------------------------------
+
+_SPARK_GOLD = (255, 214, 120)
+_SPARK_HOT = (255, 244, 214)
+_STONE_DARK = (44, 47, 54)
+_STONE_EDGE = (82, 88, 98)
+_BLADE_STEEL = (196, 202, 210)
+
+
+def _angled_quad(cx: float, cy: float, length: float, thick: float, ang: float) -> list:
+    """4 corners of a rectangle of `length`x`thick` centered at (cx, cy),
+    rotated by `ang` radians — points [0,1] are one long edge, [2,3] the
+    other, wound consistently so `ImageDraw.polygon` fills it cleanly."""
+    dx, dy = math.cos(ang), math.sin(ang)
+    nx, ny = -dy, dx
+    hl, ht = length / 2, thick / 2
+    return [
+        (cx - dx * hl - nx * ht, cy - dy * hl - ny * ht),
+        (cx + dx * hl - nx * ht, cy + dy * hl - ny * ht),
+        (cx + dx * hl + nx * ht, cy + dy * hl + ny * ht),
+        (cx - dx * hl + nx * ht, cy - dy * hl + ny * ht),
+    ]
+
+
+def _spark_shower(size: tuple, origin: tuple, seed: int, S: int) -> Image.Image:
+    """Gold spark shower fanning up-right from `origin` — a dense fine spray
+    plus a handful of bigger, brighter hero streaks for punch — with a slight
+    gravity droop and bright ember tips; longer sparks fainter so the shower
+    tapers naturally instead of cutting off at a hard radius. Drawn on its own
+    transparent layer (translucent ink written straight onto an RGBA base sets
+    pixel alpha instead of blending — the Sunday-tile lesson). `seed` is
+    per-episode so a given day's shower is fixed, not random noise."""
+    ox, oy = origin
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    rng = random.Random(seed)
+
+    def _streak(ang_range, len_range, width_mul, hot_bias):
+        ang = math.radians(rng.uniform(*ang_range))
+        length = rng.uniform(*len_range) * S
+        droop = rng.uniform(0.10, 0.34)
+        steps = 9
+        pts = []
+        for k in range(steps + 1):
+            frac = k / steps
+            x = ox + math.cos(ang) * length * frac
+            y = oy + math.sin(ang) * length * frac + droop * length * frac * frac
+            pts.append((x, y))
+        a = int(max(24, 235 * (1 - length / (max(len_range) * 1.15 * S))))
+        w = max(1, int(width_mul * S))
+        col = _SPARK_HOT if rng.random() < hot_bias else _SPARK_GOLD
+        d.line(pts, fill=(*col, a), width=w, joint="curve")
+        return pts[-1], a
+
+    for _ in range(190):
+        (ex, ey), a = _streak((-82, -12), (40, 300), rng.uniform(0.9, 1.7), 0.32)
+        if rng.random() < 0.5:
+            r = rng.uniform(1.3, 3.2) * S
+            d.ellipse([ex - r, ey - r, ex + r, ey + r], fill=(*_SPARK_HOT, min(255, a + 40)))
+
+    for _ in range(9):                                      # hero streaks — the visual anchor
+        (ex, ey), a = _streak((-70, -20), (110, 260), rng.uniform(2.2, 3.4), 0.55)
+        r = rng.uniform(2.6, 5.0) * S
+        d.ellipse([ex - r, ey - r, ex + r, ey + r], fill=(*_SPARK_HOT, 255))
+    return layer
+
+
+def _render_sharpen(theme: Theme, date_text: str, eyebrow_label: str, *,
+                    seed: int = 7) -> Image.Image:
+    """Blade edge + spark shower: a whetstone-bright glint throwing a fan of
+    gold sparks up across a dark forge-lit graphite sky, the workshop's own
+    name (eyebrow_label) as a two-line metallic-gold hero. Rendered at 2x and
+    downscaled (super-sampled) for crisp edges, finished with a light film
+    grain. `seed` (per-episode, from `_episode_seed`) drives the spark shower
+    so every episode's card is unique but reproducible."""
+    S = 2
+    size = (_W * S, _H * S)
+
+    def s(v):
+        return int(round(v * S))
+
+    origin = (s(256), s(478))
+    img = _gradient_bg(theme.bg_top, theme.bg_bottom, size).convert("RGBA")
+
+    # Ambient cool wash upper-right (balances the warm shower) + the warm
+    # ember core where the blade meets the stone. Design elements, not
+    # theme-driven — stay literal (mirrors classic's storm-light idiom).
+    img = Image.alpha_composite(img, _radial(s(980), s(160), s(420), (90, 110, 140), 40, size))
+    img = Image.alpha_composite(img, _radial(origin[0], origin[1], s(230), (255, 196, 118), 85, size))
+    img = Image.alpha_composite(img, _radial(origin[0], origin[1], s(58), _SPARK_HOT, 200, size))
+
+    # Whetstone + blade: a dark angled stone block with a bright steel edge
+    # laid across it, sparks flying off the tip — a physical scene, not just
+    # an abstract glow. Fully OPAQUE fills draw straight onto `img` (only
+    # translucent ink needs its own composited layer — the Sunday-tile lesson).
+    ang = math.radians(-23)
+    dvx, dvy = math.cos(ang), math.sin(ang)
+    nvx, nvy = -dvy, dvx
+    blade_len = s(230)
+    tail = (origin[0] - dvx * blade_len, origin[1] - dvy * blade_len)
+    stone_thick = s(72)
+    stone_cx = tail[0] + nvx * (stone_thick * 0.55) - dvx * s(48)
+    stone_cy = tail[1] + nvy * (stone_thick * 0.55) - dvy * s(48)
+    stone_quad = _angled_quad(stone_cx, stone_cy, s(250), stone_thick, ang)
+    sdraw = ImageDraw.Draw(img)
+    sdraw.polygon(stone_quad, fill=_STONE_DARK)
+    sdraw.line([stone_quad[0], stone_quad[1]], fill=_STONE_EDGE, width=max(1, s(1.8)))
+
+    blade_mid = ((tail[0] + origin[0]) / 2 + dvx * s(18),
+                 (tail[1] + origin[1]) / 2 + dvy * s(18))
+    blade_quad = _angled_quad(blade_mid[0], blade_mid[1], blade_len + s(34), s(11), ang)
+    sdraw.polygon(blade_quad, fill=_BLADE_STEEL)
+
+    # The edge catching the light — bright glint along the blade's top edge,
+    # soft glow first so the crisp core reads on top of it.
+    glint = Image.new("RGBA", size, (0, 0, 0, 0))
+    ImageDraw.Draw(glint).line([blade_quad[0], blade_quad[1]], fill=(*_SPARK_HOT, 255),
+                                width=max(2, s(2.6)))
+    img = Image.alpha_composite(img, glint.filter(ImageFilter.GaussianBlur(s(9))))
+    img = Image.alpha_composite(img, glint)
+
+    img = Image.alpha_composite(img, _spark_shower(size, origin, seed, S))
+
+    # Ground the base + clear the sky band for the brand kit + headline.
+    img = Image.alpha_composite(img, _band_scrim(size, s(560), size[1], 120, top_down=False))
+    img = Image.alpha_composite(img, _band_scrim(size, 0, s(300), 150, top_down=True))
+
+    cx = size[0] // 2
+    mark = _compass(s(80))
+    if mark is not None:
+        img.alpha_composite(mark, (cx - s(40), s(34)))
+    _shadow_center(img, cx, s(126), _WORDMARK,
+                   _font("DejaVuSans-Bold.ttf", 29 * S), theme.wordmark, 8 * S)
+    _shadow_center(img, cx, s(176), "LIVE WORKSHOP",
+                   _font("DejaVuSans-Bold.ttf", 20 * S), theme.eyebrow, 5 * S)
+
+    # Hero — the workshop's own name, balanced across two lines, auto-fit so
+    # the widest line fits the safe width; ellipsis-truncate at the floor size
+    # for a pathologically long name (mirrors the editorial headline fitter).
+    draw = ImageDraw.Draw(img)
+    lines = _balanced_two_lines(eyebrow_label or "SHARPEN YOUR TRADING SKILLS")
+    max_w = s(_W - 200)
+    max_pt, min_pt = 92 * S, 46 * S
+    size_pt = max_pt
+    while size_pt > min_pt:
+        f = _font("DejaVuSerif-Bold.ttf", size_pt)
+        if max(draw.textlength(ln, font=f) for ln in lines) <= max_w:
+            break
+        size_pt -= 2
+    f_head = _font("DejaVuSerif-Bold.ttf", size_pt)
+    lines = [
+        ln if draw.textlength(ln, font=f_head) <= max_w
+        else _fit_tracked(draw, ln, "DejaVuSerif-Bold.ttf", size_pt, size_pt, max_w, 0)[1]
+        for ln in lines
+    ]
+    asc, desc = f_head.getmetrics()
+    lh = int((asc + desc) * 0.98)
+    ty = s(222)
+    for ln in lines:
+        _gold_center(img, cx, ty, ln, f_head)
+        ty += lh
+
+    # Date plaque — the zen/evening pill idiom, on its own layer so the
+    # translucent fill blends over the shower beneath it.
+    draw = ImageDraw.Draw(img)
+    df = _font("DejaVuSans-Bold.ttf", 30 * S)
+    dt = date_text.upper()
+    dw = _tracked_w(draw, dt, df, 3 * S)
+    pill_cy = s(636)
+    pill = Image.new("RGBA", size, (0, 0, 0, 0))
+    ImageDraw.Draw(pill).rounded_rectangle(
+        [cx - dw / 2 - s(22), pill_cy - s(25), cx + dw / 2 + s(22), pill_cy + s(25)],
+        radius=s(25), fill=(0, 0, 0, 145), outline=(*_SPARK_GOLD, 255), width=s(2))
+    img.alpha_composite(pill)
+    _draw_tracked_center(ImageDraw.Draw(img), cx, pill_cy - s(15), dt, df, theme.date, 3 * S)
+
+    _shadow_center(img, cx, s(684), _TAGLINE, _font("DejaVuSans.ttf", 20 * S), theme.tagline, 0)
+
+    img = Image.alpha_composite(img, _vignette(0.52, size))
+    out = img.convert("RGB").resize(_SIZE, Image.LANCZOS)
+    return _grain(out, alpha=5.0, seed=7 + seed)
+
+
 def render_session_thumbnail(
     date_text: str,
     eyebrow_label: str = "LIVE TRADING SESSION",
@@ -1313,6 +1525,8 @@ def render_session_thumbnail(
         img = _render_zen(theme, date_text, eyebrow_label, seed=seed)
     elif theme.layout == "sunday":
         img = _render_sunday(theme, date_text, eyebrow_label, seed=seed)
+    elif theme.layout == "sharpen":
+        img = _render_sharpen(theme, date_text, eyebrow_label, seed=seed)
     else:
         img = _render_classic(theme, date_text, eyebrow_label, seed=seed)
     buf = io.BytesIO()
