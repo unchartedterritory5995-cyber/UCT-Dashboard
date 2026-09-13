@@ -20,6 +20,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime
 
 from api.services import desk_session_jobs, education_service
 from api.services.zoom_client import select_largest_mp4
@@ -807,6 +808,277 @@ def _find_summary_file(recording_json: dict):
     return None
 
 
+# ── Transcript ↔ published MP4, coverage guard, raw VTT archive (2026-09-13) ─────
+# Root cause and evidence: docs/wisdom/methodology/zoom-356-root-cause.md.
+#
+# ⚰️ Video 356 ("Workshop with Stockbee", ~6,830 s) stored a 345 s transcript and
+# its Zoom copy was trashed. A stop/restart inside one meeting yields one MP4 AND
+# one TRANSCRIPT per segment. The webhook publishes the LARGEST MP4
+# (select_largest_mp4) while the transcript was `_find_transcript_file` = the
+# FIRST transcript in the list — a different segment — with no pairing, no
+# offset and no coverage check before the trash. Three fixes, each railed in
+# tests/test_desk_session_insights.py:
+#   1. the transcript is PAIRED to the published MP4 by recording_start/
+#      recording_end overlap (several overlapping files are stitched, each cue
+#      offset to that MP4's start);
+#   2. the Zoom copy is NOT trashed while the STORED transcript covers < 0.98 of
+#      the media duration: the recording is kept, the attempt is marked, and
+#      chart_health_alerts pages `desk_transcript_coverage:<video_id>` (critical);
+#   3. before any trash, every raw VTT + the recording metadata JSON is archived
+#      to R2 under wisdom/sources/zoom_vtt/<sha24(meeting_uuid)>/.
+# Kill switches read literally, unset = protections ON:
+#   DESK_TRANSCRIPT_COVERAGE_GUARD_DISABLED, DESK_VTT_ARCHIVE_DISABLED.
+
+COVERAGE_THRESHOLD = 0.98
+_TAIL_GRACE_S = 60
+_TRUTHY = ("1", "true", "yes", "on")
+_COVERAGE_ALERTED: set = set()
+
+
+def _coverage_guard_disabled() -> bool:
+    return os.environ.get("DESK_TRANSCRIPT_COVERAGE_GUARD_DISABLED", "").strip().lower() in _TRUTHY
+
+
+def _vtt_archive_disabled() -> bool:
+    return os.environ.get("DESK_VTT_ARCHIVE_DISABLED", "").strip().lower() in _TRUTHY
+
+
+def _parse_zoom_time(value) -> "float | None":
+    """Zoom's ISO-8601 UTC stamp ('2026-09-11T13:02:05Z') -> epoch seconds."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value.strip().replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _file_window(f: dict | None) -> "tuple[float, float] | None":
+    start = _parse_zoom_time((f or {}).get("recording_start"))
+    end = _parse_zoom_time((f or {}).get("recording_end"))
+    if start is None or end is None or end <= start:
+        return None
+    return start, end
+
+
+def _find_transcript_files(recording_json: dict) -> list[dict]:
+    """EVERY completed TRANSCRIPT recording_file (download_url present), in list order."""
+    out = []
+    for f in (recording_json or {}).get("recording_files") or []:
+        ft = (f.get("file_type") or "").upper()
+        rt = (f.get("recording_type") or "").lower()
+        if (ft == "TRANSCRIPT" or rt == "audio_transcript") and f.get("download_url"):
+            if (f.get("status") or "completed").lower() in ("completed", ""):
+                out.append(f)
+    return out
+
+
+def plan_transcript_for_mp4(recording_json: dict) -> dict:
+    """Which transcript file(s) belong to the PUBLISHED (largest) MP4, and at what offset.
+
+    mode:
+      'paired'           one transcript overlaps the MP4's recording window
+      'stitched'         several overlap; cues are merged, each offset to the MP4 start
+      'no_overlap'       timed transcripts exist but none overlaps the MP4 -> use none
+      'single_untimed'   no timestamps anywhere, exactly one transcript -> offset 0
+      'largest_untimed'  no timestamps anywhere, several -> the largest file
+      'none'             no completed transcript at all
+    """
+    files = (recording_json or {}).get("recording_files") or []
+    mp4 = select_largest_mp4(files)
+    transcripts = _find_transcript_files(recording_json)
+    win = _file_window(mp4) if mp4 else None
+    plan = {"mode": "none", "mp4_id": (mp4 or {}).get("id"),
+            "mp4_duration_s": int(round(win[1] - win[0])) if win else None, "files": []}
+    if not transcripts:
+        return plan
+    timed = [(f, _file_window(f)) for f in transcripts]
+    timed = [(f, w) for f, w in timed if w is not None]
+    if win is None or not timed:
+        if len(transcripts) == 1:
+            plan.update(mode="single_untimed", files=[{"file": transcripts[0], "offset_s": 0}])
+        else:
+            chosen = max(transcripts, key=lambda f: f.get("file_size") or 0)
+            plan.update(mode="largest_untimed", files=[{"file": chosen, "offset_s": 0}])
+        return plan
+    overlapping = sorted(((w[0], f) for f, w in timed if min(w[1], win[1]) - max(w[0], win[0]) > 0),
+                         key=lambda x: x[0])
+    if not overlapping:
+        plan["mode"] = "no_overlap"
+        return plan
+    plan["mode"] = "paired" if len(overlapping) == 1 else "stitched"
+    plan["files"] = [{"file": f, "offset_s": int(round(start - win[0]))} for start, f in overlapping]
+    return plan
+
+
+def build_paired_cues(plan: dict, fetch_text) -> list[dict]:
+    """Download + parse the planned transcript file(s); cue t is seconds from the
+    published MP4's start. Cues before the MP4 start, or past its end (plus a small
+    tail grace), belong to another segment and are dropped."""
+    duration = plan.get("mp4_duration_s")
+    cues: list[dict] = []
+    for entry in plan.get("files") or []:
+        for c in parse_vtt(fetch_text(entry["file"]["download_url"])):
+            t = int(c["t"]) + int(entry["offset_s"])
+            if t < 0 or (duration and t > duration + _TAIL_GRACE_S):
+                continue
+            cues.append({"t": t, "text": c["text"]})
+    cues.sort(key=lambda c: c["t"])  # stable: same-second cues keep file order
+    return cues
+
+
+def transcript_coverage(cues: list[dict], duration_s) -> "float | None":
+    """Last cue start / media duration, capped at 1.0. None = not measurable."""
+    if not duration_s or duration_s <= 0:
+        return None
+    if not cues:
+        return 0.0
+    return min(1.0, _max_cue_t(cues) / float(duration_s))
+
+
+def _duration_text_seconds(value) -> "int | None":
+    parts = str(value or "").strip().split(":")
+    if not parts or len(parts) > 3 or not all(p.isdigit() for p in parts):
+        return None
+    total = 0
+    for p in parts:
+        total = total * 60 + int(p)
+    return total or None
+
+
+def _media_duration_seconds(vid: int, rec: dict | None) -> "int | None":
+    """The published MP4's own window first; edu_videos.duration as the fallback."""
+    win = _file_window(select_largest_mp4((rec or {}).get("recording_files")))
+    if win:
+        return int(round(win[1] - win[0]))
+    try:
+        return _duration_text_seconds((education_service.get_video(int(vid)) or {}).get("duration"))
+    except Exception:
+        return None
+
+
+_VTT_FILE_TYPES = ("TRANSCRIPT", "CC")
+_REDACT_KEY_PARTS = ("password", "passcode", "token")
+
+
+def _is_vtt_file(f: dict) -> bool:
+    ft = (f.get("file_type") or "").upper()
+    rt = (f.get("recording_type") or "").lower()
+    ext = (f.get("file_extension") or "").upper()
+    return bool(f.get("download_url")) and (
+        ft in _VTT_FILE_TYPES or rt in ("audio_transcript", "closed_caption") or ext == "VTT")
+
+
+def _redact(value):
+    if isinstance(value, dict):
+        return {k: _redact(v) for k, v in value.items()
+                if not any(p in str(k).lower() for p in _REDACT_KEY_PARTS)}
+    if isinstance(value, list):
+        return [_redact(v) for v in value]
+    return value
+
+
+def _safe_key_part(value) -> str:
+    return re.sub(r"[^A-Za-z0-9_=-]", "_", str(value or ""))[:128] or "file"
+
+
+def archive_recording_to_r2(meeting_uuid: str, recording_json: dict, fetch_text) -> dict:
+    """Every raw VTT + the (secret-redacted) recording metadata JSON, immutably, under
+    wisdom/sources/zoom_vtt/<sha24(meeting_uuid)>/. Raises on any failure — the
+    caller then keeps the Zoom copy. A VTT whose key already holds DIFFERENT bytes
+    (Zoom regenerated it) is kept beside the first under a content-suffixed key,
+    never overwritten."""
+    # Wisdom's immutable R2 writer (CONTRACTS.md §6.3), imported lazily so this
+    # Desk module pays nothing for it unless a trash is actually about to happen.
+    from api.services.wisdom.core import ids as wisdom_ids, r2 as wisdom_r2
+
+    prefix = f"wisdom/sources/zoom_vtt/{wisdom_ids.sha24(meeting_uuid)}/"
+    out = {"prefix": prefix, "vtt": [], "metadata": None}
+    for f in (recording_json or {}).get("recording_files") or []:
+        if not _is_vtt_file(f):
+            continue
+        data = (fetch_text(f["download_url"]) or "").encode("utf-8")
+        if not data.strip():
+            raise ValueError(f"empty VTT download for recording file {f.get('id')}")
+        fid = _safe_key_part(f.get("id") or wisdom_ids.sha24(f["download_url"]))
+        try:
+            res = wisdom_r2.put_immutable(f"{prefix}{fid}.vtt", data, "text/vtt")
+        except wisdom_r2.R2ImmutableConflict:
+            res = wisdom_r2.put_immutable(
+                f"{prefix}{fid}-{wisdom_ids.sha256_bytes(data)[:16]}.vtt", data, "text/vtt")
+        out["vtt"].append({"key": res["key"], "bytes": res["bytes"], "created": res["created"]})
+    meta = json.dumps(_redact(recording_json or {}), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
+    res = wisdom_r2.put_immutable(f"{prefix}recording-{wisdom_ids.sha256_bytes(meta)[:16]}.json",
+                                  meta, "application/json")
+    out["metadata"] = {"key": res["key"], "bytes": res["bytes"], "created": res["created"]}
+    return out
+
+
+def _text_fetcher(zoom):
+    cache: dict = {}
+
+    def fetch(url: str) -> str:
+        if url not in cache:
+            cache[url] = zoom.download_text(url)
+        return cache[url]
+
+    return fetch
+
+
+def _emit_coverage_alert(vid: int, title: str, coverage: float, duration_s: int) -> None:
+    """One page per video per process (chart_health_alerts adds its own cooldown)."""
+    if vid in _COVERAGE_ALERTED:
+        return
+    _COVERAGE_ALERTED.add(vid)
+    try:
+        from api.services import chart_health_alerts
+        chart_health_alerts.emit(
+            f"desk_transcript_coverage:{vid}", "critical",
+            (f"Zoom recording KEPT for video #{vid} ({title or 'untitled'}): the stored transcript "
+             f"covers {coverage:.1%} of {duration_s}s (< {COVERAGE_THRESHOLD:.0%}). Repair it "
+             f"(tools/wisdom/sources_zoom_transcript_repair.py) before the recording is trashed."),
+            {"video_id": vid, "coverage": round(coverage, 4), "duration_s": duration_s},
+        )
+    except Exception:
+        pass
+
+
+def _trash_gate(v: dict, uuid: str, rec: dict, fetch_text, results: list[dict]) -> "tuple[bool, str]":
+    """(True, 'ok') only when trashing the Zoom copy loses nothing: the stored
+    transcript covers the media and the raw VTTs are archived."""
+    vid = v["id"]
+    if not _coverage_guard_disabled():
+        duration = _media_duration_seconds(vid, rec)
+        coverage = transcript_coverage(education_service.get_transcript_cues(vid), duration)
+        if coverage is not None and coverage < COVERAGE_THRESHOLD:
+            # The recovery trap: a video with chapters and a truncated transcript
+            # used to go straight to the trash. Try the paired transcript first.
+            plan = plan_transcript_for_mp4(rec)
+            try:
+                fresh = build_paired_cues(plan, fetch_text) if plan["files"] else []
+            except Exception as te:
+                print(f"[session-insights] repair transcript download failed (non-fatal): {te}")
+                fresh = []
+            block = _timestamped_block(fresh) if fresh else ""
+            fresh_cov = transcript_coverage(_parse_timestamped_block(block), duration) if block else None
+            if fresh_cov is not None and fresh_cov > coverage:
+                education_service.set_video_insights(vid, transcript=block)
+                results.append({"id": vid, "action": "transcript_repaired", "mode": plan["mode"],
+                                "coverage_before": round(coverage, 4), "coverage_after": round(fresh_cov, 4)})
+                coverage = fresh_cov
+            if coverage < COVERAGE_THRESHOLD:
+                _emit_coverage_alert(vid, v.get("title") or "", coverage, int(duration))
+                return False, f"coverage {coverage:.4f} < {COVERAGE_THRESHOLD}"
+    if not _vtt_archive_disabled():
+        try:
+            archive_recording_to_r2(uuid, rec, fetch_text)
+        except Exception as ae:
+            print(f"[session-insights] VTT archive failed for video {vid}; recording kept: {ae}")
+            return False, f"vtt_archive_failed: {type(ae).__name__}: {str(ae)[:200]}"
+    return True, "ok"
+
+
 # ── Orchestration ────────────────────────────────────────────────────────────────
 
 _TICKER_BACKFILL_LIMIT = 3  # bounded — best-effort, one small LLM call per video
@@ -958,6 +1230,7 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
             education_service.mark_insights_attempt(vid)
         results.append({"id": vid, "action": "recording_gone"})
         return
+    fetch_text = _text_fetcher(zoom)  # one download per file per pass (store, repair, archive)
 
     if not has_chapters:
         # 1) Zoom-first (free): Zoom's AI Companion SUMMARY file already
@@ -977,12 +1250,13 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
         # Transcript fetch/parse unchanged — feeds the plain transcript
         # storage AND the ticker-moments call regardless of which path
         # supplied the chapters.
+        # PAIRED to the published (largest) MP4 — never the first transcript in
+        # the list (the 356 truncation), see plan_transcript_for_mp4.
         cues: list[dict] = []
-        tfile = _find_transcript_file(rec)
-        if tfile:
+        plan = plan_transcript_for_mp4(rec)
+        if plan["files"]:
             try:
-                vtt = zoom.download_text(tfile["download_url"])
-                cues = parse_vtt(vtt)
+                cues = build_paired_cues(plan, fetch_text)
             except Exception as te:
                 print(f"[session-insights] transcript download failed (non-fatal): {te}")
                 cues = []
@@ -1074,8 +1348,14 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
                             "description_refreshed": description_refreshed})
 
     # Clean up the Zoom recording once we've captured insights — or once
-    # we've waited long enough that the transcript clearly isn't coming.
+    # we've waited long enough that the transcript clearly isn't coming —
+    # but ONLY when trashing loses nothing (coverage guard + VTT archive).
     if has_chapters or age >= max_wait:
+        ready, why = _trash_gate(v, uuid, rec, fetch_text, results)
+        if not ready:
+            education_service.mark_insights_attempt(vid)
+            results.append({"id": vid, "action": "trash_refused", "reason": why, "age_s": age})
+            return
         try:
             zoom.delete_recording(uuid)
         except Exception as de:
