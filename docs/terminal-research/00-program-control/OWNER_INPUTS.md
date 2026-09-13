@@ -207,6 +207,70 @@ permanent by default — which is how this estate acquired the flags it now cann
 
 ---
 
+## PART B-2 — ⚰️ ANSWERED BY ACTION SINCE THIS FORM WAS WRITTEN (2026-09-12)
+
+Left in place rather than deleted, so a returned form cannot contradict what shipped.
+
+| item | state now |
+|---|---|
+| **B4 / B4-PLAIN** · D2 §9.5, the indicator axis | ✅ **SIGNED AND MERGED** as **GATE-D2 CP4**, fingerprint `3257cc319`, merge `404b808c5`. §4 was re-numbered in the signing commit because §9.5's scope matched none of CP1/CP2/CP3. **This CHOOSE is moot** — answer it only if you want the decision reversed. |
+| **C1** · arming the four new CP3 sweeps | ✅ **DONE 2026-09-13**, plus a fifth: `indicator-condition` armed 20:48:30 UTC. **Seven** dark sweeps are now armed, not four. |
+| **B6** · the S7 dark flags have no retirement date | ⚠️ **STILL OPEN AND NOW WIDER** — it said *"the two S7 dark flags"*; there are **seven**. |
+
+---
+
+## PART D — PROVISIONALs taken 2026-09-13, awaiting confirm-or-reverse
+
+### D1 · F-S7-PL-2 — per-sweep windows NARROW what `--ticking` calls a stall
+
+Generalising `--ticking` over the sweep table gave each sweep its own window. A sweep that dies
+**mid-window** and is only checked **after** the close now reports exit `0`, where the single
+global window would have reported a stall.
+
+```
+  A) KEEP the narrowing — a windowed sweep that stopped at its window's close has done nothing
+     wrong, and flagging it every weekend gets the command muted
+  B) REVERSE it — a stale heartbeat is a stall whatever the clock says
+
+CHOOSE: ____
+```
+**Recommendation: A.** The Monday 09:05 ET check is inside every window, so it is not a gap today.
+**Unblocks:** nothing — it settles whether the instrument is measuring the right thing.
+
+### D2 · F-GATE-1 — two approval-fingerprint conventions, and one duplicated pin
+
+27 of 33 approval lines are `git hash-object` content fingerprints; **6 are commit SHAs**. Both pin
+bytes. ⛔ But `s7-event-proximity`'s **two** lines carry the **same** value, and that commit
+contained only the first block.
+
+```
+  A) Content fingerprint is the one convention; re-pin the 6 (needs 6 new signatures)
+  B) Both conventions are acceptable; re-pin ONLY event-proximity line 2 (1 new signature)
+  C) Record and leave — the bytes are recoverable either way
+
+CHOOSE: ____
+```
+**Recommendation: B.** A is six signatures for a property `git show` already gives; C leaves one
+line pinning a state in which it did not exist. **Unblocks:** nothing — it closes F-GATE-1.
+
+### D3 · F-S7-IC-1 — thirty indicator outputs the book carries in no form
+
+CP3 now reports them **NOT COMPARABLE per predicate**, which is honest. Closing the finding needs a
+book form for the thirty — **thirty declarations plus a warmup contract**, and it is blocked on the
+`bars_fetch`/`bars_sqlite` watch-list decision you already ruled (the list is NOT widened).
+
+```
+  A) Declare the thirty later, after the flow-worker watch-list question is reopened
+  B) EXCLUDE the thirty permanently — the legacy indicator lane keeps its own vocabulary
+  C) Leave OPEN, unscheduled
+
+CHOOSE: ____
+```
+**Recommendation: C for now.** The dark read will show whether any member predicate is affected;
+deciding before that data is guessing. **Unblocks:** the indicator-condition FLIP, eventually.
+
+---
+
 ## PART C — the one thing I need that is not a ruling
 
 ### C1 · Arming the four new CP3 sweeps
