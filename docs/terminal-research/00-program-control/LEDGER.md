@@ -3675,3 +3675,84 @@ rule and it was not followed**, which is the part worth recording: a rule that l
 nobody opens before pushing is a rule with no reader. A one-line pre-push check — *is the last
 deployment `SUCCESS` on the commit before mine?* — would enforce it mechanically, and nobody owns
 that today.
+
+---
+
+## 🤖 SELF-MONITORING AND SELF-ADVANCING — three layers, 2026-09-13
+
+### LAYER 0 — `tools/pre_push_guard.py` + pre-push hook · merged `4fb4f9daf`
+
+The 502 rule with a reader. Refuses a push destined for `master` while `web` is not `SUCCESS`, or
+is a `SUCCESS` younger than **150 s** (Railway reports SUCCESS at healthcheck while the old
+container is still draining). ⛔ **Fails closed** — CLI missing, unauthenticated, unlinked, hook
+absent all REFUSE. ⛔ Does **not** require the deployed commit to be yours; that would refuse every
+legitimate push in a repo five workstreams share.
+
+⭐ **IT REFUSED A REAL PUSH DURING THIS SESSION AND THEN ALLOWED IT** — a better demonstration than
+either planned test: `only 135s old (< 150s) … Wait 14s`, then `SUCCESS on 6a7a8ee73, 157s settled
+— safe to push`. Both required cases, live.
+
+Two defects found by its own tests and the live run: **cp1252 killed the reader thread** (reported
+as *"did not return JSON (not linked?)"* — an auth-shaped message for an encoding bug, the same
+misreading that left `flag_ledger_audit.py` broken for two days), and `main()` parsed pytest's argv.
+⚠️ And my own rail matched `shell=True` **inside the docstring forbidding it** — CODE, NEVER PROSE.
+
+### LAYER 1 — `terminal-next-monitor` · code merged `6a7a8ee73` → `98b5ba9a0`
+
+⛔⛔ **THE VOLUME QUESTION, ANSWERED ONCE: a Railway volume mounts to EXACTLY ONE SERVICE.** `/data`
+belongs to `web`, so the monitor **cannot** read the stores directly, read-only or otherwise. It
+uses the **private network** (`web.railway.internal`) — the idiom `WORKER_INTERNAL_URL` already
+uses. Web gained ONE read-only, `PUSH_SECRET`-gated surface that runs **three declared commands**
+and hands back stdout and the exit code verbatim.
+
+⭐ **THE MONITOR MEASURES NOTHING ITSELF.** Every number comes from a tool that is already the
+authority. A monitor that recomputed anything would be a second authority over the numbers it
+reports, and the first disagreement would be unresolvable.
+
+⛔ **ADMIN CHANNEL ONLY.** `DISCORD_WEBHOOK_URL`. A rail asserts `DISCORD_TSDR_WEBHOOK_URL` — the
+**public ~750-member channel** — appears nowhere in the monitor's **code** (docstrings stripped
+first, since they name it in order to forbid it), with a control proving the stripped view still
+sees the permitted webhook.
+
+**Schedules (ET), decided in code because Railway cron is UTC:**
+
+| ET | job | what it says |
+|---|---|---|
+| weekdays 07:20 | `catalyst` | F-CAT-1 receipt. A **closed market is not a fault**; an OPEN day with zero rows persisted **is**, with the spend named |
+| weekdays 09:12 | `ticking` | all seven dark sweeps; ALERT on a `NO` inside a window |
+| daily 16:30 | `gate-check` | gate states with numbers |
+| Saturday 08:00 | `weekly` | the full comparison + the D2 sample gate + the next authorization line |
+
+⛔⛔ **THE DST HAZARD IS WHY THE TABLE EXISTS.** A UTC crontab expressing "09:12 ET" silently becomes
+10:12 ET the day DST ends — the sweeps checked an hour after they started, with nothing saying so.
+The cron fires a **superset** (`0,12,20,30 11,12,13,14,20,21 * * *`, 16 firings/day) and the ET
+table decides what is due; a firing with nothing due exits quietly.
+
+**TWO DEFECTS FOUND BY THE LIVE TRIGGERS, WHICH IS WHAT LIVE TRIGGERS ARE FOR:**
+1. `HTTP 403` + body `error code: 1010` — **Cloudflare, not Discord**, blocking a default
+   `Python-urllib` agent. ⭐ It reads as *"your webhook is dead"* and sends you to rotate a
+   credential that was never broken. Probed the webhook directly from the pod to prove it.
+2. `HTTP 400` with no hint — Discord's `content` limit is **2000**, not 3400. The cap is now
+   computed from the header's real length, and **a cut report says it was cut**, which matters most
+   for the gate check, whose verdict is in the tail.
+
+⚠️ **TWO OWNER ACTIONS REMAIN IN THE RAILWAY DASHBOARD** — the CLI exposes neither: **connect the
+service to the GitHub repo** and **set the cron**. Until then the service exists, is configured, and
+deploys nothing.
+
+**Cost:** one container waking ~16×/day for a few seconds each — a handful of CPU-seconds and no
+idle memory, because there is **no internal scheduler and no sleeping process**. Materially under
+$1/month at Railway's usage pricing; it bills only while a firing runs.
+
+### LAYER 2 — `WEEKLY_AUTONOMOUS_PROMPT.md` · docs `761c29fbc`
+
+Fed verbatim to `claude -p`, Saturdays **09:30 CT**, Task Scheduler job **UCT Terminal-Next Weekly**
+(next run **2026-09-19 09:30**). Pre-authorizes exactly three things with their conditions **quoted**
+— S7 CP4 (dark, cohort tag, `legacy_only == 0` and `agreed ≥ 20` over `≥ 5` sessions), D2 CP3 (≥200
+AGREED, ≥1 session, **zero** inequality), and docs-only/test-only follow-ups — and refuses everything
+else. ⚠️ **FLIPS REMAIN THE OWNER'S:** the offer to delegate them was **declined**, and the file
+records the declining so silence cannot later read as permission.
+
+Its first act is the eight environment checks, and a **memory gate checked before all of them**
+(>70% used → post and exit without building), because three sessions once OOM-swept this box and
+deleted a worktree.
