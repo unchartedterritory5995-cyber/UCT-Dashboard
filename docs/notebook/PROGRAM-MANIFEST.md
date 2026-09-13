@@ -837,12 +837,17 @@ not a window, it is a queue — and it exists because three merges in four minut
 
 | track | scope | starts | gate on |
 |---|---|---|---|
-| **K** | runtime kill switch — server-served config; every other track's flag rides on it | now | — |
+| ~~**K**~~ ✅ **CLOSED 2026-09-12** | runtime kill switch — ⚰️ *"server-served config"* became **the auth payload**, no new endpoint; every other track's flag rides on it | `53a181082`, live **dark** | — · packet `kill-switch-flip-packet.md` · K-1 queued behind a measured precondition |
+| **F5 drivers** | the three append-family production drivers (widget embed chooser · TickerPopup financial fact · PDF excerpt selection) — **NEXT**, picked 2026-09-13 | now | — |
 | **R** | the charter's four MUST items: R-1a scanner/screener capture door · R-3b index widget · R-3c market-context widget · R-4a image paste/drop **with coverage** | now | — |
 | **S** | the 16 measured debt rows, **claims-measured-FALSE first** (S-07), then S-03, S-04, S-06, S-08, S-16, rest | now | file overlap with R |
 | **Q2-A** | offline read cache | now | must not touch the save path or R's files |
 | **Q2-B/C/D** | conflict UX · attachment pinning · mobile shell | **when R has merged dark and passed its post-merge Q1 canary** | R |
 | **T** | decision-blocked | ⛔ **do not build** — `wave-T-decisions.md`, owner answers in one pass | owner |
+
+⭐ **TRACK ORDER AFTER K — F5 first, and the reason is one line:** F5 gates R-1a,
+R-3b and R-3c, so every hour it stays open is an hour three charter MUST rows
+cannot start; S, Q2-A and R-4a each unblock only themselves.
 
 ⛔⛔ **R IS THE SECOND WRITER THE MANIFEST WARNED ABOUT.** §2: *"a second writer to
 the note save path is exactly what Wave R's capture work would add."* Q1 went first
