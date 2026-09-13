@@ -41,6 +41,8 @@ def v1(gid, rtype, quote, split="dev", evidence=None, **expected):
 @pytest.fixture
 def db(tmp_path, monkeypatch):
     monkeypatch.setenv("WISDOM_DB_PATH", str(tmp_path / "wisdom.db"))
+    monkeypatch.delenv("WISDOM_EXTRACT_MODEL", raising=False)
+    monkeypatch.delenv("WISDOM_EXTRACT_EFFORT", raising=False)
     store.init_db()
     return tmp_path / "wisdom.db"
 
@@ -140,8 +142,8 @@ def per_type(tp, fp, fn):
 
 def record(conn, version, model, pt, when, golden_version="gv1"):
     return golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version=version, n=9, now_iso=when,
-                              metrics={"model": model, "golden_version": golden_version, "split": "dev",
-                                       "per_type": pt})
+                              metrics={"model": model, "effort": "high", "golden_version": golden_version,
+                                       "split": "dev", "per_type": pt})
 
 
 def test_baseline_then_regression_blocks_and_a_tie_is_accepted(db):
@@ -161,6 +163,9 @@ def test_baseline_then_regression_blocks_and_a_tie_is_accepted(db):
     with store.read() as conn:
         assert golden.gate_status(conn, extractor_version="wx-v0-bbbbbbbb", model="claude-opus-5")["accepted"] is False
         assert golden.gate_status(conn, extractor_version="wx-v0-cccccccc", model="claude-opus-5")["accepted"] is True
+        # an effort the gate never measured is not accepted for the same version and model
+        unmeasured = golden.gate_status(conn, extractor_version="wx-v0-cccccccc", model="claude-opus-5", effort="low")
+        assert unmeasured["accepted"] is False and "effort" in unmeasured["reason"]
         assert golden.gate_status(conn, extractor_version="wx-v0-cccccccc", model="claude-sonnet-5")["accepted"] is False
         missing = golden.gate_status(conn, extractor_version="wx-v0-eeeeeeee", model="claude-opus-5")
     assert missing["accepted"] is False and "no golden-gate evaluation" in missing["reason"]

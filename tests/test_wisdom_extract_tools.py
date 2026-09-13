@@ -11,6 +11,7 @@ import importlib.util
 import pathlib
 import sys
 import threading
+from types import SimpleNamespace as NS
 
 import pytest
 
@@ -59,6 +60,64 @@ def test_parallel_reservations_never_cross_the_cap(tmp_path):
     for t in threads:
         t.join()
     assert len(granted) == 3
+
+
+class _FakeBatches:
+    def __init__(self, ends=True):
+        self.ends, self.created = ends, []
+
+    def create(self, requests):
+        self.created.append(list(requests))
+        return NS(id=f"batch_{len(self.created)}")
+
+    def retrieve(self, batch_id):
+        return NS(processing_status="ended" if self.ends else "in_progress")
+
+    def results(self, batch_id):
+        usage = NS(input_tokens=1000, output_tokens=100, cache_read_input_tokens=0, cache_creation_input_tokens=0,
+                   cache_creation=None)
+        for req in self.created[int(batch_id.split("_")[1]) - 1]:
+            message = NS(content=[NS(type="text", text='{"segment_id": "x", "records": []}')], stop_reason="end_turn",
+                         usage=usage)
+            yield NS(custom_id=req["custom_id"], result=NS(type="succeeded", message=message))
+
+
+def _params():
+    return {"model": "claude-opus-5", "max_tokens": 1000, "system": [{"type": "text", "text": "s"}],
+            "messages": [{"role": "user", "content": "x"}], "output_config": {}}
+
+
+def test_batches_are_sized_to_what_the_cap_can_still_reserve(tmp_path):
+    gate = _load("extract_golden_gate")
+    worst = gate.worst_case_usd(_params(), "claude-opus-5", batch=True)
+    cap = gate.SpendCap(tmp_path / "ledger.json", worst * 2.5)
+    fake = NS(messages=NS(batches=_FakeBatches()))
+    got = gate.run_batch_round(fake, [(i, _params()) for i in range(5)], model="claude-opus-5", spend=cap,
+                               phase="gate", poll_s=0, timeout_s=5, log=lambda *_: None)
+    sizes = [len(c) for c in fake.messages.batches.created]
+    assert max(sizes) == 2 and sum(sizes) == 5 and all("output" in r for r in got.values())
+    assert cap.spent <= cap.max_usd and cap.reserved == pytest.approx(0.0)
+    # control: a cap below one worst case sends nothing at all
+    none = NS(messages=NS(batches=_FakeBatches()))
+    tight = gate.SpendCap(tmp_path / "tight.json", worst * 0.9)
+    skipped = gate.run_batch_round(none, [(0, _params())], model="claude-opus-5", spend=tight, phase="gate",
+                                   poll_s=0, timeout_s=5, log=lambda *_: None)
+    assert none.messages.batches.created == [] and skipped == {0: {"skipped": "spend cap"}}
+
+
+def test_a_batch_that_is_never_collected_is_charged_its_full_reservation(tmp_path):
+    gate = _load("extract_golden_gate")
+    worst = gate.worst_case_usd(_params(), "claude-opus-5", batch=True)
+    cap = gate.SpendCap(tmp_path / "ledger.json", 10.0)
+    stuck = NS(messages=NS(batches=_FakeBatches(ends=False)))
+    got = gate.run_batch_round(stuck, [(0, _params()), (1, _params())], model="claude-opus-5", spend=cap,
+                               phase="gate", poll_s=0, timeout_s=0, log=lambda *_: None)
+    assert cap.spent == pytest.approx(2 * worst) and all(r.get("transport_error") for r in got.values())
+    # control: a batch that ends is charged what its usage says it cost
+    done = gate.SpendCap(tmp_path / "done.json", 10.0)
+    gate.run_batch_round(NS(messages=NS(batches=_FakeBatches())), [(0, _params())], model="claude-opus-5",
+                         spend=done, phase="gate", poll_s=0, timeout_s=5, log=lambda *_: None)
+    assert done.spent == pytest.approx((1000 * 5 + 100 * 25) / 1e6 * 0.5)
 
 
 def test_tools_refuse_paths_inside_the_shared_data_root(tmp_path):

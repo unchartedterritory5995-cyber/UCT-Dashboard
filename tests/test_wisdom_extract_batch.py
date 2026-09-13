@@ -193,7 +193,8 @@ def env(tmp_path, monkeypatch):
 def accept_gate():
     with store.write() as conn:
         golden.record_eval(conn, kind=golden.EVAL_KIND, extractor_version=prompt.extractor_version(), n=1,
-                           metrics={"model": config.configured_model(), "golden_version": "gtest", "split": "dev",
+                           metrics={"model": config.configured_model(), "effort": config.configured_effort(),
+                                    "golden_version": "gtest", "split": "dev",
                                     "per_type": {"MENTION": {"tp": 1, "fp": 0, "fn": 0, "precision": 1.0,
                                                              "recall": 1.0, "n_expected": 1,
                                                              "n_predicted_scored": 1}}})
@@ -382,12 +383,34 @@ def test_a_retry_is_resubmitted_under_its_custom_id_until_attempts_run_out(env):
         assert out["status"] == "submitted", out
         new_bid = fake.messages.batches.created[-1]["id"]
         assert sorted(r["custom_id"] for r in fake.messages.batches.created[-1]["requests"]) == sorted(cids)
+        # control for the max_tokens rail below: any other retry keeps the configured effort
+        assert {r["params"]["output_config"]["effort"] for r in fake.messages.batches.created[-1]["requests"]} == {
+            config.configured_effort()}
         assert {r["attempt"] for r in rows().values()} == {attempt}
         fake.messages.batches.state[new_bid] = "ended"
         fake.messages.batches.results_map[new_bid] = [ended(c, "expired") for c in cids]
         batch.reap(ctx(), client=fake)
     assert {r["status"] for r in rows().values()} == {"failed"}
     assert batch.run_daily(ctx(), client=fake)["status"] == "nothing_to_do"
+
+
+def test_a_max_tokens_stop_is_retried_one_effort_level_lower_per_attempt(env):
+    fake, bid, cids = _submitted(env)
+    empty = {"segment_id": "x", "records": []}
+    fake.messages.batches.state[bid] = "ended"
+    fake.messages.batches.results_map[bid] = [succeeded(c, empty, stop="max_tokens") for c in cids]
+    batch.reap(ctx(), client=fake)
+    assert {r["error_type"] for r in rows().values()} == {"max_tokens"}
+    efforts = []
+    for _ in range(config.MAX_ATTEMPTS - 1):
+        assert batch.run_daily(ctx(), client=fake)["status"] == "submitted"
+        created = fake.messages.batches.created[-1]
+        efforts.append({r["params"]["output_config"]["effort"] for r in created["requests"]})
+        fake.messages.batches.state[created["id"]] = "ended"
+        fake.messages.batches.results_map[created["id"]] = [succeeded(c, empty, stop="max_tokens") for c in cids]
+        batch.reap(ctx(), client=fake)
+    assert efforts == [{"medium"}, {"low"}]
+    assert {r["status"] for r in rows().values()} == {"failed"}
 
 
 # ── 5. submit errors and orphans ─────────────────────────────────────────────

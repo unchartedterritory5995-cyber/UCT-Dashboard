@@ -343,7 +343,8 @@ def _runs(conn, kind: str) -> list[dict]:
     return out
 
 
-def decide_gate(conn, *, extractor_version: str, model: str, golden_version: str, split: str, per_type: dict) -> dict:
+def decide_gate(conn, *, extractor_version: str, model: str, effort: str, golden_version: str, split: str,
+                per_type: dict) -> dict:
     previous = None
     for run in _runs(conn, EVAL_KIND):
         m = run["metrics"]
@@ -351,7 +352,7 @@ def decide_gate(conn, *, extractor_version: str, model: str, golden_version: str
             continue
         if m.get("golden_version") != golden_version or m.get("split") != split:
             continue
-        if run["extractor_version"] == extractor_version and m.get("model") == model:
+        if run["extractor_version"] == extractor_version and m.get("model") == model and m.get("effort") == effort:
             continue
         previous = run
         break
@@ -378,12 +379,12 @@ def record_eval(conn, *, kind: str, extractor_version: Optional[str], metrics: d
     now = now_iso or timeutil.iso_et(timeutil.now_et())
     payload = dict(metrics)
     if kind == EVAL_KIND:
-        for key in ("model", "golden_version", "split", "per_type"):
+        for key in ("model", "effort", "golden_version", "split", "per_type"):
             if key not in payload:
                 raise ValueError(f"an extractor_golden evaluation needs {key!r}")
         payload["gate"] = decide_gate(conn, extractor_version=extractor_version, model=payload["model"],
-                                      golden_version=payload["golden_version"], split=payload["split"],
-                                      per_type=payload["per_type"])
+                                      effort=payload["effort"], golden_version=payload["golden_version"],
+                                      split=payload["split"], per_type=payload["per_type"])
     run_id = ids.sha24(kind, extractor_version, payload.get("model"), now, time.time_ns())
     conn.execute("INSERT INTO wisdom_eval_runs (run_id, kind, extractor_version, method_version, n, metrics_json, "
                  "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -403,23 +404,27 @@ def record_eval(conn, *, kind: str, extractor_version: Optional[str], metrics: d
 
 
 def gate_status(conn, *, extractor_version: Optional[str] = None, model: Optional[str] = None,
-                split: str = "dev") -> dict:
-    if model is None:
-        from api.services.wisdom.extract import config
+                effort: Optional[str] = None, split: str = "dev") -> dict:
+    """The latest evaluation of THIS configuration — extractor_version, model AND effort. An
+    effort the gate never measured is not accepted, even for an accepted version and model."""
+    from api.services.wisdom.extract import config
 
-        model = config.configured_model()
+    model = model or config.configured_model()
+    effort = effort or config.configured_effort()
     version = extractor_version or prompt.extractor_version()
     for run in _runs(conn, EVAL_KIND):
         m = run["metrics"]
-        if run["extractor_version"] != version or m.get("model") != model or m.get("split") != split:
+        if (run["extractor_version"] != version or m.get("model") != model or m.get("effort") != effort
+                or m.get("split") != split):
             continue
         gate = m.get("gate") or {}
         return {"accepted": gate.get("decision") == "accepted", "extractor_version": version, "model": model,
-                "run_id": run["run_id"], "created_at": run["created_at"], "golden_version": m.get("golden_version"),
-                "gate": gate, "per_type": m.get("per_type"), "n": run["n"],
+                "effort": effort, "run_id": run["run_id"], "created_at": run["created_at"],
+                "golden_version": m.get("golden_version"), "gate": gate, "per_type": m.get("per_type"),
+                "n": run["n"],
                 "reason": None if gate.get("decision") == "accepted" else "the latest evaluation is blocked"}
-    return {"accepted": False, "extractor_version": version, "model": model, "run_id": None,
-            "reason": "no golden-gate evaluation is recorded for this extractor_version and model"}
+    return {"accepted": False, "extractor_version": version, "model": model, "effort": effort, "run_id": None,
+            "reason": "no golden-gate evaluation is recorded for this extractor_version, model and effort"}
 
 
 def import_receipt(conn, receipt: dict, now_iso: Optional[str] = None) -> dict:

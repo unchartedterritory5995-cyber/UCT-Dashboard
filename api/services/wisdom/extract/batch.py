@@ -17,6 +17,7 @@ shared JSON file, its client is engine's 60 s singleton, it abandons batches aft
     resumes where the last stopped and nothing is written twice;
   * errored / canceled / expired / max_tokens / unparseable results go back to
     'retry' with an attempt counter and an error_type (MAX_ATTEMPTS, then 'failed');
+    a max_tokens retry is re-sent one effort level lower per attempt;
     an invalid_request or a refusal is terminal.
 
 Idempotency key: one request per (segment, extractor_version, purpose); a segment
@@ -230,7 +231,12 @@ def _build_items(client, segs: list[dict], retries: list[dict], *, extractor_ver
         if source is None:
             counts["source_missing"] += 1
             continue
-        params = prompt.build_params(seg, source, model=model, effort=effort, system_text=system_text,
+        use_effort = effort
+        if row is not None and row.get("error_type") == "max_tokens":
+            # the same effort would think its way past max_tokens again: one level lower per attempt
+            use_effort = config.lower_effort(effort, steps=int(row.get("attempt") or 1))
+            counts[f"retry_effort:{use_effort}"] += 1
+        params = prompt.build_params(seg, source, model=model, effort=use_effort, system_text=system_text,
                                      hints=prompt.asr_hints(seg))
         if row is not None and row.get("est_input_tokens"):
             tokens = int(row["est_input_tokens"])

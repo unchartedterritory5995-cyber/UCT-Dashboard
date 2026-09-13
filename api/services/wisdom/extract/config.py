@@ -26,6 +26,14 @@ def configured_effort() -> str:
     return value if value in prompt.EFFORTS else DEFAULT_EFFORT
 
 
+def lower_effort(effort: str, steps: int = 1) -> str:
+    """Fewer thinking tokens, for a request that ran out of max_tokens at `effort`."""
+    order = list(prompt.EFFORTS)
+    if effort not in order:
+        return DEFAULT_EFFORT
+    return order[max(0, order.index(effort) - max(0, int(steps)))]
+
+
 def next_effort(effort: str) -> str:
     """One level deeper, for the second-pass audit."""
     order = list(prompt.EFFORTS)

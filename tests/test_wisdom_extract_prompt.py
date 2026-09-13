@@ -61,6 +61,11 @@ def _unions(schema) -> int:
     return count
 
 
+def test_R2_asks_for_one_list_record_that_the_writer_expands():
+    text = prompt.system_prompt()
+    assert "ONE MENTION record, never one record per ticker" in text and "leave ticker_as_written empty" in text
+
+
 def test_nullable_text_travels_as_an_empty_string_and_the_writer_knows_where():
     fields = prompt.nullable_string_fields()
     assert {"speaker_label", "setup_vocab", "trigger", "notes"} <= fields[""]
