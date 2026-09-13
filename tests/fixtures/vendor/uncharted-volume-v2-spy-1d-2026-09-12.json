@@ -308,5 +308,54 @@
     ],
     "_why_unmeasured": "⚰️ THIS CAPTURE PREDATES THE RULING BY HOURS. The rig depth was never probed, and it cannot be recovered from the artifact — only from the chart, on another visit. Named in `tests/test_vendor_capture_window.py::PREDATES_THE_MEASUREMENT`, which is a CLOSED list: a capture taken after 2026-09-12 that lands at UNMEASURED fails that rail by name.",
     "_what_the_capture_still_suggests": "⚠️ AN OBSERVATION, DELIBERATELY NOT PROMOTED TO A MEASUREMENT. `Avg Vol Line` reads 43,318,979 on the last bar and a 50-bar `sma` is `na` until it has 50 bars, so the three 50-bar columns demonstrably had their window. That is an argument, and the rule takes a reading — so they stay excluded until `bars_loaded` is read off the rig. ⛔ The exclusion is what makes not measuring cost something; reasoning around it here is how the rule would stop being one."
+  },
+  "volume_granularity": {
+    "_": "⭐⭐ R-L (owner ruling, 2026-09-12): an INTEGER series compares EXACTLY after the coarser side's granularity is applied; anything the unit does not explain is a real divergence. ⛔ NOT A TOLERANCE — `seriesCompare` snaps BOTH sides to the unit and then demands equality, so a bar off by 101 shares still fails at unit 100. ⛔ AND IT IS DECLARED HERE, NEVER SNIFFED: 'every bar in this capture happens to be a multiple of 100' is not the same claim as 'this store rounds to 100'.",
+    "comparison_unit": 100,
+    "coarser_side": "ours",
+    "_whose": "⚠️ THE ROUNDING IS ON OUR SIDE. The ruling named the field `vendor_volume_granularity`; the vendor's own granularity is 1 — its values are multiples of nothing — and OUR store is the one quantising. Both are recorded so the field the ruling named exists and is true, and so the day a provider swaps the direction, the change is visible rather than absorbed.",
+    "ours_volume_granularity": 100,
+    "vendor_volume_granularity": 1,
+    "evidence": {
+      "measured_at": "2026-09-12",
+      "spy_bars_multiple_of_100": "5000 of 5000 in our store; 100% of every year back to 2002 over a 6,000-bar window",
+      "vendor_values_are_not": [
+        45512741,
+        42740375,
+        32812411,
+        43531581
+      ],
+      "the_two_bars_the_unit_EXPLAINS": [
+        {
+          "date": "2026-09-10",
+          "ours": 42740400,
+          "vendor": 42740375,
+          "delta": -25
+        },
+        {
+          "date": "2026-09-09",
+          "ours": 32812400,
+          "vendor": 32812411,
+          "delta": 11
+        }
+      ],
+      "the_two_bars_it_DOES_NOT": [
+        {
+          "date": "2026-09-11",
+          "ours": 45477300,
+          "vendor": 45512741,
+          "delta": 35441,
+          "rel": 0.000779
+        },
+        {
+          "date": "2026-09-03",
+          "ours": 43494000,
+          "vendor": 43531581,
+          "delta": 37581,
+          "rel": 0.000863
+        }
+      ],
+      "_the_two_that_remain": "⛔ 35,441 and 37,581 shares are NOT rounding at any unit, and they go on the open volume-provenance row with their dates. That row is the reason this field is a measurement and not a licence."
+    }
   }
 }

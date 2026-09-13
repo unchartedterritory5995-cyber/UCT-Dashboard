@@ -534,8 +534,8 @@
       "_fetch_depth_on_our_side": "⭐ MEASURED 2026-09-12, and the answer is that the PANE is not exposed to this. The v2 pane document's largest declared window is 50 bars (`value` 0, `out2`/`out3`/`out4` 50); `FIRST_PAINT_BARS` delivers 600 on every timeframe and backfill reaches 12,500 daily. The 2,751-bar window (a tree SUM, not the literal 2,500) belongs to `HVE Trigger` ALONE — the alertcondition ruling D1 removes from the pane. So no drawn series needs the disclosure, and the obligation transfers to whatever surface eventually consumes the alert condition, where 600 bars at first paint is 2,151 short."
     },
     {
-      "id": "agen-historical-volume-differs-by-1-8-percent-before-2016",
-      "shape": "vendor-data",
+      "id": "volume-provenance-two-sources-disagree-and-one-of-them-rounds",
+      "shape": "Two stores answer 'how many shares traded' with different numbers, and the size of the difference depends on the symbol and the era rather than on the market.",
       "status": "open",
       "confidence": "measured",
       "ours": "Raw integer daily volumes from our store: AGEN 2013-09-17 458,066 · 2013-10-08 475,119 · 2013-12-16 487,841 · 2015-01-09 1,481,565 · 2024-07-18 9,129,600 · 2026-07-13 174,277,900.",
@@ -544,12 +544,39 @@
       "_cause": "NOT ESTABLISHED. Two hypotheses, neither eliminated: (a) a corporate-action volume adjustment — the price axis DOES show an adjustment (~$56-140 in 2011-13 against a raw ~$3-5), though a reverse split would be a large integer factor and this is ~1.018, so it would have to be some other action; (b) a consolidated-tape versus primary-exchange volume difference between providers.",
       "_what_would_settle_it": "Read the vendor chart's data-adjustment toggles (dividend/split adjustment) on the rig and re-read one pre-2016 bar with adjustment OFF. If the value moves to ours, (a) is the cause and this row closes. If it does not, the row stays open on (b) and becomes a data-provenance item outside this wave.",
       "probe": {
-        "under_ours": "AGEN 2015-01-09 daily volume = 1,481,565 (integer, unadjusted).",
-        "under_theirs": "AGEN 2015-01-09 daily volume = 1,453,940.65 (fractional; ratio 0.981355).",
-        "discriminates": "The fractional part is the tell — an unadjusted tape volume is a whole number of shares, so any non-integer value is arithmetic applied after the fact. Recent bars are integral on both sides, which bounds when the adjustment stops applying.",
-        "case": "AGEN 1D daily volume on 2015-01-09, read from our store and from the vendor chart."
+        "under_ours": "AGEN 2015-01-09 = 1,481,565 (integer, unadjusted, not a multiple of 100). SPY 2026-09-11 = 45,477,300 (a multiple of 100, like every other SPY bar we hold).",
+        "under_theirs": "AGEN 2015-01-09 = 1,453,940.65 (fractional; ratio 0.981355). SPY 2026-09-11 = 45,512,741 (not a multiple of 100).",
+        "discriminates": "The fractional part is one tell — an unadjusted tape volume is a whole number of shares, so a non-integer value is arithmetic applied after the fact. The GRANULARITY is the second and sharper one: which side is a multiple of 100 says which source served the bar, and on AGEN it changes on a single day (2024-04-11 → 2024-04-12) that also separates the disagreeing bars from the agreeing ones.",
+        "case": "AGEN 1D volume on 2015-01-09 and SPY 1D volume on 2026-09-11, read from our store and from the vendor chart."
       },
-      "_no_member_hook": "⛔ DELIBERATELY NONE. This row is `open`, so it owes a member nothing yet — and the hook it briefly carried (`requirementTag: window_dependent`) described the OTHER AGEN row. A volume value that disagrees before 2016 is a data-provenance property of the series, not a property of how much history the consumer loaded; stamping it on the window tag would tell a member the wrong thing in the one place they read."
+      "_no_member_hook": "⛔ DELIBERATELY NONE. This row is `open`, so it owes a member nothing yet — and the hook it briefly carried (`requirementTag: window_dependent`) described the OTHER AGEN row. A volume value that disagrees before 2016 is a data-provenance property of the series, not a property of how much history the consumer loaded; stamping it on the window tag would tell a member the wrong thing in the one place they read.",
+      "_renamed_from": "⚰️ WAS `agen-historical-volume-differs-by-1-8-percent-before-2016` until 2026-09-12. ⛔ RETITLED BY RULING, because the name asserted the one thing the evidence had stopped supporting: it is NOT symbol-specific and it is NOT only pre-2016. SPY's own volume disagrees with the vendor by ~35,000 shares on 2026-09-11 and 2026-09-03 — this month, on the most liquid symbol there is. A row named after one symbol and one era collects evidence about that symbol and that era.",
+      "_owner_ruling_2026_09_12": "Route the provenance question — consolidated vs primary tape, our bars.db source, the vendor's adjustment toggles — as ONE item outside this wave. The two toggle checks owed on the rig are its first evidence.",
+      "evidence": {
+        "spy_2026": {
+          "_": "⭐ THE READING THAT BROKE THE ROW OUT OF ONE SYMBOL. Measured through the member pane against the committed SPY capture, 2026-09-12, aligned on the vendor's `time` and not its `date` label.",
+          "bars": [
+            {
+              "date": "2026-09-11",
+              "ours": 45477300,
+              "vendor": 45512741,
+              "delta": 35441,
+              "rel": 0.000779
+            },
+            {
+              "date": "2026-09-03",
+              "ours": 43494000,
+              "vendor": 43531581,
+              "delta": 37581,
+              "rel": 0.000863
+            }
+          ],
+          "_and_two_that_are_NOT_evidence": "⛔ 2026-09-10 (−25) and 2026-09-09 (+11) are ROUNDING, not divergence: our SPY series is 100% multiples of 100 and the vendor's is not. R-L makes the comparator apply that unit, so those two bars stop being counted here. Leaving them in would have inflated this row with the store's own resolution."
+        },
+        "the_quantisation_boundary": "⭐⭐ AGEN's last unrounded bar is 2024-04-11; all 606 bars since are multiples of 100, against 1.1% before. THE SAME BOUNDARY SPLITS THE AGREEMENT: ~1.8% disagreement on the old side, ~1e-6 on the new. That is a provider switch showing up twice in one series, and it is the strongest lead this row has.",
+        "spy_is_rounded_for_its_whole_history": "5,000 of 5,000 SPY daily bars are multiples of 100, every year back to 2002 — so SPY has no old/new split of its own, and yet it still disagrees by ~35k on two 2026 bars. ⛔ Whatever causes the delta is therefore NOT the rounding."
+      },
+      "_T6_is_unaffected": "⭐ T6's comparison is of FLOAT series over the last 300 bars and is not touched by this row. The float columns are computed from volume, so a volume delta reaches them — but at 1e-6 on recent bars, four orders of magnitude under anything T6 measures, and the ~8e-4 deltas here are on individual bars rather than on a 50-bar average. Said plainly so nobody blocks T6 on a provenance question that does not gate it."
     }
   ]
 }

@@ -1,5 +1,126 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ R-L — "EXACT" REDEFINED, AND THE VOLUME ROW IS NO LONGER ABOUT ONE SYMBOL
+
+**Ruled: an integer series compares exactly AFTER the coarser side's granularity
+is applied; anything the unit does not explain is a real divergence.**
+
+`seriesCompare` gained a declared `unit`. It snaps **both** sides and then demands
+equality — ⛔ **not** `abs(x − y) <= unit`, which is a tolerance and would swallow
+a 101-share difference at unit 100. The row now also carries `roundedEqual`,
+because *"agreed at full resolution"* and *"agreed once the unit was applied"* are
+different states of the world and collapsing them lets a provider change widen
+what "exact" means with nothing going red.
+
+```
+series                   kind   bars   cmp    blank  max rel      abs there      worst bar  verdict
+Volume                   int    4      4      0      unit 100     rounded 2      0          2 integer values differ
+Avg Vol Columns          float  4      1      3      1.235e-4     5.349e+3       0          max relative error 1.235e-4 exceeds 1e-9
+Avg Vol Line             float  4      0      0      0.000e+0     0.000e+0       0          4 bars are blank on one side only
+Scale Padding            float  4      0      0      0.000e+0     0.000e+0       0          4 bars are blank on one side only
+```
+
+**Volume went from 4 differing to 2 rounded + 2 real.** The two the unit explains
+are −25 and +11 shares; the two it does not are +35,441 and +37,581.
+
+### ⚠️ THE ROUNDING IS ON OUR SIDE, NOT THE VENDOR'S
+
+The ruling named the field `vendor_volume_granularity`; the measurement says the
+vendor's granularity is **1** and ours is **100**. Both are recorded — the field
+the ruling named exists and is true, beside `ours_volume_granularity: 100` and a
+sentence saying which is which — so the day a provider swaps the direction the
+change is visible rather than absorbed.
+
+### ⭐⭐ AND THE UNIT IS A PROPERTY OF THE SYMBOL AND THE ERA — measured, not assumed
+
+| | multiples of 100 |
+|---|---|
+| SPY, 5,000 daily bars | **100%**, and 100% of every year back to 2002 over a 6,000-bar window |
+| AGEN, 5,394 bars before **2024-04-12** | **1.1%** — chance |
+| AGEN, 606 bars since | **100%** |
+
+AGEN's last unrounded bar is **2024-04-11 (349,020)**. ⛔ **That boundary is also
+where the disagreement stops**: AGEN's ~1.8% deltas are all on the old side and
+its ~1e-6 agreement is all on the new one. A provider switch showing up twice in
+one series is the strongest lead the provenance question has.
+
+⛔ **Which is exactly why the unit is DECLARED per fixture and never sniffed.** A
+comparator that inferred it from the bars in hand would read AGEN's modern bars as
+rounded and its history as exact, and would be describing a provider switch as a
+property of volume. The AGEN capture's own unit is **1**, because the bars it
+compares are pre-boundary and unrounded on both sides.
+
+### The row is retitled, and it is not about one symbol
+
+`agen-historical-volume-differs-by-1-8-percent-before-2016`
+→ **`volume-provenance-two-sources-disagree-and-one-of-them-rounds`**
+
+The old name asserted the one thing the evidence had stopped supporting. **SPY
+disagrees by ~35,000 shares on 2026-09-11 and 2026-09-03** — this month, on the
+most liquid symbol there is, and SPY has no old/new split of its own (100% rounded
+for its whole history), so **whatever causes that delta is not the rounding**.
+
+Both SPY bars are on the row with their dates. The −25 and +11 are explicitly
+**not** evidence on it and say so: leaving them there would have inflated a
+provenance row with our own store's resolution.
+
+⭐ **T6 is unaffected, and the row says so in those words.** T6 compares FLOAT
+series over the last 300 bars; the volume deltas reach them only through a 50-bar
+average, at ~1e-6 on recent bars — four orders under anything T6 measures. Nobody
+should block T6 on this.
+
+### Routed, as one item, outside this wave
+
+Consolidated vs primary tape · our `bars.db` source and when it changed
+(2024-04-12 on AGEN is a date to ask it about) · the vendor's dividend/split
+adjustment toggles. **The two toggle checks owed on the rig are its first
+evidence** and are still owed.
+
+## ⭐ THE THREE THINGS THE T5 ACCEPTANCE ASKED TO BE SETTLED (2026-09-12)
+
+### 1. 8,462 against the manifest's 8,459 — **BOTH ARE RIGHT, AND NOTHING IS FIXED**
+
+`_requirement_tags.window_dependent.vendor` records TradingView at **8,459** SPY
+daily bars, **measured 2026-09-08**. The pane's badge read **8,462**, measured
+2026-09-12 with a last bar of 2026-09-11.
+
+```
+trading days after 2026-09-08 through 2026-09-11:  09-09, 09-10, 09-11  =  3
+8,459 + 3 = 8,462
+```
+
+⭐ And our own series is the same series: `/api/bars/SPY?tf=D&bars=12500` returns
+**8,462 bars, 1993-01-29 → 2026-09-11** — SPY's whole life, which is why the two
+counts can be compared at all. **They are one measurement four days apart.**
+
+⛔ NOTHING TO CORRECT, AND ONE THING TO KEEP: the manifest's number carries its
+date, which is the only reason this was answerable. A bar count written without
+one would have read as a disagreement forever.
+
+### 2. `BuilderSheet` — **it is the member-facing import route**, not a harness
+
+The door I walked is the product's: `/charts` → the chart's **Indicators** button
+→ **New formula** → the **Import** tab → paste. That is where a member's Pine
+enters this app today; `ImportBox` has been mounted there since before this wave,
+and the pane now renders beside `PreviewPane` on the same sheet.
+
+⚠️ **WHAT IT IS NOT, STATED SO NOBODY READS MORE INTO IT.** The pane draws while
+the member is IMPORTING. Seeing their script on their own chart *after saving* is
+a different door — the saved definition through `listUserDefinitions()` — and
+`MemberPane` is not that. **Owed, and named here so it is not assumed:** the
+saved-definition route has no pane surface of its own yet.
+
+### 3. Run 5's ten `app/dist` reds — **fixed by building `dist`, and re-measured**
+
+```
+before the build   10 failed,  93 passed     REAL EXIT = 1
+after the build     0 failed, 107 passed     REAL EXIT = 0
+```
+
+Recorded as the lane's position rather than as regressions: **41 → 39, movers −2**
+(the two that were fixed), with the build-absence ten and the five mid-edit vendor
+reds subtracted and the one non-reproducing `ticker_logos` case named.
+
 ## ⭐⭐ R-M — THE PANE ALREADY RESIZES, AND THE FINDING THAT SAID OTHERWISE WAS MY TAB
 
 **Ruled: fix it. Measured: there is nothing to fix — and the reason the first
@@ -1300,6 +1421,36 @@ gate is `selected >= 0`, not `ok`.
 ⏭️ **Routing the condition into `alertSets.js` is a FOLLOW-UP**, not part of this
 ruling. Today the sentence tells the member where the condition lives; nothing
 subscribes it yet.
+
+### ⛔⛔ AND WHEN IT IS WIRED, FETCH DEPTH IS A PRECONDITION — NOT A FOOTNOTE
+
+**Owner ruling, 2026-09-12, out of the AGEN window-depth divergence.** The
+obligation the pane does NOT carry lands here:
+
+```
+`HVE Trigger`'s declared window (both readers)   2,751 bars
+FIRST_PAINT_BARS, every timeframe                  600 bars
+                                                 ─────────
+                                           SHORT  2,151 bars
+```
+
+⛔ **AN ALERT THAT FIRES ON 600 BARS OF HISTORY IS NOT FIRING THE MEMBER'S
+CONDITION.** `ta.highest(volD[1], 2500)` over a window that is not full returns
+the max of what exists, so a shallow fetch carries a LOWER running maximum and
+the condition clears **more often** — measured on AGEN, where the vendor's
+4,066-bar series fired 23 times against our 6,684-bar series' 8. A subscriber
+wired at first-paint depth would page a member about a record that is not one,
+and every check around it would be green.
+
+⭐ **So the precondition is: the alerts door fetches at least the definition's
+`maxLookback` before it may evaluate a condition — or it does not evaluate it at
+all and says why.** `fullBarsFor('D') = 12500` already covers 2,751; the gap is
+that nothing on this path asserts the depth it got. That assertion is part of the
+wiring, not a note beside it.
+
+⚠️ It is the same rule the vendor captures now carry as `window_check`
+(`tools/vendor_window.py`), one door over — and the reason it is written here as
+well is that a member never sees the capture. Both consumers, one rule.
 
 ## ⭐⭐ SESSION 2 · T4 — THE `newestBarIsForming` PRODUCER, AND THE 3.3 REFUSAL LIFTS
 

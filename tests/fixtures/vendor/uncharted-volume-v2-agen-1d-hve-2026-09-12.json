@@ -324,5 +324,17 @@
     "excluded_from_comparison": [],
     "_from": "`capture.study_bars_loaded`, read off the study on the rig — the same 4,066 the capture had to be FORCED to reach.",
     "_note": "⭐ FULL_WINDOW, and the divergence recorded in `DIVERGENCE.firing_count` is NOT a truncation of this capture. 4,066 clears the 2,751 window at the read, so every column here is comparable. The divergence is about the EARLY BARS of the vendor's own series, which begins 2010-07-14 and so cannot fill a 2,500-bar window until roughly 2020 — a property of their history, not of this read."
+  },
+  "volume_granularity": {
+    "_": "⭐⭐ R-L (owner ruling, 2026-09-12): an INTEGER series compares EXACTLY after the coarser side's granularity is applied; anything the unit does not explain is a real divergence. ⛔ NOT A TOLERANCE — `seriesCompare` snaps BOTH sides to the unit and then demands equality, so a bar off by 101 shares still fails at unit 100. ⛔ AND IT IS DECLARED HERE, NEVER SNIFFED: 'every bar in this capture happens to be a multiple of 100' is not the same claim as 'this store rounds to 100'.",
+    "comparison_unit": 1,
+    "coarser_side": "neither, before 2024-04-12",
+    "ours_volume_granularity": {
+      "before_2024_04_12": 1,
+      "from_2024_04_12": 100,
+      "_": "⭐⭐ A HARD BOUNDARY, AND IT IS THE SHARPEST FACT IN THE PROVENANCE FILE. Measured 2026-09-12 over 6,000 daily bars: 1.1% of the 5,394 bars before 2024-04-12 are multiples of 100 — chance — and 100% of the 606 since. The last unrounded bar is 2024-04-11 (349,020). ⛔ That switchover lines up with the OTHER boundary this symbol has: the ~1.8% disagreement with the vendor is on the OLD side and the ~1e-6 agreement is on the NEW one. Two eras, and the quantisation is the fingerprint of which source served which."
+    },
+    "vendor_volume_granularity": 1,
+    "_why_the_unit_is_1_here": "⛔ THE CAPTURE'S COMPARED BARS ARE PRE-BOUNDARY (2013-2015) plus the record day, and the pre-boundary ones are unrounded on BOTH sides — so applying 100 would be inventing a resolution neither side answers at. The unit is a property of the bars being compared, not of the symbol."
   }
 }

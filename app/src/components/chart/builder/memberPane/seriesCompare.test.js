@@ -10,7 +10,9 @@
 // twice had an instrument manufacture a finding. Every rule the ruling names is
 // exercised here, in both directions, on numbers chosen to sit either side of it.
 import { describe, it, expect } from 'vitest'
-import { compareSeries, compareAll, renderTable, MAX_REL } from './seriesCompare.js'
+import {
+  compareSeries, compareAll, renderTable, MAX_REL, quantise,
+} from './seriesCompare.js'
 
 describe('⭐ integers are EXACT — tolerance on a count is a hidden rounding rule', () => {
   it('one share of difference is a failure, however large the number', () => {
@@ -114,5 +116,82 @@ describe('⭐ the table the ruling asks for', () => {
     // ⛔ AN INTEGER ROW SHOWS NO RELATIVE FIGURE. Printing `0.000e+0` there would
     // read as "measured and perfect" for a column where the number is meaningless.
     expect(text.split('\n')[1]).toContain('—')
+  })
+})
+
+// ─── ⭐⭐ R-L — "EXACT" AFTER THE COARSER SIDE'S GRANULARITY ─────────────────
+//
+// Owner ruling, 2026-09-12: *"Integer series compare exactly AFTER the vendor's
+// stated granularity is applied — tolerance = the rounding unit (100 shares
+// here). Anything beyond that unit is a real divergence."*
+//
+// ⚠️ THE ROUNDING IS ON OUR SIDE, NOT THE VENDOR'S, AND THAT IS MEASURED:
+// 5,000 of 5,000 SPY daily bars in our store are multiples of 100, in every year
+// from 2002; the vendor's are not multiples of anything. The unit is the same
+// number either way — it is the resolution the COARSER side can answer at — but
+// the fixture records whose it is, because the day a provider changes it is the
+// day this stops being true.
+describe('R-L — an integer series at the coarser side\'s resolution', () => {
+  // The four SPY bars T5 actually measured, vendor values verbatim from
+  // `uncharted-volume-v2-spy-1d-2026-09-12.json`.
+  const OURS = [45477300, 42740400, 32812400, 43494000]
+  const VENDOR = [45512741, 42740375, 32812411, 43531581]
+
+  it('⛔ at full resolution ALL FOUR differ — the reading that started this', () => {
+    const r = compareSeries('Volume', OURS, VENDOR, 'int')
+    expect(r.ok).toBe(false)
+    expect(r.mismatches).toBe(4)
+    expect(r.roundedEqual).toBe(0)
+  })
+
+  it('⭐⭐ at 100 shares the two ROUNDING bars agree and the two REAL ones do not', () => {
+    const r = compareSeries('Volume', OURS, VENDOR, 'int', 100)
+    // 2026-09-10 (−25) and 2026-09-09 (+11) are what rounding to 100 produces.
+    expect(r.roundedEqual).toBe(2)
+    // 2026-09-11 (+35,441) and 2026-09-03 (+37,581) are not.
+    expect(r.mismatches).toBe(2)
+    expect(r.ok).toBe(false)
+    expect(r.unit).toBe(100)
+  })
+
+  it('⛔⛔ IT IS NOT A TOLERANCE — 101 shares still fails at unit 100', () => {
+    // The whole reason this is `quantise(x) === quantise(y)` and not
+    // `abs(x - y) <= unit`. A tolerance would swallow anything up to the unit;
+    // this only swallows what the unit EXPLAINS.
+    expect(compareSeries('v', [1000000], [1000101], 'int', 100).mismatches).toBe(1)
+    // …and a pair the unit does explain agrees, at the same distance from a
+    // boundary, so the previous line is not passing for a rounding-direction
+    // accident.
+    expect(compareSeries('v', [1000000], [1000049], 'int', 100).mismatches).toBe(0)
+  })
+
+  it('⭐ CONTROL: the unit does not manufacture agreement where there is none', () => {
+    // Two stores that genuinely differ by a share still differ at unit 1, and a
+    // unit of 1 is the identity — so an unset unit cannot quietly relax anything.
+    expect(compareSeries('v', [45510000], [45510001], 'int', 1).mismatches).toBe(1)
+    expect(compareSeries('v', [45510000], [45510001], 'int').mismatches).toBe(1)
+    expect(quantise(45510001, 1)).toBe(45510001)
+    expect(quantise(45510001, 100)).toBe(45510000)
+  })
+
+  it('⛔ IDENTICAL IS NOT THE SAME FACT AS EXPLAINED, and the row keeps them apart', () => {
+    // A run where every bar needed the granularity and one where none did are
+    // different states of the world; collapsing them would let a provider change
+    // widen "exact" without anything going red.
+    const same = compareSeries('v', [100, 200], [100, 200], 'int', 100)
+    expect(same.ok).toBe(true)
+    expect(same.roundedEqual).toBe(0)
+    const rounded = compareSeries('v', [100, 200], [88, 214], 'int', 100)
+    expect(rounded.ok).toBe(true)
+    expect(rounded.roundedEqual).toBe(2)
+  })
+
+  it('⭐ the table names the unit, because AGREES without it says nothing', () => {
+    const text = renderTable([compareSeries('Volume', OURS, VENDOR, 'int', 100)])
+    expect(text).toContain('unit 100')
+    expect(text).toContain('rounded 2')
+    const plain = renderTable([compareSeries('Volume', [1], [1], 'int')])
+    expect(plain).toContain('exact')
+    expect(plain).toContain('no rounding')
   })
 })
