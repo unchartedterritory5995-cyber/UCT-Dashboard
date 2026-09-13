@@ -1,76 +1,239 @@
 ---
 id: WISDOM-LOOP-SESSION-STATE
-title: UCT Wisdom Loop — session state (continuation handoff)
-status: current
-updated: 2026-09-13 13:35 ET (an earlier "17:xx ET" reading was UTC — Git Bash ignores TZ=America/New_York)
+title: UCT Wisdom Loop — session state (SINGLE RESUME AUTHORITY)
+status: current — graceful pause for a machine restart
+written: 2026-09-13 ~15:45 ET (14:45 CT)
 ---
 
 # Session state
 
-Read this, then `docs/wisdom/CONTRACTS.md`, then `docs/wisdom/LEDGER.md`. The owner's Wave 1 text
-is in the gitignored `data/wisdom/WAVE1-PROMPT-v2.0.md` in this worktree.
+Resume in this order: this file, then `docs/wisdom/RESUME.md` (the restart procedure), `CLAUDE.md`,
+`docs/wisdom/PROGRAM-MANIFEST.md` and `docs/wisdom/CONTRACTS.md` (the build contract; §8a holds the checkpoint-1 rulings).
+The owner's Wave 1 text is gitignored at `data/wisdom/WAVE1-PROMPT-v2.0.md` in the integrator worktree.
 
-## Branch
+## 1. What this session accomplished
 
-`feat/wisdom-loop`, rebased on `origin/master` `f34ce660b`, pushed. Nothing merged to master yet.
+- **Session 0:** discovery, manifest, schema v0, vocabulary v0, golden v0 (30 records) and the verifier. Owner rulings
+  D1–D10 all YES.
+- **W1 GO v2.0 received**, with D11–D20 YES. Settled in `CONTRACTS.md`: 29 contradictions, layout, registry/store API, 25 dark gates, schedule, merge protocol.
+- **Skeleton `ca0b9b801`:**
+  - `api/services/wisdom/` (registry, store, flags, heartbeat, R2, authors, owner gate, core jobs) plus `api/routers/wisdom_*.py`;
+  - three `api/main.py` hooks;
+  - 25 gates declared dark;
+  - 19 tests green.
+- **Discord (W1 §2.1) DONE:**
+  - The bot role was granted in the Discord web UI on #tsdr, #bracco (+READ_MESSAGE_HISTORY), #1chartmaster and #manrav. All four return HTTP 200.
+  - Author user IDs are verified by authorship.
+  - #volume-alerts, #uncharted-scanners and #test-chartmaster-alerts are app-authored: out of scope, not granted.
+- **Golden v1** (125 records, stratification met) is integrated as `2e1f9f4bb`. **It is NOT frozen yet** (§6).
+- **Checkpoint 1 landed.** The owner rulings are recorded in CONTRACTS §8a. Manifest, ledger, authors.json and the schema contract are updated.
+- **Zoom correction landed.** Recovery is dropped; the rule is desk-check first, then store-and-verify before delete. Manifest, ledger, CONTRACTS and memory are corrected.
+- **Seven build streams** ran in parallel worktrees (Workflow `wf_c1669d34-d75`) until the pause. Every branch is WIP-committed and pushed (§2).
+- **Desk-transcript audit (Step 0), partial.** Video 356 has no transcript copy with ≥ 98 % coverage anywhere reachable:
+  - **Stored:** 76 speaker-labelled cues, 57–345 s of 6,830 s (5.05 %). The final cues discuss stopping and restarting the recording.
+  - **Full-length sources remaining:** R2 `desk_audio/rKVAkk3811Q.m4a` (83,057,014 B) and one YouTube ASR caption track (coverage not measurable without a download).
+  - **Searched, nothing found:** uct-clips, uct-recaps, C:\data, local Zoom/Downloads folders, and the stale uct-dashboard checkout.
+  - **Likely root cause** (inference from code): the recording was stopped and restarted, creating one MP4 and one TRANSCRIPT per segment. The publisher took the largest MP4; the insights pass took the FIRST transcript (the short segment); nothing checked coverage before delete.
+  - **Fix:** commit `9a260ca45` on `wisdom/w1-c-sources` (not on master).
+  - **Catalog:** ids 1–350 swept, 314 rows exist, 36 ids return 404. Coverage percentages wait for YouTube durations.
 
-## Done
+## 2. Branches (exact SHAs at pause; local = origin for every one)
 
-- **Contracts:** `docs/wisdom/CONTRACTS.md` settles 29 contradictions and fixes the layout, registry/store API, flags,
-  schedule and merge protocol.
-- **Skeleton:**
-  - `api/services/wisdom/` (registry, core store, ids, time, flags, heartbeat, R2, authors, owner gate, core jobs)
-    plus `api/routers/wisdom_*.py`.
-  - Three `api/main.py` hooks; 25 gates declared dark.
-  - `tests/test_wisdom_skeleton.py` 19 passed.
-- **Discord (W1 §2.1):**
-  - The bot reads #tsdr, #bracco, #1chartmaster and #manrav (200 each).
-  - Authors verified by user ID from the last 50 messages of each channel.
-  - #volume-alerts, #uncharted-scanners and #test-chartmaster-alerts are app-authored (Scripted Trading / Uncharted
-    Scanners / ChartMaster Alerts). They are out of scope and were not granted.
-- **Zoom — owner correction 2026-09-13 (CLOSED on the owner's side):**
-  - Zoom cloud recordings are deleted ON PURPOSE after posting. "Workshop with Stockbee" is NOT in Zoom trash and cannot
-    be recovered. Never plan a Zoom recovery, and never list it as an owner task.
-  - Instead (CONTRACTS §8a.6a–6b):
-    1. Desk-transcript check first, for 356 and every video under 98 % coverage (audit agent running).
-    2. If no full copy exists: re-transcribe the full audio (faster-whisper, the Desk gapfill STT) + diarization, and name
-       clusters by evidence only.
-    3. Rebuild edu_videos + chapters as a new source version.
-    4. Pipeline: store-and-verify before delete (VTT, audio transcript, chat log, metadata to R2; coverage >= 98 %).
-  - R2 `desk_audio/rKVAkk3811Q.m4a` exists (83,057,014 bytes). The box has faster_whisper + ctranslate2, ffmpeg 8.1.2
-    and 24 cores.
-  - **R2:** `wisdom/` prefix measured empty (0 keys) before any Wisdom write.
-- **Owner rulings at checkpoint 1** are in CONTRACTS §8a:
-  - golden-v1 freeze;
-  - ambiguous host label -> evidence-only resolution, else `team-unresolved` (MENTION only);
-  - inferred tickers (confidence <= 0.5 + bar-range pass);
-  - exits (exit_price/exit_text/exit_date, mismatch flag, private when open or closed <= 20 sessions);
-  - checkpoint format (status table first, cost + Batch progress every time).
+| Branch | SHA | Pushed |
+|---|---|---|
+| `feat/wisdom-loop` | `61413c06b` plus the pause-docs commit on top (this file + RESUME.md; its SHA is in the pause report — verify with `git log -1`) | yes |
+| `wisdom/w1-b-rails` | `b128cebf3` | yes |
+| `wisdom/w1-a-capture` | `6beb884a0` | yes |
+| `wisdom/w1-c-sources` | `0a18ce47a` | yes |
+| `wisdom/w1-d-extract` | `d492367c4` | yes |
+| `wisdom/w1-e-evals` | `27a6d7032` | yes |
+| `wisdom/w1-f-admin` | `7b3408a8f` | yes |
+| `wisdom/w1-f-publish` | `6c4d24c74` | yes |
+| `wisdom/w1-d-golden-prop` | `61413c06b` (no own commits yet) | yes |
+| `wisdom/w1-d-golden` | `21801941a` (done; cherry-picked into feat as `2e1f9f4bb`) | yes |
 
-## In flight
+**Worktrees** (all clean at pause):
+- `C:\Users\Patrick\uct-worktrees\wisdom-loop` (integrator);
+- `C:\Users\Patrick\uct-dashboard\.claude\worktrees\wf_c1669d34-d75-{1..7}`, numbered b-rails, a-capture, c-sources, d-extract, e-evals, f-admin, f-publish;
+- `...\worktrees\agent-a2d7f7d184d0d0c60` (golden-prop).
 
-- **Build streams:** Workflow `wf_c1669d34-d75` (launched 13:32 ET).
-  - Seven worktree builders, each followed by an adversarial reviewer. The plan's S-F is split into S-F1 `wisdom/w1-f-admin`
-    (review queue, dashboard, chains, weekly report, RUNBOOK) and S-F2 `wisdom/w1-f-publish` (consumer adapters, retrieval,
-    D20), with disjoint owned paths.
-  - The other branches: `wisdom/w1-b-rails`, `wisdom/w1-a-capture`, `wisdom/w1-c-sources`, `wisdom/w1-d-extract`,
-    `wisdom/w1-e-evals`. Base `1363d588b`.
-  - Their briefs predate the checkpoint-1 rulings and the Zoom correction. Reviewers judge against the CURRENT
-    CONTRACTS.md, so the gaps surface as findings to fix at integration.
-- **S-D golden v1 — integrated `2e1f9f4bb`.** Propagation + freeze agent running (branch `wisdom/w1-d-golden-prop`).
-- **Desk-transcript audit (Step 0):** read-only agent running. Output: `data/wisdom/audit/desk-transcript-audit-2026-09-13.json`.
-- ⚠️ **Box lock:** `uct-clips/tools/heavy_lock.py` is shared with other programs. An integrator skeleton re-run timed out while
-  'HOLD-2e' held it. The skeleton was green before (19 passed); re-run when free.
+The S-F1 worktree has an `app\node_modules` **junction**; remove it with `cmd /c rmdir` before any `git worktree remove`.
 
-## Pre-existing reds on master (not Wisdom)
+## 3. Stream table
 
-- `tests/test_cross_module_imports_resolve.py`: `api/services/discord_render/commands.py:34` imports `INTERACTIVE`
-  from `runtime`, which does not define it. This belongs to the Discord render program.
-- `tests/test_feature_flag_ledger.py` was red on the old base (four ALERT_TAXONOMY dark flags). It is fixed on
-  master `f34ce660b`.
+Tests at pause = `tests/test_wisdom_*.py` in each worktree, run in parallel just before the pause (S-C also ran `tests/test_desk_session_insights.py`).
+- **Import bans:** the four ban rails exist only on the S-B branch and were not run across streams at pause.
+- **Reviewers:** no reviewer verdict completed. The workflow was stopped while builders were still working; the S-A reviewer had started.
 
-## Deploy constraints today (Sunday)
+| Stream | Branch @ SHA | Tests | Bans | Reviewer | In progress at pause | Next action on resume | Blockers |
+|---|---|---|---|---|---|---|---|
+| **S-B** rails | `w1-b-rails` @ `b128cebf3` | **RED**: `tests/test_wisdom_core_private_routes.py::test_the_private_route_is_owner_only_on_the_real_app` (1 failed, 343 passed, 2 skipped) | not run | none | Owner-private route + `docs/wisdom/methodology/rails-v1.md` (WIP `024a9de89`). Done: ban rails, private store + core_002..006, entities/aliases/STT/speakers, vocabulary v1 + maps | 1. Fix the red route test. 2. Apply §8a: `team-unresolved` speaker rule, `exit_price` in the property test, `ticker_inferred`. 3. Run the ban rails against every stream branch. 4. Run the CONTRACTS §7 rails. 5. Reviewer. 6. **First master merge (§8.4)** | red test |
+| **S-A** capture | `w1-a-capture` @ `6beb884a0` | GREEN 95 passed | not run | started, no verdict | **Builder DONE**; report saved at `data/wisdom/review/workflow-wf_c1669d34-d75-builder-report-1.md` | Re-run the S-A review. Then: merge after S-B; arm `WISDOM_INGEST_ENABLED` + `WISDOM_CAPTURE_ENABLED`; first live run per the report §F | the S-B merge |
+| **S-C** sources | `w1-c-sources` @ `0a18ce47a` | GREEN 171 passed (incl. desk insights) | not run | none | Built: pairing fix `9a260ca45`, Discord poller/backfill/legacy reconcile, transcript + Sunday Scans ingest, routes/tools | 1. **Fix test isolation**: a test run wrote 16 fixtures to production R2 (§8); tests must never reach the real bucket. 2. Implement §8a.6a store-and-verify (VTT + audio transcript + chat log + metadata, coverage ≥ 98 %). 3. Desk-first repair tool (§8a.6b). 4. Reviewer | R2 fixture leak |
+| **S-D** extract | `w1-d-extract` @ `d492367c4` | GREEN 112 passed | not run | none | Golden gate / drift / trial run was killed mid-run at the pause: $4.45 of the $15 cap, 2 batches collected. Methodology `extraction-v0.md` is WIP. The transport schema was reduced to fit the API's 16 union-parameter limit | 1. Resume the gate from `data/wisdom/extract/pilot/*` + `spend-ledger.json` with `--max-usd` = the remaining cap; never re-submit collected batches. 2. Finish the drift + smaller-model delta. 3. Apply §8a.4 inferred-ticker and §8a.5 exit fields; score against the FROZEN golden-v1 only. 4. Reviewer | golden-v1 freeze |
+| **S-E** evals | `w1-e-evals` @ `27a6d7032` | GREEN 77 passed | not run | none | Built: outcomes, context, CALL-REPLAY, metrics 6.1–6.3, grounding 6.4 engine, tools, routes | Continue the brief (fixture baseline k/n, grounding question set); §8a.5 exit reconciliation (`exit_mismatch` flag); reviewer | none |
+| **S-F1** admin | `w1-f-admin` @ `7b3408a8f` | GREEN 77 passed (backend); **vitest not run at pause** | not run | none | Built: review queue, chains + jobs, weekly report/packet, RUNBOOK draft, publish routes, admin page `/admin/wisdom` | Run vitest rails under the box lock; finish the brief; reviewer | none |
+| **S-F2** publish | `w1-f-publish` @ `6c4d24c74` | GREEN 88 passed, 2 skipped | not run | none | Built: adapter stores + FTS5, Brain KB rows/export/sync, Ask-AI block (dark), markers/badges/dossier, D19 drafts, D20 scorer + look-alike (disabled), clip export, private-field property rail | §8a.5 exit redaction in every member-facing path; finish the brief; reviewer | none |
+| **golden-prop** | `w1-d-golden-prop` @ `61413c06b` | verifier self-check PASS | n/a | n/a | Tasks 1–5 evidence gathered, nothing written (`data/wisdom/golden/PROPAGATION-RESUME.md`) | Resume per the resume note: read `ev3_out.txt`, then backups, rewrite, session-resolutions, verifier, freeze + sha | none |
 
-- **No master push** 17:50–18:30 ET (Notebook Wave Q1 gate).
-- **No master push** within ±3 min of an odd ET hour (Q1 sampler).
-- **One master merge at a time.** Railway web SUCCESS must be verified by an `/api/health` uptime reset before the next merge.
+**ETA** (estimates, not commitments):
+- **Streams into `feat/wisdom-loop`:** 2–4 working hours after resume.
+- **S-B to master:** the first session window after its red test is fixed and reviewed.
+- **The rest:** one per deploy cycle in §8.4 order.
+- **Carry-over:** today's unmet §9.1 items ship tested on the next working day, per §0.5.
+
+## 4. Master merge status
+
+- **Merged to master: nothing.** No Wisdom deploy has happened.
+- **Next in §8.4 order:** S-B rails (blocked on its red test), then S-A → S-C → S-D → S-E → S-F.
+- **Railway:** web was serving before the pause. Production returned 502 twice (~19:14 and ~19:19 UTC) during other programs' deploys; both recovered by 19:21 UTC.
+- **Before any merge:** check the Notebook, Discord render and Data Charts programs for in-flight merges.
+- **Standing deploy constraints:**
+  - one master merge at a time, with web SUCCESS verified by an `/api/health` uptime reset;
+  - no push 17:50–18:30 ET on Notebook gate days;
+  - no push within ±3 min of odd ET hours while the Q1 sampler runs.
+
+## 5. Background jobs
+
+| Job | Where | Last checkpoint | Resume |
+|---|---|---|---|
+| Anthropic Batch `msgbatch_01Kvf7Q9ZinucRR7xfKQTsnq` (2 requests, gate) | Anthropic | **collected** | nothing pending; do not re-submit |
+| Anthropic Batch `msgbatch_019NjdbTHu1eK3MXbW2zxMC7` (30 requests, gate) | Anthropic | **collected** | nothing pending; do not re-submit |
+| S-D golden gate / drift / trial (local; killed at pause) | `data/wisdom/extract/` (`spend-ledger.json`, `pilot/gate-report-*.json`, `pilot/*.db`) | $4.453353 of $15 spent | RESUME.md §3 |
+| Desk-transcript audit (local; stopped) | `data/wisdom/audit/AUDIT-RESUME.md`, `desk-transcript-audit-2026-09-13.partial.json` | ids 1–350 swept | RESUME.md §3: `audit_catalog_sweep.py ... 351` |
+| Golden propagation agent (stopped) | `data/wisdom/golden/PROPAGATION-RESUME.md` | evidence for tasks 1–5 | RESUME.md §3 |
+| Build workflow `wf_c1669d34-d75` (stopped) | journal copied to `data/wisdom/review/workflow-wf_c1669d34-d75-journal.jsonl` | only the S-A builder finished | a continuation workflow per RESUME.md §1 |
+| Railway-hosted Wisdom jobs | — | none exist (nothing deployed) | — |
+
+- **Scratch copy:** the whole session scratchpad (understand maps, audit scripts, Discord history, evidence dumps) is copied to
+  `data/wisdom/scratch/session-5691081b-scratchpad/` (518 files).
+- **Preserved reviewer repro:** `data/wisdom/review/rv-a-capture__test_rv_past_asof_repro.py`.
+- **Preserved S-C scratch:** `data/wisdom/scratch/c-sources-sc_scratch/`.
+
+## 6. Golden-v1 status
+
+- **Integrated:** `2e1f9f4bb`, 125 records (117 confirmed, 8 provisional).
+- **Types:** CALL 40, NEGATIVE_CALL 17, MENTION 22, PRINCIPLE 27, LEVEL 11, MARKET_SIGNAL 8.
+- **Authors:** tsdr 76, bracco 25, manrav 11, chartmaster 10, ravi 1, guests 2.
+- **Split:** dev 67, test 58.
+- **NOT FROZEN.** The freeze needs the §8a propagation, then three verifier passes, the leaked-quote check and the sha256 recorded in the ledger.
+- **Propagation findings so far:**
+  - **G-018 → NOW:** confirmed by bars.
+  - **G-011 / G-014:** unaffected.
+  - **G-002:** already correct.
+  - **Inferred tickers:** G-014, G-018 and G-055, all passing the bar check (0 flips so far).
+  - **"Uncharted Territory":** mostly TSDR with strong evidence, and Bracco in specific handed-off stretches. Sessions 303, 325, 334, 342, 345 and 349 are still undecided. Expected: no author change on golden records except confirming G-057 as bracco; G-035 and G-052 can leave provisional.
+  - **Joe Walburn = Chartmaster:**
+    - hosts address the 1ChartMaster guest as "Joe" in 8 recordings;
+    - Discord `capt.joe_36972` has global name "1Chartmaster";
+    - the X @1ChartMaster bio links whop.com/uncharted;
+    - the roster has no other Joe;
+    - no self-introduction line was found in 277/307.
+
+## 7. Owner rulings this session (all stand; do not re-ask)
+
+- **Session 0 / rulings message.**
+  - D1–D10 YES.
+  - Sunday Scans: published Substack posts only, never drafts.
+  - D6 was delegated and resolved as the MERGE MAP (publish into existing systems).
+  - D11–D20 were requested and later approved.
+  - "Use all our data."
+- **W1 GO v2.0.**
+  - **Mandate:** full automation; verify, don't ask; owner judgment is a veto (provisional into the queue).
+  - **Hard rules §0.4 a–i:**
+    - published Substack only;
+    - Journal / J2 / Notebook / broker out of scope;
+    - no member-visible change without an owner flip;
+    - private content-stream data only in the private store;
+    - no member messages;
+    - public repo quote-free;
+    - paid content entitled only;
+    - one master merge at a time;
+    - off-limits paths.
+  - **Decisions:**
+    - D11–D20 YES with rails;
+    - D16 split: D16a YES, D16b DEFERRED with no date;
+    - D12 capture ships first;
+    - D13 50-image cost gate;
+    - D14 guests MENTION / guest PRINCIPLE only;
+    - D15 n < 30 = insufficient data;
+    - D18 never delete (build → eval → diff → admin swap → archive; "Bonde" re-attributed by evidence, else unknown);
+    - D19 drafts only;
+    - D20 disabled until CALL-REPLAY n ≥ 100 plus two weeks of silent scoring.
+  - **Authors:** four CALL authors (tsdr, bracco, manrav, chartmaster).
+  - **Vocabulary:** 32 approved; one authority plus maps; mismatches with no renames; contradictions to the weekly report; coined_by=TSDR; STT aliases; auto-promote at ≥ 3 team uses.
+  - **Extraction:** Opus 5 Batch, schema output, golden gate, smaller-model trial, budget cap $80 × 1.5.
+  - **Delivery:** publish adapters dark with flags; metric definitions 6.1–6.7; loop cadence; parallel streams; merge order §8.4; DoD §9.1; roadmap W2–W6.
+- **Checkpoint 1** (CONTRACTS §8a):
+  - freeze golden-v1 (additions go to v1.1+) and print the type × author table in the ledger (done);
+  - the 13 queue items stay provisional and are listed in one block at the next checkpoint;
+  - "Uncharted Territory" resolved per session by evidence only, else `team-unresolved` (MENTION only); never default to TSDR or Bracco; retroactive re-tag;
+  - Joe Walburn alias approved with an identity and roster check;
+  - exit_price, exit_text and exit_date approved, with a mismatch flag and private when open or closed ≤ 20 sessions, plus redaction in the property test;
+  - G-018 / G-002 corrections propagated;
+  - permanent inferred-ticker rule (confidence ≤ 0.5 plus a bar-range pass);
+  - checkpoint format: status table first, cost and Batch progress every time, SESSION-STATE current;
+  - next checkpoint after the first master merge (S-B).
+- **Zoom correction:**
+  - Zoom recordings are deleted on purpose after posting; Track B is dropped;
+  - Step 0 desk check for 356 and every video under 98 %;
+  - otherwise re-transcribe the full audio with the Desk STT plus diarization, naming clusters by evidence only (else `unresolved`);
+  - Stockbee is a guest (D14);
+  - rebuild as a new source version and put the speaker map in the attribution queue;
+  - the pipeline stores the VTT, audio transcript, chat log and metadata in R2 and verifies ≥ 98 % before delete;
+  - the root cause ships or is filed.
+- **Recorded refusal:** the integrator will not submit a browser-autofilled password (a platform safety rule); the Zoom correction made that path moot.
+- **Pause:** this file and RESUME.md are the resume authority.
+
+## 8. Open items (none need the owner)
+
+1. **Test fixtures in production R2.** `wisdom/sources/zoom_vtt/` holds 16 test-fixture objects (2,399 bytes, written ~18:00 UTC by an S-C test run).
+   - **Integrator plan:** leave them (Wisdom has no delete path).
+   - **Fix:** make S-C tests use a fake client only, and add a `core/r2.py` guard that refuses real writes under pytest.
+   - **Later:** record the keys as known fixtures so capture health and ingest ignore them.
+2. **S-B red route test.** Fix before the first master merge.
+3. **Diarization tooling is absent on this box.** Python 3.14 only; no pyannote, SpeechBrain, Resemblyzer or torchaudio, and no Hugging Face token. torch, scikit-learn and faster-whisper models (base.en, small, large-v3, tiny.en) are cached.
+   - **Recommendation for Track A** (only if the desk audit stays empty, which it currently is for 356): transcribe with faster-whisper base.en (the Desk gapfill STT) in an isolated venv, with a CPU speaker-embedding model installed there, never into the shared interpreter. Name clusters by evidence only.
+4. **Ledger rows owed on resume:** the pause-docs commit, and the stream merges when they land.
+5. **Today's §9.1 items not finished:**
+   - first live capture run;
+   - Discord backfill;
+   - catalog Batch;
+   - metrics baselines;
+   - daily chain run;
+   - weekly preview;
+   - 356 transcript rebuild;
+   - golden freeze.
+
+   Per §0.5 they ship tested next, not untested today.
+
+## 9. Review queue (golden v1, unchanged at pause)
+
+13 items on 12 records:
+
+| Tab | Items | Records |
+|---|---|---|
+| attribution | 6 | G-016, G-024, G-035, G-052, G-057, G-065 |
+| golden | 4 | G-002, G-018, G-028, G-055 |
+| contradictions | 1 | G-030 |
+| authors | 1 | G-057 |
+| vocabulary | 1 | G-079 |
+
+The full block (gid, label, proposed change, evidence, recommendation) is due in the next checkpoint.
+
+## 10. Cost to date
+
+| Line | Actual | Source |
+|---|---|---|
+| Anthropic API (S-D gate / drift / smaller-model trial, incl. the 2 Batch jobs $0.247504 + $2.526160) | **$4.453353** | `data/wisdom/extract/spend-ledger.json` |
+| Anthropic Batch pending | $0 | both batches collected |
+| TwitterAPI.io | ≈ $0.003 (S-A smoke, 20 tweets) plus 1 user lookup (golden-prop; cost not measured, < $0.01) | stream reports |
+| OpenAI | $0 | — |
+| R2 storage (`wisdom/`) | 16 objects, 2,399 bytes (test fixtures): ≈ $0 | audit R2 inventory |
+| Railway | no new service or job | — |
+
+Budget caps are untouched: extraction catalog $120 (not started), S-D gate $15 ($10.55 left), S-E grounding $5 (none spent).
+
+## 11. Open questions for the owner
+
+None.
