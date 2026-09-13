@@ -1,0 +1,63 @@
+{
+  "_readme": [
+    "Wisdom Loop authors (§2.1). Only these four author CALLs. Authorship is FIXED by this file, never inferred from voice or style.",
+    "Discord user IDs are verified by measured authorship of the author's own channel (GET /channels/{id}/messages?limit=50 with the bot token, 2026-09-13), not by display name.",
+    "Aliases normalise Zoom speaker labels, Discord display names, Substack section owners and X handles. Matching is case-insensitive and exact (no fuzzy matching).",
+    "A fifth regular author becomes role=candidate, flagged to the owner review queue, and is NOT ingested until ruled.",
+    "Bots and webhooks (e.g. the 'UCT Intelligence' webhook user 1527044971553620088 posting in #tsdr) are never authors."
+  ],
+  "authors": [
+    {
+      "author_id": "tsdr",
+      "display_name": "Patrick (TSDR)",
+      "role": "owner",
+      "can_author_calls": true,
+      "discord_user_id": "339816805805588480",
+      "discord_username": "tsdrtrading",
+      "discord_verified": "46/50 most recent #tsdr messages (other 4 = UCT Intelligence webhook bot)",
+      "x_handle": "TSDR_Trading",
+      "aliases": ["Patrick (TSDR)", "Patrick TSDR)", "Patrick (TSDR(", "Uncharted Territory", "TSDR Trading", "TSDR TRADING", "tsdrtrading", "TSDR_Trading", "TSDR", "Patrick"],
+      "substack_sections": ["TSDR's Weekly Outlook & Watchlist", "INTRO", "Earnings & Economic Calendar for the Week", "Market Breadth Data", "Index & ETFs"],
+      "substack_section_attribution_source": "signed section; unsigned sections per D4 ruling"
+    },
+    {
+      "author_id": "bracco",
+      "display_name": "Bracco",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "427798118935953410",
+      "discord_username": "braczyy",
+      "discord_verified": "50/50 most recent #bracco messages",
+      "x_handle": "Braczyy",
+      "aliases": ["Bracco", "Brac", "Braczyy", "braczyy", "Braczzy", "Blake"],
+      "substack_sections": ["Bracco's Breakdown & Top Ideas"]
+    },
+    {
+      "author_id": "chartmaster",
+      "display_name": "Chartmaster",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "1203080759141736508",
+      "discord_username": "capt.joe_36972",
+      "discord_verified": "50/50 most recent #1chartmaster messages; matches the channel's member permission override",
+      "x_handle": "1ChartMaster",
+      "aliases": ["Chartmaster", "Chart Master", "1ChartMaster", "1chartmaster", "EliteSwingTrader", "capt.joe_36972"],
+      "substack_sections": []
+    },
+    {
+      "author_id": "manrav",
+      "display_name": "Manrav",
+      "role": "team",
+      "can_author_calls": true,
+      "discord_user_id": "806378356966424596",
+      "discord_username": null,
+      "discord_verified": "PENDING — ID from prior session memory; to be confirmed by #manrav channel authorship after the bot grant",
+      "x_handle": null,
+      "aliases": ["Manrav", "Manav", "manrav"],
+      "substack_sections": []
+    }
+  ],
+  "non_call_speakers": [
+    { "label": "Ravi", "role": "team_non_author", "note": "partner (options flow). MENTION / PRINCIPLE only; not in the four §2.1 authors." }
+  ]
+}
