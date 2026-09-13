@@ -673,7 +673,16 @@ def smoke_login_link(
         details=f"target={req.user_id}",
         ip_address=client_ip(request),
     )
-    return {"url": f"{DASHBOARD_URL.rstrip('/')}/smoke-login?token={token}"}
+    # ⛔⛔ THE TOKEN GOES IN THE FRAGMENT, NEVER A QUERY STRING (hardened 2026-09-12).
+    # A fragment is never sent to ANY server: not to us, not to a CDN, not to a search engine
+    # if the URL is mistyped into a search box, and it does not appear in an access log or a
+    # Referer header. ⚰️ This changed after a mistyped navigation on a Live mirror ran a
+    # GOOGLE SEARCH for the whole URL, sending a live token to a third party. With the token
+    # after the `#`, that same mistake leaks the path and nothing else.
+    # ⭐ `/smoke-login` reads it from `location.hash` in the browser and POSTs it to
+    # `/api/auth/smoke-login`, so the secret still reaches this server -- in a request BODY,
+    # which is the part that is not logged.
+    return {"url": f"{DASHBOARD_URL.rstrip('/')}/smoke-login#token={token}"}
 
 
 class SmokeLoginRequest(BaseModel):
