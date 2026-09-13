@@ -84,14 +84,23 @@ def evaluate(mode: str, width: int, chip: dict | None, btn: dict | None,
 # ── the browser half ─────────────────────────────────────────────────────────────────────────
 PROBE = """() => {
   const chip = document.querySelector('[data-testid="hub-chip"]');
-  const btn = [...document.querySelectorAll('button[aria-label]')]
-    .find((b) => /actions$/i.test(b.getAttribute('aria-label')));
+  // Prefer the stable hook; fall back to the label for a build that predates it.
+  // ⛔ WHICH ONE ANSWERED IS REPORTED, NEVER SWALLOWED. A silent fallback would let this sweep
+  // run green against an old bundle while the operator believed it was exercising the new hook,
+  // and an instrument that cannot say what it measured is the shape of every vacuous gate here.
+  let btn = document.querySelector('[data-testid="hub-actions"]');
+  let btnBy = btn ? 'testid' : null;
+  if (!btn) {
+    btn = [...document.querySelectorAll('button[aria-label]')]
+      .find((b) => /actions$/i.test(b.getAttribute('aria-label'))) || null;
+    btnBy = btn ? 'label' : null;
+  }
   const R = (el) => {
     if (!el) return null;
     const r = el.getBoundingClientRect();
     return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width };
   };
-  const out = { chip: R(chip), btn: R(btn), hits: [] };
+  const out = { chip: R(chip), btn: R(btn), btnBy, hits: [] };
   if (!chip) return out;
   const r = chip.getBoundingClientRect();
   if (r.width <= 0 || r.height <= 0) return out;
@@ -138,6 +147,10 @@ def run(base: str, headed: bool) -> int:
 
     all_fails: list[str] = []
     measured = 0
+    # ⛔ A RUN THAT FELL BACK IS STILL A RUN, AND IT MUST SAY SO. Finding the button by its
+    # member-visible label means the served bundle predates `data-testid="hub-actions"` — the
+    # measurement is valid, but it did NOT exercise the hook this rail is supposed to depend on.
+    by_label: list[str] = []
     no_chip: list[str] = []
     with sync_playwright() as pw:
         br = pw.chromium.launch(headless=not headed)
@@ -193,9 +206,17 @@ def run(base: str, headed: bool) -> int:
                 else:
                     say(f"  ✓ {mode} @{width}: {len(out['hits'])} points, all chip; "
                         f"chip.left {out['chip']['left']:.0f} is "
-                        f"{out['chip']['left'] - out['btn']['right']:.0f}px clear of the button")
+                        f"{out['chip']['left'] - out['btn']['right']:.0f}px clear of the button "
+                        f"(button found by {out.get('btnBy') or '?'})")
+                    if out.get("btnBy") == "label":
+                        by_label.append(f"{mode}@{width}")
         ctx.close()
         br.close()
+
+    if by_label:
+        say("⚠️  button found by ARIA LABEL, not by data-testid, on: " + ", ".join(by_label)
+            + " — the served bundle predates the hook. The geometry above is still real; the "
+            "selector hardening is not being exercised.")
 
     if measured == 0:
         say("⛔ INCONCLUSIVE — no mode rendered a chip at any width. Nothing was measured.",
@@ -230,7 +251,11 @@ FIXTURE = """<!doctype html><meta name=viewport content="width=device-width">
   #btn  { right:114px; width:44px; height:44px; bottom:88px; background:#555; border:0; }
 </style>
 <div id=chip data-testid="hub-chip"><b>SCREENER</b><span>&nbsp;tap: next result</span></div>
-<button id=btn aria-label="Scan actions"><svg width=18 height=18></svg></button>"""
+<button id=btn data-testid="hub-actions" aria-label="Scan actions"><svg width=18 height=18></svg></button>"""
+
+# ⛔ THE SAME FIXTURE WITHOUT THE HOOK. The label fallback exists for a bundle that predates
+# `data-testid="hub-actions"`; a fallback nobody exercises is a fallback nobody knows is broken.
+FIXTURE_NO_TESTID = FIXTURE.replace(' data-testid="hub-actions"', '')
 
 
 def fixture_control(headed: bool) -> int:
@@ -241,14 +266,25 @@ def fixture_control(headed: bool) -> int:
         br = pw.chromium.launch(headless=not headed)
         page = br.new_context(viewport={"width": 393, "height": 780},
                               is_mobile=True, has_touch=True).new_page()
-        for label, chip_right, want_fail in (("clear", 166, False), ("overlapping", 118, True)):
-            page.set_content(FIXTURE % {"chipRight": chip_right})
+        for label, chip_right, want_fail, tmpl, want_by in (
+            ("clear", 166, False, FIXTURE, "testid"),
+            ("overlapping", 118, True, FIXTURE, "testid"),
+            # ⭐ The fallback, driven rather than assumed: same boxes, hook removed. It must still
+            # resolve AND must report that it resolved the other way.
+            ("clear-no-testid", 166, False, FIXTURE_NO_TESTID, "label"),
+        ):
+            page.set_content(tmpl % {"chipRight": chip_right})
             page.wait_for_timeout(120)
             out = page.evaluate(PROBE.replace("BAND", str(SWALLOWED_BAND_PX)))
             got = evaluate("fixture", 393, out["chip"], out["btn"], out["hits"])
             ox, _ = rect_overlap(out["chip"], out["btn"]) if out["chip"] and out["btn"] else (0, 0)
             say(f"  fixture[{label}] chipRight={chip_right} overlapX={ox:.0f} "
-                f"samples={len(out['hits'])} -> {'FAIL' if got else 'PASS'}")
+                f"samples={len(out['hits'])} btnBy={out.get('btnBy')} "
+                f"-> {'FAIL' if got else 'PASS'}")
+            if out.get("btnBy") != want_by:
+                fails.append(f"fixture[{label}] found the button by {out.get('btnBy')!r}, "
+                             f"expected {want_by!r} — the selector under test is not the one "
+                             f"that answered")
             if bool(got) is not want_fail:
                 fails.append(f"fixture[{label}] expected {'FAIL' if want_fail else 'PASS'}, "
                              f"got {got or 'PASS'}")

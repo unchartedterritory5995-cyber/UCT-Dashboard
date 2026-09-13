@@ -450,7 +450,7 @@ G0 resolves, the G5 sweep unblocks, and §B/§C answer the rest in the same sitt
 | **G3-18 / D-39** | The chip is partly covered by page-level fixed furniture (Journal's "Log a trade" FAB; a Breadth span at 360). Cosmetic-plus, **non-blocking** by ruling. Fix is hub-side, never a `journal-2-0` edit. | joystick |
 | **D-40** | The Notebook's phone note list exposes **no per-note DOM id** (`ResponsiveTable`'s `rowKey` is a React key), so no automated check can open a specific note on a phone. This is why the iOS-17 **preview** path is recorded unexercised. | Notebook |
 | **D-41** | Two corrections owed to `iteratorGlobalFloor.test.js`: the `Array.fromAsync` since-note is wrong against a measured 17.6 device, and the bundle-scan test needs an explicit timeout. Blocked from this side by rule 12. | Notebook |
-| **B7 / rule 12** | `rule12Paths.test.js` still has no branch-identity check, so it reddens ANY branch touching those paths — it did exactly that to the hardening branch today. | joystick |
+| ~~**B7 / rule 12**~~ | ✅ **CLOSED 2026-09-13.** `rule12Paths.test.js` now asks whose change set it is — the DIFF first (`app/src/hub/`, `docs/plans/joystick/`, `tools/hub_`, `scripts/hub`), the branch name second — so it fires on joystick work and is silent on the Notebook workstream editing its own code. ⭐ The diff is the primary identifier because not one of this programme's own branch names contains "joystick" or "hub". Fifteen table cases over real branch names; mutation-proved four ways; a planted `journal-2-0/` file still makes it fire. | joystick |
 
 ### The honest ledger on what a mirror can and cannot do
 
