@@ -20,6 +20,22 @@ facts:
 ⛔ **On your own phone none of this applies.** You are signed in already, your finger is a real
 finger, and the screen is full size.
 
+### ⭐ What changed under this document on 2026-09-13, before you run it
+
+**Nothing here changes a step.** Recorded because two of them change what you will SEE or HEAR, and
+an unexplained difference during a run reads as a defect.
+
+| what | where you would notice it |
+|---|---|
+| **The knob is now named `Joystick, <mode>`** — it was `<mode> mode`. | Only with VoiceOver or TalkBack on (§C-iOS, §C). It is deliberate: the product noun comes first so a member landing on the knob is told WHAT they are on, not only which mode it is in. |
+| **Focus returns to the knob when any hub sheet closes** (D-46). Previously it returned to `<body>`, because nothing had ever put the knob into `document.activeElement` — and the knob was not focusable at all. | Only with a screen reader. Close a sheet and the cursor should land back on the joystick rather than at the top of the page. ⭐ If it does NOT, that is a real finding and worth writing on the sheet. |
+| The Actions button gained a `data-testid`; the rule-12 rail learned whose branch it is on; §C2 of the spec records why the knob carries a `tabIndex`. | Nowhere — instruments and documents only. |
+
+⚠️ **And one thing that is NOT new but is worth knowing before §A:** a drag WITHOUT the hold is a
+**fan push**, not a scrub — it resolves by direction and fires that bubble (`useJoystick.js:408`).
+A previous session logged one of those as a passing scrub. If a drag navigates somewhere you did
+not expect, that is what happened, and the row is a FAIL rather than a pass.
+
 ---
 
 ## A — iPhone: the flick block and the trace (the one that matters most)
@@ -40,7 +56,26 @@ controls. ⛔ **Nothing here was dangerous** — every one of these five opens a
 (`openStopSheet`, `openPlanSheet`, or a confirm), so a flick can never write to a live position.
 The defect was the expectation, not the product.
 
-**Setup:** Settings → Joystick → turn **Record gesture trace** ON.
+**Setup:** Settings → **Charts** → scroll to **JOYSTICK** → turn **Record gesture trace** ON.
+
+⚠️ **There is no “Joystick” entry in Settings’ section list.** The card lives inside **Charts**,
+under the chart settings (`Settings.jsx:2315` puts it there deliberately, beside the chart card it
+was pulled forward with). Verified on production 2026-09-13: `?section=charts` renders all sixteen
+joystick controls; `?section=preferences` renders none. Direct link if you would rather not hunt:
+`uctintelligence.com/settings?section=charts`.
+
+> ⛔⛔ **DO NOT RELOAD, AND DO NOT TYPE A URL, BETWEEN GESTURING AND COPYING THE TRACE.**
+> The trace ring is **module state with no sink** — any full page load empties it, and the Copy
+> button will hand you a valid, well-formed, **empty** capture after you have done all twenty-five
+> gestures. Move between the Journal and Settings **inside the app** (the menu, the nav), never by
+> reloading.
+>
+> ⭐ **Measured, not asserted (2026-09-13, production).** The same scripted run, twice, differing
+> only in how it reached Settings: a document load returned `recorded 0 · kept 0 · rows 0`;
+> in-app navigation returned `recorded 9 · kept 9 · dropped 0`. Same account, same build,
+> minutes apart. The whole capture path — card, toggle, engine, attribute, analyser — was
+> walked end to end on the live build and is recorded in `section-a-preflight-2026-09-13.md`.
+> ⛔ That pre-flight is **not** a G0-1 result and does not pre-answer a single row below.
 
 ### A1–A5 — the flicks. Do all of these FIRST, in this order.
 
@@ -67,8 +102,9 @@ from a flick — becomes meaningless.
 
 ### Then the trace, which is the real payload
 
-Settings → Joystick → **Copy trace**, paste it into a file, and run it with the targets declared in
-the order you performed them:
+Settings → **Charts** → **JOYSTICK** → **Copy trace**, paste it into a file, and run it with the
+targets declared in the order you performed them — reaching Settings **in-app**, per the warning
+above:
 
     python tools/hub_trace_analyze.py trace-15pro.json --control 5 \
       --expect journal.close:4 --expect journal.moveStop:4 --expect journal.breakeven:4 \
@@ -209,7 +245,7 @@ without it is considerably harder than switching it on.
 | # | Row | Do this | What to record | Result |
 |---|---|---|---|---|
 | D1 | G3-16(a) | Dashboard, open Home's fan. **Cover the labels.** Can you tell the **Wire** bubble from the **Journal** bubble by sight alone? | ⛔ Note whether you are colour-blind and which type — "looks fine to me" answers this for one pair of eyes only. (b) is already measured BETTER: ΔE00 14.5 → 28.0. | ☐ DISTINGUISHABLE ☐ CONFUSABLE |
-| D2 | G3-2 | Settings → Joystick → **High contrast** ON. Use the hub on a busy page. | Every ring, chip and readout stays legible against the live page behind the glass. ⭐ The mechanism is confirmed armed on a real device (`data-hub-contrast="high"`); only legibility is yours to judge. | ☐ PASS ☐ FAIL |
+| D2 | G3-2 | Settings → **Charts** → **JOYSTICK** → **High contrast** ON. Use the hub on a busy page. | Every ring, chip and readout stays legible against the live page behind the glass. ⭐ The mechanism is confirmed armed on a real device (`data-hub-contrast="high"`); only legibility is yours to judge. | ☐ PASS ☐ FAIL |
 | D3 | G3-5 | Load the Dashboard on a **Saturday or market holiday**. | The Catalysts tile is absent, the hub falls back to the route-derived mode, and you see the preview fan. Nothing pretends the section is there. | ☐ PASS ☐ FAIL |
 
 ---

@@ -283,10 +283,20 @@ today goes through **Live**: a human or an agent driving the screen mirror, not 
 Desktop $129 · **Desktop & Mobile $225** · Desktop & Mobile Pro $275. Only the $225 tier and above
 include real mobile devices, so it is the only one that could run G0-1 or the device matrix.
 
-## The hub Actions button has no `data-testid` (follow-up, owner-approved 2026-09-12)
+## ~~The hub Actions button has no `data-testid`~~ — ✅ DONE 2026-09-13
 
 `HubActionsButton.jsx` renders the Actions button with only an `aria-label` and a hashed CSS-module class. Every instrument that must find it therefore matches `button[aria-label]` against `/actions$/i` (`tools/hub_chip_clearance.py:87-88`), which is a label match on member-visible copy — it breaks the day someone rewords the label, and the rail that breaks is the one guarding G3-15.
 
 ⭐ Add `data-testid="hub-actions"` and move the sweep onto it, keeping the aria-label assertion as a SEPARATE check of the accessible name rather than as the selector. Two properties, two assertions.
 
 ⛔ **Deliberately not done during the closure programme:** it is an `app/src/hub` edit, and it surfaced while a six-shard gate was mid-flight on that exact tree. Owner ruled it a follow-up, 2026-09-12.
+
+### ✅ DONE 2026-09-13 — and the fallback is DRIVEN, not assumed
+
+`HubActionsButton.jsx` now carries `data-testid="hub-actions"` on the button element itself, and `tools/hub_chip_clearance.py` selects on it.
+
+⭐ **The label match is KEPT as a fallback, and the probe reports which one answered** (`btnBy: 'testid' | 'label' | null`). A silent fallback would let this sweep run green against a bundle that predates the hook while the operator believed the hardening was being exercised — so a production run that falls back prints a ⚠️ naming every mode and width it happened on, and says in the same breath that the geometry is still real.
+
+⛔ **Three rails, and they fail for different reasons** (`hubComponents.test.jsx`): the hook is on the BUTTON and not a wrapper (a hook on a wrapper measures the wrong box); the hook and the accessible name resolve to the SAME element, found two different ways, so an instrument and a screen-reader user can never be talking about different controls; and the glass sweep selects on that exact literal, matched as a CALL SHAPE rather than a bare string — that file explains the hook in its own comments, and a substring search would match its own explanation, which is this repo's most-repeated instrument defect. The third carries a control proving it can fail.
+
+⭐ **The fixture control now drives BOTH selectors**: the same boxes with the hook present (`btnBy=testid`) and with it removed (`btnBy=label`), each asserting which selector answered. A fallback nobody exercises is a fallback nobody knows is broken. Measured: `fixture[clear] btnBy=testid -> PASS` · `fixture[overlapping] btnBy=testid -> FAIL` · `fixture[clear-no-testid] btnBy=label -> PASS`.

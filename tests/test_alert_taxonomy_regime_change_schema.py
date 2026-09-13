@@ -490,12 +490,25 @@ def test_there_is_no_replay_fn_and_the_module_says_why():
     assert "_TTL_SECONDS" in raw and "no prior `signals` dict is persisted" in raw
 
 
-def test_nothing_calls_register_yet_and_that_is_the_checkpoint_boundary():
-    """⛔ CP1-CP2 add no scheduler entry and no wire. The rail that this stays
-    true is here so an accidental wire is caught rather than discovered at CP3."""
+def test_the_type_IS_wired_now_that_CP3_is_signed():
+    """⛔ REGISTRATION IS NOT ACTIVATION — and at CP3 it is finally allowed.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, 9f0575340). It read:
+
+        assert "regime_change" not in main, (
+            "api/main.py wires regime-change — that is CP3 and needs a new
+             approval line")
+
+    ⭐ That rail, and its three siblings, refused a wrong fix on 2026-09-13: the
+    pod showed three registered trigger types against eight modules defining
+    `register()`, which looked like five instances of *built, tested, green and
+    unreachable*. Three was the correct number. See
+    `tests/test_alert_taxonomy_registration_is_wired.py`.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "regime_change" not in main, (
-        "api/main.py wires regime-change — that is CP3 and needs a new approval line")
+    assert "regime_change" in main, (
+        "regime-change CP3 is signed and api/main.py does not wire it")
+    assert "add_job" in main, "control: the main.py probe read nothing"
 
     importers = []
     for p in (_REPO / "api").rglob("*.py"):
@@ -507,5 +520,11 @@ def test_nothing_calls_register_yet_and_that_is_the_checkpoint_boundary():
             continue
         if "alert_taxonomy import regime_change" in code or "regime_change.register" in code:
             importers.append(str(p.relative_to(_REPO)).replace("\\", "/"))
-    assert importers == ["api/services/alert_taxonomy/regime_change_compare.py"], (
-        f"expected only the harness to import the type; found {importers}")
+    # ⚰️ MOVED AT CP3: the PROJECTION and `api/main.py` (the registration wire)
+    # join the harness. ⛔ The list stays EXACT — a fourth importer is an
+    # unapproved wire and fails here by name.
+    assert sorted(importers) == [
+        "api/main.py",
+        "api/services/alert_taxonomy/regime_change_compare.py",
+        "api/services/alert_taxonomy/regime_change_projection.py",
+    ], (f"expected the harness, the CP3 projection and main.py; found {importers}")

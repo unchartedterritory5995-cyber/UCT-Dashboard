@@ -124,8 +124,23 @@ def test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY():
     gate_src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
     assert "production unreachable (HTTP 5xx" in obs_src
     assert 'not a finding, and not evidence of a clean interval either' in obs_src
-    # and the gate must not count a SKIPPED row as a trigger
-    assert '"SKIPPED" not in x[-1]' in gate_src
+    # ...and the gate must not count a SKIPPED row as a trigger, in ANY trigger.
+    # ⚰️ THIS USED TO PIN THE STRING `'"SKIPPED" not in x[-1]'`, which was the
+    # spelling inside trigger 1 — and pinning a spelling is how a rail comes to
+    # describe one caller while the property it names is missing from the other
+    # three. It WAS missing: trigger 4 counted the 20 console errors a 5xx SKIP
+    # recorded from a page that could not load, and printed REVERT
+    # (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    #
+    # ⭐ So the structural claim is now ONE AUTHORITY, and every trigger reading
+    # the partition it produces. The behavioural half lives in
+    # tests/test_nb_gate_columns.py, which drives a real SKIPPED row through.
+    assert "def is_skipped(" in gate_src
+    body = gate_src[gate_src.index("    recs, gripes = parsed_rows()"):]
+    assert "observed = [x for x in recs if not is_skipped(x)]" in body
+    for trigger in ("bad = [x for x in observed", "conf = [x for x in observed",
+                    "errs = [x for x in observed"):
+        assert trigger in body, trigger
 
 
 # ---------------------------------------------------------------------------

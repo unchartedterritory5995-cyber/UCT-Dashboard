@@ -220,10 +220,24 @@ def test_there_is_no_replay_fn_and_the_module_says_why():
     assert "FORWARD-ONLY" in raw
 
 
-def test_nothing_calls_register_yet_and_that_is_the_checkpoint_boundary():
-    """⛔ REGISTRATION IS NOT ACTIVATION. §2a item 3's warning, applied: CP1-CP2
-    add no scheduler entry and no flag. The rail that this stays true is here so
-    an accidental wire is caught rather than discovered at CP3."""
+def test_the_type_IS_registered_now_that_CP3_is_signed():
+    """⛔ REGISTRATION IS NOT ACTIVATION — and at CP3 it is finally allowed.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, 3ee80dc13). It read:
+
+        assert "catalyst_match" not in main, (
+            "api/main.py wires catalyst-match — that is CP3 and needs a new
+             approval line")
+
+    ⭐ That sentence is the one that refused a wrong fix on 2026-09-13: the pod
+    showed three registered trigger types against eight modules defining
+    `register()`, which looked like five instances of *built, tested, green and
+    unreachable*, and a draft commit wired all five. THIS rail — and its three
+    siblings — said no. Three was the correct number. The family view is
+    `tests/test_alert_taxonomy_registration_is_wired.py`.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "catalyst_match" not in main, (
-        "api/main.py wires catalyst-match — that is CP3 and needs a new approval line")
+    assert "catalyst_match" in main, (
+        "catalyst-match CP3 is signed and api/main.py does not wire it — the "
+        "type does not exist in the running process")
+    assert "add_job" in main, "control: the main.py probe read nothing"
