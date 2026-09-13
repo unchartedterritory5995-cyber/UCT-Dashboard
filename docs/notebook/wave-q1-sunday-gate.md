@@ -94,6 +94,28 @@ the client, and fails by name when a door appears without a settle. If this tabl
 and that rail ever disagree, the rail is right — a hand-typed roster beside the
 source that owns it is exactly the defect that produced the four.
 
+## 3b. ⛔⛔ ONE MEMBER REPORT IS A KNOWN, FIXED DEFECT — AND NOT A REVERT TRIGGER
+
+> *"I sent a chart to my journal / saved a price / saved a PDF excerpt, and it
+> VANISHED after I came back online."*
+
+**That is Q1 fix 3, fixed at `9a213bd45`.** The landed ring vouched for the
+revision the capture created and the drain rebased-and-resent the queued body over
+the server's own appended block, so the append-only merge was unreachable for any
+door that browser had fired. Found 2026-09-13 by widening the property rail to
+seven families: 24/24 metadata green, **0/18 append**.
+
+⭐ **It is ATTRIBUTABLE, and it is NOT a reason to revert the wave.** The wave is
+what makes the merge possible at all — reverting returns that member to a product
+with no queue for the block to be lost from, which does not give them their widget
+back and costs everyone else the durable working copy. Check the SHA the pod is
+serving: if `9a213bd45` is an ancestor, the report predates the fix.
+
+⚠️ **It is bounded.** It needs a queued outbox entry for the same note at the
+moment the capture fires. With nothing queued there is no 409 and nothing to
+rebase, which is why no canary caught it in seven days of observation — the rig
+never captured a widget while holding queued work.
+
 ## 4. The verdict
 
 Write `docs/notebook/wave-q1-gate-verdict.md`:

@@ -136,7 +136,20 @@ def main() -> int:
             "advancing families - update_note (PUT / hero x2 / version restore), "
             "append_widget_embed, append_financial_fact, append_document_excerpt, "
             "restore_note, import_confirm, delete_folder. The derived list is "
-            "`doorEnumeration.test.js` (1); it, not this comment, is the authority.")
+            "`doorEnumeration.test.js` (1); it, not this comment, is the authority.")
+
+    # ⛔⛔ AND ONE MEMBER REPORT IS NOW A KNOWN, FIXED DEFECT — NOT A TRIGGER.
+    #
+    # A member saying "I sent a chart to my journal / saved a price / saved a PDF
+    # excerpt, and it VANISHED after reconnect" is Q1 fix 3, fixed at 9a213bd45.
+    # The landed ring vouched for the revision and the drain rebased-and-resent
+    # the queued body over the server's own appended block, so the append-only
+    # merge was unreachable for any door that browser fired.
+    #
+    # ⭐ It is ATTRIBUTABLE and it is NOT a reason to revert the wave: the wave is
+    # what makes the merge possible at all, and reverting would return that member
+    # to a product with no queue to lose the block from. Check the SHA the pod is
+    # serving; if fix 3 is an ancestor, the report predates the fix.
 
     # trigger 3 - NOT readable here, by construction
     t3 = "n/a - canary or member report only"

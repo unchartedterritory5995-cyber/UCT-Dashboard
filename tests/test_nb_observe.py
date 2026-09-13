@@ -240,10 +240,19 @@ def test_the_config_served_reader_counts_BY_IDENTITY_and_excludes_the_rig():
 RUNNER_DIR = pathlib.Path(r"C:\Users\Patrick\uct-q1-observe")
 
 
-def test_the_deployed_sampler_matches_the_repo_or_the_drift_is_named():
+@pytest.mark.parametrize("name", ["nb_observe.py", "nb_gate.py"])
+def test_the_deployed_copy_matches_the_repo_or_the_drift_is_named(name):
+    """⛔ BOTH copied files, not just the sampler.
+
+    ⚰️ 2026-09-13: this rail covered `nb_observe.py` alone, and `nb_gate.py` had
+    ALREADY drifted — the deployed Sunday gate still carried the FOUR-doors
+    attribution text a day after the repo learned there are seven. The gate would
+    have printed a stale list of families for an operator to rule out, at 17:05,
+    on the one run that decides keep-or-revert. A rail that covers one of two
+    copied files reports coverage it does not have."""
     import hashlib
-    repo = TOOLS / "nb_observe.py"
-    deployed = RUNNER_DIR / "nb_observe.py"
+    repo = TOOLS / name
+    deployed = RUNNER_DIR / name
     if not deployed.exists():
         # Not this machine. Assert the contract that makes the copy legible,
         # rather than passing over an absence.
@@ -254,7 +263,7 @@ def test_the_deployed_sampler_matches_the_repo_or_the_drift_is_named():
         return
     h = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     assert h(repo) == h(deployed), (
-        "⛔ THE LIVE SAMPLER IS NOT THIS FILE. `tools/nb_observe.py` has been edited "
+        f"⛔ THE LIVE COPY IS NOT THIS FILE. `tools/{name}` has been edited "
         "and the deployed copy at\n"
         f"  {deployed}\n"
         "still runs the old code every two hours. Copy it across and re-run this test; "

@@ -714,7 +714,60 @@ Closing it requires building an instrument first — that is a task, not a looku
     ⭐ **RAIL:** `tests/test_k_reach_statement.py` addresses the packet by path, so
     a rename that resurrects the collision reds immediately.
 
-11. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
+11. ⛔⛔ **A MECHANISM THAT PREVENTS ONE FAILURE CAN MAKE THE RECOVERY FROM
+    ANOTHER UNREACHABLE — the ring blocked the merge it was meant to protect.
+    Classify before choosing.**
+
+    The landed ring exists so a revision THIS browser created is not mistaken for
+    a second writer; without it, a member who set a ticker in one tab and typed in
+    another got a `(conflicted copy)` of a note only they had touched. It works.
+    And because it answered FIRST — "ours ⇒ rebase and resend" — the drain never
+    read the diff, so when the server's change was an APPEND the queued body went
+    out over the block the member had just captured. **The append-only merge was
+    built for exactly that case and was unreachable for every door this browser
+    fired**, which is the normal case; it worked only when the door fired
+    somewhere else.
+
+    ⭐ The general shape, because it will recur: a guard that ANSWERS EARLY is a
+    guard that decides on less evidence than the system has. The ring knew *who*
+    wrote the revision; the classifier knew *what changed*. Ordering the cheap
+    answer first meant the expensive one was never asked. ⛔ The fix is never to
+    weaken the early guard — it is to stop it deciding. `ringVouchedPlan`
+    (`outboxDrain.js`) is now the one authority, asked at BOTH points where the
+    question arises, and the ring still answers exactly what it always did.
+
+    ⭐ **RAILS:** the seven-family × six-ordering property matrix (24/24 metadata,
+    18/18 append) and **M25 in `tools/q1_mutation_gauntlet.py`, permanent by owner
+    ruling** — hoist the ring back above the classifier and exactly the eighteen
+    append rows redden, no metadata row. Fixed at `9a213bd45`.
+
+12. ⛔ **THE INSTRUMENT WAS WRONG FIRST — the ELEVENTH instance this programme has
+    recorded, and the third in Wave Q1 alone.** The property rail's fake
+    `serverCopyIsOurs` omitted `serverNote`, so the drain's classifier could not
+    run **in the fixture at all**; all eighteen append rows went red for a reason
+    that was purely the instrument's, and read exactly like a product defect in
+    the append-only merge. The real one always returns the document — *"THE
+    DOCUMENT COMES BACK WITH THE VERDICT … the classifier cannot classify a
+    document it was never handed"* — and a second gap followed it: the fixture's
+    dirty record carried no `serverBase`, which the product sets the moment a
+    record goes dirty (`useDurableNote.js:385`).
+
+    ⭐ **THE TELL, WORTH LEARNING:** *all eighteen* failed, including orderings
+    where the classifier is the only code that could possibly run. A defect that
+    is perfectly uniform across cases that exercise different paths is usually
+    upstream of all of them — which is where the instrument sits.
+
+    ⛔ **AND THE CONTROL IS WHAT SEPARATED THE TWO.** With the fixture corrected
+    and the drain UNCHANGED, the eighteen stayed red — measured before the fix
+    was written. That is the difference between "I fixed the product" and "I fixed
+    the fixture", and it is the only evidence that distinguishes them.
+
+    ⭐ **RAIL:** the fixture now derives the base from the server it is faking, so
+    the two cannot disagree, and `f5Freeze.test.js` asserts from the SOURCE that
+    an append door records and never settles with local state — the claim the
+    matrix's clamp depends on.
+
+13. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
    WRONG BY THREE.** Wave Q1 recorded *"the FOUR doors — every path that advances
    `updatedAt`"* and named body, folder, ticker, tags. That list came from the
    DERIVED WIRE RAIL, which can only see doors a canary actually opened; no canary
@@ -734,7 +787,7 @@ Closing it requires building an instrument first — that is a task, not a looku
    "24" beside 26). **This one was not a stale count in a doc — it was a stale count
    the PRODUCT was built on.** Full entry: `docs/notebook/wave-q1-RESUME-HERE.md`.
 
-12. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
+14. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
    The fix for the four-doors trap (§10.6) was itself got wrong twice before it
    was got right, and both failures were the same shape: **a grep answered, so
    the search stopped.**
@@ -760,7 +813,7 @@ Closing it requires building an instrument first — that is a task, not a looku
    instead of from a list of callers, derive it — the list goes stale silently
    and the diff cannot.
 
-13. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
+15. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
    `hero` shipped unsettled **because no canary could reach it**, and that was
    not bad luck. The note editor renders three file inputs, and the hero
    picker's accept list is BYTE-IDENTICAL to the editor's hidden inline-image

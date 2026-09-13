@@ -659,6 +659,48 @@ Takes effect on that browser's next load and reaches nobody else. Destroys
 nothing: a durable copy left behind by a switched-off layer is inert, and the
 server holds every synced note regardless.
 
+## ⛔⛔ Q1 FIX 3 — THE RING BLOCKED THE MERGE IT WAS MEANT TO PROTECT
+
+**`9a213bd45`, 2026-09-13.** *A mechanism that prevents one failure can make the
+recovery from another unreachable. Classify before choosing.*
+
+The landed ring exists so a revision this browser created is never mistaken for a
+second writer — without it, a member who set a ticker in one tab and typed in
+another got a `(conflicted copy)` of a note only they had touched. It works. And
+because it answered **first** — *"ours ⇒ rebase and resend"* — the drain never read
+the diff, so when the server's change was an **append** the queued body went out
+over the block the member had just captured. A widget sent to the journal, a saved
+price, a PDF excerpt: confirmed on screen, then gone when a queued edit drained.
+
+⭐ **The append-only merge was built for exactly that case and was unreachable for
+every door this browser fired** — the normal case. It worked only when the door
+fired somewhere else.
+
+| | |
+|---|---|
+| how it was found | the property rail widened from four doors to seven families, **before** the production driver was built |
+| before | 24/24 metadata green · **0/18 append** |
+| after | **47/47**, including the control that still detects the pre-fix defect |
+| whole offline layer | 80 files, 982 tests, green |
+| mutation | hoist the ring back above the classifier ⇒ exactly the 18 append rows red, no metadata row. **Permanent as M25** |
+| where | two places answering one question two identically wrong ways — pre-send (an expired marker that turned out ours) and on the 409. Now one authority, `ringVouchedPlan` |
+
+⛔ **`NO EVIDENCE` IS NOT `BODY-REWRITE` HERE, and the distinction is load-bearing.**
+`classifyServerChange` answers BODY_REWRITE with no base because for an *unvouched*
+revision *"missing evidence is never a licence to merge"*. But the ring HAS vouched:
+we made this revision, so forking on absent evidence would manufacture the very
+`(conflicted copy)` the ring exists to prevent. With no base the behaviour is
+byte-for-byte what it was before.
+
+⚠️ **Why no canary caught it in seven days.** It needs a queued outbox entry for the
+same note at the moment the capture fires. The rig never captured a widget while
+holding queued work — so the door was driven, and the collision was not.
+
+⭐ **The freeze was AMENDED, not broken** (owner ruling): its reason was *"investigate
+from the measured code"*, and that investigation completed — nobody had moved the
+code the measurement was taken against. The three append **call sites**, which is
+what the freeze is actually about, are untouched.
+
 ## ✅ WAVE K — SHIPPED DARK, 2026-09-12, `53a181082`
 
 **The runtime kill switch exists and nothing is flipped.** No `NOTEBOOK_*` variable
