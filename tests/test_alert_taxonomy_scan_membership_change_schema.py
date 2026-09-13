@@ -580,13 +580,28 @@ def test_there_is_no_replay_fn_and_the_module_says_why():
     assert "FORWARD-ONLY" in raw
 
 
-def test_nothing_calls_register_yet_and_that_is_the_checkpoint_boundary():
-    """⛔ REGISTRATION IS NOT ACTIVATION. §2a item 3's warning, applied: CP1-CP2
-    add no scheduler entry and no flag."""
+def test_the_type_IS_registered_now_that_CP3_is_signed():
+    """⛔ REGISTRATION IS NOT ACTIVATION — and at CP3 it is finally allowed.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, d0415f251). It read:
+
+        assert "scan_membership_change" not in main, (
+            "api/main.py wires scan-membership-change — that is CP3 and needs a
+             new approval line")
+
+    ⭐ That rail held the CP1-CP2 boundary AND, on 2026-09-13, refused a wrong
+    reading of its own absence: the pod showed three registered trigger types
+    against eight modules defining `register()`, which looked like five
+    instances of *built, tested, green and unreachable*. It was not — three was
+    the correct number for a programme in which three types had reached CP3.
+    The family view is `tests/test_alert_taxonomy_registration_is_wired.py`.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "scan_membership_change" not in main, (
-        "api/main.py wires scan-membership-change — that is CP3 and needs a new "
-        "approval line")
+    assert "scan_membership_change" in main, (
+        "scan-membership-change CP3 is signed and api/main.py does not wire it — "
+        "the type does not exist in the running process")
+    # CONTROL: main.py really was read and really does contain other wiring.
+    assert "add_job" in main
 
 
 def test_neither_module_reads_an_env_var_or_registers_a_job():

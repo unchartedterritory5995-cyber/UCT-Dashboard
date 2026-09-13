@@ -3112,6 +3112,7 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import price_level as _at_price_level
         from api.services.alert_taxonomy import event_proximity as _at_event_prox
         from api.services.alert_taxonomy import position_risk as _at_position_risk
+        from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3169,6 +3170,7 @@ async def lifespan(app: FastAPI):
         # NAME for any module that defines `register()` and is not called here,
         # so the sixth cannot be discovered the same way the fifth was.
         _at_position_risk.register()
+        _at_scan_membership.register()
         logging.getLogger(__name__).info(
             "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
             "beyond document-arrival). A type appears here when its CP3 is "
@@ -6832,6 +6834,52 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 position-risk DARK comparison OFF "
                   "(set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-SCAN-MEMBERSHIP-CHANGE CP3 -- the fourth DARK comparison.
+        # Owner approval line 2 (fingerprint d0415f251): read-only PROJECTION of
+        # real member `screen_alert_subs` rows, rollout:s7-dark cohort ONLY,
+        # forward-only, four outcomes, own flag DEFAULT OFF, caller rail.
+        #
+        # ⛔ DEFAULT OFF. It reads real member subscriptions.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS NIGHTLY AND ITS OFFSET IS LOAD-BEARING. The legacy
+        # screen-alerts job runs at SWEEP_MINUTE_ET + 10 and WRITES
+        # screen_alerts_fired. This runs at +20, AFTER it, so the night's
+        # coverage is complete -- and the projection reconstructs the dedup state
+        # the legacy rule actually decided against (`already_fired_before`,
+        # strictly older than tonight's session). Without that reconstruction
+        # both rules would read tonight's own row, both would answer `deduped`,
+        # and every night would record a tally of ZEROS -- indistinguishable from
+        # a week of quiet markets.
+        #
+        # ⭐ The minute is DERIVED from scan_evaluator's constants, never typed:
+        # if the sweep moves, this moves with it.
+        if os.environ.get("ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED", "0") == "1":
+            def _scan_membership_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.scan_membership_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] scan-membership-change DARK sweep: "
+                          f"members={r['members']} subscriptions={r['subscriptions']} "
+                          f"evaluated={r['evaluated']} outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] scan-membership-change DARK sweep failed: {e}")
+
+            from api.services.screener import scan_evaluator as _scan_eval
+            _scheduler.add_job(
+                _scan_membership_dark_sweep_job,
+                trigger=CronTrigger(hour=_scan_eval.SWEEP_HOUR_ET,
+                                    minute=_scan_eval.SWEEP_MINUTE_ET + 20,
+                                    timezone=_ET),
+                id="alert_taxonomy_scan_membership_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 scan-membership-change DARK comparison ENABLED "
+                  "(nightly, 20 min after the scan sweep, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 scan-membership-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)")
 
         def _compass_daily_focus_run():
             try:
