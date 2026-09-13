@@ -228,6 +228,15 @@
   text-align: center;
 }
 
+/* A-04: a series flattened by a larger one on the same axis is named, not hidden. */
+.gapNotice {
+  padding: 0 16px 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--warn);
+}
+.gapNotice p { margin: 0; }
+
 /* ── Load problems (A-01) ──────────────────────────────────────────────────── */
 .loadProblem {
   display: flex;
@@ -291,25 +300,30 @@
   .loadProblemAction { min-height: var(--tap-min); }
 }
 
-/* ── Phone — bump interactive controls to ≥44px tap targets ──────────────── */
+/* ── Phone — layout only; finger targets live in the touch tier below ─────── */
 @media (max-width: 640px) {
   .container { padding: 12px 12px 24px; }
+  .metricList { gap: 4px 16px; }
+  .metricItem { font-size: 13px; }
+}
+
+/* ── Touch tier (≤ 1024) — every finger target reaches --tap-min (A-19, D-033) ─
+   These sat at ≤ 640 only, so a tablet at 768 px measured 14 of 22 controls
+   under 44 px. Rail: breadth/tapTier.test.js reads this file. */
+@media (max-width: 1024px) {
   .groupBtn,
   .extremesBtn {
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding-top: 0;
     padding-bottom: 0;
   }
-  /* Larger hit area for the metric checkbox rows. */
-  .metricList { gap: 4px 16px; }
-  .metricItem {
-    min-height: 40px;
-    font-size: 13px;
-  }
-  .metricItem input[type="checkbox"] {
+  .metricItem { min-height: var(--tap-min); }
+  .metricItem input[type="checkbox"],
+  .ftdToggle input {
     width: 18px;
     height: 18px;
   }
-  .dateLabel { min-height: 44px; }
-  .dateInput { height: 44px; }
+  .dateLabel { min-height: var(--tap-min); }
+  .dateInput { height: var(--tap-min); }
+  .ftdToggle { min-height: var(--tap-min); }
 }

@@ -251,3 +251,45 @@ GraphQL API refuses any request lacking `x-source` and `user-agent`, both `"CLI
 rejects the CLI session token". The token was fine; the request was malformed.
 ⭐ **A 403 says the request was refused, never WHICH part of it was wrong** — and a
 plausible explanation for a refusal is not a diagnosis.
+
+---
+
+## ✅ THE ONE-MERGE-AT-A-TIME RULE IS NOW MECHANICAL — `tools/pre_push_guard.py`
+
+⚰️ **THE RULE WAS ALREADY WRITTEN AND IT WAS NOT FOLLOWED.** `CLAUDE.md` carries *"ONE MASTER MERGE
+AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the next push"*. On **2026-09-13, 21:08–21:16
+UTC** three pushes landed in eight minutes (`e5dfb23fb`, `b66363b9d`, `aa2acfcd2`); `/api/health`
+served **502** through the overlap and a `railway ssh` probe was refused outright.
+
+⭐ **A rule that lives only in a file nobody opens before pushing has no reader.** This is that rule
+with a reader.
+
+**What it refuses.** A push whose destination is `master`, while the newest `web` deployment is
+anything other than `SUCCESS`, **or** is a `SUCCESS` younger than **150 s** — Railway reports
+SUCCESS at healthcheck while the old container is still draining (`drainingSeconds: 30`), so a
+two-second-old SUCCESS is a coin flip, not a settled service.
+
+⛔ **IT FAILS CLOSED.** CLI missing, unauthenticated, project unlinked, hook file absent — all
+REFUSE. A guard that fails open reports "fine" precisely when it has stopped working.
+
+⛔ **IT DOES NOT REQUIRE THE DEPLOYED COMMIT TO BE YOURS.** `SUCCESS` on another workstream's commit
+still means the pod is settled, which is the property that matters. Requiring your own parent would
+refuse every legitimate push in a repo five workstreams share.
+
+```sh
+python tools/pre_push_guard.py          # 0 = safe, 1 = refuse, prints the state
+UCT_SKIP_PREPUSH_GUARD=1 git push …     # deliberate override, APPENDED to logs/pre-push-guard-bypass.log
+```
+
+### Installing it (advisory to the other workstreams)
+
+The hook lives in the **shared** `.git/hooks/` — one install covers every worktree of this
+repository:
+
+```sh
+cp <repo>/tools/pre_push_guard.hook "$(git rev-parse --git-common-dir)/hooks/pre-push"
+chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-push"
+```
+
+⚠️ **Hooks are not version-controlled and do not travel with a clone.** Each machine installs it
+once. The hook no-ops on any push whose destination is not `master`/`main`.

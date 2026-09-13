@@ -1,0 +1,30 @@
+#!/bin/sh
+# UCT pre-push guard — the 502 rule, made mechanical.
+#
+# Refuses a push to master while Railway `web` is mid-swap. The rule was already
+# written in CLAUDE.md ("ONE MASTER MERGE AT A TIME, REPO-WIDE") and was not
+# followed: three pushes in eight minutes on 2026-09-13 served 502s.
+#
+# Bypass:  UCT_SKIP_PREPUSH_GUARD=1 git push ...    (logged)
+# Install: python tools/pre_push_guard.py --install   (or copy this file)
+
+# Only guard pushes whose DESTINATION is master.
+guarded=0
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/heads/master|refs/heads/main) guarded=1 ;;
+  esac
+done
+[ "$guarded" = "1" ] || exit 0
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+for cand in "$root/tools/pre_push_guard.py" \
+            "$root/../uct-worktrees/s7-price-level/tools/pre_push_guard.py"; do
+  if [ -f "$cand" ]; then
+    python "$cand" || exit 1
+    exit 0
+  fi
+done
+# ⛔ The guard is MISSING, and that is not a pass. Say so and refuse.
+echo "[pre-push] tools/pre_push_guard.py not found — refusing rather than assuming safe."
+exit 1

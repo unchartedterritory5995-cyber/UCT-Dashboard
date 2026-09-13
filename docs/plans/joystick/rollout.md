@@ -50,15 +50,20 @@ rather than drifting between what is deployed and what is configured somewhere e
 
 | stage | unset preference resolves to | framing | name |
 |---|---|---|---|
-| **1** *(live on master)* | `isAdmin` | preview | **Admin preview** |
-| **2** *(prepared, unmerged)* | **`true` for every authenticated user** | preview | **Member preview** |
+| **1** *(current)* | `isAdmin` | preview | **Admin preview** |
+| **2** *(built, **GATED**, unmerged — `640dcd8d1`)* | **`true` for every authenticated user** | preview | **Member preview** |
 | **3** | `true` for every authenticated user | **removed** | **General availability** |
 
 **Stage 2 — member preview.** An unset preference resolves to `true` for every authenticated user.
 **A stored preference always wins**, in both directions. The kill switch applies. The member keeps
 the preview framing and all three ways out:
 
-- the chip hint reads **"Preview — more coming"** (`HubRoot.jsx:581`, per-mode via `PREVIEW_MODES`);
+- ⚰️ ~~the chip hint reads **"Preview — more coming"**~~ — **WRONG, corrected 2026-09-13.** That
+  string is driven by `PREVIEW_MODES` (`HubRoot.jsx:581`), and stage 2 **empties that Set** (§2(b)
+  below), so at stage 2 every mode shows its **real tap hint** and the string appears nowhere. It
+  was true when this ruling was written, when `home` and `flow` were still teasers. What actually
+  carries the preview framing at stage 2 is the **`(preview)` suffix on the Settings label**
+  (`JoystickSettingsCard.jsx:139`), asserted by `joystickSettingsControls.test.jsx`;
 - the coach mark shows on first mount (`HubCoachMark.jsx`);
 - **Hide** from the Actions sheet (session-only, writes nothing), the **Settings toggle**
   (persistent) and the **edge tab** (`HubEdgeTab.jsx`) are the opt-out, and the Settings label still
@@ -122,6 +127,14 @@ behaviour" holds exactly as written. The alternative is to drop that clause and 
 landing with the GA flip. **Until that is answered, stage 3 cannot be written as a PR.**
 
 ### 3. Sequencing — nothing here starts until boxes 1 and 2 are ticked on evidence
+
+> ✅ **READY-AND-GATED, 2026-09-13.** `launch/stage-2-member-preview` at **`640dcd8d1`** passed
+> the full six-shard gate with **zero attributable NEW** — manifest
+> `gate-runs/2026-09-13T15-55-29.md`; tree hash identical at both ends, **1318 files reconciling**,
+> **8 failed / 19,439 passed / 19,456**. The one NEW failure is **R-29** (S4's
+> `focusDivergence.js` orphan), classified BY DIRECTION: the rail fails identically at the merge
+> base `d6ac61816`, on a tree containing none of this branch's changes.
+> ⛔ **Gated is not merged.** The freeze below still governs, and **Patrick merges**.
 
 **a. Stage 2 PR.** The constant change **plus** everything in §2(a), the `rollout.md` and
 code-comment text, and the gate. ⛔ **Patrick merges** — a member-facing rollout is his call, not an

@@ -1,0 +1,3179 @@
+{
+ "_readme": [
+  "UCT Setup Vocabulary v1 — the ONE setup-name authority (D9; W1 §3.2; CONTRACTS §6.2). Built from setup-vocabulary-v0.draft.json under the owner's W1 §3 rulings; api/services/wisdom/core/vocab.py seeds wisdom_vocab and wisdom_vocab_maps from this file and nothing else.",
+  "STATUS (W1 §3.1): the 32 v0 candidates are the approved working list. evidence_strength 'thin' (one passing use) stays a candidate until a second independent source appears; every other entry is approved. status_reason names the rule that applied. Owner coinages carry coined_by 'tsdr' (W1 §3.5).",
+  "MAPS (W1 §3.2): every name in the six existing lists, every pattern-engine detector id, and the ENGINE setup strings has a row. vocab_id null means the list names something the vocabulary does not; that is recorded, not hidden. mismatch 1 means mapped, but the list's name or definition differs from the vocabulary entry (the four W1 §3.3 mismatches, plus approximate mappings); no rename happens in W1.",
+  "THE RAIL: tests/test_wisdom_vocab_authority.py derives every setup-name constant from the CI-derivable lists and fails BY NAME on a name with no row, a row whose name no longer exists, or a row naming an unknown vocab_id. The ENGINE lists are not in this repository; re-measure them with tools/wisdom/core_vocab_engine_check.py --engine-db <path>.",
+  "PUBLIC REPOSITORY (W1 §0.4f): this file carries no source text. definition is null; every evidence item is a locator (stream, source_ref, section or cue); aliases are name-like forms of at most three words with no price level. Definition text, excerpts and paraphrases stay in gitignored data/wisdom/: many Sunday Scans excerpts are golden-set text, and a public copy would contaminate the golden gate.",
+  "ambiguous_aliases lists alias spellings that two entries share; vocab.lookup resolves them to nothing rather than choosing."
+ ],
+ "version": "v1",
+ "built_at": "2026-09-13",
+ "derived_from": "docs/wisdom/vocabulary/setup-vocabulary-v0.draft.json",
+ "ambiguous_aliases": [
+  "ipo avwap"
+ ],
+ "entries": [
+  {
+   "vocab_id": "oops_reversal",
+   "name": "Oops Reversal",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "oops",
+    "baby oops"
+   ],
+   "evidence_count": 4,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "PLTR (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "MDB (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "approach prose"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:39:33]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Oops Reversal",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "20ema_tap",
+   "name": "20EMA Tap",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "held the 20ema"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "SNOW (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:28:10]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "20 EMA Pullback",
+    "engine": "pullback_to_21ema (NOTE: engine uses the 21 EMA; the authors say 20)"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "inside_day",
+   "name": "Inside Day",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "double inside days",
+    "tight inside day"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "ALM (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "ANF (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": "inside_bar_breakout (breakout variant only)"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "remount",
+   "name": "Remount",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "RBRK (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:40:45]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Remount",
+    "engine": "remount"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "undercut_and_rally",
+   "name": "Undercut & Rally (U&R)",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "working list, strong evidence in 2+ segments (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "edu_videos:355@[00:36:06]; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "undercut"
+   ],
+   "evidence_count": 3,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "approach prose"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:36:06]"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:14:08]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "U&R (Undercut & Rally)",
+    "engine": "u_and_r"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "breakout_retest",
+   "name": "Breakout Retest",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "clean retest"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "P (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "go_signal",
+   "name": "Go Signal",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "actionable go signals"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "TEM (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[01:51:21]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Go Signal",
+    "engine": null
+   },
+   "note": "Used on an HOURLY trigger over a daily setup in both samples — the timeframe pair is part of the definition the owner should confirm."
+  },
+  {
+   "vocab_id": "high_volume_close",
+   "name": "High Volume Close (HVC)",
+   "kind": "level",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "HVC",
+    "the HVC",
+    "HVC spot",
+    "through the HVC"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "BFLY (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:24:50]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "High Volume Edge (NAME CONFLICT — the authors say Close, the taxonomy says Edge)",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "wedge_pop",
+   "name": "Wedge Pop",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "wedging up"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:27:18]–[02:31:30]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Wedge Pop",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "wedge_drop",
+   "name": "Wedge Drop",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "little evidence (one passing use): candidate until a second independent source appears (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "thin",
+   "definition": null,
+   "definition_locator": "edu_videos:355@[02:06:38]; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:06:38]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Wedge Drop",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "kicker_candle",
+   "name": "Kicker Candle",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "little evidence (one passing use): candidate until a second independent source appears (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "thin",
+   "definition": null,
+   "definition_locator": "edu_videos:355@[01:01:38]; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[01:01:38]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Kicker Candle",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "failed_breakdown",
+   "name": "Failed Breakdown",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "fake breakdown"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "NBIS (Daily, Bracco)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:21:16]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Distinct from U&R? Owner to rule whether this is an alias or its own setup."
+  },
+  {
+   "vocab_id": "open_bull_gap",
+   "name": "Open Bull Gap",
+   "kind": "level",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "bull gap low",
+    "gap support"
+   ],
+   "evidence_count": 3,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "QQQ"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "TWLO"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:09:07]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Gap Support",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "launchpad",
+   "name": "Launchpad",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "launchpad spot",
+    "Prospect and Launchpad"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "workshop",
+     "source_ref": "edu_videos:356",
+     "locator": "[00:02:56] (Ravi)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Launchpad",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "ipo_base",
+   "name": "IPO Base",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "IPO AVWAP"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "CBRS (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "SKHY (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "IPO Base",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "range_breakout",
+   "name": "Range Breakout",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "CRCL (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Flat Base Breakout (approximate)",
+    "engine": "range_detection / rectangle (approximate)"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "flag",
+   "name": "Flag",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "flag out",
+    "flagging out",
+    "hourly flag"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "SNOW (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:23:40]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Bull Flag",
+    "engine": "bull_flag"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "red_to_green",
+   "name": "Red to Green",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "green to red"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[01:08:23]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "earnings_gap_up",
+   "name": "Earnings Gap Up",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "ER gap up",
+    "ER gapper",
+    "earnings breakout spot"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "ANF (Daily)"
+    },
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "ESTC (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": "Power Earnings Gap / News/Earnings Gapper",
+    "engine": "power_earnings_gap"
+   },
+   "note": "The samples never say 'PEG'; the authors say 'ER gap up'. The owner should rule whether this IS PEG."
+  },
+  {
+   "vocab_id": "delayed_reaction",
+   "name": "Delayed Reaction",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "3-day delayed reaction"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:56:03]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "shakeout",
+   "name": "Shakeout",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "brief shakeout"
+   ],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "AMZN (Daily)"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[02:30:27]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Overlaps U&R and 20EMA Tap. Owner to rule whether it is a setup or a component of one."
+  },
+  {
+   "vocab_id": "mid_range_pivot",
+   "name": "Mid-Range Pivot",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "owner coinage with strong evidence (W1 §3.1, §3.5)",
+   "coined_by": "tsdr",
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "edu_videos:355@[00:34:50]; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 2,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:34:50]"
+    },
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:37:32]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "30_min_pivot",
+   "name": "30 Min Pivot",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "little evidence (one passing use): candidate until a second independent source appears (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "thin",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": "30-Minute Pivot",
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "brian_shannon_special",
+   "name": "Brian Shannon Special",
+   "kind": "setup",
+   "status": "approved",
+   "status_reason": "owner coinage with strong evidence (W1 §3.1, §3.5)",
+   "coined_by": "tsdr",
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "edu_videos:355@[00:09:44]–[00:09:51]; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "Bryan Shannon special",
+    "Brian Chanan special",
+    "Brian Chan special"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:09:44]–[00:09:51]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "An external trader's name spoken by ASR three different wrong ways in one session. The alias table must carry the ASR variants."
+  },
+  {
+   "vocab_id": "vcp",
+   "name": "VCP",
+   "kind": "setup",
+   "status": "candidate",
+   "status_reason": "little evidence (one passing use): candidate until a second independent source appears (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "thin",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "VCP ish action"
+   ],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": "vcp"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "bear_gap",
+   "name": "Bear Gap",
+   "kind": "level",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "bear gap resistance"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "QQQ"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "avwap",
+   "name": "AVWAP",
+   "kind": "level",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "IPO AVWAP",
+    "swing high AVWAP's"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "SPCX (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": "avwap_reclaim"
+   },
+   "note": null
+  },
+  {
+   "vocab_id": "psyche_level",
+   "name": "Psyche Level",
+   "kind": "level",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "P (Daily)"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "'Livermore level' and 'psyche level' both name a round number; owner to confirm they are one level type."
+  },
+  {
+   "vocab_id": "theme_hot_potato",
+   "name": "Theme Hot Potato",
+   "kind": "market_signal",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": "tsdr",
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-fcd",
+     "locator": "SMH"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "OWNER-COINED market-regime term (fast daily theme rotation). A candidate S7 regime alert."
+  },
+  {
+   "vocab_id": "kill_bar",
+   "name": "Kill Bar",
+   "kind": "market_signal",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": "tsdr",
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [
+    "kill candle"
+   ],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "sunday_scans",
+     "source_ref": "substack:/p/sunday-scans-d40",
+     "locator": "XBI"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "Needs an owner definition (which index, what range/volume) before it can become an S7 alert type."
+  },
+  {
+   "vocab_id": "follow_through_day",
+   "name": "Follow Through Day",
+   "kind": "market_signal",
+   "status": "approved",
+   "status_reason": "verbatim Sunday Scans usage (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "strong",
+   "definition": null,
+   "definition_locator": "sunday_scans Session 0 samples (substack:/p/sunday-scans-d40, substack:/p/sunday-scans-fcd); source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 0,
+   "evidence": [],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": "An existing O'Neil term. The wire already has FTD rulings (project_wire_ftd_undercut_ruling_2026_08_25) — consume, don't redefine."
+  },
+  {
+   "vocab_id": "moving_average_sandwich",
+   "name": "Moving Average Sandwich",
+   "kind": "market_signal",
+   "status": "candidate",
+   "status_reason": "little evidence (one passing use): candidate until a second independent source appears (W1 §3.1)",
+   "coined_by": null,
+   "evidence_strength": "thin",
+   "definition": null,
+   "definition_locator": "edu_videos:355@[00:28:05]–[00:28:12]; source text not committed (W1 §0.4f: locators only)",
+   "aliases": [],
+   "evidence_count": 1,
+   "evidence": [
+    {
+     "stream": "zoom_live",
+     "source_ref": "edu_videos:355",
+     "locator": "[00:28:05]–[00:28:12]"
+    }
+   ],
+   "maps_to_v0": {
+    "desk": null,
+    "engine": null
+   },
+   "note": null
+  }
+ ],
+ "maps": {
+  "setupGroups.js": {
+   "source": "app/src/constants/setupGroups.js :: SETUP_GROUPS[].setups",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "High Tight Flag (Powerplay)",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry; a high tight flag is not the authors' Flag"
+    },
+    {
+     "external_name": "Classic Flag/Pullback",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": "same setup; the authors say 'flag'"
+    },
+    {
+     "external_name": "VCP",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Flat Base Breakout",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "IPO Base",
+     "vocab_id": "ipo_base",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Parabolic Short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Parabolic Long",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wedge Pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wedge Drop",
+     "vocab_id": "wedge_drop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Episodic Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "2B Reversal",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Kicker Candle",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Power Earnings Gap",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "News Gappers",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "4B Setup (Stan Weinstein)",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Failed H&S/Rounded Top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Classic U&R",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Launchpad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Go Signal",
+     "vocab_id": "go_signal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "HVC",
+     "vocab_id": "high_volume_close",
+     "mismatch": 0,
+     "note": "the authors' own abbreviation"
+    },
+    {
+     "external_name": "Wick Play",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Slingshot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Oops Reversal",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "News Failure",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Red to Green",
+     "vocab_id": "red_to_green",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Opening Range Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Opening Range Breakdown",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Red to Green (Intraday)",
+     "vocab_id": "red_to_green",
+     "mismatch": 0,
+     "note": "intraday variant of the same setup"
+    },
+    {
+     "external_name": "Green to Red",
+     "vocab_id": "red_to_green",
+     "mismatch": 1,
+     "note": "the inverse (short) of Red to Green; mapped for recall, not identity"
+    },
+    {
+     "external_name": "30min Pivot",
+     "vocab_id": "30_min_pivot",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Mean Reversion L/S",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  },
+  "setupCatalog.js": {
+   "source": "app/src/pages/modelbook/setupCatalog.js :: SETUP_CATALOG[].name",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "Flat Base Breakout",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "Bull Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "IPO Base",
+     "vocab_id": "ipo_base",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Launchpad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Cup & Handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "20 EMA Pullback",
+     "vocab_id": "20ema_tap",
+     "mismatch": 0,
+     "note": "same idea; the authors say '20EMA tap'"
+    },
+    {
+     "external_name": "EMA Crossback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wedge Pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wedge Drop",
+     "vocab_id": "wedge_drop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Episodic Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Power Earnings Gap",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "News/Earnings Gapper",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "approximate: news gappers are broader than an earnings gap up (W1 §3.3 PEG question)"
+    },
+    {
+     "external_name": "High Volume Edge",
+     "vocab_id": "high_volume_close",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: the authors say High Volume Close (HVC), this list says High Volume Edge; no rename in W1"
+    },
+    {
+     "external_name": "Gap Support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 0,
+     "note": "the authors call the level an open bull gap"
+    },
+    {
+     "external_name": "Kicker Candle",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "2B Reversal",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "U&R (Undercut & Rally)",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Slingshot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Oops Reversal",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Failed H&S / Rounded Top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Parabolic Long",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Parabolic Short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "ORB (Opening Range Break)",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "30-Minute Pivot",
+     "vocab_id": "30_min_pivot",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Go Signal",
+     "vocab_id": "go_signal",
+     "mismatch": 0,
+     "note": null
+    }
+   ]
+  },
+  "desk_SETUP_TAXONOMY": {
+   "source": "api/services/desk_session_insights.py :: _SETUP_TAXONOMY",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "Flat Base Breakout",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "Bull Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "IPO Base",
+     "vocab_id": "ipo_base",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Launchpad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Cup & Handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "20 EMA Pullback",
+     "vocab_id": "20ema_tap",
+     "mismatch": 0,
+     "note": "same idea; the authors say '20EMA tap'"
+    },
+    {
+     "external_name": "EMA Crossback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wedge Pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wedge Drop",
+     "vocab_id": "wedge_drop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Episodic Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Power Earnings Gap",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "News/Earnings Gapper",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "approximate: news gappers are broader than an earnings gap up (W1 §3.3 PEG question)"
+    },
+    {
+     "external_name": "High Volume Edge",
+     "vocab_id": "high_volume_close",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: the authors say High Volume Close (HVC), this list says High Volume Edge; no rename in W1"
+    },
+    {
+     "external_name": "Gap Support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 0,
+     "note": "the authors call the level an open bull gap"
+    },
+    {
+     "external_name": "Kicker Candle",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "2B Reversal",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "U&R (Undercut & Rally)",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Slingshot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Oops Reversal",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Failed H&S / Rounded Top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Parabolic Long",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Parabolic Short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "ORB (Opening Range Break)",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "30-Minute Pivot",
+     "vocab_id": "30_min_pivot",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Go Signal",
+     "vocab_id": "go_signal",
+     "mismatch": 0,
+     "note": null
+    }
+   ]
+  },
+  "pv_FOCUSED_SETUPS": {
+   "source": "api/services/pattern_vision/rubrics.py :: FOCUSED_SETUPS",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "vcp",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "flat_base",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "high_tight_flag",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "cup_handle_uct",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bull_flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "pullback_to_10ema",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "pullback_to_21ema",
+     "vocab_id": "20ema_tap",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: the authors' 20EMA Tap vs the 21-EMA detector; no rename in W1 (W6 decides with eval evidence)"
+    },
+    {
+     "external_name": "pullback_to_50sma",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "episodic_pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "power_earnings_gap",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "u_and_r",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "hammer",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bullish_engulfing",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  },
+  "voice_chart_vision": {
+   "source": "api/services/voice_chart_vision.py :: _PROMPT_TEMPLATE pattern list (\"none\" excluded)",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "tight_flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "classic_flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "vcp",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "htf_powerplay",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "episodic_pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "stage_2_launch",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "parabolic_long",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "parabolic_short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "wedge_pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "double_bottom",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "double_top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "cup_and_handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "base_breakout",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "approximate: a base breakout ≈ the authors' range breakout (W1 §3.3)"
+    },
+    {
+     "external_name": "undercut_and_rally",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "ascending_triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "descending_triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "head_and_shoulders",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  },
+  "curriculum_glossary": {
+   "source": "docs/curriculum/uct_method_presenter_brief.json :: glossary[].term",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "THE LOOP",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "UCT Exposure Rating",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Permission band",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Distribution day",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Follow-through day",
+     "vocab_id": "follow_through_day",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Stage 2",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "A-list / B-list",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "ADR%",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "RS line",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "R / R-multiple",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Expectancy",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Account Risk %",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "The regime × grade table",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Portfolio heat",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Progressive exposure",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Drawdown protocol",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Five-field card",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "The four entry triggers",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Setup families",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Episodic Pivot (EP)",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Power Earnings Gap (PEG)",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "Gap support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 0,
+     "note": "the authors call the level an open bull gap"
+    },
+    {
+     "external_name": "High Volume Edge (HVC)",
+     "vocab_id": "high_volume_close",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: the authors say High Volume Close (HVC), this list says High Volume Edge; no rename in W1"
+    },
+    {
+     "external_name": "U&R (Undercut & Rally)",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Slingshot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "2B Reversal / Oops",
+     "vocab_id": "oops_reversal",
+     "mismatch": 1,
+     "note": "one row covers 2B Reversal and Oops; only Oops is in the vocabulary"
+    },
+    {
+     "external_name": "Go Signal",
+     "vocab_id": "go_signal",
+     "mismatch": 1,
+     "note": "the glossary defines a catalyst gap into the 9 EMA; the authors use Go Signal as an hourly trigger (owner to confirm)"
+    },
+    {
+     "external_name": "Launchpad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wedge Pop / Wedge Drop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 1,
+     "note": "one row covers Wedge Pop and Wedge Drop; maps to Wedge Pop"
+    },
+    {
+     "external_name": "Kicker candle",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Field week",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "The sizing gate",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Specialization contract",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Playbook defense",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Morning Wire",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Sunday Scans",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "UCT 20",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Compass",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    },
+    {
+     "external_name": "Model Book",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "a concept, not a setup name"
+    }
+   ]
+  },
+  "pattern_engine": {
+   "source": "api/services/pattern_engine/detectors/**/*.py :: _PATTERN_ID",
+   "derivable_in_ci": true,
+   "rows": [
+    {
+     "external_name": "bearish_engulfing",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bearish_harami",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bullish_engulfing",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bullish_harami",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "dark_cloud_cover",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "doji",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "evening_star",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "hammer",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "hanging_man",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "marubozu",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "morning_star",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "piercing",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "shooting_star",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "three_black_crows",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "three_white_soldiers",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "tweezer_bottom",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "tweezer_top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "ascending_triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bear_flag",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bollinger_squeeze",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "bull_flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "channel",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "cup_handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "death_cross",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "descending_triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "donchian_breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "double_bottom",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "double_top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "falling_wedge",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "golden_cross",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "head_shoulders",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "higher_low_continuation",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "inside_bar_breakout",
+     "vocab_id": "inside_day",
+     "mismatch": 1,
+     "note": "breakout variant only (setup-vocabulary v0 maps_to)"
+    },
+    {
+     "external_name": "inverse_cup_handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "inverse_head_shoulders",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "macd_bearish_cross",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "macd_bullish_cross",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "nr7",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "outside_bar",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "pennant",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "rectangle",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "approximate (setup-vocabulary v0 maps_to)"
+    },
+    {
+     "external_name": "rising_wedge",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "rounded_base",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "rounded_top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "rsi_bearish_divergence",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "rsi_bullish_divergence",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "symmetrical_triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "td_sequential_buy",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "td_sequential_sell",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "triple_bottom",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "triple_top",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "vsa_no_demand",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "vsa_no_supply",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "accumulation_distribution",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "major_trendlines",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "52w_proximity",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "range_detection",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "approximate (setup-vocabulary v0 maps_to)"
+    },
+    {
+     "external_name": "stage_analysis",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "support_resistance",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "swing_pivots",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "volume_profile_nodes",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "avwap_reclaim",
+     "vocab_id": "avwap",
+     "mismatch": 1,
+     "note": "a reclaim setup keyed off the AVWAP level"
+    },
+    {
+     "external_name": "can_slim_composite",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "cup_handle_uct",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "episodic_pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "flat_base",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "high_tight_flag",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "holy_grail",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "kell_cycle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "lance_opening_drive",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "liquid_leader_filter",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "opening_range_breakdown",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "opening_range_breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "parabolic_short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "power_earnings_gap",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "pullback_to_10ema",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "pullback_to_200sma",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "pullback_to_21ema",
+     "vocab_id": "20ema_tap",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: the authors' 20EMA Tap vs the 21-EMA detector; no rename in W1 (W6 decides with eval evidence)"
+    },
+    {
+     "external_name": "pullback_to_50sma",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "qullamaggie_setup",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "u_and_r",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "vcp",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "wyckoff_spring",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "wyckoff_upthrust",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  },
+  "engine_setup_triggers": {
+   "source": "uct-intelligence data/uct_intelligence.db :: setup_triggers.setup_name",
+   "derivable_in_ci": false,
+   "measured": {
+    "at": "2026-09-13",
+    "rows": 364,
+    "distinct": 15
+   },
+   "rows": [
+    {
+     "external_name": "20EMA Hold",
+     "vocab_id": "20ema_tap",
+     "mismatch": 0,
+     "note": "same idea: price holds the 20 EMA"
+    },
+    {
+     "external_name": "EMA Crossback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA Crossover",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EP",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Flat Base",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "Gap-and-Go",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "HTF",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Mean Reversion",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Pocket Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Red to Green",
+     "vocab_id": "red_to_green",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Stage 2 Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage 2 Momentum",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Tight Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "U&R",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "VCP",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    }
+   ]
+  },
+  "engine_leadership_setup_type": {
+   "source": "uct-intelligence data/uct_intelligence.db :: leadership_snapshots.setup_type",
+   "derivable_in_ci": false,
+   "measured": {
+    "at": "2026-09-13",
+    "rows": 4720,
+    "distinct_nonblank": 56,
+    "blank_rows": 829
+   },
+   "rows": [
+    {
+     "external_name": "20EMA Hold",
+     "vocab_id": "20ema_tap",
+     "mismatch": 0,
+     "note": "same idea: price holds the 20 EMA"
+    },
+    {
+     "external_name": "20EMA-Pullback",
+     "vocab_id": "20ema_tap",
+     "mismatch": 0,
+     "note": "same idea; the authors say '20EMA tap'"
+    },
+    {
+     "external_name": "BGU",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Base-on-Base",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Bull-Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Coiling",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Cup-and-Handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Double-Bottom",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA Crossback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA Crossover",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA-Crossback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA-Crossover",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EP",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EP-RUNNER",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Earnings-Gap",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Flat Base",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "Flat-Base",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "Gap-and-Go",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Green Line Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Green-Line-Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "HTF",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Late-Stage Climax",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Launchpad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Leadership",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Mean Reversion",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Mean-Reversion",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Momentum",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Momentum-Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Momentum-Burst",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Momentum-Flag",
+     "vocab_id": "flag",
+     "mismatch": 1,
+     "note": "approximate: a momentum flag is a flag after a momentum burst"
+    },
+    {
+     "external_name": "Oops-Reversal",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Parabolic Short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Parabolic-Short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Pocket Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Pocket-Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "PowerPlay",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Shakeout",
+     "vocab_id": "shakeout",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Stage 2 Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage 2 Momentum",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage 4 Breakdown",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage2",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage2-Base",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage2-Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage2-Momentum",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage2-Pullback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Story-EP",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Tight Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "U&R",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "VCP",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wedge-Pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wyckoff-Accumulation",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wyckoff-Distribution",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wyckoff-LPSY",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wyckoff-SOS",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  },
+  "engine_setup_templates": {
+   "source": "uct-intelligence data/uct_intelligence.db :: setup_templates.name",
+   "derivable_in_ci": false,
+   "measured": {
+    "at": "2026-09-13",
+    "rows": 48
+   },
+   "rows": [
+    {
+     "external_name": "20EMA Hold",
+     "vocab_id": "20ema_tap",
+     "mismatch": 0,
+     "note": "same idea: price holds the 20 EMA"
+    },
+    {
+     "external_name": "7-Week Short Rule",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Ascending Triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "BGU",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Base-on-Base",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Box Theory",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Cup with Handle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Descending Triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Double Bottom",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA Crossback",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EMA Crossover",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "EP",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "FTD",
+     "vocab_id": "follow_through_day",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Flat Base",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Range Breakout ≈ Flat Base; no rename in W1"
+    },
+    {
+     "external_name": "Gap-and-Go",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Go Signal",
+     "vocab_id": "go_signal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Green Line Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "HTF",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "HVC",
+     "vocab_id": "high_volume_close",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Head & Shoulders",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Kicker Candle",
+     "vocab_id": "kicker_candle",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Late-Stage Climax",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Launchpad",
+     "vocab_id": "launchpad",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Low-Cheat",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Mean Reversion",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Measured Move",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Oops Reversal",
+     "vocab_id": "oops_reversal",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Open Bull Gap Support",
+     "vocab_id": "open_bull_gap",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "PEG",
+     "vocab_id": "earnings_gap_up",
+     "mismatch": 1,
+     "note": "W1 §3.3 known mismatch: Earnings Gap Up ≈ PEG? (owner to rule); no rename in W1"
+    },
+    {
+     "external_name": "Parabolic Short",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Pocket Pivot",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Power Play",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Rectangle",
+     "vocab_id": "range_breakout",
+     "mismatch": 1,
+     "note": "approximate (setup-vocabulary v0 maps_to)"
+    },
+    {
+     "external_name": "Red to Green",
+     "vocab_id": "red_to_green",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Remount",
+     "vocab_id": "remount",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Short Squeeze",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage 2 Breakout",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage 2 Momentum",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Stage 4 Breakdown",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Symmetrical Triangle",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Tight Flag",
+     "vocab_id": "flag",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "U&R",
+     "vocab_id": "undercut_and_rally",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "VCP",
+     "vocab_id": "vcp",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wedge Pop",
+     "vocab_id": "wedge_pop",
+     "mismatch": 0,
+     "note": null
+    },
+    {
+     "external_name": "Wyckoff Accumulation",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wyckoff Distribution",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wyckoff LPSY",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    },
+    {
+     "external_name": "Wyckoff SOS",
+     "vocab_id": null,
+     "mismatch": 0,
+     "note": "no vocabulary entry in v1 (the authors did not name it in the Session 0 samples)"
+    }
+   ]
+  }
+ }
+}

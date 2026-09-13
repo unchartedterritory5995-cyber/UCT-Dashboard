@@ -1476,6 +1476,27 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
+## ⛔ Resume after restart — read `docs/plans/joystick/RESUME.md` FIRST
+
+The machine was restarted on **2026-09-13**, which closed every PowerShell and Claude Code session
+mid-programme. **`docs/plans/joystick/RESUME.md` is the checkpoint** and it is the first thing a
+resuming session should open — before this section, before `closure.md`, before anything.
+
+It carries, each with a `file:line` or a SHA: where the programme actually is (LAUNCHED **2 of 6**;
+the owner run still pending); the next actions in order with the exact command lines; the
+environment and tooling checklists to verify after reboot (⛔ two of which were wrong on disk and
+are recorded as MEASURED, not expected); the worktree table; the standing rules; the open ledger
+with owners; and a production snapshot.
+
+⛔ **The one thing not to get wrong on resume:** `launch/stage-2-member-preview` at **`e60545210`**
+is **prepared, pushed and UNGATED**, and it is **frozen** — it must not be opened as a PR until
+Patrick's marked-up `owner-run.md` and trace are in and boxes 1 and 2 are ticked on evidence. It
+advances `ROLLOUT_STAGE` to 2, which turns the hub on for every member, and **Patrick merges it**,
+not an agent.
+
+⚠️ `RESUME.md` is on **master**, not on `launch/closure` — that branch is already merged and 176
+commits behind, and a resume file on a dead branch is not findable from a normal checkout.
+
 ## Joystick hub — the one section to read before touching it
 
 > **What it is.** A glass thumb-joystick pinned to the bottom corner on phones and tablets. Drag
@@ -1692,6 +1713,34 @@ directory junction to an installed `node_modules` is enough:
 `New-Item -ItemType Junction -Path <new>\app\node_modules -Target <existing>\app\node_modules`
 — and **delete the junction with `cmd /c rmdir` BEFORE `git worktree remove`**, or the remove
 walks through it and deletes the real one.
+
+> ⚰️⚰️ **AND THE REMOVAL ITSELF DELETED THE TARGET, 2026-09-13.** The warning above was followed
+> in spirit and the `node_modules` of a live worktree was still emptied — 368 packages gone, mid
+> programme. **The command matters as much as the order:**
+>
+> - **`cmd /c rmdir <link>`** — no `/s`. It removes the LINK only.
+> - ⛔ **`Remove-Item -Recurse`, `rm -rf`, and `[IO.Directory]::Delete(path, true)` FOLLOW the
+>   junction and delete the TARGET's contents.** `-Recurse` is the whole hazard; without it
+>   PowerShell refuses a non-empty directory, which is the refusal you want.
+> - ⛔ **`cmd //c` through Git Bash is not `cmd /c`.** The path is mangled (`//c` → `/c`) and the
+>   command fails with *"The filename, directory name, or volume label syntax is incorrect"* —
+>   which reads as a typo, so the next thing tried is usually the PowerShell one that destroys the
+>   target. Run it from the PowerShell tool, or quote it so bash cannot rewrite it.
+>
+> ⭐ **VERIFY BEFORE REMOVING, because a junction and a real directory look identical in `ls`:**
+>
+> ```powershell
+> Get-Item <link> -Force | Select-Object LinkType, Target
+> ```
+>
+> `LinkType` is `Junction` and `Target` names the real path. ⛔ `Get-Item` WITHOUT `-Force` can
+> report `LinkType` empty on a reparse point — on 2026-09-13 it printed `is junction: False` for a
+> junction that had resolved 372 entries a minute earlier, and that false negative is what made
+> deleting it look safe. **Never conclude "not a junction" from an unforced read.**
+>
+> ⭐ And afterwards, verify the TARGET, not the link: `ls <existing>/app/node_modules | wc -l`
+> against the count you started with. A missing `node_modules` is recoverable (`npm ci`, ~370
+> packages) but only on a quiet box, so the damage is discovered at the worst possible moment.
 
 ## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
 
@@ -4614,3 +4663,9 @@ does NOT replay — every feed gap is permanent until the T+1 flat file. Full de
 - **Railway healthcheck timeout** — set to 600s in `railway.json` (default 300s was too tight for startup with COT seed + DB migrations + scheduler init).
 - **Breadth collector Task Scheduler** — runs 4:30 PM ET weekdays (`UCT Breadth Collector`). Battery settings disabled (was killing the job on unplug). Logs: `uct-intelligence/data/breadth_collector.log` (Python) + `breadth_collector_stdout.log` (OS-level stdout/stderr capture).
 - **COT refresh timing** — CFTC publishes after 3:30 PM ET on Fridays (publish time varies; `last-modified` on `deacot{YEAR}.zip` reveals the exact timestamp). Three independent defense layers: (1) APScheduler — Fri 3:50/4:15/4:45 PM ET + daily 6 PM catch-up; (2) Startup catch-up — calendar-aware (uses `expected_latest_report_date()`, NOT `already_ran_today`); (3) Request-driven self-heal — `get_status()` triggers background refresh with 30-min cooldown if data is stale. The 2026-05-22 incident: Railway redeployed at 2 PM ET before CFTC published; startup catch-up downloaded the not-yet-updated zip and marked `last_updated=today`; later scheduler jobs silently failed (likely lost `acquire_scheduler_lock()`); the misleading `already_ran_today` flag would have blocked future startup catch-ups. Hardening in commit `12851ef`. Check `/api/cot/status` to self-heal; `POST /api/cot/refresh` to force.
+
+## Restart protocol
+
+Before a PC restart every session checkpoints: nothing uncommitted, its branch pushed, and `docs/RESUME.md` rewritten (HEADs, programs, open decisions, processes, flags, gotchas, verification checklist).
+After the restart: open PowerShell, run `scripts/resume.ps1` (verifies, prints the packet, lists every worktree, opens a window per active worktree), then paste the one-sentence prompt it prints into Claude Code.
+Until `discord-render-hardening` merges, the packet and scripts live at `C:\Users\Patrick\uct-worktrees\discord-render\docs\RESUME.md` and `...\scripts\resume.ps1`.

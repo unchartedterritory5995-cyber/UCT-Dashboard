@@ -265,3 +265,108 @@ than the sessions on screen.
 **Why.** The polling rail defines a polling site as `useSWR(…, {refreshInterval})`; C1 adds none. Both refreshes fire on
 events — the live hook's superseded transition (that hook already polls) and `visibilitychange` — one request each, the
 second throttled to one per ten minutes.
+
+### D-028 · C2 keeps `notMerge`; state the member set is written into every option, and motion stops after first paint
+
+**Decision.** The legacy chart still rebuilds with `notMerge`. Zoom (as dates), hidden series (`legend.selected`) and the
+reference lines are carried in the option, so a rebuild re-applies them. `animationDuration` is 400 ms until ECharts'
+`finished` event, then 0; `animationDurationUpdate` is 0; reduced motion starts at 0.
+
+**Why.** A merge-mode update (`replaceMerge`) keeps properties the new option omits — the `EXTREMES_BAND` axis bounds would
+survive a deselect and pin the wrong axis. Rebuilding from state is predictable and testable on the option ECharts is
+handed; switching the draw off after first paint is what 02-design §7 asks for.
+
+### D-029 · The magnitude rule runs on the rows on screen, at 6×, and the legacy chart names the gap instead of splitting
+
+**Decision.** `chartMagnitude.MAGNITUDE_LIMIT = 6`, computed over the zoomed rows per axis; the notice reads
+"52W Lows (Close) is 300× smaller than Universe Count on this axis." V2 splits the series into its own panel (A-05).
+
+**Why.** 6× is the threshold the retired `MAX_ABS` test used (froth's closest pair is 4.8×; both round-one defects exceed
+it). Running it on the visible rows covers members' own selections, which the preset-only test never did, and removes a
+hand-typed range table that had already drifted.
+
+### D-030 · `adv_decline_cum` keeps its flat line as a metric-attached constant
+
+**Decision.** `METRIC_REF_LINES` includes `adv_decline_cum: flat 0` beside the audit's list.
+
+**Why.** The A/D Line preset already drew it (suppressed when zero is outside the framed extent). The audit's list
+omitted it; dropping it would remove a canonical line members see today. The constant is unchanged.
+
+### D-031 · Axis ticks follow the visible span; ECharts may still hide the year-bearing label in a short window
+
+**Decision.** ≤ 6 months: ECharts spaces the labels and the first session of a year reads "Jan 2, 2026"; ≤ 2 years: month
+starts "Jun '26"; longer: year starts "2026". The tooltip header always reads "Fri, Sep 11, 2026".
+
+**Why.** 02-design §4. In a short window crossing New Year, ECharts' automatic spacing can skip the one label that carries
+the year; the window is under six months there, so the months themselves disambiguate, and the tooltip always names the
+year. Forcing that label on would fight `hideOverlap`.
+
+### D-032 · More is a disclosure of buttons until V2 builds the keys a listbox or menu promises
+
+**Decision.** The More trigger carries `aria-expanded` and `aria-controls` and no `aria-haspopup`; the list is headed groups
+of plain buttons, the active one `aria-pressed`. Escape closes it and returns focus to More. No `listbox`, `option` or
+`menu` role in C3.
+
+**Why.** A-24: `listbox`/`option` (and `menu`/`menuitem` just as much) tell assistive technology to expect arrow-key
+movement and selection the component does not have, so a screen-reader user presses keys that do nothing. A disclosure
+promises exactly what exists — open, close, press a button. 02-design §3 puts arrow keys inside popover lists in V2; the
+role can change when the behaviour arrives.
+
+### D-033 · Finger targets move to the TOUCH tier with `var(--tap-min)`; phone layout stays at ≤ 640
+
+**Decision.** Every Data Charts finger target — group toggles, Notable Extremes, metric rows, date fields, the FTD toggle,
+readout chips, preset pills and More-list items, the load-problem action — declares the floor under
+`@media (max-width: 1024px)` with `var(--tap-min)`. Padding, font size and gaps stay in the phone block.
+`breadth/tapTier.test.js` reads the stylesheets and refuses a typed 40/44 px.
+
+**Why.** A-19 measured 14 of 22 controls under 44 px at 768 px because the rules sat at ≤ 640 while the app's touch tier is
+≤ 1024 (CLAUDE.md *Breakpoints*). The app-wide `tapFloor` rail only sees rules already written with `var(--tap-min)`, so
+this tab's typed 44 px rules were invisible to it; the tab-level rail closes that gap without widening the shared rail.
+
+### D-034 · The registry gains `METRIC_META`; joining the catalog is not joining the picker
+
+**Decision.** `chartMetrics.js` holds `METRIC_META` — `short`, `drillKey`, `cadence`, `chartable` — for every chart metric
+and every heatmap metric. The nine heatmap-only keys (`is_ftd`, `advancing`, `declining`, `up/down_from_open`,
+`up/down_on_volume`, `spy_ma_stack`, `qqq_ma_stack`) enter `METRIC_META` but not `CHART_GROUPS`; `WEEKLY_METRICS` and
+`FFILL_KEYS` derive from `cadence`; `METRIC_REF_LINES` stays a sibling map in the same module.
+
+**Why.** R1 must be member-invisible (audit: `HM_METRICS` byte-identical). Adding the nine keys to `CHART_GROUPS` would put
+six new checkboxes in the legacy picker in a registry merge; D-012 offers them in V2 with coverage badges. Deriving the
+weekly set from `cadence` removes the last second copy of that list (`chartMetrics.WEEKLY_METRICS` and
+`heatmapMetrics.FFILL_KEYS` were two typed copies of the same five keys).
+
+### D-035 · The series endpoint is columnar, oldest-first, at most eight keys, cached as bytes under `breadth_history_`, and dark as a 404
+
+**Decision.** `GET /api/breadth-monitor/series?keys=&from=&to=` returns `{from, to, sessions, dates[], series{key: []},
+reconstructed[], missing[]}`; non-finite values are `null`; the span is counted in stored sessions and served through
+`get_history_deep` so reconstructed rows and rolling warm-up are unchanged; the encoded bytes are cached five minutes under
+`breadth_history_series_…`; `Cache-Control: private, max-age=60`; `BREADTH_SERIES_ENDPOINT_ENABLED` unset → 404.
+
+**Why.** D-008 chose a projected, pre-encoded route over a bigger `days=`. Columns carry each date once instead of once per
+metric; the `breadth_history_` prefix means every existing `delete_prefix` on snapshot writes already invalidates it, so no
+new invalidation path can be forgotten; `private` because the data is paid; and a dark route that answers 404 cannot be
+probed as a paid feature before it ships.
+
+### D-036 · A flaky assertion in another area's test is fixed on this branch, in its own commit, when it reddens our gate
+
+**Decision.** `app/src/context/AuthContext.test.jsx`'s "503 on a REFETCH" case read `authTransient` synchronously after
+`act` while its sibling reads sat inside a `waitFor`; the read is moved into the same wait. Committed alone
+(`3512348c5`), never folded into a Data Charts merge, and named in the merge's summary as not part of the tab.
+
+**Why.** It failed once in the C3 six-shard gate and was green 3/3 alone and again in a re-run of its own shard with the
+same file list and worker count, so it is a sampling race, not a product defect — the exact class the file's own
+⚰️ comment describes for `user` and `plan`, left unfixed on the third value. Classifying it as "master's" and moving on
+would leave every session on this box with an intermittently red gate, and a gate that reddens at random is one people
+learn to wave through. The fix is one assertion's sampling moment, all three values still demanded, with a control
+proving the moved assertion still fails when the expectation is inverted: flipping the expected `authTransient` to
+`'true'` on the rewritten `waitFor` gives `Tests 1 failed | 7 passed (8)`, and the harness restores the exact bytes
+(sha verified) afterwards. Without that control a `waitFor` can pass by asserting nothing, which would make this a
+silence rather than a fix. Scope: the brief's off-limits list is Notebook product files and `OptionsFlow.jsx`; this is
+neither, and it is test-only.
+
+⛔ **This is not a licence to rewrite another area's failing test.** The same gate later reddened on
+`src/pages/desk/ArticlesSection.native.test.jsx`, and that one was NOT fixed: its `waitFor` is correctly placed and
+Testing Library's budget is already 4,000 ms against a 250 ms debounce, so the red was starvation under the full suite,
+not a misplaced read. "Fixing" it would have meant raising a global timeout in another session's area to hide load. It is
+recorded in `gates.md` as pre-existing and load-sensitive instead. The test that gets rewritten is the one whose
+ASSERTION is in the wrong place; the test that gets recorded is the one the machine was too busy to answer.

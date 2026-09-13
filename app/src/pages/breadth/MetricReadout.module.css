@@ -40,3 +40,8 @@
   font-size: 11px;
   color: var(--warn);
 }
+
+/* A-19: each chip toggles a series, so it is a finger target on the touch tier. */
+@media (max-width: 1024px) {
+  .item { min-height: var(--tap-min); }
+}

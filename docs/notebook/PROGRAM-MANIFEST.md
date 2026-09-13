@@ -393,6 +393,34 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-13 — T-12 MAY BE EXECUTED BY AUTOMATION (owner amendment)
+
+`T-12-prelaunch-smoke.md` said, in its own charter: *"Who runs it: the owner, on
+his own device, signed in as himself. ~15 minutes. **This is not automation.
+Nothing in this repo runs it, and no agent may run it or fill in its results.**"*
+
+⚖️ **AMENDED BY THE OWNER, 2026-09-13, in these words:**
+
+> *"the owner delegates execution; the owner reviews the evidence; automation may
+> not substitute a scripted fetch for a real interaction at any step."*
+
+⭐ **What changed and what did NOT.** The human-observation requirement is
+satisfied by **evidence a human can review afterward** rather than by a human at
+the keyboard. Everything the gate was actually protecting stands: every step is
+driven through the **real surface with pointer and keyboard**, and the standing
+prohibitions — no auth bypass, no flag flipped to reach a surface, no
+manufactured activations, no fixing anything mid-run — are untouched.
+
+⛔ **The sentence that now does the work: a scripted `fetch` is not a step.** If a
+step cannot be driven through the control a member uses, it is **INCONCLUSIVE
+with the rig limitation named**, never a pass. That is the same rule the door
+work runs under, and it is why this amendment does not weaken the gate: it moves
+who presses the keys, not what counts as evidence.
+
+⚠️ **The run file says so at the top**, in the words the owner set: *"automated
+per charter amendment 2026-09-13"*. A reader must never have to infer that a
+green T-12 was produced by a machine.
+
 ### ⚖️ 2026-09-12 — the kill switch's MECHANISM: the spec said `/api/config`; the live architecture already had one
 
 `kill-switch-spec.md` §1 specified a new `GET /api/config`, read once at boot.

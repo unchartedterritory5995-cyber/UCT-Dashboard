@@ -66,13 +66,14 @@ const seriesNamed = (opt, name) => opt.series.find(s => s.name === name)
 // markLines, not data. Counting plotted metrics means excluding them.
 const realSeries = opt => opt.series.filter(s => !s.name.startsWith('__'))
 
-/** Presets without a `group` are pills; the rest live behind the More popover. */
+const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Presets without a `group` are pills; the rest are buttons in the More list (A-24, D-032). */
 const clickPreset = name => {
   const pill = screen.queryByRole('button', { name })
   if (pill) return fireEvent.click(pill)
   fireEvent.click(screen.getByRole('button', { name: /^More/ }))
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return fireEvent.click(screen.getByRole('option', { name: new RegExp(escaped) }))
+  return fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}`) }))
 }
 
 describe('preset chips', () => {
@@ -99,7 +100,7 @@ describe('preset chips', () => {
       'Volume Thrust', 'Froth & Extension',
       'Vol Complex', 'Sentiment Extremes',
     ]) {
-      expect(screen.getByRole('option', { name: new RegExp(label.replace('/', '\\/')) }))
+      expect(screen.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}`) }))
         .toBeInTheDocument()
     }
   })
@@ -313,17 +314,41 @@ describe('axis framing', () => {
   })
 })
 
-describe('reference lines from a preset', () => {
+describe('reference lines belong to metrics', () => {
+  const lineSeries = opt => opt.series.filter(s => s.name.startsWith('__ref_lines_'))
+
   it('draws the parity and thrust levels on the ratio axis', async () => {
     render(<BreadthCharts />)
     await chart()
     clickPreset('Breadth Thrust')
-
-    await waitFor(() => expect(seriesNamed(captured, '__ref_lines__')).toBeTruthy())
-    const ref = seriesNamed(captured, '__ref_lines__')
-    expect(ref.markLine.data.map(d => d.yAxis)).toEqual([1.0, 2.0])
+    await waitFor(() => expect(lineSeries(captured)).toHaveLength(1))
+    const [ref] = lineSeries(captured)
+    expect(ref.markLine.data.map(d => d.yAxis)).toEqual([1, 2])
     // Ratios took the left axis, so the levels belong there.
     expect(ref.yAxisIndex).toBe(0)
+  })
+
+  // A-03: the lines drew only while the selection exactly equalled a preset.
+  it('keeps the lines when the selection is edited by hand', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('Breadth Thrust')
+    await waitFor(() => expect(lineSeries(captured)).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: /^Regime/ }))
+    fireEvent.click(screen.getByLabelText('VIX'))
+    await waitFor(() => expect(realSeries(captured)).toHaveLength(6))
+    expect(lineSeries(captured).flatMap(s => s.markLine.data.map(d => d.yAxis)))
+      .toEqual(expect.arrayContaining([1, 2]))
+  })
+
+  // A-02: the flat line sat at ratio 0 on the ratio axis instead of at net 0.
+  it('draws Volume Thrust\'s flat line on the net axis and parity on the ratio axis', async () => {
+    render(<BreadthCharts />)
+    await chart()
+    clickPreset('Volume Thrust')
+    await waitFor(() => expect(lineSeries(captured)).toHaveLength(2))
+    expect(seriesNamed(captured, '__ref_lines_0__').markLine.data.map(d => d.yAxis)).toEqual([1])
+    expect(seriesNamed(captured, '__ref_lines_1__').markLine.data.map(d => d.yAxis)).toEqual([0])
   })
 
   it('suppresses a line that would expand an auto-framed axis', async () => {
@@ -333,7 +358,7 @@ describe('reference lines from a preset', () => {
     // line drawn anyway would drag the framed axis back to zero.
     clickPreset('A/D Line')
     await waitFor(() => expect(realSeries(captured).length).toBeGreaterThan(0))
-    expect(seriesNamed(captured, '__ref_lines__')).toBeUndefined()
+    expect(lineSeries(captured)).toEqual([])
   })
 })
 
@@ -477,6 +502,7 @@ describe('stored selection', () => {
     }))
 
     render(<BreadthCharts />)
-    await waitFor(() => expect(captured?.series?.map(s => s.name)).toEqual(['VIX']))
+    // Metric series only: VIX owns its canonical 20 line (D-009), drawn as a marker series beside it.
+    await waitFor(() => expect(captured && realSeries(captured).map(s => s.name)).toEqual(['VIX']))
   })
 })

@@ -14,8 +14,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 const SESS = {
   AMC: { label: 'AFTER CLOSE', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
   BMO: { label: 'BEFORE OPEN', color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
@@ -139,7 +139,7 @@ export default function EarnCardsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     // The priced move arrives IN the payload (exp_move_pct, computed wire-side
     // for just the shown names) — the full-day enrichment endpoint recomputes
     // 78-120 names and can take minutes cold, which shot chip-less panels.
