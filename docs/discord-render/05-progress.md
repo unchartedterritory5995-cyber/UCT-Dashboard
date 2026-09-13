@@ -181,4 +181,14 @@ does not carry them today.
 **763 passed, 0 failed**. Watch coverage `OK` (changed 8). Mutation proofs 22/22 red (second run;
 two rails fixed after the first).
 
-**Deploy, measured:** *(filled from the running pod after the push)*
+**Deploy, measured** (parked at the 15:30 ET checkpoint, resumed on the owner's close-out; re-merged
+master `7bd9c8785` as `2b04c725a`, gate **764 passed, 0 failed** — the inherited flag-ledger red was
+fixed on master by its owner):
+
+| Check | Result |
+|---|---|
+| Push | fast-forward `7bd9c8785..d623baf1d`, 19:48:51 UTC; `web` SUCCESS and master 0 ahead immediately before |
+| `web` deployment on `d623baf1d` | BUILDING 19:49:51 → DEPLOYING 19:50:39 → SUCCESS 19:51:10 UTC |
+| Running commit, read in-process | `d623baf1d836` |
+| `/api/health` · bad signature · render-health without bearer | 200 · 401 · 401 |
+| V2 flag / alert webhook in the running process | both absent |

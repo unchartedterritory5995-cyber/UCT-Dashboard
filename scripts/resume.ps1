@@ -73,7 +73,7 @@ else {
 
     # 3. master drift (information)
     $behind = (git rev-list --count "HEAD..origin/master" 2>$null)
-    Info "origin/master is $behind commit(s) ahead of this branch (merge 4 must re-merge and re-gate)"
+    Info "origin/master is $behind commit(s) ahead of this branch (merge it before new work)"
 }
 
 # 4 + 5. Railway deployments
@@ -138,5 +138,5 @@ if (-not $NoWindows) {
 
 Write-Host ''
 Write-Host '=== Paste this into Claude Code (in the discord-render window) ===' -ForegroundColor Yellow
-Write-Host '  Read docs/RESUME.md in C:\Users\Patrick\uct-worktrees\discord-render and continue the Discord render program from "The very next action" (master merge 4 is parked: re-merge, re-gate, provenance for the inherited flag-ledger red, then the guarded push).' -ForegroundColor White
+Write-Host '  Read docs/RESUME.md in C:\Users\Patrick\uct-worktrees\discord-render and continue the Discord render program from "The very next action" (2.1-2.4a are live and dark at d623baf1d; start step 2.4b).' -ForegroundColor White
 Write-Host ''
