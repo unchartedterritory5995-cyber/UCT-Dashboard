@@ -58,7 +58,7 @@
     }
   ],
   "ambiguous_speaker_labels": [
-    { "label": "Uncharted Territory", "note": "The shared Zoom host account label. Golden v1 found it carrying Bracco's voice in session 348, so it is NOT an alias of any author. Resolve per session from host/show metadata; with no evidence, keep the raw label, set speaker_confidence=low and open an 'authors' review item. Never treat it as an attendee to drop." }
+    { "label": "Uncharted Territory", "note": "The shared Zoom host account label (owner ruling 2026-09-13, CONTRACTS §8a.2). Golden v1 found it carrying Bracco's voice in session 348, so it is NOT an alias of any author. Resolve per session ONLY with cited evidence (session title/description, a self-introduction line, a first-person reference to a position matching that author's Sunday Scans positions, or a Discord message by that author in the same minute), logged on the source record. Insufficient evidence -> speaker 'team-unresolved' (MENTION only; never CALL, never PRINCIPLE attribution) and an attribution review item. Never default to TSDR or Bracco; never voice similarity alone; never dropped as an attendee." }
   ],
   "non_call_speakers": [
     { "label": "Ravi", "role": "team_non_author", "note": "partner (options flow). MENTION / PRINCIPLE only; not in the four §2.1 authors." }

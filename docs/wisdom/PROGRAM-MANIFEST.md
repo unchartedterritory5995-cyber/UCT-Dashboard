@@ -133,7 +133,7 @@ Companion files:
 - **Speech-to-text damage:** tickers and prices get mangled (`light` for LITE, `Soxel` for SOXL, `MBIS` for NBIS, `9.30` for $930, `chairs` for shares).
   ⇒ §4.8 ASR alias layer.
 - **Coverage:** 33 of 34 measurable videos cover ≥ 98% of their YouTube length. **1 of 34 is truncated: 356 "Workshop with Stockbee" covers 5.1% (345 s of 6,830 s).**
-  - It's a live Desk-pipeline defect, filed to the Desk owner (D10 = YES; recover from Zoom trash before ~2026-10-11).
+  - It's a live Desk-pipeline defect (D10 = YES). ⛔ **Zoom cloud copies are deleted ON PURPOSE after posting (owner, 2026-09-13): there is no Zoom trash copy to recover — never plan one.** The full transcript is rebuilt desk-check-first, else by re-transcription + diarization (CONTRACTS §8a.6b); the pipeline gains store-and-verify before delete (§8a.6a).
   - ⚠️ A first coverage pass manufactured 9 false zero-coverage rows (a regex didn't match those rows' stamp format). The server-parsed `transcript-cues` endpoint is the authority.
 - A stop/restart creates duplicate stub publishes (353/354), so sources de-duplicate by meeting and time window, never by title.
 
@@ -590,7 +590,7 @@ Reserved names retired without ever being declared: `WISDOM_CAPTURE_SCANS_ENABLE
 
 | Wave | Delivers (dark) | Exit / Definition of Done |
 |---|---|---|
-| **W1 (in build)** | S-A capture & archive (D12, ships first) · S-B schema, private store (D16a), four import-ban rails in CI + pre-merge, entity / alias / STT, vocabulary authority + maps · S-C Discord (four author channels, full backfill reconciled with the 7,766 legacy messages, listener), Zoom recovery + ≥ 98 % deletion guard + raw VTT to R2, Sunday Scans verification + publish-only check · S-D segmentation, extractor v0, Batch runner + budget guard, golden ≥ 100 + gate, smaller-model trial · S-E outcomes, CONTEXT_SNAPSHOT, CALL-REPLAY, metrics 6.1–6.3, grounding eval 6.4 · S-F admin review queue + dashboard, every publish adapter dark, D20 built and disabled, weekly report, RUNBOOK | Owner GO §9.1, walked line by line in the W1 report. Scheduled gates: 3 consecutive sessions of capture health; first WEEKLY WISDOM REPORT Sunday 2026-09-20; D20 enablement only after CALL-REPLAY n ≥ 100 and two weeks of silent scoring |
+| **W1 (in build)** | S-A capture & archive (D12, ships first) · S-B schema, private store (D16a), four import-ban rails in CI + pre-merge, entity / alias / STT, vocabulary authority + maps · S-C Discord (four author channels, full backfill reconciled with the 7,766 legacy messages, listener), store-and-verify before every Zoom delete (VTT, audio transcript, chat log, metadata to R2; coverage ≥ 98 %) + desk-check-then-re-transcribe for every video under 98 % coverage, Sunday Scans verification + publish-only check · S-D segmentation, extractor v0, Batch runner + budget guard, golden ≥ 100 + gate, smaller-model trial · S-E outcomes, CONTEXT_SNAPSHOT, CALL-REPLAY, metrics 6.1–6.3, grounding eval 6.4 · S-F admin review queue + dashboard, every publish adapter dark, D20 built and disabled, weekly report, RUNBOOK | Owner GO §9.1, walked line by line in the W1 report. Scheduled gates: 3 consecutive sessions of capture health; first WEEKLY WISDOM REPORT Sunday 2026-09-20; D20 enablement only after CALL-REPLAY n ≥ 100 and two weeks of silent scoring |
 | **W2** | D11 context snapshots for all historical CALLs from archived + reconstructable data; D13 chart ingestion behind the 50-image cost gate; D15 test specs and first results | Owner GO §9.2 |
 | **W3** | D18 Brain KB repair (build → eval → diff → admin swap → archive); voice-principle sourcing / retirement; Morning Wire profile refresh live for admins | |
 | **W4** | Ask-AI retrieval dark for the admin cohort; desk markers; dossiers; grounding eval before / after in the weekly report | |
@@ -616,7 +616,7 @@ Members' "This week in UCT" not before the admin loop has run four consecutive w
 | D7 | Capture scanner candidates and detections from W1 | **YES** |
 | D8 | Hindsight examples excluded from UCT-see rate, used for outcomes and clips | **YES** |
 | D9 | Owner's names canonical; code names map to them | **YES** |
-| D10 | Recover the Stockbee workshop from Zoom trash; hand the defect to the Desk owner | **YES** — agent-run under W1 GO §2.2; the pipeline fix is built in this repo (§13) |
+| D10 | ~~Recover the Stockbee workshop from Zoom trash~~ — superseded 2026-09-13: Zoom copies are deleted on purpose after posting. Rebuild the transcript desk-first, else re-transcribe; fix the pipeline | **YES** — agent-run; the store-and-verify pipeline fix is built in this repo (§13) |
 | — | Sunday Scans: published posts only, never drafts | **RULE** (§0.9) |
 
 ### Answered — owner W1 GO v2.0, 2026-09-13: D11–D20 **all YES, with the rails in the GO text** (D16 split)
@@ -644,10 +644,6 @@ Members' "This week in UCT" not before the admin loop has run four consecutive w
    - Each channel is verified with an HTTP 200 bot read.
    - Author IDs are verified by measured authorship (`authors.json`).
    - #volume-alerts, #uncharted-scanners and #test-chartmaster-alerts are app-authored. They are out of scope and were not granted.
-3. **Zoom — IN PROGRESS.**
-   - The S2S app lacks the list-recordings and recover scopes (measured by API).
-   - The web portal asks for the owner's password, which the agent may not enter. One owner sign-in in the shared Chrome profile is requested.
-   - The deletion guard, transcript pairing and VTT archive are built in this repo.
-   - Fallback: Whisper re-transcription from R2 session audio, which carries no speaker labels.
+3. **Zoom — CLOSED on the owner's side (2026-09-13).** Zoom cloud recordings are deleted on purpose after posting; "Workshop with Stockbee" is not in Zoom trash and is not an owner task. Agent-run instead: the desk-transcript check for 356 and every video under 98 % coverage, re-transcription + diarization where no full copy exists, and the store-and-verify pipeline fix (CONTRACTS §8a.6a–6b).
 4. **Golden labels:** agent-verified and expanded (W1 GO §2.4). The owner vetoes through the review queue.
 5. ~~Confirm J2 accounts~~: removed (D16b deferred).

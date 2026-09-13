@@ -100,7 +100,7 @@ Existing files a stream may edit (and only that stream):
 
 | File | Stream | Scope |
 |---|---|---|
-| `api/services/desk_session_insights.py` + `tests/test_desk_session_insights.py` | S-C | coverage guard, transcript↔MP4 pairing/stitching, raw VTT → R2 before trash |
+| `api/services/desk_session_insights.py` + `tests/test_desk_session_insights.py` | S-C | store-and-verify before Zoom delete (VTT + audio transcript + chat + metadata → R2, coverage ≥ 98 %), transcript↔MP4 pairing/stitching |
 | `api/routers/ai_search.py`, `api/services/ai_search_log.py`, `api/services/ai_search_eval/runner.py`, `app/src/pages/charts/widgets/AiSearchWidget.jsx` | S-F | flag-gated Wisdom retrieval block only |
 | `api/services/ai_search_dossier.py` | S-F | flag-gated `_wisdom_lines` only |
 | `api/services/ticker_mentions.py` | S-F | flag-gated provider, gated OUTSIDE the per-symbol cache |
@@ -333,10 +333,7 @@ flags are internal and are armed by the integrator after the merges, in one vari
   `core.authors`; non-author messages dropped before any write; quoted/replied member text stripped; 401/403 →
   `blocked_until = now + 1 h`; ≤ 5 pages per channel per tick; backfill resumable via `backfill_before`; reconcile the
   7,766 legacy classified messages by message id (`legacy_classified=1`, no re-classification of those).
-- Zoom: pairing + coverage guard + VTT archive in `desk_session_insights.py`; R2 key
-  `wisdom/sources/zoom_vtt/<sha24(meeting_uuid)>/<recording_file_id>.vtt`; a multi-TRANSCRIPT regression test.
-  `tools/wisdom/sources_zoom_transcript_repair.py` (PC-side, explicit, dry-run default) rebuilds one video's transcript
-  via `POST /api/education/videos/{id}/insights-store` with `transcript` ONLY.
+- Zoom: store-and-verify before delete per §8a.6a (VTT, audio transcript, chat log, metadata → R2 under `wisdom/sources/zoom/<sha24(meeting_uuid)>/`; coverage ≥ 98 %; deletion blocked only until that succeeds), transcript pairing/stitching to the published MP4, and a multi-TRANSCRIPT regression test in `desk_session_insights.py`. Truncated videos follow §8a.6b (desk check first). `tools/wisdom/sources_zoom_transcript_repair.py` (PC-side, dry-run default) rebuilds one video's transcript via `POST /api/education/videos/{id}/insights-store` with `transcript` ONLY.
 - Sunday Scans: desk.db read-only through `desk_store`; the ingestion query requires `published_at > 0`; public-URL diff
   sets `published_check`; unsigned sections → `tsdr`, `attribution_source="D4 ruling"`.
 - Transcripts: education.db read-only through `education_service.get_transcript_cues` (never a hand regex); coverage
@@ -396,6 +393,69 @@ plus the stream's own touched suites (e.g. `tests/test_desk_session_insights.py`
 A run counts only with its totals line. Never `pytest tests/` unscoped. One test run at a time on this box.
 
 ---
+
+## 8a. Owner rulings at checkpoint 1 (2026-09-13) — binding on every stream
+
+1. **Golden freeze.** `golden-v1` is the 125-record set (117 confirmed, 8 provisional) after the §8a.4 propagation and a
+   passing re-run of all three verifier passes plus the leaked-quote check. It is frozen by the sha256 of
+   `data/wisdom/golden/golden-v1.jsonl`, recorded in LEDGER. The extractor gate scores against v1 exactly, and every
+   gate run records the golden version and sha it scored. Additions go to `golden-v1.1+` in a separate file.
+2. **Ambiguous host labels** (every label in `authors.json` `ambiguous_speaker_labels`, today "Uncharted Territory").
+   - **Resolve per session only with cited evidence:** the session title or description; a self-introduction line in
+     the transcript; a first-person reference to a position matching that author's Sunday Scans position list; or a
+     Discord message by that author in the same minute.
+   - **Log the evidence** in `wisdom_sources.speaker_resolution_json`.
+   - **Insufficient evidence →** speaker `team-unresolved`, which may author MENTION only (never CALL, never PRINCIPLE
+     attribution). The session goes to the attribution queue with the strongest partial evidence.
+   - **Never** default to TSDR or Bracco. **Never** resolve by voice similarity alone.
+   - **Retroactive:** every session carrying the label is re-resolved and every record from it re-tagged, golden
+     included; the count of author changes is reported.
+3. **Unattributable speech in a guest session (D14)** is stored with speaker `unresolved`, never as the guest's and
+   never as TSDR's.
+4. **Inferred tickers.**
+   - **Required fields:** a record whose ticker was inferred from an adjacent line carries `ticker_inferred=1`,
+     `entity_confidence <= 0.5` and `extraction_confidence='low'`.
+   - **Bar-range check:** it must pass the bar-range sanity pass (the stated price or setup is consistent with that
+     ticker's bars that session) before storage. On failure it is stored as a MENTION with `entity_id` NULL and a
+     review item. This is a permanent extractor rule.
+5. **Exits.**
+   - **Columns:** `wisdom_records` carries `exit_price`, `exit_text` and `exit_date` (a session).
+   - **Reconciliation:** the OUTCOME engine checks the stated exit against that session's bar range. Outside the range →
+     `wisdom_outcomes.exit_mismatch=1` plus a review item; never overwrite.
+   - **Privacy:** an exit price on an open position, or on a position closed within the last 20 sessions at publish
+     time, is content-stream private data (§0.4d). It goes to the private store and is redacted in every member-facing
+     publish path. The private-store property test covers `exit_price`.
+6a. **Zoom — owner correction, 2026-09-13.**
+   - **The fact:** Zoom cloud recordings are deleted ON PURPOSE after posting to the Desk and YouTube. "Workshop
+     with Stockbee" (2026-09-11) is not in Zoom trash and cannot be recovered. No session plans a Zoom trash
+     recovery, and none lists one as an owner task.
+   - **The pipeline fix (replaces the earlier "deletion guard"):** the delete-after-post workflow stays as it is.
+     Before the pipeline deletes a Zoom cloud recording it must first store, then verify:
+     1. **Store in R2** (`core.r2.put_immutable` under `wisdom/sources/zoom/<sha24(meeting_uuid)>/`):
+        - every TRANSCRIPT VTT, with speaker labels;
+        - the audio transcript text;
+        - the chat log;
+        - the recording metadata JSON.
+     2. **Verify** that the stored transcript covers >= 98 % of the published recording's duration.
+   - **Blocking:** deletion is blocked only until that store-and-verify succeeds. It ships with a test.
+   - **Also due today:** transcript-to-MP4 pairing (or stitching), a multi-TRANSCRIPT regression test, and the
+     root cause of the 345 s truncation (fixed or filed).
+6b. **Truncated transcripts — the desk check comes first, always.** Applies to every catalog video under 98 %
+   coverage.
+   1. **Desk check.** Search every Desk transcript store for the video by title, date, YouTube id and Zoom
+      recording id. A copy with >= 98 % coverage (cue endpoint) becomes the SOURCE. Record where it was and whether
+      it has speaker labels.
+   2. **Otherwise re-transcribe.** Transcribe the full-length audio with the Desk pipeline's STT path, then run
+      speaker diarization. Name the clusters by evidence only (§8a.2 rules); a cluster without enough evidence is
+      `unresolved`.
+   3. **Register and rebuild.** Either path: register a new SOURCE version replacing the stub, rebuild `edu_videos`
+      and chapters from it, re-extract, and put the speaker map in the attribution queue. Guest speech stays guest
+      (D14).
+6. **Checkpoints.**
+   - **Status table:** every checkpoint opens with one row per stream — stream, branch, last commit, tests, import-ban
+     checks, reviewer verdict, blockers, ETA to `feat/wisdom-loop`, ETA to master.
+   - **Every checkpoint also carries:** cost to date (API, Batch, storage) and Batch/backfill progress with ETA.
+   - **Continuity:** `SESSION-STATE.md` is current at each checkpoint.
 
 ## 8. Integration protocol
 
