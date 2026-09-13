@@ -336,6 +336,22 @@ iPhone 15 Pro / iOS Safari 17.6, viewport **393**, left-handed set via the API (
 
 Screenshot: `screens/glass/G3-17-lefthanded-15pro-393-2026-09-12.jpg`.
 
+
+### Untimed iOS rows — 15 Pro block, 2026-09-12
+
+iPhone 15 Pro / iOS 17.6 at 393, signed in by login link, high contrast ON via the API.
+
+| row | verdict | evidence |
+|---|---|---|
+| **G3-2** high contrast | ⚠️ **MECHANISM CONFIRMED, legibility is the owner's eye** | `document.documentElement.getAttribute("data-hub-contrast")` reads **`"high"`** on the real device, which is the attribute `tokens.css:527` keys the whole high-contrast block off — so the switch genuinely reaches the glass rather than being inert. ⛔ Whether every ring and readout *stays legible* is a human judgement an agent must not self-certify, exactly like G3-16(a). Screenshot: `screens/glass/G3-2-highcontrast-fan-15pro-2026-09-12.png` (fan open, bubbles legible to me, recorded for the owner to judge). |
+| **G3-8** Screener scan picker | ⬜ **INCONCLUSIVE-TRANSPORT** | Aimed at the **Scans** bubble and hit **Chart**. Not a product fault: with the Web Inspector open the device renders at ~0.42 of its CSS size, so a 44px CSS bubble is ~18px on screen and the fan's bubbles sit ~20px apart — below this mirror's pointing precision. ⭐ The tap that landed is still evidence for a DIFFERENT property (below). Re-run needs the inspector closed so the device renders larger, then reattach to read the result. |
+| **fan → action door** (not a numbered row) | ✅ **WORKS ON GLASS** | A real tap on a fan bubble resolved to that bubble's own action and carried it out: the device went to `/charts` with the screener's cursor ticker (APLS), and the hub's mode chip re-derived from the new route to `Chart · tap: next timeframe`. So bubble -> action -> page navigation -> route-derived mode all work under a finger-equivalent tap on a real device. |
+| **G3-3** Peek (two fingers) | ⛔ **N/A — REMOVED BY RULING** | Two-finger Peek was removed; it was never an a11y mechanism (screen readers consume two-finger tap; two pointers fails WCAG 2.5.1). The row is obsolete, not failing. |
+| **G3-12** range input inside Peek | ⛔ **N/A as written** | It names Peek as its door, and Peek is gone. The no-drag scrub still exists via the Actions sheet; the row needs rewriting against that door before it can be run. |
+| G3-4..G3-7, G3-9..G3-11, G3-13, G3-14 | ⬜ **NOT RUN this block** | Each needs precise targeting of a bubble/cursor at ~0.42 mirror scale, or a scrub whose landing position must be read precisely. Same transport limit as G3-8; not attempted rather than guessed at. |
+
+⭐ **The scale is the blocker, and it is fixable**: the inspector is what shrinks the device. Tapping with it CLOSED (device ~0.71) and reattaching afterwards to read state is the procedure for the next block — attach/detach does not reload the tab.
+
 ## Block G4 — FPS, as a RATIO not an absolute
 
 > Gate criterion is hub cost relative to the device's **idle baseline**, not an absolute fps.
