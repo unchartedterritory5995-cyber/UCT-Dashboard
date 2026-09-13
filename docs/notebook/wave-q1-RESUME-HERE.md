@@ -744,6 +744,18 @@ the OLD bundle until they reload** — no service worker, no version prompt, by
 charter. So "reverted" means "no NEW page load gets it", never "nobody is running
 it".
 
+⭐ **"THERE IS NO SERVICE WORKER" — PRECISELY, because the rollback reasoning
+leans on it.** Measured 2026-09-12: `app/src/main.jsx` registers **no caching
+service worker**, and §8 DO-NOT-BUILD is untouched. What DOES exist is
+`/sw.js`, a **self-uninstalling KILL SWITCH** (2026-04-26) that the app fetches
+*only* for a browser that still carries the LEGACY cache-first SW — it deletes
+that SW's caches, unregisters itself and reloads. So the sentence is true for
+every clean browser, and for a browser still carrying the legacy worker it
+becomes true the first time it loads the app. ⛔ The reason to state it this
+exactly rather than leave it absolute: a cache-first SW would serve a STALE
+bundle straight through a revert, which is the one failure the rollback text
+tells a reader not to worry about.
+
 ## ⛔ SETTLED — do not reopen
 
 - **Single writer: DECIDED AND REVERSED.** The coordination machinery is what

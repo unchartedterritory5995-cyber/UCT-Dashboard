@@ -2335,6 +2335,18 @@ receives no `notebook_*` keys at all and reads the constant — which is why
 so an unreachable payload fails to OFF) is queued behind a measured
 config-served rate rather than assumed.
 
+⭐ **"THERE IS NO SERVICE WORKER" — PRECISELY, because the rollback reasoning
+leans on it.** Measured 2026-09-12: `app/src/main.jsx` registers **no caching
+service worker**, and §8 DO-NOT-BUILD is untouched. What DOES exist is
+`/sw.js`, a **self-uninstalling KILL SWITCH** (2026-04-26) that the app fetches
+*only* for a browser that still carries the LEGACY cache-first SW — it deletes
+that SW's caches, unregisters itself and reloads. So the sentence is true for
+every clean browser, and for a browser still carrying the legacy worker it
+becomes true the first time it loads the app. ⛔ The reason to state it this
+exactly rather than leave it absolute: a cache-first SW would serve a STALE
+bundle straight through a revert, which is the one failure the rollback text
+tells a reader not to worry about.
+
 ### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
 
 > **Whether `--set` restarts the service is not settled, and this file asserted
