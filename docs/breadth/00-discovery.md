@@ -561,3 +561,27 @@ tab's own `days=365` call did not return inside the rig's 45 s wait and the 768 
 A member on a tablet pays the same queue. Raised for the Monitor owner; not a collector ask (the storm is frontend).
 
 At 390 the page lands on Daily, which costs 40 calls and no deep walk, and the tab switch painted in 480 ms.
+
+## §8 The `/charts` Breadth widget has no phone surface (measured 2026-09-13)
+
+R1 unified the metric registry, and the `/charts` **Breadth widget** is the second surface that reads it — the heatmap
+tiles it draws are `HM_METRICS`. Verifying it at the programme's two member widths turned up a structural fact worth
+recording, because it will otherwise be re-discovered as a bug.
+
+**Below 640 px, `ChartsWorkspace` bypasses react-grid-layout entirely and renders `MobileWorkspace`, which understands
+CHART widgets only.** A workspace holding a Breadth widget renders, at 390 px, as *"No chart in this layout yet."* with
+an "Open a chart" button. The widget is not small, not clipped, not slow — **it does not exist at that width**.
+
+Consequences, stated so nobody re-opens this:
+
+- **Registry unification has no mobile surface to verify.** The 390 px A/B is NOT APPLICABLE, not a gap and not a
+  failed capture. The instrument reports it as a named state (`mobile-workspace`), never as a timeout, because calling
+  a missing surface a broken harness is how a real gap gets filed as flakiness.
+- **This is not a Data Charts defect and not this programme's to fix.** Data Charts is a `/breadth` sub-tab and has its
+  own phone layout, which §4–§7 measured. Whether the `/charts` workspace should render non-chart widgets on a phone is
+  a Charts-Hub product question, owned there.
+- The desktop verification stands on its own: at 1280 px the widget's rendered text is **identical** across a build
+  from `origin/master` and a build of this branch (752 chars, 99 lines, widget-scoped).
+
+⚠️ The screenshot of the 390 px state is kept under `docs/breadth/screenshots/registry-unification/` (gitignored — the
+repo is public and these draw paid data). It is the evidence for the sentence above, not decoration.

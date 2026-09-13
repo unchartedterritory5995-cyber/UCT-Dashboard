@@ -29,6 +29,7 @@ import argparse
 import os
 import pathlib
 import re
+import subprocess
 import sys
 
 # Value shape: long enough to be a real credential, in the charset tokens actually use.
@@ -207,18 +208,96 @@ def self_check() -> int:
     return 0 if not fails else 1
 
 
+# These two DEFINE the shapes, so they match by construction. They are exempt from the
+# diff scans and held to a stricter rule instead (no long high-entropy literal) — see
+# `tests/test_secret_scrub.py::test_the_pattern_files_carry_no_real_credential`. An
+# exemption without a replacement guarantee is exactly where a secret hides, and did.
+PATTERN_FILES = ("tools/secret_scrub.py", "tests/test_secret_scrub.py")
+
+
+def _git(*args):
+    """⛔ Never `text=True` — that decodes with the locale codec (cp1252) on Windows and
+    git emits UTF-8; one box-drawing byte kills the reader thread. That bug made
+    `tools/flag_ledger_audit.py` unrunnable for weeks while reporting an auth-looking error."""
+    repo = pathlib.Path(__file__).resolve().parent.parent
+    return subprocess.run(["git", "-C", str(repo), *args],
+                          capture_output=True, encoding="utf-8", errors="replace").stdout
+
+
+def scan_diff(rng_args):
+    """Findings in the ADDED lines of a git diff, as (path, kind). Names the file."""
+    diff = _git("diff", "-U0", *rng_args)
+    hits, path = [], "<unknown>"
+    for line in diff.splitlines():
+        if line.startswith("+++ b/"):
+            path = line[6:]
+        elif line.startswith("+") and not line.startswith("+++"):
+            found = scan_text(line)
+            if found and path not in PATTERN_FILES:
+                hits.append((path, found[0][0]))
+    return sorted(set(hits))
+
+
+def pre_commit() -> int:
+    hits = scan_diff(["--cached"])
+    for path, kind in hits:
+        print(f"LEAK {kind}: {path} (staged)")
+    if hits:
+        print("[pre-commit] refusing: a credential-shaped value is staged. "
+              "See docs/runbooks/rig-credential-hygiene.md")
+    return 1 if hits else 0
+
+
+def pre_push(stdin_text) -> int:
+    """Scan exactly the commits this push would publish. Reads git's ref lines."""
+    zero = "0" * 40
+    hits = []
+    for line in (stdin_text or "").splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        local_sha, remote_sha = parts[1], parts[3]
+        if local_sha.strip("0") == "":
+            continue                                # a deletion pushes nothing
+        if remote_sha == zero or not remote_sha.strip("0"):
+            # New branch: everything it adds that no other remote ref already has.
+            base = _git("rev-list", local_sha, "--not", "--remotes", "--max-parents=0").strip()
+            rng = [f"{base}..{local_sha}"] if base else [local_sha]
+            merged = _git("merge-base", "--fork-point", "origin/master", local_sha).strip() \
+                or _git("merge-base", "origin/master", local_sha).strip()
+            if merged:
+                rng = [f"{merged}..{local_sha}"]
+        else:
+            rng = [f"{remote_sha}..{local_sha}"]
+        hits.extend(scan_diff(rng))
+    hits = sorted(set(hits))
+    for path, kind in hits:
+        print(f"LEAK {kind}: {path}")
+    if hits:
+        print("[pre-push] refusing: this push would publish a credential-shaped value.")
+        print("           A pushed secret is public even if you delete it afterwards —")
+        print("           rotate first, then rewrite. docs/runbooks/rig-credential-hygiene.md")
+    return 1 if hits else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--scan", nargs="*", default=None,
                     help="paths to scan (default: repo docs/tools/scripts + agent scratchpads)")
+    ap.add_argument("--pre-commit", action="store_true", help="scan the staged diff")
+    ap.add_argument("--pre-push", action="store_true", help="scan the commits a push would publish")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
         return self_check()
+    if a.pre_commit:
+        return pre_commit()
+    if a.pre_push:
+        return pre_push(sys.stdin.read())
     paths = a.scan if a.scan else default_scan_paths()
     # This file and its test legitimately describe the shapes; they are not artifacts.
     here = pathlib.Path(__file__).resolve()
-    skip = [here, here.parent.parent / "tests" / "test_secret_scrub.py"]
+    skip = [here.parent.parent / f for f in PATTERN_FILES]
     hits = scan_paths(paths, skip_files=skip)
     for path, line_no, kind in hits:
         print(f"LEAK {kind}: {path}:{line_no}")
