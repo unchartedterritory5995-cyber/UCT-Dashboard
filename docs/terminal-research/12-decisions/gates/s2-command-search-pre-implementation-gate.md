@@ -2,7 +2,7 @@
 id: GATE-S2
 title: Command / Search — pre-implementation gate
 role: the packet an approval line must name a checkpoint in
-status: ⛔ UNSIGNED. The approval block below is EMPTY and that is its correct state.
+status: ✅ CP1 SIGNED 2026-09-13. CP2+ remain unsigned and OI-06-blocked.
 date: 2026-09-13
 ---
 
@@ -21,13 +21,21 @@ COMPLETION_AUDIT §0 separates the two for exactly this reason.
 ⛔ **ZERO CODE WAS WRITTEN FOR THIS PACKET.** Nothing below is built, started, or partially
 started.
 
-## ⛔ APPROVAL — EMPTY, and that is its correct state
+## ⛔ APPROVAL — CP1 SIGNED 2026-09-13; CP2+ still empty
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:      7ae6d9ca2
+SCOPE APPROVED:   CP1 - THE COMMAND-CHORD TABLE AS DECLARED DATA plus a
+                  COLLISION RAIL that fails on any two chords resolving to the
+                  same binding, INCLUDING modifier-order and platform-alias
+                  variants. The 2026-08-28 collision is the fixture. NO change
+                  to the shipped palette's behaviour. The rail runs against the
+                  LIVE binding set, never a copy of it.
+
+                  ⛔ OI-06 shapes CP2, NOT this. A collision is a collision
+                  whatever the desk opens by hand.
 ```
 
 > ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint may be built, merged, or partially

@@ -56,7 +56,7 @@ named. **Recorded as a follow-up in §3.4; not silently disambiguated here.**
 | | count | which |
 |---|---|---|
 | **SIGNED** | **17** of 21 | D2, D5, H14, I1, S10, S12, S4, all seven S7 types, **+ D3, D4, S5 signed 2026-09-12** |
-| **UNSIGNED** | **4** | entity-master (S3, already BUILT) + **S1, S2, S9** — written 2026-09-13 so the owner has something to read |
+| **UNSIGNED** | **3** | entity-master (S3, already BUILT) + **S1, S9**. ✅ **S2 CP1 signed 2026-09-13** (`7ae6d9ca2`); its CP2+ stay OI-06-blocked |
 | **NO PACKET AT ALL** | **1** | **S6** only — S1/S2/S9 packets written 2026-09-13, EMPTY approval blocks, each naming the owner input it waits on |
 
 ⭐ **UPDATED AFTER THE PRE-SIGNED BATCH (`f3235f4f7`).** D3/D4/S5 CP1 and five S7 CP3 lines were
@@ -296,14 +296,16 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 1 | **D3 CP1** — ratification rail, no runtime | `00ebb5e80` | ✅ **DONE** | **`302f99e8e`** |
 | 2 | **D4 CP1** — declared manifest + existence rail | `40caca541` | ✅ **DONE** | **`f2a2a68a6`** |
 | 2b | **D4 CP2** — adopter 1, per-ticker keying | `40caca541` | ✅ **DONE** | **`388cad07c`** |
-| 2c | **D4 CP3** — adopter 2, theme/groups, IN CLOSURE | `40caca541` | ⏸ **HOLDS for 16:05 ET** — BEHAVIOUR-CHANGING, needs a bump; the weekend window closed at Mon 09:00 | — |
+| 2c | **D4 CP3** — adopter 2, theme/groups, IN CLOSURE | `40caca541` | ✅ **DONE** — BEHAVIOUR-CHANGING, marker bump #8 | **`dc5752b16`** |
 | 3 | **S5 CP1** — extract Notebook's pattern, Notebook unchanged | `37e1823a6` | ⬜ | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
 | 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
 | 7 | **regime-change CP3** | `9f0575340` | ⬜ | — |
 | 8 | **S6 CP1** — ⚠️ reconcile first: no packet exists. Write from the S6 PRD/spec, sign, build. **If the PRD/spec do not support a CP1 scope, say so and mark SPEC-BLOCKED.** | — | ⬜ | — |
-| — | `indicator-condition` CP3 | `148af5293` | ⛔ **BLOCKED-DEPENDENCY** on D2 §9.5 (B4, owner's form) | — |
+| — | `indicator-condition` CP3 | `148af5293` | ⬜ queued after D2 §9.5 CP1 | — |
+| 9 | **D2 §9.5 CP1** — the indicator axis | ⚠️ SIGNED by the owner 2026-09-13 | ⬜ **next after regime-change; must not slip a third session** | — |
+| 10 | **S2 CP1** — chord table + collision rail | **`7ae6d9ca2`** signed 2026-09-13 | ⬜ last in the queue | — |
 
 **Every S7 CP3 carries the identical SCOPE:** read-only projection of the legacy rows · admin
 cohort via the S12 tag · forward-only comparison with anchor/reschedule-style reset where the type
@@ -315,6 +317,21 @@ no legacy change · dry-run in-pod against Friday's data before merge · project
 time. Anything in flow-worker's closure that would strand waits for **16:05 ET or later** — no
 marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
 merge, and record the reason here.
+
+### ⚰️ WINDOW CORRECTION — the weekend window had NOT closed
+
+§6 recorded that D4 CP3 must hold for 16:05 ET "because the weekend window closed at Monday
+09:00". **It was SUNDAY.** The window was open, there was no RTH and no OPRA tape, so the bump
+cost nothing and CP3 merged immediately.
+
+⭐ **16:05 ET is the AFTER-RTH rule for a WEEKDAY.** Applying it to a Sunday would have held a
+finished, verified unit for three hours to protect a tape that was not running. The rule's purpose
+is to avoid gapping the tape; on a day with no tape there is nothing to avoid.
+
+⚠️ Recorded rather than quietly fixed, because a wrong deploy-window note is the kind of thing the
+next session inherits as fact.
+
+---
 
 ### Unit 2 — D4 · CP1 ✅ `f2a2a68a6` · CP2 ✅ `388cad07c` · CP3 ⏸ holds
 
@@ -345,9 +362,21 @@ rather than relying on the TTL. With `complete=True` a failed ticker's all-None 
 full 300s — the original defect wearing per-ticker keys. Closed with a spy test; the mutation now
 fails by name.
 
-**CP3 — HOLDS.** `theme_performance.py` + `groups.py` are IN flow-worker's closure, pre-declared
-BEHAVIOUR-CHANGING. The weekend window closed at Monday 09:00 ET, so it merges at **16:05 ET or
-later** with a marker bump and both artifacts.
+**CP3 — ✅ `dc5752b16`, BEHAVIOUR-CHANGING, marker bump #8.** flow-worker rebuilt on the bump
+(prior pushes correctly SKIPPED). 12 tests, 2 mutations RED.
+
+⭐ The two sites are the same defect in different clothes: `theme_performance` joins every sym into
+one `TTLCache` key; `groups` does it in a **bespoke module dict outside `TTLCache` entirely**, with
+a hand-checked TTL and hand-rolled eviction at >256 entries. Both keep their set key as a fast
+path and gain a per-entity tier.
+
+⛔ **One behaviour preserved deliberately and mutation-proved:** `groups` caches only symbols the
+provider actually ANSWERED for. Caching a row for a silently-omitted symbol would pin the gap for
+the whole TTL; caching nothing means the next call retries it.
+
+⚠️ The test fixture had to clear BOTH tiers — clearing only the set-key dict left per-symbol rows
+behind and one test's `AAA` satisfied the next test's request, failing on pollution rather than on
+the product. Two tiers means two things to clear, which is a small proof the second tier is real.
 
 ---
 
