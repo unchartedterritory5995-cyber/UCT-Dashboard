@@ -11,11 +11,16 @@
 #>
 [CmdletBinding()]
 param(
-    [datetime] $Deadline = ([datetime]::Today.AddHours(18)),   # local; overridden by caller
+    # ⛔ [string], NOT [datetime]. Through `powershell -File`, a quoted argument arrives
+    # WITH its quotes and fails to coerce - and a parameter-binding failure happens BEFORE
+    # the script body, so it exits 1 having written no log at all. Measured twice.
+    [string] $Deadline = '',                                    # local ISO; empty = today 18:00
     [switch]   $DryRun                                          # apply, read back, restore
 )
 
 $ErrorActionPreference = 'Stop'
+$DeadlineTime = if ($Deadline) { [datetime]::Parse($Deadline.Trim("'").Trim('"')) }
+                else { [datetime]::Today.AddHours(18) }
 $repo   = 'C:\Users\Patrick\uct-worktrees\flow-watch-rail'
 $outDir = Join-Path $repo 'scratchpad\monday-rth'
 New-Item -ItemType Directory -Force -Path $outDir, (Join-Path $repo 'logs') | Out-Null
@@ -92,8 +97,8 @@ if ($DryRun) {
 }
 
 Remove-Item $stopFile -ErrorAction SilentlyContinue
-Say ("holding execution state until {0} (or the stop file)" -f $Deadline)
-& python (Join-Path $repo 'scripts\rth_keepalive_hold.py') $stopFile $Deadline.ToString('s')
+Say ("holding execution state until {0} (or the stop file)" -f $DeadlineTime)
+& python (Join-Path $repo 'scripts\rth_keepalive_hold.py') $stopFile $DeadlineTime.ToString('s')
 $code = $LASTEXITCODE
 Say ("hold loop exited {0}" -f $code)
 exit $code

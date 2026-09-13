@@ -36,6 +36,7 @@ from api.services.journal_two.analytics import (
 from api.services.journal_two.filters import (
     ANALYTICS_INCLUDED_SQL, FilterSpec, trades_where,
 )
+from api.services.placeholder_stop import is_placeholder_stop
 
 _ET = ZoneInfo("America/New_York")
 
@@ -324,8 +325,20 @@ def _risk_per_trade(ctx: Ctx) -> dict[str, Any]:
         stop, entry = r["original_stop"], r["entry_price"]
         shares = float(r["shares"] or 0)
         # A broker placeholder stop (stop == entry) is NOT a real stop.
+        #
+        # ⚰️ H14 — THE FIFTH COPY, and the only one written as the INVERSE.
+        # Retired verbatim:
+        #
+        #     and abs(float(stop) - float(entry)) > 1e-9 and shares > 0):
+        #
+        # ⛔ ITS FAILURE IS THE WORST OF THE FIVE because it mislabels the
+        # PROVENANCE of a number, not just the number. A drifted placeholder
+        # passed `> 1e-9`, contributed a fabricated `drift * shares` of risk to
+        # the member's average risk-per-trade, AND was booked under
+        # `sources["stop"]` — the metric then claims it derived that risk from a
+        # stop the member never set.
         if (stop is not None and entry is not None
-                and abs(float(stop) - float(entry)) > 1e-9 and shares > 0):
+                and not is_placeholder_stop(stop, entry) and shares > 0):
             risks.append(abs(float(entry) - float(stop)) * shares)
             sources["stop"] += 1
             continue

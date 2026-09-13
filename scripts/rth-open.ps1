@@ -192,7 +192,11 @@ try {
     Get-Content -Raw -Encoding utf8 $promptPath |
         & $claude -p --permission-mode acceptEdits --permission-prompts none `
                   --allowedTools $allowed --disallowedTools $denied 2>&1 |
-        Tee-Object -FilePath $log -Append
+        ForEach-Object {
+            Write-Host $_
+            [System.IO.File]::AppendAllText($log, ($_ | Out-String).TrimEnd() + [Environment]::NewLine,
+                                            (New-Object System.Text.UTF8Encoding($false)))
+        }
     $code = $LASTEXITCODE
 } catch {
     Say ("launcher caught: {0}" -f $_.Exception.Message)
@@ -200,7 +204,22 @@ try {
 }
 
 Say ("--- claude exited {0} ---" -f $code)
-Write-RunJson $code $(if ($code -eq 0) { 'completed' } else { 'failed' })
+
+# ⛔ A NON-ZERO EXIT IS NOT ALWAYS A FAILED RUN. Measured 2026-09-12: the session did all
+# of its work, wrote its files and committed, then exited 1 because a SessionEnd PLUGIN
+# hook was cancelled. Reporting that as a failed measurement morning would be a lie in the
+# alarming direction. So: judge by the artifacts, and report BOTH numbers.
+$produced = @(Get-ChildItem (Join-Path $outDir 'item*.json'),(Join-Path $outDir 'smoke.json') -ErrorAction SilentlyContinue)
+$hookOnly = $false
+try {
+    $tail = Get-Content $log -Tail 6 -ErrorAction SilentlyContinue
+    if ($tail -match 'SessionEnd hook' -and $produced.Count -gt 0) { $hookOnly = $true }
+} catch {}
+$effective = if ($code -eq 0) { 'completed' }
+             elseif ($hookOnly) { 'completed-despite-sessionend-hook' }
+             else { 'failed' }
+if ($hookOnly) { Say ("NOTE: exit {0} was a SessionEnd hook, but item/smoke json exists - treating as completed" -f $code) }
+Write-RunJson $code $effective
 
 # Count what the run actually produced, rather than trusting its exit code.
 $items = @(Get-ChildItem (Join-Path $outDir 'item*.json') -ErrorAction SilentlyContinue)

@@ -16,7 +16,10 @@ param(
     [string] $PromptFile = "docs\runbooks\monday-rth-prompt-close.md",
     [string] $Phase      = "close",
     [double] $MinFreeGB  = 3.0,
-    [switch] $AllowWeekend
+    [switch] $AllowWeekend,
+    # ⛔ Rehearsals must not be able to push a fake report to master. Instructing the
+    # model not to push is weaker than removing the tool, so this removes the tool.
+    [switch] $NoPush
 )
 
 $ErrorActionPreference = 'Stop'
@@ -108,19 +111,20 @@ $allowed = @(
     'Bash(git add *)','Bash(git commit *)','Bash(git status*)','Bash(git log*)',
     'Bash(git diff*)','Bash(git show*)','Bash(git rev-parse*)','Bash(git branch*)',
     'Bash(git fetch*)','Bash(git merge-base*)','Bash(git rev-list*)','Bash(git rebase*)',
-    'Bash(git push origin HEAD:master)','Bash(git config*)',
+    $(if ($NoPush) { 'Bash(git config*)' } else { 'Bash(git push origin HEAD:master)','Bash(git config*)' }),
     'Bash(railway deployment*)','Bash(railway status*)',
     'Bash(curl *)','Bash(mkdir *)','Bash(ls*)','Bash(cat*)','Bash(head*)','Bash(tail*)',
     'Bash(grep*)','Bash(find *)','Bash(date*)','Bash(echo *)','Bash(wc*)','Bash(sed -n*)',
     'Bash(cp *)','Bash(sort*)','Bash(uniq*)','Bash(jq*)','Bash(python *)'
 ) -join ','
 
-$denied = @(
+$denied = (@(
     'Bash(git push --force*)','Bash(git push -f*)',
+    $(if ($NoPush) { 'Bash(git push*)' } else { '' }),
     'Bash(python tools/flow_cold_paint_rig.py*)','Bash(python tools/flow_storm_probe.py*)',
     'Bash(railway variables*)','Bash(railway redeploy*)','Bash(railway up*)','Bash(railway ssh*)',
     'WebFetch','WebSearch'
-) -join ','
+) | Where-Object { $_ } | Select-Object -Unique) -join ','
 
 Say 'preconditions passed - starting headless session'
 Say ("allowedTools: {0}" -f $allowed)
@@ -135,14 +139,33 @@ try {
     Get-Content -Raw -Encoding utf8 $promptPath |
         & $claude -p --permission-mode acceptEdits --permission-prompts none `
                   --allowedTools $allowed --disallowedTools $denied 2>&1 |
-        Tee-Object -FilePath $log -Append
+        ForEach-Object {
+            Write-Host $_
+            [System.IO.File]::AppendAllText($log, ($_ | Out-String).TrimEnd() + [Environment]::NewLine,
+                                            (New-Object System.Text.UTF8Encoding($false)))
+        }
     $code = $LASTEXITCODE
 } catch {
     Say ("launcher caught: {0}" -f $_.Exception.Message); $code = 1
 }
 
 Say ("--- claude exited {0} ---" -f $code)
-Write-RunJson $code $(if ($code -eq 0) { 'completed' } else { 'failed' })
+
+# ⛔ A NON-ZERO EXIT IS NOT ALWAYS A FAILED RUN. Measured 2026-09-12: the session did all
+# of its work, wrote its files and committed, then exited 1 because a SessionEnd PLUGIN
+# hook was cancelled. Reporting that as a failed measurement morning would be a lie in the
+# alarming direction. So: judge by the artifacts, and report BOTH numbers.
+$produced = @(Get-ChildItem (Join-Path $repo 'docsunbooks\monday-rth-results\FINAL-REPORT.md') -ErrorAction SilentlyContinue)
+$hookOnly = $false
+try {
+    $tail = Get-Content $log -Tail 6 -ErrorAction SilentlyContinue
+    if ($tail -match 'SessionEnd hook' -and $produced.Count -gt 0) { $hookOnly = $true }
+} catch {}
+$effective = if ($code -eq 0) { 'completed' }
+             elseif ($hookOnly) { 'completed-despite-sessionend-hook' }
+             else { 'failed' }
+if ($hookOnly) { Say ("NOTE: exit {0} was a SessionEnd hook, but FINAL-REPORT.md exists - treating as completed" -f $code) }
+Write-RunJson $code $effective
 
 $final = Join-Path $repo 'docs\runbooks\monday-rth-results\FINAL-REPORT.md'
 if (Test-Path $final) {

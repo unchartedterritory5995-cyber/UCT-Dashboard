@@ -24,6 +24,7 @@ resolved taxonomy.
 from __future__ import annotations
 
 from typing import Any
+from api.services.placeholder_stop import is_placeholder_stop
 
 
 # Python-side default vocab — mirrors the FE STANDARD_MISTAKES /
@@ -57,10 +58,19 @@ def _has_no_stop(trade: dict[str, Any]) -> bool:
     entry = trade.get("entryPrice")
     if stop is None or entry is None:
         return False
-    try:
-        return abs(float(stop) - float(entry)) < 1e-9
-    except (TypeError, ValueError):
-        return False
+    # ⚰️ H14 — THE FOURTH COPY. The instruction that unified these named three;
+    # the rail found five. Retired verbatim:
+    #
+    #     try:
+    #         return abs(float(stop) - float(entry)) < 1e-9
+    #     except (TypeError, ValueError):
+    #         return False
+    #
+    # Same absolute 1e-9 as `awareness/rules.py`, and the same failure: a
+    # placeholder that drifted when a later sync refreshed entry_price reads as
+    # a REAL stop, so the member never gets the `no_stop` suggestion for a
+    # position that has no stop.
+    return is_placeholder_stop(stop, entry)
 
 
 def suggest_for_trade(
