@@ -53,8 +53,49 @@ accepts, hourly `store.purge()`, a cached renderer reading); `GET /api/discord/r
 **479 passed, 0 failed**. flow-worker watch coverage `OK` (reachable 154, watched 24, changed 14).
 Mutation proofs: 18 on the branch tree, all red, restores sha-verified, control green.
 
-**Deploy, measured:** *(filled from the running pod after the push)*
+**Deploy, measured:**
+
+| Check | Result |
+|---|---|
+| Push | fast-forward `d6ac61816..6d779dd47`, 18:03:56 UTC; `web` SUCCESS and master 0 ahead immediately before |
+| `web` deployment on `6d779dd47` | BUILDING 18:04:21 → DEPLOYING 18:05:48 → SUCCESS 18:06:09 UTC |
+| Running commit, read in-process | `6d779dd47d1f` (`/proc/1/environ` of the running process) |
+| `/api/health` | 200; uptime 33 s |
+| Interactions endpoint, bad signature | `401 invalid request signature` ×3, 0.11–1.80 s |
+| `GET /api/discord/render-health`, no bearer | `401 unauthorized` — the new route is live and gated |
+| `DISCORD_RENDER_V2_ENABLED` / `DISCORD_RENDER_ALERT_WEBHOOK` in the running process | both absent |
+| flow-worker | SKIPPED (no tape gap) |
+| `bars-api` · `worker` | SUCCESS · SUCCESS (worker re-read after 18:07 UTC) |
 
 **Bench before → after:** no change measurable by design — the flag is unset.
 
 **Member impact:** none visible (see `LEDGER.md` row 6).
+
+---
+
+## Step 2.3 — chart-renderer, measured against real Chromium (branch, before merge 3)
+
+`scratchpad/renderer_pool_smoke.py` on the owner's box: Playwright 1.58 / Chromium 145, the
+service module loaded fresh per config, a **hermetic** `data:` page (a canvas of 200 bars, no
+network), 960×500 @1×, 48 renders per config at concurrency 4, first-render costs excluded.
+⚠️ Not Railway (Playwright 1.47, Linux, 8 slots) and not `/r/chart` over the network: this
+separates the pool's effects from each other; it does not predict production latency. Production
+reads come from `/health` (`p95_render_ms`, `pool_hits`) in the Phase 3 canary.
+
+| Config | p50 | p90 | max | Pool hits / misses | Recycles | Boot warm |
+|---|---|---|---|---|---|---|
+| legacy (pool off) | 537 ms | 865 ms | 1,121 ms | — | — | — |
+| pool, no spare contexts, recycle 500 | 534 ms | 816 ms | 914 ms | 0 / 48 | 0 | 1,772 ms |
+| **pool, spare contexts, recycle 500** | **440 ms** | 787 ms | 1,249 ms | 16 / 48 | 0 | 1,311 ms |
+| pool, recycle every 12 (worst case) | 593 ms | 1,039 ms | 1,565 ms | 0 / 48 | 3 | 1,496 ms |
+| legacy again (drift control) | 535 ms | 963 ms | 1,017 ms | — | — | — |
+
+- **Spare contexts: kept** — the one measured latency gain (−97 ms p50 against legacy, whose p50
+  moved 2 ms across the run). §3.7 made keeping them conditional on a measured gain.
+- **A recycle** costs little once the replacement is launched at retire time: +56 ms p50 at a
+  recycle every 12 renders. The first smoke, before that change, launched Chromium on the next
+  member's render and measured p50 1,732 ms at a recycle every 8 — the fix came from that number.
+- **Background cap** under real concurrency (6 background + 6 member renders, 4 slots, 2
+  background): at most **2** background renders at once; all 12 valid.
+- **C-13 against a real Playwright error:** navigation to an unresolvable host with a token in the
+  URL — the raw error message contained the token (control), `scrub()` output did not.
