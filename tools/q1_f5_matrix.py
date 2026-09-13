@@ -239,9 +239,12 @@ WIDGET_EMBED_JS = """async () => {
   const opts = [...document.querySelectorAll('button,[role=menuitem],[role=option],li')]
     .map(el => ({el, t: (el.innerText || '').trim()}))
     .filter(o => o.t && o.t.length < 90);
-  const target = opts.find(o => /current note|note you|working in|append/i.test(o.t))
-              || opts.find(o => /new entry|new note/i.test(o.t));
-  if (!target) return {ok: false, why: 'the chooser offered no note destination',
+  // ONLY "Current note" reaches /embeds. `CAPTURE_TARGETS` (captureTargets.js)
+  // routes "New entry" to POST /api/j2/notes and "Notebook inbox" to
+  // POST /api/j2/inbox -- neither appends to the note holding the queued work,
+  // so picking one would leave an orphan note and measure a different door.
+  const target = opts.find(o => /^current note/i.test(o.t));
+  if (!target) return {ok: false, why: 'the chooser offered no "Current note" destination',
                        options: opts.map(o => o.t).slice(0, 12)};
   target.el.click();
   return {ok: true, via: 'Send to Journal → ' + target.t.slice(0, 40)};
@@ -446,14 +449,19 @@ def drive_append(page, family, base, log):
     if family == "append_financial_fact":
         # Already on /dashboard -- MoversSidebar's tickers are TickerPopup-wrapped.
         opened = page.evaluate("""async () => {
-          const t = [...document.querySelectorAll('[data-ticker],[data-watch-sym],button,span')]
-            .find(el => /^[A-Z]{1,5}$/.test((el.innerText || '').trim()));
-          if (!t) return {ok:false, why:'no ticker chip on /dashboard to open a popup from'};
-          t.click();
-          await new Promise(r => setTimeout(r, 2500));
-          return {ok: !!document.querySelector('[role=dialog]'),
-                  why: 'clicked ' + (t.innerText || '').trim(),
-                  dialog: !!document.querySelector('[role=dialog]')};
+          // TickerPopup stamps `data-testid="ticker-<SYM>"` with role=button on
+          // its trigger and `data-testid="chart-modal"` on the open modal, so
+          // neither the click target nor the success test has to be guessed from
+          // text. MoversSidebar wraps every mover in one.
+          const triggers = [...document.querySelectorAll('[data-testid^="ticker-"]')];
+          if (!triggers.length) return {ok:false,
+            why:'no [data-testid^=ticker-] trigger on this page — MoversSidebar rendered nothing '
+                + '(its /api/movers read may not have been in SWR cache for the offline route change)'};
+          triggers[0].click();
+          await new Promise(r => setTimeout(r, 3000));
+          const modal = document.querySelector('[data-testid="chart-modal"]');
+          return {ok: !!modal, why: 'clicked ' + (triggers[0].getAttribute('data-testid') || ''),
+                  triggers: triggers.length};
         }""")
         log(f"      popup: {opened}")
         if not (isinstance(opened, dict) and opened.get("ok")):
