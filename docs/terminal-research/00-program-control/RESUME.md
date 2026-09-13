@@ -4,6 +4,76 @@
 
 ---
 
+# ⛒ WEEKEND CLOSED — 2026-09-12. Nothing else builds until the owner reads.
+
+## 1. BUILT — the roster
+
+| system | state | merge |
+|---|---|---|
+| **H14** placeholder-stop | one detector, five call sites, one-definition rail | `94209e962` (+ AMD fixture `de519c969`) |
+| **S4** Context Bus | **CP1** — divergence detector, read-only, mounts nothing | `76c62c494` |
+| **S7** `position-risk` | **CP1–CP2**, DARK | `2b0547949` |
+| **S7** `scan-membership-change` | **CP1–CP2**, DARK | `0c6caf25b` |
+| **S7** `regime-change` | **CP1–CP2**, DARK | `0392c78bf` |
+| **S7** `indicator-condition` | **CP1–CP2**, DARK | `ccbab9bcd` |
+| **D2** CP3 sample store | durable, RTH-gated, log-only | `0b8cf4c41` + init fix `40bf07c99` |
+| alerts webhook | read at call time, not import | `73d997520` (marker bump #7) |
+| doc-SHA rail | derives approval fingerprints | `d1398df5a` |
+
+**S7 is 8 of 8 named types registered** — 4 live, 4 dark. `_EXPECTED` is seven.
+**No marker bump for any S7 merge**; **one bump (#7)** for `alerts.py`, measured, weekend, no tape.
+
+## 2. ⛔ DATA-BLOCKED — waiting on a measurement, not a decision
+
+| item | blocked until | note |
+|---|---|---|
+| **D2 CP3** | **Monday's session** | ≥200 AGREED rows spanning ≥1 session, zero inequality. ⚠️ The reader is COLD (`ticker_returns._close`, Desk pages only) — a short count is a reader problem, **not** a reason to lower the threshold |
+| **S7 `price-level` CP3 verdict** | five full sessions of dark run | reads start Monday |
+| **S7 `event-proximity` CP3 verdict** | five full sessions | 07:05 / 18:05 ET slots |
+| **S7 CP3 for the other four types** | their own dark reads, which need CP3 authorized first | none authorized |
+| **A9** Screening | `scan-membership-change` **CP3** | CP1–CP2 fires nothing; A9 needs fires |
+| **A11** Breadth & Regime | `regime-change` CP3 **+** the one-regime ruling **+** D2 coverage | three blockers, one of them owner's |
+| **A13** Journal | `position-risk` CP3 **+** D2 journal coverage **+** S5 | three blockers |
+
+## 3. ⛔ OWNER-BLOCKED — waiting on a ruling
+
+| item | blocked on |
+|---|---|
+| **S1** Terminal Shell · **S2** Command/Search · **A2** Charts | **OI-06** — both are PROVISIONAL-SHIPPED ahead of it, and the owner ruled its findings get diffed against what shipped |
+| **S9** Entitlements · **A14** Portfolio & Risk | **OI-03(a)(b)** and **OI-12**; A14 is also deferred by **D8** in its own block |
+| **F-I1-2** | browser checks the owner runs |
+| **A11**'s first blocker | the one-regime-authority ruling (two classifiers live) |
+
+## 4. ⛔ SPEC-BLOCKED — written, unsigned, awaiting the owner's reading
+
+| spec | what it asks for |
+|---|---|
+| **PRD-D2 §9.5 + SPEC-D2 §5.4** | the **indicator axis**. `indicator-condition` CP3 is blocked on it. Approval block EMPTY, no code written |
+| **D3** Realtime Streaming | gate written, approval EMPTY |
+| **D4** Caching & Serving | gate written, approval EMPTY |
+| **S5** Persistence & User State | gate written, approval EMPTY — and A12/A13 wait on it |
+| **S6** Personalization | PRD + spec written, no gate by instruction |
+
+## 5. ⭐ MONDAY — TWO LINES, and that is the whole morning check
+
+Git Bash needs the prefix; drop it in PowerShell. **Run them in this order.**
+
+```
+MSYS_NO_PATHCONV=1 railway ssh --service web   "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
+MSYS_NO_PATHCONV=1 railway ssh --service web   "/opt/venv/bin/python -c \"from api.services.canonical import dual_sample_store as s; g=s.gate_status(); print('D2 CP3 rows/agreed/disagreed:', g['rows'], g['agreed'], g['disagreed']); print('covered sessions:', g['covered_sessions']); print('GATE MET:', g['gate_met'], '|', g['why'])\""
+```
+
+**Line 1** is unchanged: both dark sweeps, worse-exit-code-wins.
+**Line 2** is the D2 CP3 sample count. ⛔ **Read `why`, never just the row count** — it
+distinguishes *zero rows* (the reader was never called) from *the store could not be read* (a
+different fault entirely), and it names `agreed` separately from `book_unavailable` so 200 rows of
+"the book could not answer" can never read as 200 agreements.
+
+⚠️ **Before 09:30 ET line 2 will legitimately show 0** — the store is RTH-gated. Zero at 09:15 is
+the design; zero at 16:15 is a finding.
+
+---
+
 # ⛔⛔ COLD START — DAY 2, Sunday 2026-09-13. This block supersedes the one below it.
 
 ## What merged on day 2

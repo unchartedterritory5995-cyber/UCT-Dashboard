@@ -523,6 +523,75 @@ predicate refuses**, and §9.3's honest cost — *"`indicator-condition` waits"*
 one axis but of a whole vocabulary D2 has not yet been asked to carry. The zero is reported with
 its control because an empty intersection is exactly where a broken instrument reads as a finding.
 
+### 9.5 ⛔⛔ THE INDICATOR AXIS — what D2 owes `indicator-condition`, and it is a NEW AXIS, not a mapping
+
+**Status: ADDENDUM, APPROVAL BLOCK EMPTY. `indicator-condition` CP3 is BLOCKED on this.**
+Written 2026-09-12 on the owner's instruction. Technical form: **SPEC-D2 §5.4**.
+
+#### The question that was asked, and why the answer is neither option
+
+*"Fix the zero-intersection vocabulary by a translation table in the book (legacy screener name →
+canonical address), or by migrating the legacy vocabulary. Which, why?"*
+
+**Neither.** Measured against the shipped code:
+
+```
+legacy addresses (indicator_alert_evaluator.all_addresses())   31
+book metrics     (canonical_address_book.json)                142
+INTERSECTION                                                    0
+```
+
+⚰️ A follow-up probe then reported **zero renames** — it compared the leaf `close` against the leaf
+`c` and could not see an abbreviation. **The honest figure is ONE rename (`close` ↔ `ohlcv.c`) and
+THIRTY genuine absences.**
+
+- ⛔ **A translation table maps one row of thirty-one.** It would add a second authority over naming
+  for a single abbreviation while thirty predicates still refuse — and it would look like the
+  problem had been addressed.
+- ⛔ **Migration is not available.** There is nothing to migrate *into*. `bb.upper` is not a stored
+  column with an `as_of`; it is **computed on demand**, **parameterised** (period, stddev), and
+  **per-timeframe**. The book's 137 are columns of a nightly row. The intersection is empty because
+  these are different KINDS of thing, not because the names drifted.
+- ✅ **What D2 owes is a second address FORM** — one that can describe a computation: parameters in
+  the address, timeframe in the address, cadence as a (metric, timeframe) pair per §9.4, `as_of`
+  meaning the last CLOSED bar, and resolution returning a *descriptor* rather than a value.
+
+#### Why this is a PRD question and not an implementation detail
+
+⭐ **It changes what the canonical address book IS.** Today it is a map from a name to a stored
+place — its whole safety property is that nothing computes. §5.4 asks it to also describe things
+that have no stored place, which is the first time the book would describe work rather than
+location. That is a product decision about the boundary of D2, and it is why this sits behind an
+approval block instead of being built.
+
+⚠️ **The honest cost, stated as §9.3 stated its own:** thirty declarations, each carrying a
+parameter signature, plus a warmup contract, plus a `not_computable` outcome distinct from `false`.
+And it is **blocked on a flow-worker decision D2 does not own** — `bars_fetch.py` / `bars_sqlite.py`
+are inside flow-worker's import closure and outside its watch list, which GATE-D2 §CP2.4 already
+refused to work around. Either those paths join the watch list or every declaring commit rides a
+marker bump.
+
+#### What `indicator-condition` CP3 needs, precisely
+
+1. The thirty declared with **per-timeframe cadence**, so `cadence_ceiling` can answer at all.
+2. The **`close` → `ohlcv.c` rename** recorded as a rename, so the one expressible predicate stops
+   refusing.
+3. The **flow-worker closure decision made**, or the declaration exists in the book while the worker
+   computes against a stale copy — the split-brain the deploy marker exists to prevent.
+
+Until 1 and 3, CP3 ships a projection over predicates that all refuse. **That is not a smaller CP3;
+it is a CP3 with nothing in it.**
+
+```
+APPROVED BY:      (empty — owner has not signed this addendum)
+APPROVED ON:      (empty)
+APPROVED AT SHA:  (empty — git hash-object of this packet as it stands at
+                  approval, with this field blank)
+SCOPE APPROVED:   (empty)
+```
+
+⛔ **Nothing in §9.5 or SPEC-D2 §5.4 is authorized to be built.** No code was written for it.
+
 ---
 
 ## 10. Migration posture — additive, never a rewrite of live readers

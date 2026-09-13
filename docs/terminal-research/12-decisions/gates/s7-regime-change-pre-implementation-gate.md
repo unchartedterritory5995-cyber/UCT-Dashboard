@@ -375,3 +375,41 @@ alerts → alert_taxonomy.document_arrival → alert_taxonomy.registry`). Run
    label computed from an empty vote is still a label.
 
 ⛔ Each is one read-only query or one `railway variables --kv` away, and **none was performed.**
+
+## 10. ⛔⛔ F-S7-RC-4 — THE THIRD EMITTER IS **EXCLUDED PERMANENTLY**, by owner ruling
+
+**Owner ruling 2026-09-12.** `api/services/alerts.py:502 alert_regime_change` is **NOT absorbed
+into this trigger type, now or later.** Recorded by name here and in SPEC-S7 §5.2 so the next
+reader meets the decision rather than rediscovering the collision.
+
+**It is member-facing today — traced, not assumed:**
+
+| | |
+|---|---|
+| trigger | `api/routers/push.py:196`, on every `/api/push` (the morning wire's own push), when the brain's phase differs from the previous `intraday_update` |
+| audience | `add_alert(..., user_id=None)` — **"broadcast to every member"** by `add_alert`'s own docstring |
+| severity | `_TYPE_SEVERITY["regime_change"] = SEVERITY_CRITICAL`, which puts it in `fires_discord`'s `(WARNING, CRITICAL)` set |
+| channel | one Discord post to whatever `DISCORD_ALERT_WEBHOOK` names — a var distinct from the admin `DISCORD_WEBHOOK_URL` and from the public `DISCORD_TSDR_WEBHOOK_URL`. **Value not read; which room it lands in is not asserted here.** |
+
+**Three reasons, all about identity rather than tidiness:**
+
+1. **A different event from a different authority.** It reports the brain's market *phase* out of
+   `wire_data`; this trigger type reports DEC-13's regime labels. Absorbing it would put one S7
+   predicate over two vocabularies that disagree about what a regime *is*.
+2. **A broadcast system notice, not a subscription.** S7 predicates are things a member asked for.
+   Folding a broadcast into that model either spams everyone or silently drops the notice for every
+   member who never subscribed — and the second failure is invisible.
+3. **Its trigger is a wire push, not a scan cycle**, so it has no place in the awareness cadence.
+
+⭐ **The case FOR absorbing it rested entirely on the name being one character away from
+`regime-change`, and that is the weakest possible reason to merge two products.**
+
+**Enforced in code by `EXCLUDED_EMITTER_ALERTS_TYPE = "regime_change"`** in
+`api/services/alert_taxonomy/regime_change.py`, with a rail. The exclusion is by NAME so a future
+absorption has to delete a named constant rather than drift into it.
+
+⚠️ **ONE DEFECT FOUND WHILE TRACING IT, FIXED SEPARATELY** (`73d997520`, own PR, classified,
+marker bump #7): `alerts.py:64` captured `DISCORD_ALERT_WEBHOOK` at MODULE IMPORT, so setting *or
+clearing* it reached nothing until restart. **The dangerous direction is the clear** — blanking a
+webhook is how this estate turns a channel off, and against an import-time capture the operator
+blanks it, reads it back empty, sees `--kv` agree, and the process keeps posting.

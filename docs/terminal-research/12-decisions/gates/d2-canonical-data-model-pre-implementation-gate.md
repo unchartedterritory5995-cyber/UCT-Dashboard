@@ -62,6 +62,49 @@ SCOPE APPROVED:   CP2 - extend the canonical book to the first non-screener
                   CP3 NEEDS A NEW LINE.
 ```
 
+
+### CP3 ⛔ THE GATE WAS UNREACHABLE BY CONSTRUCTION, AND THE REPLACEMENT IS NARROWED
+
+**Owner ruling 2026-09-12.** The original CP3 gate — *"200 production samples with zero
+inequality"* — counted an **in-process** ledger that dies with the process. **167 commits landed
+on master on 2026-09-12**, every one rebuilding `web`. A threshold cannot be reached by a counter
+whose reset rate is set by other people's push cadence, so the gate was unreachable **by
+construction**, not by bad luck.
+
+**REPLACEMENT (built, merged `0b8cf4c41`, log-only and ADDITIVE):** an append-only sqlite table
+under `DATA_DIR`, one row per sample (`ts, session_date, et_hhmm, reader, key, legacy_value,
+book_value, outcome, equal`), a fixed fraction of production calls during RTH, the fraction read at
+CALL time. **New gate: ≥200 rows spanning ≥1 full trading session, zero inequality.**
+
+⛔⛔ **NARROWED, AND THE NARROWING IS THE REASONING THE OWNER ASKED TO SEE RECORDED: "200 rows" is
+counted as 200 AGREED rows, not 200 total.** Read literally, the gate passes on **200 rows of
+`book_unavailable`** — a DELETED MANIFEST has zero inequalities — and would certify the canonical
+book against a book that never answered. The first draft did exactly that, in a module whose own
+docstring warns that folding `book_unavailable` into agreement makes silent sessions read as clean
+ones. Caught by `test_a_book_unavailable_run_does_not_quietly_satisfy_the_gate` **before merge**;
+kept as the rail and mutation-proved.
+
+⛔ **An inequality is checked FIRST**, ahead of the row-count branch. 199 agreements plus one
+disagreement was reporting as a sample-size problem rather than as the one thing the gate exists to
+catch — the count branch was masking the finding.
+
+⚠️ **THE 15-MINUTE COVERAGE MARGIN IS A CHOICE, NOT A ROUNDING.** A session counts as covered when
+its first sample is ≤ 09:45 ET and its last ≥ 15:45 ET. Demanding a sample at exactly 09:30:00
+would make this gate unreachable for the *same reason the last one was*: the reader is COLD —
+`ticker_returns._close` fires only when a member opens a Desk page — so the open and close ticks
+are not ours to schedule.
+
+⚠️ **AND THAT COLDNESS IS THE REMAINING RISK, NAMED RATHER THAN DISCOVERED ON MONDAY.** Whether one
+session yields 200 agreed rows depends on member traffic to one page. If Monday's count is short,
+the honest options are a scheduled synthetic reader or a second migrated reader on a warmer path —
+**not** a lowered threshold.
+
+**`D2_SAMPLE_PERSIST_ENABLED=1` set explicitly on `web`** rather than left to its ON default, so
+"on on purpose" stays distinguishable from "nobody set it" (`project_feature_flag_ledger`).
+
+**CP3 STILL NEEDS A NEW APPROVAL LINE.** This records the mechanism and the narrowing; it does not
+authorize CP3.
+
 ### CP2.1 ⛔ THE STATED CRITERION PICKED THE STORE THAT CANNOT BE ADDRESSED
 
 **Measured, not asserted.** Every module of each candidate store parsed, docstrings and comments

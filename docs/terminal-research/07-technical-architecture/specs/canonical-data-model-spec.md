@@ -221,6 +221,107 @@ The PRD §9 kills the ad-hoc-key alternative. This is what replaces it, in order
 4. **Forward-only comparison against the pre-D2 read**, four outcomes, never a rate — the same
    harness shape `price-level`, `event-proximity` and `catalyst-match` each built.
 
+### 5.4 ⛔⛔ THE INDICATOR AXIS — a second address FORM, because §5.1's "declare the metrics" does not reach these
+
+**Status: SPEC ADDENDUM, UNSIGNED. `indicator-condition` CP3 is blocked on it.** Owner instruction
+2026-09-12. The product framing and the approval block are **PRD-D2 §9.5**; this is the technical
+form.
+
+#### 5.4.1 The measurement that forces a second form
+
+```
+legacy addresses   indicator_alert_evaluator.all_addresses()      31
+book metrics       api/data/canonical_address_book.json          142
+INTERSECTION                                                        0
+CONTROL            legacy ∩ {one known legacy address}             1   <- the operator works
+```
+
+⚰️ **AND THE 0 IS NOT THE HONEST NUMBER EITHER.** A follow-up probe compared each legacy leaf
+against each book leaf and reported **zero renames** — it was comparing `close` against `c` and
+could not see an abbreviation. Corrected by inspection:
+
+> **`close` ↔ `ohlcv.c` is ONE genuine rename. The other THIRTY are indicator outputs the book
+> carries in no form at all.**
+
+That distinction is the whole design. A translation table would map **one row of thirty-one** and
+read as progress.
+
+#### 5.4.2 Why §5.1 does not cover them — they are a different KIND of thing
+
+§5.1 says *"declare the metrics that type names"*, and for `screener_rows` that is a column of a
+nightly row: one store, one column, one `as_of`, one cadence. **None of those four hold for an
+indicator.** `bb.upper` is:
+
+| property | a screener metric | an indicator output |
+|---|---|---|
+| where the value lives | a stored column | **nowhere — it is computed on demand** |
+| identity | the name | the name **plus its parameters** (`bb.upper` at 20/2 ≠ at 50/2) |
+| timeframe | implicit (the nightly row) | **part of the address** — `rsi@1d` and `rsi@5m` are different series |
+| `as_of` | the row's timestamp | **the last CLOSED bar of that timeframe** |
+| cadence | a property of the metric | a property of the **(metric, timeframe) PAIR** (§9.4) |
+
+⛔ So "migrate the legacy vocabulary into the book" is not available: there is no column to migrate.
+The book must learn to describe a **computation**, not only a lookup.
+
+#### 5.4.3 The address form
+
+```
+<indicator>[.<output>](<params>)@<timeframe>
+    bb.upper(20,2)@1d      macd.histogram(12,26,9)@1h      rsi(14)@5m
+    close@1d               -> RESOLVES TO ohlcv.c, the one rename
+```
+
+- **Params are positional and ordered by the indicator's own declared signature**, never a dict —
+  two spellings of one address are two cache keys and two disagreeing answers.
+- **Defaults are NOT implicit.** `rsi@1d` refuses; `rsi(14)@1d` resolves. ⭐ A default period is a
+  second authority over what the member asked for, and this programme has paid for that class four
+  times.
+- **The timeframe is part of the address, not a query parameter**, because cadence is a property of
+  the pair and an address that cannot express the pair cannot be gated.
+
+#### 5.4.4 How it resolves — COMPUTE, not lookup
+
+`resolve()` returns a **computation descriptor**, not a value: the source series (`ohlcv` on that
+timeframe out of `bars_sqlite`), the indicator function, its bound parameters, and the warmup bar
+count. ⛔ **The resolver must not compute.** D2 describes; the caller computes. A resolver that
+returns numbers becomes a second calculation engine beside the one that already exists.
+
+**`as_of` is the open-time of the last CLOSED bar of the address's timeframe** — never "now", never
+the developing bar. ⛔ A developing bar makes an indicator value change under a predicate that has
+already fired, which is the tuning-receipt problem F-S7-3 refuses to fake.
+
+⚠️ **A REFUSAL THAT MUST SURVIVE:** insufficient history is `not_computable`, distinct from
+`unknown_metric` and from a false condition. `rsi(14)@1d` on a symbol with nine bars is not
+`false`; it is the CoverageLine distinction, and collapsing it makes a thin new listing look
+bearish.
+
+#### 5.4.5 The thirty, and the one
+
+The scoping set is **`indicator_alert_evaluator.all_addresses()`** — bounded by the legacy lane, not
+by ambition, and it does not grow on its own:
+
+```
+adx.adx  adx.minusDI  adx.plusDI  atr  bb  bb.lower  bb.middle  bb.upper  cci
+donchian.lower  donchian.middle  donchian.upper
+ichimoku.chikou  ichimoku.kijun  ichimoku.spanA  ichimoku.spanB  ichimoku.tenkan
+macd  macd.histogram  macd.signal  mfi  obv  price_vs_ma  rsi
+sar.priceCrossedSar  sar.trendFlipped  stoch  stoch.d  vwap  williams_r        (30)
+close  -> ohlcv.c                                                              (1 rename)
+```
+
+⚠️ `sar.priceCrossedSar` and `sar.trendFlipped` are **booleans about a transition between two bars**,
+not levels. They may not fit `yields: num` and may need `yields: bool` plus a two-bar window in the
+descriptor. Named here rather than discovered at implementation.
+
+#### 5.4.6 ⛔ THE BLOCKER IS MEASURED AND IT IS NOT THIS SPEC'S TO CLEAR
+
+Declaring a bars cadence per timeframe means editing `bars_fetch.py` / `bars_sqlite.py`, which are
+**inside flow-worker's import closure and outside its watch list**. GATE-D2 §CP2.4 refused this once
+already, for that reason: flow-worker would run a stale copy of the new declaration while every test
+on master stayed green. **Either those paths join flow-worker's watch list, or every declaring
+commit rides a marker bump.** Until that is decided, CP3 would ship a projection over predicates
+that all refuse — *not a smaller CP3, a CP3 with nothing in it.*
+
 ---
 
 ## 6. Migration mechanics
