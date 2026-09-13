@@ -84,7 +84,7 @@ const GROUNDING_LABELS = {
   patterns: 'Patterns', flow: 'Options flow', fundamentals: 'Fundamentals',
   analyst: 'Analyst', insider: 'Insider', earnings_deep: 'Earnings intel',
   call_recap: 'Call recap', posture: 'Technicals', verdict: 'Desk verdict',
-  levels: 'Levels', playbook: 'UCT playbook', news_ticker: 'News',
+  levels: 'Levels', playbook: 'UCT playbook', wisdom: 'UCT said', news_ticker: 'News',
   movers: 'Movers', breadth: 'Breadth', earnings: 'Earnings today',
   uct20: 'UCT20', candidates: 'Scanner', news: 'Headlines',
   wire: 'Exposure dial', sector: 'Sectors', cot: 'COT',
