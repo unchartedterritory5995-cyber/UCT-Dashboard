@@ -3,7 +3,7 @@ import { isInstanceTombstone } from '../chartDefaults'
 import {
   derivedTargetFor, parsePaneOfTarget, paneOfTarget, sourceInputsOf, instanceLabel,
 } from './sourceRef'
-import { siblingSuffixes } from './readout'
+import { disambiguateLabels } from './readout'
 
 /**
  * WHERE AN INDICATOR DRAWS — the one place that decides it.
@@ -402,6 +402,21 @@ export function displayTargetOptions(instance, cs, defOf) {
   const instances = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
   const self = instance.instanceId
   const hosts = []
+  // ⭐⭐ NAMES ARE DISAMBIGUATED AGAINST THE WHOLE CHART, NOT AGAINST THE MENU.
+  // A menu that numbered only its own rows would call the member's second QQQ
+  // plain `QQQ` while the legend called it `QQQ #2` — and the one place the
+  // member checks which pane they meant is the legend. `self` is in the pool for
+  // the same reason: it is on the chart even though it is never offered.
+  const pool = []
+  for (const other of instances) {
+    if (!other || typeof other !== 'object') continue
+    if (typeof other.instanceId !== 'string' || !other.instanceId) continue
+    if (typeof other.defId !== 'string' || !other.defId) continue
+    let gone = false
+    try { gone = isInstanceTombstone(other) } catch { /* booby-trapped getter */ }
+    if (!gone) pool.push(other)
+  }
+  const labelOf = paneHostLabels(pool, lookup)
   for (const other of instances) {
     if (!other || typeof other !== 'object') continue
     if (typeof other.instanceId !== 'string' || !other.instanceId) continue
@@ -420,19 +435,43 @@ export function displayTargetOptions(instance, cs, defOf) {
     hosts.push(other)
   }
 
-  const labels = paneHostLabels(hosts, lookup)
   const out = []
   const seen = new Set()
-  const push = (value, label, group) => {
+  const push = (value, label, group, extra) => {
     if (!value || seen.has(value)) return
     seen.add(value)
-    out.push({ value, label, group })
+    out.push({ value, label, group, ...(extra || {}) })
   }
-  // The three shared destinations first, in the order the member reads them.
+
+  // ⭐⭐ WHERE IT IS NOW, WHEN THAT PANE IS GONE (Ruling A, 2026-09-12). The
+  // member's placement is preserved — nothing here clears it, and a render must
+  // never mutate saved state — so the menu has to be able to SHOW a target it
+  // will not offer. Listed first, flagged `missing`, and the view renders it
+  // disabled: it is the current state, not a destination.
+  //
+  // ⛔ WITHOUT IT THE CONTROL LIED. `current` fell through to the first option, so
+  // a series parked in a deleted pane read "Price" while drawing nothing at all —
+  // the member had no way to learn why their line had vanished, and picking the
+  // value already displayed would have been a no-op.
+  //
+  // ⚠️ AND IT IS NAMELESS, TRUTHFULLY. `instanceTombstone` is `{instanceId,
+  // deleted: true}` by explicit design — "a delete must not keep the user's old
+  // settings lying around in the blob" — so once the host is removed its display
+  // name and its source are GONE, in the session and after a reload alike.
+  // `QQQ (missing)` would need the tombstone to carry metadata it deliberately
+  // does not, which is a persistence decision and not one to take in passing.
+  // See the ledger: this is the one sub-problem of Ruling A that is stopped on.
+  const where = resolveDisplayTarget(instance, cs, declared)
+  const owner = parsePaneOfTarget(where)
+  if (owner && !hosts.some((h) => h.instanceId === owner)) {
+    push(where, 'Pane unavailable', 'missing', { missing: true })
+  }
+
+  // The three shared destinations, in the order the member reads them.
   push('price', 'Price', 'shared')
   push('volume', 'Volume', 'shared')
   push('pane', 'Own pane', 'shared')
-  hosts.forEach((h, i) => push(paneOfTarget(h.instanceId), labels[i], 'panes'))
+  hosts.forEach((h) => push(paneOfTarget(h.instanceId), labelOf.get(h.instanceId), 'panes'))
   return out
 }
 
@@ -453,25 +492,12 @@ export function displayTargetOptions(instance, cs, defOf) {
  * Only an actual collision is disambiguated, which is why an ordinary chart's
  * menu carries no suffixes at all.
  */
-function paneHostLabels(hosts, lookup) {
-  const base = hosts.map((h) => instanceLabel(lookup(h.defId), h))
-  const byLabel = new Map()
-  base.forEach((label, i) => {
-    if (!byLabel.has(label)) byLabel.set(label, [])
-    byLabel.get(label).push(i)
-  })
-  const out = base.slice()
-  for (const idxs of byLabel.values()) {
-    if (idxs.length < 2) continue
-    // ⛔ THE LABEL-BEARING INPUT IS NOT A DISCRIMINATOR — `QQQ (source
-    // sym:QQQ:close)` is an address, not a name. Same exclusion `readout.js`
-    // makes, for the same reason.
-    const def0 = lookup(hosts[idxs[0]].defId)
-    const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
-      ? (def0.inputs || []).filter((i) => i && i.type === 'source').map((i) => i.key)
-      : []
-    const suffixes = siblingSuffixes(idxs.map((i) => hosts[i].inputs || {}), ignore)
-    idxs.forEach((hi, n) => { out[hi] = `${base[hi]}${suffixes[n]}` })
-  }
-  return out
+function paneHostLabels(pool, lookup) {
+  const labels = disambiguateLabels(pool.map((h) => ({
+    defId: h.defId,
+    instanceId: h.instanceId,
+    inputs: h.inputs || {},
+    label: instanceLabel(lookup(h.defId), h),
+  })), lookup)
+  return new Map(pool.map((h, i) => [h.instanceId, labels[i]]))
 }

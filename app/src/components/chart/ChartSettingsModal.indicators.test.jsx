@@ -728,3 +728,140 @@ describe('a derived indicator gets BOTH menus, and they are independent', () => 
     cleanup()
   })
 })
+
+// ─── RULING A · THE PANE A MEMBER CHOSE, AFTER IT IS GONE ───────────────────
+//
+// ⭐⭐ THE CONTROL MUST NOT CLAIM A DESTINATION THE SERIES IS NOT AT. Deleting a
+// host leaves its guest with a placement naming a tombstone; the product answer
+// is to preserve that intent, draw nothing, and SAY SO — not to re-home the
+// series, clear the target, or let the menu read "Price".
+describe('a guest whose pane host was deleted', () => {
+  /** QQQ hosts a pane, SPY draws in it, QQQ is then removed. */
+  const orphaned = () => {
+    const host = { instanceId: 'inst:dataSeries:1', defId: 'dataSeries',
+      inputs: { source: 'sym:QQQ:close', color: '#4f9cf9' }, display: { name: 'QQQ' } }
+    const guest = { instanceId: 'inst:dataSeries:2', defId: 'dataSeries',
+      inputs: { source: 'sym:SPY:close', color: '#4f9cf9' }, display: { name: 'SPY' },
+      placement: { target: '@inst:dataSeries:1' } }
+    return base({
+      indicatorInstances: [instanceTombstone(host.instanceId), guest],
+      indicators: { dataSeries: { enabled: true } },
+    })
+  }
+
+  const openSpy = () => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={orphaned()} onChange={onChange} onClose={() => {}} />)
+    openIndicators()
+    expand(/SPY/i)
+    return onChange
+  }
+
+  it('⭐⭐ the menu STATES the missing pane, and it is not selectable', () => {
+    openSpy()
+    const sel = screen.getByLabelText(/SPY display in/i)
+    const shown = [...sel.options].find((o) => o.value === sel.value)
+    expect(shown, 'the select shows a value that is not among its options').toBeTruthy()
+    // ⚰️ IT READ "Price" — the first offered option — while SPY drew nothing.
+    expect(shown.textContent).toBe('Pane unavailable')
+    expect(shown.disabled, 'a state the member cannot act on was offered as a destination')
+      .toBe(true)
+    // ⛔ NO RAW ID ANYWHERE IN THE CONTROL.
+    expect(sel.textContent).not.toMatch(/inst:|dataSeries|@/)
+    cleanup()
+  })
+
+  it('⭐ …and the row says why, in one line', () => {
+    openSpy()
+    expect(screen.getByText(/pane this was drawn in was removed/i)).toBeTruthy()
+    cleanup()
+  })
+
+  it('⛔⛔ RENDERING WRITES NOTHING — the placement stays the member\'s', () => {
+    const onChange = openSpy()
+    expect(onChange, 'the settings tab repaired saved state on render').not.toHaveBeenCalled()
+    cleanup()
+  })
+
+  it('⭐ the three real destinations are still one click away', () => {
+    const onChange = openSpy()
+    const sel = screen.getByLabelText(/SPY display in/i)
+    expect([...sel.options].filter((o) => !o.disabled).map((o) => o.textContent))
+      .toEqual(['Price', 'Volume', 'Own pane'])
+    fireEvent.change(sel, { target: { value: 'pane' } })
+    const next = lastCall(onChange)
+    const spy = next.indicatorInstances.find((i) => i.instanceId === 'inst:dataSeries:2')
+    expect(spy.placement?.target, 'choosing Own pane did not clear the dead target')
+      .toBeUndefined()
+    expect(spy.inputs.source, 'the destination write touched the source').toBe('sym:SPY:close')
+    cleanup()
+  })
+})
+
+// ─── A DIRECT SERIES READS AS ITSELF, NOT AS ENGINE VOCABULARY ──────────────
+//
+// ⭐⭐ THE ROW, THE DESTINATION MENU AND THE LEGEND CHIP ALL NAME ONE INSTANCE,
+// and a member who added QQQ should find `QQQ` on every one of them. What they
+// found instead was "Data Series" with a "Series" badge and a Source control
+// reading "Source unavailable" over a perfectly good `sym:QQQ:close`.
+describe('a direct series in the settings tab', () => {
+  const withSeries = () => base({
+    indicatorInstances: [
+      { instanceId: 'inst:dataSeries:1', defId: 'dataSeries',
+        inputs: { source: 'sym:QQQ:close', color: '#4f9cf9' }, display: { name: 'QQQ' } },
+      { instanceId: 'inst:dataSeries:2', defId: 'dataSeries',
+        inputs: { source: 'sym:QQQ:close', color: '#4f9cf9' }, display: { name: 'QQQ' } },
+      { instanceId: 'inst:dataSeries:3', defId: 'dataSeries',
+        inputs: { source: 'sym:SPY:close', color: '#4f9cf9' }, display: { name: 'SPY' } },
+    ],
+    indicators: { dataSeries: { enabled: true } },
+  })
+
+  it('⭐⭐ the ROW is named after the instrument, and duplicates are numbered', () => {
+    render(<ChartSettingsModal open settings={withSeries()} onChange={() => {}} onClose={() => {}} />)
+    openIndicators()
+    const rows = activeLabels()
+    // ⚰️ ALL THREE READ "Data Series".
+    expect(rows).toContain('QQQ #1')
+    expect(rows).toContain('QQQ #2')
+    expect(rows).toContain('SPY')
+    // ⛔ AND THE ORDINALS AGREE WITH THE LEGEND'S — only the collision is numbered.
+    expect(rows.some((r) => /^SPY #/.test(r)), 'a unique row was numbered').toBe(false)
+    expect(rows.some((r) => /Data Series|dataSeries|sym:/.test(r)),
+      'engine vocabulary reached a settings row').toBe(false)
+    cleanup()
+  })
+
+  it('⭐ the SOURCE control shows the symbol it actually holds', () => {
+    render(<ChartSettingsModal open settings={withSeries()} onChange={() => {}} onClose={() => {}} />)
+    openIndicators()
+    expand(/^SPY$/)
+    const sel = screen.getByLabelText(/SPY Source/i)
+    const shown = [...sel.options].find((o) => o.value === sel.value)
+    // ⚰️ IT READ "Source unavailable" — the caller passed three arguments to
+    // `sourceOptions`, so the control could not represent its own value.
+    expect(shown.textContent).not.toMatch(/unavailable/i)
+    expect(shown.textContent).toMatch(/SPY/)
+    cleanup()
+  })
+
+  it('⛔ a SEVERED source still reads unavailable — that label keeps its meaning', () => {
+    // The severed form `severReferencesTo` writes when a source instance is
+    // deleted: the old address, prefixed, so nothing silently reconnects.
+    const cs = base({
+      ...WITH_MA_OF_RSI,
+      indicatorInstances: [
+        { instanceId: 'legacy:rsi', defId: 'rsi', hidden: false, inputs: {} },
+        { instanceId: 'inst:movingAverage:1', defId: 'movingAverage', hidden: false,
+          inputs: { source: '!@legacy:gone::rsi', period: 5, maType: 'sma' } },
+      ],
+    })
+    render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
+    openIndicators()
+    expand(/Moving Average/i)
+    const sel = within(maRow()).getByLabelText(/ Source$/)
+    const shown = [...sel.options].find((o) => o.value === sel.value)
+    expect(shown.textContent).toMatch(/unavailable/i)
+    cleanup()
+  })
+})

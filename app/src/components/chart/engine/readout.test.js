@@ -534,3 +534,63 @@ describe('legendChips — a chip for every LIVE instance, hidden ones included',
       [{ instanceId: 'x', defId: 'nope-not-a-definition', inputs: {} }])).toEqual([])
   })
 })
+
+// ─── RULING B · AN ORDINAL BELONGS TO THE COLLISION ─────────────────────────
+//
+// ⭐⭐ THE LEGEND AND THE "DISPLAY IN" MENU SHARE ONE DISAMBIGUATOR
+// (`disambiguateLabels`), so a member reading `QQQ #2` in the menu finds `QQQ #2`
+// on the chart. These cases pin the grouping rule that both inherit.
+describe('duplicate labels are numbered per NAME, not per definition', () => {
+  const series = (instanceId, symbol) => ({
+    key: `${instanceId}::value`, instanceId, defId: 'dataSeries', plotKey: 'value',
+    series: { __id: instanceId },
+  })
+  const inputsOf = (map) => (_defId, instanceId) => ({ source: map[instanceId], color: '#4f9cf9' })
+  const displayOf = (map) => (_defId, instanceId) => ({ name: map[instanceId] })
+
+  it('⭐⭐ two QQQs are numbered and a lone SPY is left alone', () => {
+    // ⚰️ MEASURED IN A BROWSER 2026-09-12: all three rows shared the
+    // `dataSeries::value` group, so SPY printed `SPY #3` — an ordinal implying a
+    // `SPY #1` and `SPY #2` that were never on the chart.
+    const a = series('inst:dataSeries:1')
+    const b = series('inst:dataSeries:2')
+    const c = series('inst:dataSeries:3')
+    const names = {
+      'inst:dataSeries:1': 'QQQ', 'inst:dataSeries:2': 'QQQ', 'inst:dataSeries:3': 'SPY',
+    }
+    const sources = {
+      'inst:dataSeries:1': 'sym:QQQ:close',
+      'inst:dataSeries:2': 'sym:QQQ:close',
+      'inst:dataSeries:3': 'sym:SPY:close',
+    }
+    const chips = chipsFrom([a, b, c],
+      seriesData([[a, 714.88], [b, 714.88], [c, 764.29]]),
+      engineRegistry, inputsOf(sources), displayOf(names))
+    expect(chips.map(c2 => c2.label)).toEqual(['QQQ #1', 'QQQ #2', 'SPY'])
+  })
+
+  it('⛔ …and with no collision at all, nothing is numbered', () => {
+    const a = series('inst:dataSeries:1')
+    const b = series('inst:dataSeries:2')
+    const names = { 'inst:dataSeries:1': 'QQQ', 'inst:dataSeries:2': 'SPY' }
+    const sources = { 'inst:dataSeries:1': 'sym:QQQ:close', 'inst:dataSeries:2': 'sym:SPY:close' }
+    const chips = chipsFrom([a, b], seriesData([[a, 714.88], [b, 764.29]]),
+      engineRegistry, inputsOf(sources), displayOf(names))
+    expect(chips.map(c2 => c2.label)).toEqual(['QQQ', 'SPY'])
+  })
+
+  it('⛔ a definition that names what differs still does — MACD keeps its params', () => {
+    // Two MACDs collide on BOTH plot labels, and the suffix must name the inputs
+    // that differ rather than fall to an ordinal. This is the case the
+    // disambiguator was built for, and the grouping change must not lose it.
+    const m1 = binding('macd', 'macd', 'legacy:macd')
+    const m2 = binding('macd', 'macd', 'inst:macd:2')
+    const inputs = {
+      'legacy:macd': { fast: 12, slow: 26, signal: 9 },
+      'inst:macd:2': { fast: 15, slow: 26, signal: 9 },
+    }
+    const chips = chipsFrom([m1, m2], seriesData([[m1, 1.2], [m2, 1.5]]),
+      engineRegistry, (_d, id) => inputs[id])
+    expect(chips.map(c2 => c2.label)).toEqual(['MACD (fast 12)', 'MACD (fast 15)'])
+  })
+})

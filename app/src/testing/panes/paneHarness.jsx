@@ -48,6 +48,12 @@ import {
 // ⭐ P2.2 — the REAL Add-to-Chart dialog, mounted here so the browser pass drives
 // the member's own surface rather than the harness's buttons.
 import IndicatorLibraryDialog from '../../components/chart/IndicatorLibraryDialog'
+// ⭐ THE MEMBER'S MANAGEMENT SURFACE, ON THE ISOLATED BLOB (overnight, 2026-09-13).
+// The library dialog is how a series gets ON the chart; this is where it is then
+// named, restyled, moved and deleted — and the "Display in" menu, the missing-host
+// state and the row labels all live here. Proving them in jsdom proves the markup;
+// mounting the real modal proves the member's actual surface.
+import ChartSettingsModal from '../../components/chart/ChartSettingsModal'
 import * as engineRegistry from '../../components/chart/engine/nativeRegistry'
 
 // ─── LOCK 3 — THE PREFERENCE ENDPOINT IS SEVERED, BOTH WAYS ─────────────────
@@ -126,6 +132,7 @@ function Harness() {
   const [probe, setProbe] = useState(null)
   const [saved, setSaved] = useState(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const hostRef = useRef(null)
 
   const say = useCallback((s) => {
@@ -317,7 +324,8 @@ function Harness() {
       <Row label="Add to Chart">
         <button style={{ ...btn, background: '#1d5fbf', borderColor: '#1d5fbf', color: '#fff' }}
           onClick={() => setLibraryOpen(true)}>＋ Add to Chart…</button>
-        <span style={{ color: '#8b93a1' }}>the real IndicatorLibraryDialog</span>
+        <button style={btn} onClick={() => setSettingsOpen(true)}>⚙ Chart Settings…</button>
+        <span style={{ color: '#8b93a1' }}>the real dialogs</span>
       </Row>
 
       <Row label="state">
@@ -414,6 +422,16 @@ function Harness() {
         settings={cs || mergeChartSettings({})}
         onChange={(next) => { setCs(next); say(`library add → ${instancesOf(next).length} instances`) }}
         registry={engineRegistry}
+      />
+
+      {/* ⛔ THE SAME `onChange` THE LIBRARY USES — page state, never a preference.
+          Lock 3 severs `/api/auth/preferences` in both directions, so this modal
+          cannot reach Main Trading any more than the rest of the page can. */}
+      <ChartSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={cs || mergeChartSettings({})}
+        onChange={(next) => { setCs(next); say('settings write') }}
       />
     </div>
   )

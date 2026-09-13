@@ -113,8 +113,13 @@ function mainColorFields(row) {
  *  MA overlays carry a type (`SMA`/`EMA`) that the label already spells, so they
  *  get none; a generated row's group is its definition's short name, which the
  *  label (the LONG name) does not repeat. */
-function typeBadge(row) {
+function typeBadge(row, def) {
   if (isFixtureRow(row)) return null
+  // ⛔ A DEFINITION THAT NAMES ITSELF FROM ITS SOURCE NEEDS NO CATEGORY CHIP. The
+  // badge answers "what kind of indicator is this row"; for `QQQ` the honest
+  // answer is `QQQ`, and the definition's short name is the internal word
+  // ("Series") that the row label was just changed to stop showing.
+  if (def && def.meta && def.meta.labelFrom === 'source') return null
   const short = row.group
   if (!short) return null
   const label = String(row.label || '')
@@ -539,6 +544,13 @@ export default function ChartSettingsIndicators({
     if (!options.length) return null
     const shared = options.filter((o) => o.group === 'shared')
     const panes = options.filter((o) => o.group === 'panes')
+    // ⭐ THE PANE THIS WAS DRAWN IN IS GONE (Ruling A). The generator lists the
+    // member's own placement so the control can state it; it is rendered DISABLED
+    // because it is where this series is, not somewhere it can be sent. Nothing
+    // is written — a render that repaired saved state would be a silent edit of
+    // the member's chart, and the whole point of preserving the target is that
+    // the choice stays theirs.
+    const missing = options.find((o) => o.missing) || null
     // ⚠️ `where` CAN BE ABSENT FROM THE LIST, in exactly one case: a stored target
     // naming a host that has since been DELETED. The dead host is deliberately not
     // offered (see the generator), and nothing is written here — the fallback only
@@ -562,6 +574,9 @@ export default function ChartSettingsIndicators({
             aria-label={`${row.label} display in`}
             onChange={(e) => commit(setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry))}
           >
+            {missing ? (
+              <option value={missing.value} disabled>{missing.label}</option>
+            ) : null}
             {shared.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             {/* ⭐ THE EXISTING PANES, UNDER A HEADING RATHER THAN MIXED IN. The
                 three above are places the chart always has; these are other
@@ -574,6 +589,11 @@ export default function ChartSettingsIndicators({
             ) : null}
           </select>
         </div>
+        {missing ? (
+          <div className={styles.indRowNote}>
+            The pane this was drawn in was removed. Pick where it should draw.
+          </div>
+        ) : null}
         {ownsPane ? (
           <div className={styles.indRow}>
             <span className={styles.indLabel}>Pane position</span>
@@ -603,7 +623,7 @@ export default function ChartSettingsIndicators({
       ? styleIrrelevantInputs(rowDef, findInstance(settings, row.instanceId))
       : EMPTY_KEY_SET
     const colorFields = mainColorFields(row)
-    const badge = typeBadge(row)
+    const badge = typeBadge(row, rowDef)
     return (
       <div
         key={row.id}
@@ -775,6 +795,22 @@ export default function ChartSettingsIndicators({
                       settings,
                       (id) => (registry && registry.getDefinition ? registry.getDefinition(id) : null),
                       row.instanceId,
+                      // ⭐⭐ THE CURRENT VALUE, WHICH IS WHY THAT PARAMETER EXISTS.
+                      // ⚰️ MEASURED IN A BROWSER 2026-09-13: every direct series
+                      // read "Source unavailable" over a perfectly good
+                      // `sym:SPY:close`, because this call passed three arguments
+                      // and `sourceOptions` only emits its "Symbol" group for the
+                      // value it is SHOWN. Its own header states the rule this was
+                      // breaking — "a value must be representable in the control
+                      // that edits it" — and there is no symbol catalogue to list
+                      // instead, so offering the current symbol as itself is the
+                      // smallest correct answer.
+                      //
+                      // ⛔ AND "UNAVAILABLE" STILL MEANS SOMETHING. A severed
+                      // source (`!@inst:…`) does not parse, so it takes no option
+                      // and still reads unavailable — which is the case that label
+                      // was written for.
+                      val,
                     )
                     const known = groups.some(g => g.options.some(o => o.value === val))
                     return (

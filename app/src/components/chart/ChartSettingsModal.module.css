@@ -635,6 +635,18 @@
 }
 .indNum:disabled, .indSelect:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* A one-line explanation under the control it belongs to. Used where a control
+   shows a state the member did not choose and cannot act on without knowing why
+   — today only "the pane this was drawn in has been removed". Same indent and
+   same muted colour as .indLabel, so it reads as part of the row rather than as
+   a new kind of message. */
+.indRowNote {
+  padding: 0 0 4px 28px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--menu-text-dim, var(--text-muted, #8c8674));
+}
+
 /* Info Row field picker (Header tab) — an "Add Field" button beside the label opens a
    searchable, scrollable field menu. */
 .infoRowHead {

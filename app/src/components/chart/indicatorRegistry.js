@@ -103,6 +103,10 @@ import {
 // `LEGACY_ID_PREFIX` live in `engine/instances.js` and a typed copy here would be
 // the twin this phase retires, in the file whose header is about retiring them.
 import { legacyInstanceId } from './engine/instances'
+// ⭐ ONE NAMING AUTHORITY FOR THE THREE SURFACES THAT NAME AN INSTANCE — the
+// legend chip, the "Display in" menu and this tab's rows.
+import { instanceLabel } from './engine/sourceRef'
+import { disambiguateLabels } from './engine/readout'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
 // because a predicate — or a field table — copied into two files is precisely
@@ -495,6 +499,25 @@ export function listEngineIndicators(settings, registry) {
     // fresh chart shows — the "turn it on" control — is the one every earlier
     // regression in this function landed on (B5 Task 9's blank Period box).
     const live = liveInstancesFor(def.id, settings)
+    // ⭐⭐ A DEFINITION THAT NAMES ITSELF FROM ITS SOURCE NAMES ITS ROWS THAT WAY
+    // TOO. `meta.name` is the catalogue noun — right for "Relative Strength
+    // Index", and wrong for the one definition whose whole identity is what it
+    // was pointed at: a member who added QQQ and SPY got two rows both reading
+    // "Data Series", which is the internal vocabulary the settings tab exists to
+    // hide. `instanceLabel` is the SAME authority the legend chip and the
+    // "Display in" menu already use, so all three surfaces say `QQQ`.
+    //
+    // ⛔ GATED ON `meta.labelFrom`, NOT ON A DEFINITION ID. Every other row is
+    // byte-identical, and a future definition that names itself from an input
+    // inherits this without an edit here.
+    // ⛔ …AND DISAMBIGUATED AMONG ITS OWN SIBLINGS, through the one kernel, so two
+    // QQQ rows read `QQQ #1` / `QQQ #2` exactly as their chips do.
+    const named = (def.meta && def.meta.labelFrom === 'source' && live.length)
+      ? disambiguateLabels(live.map((i) => ({
+        defId: def.id, instanceId: i.instanceId, inputs: i.inputs || {},
+        label: instanceLabel(def, i),
+      })), () => def)
+      : null
     // Read through the ONE reader every other control door uses, so a
     // tombstone cannot leave this toggle ticked over a chart with no line. It is
     // per DEFINITION and therefore shared by every row of one definition.
@@ -508,7 +531,8 @@ export function listEngineIndicators(settings, registry) {
         // and "write the definition's mirror + its seeded instance".
         ...(instance ? { instanceId: instance.instanceId } : {}),
         engineOwned: true,
-        label: `${meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
+        label: `${(named && named[live.indexOf(instance)])
+          || meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
         // The GROUP is the definition's short name, which is what the shipped tab
         // showed ("VWAP") — and it keeps the modal's section list derived from the
         // rows rather than hardcoded. Two instances share ONE section, which is

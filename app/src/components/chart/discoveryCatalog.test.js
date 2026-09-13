@@ -579,9 +579,20 @@ describe('§32 · the LEGEND names the symbol too, not just the source picker', 
       expect(c.label, 'the raw source string reached a legend chip').not.toContain('sym:')
       expect(c.label, 'the input KEY reached a legend chip').not.toContain('source')
     }
-    // ⭐ AND THE FALLBACK IS THE ORDINAL — thin, but true, and the approved shape
-    // for the duplicate-label polish item rather than a redesign of it.
-    expect(chips.map((c) => c.label)).toEqual(['QQQ #1', 'SPY #2', 'UCTA50 #3', 'QQQ #4'])
+    // ⭐ AND THE FALLBACK IS THE ORDINAL — thin, but true.
+    //
+    // ⚰️ THIS LINE USED TO READ `['QQQ #1', 'SPY #2', 'UCTA50 #3', 'QQQ #4']`, and
+    // said so as "the approved shape for the duplicate-label polish item rather
+    // than a redesign of it". That item was RULED ON 2026-09-12: an ordinal
+    // belongs to the collision, not to the definition. Only the two QQQs are
+    // ambiguous, so only they are numbered — `SPY #2` implied a `SPY #1` that was
+    // never on the chart.
+    //
+    // ⛔ THE RAIL ITSELF IS UNCHANGED. What this case exists to prevent is the
+    // SOURCE ADDRESS reaching a chip, and those two assertions above are
+    // untouched and still the point; this line is the shape of the fallback, and
+    // the fallback's shape is what the ruling moved.
+    expect(chips.map((c) => c.label)).toEqual(['QQQ #1', 'SPY', 'UCTA50', 'QQQ #2'])
   })
 
   it('⭐ …and with NO duplicate the labels are left completely alone', () => {

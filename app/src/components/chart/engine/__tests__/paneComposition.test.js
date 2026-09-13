@@ -356,3 +356,116 @@ describe('deleting a pane HOST', () => {
     expect(paneIndexOf(back, spy)).not.toBeNull()
   })
 })
+
+
+// ─── RULING A · THE PANE A MEMBER CHOSE, AFTER IT IS GONE ───────────────────
+//
+// ⭐⭐ THE INTENT IS PRESERVED AND THE STATE IS STATED. Deleting a host must not
+// re-home its guest, must not touch its source, and must not quietly clear the
+// placement to make something appear — all three would be the product deciding
+// for the member. What it MUST do is stop the settings control from claiming a
+// destination that is not where the series is.
+
+describe('a pane host that has been deleted', () => {
+  const orphan = () => {
+    let cs = mergeChartSettings({})
+    let qqq; [cs, qqq] = addSeries(cs, 'QQQ')
+    let spy; [cs, spy] = addSeries(cs, 'SPY')
+    cs = setInstanceDisplayTarget(cs, spy, paneOfTarget(qqq), registry)
+    return { cs: removeInstance(cs, qqq, registry), qqq, spy }
+  }
+
+  it('⭐⭐ the control STATES the missing pane instead of naming a wrong one', () => {
+    const { cs, qqq, spy } = orphan()
+    const opts = displayTargetOptions(findInstance(cs, spy), cs, defOf)
+    const first = opts[0]
+    // ⚰️ IT USED TO READ "Price". `current` fell through to the first offered
+    // option, so a series drawing nothing looked like a series on the candles,
+    // and choosing the value already displayed did nothing at all.
+    expect(first.missing, 'the current placement is not stated first').toBe(true)
+    expect(first.value, 'the stated entry is not the placement actually stored')
+      .toBe(paneOfTarget(qqq))
+    expect(first.group).toBe('missing')
+    // ⛔ NO RAW ID REACHES THE MEMBER. The host is a tombstone —
+    // `{instanceId, deleted: true}` — so its NAME is genuinely gone, and the only
+    // honest label is a nameless one. See the ledger: naming it would need the
+    // tombstone to carry metadata it deliberately does not.
+    expect(first.label).toBe('Pane unavailable')
+    expect(first.label).not.toContain(qqq)
+    expect(first.label).not.toMatch(/inst:|dataSeries|@/)
+  })
+
+  it('⛔ …and it is not OFFERED — the three real destinations still are', () => {
+    const { cs, spy } = orphan()
+    const opts = displayTargetOptions(findInstance(cs, spy), cs, defOf)
+    expect(opts.filter((o) => o.missing).length, 'more than one missing entry').toBe(1)
+    expect(opts.filter((o) => !o.missing).map((o) => o.label))
+      .toEqual(['Price', 'Volume', 'Own pane'])
+  })
+
+  it('⛔⛔ READING THE MENU CHANGES NOTHING — no re-home, no source edit', () => {
+    const { cs, qqq, spy } = orphan()
+    const before = JSON.stringify(cs)
+    displayTargetOptions(findInstance(cs, spy), cs, defOf)
+    expect(JSON.stringify(cs), 'building the menu mutated saved state').toBe(before)
+    // The placement the member chose is still theirs, and so is the data.
+    expect(findInstance(cs, spy).placement.target).toBe(paneOfTarget(qqq))
+    expect(findInstance(cs, spy).inputs.source).toBe(symbolSource('SPY', 'close'))
+    // …and the renderer still fails closed rather than guessing a pane.
+    expect(paneIndexOf(cs, spy)).toBeNull()
+  })
+
+  it('⭐ one explicit choice ends the missing state', () => {
+    const { cs, spy } = orphan()
+    const next = setInstanceDisplayTarget(cs, spy, 'pane', registry)
+    expect(displayTargetOptions(findInstance(next, spy), next, defOf)
+      .some((o) => o.missing)).toBe(false)
+    expect(paneIndexOf(next, spy)).not.toBeNull()
+  })
+
+  it('⛔ a LIVE host is never marked missing — the flag is about absence', () => {
+    let cs = mergeChartSettings({})
+    let qqq; [cs, qqq] = addSeries(cs, 'QQQ')
+    let spy; [cs, spy] = addSeries(cs, 'SPY')
+    cs = setInstanceDisplayTarget(cs, spy, paneOfTarget(qqq), registry)
+    expect(displayTargetOptions(findInstance(cs, spy), cs, defOf)
+      .some((o) => o.missing), 'a live host was reported missing').toBe(false)
+  })
+})
+
+// ─── RULING B · ORDINALS BELONG TO THE COLLISION, NOT THE DEFINITION ────────
+
+describe('duplicate labels', () => {
+  it('⭐⭐ only the colliding name is numbered', () => {
+    let cs = mergeChartSettings({})
+    let a; [cs, a] = addSeries(cs, 'QQQ')
+    let b; [cs, b] = addSeries(cs, 'QQQ')
+    let c; [cs, c] = addSeries(cs, 'SPY')
+    // ⚰️ MEASURED: all three shared one `dataSeries::value` group, so SPY — which
+    // was never ambiguous — printed as `SPY #3`, implying a `SPY #1` and `SPY #2`
+    // that do not exist.
+    const menu = displayTargetOptions(findInstance(cs, c), cs, defOf)
+      .filter((o) => o.group === 'panes').map((o) => o.label)
+    expect(menu).toEqual(['QQQ #1', 'QQQ #2'])
+    const fromSpy = displayTargetOptions(findInstance(cs, a), cs, defOf)
+      .filter((o) => o.group === 'panes').map((o) => o.label)
+    expect(fromSpy, 'SPY was numbered despite being unique').toEqual(['QQQ #2', 'SPY'])
+    expect(a && b && c).toBeTruthy()
+  })
+
+  it('⛔ a definition that already tells its copies apart is left alone', () => {
+    // RSI declares `legendParams: ['period']`, so two copies already read
+    // `RSI (14)` and `RSI (7)` — suffixing those would print `RSI (14) #1`.
+    let cs = mergeChartSettings({ indicators: { rsi: { enabled: true } } })
+    const rsi = live(cs).find((i) => i.defId === 'rsi')
+    const added = addInstance(cs, 'rsi', registry)
+    const second = lastCreatedInstance(cs, added)
+    cs = second ? setInstanceInput(added, second.instanceId, 'period', 7, registry) : added
+    let spy; [cs, spy] = addSeries(cs, 'SPY')
+    const labels = displayTargetOptions(findInstance(cs, spy), cs, defOf)
+      .filter((o) => o.group === 'panes').map((o) => o.label)
+    expect(labels.some((l) => /#\d/.test(l)), `numbered a unique name: ${labels}`).toBe(false)
+    expect(labels).toContain('RSI (14)')
+    expect(rsi).toBeTruthy()
+  })
+})
