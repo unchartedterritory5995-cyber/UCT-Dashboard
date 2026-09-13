@@ -9935,7 +9935,21 @@ class _ImmutableStaticFiles(StaticFiles):
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 if os.path.exists(DIST):
-    app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+    # ⛔ GUARD THE DIRECTORY YOU ACTUALLY MOUNT. This read `if os.path.exists(DIST)` and then
+    # mounted `DIST/assets` — a DIFFERENT path. StaticFiles raises at construction when its
+    # directory is missing, so a PARTIAL build (dist/ present, dist/assets/ absent) took the whole
+    # app down at import, not at request time. The `_FONTS_DIR` mount five lines below already
+    # does this correctly (`if os.path.exists(_FONTS_DIR)`), which is what makes this the
+    # guard-tests-the-adjacent-thing defect rather than a missing guard: the right idiom was
+    # sitting next to the wrong one.
+    #
+    # ⚰️ It cost 18 setup ERRORS in `tests/test_capture_auth_boundary.py` on any checkout whose
+    # frontend had not been fully built — errors that read as an auth-boundary problem and were
+    # nothing of the kind. In production `dist/assets` always exists after a build, so this was
+    # latent there and only ever bit development; that is exactly why it survived.
+    _ASSETS_DIR = os.path.join(DIST, "assets")
+    if os.path.exists(_ASSETS_DIR):
+        app.mount("/assets", _ImmutableStaticFiles(directory=_ASSETS_DIR), name="assets")
 
     # ── The brand + CHART AXIS font, self-hosted (app/public/fonts → dist/fonts).
     # 🔴 THIS MOUNT IS LOAD-BEARING, NOT A NICETY. The SPA catch-all at the bottom

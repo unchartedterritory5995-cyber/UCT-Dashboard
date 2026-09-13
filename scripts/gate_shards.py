@@ -107,6 +107,86 @@ def parse_failures(log_text: str) -> list[str]:
     return sorted(out)
 
 
+# ══ THE BACKEND SHARD ══════════════════════════════════════════════════════════
+#
+# ⛔⛔ "GATE GREEN" USED TO MEAN "THE FRONTEND IS GREEN", AND THAT IS HOW AN api/ CHANGE SHIPPED
+# ON HAND-GATHERED EVIDENCE. Deploy B (2026-09-11) changed `api/routers/auth.py` and the gate that
+# blessed it ran vitest only — it could not have failed on anything in that diff. The backend
+# evidence for that deploy was three pytest commands a human chose to run and read. That is not a
+# gate; it is a habit, and habits are what H14 exists to catch.
+#
+# ⭐ SO THE BACKEND IS A SHARD, NOT A SIDE-CAR. It goes through the same seams as the vitest
+# shards: the same `_capture` (so the cp1252 decoding bug cannot reappear in a second place), the
+# same "no totals line is not a run" refusal, the same names-not-counts baseline diff.
+#
+# ⚠️ SCOPED, NEVER REPO-WIDE. A bare `pytest` here collects `api/services/**/test_*.py` as well
+# and has OOM-killed this box before. The scope is `tests/` and it is a parameter, so narrowing it
+# for a contended box is a visible choice rather than an edit to the runner.
+
+# `24 passed, 1176 warnings in 2.60s` / `1 failed, 7 passed in 0.5s` / `43 passed, 18 errors in 7s`
+_PY_COUNT_RE = re.compile(r"(\d+)\s+(passed|failed|error|errors|skipped|xfailed|xpassed|deselected)")
+_PY_SUMMARY_RE = re.compile(r"^=*\s*(?P<body>[^=]*\b\d+\s+(?:passed|failed|error)[^=]*?)\s+in\s+"
+                            r"[\d.]+s.*$", re.M)
+_PY_NORUN_RE = re.compile(r"^\s*=*\s*no tests ran\b", re.M | re.I)
+
+
+def parse_pytest_totals(log_text: str) -> dict | None:
+    """pytest's summary line, or None if this log has no run in it.
+
+    ⛔ None is the ALARM, exactly as it is for vitest. pytest prints its summary LAST, so a log
+    without one is a run that died — an import error, an OOM kill, a broken pipe — and every one
+    of those must refuse rather than read as zero failures.
+    """
+    clean = strip_ansi(log_text)
+    m = None
+    for m in _PY_SUMMARY_RE.finditer(clean):   # the LAST summary line wins
+        pass
+    if m is None:
+        return None
+    body = m.group("body")
+    out = {"failed": 0, "passed": 0, "skipped": 0, "errors": 0}
+    for n, what in _PY_COUNT_RE.findall(body):
+        key = "errors" if what.startswith("error") else what
+        if key in out:
+            out[key] = int(n)
+    # ⛔ ERRORS COUNT AS FAILURES FOR THE VERDICT. An 18-error setup collapse is not a pass, and
+    # pytest reports errors separately from failures precisely because they are a different cause.
+    out["total"] = out["passed"] + out["failed"] + out["skipped"] + out["errors"]
+    return out
+
+
+_PY_FAIL_RE = re.compile(r"^(?:FAILED|ERROR)\s+(?P<id>\S+?)(?:\s+-\s.*)?$", re.M)
+
+
+def parse_pytest_failures(log_text: str) -> list[str]:
+    """Every failing/erroring test's node id. NAMES, NOT A COUNT — same rule as the frontend."""
+    out = []
+    for m in _PY_FAIL_RE.finditer(strip_ansi(log_text)):
+        ident = m.group("id").strip()
+        if ident and ident not in out:
+            out.append(ident)
+    return sorted(out)
+
+
+def _run_backend(out_dir: pathlib.Path, scope: str = "tests/", timeout_s: int = 300,
+                 cwd=None) -> str:
+    """Run the backend suite as its own shard, through the SAME capture seam as vitest.
+
+    ⭐ `cwd` IS A SEAM, NOT A CONVENIENCE. The real shard runs from REPO so the repo conftest —
+    which pins every shared-root path and arms the tripwire — is loaded; that conftest is also
+    what makes a full collection take minutes. A rail that wants to exercise this function for
+    real against a two-test throwaway suite must be able to run OUTSIDE the repo, or it inherits
+    that cost and hangs. The default is unchanged, so production behaviour is identical.
+    """
+    log = out_dir / "shard-backend.log"
+    text = _capture(
+        [sys.executable, "-m", "pytest", scope, "-q", "-p", "no:cacheprovider",
+         f"--timeout={timeout_s}"],
+        cwd or REPO, shell=False)
+    log.write_text(text, encoding="utf-8")
+    return text
+
+
 def load_baseline() -> dict:
     """The known-failing set this branch is measured against, or an empty baseline if absent."""
     if not BASELINE.exists():
@@ -244,13 +324,15 @@ class GateError(RuntimeError):
 
 
 def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
-             run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2) -> dict:
+             run_shard_fn=None, file_count_fn=count_test_files, max_workers: int = 2,
+             run_backend_fn=None, backend_scope: str = "tests/") -> dict:
     """Run the gate, or refuse. Returns the manifest dict.
 
     Every failure mode raises `GateError` naming itself, so a caller can never mistake one for
     another — and so the test can assert WHICH one fired.
     """
     run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir, max_workers))
+    run_backend_fn = run_backend_fn or (lambda: _run_backend(out_dir, backend_scope))
 
     # ⛔ THE WRAPPER'S OWN OUTPUT IS NOT TREE DRIFT, AND THIS COST A SECOND RUN.
     #
@@ -318,6 +400,30 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
             + " — those shards did not run. A test run without a totals line is not a run."
         )
 
+    # ── THE BACKEND SHARD — same refusals, its own parser ─────────────────────────────────
+    btext = run_backend_fn() or ""
+    if not btext.strip():
+        raise GateError(
+            "EMPTY CAPTURE from the backend shard: pytest was executed and its output never "
+            "reached this process \u2014 a broken pipe, not a failed run."
+        )
+    backend_totals = parse_pytest_totals(btext)
+    if backend_totals is None:
+        raise GateError(
+            "NO TOTALS LINE from the backend shard \u2014 pytest did not finish. A run without a "
+            "summary line is not a run, and 'no failures parsed' from a dead run is not a pass."
+        )
+    # ⛔ RULE 14, NON-VACUITY: a backend shard that collected NOTHING would report zero failures
+    # and sail through the baseline diff. An empty result is a failed invocation until proven
+    # otherwise, so the shard must prove it actually executed tests.
+    if _PY_NORUN_RE.search(strip_ansi(btext)) or backend_totals["total"] <= 0:
+        raise GateError(
+            f"BACKEND SHARD COLLECTED NOTHING (scope {backend_scope!r}): the command ran and "
+            "matched no tests, which would report zero failures and read as green. Check the "
+            "scope path and that pytest can import the suite."
+        )
+    backend_failures = sorted(set(parse_pytest_failures(btext)))
+
     # ⛔ (c) DRIFT — the tree that finished must be the tree that started.
     end_head, end_dirty = tree_state_fn()
     end_dirty = _real_dirt(end_dirty)
@@ -351,6 +457,13 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
         "vs_baseline": compare_failures(failures, base.get("failures") or []),
+        "backend": {
+            "scope": backend_scope,
+            "totals": backend_totals,
+            "failures": backend_failures,
+            "vs_baseline": compare_failures(
+                backend_failures, ((base.get("backend") or {}).get("failures")) or []),
+        },
     }
 
 
@@ -402,6 +515,34 @@ def render(manifest: dict) -> str:
     lines.append("")
     lines.append("✅ **The failing set matches the baseline exactly.**" if v.get("matches_baseline")
                  else "⛔ **The failing set DIFFERS from the baseline** — read the two lists above.")
+
+    # ── THE BACKEND SHARD ─────────────────────────────────────────────────────────────────
+    # ⛔ REPORTED SEPARATELY, ON PURPOSE. Summing pytest into the vitest totals would make one
+    # number that reconciles against nothing: the file count is derived from app/src, and a
+    # reader could no longer tell which suite a failure came from.
+    b = manifest.get("backend")
+    if b:
+        bt, bv = b["totals"], b["vs_baseline"]
+        lines += [
+            "",
+            f"## Backend shard — `pytest {b['scope']}`",
+            "",
+            f"- **{bt['failed']} failed / {bt['errors']} errors / {bt['passed']} passed / "
+            f"{bt['total']} total**",
+            f"- observed **{bv.get('observed_count', 0)}** failing, baseline has "
+            f"**{bv.get('baseline_count', 0)}**",
+            f"- **NEW backend failures: {len(bv.get('new') or [])}**"
+            + ("" if bv.get("new") else " — none"),
+        ]
+        for nf in (bv.get("new") or []):
+            lines.append(f"    - ⛔ {nf}")
+        if bv.get("no_longer_failing"):
+            lines.append(f"- no longer failing: {len(bv['no_longer_failing'])} "
+                         f"(fixed, or silently stopped running — check which)")
+            for nf in bv["no_longer_failing"]:
+                lines.append(f"    - {nf}")
+    else:
+        lines += ["", "⛔ **NO BACKEND SHARD IN THIS RUN** — 'gate green' means the frontend only."]
     return "\n".join(lines) + "\n"
 
 
@@ -415,10 +556,14 @@ def main(argv=None) -> int:
     # not require destroying somebody else's 13-minute run.
     ap.add_argument("--max-workers", type=int, default=2,
                     help="vitest workers per shard; lower it when the box is contended")
+    # ⛔ SCOPED, NEVER REPO-WIDE. A bare `pytest` also collects api/services/**/test_*.py and has
+    # OOM-killed this box. Narrowing this is a visible choice; it is never a silent default.
+    ap.add_argument("--backend-scope", default="tests/",
+                    help="pytest path for the backend shard (default: tests/)")
     args = ap.parse_args(argv)
     out_dir = pathlib.Path(args.out)
     try:
-        manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers)
+        manifest = run_gate(args.shards, out_dir, max_workers=args.max_workers, backend_scope=args.backend_scope)
     except GateError as e:
         # ⛔ A REFUSED RUN LEAVES NO ARTIFACT THAT LOOKS LIKE A RUN. The first failure of this
         # wrapper left six 0-byte `shard-*.log` files behind, and a directory of empty logs reads
@@ -475,8 +620,13 @@ def verdict_exit_code(manifest: dict, *, say=lambda *_a, **_k: None) -> int:
     silently collapsed into either answer.
     """
     v = manifest.get("vs_baseline") or {}
-    new = v.get("new") or []
-    stale = v.get("no_longer_failing") or []
+    bv = (manifest.get("backend") or {}).get("vs_baseline") or {}
+    # ⛔ "GATE GREEN" MEANS BOTH SUITES. A NEW failure in either blocks, and the message names
+    # WHICH suite — "4 NEW failures" that does not say frontend-or-backend sends the reader to
+    # the wrong logs, which is the names-not-counts defect one level up.
+    new = [f"[frontend] {x}" for x in (v.get("new") or [])] \
+        + [f"[backend] {x}" for x in (bv.get("new") or [])]
+    stale = (v.get("no_longer_failing") or []) + (bv.get("no_longer_failing") or [])
     if new:
         say(f"\n  GATE: {len(new)} NEW failure(s) against the baseline — exit {EXIT_NEW_FAILURES}.\n"
             f"  Classify each by direction before treating it as a regression: a failure the BASE\n"

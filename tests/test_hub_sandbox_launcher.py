@@ -32,6 +32,7 @@ import io
 import os
 import sys
 
+import pathlib
 import pytest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -261,4 +262,91 @@ def test_the_seeder_gate_is_the_one_the_code_actually_reads(launcher):
     assert "USE_REMOTE_BARS" in window, (
         "The seeder's call site no longer gates on USE_REMOTE_BARS. The sandbox "
         "kill-list is now wrong — find the new gate and update it."
+    )
+
+
+# ── THE FRONTEND-BUILD CHECK ────────────────────────────────────────────────────
+# ⛔ A HALF-BUILT FRONTEND IS A VOID RUN, AND NOTHING ERRORS TO SAY SO. The launcher already
+# refuses a contested port for exactly this reason. This is the same class: the server answers,
+# the tunnel is up, and the feature under test is simply not in the bundle.
+#
+# ⚰️ It is in this file rather than invented, because on 2026-09-11 a partial build
+# (`app/dist` present, `app/dist/assets` absent) produced 18 setup ERRORS in
+# `tests/test_capture_auth_boundary.py` — a filename that sends the reader looking for a
+# security regression. Eighteen auth-boundary tests were not running at all.
+
+
+def _boot_source() -> str:
+    return (pathlib.Path(REPO_ROOT) / "scripts" / "hub_sandbox_boot.py").read_text(encoding="utf-8")
+
+
+def test_the_launcher_refuses_an_unbuilt_frontend():
+    """The check EXISTS, guards the directory it serves, and runs before the port check."""
+    src = _boot_source()
+    assert "_refuse_unbuilt_frontend" in src, (
+        "the launcher has no frontend-build check. `npm run build` exiting 0 is a statement "
+        "about the COMMAND, not about what it produced."
+    )
+    # ⛔ It must check `dist/assets`, not `dist` — checking the parent is the exact defect that
+    # took api/main.py down at import (a guard that tests the adjacent thing).
+    fn = src.split("def _refuse_unbuilt_frontend")[1].split("\ndef ")[0]
+    assert '"assets"' in fn, (
+        "the check does not look at app/dist/assets. Guarding `dist` while serving `dist/assets` "
+        "is the defect this rail exists for."
+    )
+    # ...and it must run BEFORE the port check, since an unbuilt SPA voids the run either way.
+    main_body = src.split("def main()")[1]
+    assert main_body.index("_refuse_unbuilt_frontend(") < main_body.index("_refuse_port_in_use("), (
+        "the frontend check runs after the port check; it is the cheaper one and it voids the "
+        "run regardless of the port"
+    )
+
+
+def test_the_unbuilt_frontend_check_CAN_FIRE(tmp_path, monkeypatch):
+    """⛔ A GUARD NOBODY HAS SEEN FIRE IS NOT A GUARD.
+
+    Executes the real function against a repo root that has no build, and asserts it hard-exits.
+    Three distinct shapes, each with its own sentence, because "never built", "partial" and
+    "empty" are different facts to whoever reads the refusal.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_hsb", pathlib.Path(REPO_ROOT) / "scripts" / "hub_sandbox_boot.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    cases = {
+        "never built": lambda root: None,
+        "partial": lambda root: (root / "app" / "dist").mkdir(parents=True),
+        "empty assets": lambda root: (root / "app" / "dist" / "assets").mkdir(parents=True),
+    }
+    for label, build in cases.items():
+        root = tmp_path / label.replace(" ", "_")
+        (root / "app").mkdir(parents=True)
+        build(root)
+        monkeypatch.setattr(mod, "REPO_ROOT", str(root))
+        with pytest.raises(SystemExit) as exc:
+            mod._refuse_unbuilt_frontend()
+        assert exc.value.code == 1, f"{label}: refused but not with exit 1"
+
+    # ⭐ NON-VACUITY CONTROL: with a real built asset present it must NOT fire, or the guard is
+    # just "always refuse" and would block every legitimate boot.
+    good = tmp_path / "good"
+    assets = good / "app" / "dist" / "assets"
+    assets.mkdir(parents=True)
+    (assets / "index-abc123.js").write_text("//", encoding="utf-8")
+    monkeypatch.setattr(mod, "REPO_ROOT", str(good))
+    mod._refuse_unbuilt_frontend()   # must return, not raise
+
+
+def test_the_app_guards_the_directory_it_actually_mounts():
+    """The root cause, pinned in api/main.py so it cannot come back."""
+    src = (pathlib.Path(REPO_ROOT) / "api" / "main.py").read_text(encoding="utf-8")
+    assert "_ASSETS_DIR = os.path.join(DIST" in src, (
+        "api/main.py no longer names the assets directory before mounting it"
+    )
+    block = src.split("_ASSETS_DIR = os.path.join(DIST")[1][:400]
+    assert "os.path.exists(_ASSETS_DIR)" in block, (
+        "the /assets mount is not guarded by its OWN directory. Guarding DIST while mounting "
+        "DIST/assets raises at import on a partial build and takes the whole app down."
     )

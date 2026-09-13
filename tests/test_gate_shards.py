@@ -36,6 +36,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts
 
 from gate_shards import (  # noqa: E402
     GateError, blob_hash, parse_totals, run_gate, strip_ansi, sum_totals,
+    parse_pytest_totals, parse_pytest_failures, _run_backend, verdict_exit_code,
 )
 
 # ── Fixture (a): REAL captured bytes, not a hand-written approximation ────────────────────────
@@ -601,3 +602,151 @@ def test_the_verdict_reads_the_same_block_the_manifest_publishes(tmp_path):
     assert verdict_exit_code({"vs_baseline": compare_failures([B], [B])}) == 0
     # A manifest with no comparison at all must not silently pass as "nothing new".
     assert verdict_exit_code({}) == 0, "an absent comparison is the empty-baseline case, not a block"
+
+
+_VITEST_OK = (" Test Files  1 passed (1)\n"
+              "      Tests  3 passed (3)\n")
+
+
+# ══ THE BACKEND SHARD ═══════════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ WHY THESE EXIST. Until 2026-09-11 "gate green" meant the FRONTEND was green. Deploy B
+# changed `api/routers/auth.py` and the gate that blessed it ran vitest only — it could not have
+# failed on anything in that diff, and the backend evidence was three pytest commands a human
+# chose to run. These rails are what stop the next api/ change shipping the same way.
+#
+# Each one fails for a different reason: the parser, the refusal, the baseline diff, and a REAL
+# pytest child. The last is the one that cannot be faked by a fixture.
+
+_PY_OK = "24 passed, 1176 warnings in 2.60s"
+_PY_MIXED = "1 failed, 7 passed, 409 warnings in 0.54s"
+_PY_ERRORS = "43 passed, 18 errors in 7.76s"
+
+
+def test_the_pytest_summary_line_is_parsed_in_all_three_shapes():
+    assert parse_pytest_totals(_PY_OK) == {
+        "failed": 0, "passed": 24, "skipped": 0, "errors": 0, "total": 24}
+    assert parse_pytest_totals(_PY_MIXED)["failed"] == 1
+    # ⛔ ERRORS ARE FAILURES FOR THE VERDICT. The 18-error collapse in
+    # test_capture_auth_boundary.py reported "43 passed" beside them; counting only `failed`
+    # would have called that run clean.
+    e = parse_pytest_totals(_PY_ERRORS)
+    assert e["errors"] == 18 and e["total"] == 61, e
+
+
+def test_a_pytest_log_with_no_summary_line_is_None_not_zero():
+    """⛔ None is the ALARM. 'No failures parsed' from a dead run must never read as a pass."""
+    assert parse_pytest_totals("") is None
+    assert parse_pytest_totals("collecting ...\nImportError: boom") is None
+    assert parse_pytest_totals("Killed") is None
+
+
+def test_backend_failures_are_named_not_counted():
+    log = ("FAILED tests/test_a.py::test_one - AssertionError: nope\n"
+           "ERROR tests/test_b.py::test_two\n"
+           "1 failed, 1 error in 0.2s\n")
+    assert parse_pytest_failures(log) == [
+        "tests/test_a.py::test_one", "tests/test_b.py::test_two"]
+
+
+def test_the_backend_shard_refuses_a_run_that_collected_nothing(tmp_path):
+    """⛔ RULE 14. A shard that matched no tests reports zero failures and sails through."""
+    with pytest.raises(GateError) as e:
+        run_gate(1, tmp_path, tree_state_fn=lambda: ("abc123", []),
+                 run_shard_fn=lambda i: _VITEST_OK, file_count_fn=lambda: 3,
+                 run_backend_fn=lambda: "no tests ran in 0.12s\n")
+    assert "COLLECTED NOTHING" in str(e.value)
+
+
+def test_the_backend_shard_refuses_a_run_with_no_totals_line(tmp_path):
+    with pytest.raises(GateError) as e:
+        run_gate(1, tmp_path, tree_state_fn=lambda: ("abc123", []),
+                 run_shard_fn=lambda i: _VITEST_OK, file_count_fn=lambda: 3,
+                 run_backend_fn=lambda: "collecting ...\nImportError: no module named api\n")
+    assert "NO TOTALS LINE from the backend shard" in str(e.value)
+
+
+def test_an_empty_backend_capture_is_a_broken_pipe_not_a_failed_run(tmp_path):
+    with pytest.raises(GateError) as e:
+        run_gate(1, tmp_path, tree_state_fn=lambda: ("abc123", []),
+                 run_shard_fn=lambda i: _VITEST_OK, file_count_fn=lambda: 3,
+                 run_backend_fn=lambda: "")
+    assert "EMPTY CAPTURE from the backend shard" in str(e.value)
+
+
+def test_a_planted_backend_failure_is_NEW_by_name_and_blocks(tmp_path, monkeypatch):
+    """The whole point: a backend regression must block, and must say WHICH suite."""
+    import scripts.gate_shards as gs
+    monkeypatch.setattr(gs, "load_baseline", lambda: {
+        "sha": "base", "measured_at": "test", "failures": [],
+        "backend": {"failures": ["tests/test_known.py::test_already_red"]}})
+    manifest = run_gate(
+        1, tmp_path, tree_state_fn=lambda: ("abc123", []),
+        run_shard_fn=lambda i: _VITEST_OK, file_count_fn=lambda: 3,
+        run_backend_fn=lambda: (
+            "FAILED tests/test_known.py::test_already_red\n"
+            "FAILED tests/test_new.py::test_planted\n"
+            "2 failed, 10 passed in 1.0s\n"))
+    bv = manifest["backend"]["vs_baseline"]
+    assert bv["new"] == ["tests/test_new.py::test_planted"], bv
+    msgs = []
+    code = verdict_exit_code(manifest, say=lambda m, **k: msgs.append(m))
+    assert code != 0, "a NEW backend failure did not block the gate"
+    assert "backend" in " ".join(msgs).lower() or "NEW" in " ".join(msgs)
+
+
+def test_a_backend_failure_ALREADY_in_the_baseline_does_not_block(tmp_path, monkeypatch):
+    """⭐ NON-VACUITY for the rail above: the diff must not simply block on any failure."""
+    import scripts.gate_shards as gs
+    monkeypatch.setattr(gs, "load_baseline", lambda: {
+        "sha": "base", "measured_at": "test", "failures": [],
+        "backend": {"failures": ["tests/test_known.py::test_already_red"]}})
+    manifest = run_gate(
+        1, tmp_path, tree_state_fn=lambda: ("abc123", []),
+        run_shard_fn=lambda i: _VITEST_OK, file_count_fn=lambda: 3,
+        run_backend_fn=lambda: ("FAILED tests/test_known.py::test_already_red\n"
+                                "1 failed, 10 passed in 1.0s\n"))
+    assert manifest["backend"]["vs_baseline"]["new"] == []
+    assert verdict_exit_code(manifest) == 0
+
+
+def test_the_manifest_says_so_when_there_is_no_backend_shard():
+    """⛔ A frontend-only run must SAY it is frontend-only, never look complete."""
+    from scripts.gate_shards import render
+    text = render({
+        "at": "t", "tree_head_start": "a", "tree_head_end": "a", "wrapper": "w",
+        "wrapper_blob": "b", "shards": 1,
+        "per_shard": [{"shard": 1, "files": {"failed": 0, "total": 1},
+                       "tests": {"failed": 0, "passed": 1, "total": 1}}],
+        "summed": {"files": {"failed": 0, "total": 1},
+                   "tests": {"failed": 0, "passed": 1, "total": 1}},
+        "test_files_on_disk": 1, "file_count_reconciles": True, "failures": [],
+        "vs_baseline": {"new": [], "no_longer_failing": [], "matches_baseline": True},
+    })
+    assert "NO BACKEND SHARD IN THIS RUN" in text
+
+
+def test_rail_the_backend_shard_runs_a_REAL_pytest_child_with_REAL_totals(tmp_path):
+    """⛔ THE RAIL THAT CANNOT BE FAKED BY A FIXTURE.
+
+    Every test above hands `run_gate` a canned string. This one executes the real `_run_backend`
+    against a throwaway suite on disk and parses what pytest actually printed — the same thing
+    `test_rail2` does for vitest, and for the same reason: the parser and the runner can each be
+    correct while disagreeing about the format between them.
+    """
+    suite = tmp_path / "mini"
+    suite.mkdir()
+    (suite / "test_mini.py").write_text(
+        "def test_passes():\n    assert True\n\n"
+        "def test_fails():\n    assert False, 'planted'\n",
+        encoding="utf-8")
+    # cwd=tmp_path so the child does NOT load the repo conftest (whose AST census is
+    # minutes of work). The subprocess, pytest and the parse are all real.
+    text = _run_backend(tmp_path, scope=str(suite), timeout_s=60, cwd=tmp_path)
+    assert text.strip(), "the real pytest child produced NO output — broken pipe"
+    totals = parse_pytest_totals(text)
+    assert totals is not None, f"real pytest output did not parse:\n{text[-800:]}"
+    assert totals["passed"] == 1 and totals["failed"] == 1, totals
+    names = parse_pytest_failures(text)
+    assert any("test_fails" in n for n in names), (names, text[-800:])
+    assert (tmp_path / "shard-backend.log").exists(), "the shard log was not written"

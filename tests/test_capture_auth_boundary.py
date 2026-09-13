@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import pathlib
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -43,9 +44,30 @@ def conn():
         c.close()
 
 
+# ⛔ A HALF-BUILT FRONTEND MUST SAY SO BY NAME, NEVER PASS QUIETLY AND NEVER LOOK LIKE AN
+# AUTH BUG. `api/main.py` mounts the SPA's built assets at import. When `app/dist/assets` was
+# missing this fixture raised `RuntimeError: Directory ... does not exist` at SETUP, and pytest
+# reported 18 ERRORS in a file whose name says "auth boundary" — so the reader's first hypothesis
+# was a security regression. The root cause is fixed in `api/main.py` (the mount now guards its
+# own directory), and this stays as the second line of defence: if the app still cannot be
+# imported because the frontend is not built, say THAT, in those words.
+_DIST_ASSETS = pathlib.Path(__file__).resolve().parent.parent / "app" / "dist" / "assets"
+
+
 @pytest.fixture(scope="module")
 def app():
-    from api.main import app as real_app
+    try:
+        from api.main import app as real_app
+    except RuntimeError as exc:  # noqa: BLE001 - re-raised or named, never swallowed
+        if "dist" in str(exc) or "assets" in str(exc):
+            pytest.skip(
+                "SKIPPED BY NAME — the frontend is not built: "
+                f"{_DIST_ASSETS} is missing, so `api.main` cannot be imported. "
+                "This is NOT an auth-boundary result, and it is NOT a pass. "
+                "Run `cd app && npm run build` (or `npm ci && npm run build`) and re-run. "
+                f"Underlying error: {exc}"
+            )
+        raise
     return real_app
 
 

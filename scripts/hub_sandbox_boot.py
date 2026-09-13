@@ -131,6 +131,48 @@ def _norm(path):
     return os.path.normcase(os.path.abspath(path))
 
 
+def _refuse_unbuilt_frontend():
+    """Hard-exit if the SPA's built assets are missing.
+
+    ⛔ JUDGE THE ARTIFACT, NOT THE ABSENCE OF AN ERROR. `scripts/hub-sandbox.ps1` runs
+    `npm run build` and throws on a non-zero exit — which is a check on the COMMAND, not on
+    what it produced. A build can exit 0 and leave `app/dist/assets` absent (an interrupted
+    run, a cleaned dist, a build that wrote somewhere else), and the exit code says nothing
+    about any of that.
+
+    ⚰️ WHAT A HALF-BUILT FRONTEND ACTUALLY DID, on 2026-09-11: `api/main.py` mounted
+    `app/dist/assets` behind a guard that tested `app/dist` — a DIFFERENT path — so importing
+    the app raised at module level. `tests/test_capture_auth_boundary.py` reported 18 setup
+    ERRORS, in a file whose name says "auth boundary", so the first hypothesis a reader forms
+    is a security regression. It was a missing directory. Eighteen auth-boundary tests had not
+    been RUNNING at all, which is worse than failing: a suite that cannot run is silent, and
+    silence reads as coverage.
+
+    ⭐ Serving an unbuilt frontend is the same class of void run as serving on a contested
+    port (see `_refuse_port_in_use`): HTTP answers, nothing errors, and every UI observation
+    gathered against it is meaningless — the hub simply is not in the bundle. So this refuses
+    to start rather than hand a browser a page that cannot contain the feature under test.
+    """
+    dist = os.path.join(REPO_ROOT, "app", "dist")
+    assets = os.path.join(dist, "assets")
+    if os.path.isdir(assets) and any(os.scandir(assets)):
+        return
+    if not os.path.isdir(dist):
+        detail = f"{dist} does not exist — the frontend has never been built here."
+    elif not os.path.isdir(assets):
+        detail = (f"{dist} exists but {assets} does not — a PARTIAL build. This is the shape "
+                  "that produced 18 misleading auth-boundary errors on 2026-09-11.")
+    else:
+        detail = f"{assets} exists but is EMPTY — a build that produced nothing."
+    print("\n⛔ REFUSING TO BOOT: the frontend is not built.", file=sys.stderr)
+    print(f"   {detail}", file=sys.stderr)
+    print("   Serving an unbuilt SPA means the browser cannot contain the feature under test, "
+          "so every observation made against it is void — and nothing would ERROR to say so.",
+          file=sys.stderr)
+    print("   Fix: cd app && npm ci && npm run build", file=sys.stderr)
+    sys.exit(1)
+
+
 def _refuse_port_in_use(port):
     """Hard-exit if something is ALREADY listening on this port.
 
@@ -338,6 +380,9 @@ def main():
     args = ap.parse_args()
 
     sandbox = os.path.abspath(args.data_dir)
+    # ⛔ BEFORE THE PORT CHECK: an unbuilt frontend makes the run void whether or not
+    # the port is clean, and it is the cheaper check.
+    _refuse_unbuilt_frontend()
     _refuse_port_in_use(args.port)
 
     # ⛔ THE SNAPSHOT IS THE FIRST THING THIS RUN REPORTS, BEFORE ANY HEALTH
