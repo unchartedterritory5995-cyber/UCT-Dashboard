@@ -307,7 +307,8 @@
       "Scale Padding"
     ],
     "_why_unmeasured": "⚰️ THIS CAPTURE PREDATES THE RULING BY HOURS. The rig depth was never probed, and it cannot be recovered from the artifact — only from the chart, on another visit. Named in `tests/test_vendor_capture_window.py::PREDATES_THE_MEASUREMENT`, which is a CLOSED list: a capture taken after 2026-09-12 that lands at UNMEASURED fails that rail by name.",
-    "_what_the_capture_still_suggests": "⚠️ AN OBSERVATION, DELIBERATELY NOT PROMOTED TO A MEASUREMENT. `Avg Vol Line` reads 43,318,979 on the last bar and a 50-bar `sma` is `na` until it has 50 bars, so the three 50-bar columns demonstrably had their window. That is an argument, and the rule takes a reading — so they stay excluded until `bars_loaded` is read off the rig. ⛔ The exclusion is what makes not measuring cost something; reasoning around it here is how the rule would stop being one."
+    "_what_the_capture_still_suggests": "⚠️ AN OBSERVATION, DELIBERATELY NOT PROMOTED TO A MEASUREMENT. `Avg Vol Line` reads 43,318,979 on the last bar and a 50-bar `sma` is `na` until it has 50 bars, so the three 50-bar columns demonstrably had their window. That is an argument, and the rule takes a reading — so they stay excluded until `bars_loaded` is read off the rig. ⛔ The exclusion is what makes not measuring cost something; reasoning around it here is how the rule would stop being one.",
+    "_depth_evidence_2026_09_13": "⛔⛔ AND IT IS PROBABLY NOT JUST UNRECORDED — IT IS PROBABLY SHORT. A fresh load of this very layout on SPY 1D gives **640 bars** (2024-02-23 → 2026-09-11), measured 2026-09-13. The AGEN capture had to FORCE 4,066 bars with `Go to → 2012-01-03` to clear the 2,751 window, and the SPY capture records no such forcing. So the honest reading is that this capture was taken shallow and its `HVE Trigger` flat 0 may be an artefact of the load rather than the script's answer. ⭐ THAT IS WHY UNMEASURED IS NOT FLIPPED BY A PROBE: reading the depth TODAY measures today's chart, not the capture's, and the fix is a RE-CAPTURE at forced depth."
   },
   "volume_granularity": {
     "_": "⭐⭐ R-L (owner ruling, 2026-09-12): an INTEGER series compares EXACTLY after the coarser side's granularity is applied; anything the unit does not explain is a real divergence. ⛔ NOT A TOLERANCE — `seriesCompare` snaps BOTH sides to the unit and then demands equality, so a bar off by 101 shares still fails at unit 100. ⛔ AND IT IS DECLARED HERE, NEVER SNIFFED: 'every bar in this capture happens to be a multiple of 100' is not the same claim as 'this store rounds to 100'.",
@@ -357,5 +358,20 @@
       ],
       "_the_two_that_remain": "⛔ 35,441 and 37,581 shares are NOT rounding at any unit, and they go on the open volume-provenance row with their dates. That row is the reason this field is a measurement and not a licence."
     }
+  },
+  "chart_data_settings": {
+    "_": "⭐⭐ READ OFF THE RIG 2026-09-13, owed as the volume-provenance row's first evidence. ⛔ THE ADJUSTED-VOLUME HYPOTHESIS IS DEAD: dividend adjustment was ALREADY OFF when every one of these captures was taken, so the vendor's fractional pre-2024 volumes are not an adjustment we forgot to disable.",
+    "read_from": "mainSeries().properties().state() on the capture layout, both symbols, 2026-09-13",
+    "dividendsAdjustment": false,
+    "backAdjustment": false,
+    "esdShowSplits": true,
+    "esdShowDividends": false,
+    "sessionId": "regular",
+    "_esd_are_markers": "⚠️ `esdShow*` are the chart's EVENT MARKERS (the Splits/Earnings glyphs the study-count probe excludes), not adjustments. The two that adjust prices are `dividendsAdjustment` and `backAdjustment`, and both are off.",
+    "symbolInfo_exchange": {
+      "SPY": "NYSE Arca",
+      "AGEN": "NASDAQ"
+    },
+    "_exchange_is_a_witness_check": "⭐ `NYSE Arca` is exactly the store spelling `symbolScope.json::confirmed` maps to Pine `AMEX`, witnessed by `AMEX:SPY`. The witness table is right, independently."
   }
 }

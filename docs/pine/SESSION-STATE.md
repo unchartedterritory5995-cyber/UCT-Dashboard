@@ -1,5 +1,269 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ SESSION 3 — THE LIST, IN ORDER (owner ruling, 2026-09-13). DO NOT START.
+
+| # | item | estimate |
+|---|---|---|
+| **1** | **R-K's symbol half** — thread a symbol object `{ticker, exchange, …}` from the chart's symbol resolution through `binder.sync` → `computeFor` → `symbolConstants`, **with the Python twin**. | **2–3 h**, hard stop at 3 |
+| **2** | **T5b — the saved-definition pane surface** — a member's saved definition drawn through `indicatorInstances` on the surface they actually open. Flag-gated, and the flag-off rail non-vacuous **on the real route**. | 2–3 h |
+| **3** | **R2 text layer + `table.*` ×10** — both tables rendered and anchored, cell-by-cell string compare against `7f94f4404` and `5c4d67ef2`, **including the trailing-space cell**. | 3 h |
+| **4** | **Mobile audit at 390×844 and 1024×768** via `tools/mobile_audit.py`, viewport pinned, 4 screenshots, pass/UNTESTED per row. ⛔ The 29px frame is the exact thing to look for. | 1–2 h |
+| **5** | **Merge `origin/master`** after a fresh dry-run against the CURRENT tip; both lanes + rails post-merge; **flag default OFF confirmed on the merged tree**. | 1–2 h |
+| **6** | **PR body** per the earlier spec. ⛔ **First process item is the worktree-ownership rule (R8).** | 30 m |
+
+⛔ **1 BEFORE 3, AND THAT IS THE ORDER FOR A REASON THE OWNER GAVE: table cells
+are where `syminfo.tickerid` strings end up.** Tables built on a lane that cannot
+resolve a symbol field would be built on the refusal.
+
+⛔ **2 BEFORE 3 FOR THE SAME SHAPE OF REASON: tables are pointless on a surface a
+member cannot reach.** `BuilderSheet` is the member-facing IMPORT route and is
+real; what has no pane is the SAVED definition — the thing a member opens the day
+after they import.
+
+### R-K item 1 — the seam, so the 3-hour stop has something to show
+
+```
+StockChart.jsx  ~10087   binder.sync({ …, sym, tf: resolvedTf, … })     ← `sym` is a STRING
+binder.js         665    registry.computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf, … })
+nativeRegistry   1231    bindingConstants({ timeframe, inputs, symbol: ctx.sym })
+bind.js           144    if (!symbol || typeof symbol !== 'object') return {}   ← everything stops here
+```
+
+⭐ The witnesses are NOT the blocker — `symbolScope.json::confirmed` holds six
+exchanges captured 2026-09-10, and the rig confirmed one of them independently
+tonight: SPY's `symbolInfo().exchange` reads **`NYSE Arca`**, exactly the store
+spelling the table maps to Pine `AMEX`.
+
+---
+
+## ⭐⭐ PART 6 — 47 OF 60, AND THE REMAINING 13 ARE NOT A TIME PROBLEM
+
+**The rig-tab rule was lifted for Part 6 and the route worked.** Every one of the
+twenty was navigated to, gated (v2.1, on the tab being driven, before every
+click), its "Source code" tab clicked, its Pine read off the viewer and hashed
+against `sha256_source` **before** anything reached disk.
+
+```
+pine_oos sources    30 -> 40 (restored) -> 47 (captured)   of 60
+hash mismatches                                       0    (a mismatch is REFUSED, not written)
+git status in that dir                            clean    (the licence ignore holds)
+```
+
+### The 30 rows
+
+| # | how | tier | script | on disk | sha | page date at freeze |
+|---|---|---|---|---|---|---|
+| 1 | restored | high | `02-waddah-attar-explosion-lazybear` | Y | Y | Oct 10, 2014 |
+| 2 | restored | high | `03-supertrend-kivancozbilgic` | Y | Y | Mar 13, 2020 (page sho |
+| 3 | restored | high | `04-ttm-squeeze-greeny` | Y | Y | Jul 20, 2014 |
+| 4 | restored | mid | `07-3way-bollinger-trend` | Y | Y | shown as "2 days ago"  |
+| 5 | restored | mid | `09-relative-volume-breakout-context` | Y | Y | shown as "yesterday" a |
+| 6 | restored | high | `11-vumanchu-cipher-a-vumanchu` | Y | Y | Nov 10, 2019 |
+| 7 | restored | high | `12-cm-ultimate-rsi-mtf-chrismoody` | Y | Y | Aug 25, 2014 |
+| 8 | restored | high | `14-heikin-ashi-candle-overlay-bjorgum` | Y | Y | Jul 4, 2021 (page badg |
+| 9 | restored | long_tail | `16-spy-position-helper` | Y | Y | 2 days ago (relative d |
+| 10 | restored | high | `24-coppock-curve-multi-filter-markittick` | Y | Y | 2026-09-02T17:01:20Z |
+| 11 | captured | high | `08-market-structure-break-ob-probability-toolkit-luxalgo` | Y | Y | Feb 2 (year not shown  |
+| 12 | captured | high | `13-ultimate-opening-range-breakout-luxalgo` | Y | Y | Apr 8 (year not shown  |
+| 13 | captured | high | `17-volume-profile-and-volume-indicator-dgt-dgtrd` | Y | Y | Feb 23, 2022 (page bad |
+| 14 | captured | high | `19-anchored-vwap-stuehmer` | Y | Y | Jun 12, 2019 |
+| 15 | captured | long_tail | `20-cot-pulse-cloud-trend` | Y | Y | 2026-08-28 |
+| 16 | captured | high | `21-parabolic-sar-deviation-bigbeluga` | Y | Y | Mar 15, 2025 (page bad |
+| 17 | captured | mid | `23-distilled-htf-po3` | Y | Y | shown as "3 days ago"  |
+| 18 | drift | long_tail | `01-ny-macro-status` | n | n | 2 days ago (relative d |
+| 19 | drift | mid | `03-volatility-supply-demand-zones` | n | n | shown as "2 days ago"  |
+| 20 | drift | mid | `04-cisd-order-block` | n | n | shown as "2 days ago"  |
+| 21 | drift | mid | `05-supertrend-fibonacci-ote` | n | n | shown as "4 hours ago" |
+| 22 | drift | mid | `08-hourly-alpha-profile-terminal` | n | n | shown as "3 days ago"  |
+| 23 | drift | long_tail | `10-mtf-supply-demand` | n | n | 2 days ago (relative d |
+| 24 | drift | mid | `10-smc-engine` | n | n | shown as "4 days ago"  |
+| 25 | drift | long_tail | `14-vwap-z-score-oscillator` | n | n | 3 days ago (relative d |
+| 26 | drift | long_tail | `15-agreed-upon-dol` | n | n | yesterday (relative da |
+| 27 | drift | mid | `15-multi-timeframe-ma-forecast` | n | n | shown as "4 days ago"  |
+| 28 | drift | long_tail | `18-deltalabs-equal-highs-equal-lows` | n | n | 2 days ago (relative d |
+| 29 | drift | long_tail | `19-session-fibs-falcon-ai` | n | n | 2 days ago (relative d |
+| 30 | stub | mid | `01-zeiierman-trend-pressure` | n | n | shown as "3 hours ago" |
+
+totals: 10 restored · 7 captured · 12 hash-differs · 1 source-not-shown
+
+⭐ **ROWS 4, 5 AND 9 ARE THE CONTROL FOR THE WHOLE DRIFT READING.** They are
+recently-dated too — "2 days ago", "yesterday" — and they match, because they
+were **restored from the frozen local copy**, not re-fetched. Restoring copies
+the freeze; capturing asks the internet what the script says today. The two
+answer different questions and the table keeps them apart.
+
+### ⛔⛔ THE 12 THAT DIFFER ARE COMPLETE CAPTURES, NOT BROKEN ONES
+
+Every one of them: **captured line count == the page's own "View in Pine Editor ·
+N lines" claim.** Where the manifest records `non_comment_lines`, that matched
+too — `01-ny-macro-status` read 194 lines and **166 non-comment against the
+manifest's 166**, on `//@version=6` as declared. The bytes differ; the script's
+shape does not.
+
+⭐ **THE FREEZE'S OWN METADATA PREDICTS IT, AND ONLY AS A TENDENCY.** Of the seven
+that matched, five carry stable dates (2019, 2022, 2025, "Feb 2", "Apr 8") and
+two are recent (`2026-08-28`, "3 days ago"). Of the twelve that differ, **all
+twelve** were "hours ago" / "days ago" at the 2026-09-07 freeze. Recency raises
+the odds an author has edited since; it does not settle any single case, and this
+is written as a tendency rather than a law because two recent ones matched.
+
+⛔ **NOTHING WAS FUDGED.** A capture whose hash did not match was refused by the
+sink and never touched the fixture directory. The alternative — writing today's
+bytes under the frozen hash — would have made every downstream census green
+against a corpus nobody froze.
+
+### ⛔ AND ONE IS NOT DRIFT AT ALL: `01-zeiierman-trend-pressure`
+
+Captured **5 lines** against the page's own claim of **353**. The source is not
+published — a protected script showing a stub. ⭐ The claimed-vs-captured control
+is what separated it from the twelve, and without that control it would have
+been filed as another drift.
+
+### What it costs, exactly
+
+| red | now | needs |
+|---|---|---|
+| `objectDemandCensus` · `visualDemandCensus` | `expected 47 to be 60` | the 13 |
+| `capabilityDemandCensus` · `historyDemandCensus` | `expected 146 to be greater than 150` | the 13 |
+| `visualParitySet` | **2 members**, was 3 | see below |
+
+**Floors stay at 60.** The route to 60/60 is no longer "spend more session time";
+it is a decision about the freeze:
+
+1. **Re-freeze the 12 drifted** at today's bytes (new `sha256_source`, new
+   `retrieved_at`) — the corpus stays 60 and stops being the corpus that was
+   measured. ⛔ Every published census number would move.
+2. **Substitute** the 13 with stable-dated scripts and re-freeze the manifest.
+3. **Leave it at 47/60** and lower the floors to what is reproducible.
+
+⚠️ **That is an owner call and I have not made it.**
+
+---
+
+## ⚠️ R-I — 8 OF 10, AND THE LAST TWO CANNOT BE FETCHED
+
+`visualParitySet` was blocked on three members and is now blocked on two:
+
+| member | why |
+|---|---|
+| `mid_engagement__05-supertrend-fibonacci-ote` | hash differs — the author has edited it since the freeze |
+| `mid_engagement__01-zeiierman-trend-pressure` | **the source is not published** |
+
+⛔ **THE SECOND ONE IS STRUCTURAL.** A frozen parity set contains a member whose
+source TradingView does not show, so **10/10 against the frozen hashes is not
+reachable at any amount of effort** — it needs the set re-frozen or that member
+substituted. Naming it here because "R-I is blocked on Part 6" reads like a
+scheduling problem and one half of it is not.
+
+---
+
+## ⭐⭐ THE TWO ADJUSTMENT-TOGGLE CHECKS — DONE, AND ONE HYPOTHESIS IS DEAD
+
+Read off the rig, both symbols, `mainSeries().properties().state()`:
+
+```
+dividendsAdjustment  false      backAdjustment  false
+esdShowSplits        true       esdShowDividends false      sessionId  "regular"
+symbolInfo().exchange   SPY → "NYSE Arca"      AGEN → "NASDAQ"
+```
+
+⛔ **ADJUSTED VOLUME IS OUT.** Dividend adjustment was already OFF when every
+capture was taken, so the vendor's fractional pre-2024 AGEN volumes are not an
+adjustment anybody forgot to disable. The second check — "re-read one pre-2016
+bar with adjustment off" — is answered by the first: **off is the state it was
+already in.**
+
+### ⭐⭐ AND THE RE-READ FOUND SOMETHING BETTER THAN THE 2015 BAR
+
+The loaded AGEN window straddled **2024-04-12**, the date our own store changes
+character. Read on the vendor's chart, adjustment off:
+
+| | vendor | ours |
+|---|---|---|
+| before 2024-04-12 | 35 bars, **3 integral, 0 multiples of 100** | 5,394 bars, 1.1% multiples of 100 |
+| from 2024-04-12 | **606 bars, all 606 integral** | **606 bars, 100% multiples of 100** |
+
+```
+date         vendor        ours
+2024-04-08   1,320,809.3   1,320,810
+2024-04-10     301,580.4     301,580
+2024-04-11     349,021       349,020
+2024-04-12   1,399,796     1,399,800
+2024-04-15   1,459,460     1,459,500
+2024-04-09     805,236       801,640     ← 0.45%, and no rounding explains it
+```
+
+⭐ **THE SAME DATE, AND THE SAME 606 BARS, ON BOTH SIDES.** Before it, ours is the
+vendor's fractional number rounded to a whole share. After it, the vendor is
+integral and unrounded while ours is rounded to 100. **Both sides changed source
+on 2024-04-12; only ours additionally quantises.**
+
+That kills the adjustment hypothesis and hands the provenance item a date to ask
+its question about. `2024-04-09` is the reason the row stays open.
+
+---
+
+## ⛔ THE SPY DEPTH READ — UNMEASURED STAYS, AND IT IS WORSE THAN BOOKKEEPING
+
+A fresh load of the capture layout on SPY 1D gives **640 bars** (2024-02-23 →
+2026-09-11), measured 2026-09-13. The AGEN capture had to FORCE 4,066 bars with
+`Go to → 2012-01-03` to clear the 2,751 window, and **the SPY capture records no
+such forcing**.
+
+⛔ So the likely truth is not "the depth was not written down" but "**the depth
+was short**" — and `HVE Trigger`'s flat 0 in that capture may be an artefact of a
+640-bar load rather than the script's answer.
+
+⭐ **THIS IS WHY A PROBE DOES NOT RETIRE `UNMEASURED`.** Reading the depth today
+measures today's chart, not the capture's. The fix is a **re-capture at forced
+depth** — a Part 3 action, owed, and now with a reason to do it beyond tidiness.
+
+### Rig left as found
+
+SPY 1D, **0 indicators** by the corrected probe (`studies: 2` = Splits +
+Earnings, `controlProbeSawSomething: true`), **no Remove item in the context
+menu**, symbol restored, nothing saved, nothing added at any point during Part 6.
+
+---
+
+## ⭐ CLOSE-OUT — 2026-09-13 (Part 6 session)
+
+| lane | result |
+|---|---|
+| JS `chart/engine` + `chart/builder` | **339 files · 7,125 tests → 7,083 passed, 32 skipped, 10 failed in 8 files** |
+| Python (vendor + AST suites) | **294 passed, 5 skipped** |
+
+⛔ **THE TEN REDS ARE THE SAME TEN, AND THAT IS THE HONEST RESULT OF PART 6.** The
+corpus moved 40 → 47 and `visualParitySet` went from three blocked members to
+two, but the thresholds are `60` and `> 150`, so five files stay red at 47 and
+146. The other five are the pre-existing HEAD reds
+(`BuilderSheet.pine`, `ImportBox.thinkscript`, `pineBoxSuggestVoice`), baselined
+this session against a restored `BuilderSheet.jsx`.
+
+⭐ **A suite count that did not move is the right report here.** Seven scripts
+landed and the floors did not, because the floors are 60 and the remaining 13
+cannot be fetched — that is a decision waiting, not work waiting.
+
+### Metric, old → new
+
+```
+tools/corpus_metric.json    scripts 266   host_ok 31   screener_ok 44     UNCHANGED
+```
+
+No movers. The metric reads the curated corpus, not `pine_oos`.
+
+### Rails that fired, and both were instruments rather than products
+
+- **The sink's own hash check** refused 12 captures before they touched disk.
+  That is the rail doing its whole job: the tempting failure was to write today's
+  bytes under a frozen hash and watch five censuses turn green.
+- **The claimed-vs-captured line count** separated `01-zeiierman-trend-pressure`
+  (5 captured, 353 claimed — an unpublished source) from the twelve complete
+  captures that merely disagree. Without it that script would have been filed as
+  drift and the "recently updated" story would have had a thirteenth false
+  witness.
+
+
 ## ⛔⛔ PART 6 — 40 OF 60, AND THE LAST 20 ARE BLOCKED ON A TAB NOBODY CAN FOCUS
 
 ### What landed, free and verified

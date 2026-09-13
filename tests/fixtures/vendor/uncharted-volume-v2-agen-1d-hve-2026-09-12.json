@@ -336,5 +336,81 @@
     },
     "vendor_volume_granularity": 1,
     "_why_the_unit_is_1_here": "⛔ THE CAPTURE'S COMPARED BARS ARE PRE-BOUNDARY (2013-2015) plus the record day, and the pre-boundary ones are unrounded on BOTH sides — so applying 100 would be inventing a resolution neither side answers at. The unit is a property of the bars being compared, not of the symbol."
+  },
+  "chart_data_settings": {
+    "_": "⭐⭐ READ OFF THE RIG 2026-09-13, owed as the volume-provenance row's first evidence. ⛔ THE ADJUSTED-VOLUME HYPOTHESIS IS DEAD: dividend adjustment was ALREADY OFF when every one of these captures was taken, so the vendor's fractional pre-2024 volumes are not an adjustment we forgot to disable.",
+    "read_from": "mainSeries().properties().state() on the capture layout, both symbols, 2026-09-13",
+    "dividendsAdjustment": false,
+    "backAdjustment": false,
+    "esdShowSplits": true,
+    "esdShowDividends": false,
+    "sessionId": "regular",
+    "_esd_are_markers": "⚠️ `esdShow*` are the chart's EVENT MARKERS (the Splits/Earnings glyphs the study-count probe excludes), not adjustments. The two that adjust prices are `dividendsAdjustment` and `backAdjustment`, and both are off.",
+    "symbolInfo_exchange": {
+      "SPY": "NYSE Arca",
+      "AGEN": "NASDAQ"
+    },
+    "_exchange_is_a_witness_check": "⭐ `NYSE Arca` is exactly the store spelling `symbolScope.json::confirmed` maps to Pine `AMEX`, witnessed by `AMEX:SPY`. The witness table is right, independently."
+  },
+  "volume_source_boundary": {
+    "_": "⭐⭐ THE BOUNDARY IS SHARED, AND THAT IS THE FINDING. Our store's AGEN volumes stop being fractional-source and start being multiples of 100 on 2024-04-12. Read on the vendor's own chart the same day, with adjustment off, the vendor changes on THE SAME DATE — and the two windows are the same size, 606 bars.",
+    "measured_at": "2026-09-13",
+    "vendor_before_2024_04_12": {
+      "bars": 35,
+      "integral": 3,
+      "multiples_of_100": 0
+    },
+    "vendor_from_2024_04_12": {
+      "bars": 606,
+      "integral": 606,
+      "multiples_of_100": 6
+    },
+    "ours_before_2024_04_12": {
+      "bars": 5394,
+      "multiples_of_100_pct": 1.1
+    },
+    "ours_from_2024_04_12": {
+      "bars": 606,
+      "multiples_of_100_pct": 100.0
+    },
+    "side_by_side": [
+      {
+        "date": "2024-04-08",
+        "vendor": 1320809.3,
+        "ours": 1320810
+      },
+      {
+        "date": "2024-04-09",
+        "vendor": 805236,
+        "ours": 801640
+      },
+      {
+        "date": "2024-04-10",
+        "vendor": 301580.4,
+        "ours": 301580
+      },
+      {
+        "date": "2024-04-11",
+        "vendor": 349021,
+        "ours": 349020
+      },
+      {
+        "date": "2024-04-12",
+        "vendor": 1399796,
+        "ours": 1399800
+      },
+      {
+        "date": "2024-04-15",
+        "vendor": 1459460,
+        "ours": 1459500
+      },
+      {
+        "date": "2024-04-16",
+        "vendor": 1322989,
+        "ours": 1322800
+      }
+    ],
+    "_what_it_says": "⭐ BEFORE the boundary ours is the vendor's fractional value ROUNDED TO A WHOLE SHARE (1,320,809.3 → 1,320,810; 301,580.4 → 301,580). AFTER it, the vendor is integral and unrounded while ours is rounded to 100. So BOTH sides changed source on 2024-04-12, and only ours additionally quantises. ⛔ 2024-04-09 is the exception that keeps this a row and not a closed question: 805,236 against 801,640 is 0.45%, which no rounding explains.",
+    "_hypotheses_after_this": "Adjusted volume is OUT (the toggle was off). Live: a consolidated-vs-primary tape difference, or a provider change on 2024-04-12 that both we and TradingView made. The date is the lead."
   }
 }
