@@ -498,6 +498,51 @@ export default function useNotebookSection() {
         next()
         if (list.length) openNote(list[Math.min(at + 1, list.length - 1)])
       },
+      /**
+       * ⛔⛔ REVERSE — §C3 PROMISES IT AND IT DID NOT SHIP. **D-43.**
+       *
+       * The spec's notebook row reads *"Primary: next note. **Reverse: previous note.**"*, and
+       * every other cursor-bearing mode declares `onDoubleTap`. This controller declared `onTap`,
+       * `onScrub` and `readout` and nothing else, so a double-tap on the note grid did nothing at
+       * all — the one direction a member cannot recover by hand once the cursor has walked past.
+       *
+       * ⭐ IT WAS INVISIBLE BECAUSE THE INSTRUMENT WAS. `surface-matrix.md` reported `wire` and
+       * `home` as having NO bindings at all (D-42, the colon-only matcher in
+       * `tools/hub_surface_matrix.mjs`), so "notebook is missing one of four" could not stand out
+       * from nine other modes reported as missing everything. Fixing the scanner is what made this
+       * row legible, which is the argument for fixing scanners.
+       *
+       * ⛔ SYMMETRIC WITH `onTap`, DELIBERATELY — same clamp, same computed target, same reason.
+       * `prev()` writes the store synchronously while this closure still holds the PRE-tap index,
+       * so re-reading the cursor here would name the note it just left. `Math.max(at - 1, 0)`
+       * mirrors `useHubCursor.prev`'s own clamp: the first note is the floor, never a wrap onto
+       * the last one.
+       */
+      onDoubleTap: () => {
+        const { ids: list, index: at } = cursorRef.current
+        prev()
+        if (list.length) openNote(list[Math.max(at - 1, 0)])
+      },
+      /**
+       * ⛔⛔ REVERSE — §C3 PROMISES IT AND IT DID NOT SHIP. **D-43.**
+       *
+       * The spec's notebook row reads *"Primary: next note. **Reverse: previous note.**"*, and
+       * every other cursor-bearing mode declares `onDoubleTap`. This controller declared `onTap`,
+       * `onScrub` and `readout` and nothing else, so a double-tap on the note grid did nothing at
+       * all — the one direction a member cannot recover by hand once the cursor has walked past.
+       *
+       * ⭐ IT WAS INVISIBLE BECAUSE THE INSTRUMENT WAS. `surface-matrix.md` reported `wire` and
+       * `home` as having NO bindings at all (D-42, the colon-only matcher in
+       * `tools/hub_surface_matrix.mjs`), so "notebook is missing one of four" could not stand out
+       * from nine other modes reported as missing everything. Fixing the scanner is what made this
+       * row legible, which is the argument for fixing scanners.
+       *
+       * ⛔ SYMMETRIC WITH `onTap`, DELIBERATELY — same clamp, same computed target, same reason.
+       * `prev()` writes the store synchronously while this closure still holds the PRE-tap index,
+       * so re-reading the cursor here would name the note it just left. `Math.max(at - 1, 0)`
+       * mirrors `useHubCursor.prev`'s own clamp: the first note is the floor, never a wrap onto
+       * the last one.
+       */
       onScrub: (_ctx, scrub) => { if (scrub && typeof scrub.delta === 'number') scrubTo(scrub.delta) },
       /**
        * ⛔⛔ THIS WAS MISSING, AND THE CONTRACT ALREADY FORBADE THAT.
@@ -566,7 +611,7 @@ export default function useNotebookSection() {
     // so a `readout` closed over a ref would narrate the step the member started on and never
     // move. What must never ride the cursor is a FETCH, which is why the note client is armed at
     // the gesture instead.
-  }, [onRoute, ids, index, count, next, scrubTo, openNote, hasNotes, noteUnderCursor, linkTicker,
+  }, [onRoute, ids, index, count, next, prev, scrubTo, openNote, hasNotes, noteUnderCursor, linkTicker,
     startFromTemplate, recording, toggleVoiceNote])
 
   useHubMode(config)
