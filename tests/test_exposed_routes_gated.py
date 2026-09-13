@@ -1172,7 +1172,19 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
             monkeypatch.setattr(ba, "validate_session", lambda _c, _u=user: dict(_u))
             monkeypatch.setattr(ba, "get_user_plan", lambda _i, _u=user: _u["plan"])
             try:
-                if ba.require_bars_access(uct_session="test-session") is not None:
+                # ⚠️ `authorization=""` IS PASSED EXPLICITLY, NOT LEFT TO DEFAULT.
+                # Called as a plain function the FastAPI default is a `Header()`
+                # OBJECT, and `_push_secret_ok` would hand it to
+                # `hmac.compare_digest` — a TypeError, but ONLY when PUSH_SECRET
+                # happens to be set, because the `bool(secret)` guard returns
+                # first when it is not. Four test modules set it at IMPORT time
+                # (`test_push`, `test_push_intraday`, `test_catalysts_internal`,
+                # `test_wire_feedback`), and pytest imports every module it
+                # collects regardless of `-k` — so that TypeError is an
+                # ORDER-DEPENDENT landmine, not a theoretical one. The flow
+                # measurement below still carries it; this one does not.
+                if ba.require_bars_access(uct_session="test-session",
+                                          authorization="") is not None:
                     out.add(name)
             except HTTPException:
                 pass

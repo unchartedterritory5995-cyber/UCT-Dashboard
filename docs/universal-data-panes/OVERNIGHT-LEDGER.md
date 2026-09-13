@@ -826,3 +826,106 @@ answers `503 warming` with `Retry-After` instead of 400. A 2000-char ticker is
 still echoed. `Server-Timing` still names cache tiers. `/api/compare/*` remains
 open — public taxonomy, not bar data, but it carries the same stale "charts are a
 free page" comment and deserves its own look.
+
+## SECURE-CDN PREP — CLOSING THE REMAINING ORIGIN DOORS (2026-09-13)
+
+### WHAT THIS PASS DID
+Closed the **third** chart-data door and wired its caller. No Cloudflare change,
+no purge, no cache-header change — the edge performance layer is deliberately
+untouched until its secure replacement exists.
+
+### THE THIRD DOOR
+`api/worker_main.py` mounts `GET /api/bars-history/{ticker}` behind
+`BARS_HISTORY_ORIGIN_ENABLED=1` with no gate. Per
+`docs/superpowers/specs/2026-08-31-edge-deep-history.md` that route holds the deep
+20 GB bars.db the production history path is actually fed from — the web pod does
+not hold deep history, it proxies here. The 2026-09-13 security pass closed
+`api.main` and the bars-api tier and looked complete.
+
+- Worker route → `Depends(require_bars_service)` (service token only).
+- `_proxy_bars_history_to_worker` → presents `bars_service_headers()`, and treats
+  a 401/403 from the worker as ITS OWN problem: raising drops into the caller's
+  existing fall-back-to-local path, so a misconfigured secret costs DEPTH (the
+  web's shallow tail) and never a chart. Safe to deploy in either order.
+- `/internal/health`, `/api/health`, `/api/ready` stay open — Railway's
+  healthcheck presents no credential.
+
+⛔ SERVICE TOKEN, NEVER A MEMBER COOKIE. The worker has no `auth.db` and no
+browser caller. Its credential is INFRASTRUCTURE IDENTITY; the member question is
+answered upstream on the pod that can answer it.
+
+⚠️ EXTERNAL CHECK: does the Railway `worker` service have a public domain?
+`bars-api` unexpectedly did. The code does not depend on the answer.
+
+### ⚰️ A RAIL THAT WAS BORN VACUOUS
+The worker mount does `from api.routers.bars import serve_bars_history`, binding
+the function into the closure at BUILD time. A spy installed after `_build_app()`
+was never the function the route called — so the denied-before-data case passed
+while asserting nothing, and would have stayed green with the gate deleted. It now
+substitutes BEFORE the build and proves the spy reachable with a positive control
+first. Same lesson as `lesson_from_import_severs_a_module_from_its_guards`,
+one layer further out: the binding happened at app-construction time.
+
+### TODAY-PACK — AUDITED, DELIBERATELY NOT PATCHED
+`GET /api/bars-today-pack` exists on `origin/master`, not on this branch
+(p2 is 106 commits behind).
+
+- **What:** today's developing daily bar for the WHOLE market in one payload,
+  projected from a market snapshot the pod already fetches (~630 KB, no extra
+  provider call).
+- **Consumer:** `app/src/lib/todayPackClient.js`, pulled on load and refreshed
+  every 45 s so a never-opened ticker paints today's candle at first paint.
+- **Bytes:** identical for every member. No per-user shaping anywhere.
+- **Headers on master:** `public, max-age=20, stale-while-revalidate=40`
+  (`public, max-age=10` when the pack is empty). Ungated.
+
+🔴 **WHY NO MASTER PATCH WAS MADE.** `origin/master` has **no `api/bars_auth.py`
+at all** — none of the security work is there. On master `/api/bars/{ticker}`,
+`/api/bars-history`, `/api/breadth-symbols`, `/api/barspack/*`, `/api/stream/bars`
+and `/api/bars/_debug_source` are ALL still anonymous. Today-pack is not the last
+open door on master; it is one of a dozen. Gating it alone there would:
+  * close a window in a house with no front door — `/api/bars/UCTA50` stays
+    anonymous on master either way, so the marginal exposure change is ~zero;
+  * require either porting the whole security module or writing a one-off gate,
+    i.e. a SECOND entitlement lineage that this branch's merge would immediately
+    supersede;
+  * create a conflicting second security branch against a `bars.py` this branch
+    has already heavily modified.
+That is the "unsafe or ambiguous" condition, so the patch plan is recorded
+instead of applied. **Today-pack closes when this branch's security work lands on
+master**, using `require_bars_access` like every sibling — no new mechanism.
+
+⭐ AND THE PATCH WILL WORK WITHOUT A CLIENT CHANGE, WHICH THE CODE COMMENT
+CURRENTLY DENIES. `todayPackClient` says *"⛔ NO `credentials` — DELIBERATE"*, but
+it calls bare `fetch('/api/bars-today-pack')`, and fetch's default credentials
+mode is `same-origin` — which DOES send the cookie on a same-origin request.
+The intent in the comment is not what the code does, and the accident is in the
+safe direction: a session-based gate is already satisfiable by a signed-in member.
+
+### THE PATCH, READY TO APPLY AT MERGE
+```python
+@router.get("/api/bars-today-pack")
+def get_today_pack(_access: dict = Depends(require_bars_access)):
+```
+Nothing else. ⛔ The `public, max-age=20` headers stay exactly as they are:
+converting them to `private`/`no-store` would put 200+ members' 45-second polling
+straight onto the pod — the failure the route's own docstring exists to prevent,
+and precisely the trade this programme refuses to make.
+
+### ⛔ ORIGIN CLOSED ≠ EDGE CLOSED
+For today-pack AND deep history, a Cloudflare HIT never reaches any origin. These
+gates are defence in depth that guarantee no DIRECT origin bypass sits behind the
+edge when secure edge authorization arrives. Correct classification until then:
+**ORIGIN CLOSED / EDGE DELIVERY STILL AWAITING SECURE ENTITLEMENT.**
+
+### CARRIED FORWARD (recorded, not fixed here)
+- `_HISTORY_LOGIC_VERSION` is documented as *"bump to invalidate every cached
+  history URL at once"* and cannot: it appears only in the response body and the
+  client never sends `v`, so it is not in the cache key. Likely becomes the new
+  cache namespace in the secure-edge phase.
+- `history_prewarm._FULL["M"] = 2000` vs client `fullBarsFor('M') = 1200`, despite
+  a comment claiming they match — the monthly prewarm stocks a URL no browser
+  requests. Performance cleanup, prewarm is default-OFF.
+- `/api/barspack/*` is currently `private` (interim). It is a genuinely global
+  distribution mechanism and should move to the secure-edge architecture rather
+  than stay private-only.
