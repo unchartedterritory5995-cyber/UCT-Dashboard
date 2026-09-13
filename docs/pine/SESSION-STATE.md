@@ -1,139 +1,115 @@
 # Session state — `feat/indicator-r0r1`
 
-## ⭐⭐⭐ SESSION 3 · ITEM 3 — TABLES. **NOT FINISHED.** THE SEAM IS MEASURED AND NAMED, AND ONE OF ITS THREE CAPABILITIES IS BUILT.
+## ⭐⭐⭐ SESSION 3 · ITEM 3 — TABLES. **FINISHED.** BOTH DASHBOARDS DRAW, IN DOM, AT THE CORNER THE SCRIPT DECLARES, AND THE CELLS MATCH TRADINGVIEW.
 
-⛔ **STOPPED DELIBERATELY, NOT RUN OUT OF.** No pixels tonight: the renderer, the
-cell-by-cell compare and the two-zoom screenshots all sit behind three translator
-capabilities, one of which is done. Half-building a text evaluator would have
-shipped a table cell that is **confidently wrong**, which is the one outcome
-`buildObjectProgram`'s own header forbids — *"a blank cell where the author wrote
-a number reads as a working dashboard and is not one."*
-
-### ⭐⭐ THE DESIGN DECISION, AND THE MEASUREMENT THAT OVERTURNED THE FIRST ONE
-
-**Decided: the text layer is `textNodeOf` inside the EXISTING C3B object pass. A
-table is NOT a third output root, and no new manifest section was added.**
-
-⚰️ The first cut of this item declared a `_tables` roster and a `_text` format
-vocabulary in `closedTable.json`, registered both in `manifestProse.KEEP`, and
-described a `pine.js::tableRoots` walk that would treat `table.cell` as a root
-beside `plot`. **All of it was written against a design the next measurement
-disproved, and all of it was reverted before a line of code depended on it.**
-
-What the measurement actually said:
+`uncharted-volume-v2.pine` through the shipped Import door on a real chart —
+sha256 `518a6b22…b28a` computed IN THE PAGE, byte-identical to the fixture and to
+what TradingView ran for the vendor capture — saved as a pane document, installed
+as `u_3ec24af8e7c6`, drawn on SPY 1W:
 
 ```
-translatePine(v2, {strict:true})     ok=true  5 outputs  0 refusals   ← the tables are NOT refused
-t.objects.ops                        2 × create family=table          ← they are ALREADY collected
-t.objectDiagnostics.dropReasons      { cell:text: 6, … }              ← only the TEXT is missing
-t.objectDiagnostics.droppedProps     2                                ← and the two positions
+ATR : $18.29 (2.39%)   | Range: 74.1%   | ATRx: 3.39         top_left
+Vol : 165.78M (0.51x)                                         top_right
 ```
 
-`OBJECT_NAMESPACES` has held `table` since C3B; `CREATE_POSITIONAL.table` and
-`CELL_POSITIONAL` already name every argument; `textNodeOf` already reads
-literals, `str.tostring` with a format, `+` chains and ternaries. **A third root
-would have been a second authority over a table this engine already collects** —
-the defect this repo keeps paying for, and it was three files from being
-committed. The reverted block is not in the diff.
-
-### ⚰️⚰️ THE SEAM, MEASURED TO FOUR LEAVES AND THREE CAPABILITIES
-
-An instrumented `textNodeOf` named every node it gave up on, with its line:
+and a SECOND document with the two toggles on (`u_dd21a7ba8888`) drawing six:
 
 ```
-BEFORE  x1  call|f_formatVolume|495   volCellText    = … + f_formatVolume(volDisplay, tableUnit, tableDivisor) + …
-        x1  call|f_formatVolume|502   avgVolCellText = … + f_formatVolume(avgVolDisplay, …) + …
-        x1  name|atrMultText  |576    table.cell(atrTable, 2, 0, atrMultText,  …)
-        x1  name|dcrText      |577    table.cell(atrTable, 3, 0, dcrText,      …)
+ATR : $18.29 (2.39%) | Range: 74.1% | ATRx: 3.39 | DCR: 0.59  top_left
+Vol : 165.78M (0.51x)  | AVol : 327.70M                        top_right
 ```
 
-| # | capability | what needs it | state |
-|---|---|---|---|
-| 1 | **a user function that returns text, inlined** | `f_formatVolume`, and `f_getTablePos` behind it — which IS the `pine:text-value@153` the ruling names | ✅ **BUILT**, 6 rails |
-| 2 | **a text TUPLE part** — `[tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)`, a helper whose `if/else if` chain returns `['B',1e9]` / `['M',1e6]` / `['K',1e3]` / `['',1.0]` | both Volume cells | ⏭️ named |
-| 3 | **text from a `:=` REASSIGNED local** — `atrMultText`/`dcrText` are built across `if` branches | the last two Range cells | ⏭️ named |
+Gate v2.1 read on the driving tab before every write and every screenshot.
 
-⭐ **CAPABILITY 1 IS DONE AND MEASURED.** `textNodeOf` now steps over a call to a
-`kind:'fn'` binding by substituting each parameter as an ordinary `expr` binding
-over the ARGUMENT node in the caller's scope — the same substitution
-`Resolver.inlineUserFunction` makes for numbers, so a text function cannot mean
-anything a numeric one would not. Named arguments and wrong arity are **refused**,
-never bound positionally: pairing `f_fmt(_unit='M', _v=volume)` by position would
-render a cell that is confidently wrong.
+### ⭐⭐ THE CELLS, AGAINST THE VENDOR — THREE OF FOUR BYTE-IDENTICAL
 
-### ⚰️⚰️ AND A HAZARD FOUND ON THE WAY, WITH A RED TEST TO PROVE IT
+Against `f2578f82c` (SPY 1D, forced depth), on our own bars:
 
-`buildObjectProgram`'s resolver factory is `() => new Resolver(env, …)` — **it has
-always IGNORED the scope every caller hands it.** Every `canonicalOf` since C3B has
-resolved against the top-level `env`, never the op's block. Making it honour the
-argument is a one-word change, it unlocked **two more v2 cells immediately**
-(`rangeText`, `usedText` are block locals)…
+| our cell | TradingView | |
+|---|---|---|
+| `ATR : $6.21 (0.81%)` | `ATR : $6.21 (0.81%)` | ✅ identical |
+| `\| Range: 137.58%` | `\| Range: 137.58%` | ✅ identical |
+| `\| ATRx: 0.92` | `\| ATRx: 0.92` | ✅ identical |
+| `Vol : 45.48M (1.05x) ` | `Vol : 45.51M (1.05x) ` | ⚠️ the multiplier matches; the VOLUME differs |
 
-⛔ …**and it went RED on `objectParams.test.js`: a `line.new` coordinate stopped
-moving when its member input moved.** The cause is a second authority:
-`scopeFor(locals)` builds `new Map(env)` and then **re-parses each local from its
-tokens** (`parseWholeExpression(b.toks)`), so `lvl = close * (1 + off/100)` is
-rebuilt from source and reads an `off` that never went through the walk's
-`declareInputs` mint. The knob is real in `env` and absent in the copy.
+⭐ The trailing space survives on both sides — 21 characters for 20 visible. That
+is the whole reason the table is DOM: the vendor had to wrap `fillText` to read
+it, and `textContent` needs no instrumentation.
 
-⭐ **So the factory now takes a FRAME, not a scope.** `frame` is `null` at every
-pre-existing call site — byte-identical behaviour — and non-null only inside an
-inlined function body. Capability 1 lands; the block-local scope stays wrong, and
-is now wrong *in writing* with a test that fails if anyone "fixes" it the obvious
-way. Fixing it properly means layering the walk's own final bindings instead of
-re-parsing, and it is a precondition for capability 3.
+⚠️ `45.48M` vs `45.51M` is a DATA divergence about SPY's 2026-09-11 volume, not a
+translation one, and the test decomposes it rather than tolerating it: our column
+IS our bars exactly, and our bars are NOT the vendor's. Both halves asserted.
 
-### What the owner's other item-3 clauses need, and where they stand
+### ⭐⭐ PER-SERIES, THROUGH THE `compareAll` DEPTH GATE — BOTH BRANCHES EXERCISED
 
-| clause | state |
+```
+SPY  @3,000 bars   >= 2,751   the gate is SATISFIED
+  Volume          int    exact       4 integer values differ   (provider gap)
+  Avg Vol Columns float  4.319e-5
+  Avg Vol Line    float  1.118e-4
+  Scale Padding   float  7.787e-4
+
+AGEN @2,000 bars   <  2,751   the gate FIRES: EXCLUDED — … 2751 …
+  Avg Vol Line    float  7.146e-5
+  Scale Padding   float  7.146e-5
+```
+
+⛔ HVE is excluded twice over and both are disclosed: by the depth gate on AGEN,
+and by ruling D1 on BOTH — an `alertcondition` is not a plot, the vendor's own
+roster types `plot_7` that way, and the member is told in words on the pane.
+
+### ⚰️⚰️ FOUR WIRES WERE CUT AND EVERY LAYER WAS GREEN
+
+1. `memberPaneDefinition` never named `objects` — the PANE document, the one that
+   reaches a chart, carried no object program. The SCAN document has since C3B.
+2. `objectColumns` interpreted the RAW tree. 24 of v2's 27 object trees refused:
+   18 on `syminfo.ticker`, 6 on a window behind a `timeframe.*` test. `computeFor`
+   has folded both since R-K. `bindConstsFor` is now the one call both lanes make.
+3. `binder.sync` passed `inputs` and `tf` to the object reader and not `symbol`.
+4. A COMPUTED position was a dropped prop, so the Range table drew in `top_right`
+   — Pine's renderer default — when the author and the vendor both say Top Left.
+
+And `str.tostring`'s `0.00` family was never implemented: `#` is OPTIONAL and `0`
+is REQUIRED, the old regex could not match a leading `0`, and two of four visible
+cells rendered `1.0070985212342736x` and `45.187M`.
+
+### ⚰️ TWO THINGS ONLY THE PIXELS FOUND
+
+* **The toolbar paints over the top corners.** `.toolbar` floats `top:4px;
+  height:26px; z-index:5` over the same container; both dashboards drew correctly
+  and were invisible. The HOST supplies `CHART_TOOLBAR_FOOTPRINT_PX` now, and the
+  CSS's `top + height` is parsed in the test and checked against it.
+* **At the chart's real depth the object lane refuses, and the cell said `NaN`.**
+  SPY 1D is 8,000 bars; 22 of 133 graph nodes refuse `interpret:steps` — *accum
+  over 8000 bars with a 250-bar warm-up is 2000000 steps and the ceiling is
+  1000000*. `MAX_RECURRENCE_STEPS` working, shared with the plot lane. The count
+  is stamped as `data-uct-objects-unreadable` (live: `22` at 1D, `0` at 1W) so a
+  member's `NaN` has a reason beside it.
+
+### Measured invariance (live, CSS px)
+
+```
+baseline                      top_right [1187,206]  top_left [269,206]
+chart ZOOM + PAN              IDENTICAL, text unchanged
+window 1600 -> 1280 (R-M)     [920,206] / [229,206]  re-anchored, no artefact
+page zoom 125% (dpr 1.25)     [700,278] / [145,278]  cells still 12 CSS px
+```
+
+Screenshots: `step6-tables-spy-1w-100pct.jpg`, `step6-tables-spy-1w-125pct.jpg`,
+`step6-tables-crop.png`, `step6-before-inset-under-toolbar.jpg`,
+`step7-two-documents-four-and-six-cells.jpg`.
+
+### ⏭️ ROUTED OUT OF THIS ITEM, EACH WITH ITS MEASUREMENT
+
+| item | measurement |
 |---|---|
-| `table.*` ×10 walked | ✅ already collected (2 `new` + 2 `set_position` + 6 `cell`); 0 of the 6 cells carry text yet on v2 |
-| the R2 text layer | 1 of 3 capabilities |
-| DOM overlay at the pane corner, resize/scroll/zoom, 2 zoom levels | ⛔ blocked on the cells existing |
-| cell-by-cell vs `f2578f82c` + `5c4d67ef2`, trailing space included | ⛔ blocked — **but both fixtures are read and confirmed usable**: `'Vol : 45.51M (1.05x) '` len 21 `trailing_space: true`, and `'Vol : 790.46K (0.16x) '` len 22 on AGEN |
-| `str.tostring` float formats | the three the script uses are `0.00`, `#.##`, `#`, and the vendor cells pin each; the formatter is not written |
-| ≥ 2,751 bars or HVE excluded | the `compareAll` depth gate from R-L is already built and unchanged |
-| `pine:text-value@153` clears in the IR lane | ⏭️ capability 1 is its machinery; the IR lane's own refusal is measured below |
-
-### ⭐ `buildRuntimeIr` ON v2, VERBATIM — AND ITS FIRST REFUSAL HAS MOVED
-
-```
-buildRuntimeIr(V2, {})
-  ok       false
-  refusal  runtime:realtime-untold @297:25  barstate.isconfirmed
-           "this lane cannot say yet whether the newest bar has finished…"
-```
-
-⛔ **THAT IS RULING 3.3 WORKING, NOT A DEFECT** — the lane refuses rather than
-render four blank `barstate` columns, and the caller is supposed to supply the
-tri-state. Supplied through the shipped door, the lane walks past it:
-
-```
-buildRuntimeIr(V2, runtimeClockOpts(false))
-  ok            false
-  refusal       pine:text-value @153:1  f_getTablePos   locationIsStatement: true
-  diagnostics   statements 40   columns 0   slots 0
-```
-
-⭐ **So v2:153 is confirmed as the IR lane's live blocker, and it is
-`f_getTablePos` — a user function**, which is capability 1's shape exactly. Its
-body maps an `input.string` to a `position.*` enum through a chain of string
-comparisons that already fold (`Resolver.stringValueOf`); what stopped it was the
-step over the call. ⚠️ Whether it clears end-to-end is **untested**: the IR lane
-reaches text through `pine.js::resolve`, not through `textNodeOf`, so capability 1
-is its machinery and not yet its wiring. Named rather than claimed.
-
-### Suites
-
-| | |
-|---|---|
-| `src/components/chart/engine` + `/builder` | 342 files → **7,112 passed, 32 skipped, 5 failed in 3 files** |
-| movers | **+6** — `textUserFunction.test.js`; 0 new reds |
-
-The 5 are the same pre-existing HEAD trio (`BuilderSheet.pine`,
-`ImportBox.thinkscript`, `pineBoxSuggestVoice` ×3).
-
----
+| the chart lane's step envelope | 22 nodes refuse at 8,000 bars; whether a CHART may spend more than a universe sweep is a ruling, and raising a shared constant late in a session is how a hang ships |
+| a computed enum through a RUNTIME condition | `table.position@490` — `hasRecentHV ? 'Top Center' : volTablePosition` cannot fold; needs `f(c ? a : b)` → `c ? f(a) : f(b)` |
+| `cell.text_size` ×6, `cell.text_color` ×2 | named to their lines in `droppedPropNames`; both fall back, neither moves a number |
+| two instances of one table script COLLIDE | both anchor to the same corner and overlap — TradingView does the same, but it is worth a ruling |
+| the IR lane's symbol seam | `buildRuntimeIr` still stops at v2:249 `syminfo.ticker`; the IR lane has no symbol plumbing at all |
+| nested text helpers | 0 of 266 scripts hit the refusal — low priority, measured |
+| `s := close` into a `string` | real Pine rejects it; we render `<if> + num + ""` |
 
 ## 📋 ROUTED, NOT TONIGHT (owner, 2026-09-13)
 

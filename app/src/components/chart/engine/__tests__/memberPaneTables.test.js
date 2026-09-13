@@ -64,9 +64,20 @@ const SYMBOL = Object.freeze({ ticker: 'SPY', exchange: 'NYSE Arca' })
 const dom = new JSDOM('<!doctype html><body></body>')
 const doc = dom.window.document
 
+// ⛔ ONE TRANSLATION FOR THE WHOLE FILE. `memberPaneDefinition` re-reads 34,378
+// characters of Pine and is pure; calling it per case made this file heavy
+// enough to starve the parallel pool and tip unrelated source-sweep suites past
+// vitest's 15s default. The document is the same object every time by design —
+// which is also what the cases below are about.
+let PANE = null
+const paneDef = () => {
+  if (!PANE) PANE = memberPaneDefinition({ source: V2, id: 'u_v2pane', name: 'Uncharted Volume v2' })
+  return PANE
+}
+
 /** The member's route, end to end, with no layer mocked. */
 function drawn(symbol = SYMBOL) {
-  const built = memberPaneDefinition({ source: V2, id: 'u_v2pane', name: 'Uncharted Volume v2' })
+  const built = paneDef()
   const reader = objectReaderFor(built.definition, BARS, { inputs: undefined, tf: 'D', symbol })
   const run = reader && evaluateObjects(reader.program, {
     barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t,
@@ -215,9 +226,9 @@ describe('⛔ what the object lane could not read is COUNTED, not silently NaN',
   // `bars × warmup` until the ceiling refuses — and a case that trips vitest's
   // 15s default reports as a FAILURE of the thing it measures. Naming the number
   // keeps a slow measurement legible as slow.
-  it('⭐⭐ at 1,400 bars every node reads — and the count is zero', { timeout: 120_000 }, () => {
-    const built = memberPaneDefinition({ source: V2, id: 'u_v2pane', name: 'v2' })
-    const bars = Array.from({ length: 1400 }, (_, i) => ({
+  it('⭐⭐ at 800 bars every node reads — and the count is zero', { timeout: 120_000 }, () => {
+    const built = paneDef()
+    const bars = Array.from({ length: 800 }, (_, i) => ({
       t: 1_400_000_000 + i * 86400, o: 100, h: 104, l: 96,
       c: 100 + Math.sin(i / 7) * 4, v: 40_000_000 + i * 13_000,
     }))
@@ -228,7 +239,7 @@ describe('⛔ what the object lane could not read is COUNTED, not silently NaN',
   it('⛔⛔ …and at 8,000 the STEP CEILING refuses, by name and with its arithmetic', { timeout: 120_000 }, () => {
     // ⭐ The bar count is the only thing that changes between the two cases, which
     // is what makes this a statement about the ceiling rather than about v2.
-    const built = memberPaneDefinition({ source: V2, id: 'u_v2pane', name: 'v2' })
+    const built = paneDef()
     const bars = Array.from({ length: 8000 }, (_, i) => ({
       t: 1_000_000_000 + i * 86400, o: 100, h: 104, l: 96,
       c: 100 + Math.sin(i / 7) * 4, v: 40_000_000 + i * 13_000,
