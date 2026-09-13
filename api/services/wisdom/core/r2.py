@@ -15,6 +15,9 @@ wisdom/.
 from __future__ import annotations
 
 import logging
+import os
+import pathlib
+import sys
 from typing import Iterator, Optional
 
 from api.services.wisdom.core import ids
@@ -32,7 +35,62 @@ class R2ImmutableConflict(RuntimeError):
     pass
 
 
+class R2TestIsolation(RuntimeError):
+    """A test reached for a real bucket. See ALLOW_REAL_CLIENT_UNDER_PYTEST."""
+
+
+# ── Test isolation ───────────────────────────────────────────────────────────
+# 2026-09-13: a sources-stream test run wrote 16 objects (2,399 bytes) into the
+# PRODUCTION bucket under wisdom/sources/zoom_vtt/ before its hermetic fixture
+# existed. The DATA_SYNC_* vars were already in the operator's shell, so the real
+# client built itself and every write SUCCEEDED — the same class as the C:\data
+# tripwire in the repo-root conftest: a test that reaches production data does
+# not fail, it passes against live files.
+#
+# ⛔ The guard lives INSIDE _client_and_bucket() on purpose. Every hermetic test
+# monkeypatches exactly this function (see the autouse fixtures in the wisdom
+# sources suites), so the guard is UNREACHABLE for a test that has isolated
+# itself and fires only for one that has not.
+#
+# ⛔ Not an env var, and not "delete DATA_SYNC_* in a fixture". A kill switch
+# nobody sets is indistinguishable from a working one, and the leaking run was
+# in a shell that already had those vars. The opt-in is a module attribute a
+# test must monkeypatch deliberately —
+#     monkeypatch.setattr(r2, "ALLOW_REAL_CLIENT_UNDER_PYTEST", True)
+# — which leaves one reviewable line in the test that wants a real bucket.
+#
+# ⚠️ Scope, stated so nobody reads it as more than it is: this is a PYTEST rail.
+# A bare `python tools/...` run still reaches the live bucket, exactly as the
+# conftest tripwire is a test-suite rail only.
+ALLOW_REAL_CLIENT_UNDER_PYTEST = False
+
+
+def _under_pytest() -> bool:
+    """True only inside a pytest run — never on the web pod.
+
+    Both markers are chosen because the pod cannot have them. ⛔ `"pytest" in
+    sys.modules` is NOT usable here: pytest is a production dependency
+    (requirements.txt) and api/ carries *_test.py modules, so importing one on
+    the pod would arm the guard against real writes.
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):  # set per test: setup, call, teardown
+        return True
+    # Collection and fixture-import time, before that var is set. Both pytest
+    # entry points are named in the LAST TWO path components of argv[0] —
+    # `bin/pytest` for the console script and `pytest/__main__.py` for
+    # `python -m pytest`, whose basename alone is just `__main__.py`. The pod's
+    # `bin/uvicorn` and `bin/python` match neither.
+    argv0 = pathlib.PurePath((sys.argv[0] if sys.argv else "") or "")
+    return "pytest" in "/".join(argv0.parts[-2:]).lower()
+
+
 def _client_and_bucket():
+    if _under_pytest() and not ALLOW_REAL_CLIENT_UNDER_PYTEST:
+        raise R2TestIsolation(
+            "refusing to build a real R2 client under pytest: monkeypatch "
+            "api.services.wisdom.core.r2._client_and_bucket with a fake bucket, or set "
+            "r2.ALLOW_REAL_CLIENT_UNDER_PYTEST = True if this test genuinely wants production"
+        )
     from api.services import data_sync
 
     client = data_sync._client()
