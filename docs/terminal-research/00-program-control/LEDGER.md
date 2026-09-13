@@ -609,6 +609,53 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## regime-change CP3 — MERGED `506eeee6d`. Fingerprint `9f0575340`. **The stake projection.**
+
+**In-pod:** **7** registered trigger types, **all four** dark flags read `None` in the running
+process, and the legacy regime ledger's newest row is still the awareness engine's own
+(`bull_correction`, 2026-09-12 00:40, 2,557 rows) — **untouched by the deploy.** ⛔ Nothing armed.
+
+§4 warns this type's projection is UNUSUAL and it is: **the predicate is GLOBAL**, so "projecting
+member rows" means projecting the **stake test** over the cohort, from `j2_positions` and
+`watchlist_items` — the same two bulk queries `engine.py:44-63` already runs, narrowed to the
+cohort and never fanned out per member.
+
+### ⛔⛔ THE SHARPEST HAZARD SO FAR: A DARK RUN THAT WOULD HAVE WRITTEN THE LEGACY'S MEMORY
+
+`_compute_regime_component` does a **read-then-APPEND** on `awareness_regime_snapshots`. A
+projection that called it would corrupt the `prev_label` the **live** R4 rule reads next cycle —
+**a comparison turning into an intervention.** Railed behaviourally (the ledger compared row for
+row across two sweeps) *and* structurally (no INSERT against it; `record_snapshot` unreachable from
+the module's code). Mutation-proved by making the projection append.
+
+⭐ **AND THE LEDGER MAKES THE CLASSIFIER CALL UNNECESSARY.** The engine appends one row per cycle,
+so the **newest** row is what it classified and the **second-newest** is exactly what
+`get_last_label()` returned to R4 *before* the append. Calling `get_current_regime()` instead would
+compare against a label re-derived at a different moment behind a 15-minute TTL — **the dark period
+would measure clock skew rather than rule difference.**
+
+### ⛔⛔ ONE LEDGER ROW IS OBSERVED ONCE — the third shape of the ordering hazard
+
+The ledger only changes when the awareness engine runs. A sweep ticking faster would re-observe
+**the same flip** every tick, and `observe()` increments the span each time — so `agreed` becomes a
+function of **how often the sweep ran** rather than of how often the market moved, and a busier
+cadence would look like more agreement. A watermark on the ledger's own `id` fixes it; a skipped
+tick **still beats**, because for this type most ticks are flat by nature.
+
+⭐ The two legacy emitters **disagree on the stake axis** — R4 gates on position-or-watchlist,
+`maybe_emit_regime_shift` applies no stake test at all — so each gets its own predicate rather than
+being flattened into an agreement the legacy does not have.
+
+### ⛔ THE NINTH `CODE, NEVER PROSE` — TWICE IN ONE FILE, BOTH MINE
+
+`ast.unparse` drops comments but **keeps docstrings** (a docstring is an expression, not a comment),
+so two probes tripped on the module's own explanation of what it must never call. ⭐ Replaced by
+**one** `_code_only` helper with its own control, rather than the same blanking loop written out
+three times — *three copies of a guard cannot all be mutation-proved.*
+
+**Three mutations, each restored by EDIT** (watermark · ledger reconstruction · the ledger write).
+**97 tests green** across the four suites. Nothing stranded; web-only, no bump.
+
 ## catalyst-match CP3 — MERGED `4fa45489f`. Fingerprint `3ee80dc13`. **Daily dark.**
 
 **In-pod:** the registry holds **6** trigger types (catalyst-match joined) and **all three** new
