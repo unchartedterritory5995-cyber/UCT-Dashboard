@@ -48,7 +48,7 @@ rather than drifting between what is deployed and what is configured somewhere e
 | stage | unset preference resolves to | framing | name |
 |---|---|---|---|
 | **1** *(current)* | `isAdmin` | preview | **Admin preview** |
-| **2** | **`true` for every authenticated user** | preview | **Member preview** |
+| **2** *(built, **GATED**, unmerged — `640dcd8d1`)* | **`true` for every authenticated user** | preview | **Member preview** |
 | **3** | `true` for every authenticated user | **removed** | **General availability** |
 
 **Stage 2 — member preview.** An unset preference resolves to `true` for every authenticated user.
@@ -103,6 +103,14 @@ behaviour" holds exactly as written. The alternative is to drop that clause and 
 landing with the GA flip. **Until that is answered, stage 3 cannot be written as a PR.**
 
 ### 3. Sequencing — nothing here starts until boxes 1 and 2 are ticked on evidence
+
+> ✅ **READY-AND-GATED, 2026-09-13.** `launch/stage-2-member-preview` at **`640dcd8d1`** passed
+> the full six-shard gate with **zero attributable NEW** — manifest
+> `gate-runs/2026-09-13T15-55-29.md`; tree hash identical at both ends, **1318 files reconciling**,
+> **8 failed / 19,439 passed / 19,456**. The one NEW failure is **R-29** (S4's
+> `focusDivergence.js` orphan), classified BY DIRECTION: the rail fails identically at the merge
+> base `d6ac61816`, on a tree containing none of this branch's changes.
+> ⛔ **Gated is not merged.** The freeze below still governs, and **Patrick merges**.
 
 **a. Stage 2 PR.** The constant change **plus** everything in §2(a), the `rollout.md` and
 code-comment text, and the gate. ⛔ **Patrick merges** — a member-facing rollout is his call, not an
