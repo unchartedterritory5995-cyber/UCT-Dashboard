@@ -298,6 +298,14 @@ MUTATIONS = [
          note="with the merge unreachable, every append family loses the block the "
               "member just captured — and no metadata family notices"),
 
+    dict(id="M26", guard="Q1 fix 3 - the ring-vouched question is asked in ONE place",
+         file=f"{OFF}/outboxDrain.js",
+         find="          const ring = ringVouchedPlan(mine, noteRec)",
+         repl="          const ring = { plan: 'rebase', base: null, shape: null }\n"
+              "          entry = await rebaseEntry(db, entry, mine.serverUpdatedAt)",
+         note="the PRE-SEND site decides on the vouch alone again - the half that "
+              "never 409s, so nothing downstream could ever catch it"),
+
     # ══════════════════════════════════════════════════════════════════════
     # WAVE K — the runtime kill switch. K-R1 … K-R10.
     # ══════════════════════════════════════════════════════════════════════
@@ -407,6 +415,39 @@ MUTATIONS = [
          note="the last rollback sentence that drifted took eleven evidence rows "
               "to find, and it is read at the worst possible moment"),
 
+    # ======================================================================
+    # THE SUNDAY GATE'S READING - G1..G3, permanent.
+    # ======================================================================
+    # Each of these three was LIVE on 2026-09-13 and each ALONE printed REVERT
+    # against the real observation log. They share one shape: a SECOND AUTHORITY
+    # over something the log already states - what a row is, where a column sits,
+    # whether a reading was taken.
+
+    dict(id="G1", guard="the gate reads the OBSERVATION table, not every table",
+         runner="pytest", root="repo",
+         file="tools/nb_gate.py",
+         find="    return bool(cells) and bool(_ROW_AT.match(cells[0].strip()))",
+         repl="    return bool(cells)",
+         note="the member identity PROSE table is read as five observation rows "
+              "ending in **no**/**YES**, and trigger 1 counts five reds that do "
+              "not exist"),
+
+    dict(id="G2", guard="columns are resolved BY NAME, not by position",
+         runner="pytest", root="repo",
+         file="tools/nb_gate.py",
+         find='    "sync-conflict notes": "conflicts",',
+         repl='    "sync-conflict notes": "blocked",',
+         note="one alias aimed at the neighbouring column - exactly what the "
+              "hard-coded x[4]/x[6] indices did once the 9-column header landed"),
+
+    dict(id="G3", guard="a SKIPPED reading is unobserved, in EVERY trigger",
+         runner="pytest", root="repo",
+         file="tools/nb_gate.py",
+         find="    return " + chr(39) + "SKIPPED" + chr(39) + " in str(rec.get(" + chr(39) + "flag" + chr(39) + ", " + chr(39) + chr(39) + "))",
+         repl="    return False",
+         note="the 23:00 SKIP carries 20 console errors from a page that could "
+              "not load; trigger 4 reads them as member-visible errors"),
+
     dict(id="M12", guard="the editor emits NOTHING when it sets content itself",
          file=f"{NB}/NoteEditorPage.jsx",
          find="const EMIT_NOTHING = { emitUpdate: false }",
@@ -427,6 +468,10 @@ PY_RAILS = [
     "tests/test_notebook_flags.py",
     "tests/test_hub_preview_flag.py",
     "tests/test_k_reach_statement.py",
+    # The Sunday gate's own reading. Added 2026-09-13 with G1-G3 below, after
+    # three faults in how it READS the log each printed REVERT against the live
+    # file on the one run of the week that decides keep-or-revert.
+    "tests/test_nb_gate_columns.py",
 ]
 
 

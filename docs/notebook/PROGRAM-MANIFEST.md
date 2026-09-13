@@ -741,6 +741,24 @@ Closing it requires building an instrument first — that is a task, not a looku
     ruling** — hoist the ring back above the classifier and exactly the eighteen
     append rows redden, no metadata row. Fixed at `9a213bd45`.
 
+    ⭐ **AND A CENSUS RAIL, owner ruling 2026-09-13** —
+    `lib/offline/ringVouchAuthority.test.js`. One authority is a property of the
+    code, not of the commit that established it, so a THIRD site asking "the ring
+    vouched, now what?" must fail by name the day it is written. It derives its
+    census from the source the way `doorEnumeration.test.js` does: comments and
+    string bodies blanked first (a comment quoting the old idiom is not a call
+    site), every `.ours` read taken as a vouch site, and each site's own region —
+    the block it guards, or the statement it belongs to — read for what it
+    DECIDES. A region that chooses a plan must choose it through
+    `ringVouchedPlan`; an `identical` short-circuit chooses none and is exempt
+    **by name**; a region this rail cannot classify is a FAILURE, because "I do
+    not know what this one does" must never read as "this one is fine". Four
+    sites today: two authority, two identical. ⛔ The floor is asserted as well
+    as the ceiling — **deleting a call site and inlining its answer is the same
+    defect arriving from the other direction.** Mutation: **M26**, permanent —
+    restore the PRE-SEND site to deciding on the vouch alone and 14 tests redden
+    across the matrix and the census.
+
 12. ⛔ **THE INSTRUMENT WAS WRONG FIRST — the ELEVENTH instance this programme has
     recorded, and the third in Wave Q1 alone.** The property rail's fake
     `serverCopyIsOurs` omitted `serverNote`, so the drain's classifier could not
@@ -767,7 +785,7 @@ Closing it requires building an instrument first — that is a task, not a looku
     an append door records and never settles with local state — the claim the
     matrix's clamp depends on.
 
-13. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
+13. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
    WRONG BY THREE.** Wave Q1 recorded *"the FOUR doors — every path that advances
    `updatedAt`"* and named body, folder, ticker, tags. That list came from the
    DERIVED WIRE RAIL, which can only see doors a canary actually opened; no canary
@@ -839,6 +857,204 @@ Closing it requires building an instrument first — that is a task, not a looku
    authority over that thing's size** — they are all derived from `len(DOORS)`
    now.
 
+16. ⛔ **A MATRIX ROW CAN MODEL SOMETHING THE PRODUCT CANNOT DO — and the clamp
+    that fixes it is a second place to get it wrong.** One of the six orderings
+    settles the door's revision BEFORE the queued work exists. For a metadata
+    door that is real: `settleMetadataRevision` belongs to folder, ticker and
+    tags. For an append door it is fiction — the three appenders record a landed
+    revision and never settle with local state, because settling needs an editor
+    mounted and these doors fire from surfaces that have none. A red row that
+    models an impossible state is not evidence of a defect; it is the fixture
+    describing itself.
+
+    ⛔ **THE CLAMP'S OWN FIRST VERSION READ THE ORDERING'S HARD-CODED `'folder'`**
+    instead of the family under test, so it evaluated the same answer for every
+    row and silently un-clamped all eighteen append cases while looking correct.
+    ⭐ **What caught it was a pair, not a review:** `settle-first` stayed red
+    while an ordering that had become its behavioural twin went green. Two rows
+    that must now agree and do not is a louder signal than either row alone.
+
+    ⭐ **RAILS:** the clamp reads `server.familyUnderTest` in
+    `offlineWordsSurvive.property.test.jsx`, and `f5Freeze.test.js` carries the
+    structural half — asserting FROM THE SOURCE that `settleMetadataRevision`
+    names only `folderId`, `tags` and `ticker`, and that `settleNoteWrite` never
+    calls `settleLandedSave`. The claim the clamp depends on is measured, not
+    assumed; if an append door ever learns to settle, the rail fails before the
+    matrix silently starts lying.
+
+17. ⛔⛔ **A DEPLOYED COPY DRIFTS, AND THE ONE THAT DECIDES A GATE IS THE WORST
+    PLACE FOR IT.** `C:/Users/Patrick/uct-q1-observe/` holds COPIES of
+    `nb_observe.py` and `nb_gate.py` outside every worktree, because the Task
+    Scheduler jobs run from there. On 2026-09-13 the deployed `nb_gate.py` still
+    carried the **four-doors** attribution — a day after the repo learned there
+    are seven — so the 17:05 gate, the single run that decides keep-or-revert,
+    would have printed a stale family list to the owner. Nothing was wrong in the
+    repo; the repo was simply not what was going to run.
+
+    ⭐ The generalisation is uncomfortable and worth keeping: **a file under
+    version control tells you nothing about the file that executes.** Provenance
+    for a scheduled tool is the copy the scheduler opens.
+
+    ⭐ **RAIL:** `tests/test_nb_observe.py` — the drift check is now
+    **parametrized over `["nb_observe.py", "nb_gate.py"]`**, so both copies are
+    compared against the repo every run. It was written for the first file and
+    covered exactly one of the two; the one it did not cover is the one that had
+    drifted.
+
+18. ⛔ **A BUNDLE SCAN THAT DOES NOT WALK THE GRAPH ANSWERS A DIFFERENT
+    QUESTION.** Verifying Q1 fix 3 in the SERVED artifact, the first scan read
+    the index's 99 direct `lazy(() => import(...))` chunks and reported the fix
+    ABSENT. It was present. Those 99 chunks contain none of `outboxDrain`'s
+    strings — **not even the pre-existing ones** — because the drain is reached
+    transitively, several hops below any lazy entry point.
+
+    ⭐ **The control is what named it:** a string that has been in the file for
+    days must be findable, and it was not. When a scan cannot find something you
+    know is there, the scan is the suspect — the same rule as the instrument
+    being the first suspect, applied to a verification step rather than a test.
+    A transitive walk over all 284 served chunks found it in
+    `NotebookTab-BvWNR2dL.js`, with the append-only merge reason at @146105
+    preceding the ours-rebase reason at @147235 — the classify-first ordering,
+    read from the artifact a member downloads.
+
+    ⚠️ **NOT YET A RAIL, and named here so it is not mistaken for one.** The walk
+    is a procedure in the deploy evidence, not a test. Owner-bound item **C-8**
+    covers making three-way verification a tool rather than a practice.
+
+19. ⛔⛔ **FOUR FAULTS IN HOW THE GATE *READS*, ANY ONE OF WHICH PRINTED
+    **REVERT** ON THE RUN THAT DECIDES KEEP-OR-REVERT.** Found 2026-09-13, seven
+    hours before the 17:05 run, while wiring the C-4 sweep into it. Nothing was
+    wrong with the wave.
+
+    | # | the fault | what it printed |
+    |---|---|---|
+    | 1 | `rows()` selected on *"starts with a pipe"*, so the member identity/exclusion PROSE table — added the day before with the attributable-member report — was read as five observation rows ending in `**no**` / `**YES**` | *"trigger 1: 5 non-OK row(s), first at identity"* |
+    | 2 | triggers 2 and 4 read hard-coded indices `x[4]` and `x[6]` — correct under the 8-column header, **off by one** under the 9-column one the config-served column created | trigger 2 was reading `blocked-baseline` under the name sync-conflict; trigger 4 was reading `outbox` under the name console errors |
+    | 3 | the SKIPPED exclusion existed in **trigger 1 only**. The 2026-09-12 23:00 SKIP — production unreachable mid-deploy — carries **20 console errors** from a page that could not load | *"trigger 4: console errors at 2026-09-12 23:00 ET"* |
+    | 4 | the sampler's identity-based member count was computed and **overwritten on the next line**, and that branch also emptied the canary window list the timing fallback needs | after fault 2 was fixed: *"FIRST MEMBER OPT-IN 2026-09-12 15:45:46"* — on a row whose own count says `members 0` |
+
+    ⭐ **THE SHAPE THEY SHARE, and it is the one this programme keeps paying for:
+    each is a SECOND AUTHORITY over something the log already states** — what a
+    row is, where a column sits, whether a reading was taken, how many members
+    there were. Every fix makes the log the authority instead.
+
+    ⛔ **FAULT 4 WAS HIDDEN BY A SECOND BUG, and fixing fault 2 is what exposed
+    it.** The timing fallback read the WHOLE opt-in cell — `2026-09-12 15:45:46 ·
+    members 0` — which no date parser accepts, and `is_rig` answers True for
+    anything unparseable, because you never claim a member from a value you could
+    not read. That refusal was doing load-bearing work nobody knew about. ⭐ **A
+    fix can be the thing that reveals the defect, and an instrument that gets
+    MORE accurate can start reporting a fault that was always there.** It is the
+    reason a fix is re-measured end to end rather than at the line it touched.
+
+    ⚠️ **AND THE FIRST THREE ARRIVED WITH THE WORK THAT MADE THE GATE BETTER.**
+    The prose table, the ninth column and the SKIPPED row are all from the last
+    two days' improvements — the attributable-member report, the Wave K
+    config-served column, and the sampler learning to write a SKIPPED row instead
+    of failing silently. **Every one of those was right.** What was missing is
+    that the READER was never re-derived when the thing it reads changed.
+
+    ⚰️ **A FIFTH, MADE WHILE FIXING THE OTHER FOUR:** two successive patches each
+    inserted `is_observation_row`, leaving the function defined **twice** in one
+    file. Python keeps the last definition, so the behaviour was correct and the
+    first copy was dead code arguing for itself — the `_parse_mdy` shape exactly.
+    ⭐ **Two independent instruments caught it**: the gauntlet's own self-check
+    (*"G1: its guard is present exactly once"*) refused to run, and
+    `tests/test_no_shadowed_definitions.py` names it —
+    `tools/nb_gate.py: is_observation_row (def) at lines [178, 183]` — verified by
+    re-introducing the duplicate and watching that rail go red, then restoring.
+
+    ⭐ **RAILS:** `tests/test_nb_gate_columns.py` — eight cases, driven against a
+    log shaped like the real file (two header blocks, the prose table between
+    them, a SKIPPED row), because every one of these faults needed a feature a
+    tidy fixture would have left out. That is why the rails that already existed
+    could not see them. Plus **G1, G2 and G3 in the gauntlet, permanent**: cut
+    the row predicate, aim one column alias at its neighbour, or make
+    `is_skipped` return False, and the rail reddens by name. An unknown header
+    column is now a LOUD failure rather than a silent re-aim — the schema may
+    change again, and the next change must break the gate rather than quietly
+    move a trigger one column to the left.
+
+20. ⛔ **THREE WAYS A NEW INSTRUMENT LIED ABOUT ITSELF IN ITS FIRST HOUR** — the
+    C-4 DO-NOT-BUILD sweep, 2026-09-13. Recorded together because they are the
+    same hour's work and none of them was about the thing being measured.
+
+    - **IT SCANNED ITSELF.** `tools/q1_do_not_build_sweep.py` necessarily
+      contains every construct it looks for, so its own probe table came back as
+      six matches — and buried the one real one. ⭐ Same shape as
+      `lesson_an_instrument_can_reproduce_its_own_blind_spot`, one step over: the
+      instrument did not merely share the blind spot, it *was* the evidence.
+    - **AN ASCII-SAFETY PASS RE-AIMED THE PARSER.** Replacing every `·` in the
+      file to make the output console-safe also replaced the one the parser
+      **splits §8 on**, so the roster came back as fragments of its own items
+      (*"out only) · third"*, *"click full"*). ⛔ A cosmetic sweep over a file
+      that contains a delimiter is a change to the parser. The delimiter is now
+      named by codepoint, so the next cosmetic pass cannot reach it.
+    - **IT DIED PRINTING ITS OWN VERDICT.** `UnicodeEncodeError` on this cp1252
+      console, after the hit list had been computed and before any of it was
+      shown — the exact bug that made `tools/flag_ledger_audit.py` read as an
+      auth failure for a month. Output is ASCII now and `sys.stdout` is
+      reconfigured as a second line of defence.
+
+    ⭐ **AND THE ONE FINDING IT DID PRODUCE WAS A QUESTION, NOT A VERDICT.**
+    `main.jsx:26` matches `navigator.serviceWorker.register` — and is exempt,
+    with the argument written beside it: the call sits inside
+    `getRegistrations().then(regs => if (regs.length > 0))`, so a clean install
+    registers nothing, and **that call is what makes "there is no service worker"
+    true**. Deleting it would strand every browser still carrying the legacy
+    cache-first worker, which would then serve a stale bundle straight through a
+    revert — the one failure the Wave Q1 rollback reasoning leans on being
+    impossible. ⛔ A probe is never narrowed until it goes quiet; a legitimate
+    match is exempted with its reasoning, so a later reader can disagree with the
+    argument rather than only with the outcome.
+
+    ⚠️ **`browser-side OCR` needed a SCOPE, not an exemption.** It is the same
+    library as the server-side OCR that shipped and closed in production, so a
+    probe on the bare word reported six files — five of them the *opposite* of
+    the forbidden thing, including two app-side rails asserting the engine name
+    never reaches member-visible copy. Some §8 items are defined by WHERE code
+    runs, and the probe now says so.
+
+21. ⛔⛔ **SEVEN INSTRUMENT FAULTS IN ONE MORNING — every fault made the PRODUCT
+    look broken; every one was caught by a CONTROL, never by review.**
+
+    F5's production matrix, 2026-09-13. Seven faults stood between the rig and
+    the first honest cell. They are recorded together because the pattern is the
+    lesson: **not one of them was found by reading the code, and every one of
+    them pointed the same way — at the product.**
+
+    | # | the fault | the control that caught it |
+    |---|---|---|
+    | 1 | **The rig is opted OUT by default.** The sampler runs opted out on purpose, so the durable layer never engaged and the first cell reported the member's offline sentence missing from the server | a pre-door read of the durable store: *on screen `True`, in durable copy `False`, queued `0`* — typed, never stored |
+    | 2 | **A 502 was reported as "SIGN-IN REQUIRED."** Another session's merge was mid-swap | `/api/auth/me` answering `502`, which is neither `200` nor `401` — three answers, not two |
+    | 3 | **Response statuses were matched by URL.** Three PUTs go to the same path in one cell, so statuses landed on whichever entry was unfilled — dressing three FAILED offline PUTs as `200`s | matching by **request identity** instead; the same run then read `None, None, None` |
+    | 4 | **The server was read while work was still queued** — which measures the clock, not the product | waiting for the outbox to empty, and reporting **STILL QUEUED** rather than calling late words lost |
+    | 5 | **The drain runs where the Notebook is mounted.** After the door fired on `/charts` the entry sat queued 60 s | the same wait, which showed the queue never moving on a route with nothing to drive it |
+    | 6 | **The rig's own litter stalled the queue head.** Each cell deletes its note; the outbox entry survives, and a queued write to a deleted note blocks an ordered queue | a purge of entries whose note is `404` — **and only those**, because an entry for a live note is a member's unsent words |
+    | 7 | **The race guard fired on the HEALTHY case.** It counted every PUT issued before the door, including the three that failed *because we were offline* — the normal shape of every cell | the metadata control going INCONCLUSIVE while its own wire showed the product working perfectly |
+
+    ⭐ **AND AN EIGHTH, IN THE RESTORE ITSELF.** The opt-out restore ran in the
+    outer `finally`, **after** the Playwright context had closed, so every call
+    hit a closed event loop and returned `ERR: Error`. *The restore whose entire
+    job is to fail loudly was itself failing* — caught only because it printed
+    its own alarm. It runs in-session now, and the outer `finally` proves it **on
+    disk with Chrome dead** and retries once.
+
+    ⛔ **THE SHAPE WORTH CARRYING:** an instrument fault does not announce itself
+    as one. Every fault above produced a plausible, coherent, *product-shaped*
+    story — "the member's words were lost", "the rig is signed out", "the words
+    were sent and the server dropped them", "the drain never finishes". Faults 2
+    and 3 even pointed the same direction at the same time, which is how a
+    finding gets published. **A control is what separates them, and a control
+    only works if it can distinguish** — each one above answers a question the
+    verdict cannot answer by itself.
+
+    ⭐ **RAILS:** the controls are in `tools/q1_f5_matrix.py` and run on every
+    cell, not as tests beside it — a cell that cannot separate instrument from
+    product returns **INCONCLUSIVE** and says which. `tests/test_q1_rig_window.py`
+    rails the window rule, and `tests/test_window_check_auth.py` rails fault 2's
+    twin in the canary, mutation-proved by restoring the `!= 200` guard.
+
 ### Rows added by §10
 
 | id | feature | status |
@@ -858,10 +1074,10 @@ when it is *reachable by a member or explicitly ruled not to be.*
 | C-1 | Every row in §2's waves Q1, R, S is **SHIPPED-DARK or FLIPPED** | per-row flag column below, plus a merge SHA |
 | C-2 | Every SHIPPED-DARK row has a **flip packet** delivered to the owner | key · railway command · preconditions TRUE with evidence · window + verdict rule · rollback · member-impact paragraph |
 | C-3 | Every FLIPPED row has **run its observation window to a verdict** | window length from its row; verdict recorded |
-| C-4 | §8 **DO-NOT-BUILD is untouched** | a sweep proves none of the 22 named items gained code |
+| C-4 | ✅ **TRUE** — §8 **DO-NOT-BUILD is untouched** | `tools/q1_do_not_build_sweep.py`, built 2026-09-13 by owner ruling and run in **every gate** from now on (wired into `scripts/gate_shards.py` and `tools/nb_gate.py`). ⭐ The roster is **parsed out of §8 at run time** — an item added tomorrow with no probe fails the sweep BY NAME, because *"I do not know how to check this one"* must never read as *"this one is clean"*. ⛔ This row used to say **22** items; the sweep reads **20** and no count is typed anywhere now — the list is the authority. Result: **0 matches** across `app/src`, `api`, `scripts`, `tools`. One legitimate match is exempted WITH its argument: `main.jsx:26` registers `/sw.js` only for a browser that already has a worker, which is what makes *"there is no service worker"* true |
 | C-5 | §9 **OPEN** rows are each resolved **or** deferred with an owner ruling | no row left silently open |
 | C-6 | ✅ **TRUE** — §6 **Wave T** rows each carry an owner answer | `wave-T-decisions.md`, one line each, **RATIFIED by the owner 2026-09-13**: *"nothing in T waits on me except flips"*. ⭐ The answers were recorded 2026-09-12; what closed C-6 was the ratification, because until then the file read as proposals a reader could not distinguish from decisions |
-| C-7 | **T-12 pre-launch smoke passes** | it is the gate that outranks every row (§6) |
+| C-7 | ⏳ **OWNER-BOUND — READY, NOT RUN** — T-12 pre-launch smoke passes | it is the gate that outranks every row (§6). ⛔ **It cannot be agent-run, by its own charter:** *"Who runs it: the owner, on his own device, signed in as himself. This is not automation. Nothing in this repo runs it, and no agent may run it or fill in its results."* That is a direct conflict with the 2026-09-13 queue item *"run it today"*, raised rather than resolved either way. ⭐ **What was done instead, 2026-09-13:** its preconditions were corrected — prohibition 4 claimed `OFFLINE_DEFAULT_ON` is *false for every member* and the flip *blocked behind an open defect*, both false since 2026-09-12 00:45 ET, which would have had the owner smoking a path no member is on; and production was verified current (`/api/health` 200, `uptime_seconds` 113 on a fresh boot, no deploy in flight) so the run is not invalidated by a swap |
 | C-8 | Q1's 7-day window closed **KEEP** | `wave-q1-gate-verdict.md` |
 | C-9 | The manifest's own rows are **`[m]` measured, not `[d]` claimed** | one `[d]` (S-05) survives with its stated reason |
 | C-10 | No capability is member-visible that the owner has not flipped | a rail per track; dark-means-dark |

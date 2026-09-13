@@ -624,7 +624,13 @@ def test_the_harness_is_the_only_caller_of_would_fire():
             continue
         if "scan_membership_change.would_fire" in code or "_smc.would_fire" in code:
             callers.append(str(p.relative_to(_REPO)).replace("\\", "/"))
-    assert callers == ["api/services/alert_taxonomy/scan_membership_change_compare.py"], (
+    # ⚰️ MOVED AT CP3 (line 2, d0415f251): the PROJECTION is the one new caller,
+    # driving the same evaluator over real member rows. ⛔ The list stays EXACT —
+    # a third caller is an unapproved wire and fails here by name.
+    assert sorted(callers) == [
+        "api/services/alert_taxonomy/scan_membership_change_compare.py",
+        "api/services/alert_taxonomy/scan_membership_change_projection.py",
+    ], (
         f"expected the harness to be the ONLY caller; found {callers}")
 
 
@@ -647,11 +653,27 @@ def test_the_harness_imports_no_delivery_and_no_legacy_module():
         assert forbidden not in code, f"{forbidden} reached the harness's CODE"
 
 
-def test_there_is_no_scheduler_entry_and_no_flag_for_this_type():
+def test_the_sweep_is_wired_and_flag_gated_now_that_CP3_is_signed():
     """⛔ REGISTRATION IS NOT ACTIVATION, and putting a dark evaluator on a tick
-    is not the FLIP. CP1-CP2 add neither."""
+    is not the FLIP.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, d0415f251). It read
+    `assert "scan_membership_change" not in main` — correct while CP1-CP2 forbade
+    any wire. CP3's approved scope IS that wire, so the assertion inverts and
+    tightens: the gate must exist and must default to OFF.
+
+    ⛔ The two MODULES still hold the old line: neither reads an env var nor
+    schedules anything. The gate lives in `main.py` and the sweep in the
+    projection, so the evaluator and the harness stay decision-free.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "scan_membership_change" not in main
+    assert "add_job" in main, "the main.py probe read nothing — it is broken"
+    # ⚠️ Matched against the UNPARSED source, which normalises quoting to single
+    # quotes — a double-quoted needle here would be a rail that can only fail.
+    assert ("os.environ.get('ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED', '0') == '1'"
+            in main), (
+        "the scan-membership dark sweep is not flag-gated, or its default is not "
+        "OFF — it reads real member subscriptions")
     for path in (_MODULE, _COMPARE):
         code = _code_only(path)
         assert "add_job" not in code and "CronTrigger" not in code

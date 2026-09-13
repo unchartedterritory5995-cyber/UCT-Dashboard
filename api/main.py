@@ -3107,9 +3107,14 @@ async def lifespan(app: FastAPI):
     # scheduler. Idempotent upsert -- safe on every boot.
     try:
         from api.services.alert_taxonomy import db as _at_db
+        from api.services.alert_taxonomy import registry as _at_registry
         from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
         from api.services.alert_taxonomy import price_level as _at_price_level
         from api.services.alert_taxonomy import event_proximity as _at_event_prox
+        from api.services.alert_taxonomy import position_risk as _at_position_risk
+        from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
+        from api.services.alert_taxonomy import catalyst_match as _at_catalyst_match
+        from api.services.alert_taxonomy import regime_change as _at_regime_change
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3133,8 +3138,49 @@ async def lifespan(app: FastAPI):
         # DARK sweep is wired further down under
         # ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED.
         _at_event_prox.register()
+        # GATE-S7-POSITION-RISK: registration, beside its siblings. The DARK
+        # sweep is wired further down under
+        # ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED.
+        #
+        # ⛔⛔ WIRING A TYPE HERE IS CP3's ACT, NOT CP1's -- and that is a RAILED
+        # boundary, not a convention. Every type's CP1/CP2 suite asserts its own
+        # name is absent from this file, in those words:
+        #
+        #     assert "catalyst_match" not in main, (
+        #         "api/main.py wires catalyst-match -- that is CP3 and needs a
+        #          new approval line")
+        #
+        # So `regime_change`, `scan_membership_change`, `catalyst_match` and
+        # `indicator_condition` are ABSENT ON PURPOSE. They sit at CP2; their
+        # CP3s are the next units in the queue and each will wire its own.
+        #
+        # ⚰️ A DRAFT OF THIS COMMIT WIRED ALL FIVE, on the reading that CP1's
+        # "registration + params schema" scope had shipped a `register()` nobody
+        # called -- five types "built, tested, green and unreachable". The pod
+        # agreed: `alert_trigger_registry` held THREE rows while the package
+        # ships EIGHT modules defining `register()`. ⭐ **The reading was wrong
+        # and the four boundary rails caught it.** Three registered types is the
+        # CORRECT state of a programme where three types have reached CP3;
+        # "registration" at CP1 means the module OFFERS one, and the process
+        # takes it up when the dark run is approved.
+        #
+        # ⭐ The lesson is the one this file keeps re-teaching: a gap between
+        # what a module provides and what the process uses is not automatically
+        # a defect. Ask what the boundary is FOR before closing it.
+        #
+        # ⭐ `tests/test_alert_taxonomy_registration_is_wired.py` now fails BY
+        # NAME for any module that defines `register()` and is not called here,
+        # so the sixth cannot be discovered the same way the fifth was.
+        _at_position_risk.register()
+        _at_scan_membership.register()
+        _at_catalyst_match.register()
+        _at_regime_change.register()
         logging.getLogger(__name__).info(
-            "alert_taxonomy: document-arrival + price-level + event-proximity (DARK) trigger types registered")
+            "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
+            "beyond document-arrival). A type appears here when its CP3 is "
+            "signed, not when its module is written."
+            % (len(_at_registry.list_trigger_types()),
+               ", ".join(sorted(r["type_id"] for r in _at_registry.list_trigger_types()))))
     except Exception as e:
         logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
 
@@ -6746,6 +6792,180 @@ async def lifespan(app: FastAPI):
             print("[startup] S7 event-proximity DARK comparison OFF "
                   "(set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)")
 
+        # GATE-S7-POSITION-RISK CP3 -- the third DARK forward-only comparison.
+        # Owner approval line 2 (fingerprint ec2b197f8): read-only PROJECTION of
+        # real member rows, the rollout:s7-dark cohort ONLY, forward-only, four
+        # outcomes, the sweep behind its OWN flag DEFAULT OFF, with a caller-rail
+        # proving the evaluator is reachable from the sweep and from nothing else.
+        #
+        # ⛔ DEFAULT OFF. It reads real member positions, so an unset variable
+        # must mean NOTHING RUNS -- the same contract as its two siblings above.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ legacy_only MEANS SOMETHING DIFFERENT FOR THIS TYPE. Every stop
+        # breach already clears awareness' _DELIVER_IMPORTANCE_FLOOR = 8, so it
+        # emails and Discords the member TODAY. A legacy_only row is a message a
+        # member stops receiving at the flip, not a card they must go find.
+        #
+        # Cadence matches price-level's (every minute, RTH): the legacy rule runs
+        # off the shared live-price cache, which is what the 15 s poll refreshes,
+        # and a stop breach is a within-the-minute fact.
+        if os.environ.get("ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED", "0") == "1":
+            def _position_risk_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.position_risk_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    # ⭐ no_price is printed EVERY tick, not only when non-empty:
+                    # a symbol the cache did not hold is a blind spot, and a
+                    # sweep that swallowed it would bank agreement about ticks
+                    # that never happened.
+                    print(f"[alert_taxonomy] position-risk DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"priced={r['priced']} no_price={r['no_price']} "
+                          f"fires={r['fires']} outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] position-risk DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _position_risk_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_position_risk_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 position-risk DARK comparison ENABLED (every minute, "
+                  "weekdays 09:00-16:59 ET, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 position-risk DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-SCAN-MEMBERSHIP-CHANGE CP3 -- the fourth DARK comparison.
+        # Owner approval line 2 (fingerprint d0415f251): read-only PROJECTION of
+        # real member `screen_alert_subs` rows, rollout:s7-dark cohort ONLY,
+        # forward-only, four outcomes, own flag DEFAULT OFF, caller rail.
+        #
+        # ⛔ DEFAULT OFF. It reads real member subscriptions.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS NIGHTLY AND ITS OFFSET IS LOAD-BEARING. The legacy
+        # screen-alerts job runs at SWEEP_MINUTE_ET + 10 and WRITES
+        # screen_alerts_fired. This runs at +20, AFTER it, so the night's
+        # coverage is complete -- and the projection reconstructs the dedup state
+        # the legacy rule actually decided against (`already_fired_before`,
+        # strictly older than tonight's session). Without that reconstruction
+        # both rules would read tonight's own row, both would answer `deduped`,
+        # and every night would record a tally of ZEROS -- indistinguishable from
+        # a week of quiet markets.
+        #
+        # ⭐ The minute is DERIVED from scan_evaluator's constants, never typed:
+        # if the sweep moves, this moves with it.
+        if os.environ.get("ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED", "0") == "1":
+            def _scan_membership_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.scan_membership_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] scan-membership-change DARK sweep: "
+                          f"members={r['members']} subscriptions={r['subscriptions']} "
+                          f"evaluated={r['evaluated']} outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] scan-membership-change DARK sweep failed: {e}")
+
+            from api.services.screener import scan_evaluator as _scan_eval
+            _scheduler.add_job(
+                _scan_membership_dark_sweep_job,
+                trigger=CronTrigger(hour=_scan_eval.SWEEP_HOUR_ET,
+                                    minute=_scan_eval.SWEEP_MINUTE_ET + 20,
+                                    timezone=_ET),
+                id="alert_taxonomy_scan_membership_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 scan-membership-change DARK comparison ENABLED "
+                  "(nightly, 20 min after the scan sweep, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 scan-membership-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-CATALYST-MATCH CP3 -- the fifth DARK comparison.
+        # Owner approval line 2 (fingerprint 3ee80dc13), answering the packet's
+        # §9 "what CP3 would have to name" item by item.
+        #
+        # ⛔ DEFAULT OFF. It reads real member watchlists.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS DAILY -- §9 item 5, verbatim: "the catalyst engine
+        # refreshes every 5 minutes pre-market and every 30 midday, and the dedup
+        # is per DAY -- so a per-minute sweep would re-ask a question whose answer
+        # cannot change until tomorrow". 17:30 ET is after the close and after the
+        # engine's last refresh, so the day's ranked set is settled.
+        if os.environ.get("ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED", "0") == "1":
+            def _catalyst_match_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.catalyst_match_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep: "
+                          f"members={r['members']} displayed={r['displayed']} "
+                          f"evaluated={r['evaluated']} fires={r['fires']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _catalyst_match_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=30,
+                                    timezone=_ET),
+                id="alert_taxonomy_catalyst_match_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 catalyst-match DARK comparison ENABLED "
+                  "(17:30 ET weekdays, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 catalyst-match DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-REGIME-CHANGE CP3 -- the sixth DARK comparison.
+        # Owner approval line 2 (fingerprint 9f0575340). §4 warns this type's
+        # projection is UNUSUAL: the predicate is global, so "projecting member
+        # rows" means projecting the STAKE TEST over the cohort.
+        #
+        # ⛔ DEFAULT OFF. ⛔ ARMING IT IS THE OWNER'S FLIP.
+        #
+        # ⛔⛔ IT MUST NEVER WRITE THE REGIME LEDGER. `_compute_regime_component`
+        # does a read-then-APPEND on `awareness_regime_snapshots`; a dark run
+        # calling it would corrupt the prev_label the LIVE R4 rule reads next
+        # cycle -- a comparison turning into an intervention. The projection
+        # reads the ledger's newest two rows instead, which IS the record of
+        # what R4 saw, and costs no classifier call.
+        #
+        # ⛔⛔ CADENCE SHADOWS THE AWARENESS ENGINE (*/20, weekdays 4-20 ET),
+        # offset by 7 minutes so each of its appends is observed after it lands.
+        # A watermark on the ledger's own id makes each row observable ONCE --
+        # without it, re-counting one flip every tick would make `agreed` a
+        # function of the sweep's cadence rather than of the market.
+        if os.environ.get("ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED", "0") == "1":
+            def _regime_change_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.regime_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] regime-change DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"ledger_id={r['ledger_id']} skipped={r['skipped']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] regime-change DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _regime_change_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="4-20",
+                                    minute="7-59/20", timezone=_ET),
+                id="alert_taxonomy_regime_change_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 regime-change DARK comparison ENABLED (every 20 min "
+                  "behind the awareness scan, weekdays 04:00-20:59 ET, no delivery)")
+        else:
+            print("[startup] S7 regime-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)")
+
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
@@ -7408,6 +7628,24 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] event-loop watchdog failed to start (non-fatal): {_e}")
 
+    # -- Discord render V2 runtime (docs/discord-render/03-architecture.md) ---
+    # Dark unless DISCORD_RENDER_V2_ENABLED. On boot it RESUMES the jobs a dead pod
+    # left mid-render (web's median deployment served 8.4 minutes over 2026-08-30..
+    # 09-13, and each restart used to strand every in-flight chart reply on
+    # "thinking..."). Non-fatal: a failure here leaves the pre-V2 path answering.
+    try:
+        # ⛔ LOCAL import. main.py has no module-level `import asyncio`; the only ones live
+        # inside other blocks thousands of lines up. Relying on them would raise here, the
+        # `except` below would call it non-fatal, and V2 would silently never start.
+        import asyncio as _v2_boot_aio
+        from api.services.discord_render import commands as _render_v2
+        if _render_v2.enabled():
+            _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
+            print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
+                  f"abandoned={_v2_boot['abandoned']}")
+    except Exception as _e:
+        print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
+
     yield
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
     # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
@@ -7440,6 +7678,19 @@ async def lifespan(app: FastAPI):
                   f"{'clean' if _lf_clean else 'join timed out (daemon finishing in drain window)'}")
     except Exception as e:
         print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
+    # -- Discord render V2: hand every held job lease back before the pod goes ---
+    # Inside uvicorn's 5 s graceful window. Releasing the leases NOW lets the
+    # replacement pod resume those renders at once instead of waiting out a 20 s
+    # lease. Thread joins run off the loop. Non-fatal either way: a lease that is
+    # not released simply lapses and the next pod resumes it 20 s later.
+    try:
+        import asyncio as _v2_aio
+        from api.services.discord_render import commands as _render_v2_stop
+        if _render_v2_stop.enabled():
+            _v2_released = await _v2_aio.to_thread(_render_v2_stop.stop)
+            print(f"[shutdown] discord-render V2 released {_v2_released} lease(s)")
+    except Exception as e:
+        print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
 

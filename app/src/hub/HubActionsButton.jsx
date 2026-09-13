@@ -219,6 +219,17 @@ export default function HubActionsButton({
           minWidth: MIN_TAP_PX,
           minHeight: MIN_TAP_PX,
         }}
+        /**
+         * ⭐ A SELECTOR HOOK, SO NO INSTRUMENT HAS TO MATCH MEMBER-VISIBLE COPY.
+         * `tools/hub_chip_clearance.py` — the real-glass half of G3-15 — used to find this
+         * button by testing every `button[aria-label]` against /actions$/i. That is a match on
+         * PRODUCT WORDING: reword the label and the rail guarding a shipped defect stops finding
+         * its subject, reports "no Actions button rect — nothing was measured", and the person
+         * who reworded the label is not the person who notices.
+         * ⛔ TWO PROPERTIES, TWO ASSERTIONS. The accessible name is still asserted, as a NAME
+         * (`hubChipActionsClearance.test.jsx`), never as the way to find the element.
+         */
+        data-testid="hub-actions"
         aria-label={label}
         onClick={() => { onBeforeOpen?.(); setOpen(true) }}
       >

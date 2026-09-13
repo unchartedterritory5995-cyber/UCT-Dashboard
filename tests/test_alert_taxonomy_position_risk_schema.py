@@ -430,12 +430,31 @@ def test_there_is_no_replay_fn_and_the_module_says_why():
     assert "keeps no history" in raw
 
 
-def test_nothing_calls_register_yet_and_that_is_the_checkpoint_boundary():
-    """⛔ REGISTRATION IS NOT ACTIVATION. §2a item 3's warning, applied: CP1-CP2
-    add no scheduler entry and no flag. The rail that this stays true is here so
-    an accidental wire is caught rather than discovered at CP3."""
+def test_the_type_IS_registered_now_that_CP3_is_signed():
+    """⛔ REGISTRATION IS NOT ACTIVATION — and at CP3 it is finally allowed.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, ec2b197f8). It read:
+
+        assert "position_risk" not in main, (
+            "api/main.py wires position-risk — that is CP3 and needs a new
+             approval line")
+
+    ⭐ **That rail did its job twice over.** It held the CP1-CP2 boundary, and on
+    2026-09-13 it CAUGHT A WRONG READING OF ITS OWN ABSENCE: the pod showed three
+    registered types against eight modules defining `register()`, which looked
+    like five instances of *built, tested, green and unreachable*, and a draft
+    commit wired all five. The four siblings' identical rails said no. **Three
+    was the correct number** — registration in the boot path is CP3's act, and
+    only three types had reached CP3.
+
+    So this inverts for `position_risk` alone, because only its CP3 is signed.
+    The family view lives in `tests/test_alert_taxonomy_registration_is_wired.py`,
+    which asserts the biconditional for every type at once.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "position_risk" not in main, (
-        "api/main.py wires position-risk — that is CP3 and needs a new approval line")
+    assert "position_risk" in main, (
+        "position-risk CP3 is signed and api/main.py does not wire it — the type "
+        "does not exist in the running process, so its dark sweep would write "
+        "receipts against a type_id the registry has never heard of")
     # CONTROL: main.py really was read and really does contain other wiring.
     assert "add_job" in main

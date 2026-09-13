@@ -564,7 +564,12 @@ def test_the_harness_is_the_only_caller_of_would_fire():
             continue
         if "catalyst_match.would_fire" in code or "_cm.would_fire" in code:
             callers.append(str(p.relative_to(_REPO)).replace("\\", "/"))
-    assert callers == ["api/services/alert_taxonomy/catalyst_match_compare.py"], (
+    # ⚰️ MOVED AT CP3 (line 2, 3ee80dc13): the PROJECTION is the one new caller.
+    # ⛔ The list stays EXACT — a third caller is an unapproved wire.
+    assert sorted(callers) == [
+        "api/services/alert_taxonomy/catalyst_match_compare.py",
+        "api/services/alert_taxonomy/catalyst_match_projection.py",
+    ], (
         f"expected the harness to be the ONLY caller; found {callers}")
 
 
@@ -584,9 +589,23 @@ def test_the_caller_rail_is_non_vacuous():
 
 def test_there_is_no_scheduler_entry_and_no_flag_for_this_type():
     """⛔ REGISTRATION IS NOT ACTIVATION, and putting a dark evaluator on a tick
-    is not the FLIP. CP1-CP2 add neither."""
+    is not the FLIP.
+
+    ⚰️ REWRITTEN AT CP3 (line 2, 3ee80dc13). It read
+    `assert "catalyst_match" not in main` — correct while CP1-CP2 forbade any
+    wire. CP3's approved scope IS that wire (§9 item 4), so the assertion
+    inverts and tightens: the gate must exist and must default to OFF.
+
+    ⛔ The two MODULES keep their own constraints below, unchanged.
+    """
     main = _code_only(_REPO / "api" / "main.py")
-    assert "catalyst_match" not in main
+    assert "add_job" in main, "the main.py probe read nothing — it is broken"
+    # ⚠️ Matched against the UNPARSED source, which normalises quoting to single
+    # quotes — a double-quoted needle here would be a rail that can only fail.
+    assert ("os.environ.get('ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED', '0') == '1'"
+            in main), (
+        "the catalyst-match dark sweep is not flag-gated, or its default is not "
+        "OFF — it reads real member watchlists")
     for path in (_MODULE, _COMPARE):
         code = _code_only(path)
         assert "add_job" not in code
