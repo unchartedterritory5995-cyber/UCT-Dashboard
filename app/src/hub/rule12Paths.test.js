@@ -50,13 +50,62 @@ const gitRaw = (args) => execFileSync('git', args, { encoding: 'utf8', windowsHi
 const REPO_ROOT = gitRaw(['rev-parse', '--show-toplevel'])
 const git = (args) => gitRaw(['-C', REPO_ROOT, ...args])
 
-/** ⛔ The branch that OWNS the forbidden paths. On it this rail's subject is
- *  INVERTED -- that workstream edits those files by definition -- so a guard
- *  firing there is guarding the wrong party. Distinct from `onBase`, which asks
- *  whether HEAD diverged at all; this asks WHOSE branch it is. */
-const OWNER_BRANCH = 'notebook-primary-platform'
+/**
+ * ⛔⛔ WHOSE CHANGE SET IS THIS? — B7, and it decides whether this rail says anything at all.
+ *
+ * Rule 12 is a JOYSTICK-PROGRAMME rule: this build integrates with the Notebook through the URL
+ * contract as it exists today and edits none of its files. So the rail has to fire on joystick
+ * work and nowhere else. Fired unconditionally it cannot tell the case it was written for from
+ * that case's exact opposite — the Notebook workstream editing its own code — which is
+ * `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`, and it cost that workstream a
+ * hand-written waiver on every gate it ran between 2026-09-10 and 2026-09-13.
+ *
+ * ⚰️ The first attempt was `OWNER_BRANCH = 'notebook-primary-platform'`, ONE literal branch name,
+ * added by the Notebook workstream on the day it bit them. Right about the mechanism, too narrow
+ * by a family: that workstream also ships from `feat/notebook-*`, `hotfix/notebook-*`,
+ * `notebook-flip` and `rollback/notebook-*`, and every one of those still tripped.
+ *
+ * ⭐ THE PRIMARY IDENTIFIER IS THE DIFF, NOT THE BRANCH NAME — a branch name is typed and drifts,
+ * a change set is evidence. Measured against this programme's OWN branches the name is by far the
+ * weaker signal: `fix/d46-d48-closeout`, `docs/scope-reconciliation`, `launch/closure` and
+ * `docs/d45-ruling` are all joystick branches and not one contains the word. Every one of them
+ * touches `app/src/hub/` or `docs/plans/joystick/`.
+ *
+ * ⚠️ THE RESIDUAL HOLE, STATED RATHER THAN HIDDEN: a joystick branch whose name says nothing and
+ * whose diff touches ONLY `journal-2-0/` files reads as Notebook work and is scoped out. From a
+ * diff alone those two cases are genuinely indistinguishable. The trade is deliberate — the
+ * programme is CLOSED, so such a branch is close to hypothetical, while the false positive it
+ * replaces was firing on somebody else's gate every day.
+ */
+const NOTEBOOK_BRANCH = /(^|[/_-])notebook([/_-]|$)/i
+const JOYSTICK_BRANCH = /(^|[/_-])(joystick|hub)([/_-]|$)/i
+
+/** Paths the joystick programme owns; a change set touching any of them is joystick work.
+ *  ⛔ Every prefix is proved against real tracked files by a rail below. A prefix with a typo
+ *  matches nothing, and a list that silently matches nothing is the shape of every vacuous gate
+ *  this repo has had to unpick. */
+const HUB_OWNED_PREFIXES = [
+  'app/src/hub/',
+  'docs/plans/joystick/',
+  'tools/hub_',
+  'scripts/hub',
+]
+
 const currentBranch = () => {
   try { return git(['rev-parse', '--abbrev-ref', 'HEAD']) } catch { return '' }
+}
+
+/**
+ * Pure on purpose, so it can be exercised against branches this checkout will never be on.
+ *
+ * ⛔ ORDER IS LOAD-BEARING. The owning workstream's identification wins over everything else, so
+ * a Notebook branch that happens to touch a hub file — this very rail, on the day they patched
+ * it — is still scoped out instead of being handed back the false positive it was patched for.
+ */
+function rule12Applies({ branch, changed }) {
+  if (NOTEBOOK_BRANCH.test(branch)) return false
+  if (JOYSTICK_BRANCH.test(branch)) return true
+  return changed.some((f) => HUB_OWNED_PREFIXES.some((p) => f.startsWith(p)))
 }
 
 /** The base this branch is measured against. Tries the refs a checkout might actually have. */
@@ -92,58 +141,59 @@ function changedPaths() {
   return [...new Set([...committed, ...tracked, ...untracked].map((f) => f.trim()).filter(Boolean))]
 }
 
+/**
+ * Prove the git machinery can see SOMETHING, without assuming a branch exists.
+ *
+ * ⛔ ONE AUTHORITY, SHARED BY EVERY SCOPE-OUT AND CONTROL BELOW. This reasoning existed twice
+ * before B7 and the two copies had already begun to differ; `lesson_a_second_authority_over_one_value`
+ * is the rule, and a control that drifts from the thing it controls is worse than none.
+ *
+ * ⭐ THE DISTINCTION IS A POSITIVE IDENTIFICATION, NEVER AN INFERENCE FROM EMPTINESS. "Empty
+ * therefore fine" is the blind-watcher shape this file's header refuses. HEAD being BYTE-EQUAL to
+ * the merge base is a different, checkable fact: it says this checkout holds no commits the base
+ * lacks, so zero changed paths is arithmetic rather than a broken command. On any real branch HEAD
+ * differs from the base, so a broken diff still fails here.
+ */
+function expectMachineryCanSee(why) {
+  const { sha } = mergeBase()
+  const head = git(['rev-parse', 'HEAD'])
+
+  if (head !== sha) {
+    expect(changedPaths().length, `${why} — HEAD is AHEAD of the merge base (${sha.slice(0, 9)}), `
+      + 'so this branch has commits and the rail can see none of them. It is looking at nothing '
+      + 'and every check that reads this list would pass vacuously.')
+      .toBeGreaterThan(0)
+    return
+  }
+
+  // ⛔ NOT `expect(changedPaths()).toEqual([])`. That was the first attempt and it is wrong: a
+  // master checkout routinely carries untracked scratch (this gate writes its own manifest into
+  // the tree before anyone commits it), so the assertion failed on a perfectly healthy checkout —
+  // swapping one false red for another. Point the machinery at a range that cannot legitimately
+  // be empty instead, and the whole chain (git -C at the repo root, the pathspec, the parsing) is
+  // exercised without needing a branch to exist.
+  const parents = git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').slice(1)
+  if (parents.length === 0) return // a root commit has no previous state to diff against
+  const lastCommit = git(['diff', '--name-only', 'HEAD~1..HEAD'])
+    .split('\n').map((s) => s.trim()).filter(Boolean)
+  expect(lastCommit.length, `${why} — HEAD is the merge base (no branch to measure), and the diff `
+    + 'machinery ALSO returned nothing for the last commit, which cannot legitimately be empty. '
+    + 'So the commands themselves are broken here, exactly the failure this control exists for.')
+    .toBeGreaterThan(0)
+}
+
 describe('rule 12 — the Notebook workstream owns these paths', () => {
   it('the named file is inside the named prefix — containment proved, not assumed', () => {
     expect(FORBIDDEN_FILE.startsWith(FORBIDDEN_PREFIX)).toBe(true)
   })
 
-  it('the rail can actually see this branch\'s changes — the non-vacuity control', () => {
+  it("the rail can actually see this branch's changes — the non-vacuity control", () => {
     const { sha } = mergeBase()
     expect(sha).toMatch(/^[0-9a-f]{7,40}$/)
 
-    // ⚰️ THIS CONTROL FIRED ON MASTER, AND IT WAS RIGHT TO — the fix is to tell the two empty
-    // states apart, NOT to soften it.
-    //
-    // The rail guards a BRANCH. Run on master after that branch merges, `changedPaths()` is
-    // legitimately empty: there is no branch left to measure. The control could not distinguish
-    // that from the failure it exists for — a diff invocation that silently returns nothing (the
-    // `app/app/src/...` pathspec bug, `0 === 0`) — so it reported master's own gate red for a
-    // guard that had simply run out of subject. Increment 3's master gate is where that surfaced.
-    //
-    // ⛔ THE DISTINCTION IS A POSITIVE IDENTIFICATION, NEVER AN INFERENCE FROM EMPTINESS. "Empty
-    // therefore skip" is precisely the blind-watcher shape this file's header refuses. HEAD being
-    // BYTE-EQUAL to the merge base is a different, checkable fact: it says this checkout contains
-    // no commits the base lacks, so zero changed paths is arithmetic rather than a broken command.
-    // On any real branch HEAD differs from the base, so a broken diff still fails here.
-    const head = git(['rev-parse', 'HEAD'])
-    const onBase = head === sha
-
-    if (onBase) {
-      // ⛔ NOT `expect(changedPaths()).toEqual([])`. That was the first attempt and it is wrong:
-      // a master checkout routinely carries untracked scratch (this gate writes its own manifest
-      // into the tree before anyone commits it), so the assertion failed on a perfectly healthy
-      // checkout — swapping one false red for another.
-      //
-      // ⭐ What the control is FOR is proving the machinery can see things, so the forbidden-path
-      // check below is not passing over a dead command. Point that machinery at a range that
-      // cannot legitimately be empty — the last commit — and the whole chain (git -C at the repo
-      // root, the pathspec, the parsing) is exercised without needing a branch to exist.
-      const parents = git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').slice(1)
-      if (parents.length === 0) return // a root commit has no previous state to diff against
-      const lastCommit = git(['diff', '--name-only', 'HEAD~1..HEAD'])
-        .split('\n').map((s) => s.trim()).filter(Boolean)
-      expect(lastCommit.length, 'HEAD is the merge base (no branch to measure), and the diff '
-        + 'machinery ALSO returned nothing for the last commit — which cannot legitimately be '
-        + 'empty. So the commands themselves are broken here, exactly the failure this control '
-        + 'exists for, and the forbidden-path check below would pass vacuously.')
-        .toBeGreaterThan(0)
-      return
-    }
-
-    expect(changedPaths().length, 'the file list came back empty while HEAD is AHEAD of the merge '
-      + `base (${sha.slice(0, 9)}) — so this branch has commits and the rail can see none of them. `
-      + 'The rail is looking at nothing and the forbidden-path check below would pass vacuously.')
-      .toBeGreaterThan(0)
+    // ⚰️ THIS CONTROL FIRED ON MASTER, AND IT WAS RIGHT TO — the fix was to tell the two empty
+    // states apart, NOT to soften it. That reasoning now lives in ONE place, above.
+    expectMachineryCanSee('the non-vacuity control')
   })
 
   it('⛔ the on-base branch is IDENTIFIED, not guessed — the control keeps its teeth', () => {
@@ -166,18 +216,15 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
 
   it('⛔ no file under the Notebook workstream\'s paths is touched, except the one permitted card', () => {
     const { ref, sha } = mergeBase()
-    // ⚰️ 2026-09-10, ADDED BY THE NOTEBOOK WORKSTREAM. This rail failed on the
-    // NOTEBOOK BRANCH ITSELF, where "this branch must not edit the Notebook
-    // workstream's files" is false by definition -- and would have failed on
-    // every Notebook deploy from here on, blocking the workstream it protects.
-    // ⛔ An IDENTITY ASSUMPTION: it assumed any branch running it is Increment 3.
+    // ⚰️ 2026-09-10, ADDED BY THE NOTEBOOK WORKSTREAM; widened into a scope decision
+    // 2026-09-13 (B7). This rail failed on the NOTEBOOK BRANCH ITSELF, where "this branch must
+    // not edit the Notebook workstream's files" is false by definition, and it would have failed
+    // on every Notebook deploy from then on, blocking the workstream it protects.
+    // ⛔ An IDENTITY ASSUMPTION: it assumed any branch running it is this programme's.
     // A guard that cannot say WHO it guards guards everyone.
     // ⛔ NOT A SKIP, A SCOPE -- it still asserts something falsifiable here.
-    if (currentBranch() === OWNER_BRANCH) {
-      expect(
-        changedPaths().length,
-        'scoped out on the owning branch, but the rail must still be LOOKING at something',
-      ).toBeGreaterThan(0)
+    if (!rule12Applies({ branch: currentBranch(), changed: changedPaths() })) {
+      expectMachineryCanSee('scoped out — this change set is not joystick work')
       return
     }
     const offenders = changedPaths()
@@ -213,5 +260,90 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
       `RULE 12 — ${PERMITTED_FILE} may ONLY gain "${PERMITTED_INSERT.trim()}". These changed lines are something else:\n  ` +
       unexplained.join('\n  '),
     ).toEqual([])
+  })
+})
+
+/**
+ * ⛔ B7 — THE SCOPE DECISION GETS ITS OWN RAIL, because the thing most likely to break this file
+ * is not the git plumbing, it is the predicate quietly answering "no" everywhere.
+ *
+ * ⭐ EVERY BRANCH NAME BELOW IS REAL, read off `git branch -r` on 2026-09-13, not invented. An
+ * invented fixture proves the regex matches itself; a real one proves it matches the branches
+ * this repository actually ships from.
+ */
+describe('rule 12 — the rail fires on joystick work and nowhere else (B7)', () => {
+  const CASES = [
+    // ── The Notebook workstream's own family. Every one of these tripped the rail before B7,
+    //    and the one-literal fix covered only the first.
+    { applies: false, branch: 'notebook-primary-platform',
+      changed: ['app/src/pages/journal-2-0/tabs/NotebookTab.jsx'] },
+    { applies: false, branch: 'feat/notebook-kill-switch',
+      changed: ['app/src/pages/journal-2-0/lib/offline/offlineFlag.js'] },
+    { applies: false, branch: 'hotfix/notebook-ios17-iterator',
+      changed: ['app/src/pages/journal-2-0/lib/pdfjs.js'] },
+    { applies: false, branch: 'rollback/notebook-offline-default-off',
+      changed: ['app/src/pages/journal-2-0/components/notebook/NoteCard.jsx'] },
+    // ⭐ The case the one-literal fix could not reach at all: the owning workstream touching a hub
+    //    file. It happened — they edited THIS rail to add their escape.
+    { applies: false, branch: 'notebook-flip',
+      changed: ['app/src/hub/rule12Paths.test.js', 'app/src/pages/journal-2-0/tabs/NotebookTab.jsx'] },
+
+    // ── This programme's branches. ⛔ NOT ONE of them contains "joystick" or "hub", which is
+    //    exactly why the diff is the primary identifier and the name is the fallback.
+    { applies: true, branch: 'fix/d46-d48-closeout',   changed: ['app/src/hub/HubKnob.jsx'] },
+    { applies: true, branch: 'docs/d46-d48-sha-fix',   changed: ['docs/plans/joystick/deferred.md'] },
+    { applies: true, branch: 'launch/closure',         changed: ['docs/plans/joystick/closure.md'] },
+    { applies: true, branch: 'fix/d44-step-semantics', changed: ['tools/hub_surface_matrix.mjs'] },
+    { applies: true, branch: 'docs/scope-reconciliation',
+      changed: ['docs/plans/joystick/scope-reconciliation.md'] },
+    // …and by NAME, for a joystick branch whose first commit has not landed yet.
+    { applies: true, branch: 'feat/joystick-hub', changed: [] },
+
+    // ── Other workstreams, minding their own business. The rail owes them silence.
+    { applies: false, branch: 'feat/s7-price-level', changed: ['app/src/pages/Calendar.jsx'] },
+    { applies: false, branch: 'terminal-research',   changed: ['api/routers/calendar.py'] },
+    { applies: false, branch: 'feat/indicator-r0r1', changed: ['app/src/components/chart/engine/ast/pine.js'] },
+
+    // ⛔ THE ONE THAT LOOKS LIKE A HUB BRANCH AND IS NOT: "git" + "hub". A bare /hub/ substring
+    //    match would claim this branch, so the separator boundaries are load-bearing.
+    { applies: false, branch: 'fix/github-actions-cache', changed: ['.github/workflows/vite.yml'] },
+  ]
+
+  for (const c of CASES) {
+    it(`${c.applies ? '⛔ FIRES' : '⭐ scopes out'} on ${c.branch}`, () => {
+      expect(rule12Applies({ branch: c.branch, changed: c.changed })).toBe(c.applies)
+    })
+  }
+
+  it('⛔ the table discriminates — it is not quietly one answer for everything', () => {
+    // `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`, applied to the fixture itself:
+    // a predicate hard-wired to `false` would pass twelve of these cases.
+    const answers = new Set(CASES.map((c) => c.applies))
+    expect(answers.size, 'every case expects the same answer, so this table cannot catch a '
+      + 'predicate that returns a constant').toBe(2)
+  })
+
+  it('⛔ every HUB_OWNED prefix matches real tracked files — a typo matches nothing', () => {
+    const tracked = git(['ls-files']).split('\n').map((s) => s.trim()).filter(Boolean)
+    expect(tracked.length, 'git ls-files returned nothing, so this check proves nothing')
+      .toBeGreaterThan(100)
+    for (const p of HUB_OWNED_PREFIXES) {
+      expect(
+        tracked.some((f) => f.startsWith(p)),
+        `HUB_OWNED_PREFIXES contains "${p}", which matches NO tracked file. Either it is a typo `
+        + 'or the paths moved; either way the predicate silently stopped recognising that part of '
+        + 'the programme as joystick work.',
+      ).toBe(true)
+    }
+  })
+
+  it('⛔ the prefixes do not claim the paths they exist to protect', () => {
+    // A prefix that matched `app/src/pages/journal-2-0/` would make every Notebook edit read as
+    // joystick work and invert the rail.
+    for (const p of HUB_OWNED_PREFIXES) {
+      expect(FORBIDDEN_PREFIX.startsWith(p), `"${p}" claims the forbidden prefix itself`).toBe(false)
+    }
+    expect(rule12Applies({ branch: 'whatever', changed: [FORBIDDEN_FILE] }), 'a change set of '
+      + 'nothing but Notebook files reads as joystick work').toBe(false)
   })
 })
