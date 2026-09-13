@@ -87,11 +87,15 @@ If they mostly do and Close never fired, the safety works. If they mostly do NOT
 real glass is simply slower than 120 ms and the threshold is fine as shipped — that is a finding,
 not a failure.
 
-⚠️ **A question for you, not a defect.** Only `journal.close` is flick-guarded. `Move stop`,
-`Breakeven` and `Plan trade` all commit against a live position once their sheet is confirmed. They
-are sheet-mediated, so nothing is written by the gesture alone and the present design is defensible
-— but whether a flick should be able to *open* those sheets at all is a product call nobody has
-made. Recorded as **D-45**; it needs a ruling, not a fix.
+✅ **RULED 2026-09-13 (D-45) — so you are measuring, not deciding.** `journal.close` stays the
+only flick-guarded action. The other four are **sheet-mediated**: the sheet is the guard, and a
+flick guard in front of it would be a second lock on the same door. `Close` gets belt-and-braces
+because it ends a position and writes a permanent trade row. The reason now sits beside the
+declaration in `registry.js`, so nobody reads the asymmetry as an oversight again.
+
+⭐ **What §A is still for, then:** the ruling says revisit **only** if accidental flicks reach a
+sheet at a rate a member would notice. A1–A5 are what produce that number. You are not being asked
+to judge the design — just to report what your finger actually did.
 
 ---
 

@@ -229,15 +229,26 @@ to ask **what else would produce this exact observation**, and the answer was si
 
 ### Ledger — no orphans
 
-- **D-numbers:** 41 total. **37 CLOSED**, **4 OPEN, all owned** — D-38 (toast duration, joystick,
-  accepted as-is), D-39 (chip vs page furniture, joystick), D-40 (Notebook phone list has no per-note
-  DOM id, **Notebook**), D-41 (two `iteratorGlobalFloor` corrections, **Notebook**).
-- **R-numbers:** 20 present. **19 CLOSED**; R-28 is OPEN with its owner in its own heading
-  (`requests.md:920`, "owner: The Desk") — a cross-workstream row, not a joystick item.
+- **D-numbers:** ~~41 total, 37 CLOSED~~ → **45 total, 41 CLOSED** as of 2026-09-13. The audit
+  itself added four and every one is now closed: **D-42** (matrix blind to shorthand) and **D-43**
+  (notebook Reverse) in `d153215d0`, **D-44** (the sheet described the wrong gesture) in
+  `2b4fc75cc`, **D-45** (only `journal.close` is flick-guarded) RULED as designed with the reason
+  recorded in `registry.js`. **The SAME 4 remain OPEN, all owned** — D-38 (toast duration,
+  joystick, accepted as-is), D-39 (chip vs page furniture, joystick), D-40 (Notebook phone list
+  has no per-note DOM id, **Notebook**), D-41 (two `iteratorGlobalFloor` corrections,
+  **Notebook**). ⛔ Neither of the two joystick rows blocks anything; both Notebook rows are
+  another workstream's.
+- **R-numbers:** ~~20 present~~ → **21 present. 19 CLOSED**; **R-28** is OPEN with its owner in
+  its own heading ("owner: The Desk"), and **R-29** was filed 2026-09-13 for the **S4**
+  workstream — `app/src/lib/context/focusDivergence.js` is an unlisted orphan that reds
+  `reachable.test.js` on master for everybody. Both are cross-workstream rows, neither is a
+  joystick item.
 - **ORPHANS: none.**
 
-⚠️ Two new defects above (G-DEFECT-1, G-DEFECT-2) have no D-number yet — that is this audit's own
-output, not a pre-existing orphan.
+✅ The two defects this audit found became **D-42** and **D-43**, and both shipped the same day;
+the glass run that verified them found **D-44**, which shipped too, and raised **D-45**, which is
+ruled. This audit's own output is therefore fully absorbed into the ledger — no orphans, and
+nothing it discovered is still waiting on this build.
 
 ### Closure gate — **2 of 6**
 
