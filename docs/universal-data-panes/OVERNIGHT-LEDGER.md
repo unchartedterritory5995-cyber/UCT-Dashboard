@@ -57,19 +57,23 @@ Overnight slice 2 — Universal Data Panes completion pass (the trader workflow,
 end to end, in the browser).
 
 ### CURRENT STATUS
-Slice 1 complete and checkpointed.
+Slice 2 (completion pass) substantially complete and checkpointed. Three defects
+found by walking the workflow, all fixed and railed.
 
 ### BRANCH
 `feat/universal-data-series`
 
 ### HEAD
-`7fa4d70f9`
+`152042d5f`
 
 ### LAST KNOWN GOOD COMMIT
-`7fa4d70f9` — fix(chart): state a missing pane target, and scope duplicate
-ordinals. (Base of the whole branch: `735704fd7`.)
+`152042d5f` — fix(chart): a pane move invalidates the heights applied after it.
+(Base of the whole branch: `735704fd7`.)
 
 Checkpoints, newest first:
+- `152042d5f` pane order/height convergence after a single move
+- `4e1680780` direct series reads as itself; duplicate rows told apart
+- `76d98c035` ledger
 - `7fa4d70f9` slice 1 — Rulings A and B, plus direct-series naming and the
   source-control fix
 - `ca8c7a80f` / `692ed9c83` this ledger
@@ -113,6 +117,26 @@ Clean at the time of writing.
   represent its own value: every direct series read "Source unavailable" over a
   valid `sym:…` source. Fixed; a severed source still reads unavailable.
 
+**Slice 2 — completion pass (`4e1680780`, `152042d5f`)**
+- Walked the member workflow end to end in the harness: add QQQ/SPY/UCTA50/RSI
+  through the real Add-to-Chart dialog, compose, separate, duplicate, hide/show,
+  restyle, move above/below, delete, re-add, reconstruct.
+- Defect 1 — the Source picker read `QQQ → Series`. The passthrough's plot label
+  is now `Value`; `meta.shortName` stays `Series` for a series over an instance
+  source.
+- Defect 2 — two RSIs produced two settings rows both reading "Relative Strength
+  Index" while their chips read `#1` / `#2`. Row labels now run through
+  `disambiguateLabels` too.
+- Defect 3 (the significant one) — sending a pane ABOVE Price and back BELOW left
+  the oscillator in the tall pane and the candles crushed to ~30 px.
+  `reconcilePaneOrder` reported "more moves owed" rather than "a move happened",
+  so the pass that issued the LAST move sized the stack in the same frame, before
+  `moveTo` had landed. Now `owed > 0`.
+- Verified: request dedup (two QQQ instances → exactly one `/api/bars/QQQ`),
+  pane order after hide/show, delete leaves no zombie pane, re-add mints a NEW
+  instance rather than resurrecting a tombstone, round-trip through the migrator
+  is identical, six panes plus price all on independent correct scales.
+
 ### IMPORTANT DECISIONS
 - Pane sharing persists as `placement.target = "@<hostInstanceId>"` on the GUEST.
   No pane ids are minted or persisted, ever.
@@ -129,14 +153,14 @@ Clean at the time of writing.
   combined state was ever tested end to end. A per-phase split would have been
   history that was never verified.
 
-### TEST EVIDENCE (at `7fa4d70f9`)
+### TEST EVIDENCE (at `152042d5f`)
 - Focused: `paneComposition.test.js` 22 pass; `readout.test.js` 34 pass;
   `ChartSettingsModal.indicators.test.jsx` 39 pass; `stockChartWiring.test.jsx`
   218 pass (includes the 3 renderer-level P2.3 rails).
 - Bite-checks: reverting Ruling B's grouping → 7 red; removing the missing-target
   entry → 2 red; removing the self-target guard → 1 red; narrowing the instance
   validator → 2 red.
-- Broader: full frontend suite **19,554 pass / 16 fail / 9 skipped**.
+- Broader: full frontend suite **19,559 pass / 16 fail / 9 skipped**.
 - Build: `vite build` clean; dev harness absent from `dist`.
 - Browser: harness at `/pane-harness.html` — QQQ+MA(QQQ) one pane (715.44 /
   714.88), QQQ+SPY one pane, SPY back to Own Pane, UCTA50+MA(UCTA50), duplicate
@@ -191,11 +215,21 @@ untouched, must not be closed or restarted. `:5188` belongs to worktree `C:\w\wm
    To get the name back, the tombstone would have to carry a display label — a
    persistence change, deliberately not taken.
 
+### OBSERVATIONS, NOT FIXED (deliberate)
+- `/api/ticker-search` returns `type: "stock"` for QQQ and SPY, so the library row
+  badge reads STOCK for an ETF. That is the backend's own answer; inventing a
+  security-type source would be fabricating. Recorded, not patched.
+- Adding a second overlay moving average yields two settings rows both reading
+  "SMA 50". Overlays are positional fixtures, not engine instances, so tonight's
+  disambiguator does not reach them; the collision self-resolves the moment the
+  member changes either period. Left alone.
+- The engine MA's catalogue name is "Moving Average (Source)". Renaming a shipped
+  indicator is a product decision, not an implementation one.
+
 ### NEXT AUTHORIZED ACTION
-Overnight slice 2 — the Universal Data Panes completion pass: add QQQ / SPY /
-UCTA50 / RSI, compose and separate them, duplicate, manage (hide/show, settings,
-style, move, delete, re-add), reconstruct, and verify identity, labels, pane
-order, scales, legends and console. Fix only small, clear, reproducible defects.
+Optional continued LOW/NORMAL-RISK polish of already-built chart systems
+(indicators UX, conditions UX, formula-builder UX presentation), or stop. The
+Universal Data Panes workflow itself is verified end to end.
 
 ### STOP CONDITIONS
 None active.
