@@ -16,42 +16,21 @@
 # (exit 2) rather than passing when it cannot compute one.
 name: wisdom rails
 
+# ⛔ NO `paths:` FILTER, DELIBERATELY. S-B reviewer finding F5, 2026-09-13: both triggers
+# carried a paths list of Wisdom paths and the seven vocabulary source lists — and no
+# off-limits path. So a wisdom/* branch whose diff touched ONLY
+# `app/src/pages/journal-2-0/NotebookTab.jsx` did not start this workflow at all, and the
+# off-limits rail never ran on the one diff shape it is written for. The rail existed, was
+# green, and was structurally unable to fire.
+#
+# The fix is not a longer paths list: that would be a third hand-typed mirror of CONTRACTS §1
+# (the second was finding F2) and would drift the same way. This job installs nothing but
+# pytest and the rails are standard-library only, so it runs on every push and PR and decides
+# for itself — `rail_applies_to_branch` no-ops the diff rail off a program branch, and the
+# source rails scan a fixed, small scope.
 on:
   push:
-    paths:
-      - 'api/services/wisdom/**'
-      - 'api/routers/wisdom_*.py'
-      - 'tools/wisdom/**'
-      - 'tools/wisdom_*.py'
-      - 'tests/test_wisdom_*'
-      - 'app/src/pages/admin/wisdom/**'
-      - 'docs/wisdom/vocabulary/**'
-      - '.github/workflows/wisdom-rails.yml'
-      # the setup-name lists the vocabulary authority check derives from
-      - 'app/src/constants/setupGroups.js'
-      - 'app/src/pages/modelbook/setupCatalog.js'
-      - 'api/services/desk_session_insights.py'
-      - 'api/services/pattern_vision/rubrics.py'
-      - 'api/services/voice_chart_vision.py'
-      - 'api/services/pattern_engine/detectors/**'
-      - 'docs/curriculum/uct_method_presenter_brief.json'
   pull_request:
-    paths:
-      - 'api/services/wisdom/**'
-      - 'api/routers/wisdom_*.py'
-      - 'tools/wisdom/**'
-      - 'tools/wisdom_*.py'
-      - 'tests/test_wisdom_*'
-      - 'app/src/pages/admin/wisdom/**'
-      - 'docs/wisdom/vocabulary/**'
-      - '.github/workflows/wisdom-rails.yml'
-      - 'app/src/constants/setupGroups.js'
-      - 'app/src/pages/modelbook/setupCatalog.js'
-      - 'api/services/desk_session_insights.py'
-      - 'api/services/pattern_vision/rubrics.py'
-      - 'api/services/voice_chart_vision.py'
-      - 'api/services/pattern_engine/detectors/**'
-      - 'docs/curriculum/uct_method_presenter_brief.json'
 
 jobs:
   rails:

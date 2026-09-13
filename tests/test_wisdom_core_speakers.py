@@ -21,12 +21,16 @@ DESCRIPTION = "Pradeep Bonde (Stockbee) joins the desk to talk episodic pivots."
     ("Patrick (TSDR)", "tsdr"),
     ("Patrick TSDR)", "tsdr"),
     ("Patrick (TSDR) (Host)", "tsdr"),
-    ("Uncharted Territory", "tsdr"),
+    # ⚰️ ("Uncharted Territory", "tsdr") and ("Manav", "manrav") lived here until 2026-09-13.
+    # Owner ruling CONTRACTS §8a.2 REVERSED both: the shared host label carried Bracco's voice
+    # in golden session 348, and a bare given name resolved any attendee of that name to a CALL
+    # author. They are now ambiguous labels and assert 'team-unresolved' in
+    # tests/test_wisdom_authors_aliases.py. Kept as a marker because the deleted assertion is
+    # the whole point — a reader who re-adds either is undoing a ruling, not fixing a test.
     ("  patrick (tsdr)  ", "tsdr"),
     ("Brac", "bracco"),
     ("Bracco (Host)", "bracco"),
     ("Braczyy - iPhone", "bracco"),
-    ("Manav", "manrav"),
     ("1ChartMaster", "chartmaster"),
 ])
 def test_author_labels_map_to_their_author(label, author):

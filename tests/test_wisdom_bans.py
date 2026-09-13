@@ -312,6 +312,92 @@ def test_every_off_limits_path_is_named(bans, path):
     assert [v.path for v in bans.offlimits_violations([path])] == [path]
 
 
+# ── the list above is not the contract; CONTRACTS §1 is ──────────────────────
+#
+# ⛔ The parametrize above enumerates paths the CODE already names, so it can never go red on
+# an omission — it agrees with `bans.py` by construction. S-B reviewer finding F2, 2026-09-13:
+# the rail enforced 8 of the ~20 paths CONTRACTS §1 "Never edit" lists, and this test was
+# incapable of noticing. The checks below DERIVE the expected set from the contract instead.
+
+def _contract_never_edit(repo_root) -> list[str]:
+    """The '**Never edit:** …' paragraph of CONTRACTS §1, as written."""
+    import re as _re
+    text = (repo_root / "docs" / "wisdom" / "CONTRACTS.md").read_text(encoding="utf-8")
+    match = _re.search(r"\*\*Never edit:\*\*(.+?)\n\n", text, _re.S)
+    assert match, "CONTRACTS.md has no '**Never edit:**' paragraph — the probe is broken, not the rail"
+    return [_re.sub(r"\s+", " ", item).strip() for item in
+            _re.findall(r"`([^`]+)`", match.group(1))]
+
+
+#: One representative real path per contract entry. The KEY is the contract's own spelling, so
+#: a new entry there with no representative here fails `test_every_contract_entry_is_enforced`.
+_CONTRACT_REPRESENTATIVE = {
+    "app/src/pages/journal-2-0/**": "app/src/pages/journal-2-0/NotebookTab.jsx",
+    "**/lib/offline/**": "app/src/pages/journal-2-0/lib/offline/outbox.js",
+    "OptionsFlow.jsx": "app/src/pages/OptionsFlow.jsx",
+    "docs/discord-render/**": "docs/discord-render/checkpoint.md",
+    "services/chart_renderer/**": "services/chart_renderer/server.js",
+    "app/src/pages/BreadthCharts.jsx": "app/src/pages/BreadthCharts.jsx",
+    "app/src/pages/breadth/PresetRow.jsx": "app/src/pages/breadth/PresetRow.jsx",
+    "app/src/pages/breadth/MetricReadout.jsx": "app/src/pages/breadth/MetricReadout.jsx",
+    "api/services/alert_taxonomy/**": "api/services/alert_taxonomy/registry.py",
+    "api/services/data_sync.py": "api/services/data_sync.py",
+    "api/services/llm_batch.py": "api/services/llm_batch.py",
+    "api/services/buzz_*.py": "api/services/buzz_store.py",
+    "api/services/tweet_store.py": "api/services/tweet_store.py",
+    "api/services/zoom_client.py": "api/services/zoom_client.py",
+    "api/routers/auth.py": "api/routers/auth.py",
+    "api/services/auth_db.py": "api/services/auth_db.py",
+    "api/flow_worker_main.py": "api/flow_worker_main.py",
+    "docs/runbooks/deploy-windows.md": "docs/runbooks/deploy-windows.md",
+    "app/src/components/tiles/CatalystTable.jsx": "app/src/components/tiles/CatalystTable.jsx",
+    "app/src/hub/**": "app/src/hub/registry.js",
+}
+
+
+def test_the_contract_paragraph_is_readable_and_non_trivial(bans):
+    """Non-vacuity. If the regex stopped matching, every derived check below would assert
+    over an empty list and pass (`an empty result is a failed invocation`)."""
+    entries = _contract_never_edit(bans.REPO_ROOT)
+    assert len(entries) >= 15, f"only parsed {len(entries)} entries from CONTRACTS §1: {entries}"
+    assert "api/routers/auth.py" in entries
+
+
+def test_every_contract_entry_has_a_representative(bans):
+    """A new '**Never edit:**' entry must be given a real path to test with — it cannot be
+    silently skipped."""
+    entries = set(_contract_never_edit(bans.REPO_ROOT))
+    missing = sorted(e for e in entries if e not in _CONTRACT_REPRESENTATIVE)
+    assert not missing, (
+        "CONTRACTS §1 names paths this test has no representative for, so their enforcement is "
+        f"unverified: {missing}")
+
+
+@pytest.mark.parametrize("entry", sorted(_CONTRACT_REPRESENTATIVE))
+def test_every_contract_entry_is_enforced(bans, entry):
+    """The check F2 was missing: the CONTRACT decides what is off limits, not bans.py."""
+    path = _CONTRACT_REPRESENTATIVE[entry]
+    assert bans.offlimits_reason(path), (
+        f"CONTRACTS §1 says never edit {entry!r}, but {path!r} passes the off-limits rail")
+
+
+def test_the_flow_worker_watch_list_is_derived_not_retyped(bans):
+    """CONTRACTS §1 says 'every flow-worker watched file'. That list lives in one place and is
+    read from it — a second hand-typed copy is exactly the defect F2 was."""
+    watched = bans.flow_worker_watched()
+    assert watched, "derived nothing; offlimits_rail_limitations must say so rather than pass"
+    assert bans.offlimits_rail_limitations() == ()
+    assert "api/flow_worker_main.py" in watched
+    for path in sorted(watched):
+        assert bans.offlimits_reason(path), f"watched by flow-worker but not off limits: {path}"
+
+
+def test_an_unreadable_watch_list_is_reported_not_silently_empty(bans, monkeypatch):
+    """Control: an empty derived list must never read as 'nothing is watched, all clear'."""
+    monkeypatch.setattr(bans, "flow_worker_watched", lambda: frozenset())
+    assert bans.offlimits_rail_limitations(), "an underivable watch list must be reported"
+
+
 @pytest.mark.parametrize("path", [
     "app/src/pages/journal-2-0-notes.md",
     "docs/discord-render-notes.md",

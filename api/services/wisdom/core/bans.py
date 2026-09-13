@@ -24,6 +24,8 @@ proven clean. A scan that saw fewer files than its floor is INCONCLUSIVE, never 
 from __future__ import annotations
 
 import ast
+import fnmatch
+import functools
 import os
 import pathlib
 import re
@@ -154,7 +156,19 @@ PRIVATE_ALLOWED_IMPORTERS = frozenset({
     "api/services/wisdom/extract/writer.py",
     "api/routers/wisdom_core.py",
 })
-PRIVATE_STRING_PATTERN = re.compile(r"wisdom[./\\]core[./\\]private(?![A-Za-z0-9_])")
+#: S-B reviewer finding F3, 2026-09-13: this matched only the MODULE path, so the store stayed
+#: reachable from any module by opening its FILE or naming its TABLE — neither of which is an
+#: import, and neither of which this rail could see:
+#:     sqlite3.connect(os.environ.get("WISDOM_PRIVATE_DB_PATH", "/data/wisdom_private.db"))
+#:     SELECT value_enc FROM wisdom_private_positions
+#: §0.4d is about REACH. Whether the bytes come back readable is a different question, and a
+#: rail that only stops the readable route is not enforcing the rule.
+PRIVATE_STRING_PATTERN = re.compile(
+    r"wisdom[./\\]core[./\\]private(?![A-Za-z0-9_])"
+    r"|WISDOM_PRIVATE_DB_PATH"
+    r"|wisdom_private\.db"
+    r"|wisdom_private_[A-Za-z0-9_]+",
+    re.IGNORECASE)
 _PRIVATE_DETAIL = ("reaches the owner-private store; only core/private.py, extract/writer.py "
                    "and api/routers/wisdom_core.py may (W1 §0.4d)")
 
@@ -329,7 +343,9 @@ def run_source_rail(rail: str, root: pathlib.Path = REPO_ROOT, *, enforce_floor:
             violations.append(Violation(rail, rel, 0,
                                         f"cannot be read ({type(exc).__name__}), so it cannot be proven clean"))
             continue
-        if rail == "private_store" and "private" not in text:
+        # ⛔ casefold (F3): this fast path skipped any file whose only mention was the
+        # UPPERCASE env var WISDOM_PRIVATE_DB_PATH, before a single check ran.
+        if rail == "private_store" and "private" not in text.casefold():
             continue
         violations.extend(scan_source(rel, text, (rail,)))
     inconclusive = None
@@ -345,14 +361,65 @@ def run_source_rail(rail: str, root: pathlib.Path = REPO_ROOT, *, enforce_floor:
 
 # ── rail offlimits (W1 §0.4i) ────────────────────────────────────────────────
 
-OFFLIMITS_PREFIXES = ("app/src/pages/journal-2-0/", "docs/discord-render/", "services/chart_renderer/")
+# ⛔ This list IS CONTRACTS §1 "Never edit". It enforced 8 of the ~20 paths named there until
+# 2026-09-13 (S-B reviewer finding F2) — and its test parametrised over the same 8 the code
+# already named, so it was a tautology that could never go red on an omission
+# (`lesson_a_gate_list_drifts_like_any_other_artifact`). The missing entries included
+# `api/routers/auth.py` and `api/services/auth_db.py` (§0 row 15 flags auth.py as carrying an
+# unmerged edit elsewhere) and the flow-worker files, where a green rail over a watched file
+# buys a PERMANENT OPRA tape gap. tests/test_wisdom_bans.py now DERIVES the expected set from
+# CONTRACTS.md §1 and fails by name on the next path added there.
+OFFLIMITS_PREFIXES = (
+    "app/src/pages/journal-2-0/",
+    "docs/discord-render/",
+    "services/chart_renderer/",
+    "api/services/alert_taxonomy/",
+    "app/src/hub/",
+)
 OFFLIMITS_FILES = (
     "app/src/pages/BreadthCharts.jsx",
     "app/src/pages/breadth/PresetRow.jsx",
     "app/src/pages/breadth/MetricReadout.jsx",
+    "app/src/components/tiles/CatalystTable.jsx",
+    "api/services/data_sync.py",
+    "api/services/llm_batch.py",
+    "api/services/tweet_store.py",
+    "api/services/zoom_client.py",
+    "api/routers/auth.py",
+    "api/services/auth_db.py",
+    "docs/runbooks/deploy-windows.md",
 )
+#: CONTRACTS §1 writes this one as a glob.
+OFFLIMITS_GLOBS = ("api/services/buzz_*.py",)
 OFFLIMITS_BASENAMES = ("OptionsFlow.jsx",)
 OFFLIMITS_ANYWHERE_DIR = "lib/offline/"
+
+
+@functools.lru_cache(maxsize=1)
+def flow_worker_watched() -> frozenset:
+    """CONTRACTS §1: "every flow-worker watched file (header of api/flow_worker_main.py)".
+
+    DERIVED from tools/flow_worker_watch_coverage.py, which already parses that header — a
+    second hand-typed copy of this list is the defect F2 was. Returns empty if the tool
+    cannot be read; `offlimits_rail_limitations()` reports that rather than letting an
+    unreadable list pass as an empty one.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_fw_watch", str(REPO_ROOT / "tools" / "flow_worker_watch_coverage.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return frozenset(str(p).replace("\\", "/") for p in module.watched_paths(str(REPO_ROOT)))
+    except Exception:
+        return frozenset()
+
+
+def offlimits_rail_limitations() -> tuple:
+    """What this rail knows it cannot see. An empty derived list must never read as 'clean'."""
+    return () if flow_worker_watched() else (
+        "the flow-worker watched list could not be derived from "
+        "tools/flow_worker_watch_coverage.py, so a watched file is NOT covered by this run",)
 PROGRAM_BRANCH_RE = re.compile(r"^(?:feat/wisdom-loop|wisdom/.+)$")
 BASE_REFS = ("origin/master", "master", "origin/HEAD")
 
@@ -366,6 +433,12 @@ def offlimits_reason(path: str) -> Optional[str]:
             return f"touches off-limits path {prefix}"
     if path in OFFLIMITS_FILES:
         return f"touches off-limits file {path}"
+    for pattern in OFFLIMITS_GLOBS:
+        if fnmatch.fnmatch(path, pattern):
+            return f"touches off-limits path {pattern}"
+    if path in flow_worker_watched():
+        return (f"touches flow-worker watched file {path} — a redeploy drops the Massive OPRA "
+                f"socket and Massive does not replay: the tape gap is permanent until T+1")
     if path.rsplit("/", 1)[-1] in OFFLIMITS_BASENAMES:
         return f"touches off-limits file {path.rsplit('/', 1)[-1]}"
     if path.startswith(OFFLIMITS_ANYWHERE_DIR) or f"/{OFFLIMITS_ANYWHERE_DIR}" in path:

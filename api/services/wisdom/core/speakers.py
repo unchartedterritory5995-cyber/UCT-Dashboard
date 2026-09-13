@@ -2,16 +2,29 @@
 
 normalize_speaker(label, title, description) -> author_id | 'guest:<slug>' | None
 
-  1. An author: the label, or the label with Zoom decorations and a stray bracket removed,
+  1. AMBIGUOUS (CONTRACTS §8a.2): the label is declared in authors.json
+     `ambiguous_speaker_labels` — "Uncharted Territory", "Patrick", "Blake", "Manav".
+     -> 'team-unresolved'. Checked FIRST, so an ambiguous label can never be read as an
+     author or invented as a guest.
+  2. An author: the label, or the label with Zoom decorations and a stray bracket removed,
      matches an alias in docs/wisdom/authors.json exactly (case-insensitive), through
-     core.authors. "Patrick TSDR)", "Uncharted Territory" -> tsdr; "Brac" -> bracco.
-  2. A guest (D14): not an author, and EVERY name token of the label appears as a whole
+     core.authors. "Patrick TSDR)" -> tsdr; "Brac" -> bracco.
+  3. A guest (D14): not an author, and EVERY name token of the label appears as a whole
      word in the session title or description ("Pradeep Bonde" in "Workshop with
      Pradeep Bonde (Stockbee)"). A label made only of title words ("Live", "Trading")
      is never a guest.
-  3. Otherwise None: an attendee. The caller stores no name for an attendee, ever.
+  4. Otherwise None: an attendee. The caller stores no name for an attendee, ever.
 
 Never inferred from voice or style, never fuzzy.
+
+⚰️ Step 1 exists because of a defect this docstring used to CARRY: it said
+'"Uncharted Territory" -> tsdr', which was true until owner ruling §8a.2 moved that
+label out of tsdr's aliases. Moving it in the DATA alone did not make the code obey the
+ruling — it made it worse. With the label no longer an alias, step 3 matched both of its
+tokens against the session title "Uncharted Territory — Live Trading Session" and
+returned **'guest:uncharted_territory'**: the shared host account promoted to a
+fabricated person. A ruling implemented on one side of a data/code pair is not
+implemented (`lesson_a_second_authority_over_one_value`).
 """
 from __future__ import annotations
 
@@ -58,11 +71,14 @@ def normalize_speaker(label, title: Optional[str] = None, description: Optional[
     if label is None or not str(label).strip():
         return None
     cleaned = clean_label(label)
-    for candidate in dict.fromkeys((str(label), cleaned, _balanced(cleaned))):
-        if candidate:
-            author_id = authors.author_for_alias(candidate)
-            if author_id:
-                return author_id
+    candidates = [c for c in dict.fromkeys((str(label), cleaned, _balanced(cleaned))) if c]
+    # §8a.2 — ambiguous first, so the label can be neither an author nor a guest.
+    if any(authors.is_ambiguous_label(candidate) for candidate in candidates):
+        return authors.TEAM_UNRESOLVED
+    for candidate in candidates:
+        author_id = authors.author_for_alias(candidate)
+        if author_id:
+            return author_id
     tokens = [t.strip(".'’-") for t in _NAME_TOKEN_RE.findall(_balanced(cleaned))]
     tokens = [t for t in tokens if len(t) >= 2]
     if not tokens or not any(len(t) >= 3 and t.lower() not in TITLE_STOPWORDS for t in tokens):
