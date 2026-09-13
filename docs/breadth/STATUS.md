@@ -147,3 +147,33 @@ owner action, Phase 6.
   in the projects folder and matched ANOTHER program's brief (the Wisdom Loop session, which mentions breadth metrics and
   names this tab's files as off-limits to it); the search is scoped to this session's id and nothing from that brief was
   acted on.
+
+## Phase 3 — C3 touch & ARIA — MERGED (2026-09-13)
+
+- Plan [`…c3-touch-aria.md`](../superpowers/plans/2026-09-13-breadth-charts-c3-touch-aria.md); decisions D-032, D-033,
+  and D-036 for the one test fixed outside this tab.
+- Commits: `16baf13f0` More as a disclosure of buttons · `4dd8486da` group toggles and Notable Extremes state ·
+  `add4afeaa` touch tier · `3512348c5` the AuthContext sampling race (test-only, not this tab — D-036) · `166c161dd`
+  COVERAGE and post-restart provenance · three master merges as it moved (`0af0f66f0`, `47109cc47`, `9e2a30706`).
+
+| Fix | Audit | Tests |
+|---|---|---|
+| More is a list of buttons that opens and closes — no `listbox`/`option` role it cannot honour; the active preset is `aria-pressed`; Escape returns focus to More | A-24 | `PresetRow.test.jsx` (9); `BreadthCharts.test.jsx` finds grouped presets as buttons; the rig's preset helpers follow |
+| Metric group toggles carry `aria-expanded` + `aria-controls`; Notable Extremes carries `aria-pressed` | A-24 | `BreadthCharts.a11y.test.jsx` (2) |
+| Every finger target reaches `--tap-min` at ≤ 1024 px — group toggles, Notable Extremes, metric rows, dates, FTD, readout chips, preset pills and More items, the load-problem action | A-19 | `breadth/tapTier.test.js` (12, reads the stylesheets, control included) |
+
+- Mutation proofs, control first, bytes restored, tree clean — 6/6 caught: `aria-expanded` dropped · `aria-pressed`
+  dropped · Escape focus return dropped · `role="listbox"` restored · `.metricItem` touch rule dropped · MetricReadout
+  `.item` touch rule dropped.
+- Gate ([`gates.md`](gates.md)): per-shard deltas empty against the C2 baseline, union 9 vs 9. Two reds appeared during
+  C3 and each was run to ground before any edit — `AuthContext` fixed as a misplaced assertion, `ArticlesSection`
+  recorded as starvation with its `waitFor` already given 16× the headroom it needed.
+- Watch coverage OK — `app/**` and `docs/**` only, flow-worker not on path, web restart only.
+
+> **What members will see.** On tablets, Data Charts' buttons, date fields, checkboxes and readout chips are now
+> finger-sized, as they already were on phones. Screen readers hear More as a list of buttons that opens and closes,
+> metric groups say whether they are expanded, and Notable Extremes says whether it is on; Escape returns you to the
+> More button.
+>
+> Test-only, and not part of the Data Charts tab: `3512348c5` — `AuthContext.test.jsx` "503 on a refetch", the
+> `authTransient` read moved into the existing `waitFor` (React 19 late flush under load). No product code changed.

@@ -358,5 +358,15 @@ same file list and worker count, so it is a sampling race, not a product defect 
 ⚰️ comment describes for `user` and `plan`, left unfixed on the third value. Classifying it as "master's" and moving on
 would leave every session on this box with an intermittently red gate, and a gate that reddens at random is one people
 learn to wave through. The fix is one assertion's sampling moment, all three values still demanded, with a control
-proving the moved assertion still fails when the expectation is inverted. Scope: the brief's off-limits list is Notebook
-product files and `OptionsFlow.jsx`; this is neither, and it is test-only.
+proving the moved assertion still fails when the expectation is inverted: flipping the expected `authTransient` to
+`'true'` on the rewritten `waitFor` gives `Tests 1 failed | 7 passed (8)`, and the harness restores the exact bytes
+(sha verified) afterwards. Without that control a `waitFor` can pass by asserting nothing, which would make this a
+silence rather than a fix. Scope: the brief's off-limits list is Notebook product files and `OptionsFlow.jsx`; this is
+neither, and it is test-only.
+
+⛔ **This is not a licence to rewrite another area's failing test.** The same gate later reddened on
+`src/pages/desk/ArticlesSection.native.test.jsx`, and that one was NOT fixed: its `waitFor` is correctly placed and
+Testing Library's budget is already 4,000 ms against a 250 ms debounce, so the red was starvation under the full suite,
+not a misplaced read. "Fixing" it would have meant raising a global timeout in another session's area to hide load. It is
+recorded in `gates.md` as pre-existing and load-sensitive instead. The test that gets rewritten is the one whose
+ASSERTION is in the wrong place; the test that gets recorded is the one the machine was too busy to answer.
