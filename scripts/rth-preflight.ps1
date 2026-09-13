@@ -66,7 +66,8 @@ try {
     $r = Invoke-WebRequest -Uri 'https://uctintelligence.com/api/health' -TimeoutSec 25 -UseBasicParsing `
             -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0 Safari/537.36' }
     $j = $r.Content | ConvertFrom-Json
-    $podAge = $j.uptime_s; if (-not $podAge) { $podAge = $j.uptime }
+    # measured: the payload field is `uptime_seconds`. The other spellings are fallbacks.
+    $podAge = $j.uptime_seconds; if (-not $podAge) { $podAge = $j.uptime_s }; if (-not $podAge) { $podAge = $j.uptime }
     Add-Check '/api/health 200' ($r.StatusCode -eq 200) ("HTTP {0}, pod age {1}s" -f $r.StatusCode, $podAge) 'Check production is up.'
 } catch { Add-Check '/api/health 200' $false ("unreachable: {0}" -f $_.Exception.Message) 'Check production / network.' }
 
@@ -126,11 +127,19 @@ Add-Check 'free memory >= 3 GB' ($freeGB -ge 3.0) ("{0} GB free" -f $freeGB) 'Cl
 # 8 -- no runaway process -----------------------------------------------------
 $hogs = Get-Process | Where-Object { $_.WorkingSet64 -gt 4GB } |
         Select-Object @{n='n';e={$_.ProcessName}}, Id, @{n='GB';e={[math]::Round($_.WorkingSet64/1GB,2)}}
+# ⛔ Not "any pytest": another session running a SCOPED suite is normal here and is not
+# a reason to cancel the open. The hazards are a runaway (memory) and a bare
+# directory-wide run, which is the shape that reached 18 GB on this box.
 $pytest = Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
-          Where-Object { $_.CommandLine -match 'pytest' -and $_.CommandLine -notmatch '--timeout' }
+          Where-Object {
+              $_.CommandLine -match 'pytest' -and (
+                  $_.WorkingSetSize -gt 2GB -or
+                  $_.CommandLine -match 'pytest\s+(tests|api)[\/]?\s*$' -or
+                  $_.CommandLine -match 'pytest\s+(tests|api)[\/]?\s+-' )
+          }
 $hogDetail = if ($hogs) { ($hogs | ForEach-Object { "$($_.n)($($_.Id)) $($_.GB)GB" }) -join ', ' } else { 'none over 4 GB' }
-if ($pytest) { $hogDetail += ('; unscoped pytest pid ' + (($pytest | ForEach-Object { $_.ProcessId }) -join ',')) }
-Add-Check 'no >4 GB / unscoped pytest' (-not $hogs -and -not $pytest) $hogDetail 'Stop the process before the open.'
+if ($pytest) { $hogDetail += ('; runaway/directory-wide pytest pid ' + (($pytest | ForEach-Object { $_.ProcessId }) -join ',')) }
+Add-Check 'no runaway process' (-not $hogs -and -not $pytest) $hogDetail 'Stop the process before the open.'
 
 # 9 -- screen not locked ------------------------------------------------------
 # LogonUI.exe runs exactly while the secure desktop (lock screen) is up.
@@ -162,8 +171,12 @@ if ($behind -ne '0') {
         $behind2 = (& git rev-list --count HEAD..origin/master | Out-String).Trim()
         Add-Check '0 behind origin/master' ($behind2 -eq '0') ("was $behind behind; fast-forwarded to " + (& git rev-parse --short HEAD)) ''
     } else {
-        Add-Check '0 behind origin/master' $false ("$behind behind and a fast-forward is not possible (dirty tree or diverged)") `
-            'git status; then rebase or commit by hand - the run must measure CURRENT master.'
+        $why = if (-not [string]::IsNullOrWhiteSpace($dirty)) { 'the worktree is dirty' }
+               elseif (-not $ff) { 'local commits have diverged from master (you are ahead AND behind)' }
+               else { 'unknown' }
+        Add-Check '0 behind origin/master' $false ("$behind behind; cannot fast-forward because $why") `
+            $(if (-not $ff) { 'git fetch origin master; git rebase origin/master   (then re-run the preflight)' }
+              else { 'git status; commit or stash, then re-run the preflight' })
     }
 } else { Add-Check '0 behind origin/master' $true 'up to date' }
 
