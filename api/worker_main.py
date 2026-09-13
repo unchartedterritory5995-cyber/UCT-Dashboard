@@ -724,12 +724,31 @@ def _build_app() -> FastAPI:
     # holding or fetching the 20 GB (the 2026-08-31 OOM class). READ-ONLY: serve_bars_history
     # never fetches/writes. Gated OFF + lazy-imported (boot path UNCHANGED until cutover).
     if os.environ.get("BARS_HISTORY_ORIGIN_ENABLED", "0") == "1":
-        from fastapi import Query as _Q
+        from fastapi import Depends as _Dep, Query as _Q
         from api.routers.bars import serve_bars_history as _serve_hist
+        # 🔴 THE DEEP-HISTORY ORIGIN IS A CHART-DATA DOOR, AND IT WAS THE THIRD ONE.
+        # The 2026-09-13 bars security pass closed `api.main` and the bars-api tier
+        # and MISSED this route — which is the one that actually holds the 20 GB deep
+        # store the production history path is fed from. Found by the secure-CDN
+        # architecture review; closed here.
+        #
+        # ⛔ SERVICE TOKEN, NEVER A MEMBER COOKIE. This pod has no `auth.db`, and its
+        # only legitimate caller is the web pod’s `_proxy_bars_history_to_worker` over
+        # Railway private networking. Its credential is INFRASTRUCTURE IDENTITY, not
+        # user identity — the member question was already answered upstream, on the pod
+        # that can answer it. Same reasoning, same mechanism as `bars_api_main`.
+        #
+        # ⚠️ WHETHER RAILWAY GIVES THIS SERVICE A PUBLIC DOMAIN IS AN EXTERNAL FACT
+        # THIS CODE DOES NOT GET TO ASSUME. `bars-api` unexpectedly had one. If the
+        # worker does too, this gate is the thing standing between the internet and
+        # the deep store; if it does not, it is defence in depth. Either way it is
+        # correct, which is the point of not waiting for the answer.
+        from api.bars_auth import require_bars_service
 
         @app.get("/api/bars-history/{ticker}")
         def _worker_bars_history(
             ticker: str,
+            _svc: dict = _Dep(require_bars_service),
             tf: str = "D",
             bars: int = _Q(default=60000, ge=1, le=60000),
             v: str = "",

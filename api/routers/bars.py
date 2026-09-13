@@ -871,7 +871,17 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
             timeout=httpx.Timeout(15.0, connect=3.0), follow_redirects=False)
     url = f"{origin}/api/bars-history/{_quote(ticker)}"
     r = await _bars_history_proxy_client.get(
-        url, params={"tf": tf, "bars": bars, "v": v, "d": d})
+        url, params={"tf": tf, "bars": bars, "v": v, "d": d},
+        headers=bars_service_headers())
+    # ⛔⛔ A WORKER AUTH REFUSAL IS OURS, NEVER THE MEMBER’S — the same rule the
+    # `/api/bars` tier proxy follows. This caller has already decided the request
+    # is entitled; a 401/403 here can only mean PUSH_SECRET is unset or mismatched
+    # on the worker. Raising drops into `get_bars_history`’s existing
+    # fall-back-to-local path, so a misconfigured secret costs DEPTH (the web’s
+    # shallow tail instead of the worker’s deep store) and never a 5xx — which is
+    # what makes the worker gate safe to deploy in either order.
+    if r.status_code in (401, 403):
+        raise RuntimeError(f"bars worker refused the service token ({r.status_code})")
     resp = _Response(content=r.content, status_code=r.status_code,
                      media_type=r.headers.get("content-type", "application/json"))
     # Preserve the cache directives so Cloudflare caches the worker's deep response identically.
