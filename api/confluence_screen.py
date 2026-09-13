@@ -86,15 +86,28 @@ def compute_board(days: int = DAYS) -> dict:
     request path via the scheduler / background window builds."""
     # options-flow leg — `days` (conviction) + 5d (freshness), large + mid_small
     flow, flow5, warnings = {}, {}, []
+    legs_pending = False
     for cap in ("large", "mid_small"):
         d = _flow_leg(cap, days)
         if d.get("ok"):
             flow.update(d.get("names") or {})
         else:
-            warnings.append(d.get("reason", "flow leg failed"))
+            reason = d.get("reason") or d.get("status") or "flow leg failed"
+            warnings.append(reason)
+            if "comput" in str(reason).lower():
+                legs_pending = True         # the worker is still BUILDING this leg
         d5 = _flow_leg(cap, 5)
         if d5.get("ok"):
             flow5.update(d5.get("names") or {})
+
+    # A leg still computing on the worker means the board would be PARTIAL (e.g. only
+    # mid-small if the large leg isn't ready). Do NOT cache a thin board over a good
+    # one — report warming so the client keeps polling (fast) and the next compute,
+    # once the worker's leg is ready, gets the full board. (Caching 37/254 for a full
+    # 30-min TTL was the 2026-09-12 post-deploy thin-board bug.)
+    if legs_pending:
+        return {"ok": False, "status": "warming", "days": days, "rows": [],
+                "reason": "flow leg still computing on the worker"}
 
     # If the flow leg produced nothing (both bands failed / timed out), this is a
     # DEGRADED compute — return ok:false so get_board keeps the last-good board
