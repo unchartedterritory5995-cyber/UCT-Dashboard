@@ -72,6 +72,7 @@ function idsHas(ids, id) {
  * @param {import('./registry').HubAction[]} [props.actions] The current mode's full fan (both rings).
  * @param {boolean} [props.mirrored] Left-handed mode — positions on the inner (right) side of the knob instead.
  * @param {Set<string>|string[]} [props.disabledIds] Action ids whose `requires` is currently unmet.
+ * @param {() => void} [props.onBeforeOpen] D-46 — focus the knob before the sheet opens.
  * @param {(action: import('./registry').HubAction) => string|null} [props.disabledReason]
  *   Optional human reason surfaced next to a disabled action (e.g. "Needs a symbol").
  * @param {(action: import('./registry').HubAction) => void} [props.onAction] Fired when an enabled action is picked.
@@ -99,6 +100,13 @@ export default function HubActionsButton({
   mirrored = false,
   disabledIds,
   disabledReason,
+  /**
+   * D-46 — called just before this sheet opens, so `Sheet.jsx`'s own `activeElement` capture
+   * finds the knob rather than the Actions button. Optional: a mount without it keeps the
+   * previous behaviour (focus returns to this button), which is a reasonable default and not
+   * a failure — this prop is how the hub expresses spec §C4's preference for the knob.
+   */
+  onBeforeOpen,
   onAction,
   onFeedback,
   onHide,
@@ -212,7 +220,7 @@ export default function HubActionsButton({
           minHeight: MIN_TAP_PX,
         }}
         aria-label={label}
-        onClick={() => setOpen(true)}
+        onClick={() => { onBeforeOpen?.(); setOpen(true) }}
       >
         <UIcon name="sliders" size={18} />
       </button>
