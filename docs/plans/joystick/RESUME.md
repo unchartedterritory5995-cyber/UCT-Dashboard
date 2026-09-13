@@ -16,7 +16,38 @@ attributable NEW failures** (next section). The **§4 freeze is
 in effect**: it must not be opened as a PR until Patrick's marked-up `owner-run.md` and trace are in
 and boxes 1 and 2 are ticked on evidence.
 
-## ⛔⛔ THE GATE RAN, AND THE BRANCH IS NOT READY — 9 attributable NEW failures
+## ✅ READY-AND-GATED — `640dcd8d1`, manifest `gate-runs/2026-09-13T15-55-29.md`
+
+**Zero attributable NEW.** Full six-shard gate, run on a box verified clear first
+(`foreign-shard=0, freeGB=12.7`):
+
+```
+tree   640dcd8d166e404545dad420b3ee4a52efdc664c  (start) -> same (end)
+files  1318 on disk — RECONCILES with the summed shard total
+totals 8 failed / 19,439 passed / 19,456
+```
+
+Baseline (`258c5609d`) has **7**; observed **8**; **NEW = 1**, and it is not this branch's:
+
+| NEW failure | verdict |
+|---|---|
+| `components/screener/reachable.test.js > …nothing committed is connected to nothing` | ❌ **NOT attributable — R-29**, S4's `focusDivergence.js` orphan |
+
+⭐ **Classified by DIRECTION, not by memory.** The branch's diff touches neither
+`focusDivergence.js` nor `reachable.test.js`; the module already exists at the merge base
+`d6ac61816`; and the rail was RUN at that base in a detached worktree and failed **identically**,
+on a tree containing none of this branch's changes. R-29 stays in `requests.md`, owned by S4.
+
+⚰️ **The nine settings failures from the 08-02 run are GONE** — that run found 10 NEW, nine of them
+this branch's (`JoystickSettingsCard.test.jsx` ×8, `joystickSettingsControls.test.jsx` ×1). They
+were correct tests of the wrong stage; `640dcd8d1` updates them, and fixing them surfaced two real
+defects recorded in that commit.
+
+⛔ **READY-AND-GATED IS NOT MERGED.** The §4 freeze stands: the stage-2 PR stays unopened until
+Patrick's marked-up `owner-run.md` and trace are in and boxes 1 and 2 are ticked on evidence — and
+**Patrick merges it**, because a member-facing rollout is not an agent's call.
+
+## ⚰️ SUPERSEDED — the 08-02 run that found 9 attributable NEW
 
 **Manifest: `docs/plans/joystick/gate-runs/2026-09-13T14-13-39.md`** (+ `.json`), committed.
 
@@ -48,7 +79,7 @@ should now hold (*anyone who HAS the hub can reach the switch that turns it off*
 
 ## Next actions, in order
 
-### (a) Fix the 9 attributable NEW failures, then RE-GATE `launch/stage-2-member-preview`
+### (a) ✅ DONE — fixed in `640dcd8d1` and re-gated clean (see READY-AND-GATED above)
 
 Update `app/src/pages/settings/JoystickSettingsCard.test.jsx` (B6, 8 cases) and
 `app/src/pages/settings/joystickSettingsControls.test.jsx` (B13, 1 case) to the stage-2 rule, commit
