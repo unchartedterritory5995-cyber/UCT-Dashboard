@@ -5,8 +5,23 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import pytest
+
 import api.services.data_sync as ds
 from api.routers.barspack_router import router
+from tests.authclients import sign_in_bars_caller
+
+
+# ⚠️ SIGNED IN AS A PAID MEMBER FOR EVERY REQUEST IN THIS MODULE.
+# The pack ships the whole universe’s D/W/M bars as shards — equivalent history
+# to `/api/bars` in bulk — so it became paid in the 2026-09-13 security pass.
+# These cases are about SERVING (gzip framing, route precedence, traversal
+# rejection, 404s); without a caller they would all read `assert 401 == 200` and
+# measure the gate instead. `sign_in_bars_caller` substitutes the IDENTITY and
+# leaves the gate itself running — see `tests/authclients.py`.
+@pytest.fixture(autouse=True)
+def _paid(monkeypatch):
+    sign_in_bars_caller(monkeypatch)
 
 
 def _client():

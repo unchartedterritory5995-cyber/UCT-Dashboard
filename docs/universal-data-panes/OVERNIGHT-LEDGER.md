@@ -679,3 +679,150 @@ Carried forward, unstarted:
 - richer candle appearance (wick/border width, hollow, Heikin Ashi) only if asked
 - `/api/bars` entitlement / release review
 - the six-pane capacity observation above
+
+## BARS DATA ACCESS SECURITY — IMPLEMENTATION (2026-09-13)
+
+### THE POLICY (owner-decided)
+Charts are paid functionality, so chart DATA is paid. Anonymous → 401. Signed in
+without entitlement → 403. Paid / premium / lifetime / comped / active trial /
+admin → allowed. **No securities-vs-breadth split** — one rule for every class.
+
+### THE TWO PUBLIC DOORS
+Railway publishes the dedicated tier at `bars-api-production-1052.up.railway.app`
+as well as on private networking. It runs the SAME `serve_bars` core over the
+same bars.db, so a gate on the web pod alone would have closed one of two.
+
+- **Web pod** — `require_bars_access`: a paid member (via `meets_plan_gate`) OR
+  `Bearer PUSH_SECRET`. It has `auth.db`; its callers are browsers.
+- **Bars tier** — `require_bars_service`: the service token ONLY. It has no
+  `auth.db`, and no browser ever calls it (no absolute bars host anywhere in
+  `app/src`; the web pod proxies server-to-server, forwarding query params and no
+  cookies; a cookie could not reach that domain anyway).
+
+⭐ THIS IS THE REPO'S OWN SHAPE, NOT A NEW IDEA. `flow_admin_auth.py` solved the
+identical problem for flow-worker — "auth.db lives ONLY on web". The HMAC
+user-vouch half is deliberately NOT copied: the tier needs to know whether the
+caller is trusted, never which member is asking, because a bar series is not
+user-scoped.
+
+### ROUTES CLOSED
+
+| route | gate |
+|---|---|
+| `GET /api/bars/{ticker}` | bars |
+| `GET /api/bars-history/{ticker}` | bars |
+| `POST /api/bars/warm` | bars (was session-only — a free member could drive provider warms) |
+| `GET /api/barspack/{manifest,delta,hot,shard}` | bars (×4) |
+| `GET /api/stream/bars` | bars |
+| `GET /api/breadth-symbols` | bars (the enumeration half) |
+| `GET /api/bars/_debug_source/{ticker}` | **admin** |
+| bars-api app: `/api/bars`, `/api/bars-history`, `/api/coverage` | service token |
+| bars-api app: `/api/health`, `/internal/health`, `/api/ready` | open, deliberately |
+
+`/api/ticker-search` was NOT paywalled — see below.
+
+### WHY `meets_plan_gate` AND 403, NOT `require_paid` AND 402
+The two shipped paid families measurably DISAGREE about `comped`
+(`test_the_two_paid_gate_families_DISAGREE_about_comped`): `require_paid` refuses
+it 402; `require_plan` / `meets_plan_gate` admits it. The owner's policy names
+comped and trial as ALLOWED, so this surface takes the `meets_plan_gate` family
+and answers 403 the way that family does. That is a choice made by the policy,
+not a side taken in the escalated disagreement.
+
+### TICKER SEARCH — THE SURGICAL HALF
+`/api/ticker-search` has FOURTEEN frontend consumers (CommandPalette, TickerPopup,
+calendar, community ticker mentions, journal, ModelBook, charts) plus an
+in-process Discord caller. Paywalling it would break ordinary symbol lookup on
+surfaces entitled to it. What leaked is the proprietary half — 44 UCT breadth
+measures, enumerable by anyone, step one of "enumerate, then fetch the history".
+So the gate sits on the breadth AUGMENTATION only; anonymous and free callers get
+the ordinary search they came for and simply do not see UCT's indicators.
+
+⚠️ AND IT READS THE COOKIE ITSELF RATHER THAN VIA `get_current_user_optional`.
+That dependency's docstring says "Never raises", but `validate_session` opens
+auth.db — measured raising an OperationalError the first time this gate was wired
+through it, which would have turned a database blip into a 500 on fourteen
+surfaces. `_bars_entitled` swallows and degrades to "not entitled".
+
+### TRUSTED CALLERS PRESERVED
+The audit assumed the in-process callers were all direct Python. Two were NOT:
+
+- `cot_prewarm` reaches `/api/bars` over **loopback HTTP** — it would have started
+  401-ing silently into its own `status >= 400` branch.
+- `history_prewarm` sweeps `/api/bars-history` through the edge.
+
+Both now send `bars_service_headers()`. `discord_interactions` and the rest call
+`serve_bars` directly and are untouched — the gate is at the HTTP boundary, and
+the shared data function is exactly where it was.
+
+### CACHE / AUTHORIZATION ORDER
+`/api/bars-history` went from `public, max-age=3600, stale-while-revalidate=86400`
+(and `public, max-age=31536000, immutable` on a sealed-date match) to **`private`**
+on both arms. `public` invited Cloudflare to store one member's answer and hand it
+to the next caller — making the CDN the authorization layer, and one that always
+says yes. `private` keeps the BROWSER cache (the whole speed win) and gives up only
+the shared copy. `/api/bars` was already `no-store`.
+
+A refused caller never reaches `serve_bars` — asserted with a spy, because that
+function is the door to the memory cache, bars.db, the provider and the background
+cold-fetch queue.
+
+### FRONTEND — `DENIED` IS TERMINAL
+`SOURCE_STATUS.DENIED` added. 401/403 are **cached** so the next paint is a
+synchronous read; every other failure keeps the existing delete-and-retry.
+⚰️ Before this, every failure deleted its entry so "the next paint asks again" —
+right for a 503, and for a permanent 403 an unbounded request storm from a live
+chart against an endpoint that can only refuse. `knownCapabilityOf` reports
+"sign in to chart this symbol" (401) or "chart data requires a paid plan" (403)
+rather than a lie about the symbol.
+
+### THE SYSTEMIC BLIND SPOT, CLOSED
+Three mechanisms existed to answer "is this route gated?" and all three missed
+this surface: `auth_surface_check` inspects MUTATING methods only (a GET data API
+is invisible to it) and does not audit `/api/bars`; `test_exposed_routes_gated` is
+an allow-list nobody added these rows to; the flow rails cover flow. The chart-data
+family now has its own rung (`"bars"`, admit-set MEASURED beside the others) and
+ten rows in `GATED`, so the anonymous-refusal and paid-not-refused sweeps cover it
+permanently. `/api/stream/bars` is in `NEVER_PROBED` with its reason: a PAID probe
+SUCCEEDS, and success means an open SSE stream the sweep would hang on.
+
+### BITE-CHECKS (each reverting one thing)
+- tier gate removed, web pod left protected → **5 red** (the central bypass rail)
+- web-pod gate removed from `/api/bars` + `/api/bars-history` → **24 red**
+- `private` → `public` on the immutable arm → **1 red**
+
+⚠️ AND THE THIRD ONE TOOK THREE TRIES, WHICH IS THE LESSON. Version 1 drove the
+route over HTTP and asserted on whatever came back — green with `public` restored,
+because a request without `d` takes the short arm and never reaches the immutable
+branch. Version 2 derived `d` from the response and guarded it `if sealed:` —
+worse: on a store with no sealed history the assertion silently skipped and still
+reported a pass. A conditional rail reports on its own luck. The policy is now
+tested where it is decided, by calling `serve_bars_history` directly.
+
+### 🔴 REQUIRED DEPLOYMENT ACTION — THE BLOCKER IS NOT FULLY CLOSED IN INFRASTRUCTURE
+Code prevents NEW unauthorized responses. It cannot reach what is already cached,
+and it cannot overrule the edge. Owner actions, none committable here — the same
+shape `flow_router.py` and `darkpool_router.py` already write up:
+
+1. **PURGE** `/api/bars-history*` (and `/api/barspack/*` if any pack objects were
+   edge-cached) from Cloudflare. Objects stored while the header said `public`
+   survive the header change — up to a YEAR under the immutable arm.
+2. **VERIFY NO CACHE RULE OVERRIDES `private`.** Measured in THIS deployment:
+   "prod was rewriting the browser TTL to max-age=14400" (`flow_router.py`). A
+   Cache Rule matching `/api/*` would keep caching regardless of the origin
+   header, so `private` must be confirmed at the edge rather than assumed.
+3. Confirm `PUSH_SECRET` is set on the `bars-api` service, or the tier refuses
+   everything — harmless (the web pod falls back to local serve) but it silently
+   costs the serving tier.
+4. Optional defence in depth, AFTER the above: remove Public Networking from the
+   `bars-api` service. Not a substitute for the gate — the gate is what makes the
+   service safe while the domain exists.
+
+### DEFERRED (recorded, not done)
+Rate limiting (authentication closes the highest-risk exposure first; IP-keyed
+limiting is a poor fit — Universal Data issues several concurrent symbol requests
+and shared NATs collide; key on user now that there is one). Invalid `tf` still
+answers `503 warming` with `Retry-After` instead of 400. A 2000-char ticker is
+still echoed. `Server-Timing` still names cache tiers. `/api/compare/*` remains
+open — public taxonomy, not bar data, but it carries the same stale "charts are a
+free page" comment and deserves its own look.

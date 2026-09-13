@@ -14,8 +14,23 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import pytest
+
 from api.routers.bars import router
+from tests.authclients import sign_in_bars_caller
 from api.services import bars_fetch
+
+
+# ⚠️ SIGNED IN AS A PAID MEMBER FOR EVERY REQUEST IN THIS MODULE.
+# `/api/bars-history` became paid on 2026-09-13, so these BEHAVIOUR cases —
+# written years before any gate and about sealed-slicing and cache headers —
+# would otherwise read `assert 401 == 200` and measure the gate instead of the
+# thing they exist for. `tests/authclients.py` is the one idiom for saying
+# "this caller is signed in"; `sign_in_bars_caller` is its chart-data member,
+# and it substitutes the IDENTITY while leaving the gate itself running.
+@pytest.fixture(autouse=True)
+def _paid(monkeypatch):
+    sign_in_bars_caller(monkeypatch)
 
 
 def _client():
@@ -56,7 +71,15 @@ def test_daily_history_strips_developing_bar_and_is_cacheable():
     assert body["last_sealed"] == "2020-01-03"
     assert body["count"] == 2
     cc = r.headers.get("Cache-Control", "")
-    assert "public" in cc and "max-age=3600" in cc
+    # 🔴 `private`, NOT `public`, SINCE THE 2026-09-13 BARS SECURITY PASS — and
+    # this line is the contract CHANGING, not a test edited to pass. These are
+    # paid responses now, and `public` invited Cloudflare to store one member’s
+    # answer and hand it to the next caller, entitled or not. The TTL is
+    # unchanged: the browser still caches, which was always where the speed
+    # came from. `tests/test_bars_data_auth.py` owns the policy for the whole
+    # family, including the immutable arm below.
+    assert "private" in cc and "max-age=3600" in cc
+    assert "public" not in cc
 
 
 def test_matching_d_yields_immutable_one_year_cache():

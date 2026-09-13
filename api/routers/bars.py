@@ -14,6 +14,7 @@ import orjson
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from api.middleware.auth_middleware import get_current_user, require_admin
+from api.bars_auth import require_bars_access, bars_service_headers
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -210,8 +211,18 @@ def _try_schema_repair() -> bool:
 
 
 @router.get("/api/bars/_debug_source/{ticker}")
-def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int = Query(default=0), focus_date: str = Query(default="")):
-    """Diagnostic — returns which source is providing intraday data + sample bars.
+def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int = Query(default=0),
+                 focus_date: str = Query(default=""),
+                 _admin: dict = Depends(require_admin)):
+    """Diagnostic — returns which source is providing intraday data + sample bars. ADMIN.
+
+    🔴 THIS WAS ANONYMOUS, and it was the sharpest amplifier on the whole
+    surface — worse than the route it sits beside. It calls THREE paid providers
+    directly per request (Massive, FMP, yfinance), bypassing every cache, with
+    `src_override` as an UNBOUNDED caller-controlled bar count, and it names the
+    provider stack and echoes upstream error text back to whoever asked. Gated,
+    not deleted: it is the only thing that answers "which source is actually
+    serving this symbol right now", which is a question real incidents have needed.
 
     src_override: if >0, use this as the bars-to-fetch count instead of default 1000.
     focus_date: if set (YYYY-MM-DD), include all 30-min bars for that ET date and
@@ -287,7 +298,7 @@ def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int =
 
 
 @router.post("/api/bars/warm")
-def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(get_current_user)):
+def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(require_bars_access)):
     """Journal Widgets capture-time warm: fire-and-forget deep-fill of one
     (ticker, tf) so a freshly-captured embed's history lands in the
     forever-store. Auth-gated (it can trigger provider fetches); returns
@@ -339,7 +350,16 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
             timeout=httpx.Timeout(8.0, connect=2.0), follow_redirects=False)
     url = f"{origin}/api/bars/{_quote(ticker)}"
     r = await _bars_proxy_client.get(
-        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm})
+        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm},
+        headers=bars_service_headers())
+    # ⛔⛔ A TIER AUTH REFUSAL IS OUR PROBLEM, NEVER THE MEMBER'S. The caller
+    # already decided this request is entitled; a 401/403 from the tier can only
+    # mean PUSH_SECRET is unset or mismatched on that service. Raising sends the
+    # request down `get_bars`' existing fall-back-to-local path, so a
+    # misconfigured secret costs a performance tier and never a chart — which is
+    # what makes turning this gate on safe to deploy in either order.
+    if r.status_code in (401, 403):
+        raise RuntimeError(f"bars tier refused the service token ({r.status_code})")
     resp = _Response(content=r.content, status_code=r.status_code,
                      media_type=r.headers.get("content-type", "application/json"))
     for _h in ("cache-control", "pragma", "server-timing"):
@@ -387,6 +407,7 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
 @router.get("/api/bars/{ticker}")
 async def get_bars(
     ticker: str,
+    _access: dict = Depends(require_bars_access),
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
@@ -795,10 +816,36 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
     #  • no d / stale d (the boundary moved since the client's tail)  → short public cache,
     #    so current data is never frozen for a year under a mismatched date. Backward-compat:
     #    older clients that don't send d keep the original 1h self-healing behavior.
+    # 🔴 `private`, NOT `public`, SINCE 2026-09-13 — AND THE WORD IS THE WHOLE FIX.
+    # These are PAID responses now (`require_bars_access` above), and a shared
+    # cache cannot hold a per-member resource: `public` invited Cloudflare to
+    # store one member's answer and hand it to the next caller, entitled or not,
+    # for up to a year under the immutable arm. The audit measured
+    # `/api/bars-history/UCTA50` — UCT's own breadth — served anonymously with
+    # exactly those headers.
+    # ⭐ THE SPEED IS KEPT, IN THE ONLY PLACE THAT IS SAFE: `private` still lets
+    # the BROWSER cache, so a returning member's sealed history is still free on
+    # their own machine, and the date-keyed URL still self-refreshes when a new
+    # day seals. What is given up is the shared edge copy — which is precisely
+    # the thing that was not ours to give away.
+    # ⚠️ `history_prewarm` exists to stock that edge cache and is default-OFF
+    # (`HISTORY_PREWARM_ENABLED=0`); with `private` it can no longer do anything
+    # and should stay off.
+    #
+    # 🔴 TWO RESIDUALS THIS HEADER CANNOT CLOSE, BOTH OWNER ACTIONS — the same
+    # shape `flow_router.py` and `darkpool_router.py` already write up:
+    #   1. OBJECTS ALREADY CACHED while this said `public` do not disappear when
+    #      the header changes. They need a CDN purge of `/api/bars-history*`.
+    #   2. A Cloudflare CACHE RULE CAN OVERRIDE ORIGIN HEADERS — measured in this
+    #      deployment (`flow_router.py`: "prod was rewriting the browser TTL to
+    #      max-age=14400"). So `private` must be CONFIRMED at the edge, never
+    #      assumed from this line.
+    # Neither is committable from this repo. See the recovery ledger's REQUIRED
+    # DEPLOYMENT ACTION.
     if d and last_sealed and d == last_sealed:
-        out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        out.headers["Cache-Control"] = "private, max-age=31536000, immutable"
     else:
-        out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+        out.headers["Cache-Control"] = "private, max-age=3600"
     out.headers["Server-Timing"] = f'bars;desc="history-read";dur={len(sealed)}'
     return out
 
@@ -837,6 +884,7 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
 @router.get("/api/bars-history/{ticker}")
 async def get_bars_history(
     ticker: str,
+    _access: dict = Depends(require_bars_access),
     tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
     bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
     v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),

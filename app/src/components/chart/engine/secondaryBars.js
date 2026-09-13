@@ -76,7 +76,21 @@ export const SOURCE_STATUS = Object.freeze({
   NO_DATA: 'no_data',
   UNSUPPORTED: 'unsupported',
   ERROR: 'error',
+  // ⭐⭐ DENIED IS TERMINAL, AND THAT IS THE WHOLE POINT OF ADDING IT.
+  // Every other status here is a fact about the DATA; this one is a fact about
+  // the CALLER, and it is the only one that will not change by asking again.
+  // ⛔ IT IS NOT `NO_DATA`. A member who is told "no data" for QQQ learns
+  // something false about QQQ — the series exists, their plan does not include
+  // it. Nor is it `ERROR`: an error is a thing that might work next time, and
+  // treating a permanent refusal as one is exactly the retry storm below.
+  DENIED: 'denied',
 })
+
+/** HTTP statuses that mean "asking again will not help": not signed in, or
+ *  signed in without the entitlement. Everything else is transient by default —
+ *  the safe direction, because a wrongly-terminal status is a chart that stays
+ *  blank until reload. */
+const DENIED_STATUSES = new Set([401, 403])
 
 /** Notified whenever an entry lands, so a host can repaint. @returns {() => void} */
 export function subscribe(fn) {
@@ -174,7 +188,21 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
       _cache.set(url, entry)
       return entry
     })
-    .catch(() => {
+    .catch((err) => {
+      // ⭐⭐ A DENIAL IS CACHED; AN ERROR IS NOT. The difference is whether asking
+      // again could change the answer.
+      //
+      // ⚰️ MEASURED 2026-09-13, during the bars entitlement pass: every failure
+      // deleted its entry so "the next paint asks again", which is right for a
+      // transient 503 and catastrophic for a permanent 401/403. A live chart
+      // repaints on every tick, so an unentitled member would have driven an
+      // unbounded request storm at an endpoint that can only ever refuse — the
+      // client half of the very amplification the server-side gate just closed.
+      if (err && DENIED_STATUSES.has(err.httpStatus)) {
+        const entry = { bars: [], status: SOURCE_STATUS.DENIED, httpStatus: err.httpStatus }
+        _cache.set(url, entry)
+        return entry
+      }
       // ⚠️ AN ERROR IS A STATUS, NOT A SILENCE — but it is not CACHED either.
       // The entry is removed so the next paint asks again; the status is handed
       // back to the caller that asked.
@@ -192,7 +220,15 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
 
 function _defaultFetch(url) {
   return fetch(url, { credentials: 'include' }).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    if (!r.ok) {
+      const err = new Error(`HTTP ${r.status}`)
+      // ⚠️ THE STATUS RIDES ON THE ERROR, because by the time the `.catch`
+      // below sees it the Response is gone. A thrown string would have made the
+      // two failure KINDS indistinguishable at the only place that can tell them
+      // apart — which is how a permanent 403 became an every-paint retry.
+      err.httpStatus = r.status
+      throw err
+    }
     return r.json()
   })
 }

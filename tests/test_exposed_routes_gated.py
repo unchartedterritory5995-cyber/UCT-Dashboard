@@ -88,6 +88,25 @@ from api.middleware.auth_middleware import (  # noqa: E402
 # `flow_proxy._inject_proxy_auth` and vouches by HMAC. `require_paid` there would
 # consult `get_user_plan` on a pod that cannot reach the users table.
 GATED: dict[tuple[str, str], str] = {
+    # ── CHART DATA (2026-09-13 security pass) ────────────────────────────
+    # 🔴 THE SURFACE THAT ESCAPED THE 2026-08-09 SWEEP, AND WHY IT COULD.
+    # `auth_surface_check` only inspects MUTATING methods, so a GET data API is
+    # invisible to it; this table is an allow-list of routes someone remembered to
+    # add, and nobody added these. Meanwhile Universal Data Panes turned
+    # `/api/bars` into a general data API serving UCT's own breadth. Claimed here
+    # so the omission cannot repeat silently — and the SECOND app that serves this
+    # same data is railed in `tests/test_bars_data_auth.py`, which this table
+    # cannot see because it reads `api.main:app` alone.
+    ("GET", "/api/bars/{ticker}"): "bars",
+    ("GET", "/api/bars-history/{ticker}"): "bars",
+    ("POST", "/api/bars/warm"): "bars",
+    ("GET", "/api/barspack/manifest"): "bars",
+    ("GET", "/api/barspack/{date}/delta"): "bars",
+    ("GET", "/api/barspack/{date}/hot"): "bars",
+    ("GET", "/api/barspack/{date}/{idx}"): "bars",
+    ("GET", "/api/breadth-symbols"): "bars",
+    ("GET", "/api/stream/bars"): "bars",
+    ("GET", "/api/bars/_debug_source/{ticker}"): "admin",
     # ── P0: destructive / cost-bearing, was anonymous ────────────────────────
     ("POST", "/api/top-flow/purge-old/{keep_days}"): "flow_admin",
     ("POST", "/api/cot/reseed"): "admin",
@@ -213,6 +232,14 @@ NEVER_PROBED = {
     ("POST", "/api/cot/reseed"),
     ("POST", "/api/cot/refresh"),
     ("POST", "/api/theme-performance/refresh"),
+    # ⛔ AN SSE STREAM, AND THE HAZARD IS THE OPPOSITE END OF THE USUAL ONE.
+    # A refused probe is harmless; a PAID probe SUCCEEDS, and success here means
+    # an open EventSource the client holds until the server closes it — the paid
+    # sweep would hang rather than measure. It also takes an admission slot from
+    # the broadcaster's capacity for the life of that hang. Verified structurally,
+    # and driven for real — anonymously, where the refusal is immediate — in
+    # `tests/test_bars_data_auth.py`.
+    ("GET", "/api/stream/bars"),
 }
 
 #: Path-param samples, validated against what each route DECLARES so a new param
@@ -226,6 +253,13 @@ PATH_PARAM_SAMPLES = {
     "metric_key": "up_4pct_today_list",
     "group_id": "ai",
     "detection_id": "no-such-detection",
+    # ── chart-data pack shards (2026-09-13) ──────────────────────
+    # ⛔ A DATE NO PACK WAS EVER PUBLISHED FOR, and a shard index that does not
+    # exist. Both routes are pure reads of a published artifact, so a probe is
+    # safe in the ordinary sense — but if the gate ever came off, this pair asks
+    # for nothing that exists rather than handing the sweep a real pack.
+    "date": "1970-01-01",
+    "idx": "no-such-shard",
     # ⛔ A JOB ID THAT BELONGS TO NOBODY, ON PURPOSE. The run service answers
     # not-there and not-yours identically (404), so a probe with this cannot
     # read a real member's hits and cannot start any compute.
@@ -443,6 +477,16 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # disagreement is ever resolved — in either direction — that test goes red and
     # this paragraph has to be rewritten instead of quietly becoming false.
     ("paid",       lambda n, o: "require_paid" in n or _is_paid_plan_gated(o),
+                                                           frozenset({"paid", "admin"})),
+    # ⭐ THE CHART-DATA RUNG (2026-09-13). `require_bars_access` is the gate for
+    # `/api/bars`, `/api/bars-history`, `/api/barspack/*`, `/api/stream/bars` and
+    # `/api/breadth-symbols`. It reads the cookie ITSELF — like the flow family and
+    # for the same structural reason (the second app serving this data has no
+    # auth.db) — so neither `get_current_user in o` nor the `require_paid` name
+    # reports it, and without a rung every one of those rows would read as
+    # "NO GATE AT ALL". Admits paid + admin over this file's three declared
+    # callers, measured below beside the others.
+    ("bars",       lambda n, o: "require_bars_access" in n,
                                                            frozenset({"paid", "admin"})),
     ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
     ("admin",      lambda n, o: require_admin in o,        frozenset({"admin"})),
@@ -675,6 +719,19 @@ def _client(app, user, monkeypatch=None):
         if monkeypatch is not None:
             import api.flow_admin_auth as fa
             monkeypatch.setattr(fa, "validate_session", lambda _c: dict(user))
+            # ⭐ AND THE CHART-DATA FAMILY, FOR THE SAME REASON AND WITH THE SAME
+            # TRAP. `require_bars_access` also reads the cookie itself, so the
+            # `get_current_user` overrides above reach it no more than they reach
+            # flow. `get_user_plan` is patched too: `meets_plan_gate` reads
+            # `user["plan"]`, and leaving the real lookup in would ask a test
+            # database about a fixture id that is not in it.
+            # ⚰️ MEASURED: without this the paid sweep refused a PAID member on
+            # `/api/bars-history` with 401 — the sweep reporting on a caller the
+            # gate never recognised, which is a green that means nothing.
+            import api.bars_auth as ba
+            monkeypatch.setattr(ba, "validate_session", lambda _c: dict(user))
+            monkeypatch.setattr(ba, "get_user_plan",
+                                lambda _i: dict(user).get("plan", "free"))
     # ⛔ `raise_server_exceptions=False` IS DELIBERATE AND IT IS NOT LENIENCY.
     # This file measures ONE thing: did the gate refuse this caller. A handler
     # that throws because a store is absent on a dev box (`no such table:
@@ -1102,6 +1159,26 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
 
     measured["flow_user"] = _flow_admits(fa.require_flow_user)
     measured["flow_admin"] = _flow_admits(fa.require_flow_admin)
+
+    # ⭐ THE CHART-DATA DOOR, measured the same way and for the same reason: it
+    # reads the cookie itself, so the patch goes on ITS module. `get_user_plan` is
+    # patched too — `meets_plan_gate` reads `user["plan"]`, and leaving the real
+    # lookup in would rank this rung on whatever a test database happened to say.
+    import api.bars_auth as ba
+
+    def _bars_admits() -> set[str]:
+        out = set()
+        for name, user in callers.items():
+            monkeypatch.setattr(ba, "validate_session", lambda _c, _u=user: dict(_u))
+            monkeypatch.setattr(ba, "get_user_plan", lambda _i, _u=user: _u["plan"])
+            try:
+                if ba.require_bars_access(uct_session="test-session") is not None:
+                    out.add(name)
+            except HTTPException:
+                pass
+        return out
+
+    measured["bars"] = _bars_admits()
 
     # ⭐ THE MACHINE DOOR. `require_push_secret` never looks at a user — it reads
     # one header — so the honest admit-set over this file's three declared

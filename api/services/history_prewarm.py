@@ -27,6 +27,20 @@ _ENABLED = os.environ.get("HISTORY_PREWARM_ENABLED", "0") == "1"
 # Go THROUGH Cloudflare (the public domain), never the origin directly, or the edge / Cache
 # Reserve is never stocked. Cloudflare 1010-blocks non-browser UAs, so send a browser UA.
 _BASE = os.environ.get("HISTORY_PREWARM_BASE", "https://uctintelligence.com").rstrip("/")
+
+
+def _svc_headers() -> dict:
+    """The service token — `/api/bars-history` is paid since 2026-09-13.
+
+    ⚠️ AND THIS SWEEP'S PURPOSE IS NOW LARGELY GONE, WHICH IS WORTH SAYING HERE
+    RATHER THAN LETTING IT BE REDISCOVERED. It exists to stock the shared edge
+    cache, and those responses are `private` now: Cloudflare will not store them,
+    so a warm sweep warms nothing but the origin's own SQLite read. It is
+    default-OFF (`HISTORY_PREWARM_ENABLED=0`) and should stay off unless the edge
+    strategy is redesigned around a member-safe key.
+    """
+    from api.bars_auth import bars_service_headers
+    return bars_service_headers()
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36 uct-history-prewarm")
 _PACE = float(os.environ.get("HISTORY_PREWARM_PACE_SECS", "0.4"))          # gap between requests
@@ -93,7 +107,7 @@ def prewarm_pass() -> dict:
             for sym in syms:
                 url = f"{_BASE}/api/bars-history/{sym}?tf={tf}&bars={_FULL[tf]}&d={d}"
                 try:
-                    r = cli.get(url)
+                    r = cli.get(url, headers=_svc_headers())
                     stats["requests"] += 1
                     cf = (r.headers.get("cf-cache-status") or "").upper()
                     if cf == "HIT":

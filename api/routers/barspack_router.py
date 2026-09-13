@@ -11,12 +11,29 @@ Two public, edge-cacheable routes proxy the R2 artifact the worker builds
                                        per POP per shard per day regardless of
                                        user count. R2 egress is free.
 
-Public by design (market data, same as the charts). Cloudflare keys its cache on
-the URL, so these must NOT be auth-gated. Shards are already gzipped; we set
+🔴 THIS SAID "Public by design (market data, same as the charts). Cloudflare
+keys its cache on the URL, so these must NOT be auth-gated." BOTH CLAUSES WERE
+SUPERSEDED, and the second is the dangerous one.
+
+  * "same as the charts" — charts have been PAID since the 2026-07-19 free-tier
+    decision, so this premise now argues the opposite of what it says.
+  * "must NOT be auth-gated" described a CONSEQUENCE of edge caching as if it
+    were a requirement. What the pack ships is the whole universe's D/W/M bars
+    as shards — equivalent history to `/api/bars`, in bulk. Gating that route
+    and leaving this one open would have been the complete bypass: an
+    unentitled caller simply downloads the pack instead of asking for bars.
+
+So these are gated, and — because a gate in front of a `public` response is
+still a shared cache serving member data — the headers below are `private` to
+match. The cost is real and accepted: Cloudflare no longer absorbs shard reads,
+so the origin is hit per member rather than ~once per POP per day. Restoring
+that needs an edge strategy keyed on entitlement, not a header. Shards are
+already gzipped; we set
 Content-Encoding: gzip so the browser transparently decompresses to JSON and the
 web GZip middleware skips re-compressing an already-encoded body.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from api.bars_auth import require_bars_access
 from fastapi.responses import Response
 from datetime import datetime
 
@@ -25,11 +42,14 @@ from api.services import data_sync
 router = APIRouter(prefix="/api/barspack", tags=["barspack"])
 
 _MANIFEST_HEADERS = {
-    "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+    "Cache-Control": "private, max-age=300",
     "Vary": "Accept-Encoding",
 }
 _SHARD_HEADERS = {
-    "Cache-Control": "public, max-age=31536000, immutable",
+    # ⛔ `private` — see the module docstring. A shard is immutable BY CONTENT
+    # (the date is in the URL), which is why the long TTL is still right; what
+    # changed is WHO may hold a copy. The browser still caches it for a year.
+    "Cache-Control": "private, max-age=31536000, immutable",
     "Vary": "Accept-Encoding",
     "Content-Encoding": "gzip",
 }
@@ -47,7 +67,7 @@ def _valid_date(s: str) -> bool:
 
 
 @router.get("/manifest")
-def manifest():
+def manifest(_access: dict = Depends(require_bars_access)):
     """Latest pack manifest, or {"available": false} (no-store) when no pack has
     been published yet — so the client keeps polling instead of caching absence."""
     body = data_sync.get_bytes(f"{_PREFIX}/latest.json")
@@ -58,7 +78,7 @@ def manifest():
 
 
 @router.get("/{date}/delta")
-def delta(date: str):
+def delta(date: str, _access: dict = Depends(require_bars_access)):
     """The day's small delta file (tail of every series) — immutable, gzipped.
     Declared before /{date}/{idx} so the literal 'delta' wins over the numeric
     shard route."""
@@ -71,7 +91,7 @@ def delta(date: str):
 
 
 @router.get("/{date}/hot")
-def hot(date: str):
+def hot(date: str, _access: dict = Depends(require_bars_access)):
     """The hot-set shard (the ~100 most-opened names) — immutable, gzipped.
     Declared before /{date}/{idx} so the literal 'hot' wins over the numeric
     shard route (same pattern as /{date}/delta). A first-visit browser ingests
@@ -85,7 +105,7 @@ def hot(date: str):
 
 
 @router.get("/{date}/{idx}")
-def shard(date: str, idx: str):
+def shard(date: str, idx: str, _access: dict = Depends(require_bars_access)):
     """One immutable gzipped shard. Validates the path so it can only ever
     address a barspack/<date>/<NNN>.json.gz key — never an arbitrary object."""
     if not _valid_date(date) or not idx.isdigit():

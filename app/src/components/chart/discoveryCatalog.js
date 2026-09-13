@@ -193,6 +193,18 @@ export function knownCapabilityOf(symbol, tf, bars) {
   let entry = null
   try { entry = cachedBars(sym, tf, bars) } catch { entry = null }
   if (!entry) return { capability: CAPABILITY.CHARTABLE, capabilityReason: null }
+  // ⭐ A DENIAL IS A REASON A MEMBER CAN ACT ON, so it gets its own sentence
+  // rather than "no history available for this symbol" — which would be a lie
+  // about the SYMBOL when the truth is about the PLAN. Same shape as the note
+  // above: say the true thing, in words the member can do something with.
+  if (entry.status === SOURCE_STATUS.DENIED) {
+    return {
+      capability: CAPABILITY.UNSUPPORTED,
+      capabilityReason: entry.httpStatus === 401
+        ? 'sign in to chart this symbol'
+        : 'chart data requires a paid plan',
+    }
+  }
   if (entry.status === SOURCE_STATUS.UNSUPPORTED || entry.status === SOURCE_STATUS.NO_DATA) {
     return {
       capability: CAPABILITY.UNSUPPORTED,

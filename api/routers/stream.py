@@ -9,7 +9,8 @@ import logging
 import os
 import time
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
+from api.bars_auth import require_bars_access
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from api.services import bars_liveness, realtime_candle, realtime_stream
@@ -330,6 +331,7 @@ async def stream_prices(
 async def stream_bars(
     request: Request,
     bars: str = Query(..., description="Comma-separated SYM:TF pairs, e.g. AAPL:5,MSFT:1"),
+    _access: dict = Depends(require_bars_access),
 ):
     """SSE — streams real-time bar updates per (symbol, timeframe).
 

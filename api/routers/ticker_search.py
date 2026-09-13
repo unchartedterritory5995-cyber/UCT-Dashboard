@@ -9,11 +9,44 @@ subsequent requests resolve names — never blocks the autocomplete response.
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Cookie, Query
 
+from api.middleware.auth_middleware import PAID_PLANS, meets_plan_gate
 from api.services import cap_universe
+from api.services.auth_service import get_user_plan, validate_session
+
+
+def _bars_entitled(uct_session) -> bool:
+    """May this (possibly absent) caller see UCT's own breadth measures?
+
+    ⛔ THE SAME MEMBERSHIP RULE `bars_auth.require_bars_access` ENFORCES, asked
+    as a question instead of raised as a refusal — `meets_plan_gate` is the
+    repo's stated predicate and its docstring requires callers resolving their own
+    user to call it rather than re-derive the rule. Re-deriving it here would be a
+    second opinion about who is paid, in the one place a drift is invisible: the
+    search would simply stop offering a member the symbols they pay for, or start
+    offering them to somebody who does not.
+    """
+    if not uct_session:
+        return False
+    try:
+        user = validate_session(uct_session)
+        if not user:
+            return False
+        user["plan"] = get_user_plan(user["id"])
+        return meets_plan_gate(user, list(PAID_PLANS))
+    except Exception:  # noqa: BLE001
+        # ⛔ THE COOKIE IS READ HERE RATHER THAN VIA `get_current_user_optional`,
+        # AND THE `try` IS THE REASON. That dependency's docstring says "Never
+        # raises", but `validate_session` opens auth.db — an OperationalError there
+        # turns a database blip into a 500 on an endpoint FOURTEEN surfaces call,
+        # several of them outside charts entirely. Measured: it raised in exactly
+        # that shape the first time this gate was wired through it. Degrading to
+        # "not entitled" hides UCT's own breadth rows and leaves ordinary symbol
+        # search working — the only failure direction that is safe both ways.
+        return False
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -125,6 +158,7 @@ def ticker_search(
     q: str = Query("", max_length=48),
     limit: int = Query(20, ge=1, le=50),
     type: str = Query("", max_length=16),
+    uct_session: Optional[str] = Cookie(None),
 ):
     """Predictive symbol search ranked across ticker AND name: exact symbol > symbol
     prefix > symbol contains > name contains. So "AAPL" returns AAPL then AAPU/AAPD/…
@@ -170,7 +204,18 @@ def ticker_search(
 
     # UCT BREADTH pseudo-tickers (UCTA50 = % above 50-day MA, UCTNH = new highs…):
     # symbol-level matches jump to the FRONT; name matches sit after live tickers.
-    if want_breadth:
+    # 🔴 THE BREADTH ROWS ARE PAID, THE REST OF THIS ENDPOINT IS NOT — and that
+    # asymmetry is the finding, not a compromise. `/api/ticker-search` has 14
+    # frontend consumers (CommandPalette, TickerPopup, calendar, community ticker
+    # mentions, journal, ModelBook, charts) plus an in-process Discord caller;
+    # putting the WHOLE endpoint behind the paywall would break ordinary symbol
+    # lookup on surfaces that have every right to it. What was leaking is the
+    # proprietary half: 44 UCT breadth measures, named and enumerable by anyone,
+    # which is step one of "enumerate, then fetch the history". So the gate goes
+    # exactly there — `_bars_entitled` never raises, so an anonymous or free
+    # caller gets the ordinary search they came for and simply does not see UCT's
+    # own indicators.
+    if want_breadth and _bars_entitled(uct_session):
         try:
             from api.services import breadth_symbols as _breadth_syms
             b_front, b_back = [], []

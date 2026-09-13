@@ -391,7 +391,11 @@ def test_fetch_proxy_bars_is_empty_on_a_503_and_on_a_double_failure(monkeypatch)
         raise RuntimeError("store gone")
     http = []
 
-    def _get(url, timeout=None):
+    # ⚠️ `**kw` BECAUSE `/api/bars` IS PAID NOW. The loopback caller presents
+    # `Authorization: Bearer PUSH_SECRET` (see `bars_auth.bars_service_headers`),
+    # so a double with a narrower signature than the real `requests.get` fails on
+    # the CALL rather than on the behaviour this case is about.
+    def _get(url, timeout=None, **kw):
         http.append((url, timeout))
         raise ConnectionError("refused")
     monkeypatch.setattr(bars_router, "serve_bars", _crash)
