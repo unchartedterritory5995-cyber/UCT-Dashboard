@@ -313,10 +313,28 @@ screen reaches mid-screen and caught the **coach mark**; and `/notebook` is not 
 
 | # | Surface | Action | Expected | Result |
 |---|---|---|---|---|
-| G3-17 | **⚠️ Mirrored chip growth toward the far edge** (opened 2026-09-12) | Set left-handed. Visit a route with a long mode label (`/options-flow`, `/screener`). Look at the chip's right end. | ⛔ **Opened by the G3-1 sweep, and it is a QUESTION not a defect.** Right-handed the chip is anchored `right: 118px` and grows LEFT, away from the pad. Mirrored it anchors `left: 118px` and grows RIGHT — toward the far edge and toward where a right-handed member's thumb rests. The sweep measured it reaching **140 sample points** into the bottom-right corner on `/options-flow`. ⭐ **PR #109's G3-15 fix moves that anchor 48px further right**, so this gets *more* pronounced once it lands; its `max-width` is symmetric (`100vw - (inset + 24)`) so the chip stays bounded and cannot overflow. Report what you SEE: does the mirrored chip crowd the far edge, and does it ever reach the screen edge on the longest label? | [ ] FINE [ ] CROWDED [ ] REACHES EDGE — ⬜ **OPEN, re-check after #109 merges** |
+| G3-17 | **⚠️ Mirrored chip growth toward the far edge** (opened 2026-09-12) | Set left-handed. Visit a route with a long mode label (`/options-flow`, `/screener`). Look at the chip's right end. | ⛔ **Opened by the G3-1 sweep, and it is a QUESTION not a defect.** Right-handed the chip is anchored `right: 118px` and grows LEFT, away from the pad. Mirrored it anchors `left: 118px` and grows RIGHT — toward the far edge and toward where a right-handed member's thumb rests. The sweep measured it reaching **140 sample points** into the bottom-right corner on `/options-flow`. ⭐ **PR #109's G3-15 fix moves that anchor 48px further right**, so this gets *more* pronounced once it lands; its `max-width` is symmetric (`100vw - (inset + 24)`) so the chip stays bounded and cannot overflow. Report what you SEE: does the mirrored chip crowd the far edge, and does it ever reach the screen edge on the longest label? | **[x] FINE — MEASURED ON GLASS 2026-09-12**, after #109 merged · [ ] CROWDED [ ] REACHES EDGE, see the block below |
 | G3-18 | **⚠️ Chip covered by page-level fixed furniture** (opened 2026-09-12) | Visit `/journal` or `/journal/notebook` (and `/breadth` at 360) with a long mode label. Look at the chip's LEFT end. | ⛔ **NOT G3-15 and not a regression from it.** G3-15 asked whether the Actions button covers the chip — it no longer does, 27/27. This is the same class on the OPPOSITE side: at max width the chip's left edge reaches `EDGE_OFFSET = 24` and lands under the Journal's own bottom-left **"Log a trade" FAB** (`JournalLogFab.jsx`, `position: fixed`, whose docstring still claims the placement is *"non-colliding"*), and under a `span` on `/breadth` at 360. Measured on the deployed build: 7 of 27 (mode × width) pairs — journal + notebook at 360/375/430, breadth at 360. Evidence: `g3-15-clearance-sweep-2026-09-12.md`. ⚠️ **Believed to PREDATE #109 — reasoning, NOT measured on the pre-fix build:** the inset cancels in `maxWidth`, so the left edge lands at `EDGE_OFFSET` both before and after the fix. ⭐ Severity **cosmetic-plus** per owner ruling 2026-09-12: the covering element stays on top and remains tappable, so nothing is unreachable; the chip's readout is partly hidden on those pages at max width. **NOT blocking stage 1 or stage 2** — recorded under §4 as a known glass gap. Fix is deferred and **hub-side only** (never a `journal-2-0/**` edit — rule 12); see D-39. | ⬜ **OPEN — non-blocking, known gap** |
 
 ---
+
+
+### G3-17 — ✅ **FINE, measured on glass 2026-09-12** (mirrored chip growth)
+
+iPhone 15 Pro / iOS Safari 17.6, viewport **393**, left-handed set via the API (read-modify-write on `/api/auth/preferences`; all ten sibling keys preserved), then reloaded.
+
+| route | mode | chip width | chip box | gap to far edge | reaches edge? | gap to Actions btn | samples | covered |
+|---|---|---|---|---|---|---|---|---|
+| `/dashboard` | `HomePreview — more com` | — | [166, 369] | **24px** | **no** | 8px | 51 | 0 |
+| `/screener` | `Screener · no results` | **203px** | [166, 369] | **24px** | **no** | 8px | 51 | 0 |
+
+⭐ **The chip is AT its cap on `/screener` and still clears the edge.** 203px is exactly `100vw − (inset + EDGE_OFFSET)` = `393 − (166 + 24)`, so the `max-width` is doing the work and the label is ellipsising — this is the worst case, not a comfortable one. It stops **24px** short of the far edge, which is the same `EDGE_OFFSET_PX` gutter the right-handed layout leaves on its own far side. The growth is bounded and symmetric, not runaway.
+
+⛔ **The worry in the row is answered directly: it does NOT reach the screen edge**, and nothing covers it (0 of 51 sampled points inside the chip resolve to another element). The mirrored Actions-button clearance is the same **8px** measured right-handed, so G3-15's fix mirrors correctly.
+
+⚠️ 360/375/430 are not obtainable on this device; that half is the Playwright sweep and is labelled separately. Handedness was reset to `right` via the API afterwards (verified in the response).
+
+Screenshot: `screens/glass/G3-17-lefthanded-15pro-393-2026-09-12.jpg`.
 
 ## Block G4 — FPS, as a RATIO not an absolute
 
