@@ -9,10 +9,15 @@ programme. So the session is handed over as a LINK. This script is the operator'
 `/api/auth/login` by a script — the same thing `tools/hub_nav_smoke.py:247` has always done — and
 the resulting admin session is what authorises the link. The device only ever sees the URL.
 
-⚠️ THE URL IS A CREDENTIAL FOR FIVE MINUTES. It is typed into a third party's client, so it lands
-in BrowserStack's session recording and in this app's access log as a query string. Single-use
-plus a five-minute floor is what makes that acceptable for a SYNTHETIC account; do not reach for
-this shape for a real one.
+⚠️ THE URL IS A CREDENTIAL FOR TWO MINUTES. It is typed into a third party's client, so it lands
+in BrowserStack's session recording either way. ⭐ The token rides in the URL **fragment**, which is
+never transmitted to any server -- so it does NOT reach this app's access log, a CDN, or a search
+engine if the URL is mistyped into a search box. Single-use, two minutes and fragment-only is what
+makes this acceptable for a SYNTHETIC account; do not reach for this shape for a real one.
+
+⛔ ON THE DEVICE: type the URL, VERIFY THE HEAD (the field scrolls right, so the visible tail proves
+nothing about the scheme), then commit with the keyboard's Go key. NEVER tap a suggestion row -- a
+row can render the URL and still perform a SEARCH, which is how a token leaked once.
 
 Usage:
     python tools/smoke_login_link.py                       # production
@@ -121,7 +126,7 @@ def main(argv=None) -> int:
         return 1
 
     say(url)
-    say("\n  ⏳ valid 5 minutes, single use. On the Live device: tap the address bar's ⊗ to clear "
+    say("\n  ⏳ valid 2 minutes, single use. On the Live device: tap the address bar's ⊗ to clear "
         "it, then type this URL. ⛔ never ctrl+a — the mirror types a literal 'a'.", err=True)
     return 0
 

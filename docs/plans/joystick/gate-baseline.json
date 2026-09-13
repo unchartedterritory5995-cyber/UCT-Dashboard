@@ -64,6 +64,11 @@
         "name": "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > the wrapper exempts itself by RESOLUTION, and there is exactly one of it",
         "seen": "launch/closure e05721c4e (merged master), six-shard run 2026-09-12T17:57:39",
         "evidence": "TIMED OUT at 30000ms in-shard, then PASSED ALONE in 4822ms on the same tree minutes later, box idle. Not an assertion failure — the body is a repo-wide census() sweep, which is the expensive shape. Content held constant, outcome flipped, so the variable was load. NOT a baseline entry: banking a timeout leaves a slot a real failure can occupy unnoticed."
+      },
+      {
+        "name": "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js > no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear",
+        "seen": "harden/smoke-login-fragment tree 813291e30, six-shard run 2026-09-12T20:31",
+        "evidence": "TIMED OUT at 15000ms in-shard; PASSES ALONE on the same tree with app/dist/assets present (292 JS files). Not an assertion -- the body reads and regex-scans every built bundle, tens of MB, which is slow under a loaded six-shard run. ⛔ NOT banked: a timeout in the baseline leaves a slot a real failure can occupy, and this rail's whole job is to catch a real one. ⭐ THE DURABLE FIX IS AN EXPLICIT PER-TEST TIMEOUT on that `it(...)`, because the work is genuinely large -- but the file is a journal-2-0 path and rule 12 assigns it to the Notebook workstream, so it is handed over rather than patched here."
       }
     ]
   },
