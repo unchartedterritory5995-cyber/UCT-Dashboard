@@ -228,6 +228,15 @@
   text-align: center;
 }
 
+/* A-04: a series flattened by a larger one on the same axis is named, not hidden. */
+.gapNotice {
+  padding: 0 16px 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--warn);
+}
+.gapNotice p { margin: 0; }
+
 /* ── Load problems (A-01) ──────────────────────────────────────────────────── */
 .loadProblem {
   display: flex;
