@@ -741,6 +741,24 @@ Closing it requires building an instrument first — that is a task, not a looku
     ruling** — hoist the ring back above the classifier and exactly the eighteen
     append rows redden, no metadata row. Fixed at `9a213bd45`.
 
+    ⭐ **AND A CENSUS RAIL, owner ruling 2026-09-13** —
+    `lib/offline/ringVouchAuthority.test.js`. One authority is a property of the
+    code, not of the commit that established it, so a THIRD site asking "the ring
+    vouched, now what?" must fail by name the day it is written. It derives its
+    census from the source the way `doorEnumeration.test.js` does: comments and
+    string bodies blanked first (a comment quoting the old idiom is not a call
+    site), every `.ours` read taken as a vouch site, and each site's own region —
+    the block it guards, or the statement it belongs to — read for what it
+    DECIDES. A region that chooses a plan must choose it through
+    `ringVouchedPlan`; an `identical` short-circuit chooses none and is exempt
+    **by name**; a region this rail cannot classify is a FAILURE, because "I do
+    not know what this one does" must never read as "this one is fine". Four
+    sites today: two authority, two identical. ⛔ The floor is asserted as well
+    as the ceiling — **deleting a call site and inlining its answer is the same
+    defect arriving from the other direction.** Mutation: **M26**, permanent —
+    restore the PRE-SEND site to deciding on the vouch alone and 14 tests redden
+    across the matrix and the census.
+
 12. ⛔ **THE INSTRUMENT WAS WRONG FIRST — the ELEVENTH instance this programme has
     recorded, and the third in Wave Q1 alone.** The property rail's fake
     `serverCopyIsOurs` omitted `serverNote`, so the drain's classifier could not
@@ -767,7 +785,7 @@ Closing it requires building an instrument first — that is a task, not a looku
     an append door records and never settles with local state — the claim the
     matrix's clamp depends on.
 
-13. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
+13. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
    WRONG BY THREE.** Wave Q1 recorded *"the FOUR doors — every path that advances
    `updatedAt`"* and named body, folder, ticker, tags. That list came from the
    DERIVED WIRE RAIL, which can only see doors a canary actually opened; no canary
@@ -838,6 +856,70 @@ Closing it requires building an instrument first — that is a task, not a looku
    self-check that needs hand-editing when the thing it checks grows is a second
    authority over that thing's size** — they are all derived from `len(DOORS)`
    now.
+
+16. ⛔ **A MATRIX ROW CAN MODEL SOMETHING THE PRODUCT CANNOT DO — and the clamp
+    that fixes it is a second place to get it wrong.** One of the six orderings
+    settles the door's revision BEFORE the queued work exists. For a metadata
+    door that is real: `settleMetadataRevision` belongs to folder, ticker and
+    tags. For an append door it is fiction — the three appenders record a landed
+    revision and never settle with local state, because settling needs an editor
+    mounted and these doors fire from surfaces that have none. A red row that
+    models an impossible state is not evidence of a defect; it is the fixture
+    describing itself.
+
+    ⛔ **THE CLAMP'S OWN FIRST VERSION READ THE ORDERING'S HARD-CODED `'folder'`**
+    instead of the family under test, so it evaluated the same answer for every
+    row and silently un-clamped all eighteen append cases while looking correct.
+    ⭐ **What caught it was a pair, not a review:** `settle-first` stayed red
+    while an ordering that had become its behavioural twin went green. Two rows
+    that must now agree and do not is a louder signal than either row alone.
+
+    ⭐ **RAILS:** the clamp reads `server.familyUnderTest` in
+    `offlineWordsSurvive.property.test.jsx`, and `f5Freeze.test.js` carries the
+    structural half — asserting FROM THE SOURCE that `settleMetadataRevision`
+    names only `folderId`, `tags` and `ticker`, and that `settleNoteWrite` never
+    calls `settleLandedSave`. The claim the clamp depends on is measured, not
+    assumed; if an append door ever learns to settle, the rail fails before the
+    matrix silently starts lying.
+
+17. ⛔⛔ **A DEPLOYED COPY DRIFTS, AND THE ONE THAT DECIDES A GATE IS THE WORST
+    PLACE FOR IT.** `C:/Users/Patrick/uct-q1-observe/` holds COPIES of
+    `nb_observe.py` and `nb_gate.py` outside every worktree, because the Task
+    Scheduler jobs run from there. On 2026-09-13 the deployed `nb_gate.py` still
+    carried the **four-doors** attribution — a day after the repo learned there
+    are seven — so the 17:05 gate, the single run that decides keep-or-revert,
+    would have printed a stale family list to the owner. Nothing was wrong in the
+    repo; the repo was simply not what was going to run.
+
+    ⭐ The generalisation is uncomfortable and worth keeping: **a file under
+    version control tells you nothing about the file that executes.** Provenance
+    for a scheduled tool is the copy the scheduler opens.
+
+    ⭐ **RAIL:** `tests/test_nb_observe.py` — the drift check is now
+    **parametrized over `["nb_observe.py", "nb_gate.py"]`**, so both copies are
+    compared against the repo every run. It was written for the first file and
+    covered exactly one of the two; the one it did not cover is the one that had
+    drifted.
+
+18. ⛔ **A BUNDLE SCAN THAT DOES NOT WALK THE GRAPH ANSWERS A DIFFERENT
+    QUESTION.** Verifying Q1 fix 3 in the SERVED artifact, the first scan read
+    the index's 99 direct `lazy(() => import(...))` chunks and reported the fix
+    ABSENT. It was present. Those 99 chunks contain none of `outboxDrain`'s
+    strings — **not even the pre-existing ones** — because the drain is reached
+    transitively, several hops below any lazy entry point.
+
+    ⭐ **The control is what named it:** a string that has been in the file for
+    days must be findable, and it was not. When a scan cannot find something you
+    know is there, the scan is the suspect — the same rule as the instrument
+    being the first suspect, applied to a verification step rather than a test.
+    A transitive walk over all 284 served chunks found it in
+    `NotebookTab-BvWNR2dL.js`, with the append-only merge reason at @146105
+    preceding the ours-rebase reason at @147235 — the classify-first ordering,
+    read from the artifact a member downloads.
+
+    ⚠️ **NOT YET A RAIL, and named here so it is not mistaken for one.** The walk
+    is a procedure in the deploy evidence, not a test. Owner-bound item **C-8**
+    covers making three-way verification a tool rather than a practice.
 
 ### Rows added by §10
 

@@ -298,6 +298,14 @@ MUTATIONS = [
          note="with the merge unreachable, every append family loses the block the "
               "member just captured — and no metadata family notices"),
 
+    dict(id="M26", guard="Q1 fix 3 - the ring-vouched question is asked in ONE place",
+         file=f"{OFF}/outboxDrain.js",
+         find="          const ring = ringVouchedPlan(mine, noteRec)",
+         repl="          const ring = { plan: 'rebase', base: null, shape: null }\n"
+              "          entry = await rebaseEntry(db, entry, mine.serverUpdatedAt)",
+         note="the PRE-SEND site decides on the vouch alone again - the half that "
+              "never 409s, so nothing downstream could ever catch it"),
+
     # ══════════════════════════════════════════════════════════════════════
     # WAVE K — the runtime kill switch. K-R1 … K-R10.
     # ══════════════════════════════════════════════════════════════════════
