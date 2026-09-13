@@ -297,7 +297,7 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 2 | **D4 CP1** — declared manifest + existence rail | `40caca541` | ✅ **DONE** | **`f2a2a68a6`** |
 | 2b | **D4 CP2** — adopter 1, per-ticker keying | `40caca541` | ✅ **DONE** | **`388cad07c`** |
 | 2c | **D4 CP3** — adopter 2, theme/groups, IN CLOSURE | `40caca541` | ✅ **DONE** — BEHAVIOUR-CHANGING, marker bump #8 | **`dc5752b16`** |
-| 3 | **S5 CP1** — extract Notebook's pattern, Notebook unchanged | `37e1823a6` | ⬜ | — |
+| 3 | **S5 CP1** | `37e1823a6` | ⛔ **NOT STARTED — scope conflict, needs a ruling. See below.** | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
 | 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
@@ -317,6 +317,61 @@ no legacy change · dry-run in-pod against Friday's data before merge · project
 time. Anything in flow-worker's closure that would strand waits for **16:05 ET or later** — no
 marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
 merge, and record the reason here.
+
+### Unit 3 — S5 CP1 · ⛔ NOT STARTED. The SECOND scope/packet divergence, and the pattern is now worth naming.
+
+**Nothing was built. Nothing is on a branch.**
+
+⛔ **THE SIGNED SCOPE AND THE PACKET'S OWN CP1 DESCRIBE DIFFERENT WORK — AGAIN.**
+
+| | says CP1 is |
+|---|---|
+| **the signed line** (`37e1823a6`) | *"EXTRACT THE NOTEBOOK OFFLINE PATTERN as a reusable module, with the Notebook as its first and UNCHANGED consumer… snapshot-identity on the Notebook's behaviour"* |
+| **the packet's §4** | *"**Documentation only.** The three-class rule and the twelve N-rulings written into the decision register… **No code of any kind.**"* |
+
+And the packet's §1 states the whole ask as **"No member-visible change. No change to the Notebook
+layer. No new store."** The signed scope's extraction is not CP1, CP2, CP3, CP4 or CP5 — it is not
+in the packet at all.
+
+⚠️ **AND THE RISK IS NOT SYMMETRICAL WITH D4's.** The pattern has **ZERO adopters outside the
+Notebook** — 22 import lines across 14 files, every one under `app/src/pages/journal-2-0/`. So
+"extract it as a reusable module with Notebook as its first consumer" is a **refactor of 14 files
+in the most recently destabilised subsystem in the estate**: Wave Q1 went live 2026-09-12, and its
+predecessor was rolled back **25 minutes after activation** on 09-09. A snapshot-identity claim
+over that surface is a large promise.
+
+⭐ **THE PACKET'S REASONING FOR PREFERRING DOCUMENTATION IS EXPLICIT AND GOOD:** extraction has no
+second consumer to justify it, and a module shaped by exactly one caller is not reusable — it is
+that caller's internals with a new import path. CP4 (Tracings adopts) is where a second consumer
+appears, and that is where the shape gets tested.
+
+**THE WAYS FORWARD — none taken:**
+- **A)** Build the packet's CP1 (documentation) and re-number, as D4 was re-numbered.
+- **B)** Build the packet's **CP2** — the additions-only rail, derived from call sites with a
+  non-vacuity control and today's 70 sites baselined. Real code, strands nothing, and it is the
+  only S5 checkpoint that protects something today.
+- **C)** Build the signed extraction anyway, accepting a 14-file refactor of Wave Q1's surface.
+
+⭐ **RECOMMENDATION: B.** It is the largest piece of real work in S5 that is honestly
+non-stranding and does not touch the Notebook layer — which is what the packet's own §1 promises.
+
+---
+
+## ⛔⛔ THE PATTERN, NAMED AFTER THE SECOND OCCURRENCE
+
+**Two of the pre-signed scopes have now described work their packet does not contain** (D4 CP1,
+S5 CP1), and in both cases the divergence hid something: D4's spanned the flow-worker closure
+boundary, S5's spans a live, recently-rolled-back subsystem.
+
+⭐ **The scopes were written from the SYSTEM's name and the recommendation text, not from the
+packet's §4 checkpoint table.** That table is the thing an approval line is supposed to name — it
+is why §4 exists, and every packet says so in its own approval block.
+
+**Proposed rule, for the owner:** *an approval line names a checkpoint ID from the packet's §4
+table, or it re-numbers the table explicitly in the same commit.* D4 was re-numbered that way and
+the result was buildable within the hour.
+
+---
 
 ### ⚰️ WINDOW CORRECTION — the weekend window had NOT closed
 
