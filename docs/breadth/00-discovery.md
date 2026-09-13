@@ -306,9 +306,29 @@ Reading it:
 | request aborted (network) | "Couldn’t load breadth history right now." + **"Tap to retry"** (touch copy on desktop too) |
 | light theme | dark chart chrome on a light page (F-11) |
 
-### Tab-switch samples
+### Tab-switch samples — NOT quotable as product speed
 
-*Repeated per width below — medians and worst case.*
+Five cold tab switches per width (`--tab-switch-samples 5`). The run landed in the middle of
+Sunday's deploy churn from other sessions and on a contended machine, and the instrument says so:
+
+| Width | Valid samples | First ink, median (best–worst), ms | Server time of the data call, median (best–worst), ms | Why samples were discarded |
+|---|---|---|---|---|
+| 390 | 5 / 5 | 539 (379–21,987) | 355 (167–21,833) | — |
+| 768 | 2 / 5 | 5,735 (5,383–6,087) | 430 (410–451) | 3 timeouts (a click and two paints that never completed in 30 s) |
+| 1280 | 1 / 5 | 666 | 437 | 2 deploy swaps, 2 timeouts |
+| 1920 | 4 / 5 | 638 (536–883) | 340 (224–431) | 1 deploy swap |
+
+Two different noises, both visible in the numbers: the **server** spread (167 ms → 21.8 s for the
+same 365-row call, cold caches after each deploy) and the **client** spread at 768 (a 0.4 s server
+answer inked at 5–6 s — the page, not the network, was stalled on a contended host). Neither says
+how fast the tab is. What it does establish is a design constraint: the tab's first paint currently
+waits on a **derived 365-row history call whose cold cost is seconds**, and nothing warms it after a
+deploy.
+
+⛔ Phase 4 therefore does not compare against these numbers. It measures before and after in the
+**same window, alternating**, with the SPA served from local builds and `/api/*` forwarded to
+production as the member-smoke session — so the only thing that differs between the two columns is
+the front end.
 
 ## 5. Screenshots
 

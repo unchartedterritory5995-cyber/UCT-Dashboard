@@ -30,3 +30,21 @@ One short entry per phase, appended at the end of that phase. Decisions live in
   `HM_METRICS`), unoffered fields, URL state; prioritised backlog of 10 merges; north star.
 - [`collector-asks.md`](collector-asks.md): 11 asks for the engine repo.
 - Decisions D-007 … D-017.
+
+## ⚠️ Exposure contained (2026-09-13) — D-018
+
+The repository is public. The first Phase 0/1 push carried paid-data screenshots, measurement JSON and quoted metric
+values; the remote branch was deleted within minutes, the commit rebuilt without them, and `docs/breadth/.gitignore` now
+keeps that evidence on local disk. The original commit (`b98ce804b`) remains reachable on GitHub by SHA until purged —
+owner action, Phase 6.
+
+## Phase 2 — Design — DONE (2026-09-13)
+
+- [`02-design.md`](02-design.md): token plan reviewed against the brief (five template defaults rejected), layouts for
+  desktop/tablet/phone, controls, stacked-panel rules, axes, metric-attached reference lines, marks, a colour model
+  validated on OLED/dark/light, the coverage and staleness language, nine member-visible states with copy, motion, URL,
+  accessibility, and the flag architecture.
+- [`mock/index.html`](mock/index.html) + `mock/render_mock.py` → `mock/renders/` (five boards). Synthetic series, the
+  app's real tokens, fonts and ECharts; one critique pass applied (irregular ticks, colliding end labels, a heavy
+  not-recorded area, a gold slider band, a record key naming absent states).
+- Decisions D-019 … D-023. Tab-switch samples added to discovery §4 as not quotable, with the Phase 4 A/B method.

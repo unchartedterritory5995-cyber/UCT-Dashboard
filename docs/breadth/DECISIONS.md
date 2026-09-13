@@ -190,3 +190,42 @@ request by the owner — listed in the Phase 6 items.
 
 **Why it matters.** The breadth history became `require_paid` on 2026-08-09 precisely because it is the product; a
 public repository is an unauthenticated door to anything committed to it.
+
+### D-019 · Colour identity is scoped to a panel; palettes per Views key, validated on three surfaces
+
+**Decision.** Each panel has its own legend row and assigns its own slots. Neutral order blue · orange · aqua · violet ·
+magenta (Classic swaps aqua for pink, because aqua is Classic's bull tone). Opposed pairs take tone colours only when both
+sides share a panel, with the per-palette pairs in `02-design.md` §4; a panel holding a pair takes at most one colour
+neutral. Mono is the emphasis form (first series gold, the rest gray steps, end labels always).
+
+**Why.** Measured (`dataviz` validator, OLED/dark/light, all pairs): no four-colour neutral set passes, three do; the
+Classic green/red pair cannot pass CVD at any step (warn band at best), so its secondary encoding is mandatory; Colorblind and
+Ocean pairs pass once re-stepped into the lightness band. Scoping identity to a panel keeps every panel inside the validated
+count without inventing hues. The Mono palette's grays fail the chroma floor on purpose — as emphasis, not identity.
+
+### D-020 · Chart chrome colours are derived from theme tokens at render
+
+**Decision.** Axis text = the most recessive `mix(--text-muted, --bg-surface)` clearing 4.5:1; gridlines = the first mix
+reaching 1.25:1; tooltip = `--bg-elevated` + `--text`; re-computed on theme change.
+
+**Why.** Canvas cannot resolve `var()`; hard-coding was A-14. Measured results: axis text 4.57–4.60:1 on OLED/dark/light,
+gridlines 1.26–1.27:1 — the `--border` token alone is 1.19:1 on OLED, too faint to be a gridline.
+
+### D-021 · The record strip is the tab's one bold element
+
+**Why.** The frontend-design principle "spend boldness in one place" applied to this subject: a breadth history is half
+collected and half reconstructed, and nothing in the product says so. A thin collected/reconstructed band under the plot
+is specific to this data, useful every time, and keeps every other surface quiet. Rejected defaults recorded in
+`02-design.md` §1 (middle-dot meta strings, per-panel cards, gold series, uppercase eyebrows, decorative texture).
+
+### D-022 · Phase 4 measures before and after in the same window, alternating, with the SPA served locally and the API forwarded to production
+
+**Why.** Sunday's measurements were contaminated twice by other sessions' deploys and once by local CPU contention (5 s client
+stalls at 768 against sub-second server answers). Production cannot serve a flag-off and a flag-on build at once, so both
+columns load a local build of their branch while `/api/*` is forwarded to production as the member-smoke session; only the
+front end differs, and alternating runs share whatever the network and the pod are doing.
+
+### D-023 · The design mock draws synthetic series
+
+**Why.** D-018. A mock of exported rows would put paid data in a public repository; seeded random walks shaped like each
+metric show the design as faithfully without it.
