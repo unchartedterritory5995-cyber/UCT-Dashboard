@@ -85,7 +85,12 @@ DECLARED: list[tuple] = [
     ("s2-command-search", "line 1", ["CP1"], "table", OK,
      "CP2 is shaped by OI-06 and is not authorised"),
     ("s4-context-bus", "line 1", ["CP1", "CP2", "CP7"], "table", OK, ""),
-    ("s5-persistence-user-state", "line 1", ["CP1"], "table", OK, ""),
+    ("s5-persistence-user-state", "line 1", ["CP1"], "table", OK,
+     "⚠️ names CP1 but DESCRIBES an extraction the packet contains at no checkpoint — "
+     "the second scope/packet divergence, and the reason the standing rule exists. "
+     "Left as granted, UNBUILT; the extraction is deferred as F-S5-1"),
+    ("s5-persistence-user-state", "line 2", ["CP2"], "table", OK,
+     "signed 2026-09-13 against §4's CP2 row verbatim"),
     ("s7-catalyst-match", "line 1", ["CP1", "CP2"], "headings+bold", OK, ""),
     ("s7-catalyst-match", "line 2", ["CP3"], "headings+bold", OK, ""),
     ("s7-event-proximity", "line 1", ["CP1", "CP2"], "headings", OK, ""),

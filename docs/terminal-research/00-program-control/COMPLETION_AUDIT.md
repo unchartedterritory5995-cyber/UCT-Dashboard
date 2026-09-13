@@ -342,7 +342,8 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 2 | **D4 CP1** — declared manifest + existence rail | `40caca541` | ✅ **DONE** | **`f2a2a68a6`** |
 | 2b | **D4 CP2** — adopter 1, per-ticker keying | `40caca541` | ✅ **DONE** | **`388cad07c`** |
 | 2c | **D4 CP3** — adopter 2, theme/groups, IN CLOSURE | `40caca541` | ✅ **DONE** — BEHAVIOUR-CHANGING, marker bump #8 | **`dc5752b16`** |
-| 3 | **S5 CP1** | `37e1823a6` | ⛔ **NOT STARTED — scope conflict, needs a ruling. See below.** | — |
+| 3 | **S5 CP2** — the additions-only rail | **`9c7c634da`** signed 2026-09-13 | ✅ **DONE** | **`26120fada`** |
+| — | ~~S5 CP1~~ (as line 1 described it: the extraction) | `37e1823a6` | ⏸️ **DEFERRED — F-S5-1.** Second adopter + Wave Q1 live 30 days (**2026-10-12**). Not in any §4 row. | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
 | 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
@@ -378,11 +379,61 @@ A commit's date in `America/Chicago` is already the authority for *when a commit
 same discipline governs *which window you are in*. Both failures look identical from the inside —
 a confident sentence about time, derived from nothing.
 
-### Unit 3 — S5 CP1 · ⛔ NOT STARTED. The SECOND scope/packet divergence, and the pattern is now worth naming.
+### Unit 3 — S5 · **CP2 ✅ `26120fada`** · the extraction DEFERRED as F-S5-1
 
-**Nothing was built. Nothing is on a branch.**
+**Ruled 2026-09-13:** build the packet's **CP2**, sign it by its §4 ID, and defer the extraction.
+Line 2 is signed at fingerprint **`9c7c634da`** naming §4's CP2 row verbatim; line 1 is left
+exactly as granted rather than rewritten, because **an approval is a record of what was approved,
+not a draft.**
 
-⛔ **THE SIGNED SCOPE AND THE PACKET'S OWN CP1 DESCRIBE DIFFERENT WORK — AGAIN.**
+**What shipped:** one test file, `app/src/hooks/usePreferences.additionsOnly.test.js`. No product
+file changed — flow-worker's closure is 154 Python modules with **zero** under `app/` and zero
+`.js`/`.jsx`, so the unit is INERT by construction, not by argument.
+
+⭐ **DERIVE THE DISCOVERY, DECLARE THE CLASSIFICATION.** *"Which keys are written through
+`setPref`?"* is an AST question and is derived. *"Is this value a structured document?"* is a
+**data-flow** question — the exact class that burned five attempts and an O(n²) sixth in D4 CP1 —
+so all 26 keys are classified once by reading: **18 structured, 8 scalar.** The same split that
+rescued D4 CP1 and the §4 audit, applied a third time on purpose.
+
+**Measured, not quoted:** 69 literal-key `setPref` sites across 26 keys, plus 26 opaque-key sites
+across 15 files. ⚠️ The packet says "70 sites"; the tree moved by one since it was written, and the
+measurement is the authority.
+
+⛔ **THE BLIND SPOT IS BASELINED RATHER THAN IGNORED.** 26 call sites pass a VARIABLE as the key,
+so the rail cannot read which preference they write. `BASELINE_OPAQUE` pins a **count per file**, so
+the way around the rail — write your new key through a variable — is itself a tripwire.
+
+**IN-POD READ** (`railway ssh --service web`, read-only on `/data/auth.db`): **48 distinct
+`pref_key` values, 184 rows, 21 members.** The rail sees 26. The other 23 split three ways, and
+only the middle one is a gap: **4 superseded** v1/v2 keys nothing writes any more
+(`calendar_view`, `calendar_view_v2`, `calendar_filters`, `calendar_event_types`); **10 written
+through opaque sites** (`charts_layout_dock`, `breadth_views_config`, `breadth_drill_board`,
+`breadth_charts_state`, `aisearch_settings`, `watchlist_templates`, `tracings_doc`, `journal_tab`,
+`chart_templates`, `joystick_hub`) — **about a fifth of the live surface, which is what justifies
+pinning those counts**; and **9 written by other modules or server-side**. ⭐ **`setPref` is not
+the only door to this table**, and the rail says so rather than implying it guards the room.
+
+**MUTATIONS — three, each restored by EDIT:**
+
+| mutation | result |
+|---|---|
+| `'alert_sound'` → `'alert_sound_v2'` in `Settings.jsx` | **RED in both directions** — the new key is named with its file, and the baseline-stale check fires too |
+| `setPref('theme', v)` → `setPref(THEME_KEY, v)` | **RED** — the opaque tripwire names the file |
+| blind the derivation (`includes('setPrefZZZ')`) | **RED on the three controls — and the HEADLINE ASSERTION STAYED GREEN** |
+
+⭐⭐ **THE THIRD MUTATION IS THE ONE WORTH KEEPING.** "No new key was added" passes trivially over
+an empty derivation. A rail whose main assertion is satisfied by its own blindness is the failure
+`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` names, and **only the non-vacuity control
+separated the two states.** It was not a hypothetical: it was observed, in the act, before merge.
+
+**39 tests green** across the three `usePreferences` suites, with a totals line.
+
+---
+
+### ⚰️ THE HISTORY THIS UNIT CLOSES — the second scope/packet divergence
+
+⛔ **THE SIGNED SCOPE AND THE PACKET'S OWN CP1 DESCRIBED DIFFERENT WORK.**
 
 | | says CP1 is |
 |---|---|
@@ -405,15 +456,20 @@ second consumer to justify it, and a module shaped by exactly one caller is not 
 that caller's internals with a new import path. CP4 (Tracings adopts) is where a second consumer
 appears, and that is where the shape gets tested.
 
-**THE WAYS FORWARD — none taken:**
+**THE WAYS FORWARD — three were offered:**
 - **A)** Build the packet's CP1 (documentation) and re-number, as D4 was re-numbered.
 - **B)** Build the packet's **CP2** — the additions-only rail, derived from call sites with a
-  non-vacuity control and today's 70 sites baselined. Real code, strands nothing, and it is the
+  non-vacuity control and today's sites baselined. Real code, strands nothing, and it is the
   only S5 checkpoint that protects something today.
 - **C)** Build the signed extraction anyway, accepting a 14-file refactor of Wave Q1's surface.
 
-⭐ **RECOMMENDATION: B.** It is the largest piece of real work in S5 that is honestly
-non-stranding and does not touch the Notebook layer — which is what the packet's own §1 promises.
+✅ **THE OWNER RULED B, 2026-09-13, and it is built (`26120fada`).** The extraction is **C
+deferred, not refused** — F-S5-1, conditional on a second adopter AND Wave Q1 live 30 days
+(**2026-10-12**). ⭐ Both halves of that condition answer different objections: a second adopter is
+a *design* condition (a module shaped by one caller is that caller's internals with a new import
+path), 30 days live is a *risk* condition about a specific surface that has not yet held. The date
+is recorded rather than the duration, because "30 days live" read six weeks from now is an
+invitation to re-derive the start.
 
 ---
 

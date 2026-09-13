@@ -609,6 +609,42 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## S5 CP2 — MERGED `26120fada`. Gate fingerprint `9c7c634da`. **The additions-only rail.**
+
+**Window: Sunday, weekend, open.** No RTH, no OPRA tape. `web` deploy queue clear (`acfbef8b3`
+SUCCESS) before the push, per the one-merge-at-a-time rule.
+
+**Signed by its §4 ID on line 2**, which is the standing rule's first use. Line 1 is untouched:
+its scope describes an extraction **this packet contains at no checkpoint**, and rewriting it would
+turn a record of what the owner approved into a draft. The extraction is deferred as **F-S5-1** —
+a second adopter AND Wave Q1 live 30 days (**2026-10-12**, the date not the duration).
+
+**One test file. No product file changed.** Flow-worker's closure is 154 Python modules with zero
+under `app/` and zero `.js`/`.jsx` — INERT by construction, not by argument. ADDITIVE, no bump.
+
+⭐ **DERIVE THE DISCOVERY, DECLARE THE CLASSIFICATION — third use, on purpose.** *"Which keys go
+through `setPref`?"* is an AST question. *"Is this value a structured document?"* is data flow —
+the class that burned six attempts in D4 CP1 — so 26 keys are classified once by reading: **18
+structured, 8 scalar.**
+
+**Measured:** 69 literal-key sites / 26 keys / 26 opaque-key sites across 15 files. ⚠️ The packet
+says "70 sites"; the tree moved by one and the measurement wins.
+
+**In-pod, read-only** (`/data/auth.db`): **48 distinct `pref_key`, 184 rows, 21 members.** The rail
+sees 26. Of the other 23: **4 superseded** v1/v2 keys nothing writes, **10 through opaque call
+sites** — ~a fifth of the live surface, which is exactly why `BASELINE_OPAQUE` pins a count per
+file — and **9 from other modules or server-side**. ⭐ `setPref` is not the only door to this table
+and the rail says so instead of implying it guards the room.
+
+⭐⭐ **THE MUTATION THAT EARNED ITS PLACE:** blinding the derivation turned the three controls RED
+**while the headline assertion "no new key was added" stayed GREEN** — it passes trivially over an
+empty set. Observed in the act, before merge. The other two: a renamed key goes RED in both
+directions with its file named; a literal key turned into a variable trips the opaque tripwire.
+
+**39 tests green** across the three `usePreferences` suites, with a totals line.
+
+---
+
 ## D3 CP1 — MERGED `302f99e8e`. Gate fingerprint `00ebb5e80`.
 
 **Ratification made checkable. ZERO runtime change** — no socket opened, no subscriber added, no

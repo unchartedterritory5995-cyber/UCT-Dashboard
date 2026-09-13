@@ -2,13 +2,13 @@
 id: GATE-S5-PERSISTENCE-USER-STATE
 title: S5 — Persistence & User State — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ⛔ UNAPPROVED. No approval line exists. Nothing in this packet is authorized.
+status: ✅ line 1 CP1 (as written, an extraction this packet does not contain — UNBUILT, deferred as F-S5-1) · line 2 CP2 SIGNED 2026-09-13. CP3-CP5 each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 5ff6fc04a
 pairs_with: SPEC-S5-PERSISTENCE-USER-STATE
 ---
 
-# ⛔ UNAPPROVED — S5 pre-implementation gate
+# ✅ APPROVED — **CP2**, the additions-only rail. Line 1's extraction is deferred (F-S5-1).
 
 ## ⛔ APPROVAL
 
@@ -26,12 +26,66 @@ SCOPE APPROVED:   CP1 - EXTRACT THE NOTEBOOK OFFLINE PATTERN as a
                   written second.
 ```
 
-> ## ⛔⛔ NOTHING IN THIS PACKET IS AUTHORIZED.
+## ⛔ APPROVAL — LINE 2 (**CP2**). The line-1 block above stands as granted, unbuilt.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:      9c7c634da
+SCOPE APPROVED:   CP2 - THE ADDITIONS-ONLY RAIL, exactly as §4 names it. One
+                  test asserting that no NEW structured-object preference key
+                  is written through `setPref`, derived from the client's own
+                  call sites, with a non-vacuity control and a mutation proof,
+                  and with today's sites BASELINED rather than failed.
+
+                  ⛔ NO NOTEBOOK CODE IS TOUCHED. No product file changes at
+                     all - this checkpoint is a test.
+
+                  ⛔ THE EXTRACTION LINE 1 DESCRIBES IS NOT AUTHORIZED BY THIS
+                     LINE and is deferred as F-S5-1 below.
+```
+
+> ⭐ **THIS LINE NAMES A §4 ROW, AND THAT IS THE POINT OF IT.** Line 1's scope describes an
+> extraction that is not CP1, CP2, CP3, CP4 or CP5 — it is not in this packet at all — which is the
+> second occurrence of the scope/packet divergence and the reason the owner adopted the §4-naming
+> rule on 2026-09-13. Line 1 is left exactly as granted rather than rewritten: **an approval is a
+> record of what was approved, not a draft.**
 >
-> The approval block above is empty and that is its correct state today. No file may be created,
-> edited or deleted on the strength of this document. The checkpoints in §4 exist so that a future
-> approval line can NAME one — an approval reading "build S5" would authorize a scope nobody has
-> bounded, which is the defect the D2 packet's §2 note records.
+> ⛔ **THE FINGERPRINT CONVENTION WITH TWO BLOCKS:** `git hash-object` of this packet as it stood
+> at approval **with THIS block's `APPROVED AT SHA` blank** and every other block left as it
+> stands. "This field", in the packet's own words, is the field in the block you are signing.
+
+### ⏸️ F-S5-1 — THE EXTRACTION, DEFERRED WITH A NAMED CONDITION
+
+> **Extracting the Notebook offline pattern as a reusable module is deferred until a SECOND
+> ADOPTER EXISTS and Wave Q1 has 30 days live.** (Owner ruling, 2026-09-13.)
+
+⭐ **Both halves of that condition are doing work, and they are different objections.**
+
+**A second adopter is a design condition.** The pattern has **zero adopters outside the Notebook** —
+22 import lines across 14 files, every one under `app/src/pages/journal-2-0/`. A module shaped by
+exactly one caller is not reusable; it is that caller's internals wearing a new import path, and
+the shape only gets tested when something with different needs picks it up. The packet's own §4
+puts that moment at **CP4** (Tracings adopts), which is where the extraction belongs.
+
+**Thirty days live is a risk condition, and it is about a specific date.** Wave Q1 went live
+2026-09-12; its predecessor was rolled back **25 minutes after activation** on 2026-09-09. A
+14-file refactor of the most recently destabilised subsystem in the estate, sold on a
+snapshot-identity promise, is a large bet against a surface that has not yet held. **30 days from
+2026-09-12 is 2026-10-12** — recorded as a date rather than a duration, because "30 days live"
+read six weeks from now is an invitation to re-derive the start.
+
+⛔ **This is a DEFERRAL with two conditions, not a rejection and not a parking space.** When both
+are met the work is CP4-and-after, and it needs its own approval line naming that row.
+
+---
+
+> ## ⛔ EVERYTHING NOT NAMED ON A LINE ABOVE IS UNAUTHORIZED.
+>
+> No file may be created, edited or deleted on the strength of this document beyond the scope a
+> signed line names. The checkpoints in §4 exist so that an approval line can NAME one — an
+> approval reading "build S5" would authorize a scope nobody has bounded, which is the defect the
+> D2 packet's §2 note records.
 
 ---
 
