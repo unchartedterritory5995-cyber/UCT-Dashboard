@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS wisdom_sources (
   coverage_ratio         REAL,                           -- transcript span / media length; NULL = not measurable
   incomplete             INTEGER NOT NULL DEFAULT 0,     -- 1 when coverage_ratio < 0.98 (D10 threshold) or known-truncated
   published_check        TEXT,                           -- sunday_scans only: 'public_api_match' | 'mismatch' | 'unchecked'
+  speaker_resolution_json TEXT,                          -- per-session evidence resolving ambiguous host labels (CONTRACTS §8a.2)
   ingest_version         TEXT NOT NULL,
   ingested_at            TEXT NOT NULL,
   UNIQUE (stream, external_ref, raw_sha256)
@@ -89,6 +90,7 @@ CREATE TABLE IF NOT EXISTS wisdom_records (
   ticker                 TEXT,
   ticker_as_written      TEXT,
   ticker_as_heard        TEXT,
+  ticker_inferred        INTEGER NOT NULL DEFAULT 0,     -- inferred from an adjacent line: confidence <= 0.5 + bar-range pass (§8a.4)
   tickers_json           TEXT NOT NULL DEFAULT '[]',
   entity_confidence      REAL,                           -- includes single-letter-ticker penalty
   direction              TEXT CHECK (direction IN ('long','short')),
@@ -104,6 +106,9 @@ CREATE TABLE IF NOT EXISTS wisdom_records (
   stop                   REAL,
   stop_text              TEXT,
   targets_json           TEXT NOT NULL DEFAULT '[]',
+  exit_price             REAL,                           -- stated exit on a closed / hindsight record (golden v1 request); open positions never
+  exit_text              TEXT,
+  exit_date              TEXT,                           -- session of the stated exit (§8a.5)
   levels_json            TEXT NOT NULL DEFAULT '[]',
   thesis                 TEXT,
   confidence_language_json TEXT NOT NULL DEFAULT '[]',
@@ -237,6 +242,7 @@ CREATE TABLE IF NOT EXISTS wisdom_outcomes (
   resolved_with_intraday INTEGER NOT NULL DEFAULT 0,
   n_sessions_available   INTEGER NOT NULL DEFAULT 0,
   reconciliation         TEXT CHECK (reconciliation IN ('agrees','disagrees','unverifiable')),
+  exit_mismatch          INTEGER NOT NULL DEFAULT 0,     -- stated exit outside that session's bar range: flag, never overwrite
   unverifiable_reason    TEXT,
   computed_at            TEXT NOT NULL,
   PRIMARY KEY (record_id, methodology_version)
@@ -443,7 +449,7 @@ CREATE TABLE IF NOT EXISTS wisdom_eval_runs (
 -- NO Journal / J2 / Notebook / broker data, ever (Part 10).
 -- CREATE TABLE IF NOT EXISTS wisdom_private_positions (
 --   record_id        TEXT PRIMARY KEY,   -- wisdom_records.record_id
---   field            TEXT NOT NULL,      -- size_shares | open_entry
+--   field            TEXT NOT NULL,      -- size_shares | open_entry | exit_price (open or closed <= 20 sessions)
 --   value_enc        TEXT NOT NULL,      -- crypto_box ciphertext (key-id prefixed)
 --   source_locator   TEXT NOT NULL,
 --   created_at       TEXT NOT NULL
