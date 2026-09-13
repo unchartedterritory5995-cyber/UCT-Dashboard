@@ -44,6 +44,16 @@ import pathlib
 import sys
 import time
 
+# ⛔ THE OPERATOR CONSOLE ON THIS BOX IS cp1252, and a tool that raises
+# UnicodeEncodeError while printing its own progress loses a RIG WINDOW — the
+# one resource this programme cannot get more of today. Same bug that made
+# tools/flag_ledger_audit.py read as an auth failure for a month (CLAUDE.md).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SENTINEL = "F5-MATRIX"
 DEFAULT_OUT = REPO / "docs" / "notebook" / "wave-q1-f5-production-matrix.md"
