@@ -942,3 +942,37 @@ recorded because an error nobody owns is an error nobody fixes, and because thre
 load is a real (small) cost on a phone. A plausible cause worth checking first: a video that was
 deleted or made private on the channel while its `edu_videos` row survived — `hqdefault.jpg` 404s
 for exactly that case.
+
+---
+
+## R-29 — `app/src/lib/context/focusDivergence.js` is an unlisted orphan, and it reds the gate for everybody
+
+**Owner:** the S4 workstream (`76c62c494` — *"S4 CP1: the divergence detector — read-only, mounts
+nothing, and it corrected a false claim in the code it depends on"*).
+**Filed:** 2026-09-13, by the joystick D-42/D-43 gate run.
+**Blocking the hub:** no. **Blocking every full gate on master:** yes, by one row.
+
+`src/components/screener/reachable.test.js` fails on master:
+
+    > every module under app/src is REACHABLE from an entry point
+    > and nothing committed is connected to nothing
+    +   "app/src/lib/context/focusDivergence.js"
+
+⭐ **This is almost certainly deliberate and the fix is one line of bookkeeping, not code.** The
+module's own rail asserts its only importer is its own test file
+(`focusDivergence.test.jsx:215` — `expect(importers).toEqual(['src/lib/context/focusDivergence.test.jsx'])`),
+so the workstream clearly knows it is unmounted. What is missing is an entry in `reachable.test.js`'s
+`AWAITING_A_DECISION` list **with a reason**, which is the mechanism that file provides for exactly
+this case: a module built ahead of its surface, recorded as a decision rather than left looking
+shipped.
+
+⛔ **Not done here on purpose.** A passing branch adding somebody else's allow-list entry is how an
+orphan stops being visible — the entry's value is the REASON in it, and only its author can write
+that. The joystick branch classified this as master's and merged on a measurement rather than an
+argument: both of its own `app/src` files were reverted to the merge-base in place and the rail
+re-run, and it failed identically. Evidence: `gate-runs/2026-09-12T23-24-18.md`.
+
+**What we need:** an `AWAITING_A_DECISION` entry naming the module and why it ships unmounted, or a
+mount. Either closes it. Until then every full gate on this repo reports 1 NEW failure that belongs
+to nobody, and the next person to hit it will spend the same twenty minutes proving it is not theirs.
+

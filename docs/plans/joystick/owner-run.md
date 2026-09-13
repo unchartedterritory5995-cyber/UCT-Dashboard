@@ -89,23 +89,30 @@ without the hold is a **fan push resolved by direction** — during the run it f
 navigated to Screener, and on the Wire it fired `wire.voice` and raised a microphone prompt.
 
 ⭐ **On your own phone both are trivial**: double-tap normally, and for a scrub press and hold about
-half a second until the fan disappears, then drag without lifting.
+half a second until the knob dot enlarges, then drag without lifting.
+
+✅ **And the sheet says so itself now.** Until 2026-09-13 `glass-acceptance-steps.md` read only
+“Press and drag along y to scrub” — and a drag without the hold is a **fan push**, which is how a
+run fired `wire.voice` and got a microphone prompt instead of a measurement. Fixed as **D-44**;
+the hold is derived from `HOLD_MS`, never typed.
 
 | # | Sheet row(s) | Do this | What should happen | Result |
 |---|---|---|---|---|
 | B10 | `GS-wire-b2` | Morning Wire: **double-tap** the pad. | The segment cursor steps **back** one and that segment scrolls into view. A single tap must not also fire. | ☐ PASS ☐ FAIL |
 | B11 | `GS-home-b2` | Dashboard: **double-tap** the pad. | You land on **Morning Wire** — Reverse is a fixed destination and needs nothing stored (`homeSection.js:211`). ⛔ It must NOT be the same destination Primary just used, or the two gestures are indistinguishable. | ☐ PASS ☐ FAIL |
 | B12 | `GS-notebook-b2` | Notebook: **double-tap** the pad. | The cursor steps back one note **and opens it** — the mirror of tap. At the first note it **CLAMPS**; it must not wrap onto the last. ⭐ **Shipped 2026-09-13 and never seen on glass.** | ☐ PASS ☐ FAIL |
-| B13 | `GS-wire-b3/b4/b5` | Morning Wire: press the pad, **hold ~0.5s**, then drag along y and release. | While dragging, the chip names **the segment under the cursor**, in the page's own words. On release that segment is **revealed** — scrolled into view, not merely selected. | ☐ PASS ☐ FAIL |
+| B13 | `GS-wire-b3/b4/b5` | Morning Wire: press the pad, **hold 500 ms until the knob dot enlarges**, then drag along y without lifting and release. | While dragging, the chip names **the segment under the cursor**, in the page's own words. On release that segment is **revealed** — scrolled into view, not merely selected. | ☐ PASS ☐ FAIL |
 | B14 | `GS-journal-b3/b4/b5` | Journal, with at least one open position: same hold-then-drag. | The chip names **the position** under the cursor. On release that row is revealed. ⭐ This is the stop-adjust flagship's own scrub, and the matrix could not see it until today. | ☐ PASS ☐ FAIL |
-| B15 | `GS-home-b3/b4/b5` | Dashboard: same hold-then-drag. | ⚠️ **Read the expectation here, not the sheet's.** The chip says **“Go to <section>”** and **nothing on the page moves** — by design (`homeSection.js:175`). On release you **NAVIGATE** to the section the chip named. The sheet says “the landing row is revealed”, which `home` does not do: that is **D-44**, not a product fault. | ☐ PASS ☐ FAIL |
+| B15 | `GS-home-b3/b4/b5` | Dashboard: same hold-then-drag. | ⭐ **The sheet now agrees with this row.** (Historically it did not — see the note on the sheet's.** The chip says **“Go to <section>”** and **nothing on the page moves** — by design (`homeSection.js:175`). On release you **NAVIGATE** to the section the chip named. ✅ **D-44 is fixed** (2026-09-13): `glass-acceptance-steps.md` now derives every expectation from the mode’s own controller, so `home`’s rows describe navigation. | ☐ PASS ☐ FAIL |
 
 ⚠️ **`GS-home-b1` is PASSED and needs no row, but read this before judging `home` anywhere.**
 A tap on the Dashboard navigates to your **last-used section** — measured, it went to Morning Wire —
 and on a first-ever visit with nothing stored it is **deliberately inert** (spec §C3:915 rejected
 defaulting it to Wire, because Primary and Reverse would then fire the same destination). The
-generated sheet says “the cursor steps once and the target scrolls into view” for that row. It is
-wrong, it is filed as **D-44**, and `home` is the only mode it is wrong about.
+generated sheet used to say “the cursor steps once and the target scrolls into view” for that
+row. ✅ **Fixed 2026-09-13 (D-44)**: it now reads each expectation off the mode’s own controller, so
+`home`’s four rows describe navigation and carry the inert-on-a-first-visit caveat spec §C3:915
+requires. Nothing on this list needs that correction any more.
 
 ---
 
