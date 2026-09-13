@@ -1250,6 +1250,16 @@
       "last_changed": "never set",
       "note": "Unset and the read defaults ON (`?? '1'`), so the Catalysts UI is live. Setting it to '0' is the kill switch."
     },
+    "VITE_CHART_RENDER_TOKEN_PREVIOUS": {
+      "status": "dark",
+      "where": [],
+      "owner": "operator",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty)",
+      "baked_measured_on": "9087bc196",
+      "last_changed": "never set",
+      "note": "The PREVIOUS render token, accepted alongside the current one so a rotation is not a flag-day. Read by app/src/lib/renderToken.js (the one guard the 14 /r/* pages share) and mirrored server-side by CHART_RENDER_TOKEN_PREVIOUS in api/routers/render_panels.py - set BOTH halves or neither. Empty means single-token acceptance, which is the steady state: it is set only for the window between baking a new token and retiring the old one, and scripts/render_token_retire.py (Monday) clears it. A SECRET - never record a value here."
+    },
     "VITE_DISCORD_CHART_APP_ID": {
       "status": "dark",
       "where": [],

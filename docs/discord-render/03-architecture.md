@@ -284,6 +284,37 @@ ETF or index underlying (`massive_processor.is_index_source`, then the liquid-ET
 V2 path only. Kill switch: `DISCORD_RENDER_V2_SYMBOLS_ENABLED`. The market clock, the freshness
 envelope, the STALE badge, per-dependency timeouts and breakers, and the cached flow card are 2.4b.
 
+### 3.8b Freshness semantics — a SESSION verdict, never a fixed age (owner ruling R-1, 2026-09-13)
+
+⛔⛔ **DO NOT RE-INTRODUCE AN AGE BUDGET OUTSIDE RTH-INTRADAY.** The first implementation of 2.4b used
+one and its own tests caught it: Friday's 16:00 close is the correct newest bar all weekend and at
+Monday's pre-open — 65 hours old and perfectly fresh — but a 26-hour budget called it stale. A badge
+that shows every weekend is a badge everyone learns to ignore, which costs more than it saves.
+
+The rule, in full:
+
+| Case | Rule | Why |
+|---|---|---|
+| Intraday (`1/5/15/30/60`) **during RTH** | **AGE**: stale when `age > 2 × the bar interval` | A bar really should arrive every interval; one interval for the forming bar, one of slack for provider lag. |
+| Everything else — daily/weekly/monthly at any time, and any timeframe in `pre`/`post`/`overnight`/`weekend`/`holiday` | **SESSION**: stale when the newest bar's ET date is **before** `expected_session_date(now)` | "Fresh" here means *the session we should already have*, which no fixed number expresses. |
+
+- `expected_session_date()` walks back over weekends and the **imported** NYSE closure list
+  (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` — never copied; a second table drifts the first time one is
+  refreshed). RTH/POST expect today; PRE and pre-04:00 overnight expect the previous trading day;
+  after 20:00 expects today; weekend/holiday expect the last trading day.
+- `budget_s()` returns **`None`** whenever the session rule applies. It does not invent a number —
+  a number nobody uses is a number two readers will disagree about. The envelope carries
+  `rule` (`"age"` / `"session"`) so the two can never be confused after the fact.
+- **Unknown vintage is `stale=None`, never `False`.** A caller that renders `None` as "fine" is the
+  bug this exists to prevent; the badge is absent, not reassuring.
+- **A future bar is not stale** (a provider clock ahead of ours) and keeps its negative `age_s`, so
+  the caller can log it rather than have it normalised away.
+- **Vintage, not wall clock**: the stamp is the data's `as_of`, so the same closed-market input
+  renders the same pixels (§3.10).
+
+Built in 2.4b (`api/services/discord_render/freshness.py`, `4984e6207`), 35 tests, 9/9 mutations red.
+⚠️ **2.4a did NOT ship this** — 2.4a was symbol resolution and the `/flow` ETF partition only.
+
 ### 3.9 Observability (C-12)
 
 - **Correlation id** = 8 hex chars of `sha1(interaction_id)` — deterministic, shown to the member,

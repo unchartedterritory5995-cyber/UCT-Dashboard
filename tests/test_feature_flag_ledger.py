@@ -42,8 +42,23 @@ VALID_STATUS = {"armed", "dark", "pending"}
 NEEDS_REASON = {"dark", "pending"}
 
 
+def _reject_duplicate_keys(pairs):
+    """⛔ R-3: the loader every other test in this file uses REFUSES a duplicated key rather than
+    silently keeping the last one. `test_no_flag_is_declared_twice` covers the same ground on
+    purpose — two independent rails, because on 2026-09-13 a duplicate slipped through while the
+    "every gate is declared" rail stayed green: `json.load` kept the last entry, which happened to
+    satisfy it. A rail that parses first is blind to the thing parsing hides."""
+    seen = {}
+    for k, v in pairs:
+        if k in seen:
+            raise ValueError(f"duplicate key {k!r} in docs/feature_flags.json — two sessions "
+                             "declared the same gate and the merge kept both")
+        seen[k] = v
+    return seen
+
+
 def _ledger() -> dict:
-    return json.loads(LEDGER_PATH.read_text(encoding="utf-8"))["flags"]
+    return json.loads(LEDGER_PATH.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)["flags"]
 
 
 def _gates_needing_declaration() -> dict:

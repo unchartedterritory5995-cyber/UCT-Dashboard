@@ -141,6 +141,11 @@ is in the commit but deploys separately (row 9).
 
 ## Step 2.4a — symbol resolution and the `/flow` partition, measured on production data (branch)
 
+⛔ **Scope, recorded because the plan line said otherwise (owner ruling R-1, 2026-09-13):** 2.4a
+shipped symbol resolution and the `/flow` ETF partition. It did **not** ship the freshness
+contract — the market clock, the envelope and the STALE rule were built in **2.4b**
+(`freshness.py`, `4984e6207`), and the session rule they settle on is `03` §3.8b.
+
 **How:** the branch's `symbols.py` (sha-verified upload to `/tmp`) run by a read-only probe in the
 `web` pod as a separate process — the real ticker-search snapshot (26,624 rows), cap universe
 (3,742), liquid-ETF list (100), `bars.db`, `entity_master.db`. Cold process: an upper bound. Plus
