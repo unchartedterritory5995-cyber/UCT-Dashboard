@@ -658,6 +658,28 @@ Closing it requires building an instrument first — that is a task, not a looku
    invisible, so the rail's boundary is stated rather than assumed. Mutation-proved
    both ways (drop the table pass → the three dark entries read as stale).
 
+   ⛔⛔ **AND THE CLASS HAS A SECOND, COMMONER SHAPE — FOUND HOURS LATER, ON
+   ANOTHER SESSION'S FLAG.** `ENABLED_ENV = "D2_SAMPLE_PERSIST_ENABLED"` followed
+   by `os.environ.get(ENABLED_ENV, "1")` is the same blindness without the table:
+   an env name held in a MODULE CONSTANT has no string literal at the call site.
+   That is GOOD code — one authority over the name — and the index could not see
+   it, so the ledger reported a correctly-declared gate as STALE. **It was
+   reporting its own blindness and blaming the entry.**
+
+   ⛔⛔ **WHAT THAT BLINDNESS WAS HIDING: `J2_OCR_ENABLED=1`, LIVE ON `web`.** A
+   Wave P production flag, armed, with **no ledger entry at all** and nothing in
+   the repo able to notice — the exact state this ledger exists to make
+   impossible. Declared 2026-09-12 with its live reading; `worker` and `bars-api`
+   unset, read the same day.
+
+   ⭐ **RAIL:** `_module_str_consts` resolves the constant, mutation-proved (revert
+   it and BOTH names vanish again). ⚠️ And the stale rule was sharpened in the same
+   commit: **rot is an entry for a gate the code does not read AT ALL**, never an
+   entry for a gate that exists and defaults ON — the old rule demanded the
+   deletion of a GOOD entry whose note said *"set deliberately so 'on on purpose'
+   stays distinguishable from 'nobody decided'"*, which is this ledger's founding
+   sentence.
+
 8. ⛔⛔ **A MUTATION GAUNTLET CAN STOP RUNNING ITS OWN RAILS, SILENTLY.** Seven
    test files naming `lib/offline` arrived with the door work (`0ecc4f886`) and
    were never added to the gauntlet's rail set, so from that merge onward a

@@ -66,14 +66,49 @@ def test_every_off_by_default_gate_is_declared():
 
 
 def test_the_ledger_does_not_describe_gates_that_no_longer_exist():
-    """A retired gate's entry must go too, or the ledger rots into fiction."""
-    needed = set(_gates_needing_declaration())
-    stale = sorted(set(_ledger()) - needed)
+    """A retired gate's entry must go too, or the ledger rots into fiction.
+
+    ⛔ ROT IS AN ENTRY FOR A GATE THE CODE DOES NOT READ AT ALL. It is NOT an
+    entry for a gate that exists and happens to default ON.
+
+    ⚰️ This used to subtract `_gates_needing_declaration()`, which conflated the
+    two — and on 2026-09-12 it demanded the deletion of a GOOD entry:
+    `D2_SAMPLE_PERSIST_ENABLED`, armed on web, whose note reads *"it is a KILL
+    SWITCH so unset already defaults ON — set deliberately so 'on on purpose'
+    stays distinguishable from 'nobody decided'."* That sentence IS this
+    ledger's founding purpose; deleting it to satisfy a rail would have
+    destroyed the one record that the flag was a decision and not an accident.
+
+    ⭐ The distinction only became visible when the AST index learned to resolve
+    an env name held in a module constant. Before that the gate was invisible,
+    so the entry genuinely looked like an entry for nothing — the rail was
+    reporting its own blindness and blaming the ledger.
+    """
+    existing = set(ffi.gates(ffi.repo_roots(REPO), REPO))
+    stale = sorted(set(_ledger()) - existing)
     assert not stale, (
-        "docs/feature_flags.json declares gates the code no longer reads as "
-        "off-by-default. Delete them, or the ledger describes a repo that does "
-        "not exist:\n" + "\n".join(f"  {k}" for k in stale)
+        "docs/feature_flags.json declares gates the code does not read AT ALL. "
+        "Delete them, or the ledger describes a repo that does not exist:\n"
+        + "\n".join(f"  {k}" for k in stale)
     )
+
+
+def test_an_entry_for_an_ON_BY_DEFAULT_gate_is_ALLOWED_and_a_vanished_one_is_not(tmp_path):
+    """⭐ THE CONTROL ON THAT DISTINCTION, driven both ways, so the loosening
+    above cannot quietly become "anything goes"."""
+    (tmp_path / "m.py").write_text(
+        "import os\n"
+        "KILL = 'SOMETHING_ENABLED'\n"
+        "on = os.environ.get(KILL, '1') != '0'\n",
+        encoding="utf-8",
+    )
+    found = ffi.gates([tmp_path], tmp_path)
+    assert "SOMETHING_ENABLED" in found, "the constant-named read must be visible at all"
+    assert ffi.needs_declaration("SOMETHING_ENABLED", found["SOMETHING_ENABLED"]["default"]) is False
+    # …so it needs no entry, and an entry for it is SURPLUS, not rot.
+    assert "SOMETHING_ENABLED" in set(found), "an existing gate is never stale"
+    # …while a name nothing reads IS rot, and must still be caught.
+    assert "A_GATE_NOBODY_READS_ENABLED" not in set(found)
 
 
 @pytest.mark.parametrize("name", sorted(_ledger()))

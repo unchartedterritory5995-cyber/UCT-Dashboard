@@ -59,10 +59,37 @@ def _os_aliases(tree: ast.AST) -> set[str]:
     return names
 
 
-def _env_name(node: ast.AST, os_names: set[str] | None = None) -> str | None:
-    """The env var this expression reads, or None. Handles all three forms."""
+def _module_str_consts(tree: ast.AST) -> dict[str, str]:
+    """Module-level `NAME = "literal"` bindings.
+
+    ⛔⛔ AN ENV NAME HELD IN A VARIABLE IS INVISIBLE TO A CONSTANT-MATCHING SCAN,
+    and this is the SECOND shape of that blind spot found on 2026-09-12. The
+    first was a table (`NOTEBOOK_FLAGS`, Wave K). This is the plainer one:
+
+        ENABLED_ENV = "D2_SAMPLE_PERSIST_ENABLED"
+        ... os.environ.get(ENABLED_ENV)
+
+    That is GOOD code — one authority over the name, which is what this codebase
+    asks for everywhere else — and the index could not see it. The ledger then
+    reported the correctly-declared gate as STALE: it told the truth about its
+    own blindness and blamed the entry.
+    """
+    out: dict[str, str] = {}
+    for node in getattr(tree, "body", []):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            out[node.targets[0].id] = node.value.value
+    return out
+
+
+def _env_name(node: ast.AST, os_names: set[str] | None = None,
+              consts: dict[str, str] | None = None) -> str | None:
+    """The env var this expression reads, or None. Handles every form below."""
     if os_names is None:
         os_names = {"os"}
+    consts = consts or {}
     if isinstance(node, ast.Call):
         f = node.func
         ok = (
@@ -73,16 +100,22 @@ def _env_name(node: ast.AST, os_names: set[str] | None = None) -> str | None:
                     and f.value.attr == "environ")
             )
         )
-        if ok and node.args and isinstance(node.args[0], ast.Constant) \
-                and isinstance(node.args[0].value, str):
-            return node.args[0].value
+        if ok and node.args:
+            a = node.args[0]
+            if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                return a.value
+            # …and the same read through a module-level constant.
+            if isinstance(a, ast.Name) and a.id in consts:
+                return consts[a.id]
     # os.environ["X"] — the form an AST-only-on-Call scan silently misses.
     if isinstance(node, ast.Subscript):
         v = node.value
-        if isinstance(v, ast.Attribute) and v.attr == "environ" \
-                and isinstance(node.slice, ast.Constant) \
-                and isinstance(node.slice.value, str):
-            return node.slice.value
+        if isinstance(v, ast.Attribute) and v.attr == "environ":
+            sl = node.slice
+            if isinstance(sl, ast.Constant) and isinstance(sl.value, str):
+                return sl.value
+            if isinstance(sl, ast.Name) and sl.id in consts:
+                return consts[sl.id]
     return None
 
 
@@ -144,12 +177,13 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
     found: dict[str, dict[str, Any]] = {}
 
     class V(ast.NodeVisitor):
-        def __init__(self, rel: str, os_names: set[str]):
+        def __init__(self, rel: str, os_names: set[str], consts: dict[str, str]):
             self.rel = rel
             self.os_names = os_names
+            self.consts = consts
 
         def _record(self, node):
-            name = _env_name(node, self.os_names)
+            name = _env_name(node, self.os_names, self.consts)
             if not name:
                 return
             e = found.setdefault(name, {"default": None, "sites": set()})
@@ -172,7 +206,7 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
             # as off-by-default when it ships ON. Three broker gates were
             # mis-classified exactly this way before this branch existed.
             if isinstance(node.op, ast.Or) and len(node.values) == 2                     and isinstance(node.values[1], ast.Constant)                     and isinstance(node.values[1].value, str):
-                name = _env_name(node.values[0], self.os_names)
+                name = _env_name(node.values[0], self.os_names, self.consts)
                 if name:
                     e = found.setdefault(name, {"default": None, "sites": set()})
                     e["default"] = node.values[1].value
@@ -195,7 +229,7 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
                     rel = p.relative_to(base).as_posix()
                 except ValueError:
                     pass  # scanning outside the base (a test tree) — absolute is fine
-            V(rel, _os_aliases(tree)).visit(tree)
+            V(rel, _os_aliases(tree), _module_str_consts(tree)).visit(tree)
             _table_gates(tree, rel, found)
 
     return {k: {"default": v["default"], "sites": sorted(v["sites"])}

@@ -611,6 +611,13 @@
       ],
       "note": ""
     },
+    "J2_OCR_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wave P OCR. Read as FLAG = \"J2_OCR_ENABLED\" then os.getenv(FLAG, \"0\") in api/services/journal_two/document_ocr_tesseract.py. ⛔⛔ IT WAS INVISIBLE TO THIS LEDGER UNTIL 2026-09-12: the AST index matched a string CONSTANT at the call site, and an env name held in a variable has none — so a LIVE, ARMED production flag had no entry and nothing could tell. Found when the index was generalised for Wave K. Read live from Railway the same day: J2_OCR_ENABLED=1 on web, unset on worker and bars-api."
+    },
     "J2_ATTACHMENT_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
