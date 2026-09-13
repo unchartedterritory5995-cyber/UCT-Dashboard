@@ -346,3 +346,17 @@ reconstructed[], missing[]}`; non-finite values are `null`; the span is counted 
 metric; the `breadth_history_` prefix means every existing `delete_prefix` on snapshot writes already invalidates it, so no
 new invalidation path can be forgotten; `private` because the data is paid; and a dark route that answers 404 cannot be
 probed as a paid feature before it ships.
+
+### D-036 · A flaky assertion in another area's test is fixed on this branch, in its own commit, when it reddens our gate
+
+**Decision.** `app/src/context/AuthContext.test.jsx`'s "503 on a REFETCH" case read `authTransient` synchronously after
+`act` while its sibling reads sat inside a `waitFor`; the read is moved into the same wait. Committed alone
+(`3512348c5`), never folded into a Data Charts merge, and named in the merge's summary as not part of the tab.
+
+**Why.** It failed once in the C3 six-shard gate and was green 3/3 alone and again in a re-run of its own shard with the
+same file list and worker count, so it is a sampling race, not a product defect — the exact class the file's own
+⚰️ comment describes for `user` and `plan`, left unfixed on the third value. Classifying it as "master's" and moving on
+would leave every session on this box with an intermittently red gate, and a gate that reddens at random is one people
+learn to wave through. The fix is one assertion's sampling moment, all three values still demanded, with a control
+proving the moved assertion still fails when the expectation is inverted. Scope: the brief's off-limits list is Notebook
+product files and `OptionsFlow.jsx`; this is neither, and it is test-only.

@@ -119,3 +119,31 @@ owner action, Phase 6.
 > beside another on the same axis, the chart says so. Notable Extremes appears only under MA Breadth, where it draws.
 
 - 2026-09-13 15:10 ET — Checkpointed for machine restart at 15:10 ET; see [RESUME.md](RESUME.md).
+
+## Phase 3 — C2 in production (2026-09-13)
+
+- `0148ef52d` pushed 18:49:34Z; web SUCCESS 18:52:51Z; `/api/health` uptime 26 → 41 → 56 s on the new boot, `wire_date`
+  2026-09-11. (A `null` `wire_date` read moments before the push belonged to another session's boot of `d32d14d60` and
+  had recovered by the time C2 was live.)
+
+## Post-restart (2026-09-13, from 15:10 ET)
+
+- Re-oriented against [`RESUME.md`](RESUME.md): worktree, branch, `0c4086287` on top of WIP `3cbf9a391`, clean tree,
+  branch level with origin. master had moved 19 commits (discord-render, catalyst, canonical indicator, notebook docs)
+  touching **nothing** under `app/`; merged as `0af0f66f0`, no conflicts.
+- **Gate wrapper provenance.** The Phase 0 baseline and the C1 and C2 gates ran on the pre-`eddea6a92`
+  `scripts/gate_shards.py`; `eddea6a92` ("four faults in how tonight's Sunday gate READS the log") arrived through a
+  master merge and changed how the wrapper PARSES shard logs, not what the suite runs. The failing set was identical
+  across both wrapper versions, so the comparison holds. C3 runs on the C2 version. Any C3 result that differs from C2 in
+  a way the wrapper could explain is called out as such in [`gates.md`](gates.md) rather than absorbed into a count.
+- **D-001 ratified by the owner** after the resume brief re-stated `docs/frontend_feature_flags.json`: the V2 build flag
+  stays in `docs/feature_flags.json` → `build_flags`. Every breadth doc already names that file; the only mentions of the
+  non-existent one are inside D-001, where they are the record of the correction. The `Dockerfile.web` build-arg
+  requirement and the `VITE_` CI check are unchanged.
+- **The original brief was recovered verbatim** from this session's transcript and mapped line by line in
+  [`COVERAGE.md`](COVERAGE.md): all eleven known defects (a)–(k), the phases, the standing rules, and the brief's own
+  Phase-3 test list. Three obligations had no home and now do — a "null never becomes 0" rail (V2-3), request
+  dedup/cancellation (V2-1), and rig assertions with thresholds (Phase 4). ⚠️ A first extraction globbed every transcript
+  in the projects folder and matched ANOTHER program's brief (the Wisdom Loop session, which mentions breadth metrics and
+  names this tab's files as off-limits to it); the search is scoped to this session's id and nothing from that brief was
+  acted on.
