@@ -194,7 +194,7 @@ def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -
 
 def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
                       *, fetch_fn=None, render_fn=None, edit_fn=None, fail_fn=None,
-                      timeout_s: float = 30.0, cid: str | None = None) -> None:
+                      timeout_s: float = 30.0, cid: str | None = None, source: str = "stocks") -> None:
     """Background job for /flow. Fetch the ticker's flow summary from the FLOW-WORKER,
     render the card, and post it PUBLICLY as the bot — the deferred interaction
     @original is app-owned, so the 'View chart' button routes back to us. Never raises;
@@ -206,7 +206,9 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     a flow-worker restart on 2026-09-08, and every other cause alike. Without
     `fail_fn` the replies are byte-identical to what members get today.
     `cid` rides to flow-worker as a query parameter, so its access log carries the
-    correlation id without any change to a flow-worker file."""
+    correlation id without any change to a flow-worker file.
+    `source` is the flow partition: the default `stocks` is what every pre-V2 reply reads; the V2
+    handler passes `etfs` for an ETF or index underlying (C-14, `discord_render.symbols.flow_source`)."""
     from api.flow_ticker_card import render_ticker_flow_card
     render = render_fn or render_ticker_flow_card
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
@@ -219,7 +221,7 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
             base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
             if base:
                 import httpx
-                params = {"symbol": ticker, "days": days, "source": "stocks"}
+                params = {"symbol": ticker, "days": days, "source": source}
                 if cid:
                     params["cid"] = cid
                 try:
@@ -235,7 +237,7 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
                 data = r.json() if r.is_success else None
             else:
                 from api import live_massive_router as lmr   # single-service fallback
-                data = lmr._compute_ticker_flow(ticker, days, "stocks", 15)
+                data = lmr._compute_ticker_flow(ticker, days, source, 15)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
         fail_detail = fail_detail or type(e).__name__
