@@ -1,0 +1,392 @@
+"""A/B the `/charts` Breadth widget across two BUILDS of this app (R1 Task 3).
+
+The Data Charts overhaul made `heatmapMetrics.js` an adapter over the one registry.
+The heatmap tiles it builds are also what the `/charts` **Breadth widget** renders, so
+that widget is the second surface the change can reach — and it is the one no test in
+this programme looks at with a browser.
+
+⛔ **PRODUCTION CANNOT SUPPLY BOTH SIDES.** It serves master, which is the "before";
+the "after" is an unmerged branch. Capturing "before" from production and "after" from
+a local build would put the BUILD ENVIRONMENT in the comparison alongside the change,
+and a difference could then be honestly attributed to neither. So both sides are built
+from the SAME worktree with the SAME node_modules, and the only variable between them
+is the two registry files (see `--build-both`). Cost: one extra `vite build`.
+
+⛔ **THE MEMBER-SMOKE ACCOUNT IS NEVER WRITTEN TO.** `/charts` renders whatever widgets
+`charts_workspace_layout` holds, and neither default layout carries a Breadth widget —
+so reaching this surface would ordinarily mean saving one onto the account. Instead the
+layout is INJECTED into the preferences GET response and every preferences POST is
+answered locally and counted (`pref_writes_blocked`), the same contract
+`breadth_charts_rig.install_pref_routes` already ships. A run that records a write it
+did not block is a failed run, not a caveat.
+
+⭐ **The page is served from a local origin; `/api/**` is rewritten to production**, so
+the data is a real member's data and only the BUNDLE is local. The server proves its own
+identity with a nonce before the browser is pointed at it (a port assignment is not a
+server identity — `CLAUDE.md`), and an `/api/auth/me` probe through the rewrite is the
+non-vacuity control: without it every assertion below would pass over an empty page.
+
+    python tools/breadth_widget_ab.py --self-check
+    python tools/breadth_widget_ab.py --build-both --out docs/breadth/screenshots/registry-unification
+
+Exit: 0 captured · 1 a measured difference the golden did not predict · 2 INCONCLUSIVE.
+"""
+
+import argparse
+import functools
+import hashlib
+import http.server
+import json
+import os
+import pathlib
+import secrets
+import shutil
+import socket
+import socketserver
+import subprocess
+import sys
+import threading
+import time
+from urllib.parse import urlsplit
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+
+from tools import flow_cold_paint_rig as fcr   # noqa: E402  login pacing + UA + uptime
+
+BASE = fcr.BASE
+UA = fcr.UA
+PREFS_PATH = "/api/auth/preferences"
+IDENTITY = "/__uct_ab_identity"
+WIDTHS = {390: 844, 1280: 800}
+
+# The two files that ARE the change. Swapped as exact bytes, restored as exact bytes,
+# sha-verified — never `git checkout` (feedback_mutation_check_never_git_checkout).
+SWAP = ("app/src/pages/breadth/chartMetrics.js",
+        "app/src/pages/breadth/heatmapMetrics.js")
+
+# One widget, filling the 24-col grid, so the viewport shot IS the widget: the workspace
+# wraps widgets in CSS-module-hashed classes, and a selector built on those is a selector
+# that breaks on the next build.
+LAYOUT = {"widgets": [{"id": "ab-breadth", "type": "breadth",
+                       "x": 0, "y": 0, "w": 24, "h": 20, "opts": {}}],
+          "cols": 24}
+
+READY_JS = """() => {
+  const t = document.body.innerText || '';
+  if (/Unknown widget type/.test(t)) return 'unknown-widget';
+  if (document.querySelector('canvas')) return 'ok';
+  if (/Couldn.t|didn.t load|session has ended|part of/.test(t)) return 'refused';
+  return '';
+}"""
+
+
+def say(msg):
+    print(msg, flush=True)
+
+
+def sha(p):
+    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+
+
+# ── pure helpers (self-checked) ────────────────────────────────────────────────
+
+def rewrite_target(page_url, base=BASE):
+    """A local-origin `/api/...` URL, re-aimed at production. Query preserved."""
+    u = urlsplit(page_url)
+    return base + u.path + (("?" + u.query) if u.query else "")
+
+
+def inject_layout(prefs, layout=LAYOUT):
+    """Put one Breadth widget on the workspace WITHOUT writing to the account."""
+    out = dict(prefs)
+    out["charts_workspace_layout"] = json.dumps(layout)
+    return out
+
+
+def verdict(diff_pct, tolerance):
+    """Same inputs must render the same. Anything above tolerance is a finding."""
+    if diff_pct is None:
+        return "INCONCLUSIVE"
+    return "SAME" if diff_pct <= tolerance else "DIFFERENT"
+
+
+def self_check() -> int:
+    fails = []
+
+    def case(name, ok):
+        say(f"  {'ok  ' if ok else 'FAIL'} {name}")
+        if not ok:
+            fails.append(name)
+
+    case("rewrite keeps path and query",
+         rewrite_target("http://127.0.0.1:5501/api/breadth-monitor?days=365")
+         == BASE + "/api/breadth-monitor?days=365")
+    case("rewrite handles a bare path",
+         rewrite_target("http://127.0.0.1:5501/api/auth/me") == BASE + "/api/auth/me")
+    case("rewrite does not invent a query",
+         "?" not in rewrite_target("http://127.0.0.1:5501/api/auth/me"))
+    p = {"theme": "dark", "breadth_charts_state": "{}"}
+    got = inject_layout(p)
+    case("injection adds the layout", json.loads(got["charts_workspace_layout"])["widgets"][0]["type"] == "breadth")
+    case("injection keeps the member's other prefs", got["theme"] == "dark")
+    case("injection does not mutate its input", "charts_workspace_layout" not in p)
+    case("verdict: identical is SAME", verdict(0.0, 0.15) == "SAME")
+    case("verdict: a real difference is DIFFERENT", verdict(4.0, 0.15) == "DIFFERENT")
+    case("verdict: unmeasured is INCONCLUSIVE, never SAME", verdict(None, 0.15) == "INCONCLUSIVE")
+    case("the swap list is exactly the product change", len(SWAP) == 2 and all(
+        (REPO / f).exists() for f in SWAP))
+    say("SELF-CHECK " + ("PASS" if not fails else f"FAIL ({len(fails)})"))
+    return 0 if not fails else 1
+
+
+# ── local origin ──────────────────────────────────────────────────────────────
+
+class _SPA(http.server.SimpleHTTPRequestHandler):
+    nonce = ""
+
+    def log_message(self, *a):          # noqa: A003 - quiet
+        pass
+
+    def do_GET(self):                   # noqa: N802
+        if self.path.split("?")[0] == IDENTITY:
+            body = self.nonce.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        path = self.translate_path(self.path)
+        if not os.path.isfile(path):    # SPA fallback — /charts is a client route
+            self.path = "/index.html"
+        return super().do_GET()
+
+
+def serve(dist: pathlib.Path):
+    """Bind an OS-assigned port and PROVE the server answering it is this one."""
+    nonce = secrets.token_hex(8)
+    handler = functools.partial(_SPA, directory=str(dist))
+    _SPA.nonce = nonce
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    import urllib.request
+    for _ in range(40):
+        try:
+            got = urllib.request.urlopen(f"http://127.0.0.1:{port}{IDENTITY}", timeout=1).read().decode()
+            if got == nonce:
+                return httpd, port
+            raise RuntimeError(f"another server owns port {port} (nonce mismatch)")
+        except OSError:
+            time.sleep(0.1)
+    raise RuntimeError("local server never answered its own identity probe")
+
+
+# ── capture ───────────────────────────────────────────────────────────────────
+
+def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password):
+    from playwright.sync_api import sync_playwright
+    httpd, port = serve(dist)
+    origin = f"http://127.0.0.1:{port}"
+    say(f"  [{tag}] serving {dist.name} at {origin} (identity verified)")
+    rec = {"tag": tag, "origin": origin, "shots": {}, "proxied": 0,
+           "pref_writes_blocked": 0, "pref_write_keys": [], "auth_probe": None,
+           "ready": {}, "errors": []}
+    try:
+        with sync_playwright() as pw:
+            rq = pw.request.new_context(base_url=BASE, user_agent=UA)
+            fcr._pace_login()
+            r = rq.post("/api/auth/login", data={"email": email, "password": password})
+            if r.status != 200:
+                rec["errors"].append(f"login http {r.status}")
+                return rec
+            storage = rq.storage_state()
+            browser = pw.chromium.launch()
+            for width, height in sorted(WIDTHS.items()):
+                ctx = browser.new_context(storage_state=storage, user_agent=UA,
+                                          device_scale_factor=1,
+                                          viewport={"width": width, "height": height})
+
+                def api(route, request):
+                    target = rewrite_target(request.url)
+                    path = urlsplit(request.url).path
+                    if path == PREFS_PATH and request.method != "GET":
+                        rec["pref_writes_blocked"] += 1
+                        try:
+                            rec["pref_write_keys"].append((request.post_data_json or {}).get("key"))
+                        except Exception:                       # noqa: BLE001
+                            rec["pref_write_keys"].append(None)
+                        return route.fulfill(status=200, json={"ok": True})
+                    resp = route.fetch(url=target)
+                    rec["proxied"] += 1
+                    if path == PREFS_PATH:
+                        try:
+                            data = resp.json()
+                        except Exception:                       # noqa: BLE001
+                            return route.fulfill(response=resp)
+                        if isinstance(data, dict):
+                            return route.fulfill(response=resp, json=inject_layout(data))
+                    return route.fulfill(response=resp)
+
+                ctx.route("**/api/**", api)
+                page = ctx.new_page()
+                page.on("pageerror", lambda e: rec["errors"].append(str(e)[:200]))
+                page.goto(origin + "/charts", wait_until="commit", timeout=60000)
+                # Non-vacuity control: the rewrite must actually reach production AS
+                # the member. Without this the page can be a signed-out shell and
+                # every screenshot below would still be "captured".
+                if rec["auth_probe"] is None:
+                    me = page.request.get(origin + "/api/auth/me")
+                    rec["auth_probe"] = me.status
+                state = ""
+                for _ in range(60):
+                    state = page.evaluate(READY_JS)
+                    if state:
+                        break
+                    page.wait_for_timeout(500)
+                rec["ready"][str(width)] = state or "timeout"
+                page.wait_for_timeout(2500)          # ECharts settle
+                out_dir.mkdir(parents=True, exist_ok=True)
+                shot = out_dir / f"charts-breadth__{width}__{tag}.png"
+                page.screenshot(path=str(shot))
+                rec["shots"][str(width)] = shot.name
+                ctx.close()
+            browser.close()
+    finally:
+        httpd.shutdown()
+    return rec
+
+
+def diff(before: pathlib.Path, after: pathlib.Path, out: pathlib.Path):
+    """Fraction of pixels that differ. None when the pair is not comparable."""
+    try:
+        from PIL import Image, ImageChops
+    except Exception:                                           # noqa: BLE001
+        return None, "Pillow unavailable"
+    a, b = Image.open(before).convert("RGB"), Image.open(after).convert("RGB")
+    if a.size != b.size:
+        return None, f"size {a.size} vs {b.size}"
+    ch = ImageChops.difference(a, b)
+    bbox = ch.getbbox()
+    n = sum(1 for px in ch.getdata() if px != (0, 0, 0))
+    pct = 100.0 * n / (a.size[0] * a.size[1])
+    if bbox:
+        ch.point(lambda v: min(255, v * 8)).save(out)
+    return pct, (f"bbox {bbox}" if bbox else "identical")
+
+
+def build(label):
+    say(f"  building {label} …")
+    t = time.monotonic()
+    r = subprocess.run(["npm", "run", "build"], cwd=str(REPO / "app"),
+                       capture_output=True, text=True, shell=(os.name == "nt"))
+    if r.returncode != 0:
+        say(r.stdout[-2000:] + r.stderr[-2000:])
+        raise RuntimeError(f"{label} build failed")
+    say(f"  built {label} in {time.monotonic() - t:.0f}s")
+
+
+def stage(dest: pathlib.Path):
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(REPO / "app" / "dist", dest)
+
+
+def build_both(work: pathlib.Path):
+    """after = this tree. before = master's two registry files, restored by BYTES."""
+    originals = {f: (REPO / f).read_bytes() for f in SWAP}
+    shas = {f: sha(REPO / f) for f in SWAP}
+    build("after (this branch)")
+    stage(work / "dist-after")
+    swapped = False
+    try:
+        for f in SWAP:
+            blob = subprocess.run(["git", "show", f"origin/master:{f}"], cwd=str(REPO),
+                                  capture_output=True, check=True).stdout
+            if blob == originals[f]:
+                raise RuntimeError(f"{f} is identical to master — nothing to A/B")
+            (REPO / f).write_bytes(blob)
+        swapped = True
+        build("before (origin/master registry)")
+        stage(work / "dist-before")
+    finally:
+        if swapped:
+            for f in SWAP:
+                (REPO / f).write_bytes(originals[f])
+            for f in SWAP:
+                now = sha(REPO / f)
+                if now != shas[f]:
+                    raise RuntimeError(f"RESTORE FAILED for {f}: {now} != {shas[f]}")
+            say("  restored both files; sha verified")
+    return work / "dist-before", work / "dist-after"
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--out", default="docs/breadth/screenshots/registry-unification")
+    ap.add_argument("--work", default="")
+    ap.add_argument("--build-both", action="store_true")
+    ap.add_argument("--before-dist", default="")
+    ap.add_argument("--after-dist", default="")
+    ap.add_argument("--tolerance", type=float, default=0.15)
+    ap.add_argument("--self-check", action="store_true")
+    a = ap.parse_args(argv)
+    if a.self_check:
+        return self_check()
+
+    email, password = os.environ.get("MEMBER_SMOKE_EMAIL"), os.environ.get("MEMBER_SMOKE_PASSWORD")
+    if not (email and password):
+        say("INCONCLUSIVE: MEMBER_SMOKE_EMAIL / MEMBER_SMOKE_PASSWORD not set.")
+        return 2
+    if subprocess.run(["git", "status", "--porcelain"], cwd=str(REPO),
+                      capture_output=True, text=True).stdout.strip():
+        say("INCONCLUSIVE: the worktree is dirty; the byte-swap harness refuses to run.")
+        return 2
+
+    out_dir = (REPO / a.out) if not os.path.isabs(a.out) else pathlib.Path(a.out)
+    work = pathlib.Path(a.work) if a.work else pathlib.Path(os.environ.get("TEMP", "/tmp")) / "uct_ab"
+    work.mkdir(parents=True, exist_ok=True)
+
+    if a.build_both:
+        before_dist, after_dist = build_both(work)
+    else:
+        before_dist, after_dist = pathlib.Path(a.before_dist), pathlib.Path(a.after_dist)
+        if not (before_dist.is_dir() and after_dist.is_dir()):
+            say("INCONCLUSIVE: pass --build-both, or both --before-dist and --after-dist.")
+            return 2
+
+    report = {"utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "runs": {}, "diff": {}}
+    for tag, dist in (("before", before_dist), ("after", after_dist)):
+        report["runs"][tag] = capture(dist, tag, out_dir, email, password)
+
+    bad = False
+    for tag, rec in report["runs"].items():
+        if rec["auth_probe"] != 200:
+            say(f"INCONCLUSIVE [{tag}]: /api/auth/me through the rewrite returned {rec['auth_probe']}.")
+            bad = True
+        if rec["pref_writes_blocked"] and any(k for k in rec["pref_write_keys"]):
+            say(f"  [{tag}] blocked {rec['pref_writes_blocked']} preference write(s): {rec['pref_write_keys']}")
+        for w, st in rec["ready"].items():
+            if st != "ok":
+                say(f"INCONCLUSIVE [{tag}] {w}px: widget never rendered ({st}).")
+                bad = True
+    if bad:
+        (out_dir / "ab-report.json").write_text(json.dumps(report, indent=2))
+        return 2
+
+    worst = 0.0
+    for w in sorted(WIDTHS):
+        b = out_dir / f"charts-breadth__{w}__before.png"
+        f = out_dir / f"charts-breadth__{w}__after.png"
+        pct, note = diff(b, f, out_dir / f"charts-breadth__{w}__diff.png")
+        report["diff"][str(w)] = {"pct": pct, "note": note, "verdict": verdict(pct, a.tolerance)}
+        say(f"  {w}px  {verdict(pct, a.tolerance):<12} {('%.4f%% pixels' % pct) if pct is not None else '—'}  ({note})")
+        worst = max(worst, pct or 0.0)
+    (out_dir / "ab-report.json").write_text(json.dumps(report, indent=2))
+    say(f"report → {out_dir / 'ab-report.json'}")
+    return 0 if worst <= a.tolerance else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
