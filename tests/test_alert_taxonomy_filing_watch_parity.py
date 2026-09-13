@@ -595,10 +595,19 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     #   2026-09-12  `price-level`             GATE-S7-PRICE-LEVEL CP1
     #   2026-09-12  `event-proximity`         GATE-S7-EVENT-PROXIMITY CP1
     #   2026-09-12  `catalyst-match`          GATE-S7-CATALYST-MATCH CP1
-    #   2026-09-13  `position-risk`           GATE-S7-POSITION-RISK CP1-CP2
-    #   2026-09-13  `scan-membership-change`  GATE-S7-SCAN-MEMBERSHIP-CHANGE CP1-CP2
-    #   2026-09-13  `regime-change`           GATE-S7-REGIME-CHANGE CP1-CP2
-    #   2026-09-13  `indicator-condition`     GATE-S7-INDICATOR-CONDITION CP1-CP2
+    #   2026-09-12  `position-risk`           CP1-CP2  merged 2b0547949
+    #   2026-09-12  `scan-membership-change`  CP1-CP2  merged 0c6caf25b
+    #   2026-09-12  `regime-change`           CP1-CP2  merged 0392c78bf
+    #   2026-09-12  `indicator-condition`     CP1-CP2  merged ccbab9bcd
+    #
+    # ⚰️ THE LAST FOUR ROWS WERE DATED 2026-09-13 AND EVERY COMMIT THEY NAME IS
+    # DATED 2026-09-12 CDT. They took their date from the label the working
+    # session was running under ("Day 2 — Sunday") instead of from the commit.
+    # ⛔ OWNER RULING 2026-09-12: **a date in any program artifact is the git
+    # commit date in America/Chicago, always. Session framing never sets a date.**
+    # The merge SHA is carried on each Day-2 row now so the date is checkable from
+    # the row itself — `git log -1 --date=format-local:%Y-%m-%d <sha>` — rather
+    # than being a number someone has to trust.
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.

@@ -32,6 +32,8 @@ import os
 import random
 import threading
 
+from api.services.canonical import dual_sample_store as _store
+
 _logger = logging.getLogger(__name__)
 
 #: Percentage of calls that compute the book path as well as the legacy one.
@@ -97,7 +99,7 @@ def should_compare() -> bool:
     return random.random() * 100.0 < pct
 
 
-def observe(metric: str, legacy, book):
+def observe(metric: str, legacy, book, reader: str = "unknown"):
     """Record the comparison and return `legacy`. Never raises.
 
     ⛔ THE RETURN IS `legacy` ON EVERY PATH, INCLUDING THE ONE WHERE THIS
@@ -112,6 +114,12 @@ def observe(metric: str, legacy, book):
         else:
             outcome = DISAGREED
         _record(metric, outcome, legacy, book)
+        # ⭐ THE DURABLE HALF (CP3). The in-process ledger above dies with the
+        # process; this survives a deploy, which is the whole reason CP3's first
+        # gate was unreachable. It is inside the same try/except as everything
+        # else here — a store that cannot be written must never change what is
+        # served, and `_store.record` additionally never raises on its own.
+        _store.record(reader, metric, legacy, book, outcome)
         if outcome == DISAGREED:
             # log-only, by scope. A raise here would make D2 able to break a
             # member page over a manifest it only advises on.

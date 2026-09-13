@@ -15,6 +15,9 @@ never transmitted to any server -- so it does NOT reach this app's access log, a
 engine if the URL is mistyped into a search box. Single-use, two minutes and fragment-only is what
 makes this acceptable for a SYNTHETIC account; do not reach for this shape for a real one.
 
+⭐ THE TOKEN IS CASE-INSENSITIVE (lowercase base32). Android keyboards auto-capitalise, which
+made the link untypeable on a Pixel 8 until 2026-09-13; a shouted token now redeems.
+
 ⛔ ON THE DEVICE: type the URL, VERIFY THE HEAD (the field scrolls right, so the visible tail proves
 nothing about the scheme), then commit with the keyboard's Go key. NEVER tap a suggestion row -- a
 row can render the URL and still perform a SEARCH, which is how a token leaked once.
