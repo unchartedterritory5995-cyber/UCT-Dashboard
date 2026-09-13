@@ -28,17 +28,24 @@ three states is marked **`⛔ NOT-YET-CLASSIFIED`** with what it would take.
 |---|---|---|
 | **DONE** | **11** | shipped and nothing outstanding against its own PRD/spec definition |
 | **BLOCKED-DATA** | **4** | waiting on a measurement; the command that produces it is named |
-| **BLOCKED-OWNER** | **4** | waiting on a ruling; the OI id is named |
-| **BLOCKED-SPEC-READ** | **6** | a spec or gate exists, unsigned, awaiting the owner's reading |
-| **BLOCKED-DEPENDENCY** | **6** | waiting on another system, named |
+| **BLOCKED-OWNER** | **8** | waiting on a ruling; the OI id or the ruling is named |
+| **BLOCKED-SPEC-READ** | **5** | a spec or gate exists, unsigned, awaiting the owner's reading |
+| **BLOCKED-DEPENDENCY** | **3** | waiting on another system, named |
 | **EXCLUDED** | **1** | E1, outside the named roster |
-| **⛔ NOT-YET-CLASSIFIED** | **0** | — |
+| **⛔ NOT-YET-CLASSIFIED** | **0** | ⭐ **THE FOURTH STATE IS AT ZERO** |
+
+⭐ **THE MOVEMENT ON 2026-09-13 IS FROM DEPENDENCY TO OWNER, AND IT IS REAL PROGRESS THAT LOOKS
+LIKE NONE.** A9, A11 and A13 each had a build dependency; each of those CP3s is now merged and
+armed, so all three moved to **BLOCKED-OWNER on the same decision — the flip.** S6 moved
+BLOCKED-SPEC-READ → BLOCKED-OWNER when its packet was written and CP1 built. ⛔ None of the four is
+an UNBLOCK: every one of them now waits on a ruling instead of on code, which is exactly what "the
+definition of complete" asks a row to say.
 
 ### Registered follow-ups
 
 | family | distinct ids | source of truth |
 |---|---|---|
-| **F-*** (findings) | **24** | harvested from the doc tree by `tools/harvest_followups.py` |
+| **F-*** (findings) | **31** | harvested from the doc tree by `tools/harvest_followups.py` — ⭐ DERIVED, never counted by hand. +7 on 2026-09-13: F-AUDIT-2, F-S5-1, F-CAT-1, F-D2-2, F-S2-1, and two S7 ids the harvester reached once their packets were written |
 | **OI-*** (owner inputs) | **21** | `OWNER_INPUTS_REQUESTED.md`, OI-01…OI-21 |
 | **DEC-*** (decisions) | **16** | two registers: DEC-01…DEC-09 (readiness), DEC-10…DEC-15 (architectural) |
 | **H\*** (rules) | **6 rules** + 25 hypotheses | ⚠️ **TWO DIFFERENT REGISTERS SHARE THE PREFIX** — see §3.4 |
@@ -236,6 +243,77 @@ scope describing work its packet's §4 does not contain — remain exactly the t
 **Each of the six is closed by NUMBERING the packet, not by re-signing it**, and all six describe
 work that is already delivered, so none of them blocks the queue.
 
+### ⛔ 3.4f F-S2-1 (new, 2026-09-13) — Ctrl/Cmd+Shift+F FLAGS A TICKER ON THREE SURFACES
+
+> **Found by building S2 CP1's collision rail. The 2026-08-28 fixture is not history — it is still
+> shipped, in its MODIFIER form.**
+
+Five surfaces claim `Shift+F` (flag the ticker) and they do not agree on which modifiers they
+answer, measured on `feb7ba1f8`:
+
+| surface | guard | answers Ctrl/Cmd+Shift+F? |
+|---|---|---|
+| `components/chart/pane/ChartPane.jsx` | `!repeat && !ctrl && !alt && !meta` | **no** ✅ |
+| `pages/charts/grid/GridChartCell.jsx` | `!repeat && !ctrl && !alt && !meta` | **no** ✅ |
+| `components/TickerPopup.jsx` | `!repeat` | ⛔ **yes** |
+| `pages/ThemeTrackerPage.jsx` | `!repeat` | ⛔ **yes** |
+| `pages/Watchlists.jsx` | `!repeat && selectedSym` — a STATE guard, not a modifier one | ⛔ **yes** |
+
+⭐ **So a member reaching for the platform accelerator chord gets a silent write to their flag list
+on three screens and nothing on two.** That is HY-35's recorded class — *"one chord flagged a ticker
+in two widgets at once"* — in the form the 2026-08-28 ownership fix did not cover.
+
+⛔ **CP1 DELIBERATELY DID NOT FIX IT.** The signed scope says *"NO change to the shipped palette's
+behaviour"*, and tightening three guards is a behaviour change. The three are **baselined by name**
+in `app/src/pages/command/chordCollision.test.js`, the suite is green today, and a **sixth** loose
+surface fails by name. The baseline is checked in both directions, so a site that gets fixed must
+leave the list deliberately rather than letting the record outlive the defect.
+
+**What closes it:** one approval line naming the guard change on the three surfaces —
+`ChartPane.jsx` is the shape to copy — after which `LOOSE_MODIFIER_BASELINE` empties and F-S2-1
+closes. ⚠️ It is a behaviour change a member can feel (a chord that used to flag stops flagging), so
+it wants a line of its own rather than riding along.
+
+### ⛔⛔ 3.4e F-D2-2 (new, 2026-09-13) — §6 ASSERTED A SIGNATURE THAT DOES NOT EXIST
+
+> **§6 row 9 read *"⚠️ SIGNED by the owner 2026-09-13"* for D2 §9.5 CP1. No artifact supports it,
+> and the build stopped rather than proceeding on the claim.**
+
+Measured, three ways, before anything was built:
+
+| what was checked | what it says |
+|---|---|
+| PRD-D2 §9.5's approval block | `APPROVED BY:      (empty — owner has not signed this addendum)` — **verbatim** |
+| the D2 gate packet's signed blocks | exactly **2** (CP1–CP2, CP2–CP3). Neither names §9.5 |
+| the D2 gate packet's §4 table | **CP1 / CP2 / CP3 only** — the canonical address book. There is no §9.5 row to name |
+
+The claim entered §6 in `db8830bd4`. ⭐ **This is the defect the §4-naming rule exists to catch,
+arriving from the other direction:** the rule guards against a scope that names no checkpoint, and
+here the control file named a *signature* that no packet carries. A build against it would have been
+an unauthorized change to the canonical address book — the one artifact whose *"whole safety
+property is that nothing computes"* (PRD §9.5).
+
+⛔ **AND IT CASCADES.** `indicator-condition` CP3's own approval line says: *"this line is void
+unless D2 §9.5 CP1 has merged first. If it has not, indicator-condition CP3 is NOT authorized and
+the blocker is that dependency."* So §6 rows 9 and 10 are **both** unbuildable, and neither is a
+build-queue item.
+
+**What closes §9.5 — and one of the three is not D2's to give:**
+
+1. The owner signs the §9.5 addendum, which is a **product decision about the boundary of D2**: the
+   book today maps a name to a *stored place*, and §5.4 asks it to describe *computations* — the
+   first time it would describe work rather than location.
+2. The thirty legacy addresses declared with per-timeframe cadence, plus the `close` ↔ `ohlcv.c`
+   rename recorded **as a rename** (the one real rename among 31 addresses, 30 being genuine
+   absences — a figure a first probe got wrong by comparing `close` to `c`).
+3. ⛔ **A FLOW-WORKER CLOSURE DECISION D2 DOES NOT OWN.** `bars_fetch.py` / `bars_sqlite.py` are
+   inside flow-worker's import closure and outside its watch list. **Either those paths join the
+   watch list, or every declaring commit rides a marker bump** — and GATE-D2 §CP2.4 already refused
+   to work around exactly this.
+
+⚠️ Until 1 and 3, `indicator-condition` CP3 would ship *"a projection over predicates that all
+refuse — not a smaller CP3, a CP3 with nothing in it"* (PRD §9.5, verbatim).
+
 ### ⛔⛔ 3.4d F-CAT-1 (new, 2026-09-13) — THE CATALYST ENGINE IS BILLING AND WRITING NOTHING
 
 > **Found while dry-running catalyst-match CP3. It is NOT this programme's to fix, and it is
@@ -335,13 +413,20 @@ audit has not split it. **What closes it:** one pass tagging each TD row `ours` 
 |---|---|---|
 | `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED` | armed, in-process `1` | **NO** — retires at the flip |
 | `ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED` | armed, in-process `1` | **NO** — retires at the flip |
+| `ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED` | **armed 2026-09-13**, in-process `1` | **NO** — retires at the flip |
+| `ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED` | **armed 2026-09-13**, in-process `1` | **NO** — retires at the flip |
+| `ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED` | **armed 2026-09-13**, in-process `1` | **NO** — retires at the flip |
+| `ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED` | **armed 2026-09-13**, in-process `1` | **NO** — retires at the flip |
 | `D2_SAMPLE_PERSIST_ENABLED` | armed, in-process `1` | **YES** — a kill switch, keeps its life |
 | `SMOKE_LOGIN_LINK_ENABLED` | armed on web | **NO** — explicit removal instruction recorded |
 | `HUB_PREVIEW_ENABLED` | armed | **YES** — kill switch |
 | `NOTEBOOK_OFFLINE_DEFAULT_ON` | armed | **YES** — kill switch |
 
-⚠️ **A DARK FLAG WITH NO RETIREMENT DATE BECOMES PERMANENT BY DEFAULT.** The two S7 dark flags are
-the ones to watch: each retires only when its type flips, and nothing today forces that.
+⚠️ **A DARK FLAG WITH NO RETIREMENT DATE BECOMES PERMANENT BY DEFAULT.** There are now **SIX** S7
+dark flags, not two, and each retires only when its type flips — nothing today forces that. ⛔ Six
+armed comparisons is six standing invitations to leave a "temporary" flag in place for a year;
+`flag_ledger_audit.py` reports **0 discrepancies**, which proves the ledger is honest about their
+state and says nothing about whether they should still be on.
 
 ---
 
@@ -414,9 +499,9 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 7 | **regime-change CP3** | `9f0575340` | ✅ **DONE** | **`506eeee6d`** |
 | 8 | **S6 CP1** — the source-vocabulary rail | **`b3073c67c`** signed 2026-09-13 | ✅ **DONE** | **`12b6c3946`** |
 | — | S6 **CP2–CP5** | packet written, unsigned | ⛔ **SPEC-BLOCKED** — four owner rulings, each named in §4: SET-vs-WEIGHTED-SET (SPEC §2), derive-vs-mirror (§5.1·2), `personal_edge` (§5.1·3), paid-gating | — |
-| — | `indicator-condition` CP3 | `148af5293` | ⬜ queued after D2 §9.5 CP1 | — |
-| 9 | **D2 §9.5 CP1** — the indicator axis | ⚠️ SIGNED by the owner 2026-09-13 | ⬜ **next after regime-change; must not slip a third session** | — |
-| 10 | **S2 CP1** — chord table + collision rail | **`7ae6d9ca2`** signed 2026-09-13 | ⬜ last in the queue | — |
+| — | `indicator-condition` CP3 | `148af5293` | ⛔ **VOID** — its own line: *"this line is void unless D2 §9.5 CP1 has merged first. If it has not, indicator-condition CP3 is NOT authorized and the blocker is that dependency."* §9.5 has not merged and is not signed | — |
+| 9 | **D2 §9.5 CP1** — the indicator axis | ⛔ **NOT SIGNED — the §6 row said it was and no artifact supports that** | ⛔ **UNSIGNABLE AS WRITTEN.** PRD-D2 §9.5's approval block reads *"(empty — owner has not signed this addendum)"* verbatim; the D2 gate packet holds exactly **2** signed blocks (CP1–CP2, CP2–CP3) and no §9.5 row in its §4. See §3.4e | — |
+| 10 | **S2 CP1** — chord table + collision rail | **`7ae6d9ca2`** signed 2026-09-13 | ✅ **DONE** | **`feb7ba1f8`** |
 
 **Every S7 CP3 carries the identical SCOPE:** read-only projection of the legacy rows · admin
 cohort via the S12 tag · forward-only comparison with anchor/reschedule-style reset where the type

@@ -609,6 +609,53 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## ⛒⛒ END OF DAY 3 — §6 IS EMPTY OF BUILDABLE ROWS. Two rows stopped on artifacts, not on effort.
+
+**Built and merged today:** D3 CP1 · D4 CP1–CP3 · S5 CP2 · position-risk CP3 · scan-membership CP3 ·
+catalyst-match CP3 · regime-change CP3 · **S6 CP1** (packet written first — it had none) ·
+**S2 CP1**. Four dark sweeps **ARMED** on the owner's authorization, one pass, one rebuild.
+
+### ⛔ THE TWO ROWS THAT DID NOT BUILD, AND WHY THAT IS THE RIGHT ANSWER
+
+**Row 9 — D2 §9.5 CP1. NOT SIGNED, and §6 said it was.** PRD-D2 §9.5's approval block reads
+`APPROVED BY:      (empty — owner has not signed this addendum)` **verbatim**; the D2 gate packet
+carries exactly **2** signed blocks and its §4 has **no §9.5 row to name**. The "SIGNED" claim
+entered §6 in `db8830bd4` with nothing behind it (**F-D2-2**).
+
+⭐ **This is the §4-naming rule catching the defect from the other direction.** The rule guards
+against a scope that names no checkpoint; here the *control file* named a signature no packet
+carries. Building on it would have been an unauthorized change to the canonical address book — the
+one artifact whose *"whole safety property is that nothing computes"*.
+
+**Row 10 — indicator-condition CP3. VOID by its own line**, verbatim: *"this line is void unless
+D2 §9.5 CP1 has merged first. If it has not, indicator-condition CP3 is NOT authorized."*
+
+⚠️ And §9.5 names a third blocker **D2 does not own**: `bars_fetch.py` / `bars_sqlite.py` are inside
+flow-worker's closure and outside its watch list. Either those paths join the watch list, or every
+declaring commit rides a marker bump — and GATE-D2 §CP2.4 already refused to work around it.
+
+### GATE CHECK, RUN IN THE POD — all seven S7 gates plus D2 CP3
+
+    0 READY · 8 NOT READY · 0 UNREADABLE
+
+⭐ **The fourth state is at ZERO** — every flag was readable where it actually lives. Locally the six
+report UNREADABLE, which is the correct answer to *"is this flag set in production?"* asked from a
+laptop, and is why the reading was taken in the pod.
+
+### AUDIT COUNTS — 32 systems, `⛔ NOT-YET-CLASSIFIED = 0`
+
+| | |
+|---|---|
+| DONE 11 · BLOCKED-DATA 4 · **BLOCKED-OWNER 8** · BLOCKED-SPEC-READ 5 · BLOCKED-DEPENDENCY 3 · EXCLUDED 1 | **= 32** |
+
+⭐ **THE DAY'S MOVEMENT IS DEPENDENCY → OWNER, AND IT LOOKS LIKE NOTHING.** A9, A11 and A13 each
+waited on a CP3; all three are merged and armed, so all three now wait on **the same decision — the
+flip**. S6 moved the same way when its packet was written. ⛔ **None of the four is an unblock**, and
+saying so is the point: a row that waits on a ruling instead of on code is a row in one of the three
+allowed states.
+
+**F-\* findings: 24 → 31**, derived by `harvest_followups.py`, never counted by hand.
+
 ## S6 CP1 — MERGED `12b6c3946`. Fingerprint `b3073c67c`. **The packet, and the one buildable row.**
 
 **S6 had NO packet by instruction** (SPEC-S6 §7). It has one now, and **only CP1 is signed** —
