@@ -36,6 +36,7 @@ import {
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
+import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
@@ -436,6 +437,31 @@ export function buildRuntimeIr(source, opts = {}) {
   const env = new Map()
   const makeResolver = () => new Resolver(env, TABLE, new Map(), {})
 
+  // ─── ⭐⭐ THE BIND-TIME FOLD, ON THE SAME ASSEMBLY THE OTHER TWO LANES USE ──
+  //
+  // ⚰⚰ THIS LANE HAD NO SYMBOL PLUMBING AT ALL, and the cost was measured:
+  // `buildRuntimeIr` on `uncharted-volume-v2.pine` stopped at **v2:249**,
+  // `if not isRatioSymbol`, where `isRatioSymbol` is v2:224's
+  // `str.contains(syminfo.ticker, "/") or str.contains(syminfo.tickerid, "/")`.
+  // A `symtext` reaching the evaluator means the BINDING could not settle it
+  // (R-K), so the refusal was correct and the wire was missing.
+  //
+  // ⛔ ONE AUTHORITY, NOT A THIRD READER. `bindConstsFor` is the same function
+  // `nativeRegistry.computeFor` calls for a PLOT and `objectColumns` calls for an
+  // OBJECT; it moved to `bind.js` so this front end could reach it without
+  // importing the whole registry. A constant added to it reaches all three lanes
+  // or none — which is the property that was missing when the plot lane's symbol
+  // was fixed at R-K and the object lane's was not.
+  //
+  // ⚠️ AND IT IS NOT GUESSED. With no `symbol` the assembly returns `{}` for the
+  // symbol half and every `syminfo.*` stays NotFoldable, refusing BY NAME — R-K's
+  // deliberate choice of a loud refusal over a half-resolved string.
+  const bindConsts = bindConstsFor({
+    tf: opts.tf,
+    inputs,
+    symbol: opts.symbol,
+  })
+
   const slots = []
   const columns = []
   const columnByKey = new Map()
@@ -509,7 +535,12 @@ export function buildRuntimeIr(source, opts = {}) {
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
     try {
-      value = interpret(canonical, bars, inputs, undefined, undefined, opts.interpretOpts)
+      // ⛔ FOLD, THEN INTERPRET — the order the definition lane has used since R-K.
+      // The fold returns a NEW tree and mutates nothing, so the parse this lane
+      // lowers from stays symbolic and a second binding is free to fold it
+      // differently.
+      value = interpret(foldBound(canonical, bindConsts), bars, inputs,
+        undefined, undefined, opts.interpretOpts)
     } catch (e) { throw e }
     let arr
     if (typeof value === 'number') arr = new Float64Array(bars.length).fill(value)

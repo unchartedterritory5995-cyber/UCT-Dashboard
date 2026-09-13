@@ -50,6 +50,32 @@ in this wave because a narrower path was reported as "the engine suite".
 `app/src/components/chart/engine/__tests__/suiteCoverage.test.js` is the rail
 that now makes that impossible; it is mutation-checked both ways.
 
+### ⛔⛔ A HAND-WRITTEN SCOPE LIST FAILS OPEN — check it before you run it
+
+⚰️ **Measured 2026-09-13.** A rails run named SEVEN files and vitest ran SIX,
+**exiting 0**. Vitest treats a path matching nothing as a filter that selected
+nothing, which is not an error — so the scope silently shrank and the run
+reported success. It was caught by counting files against paths by hand.
+
+```bash
+python tools/check_scope_paths.py --suggest <path> [<path> ...]   && node node_modules/vitest/vitest.mjs run <path> [<path> ...]
+```
+
+Exit 0 when every path exists, 1 naming each miss (with `--suggest`, the
+same-basename file elsewhere in the tree — the realistic mistake is a MOVED file,
+not a typo). `--self-check` proves the check can fail.
+
+⚠️ **The path that actually moved**, so nobody re-derives it:
+
+| suite | real location | NOT |
+|---|---|---|
+| `symbolFoldParity.test.js` | `app/src/components/chart/engine/ast/` | ~~`engine/__tests__/`~~ |
+| `symbolThread.test.js` | `app/src/components/chart/builder/memberPane/` | — |
+| `manifestProse.test.js` | `app/src/components/chart/engine/ast/` | — |
+| `suiteCoverage.test.js` · `flipCGeometry.test.jsx` · `memberPaneGate.test.js` | `app/src/components/chart/engine/__tests__/` | — |
+| `EvidenceTab.doors.test.js` | `app/src/components/chart/builder/` | — |
+| `vendorTruth.test.js` · `vendorNote.test.js` (divergence ledger) | `app/src/components/chart/engine/ast/` | — |
+
 ### The two Python failures are INHERITED and are not ours
 
 ```

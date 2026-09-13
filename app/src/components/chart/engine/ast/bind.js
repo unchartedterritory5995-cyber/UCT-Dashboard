@@ -39,6 +39,10 @@ import { REFUSALS } from './interpret.js'
 // the other — so it is edited without reading code, and the capture that turns
 // `syminfo.prefix` on is a data change rather than a deploy of new logic.
 import SYMBOL_SCOPE from './symbolScope.json'
+// ⭐ THE ONE DERIVATION OF WHAT A TIMEFRAME CODE MEANS. `bindConstsFor` below
+// needs it, and importing it here rather than re-deriving is the same rule the
+// symbol half already follows.
+import { timeframeFlags } from '../../indicators.js'
 
 /** ⛔ THE REFUSAL IS BUILT THE WAY `interpret.js` BUILDS ITS OWN — guard prefix
  *  from `REFUSALS`, then the detail — so a surface branching on `.guard` sees the
@@ -394,3 +398,48 @@ export function foldBound(ast, consts = {}) {
   }
   return walk(ast)
 }
+
+/**
+ * ⭐⭐ THE BIND-TIME CONSTANTS, ASSEMBLED IN ONE PLACE FOR EVERY LANE.
+ *
+ * ⛔ EXPORTED BECAUSE THERE ARE TWO EVALUATORS OVER ONE DOCUMENT. `computeFor`
+ * folds a PLOT's tree with these before interpreting it; `objectColumns.js`
+ * folds an OBJECT's tree with them before interpreting that, and `buildRuntimeIr`
+ * folds a COLUMNAR subtree with them at its own hybrid seam. Copies of this
+ * assembly is the second-authority-over-one-value shape, and it has already
+ * been paid for once on this exact call: the plot lane's `symbol` was fixed at
+ * R-K and the object lane's was never written at all, so `uncharted-volume-v2`
+ * drew four correct columns and no table — eighteen of its twenty-seven object
+ * trees refused with *"a value that a symbol settles reached the evaluator
+ * unsettled"*, and six more with a window length nothing had folded.
+ */
+export function bindConstsFor({ tf, inputs, symbol } = {}) {
+  return bindingConstants({
+    timeframe: timeframeFlags(tf),
+    inputs,
+    // ⭐⭐ R-K (2026-09-13) — THE OBJECT, NOT THE STRING. `symbolConstantsWith`
+    // needs `{ticker, exchange}`: the ticker resolves `syminfo.ticker` for every
+    // symbol, and the exchange resolves `syminfo.tickerid` / `syminfo.prefix`
+    // ONLY where `symbolScope.json::confirmed` holds a witness for that
+    // exchange's spelling.
+    // ⚰️ THIS READ `ctx.sym` — a STRING — AND `symbolConstantsWith` RETURNS `{}`
+    // FOR ANYTHING THAT IS NOT AN OBJECT. So `bindConsts` was empty on every
+    // chart binding, every `syminfo.*` was NotFoldable, and the bind-time text
+    // predicates survived into the evaluator. Measured on the member pane:
+    // three of `uncharted-volume-v2`'s four columns refused.
+    // ⛔ AND IT IS NOT COERCED HERE. A caller that fails to thread the object
+    // gets `{}` and a refusal that names the field, which is loud; accepting a
+    // bare string as `{ticker}` would half-resolve it and hide the miswiring.
+    symbol: symbol || null,
+  })
+}
+
+/* ⭐⭐ WHY THIS LIVES IN `bind.js` AND NOT IN `nativeRegistry.js`.
+ * It was written in the registry because the plot lane needed it first, and the
+ * object lane then imported it from there. The IR LANE cannot: `pineRuntimeFrontend`
+ * is a standalone front end, and reaching the registry would drag the indicator
+ * table, the server compute lane and the whole native roster behind one call for
+ * four constants.
+ * ⛔ SO THE ASSEMBLY MOVED TO THE MODULE THAT OWNS ITS VOCABULARY — `bindingConstants`
+ * and `symbolConstantsWith` are both here — and the registry now RE-EXPORTS the same
+ * binding. Three callers, one function, no second reader. */

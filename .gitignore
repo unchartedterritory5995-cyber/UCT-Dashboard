@@ -158,3 +158,8 @@ tools/pine_survey/cache/
 # carries one at its root naming the session that created it, so a cleanup can
 # tell what it is about to delete. Per-worktree and never committed.
 .uct-session-owner
+
+# ⛔ The Pine rig sandbox. `boot_rig.py` REFUSES to resolve here (see
+# tests/test_rig_sandbox_never_inside_a_worktree.py) — this entry is the second
+# layer, so a hand-run or an older copy of the script cannot dirty the tree either.
+rig-data/

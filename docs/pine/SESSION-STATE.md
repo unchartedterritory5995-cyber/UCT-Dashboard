@@ -46,29 +46,46 @@ re-applied with `git -C <worktree> apply docs/pine/wip/<step>-wip.patch`.
 
 ### 4. Rig checklist — run this before any browser claim
 
+⭐ **RUN THEM FROM THE WORKTREE — the exact commands, from a fresh checkout or a
+scratchpad, no substitution needed:**
+
 ```bash
 # 1. backend, SANDBOXED. ⛔ NOT port 8077: that has held a stale backend on the
-#    owner's LIVE C:\data, and C:\data exists on this box. boot_rig.py pins
-#    DATA_DIR and AUTH_DB_PATH into the scratchpad and turns every scheduler off.
-python <scratchpad>/boot_rig.py          # serves 127.0.0.1:8129
-curl -s http://127.0.0.1:8129/api/health # expect {"status":"ok"...}
+#    owner's LIVE C:\data, and C:\data exists on this box.
+#    The sandbox defaults OUTSIDE every worktree and REFUSES to resolve inside one.
+python docs/pine/wip/rig/boot_rig.py          # serves 127.0.0.1:8129
+curl -s http://127.0.0.1:8129/api/health      # expect {"status":"ok"...}
 
-# 2. the account (already created in the sandbox DB; recreate only if DATA_DIR was lost)
+# …or pin it explicitly:
+#   UCT_RIG_DATA=<dir outside every worktree> python docs/pine/wip/rig/boot_rig.py
+
+# 2. the account — ONLY if the sandbox is new (see the survival note below)
 curl -s -X POST http://127.0.0.1:8129/api/auth/signup -H "Content-Type: application/json" \
   -d '{"email":"panetest@local.dev","password":"LocalTest2026!","display_name":"Pane Rig"}'
 
 # 3. the v2 fixture over CORS, for the paste-into-the-real-door route
-python <scratchpad>/fixture_server.py    # serves 127.0.0.1:8124/v2.pine
+python docs/pine/wip/rig/fixture_server.py    # serves 127.0.0.1:8124/v2.pine
 ```
 
-⭐ **ALL THREE SCRIPTS ARE IN THE WORKTREE** at `docs/pine/wip/rig/` — the
-scratchpad is session-scoped and does not survive a reboot, so they were copied in
-rather than described. Substitute that path for `<scratchpad>` above.
+⭐⭐ **CHECK BEFORE YOU RECREATE — THE SANDBOX CAN SURVIVE A REBOOT.** This
+section used to say the sandbox was *"gone"* and to reinstall unconditionally.
+⚰️ **Measured on the first resume: it was wrong.** Windows does not clear
+`%TEMP%` on restart and the resumed session carried the same session id, so the
+scratchpad, the sandbox DB, the rig account and **both v2 definitions with their
+chart instances** were all still there. Reinstalling unconditionally throws away
+the state you were about to verify. The order is: start the backend, LIST what is
+there, and install only what is actually missing.
 
-⚠️ **`boot_rig.py`'s sandbox is under the OLD scratchpad path, which is gone**, so
-it will come up on an empty DB: re-sign-up and reinstall both definitions.
-The sandbox DB living under the old scratchpad means **both saved definitions are
-probably gone too** — reinstall them.
+```bash
+curl -s -c /tmp/rigck.txt -X POST http://127.0.0.1:8129/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"panetest@local.dev","password":"LocalTest2026!"}'
+curl -s -b /tmp/rigck.txt http://127.0.0.1:8129/api/user-definitions   # expect 2
+```
+
+⚠️ **`charts_workspace_layout` is stored as a JSON STRING.** A walker that treats
+it as an object finds `indicatorInstances: 0` and reads as "nothing is attached"
+when both instances are in fact there. Parse it before you believe it.
 
 **Both definitions, through the member's own door** (`/charts` → chart toolbar
 → **Indicators** → **New formula** → **Import** tab → paste → **"Add this script
@@ -176,6 +193,93 @@ Their owners will need to re-run.
 - **Nothing to master.** No `gh pr create`. Branch pushes any time.
 
 ---
+## ⭐⭐⭐ STEP-5 FOLLOW-THROUGH — THE IR LANE READS THE SYMBOL. v2:249 CLEARS.
+
+`buildRuntimeIr(uncharted-volume-v2.pine)`, told the clock (`forming=false`), on
+`tf: 'D'` — verbatim, both directions:
+
+```
+=== NO symbol (the control) ===
+  ok         false
+  refusal    runtime:statement @249
+  message    a value that a symbol settles reached the evaluator unsettled —
+             the binding did not supply the symbol field it names …syminfo.ticker
+  statements 77   columns 0   slots 0
+
+=== WITH symbol {ticker:'SPY', exchange:'NYSE Arca'} ===
+  ok         false
+  refusal    runtime:tuple @251
+  message    a tuple — the runtime has no multiple-value form yet
+  statements 79   columns 0   slots 0
+```
+
+**249 is gone and the lane walks two statements further.** The control still
+stops at 249, which is what makes that a measurement rather than a coincidence.
+
+### ⛔ ONE AUTHORITY — `bindConstsFor` moved rather than being copied
+
+The definition lane has folded these since R-K (`computeFor`), the object lane
+since step 6 (`objectColumns`), and the IR lane never did — it had **no symbol
+plumbing at all**. The fix is the same assembly, not a third reader:
+
+`bindConstsFor` moved from `nativeRegistry.js` to **`ast/bind.js`**, beside
+`bindingConstants` and `symbolConstantsWith` whose vocabulary it assembles. The
+IR lane is a standalone front end; reaching the registry would have dragged the
+indicator table, the server compute lane and the whole native roster behind one
+call for four constants. `nativeRegistry` now **re-exports** the same binding, so
+`objectColumns`' existing import is unchanged. `irSymbolFold.test.js` asserts
+`viaRegistry === bindConstsFor` by **identity** — two functions that agree today
+are the shape that drifts.
+
+The fold happens at `columnOf`, which the file already calls *"the one place the
+columnar lane is invoked, and the one place `interpret` runs"* — a single seam,
+so this is one line at one site rather than a habit.
+
+### ⏭️ THE REMAINING GAP, NAMED TO ITS LINE — AND NOT CHASED
+
+**v2:251** — `[a, b, c, d, e, f, g, h] = f_getDailyData()`, an eight-value
+destructure from a user function. `runtime:tuple`: *"the runtime has no
+multiple-value form yet."*
+
+⛔ That is a **capability this lane does not have**, not a wire somebody forgot:
+the IR has no way to carry more than one value out of a call. Consistent with
+`f_getDailyData@190 pine:collection` already sitting in `skippedFunctions` — the
+definition was skipped and the lane now reaches its CALL.
+
+⛔ **STOPPED HERE, per the ruling.** The pane is driven by the DEFINITION lane
+(D2), which renders this script's four plots and both tables today; the IR lane
+is not on the pane path and closing an 8-tuple is not on the criterion.
+
+### Folded in — two defects this session's own checklist found
+
+**1. `boot_rig.py` would have dirtied the worktree.** It resolved its sandbox as
+`__file__.parent / "rig-data"` — correct in a scratchpad, a trap the moment the
+reboot commit put it in `docs/pine/wip/rig/`. Running it in place would write
+`auth.db`, a bars cache and a dozen markers INTO THE REPO, dirtying the tree whose
+cleanliness is the resume contract. Now `UCT_RIG_DATA` with an outside-the-repo
+default, and a sandbox resolving inside **any** git worktree is **REFUSED with
+the worktree named** — asked of `git rev-parse --show-toplevel`, never
+pattern-matched against a hard-coded list. Rail:
+`tests/test_rig_sandbox_never_inside_a_worktree.py` (5 cases, including the
+non-vacuity one); `rig-data/` in `.gitignore` as a second layer. Verified firing
+live, not only in the test.
+
+**2. A vitest scope list fails open.** A rails run named seven files, vitest ran
+six, **exit 0** — `symbolFoldParity.test.js` is at `engine/ast/`, not
+`engine/__tests__/`, and a path matching nothing is a filter selecting nothing,
+which is not an error. `tools/check_scope_paths.py` makes the hand-count
+mechanical: exit 1 naming each miss, `--suggest` finds the same basename
+elsewhere (the realistic mistake is a MOVED file), `--self-check` proves it can
+fail. Locations recorded in `docs/runbooks/indicator-ecosystem-resume.md`.
+
+**3. The RESUME assumption is corrected.** It said the sandbox was gone and to
+reinstall unconditionally. Measured: `%TEMP%` survives a reboot and the resumed
+session carried the same id, so the sandbox DB, the rig account and **both v2
+definitions with their chart instances** were intact. The checklist now LISTS
+before it installs. Also recorded: `charts_workspace_layout` is a JSON *string* —
+a walker that treats it as an object reports `indicatorInstances: 0` and reads as
+"nothing attached" when both are there.
+
 ## ⭐⭐⭐ SESSION 3 · ITEM 3 — TABLES. **FINISHED.** BOTH DASHBOARDS DRAW, IN DOM, AT THE CORNER THE SCRIPT DECLARES, AND THE CELLS MATCH TRADINGVIEW.
 
 `uncharted-volume-v2.pine` through the shipped Import door on a real chart —
