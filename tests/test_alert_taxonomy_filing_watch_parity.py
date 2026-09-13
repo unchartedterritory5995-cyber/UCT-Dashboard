@@ -587,6 +587,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     #   2026-09-12  `price-level`      GATE-S7-PRICE-LEVEL CP1
     #   2026-09-12  `event-proximity`  GATE-S7-EVENT-PROXIMITY CP1
     #   2026-09-12  `catalyst-match`   GATE-S7-CATALYST-MATCH CP1
+    #   2026-09-13  `position-risk`    GATE-S7-POSITION-RISK CP1-CP2
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.
@@ -604,6 +605,26 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # ⛔ Step 2 becomes a PRECONDITION the moment CP3 projects real cohort rows,
     # not a follow-up -- same rule as price-level's below.
     #
+    # `position-risk` CP1-CP2 is the same case as `catalyst-match` and the
+    # reason is worth stating rather than inheriting: it HAS a dark evaluator
+    # and it RECORDS NO FIRE. `position_risk.py` imports neither `receipts` nor
+    # `delivery`; `position_risk_compare.py` owns exactly two tables of its own
+    # (`position_risk_comparison_spans`, `position_risk_heartbeat`) and calls
+    # `record_fire` nowhere --
+    # `test_the_harness_records_no_fire_and_writes_no_member_visible_row` reads
+    # both facts off the source, and
+    # `test_the_harness_is_the_only_caller_of_would_fire` keeps the evaluator
+    # reachable from the harness and from nothing else. So there is no fire to
+    # reconstruct and no feed row to drop, and step 3 has no fire to run
+    # against.
+    # ⛔ AND FOR THIS TYPE STEP 2 IS THE LOUDEST OF THE FOUR AT CP3. Its legacy
+    # already away-delivers: `stop_hit` scores 10, clears
+    # `engine._DELIVER_IMPORTANCE_FLOOR = 8`, and emails + Discords the member.
+    # A projected fire that reached the taxonomy store with no reconstruction
+    # branch would be silently absent from the feed of a member who is used to
+    # being TOLD when a stop is hit. Precondition of the CP3 PR, never a
+    # follow-up.
+    #
     # ⛔ `price-level` IS DIFFERENT NOW AND THE DISTINCTION MATTERS. It has an
     # evaluator (CP2) that is WIRED and ARMED (CP3/CP3b), writing real
     # alert_fires rows for the admin cohort. It still owes no reconstruction
@@ -618,7 +639,8 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # INVERTED when CP3 wired register() -- it is now
     # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
     # rather than left pointing at a name that no longer exists.
-    _EXPECTED = {"document-arrival", "price-level", "event-proximity", "catalyst-match"}
+    _EXPECTED = {"document-arrival", "price-level", "event-proximity",
+                 "catalyst-match", "position-risk"}
 
     files, declared = _declared_trigger_types()
 
