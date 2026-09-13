@@ -1187,3 +1187,92 @@ describe('W1b — a USER multi-tree definition draws one series per tree', () =>
     })
   })
 })
+
+// ─── ORDER FIRST, THEN HEIGHT — AND A MOVE ISSUED IS NOT A MOVE LANDED ──────
+//
+// ⭐⭐ `paneStretchPlan` ADDRESSES PANES BY INDEX. The sync therefore reconciles
+// the ORDER first and sizes the stack after — but `PaneApi.moveTo` re-indexes on
+// the next animation frame, so the size pass that runs in the same tick is
+// measured against the stack as it WAS. `reconcilePaneOrder` is what tells the
+// caller to come back, and its answer has to cover the LAST move as well as any
+// still owed.
+//
+// ⚰️ MEASURED IN A BROWSER 2026-09-13 with nothing but two RSIs: sending one
+// ABOVE Price and then back BELOW left the oscillator holding the tall pane and
+// crushed the candles and the volume band into about thirty pixels — layout,
+// pane order and legends all correct, only the heights written against an order
+// that had not changed yet. Going up needs two moves and self-corrects on the
+// frame it therefore asks for; coming back needs one and did not.
+describe('a single pane move still schedules the pass that resizes after it', () => {
+  const LAYOUT = computePaneLayout(
+    [inst('rsi')],
+    { chartHeight: 600, hasVolumeBand: false, separatorPx: SEPARATOR_PX },
+  )
+
+  /** A stack whose `moveTo` lands on the NEXT frame, like the real one. */
+  const deferredStack = (order) => {
+    const frames = []
+    const stack = order.slice()
+    const panes = stack.map((name) => ({
+      name,
+      getHeight: () => 0,
+      getStretchFactor: () => 1,
+      setStretchFactor() {},
+      paneIndex: () => stack.indexOf(name),
+      moveTo(i) {
+        frames.push(() => {
+          const from = stack.indexOf(name)
+          stack.splice(from, 1)
+          stack.splice(i, 0, name)
+        })
+      },
+    }))
+    return { panes, stack, frames }
+  }
+
+  it('⛔⛔ the heights are re-applied AFTER the order settles, not before', () => {
+    __setPaneModeForTest('panes')
+    const rafs = []
+    const realRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (fn) => { rafs.push(fn); return rafs.length }
+    try {
+      // The stack as it stands after the oscillator was sent ABOVE price: it
+      // holds index 0 and the candles have been displaced to 1. The layout below
+      // wants it back at 1.
+      const s = deferredStack(['rsi', 'candles'])
+      const written = []
+      s.panes.forEach((p) => { p.setStretchFactor = (v) => written.push([p.name, v]) })
+      fake.chart.panes = () => s.panes
+      // ⚠️ `fakeChart`'s series carries no `getPane`, so `reconcilePaneOrder` is
+      // inert against it — which is precisely why this defect had no rail. The
+      // decoration is LOCAL to this case rather than added to the shared fake,
+      // where it would quietly switch the reorder pass on for sixty other tests.
+      const addSeries = fake.chart.addSeries
+      fake.chart.addSeries = (...args) => {
+        const made = addSeries(...args)
+        made.getPane = () => s.panes[Math.max(0, s.stack.indexOf('rsi'))]
+        return made
+      }
+
+      binder.sync({
+        ...ctxFor([inst('rsi')]),
+        resolvePlacement: realPlacement, paneMargins: {}, paneLayout: LAYOUT,
+      })
+
+      // ⭐ THE CLAIM: another pass was SCHEDULED. Without it the only sizing this
+      // chart ever gets is the one that just ran against the pre-move order, and
+      // the next ordinary sync finds the factors "already correct".
+      expect(rafs.length, 'nothing was scheduled after the move was issued')
+        .toBeGreaterThan(0)
+      // …and draining the frames lands the move and sizes the settled stack.
+      const before = written.length
+      s.frames.splice(0).forEach((f) => f())
+      rafs.splice(0).forEach((f) => f())
+      expect(written.length, 'the stack was never re-sized once the order settled')
+        .toBeGreaterThan(before)
+    } finally {
+      globalThis.requestAnimationFrame = realRaf
+      __setPaneModeForTest(null)
+    }
+  })
+})

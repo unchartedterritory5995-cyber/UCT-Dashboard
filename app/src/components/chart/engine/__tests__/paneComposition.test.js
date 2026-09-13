@@ -30,7 +30,7 @@ import {
 import {
   displayTargetOptions, resolveDisplayTarget, paneOwnKeys, paneFollowerKeys, paneOwnersNeeded,
 } from '../displayTarget'
-import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
+import { computePaneLayout, paneStretchPlan, __setPaneModeForTest } from '../paneLayout'
 import { resolvePlacement } from '../placement'
 import { symbolSource, paneOfTarget } from '../sourceRef'
 
@@ -467,5 +467,57 @@ describe('duplicate labels', () => {
     expect(labels.some((l) => /#\d/.test(l)), `numbered a unique name: ${labels}`).toBe(false)
     expect(labels).toContain('RSI (14)')
     expect(rsi).toBeTruthy()
+  })
+})
+
+
+// ─── PANE ORDER · A MOVE INVALIDATES THE HEIGHTS THAT FOLLOW IT ─────────────
+//
+// ⭐⭐ `paneStretchPlan` ADDRESSES PANES BY INDEX, so a stack sized before its
+// order has settled gets every height on the wrong pane. `binder.reconcilePaneOrder`
+// is what tells the caller whether that has happened, and its answer has to cover
+// the LAST move as well as the ones after it.
+//
+// ⚰️ MEASURED IN A BROWSER 2026-09-13 with two RSIs and nothing else: sending one
+// ABOVE Price and then back BELOW left the oscillator in the tall pane and the
+// candles and volume crushed into ~30 px. Going up needed two moves and
+// self-corrected on the extra frame; coming back needed one, reported "nothing
+// further", and the heights were applied against a stack that had not moved yet.
+//
+// This case owns the ARITHMETIC half — that the layout's answer is correct in
+// both directions, so a wrong picture can only come from the renderer pass. The
+// renderer half is `binder.js`'s own contract: a move ISSUED means heights are
+// stale.
+describe('a pane sent above Price and back', () => {
+  const two = [
+    { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: {}, hidden: false },
+    { instanceId: 'inst:rsi:2', defId: 'rsi', inputs: {}, hidden: false },
+  ]
+  const opts = {
+    chartHeight: 690, hasVolumeBand: true, excludeKeys: new Set(), includeKeys: new Set(),
+    firstPaneIndex: 1,
+  }
+
+  it('⭐ the layout is right in BOTH directions — the picture is the renderer’s', () => {
+    const below = computePaneLayout(two, opts)
+    const above = computePaneLayout(two, { ...opts, topKeys: new Set(['inst:rsi:1']) })
+
+    // Below: the candles keep the tall pane at index 0 and the stack follows.
+    expect(below.panes.map((p) => [p.key, p.index]))
+      .toEqual([['inst:rsi:1', 1], ['inst:rsi:2', 2]])
+    expect(paneStretchPlan(below, [1, 1, 1])[0], 'the candles lost the tall pane')
+      .toBeGreaterThan(300)
+
+    // Above: the moved pane takes index 0 and the candles move down to 1.
+    expect(above.panes.find((p) => p.key === 'inst:rsi:1').index).toBe(0)
+    const planUp = paneStretchPlan(above, [1, 1, 1])
+    expect(planUp[0], 'the top pane was given the candles’ height').toBeLessThan(200)
+    expect(planUp[1], 'the candles did not take the tall pane').toBeGreaterThan(300)
+
+    // ⛔ AND THE ROUND TRIP IS A FIXED POINT: coming back reproduces the first
+    // answer exactly, so any difference the member SEES is the renderer failing
+    // to re-apply, never the layout changing its mind.
+    expect(paneStretchPlan(computePaneLayout(two, opts), [1, 1, 1]))
+      .toEqual(paneStretchPlan(below, [1, 1, 1]))
   })
 })

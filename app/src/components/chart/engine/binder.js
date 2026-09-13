@@ -499,7 +499,24 @@ export function createBinder({ chart, LWC }) {
       if (owed === 0) attempt(() => pane.value.moveTo(want.index))
       owed += 1
     }
-    return owed > 1
+    // ⭐⭐ "A MOVE HAPPENED", NOT "MORE ARE OWED", AND THE DIFFERENCE IS THE LAST
+    // ONE. This answered `owed > 1`, so the pass that issued the FINAL move
+    // reported "nothing further" — and the caller then sized the stack in that
+    // same frame. `PaneApi.moveTo` lands on the next animation frame, so the
+    // heights were written against the OLD order and nothing ever re-applied
+    // them: `paneStretchPlan` addresses panes BY INDEX, which is exactly what the
+    // call site's own comment warns about.
+    //
+    // ⚰️ MEASURED IN A BROWSER 2026-09-13, with nothing but two RSIs. Sending one
+    // ABOVE Price and then back BELOW left the oscillator holding the tall pane
+    // and crushed the candles and the volume band into ~30 px — on a chart whose
+    // layout, legends and pane order were all correct. Going up takes two moves
+    // and self-corrected on the extra frame; coming back takes one and did not.
+    //
+    // ⛔ IT STILL CONVERGES. The extra pass finds every pane in place, issues no
+    // move, returns false, and re-applies the stretch against the settled stack —
+    // one frame, inside the same `attemptsLeft` budget as before.
+    return owed > 0
   }
 
   /**
