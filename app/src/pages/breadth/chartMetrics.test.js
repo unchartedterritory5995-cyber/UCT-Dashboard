@@ -319,54 +319,10 @@ describe('preset set v2', () => {
     expect(byId('setup-supply').metrics).toEqual(['near_52w_high', 'new_52w_highs', 'new_ath'])
   })
 
-  // Round one's lesson as a gate: a shared family is necessary but not
-  // sufficient, because a family can span an order of magnitude. Thresholded at
-  // 6x, which every preset clears with froth closest at 4.8x, and which both
-  // round-one defects fail: S&P 7737 vs QQQ 746 = 10.4x, and up_25pct_month 385
-  // vs atr_ext_7 34 = 11.3x.
-  const MAX_ABS = {
-    breadth_score: 98.1, uct_exposure: 102, up_4pct_today: 956, down_4pct_today: 762,
-    ratio_5day: 4.83, ratio_10day: 3.32, up_20pct_5d: 183, down_20pct_5d: 171,
-    up_25pct_quarter: 1131, down_25pct_quarter: 505, up_25pct_month: 385,
-    down_25pct_month: 274, up_50pct_month: 128, down_50pct_month: 15,
-    magna_up: 1307, magna_down: 1103, universe_count: 3736,
-    pct_above_5sma: 81.6, pct_above_10sma: 83.6, pct_above_20ema: 82.8,
-    pct_above_40sma: 75.8, pct_above_50sma: 73.5, pct_above_100sma: 70.1,
-    pct_above_200sma: 72.8, sp500_close: 7736.52, qqq_close: 746.16,
-    vix: 31.05, mcclellan_osc: 223.9, stage2_count: 1244, stage4_count: 594,
-    new_52w_highs: 555, new_52w_lows: 234, new_20d_highs: 1412, new_20d_lows: 1228,
-    // measured after the 2026-08-06 collector fix + history repair (was 556,
-    // when it was still new_52w_highs by another name)
-    new_ath: 268,
-    hvc_52w: 163, atr_ext_7: 34, cnn_fear_greed: 69.9, aaii_bulls: 49,
-    aaii_neutral: 35, aaii_bears: 52, aaii_spread: 22, cboe_putcall: 1.12,
-    adv_decline: 2142, adv_decline_cum: 13981, up_vol_ratio: 5.73,
-    hi_ratio: 18.61, lo_ratio: 8.57, near_52w_high: 1177,
-    rsp_spy_ratio: 0.2996, iwm_qqq_ratio: 0.4377, vxn: 33.54,
-    avg_10d_vix: 26.87, avg_10d_vxn: 29.31, avg_10d_cpc: 1.01,
-  }
-
-  it('keeps same-family metrics within 6x so none is pinned to the floor', () => {
-    for (const preset of CHART_PRESETS) {
-      const byFamily = {}
-      for (const key of preset.metrics) {
-        expect(MAX_ABS[key], `${key} missing from the measured range table`).toBeGreaterThan(0)
-        ;(byFamily[unitOf(key)] ??= []).push(key)
-      }
-      for (const [family, keys] of Object.entries(byFamily)) {
-        if (keys.length < 2) continue
-        const mags = keys.map(k => MAX_ABS[k])
-        const ratio = Math.max(...mags) / Math.min(...mags)
-        expect(ratio, `${preset.label}/${family} spans ${ratio.toFixed(1)}x`).toBeLessThanOrEqual(6)
-      }
-    }
-  })
-
-  it('would have failed on both round-one defects', () => {
-    const spread = (a, b) => Math.max(MAX_ABS[a], MAX_ABS[b]) / Math.min(MAX_ABS[a], MAX_ABS[b])
-    expect(spread('sp500_close', 'qqq_close')).toBeGreaterThan(6)
-    expect(spread('up_25pct_month', 'atr_ext_7')).toBeGreaterThan(6)
-  })
+  // ⚰️ The MAX_ABS range table and its 6x preset test lived here. It was hand-typed,
+  // had drifted (Breadth Thrust's ratio axis spans 23x on today's data), and only ever
+  // checked presets. The rule now runs on the rows on screen, for any selection:
+  // `chartMagnitude.js` (A-04, D-029), whose tests carry both round-one defects as fixtures.
 
   it('partitions cleanly into core pills and grouped popover entries', () => {
     const core = CHART_PRESETS.filter(p => !p.group)
