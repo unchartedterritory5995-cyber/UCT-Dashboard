@@ -2743,7 +2743,10 @@ describe('the refusals', () => {
     // ⚠️ 12 -> 13 with `interpret:symbol` (W2b Task 4): a `sym` read nested
     // inside a `tf` would align unresampled bars onto resampled ones — an
     // almost-right column rather than a NaN, which is why it is a refusal.
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(13)
+    // ⚠️ 13 -> 14 with `interpret:bind-time-text` (R-K, 2026-09-12). See the
+    // correction under the `all.length` assertion below: the interpreter DOES
+    // have to have an opinion about a text node, because one can reach it.
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(14)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
     // ⚠️ 33 -> 35 with W2b's two timeframe guards — one per door:
     // `canonicalise:timeframe` (the SHAPE of `tf(expr, 'W')`) and
@@ -2758,11 +2761,24 @@ describe('the refusals', () => {
     // the thing the loop below exists to forbid.
     // ⚠️ 37 -> 40 with the bind-time text trio, all three on the PARSE door:
     // `canonicalise:symtext`, `canonicalise:textop` and `canonicalise:text-escapes`.
-    // The interpreter gains none, and that is the design rather than an omission:
-    // a text node must be FOLDED before evaluation, so the interpreter never has
-    // to have an opinion about one — it refuses an unknown node type by the
-    // roster it already publishes.
-    expect(all.length).toBe(40)
+    //
+    // ⚰️⚰️ 40 -> 41 with `interpret:bind-time-text` (R-K, owner ruling
+    // 2026-09-12), AND THE SENTENCE THAT USED TO STAND HERE WAS THE DEFECT:
+    //
+    //     "The interpreter gains none, and that is the design rather than an
+    //      omission: a text node must be FOLDED before evaluation, so the
+    //      interpreter never has to have an opinion about one — it refuses an
+    //      unknown node type by the roster it already publishes."
+    //
+    // A text node must be folded before evaluation, and one that ISN'T still
+    // arrives — the fold refuses when the binding cannot supply `syminfo.*`, and
+    // on the chart lane it could not. "It refuses by the roster it already
+    // publishes" was the whole problem: the roster LISTS `textop` as legal, so
+    // the member read `unknown node type "textop" — legal types are … textop`.
+    // Measured on the member pane: three of `uncharted-volume-v2`'s four series.
+    // ⭐ The interpreter's opinion is now one sentence long and names the FIELD
+    // the binding did not settle, which is the part a member can act on.
+    expect(all.length).toBe(41)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

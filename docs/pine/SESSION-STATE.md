@@ -1,5 +1,150 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⛔⛔ PART 6 — 40 OF 60, AND THE LAST 20 ARE BLOCKED ON A TAB NOBODY CAN FOCUS
+
+### What landed, free and verified
+
+`tests/fixtures/pine_oos` held **30** `.pine` sources after the worktree
+recreation (they are licence-ignored, so `git worktree add` restores none of
+them). **10 more were restored from `tools/c0_oos_fixtures`, each one's sha256
+checked against `MANIFEST.json` BEFORE the write** — a mismatch would have been
+refused, and none was.
+
+```
+pine_oos sources          30  ->  40  of 60
+hash mismatches                    0
+git status in that dir             clean (the licence ignore holds)
+```
+
+⭐ **AND IT MOVED THE CENSUSES, WHICH IS THE CONTROL THAT THE RESTORE WAS REAL:**
+
+| | before | after |
+|---|---|---|
+| scripts the runtime census walks | 129 | **139** |
+| corpus-dependent red FILES | 8 | **5** |
+
+`documentSize.measure` (×2), `graphSize.measure` (×2) and `objectLadder` (×2) are
+**green again** — six tests recovered by ten files.
+
+### The 5 that remain, and they are all one blocker
+
+| red | what it wants |
+|---|---|
+| `objectDemandCensus` · `visualDemandCensus` | `expected 40 to be 60` |
+| `capabilityDemandCensus` · `historyDemandCensus` | `expected 139 to be greater than 150` |
+| `visualParitySet` | 3 of the ten members are among the missing 20 |
+
+**Floors stay at 60**, as ruled. These stay red until the last 20 land, and that
+is the honest state rather than a lowered bar.
+
+### ⛔⛔ WHY THE 20 DID NOT LAND TONIGHT — measured, not assumed
+
+The route the manifest's own `capture_method` records is: open the script page,
+**click its "Source code" tab**, walk the rendered viewer's per-line spans. I
+re-tested the two bulk shortcuts on a live page (`19-anchored-vwap-stuehmer`,
+title confirmed) before spending anything on the slow route:
+
+- **The page HTML carries four `PUB;<32hex>` ids** — the earlier session recorded
+  that the facade id "only exists in client state", and it is in fact in the
+  markup. ⭐ So the id question is answerable, and the hash makes it
+  self-verifying: fetch each, keep the one whose source matches `sha256_source`,
+  no guessing.
+- ⛔ **All four answered `404`.** They are other scripts the page references. The
+  script's own facade id is not in the markup.
+- ⛔ **The source is not in the DOM before the click**: `.view-line` 0,
+  `pre`/`code` 0, no `@version` anywhere in `body.innerText`.
+
+**So the click is required, and the click is a browser WRITE — and every tab this
+session can create reads `visibilityState: "hidden"`.** A tab made by
+`tabs_create_mcp` while the rig is the window's active tab is a background tab;
+nothing in the tool surface can bring it forward. The gate fails on its first
+term and the standing rule is a stop.
+
+⭐ **THIS IS THE SAME CLASS AS THE OFF-DESKTOP WINDOW: OPERATOR-SIDE.** It needs
+one action nobody in this session can take — bring the localhost/script tab to
+the front, or give the session a window whose active tab is the one to drive.
+Everything else about Part 6 is ready: the roster, the URLs, the expected hashes,
+and a route that verifies itself on arrival.
+
+⚠️ **AND IT IS WHY R-I IS 7 OF 10, NOT 10 OF 10.** The parity re-publication is
+not separately blocked; it is this blocker, one door along.
+
+---
+
+## ⭐ CLOSE-OUT — 2026-09-12
+
+### Suites
+
+| lane | result |
+|---|---|
+| JS `chart/engine` + `chart/builder` | **339 files · 7,125 tests → 7,083 passed, 32 skipped, 10 failed in 8 files** |
+| Python (touched suites) | **310 passed, 5 skipped** — ast_interpret, ast_lint, conformance, lookback_agreement, bind_fold, bind_parity, vendor_truth, vendor_capture_window, pytest_chunks_runner |
+
+⛔ **AND ALL TEN REDS ARE ACCOUNTED FOR, BY NAME:**
+
+| files | why |
+|---|---|
+| `objectDemandCensus` · `visualDemandCensus` · `capabilityDemandCensus` · `historyDemandCensus` · `visualParitySet` | Part 6's last 20 — 5 tests |
+| `BuilderSheet.pine` · `ImportBox.thinkscript` · `pineBoxSuggestVoice` | **pre-existing at HEAD** — 5 tests, baselined this session by restoring `BuilderSheet.jsx` from `HEAD` and re-running: identical 5 failed / 40 passed with and without the T5 wiring |
+
+⭐ `sentence.test.js` was a tenth file in the first close-out run and is now green
+— see the rail below.
+
+### Rails that fired tonight, and every one of them was right
+
+- **`interpret.test.js`'s guard-coverage table** — a new refusal with no trigger.
+  Both lanes have that table; both refused the guard until it could be fired.
+- **`test_ast_interpret.py`'s trigger set**, the same rule in the mirror.
+- **`sentence.test.js`'s refusal disjointness** — `expected 14 to be 13`. ⚰️ It
+  caught R-K late, in the full run rather than in the targeted one, and the
+  comment it guards was itself the defect: *"the interpreter never has to have an
+  opinion about [a text node] — it refuses an unknown node type by the roster it
+  already publishes."* That roster **lists `textop` as legal**. The count moved
+  13 → 14 and 40 → 41, and the paragraph is rewritten rather than renumbered.
+- **`MemberPane.test.jsx`** on the `stockChartProps` prop set, and
+  **`memberPaneDefinition.test.js`** on the note count — both because T5 changed
+  a contract, both updated with the reason.
+- **`member_pane_probe.py --self-check`**, on purpose and inverted.
+
+### Metric, old → new
+
+```
+tools/corpus_metric.json    scripts 266   host_ok 31   screener_ok 44
+                            UNCHANGED — only `measured_at` moved (09-12 -> 09-13)
+```
+
+⭐ **No movers, and that is the right answer**: nothing this session touched the
+translator's verdicts. The corpus metric reads the curated corpus, not `pine_oos`,
+so the ten restored sources correctly move the CENSUSES (129 → 139) and not this.
+
+### Still owed, in order
+
+1. **Part 6's last 20** — blocked operator-side (above). Then the 5 census reds
+   close and R-I goes 7 → 10.
+2. **The SPY depth read** that retires `UNMEASURED` in the window rail — one probe
+   on the rig, same blocker.
+3. **The two adjustment-toggle checks** — the volume-provenance row's first
+   evidence, same blocker.
+
+### Session 3, first item first
+
+1. ⭐⭐ **R-K's symbol half** — thread `{ticker, exchange, …}` from the chart's
+   symbol resolution through `binder.sync` → `computeFor` → `symbolConstants`,
+   with the Python twin. **Before tables**, by ruling, because table cells are
+   where `syminfo.tickerid` strings end up. ⏱️ **Estimate: 2–3 hours**, and the
+   seam to show if it runs over is `StockChart.jsx:~10087`'s `binder.sync({sym,
+   tf, …})` — `sym` is a bare string there and the exchange is not on that path at
+   all. The witnesses exist (`symbolScope.json::confirmed`, six exchanges,
+   `NYSE Arca → AMEX` witnessed by `AMEX:SPY`).
+2. **R2 text layer + `table.*` ×10**, both tables.
+3. **Mobile audit at 390×844 and 1024×768** — `tools/member_pane_probe.py` takes
+   a viewport, so the pane half is already instrumented.
+4. **Merge with a fresh dry-run**, then the PR body.
+
+⛔ **First item of the PR body's "member impact / process" section** is the
+worktree-ownership rule (R8), as promised when it was written into this branch's
+`CLAUDE.md`.
+
 ## ⭐⭐ R-L — "EXACT" REDEFINED, AND THE VOLUME ROW IS NO LONGER ABOUT ONE SYMBOL
 
 **Ruled: an integer series compares exactly AFTER the coarser side's granularity
