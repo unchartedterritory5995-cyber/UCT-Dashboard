@@ -484,19 +484,18 @@ def warm_route(page, family, base, log):
 
 
 def select_with_the_pointer(page, log):
-    """Drag a REAL selection across a rendered pdf.js text span, then click the
-    popover that selection creates.
+    """Make a REAL pointer selection across a rendered pdf.js text span.
 
-    ⛔⛔ NOT A SCRIPTED RANGE. Owner ruling 2026-09-13: *"a real pointer selection
-    over a rendered range... no synthetic selection, no scripted fetch."* And the
-    scripted version did not work anyway — `document.createRange()` +
-    `addRange()` left `sel.toString()` empty and produced no popover, so the
-    first attempt failed one step later than the fixture did and for a different
-    reason. A mouse drag is both the required evidence AND the thing that works.
+    ⛔⛔ NOT A SCRIPTED RANGE. Owner ruling: *"a real pointer selection over a
+    rendered range... no synthetic selection, no scripted fetch."*
 
-    ⛔ It picks a span by MEASURED GEOMETRY, not by index: pdf.js emits spans of
-    wildly different widths (single glyphs among whole lines), and dragging
-    across a 3px span selects nothing while looking like it did.
+    ⚰️ A drag and a double-click both left `getSelection()` EMPTY while the span
+    under the cursor reported `user-select: text` and `pointer-events: auto`. So
+    this tries the gestures in order of how much a real hand does, and — the part
+    that matters — **reports the selection's INTERNALS after each one**
+    (`rangeCount`, `isCollapsed`, the anchor and focus nodes) rather than only
+    `toString()`. "Empty string" is one observation with several causes: no
+    range at all, a collapsed caret, or a range anchored somewhere unexpected.
     """
     spans = page.query_selector_all(".textLayer span")
     best, best_box = None, None
@@ -517,68 +516,57 @@ def select_with_the_pointer(page, log):
                 "why": f"no pdf.js text span wide enough to drag across "
                        f"({len(spans)} span(s) rendered)"}
 
-    text = (best.inner_text() or "").strip()
-    y = best_box["y"] + best_box["height"] / 2
-    x0 = best_box["x"] + 2
-    x1 = best_box["x"] + best_box["width"] - 2
     best.scroll_into_view_if_needed()
     page.wait_for_timeout(400)
-    box = best.bounding_box() or best_box          # re-read: scrolling moved it
+    box = best.bounding_box() or best_box
     y = box["y"] + box["height"] / 2
     x0, x1 = box["x"] + 2, box["x"] + box["width"] - 2
 
-    # ⛔ WHAT IS ACTUALLY UNDER THE CURSOR? A drag that starts on an overlay
-    # never reaches the text layer, and "the selection was empty" cannot tell
-    # those apart. pdf.js stacks a canvas, a text layer and a highlight overlay
-    # in the same box.
-    at = page.evaluate(
-        """([x, y]) => {
-          const el = document.elementFromPoint(x, y);
-          if (!el) return {none: true};
-          const cs = getComputedStyle(el);
-          return {tag: el.tagName, cls: (el.className || '').toString().slice(0, 40),
-                  userSelect: cs.userSelect, pointerEvents: cs.pointerEvents,
-                  parentCls: (el.parentElement && el.parentElement.className || '').toString().slice(0, 40),
-                  txt: (el.textContent || '').slice(0, 30)};
-        }""", [x0, y])
-    log(f"      under the cursor at the drag start: {at}")
+    probe = """() => {
+      const s = window.getSelection();
+      const n = (x) => !x ? null : (x.nodeType === 3 ? '#text(' + (x.data||'').slice(0,18) + ')'
+                                                     : x.nodeName);
+      return {text: s ? s.toString() : null,
+              ranges: s ? s.rangeCount : -1,
+              collapsed: s ? s.isCollapsed : null,
+              anchor: n(s && s.anchorNode), focus: n(s && s.focusNode),
+              type: s ? s.type : null};
+    }"""
 
-    sel_of = lambda: page.evaluate(
-        "() => (window.getSelection() || {toString: () => ''}).toString()")
+    def attempt(name, fn):
+        page.evaluate("() => window.getSelection() && window.getSelection().removeAllRanges()")
+        page.wait_for_timeout(200)
+        fn()
+        page.wait_for_timeout(700)
+        st = page.evaluate(probe)
+        log(f"      selection after {name}: {st}")
+        return st
 
-    # ⛔ A DOUBLE-CLICK IS A REAL POINTER SELECTION, and a more reliable one than
-    # a synthetic-speed drag. Chrome decides a drag is a selection from the
-    # timing and granularity of the moves it receives; CDP delivers them far
-    # faster than a hand does, and a 598px sweep in twelve instant steps left
-    # `getSelection()` empty even though the span under the cursor reported
-    # `user-select: text` and `pointer-events: auto`. Word-select first, then a
-    # SLOW drag to widen it — both are the member's own pointer, which is the
-    # part the ruling is about.
-    page.mouse.move(x0 + 20, y)
-    page.wait_for_timeout(120)
-    page.mouse.dblclick(x0 + 20, y)
-    page.wait_for_timeout(600)
-    got = sel_of()
-    log(f"      after double-click: {got[:40]!r}")
+    # ⭐ TRIPLE-CLICK FIRST. It is the gesture a person uses to take a whole line,
+    # and Chromium implements it in the browser rather than leaving it to the
+    # page — so it survives synthetic input where a drag's move stream does not.
+    st = attempt("triple-click", lambda: page.mouse.click(x0 + 24, y, click_count=3))
+    if not (st.get("text") or "").strip():
+        st = attempt("double-click", lambda: page.mouse.dblclick(x0 + 24, y))
+    if not (st.get("text") or "").strip():
+        def slow_drag():
+            page.mouse.move(x0, y)
+            page.mouse.down()
+            for frac in (0.2, 0.4, 0.6, 0.8, 1.0):
+                page.mouse.move(x0 + (x1 - x0) * frac, y, steps=3)
+                page.wait_for_timeout(140)
+            page.mouse.up()
+        st = attempt("slow drag", slow_drag)
 
-    if not (got or "").strip():
-        page.mouse.move(x0, y)
-        page.wait_for_timeout(150)
-        page.mouse.down()
-        page.wait_for_timeout(150)
-        for frac in (0.25, 0.5, 0.75, 1.0):
-            page.mouse.move(x0 + (x1 - x0) * frac, y, steps=4)
-            page.wait_for_timeout(120)
-        page.mouse.up()
-        page.wait_for_timeout(900)
-        got = sel_of()
-        log(f"      after a slow drag: {got[:40]!r}")
-    log(f"      pointer selection: {got[:60]!r} over {text[:40]!r}")
-    if not (got or "").strip():
+    got = (st.get("text") or "").strip()
+    if not got:
         return {"ok": False, "rig_limitation": True,
-                "why": f"a real pointer drag across a {int(box['width'])}x{int(box['height'])}px "
-                       f"span selected nothing — the rig cannot make a selection this "
-                       f"renderer accepts"}
+                "why": (f"three real pointer gestures (triple-click, double-click, slow drag) "
+                        f"across a {int(box['width'])}x{int(box['height'])}px span produced no "
+                        f"selection. Last reading: ranges={st.get('ranges')} "
+                        f"collapsed={st.get('collapsed')} anchor={st.get('anchor')} "
+                        f"focus={st.get('focus')}. CDP-synthesised pointer input does not "
+                        f"produce a text selection in this renderer")}
 
     save = None
     for b in page.query_selector_all("button"):
@@ -593,7 +581,7 @@ def select_with_the_pointer(page, log):
                 "why": f"the selection took ({got[:40]!r}) but produced no "
                        f'"Save excerpt" popover'}
     save.click()
-    return {"ok": True, "via": f"pointer drag then Save excerpt", "selected": got[:60]}
+    return {"ok": True, "via": "pointer selection then Save excerpt", "selected": got[:60]}
 
 
 def drive_append(page, family, base, log):
@@ -1169,15 +1157,36 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         else:
             page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
         page.wait_for_timeout(6000)
+        # ⛔ WATCH THE STORE, NOT JUST THE CLOCK. "The outbox emptied" has two
+        # completely different causes and the same appearance:
+        #   SENT       the entry went out and the server took the words
+        #   SUPERSEDED the drain DELETED it, because a save this browser landed
+        #              later — a TIMESTAMP comparison that never asks whether
+        #              that save contains these words (`outboxDrain.js`, the
+        #              `isSupersededBaseline` branch)
+        # Polling the record's `dirty`/`baseUpdatedAt` alongside the queue catches
+        # the transition in the act, so the cell can NAME which one happened.
         drained, waited = False, 0
-        for _ in range(12):
-            page.wait_for_timeout(5000)
-            waited += 5
+        trail = []
+        for _ in range(24):
+            page.wait_for_timeout(2500)
+            waited += 2.5
             q2 = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
+            if isinstance(q2, dict):
+                snap = (q2.get("queuedForThisNote"), q2.get("dirty"),
+                        str(q2.get("baseUpdatedAt"))[-8:],
+                        q2.get("sentenceInDurableCopy"))
+                if not trail or trail[-1] != snap:
+                    trail.append(snap)
             if isinstance(q2, dict) and q2.get("queuedForThisNote") == 0:
                 drained = True
                 break
+        log(f"      store trail (queued, dirty, base, sentence-in-record): {trail}")
         log(f"      drain: {'emptied' if drained else 'STILL QUEUED'} after {waited}s")
+        # The record going CLEAN at a newer baseline while the entry is still
+        # queued is the supersede precondition, caught as it happens.
+        went_clean = any(t[1] in (0, False) for t in trail[1:]) if len(trail) > 1 else False
+        lost_locally = any(t[3] is False for t in trail[1:]) if len(trail) > 1 else False
         if not drained:
             return {"verdict": "INCONCLUSIVE",
                     "why": (f"the outbox still held this note's entry after {waited}s — the drain "
@@ -1253,7 +1262,10 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                         " — **the words were never put on the wire**"))
         ok = survived and node_ok and forks == 0 and (boxes or {}).get("conflicts", 0) == 0
         why = (f"offline sentence in the server body: **{survived}**{node_note} · "
-               f"{queued_note} · {sent_note} · wire: {wire} · "
+               f"{queued_note} · {sent_note} · "
+               f"record went CLEAN while queued: **{went_clean}** · "
+               f"sentence left the durable record: **{lost_locally}** · "
+               f"store trail: {trail} · wire: {wire} · "
                f"forks: {forks} · outbox left: {(boxes or {}).get('outbox')} · "
                f"conflicts: {(boxes or {}).get('conflicts')} · "
                f"door via {res.get('via', 'n/a')} · sends before the door: {before_door}"
