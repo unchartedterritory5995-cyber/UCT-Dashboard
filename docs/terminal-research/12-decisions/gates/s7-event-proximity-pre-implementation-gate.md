@@ -31,7 +31,8 @@ SCOPE APPROVED:   CP1–CP2 ONLY.
 ```
 APPROVED BY:      Patrick (owner), via Claude Chat middleman
 APPROVED ON:      2026-09-12
-APPROVED AT SHA:  76529e75b   (this packet as it stood at approval)
+APPROVED AT SHA:  4f522011c   (git hash-object of this packet at a31f02374, the
+                  commit that committed line 1 — see the note below)
 SCOPE APPROVED:   CP3 — read-only projection of the legacy cohort for ADMIN-ROLE
                   accounts only; CALENDAR RE-READ PER TICK with the reschedule
                   reset; dark evaluator writes alert_fires + receipts; no
@@ -42,7 +43,36 @@ SCOPE APPROVED:   CP3 — read-only projection of the legacy cohort for ADMIN-RO
                   ⛔ CP4 (all members) and the FLIP each need a new line.
 ```
 
-⚠️⚠️ **TWO BLOCKS, ONE PIN — RECORDED 2026-09-13 BY THE COMPLETION VERIFICATION, NOT RE-SIGNED.**
+✅ **F-GATE-1 — CLOSED 2026-09-13. LINE 2 RE-PINNED; LINE 1 UNTOUCHED.**
+
+**What was wrong.** Both approval blocks carried the identical value ~~`76529e75b`~~, and that
+value is a **COMMIT SHA** — the commit that CREATED this packet. Line 1 was stamped with it in
+`a31f02374`; line 2 was added afterwards in `09785ac95` and **copied the same value**. So line 2
+pinned a commit whose tree contained **only line 1** — a state in which line 2 did not exist. It
+distinguished nothing from line 1 and pinned nothing about what was approved at line 2.
+
+**What line 2 now says.** `4f522011c` — `git hash-object` of **this packet as it stood at
+`a31f02374`**, the commit that committed line 1. That is the state the owner was looking at when
+line 2's scope was granted, and it is the state line 2 should always have named.
+
+```
+git rev-parse a31f02374:docs/terminal-research/12-decisions/gates/s7-event-proximity-pre-implementation-gate.md
+  -> 4f522011c25992fa0f9e0994c0bcd154d9631bd4
+```
+
+⛔ **DERIVED FROM HISTORY, NOT RE-SIGNED AT TODAY'S STATE.** Re-hashing the packet as it stands now
+would pin bytes the owner never read — including this very note — which is the failure mode the
+format exists to prevent. The value is recomputable by anyone, from the repository, forever.
+
+⛔ **LINE 1 IS UNTOUCHED**, deliberately. Its `76529e75b` is the commit-SHA convention applied at
+its own signing, and it does pin real bytes (`git show 76529e75b:<this file>`). Changing it would
+destroy a historical value to satisfy a convention adopted later.
+
+⚠️ **THE OTHER FIVE COMMIT-SHA LINES STAY AS RECORDED** — `s7-price-level` ×2,
+`intelligence-layer` ×2, and line 1 here. They pin bytes; only this one pinned the wrong state.
+**The convention going forward is stated once, in `PROGRAM_STATUS.md`'s gate rule.**
+
+⚰️ The original finding text, kept because the reasoning is the record:
 Both approval blocks in this packet carry the identical value `76529e75b`, and that value is a
 **COMMIT SHA** (`git cat-file -t` says `commit`), not a `git hash-object` content fingerprint.
 

@@ -418,6 +418,24 @@ before any Checkpoint 1 commit.**
 S3 packet satisfied it: written 17:31, Checkpoint 1 at 17:51, same session, same author. Twenty
 minutes of precedence proved nothing. The approval block is what bites.
 
+**b-2. ⛔ THE `AT SHA` IS `git hash-object` OF THE PACKET AT SIGNING TIME, ALWAYS.**
+Adopted 2026-09-13, closing **F-GATE-1**. The value is the content hash of the packet **as the
+owner read it**, with that block's own `AT SHA` field blank — never a commit SHA, never today's
+bytes, never a value copied from a neighbouring block.
+
+⭐ **Why it is the content and not the commit.** A commit SHA does pin bytes via `git show`, and six
+lines in this tree legitimately use that older convention — they stay as recorded. But a commit
+names a whole tree at a moment, so **two approval lines added at different times can end up naming
+the same commit and pinning the same state**, which is exactly what happened: `s7-event-proximity`'s
+line 2 copied line 1's `76529e75b`, a commit whose tree contained only line 1. A content hash cannot
+do that — it changes the moment the packet does.
+
+⛔ **Derive it, never type it:** `python tools/sign_gate.py <packet.md> --by … --on …`. The tool
+targets the block whose field is EMPTY (never the first line a regex happens to match), refuses a
+fully-signed packet rather than overwriting a historical value, and its `--self-check` reproduces
+both failures. ⚰️ Both refusals exist because the tool once destroyed a signed fingerprint and
+reported success.
+
 **c. Three structural requirements, adopted as written:**
 1. **A named approver and an empty approval line** — a SHA and a timestamp someone other than the
    author fills in.

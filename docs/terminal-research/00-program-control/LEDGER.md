@@ -3607,3 +3607,71 @@ inside every window, so it is not a gap today. Marked and continuing.
 (indicator-condition: **180s**, RTH minute cadence — two missed ticks, the same
 reading as price-level and position-risk, not a number copied for tidiness).
 The gate check carries **eight** gates: those seven dark reads plus D2 CP3.
+
+---
+
+## ⚠️ CROSS-PROGRAM ADVISORY — F-FLAG-1: five flags declared `armed` on `web` that read `0` there
+
+> **Advisory. Not Terminal-Next's flags, and nothing was changed.** Recorded 2026-09-13 by the
+> completion verification, from an in-pod read of all 96 `armed@web` ledger entries.
+
+| flag | ledger | in-process on `web` | deliberate? |
+|---|---|---|---|
+| `MASSIVE_WS_ENABLED` | `armed`, `where: [flow-worker, web, worker]` | `'0'` | ✅ **YES** — P5 cutover: flow-worker owns the Massive OPRA consumer; web is explicitly `0` |
+| `FLOW_BACKUP_ENABLED` | `armed`, `where: [flow-worker, web]` | `'0'` | ✅ **YES** — same cutover; flow.db and its jobs live on flow-worker |
+| `FLOW_GAP_AUTOFILL_ENABLED` | `armed`, `where: [flow-worker, web]` | `'0'` | ✅ **YES** — same cutover |
+| `DESK_SESSION_DISCORD_RECAP_ENABLED` | `armed`, `where: [web]` | `'0'` | ⚠️ **UNKNOWN** — no cutover explains it; someone set it `0` and the ledger still says armed |
+| `J2_SHARE_LINKS_ENABLED` | `armed`, `where: [web]` | `'0'` | ⚠️ **UNKNOWN** — same shape |
+
+⭐ **THE POINT IS NOT THE THREE THAT ARE FINE — IT IS THAT THE AUDIT CANNOT TELL THEM APART FROM THE
+TWO THAT MAY NOT BE.** `tools/flag_ledger_audit.py` reports **0 / 0 / 0 / 0** against this exact
+state. Its four questions are about **presence** — *does the ledger claim something no service sets?
+does a service set something the ledger calls off?* — and none of them is *"is it ON where the
+ledger says it is?"* For a flag listed on two services, "some service sets it" is satisfied by the
+service where it is on, and the service where it is off is never examined.
+
+⛔ **THIS IS A SCOPE FACT, NOT A BUG, AND IT HAS BEEN WRITTEN INTO THE TOOL'S OWN DOCSTRING** so the
+next reader knows what `0/0/0/0` covers. **The audit's behaviour is deliberately unchanged.**
+
+⚠️ **FOLLOW-UP, NAMED AND NOT OURS: the flow workstream** owns the three cutover flags and the
+`where` convention they expose. The question for them is whether `where` should mean *"the variable
+exists here"* or *"the feature is ON here"* — today it is read as the second and means the first.
+The two UNKNOWN rows belong to the Desk and Journal-2.0 workstreams respectively.
+
+⛔ **NO FLAG WAS CHANGED BY THIS PASS.**
+
+---
+
+## ⚠️ CROSS-PROGRAM ADVISORY — stacked master pushes served 502s through the swap
+
+> Observed 2026-09-13, 21:08–21:16 UTC, while this programme was running read-only verification.
+
+**Three deploys in eight minutes**, none of them ours:
+
+```
+21:08:12  e5dfb23fb  merge(wisdom): S-B core rails — the first Wisdom Loop merge to master
+21:14:35  b66363b9d  feat(joystick): the owner-run intake
+21:16:21  aa2acfcd2  docs(joystick): stage 2 is READY-AND-GATED
+```
+
+During the overlap `https://uctintelligence.com/api/health` returned **502**, and a `railway ssh`
+probe into `web` was refused with *"Your application is not running or in a unexpected state."*
+Each push marked the previous deployment `REMOVED` before the next was `SUCCESS`.
+
+⭐ **THE COST IS NOT THE BLIP — IT IS THAT EVERY INSTRUMENT IN FLIGHT BECOMES UNREADABLE, AND NO
+SESSION CAN TELL WHOSE CHANGE DID IT.** This verification's in-pod probe failed mid-run against a
+pod that was neither the old build nor the new one. A reading taken across a stacked swap is not a
+reading of either commit.
+
+**PROPOSED RULE, for every session — ours to write down, not ours to enforce:**
+
+> **One master push. Wait for Railway `web` to report `SUCCESS` *on that commit hash*. Then the
+> next push.** Not "wait a bit", not "watch the logs" — poll the deployment list for the hash you
+> pushed, because `SUCCESS` on somebody else's commit is not evidence about yours.
+
+⚠️ This is the same rule already written in this repo's `CLAUDE.md` as *"ONE MASTER MERGE AT A TIME,
+REPO-WIDE"*, which cites the 2026-09-12 502 and the lost 23:00 sampler row. **It was already the
+rule and it was not followed**, which is the part worth recording: a rule that lives only in a file
+nobody opens before pushing is a rule with no reader. A one-line pre-push check — *is the last
+deployment `SUCCESS` on the commit before mine?* — would enforce it mechanically, and nobody owns
+that today.
