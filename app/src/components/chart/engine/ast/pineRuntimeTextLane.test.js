@@ -29,22 +29,58 @@ const BARS = [
 const told = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {}, ...runtimeClockOpts(false) })
 
 describe('⛔⛔ the text refusal no longer promises what this lane cannot deliver', () => {
-  it('the IR lane still refuses both member scripts, at the same lines', () => {
-    // ⭐ THE BEHAVIOUR IS DELIBERATELY UNCHANGED. Option B fixes the SENTENCE and
-    // leaves the lane alone until session 3's text layer — so this pins the
-    // measurement rather than a new capability.
+  it('⭐⭐ SESSION 3 ARRIVED — the text refusal no longer stops either script', () => {
+    // ⚰️ THIS CASE USED TO PIN `pine:text-value` AT 153 AND 151, under a note
+    // saying the behaviour was "deliberately unchanged … until session 3's text
+    // layer". That is this work (R2 step 5). A definition this lane cannot
+    // compile is no longer fatal at its DEFINITION: the refusal is kept against
+    // the name, re-raised at the first call site, and a helper nobody calls is
+    // reported instead. `f_getTablePos` positions a table and is called by
+    // nothing this lane models, so an unreachable helper's text is no longer the
+    // reason a 34,378-character script produces zero columns.
     const a = told(V2)
     const b = told(V1)
-    expect(a.ok).toBe(false)
-    expect(a.refusal.guard).toBe('pine:text-value')
-    expect(a.refusal.line).toBe(153)
-    expect(b.ok).toBe(false)
-    expect(b.refusal.guard).toBe('pine:text-value')
-    expect(b.refusal.line).toBe(151)
+    expect(a.refusal.guard).not.toBe('pine:text-value')
+    expect(b.refusal.guard).not.toBe('pine:text-value')
+    // ⭐ AND THE LANE GETS FURTHER: 40 statements before, 77 now.
+    expect(a.diagnostics.statements).toBe(77)
+    expect(b.diagnostics.statements).toBe(76)
+    // ⛔ NOTHING WAS SWALLOWED. Every skipped definition is named with its line
+    // and the guard it hit — four on each script, the same four.
+    expect(a.diagnostics.skippedFunctions).toEqual([
+      'f_getTablePos@153 pine:text-value',
+      'f_getVolumeUnit@161 runtime:tuple',
+      'f_formatVolume@174 runtime:call-text-state',
+      'f_getDailyData@190 pine:collection',
+    ])
+    expect(b.diagnostics.skippedFunctions).toHaveLength(4)
   })
 
-  it('⭐ and it now says what actually happens here', () => {
-    const r = told(V2)
+  it('⭐ and where BOTH now stop is the same line, named — the R-K symbol seam', () => {
+    // `if not isRatioSymbol`, whose value is v2:224's
+    // `str.contains(syminfo.ticker, "/") or …`. The IR lane has no symbol
+    // plumbing at all: item 1 threaded `{ticker, exchange}` through
+    // `binder.sync` → `computeFor` for the DEFINITION lane, and this lane raises
+    // its refusal while LOWERING, before any `interpret` call could see one.
+    for (const [r, line] of [[told(V2), 249], [told(V1), 247]]) {
+      expect(r.ok).toBe(false)
+      expect(r.refusal.line).toBe(line)
+      expect(r.refusal.message).toContain('syminfo.ticker')
+    }
+  })
+
+  it('⭐ the lane-specific SENTENCE is unchanged, on a script that still trips it', () => {
+    // ⛔ The wording ruling (D2 option B) is about which sentence each lane uses,
+    // and it still holds — it just needs a script whose text refusal actually
+    // fires here now: one that CALLS the helper rather than merely defining it.
+    const r = told(`//@version=6
+indicator("t", overlay=true)
+f_pos(_p) =>
+    _p == 'Top Left' ? 1 : 2
+plot(f_pos('Top Left'))
+`)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('pine:text-value')
     expect(r.refusal.message).not.toContain('numeric plots still run')
     expect(r.refusal.message).toContain('none of this script runs here')
     expect(r.refusal.message).toBe(RUNTIME_LANE_REFUSALS['pine:text-value'])

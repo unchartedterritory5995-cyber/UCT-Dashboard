@@ -452,6 +452,21 @@ export function buildRuntimeIr(source, opts = {}) {
   const carried = []
   const functions = []
   const fnByName = new Map()
+  /** name → the refusal its DEFINITION hit, re-raised at the first call site.
+   *  See the deferral in the statement walk for why a definition is not fatal. */
+  const deferredFnRefusals = new Map()
+  /** `name@line guard` for every definition this lane skipped and nobody called
+   *  — reported so an unreachable helper is NAMED rather than invisible. */
+  const skippedFunctions = []
+  /** ⛔ THE ONE AUTHORITY FOR "is this name a user function", and it has to be
+   *  one because a refused definition can leave the name in EITHER place.
+   *  `defineFunction` registers into `fnByName` only after its parameter list
+   *  reads, so a definition that dies ON the parameters (`f(x = 3) => …`) never
+   *  gets there and is known only by its held refusal. Asking `fnByName` alone
+   *  sends `f(close)` to the columnar Resolver, which has never heard of `f` and
+   *  answers `pine:function` — "there is no such function" about a function the
+   *  member can see one line up. */
+  const isUserFn = (name) => fnByName.has(name) || deferredFnRefusals.has(name)
   const callSites = []
   const root = new Scope(null)
 
@@ -530,7 +545,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // Inside a function, a GLOBAL mutable name must also reach the runtime path
     // — only so it can be refused precisely there.
     if (node.type === 'name' && guardOuter && guardOuter.lookup(node.name) !== null) return true
-    if (node.type === 'call' && fnByName.has(node.name)) return true
+    if (node.type === 'call' && isUserFn(node.name)) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
       if (needsRuntime(node[k], scope)) return true
     }
@@ -879,6 +894,14 @@ export function buildRuntimeIr(source, opts = {}) {
         // locals: `f(1)` and `f(10)` on two lines are two sites, so a `var`
         // inside `f` is two independent counters, which is Pine's semantics and
         // the single most important thing this wave has to get right.
+        // ⛔ A DEFERRED REFUSAL COMES BACK HERE, AT THE CALL. The definition
+        // could not be compiled; this is the first line that actually needs it,
+        // so this is where a member is told.
+        if (deferredFnRefusals.has(node.name)) {
+          const held = deferredFnRefusals.get(node.name)
+          note(held && held.guard ? held.guard : 'runtime:function')
+          throw held
+        }
         const fnIndex = fnByName.get(node.name)
         if (fnIndex !== undefined) {
           const fn = functions[fnIndex]
@@ -1140,7 +1163,57 @@ export function buildRuntimeIr(source, opts = {}) {
       {
         const arrow = findTop(toks, (t) => isPunct(t, '=>'))
         if (arrow > 0) {
-          defineFunction(st, toks, arrow)
+          // ⭐⭐ R2 STEP 5 — A DEFINITION THIS LANE CANNOT COMPILE IS NOT FATAL
+          // UNTIL SOMETHING CALLS IT.
+          //
+          // ⚰️ MEASURED ON `uncharted-volume-v2.pine`: the whole program refused
+          // at `pine:text-value@153`, `f_getTablePos` — a three-line helper that
+          // maps an `input.string` to a `position.*` enum and is called by
+          // NOTHING this lane models. It positions a table. Compiling every
+          // definition eagerly made an unreachable helper's text the reason a
+          // 34,378-character script produced zero columns, and the refusal named
+          // a line whose value no column depends on.
+          //
+          // ⛔ NOTHING IS DROPPED (§18). The refusal is KEPT against the name and
+          // re-raised at the first call site, so a script that genuinely needs
+          // the function still refuses — at the CALL, which is the line a member
+          // would have to change. A function nobody calls is reported as a
+          // diagnostic instead, so "unreachable" is a measurement and not a
+          // silence.
+          try {
+            defineFunction(st, toks, arrow)
+          } catch (err) {
+            const nameTok = toks[0]
+            const fname = nameTok && nameTok.kind === 'ident' ? nameTok.value : null
+            if (!fname) throw err
+            // ⛔ THE HALF-BUILT RECORD MUST GO, NOT JUST STOP COMPILING.
+            // `defineFunction` registers the record BEFORE compiling the body so
+            // a self-call reads as recursion; a body that then throws leaves a
+            // record with `frameSize 0` and its parameters still declared, and
+            // `makeIrProgram` correctly refuses that — "functions[0] `f_pos`:
+            // frameSize 0 cannot be smaller than its 1 parameters", a refusal
+            // about our own leftovers rather than about the script.
+            const idx = fnByName.get(fname)
+            if (idx !== undefined) {
+              // ⛔ THE HALF-BUILT RECORD GOES; THE NAME STAYS. `defineFunction`
+              // registers before compiling so a self-call reads as recursion, and
+              // a body that throws leaves a record with `frameSize 0` and its
+              // parameters declared — which `makeIrProgram` then refuses, with a
+              // sentence about OUR leftovers rather than about the script.
+              // ⛔ But the NAME must remain in `fnByName`: it is what routes a
+              // call to the user-function arm at all. Delete it and
+              // `f_pos('Top Left')` reads as an unknown builtin and reports
+              // `pine:function` — "there is no such function" — about a function
+              // the member can see three lines up. The deferred refusal is
+              // re-raised before the index is ever dereferenced.
+              if (idx === functions.length - 1) functions.pop()
+              else if (functions[idx]) functions[idx].compiling = false
+            }
+            deferredFnRefusals.set(fname, err)
+            const at = locate(nameTok)
+            skippedFunctions.push(
+              `${fname}@${at ? at.line : '?'} ${err && err.guard ? err.guard : 'refused'}`)
+          }
           continue
         }
       }
@@ -1402,6 +1475,13 @@ export function buildRuntimeIr(source, opts = {}) {
   try {
     statements = lowerStmts(stmts, root)
   } catch (e) {
+    // ⭐⭐ R2 STEP 5 — THE SKIPPED LIST IS ATTACHED ON THE FAILING PATH TOO.
+    // ⚰️ It was set after the walk's early returns, so a program that refused
+    // for some LATER reason reported `skippedFunctions: undefined` — and the one
+    // question a reader has at that moment is "what did this lane decide not to
+    // compile before it got here". A diagnostic only present on success is a
+    // diagnostic absent exactly when it is needed.
+    if (skippedFunctions.length) diagnostics.skippedFunctions = [...skippedFunctions]
     // The fallback: a refusal that knows no location inherits the STATEMENT's,
     // so `line: null` never reaches a member. Marked `approximate` so nobody
     // later reads it as the offending sub-expression's own position.
@@ -1508,6 +1588,7 @@ export function buildRuntimeIr(source, opts = {}) {
     return fail(new RuntimeRefusal('runtime:no-output', null, null), diagnostics)
   }
 
+  if (skippedFunctions.length) diagnostics.skippedFunctions = [...skippedFunctions]
   diagnostics.columns = columns.length
   diagnostics.slots = slots.length
   diagnostics.functions = functions.length
