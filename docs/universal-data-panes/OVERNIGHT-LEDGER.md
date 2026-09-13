@@ -53,21 +53,27 @@ git worktree remove --force C:/w/p2b
 ## OVERNIGHT SESSION — 2026-09-12 / 13
 
 ### CURRENT PHASE
-Overnight slice 1 — P2.3 follow-up: orphaned pane-guest UX (Ruling A) and
-collision-scoped duplicate ordinals (Ruling B).
+Overnight slice 2 — Universal Data Panes completion pass (the trader workflow,
+end to end, in the browser).
 
 ### CURRENT STATUS
-Checkpoint established. Slice 1 not started.
+Slice 1 complete and checkpointed.
 
 ### BRANCH
 `feat/universal-data-series`
 
 ### HEAD
-`d1d66c7a8`
+`7fa4d70f9`
 
 ### LAST KNOWN GOOD COMMIT
-`d1d66c7a8` — feat(charts): universal data panes — instance-hosted panes, direct
-series, composition. (Parent/base: `735704fd7`.)
+`7fa4d70f9` — fix(chart): state a missing pane target, and scope duplicate
+ordinals. (Base of the whole branch: `735704fd7`.)
+
+Checkpoints, newest first:
+- `7fa4d70f9` slice 1 — Rulings A and B, plus direct-series naming and the
+  source-control fix
+- `ca8c7a80f` / `692ed9c83` this ledger
+- `d1d66c7a8` P2.0c → P2.3 and the multi-pane scale fix
 
 ### WORKING TREE STATUS
 Clean at the time of writing.
@@ -92,6 +98,21 @@ Clean at the time of writing.
   indicator against the wrong instrument. Validator widened; renderer-level rail
   added.
 
+**Slice 1 (`7fa4d70f9`) — Rulings A and B**
+- Ruling A: a guest whose host was deleted keeps its placement, draws nothing,
+  and the settings control STATES it — a disabled "Pane unavailable" entry plus
+  one line of explanation. Nothing is written during render.
+- Ruling B: ordinals are scoped to the colliding LABEL, so `QQQ #1` / `QQQ #2` /
+  `SPY` — never `SPY #3`.
+- `disambiguateLabels` extracted in `readout.js`; the legend, the Display In menu
+  and the settings rows all call it over the same population, so the three
+  surfaces cannot word an instance differently.
+- A direct series' settings row is named after its instrument, not "Data Series",
+  and its category badge is suppressed. Gated on `meta.labelFrom`, not on an id.
+- The Source control passed three arguments to `sourceOptions` and so could not
+  represent its own value: every direct series read "Source unavailable" over a
+  valid `sym:…` source. Fixed; a severed source still reads unavailable.
+
 ### IMPORTANT DECISIONS
 - Pane sharing persists as `placement.target = "@<hostInstanceId>"` on the GUEST.
   No pane ids are minted or persisted, ever.
@@ -100,14 +121,22 @@ Clean at the time of writing.
   source.
 - Definitions remain restricted to the three static placement targets
   (`price|pane|volume`); only INSTANCES may carry `@host`.
+- A missing pane target is shown WITHOUT a name, because the tombstone carries
+  none. Naming it would require widening `instanceTombstone`, which is a
+  persistence decision and contradicts that helper's stated design. STOPPED —
+  see PRODUCT QUESTIONS.
 - P2.0c→P2.3 committed as ONE checkpoint: the phases share files and only the
   combined state was ever tested end to end. A per-phase split would have been
   history that was never verified.
 
-### TEST EVIDENCE (at `d1d66c7a8`)
-- Focused: `paneComposition.test.js` 15 pass; `stockChartWiring.test.jsx` 218 pass
-  (includes the 3 renderer-level P2.3 rails).
-- Broader: full frontend suite **19,534 pass / 16 fail / 12 skipped**.
+### TEST EVIDENCE (at `7fa4d70f9`)
+- Focused: `paneComposition.test.js` 22 pass; `readout.test.js` 34 pass;
+  `ChartSettingsModal.indicators.test.jsx` 39 pass; `stockChartWiring.test.jsx`
+  218 pass (includes the 3 renderer-level P2.3 rails).
+- Bite-checks: reverting Ruling B's grouping → 7 red; removing the missing-target
+  entry → 2 red; removing the self-target guard → 1 red; narrowing the instance
+  validator → 2 red.
+- Broader: full frontend suite **19,554 pass / 16 fail / 9 skipped**.
 - Build: `vite build` clean; dev harness absent from `dist`.
 - Browser: harness at `/pane-harness.html` — QQQ+MA(QQQ) one pane (715.44 /
   714.88), QQQ+SPY one pane, SPY back to Own Pane, UCTA50+MA(UCTA50), duplicate
@@ -154,11 +183,19 @@ untouched, must not be closed or restarted. `:5188` belongs to worktree `C:\w\wm
   bar predates the chart's last bar (UCTA50 to 2026-08-24 vs AAPL to 09-11). This
   is exact-`t` alignment with no forward fill, working as designed.
 
+### PRODUCT QUESTIONS FOR BLAKE
+1. **Naming a missing pane host.** Ruling A asked for `QQQ (missing)`. The host's
+   name is genuinely unrecoverable: `instanceTombstone` is `{instanceId,
+   deleted: true}` and its own comment says a delete must not keep the user's old
+   settings in the blob. Shipped the truthful nameless form, "Pane unavailable".
+   To get the name back, the tombstone would have to carry a display label — a
+   persistence change, deliberately not taken.
+
 ### NEXT AUTHORIZED ACTION
-Overnight slice 1: implement Ruling A (missing pane-target UX — preserve intent,
-show `QQQ (missing)`, no auto re-home, no raw ids, no state mutation during
-render) and Ruling B (ordinals scoped to actually-colliding human labels, generic,
-no `dataSeries` special case).
+Overnight slice 2 — the Universal Data Panes completion pass: add QQQ / SPY /
+UCTA50 / RSI, compose and separate them, duplicate, manage (hide/show, settings,
+style, move, delete, re-add), reconstruct, and verify identity, labels, pane
+order, scales, legends and console. Fix only small, clear, reproducible defects.
 
 ### STOP CONDITIONS
 None active.
