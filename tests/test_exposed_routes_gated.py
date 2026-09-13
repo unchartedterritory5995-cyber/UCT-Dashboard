@@ -88,6 +88,25 @@ from api.middleware.auth_middleware import (  # noqa: E402
 # `flow_proxy._inject_proxy_auth` and vouches by HMAC. `require_paid` there would
 # consult `get_user_plan` on a pod that cannot reach the users table.
 GATED: dict[tuple[str, str], str] = {
+    # ── CHART DATA ───────────────────────────────────────
+    # 🔴 THE SURFACE THAT ESCAPED THE 2026-08-09 SWEEP. `auth_surface_check` only
+    # inspects MUTATING methods, so a GET data API is invisible to it, and this table
+    # is an allow-list nobody added these rows to — while `/api/bars` grew into a
+    # general data API serving UCT's own breadth. The SECOND and THIRD apps serving
+    # the same data (bars-api tier, worker) are railed in
+    # `tests/test_bars_data_auth.py` and `tests/test_worker_bars_history_auth.py`,
+    # which this table cannot see because it reads `api.main:app` alone.
+    ("GET", "/api/bars/{ticker}"): "bars",
+    ("GET", "/api/bars-history/{ticker}"): "bars",
+    ("GET", "/api/bars-today-pack"): "bars",
+    ("POST", "/api/bars/warm"): "bars",
+    ("GET", "/api/barspack/manifest"): "bars",
+    ("GET", "/api/barspack/{date}/delta"): "bars",
+    ("GET", "/api/barspack/{date}/hot"): "bars",
+    ("GET", "/api/barspack/{date}/{idx}"): "bars",
+    ("GET", "/api/breadth-symbols"): "bars",
+    ("GET", "/api/stream/bars"): "bars",
+    ("GET", "/api/bars/_debug_source/{ticker}"): "admin",
     # ── P0: destructive / cost-bearing, was anonymous ────────────────────────
     ("POST", "/api/top-flow/purge-old/{keep_days}"): "flow_admin",
     ("POST", "/api/cot/reseed"): "admin",
@@ -210,6 +229,12 @@ GATED: dict[tuple[str, str], str] = {
 #: that pins the theme pool on the single web pod. Verified structurally instead.
 #: `lesson_never_probe_a_mutating_endpoint_to_test_auth`.
 NEVER_PROBED = {
+    # ⛔ AN SSE STREAM, AND THE HAZARD IS THE OPPOSITE END OF THE USUAL ONE. A
+    # refused probe is harmless; a PAID probe SUCCEEDS, and success means an open
+    # EventSource the sweep would hang on, holding a broadcaster admission slot.
+    # Verified structurally here, and driven anonymously in
+    # `tests/test_bars_data_auth.py` where the refusal is immediate.
+    ("GET", "/api/stream/bars"),
     ("POST", "/api/cot/reseed"),
     ("POST", "/api/cot/refresh"),
     ("POST", "/api/theme-performance/refresh"),
@@ -226,6 +251,12 @@ PATH_PARAM_SAMPLES = {
     "metric_key": "up_4pct_today_list",
     "group_id": "ai",
     "detection_id": "no-such-detection",
+    # ── chart-data pack shards ────────────────────────────
+    # ⛔ A date no pack was published for, and a shard index that does not exist:
+    # both routes are pure reads of a published artifact, so if the gate ever came
+    # off this pair asks for nothing real rather than handing the sweep a real pack.
+    "date": "1970-01-01",
+    "idx": "no-such-shard",
     # ⛔ A JOB ID THAT BELONGS TO NOBODY, ON PURPOSE. The run service answers
     # not-there and not-yours identically (404), so a probe with this cannot
     # read a real member's hits and cannot start any compute.
@@ -443,6 +474,16 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # disagreement is ever resolved — in either direction — that test goes red and
     # this paragraph has to be rewritten instead of quietly becoming false.
     ("paid",       lambda n, o: "require_paid" in n or _is_paid_plan_gated(o),
+                                                           frozenset({"paid", "admin"})),
+    # ⭐ THE CHART-DATA RUNG. `require_bars_access` gates `/api/bars`,
+    # `/api/bars-history`, `/api/bars-today-pack`, `/api/barspack/*`,
+    # `/api/stream/bars` and `/api/breadth-symbols`. It reads the cookie ITSELF — like
+    # the flow family, and for the same structural reason (a second app serving this
+    # data has no auth.db) — so neither `get_current_user in o` nor the `require_paid`
+    # name reports it, and without a rung every one of those rows would read as
+    # "NO GATE AT ALL". Admits paid + admin over this file's three declared callers,
+    # measured below beside the others.
+    ("bars",       lambda n, o: "require_bars_access" in n,
                                                            frozenset({"paid", "admin"})),
     ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
     ("admin",      lambda n, o: require_admin in o,        frozenset({"admin"})),
@@ -675,6 +716,13 @@ def _client(app, user, monkeypatch=None):
         if monkeypatch is not None:
             import api.flow_admin_auth as fa
             monkeypatch.setattr(fa, "validate_session", lambda _c: dict(user))
+            # ⭐ AND THE CHART-DATA FAMILY, same reason and same trap: it reads the
+            # cookie itself, so the `get_current_user` overrides above reach it no
+            # more than they reach flow.
+            import api.bars_auth as ba
+            monkeypatch.setattr(ba, "validate_session", lambda _c: dict(user))
+            monkeypatch.setattr(ba, "get_user_plan",
+                                lambda _i: dict(user).get("plan", "free"))
     # ⛔ `raise_server_exceptions=False` IS DELIBERATE AND IT IS NOT LENIENCY.
     # This file measures ONE thing: did the gate refuse this caller. A handler
     # that throws because a store is absent on a dev box (`no such table:
@@ -1102,6 +1150,31 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
 
     measured["flow_user"] = _flow_admits(fa.require_flow_user)
     measured["flow_admin"] = _flow_admits(fa.require_flow_admin)
+
+    # ⭐ THE CHART-DATA DOOR, measured the same way: it reads the cookie itself, so
+    # the patch goes on ITS module. `get_user_plan` is patched too — `meets_plan_gate`
+    # reads `user["plan"]`, and leaving the real lookup in would rank this rung on
+    # whatever a test database happened to say.
+    # ⚠️ `authorization=""` IS PASSED EXPLICITLY: called as a plain function the
+    # FastAPI default is a `Header()` OBJECT, which `_push_secret_ok` would hand to
+    # `hmac.compare_digest` — a TypeError, but only when PUSH_SECRET happens to be
+    # set, and four test modules set it at IMPORT time.
+    import api.bars_auth as ba
+
+    def _bars_admits() -> set[str]:
+        out = set()
+        for name, user in callers.items():
+            monkeypatch.setattr(ba, "validate_session", lambda _c, _u=user: dict(_u))
+            monkeypatch.setattr(ba, "get_user_plan", lambda _i, _u=user: _u["plan"])
+            try:
+                if ba.require_bars_access(uct_session="test-session",
+                                          authorization="") is not None:
+                    out.add(name)
+            except HTTPException:
+                pass
+        return out
+
+    measured["bars"] = _bars_admits()
 
     # ⭐ THE MACHINE DOOR. `require_push_secret` never looks at a user — it reads
     # one header — so the honest admit-set over this file's three declared

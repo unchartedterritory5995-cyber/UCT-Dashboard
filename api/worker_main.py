@@ -724,12 +724,25 @@ def _build_app() -> FastAPI:
     # holding or fetching the 20 GB (the 2026-08-31 OOM class). READ-ONLY: serve_bars_history
     # never fetches/writes. Gated OFF + lazy-imported (boot path UNCHANGED until cutover).
     if os.environ.get("BARS_HISTORY_ORIGIN_ENABLED", "0") == "1":
-        from fastapi import Query as _Q
+        from fastapi import Depends as _Dep, Query as _Q
         from api.routers.bars import serve_bars_history as _serve_hist
+        # 🔴 THE DEEP-HISTORY ORIGIN IS A CHART-DATA DOOR. This route holds the
+        # 20 GB deep store the production history path is actually fed from — the web
+        # pod does not hold deep history, it proxies here.
+        #
+        # ⛔ SERVICE TOKEN, NEVER A MEMBER COOKIE. This pod has no `auth.db`, and its
+        # only legitimate caller is the web pod’s `_proxy_bars_history_to_worker` over
+        # Railway private networking. Its credential is INFRASTRUCTURE IDENTITY; the
+        # member question was already answered upstream on the pod that can answer it.
+        #
+        # ⚠️ The worker has no public Railway domain today, so this is defence in
+        # depth — written not to depend on that staying true.
+        from api.bars_auth import require_bars_service
 
         @app.get("/api/bars-history/{ticker}")
         def _worker_bars_history(
             ticker: str,
+            _svc: dict = _Dep(require_bars_service),
             tf: str = "D",
             bars: int = _Q(default=60000, ge=1, le=60000),
             v: str = "",

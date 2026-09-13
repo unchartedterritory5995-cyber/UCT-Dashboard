@@ -433,9 +433,10 @@ def measured(page, ledger, label, fn, results):
 
 
 def open_more_and_pick(page, root, name):
-    root.locator("button[aria-haspopup='listbox']").click()
+    # C3 (A-24, D-032): More is a disclosure of buttons, not a listbox of options.
+    root.get_by_role("button", name=re.compile(r"^More")).click()
     page.wait_for_timeout(300)
-    root.get_by_role("option").filter(has_text=name).first.click()
+    root.get_by_role("button", name=re.compile("^" + re.escape(name))).first.click()
 
 
 def run_width(browser, storage, width, out_dir, geometry_log, prefs_ledger):
@@ -511,11 +512,11 @@ def run_width(browser, storage, width, out_dir, geometry_log, prefs_ledger):
         measured(page, ledger, "preset: Breadth vs Price", lambda: pill("Breadth vs Price").click(), res["interactions"])
         capture(page, out_dir, "preset-breadth-vs-price", width, geometry_log)
 
-        root.locator("button[aria-haspopup='listbox']").click()
+        root.get_by_role("button", name=re.compile(r"^More")).click()
         page.wait_for_timeout(400)
         capture(page, out_dir, "more-popover", width, geometry_log, tall=False, viewport_too=True)
         measured(page, ledger, "preset: Full MA Term Structure (More)",
-                 lambda: root.get_by_role("option").filter(has_text="Full MA Term Structure").first.click(),
+                 lambda: root.get_by_role("button", name=re.compile(r"^Full MA Term Structure")).first.click(),
                  res["interactions"])
         capture(page, out_dir, "preset-full-ma-term-structure", width, geometry_log)
 

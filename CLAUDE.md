@@ -1714,6 +1714,34 @@ directory junction to an installed `node_modules` is enough:
 — and **delete the junction with `cmd /c rmdir` BEFORE `git worktree remove`**, or the remove
 walks through it and deletes the real one.
 
+> ⚰️⚰️ **AND THE REMOVAL ITSELF DELETED THE TARGET, 2026-09-13.** The warning above was followed
+> in spirit and the `node_modules` of a live worktree was still emptied — 368 packages gone, mid
+> programme. **The command matters as much as the order:**
+>
+> - **`cmd /c rmdir <link>`** — no `/s`. It removes the LINK only.
+> - ⛔ **`Remove-Item -Recurse`, `rm -rf`, and `[IO.Directory]::Delete(path, true)` FOLLOW the
+>   junction and delete the TARGET's contents.** `-Recurse` is the whole hazard; without it
+>   PowerShell refuses a non-empty directory, which is the refusal you want.
+> - ⛔ **`cmd //c` through Git Bash is not `cmd /c`.** The path is mangled (`//c` → `/c`) and the
+>   command fails with *"The filename, directory name, or volume label syntax is incorrect"* —
+>   which reads as a typo, so the next thing tried is usually the PowerShell one that destroys the
+>   target. Run it from the PowerShell tool, or quote it so bash cannot rewrite it.
+>
+> ⭐ **VERIFY BEFORE REMOVING, because a junction and a real directory look identical in `ls`:**
+>
+> ```powershell
+> Get-Item <link> -Force | Select-Object LinkType, Target
+> ```
+>
+> `LinkType` is `Junction` and `Target` names the real path. ⛔ `Get-Item` WITHOUT `-Force` can
+> report `LinkType` empty on a reparse point — on 2026-09-13 it printed `is junction: False` for a
+> junction that had resolved 372 entries a minute earlier, and that false negative is what made
+> deleting it look safe. **Never conclude "not a junction" from an unforced read.**
+>
+> ⭐ And afterwards, verify the TARGET, not the link: `ls <existing>/app/node_modules | wc -l`
+> against the count you started with. A missing `node_modules` is recoverable (`npm ci`, ~370
+> packages) but only on a quiet box, so the damage is discovered at the worst possible moment.
+
 ## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
 
 **`/data` exists as `C:\data` on the dev machine, so every product path that
