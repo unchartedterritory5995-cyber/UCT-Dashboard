@@ -262,7 +262,7 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | # | unit | authorized | state | SHA |
 |---|---|---|---|---|
 | 1 | **D3 CP1** — ratification rail, no runtime | `00ebb5e80` | ✅ **DONE** | **`302f99e8e`** |
-| 2 | **D4 CP1** — ⛔ **SCOPE CONFLICT, see below** — the packet's CP1 is a test file; the owner's scope is its CP2+CP3, and CP3 strands | `37bfe4251` | ⛔ **needs a ruling** | — |
+| 2 | **D4 CP1** — the derived per-set-key rail | `40caca541` | ⬜ **ATTEMPTED, NOT MERGED** — the detector is not trustworthy yet; see below | — |
 | 3 | **S5 CP1** — extract Notebook's pattern, Notebook unchanged | `37e1823a6` | ⬜ | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
@@ -282,56 +282,43 @@ time. Anything in flow-worker's closure that would strand waits for **16:05 ET o
 marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
 merge, and record the reason here.
 
-### Unit 2 — D4 CP1 · ⛔ NOT STARTED — A SCOPE CONFLICT THE NEXT SESSION MUST SETTLE FIRST
+### Unit 2 — D4 CP1 · ⛔ ATTEMPTED, NOT MERGED. Nothing is on master.
 
-**Do not build this unit until the conflict below is resolved. It is not a blocker discovered
-mid-build; it is visible from the packet and is recorded here so nobody rediscovers it.**
+✅ **THE SCOPE CONFLICT IS RESOLVED.** The owner re-numbered the packet 2026-09-13 and signed
+three lines at fingerprint **`40caca541`**: CP1 the derived rail (no product code), CP2 adopter 1
+`watchlist_performance.py` with the `wl_perf` key fix, CP3 adopter 2 `theme_performance`+`groups`
+with its classification **pre-declared BEHAVIOUR-CHANGING**. `cache.py` is in no checkpoint.
 
-⛔ **THE OWNER'S SCOPE AND THE PACKET'S OWN CHECKPOINT NUMBERING DESCRIBE DIFFERENT WORK.**
+⛔ **THE RAIL WAS BUILT AND IS NOT TRUSTWORTHY, SO IT WAS NOT MERGED.** The working copy is kept
+at `scratchpad/d4cp1/` and the repo tree is clean — **nothing partial is on master.**
 
-| | says CP1 is |
-|---|---|
-| **the signed approval line** (`37bfe4251`) | *"the first two of the five named adopters, additive, with a hit-rate counter; snapshot-identity on served values"* |
-| **the packet's own §4 table** | *"the spec's §2.4 four rules written down as a DERIVED rail… **No product code changes. No key renamed. No module touched.**"* — a test file |
+**Five defects in my own detector, each caught by the rail's own controls, in order:**
 
-The packet's §8 recommendation is explicit: *"Sign CP1 alone, or sign nothing yet. CP1 is a test
-file."* The owner's "first two adopters" maps to the packet's **CP2 + CP3**.
+| # | defect | caught by |
+|---|---|---|
+| 1 | `ROOT.rglob("api/**/*.py")` matches nothing — `rglob` already recurses | the non-vacuity control (scan returned **0** across six known modules) |
+| 2 | read only the ARGUMENT expression; every real site assigns the key to a local first and passes a bare Name | still 0 |
+| 3 | `_KEYED = {"get","set",…}` matched `dict.get`, `session.get` — six unrelated modules reported as undeclared cache sites | the declaration list becoming absurd |
+| 4 | one assignment hop was not enough — `live_prices` builds the key TWO hops back, so **the one site the spec holds up as CORRECT was the one the detector could not see** | its own declared-site test |
+| 5 | the assignment map was MODULE-WIDE, so a `key` built from a join in one function matched a `key` in another | two false positives in `api/main.py`, `massive.py` |
 
-⛔⛔ **AND THE SECOND ADOPTER STRANDS FLOW-WORKER. Measured, not read off the packet:**
+⛔ **The fix for #5 (resolve each call against its innermost enclosing scope) is O(n²) as written
+and hangs the suite.** That is where it stands.
 
-```
-  outside     api/services/watchlist_performance.py   <- adopter 1 (packet CP2)
-  IN CLOSURE  api/services/theme_performance.py       <- adopter 2 (packet CP3)
-  IN CLOSURE  api/services/groups.py                  <- adopter 2 (packet CP3)
-  IN CLOSURE  api/services/cache.py                   <- D4-D says DO NOT TOUCH
-```
+⭐ **WHY THIS IS RECORDED RATHER THAN PUSHED THROUGH.** A rail whose population is wrong does not
+fail safe — it produces a DECLARATION LIST, and a false positive declared as a real cache site is
+a lie that outlives the session. Declaring `api/main.py` and `massive.py` to make it green would
+have been the fastest path and the worst outcome.
 
-So "the first two adopters" cannot be built as one non-stranding unit. The packet's §4 already
-flags CP3 as *"the ONLY one that can strand"*, and D4-D's reasoning is that a flow-worker restart
-drops the Massive OPRA socket, which **does not replay** — the gap is permanent until the T+1 flat
-file.
+**WHAT THE NEXT SESSION SHOULD DO:** replace the innermost-scope walk with a single pass that
+carries a parent stack (`ast.iter_child_nodes` with an explicit scope stack), so ownership is
+O(n). The rest of the rail — the six DECLARED rows, the four verdict classes, the anti-pattern
+rows naming their checkpoint, the CP1-touched-no-product-code assertion — is written and was
+passing 11 of 12.
 
-**THE THREE WAYS FORWARD, for the owner to pick — none taken:**
-
-- **A) Build the packet's CP1 (the derived rail) and re-number.** Matches the packet, strands
-  nothing, and is what §8 recommends. The adopters become CP2/CP3 with their own lines.
-- **B) Build adopter 1 only** (`watchlist_performance`, outside the closure) with the hit-rate
-  counter and snapshot-identity, and hold adopter 2 for an after-hours line. Delivers real
-  adoption; half the signed scope.
-- **C) Build both adopters with a marker bump.** Only legitimate outside RTH. ⚠️ It pays a
-  permanent OPRA tape gap for a caching adoption, which is the trade D4-D calls wrong in both
-  directions.
-
-⭐ **RECOMMENDATION: B.** It is the largest piece of the signed scope that is honestly
-non-stranding, and adopter 1 is the one that carries the real defect — `wl_perf:` is an **MD5 of
-the whole ticker set**, so one failed ticker's all-None row is cached against every peer in the
-same request. Per-ticker keys fix that; `theme_performance` gains far less and costs a tape gap.
-
-⚠️ **What adopter 1 actually changes, so the next session does not have to re-read it:**
-`get_batch_returns` keys on `"wl_perf:" + md5(sorted tickers)`, one `set_by_completeness` for the
-whole batch. Adoption = per-ticker `wl_returns::{TICKER}::{as_of}` with completeness moved inside
-the loop, the set key kept as a fast path, plus the counter. Snapshot-identity holds because the
-computation is unchanged — only which values come from cache moves.
+⚠️ **CP2 AND CP3 ARE NOT STARTED.** CP2 is outside flow-worker's closure and free to merge any
+time; CP3 is inside it, pre-declared BEHAVIOUR-CHANGING, and needs the weekend window with a
+marker bump — **the window closed at Monday 09:00 ET**, so CP3 now holds for 16:05 ET or later.
 
 ---
 
@@ -363,7 +350,7 @@ blocker.**
 | item | authorized | built | what it needs |
 |---|---|---|---|
 | D3 CP1 | `00ebb5e80` | ✅ `302f99e8e` | — |
-| D4 CP1 | `37bfe4251` | ❌ | two adopters + hit-rate counter |
+| D4 CP1 | `40caca541` (re-signed 2026-09-13; `37bfe4251` was the superseded single line) | ❌ attempted | see §6 Unit 2 |
 | S5 CP1 | `37e1823a6` | ❌ | the Notebook-pattern extraction |
 | S6 CP1 | ❌ **no packet** | ❌ | a gate packet FIRST |
 | D2 §9.5 CP1 | ❌ unsigned (B4 in the form) | ❌ | the owner's reading |
