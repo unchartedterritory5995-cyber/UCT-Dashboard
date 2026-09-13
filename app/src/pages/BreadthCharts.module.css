@@ -228,6 +228,78 @@
   text-align: center;
 }
 
+/* A-04: a series flattened by a larger one on the same axis is named, not hidden. */
+.gapNotice {
+  padding: 0 16px 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--warn);
+}
+.gapNotice p { margin: 0; }
+
+/* ── Load problems (A-01) ──────────────────────────────────────────────────── */
+.loadProblem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 36px 20px;
+  color: var(--warn);
+}
+
+.loadProblemText { display: flex; flex-direction: column; gap: 2px; }
+
+.loadProblemTitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.loadProblemBody {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.loadProblemAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.loadProblemAction:hover { border-color: var(--ut-gold); color: var(--text-heading); }
+
+/* A refetch failed with a chart already on screen: the chart stays, this says so. */
+.refreshNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 16px 0;
+  color: var(--warn);
+}
+.refreshNotice .loadProblemTitle,
+.refreshNotice .loadProblemBody { font-size: 12px; }
+
+/* Touch tier — ≤1024, not just phone (styles/tapFloor.test.js). */
+@media (max-width: 1024px) {
+  .loadProblemAction { min-height: var(--tap-min); }
+}
+
 /* ── Phone — bump interactive controls to ≥44px tap targets ──────────────── */
 @media (max-width: 640px) {
   .container { padding: 12px 12px 24px; }

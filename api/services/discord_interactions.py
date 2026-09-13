@@ -1054,10 +1054,25 @@ def build_launch_command() -> dict:
             "default_member_permissions": "8"}
 
 
-def build_commands(activity: bool = False) -> list:
+RENDERHEALTH_COMMAND = "renderhealth"
+
+
+def build_renderhealth_command() -> dict:
+    """Admin-only Discord render V2 health (docs/discord-render, OI-09). NOT in the default
+    set: registering it changes the command list in every server, so it is registered at
+    flip time (`tools/discord_chart_commands.py register --renderhealth`). The handler checks
+    the admin bit again, because `default_member_permissions` is a default a server can
+    override per role."""
+    return {"name": RENDERHEALTH_COMMAND, "type": 1,
+            "description": "Chart and flow render health (admins)",
+            "default_member_permissions": "8"}
+
+
+def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
-    are enabled on the app)."""
+    are enabled on the app); `renderhealth=True` adds the admin-only render
+    health command (V2 flip time)."""
     # `/charts` is retired: `/chart NVDA AMD AVGO` is the same thing through one
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
@@ -1065,6 +1080,8 @@ def build_commands(activity: bool = False) -> list:
             build_settings_command(), build_buzz_command(), build_flow_command()]
     if activity:
         cmds.append(build_launch_command())
+    if renderhealth:
+        cmds.append(build_renderhealth_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]
 
 
@@ -1351,8 +1368,9 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
                 _warm_bars(it)
             # ex.map keeps the order asked, which the reply and the attachment
             # list both depend on.
+            from api.services.discord_render import ids as render_ids   # the renders keep the job's id
             with ThreadPoolExecutor(max_workers=min(len(items), MULTI_MAX)) as ex:
-                results = list(ex.map(_one, items))
+                results = list(ex.map(render_ids.carry(_one), items))
         label = TF_LABEL[items[0][0].tf]
         oks = [(png, fn) for _, o, png, fn in results if o in DELIVERED]
         why = {"busy": "busy, try again", "no_bars": "no bars", "render_failed": "failed"}
@@ -1515,6 +1533,17 @@ _WARM_CURSOR_LOCK = threading.Lock()
 
 def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6,
                     deadline_s: float | None = None) -> list:
+    """The warm cycle, with every render it makes marked `X-Render-Priority: background` so a
+    pooled chart-renderer yields to members (docs/discord-render/03-architecture.md §3.7).
+    What the cycle does is `_warm_hot_charts`."""
+    from api.services.discord_render import ids as render_ids
+    with render_ids.background():
+        return _warm_hot_charts(bars_fn=bars_fn, render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
+                                limit=limit, deadline_s=deadline_s)
+
+
+def _warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6,
+                     deadline_s: float | None = None) -> list:
     """Re-render the charts members keep asking for, just before their cache
     entry goes stale, so the next member gets a hit instead of a 2.4 s render.
 

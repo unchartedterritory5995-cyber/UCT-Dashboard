@@ -251,15 +251,27 @@ class JobsStore:
         return {"tokens_nulled": t, "rows_deleted": d}
 
     # ── durable alert cooldown ──────────────────────────────────────────────
-    def alert_due(self, key: str, cooldown_s: float) -> bool:
-        """True (and records the send) when `key` has not alerted within the cooldown.
-        Durable because an in-memory cooldown on this pod resets every ~8 minutes."""
+    def alert_due(self, key: str, cooldown_s: float, *, record: bool = True) -> bool:
+        """True when `key` has not alerted within the cooldown; with `record` (the default)
+        the send is recorded in the same step. Durable because an in-memory cooldown on this
+        pod resets every ~8 minutes.
+
+        The observer passes record=False and calls `record_alert` only once Discord has
+        accepted the message: a failed POST must not buy a cooldown."""
         now = self._now()
         with self._lock:
             r = self._conn.execute("SELECT last_sent FROM discord_render_alerts WHERE alert_key=?", (key,)).fetchone()
             if r and now - r["last_sent"] < cooldown_s:
                 return False
-            self._conn.execute("INSERT INTO discord_render_alerts(alert_key,last_sent) VALUES(?,?) "
-                               "ON CONFLICT(alert_key) DO UPDATE SET last_sent=excluded.last_sent", (key, now))
-            self._conn.commit()
+            if record:
+                self._write_alert(key, now)
             return True
+
+    def record_alert(self, key: str) -> None:
+        with self._lock:
+            self._write_alert(key, self._now())
+
+    def _write_alert(self, key: str, now: float) -> None:          # caller holds the lock
+        self._conn.execute("INSERT INTO discord_render_alerts(alert_key,last_sent) VALUES(?,?) "
+                           "ON CONFLICT(alert_key) DO UPDATE SET last_sent=excluded.last_sent", (key, now))
+        self._conn.commit()
