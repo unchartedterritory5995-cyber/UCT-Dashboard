@@ -117,10 +117,34 @@ def _connect() -> sqlite3.Connection:
     return con
 
 
+_initialised = False
+
+
 def init_db() -> None:
     """Idempotent. Safe to call at every boot; cheap."""
+    global _initialised
     with _lock, _connect() as con:
         con.executescript(_SCHEMA)
+    _initialised = True
+
+
+def _ensure_init() -> None:
+    """⚰️ LAZY INIT, AND IT IS NOT BELT-AND-BRACES — IT IS THE FIX.
+
+    This module shipped with `init_db()` wired into NOTHING. The table was
+    created only by the test fixture, so on the pod every `record()` raised
+    `no such table: d2_dual_samples`, was swallowed by the never-raises
+    contract, logged, and returned False. **Monday would have collected zero
+    rows and the failure would have looked exactly like a quiet reader.**
+
+    ⭐ Caught by an in-pod read, not by the suite — because the fixture called
+    `init_db()` and production did not. A fixture that performs a step
+    production omits cannot see the step is missing.
+
+    Cheap: one module-level flag, one CREATE IF NOT EXISTS per process.
+    """
+    if not _initialised:
+        init_db()
 
 
 def enabled() -> bool:
@@ -172,6 +196,7 @@ def record(reader: str, key: str, legacy, book, outcome: str,
     try:
         if not should_persist(now):
             return False
+        _ensure_init()
         n = now or datetime.now(_ET)
         equal = None
         if outcome == "agreed":
@@ -206,6 +231,7 @@ def gate_status() -> dict:
         "gate_met": False, "why": "",
     }
     try:
+        _ensure_init()
         with _lock, _connect() as con:
             con.row_factory = sqlite3.Row
             out["rows"] = con.execute("SELECT COUNT(*) c FROM d2_dual_samples").fetchone()["c"]
