@@ -214,6 +214,51 @@ being read.
 capability-ledger gaps, `G20`/`G53` are something else again. Not renamed this
 pass — recorded so it is not mistaken for done.
 
+### 3.4-STANDING ✅ THE §4-NAMING RULE — ADOPTED 2026-09-13, AND APPLIED RETROACTIVELY
+
+> **Every approval line names a §4 checkpoint ID, or it re-numbers §4 in the same commit so that
+> it does. A scope that matches no §4 row is UNSIGNABLE — stop and say so rather than build
+> against it.** (Owner ruling, 2026-09-13, after the second occurrence.)
+
+**The retroactive audit is `tools/audit_scope_vs_checkpoints.py` and it has run: 29 signed lines
+across 18 packets, 6 lines in 4 packets name no checkpoint.**
+
+| packet | lines | what the line names instead |
+|---|---|---|
+| `intelligence-layer` (I1) | slice 1, slice 2 | `F-I1-1`/`F-I1-4`, then a component adoption. **This packet numbers FOLLOW-UPS, not checkpoints** — there is no roster to name. |
+| `s12-rollout` | line 1, line 2 | "first migration", "second migration". ⚠️ **The derived audit scored line 1 OK by matching a FOREIGN id** — the `CP4` in S12's text is *S7's* CP4, not an S12 checkpoint. |
+| `h14-placeholder-stop-unification` | line 1 | one detector, five call sites. A one-scope hazard-rule gate, delivered whole. |
+| `s10-presentation-primitives` | line 1 | the primitives. It **IS** CP1 — the CP2 heading says *"the CP1 block above stands as granted"* — but the scope text never says so. |
+
+⭐ **None of the six is a D4/S5-shaped divergence.** In every case the packet simply has no
+checkpoint roster (or, for S10, has one the earlier line predates). The two dangerous cases — a
+scope describing work its packet's §4 does not contain — remain exactly the two already recorded.
+**Each of the six is closed by NUMBERING the packet, not by re-signing it**, and all six describe
+work that is already delivered, so none of them blocks the queue.
+
+### 3.4c F-AUDIT-2 (new) — the derived §4 audit was retired under the two-correction rule
+
+⛔ **Three attempts to DERIVE "what does this packet define" each reported a property of the
+instrument as a finding**, so the rail is now a DECLARATION plus a staleness check, per the
+standing rule from the D4 CP1 ruling:
+
+1. **v1 knew only the TABLE shape** and reported 21 mismatches, nearly all "NO §4 TABLE" — the
+   tool's claim, not the packets'.
+2. **v2 added HEADINGS** and still reported 17: the S7 packets define CP1 in a heading and
+   **CP2–CP4 in bold paragraphs beneath it**, and `price-level` spells its headings
+   *"4. Checkpoint 1"*, which contains no `CP1` token at all.
+3. ⭐⭐ **And the third one is not a regex bug.** Every scope also NAMES the checkpoint it is
+   REFUSING — *"⛔ CP3 NEEDS A NEW LINE"*, *"So does CP4 and the flip"*. A matcher counting
+   mentions reads an explicit EXCLUSION as an authorisation and flags the packet for it.
+   **"Named" and "authorised" are different facts and no pattern over one sentence separates
+   them** — which is precisely why the verdicts are declared by reading.
+
+**What stays automated is what a machine is good at:** the packet still exists · each packet
+carries exactly as many signed lines as declared (**a line signed tomorrow is UNDECLARED and must
+be read, never assumed**) · every id the declaration claims still appears in its packet, so a
+re-numbering that drops one shows up. `--self-check` carries a control proving the drift check
+can fail.
+
 ### 3.4a F-D4-1 (new) — the derived cache detector, preserved not lost
 
 The D4 CP1 AST detector failed five times and its sixth fix was O(n²). Replaced by
@@ -313,10 +358,25 @@ has a moving input · flag-gated sweep **OFF by default** with the caller-rail �
 no legacy change · dry-run in-pod against Friday's data before merge · projected N reported.
 ⛔ **DO NOT ARM ANY FLAG.**
 
-**Deploy rule from Monday 09:00 ET:** docs/tests/tools/`app/**` and unwatched `api/**` merge any
-time. Anything in flow-worker's closure that would strand waits for **16:05 ET or later** — no
-marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
-merge, and record the reason here.
+**Deploy rule — and ⛔ READ THE CLOCK BEFORE APPLYING IT.**
+
+> **Today is SUNDAY 2026-09-13. The weekend window is OPEN until Monday 2026-09-14 09:00 ET.**
+> There is no RTH and no OPRA tape, so **a marker bump is free** and nothing needs to hold.
+
+**From Monday 09:00 ET onward:** docs/tests/tools/`app/**` and unwatched `api/**` merge any time.
+Anything in flow-worker's closure that would strand waits for **16:05 ET or later** — no marker
+bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the merge,
+and record the reason here.
+
+⚰️ **THE 16:05 RULE IS THE AFTER-RTH RULE FOR A WEEKDAY, AND THIS FILE ONCE APPLIED IT ON A
+SUNDAY** — it recorded that D4 CP3 must hold "because the weekend window closed at Monday 09:00"
+while it *was* Sunday, which would have held a finished, verified unit for three hours to protect
+a tape that was not running.
+
+⛔ **The rule, generalised from the git-date convention: READ THE CLOCK, DO NOT INFER THE DAY.**
+A commit's date in `America/Chicago` is already the authority for *when a commit happened*; the
+same discipline governs *which window you are in*. Both failures look identical from the inside —
+a confident sentence about time, derived from nothing.
 
 ### Unit 3 — S5 CP1 · ⛔ NOT STARTED. The SECOND scope/packet divergence, and the pattern is now worth naming.
 
