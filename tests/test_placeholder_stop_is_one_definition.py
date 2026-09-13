@@ -32,6 +32,7 @@ import pytest
 
 from api.services import placeholder_stop as ps
 from api.services.placeholder_stop import is_placeholder_stop
+import types
 
 _REPO = pathlib.Path(__file__).resolve().parents[1]
 
@@ -276,3 +277,74 @@ def test_the_adopted_tolerance_is_the_WIDEST_of_the_three_not_the_narrowest():
         assert width(entry) > 1e-9, (
             "the adopted window is narrower than rules.py's retired absolute "
             "rule — that rule is the defect")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚰️ THE AMD ROW — the live position H14's in-pod check found, pinned as a
+# fixture on the owner's instruction (2026-09-12).
+#
+#     AMD  Long  source=None  entry 444.0  stop 0.0  (a real member's row)
+#
+# ⛔ IT IS NOT THE CASE THE GATE PREDICTED. The H14 packet expected two classes —
+# shorts with a non-positive stop, and broker rows drifted off an exact
+# placeholder — and BOTH had a live population of zero. This row is a third: a
+# stop of exactly 0.0 with NO source at all, so every `source == "broker"` gate
+# in the estate steps over it.
+#
+# What the old inverse `abs(stop - entry) > 1e-9` did with it: 444.0 - 0.0 passes,
+# so `444 x shares` of FABRICATED risk entered the member's average
+# risk-per-trade AND was booked under `sources["stop"]` — the metric claiming it
+# derived that risk from a stop the member never set.
+# ─────────────────────────────────────────────────────────────────────────────
+
+AMD_ROW_ENTRY = 444.0
+AMD_ROW_STOP = 0.0
+
+
+def test_the_AMD_row_is_a_PLACEHOLDER_not_a_444_dollar_stop_distance():
+    assert is_placeholder_stop(AMD_ROW_STOP, AMD_ROW_ENTRY) is True, (
+        "a stop of 0.0 against a 444.0 entry read as a REAL stop — that is a "
+        "$444/share stop distance the member never set")
+
+
+def test_a_None_stop_is_also_a_placeholder_not_a_crash_and_not_a_real_stop():
+    """The same row carries source=None; a null stop must classify, not raise."""
+    assert is_placeholder_stop(None, AMD_ROW_ENTRY) is True
+
+
+def test_the_AMD_ROW_books_NO_fabricated_risk_and_is_NOT_attributed_to_a_stop():
+    """⛔ The provenance half. `_risk_per_trade` must not count this row under
+    `sources["stop"]`, because that is the claim that made the number a lie."""
+    from api.services.journal_two import metrics_registry as mr
+
+    # `pnl_dollar`/`fees` are read by `_net` on the fall-through branch — the
+    # branch this row is SUPPOSED to reach. Omitting them made the fixture die
+    # of a KeyError before it could assert anything, which is a test that fails
+    # red without exercising its subject.
+    row = {"id": "amd-live", "original_stop": AMD_ROW_STOP,
+           "entry_price": AMD_ROW_ENTRY, "shares": 100.0,
+           "pnl_dollar": 0.0, "fees": 0.0}
+    ctx = types.SimpleNamespace(rows=[row], r_map={}, r_sources={})
+    out = mr._risk_per_trade(ctx)
+
+    assert out["sources"]["stop"] == 0, (
+        "the AMD row was attributed to a stop the member never set")
+    assert out["max"] is None or out["max"] < AMD_ROW_ENTRY * 100.0, (
+        f"fabricated risk entered the distribution: max={out['max']}")
+    assert out["sources"]["unknown"] == 1, (
+        "the row must land in `unknown` — it has no usable stop and no R")
+
+
+def test_the_CONTROL_a_REAL_stop_on_the_same_shape_IS_still_counted():
+    """NON-VACUITY. If `_risk_per_trade` counted nothing at all, the assertions
+    above would pass over an empty result and prove nothing."""
+    from api.services.journal_two import metrics_registry as mr
+
+    row = {"id": "amd-real", "original_stop": 400.0,
+           "entry_price": AMD_ROW_ENTRY, "shares": 100.0,
+           "pnl_dollar": 0.0, "fees": 0.0}
+    ctx = types.SimpleNamespace(rows=[row], r_map={}, r_sources={})
+    out = mr._risk_per_trade(ctx)
+
+    assert out["sources"]["stop"] == 1, "a genuine stop stopped being counted"
+    assert out["max"] == pytest.approx(44.0 * 100.0), out["max"]
