@@ -160,7 +160,12 @@ approval line). Both are named here so the next reader does not discover them as
 
 ## 3. EVERY REGISTERED FOLLOW-UP
 
-### 3.1 F-* findings — 24 distinct, harvested
+### 3.1 F-* findings — ⚰️ ~~24~~ **34 distinct**, harvested 2026-09-13
+
+⚰️ **THE COUNT WAS 24 AND THE HARVESTER FINDS 34.** `tools/harvest_followups.py` over the doc tree
+returns 34 distinct `F-*` ids. The 24 was correct when written and drifted as findings were added
+without touching this heading — a hand-typed count beside the list it describes, in the register
+whose job is to be the count. **Do not re-type it: run the harvester.**
 
 | id | origin | status | what closes it |
 |---|---|---|---|
@@ -171,19 +176,32 @@ approval line). Both are named here so the next reader does not discover them as
 | **F-S10-1** | a price has two right renderings | **CLOSED** by S10 CP2 `6576f044e` — ⚠️ residue to confirm | confirm no third rendering site remains |
 | **F-S10-2** | `<Cited>` ET label | **CLOSED** `e909279e1` | — |
 | **F-S7-1 … F-S7-5** | S7 wave 1 | F-S7-5 **CLOSED** `5ff6fc04a`; others recorded | — |
-| **F-S7-CM-1** | catalyst-match | OPEN | CP3 |
+| **F-S7-CM-1** | catalyst-match | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `4fa45489f` |
 | **F-S7-EP-1** | event-proximity | OPEN | the dark read |
-| **F-S7-IC-1** | indicator-condition — the empty intersection | **OPEN, SPEC WRITTEN** | D2 §9.5 signature |
-| **F-S7-PR-1** | position-risk | OPEN | CP3 |
+| **F-S7-IC-1** | indicator-condition — the empty intersection | ⚰️ ~~OPEN, SPEC WRITTEN~~ → **OPEN, MEASURED AND RAILED.** Its stated closer (D2 §9.5 signature) HAPPENED — signed as GATE-D2 CP4 `3257cc319`, merged `404b808c5`. ⛔ But the FINDING is not closed by it: the 31×142 intersection is still EMPTY, and CP3 now reports it per predicate as NOT COMPARABLE. **What would close it is a book form for the thirty**, which nobody has authorized. | a declaration for the thirty indicator outputs, or an EXCLUDE ruling |
+| **F-S7-PR-1** | position-risk | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `6a67a4b5d` |
 | **F-S7-RC-1** | the dedup key is written and never read | **CONFIRMED, OPEN** | a fix PR or an EXCLUDE ruling |
 | **F-S7-RC-3** | path B has no suppression | **CONFIRMED, OPEN** | same |
 | **F-S7-RC-4** | the third emitter | **CLOSED — EXCLUDED PERMANENTLY** by owner ruling, GATE §10 | — |
-| **F-S7-SMC-1** | scan-membership-change | OPEN | CP3 |
+| **F-S7-SMC-1** | scan-membership-change | ⚰️ ~~OPEN~~ → **CLOSED** — its closer merged | CP3 `df937146c` |
 
-⚠️ **F-S7-RC-2 IS REGISTERED IN CODE AND NOT IN THE DOC TREE.** The harvester found RC-1, RC-3 and
+✅ **F-S7-RC-2 IS NOW IN THE DOC TREE — re-swept 2026-09-13, ZERO code-only follow-ups.**
+The sweep compared every `F-*/HY-*/OI-*/DEC-*/RG-*` id in `api/`, `tools/`, `tests/`, `scripts/`
+(28 ids) against the doc tree (139 ids): **the difference is empty**, with a control confirming the
+sweep can see a match. ⚰️ The original warning, kept because the lesson is the point: The harvester found RC-1, RC-3 and
 RC-4 but no RC-2; the finding (path B's substring label match) lives in
 `api/services/alert_taxonomy/regime_change.py`. **A finding that exists only in code is invisible
 to every doc-side audit, including this one** — it was found by noticing the gap in the sequence.
+
+### 3.1b ⛔ FINDINGS OPENED BY THE COMPLETION VERIFICATION — 2026-09-13
+
+Registered with evidence, **not fixed**: that pass was read-only by instruction.
+
+| id | finding | evidence | closes when |
+|---|---|---|---|
+| **F-GATE-1** | **Two approval-fingerprint conventions coexist, and one packet's two lines share a single pin.** 27 of 33 lines are `git hash-object` content fingerprints; **6 are commit SHAs** (`s7-event-proximity` ×2, `s7-price-level` ×2, `intelligence-layer` ×2). A commit SHA does pin the bytes via `git show`, so nothing is unpinned — **but `s7-event-proximity`'s two lines both read `76529e75b`, a commit that contained only the FIRST block.** Line 2's pin names a state in which line 2 did not exist. | `git cat-file -t` on all 33; re-derivation at `a31f02374` and `09785ac95` reproduces neither line | the owner rules one convention, and event-proximity line 2 is re-pinned under it. ⛔ Needs a new signature — out of scope for a verification pass. |
+| **F-S7-PL-3** | **`tools/s7_price_level_report.py --self-check` FAILS (exit 1): `expected six declared sweeps, found 7`.** A hand-typed count inside the instrument's own self-test, made stale by adding the seventh sweep. ⚠️ `--ticking` itself is CORRECT (verified in-pod, exit 0, all seven reported) — it is the self-test that is wrong, which is worse than it sounds: **a failing self-check is how you learn the instrument is broken.** | `python tools/s7_price_level_report.py --self-check` → `SELF-CHECK FAIL: expected six declared sweeps, found 7` | the count is DERIVED from `SWEEPS`, as `terminal_next_gate_check.py` was corrected to do in `aed75ddaf` |
+| **F-FLAG-1** | **`tools/flag_ledger_audit.py` is blind to value-level divergence on a multi-service flag.** It reports 0/0/0/0 while five flags declared `armed` with `web` in `where` read `'0'` in the web process: `MASSIVE_WS_ENABLED`, `FLOW_BACKUP_ENABLED`, `FLOW_GAP_AUTOFILL_ENABLED` (all three deliberately `0` on web per the P5 flow-worker cutover), `DESK_SESSION_DISCORD_RECAP_ENABLED`, `J2_SHARE_LINKS_ENABLED`. The audit asks *"does some service set it?"*, never *"is it ON where the ledger says it is?"* | in-pod read of all 96 `armed@web` flags; 5 divergences, audit still 0/0/0/0 | the audit compares per-service VALUES, or `where` distinguishes "present" from "on". ⚠️ **Not Terminal-Next's flags** — advisory to their owners. |
 
 ### 3.2 OI-* — 21 owner inputs
 

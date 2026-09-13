@@ -42,6 +42,20 @@ SCOPE APPROVED:   CP3 — read-only projection of the legacy cohort for ADMIN-RO
                   ⛔ CP4 (all members) and the FLIP each need a new line.
 ```
 
+⚠️⚠️ **TWO BLOCKS, ONE PIN — RECORDED 2026-09-13 BY THE COMPLETION VERIFICATION, NOT RE-SIGNED.**
+Both approval blocks in this packet carry the identical value `76529e75b`, and that value is a
+**COMMIT SHA** (`git cat-file -t` says `commit`), not a `git hash-object` content fingerprint.
+
+⭐ A commit SHA is a *workable older convention* — it pins the bytes via `git show 76529e75b:<this
+file>`. **The defect is that BOTH lines point at the same commit**, and that commit contained only
+the FIRST block: line 2 was added afterwards in `09785ac95`. So line 2's pin names a state in which
+line 2 did not exist, and it distinguishes nothing from line 1.
+
+⛔ **NOT re-signed in this pass** — this verification is read-only and re-deriving a value would be
+a new signature. Registered as **F-GATE-1**. Six of the tree's 33 approval lines use the commit-SHA
+convention (this packet ×2, `s7-price-level` ×2, `intelligence-layer` ×2); the other 27 are content
+fingerprints. The mixture is now recorded rather than latent.
+
 ### ⛔⛔ THE CP3 RULING — WHO REFRESHES THE EVENT DATE
 
 CP2's mirror rail exposed that the **legacy path re-reads the calendar every run**

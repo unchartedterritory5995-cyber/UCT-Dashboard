@@ -50,6 +50,16 @@ SCOPE APPROVED:   CP1 - THE DERIVED RAIL, and NO PRODUCT CODE. A test that
                   cache.py UNTOUCHED.
 ```
 
+⚰️ **SUPERSEDED LINE, RECORDED 2026-09-13 BY THE COMPLETION VERIFICATION.** This packet carried a
+single approval line signed **2026-09-12 at `~~37bfe4251~~`**, replaced by the three lines above in
+`e23351728`. The replacement was deliberate and correct — the old single line said *"the first two
+adopters"*, which is CP2 (outside flow-worker's closure) **plus** CP3 (inside it), so one signature
+authorized a stranding change alongside a free one.
+
+⛔ **But the packet did not say so, and a fingerprint that vanishes without a record is the one
+thing this format exists to prevent.** The old bytes are recoverable — `git show 37bfe4251:<this
+file>` — and this note is what tells a reader to look.
+
 ⛔ **`api/services/cache.py` IS IN NO CHECKPOINT**, per D4-D. If an implementation turns out to
 need a `TTLCache` API change, that is a stop-and-re-gate condition, not a scope stretch.
 
