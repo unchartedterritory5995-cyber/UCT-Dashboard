@@ -7,26 +7,32 @@
 
 | state | rows |
 |---|---|
-| ✅ **SHIPPED** | **58** |
+| ✅ **SHIPPED** | **60** |
 | ⚠️ **SHIPPED-CHANGED** | **9** |
-| ⏸️ **DEFERRED** | **4** |
+| ⏸️ **DEFERRED** | **5** |
 | ⚰️ **RETIRED** | **7** |
-| ⛔ **MISSING — now filed** | **3** (D-46, D-47, D-48) |
+| ⛔ **MISSING** | **0** — all three ruled and closed 2026-09-13, `d79e32d33` |
 | **total scope rows reconciled** | **81** |
 
 > ### Verdict
 >
-> **The full scope is implemented-with-recorded-changes, with three gaps — all documentation or
-> affordance, none of them a member-facing capability.** Every gesture, every mode, every action,
-> every accessibility commitment and every hardening rail the spec promised is on master and
-> railed. The three gaps are: §C4's focus-return promise that no code produces (**D-46**), the
-> per-mode action editor promised in v1.1 and never built while its storage half shipped
-> (**D-47**), and ground rule A-1's `CLAUDE.md` onboarding section, which was never appended
-> (**D-48**). All three are now filed with an owner and a removal condition.
+> **The full scope is implemented-with-recorded-changes, and there are no gaps left.** Every
+> gesture, every mode, every action, every accessibility commitment and every hardening rail the
+> spec promised is on master and railed.
+>
+> ⭐ **Updated 2026-09-13 (`d79e32d33`).** The three MISSING rows this reconciliation found were ruled the
+> same day: **D-46** SHIPPED — focus now returns to the knob, and the fix needed a `tabIndex` the
+> knob never had as well as the focus call nobody had written; **D-48** SHIPPED — `CLAUDE.md:1479`
+> now carries the onboarding section ground rule A-1 asked for; **D-47** DEFERRED by spec
+> amendment, the per-mode editor recorded as count + reset with reorder/remove held for
+> post-launch. **MISSING is now 0.**
 
-⛔ **Scope baseline correction.** The brief names `UCT_Joystick_Hub_MASTER_v1.md` "as first
-committed". **No file of that name has ever existed in this repository** — `git log --all
---diff-filter=A` over `docs/plans/joystick/**` returns no such path. The earliest spec is
+⛔ **Scope baseline correction — CONFIRMED BY THE OWNER 2026-09-13.**
+`UCT_Joystick_Hub_MASTER_v1.md` **lived outside this repository** and was never committed to
+it: `git log --all --diff-filter=A` over `docs/plans/joystick/**` returns no such path, and the
+owner has confirmed the document existed elsewhere. ⭐ That is worth stating rather than
+filing as an anomaly — it means the in-repo baseline genuinely starts at v1.1, so a reader
+reconciling scope from this repo alone is not missing a file they should go looking for. The earliest spec is
 `00-master-spec-v1.1.md`, added in `0ee2cb36c` (2026-09-08) together with v1.2, v1.3 and v1.4;
 v1.5 followed in `3b57e2a24` and v1.6 in `10956a442`, all the same day. **v1.1 is the baseline
 used here**, and it matters: three of the seven RETIRED rows and one of the three MISSING rows
@@ -57,7 +63,7 @@ Finnhub/FMP/FinTwit feed concept behind it, which Wave 0 found does not exist as
 
 | # | Promise (origin) | State | Evidence |
 |---|---|---|---|
-| A-1 | Append a `CLAUDE.md` "Joystick hub" section: registry location, how to add a mode, tuning constants, known gaps (v1.6:49-50) | ⛔ **MISSING** | The onboarding section does not exist. ⚠️ Three joystick-titled headings DO exist (`:1807` kill switch, `:1836` hide-recovery lesson, `:2281` B7 rail) — none is this one. `"add a mode"` **0 hits**, `"known gaps"` **0 hits**. → **D-48** |
+| A-1 | Append a `CLAUDE.md` "Joystick hub" section: registry location, how to add a mode, tuning constants, known gaps (v1.6:49-50) | ✅ **SHIPPED 2026-09-13** | Was MISSING at audit time — no such section, `"add a mode"` and `"known gaps"` both 0 hits. Now `CLAUDE.md:1479`, 137 lines, all four parts, every claim cited. **D-48 closed.** |
 | A-2 | Additive by default, NINE named exceptions (a)–(i) (v1.6:52-74) | ✅ SHIPPED | All nine landed with cites; verified by `completion-audit.md` §2 |
 | A-3 | Mobile only — `width < 1024px` **AND** `(pointer: coarse)` | ✅ SHIPPED | `useHubActive.js:84` — `(max-width: 1023px) and (pointer: coarse)` |
 | A-4 | Canonical breakpoints only, 640 and 1024; no 900px | ✅ SHIPPED | zero `900px` under `app/src/hub/`; `useHubActive.js:83` comment names the rule |
@@ -145,7 +151,7 @@ Every phase closed with a manifest and a merged PR; the closure gate (`closure.m
 | `holdMs` / `travelPx` / `doubleTapMs` / `stickyFan` | ✅ SHIPPED | `useHubSettings.js:59-62` |
 | `highContrast` | ✅ SHIPPED | `useHubSettings.js:63` |
 | `overrides` as a JSON patch, never a copy | ✅ SHIPPED (storage) | `useHubSettings.js:75`, semantics at `:37-38` |
-| **Per-mode editor to reorder/remove actions** (v1.1:168) | ⛔ **MISSING** | `JoystickSettingsCard.jsx:222` — *"`overrides` IS SHOWN, NOT EDITED"*. Count + reset only. Not in any ledger. → **D-47** |
+| **Per-mode editor to reorder/remove actions** (v1.1:168) | ⏸️ **DEFERRED 2026-09-13** | `JoystickSettingsCard.jsx:222` — *"`overrides` IS SHOWN, NOT EDITED"*. Count + reset shipped; reorder/remove deferred post-launch **by spec amendment** (§8), storage kept so it lands later without a migration. **D-47.** |
 | Auto-hide on text input | ✅ SHIPPED | `hub/autoHideOnTextFocus.test.jsx`, `hubAutoHideRoot.test.jsx`, `iframeFocusBlindSpot.test.jsx` |
 | First-run coach mark, dismisses permanently | ✅ SHIPPED | `HubCoachMark.jsx` |
 | **No analytics** — exactly one `TODO(hub-analytics)` | ✅ SHIPPED | `HubRoot.jsx:141`, exactly one occurrence, railed by `hub/analyticsMarker.test.js` |
@@ -161,7 +167,7 @@ Every phase closed with a manifest and a merged PR; the closure gate (`closure.m
 | **"Why?"** = `/ai-search?q=…` | ✅ SHIPPED | `registry.js:161,169` |
 | **"Note"** = Notebook entry via `createNoteViaApi` | ✅ SHIPPED | `registry.js:489` |
 | **"Voice"** = `useRealtimeSession().connect(context)` | ✅ SHIPPED | `HubVoiceBridge.jsx:18,22` |
-| **Any sheet returns focus to the KNOB on close** | ⛔ **MISSING** | `HubKnob.jsx` has no ref and no focus handling; `HubRoot.jsx` never calls `.focus()`. Behaviour comes from `Sheet.jsx:81,126` restoring `document.activeElement`, which on the **gesture** path is `<body>`. → **D-46** |
+| **Any sheet returns focus to the KNOB on close** | ✅ **SHIPPED 2026-09-13** | Was MISSING: no ref, no focus call, and the knob had no `tabIndex` so `focus()` was a no-op. `HubRoot` now pre-focuses the knob so `Sheet.jsx:81,126` restores there; rail `hub/knobFocusReturn.test.jsx`, mutation-proved twice. **D-46 closed.** |
 
 ---
 
