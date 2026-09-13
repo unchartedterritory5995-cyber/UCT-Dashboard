@@ -609,6 +609,73 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## position-risk CP3 — MERGED `6a67a4b5d`. Gate fingerprint `ec2b197f8`. **The dark projection.**
+
+**In-pod verified after the deploy** (`railway ssh --service web`, read-only): the registry now
+holds **4** trigger types — `document-arrival`, `event-proximity`, **`position-risk`**,
+`price-level` — and `ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED` reads **`None` in the running
+process**. ⛔ **Nothing is armed.** `/api/health` ok, uptime 25 s on a fresh boot.
+
+⛔ **THE GRAIN IS (USER, SEVERITY), NOT (POSITION).** `price-level` projects one predicate per
+`watchlist_alerts` row because a price alert **is** a row. `rule_stop_watch` is not row-shaped: it
+takes a member's whole open book and fans out per position. The (user, severity) grain is exactly
+`observe()`'s and `legacy_would_fire()`'s call shape, so the comparison drives **the real legacy
+rule** rather than a per-row reconstruction that could disagree with it silently — and
+`legacy_only` stays readable instead of being N predicates re-summed.
+
+⛔⛔ **`legacy_only` MEANS AN EMAIL AND A DISCORD PUSH A MEMBER STOPS RECEIVING** — awareness'
+`_DELIVER_IMPORTANCE_FLOOR = 8` and `stop_hit` always scores 10 with a symbol.
+
+### ⚰️⚰️ I NEARLY SHIPPED A FIVE-TYPE "FIX" FOR A BOUNDARY THAT WAS WORKING
+
+The pod showed **3 registered trigger types against 8 modules defining `register()`**. That reads
+exactly like five instances of *built, tested, green and unreachable* — a live hazard class, the
+kind H14 says to chase at once. A draft commit wired all five.
+
+⭐⭐ **The four siblings' own boundary rails refused it**, in those words: *"api/main.py wires
+catalyst-match — that is CP3 and needs a new approval line."* Registration in the boot path is
+**CP3's act**; CP1's "registration + params schema" means the module OFFERS a `register()`.
+**Three was the correct number for a programme in which three types had reached CP3.** Only
+`position_risk` is wired here, because only its CP3 is signed.
+
+⭐ **The general form outlives the instance: a gap between what a module PROVIDES and what the
+process USES is not automatically a defect. Ask what the boundary is FOR before closing it.** The
+family view is now `tests/test_alert_taxonomy_registration_is_wired.py` — a biconditional over a
+DECLARED approval state, failing by name in both directions, mutation-proved both ways including
+that a commented-out call is not a wire.
+
+### ⚠️ THE PACKET'S §7 STRANDING PREDICTION DOES NOT HOLD — MEASURED
+
+§7 reads *"CP3 is the checkpoint that strands something, because wiring `register()` means the new
+module [enters the closure]… the same call `price-level` CP3 made with a marker bump."*
+
+**Measured on this tree: nothing this commit touches is in flow-worker's closure.** The reason is
+exact and worth keeping: **`api/main.py` is NOT in the closure**, so a `register()` call there
+cannot pull anything into it. The six taxonomy modules flow-worker does reach (`db`, `delivery`,
+`document_arrival`, `predicates`, `receipts`, `registry`) are reached through
+`watchlist_alert_service → alerts → … → document_arrival` — an import chain, not a registration.
+⇒ **web-only, INERT, no marker bump.**
+
+### ⛔ AND I COMMITTED THE PROSE-NEEDLE DEFECT FOR THE SEVENTH TIME
+
+The read-only SQL rail scanned **every string constant** in the module and failed on the module's
+**own docstring**, which names `j2_positions` several times and contains no SELECT. ⭐ The fix was
+not to delete the word from the docstring — that makes the probe pass and leaves the next reader
+without the explanation. It was to ask a narrower, more honest question: **what SQL does this
+module RUN?** Scoped to `.execute()`'s first argument, prose cannot reach it by construction.
+⚠️ A second self-inflicted one in the same file: a hand-typed Unix epoch asserting the wrong YEAR,
+in a test about dates. Both now derived.
+
+**MUTATIONS — three, each restored by EDIT:** cohort predicate dropped from the SQL → two tests
+RED with the leak named · empty-cohort heartbeat removed → RED (*a heartbeat that only beats on
+success is a success detector*) · scheduler id changed → the caller rail RED. Plus an in-suite
+mutation widening the cohort, so the gate is proved by watching it fail.
+
+**Two CP1/CP2 boundary rails MOVED, not deleted**, each quoting the assertion it retired. The
+`would_fire` caller list stays EXACT and gains exactly one member: the projection.
+
+**102 tests green** across the four position-risk suites; **153** across the CP3 family.
+
 ## S5 CP2 — MERGED `26120fada`. Gate fingerprint `9c7c634da`. **The additions-only rail.**
 
 **Window: Sunday, weekend, open.** No RTH, no OPRA tape. `web` deploy queue clear (`acfbef8b3`

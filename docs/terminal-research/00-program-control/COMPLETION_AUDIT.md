@@ -344,7 +344,7 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 2c | **D4 CP3** — adopter 2, theme/groups, IN CLOSURE | `40caca541` | ✅ **DONE** — BEHAVIOUR-CHANGING, marker bump #8 | **`dc5752b16`** |
 | 3 | **S5 CP2** — the additions-only rail | **`9c7c634da`** signed 2026-09-13 | ✅ **DONE** | **`26120fada`** |
 | — | ~~S5 CP1~~ (as line 1 described it: the extraction) | `37e1823a6` | ⏸️ **DEFERRED — F-S5-1.** Second adopter + Wave Q1 live 30 days (**2026-10-12**). Not in any §4 row. | — |
-| 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
+| 4 | **position-risk CP3** | `ec2b197f8` | ✅ **DONE** | **`6a67a4b5d`** |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
 | 6 | **catalyst-match CP3** | `3ee80dc13` | ⬜ | — |
 | 7 | **regime-change CP3** | `9f0575340` | ⬜ | — |
