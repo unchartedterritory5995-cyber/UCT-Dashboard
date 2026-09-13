@@ -50,6 +50,10 @@ DEFAULT_WEB_URL = "http://web.railway.internal:8080"
 
 ALERT = "ALERT"
 
+#: Discord rejects a `content` over this with a flat HTTP 400 and no hint.
+DISCORD_CONTENT_LIMIT = 2000
+_TRUNCATED = "\n… [TRUNCATED — see the full report in the pod]"
+
 
 def enabled() -> bool:
     return os.environ.get(FLAG, "").strip().lower() in ("1", "true", "yes")
@@ -88,8 +92,19 @@ def post(title: str, body: str, *, alert: bool = False) -> bool:
     """Post to the ADMIN Discord channel. Never raises."""
     url = os.environ.get(ADMIN_WEBHOOK_ENV, "")
     prefix = (ALERT + " ") if alert else ""
-    text = "**%s%s**  ·  commit `%s`  ·  %s\n```\n%s\n```" % (
-        prefix, title, running_commit(), _now(), body.strip()[:3400] or "(no output)")
+    # ⚰️ DISCORD'S `content` LIMIT IS 2000 CHARACTERS, NOT 3400, AND EXCEEDING IT
+    # IS A FLAT `HTTP 400 Bad Request` — no hint, no field name. Measured on the
+    # first live gate-check trigger, whose output is long. The cap is computed
+    # from the HEADER's real length rather than guessed, so a longer title can
+    # never silently push the message back over.
+    head = "**%s%s**  ·  commit `%s`  ·  %s\n" % (prefix, title, running_commit(), _now())
+    room = DISCORD_CONTENT_LIMIT - len(head) - len("```\n\n```") - len(_TRUNCATED)
+    b = body.strip() or "(no output)"
+    if len(b) > room:
+        # ⛔ SAY THAT IT WAS CUT. A silently truncated report reads as a complete
+        # one, and the tail is where a gate check puts its verdict.
+        b = b[:room] + _TRUNCATED
+    text = "%s```\n%s\n```" % (head, b)
     if not url:
         print("[monitor] NO ADMIN WEBHOOK SET — would have posted:\n" + text)
         return False
