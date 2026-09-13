@@ -17,6 +17,9 @@ import PresetRow from './breadth/PresetRow'
 import MetricReadout from './breadth/MetricReadout'
 import { describeLoadError, describeRefreshError, shouldRetryLoad } from './breadth/chartLoadError'
 import { todayET, shiftISO } from './breadth/sessionDates'
+import { spanDays, tickBoundary, formatSessionTick, formatTooltipDate } from './breadth/chartTicks'
+import { zoomWindowFrom, zoomValues } from './breadth/chartZoom'
+import { magnitudeGaps, describeGap } from './breadth/chartMagnitude'
 import styles from './BreadthCharts.module.css'
 
 const PREF_KEY = 'breadth_charts_state'
@@ -91,8 +94,16 @@ export default function BreadthCharts() {
   const [extremesOverride, setExtremesOverride] = useState(null)
   const [ftdOverride, setFtdOverride] = useState(null)
   const saveTimerRef = useRef(null)
-  const chartRef = useRef(null)
   const [hidden, setHidden] = useState(() => new Set())
+  // A-07: the zoom window as dates, tagged with the range it was made in. A new
+  // range is a new domain, so a zoom from another range is ignored, not carried.
+  const [zoomState, setZoomState] = useState(null)
+  const windowKey = `${fromDate}|${toDate}`
+  const zoom = zoomState?.windowKey === windowKey ? zoomState : null
+  // 02-design §7 (D-028): the first paint draws; every later change is instant.
+  const [painted, setPainted] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches),
+  )
 
   const storedRaw = prefs[PREF_KEY]
   const stored = useMemo(() => {
@@ -140,6 +151,20 @@ export default function BreadthCharts() {
     () => (live.row ? rows.findIndex(r => r._live) : -1),
     [rows, live.row],
   )
+
+  const dates = useMemo(() => rows.map(r => r.date), [rows])
+  const visibleRows = useMemo(
+    () => (zoom ? rows.filter(r => r.date >= zoom.from && r.date <= zoom.to) : rows),
+    [rows, zoom],
+  )
+
+  const onEvents = useMemo(() => ({
+    datazoom: params => {
+      const next = zoomWindowFrom(params, dates)
+      setZoomState(next ? { ...next, windowKey } : null)
+    },
+    finished: () => setPainted(true),
+  }), [dates, windowKey])
 
   // A-09: the history is fetched once per mount. When the 4:15 PM collector
   // records the day, the live hook withdraws its provisional point as
@@ -215,10 +240,9 @@ export default function BreadthCharts() {
   }
 
   // Drives the hidden legend rather than the selection, so hiding a series to
-  // read another one can't re-resolve the axes underneath it.
+  // read another one can't re-resolve the axes underneath it. A-08: the hidden set
+  // is written into `legend.selected`, so every rebuild re-applies it.
   function toggleSeries(key) {
-    const name = LABEL_MAP[key] ?? key
-    chartRef.current?.getEchartsInstance().dispatchAction({ type: 'legendToggleSelect', name })
     setHidden(prev => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -229,6 +253,9 @@ export default function BreadthCharts() {
 
   const option = useMemo(() => {
     const { axisByKey, hasRight, leftUnit, rightUnits } = resolveAxes(selected)
+    const zoomed = zoomValues(zoom, dates)
+    const span = spanDays(zoomed?.startValue ?? dates[0], zoomed?.endValue ?? dates[dates.length - 1])
+    const boundary = tickBoundary(dates, span)
 
     const colors = resolveColors(selected)
 
@@ -387,12 +414,15 @@ export default function BreadthCharts() {
     return {
       backgroundColor: 'transparent',
       textStyle: { color: '#e0dac8', fontFamily: CHART_FONT_FAMILY },
-      // MetricReadout is the legend now. The component stays mounted but
-      // hidden so its selection state survives — that is what lets a readout
-      // row keep toggling a series via legendToggleSelect.
+      animationDuration: painted ? 0 : 400,
+      animationDurationUpdate: 0,
+      // MetricReadout is the legend now. The component stays mounted but hidden,
+      // and its `selected` map is built from the readout's hidden set, so every
+      // rebuild re-applies what the member hid (A-08).
       legend: {
         show: false,
         data: selected.map(key => LABEL_MAP[key] ?? key),
+        selected: Object.fromEntries(selected.map(key => [LABEL_MAP[key] ?? key, !hidden.has(key)])),
       },
       tooltip: {
         trigger: 'axis',
@@ -412,7 +442,7 @@ export default function BreadthCharts() {
                 : p.value[1]
               return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${p.seriesName}: <b>${val}</b>`
             })
-          return `<div style="font-size:11px;color:#706b5e;margin-bottom:4px">${date}</div>` + lines.join('<br/>')
+          return `<div style="font-size:11px;color:#706b5e;margin-bottom:4px">${formatTooltipDate(date)}</div>` + lines.join('<br/>')
         },
       },
       grid: { left: 64, right: hasRight ? 64 : 24, top: 24, bottom: 56 },
@@ -424,7 +454,10 @@ export default function BreadthCharts() {
         axisLabel: {
           color: '#706b5e',
           fontSize: 11,
-          formatter: v => v.slice(5).replace('-', '/'),
+          hideOverlap: true,
+          // A-06: the format follows the visible span, and the year is never dropped.
+          interval: boundary ?? 'auto',
+          formatter: (v, i) => formatSessionTick(v, span, i > 0 && dates[i - 1]?.slice(0, 4) !== v.slice(0, 4)),
         },
         splitLine: { show: false },
       },
@@ -456,7 +489,7 @@ export default function BreadthCharts() {
         },
       ],
       dataZoom: [
-        { type: 'inside', zoomOnMouseWheel: true },
+        { type: 'inside', zoomOnMouseWheel: true, ...(zoomed ?? {}) },
         {
           type: 'slider',
           bottom: 4,
@@ -465,11 +498,19 @@ export default function BreadthCharts() {
           borderColor: '#2e3127',
           handleStyle: { color: '#c9a84c' },
           textStyle: { color: '#706b5e' },
+          ...(zoomed ?? {}),
         },
       ],
       series,
     }
-  }, [selected, rows, notableExtremes, liveIndex, live.clock, showFtd])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock, showFtd, hidden, zoom, dates, painted])
+
+  // A-04 (D-029): a series flattened by a larger one on the same axis is named,
+  // computed over the rows the member is looking at.
+  const gapNotices = useMemo(() => {
+    const { axisByKey } = resolveAxes(selected)
+    return magnitudeGaps(selected, visibleRows, axisByKey).map(g => describeGap(g, k => LABEL_MAP[k] ?? k))
+  }, [selected, visibleRows])
 
   return (
     <div className={styles.container}>
@@ -504,14 +545,17 @@ export default function BreadthCharts() {
 
           {CHART_GROUPS.map(g => expanded[g.group] && (
             <div key={g.group} className={styles.metricList}>
-              <div className={styles.extremesRow}>
-                <button
-                  className={`${styles.extremesBtn} ${notableExtremes[g.group] ? styles.extremesBtnActive : ''}`}
-                  onClick={() => toggleExtremes(g.group)}
-                >
-                  <UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Extremes
-                </button>
-              </div>
+              {/* A-22: the toggle draws only MA Breadth's lines, so it appears only there. */}
+              {g.group === 'MA Breadth' && (
+                <div className={styles.extremesRow}>
+                  <button
+                    className={`${styles.extremesBtn} ${notableExtremes[g.group] ? styles.extremesBtnActive : ''}`}
+                    onClick={() => toggleExtremes(g.group)}
+                  >
+                    <UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Extremes
+                  </button>
+                </div>
+              )}
               {g.metrics.map(m => (
                 <label key={m.key} className={styles.metricItem}>
                   <input
@@ -581,9 +625,14 @@ export default function BreadthCharts() {
               hidden={hidden}
               onToggle={toggleSeries}
             />
+            {gapNotices.length > 0 && (
+              <div className={styles.gapNotice} role="status">
+                {gapNotices.map(t => <p key={t}>{t}</p>)}
+              </div>
+            )}
             <ReactECharts
-              ref={chartRef}
               option={option}
+              onEvents={onEvents}
               style={{ height: 680, width: '100%' }}
               notMerge
               lazyUpdate
