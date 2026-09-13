@@ -10162,11 +10162,33 @@ export default function StockChart({
             const ts = chart.timeScale ? chart.timeScale() : null
             if (!series || !ts) return null
             const el = chart.chartElement ? chart.chartElement() : null
+            // ⭐⭐ ITEM 4 — THE PRICE SCALE IS NOT PLOT AREA, AND A TABLE ANCHORED
+            // TO THE RIGHT CORNER LANDS ON TOP OF IT.
+            //
+            // ⚰⚰ MEASURED at both touch tiers, 2026-09-13. The container is
+            // 390px on a phone and the right scale owns its last 104px
+            // (x=286..390); a `right: 8px` table therefore ran from 264 to 382,
+            // straight over the price labels. At 1024 the same thing happens at
+            // x=550..654. Pine's `position.top_right` means the top right of the
+            // PLOT, which is what the vendor draws — not the top right of the
+            // widget including its axis.
+            //
+            // ⛔ READ FROM THE CHART, NEVER ASSUMED. LWC sizes the scale to the
+            // widest label in view, so it changes with the symbol and the zoom;
+            // a constant here would be right for SPY and wrong for a four-digit
+            // price. `priceScale('right').width()` is the chart's own answer.
+            let rightInset = 0
+            try {
+              const ps = chart.priceScale ? chart.priceScale('right') : null
+              const w = ps && typeof ps.width === 'function' ? ps.width() : 0
+              if (Number.isFinite(w) && w > 0) rightInset = Math.round(w)
+            } catch { rightInset = 0 }
             return {
               timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
               priceToY: (p) => series.priceToCoordinate(p),
               width: el ? el.clientWidth : 0,
               height: el ? el.clientHeight : 0,
+              rightInset,
             }
           },
         }),

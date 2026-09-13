@@ -111,6 +111,7 @@ export function createObjectLayer(host) {
   let stats = { drawn: {}, skipped: {} }
   let tables = []
   let tableStats = { tables: 0, cells: 0, skipped: 0 }
+  let lastRightInset = null
 
   const draw = () => {
     frame = 0
@@ -125,6 +126,21 @@ export function createObjectLayer(host) {
       canvas.height = Math.round(h * dpr)
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
+    }
+    // ⭐⭐ THE RIGHT INSET TRACKS THE PRICE SCALE, WHICH IS NOT A CONSTANT.
+    // LWC sizes the scale to the widest label in view, so it moves with the
+    // symbol and the zoom. The host reports it with the rest of the mapping;
+    // this applies it to the TABLE layer only — the canvas keeps the chart's
+    // exact coordinate space, because a line at a price must still land on that
+    // price even where the scale covers it.
+    // ⛔ WRITTEN ONLY WHEN IT CHANGES. This runs inside the repaint loop, and an
+    // unconditional style write on every frame is the background cost this
+    // file's own header exists to prevent.
+    const wantRight = Math.max(0, Math.round(Number(map.rightInset) || 0)
+      + Math.round(Number((host.insets || {}).right) || 0))
+    if (wantRight !== lastRightInset) {
+      lastRightInset = wantRight
+      tableRoot.style.right = `${wantRight}px`
     }
     const ctx = canvas.getContext ? canvas.getContext('2d') : null
     if (!ctx) return
@@ -212,7 +228,9 @@ export function createObjectLayer(host) {
       if (changed) schedule()
       return tables
     },
-    /** Force a repaint — the chart moved, the state did not. */
+    /** Force a repaint — the chart moved, the state did not.
+     *  ⭐ The table layer needs this too: the price scale's width changes with
+     *  the zoom, and the right inset is read in `draw()`. */
     invalidate: schedule,
     tables: () => tables,
     stats: () => stats,

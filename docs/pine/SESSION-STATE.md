@@ -193,6 +193,82 @@ Their owners will need to re-run.
 - **Nothing to master.** No `gh pr create`. Branch pushes any time.
 
 ---
+## ⭐⭐⭐ ITEM 4 — MOBILE AUDIT. ONE REAL DEFECT FOUND AND FIXED; ONE ROW STILL RED AND ROUTED.
+
+Both touch tiers, both definitions instanced, backend `127.0.0.1:8129`, Chromium
+via Playwright, gate v2.1 read on the audit page before every capture.
+Harness: `tools/pane_gesture_audit.py` (`--self-check` proves the verdicts can
+come back FAIL). Images in `tools/pane_audit_out/`.
+
+### The rows
+
+| row | phone390 (390×844) | touch1024 (1024×768) |
+|---|---|---|
+| tables drawn, both corners | **PASS** | **PASS** |
+| quarter-height pane (no 29px frame) | **PASS** — chart 652px | **PASS** — chart 528px |
+| disclosures readable | **PASS** — 3 lines, 0 with zero layout | **PASS** — 3 lines |
+| scrub · anchored / no artefacts | **PASS / PASS** | **PASS / PASS** |
+| pinch-zoom · anchored / no artefacts | **PASS / PASS** | **PASS / PASS** |
+| scroll · anchored / no artefacts | **PASS / PASS** | **PASS / PASS** |
+| rotate · anchored / no artefacts | **PASS / PASS** | **PASS / PASS** |
+| no overlap — price scale / toolbar / hub | 🔴 **FAIL** (left table only) | **PASS** |
+| capture @100% · @125% | **PASS** — gate true | **PASS** — gate true |
+
+`data-uct-objects-unreadable: 0` and `boundTf: D` at both tiers — R-Q holds on
+mobile. "Anchored" is measured as *the table's rect is byte-identical before and
+after the gesture*; "no artefacts" as *the cell TEXT is identical* — a redraw that
+changed a number would pass a rect check and fail this one.
+
+⛔ The left NavBar is absent below 1025px **by design** and is not reported.
+
+### ⚰️ THE DEFECT THE AUDIT FOUND — a right-anchored table sat on the price scale
+
+Measured at BOTH tiers, on every gesture. The chart container is 390px on a
+phone and lightweight-charts gives its right price scale the last **104px**
+(x=286…390); a table anchored `right: 8px` therefore ran x=264…382, **straight
+over the price labels**. At 1024 the same thing at x=550…654.
+
+⛔ `position.top_right` means the top right of the **PLOT**, which is what the
+vendor draws — not the top right of the widget including its axis. Fixed by an
+inset the HOST reports (`chart.priceScale('right').width()`), the same shape as
+the toolbar inset: the adapter measures nothing, and the chart is the only thing
+that knows how wide its own axis is this frame. ⭐ Read per frame rather than
+constant-folded, because LWC sizes the scale to the widest label in view — a
+constant would be right for SPY and wrong for a four-digit price. Written only
+when it changes, so the repaint loop does not thrash.
+
+After the fix, re-audited by the same harness: **touch1024 fully green**, and the
+phone's right-anchored tables clear the scale (x=160…278 against a plot ending at
+286).
+
+### 🔴 STILL RED, AND IT IS NOT AN ANCHORING BUG — ROUTED, NOT WAIVED
+
+At **phone390 only**, the *left*-anchored Range table is **wider than the plot**:
+
+```
+plot width  = 390 − 104 (price scale) = 286px
+Range table, 3 cells, doc A          = 287px  → overflows by   9px
+Range table, 3 cells, doc B (6 cells) = 356px → overflows by  78px
+```
+
+The content `ATR : $6.21 (0.81%) | Range: 137.58% | ATRx: 0.92` simply does not
+fit in 286px at the author's declared text size. This is a **width** problem, not
+an anchor problem — the table starts exactly where it should, at `left: 8px`.
+
+⛔⛔ **NOT FIXED, BECAUSE EVERY AVAILABLE FIX LOSES SOMETHING DIFFERENT AND THE
+CHOICE IS THE OWNER'S:**
+
+| option | what a member loses |
+|---|---|
+| shrink the font at narrow tiers | the author's declared `text_size`; divergence from the vendor's metrics |
+| wrap to a second row | the table's declared shape (1 row, N columns) |
+| clip to the plot | **a number** — forbidden by this engine's own rule |
+| opaque table background | the price labels underneath |
+| leave it | an unreadable strip where table and scale overlap |
+
+⏭️ Routed as a ruling, with the measurement above. Everything else at phone tier
+passes, and the touch tier is clean.
+
 ## ⭐⭐⭐ STEP-5 FOLLOW-THROUGH — THE IR LANE READS THE SYMBOL. v2:249 CLEARS.
 
 `buildRuntimeIr(uncharted-volume-v2.pine)`, told the clock (`forming=false`), on

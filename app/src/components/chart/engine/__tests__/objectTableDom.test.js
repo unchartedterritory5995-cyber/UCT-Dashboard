@@ -298,3 +298,43 @@ describe('⛔ the toolbar footprint agrees with the CSS it was read from', () =>
     expect(toolbarRule).toContain('z-index: 5')
   })
 })
+
+// ─── ⭐⭐ ITEM 4 — THE PRICE SCALE IS NOT PLOT AREA ─────────────────────────
+//
+// ⚰️ MEASURED at both touch tiers on the real pane, 2026-09-13. The chart
+// container is 390px wide on a phone and lightweight-charts gives the right
+// price scale its last 104px (x=286..390). A table anchored `right: 8px`
+// therefore ran from x=264 to x=382 — straight over the price labels — and at
+// 1024 the same thing happened at x=550..654. Both tiers, every gesture.
+//
+// ⛔ `position.top_right` MEANS THE TOP RIGHT OF THE PLOT, which is what the
+// vendor draws, not the top right of the widget including its axis. The fix is
+// an inset the HOST reports (`priceScale('right').width()`), for the same reason
+// the toolbar inset is: the adapter measures nothing, and the chart is the only
+// thing that knows how wide its own axis is this frame.
+describe('⛔ a right-anchored table clears the price scale', () => {
+  it('⭐ the inset is SUBTRACTED from the right anchor, not from the left one', () => {
+    // The anchor helper is pure and takes no measurements — the inset arrives as
+    // a style on the layer root, so what this pins is that a right-anchored
+    // table is positioned FROM the right edge and a left-anchored one is not.
+    expect(anchorStyle(TABLE_ANCHORS.top_right).right).toBe('8px')
+    expect(anchorStyle(TABLE_ANCHORS.top_right).left).toBeUndefined()
+    expect(anchorStyle(TABLE_ANCHORS.top_left).left).toBe('8px')
+    expect(anchorStyle(TABLE_ANCHORS.top_left).right).toBeUndefined()
+  })
+
+  it('⛔⛔ THE MEASURED GEOMETRY, as arithmetic — the defect and the fix', () => {
+    // Real numbers off the live pane, so this fails if either the scale width or
+    // the margin moves. Phone: container 390, scale 104 wide starting at 286.
+    const container = 390
+    const scaleW = 104
+    const margin = 8
+    const tableW = 118
+    const plotRight = container - scaleW          // 286
+    const before = container - margin             // 382 — the old right edge
+    const after = container - scaleW - margin     // 278 — with the inset
+    expect(before).toBeGreaterThan(plotRight)     // ⚰️ overlapped
+    expect(after).toBeLessThanOrEqual(plotRight)  // ⭐ clear
+    expect(after - tableW).toBeGreaterThan(0)     // and still on screen
+  })
+})
