@@ -8775,11 +8775,29 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
     return null
   }
   /** A parse node → its canonical tree, or null if this door cannot say it. */
-  const canonicalOf = (node) => {
+  /** A parse node → its canonical tree, or null if this door cannot say it.
+   *
+   *  ⭐ R2 — THE SCOPE IS A PARAMETER NOW, AND THAT IS WHAT MAKES INLINING
+   *  POSSIBLE. It defaulted to the closure's `scopeEnv`, which is right for an
+   *  op's own arguments and WRONG the moment a text expression steps inside a
+   *  user function: `f_formatVolume(_vol, …)`'s body reads `_vol`, a name that
+   *  exists only in the frame the caller built. Resolving that against the
+   *  caller's scope answers `undefined` for the parameter and refuses the cell.
+   *  Every existing call site passes nothing and behaves exactly as before. */
+  const canonicalOf = (node, frame) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
     try {
-      return makeResolver(scopeEnv).resolve(node)
+      // ⛔⛔ `frame` OR NOTHING — never `scopeEnv`. The factory has ALWAYS
+      // ignored its argument and built its Resolver over the top-level `env`;
+      // R2 made it honour one, and handing it `scopeEnv` here (a `new Map(env)`
+      // COPY whenever the op has block locals) went red on
+      // `objectParams.test.js`: a `line.new` coordinate stopped moving with its
+      // member input, because `declareInputs` mints into the object it is given
+      // and the copy is thrown away. Passing nothing reproduces the old
+      // behaviour exactly; passing a FRAME is the one new case, and it exists
+      // only inside an inlined user-function body.
+      return makeResolver(frame).resolve(node)
     } catch {
       diagnostics.unresolvedValues += 1
       return null
@@ -8798,7 +8816,7 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
     byFormula.set(f, i)
     return { v: 'tree', tree: i }
   }
-  const resolveTree = (node) => internTree(canonicalOf(node))
+  const resolveTree = (node, frame) => internTree(canonicalOf(node, frame))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
    *  way `staticColourOf` already opens a colour behind a name. */
@@ -8819,7 +8837,7 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
    * operation is dropped and counted. A blank cell where the author wrote a
    * number reads as a working dashboard and is not one.
    */
-  const textNodeOf = (node, scope, depth = 0) => {
+  const textNodeOf = (node, scope, depth = 0, frame = null) => {
     if (!node || depth > 12) return null
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
     if (node.type === 'number') {
@@ -8827,7 +8845,7 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
       return ref ? { t: 'num', tree: ref.tree } : null
     }
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
-      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value)
+      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, frame)
       if (!ast) return null
       const ref = internTree(ast)
       const fmtNode = node.args && node.args[1] && node.args[1].value
@@ -8835,25 +8853,71 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
       return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
     }
     if (node.type === 'binary' && node.op === '+') {
-      const a = textNodeOf(node.left, scope, depth + 1)
-      const b = textNodeOf(node.right, scope, depth + 1)
+      const a = textNodeOf(node.left, scope, depth + 1, frame)
+      const b = textNodeOf(node.right, scope, depth + 1, frame)
       if (!a || !b) return null
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
-      const cond = resolveTree(node.test)
-      const then = textNodeOf(node.yes, scope, depth + 1)
-      const other = textNodeOf(node.no, scope, depth + 1)
+      const cond = resolveTree(node.test, frame)
+      const then = textNodeOf(node.yes, scope, depth + 1, frame)
+      const other = textNodeOf(node.no, scope, depth + 1, frame)
       if (!cond || !then || !other) return null
       return { t: 'if', cond, then, else: other }
     }
-    const opened = openName(node, scope, depth)
-    if (opened) return textNodeOf(opened.node, opened.env, depth + 1)
+    // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
+    //
+    // ⚰️ MEASURED ON `uncharted-volume-v2.pine`, 2026-09-13: this branch's
+    // absence dropped BOTH Volume-table cells. The give-up node was
+    // `call|f_formatVolume` at lines 495 and 502 — a three-line helper reading
+    // `str.tostring(_vol / _divisor, '0.00') + _unit`, every piece of which this
+    // reader already understood. What it could not do was step over the call.
+    //
+    // ⛔ IT IS A SUBSTITUTION, NOT A SECOND EVALUATOR. The frame is an ordinary
+    // scope Map holding each parameter as an `expr` binding over the ARGUMENT
+    // node in the CALLER's scope — the same shape `openName` already opens and
+    // the same substitution `Resolver.inlineUserFunction` makes for numbers. So
+    // a text function cannot mean anything a numeric one would not.
+    //
+    // ⛔ NAMED ARGUMENTS AND ARITY ARE REFUSED, NOT GUESSED. Binding positionally
+    // through a named call would silently pair the wrong argument with the wrong
+    // parameter and render a cell that is confidently wrong — the one outcome a
+    // dashboard must never produce. `Resolver.inlineUserFunction` refuses both by
+    // name; this returns null and the cell is dropped and counted, which is this
+    // door's own way of saying the same thing.
+    if (node.type === 'call' && node.name) {
+      const where = (frame && typeof frame.get === 'function' && frame.get(node.name))
+        || (scope && typeof scope.get === 'function' && scope.get(node.name))
+      const bound = where
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.node
+        && Array.isArray(bound.params)
+        && bound.params.length === (node.args || []).length
+        && !(node.args || []).some((a) => a && a.name)) {
+        // ⛔⛔ THE FRAME IS A SEPARATE PARAMETER, NOT A REPLACEMENT SCOPE, AND
+        // THE DIFFERENCE IS A MEASURED REGRESSION. The first cut handed the frame
+        // in as `scope` and let `canonicalOf` resolve everything against it. That
+        // reached the text — and broke `objectParams.test.js`: a `line.new`
+        // coordinate stopped moving when its member input moved, because the
+        // Resolver was being built over a COPY of the env rather than the env
+        // itself, and `declareInputs` mints into the object it was given. Passing
+        // the frame separately leaves every pre-existing path resolving against
+        // exactly what it always did (`frame` is null there), and only a body
+        // reached THROUGH a call resolves against the substitution.
+        const inner = new Map(frame || bound.value.env || scope)
+        bound.params.forEach((param, i) => {
+          inner.set(param, { kind: 'expr', node: node.args[i].value, env: frame || scope })
+        })
+        const inlined = textNodeOf(bound.value.node, scope, depth + 1, inner)
+        if (inlined) return inlined
+      }
+    }
+    const opened = openName(node, frame || scope, depth)
+    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, frame)
     // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
     // required a string, so this is a value the author already stringified some
     // way this door cannot read — carrying the NUMBER is closer to the truth
     // than carrying nothing, and it is the only branch here that guesses.
-    const ast = canonicalOf(node)
+    const ast = canonicalOf(node, frame)
     if (!ast) return null
     const ref = internTree(ast)
     return ref ? { t: 'num', tree: ref.tree } : null
@@ -10155,8 +10219,23 @@ export function translatePine(source, opts = {}) {
         + '. This is a translator defect, not a limit on the script: report it with the file.',
         null)
     }
-    objectPass = buildObjectProgram(stmts, source, env, () => {
-      const r = new Resolver(env, table, declaredTypes,
+    objectPass = buildObjectProgram(stmts, source, env, (scope) => {
+      // ⭐⭐ R2 — THE FACTORY HONOURS THE SCOPE IT IS HANDED, AND IT NEVER DID.
+      //
+      // ⚰️ MEASURED 2026-09-13. The signature was `() => …`: every caller has
+      // been passing `scopeFor(op.locals)` since C3B and every one of them was
+      // ignored, so `canonicalOf` resolved against the TOP-LEVEL env no matter
+      // whose block it was reading. That was invisible while the only thing
+      // asked of it was a global name — and it is exactly what made a user
+      // function returning text unreachable: the body reads `_v`, a name that
+      // exists ONLY in the frame the caller builds, and the resolver was handed
+      // a scope that could not see it. `unresolvedValues` counted the misses and
+      // nothing named them.
+      //
+      // ⛔ `scope || env` KEEPS EVERY EXISTING CALLER BYTE-IDENTICAL. A factory
+      // invoked with nothing still gets the top-level env, which is what every
+      // call site outside the text reader passes today.
+      const r = new Resolver(scope || env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
           strict: opts.strict === true,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,

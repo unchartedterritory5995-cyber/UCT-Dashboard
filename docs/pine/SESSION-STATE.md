@@ -1,5 +1,149 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ SESSION 3 · ITEM 3 — TABLES. **NOT FINISHED.** THE SEAM IS MEASURED AND NAMED, AND ONE OF ITS THREE CAPABILITIES IS BUILT.
+
+⛔ **STOPPED DELIBERATELY, NOT RUN OUT OF.** No pixels tonight: the renderer, the
+cell-by-cell compare and the two-zoom screenshots all sit behind three translator
+capabilities, one of which is done. Half-building a text evaluator would have
+shipped a table cell that is **confidently wrong**, which is the one outcome
+`buildObjectProgram`'s own header forbids — *"a blank cell where the author wrote
+a number reads as a working dashboard and is not one."*
+
+### ⭐⭐ THE DESIGN DECISION, AND THE MEASUREMENT THAT OVERTURNED THE FIRST ONE
+
+**Decided: the text layer is `textNodeOf` inside the EXISTING C3B object pass. A
+table is NOT a third output root, and no new manifest section was added.**
+
+⚰️ The first cut of this item declared a `_tables` roster and a `_text` format
+vocabulary in `closedTable.json`, registered both in `manifestProse.KEEP`, and
+described a `pine.js::tableRoots` walk that would treat `table.cell` as a root
+beside `plot`. **All of it was written against a design the next measurement
+disproved, and all of it was reverted before a line of code depended on it.**
+
+What the measurement actually said:
+
+```
+translatePine(v2, {strict:true})     ok=true  5 outputs  0 refusals   ← the tables are NOT refused
+t.objects.ops                        2 × create family=table          ← they are ALREADY collected
+t.objectDiagnostics.dropReasons      { cell:text: 6, … }              ← only the TEXT is missing
+t.objectDiagnostics.droppedProps     2                                ← and the two positions
+```
+
+`OBJECT_NAMESPACES` has held `table` since C3B; `CREATE_POSITIONAL.table` and
+`CELL_POSITIONAL` already name every argument; `textNodeOf` already reads
+literals, `str.tostring` with a format, `+` chains and ternaries. **A third root
+would have been a second authority over a table this engine already collects** —
+the defect this repo keeps paying for, and it was three files from being
+committed. The reverted block is not in the diff.
+
+### ⚰️⚰️ THE SEAM, MEASURED TO FOUR LEAVES AND THREE CAPABILITIES
+
+An instrumented `textNodeOf` named every node it gave up on, with its line:
+
+```
+BEFORE  x1  call|f_formatVolume|495   volCellText    = … + f_formatVolume(volDisplay, tableUnit, tableDivisor) + …
+        x1  call|f_formatVolume|502   avgVolCellText = … + f_formatVolume(avgVolDisplay, …) + …
+        x1  name|atrMultText  |576    table.cell(atrTable, 2, 0, atrMultText,  …)
+        x1  name|dcrText      |577    table.cell(atrTable, 3, 0, dcrText,      …)
+```
+
+| # | capability | what needs it | state |
+|---|---|---|---|
+| 1 | **a user function that returns text, inlined** | `f_formatVolume`, and `f_getTablePos` behind it — which IS the `pine:text-value@153` the ruling names | ✅ **BUILT**, 6 rails |
+| 2 | **a text TUPLE part** — `[tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)`, a helper whose `if/else if` chain returns `['B',1e9]` / `['M',1e6]` / `['K',1e3]` / `['',1.0]` | both Volume cells | ⏭️ named |
+| 3 | **text from a `:=` REASSIGNED local** — `atrMultText`/`dcrText` are built across `if` branches | the last two Range cells | ⏭️ named |
+
+⭐ **CAPABILITY 1 IS DONE AND MEASURED.** `textNodeOf` now steps over a call to a
+`kind:'fn'` binding by substituting each parameter as an ordinary `expr` binding
+over the ARGUMENT node in the caller's scope — the same substitution
+`Resolver.inlineUserFunction` makes for numbers, so a text function cannot mean
+anything a numeric one would not. Named arguments and wrong arity are **refused**,
+never bound positionally: pairing `f_fmt(_unit='M', _v=volume)` by position would
+render a cell that is confidently wrong.
+
+### ⚰️⚰️ AND A HAZARD FOUND ON THE WAY, WITH A RED TEST TO PROVE IT
+
+`buildObjectProgram`'s resolver factory is `() => new Resolver(env, …)` — **it has
+always IGNORED the scope every caller hands it.** Every `canonicalOf` since C3B has
+resolved against the top-level `env`, never the op's block. Making it honour the
+argument is a one-word change, it unlocked **two more v2 cells immediately**
+(`rangeText`, `usedText` are block locals)…
+
+⛔ …**and it went RED on `objectParams.test.js`: a `line.new` coordinate stopped
+moving when its member input moved.** The cause is a second authority:
+`scopeFor(locals)` builds `new Map(env)` and then **re-parses each local from its
+tokens** (`parseWholeExpression(b.toks)`), so `lvl = close * (1 + off/100)` is
+rebuilt from source and reads an `off` that never went through the walk's
+`declareInputs` mint. The knob is real in `env` and absent in the copy.
+
+⭐ **So the factory now takes a FRAME, not a scope.** `frame` is `null` at every
+pre-existing call site — byte-identical behaviour — and non-null only inside an
+inlined function body. Capability 1 lands; the block-local scope stays wrong, and
+is now wrong *in writing* with a test that fails if anyone "fixes" it the obvious
+way. Fixing it properly means layering the walk's own final bindings instead of
+re-parsing, and it is a precondition for capability 3.
+
+### What the owner's other item-3 clauses need, and where they stand
+
+| clause | state |
+|---|---|
+| `table.*` ×10 walked | ✅ already collected (2 `new` + 2 `set_position` + 6 `cell`); 0 of the 6 cells carry text yet on v2 |
+| the R2 text layer | 1 of 3 capabilities |
+| DOM overlay at the pane corner, resize/scroll/zoom, 2 zoom levels | ⛔ blocked on the cells existing |
+| cell-by-cell vs `f2578f82c` + `5c4d67ef2`, trailing space included | ⛔ blocked — **but both fixtures are read and confirmed usable**: `'Vol : 45.51M (1.05x) '` len 21 `trailing_space: true`, and `'Vol : 790.46K (0.16x) '` len 22 on AGEN |
+| `str.tostring` float formats | the three the script uses are `0.00`, `#.##`, `#`, and the vendor cells pin each; the formatter is not written |
+| ≥ 2,751 bars or HVE excluded | the `compareAll` depth gate from R-L is already built and unchanged |
+| `pine:text-value@153` clears in the IR lane | ⏭️ capability 1 is its machinery; the IR lane's own refusal is measured below |
+
+### ⭐ `buildRuntimeIr` ON v2, VERBATIM — AND ITS FIRST REFUSAL HAS MOVED
+
+```
+buildRuntimeIr(V2, {})
+  ok       false
+  refusal  runtime:realtime-untold @297:25  barstate.isconfirmed
+           "this lane cannot say yet whether the newest bar has finished…"
+```
+
+⛔ **THAT IS RULING 3.3 WORKING, NOT A DEFECT** — the lane refuses rather than
+render four blank `barstate` columns, and the caller is supposed to supply the
+tri-state. Supplied through the shipped door, the lane walks past it:
+
+```
+buildRuntimeIr(V2, runtimeClockOpts(false))
+  ok            false
+  refusal       pine:text-value @153:1  f_getTablePos   locationIsStatement: true
+  diagnostics   statements 40   columns 0   slots 0
+```
+
+⭐ **So v2:153 is confirmed as the IR lane's live blocker, and it is
+`f_getTablePos` — a user function**, which is capability 1's shape exactly. Its
+body maps an `input.string` to a `position.*` enum through a chain of string
+comparisons that already fold (`Resolver.stringValueOf`); what stopped it was the
+step over the call. ⚠️ Whether it clears end-to-end is **untested**: the IR lane
+reaches text through `pine.js::resolve`, not through `textNodeOf`, so capability 1
+is its machinery and not yet its wiring. Named rather than claimed.
+
+### Suites
+
+| | |
+|---|---|
+| `src/components/chart/engine` + `/builder` | 342 files → **7,112 passed, 32 skipped, 5 failed in 3 files** |
+| movers | **+6** — `textUserFunction.test.js`; 0 new reds |
+
+The 5 are the same pre-existing HEAD trio (`BuilderSheet.pine`,
+`ImportBox.thinkscript`, `pineBoxSuggestVoice` ×3).
+
+---
+
+## 📋 ROUTED, NOT TONIGHT (owner, 2026-09-13)
+
+| # | item | owner | why it is not ours tonight |
+|---|---|---|---|
+| **R-O** | **Refresh the 13 stale `ticker_meta` cache rows** holding raw yfinance tier codes (`OQB`×5, `OID`×5, `OQX`×3). A one-liner against the current `_YF_EXCHANGE` map, which already maps all three to `OTC` — witnessed. | this program | 99.63% ships behind a flag as it stands; the fix is cheap and the rows are simply old. ⛔ **`BF.B` (`YHD`) is the GENUINE residual and stays named** — it is unmapped, not stale, and a refresh will not move it. |
+| **R-P** | **`hooks/pollingSites.rail.test.js` is RED on master's files**, naming `floor2/hooks/useFloor.js` (5 bare sites) and `hooks/useWatchlistIntelligence.js` (1). | master's list, NOT this branch | Neither file is in this branch's diff; both were last touched by *Seam 8: Price-Move Evidence Timestamp Convergence V1*. The rail asks for a census row with a reason, and the reason belongs to whoever added the sites. |
+
+---
+
 ## ⭐⭐⭐ SESSION 3 · ITEM 2 — T5b. THE SAVED DEFINITION REACHES THE MEMBER'S CHART, AND THE PIXELS FOUND TWO DEFECTS
 
 **A member pastes Pine, presses one button, and the script is on their own chart
@@ -521,7 +665,7 @@ wave added is red.**
 |---|---|---|
 | **1** | **R-K's symbol half** — thread a symbol object `{ticker, exchange, …}` from the chart's symbol resolution through `binder.sync` → `computeFor` → `symbolConstants`, **with the Python twin**. | **2–3 h**, hard stop at 3 |
 | **2** ✅ | **T5b — the saved-definition pane surface** — a member's saved definition drawn through `indicatorInstances` on the surface they actually open. Flag-gated, and the flag-off rail non-vacuous **on the real route**. | **DONE** |
-| **3** | **R2 text layer + `table.*` ×10** — both tables rendered and anchored, cell-by-cell string compare against `7f94f4404` and `5c4d67ef2`, **including the trailing-space cell**. | 3 h |
+| **3** ⏸️ | **R2 text layer + `table.*` ×10** — both tables rendered and anchored, cell-by-cell string compare against `7f94f4404` and `5c4d67ef2`, **including the trailing-space cell**. | **1 of 3 capabilities — seam named** |
 | **4** | **Mobile audit at 390×844 and 1024×768** via `tools/mobile_audit.py`, viewport pinned, 4 screenshots, pass/UNTESTED per row. ⛔ The 29px frame is the exact thing to look for. | 1–2 h |
 | **5** | **Merge `origin/master`** after a fresh dry-run against the CURRENT tip; both lanes + rails post-merge; **flag default OFF confirmed on the merged tree**. | 1–2 h |
 | **6** | **PR body** per the earlier spec. ⛔ **First process item is the worktree-ownership rule (R8).** | 30 m |
