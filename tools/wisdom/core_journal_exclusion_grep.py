@@ -63,6 +63,12 @@ BAN_CHECK_PATHS = frozenset({
     "tools/wisdom/core_check_bans.py",
     "tools/wisdom/core_journal_exclusion_grep.py",
     "tests/test_wisdom_bans.py",
+    # Plants banned references on purpose to prove each guard can FAIL (owner ruling,
+    # drift #5, 2026-09-13). Same category as test_wisdom_bans.py: its journal/J2 strings are
+    # fixtures, not reaches. ⚠️ The exemption is on STRINGS only and it is a real (pre-existing)
+    # residual — a genuine journal reach inside a file on this list would not be caught here.
+    # The AST rails do not cover tests/ at all, so this list is the only thing looking.
+    "tests/test_wisdom_guard_mutation.py",
     "docs/wisdom/methodology/rails-v1.md",
     ".github/workflows/wisdom-rails.yml",
 })
