@@ -984,6 +984,131 @@
         "web"
       ],
       "note": "GATE-S7-REGIME-CHANGE CP3 (owner approval line 2, fingerprint 9f0575340). Arms the alert_taxonomy_regime_change_dark cron (weekdays 04:00-20:59 ET, minute 7-59/20 -- SHADOWING the awareness scan's */20 with a 7-minute offset so each of its ledger appends is observed after it lands): the forward-only dark comparison against BOTH legacy emitters, awareness rule_regime_flip and voice_proactive_service.maybe_emit_regime_shift. ARMED 2026-09-13 16:00:29 UTC on `web`, owner-authorized in one pass with its three siblings so `web` rebuilt ONCE (deployment 506eeee6d re-deployed by the `--set`; a fourth data point for the auto-redeploy question, matching `web`'s 2026-09-09 and 2026-09-12 behaviour and not chart-renderer's 2026-08-30 one). Verified by ARTIFACT: deploy SUCCESS, /api/health uptime reset to 40s, the in-PROCESS value read `'1'` over `railway ssh`, and the startup line printed in the live logs -- never by a `--kv` readback, which says what the service is CONFIGURED with and not what the process has. DEFAULT IS OFF BY DESIGN: the sweep reads REAL member rows, so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed -- comparison spans and receipts only, no delivery path imported by any module it touches. The FLIP and CP4 each need a new owner approval line; this flag is NOT that. FIRST TICK IS MONDAY (mon-fri cron, armed Sunday). ⛔⛔ IT MUST NEVER WRITE awareness_regime_snapshots -- the legacy does a read-then-APPEND there and a dark write would corrupt the prev_label the LIVE R4 rule reads next cycle. Verified in-pod after arming: newest ledger row is still the engine's own (id 2557, bull_correction, 2026-09-12 00:40), row count unchanged. A watermark on that id makes each row observable ONCE, so `agreed` cannot become a function of the sweep's cadence. DRY RUN 2026-09-13, read-only: the newest two ledger rows are BOTH 'bull_correction' -- no flip, a quiet tick and not a failure; 3 of 6 cohort members have stake (a position or a watchlist symbol)."
+    },
+    "WISDOM_INGEST_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "UCT Wisdom Loop MASTER switch (docs/wisdom/CONTRACTS.md §4). Every Wisdom job no-ops unless set. Internal ingest only, nothing member-visible. Read in api/services/wisdom/core/flags.py; armed by the Wisdom integrator after the Wave 1 merges."
+    },
+    "WISDOM_CAPTURE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom D12 daily archive capture jobs (stream S-A) kill switch. Internal: writes only R2 wisdom/ and wisdom.db. Read in api/services/wisdom/core/flags.py."
+    },
+    "WISDOM_X_BACKFILL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom paid TwitterAPI.io backfill of the three tracked accounts (stream S-A). Spends money; internal only. Read in api/services/wisdom/core/flags.py."
+    },
+    "WISDOM_VOCAB_AUTOPROMOTE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom vocabulary auto-promotion at >=3 independent team-author uses (stream S-B, W1 §3.6). Internal; promotions land as provisional in the owner review queue."
+    },
+    "WISDOM_DISCORD_LISTENER_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom Discord listener + backfill for the four author channels (stream S-C, W1 §2.1). REST only, authors only, member messages dropped before any write. Internal."
+    },
+    "WISDOM_SOURCES_INGEST_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom transcript and Sunday Scans source ingest into wisdom.db (stream S-C). Published posts only, read-only on education.db and desk.db. Internal."
+    },
+    "WISDOM_EXTRACT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom Batch extraction submit/reap (stream S-D). Spends Anthropic Batch budget under the hard WISDOM_EXTRACT_BUDGET_USD cap and the golden gate. Internal."
+    },
+    "WISDOM_VISION_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom chart-image vision reads (stream S-D, D13). Cost gate: 50 images first, then Batch. Internal; nothing auto-publishes."
+    },
+    "WISDOM_EXTRACT_AUDIT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom weekly 50-segment second-pass extractor audit (stream S-D, W1 §6.5). Internal; disagreements go to the owner review queue."
+    },
+    "WISDOM_OUTCOMES_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom OUTCOME engine over stated CALLs (stream S-E). Read-only on bars; internal wisdom.db writes only."
+    },
+    "WISDOM_CONTEXT_SNAPSHOT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom D11 CONTEXT_SNAPSHOT at call time (stream S-E). Read-only on existing stores; internal wisdom.db writes only."
+    },
+    "WISDOM_REPLAY_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom CALL-REPLAY against recorded UCT scan outputs (stream S-E, W1 §6.1-6.3). Internal metrics only."
+    },
+    "WISDOM_METRICS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom metrics computation and the grounding eval (stream S-E, W1 Part 6). Internal; results shown on the admin dashboard only."
+    },
+    "WISDOM_RETRIEVAL_INDEX_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wisdom FTS5 retrieval index refresh inside wisdom.db (stream S-F). Internal; the Ask-AI consumer has its own member-visible flag."
+    },
+    "WISDOM_WEEKLY_REPORT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "WEEKLY WISDOM REPORT delivery to the admin channel (stream S-F). Owner-facing only; first scheduled gate Sunday 2026-09-20."
+    },
+    "WISDOM_BRAINKB_PUBLISH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Wisdom publish into the Brain KB (D18 sequencing). Owner flips (W1 §0.4c). Read in api/services/wisdom/core/flags.py."
+    },
+    "ASKAI_WISDOM_RETRIEVAL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Ask-AI retrieval over Wisdom segments/principles, admin cohort wisdom-askai first. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_DESK_MARKERS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_BADGES_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: 'UCT said' badges for Catalysts/Terminal. W1 ships the admin endpoint only. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_PV_EXAMPLES_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: owner charts as Pattern Vision examples. Drafts only while the Pattern Intelligence Lab is paused. Owner flips."
+    },
+    "WISDOM_MODELBOOK_DRAFTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: Model Book / Setup Library drafts and the 17 playbooks, approval queue first (D19). Owner flips."
+    },
+    "WISDOM_VOICE_PROFILE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: weekly Morning Wire voice-profile refresh from the full corpus (D18/D19). Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_DOSSIER_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: 'what UCT actually said' lines in AI ticker dossiers, dated and cited. Owner flips (W1 §0.4c)."
+    },
+    "WISDOM_LEVEL_ALERTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "D20 level-reached alerts on open CALLs, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
+    },
+    "WISDOM_LOOKALIKE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "D20 daily 'looks like what TSDR buys' list, admin cohort. Also hard-gated in code on CALL-REPLAY n>=100 and 14 days of silent scoring. Owner flips."
     }
   },
   "build_flags": {

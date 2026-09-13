@@ -3231,6 +3231,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).warning(f"[buzz] store init skipped: {e}")
 
+    # -- UCT Wisdom Loop store (docs/wisdom/CONTRACTS.md §2.2) --
+    # Unconditional, idempotent DDL: a reader must never depend on the scheduler
+    # lock or a flag to find its tables (same reasoning as the buzz init above).
+    try:
+        from api.services.wisdom import registry as _wisdom_registry_boot
+        _wisdom_boot = _wisdom_registry_boot.init_stores()
+        print(f"[startup] wisdom.db ready (migrations applied this boot: {len(_wisdom_boot.get('applied', []))})")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"[wisdom] store init skipped: {e}")
+
     # Live-chat presence: coalesced snapshot broadcast every ~8s (ephemeral frames).
     # Single web process → the in-memory chat hub needs no external pub/sub.
     try:
@@ -5931,6 +5941,17 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] auth.db R2 backup scheduler ON (every 6h + daily 2:55am ET)")
 
+        # -- UCT Wisdom Loop jobs (docs/wisdom/CONTRACTS.md §2.2, §5) --
+        # Registered unconditionally, in their own try: every run re-reads
+        # WISDOM_INGEST_ENABLED and the job's own kill switch, so turning a job
+        # off needs no deploy, and a Wisdom failure cannot skip the jobs below.
+        try:
+            from api.services.wisdom import registry as _wisdom_registry_jobs
+            _wisdom_job_ids = _wisdom_registry_jobs.register_jobs(_scheduler)
+            print(f"[startup] wisdom jobs registered: {len(_wisdom_job_ids)} ({', '.join(_wisdom_job_ids)})")
+        except Exception as e:
+            print(f"[scheduler] wisdom registration error: {e}")
+
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
@@ -8226,6 +8247,11 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
+# UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
+# every route) and /api/internal/wisdom/<pkg>/* (require_push_secret). One loop so streams never edit main.py.
+from api.services.wisdom import registry as wisdom_registry  # noqa: E402
+for _wisdom_router in wisdom_registry.routers():
+    app.include_router(_wisdom_router)
 
 
 # -- Massive WS consumer health endpoint --------------------------------

@@ -1,6 +1,8 @@
 -- UCT Wisdom Loop — wisdom.db schema v0 (Wave 1 CONTRACT, owned by S-B; every stream builds against it)
 -- Path: env WISDOM_DB_PATH, default /data/wisdom.db (repo-root conftest census pins it in tests).
 -- Rules: ADDITIVE ONLY in Wave 1 (CREATE ... IF NOT EXISTS, ALTER ADD COLUMN guarded) — no drops.
+-- Applied as migration core_001_base_v0 (api/services/wisdom/core/schema.py). FROZEN once applied on
+-- production: every later change is a new additive core_NNN / <pkg>_NNN migration, never an edit here.
 -- Times: ET ISO-8601 with offset ('2026-09-11T09:27:00-04:00'). JSON columns end in _json.
 -- Private data (share counts, entry on OPEN positions) NEVER lands here — see wisdom-private-v0 below.
 -- Status vocabulary shared across tables: provisional | confirmed | rejected | superseded.
@@ -328,12 +330,40 @@ CREATE TABLE IF NOT EXISTS wisdom_review_actions (
 );
 
 -- ── Jobs, capture, batches, metrics, publishing ──────────────────────────────
-CREATE TABLE IF NOT EXISTS wisdom_job_heartbeats (
+CREATE TABLE IF NOT EXISTS wisdom_job_heartbeats (   -- one row per job, upserted on EVERY run (skips included)
+  job_id                 TEXT PRIMARY KEY,
+  last_beat_at           TEXT,
+  last_status            TEXT CHECK (last_status IS NULL OR last_status IN ('ok','skipped','failed','running')),
+  last_ok_at             TEXT,
+  last_error             TEXT,
+  beats                  INTEGER NOT NULL DEFAULT 0,
+  consecutive_failures   INTEGER NOT NULL DEFAULT 0,
+  alerted_at             TEXT                            -- watchdog page stamp; cleared by the next ok beat
+);
+CREATE TABLE IF NOT EXISTS wisdom_job_runs (
+  run_id                 TEXT PRIMARY KEY,
   job_id                 TEXT NOT NULL,
-  beat_at                TEXT NOT NULL,
-  status                 TEXT NOT NULL CHECK (status IN ('ok','skipped','failed','running')),
-  detail                 TEXT,
-  PRIMARY KEY (job_id, beat_at)
+  due_key                TEXT,
+  started_at             TEXT NOT NULL,
+  finished_at            TEXT,
+  status                 TEXT NOT NULL CHECK (status IN ('ok','failed','running')),
+  forced                 INTEGER NOT NULL DEFAULT 0,
+  dry_run                INTEGER NOT NULL DEFAULT 0,
+  result_json            TEXT,
+  error                  TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_job_runs_job ON wisdom_job_runs(job_id, started_at);
+CREATE TABLE IF NOT EXISTS wisdom_job_claims (         -- durable (job, slot) claim: two pods never both do one slot
+  job_id                 TEXT NOT NULL,
+  due_key                TEXT NOT NULL,
+  claimed_at             TEXT NOT NULL,
+  finished_at            TEXT,
+  status                 TEXT NOT NULL CHECK (status IN ('running','ok','failed')),
+  PRIMARY KEY (job_id, due_key)
+);
+CREATE TABLE IF NOT EXISTS wisdom_migrations (
+  name                   TEXT PRIMARY KEY,
+  applied_at             TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS wisdom_capture_runs (
   run_id                 TEXT NOT NULL,
@@ -356,6 +386,10 @@ CREATE TABLE IF NOT EXISTS wisdom_discord_state (
   backfill_before        TEXT,
   backfill_done          INTEGER NOT NULL DEFAULT 0,
   last_poll_at           TEXT,
+  last_ok_at             TEXT,                           -- stamped on every successful fetch, empty pages included
+  last_status            INTEGER,                        -- last HTTP status
+  blocked_until          TEXT,                           -- 401/403 back-off; never retried every tick
+  last_error             TEXT,
   messages_seen          INTEGER NOT NULL DEFAULT 0,
   messages_kept          INTEGER NOT NULL DEFAULT 0
 );
