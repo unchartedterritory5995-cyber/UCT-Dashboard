@@ -17,7 +17,7 @@ moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim
 
 | # | Action | Estimate |
 |---|---|---|
-| 1 | `owner-run.md` §A — the flick-safety block on a real iPhone, then `Copy trace` and run `tools/hub_trace_analyze.py`. **Closes G0-1 and D4, and unblocks Block G5's 96 rows.** | **20 min** |
+| 1 | `owner-run.md` §A — twenty flicks, then five deliberate control presses LAST, then `Copy trace` and `tools/hub_trace_analyze.py`. **Closes G0-1 and D4, and unblocks Block G5's 96 rows.** ⚰️ **§A was rewritten 2026-09-13**: it had asked for "0 of 8 fire" at five targets when only `journal.close` is `flickable: false`, interleaved the controls that `--control N` reads as the LAST N gestures, and published an `--expect` list naming two targets the block never used. Four of six rows would have reported FAIL against correct behaviour. | **20 min** |
 | 2 | `owner-run.md` §B — nine G3 rows a 0.42-scale mirror could not aim at, **plus B10–B15**, the twelve steps D-42 had hidden | 25 min |
 | 3 | `owner-run.md` §C — four Android/TalkBack rows on your own phone | 10 min |
 | 3b | `owner-run.md` **§C-iOS** — three VoiceOver rows (G2-3, G2-4, D1-iOS). ⭐ These were BLOCKED on a BrowserStack limitation, not a product one, and your own iPhone lifts it | 10 min |

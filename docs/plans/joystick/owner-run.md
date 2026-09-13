@@ -22,32 +22,76 @@ finger, and the screen is full size.
 
 ---
 
-## A — iPhone: the flick-safety block (the one that matters most)
+## A — iPhone: the flick block and the trace (the one that matters most)
 
 ⭐ **This is G0-1 and D4 together.** The question the whole programme could not answer: *does a real
 finger's flick produce a `pointerdown → pointerup` pair under 120 ms, and if so does the hub do the
 safe thing?* The engine-level flick path is proven working (6/6 at 76–79 ms via a device-console
 probe) — what is unproven is the **touch pipeline on glass**.
 
+⚰️ **THIS BLOCK WAS REWRITTEN 2026-09-13 BECAUSE IT ASKED FOR THE WRONG RESULT.** It previously
+told you to expect *"0 of 8 fire"* at **five** targets. Only **one** action in the whole registry
+carries `flickable: false` — `journal.close` — and the other four are `flickable: true`, where a
+flick firing them **is the shipped design** (`00-master-spec-v1.6.md:396`: *"default true; false = deliberate selection
+only"*). Four of six rows would have reported FAIL against correct behaviour, on the block that
+unblocks 96 others. It also interleaved the controls, which `--control N` reads as *the last N
+gestures*, so the real controls would have been counted as flicks and five flicks counted as
+controls. ⛔ **Nothing here was dangerous** — every one of these five opens a **sheet**
+(`openStopSheet`, `openPlanSheet`, or a confirm), so a flick can never write to a live position.
+The defect was the expectation, not the product.
+
 **Setup:** Settings → Joystick → turn **Record gesture trace** ON.
+
+### A1–A5 — the flicks. Do all of these FIRST, in this order.
+
+Four fast flicks at each target — as quick as you can, twenty in total.
+
+| # | Target | Flick 4× at | What should happen | Result |
+|---|---|---|---|---|
+| A1 | `journal.close` | Journal fan → **Close** | ⛔ **NOTHING FIRES. 0 of 4.** This is the only `flickable: false` action in the registry, and this row IS D4. The fan opens instead. | ☐ PASS ☐ FAIL |
+| A2 | `journal.moveStop` | Journal fan → **Move stop** | The **stop sheet opens** — this action is `flickable: true`, so firing is correct. ⛔ What must NOT happen is a stop being written with no sheet. | ☐ PASS ☐ FAIL |
+| A3 | `journal.breakeven` | Journal fan → **Breakeven** | The **stop sheet opens**, seeded at entry. Same rule: a sheet, never a silent write. | ☐ PASS ☐ FAIL |
+| A4 | `journal.planTrade` | Journal fan → **Plan trade** | **ONE** plan-trade sheet opens, never two. | ☐ PASS ☐ FAIL |
+| A5 | `scan.alert` | Screener fan → **Alert** | The **confirm sheet opens**. A `kind: 'confirm'` never writes on the gesture itself. ⭐ Last on purpose: it is the only one that needs you to leave the Journal. | ☐ PASS ☐ FAIL |
+
+### A6 — the control block. Do these LAST, all five together.
+
+⛔ **ORDER IS LOAD-BEARING.** `--control 5` tells the analyser *the last five declared gestures are
+the controls*. If you interleave them the tool labels five of your flicks as controls and your real
+controls as flicks, and the control check — the thing that proves the instrument can tell a press
+from a flick — becomes meaningless.
 
 | # | Do this | What should happen | Result |
 |---|---|---|---|
-| A1 | Open the Journal fan. Flick fast at **Close**, 8 times, each as quick as you can. | The fan opens; **nothing fires**. No sheet, no write. 0 of 8. | ☐ PASS ☐ FAIL |
-| A2 | **CONTROL** — same target, one deliberate press (~500 ms). | The Close sheet DOES open. ⛔ If this fails, A1 proves nothing. | ☐ PASS ☐ FAIL |
-| A3 | Repeat A1/A2 at **Move stop**. | 0 of 8 fire; control opens. | ☐ PASS ☐ FAIL |
-| A4 | Repeat at **Breakeven**. | 0 of 8 fire; control opens. | ☐ PASS ☐ FAIL |
-| A5 | Repeat at Screener **Alert** (a confirm). | 0 of 8 fire; control opens the confirm sheet. | ☐ PASS ☐ FAIL |
-| A6 | Repeat at **Plan trade**. | 0 of 8 fire; control opens ONE sheet, not two. | ☐ PASS ☐ FAIL |
+| A6 | One **deliberate press (~500 ms)** at each of the five above, in the same order: Close, Move stop, Breakeven, Plan trade, Alert. | Every one of them opens its sheet, **including Close**. ⛔ If Close does not open here, A1 proves nothing: a bubble that never fires because the fan never opened would also read 0 of 4. | ☐ PASS ☐ FAIL |
 
-**Then the trace, which is the real payload.** Settings → Joystick → **Copy trace**, paste it into a
-file, and run:
+### Then the trace, which is the real payload
 
-    python tools/hub_trace_analyze.py --control 5 --expect scan.chartIt:10 scan.flag:10
+Settings → Joystick → **Copy trace**, paste it into a file, and run it with the targets declared in
+the order you performed them:
+
+    python tools/hub_trace_analyze.py trace-15pro.json --control 5 \
+      --expect journal.close:4 --expect journal.moveStop:4 --expect journal.breakeven:4 \
+      --expect journal.planTrade:4 --expect scan.alert:4 \
+      --expect journal.close:1 --expect journal.moveStop:1 --expect journal.breakeven:1 \
+      --expect journal.planTrade:1 --expect scan.alert:1
+
+⛔ **The `--expect` list is positional and must match what you actually did.** It is how the tool
+tells *"correctly suppressed"* from *"fired a different action"*; declared against the wrong targets
+it will confidently mislabel every gesture. ⚰️ The command published here until 2026-09-13 read
+`--expect scan.chartIt:10 scan.flag:10` — two targets that appear nowhere in this block, at counts
+this block never asked for. It was left over from an older protocol.
 
 ⭐ **The number that settles G0-1** is how many of your flicks produced a down→up pair under 120 ms.
-If they mostly do and nothing fired, the safety works. If they mostly do NOT, then a "flick" on real
-glass is simply slower than 120 ms and the threshold is fine as shipped.
+If they mostly do and Close never fired, the safety works. If they mostly do NOT, then a "flick" on
+real glass is simply slower than 120 ms and the threshold is fine as shipped — that is a finding,
+not a failure.
+
+⚠️ **A question for you, not a defect.** Only `journal.close` is flick-guarded. `Move stop`,
+`Breakeven` and `Plan trade` all commit against a live position once their sheet is confirmed. They
+are sheet-mediated, so nothing is written by the gesture alone and the present design is defensible
+— but whether a flick should be able to *open* those sheets at all is a product call nobody has
+made. Recorded as **D-45**; it needs a ruling, not a fix.
 
 ---
 
@@ -61,13 +105,13 @@ Right-handed, normal settings. Each is one gesture and one observation.
 | B2 | G3-6 | Notebook: scrub the note list. | Cursor lands visibly on a card; the readout names the note. | ☐ PASS ☐ FAIL |
 | B3 | G3-7 | Screener: scrub the results, **past the loaded window** of the virtualised list. | Cursor stays visible on the row, scrolls with it, does not vanish over unloaded rows. | ☐ PASS ☐ FAIL |
 | B4 | G3-8 | Screener: activate **Scans**. | The saved-screen picker opens through the page's own door. | ☐ PASS ☐ FAIL |
-| B5 | G3-9 | Tap Home; then the reverse gesture. | Tap goes to the last section; reverse returns. Neither navigates somewhere unasked. | ☐ PASS ☐ FAIL |
+| B5 | G3-9 | Dashboard: tap the pad, then double-tap it. | Tap goes to your **last-used section**; double-tap goes to **Morning Wire** — a FIXED destination, not a "back". ⛔ They must differ: `homeSection.js:213` navigates Reverse to Wire unconditionally, and spec §C3:915 rejected making Primary default to Wire precisely so the two gestures never coincide. If your last section WAS Wire, visit another one first or this row proves nothing. | ☐ PASS ☐ FAIL |
 | B6 | G3-10 | Calendar: scrub the day cursor to each end. | Days step and **CLAMP** — they must not wrap. Readout matches the page's own label. | ☐ PASS ☐ FAIL |
 | B7 | G3-11 | Chart: scrub the timeframe. | Steps in the same order the TF sheet shows. | ☐ PASS ☐ FAIL |
 | B8 | G3-13 | Notebook: activate **Link ticker**. | The confirm sheet carries a symbol field — never a permanently dimmed bubble, never a label that lies. | ☐ PASS ☐ FAIL |
 | B9 | G3-14 | Any confirm action with fields. | Steppers and numeric input operate on the same value the gesture produces, and the committed value is the adjusted one. | ☐ PASS ☐ FAIL |
 
-### B10-B15 - the steps D-42 was hiding (added 2026-09-13)
+### B10–B15 — the steps D-42 was hiding (added 2026-09-13)
 
 ⭐ **Why these exist now.** `tools/hub_surface_matrix.mjs` matched an object key only in its colon
 form, so ES6 shorthand was invisible to it: `wire` and `home` wire all four gestures plus a readout
@@ -129,11 +173,11 @@ are already signed in.
 | C1 | G2-1 | Swipe to focus the hub's **Actions** button, then double-tap. **No drag anywhere.** | The Actions sheet opens. | ☐ PASS ☐ FAIL |
 | C2 | G2-2 | With TalkBack, activate **every** action on Home's sheet in turn. No drag at any point. | Each activates its own target. | ☐ PASS ☐ FAIL |
 | C3 | D1 | The no-drag door generally: reach and operate the hub using TalkBack only. | Everything reachable; nothing requires a drag. | ☐ PASS ☐ FAIL |
-| C4 | D4 (Android) | The flick-safety block above, on Android. | Same expectation as A1–A6. | ☐ PASS ☐ FAIL |
+| C4 | D4 (Android) | §A's flick block on Android: four fast flicks at each of the five targets, then the five deliberate control presses LAST. | Same expectations as A1–A5 and A6 — **0 of 4 on `journal.close` only**, a sheet on the other four, and every control opens its sheet. ⛔ Take a SECOND trace here and analyse it separately; `--compare` puts the two devices side by side. | ☐ PASS ☐ FAIL |
 
 ---
 
-## C-iOS - iPhone + VoiceOver
+## C-iOS — iPhone + VoiceOver
 
 ⭐ **These were BLOCKED and they are not any more — the block was BrowserStack's, not the
 product's.** Its iOS devices answer *“Screen Reader is currently not supported for this device”*,
@@ -184,7 +228,8 @@ would measure the phone, not the hub.)
 
 ## What happens with your answers
 
-- **A1–A6 + the trace** close **G0-1** and **D4**, and unblock rollout stage 2's last glass gate.
+- **A1–A5, the A6 control block and the trace** close **G0-1** and **D4**, and unblock rollout
+  stage 2's last glass gate. ⛔ A1 alone is D4; the trace alone is G0-1; neither is the other.
 - **B1–B9** close the G3 rows a mirror could not aim at.
 - **C1–C4** close **G2-1 / G2-2 / D1** (Android).
 - **D1–D3** close the judgement rows.
