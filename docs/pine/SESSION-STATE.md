@@ -1,5 +1,90 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐ R-M — THE PANE ALREADY RESIZES, AND THE FINDING THAT SAID OTHERWISE WAS MY TAB
+
+**Ruled: fix it. Measured: there is nothing to fix — and the reason the first
+answer was wrong is worth more than the answer.**
+
+`tools/member_pane_probe.py`, headless Chromium, pinned 1440×900:
+
+```
+  frame  420px  ->  rows [292, 97, 28]     price 292  member  97  share 0.249
+  frame  640px  ->  rows [457, 152, 28]    price 457  member 152  share 0.250
+  frame  240px  ->  rows [157, 52, 28]     price 157  member  52  share 0.249
+  VERDICT: PASS — the pane follows its container and keeps its quarter
+```
+
+The chart follows its container at every size, and `MEMBER_PANE_HEIGHT = 0.25`
+survives the move to within a thousandth. **Including at 240px**, which is BELOW
+the frame height at which T5 reported a 29px collapse — so the collapse was never
+about resizing either.
+
+⚰️⚰️ **WHY THE FIRST ANSWER WAS WRONG: THE TAB WAS HIDDEN.** T5's whole browser
+session ran in a tab created inside the extension's group while the TradingView
+rig stayed the window's active tab. Re-read afterwards:
+
+```
+visibilityState "hidden"   hasFocus false   (geometry only populates after a capture)
+```
+
+A hidden tab **defers paint and throttles `requestAnimationFrame`** — the exact
+loop Lightweight Charts' `autoSize` runs on. Setting the frame to 640px and
+waiting 1.2s measured a throttled rAF, not a chart. `lesson_hidden_chrome_tab_
+defers_paint_and_throttles_timers` is in the index and I did not apply it: **I
+read the gate on the RIG tab and never on the tab I was driving.**
+
+⛔ **THE GATE NOW HAS TO BE READ ON THE TAB THAT IS BEING MEASURED**, not on a
+sibling in the same window. Recorded in `capture-procedure.md`.
+
+⭐ **WHAT SURVIVES THE CORRECTION, AND WHAT DOES NOT.** Everything T5 measured
+through JavaScript stands — the definition build, `computeFor` and its refusals,
+the disclosure strings, the bar count, `seriesCompare`, the fixture's timestamps,
+the flag-off registry read: none of them touch paint or a frame loop. The ONE
+casualty is the resize claim, because it was the one measurement whose subject
+was a rAF.
+
+### The instrument, and why it is a tool rather than a `vitest` case
+
+⛔ **jsdom has no layout** — every element is 0×0 there, so a jsdom test of this
+would pass against a pane that never resized AND against one that did not exist.
+⛔ **The extension on the rig is worse than useless for it**, for the reason
+above. Headless Chromium reads `visible`, runs a real rAF, and is not the rig.
+
+Three exit codes, three different facts (the `CoverageLine` idiom): `0` PASS ·
+`1` a MEASURED failure · `2` INCONCLUSIVE (no dev server, not signed in, flag
+off). ⭐ It records the page's own `visibilityState` and refuses as INCONCLUSIVE
+if it is ever not `visible` — the blind spot that produced this entry cannot
+produce a green run.
+
+`--self-check` freezes the readings so a working pane still FAILS, and it is
+inverted: the self-check passes only by failing.
+
+```
+$ python tools/member_pane_probe.py --base http://localhost:5173
+VERDICT: PASS — the pane follows its container and keeps its quarter     REAL EXIT = 0
+$ python tools/member_pane_probe.py --base http://localhost:5173 --self-check
+SELF-CHECK: ok — the probe can fail                                      REAL EXIT = 0
+```
+
+⚠️ **AND IT FOUND ITS OWN FIRST DEFECT BEFORE IT FOUND ANYTHING ELSE.** The first
+version counted the drawing and callout overlays (604×418 and 300×150) among the
+chart's panes and reported the member's sub-pane at **0.500 of the plot** — a
+confident wrong number from a filter that was one predicate short. LWC's own
+canvases sit in unclassed divs; the overlays sit under CSS-module classes, and
+that is what separates them.
+
+### So what DID cause the 29px rectangle
+
+The wrapper had no height **and the notes list shared the box**: 248px total,
+~123px of disclosures, leaving the chart ~125px of which the chrome took most.
+The T5 fix — a dedicated fixed-height frame around the chart alone, with the
+notes outside it — is the right one and is what the numbers above are measured
+through.
+
+⭐ **The mobile question the ruling raised is still open and is now cheap**: the
+probe takes a `--base` and a viewport, so the 390×844 audit is the same tool with
+a different context. Owed to session 3's mobile item.
+
 ## ⭐⭐ SESSION 2 · T5 — THE PIXELS, AND WHAT THEY FOUND (2026-09-12)
 
 **v2 on SPY 1D, behind `VITE_PINE_MEMBER_PANE_ENABLED`, on a real browser.** The
@@ -70,12 +155,10 @@ width 1`, a series whose whole job is to set the scale and never be seen.
 declaration dropped on the floor — Wired"*); only the row builder was missing.
 Now carried.
 
-**4. The pane does not resize.** Measured: frame 420px → price pane **292px**,
-member sub-pane **97px**, axis 28px. **97 / 389 = 0.249**, so
-`MEMBER_PANE_HEIGHT = 0.25` is honoured to within a pixel. ⛔ Setting the frame to
-640px and waiting 1.2s left every canvas at 292/97/28 — the chart is sized once at
-mount and does not follow its container. Harmless in a fixed-width modal; not
-harmless the day this pane goes on a phone.
+**4. ⚰️⚰️ "The pane does not resize" — WITHDRAWN. IT DOES. That reading was my own
+instrument, and the correction is below under R-M.** What stands from it is the
+geometry: frame 420px → price **292px**, member sub-pane **97px**, axis 28px, and
+**97 / 389 = 0.249**, so `MEMBER_PANE_HEIGHT = 0.25` is honoured to within a pixel.
 
 ### ⛔⛔ AND THE FINDING THAT MATTERS MOST: **1 OF 4 SERIES COMPUTES**
 

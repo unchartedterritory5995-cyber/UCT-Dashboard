@@ -20,6 +20,43 @@ screen.isExtended true
                                         -1446 ≤ -1287  and  -272 ≤ -54   ⇒ PASS
 ```
 
+### ⛔⛔ v2.1 — READ IT ON THE TAB YOU ARE DRIVING, NOT ON A SIBLING (2026-09-12)
+
+**"The connected tab" means the tab the next read or write lands on.** A second
+tab in the same window is a DIFFERENT answer to the first term, and only to the
+first: `screenX`/`screenY`/`outerHeight` are the WINDOW's and are identical
+across its tabs, so a sibling's geometry looks perfect while its
+`visibilityState` is `hidden`.
+
+⚰️ **MEASURED, THE SAME DAY, ON THIS SESSION'S OWN WORK.** T5 read the gate on
+the TradingView rig tab — `visible`, `hasFocus true`, geometry inside the display
+— and then drove a *second* tab in that window for the whole session. Re-read
+afterwards, that tab said:
+
+```
+visibilityState  "hidden"      hasFocus  false
+screenX 0  screenY 0  outerHeight 0        ← ZERO until a capture forces a paint
+```
+
+⚠️ **AND THE ZEROES ARE THE SECOND TRAP.** A hidden tab reports `screenY 0`,
+`outerHeight 0`, which sails through `screenY >= availTop` on a display whose
+`availTop` is negative. **The geometry terms cannot detect a hidden tab; only the
+`visible` term can, and it must be read on the right tab.**
+
+⛔ **A tab created by `tabs_create_mcp` while another tab is active in that window
+is BACKGROUND.** It answers JavaScript, it screenshots on demand, and it is
+hidden — so anything paint- or `requestAnimationFrame`-driven measured there is a
+statement about the throttle. The resize finding this cost is written up in
+SESSION-STATE under R-M; the general rule is
+`lesson_hidden_chrome_tab_defers_paint_and_throttles_timers`, which was in the
+index the whole time.
+
+⭐ **THE FIX FOR A MEASUREMENT IS USUALLY NOT THE RIG.** A question about layout,
+paint or a frame loop belongs in headless Chromium
+(`tools/member_pane_probe.py`), which reads `visible`, runs a real rAF, and is
+not the rig at all. The rig is for the vendor's chart, which nothing else can
+answer.
+
 ### ⚰️ THE SUPERSEDED BOUND, AND WHY IT WAS WRONG
 
 The previous rule was **`screenY` within `[0, availHeight)`**. It is withdrawn.
