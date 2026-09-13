@@ -282,10 +282,27 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
     try:
         with sync_playwright() as pw:
             rq = pw.request.new_context(base_url=BASE, user_agent=UA)
-            fcr._pace_login()
-            r = rq.post("/api/auth/login", data={"email": email, "password": password})
-            if r.status != 200:
-                rec["errors"].append(f"login http {r.status}")
+            # ⛔ A 5xx AT THE EDGE IS TRANSPORT, NOT AN ANSWER. Measured during a burst of
+            # unrelated master pushes: login returned 502 in 0.2s (an immediate edge
+            # refusal, not a timeout) and 200 in 0.4s on the next attempt, with
+            # `/api/health` reporting 200 and a rising uptime throughout — health is a
+            # proxy and it was green over a login path that was not.
+            #
+            # ⛔ This is NOT a retry-loop to make a check pass: only 5xx is retried, the
+            # attempt count is recorded, and a 4xx (a real refusal — wrong password,
+            # rate limit) fails immediately and is never retried.
+            r = None
+            for attempt in range(3):
+                fcr._pace_login()
+                r = rq.post("/api/auth/login", data={"email": email, "password": password})
+                rec["login_attempts"] = attempt + 1
+                if r.status < 500:
+                    break
+                rec.setdefault("notes", []).append(f"login http {r.status} on attempt {attempt + 1}")
+                time.sleep(12)
+            if r is None or r.status != 200:
+                rec["errors"].append(f"login http {r.status if r else 'none'} after "
+                                     f"{rec.get('login_attempts')} attempt(s)")
                 return rec
             storage = rq.storage_state()
             browser = pw.chromium.launch()

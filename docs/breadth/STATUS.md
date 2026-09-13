@@ -231,3 +231,33 @@ owner action, Phase 6.
 - **Hardening** `7117c87fa` — one shared scrubber (`tools/secret_scrub.py`), `brief(exc)` replaces raw exception
   printing, `tests/test_secret_scrub.py` (6 passed) with a planted-leak non-vacuity control, and
   `docs/runbooks/rig-credential-hygiene.md`. Ledger: D-038.
+
+## Phase 3 — R1 Task 3 (2026-09-13)
+
+- `6d944b8c8` — `heatmapMetrics.js` is a thin adapter: 46 tile heads lost their typed `label`/`drillKey`, 54 entries
+  preserved, `HM_METRICS = TILE_DEFS.map(named)`, `FFILL_KEYS = [...WEEKLY_METRICS]`. Section captions (`isHeader`)
+  keep their own text — they are the tile taxonomy and name no metric.
+- **The Task 1 golden passed 7/7 UNCHANGED and UNREGENERATED**, which is the acceptance criterion for all of R1
+  (D-037). One finding it forced: deriving `WEEKLY_METRICS` from `METRIC_META` alone reordered `FFILL_KEYS`
+  alphabetically, so the fix went into the source (derive from `ALL_METRICS` catalog order), not the fixture.
+- Green: 35 files / 465 tests across the breadth registry rails, the golden and every `/charts` widget.
+- **Master moved** `a9290e7f4` → `bd57ffaf7` (4 commits). Delta rule: incoming `app/**` = **0**, overlap = 0, import
+  edges = 0 → **Rule 3** — merge (`34f8f9cef`) + one targeted run by explicit file list, **28/28**. No full re-gate owed.
+
+### Section C — the `/charts` Breadth widget, verified across two builds
+
+`tools/breadth_widget_ab.py` (`f1ebc90d8`, corrected through `331df3c56`). The rig only navigates to `/breadth`, and
+`/charts` shows a Breadth widget only if `charts_workspace_layout` holds one — neither default layout does.
+
+- **1280px — TEXT IDENTICAL** (752 chars, 99 lines), widget-scoped. Both sides built from the same worktree and the
+  same `node_modules`, the two registry files swapped from `origin/master` and restored by bytes with the sha verified.
+- **390px — NOT APPLICABLE, and that is a product fact**: below 640px `ChartsWorkspace` bypasses react-grid-layout and
+  renders `MobileWorkspace`, which understands chart widgets only ("No chart in this layout yet."). The `/charts`
+  Breadth widget **has no phone surface**. Screenshot kept as the evidence.
+- **The account was never written to**: the layout is injected into the preferences GET; every preferences POST is
+  blocked and counted (`pref_writes_blocked`). `/api/auth/me` through the rewrite = 200 (the non-vacuity control).
+- Pixels reported but **not the verdict** — 0.37% at 1280 — because the gold icon shimmer and the voice orb animate.
+- ⚠️ Production was mid-churn from an unrelated workstream (5 web deploys in 16 min, `REMOVED`/`BUILDING`): login
+  returned an edge 502 in 0.2s while `/api/health` read 200 with a rising uptime. Retried 5xx only, attempts recorded.
+- ⛔ **R1's master merge is NOT taken**: a deploy from another session was `BUILDING`, and the standing rule is one
+  master merge at a time with `web` SUCCESS before the next push.
