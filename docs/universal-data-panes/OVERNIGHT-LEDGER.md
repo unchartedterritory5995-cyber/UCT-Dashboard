@@ -8,6 +8,46 @@ continue at NEXT AUTHORIZED ACTION. Never reconstruct from chat history.
 
 Worktree: `C:\w\p2`. Run tests and builds from `C:\w\p2\app`.
 
+### Procedures a fresh session needs
+
+**Tests / build** (from `C:\w\p2\app`): `npx vitest run <path>` for focused,
+`npx vitest run` for the full suite, `npx vite build`.
+
+**Safe browser proof.** Start `npx vite --port 5173 --strictPort` from
+`C:\w\p2\app`, open `http://localhost:5173/pane-harness.html`. It mounts the real
+`StockChart`, the real `IndicatorLibraryDialog` and real bars off `:8000`, and it
+severs `/api/auth/preferences` both ways so it cannot reach a stored preference.
+⛔ Never use Main Trading, and never open `/charts` for this — opening it RESTORES
+and rewrites the preference.
+
+**Main Trading fingerprint — READ-ONLY, never via the browser:**
+
+```bash
+python3 - <<'PY'
+import sqlite3, hashlib
+con = sqlite3.connect('file:C:/data/auth.db?mode=ro', uri=True, timeout=3)
+for uid, v in con.execute(
+        "select user_id, pref_value from user_preferences where pref_key='chart_settings'"):
+    b = v.encode('utf-8') if isinstance(v, str) else v
+    if str(uid).startswith('40d361fa'):
+        print(str(uid)[:8], len(b), hashlib.sha256(b).hexdigest()[:12])
+con.close()
+PY
+```
+
+Expected, unchanged: `40d361fa 5354 ea9ebaeee302`.
+
+**Baseline comparison.** To prove a failure pre-exists, add a throwaway detached
+worktree at the base commit and junction `node_modules` into it rather than
+reinstalling:
+
+```bash
+git worktree add --detach C:/w/p2b 735704fd7
+cmd /c mklink /J "C:\w\p2b\app\node_modules" "C:\w\p2\app\node_modules"
+# …run the suspect files there, then:
+git worktree remove --force C:/w/p2b
+```
+
 ---
 
 ## OVERNIGHT SESSION — 2026-09-12 / 13
