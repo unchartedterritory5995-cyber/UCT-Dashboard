@@ -215,6 +215,31 @@ whatever the flag says (read-only admin diagnostic, most useful *before* the fli
 PEEKS `_runtime` and opens a store only if the database already exists — mirroring
 `GET /api/discord/render-health`. Two new rails cover the flag-off path.
 
+### Step 1.2b — `/renderhealth` registered · Step 1.3 — blocked (2026-09-13)
+
+**`/renderhealth` is registered.** Commands here are **per-guild, not global** (`GET
+/applications/{id}/commands` → `[]`; the guild set held `chart, c, chartsettings, buzz, flow`), so a
+`--global` PUT would have given every member a *second* copy of every command. Registered into
+`882293203485720596` only, after `89c6b12bf` was SUCCESS so the code that answers it was already live:
+
+    chart · c · chartsettings · buzz · flow · renderhealth (default_member_permissions "8")
+
+The other five are byte-identical to what was there. Live state at the end of Step 1: running
+`89c6b12bf1de`, `/api/health` 200, `/api/discord/render-health` 401 unauthenticated, V2 flag still
+absent, alert webhook present, flow-worker **SKIPPED** on both pushes.
+
+**Step 1.3 (`#render-alerts` must be invisible to Contributor) — NOT DONE, blocked two ways.**
+
+1. The Claude browser extension is disconnected since the restart, so the Discord UI is unavailable.
+2. The API route does not work either: `DISCORD_BOT_TOKEN` is the **same app** that serves `/chart`
+   (`UCT Intelligence`, `1474900505917653142`), and it gets **403 `Missing Access` (50001)** on
+   `GET /channels/1548783155354403046`. It is not a member of that private channel and cannot edit
+   its overwrites. Granting it access needs the same permission that is missing.
+
+⚠️ Not a data-exposure issue: `#render-alerts` carries operational figures (queue depth, latency
+percentiles, failure classes, correlation ids) and no member data. The webhook is unaffected —
+posting does not require channel read access, which is why the test alert landed.
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
