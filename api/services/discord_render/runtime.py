@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from api.services.discord_render import contract, observe
+from api.services.discord_render import contract, ids, observe
 from api.services.discord_render import delivery as delivery_mod
 from api.services.discord_render.jobs_store import TOKEN_LIFETIME_S, JobsStore
 
@@ -380,7 +380,9 @@ class JobRuntime:
             if handler is None:
                 ctx.fail("internal", f"no handler for {job.command}")
             else:
-                outcome = handler(ctx)
+                # Bound for the renderer call several layers down (X-Correlation-Id, priority).
+                with ids.bind(job.corr_id, background=job.lane == BACKGROUND):
+                    outcome = handler(ctx)
         except Exception as e:  # noqa: BLE001 — a handler may raise; the member must still hear back
             observe.exception("handler_crash", cid=job.corr_id, cmd=job.command)
             ctx.failure_class = ctx.failure_class or "internal"
