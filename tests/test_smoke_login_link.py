@@ -319,3 +319,56 @@ def test_a_token_older_than_the_ttl_is_refused(admin_client, flag_on, monkeypatc
     stale = admin_client.post("/api/auth/smoke-login-link",
                               json={"user_id": SMOKE_ID}).json()["url"].split("#token=", 1)[1]
     assert admin_client.post("/api/auth/smoke-login", json={"token": stale}).status_code == 400
+
+
+def test_the_smoke_token_is_lowercase_base32_so_a_phone_keyboard_cannot_break_it(admin_client, flag_on):
+    """⚰️ THE PIXEL 8 COULD NOT BE SIGNED IN. Android's mirror keyboard auto-capitalises, and the old
+    token was case-sensitive base64url, so the link was untypeable on the device and the whole
+    Android glass leg was lost. Read off the device, an intended
+    `...TT8786rRI3sGUWFyQHKb8Ep4OK4PxBFozzXw` arrived as `:786rri3sguwfyqhkb8ep4ok4pxbfozzxw`."""
+    _seed_user(SMOKE_ID, "smoke@uctintelligence.internal")
+    url = admin_client.post("/api/auth/smoke-login-link",
+                            json={"user_id": SMOKE_ID}).json()["url"]
+    token = url.split("#token=", 1)[1]
+    assert token == token.lower(), token
+    # ⭐ base32's alphabet, and nothing outside it -- this is what makes lowercasing LOSSLESS rather
+    # than a collision risk.
+    assert set(token) <= set("abcdefghijklmnopqrstuvwxyz234567"), sorted(set(token))
+    # 32 random bytes in base32 is 52 chars unpadded: the entropy did NOT shrink to buy typeability.
+    assert len(token) == 52, len(token)
+
+
+def test_a_token_typed_in_UPPERCASE_still_redeems(admin_client, flag_on):
+    """The property the fix exists for: simulate the phone keyboard shouting the token."""
+    _seed_user(SMOKE_ID, "smoke@uctintelligence.internal")
+    token = admin_client.post("/api/auth/smoke-login-link",
+                              json={"user_id": SMOKE_ID}).json()["url"].split("#token=", 1)[1]
+    shouted = token.upper()
+    assert shouted != token
+    assert admin_client.post("/api/auth/smoke-login", json={"token": shouted}).status_code == 200
+
+
+def test_case_insensitivity_does_not_weaken_single_use(admin_client, flag_on):
+    """⛔ Non-vacuity: a caseless lookup must not accidentally create a second usable spelling.
+    Redeem in UPPER, then try the original lower -- the row is already burned."""
+    _seed_user(SMOKE_ID, "smoke@uctintelligence.internal")
+    token = admin_client.post("/api/auth/smoke-login-link",
+                              json={"user_id": SMOKE_ID}).json()["url"].split("#token=", 1)[1]
+    assert admin_client.post("/api/auth/smoke-login", json={"token": token.upper()}).status_code == 200
+    assert admin_client.post("/api/auth/smoke-login", json={"token": token}).status_code == 400
+
+
+def test_reset_tokens_are_untouched_by_the_smoke_login_alphabet():
+    """⛔⛔ THE SCOPING RAIL. Password-reset tokens are a MEMBER-facing credential that arrives by
+    email and is never typed by hand, so they gain nothing from this change and must not absorb it.
+    They stay base64url -- mixed case, with `-`/`_` -- and their comparison stays exact.
+
+    Without this test, widening the lowercase alphabet to every purpose would pass every other test
+    in this file."""
+    from api.services import auth_service
+    smoke = auth_service._mint_token(auth_service.PURPOSE_SMOKE_LOGIN)
+    resets = [auth_service._mint_token(auth_service.PURPOSE_RESET) for _ in range(40)]
+    assert smoke == smoke.lower()
+    # Over 40 samples a mixed-case alphabet is overwhelmingly likely to show an uppercase char;
+    # if it never does, the reset alphabet has silently become lowercase too.
+    assert any(c.isupper() for t in resets for c in t), "reset tokens lost their uppercase alphabet"
