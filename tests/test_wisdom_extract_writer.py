@@ -82,6 +82,39 @@ def _loaded(ordinal=0):
 
 # ── 1. quotes ────────────────────────────────────────────────────────────────
 
+def _rec(**kw):
+    rec = {name: None for name in prompt.record_fields()}
+    rec.update({"tickers": [], "targets": [], "levels": [], "confidence_language": [], "hindsight": False,
+                "extraction_confidence": "high"})
+    rec.update(kw)
+    return rec
+
+
+def test_an_empty_string_is_null_wherever_the_contract_allows_null():
+    text = "PPPT holds support at 101.50 today. Rule of the week: cut losers fast."
+    seg = {"segment_id": "s-empty", "kind": "section", "text": text, "author_id": "tsdr", "speaker_confidence": "high"}
+    level = _rec(record_type="LEVEL", quote="PPPT holds support at 101.50 today.", ticker_as_written="PPPT",
+                 speaker_label="", setup_vocab="", trigger="", stop_text=" ", notes="",
+                 levels=[{"type": "support", "price": 101.5, "price_as_heard": ""}])
+    rule = _rec(record_type="PRINCIPLE", quote="cut losers fast.", speaker_label="",
+                principle={"statement": "cut losers fast", "category": "exit", "empirical_claim": False,
+                           "testable_claim": ""})
+    validation = writer.validate_output({"records": [level, rule]}, segment=seg, source=SOURCE, resolver=None,
+                                        vocab_names=VOCAB)
+    lv, pr = validation.kept
+    for name in ("speaker_label", "setup_vocab", "trigger", "stop_text", "notes"):
+        assert lv.fields[name] is None, name
+    assert lv.fields["levels"][0]["price_as_heard"] is None and lv.fields["levels"][0]["price"] == 101.5
+    assert pr.fields["principle"]["testable_claim"] is None
+    assert validation.counts["setup_vocab_not_in_vocabulary"] == 0
+    # control: a real value survives the mapping
+    noted = _rec(record_type="LEVEL", quote="PPPT holds support at 101.50 today.", ticker_as_written="PPPT",
+                 notes="flag this")
+    kept = writer.validate_output({"records": [noted]}, segment=seg, source=SOURCE, resolver=None,
+                                  vocab_names=VOCAB).kept
+    assert kept[0].fields["notes"] == "flag this"
+
+
 def test_a_quote_must_occur_exactly_once():
     v = validate([make(record_type="NEGATIVE_CALL", quote="Passed on YYYT, too thin.", ticker_as_written="YYYT",
                        stance="passed", reason_class="liquidity"),

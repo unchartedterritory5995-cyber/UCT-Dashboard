@@ -3,7 +3,9 @@
 No network in this file. The fake rejects, with a 400-shaped error, exactly what the
 real Messages API rejects for claude-opus-5 requests: any sampling parameter
 (temperature, top_p, top_k), an assistant prefill, server-side fallbacks (refused on
-Batches) and budget_tokens; and it enforces the Batches custom_id rule
+Batches) and budget_tokens; a structured-output schema with more than 16 union-typed
+parameters (measured against the live API 2026-09-13 — batches.create only, since
+count_tokens accepted the same schema); and it enforces the Batches custom_id rule
 ^[a-zA-Z0-9_-]{1,64}$ with uniqueness — its own literal pattern, never the code's.
 
 WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
@@ -58,6 +60,28 @@ def _api_check(params: dict) -> None:
         raise Rejected("budget_tokens is not supported on this model")
 
 
+UNION_LIMIT = 16  # the live API's 400: "limit: 16 parameters with unions"
+
+
+def _union_params(node) -> int:
+    count = 0
+    if isinstance(node, dict):
+        for sub in (node.get("properties") or {}).values():
+            if isinstance(sub, dict) and ("anyOf" in sub or isinstance(sub.get("type"), list)):
+                count += 1
+        for value in node.values():
+            count += _union_params(value)
+    elif isinstance(node, list):
+        count += sum(_union_params(v) for v in node)
+    return count
+
+
+def _schema_check(params: dict) -> None:
+    schema = ((params.get("output_config") or {}).get("format") or {}).get("schema")
+    if schema is not None and _union_params(schema) > UNION_LIMIT:
+        raise Rejected("Schemas contains too many parameters with union types (limit: 16 parameters with unions)")
+
+
 def _counts(**kw):
     base = dict(processing=0, succeeded=0, errored=0, canceled=0, expired=0)
     base.update(kw)
@@ -80,6 +104,7 @@ class FakeBatches:
                 raise Rejected(f"custom_id {cid!r} is invalid or duplicated")
             seen.add(cid)
             _api_check(r["params"])
+            _schema_check(r["params"])
         bid = f"msgbatch_{len(self.created) + 1:04d}"
         self.created.append({"id": bid, "requests": requests})
         self.state[bid] = "in_progress"
@@ -203,6 +228,20 @@ def test_the_fake_api_rejects_every_shape_the_real_api_rejects():
             fake.messages.batches.create([{"custom_id": cid, "params": good}])
     with pytest.raises(Rejected):
         fake.messages.batches.create([{"custom_id": "a", "params": good}, {"custom_id": "a", "params": good}])
+    many = {"type": "object", "additionalProperties": False, "required": [f"p{i}" for i in range(17)],
+            "properties": {f"p{i}": {"anyOf": [{"type": "string"}, {"type": "null"}]} for i in range(17)}}
+    with pytest.raises(Rejected):
+        fake.messages.batches.create([{"custom_id": "wx_many", "params": dict(
+            good, output_config={"format": {"type": "json_schema", "schema": many}})}])
+    # the contract as written is over the limit; the transport form is not
+    for schema, rejected in ((prompt.contract_schema(), True), (prompt.api_schema(), False)):
+        call = lambda: fake.messages.batches.create([{"custom_id": "wx_schema", "params": dict(
+            good, output_config={"format": {"type": "json_schema", "schema": schema}})}])
+        if rejected:
+            with pytest.raises(Rejected):
+                call()
+        else:
+            call()
 
 
 # ── 2. gates ─────────────────────────────────────────────────────────────────

@@ -46,6 +46,30 @@ def test_the_transport_schema_has_none_of_the_rejected_keywords():
             assert node["minItems"] in (0, 1), path
         if node.get("type") == "object":
             assert node.get("additionalProperties") is False, path
+    # the API's measured union-type limit; control: the contract as written is over it
+    assert _unions(prompt.contract_schema()) > prompt.API_MAX_UNION_PARAMS
+    assert _unions(api) <= prompt.API_MAX_UNION_PARAMS
+
+
+def _unions(schema) -> int:
+    count = 0
+    for _, node in _walk(schema):
+        props = node.get("properties")
+        if isinstance(props, dict):
+            count += sum(1 for p in props.values()
+                         if isinstance(p, dict) and ("anyOf" in p or isinstance(p.get("type"), list)))
+    return count
+
+
+def test_nullable_text_travels_as_an_empty_string_and_the_writer_knows_where():
+    fields = prompt.nullable_string_fields()
+    assert {"speaker_label", "setup_vocab", "trigger", "notes"} <= fields[""]
+    assert fields["levels"] == {"price_as_heard"} and fields["principle"] == {"testable_claim"}
+    record = prompt.api_schema()["properties"]["records"]["items"]["properties"]
+    for name in fields[""]:
+        assert record[name]["type"] == "string" and prompt.EMPTY_MEANS_NULL in record[name]["description"], name
+    # control: a nullable NUMBER keeps its null
+    assert {v["type"] for v in record["entry"]["anyOf"]} == {"number", "null"}
 
 
 def test_the_transport_schema_keeps_every_contract_field_and_enum():

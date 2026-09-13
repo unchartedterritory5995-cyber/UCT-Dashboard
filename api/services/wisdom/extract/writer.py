@@ -204,6 +204,14 @@ def _check(raw: dict, *, text: str, segment: dict, source: dict, vocab: set, res
     r = {name: raw.get(name) for name in fields_order}
     if any(name not in raw for name in fields_order):
         counts["missing_fields_filled_null"] += 1
+    # The transport carries a nullable text field as "" (prompt.API_MAX_UNION_PARAMS).
+    for parent, names in prompt.nullable_string_fields().items():
+        holders = [r] if not parent else (r.get(parent) if isinstance(r.get(parent), list) else [r.get(parent)])
+        for holder in holders:
+            if isinstance(holder, dict):
+                for name in names:
+                    if isinstance(holder.get(name), str) and not holder[name].strip():
+                        holder[name] = None
     model_type = r.get("record_type")
     if model_type not in RECORD_TYPES:
         return "record_type_invalid"

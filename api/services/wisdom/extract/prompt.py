@@ -17,9 +17,14 @@ and records run-to-run drift (kind extractor_drift in wisdom_eval_runs).
 
 THE SCHEMA has one authority, docs/wisdom/contracts/extraction-output-v0.schema.json.
 api_schema() derives the transport form the Messages API accepts — $refs inlined,
-type arrays such as ["string","null"] rewritten as anyOf, and keywords the
-structured-output grammar rejects (maxItems, minItems > 1, $schema, $id, title)
-removed. The writer re-checks what was removed (entry_zone has exactly two values).
+keywords the structured-output grammar rejects (maxItems, minItems > 1, $schema,
+$id, title) removed, and nullable types rewritten. The API compiles at most
+API_MAX_UNION_PARAMS parameters with a union type (measured 2026-09-13: a 400
+citing "limit: 16 parameters with unions" against the contract's 22), so a
+nullable TEXT field travels as a plain string where "" means null, and only
+numbers, entry_zone, principle and market_signal keep an anyOf with null. The
+writer maps "" back to null (nullable_string_fields) and re-checks what was
+removed (entry_zone has exactly two values).
 
 This file is committed to a PUBLIC repository: the prompt states rules and uses
 no quote from any paid session, newsletter or member.
@@ -40,10 +45,12 @@ SCHEMA_FILE = REPO_ROOT / "docs" / "wisdom" / "contracts" / "extraction-output-v
 VOCAB_DRAFT_FILE = REPO_ROOT / "docs" / "wisdom" / "vocabulary" / "setup-vocabulary-v0.draft.json"
 
 PROMPT_FAMILY = "wx-v0"
-TRANSPORT_REVISION = "api-schema-t1"
+TRANSPORT_REVISION = "api-schema-t2"
 MAX_TOKENS = 32000
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MAX_ALIASES_PER_NAME = 6
+API_MAX_UNION_PARAMS = 16
+EMPTY_MEANS_NULL = "An empty string means no value."
 
 _STRIP_KEYWORDS = frozenset({"$schema", "$id", "title", "maxItems", "minLength", "maxLength", "minimum",
                              "maximum", "multipleOf", "pattern"})
@@ -66,6 +73,27 @@ def contract_schema() -> dict:
 
 def record_fields() -> tuple[str, ...]:
     return tuple(contract_schema()["$defs"]["record"]["required"])
+
+
+def _nullable_strings(props: dict) -> frozenset:
+    return frozenset(name for name, sub in props.items() if isinstance(sub, dict)
+                     and isinstance(sub.get("type"), list) and set(sub["type"]) == {"string", "null"})
+
+
+@functools.lru_cache(maxsize=1)
+def nullable_string_fields() -> dict:
+    """Where the transport sends "" for null. Key "" holds top-level record fields; any
+    other key names a record field (an object, or an array of objects) whose own fields
+    travel that way. Derived from the contract, never listed by hand."""
+    record = contract_schema()["$defs"]["record"]["properties"]
+    out = {"": _nullable_strings(record)}
+    for name, sub in record.items():
+        node = sub.get("items") if isinstance(sub, dict) and sub.get("type") == "array" else sub
+        if isinstance(node, dict) and isinstance(node.get("properties"), dict):
+            nested = _nullable_strings(node["properties"])
+            if nested:
+                out[name] = nested
+    return out
 
 
 def api_schema(schema: Optional[dict] = None) -> dict:
@@ -95,6 +123,8 @@ def api_schema(schema: Optional[dict] = None) -> dict:
             else:
                 out[key] = resolve(value)
         kind = out.get("type")
+        if isinstance(kind, list) and set(kind) == {"string", "null"}:
+            return {"type": "string", "description": (out.get("description", "") + " " + EMPTY_MEANS_NULL).strip()}
         if isinstance(kind, list):
             variants = []
             for t in kind:
@@ -174,22 +204,22 @@ R2 LISTS: a bare list of tickers yields one MENTION per unique ticker. A ticker 
 R3 NEGATIVE_CALL needs an explicit ticker and an explicit pass or avoid ("passed on", "an avoid", "not taking that"). A no-view ("no thoughts on it", "no view") is a MENTION with stance no_view, never a NEGATIVE_CALL. A pass that is only implied for tickers not named is not extracted.
 R4 HINDSIGHT: a teaching or retrospective example of a trade that was not a forward call ("look at this one from yesterday, there was your entry") is a CALL with stance hindsight and hindsight true. Set hindsight true on any record that describes a past trade as a lesson.
 R5 LEVELS AS STATED: record prices exactly as stated; never infer a price from a chart, from memory or from market knowledge. Derive a value only when the text defines it: a stop "at breakeven" equals the stated entry. Otherwise leave the number null and keep the wording (stop_text, trigger, targets[].text). A stated range goes in entry_zone as [low, high]. A reference level (HVC, gap, support, resistance, AVWAP) goes in levels, not in entry or stop.
-R6 AUTHORSHIP: copy the speaker label exactly as displayed into speaker_label, or null when there is none. Never guess who is speaking from voice, style or content; the server decides authorship.
+R6 AUTHORSHIP: copy the speaker label exactly as displayed into speaker_label, or the empty string when there is none. Never guess who is speaking from voice, style or content; the server decides authorship.
 R7 STATED OUTCOMES: when the author states a result ("closed it from X to Y", "got stopped"), set stated_outcome, and stated_return_pct only when a percentage is stated or follows purely from two stated prices. Never look up what happened.
-R8 PRINCIPLES: a general rule or lesson is a PRINCIPLE; principle.statement restates it close to the author's own words. Do not resolve contradictions and do not judge whether a principle is canonical: extract what was said, even when it disagrees with something else the author said. empirical_claim is true when the principle asserts something measurable ("statistically", a win rate); testable_claim restates that claim in testable form, else null.
+R8 PRINCIPLES: a general rule or lesson is a PRINCIPLE; principle.statement restates it close to the author's own words. Do not resolve contradictions and do not judge whether a principle is canonical: extract what was said, even when it disagrees with something else the author said. empirical_claim is true when the principle asserts something measurable ("statistically", a win rate); testable_claim restates that claim in testable form, else the empty string.
 R9 SPEECH-TO-TEXT: transcripts contain recognition errors. When a ticker was transcribed as a word or a company name, put your best symbol in ticker_as_written and the word as transcribed in ticker_as_heard. When a spoken price lost its scale ("9.30" said for 930), put the transcribed form in price_as_heard, your reading in price, and lower extraction_confidence. When you cannot tell which ticker was meant, set extraction_confidence to low rather than guessing silently.
 R10 CHARTS: in the newsletter a short line such as "SPY (Daily)" labels the chart that follows it; attribute the prose beneath a label to that ticker and timeframe. You cannot see the images; never describe them.
 
 FIELD RULES
 - direction, stance, timeframe, trigger_timeframe, reason_class, stated_outcome, level type and extraction_confidence take only the listed values (or null where allowed).
-- setup_vocab is exactly one of the vocabulary names listed below, or null. Put the author's own wording for the setup in setup_name_raw whether or not it maps.
+- setup_vocab is exactly one of the vocabulary names listed below, or the empty string. Put the author's own wording for the setup in setup_name_raw whether or not it maps.
 - tickers is only for a list record (R2); otherwise [].
 - entry is a stated entry price. size_shares is a stated share count. Record both as stated; the server decides what is stored where.
 - confidence_language holds verbatim phrases of conviction or doubt. Never turn them into a score, and keep contradictory phrases side by side.
 - event_at_text keeps relative timing as worded ("Friday", "this week"); never convert it to a date.
 - For NEGATIVE_CALL, reason says why it was passed and reason_class classifies it: chart, liquidity, opportunity_cost, fundamental, or none when no reason is given.
 - LEVEL is a stated price level on a ticker that is not part of a CALL. MARKET_SIGNAL is a stated read on the whole market, an index or a sector (breadth, regime, risk appetite).
-- Fields that do not apply are null, or [] for lists. extraction_confidence says how clearly the text supports the record. notes is short and only for something the record needs flagged.
+- Fields that do not apply are null, or [] for lists; a text field with no value is the empty string "". extraction_confidence says how clearly the text supports the record. notes is short and only for something the record needs flagged.
 """
 
 
