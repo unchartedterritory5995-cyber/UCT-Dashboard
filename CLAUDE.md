@@ -1381,7 +1381,7 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   alias-resolved with shadowing respected) and fails BY NAME on a seventh writer or a
   deleted guard. **Do not re-type a count here — read that test.**
 - **`delivering` is recency-gated with hysteresis** (`barsStreamManager.js`): engage when a bar
-  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after 300s (`BARS_LIVE_DISENGAGE_MS`)
+  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after **150s** (`BARS_LIVE_DISENGAGE_MS = 150000`) — ⚰️ this said 300s
   so a thin ticker doesn't thrash push↔Finnhub. A silent-but-heartbeating feed hands the bar back
   to Finnhub within ~10s (watchdog `_notifyAllStatus`). NEVER make delivering sticky/no-recency.
 - **Rollout + revert.** `export const BARS_PUSH_ROLLOUT_PCT = 100` in `StockChart.jsx` = % of
@@ -3128,7 +3128,7 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - `app/src/components/tiles/ThemeTracker.jsx` — dashboard tile
 - `api/services/theme_performance.py` — background compute + live overlay + taxonomy enrichment
 - `api/services/theme_db.py` — SQLite schema + seed from JSON
-- `api/services/realtime_stream.py` — Massive/Polygon WebSocket tick-by-tick streaming
+- `api/services/realtime_stream.py` — **Finnhub** WebSocket tick-by-tick trade streaming (`wss://ws.finnhub.io`, `FINNHUB_API_KEY`). ⚰️ This said *"Massive/Polygon"* — wrong vendor, and the line below said the wrong URL and key with it. Pinned by `tests/test_d3_realtime_topology_rail.py` (D3 CP1).
 - `api/routers/stream.py` — SSE endpoint for real-time price push to browser
 - `themes_taxonomy.json` — source of truth. **Measure it, don't quote it** (`json.load(...)` → `version`, `len(themes)`, `len(sectors)`, `sum(len(t["holdings"]))`). At 2026-08-07 it reads **v4.22.0, 112 themes, 2029 holdings, 12 sectors**. ⚰️ This line said *111 themes, 2049 holdings, v4.16.0* — three of the four numbers had moved across six minor versions while calling itself "source of truth", which is precisely what discourages re-measuring. It matters for anyone reasoning about coverage before a version-gated reseed, or sizing what the Theme Membership Engine's orphan absorption works against.
 - `morning-wire/morning_wire_engine.py` — reads taxonomy, fetches holdings, pushes to Railway
@@ -3150,7 +3150,7 @@ Autonomous AI overlay that absorbs orphan stocks (in no theme) and refines membe
 - **Provenance in UI**: dim dot on engine-sourced Multi-Chart grid cell badges + Theme Tracker holding chips. The engine overlay survives version-gated taxonomy reseeds (separate tables).
 
 ### Real-Time Streaming
-- **WebSocket**: `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`
+- **WebSocket**: `wss://ws.finnhub.io` via `FINNHUB_API_KEY` — ⚰️ this said `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`, which is a DIFFERENT socket owned by `bar_stream.py`. ⛔ **THERE ARE THREE VENDOR SOCKETS AND THEY ARE NOT INTERCHANGEABLE:** `realtime_stream.py` → Finnhub ticks · `bar_stream.py` → `wss://socket.massive.com/stocks` bar aggregates · `api/massive_ws_worker.py` → `wss://socket.massive.com/options`, the OPRA tape on flow-worker. D3 CP1 ratifies that topology and its rail fails by name on a fourth.
 - **Channels**: `T.*` (tick-by-tick trades) + `AM.*` (per-minute aggregates)
 - **SSE endpoint**: `GET /api/stream/prices?tickers=X,Y,Z` — pushes to browser every 100ms
 - **Frontend hook**: `useRealtimePrices` — EventSource client, falls back to REST polling
