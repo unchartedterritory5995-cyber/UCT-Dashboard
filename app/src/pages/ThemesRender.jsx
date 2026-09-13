@@ -11,8 +11,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 function Row({ r, max, up }) {
   const color = up ? '#3fb950' : '#e5534b'
   const w = Math.max(4, Math.round((Math.abs(r.ret) / (max || 1)) * 100))
@@ -55,7 +55,7 @@ export default function ThemesRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     fetch(`/api/r/themes?token=${encodeURIComponent(token)}&period=${encodeURIComponent(period)}&n=${n}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(setData)

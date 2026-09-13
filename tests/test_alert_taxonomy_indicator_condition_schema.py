@@ -708,14 +708,25 @@ def test_there_is_no_replay_fn_and_both_modules_say_why():
         assert "FORWARD-ONLY" in raw or "NO REPLAY" in raw
 
 
-def test_nothing_wires_this_type_yet_and_that_is_the_checkpoint_boundary():
-    """⛔ REGISTRATION IS NOT ACTIVATION. Wiring `register()` puts this module
-    into flow-worker's import closure through `alerts.py` / `registry.py`, which
-    is CP3's line to ask for."""
+def test_this_type_is_wired_in_main_because_CP3_IS_SIGNED_and_nowhere_else():
+    """⛔ REGISTRATION IS NOT ACTIVATION, AND CP3 IS THE LINE THAT ASKS FOR IT.
+
+    ⚰️ UPDATED BY NAMING, 2026-09-13. This asserted `"indicator_condition" not in
+    main` and was CORRECT for CP1-CP2: registration was deliberately withheld
+    until its own approval line. CP3 is now signed (GATE-S7-INDICATOR-CONDITION
+    approval line 3, fingerprint `4e8d3af5d`, its D2 §9.5 dependency discharged
+    by GATE-D2 CP4 `3257cc319`/`404b808c5`), so the assertion is INVERTED rather
+    than deleted — a boundary that stops being checked in either direction is a
+    boundary nobody is holding.
+
+    ⛔ `alerts.py` STAYS CLEAN. Registration belongs in `main.py`; the S7 feed
+    bridge is not this type's door and wiring it there would put the module into
+    a second import path nobody classified."""
     main = _code_only(_REPO / "api" / "main.py")
-    assert "indicator_condition" not in main
+    assert "indicator_condition" in main, "CP3 is signed and register() is not wired"
+    assert "_at_indicator_cond.register()" in main
     alerts = _code_only(_REPO / "api" / "services" / "alerts.py")
-    assert "indicator_condition" not in alerts
+    assert "indicator_condition" not in alerts, "it leaked into the feed bridge"
 
 
 def _modules_naming(needle: str) -> set:
@@ -731,15 +742,26 @@ def _modules_naming(needle: str) -> set:
     return out
 
 
-def test_the_harness_is_the_only_caller_of_the_type_module():
-    """§2a item 3's question at a checkpoint with no wire yet: *what calls this,
-    and which test fails if that wire is cut?*"""
+def test_the_callers_of_the_type_module_are_exactly_the_declared_three():
+    """§2a item 3: *what calls this, and which test fails if that wire is cut?*
+
+    ⚰️ UPDATED BY NAMING, 2026-09-13. This asserted the harness was the ONLY
+    caller, which was true and load-bearing at CP1-CP2. CP3 adds exactly two
+    more by design — the projection, and `main.py`'s registration — so the set
+    is WIDENED TO A DECLARED ONE rather than loosened to a `>=`. A membership
+    test that only ever grows is not a test.
+
+    ⭐ The projection is what the sweep calls; `main.py` is where `register()`
+    lives. A FOURTH name appearing here is a wire nobody classified, and that is
+    exactly what this fails on.
+    """
     naming = _modules_naming("indicator_condition")
     # ⚠️ The type module does NOT appear here and that is correct: it names
-    # itself only through `__name__`, which carries no literal. The harness is
-    # the one and only module in `api/` whose CODE reaches for it.
-    assert naming == {"indicator_condition_compare.py"}, (
-        f"something else in api/ now names the type module: {sorted(naming)}")
+    # itself only through `__name__`, which carries no literal.
+    assert naming == {"indicator_condition_compare.py",
+                      "indicator_condition_projection.py",
+                      "main.py"}, (
+        f"the caller set changed: {sorted(naming)}")
     # NON-VACUITY CONTROL — the same scan finds a sibling it is not looking for,
     # so an empty answer above cannot be a broken walk.
     control = _modules_naming("catalyst_match")

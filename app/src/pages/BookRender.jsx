@@ -13,8 +13,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 const fmt = (v) => {
   if (!Number.isFinite(v) || v <= 0) return '—'
   return v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 })
@@ -55,7 +55,7 @@ export default function BookRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     fetch(`/api/r/book?token=${encodeURIComponent(token)}&part=${part}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setRows(Array.isArray(d.rows) ? d.rows : []))

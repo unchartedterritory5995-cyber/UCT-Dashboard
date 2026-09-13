@@ -50,7 +50,11 @@ def v2(monkeypatch, tmp_path):
     monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pub)
     monkeypatch.setenv("DISCORD_RENDER_V2_ENABLED", "1")
     store = JobsStore(str(tmp_path / "jobs.db"))
-    monkeypatch.setattr(commands, "get_runtime", lambda: RT(store))
+    # The handler PEEKS `_runtime` (it must never start V2 just to answer), so the fake is
+    # installed as the module's runtime rather than behind get_runtime().
+    monkeypatch.setattr(commands, "_runtime", RT(store))
+    monkeypatch.setattr(commands, "get_runtime",
+                        lambda: (_ for _ in ()).throw(AssertionError("/renderhealth started the V2 runtime")))
     monkeypatch.setattr(commands, "_observer", None)
     tc, router = _app_client()
 
@@ -116,6 +120,45 @@ def test_an_admin_gets_the_health_privately(v2):
     text = r["data"]["content"]
     assert text.startswith("Render V2") and "deadline×1" in text and "dead0001" in text
     assert "Renderer: not probed yet" in text and len(text) <= 2000
+
+
+def test_it_answers_with_v2_off_and_starts_nothing(monkeypatch, tmp_path):
+    """⛔ The command is registered BEFORE the flip, so it must answer while V2 is off — and must
+    not start the runtime or create the jobs database as a side effect of being asked."""
+    sk, pub = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pub)
+    monkeypatch.delenv("DISCORD_RENDER_V2_ENABLED", raising=False)     # V2 OFF
+    db = tmp_path / "jobs.db"
+    monkeypatch.setenv("DISCORD_RENDER_DB_PATH", str(db))
+    monkeypatch.setattr(commands, "_runtime", None)
+    monkeypatch.setattr(commands, "_observer", None)
+    monkeypatch.setattr(commands, "get_runtime",
+                        lambda: (_ for _ in ()).throw(AssertionError("/renderhealth started the V2 runtime")))
+    tc, _ = _app_client()
+    r = _post(tc, sk, _health("8")).json()
+    assert r["type"] == 4 and r["data"]["flags"] == di.EPHEMERAL
+    assert "off" in r["data"]["content"] and "DISCORD_RENDER_V2_ENABLED" in r["data"]["content"]
+    assert not db.exists(), "asking for health created the jobs database"
+
+
+def test_with_v2_off_it_reads_an_existing_database_without_starting_the_runtime(monkeypatch, tmp_path):
+    sk, pub = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pub)
+    monkeypatch.delenv("DISCORD_RENDER_V2_ENABLED", raising=False)
+    db = tmp_path / "jobs.db"
+    monkeypatch.setenv("DISCORD_RENDER_DB_PATH", str(db))
+    s = JobsStore(str(db))
+    s.insert({"corr_id": "00000001", "command": "chart", "state": "queued", "token": "T", "app_id": "A"})
+    s.claim("00000001", "pod", 60)
+    s.finish("00000001", "delivered", owner="pod", ack_ms=40.0, final_ms=2100.0, quality="image")
+    s.close()
+    monkeypatch.setattr(commands, "_runtime", None)
+    monkeypatch.setattr(commands, "_observer", None)
+    monkeypatch.setattr(commands, "get_runtime",
+                        lambda: (_ for _ in ()).throw(AssertionError("/renderhealth started the V2 runtime")))
+    tc, _ = _app_client()
+    text = _post(tc, sk, _health("8")).json()["data"]["content"]
+    assert text.startswith("Render V2") and "runtime not started" in text
 
 
 def test_an_allowlisted_user_passes_without_the_bit(v2, monkeypatch):

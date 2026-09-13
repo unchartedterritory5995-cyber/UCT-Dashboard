@@ -83,6 +83,138 @@ sees any of it until a master merge row says otherwise.
 |---|---|---|---|---|---|---|---|---|---|---|
 | 11 | 2026-09-13 | branch tip after `cee1b269b` (merge of `origin/master` `553d36432` into the branch, 14 commits, no file overlap) + this ledger commit, fast-forwarded to master | **Master merge 4**: row 10 (`0e331168a`) + docs `53b55e9e9` | 8 files vs master: `api/routers/discord_interactions.py`, `api/services/discord_render/{commands,symbols}.py`, `docs/discord-render/{01-failure-forensics,03-architecture,05-progress,LEDGER}.md`, `tests/test_discord_render_symbols.py` | as row 10 | **none** — watch coverage on the merged tree: `reachable=154 watched=24 changed=8 OK` | merged tree `cee1b269b`, 26 scoped files: **763 passed, 0 failed** | no member-path change with V2 unset | Parked at the 15:30 ET restart checkpoint (master moved during the gate; the guard refused), then resumed on the owner's close-out instruction: re-merged master `7bd9c8785` as `2b04c725a` — the S7/D2 session had declared `CANONICAL_INDICATOR_AXIS_ENABLED` itself, so the inherited red is gone. Gate on `2b04c725a`: **764 passed, 0 failed** (26 files); watch coverage OK. Pushed after this row; deploy measured in `05`, Merge 4. | **Nothing members can see changes.** This adds the symbol check and the ETF-aware `/flow` lookup to the Discord render V2 code, which stays switched off (`DISCORD_RENDER_V2_ENABLED` unset). With it off, `/chart`, `/flow`, `/buzz` and the chart buttons run exactly today's code, and `/flow` still reads the same flow partition it reads today (railed). The push restarts `web`, `worker` and `bars-api` (about a minute of API blips) and does **not** restart flow-worker. Rollback: revert and push. |
 
+### Post-restart Step 0 — re-orient and verify (2026-09-13, Sunday, 16:2x ET)
+
+The PC restarted; every PowerShell session was replaced. Verified before touching code — **all green**:
+
+| Check | Result |
+|---|---|
+| `discord-render` worktree | clean; `HEAD = origin/discord-render-hardening = b4c9e9bcc` |
+| Master drift during the restart | **none** — `git rev-list --count HEAD..origin/master` = 0, `origin/master` still `d623baf1d`. No rebase needed (0.3). |
+| Running `web` SHA | `d623baf1d836`, read from `/proc/1/environ` of the running process = master tip |
+| `web` · `worker` · `bars-api` | SUCCESS on `d623baf1d`; **no deploy in flight** on any service |
+| flow-worker | **SKIPPED** on both recent pushes — untouched, as designed |
+| chart-renderer | SUCCESS (`railway up`, 18:48 UTC); `/health` 200 `ready:true browser_connected:true pool_enabled:false renders_total:182 p95 2,570 ms rss 418 MB launch_error:null` |
+| `/api/health` · bad signature · `/api/discord/render-health` unauthenticated | 200 (uptime 475 s) · **401** · **401** |
+| Task Scheduler | **57** `UCT *` jobs present, all `Ready` |
+| `#render-alerts` (0.5) | one alert fired through the **real code path** — `Observer.run_once` → `evaluate_alerts` → durable `alert_due` → `post_webhook` → `record_alert` — on a **temporary** jobs DB so production's alert cooldown is not consumed: `breached:["ack_over_3s"] sent:["ack_over_3s"]` |
+| Other sessions' artifacts (0.4) | all four excluded files still on disk and untracked; the captured branches carry their reconstructed `docs/RESUME.md`. ⚠️ They are untracked but **not gitignored** — a `git add -A` in those worktrees would publish them to this **public** repo. The standing rule (memory `lesson_uct_dashboard_shared_worktree`) is already "never `git add -A`" there; left as-is rather than editing another session's shared git config. The owning sessions own their next steps. |
+
+### Post-restart close-out adds A and B (2026-09-13, Sunday)
+
+**B — was the Step 0 `ack_over_3s` breach real?** **No, and it could not have been.**
+`/data/discord_render_jobs.db` **does not exist** on the web pod (read in-process): V2 has never run in
+production, so there are zero job rows and no live path can produce an ack at all. The breach came from
+the single synthetic row (`ack_ms = 4200`) my probe wrote to a temporary database. No forensics row.
+⭐ The proof is the absent database, not a zero count — a zero count is also what a wrong path returns.
+
+**A — the three withheld files are now ignored, and a gate enforces it.**
+
+| Worktree | Entry added | Commit |
+|---|---|---|
+| `uct-worktrees/flow-nav-prefetch` | `app/.env.flowperf` | `423d7e6ee` → `perf/route-intent-prefetch` |
+| `uct-worktrees/options-desk` | `app/tests/fixtures/_raw_flow10.csv` | `f0571e102` → `feat/options-desk` |
+| `uct-intelligence` (private repo) | `data/uct_intelligence.pre_tsdr_import.bak` | `dd4ab93` → `master` |
+
+Each verified with `git check-ignore -v`; each noted in that worktree's reconstructed `docs/RESUME.md`;
+the files are untouched on disk. The spec doc and two resume files withheld as "credential-shaped" were
+**false positives** (loop log) and were pushed instead: `944231be4`.
+
+**The gate:** `tools/check_repo_hygiene.py` + `tests/test_repo_hygiene.py` — refuses any tracked file
+over 5 MB and any tracked `.env*` outside an allowlist, in `--staged` mode too so it can serve as a
+pre-commit hook. ⛔ It is an **allowlist**, not a bare limit: 15 files over 5 MB are already tracked
+(`api/patches-6-25.json` is 23.7 MB), so a bare limit would be red on arrival and muted within a week.
+⛔ And it **refuses rather than passing on an empty scan** — `git ls-files` from the wrong directory
+answers successfully with nothing, and every assertion over an empty list passes. Mutation proofs
+**5/5 red**, control green (8 tests). Self-check: `python tools/check_repo_hygiene.py --self-check`.
+
+### Step 1.1a — dual render-token acceptance (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 12 | 2026-09-13 | `4821ec3f2` | 1.1a — dual render-token acceptance, and one shared guard replacing 14 copies (OI-19) | `api/routers/render_panels.py` · `app/src/lib/renderToken.{js,test.js}` (new) · 14 × `app/src/pages/*Render.jsx` · `tests/test_render_token_rotation.py` (new) | none. Config, inert until set: `CHART_RENDER_TOKEN_PREVIOUS` (backend) · `VITE_CHART_RENDER_TOKEN_PREVIOUS` (build). With both unset the gate behaves byte-identically to today — dark by construction. | none — watch coverage `reachable=154 watched=24 changed=25 OK` | 28 scoped files: **780 passed**; frontend `renderToken.test.js` **6 passed**; all 14 pages parse under esbuild. Mutation proofs **8/8 red** (5 backend, 3 frontend), restores sha-verified, controls green. | n/a — no render path timing change | *(after the push)* | None. The token check moves into one shared module and gains the ability to accept a previous token during a rotation; with no previous token set, every page and the `/api/r/*` gate accept exactly what they accept today. |
+
+⭐ **Why the guard moved rather than being edited fourteen times.** Each page carried its own
+`const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''` and `if (TOKEN && token !== TOKEN)`.
+Fourteen copies cannot be mutation-proved (memory `lesson_a_guard_repeated_is_a_guard_unproved`) and
+a rotation would have to edit all fourteen correctly. `app/src/lib/renderToken.js` is now the one copy.
+
+### Step 1.1b — the rotation itself (2026-09-13, Sunday, ~16:30 ET)
+
+⚠️ **The stated blocker did not exist, and the opposite was true.** The rotation was parked because
+"Morning Wire holds the live token and rotating breaks Monday's 07:35 wire". Measured against
+production before touching anything: Morning Wire's `.env` token was **already being refused**
+(`GET /api/r/econ` → **403**) while Railway's token returned 200. The wire's Substack panels have
+been failing that gate for some time. Rotating could not break what was already broken, and fixing
+that file is an improvement to Monday's wire rather than a risk to it.
+
+⛔ **And the first probe of this said the opposite.** `GET /api/r/movers` returned **200 for a
+made-up token** — there is no `/r/movers` route, so the request fell through to the SPA catch-all
+and answered 200 with an HTML page. Re-probed against real routes (`/r/econ`, `/r/themes`) with a
+content-type check, the gate was working correctly all along. A status code without a body check is
+not a measurement (same family as the broker_sync 405).
+
+| What | Evidence |
+|---|---|
+| New token generated | `secrets.token_urlsafe(24)`, 32 chars, never printed — fingerprints only |
+| Applied | ONE `railway variables --set` on `web` carrying all four values, so ONE rebuild: `CHART_RENDER_TOKEN` + `VITE_CHART_RENDER_TOKEN` → new (`fp c6cc0765`), `…_PREVIOUS` ×2 → old (`fp 15bec268`) |
+| No breakage window | Each pod is self-consistent (its own backend token + its own bundle); the swap is per-pod and atomic. Deploy BUILDING 20:36:09 → SUCCESS **20:37:30 UTC** |
+| Dual acceptance live | `/api/r/econ`: new → **200 JSON**, old → **200 JSON**, made-up → **403 REFUSED** |
+| Morning Wire config | `morning-wire/.env` rewritten atomically, one line; 54 lines / 30 keys / no duplicates / no malformed lines afterwards; now `fp c6cc0765` → **200** where it was 403 |
+| End-to-end proof | `substack.panelshot.render_panels` — the wire's OWN renderer — against production: `econ` 116 KB and `themes` 949 KB PNGs in 10.8 s. The page only sets `window.__panelReady` after the token is accepted, so a PNG **is** the proof. |
+| Renderer logs | 496 lines, **0** containing `token=` in any form; 244 render lines all `path=/r/chart` with no query. C-13 closed in production. |
+| Log rail | `tests/test_render_token_never_logged.py` (`a8872fbc5`) — AST over the renderer and both web senders; fails if any logging call is handed a URL without `scrub()`/`url_path()`. Includes a planted-violation control. |
+| Retire job | Task Scheduler **`UCT Render Token Retire`**, Monday 2026-09-14 **07:15 CT = 08:15 ET**, one-shot, `StartWhenAvailable`, 30-min limit → `uct-q1-observe/render_token_retire.cmd`. Gated on `morning_wire_state.json::last_run_date == today`; aborts if the CURRENT token is not already 200; idempotent; posts the outcome to `#render-alerts`. Opt out with `render_token_retire.disabled`. |
+| Retire job proven today | Ran it live: `WIRE MARKER ABSENT — last_run_date=2026-09-11 today=2026-09-13. Changing nothing.` exit 0, all four variables unchanged, skip notice posted. The gate is measured, not assumed. |
+
+### Step 1.2 — renderer repo connection + warm pool, and `/renderhealth` made safe to register (2026-09-13)
+
+**Railway service config, applied field by field** (a combined mutation returned HTTP 400: the
+`Builder` enum has only `HEROKU · NIXPACKS · PAKETO · RAILPACK` — there is no `DOCKERFILE` value,
+Railway resolves that from `dockerfilePath`):
+
+| Setting | Value |
+|---|---|
+| `rootDirectory` | `services/chart_renderer` |
+| `watchPatterns` | `["services/chart_renderer/**"]` — **set BEFORE connecting**, because an empty list on a repo-connected service means "rebuild on every push" (CLAUDE.md) |
+| `dockerfilePath` · `healthcheckPath` · `healthcheckTimeout` | `Dockerfile` · `/health` · 300 |
+| `source.repo` | `unchartedterritory5995-cyber/UCT-Dashboard` @ `master` |
+
+⭐ **The scoping is proven, not assumed:** the very next master push (`834034622`, then `d31b78b750`)
+arrived as **SKIPPED** on chart-renderer — neither touched `services/chart_renderer/**`.
+
+**Pool live** (`RENDER_POOL_ENABLED=1`, `RENDER_WARM_URL` set as a Railway reference
+`${{web.CHART_RENDER_TOKEN}}`, so no human or log ever handles the value):
+
+| Measurement | Result |
+|---|---|
+| Boot warm | `chromium launched (pool)` 20:41:17.049 → `warm render path=/r/chart ok` 20:41:19.461 → `pool: warm complete`. **2.41 s**, and the real `/r/chart` page rendered — an unauthorised page has no `#chart-export`, so "ok" also proves the token reference resolved. |
+| First render after boot | **1,184 ms** — no cold start. The documented pre-warm behaviour was a 20–40 s first render after every deploy. |
+| Five renders | 1,096–1,184 ms, median 1,140, `p95_render_ms` 1,180; all valid PNGs, `X-Chart-Ready: true`; 0 failures, 0 timeouts |
+| Spare-context pool | `pool_hits 5 / pool_misses 1` — only the warm render missed |
+| RSS | 528 MB, against a 2,500 MB recycle ceiling |
+| Token in logs | 0 occurrences of `token=` in any form |
+
+**Self-heal, measured by killing the browser** (`pkill` inside the renderer container):
+
+| Step | Result |
+|---|---|
+| After the kill | `browser_connected: false`, RSS **528 → 120 MB** — Chromium genuinely gone |
+| Next renders | all 5 succeeded, **1,004–1,074 ms**, 0 failures, 0 timeouts |
+| Evidence of a NEW browser | `renders_since_recycle` reset (7 → 2) and RSS returned to 533 MB — `_current_slot()` saw `is_connected()` false and relaunched |
+
+⚠️ `ready` stays `true` while `browser_connected` is `false`: `ready` means "a render sent now will be
+served" (and it was), and the pool relaunches on demand. `browser_connected` is the field that tells
+the truth about the browser. Recorded so nobody reads `ready` as a browser liveness check.
+
+**`/renderhealth` made safe to register before the flip.** It was unregistered, and registering it
+with V2 off would have produced a visibly broken admin command: the router only consults V2 when the
+flag is on, and the handler called `get_runtime()`, which would have STARTED the runtime and created
+the jobs database as a side effect of asking how things are. Now the router answers this one command
+whatever the flag says (read-only admin diagnostic, most useful *before* the flip), and the handler
+PEEKS `_runtime` and opens a store only if the database already exists — mirroring
+`GET /api/discord/render-health`. Two new rails cover the flag-off path.
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
@@ -108,6 +240,8 @@ Full context for every row is in `03-architecture.md` §6.
 | OI-16 | `/flow` hardcodes `source=stocks`, so every ETF answers "no significant options flow" (SPY 0 vs **182** contracts with `etfs`, QQQ 0 vs 136, SMH 0 vs 83; measured 2026-09-13). | Resolve the partition from the symbol (ETF → `etfs`) via the shared resolver; railed with SPY/QQQ fixtures. Behaviour-changing for members (ETF flow appears), so behind the V2 flag. | the recommendation (2.4) |
 | OI-17 | §3.7's boot warm renders `/r/chart?fixedbars=…`, but the page refuses a request without the render token (`ChartRender.jsx`: `TOKEN && token !== TOKEN` → "unauthorized") and chart-renderer does not hold `CHART_RENDER_TOKEN`. | Always warm with a hermetic render (Chromium launch + one canvas screenshot, no network); also render `RENDER_WARM_URL` when it is set. Recommend the owner set `RENDER_WARM_URL=https://uctintelligence.com/r/chart?sym=NVDA&tf=D&fixedbars=nvda-d&token=<render token>` on chart-renderer **after** the rotation in OI-13 — copying a credential between services is the owner's call. | hermetic warm shipped; `RENDER_WARM_URL` unset |
 | OI-18 | §3.7 sets `RENDER_HARD_TIMEOUT_S` to 20 s by default, but web budgets 15 s then 25 s of readiness per attempt (`discord_chart_house._ATTEMPTS`) on top of 21/31 s of navigation, so a 20 s ceiling would 504 renders that succeed today. | Default the ceiling to the budget the request declares (2 × readiness + 6 s navigation + settle + 10 s): only a hang is cut, and no render that succeeds today changes. Lower it to 20 s once web's attempts are re-budgeted inside the 15 s deadline (2.4/2.6) and the RTH p99 is measured. | request-declared ceiling; env unset |
+| OI-19 | The close-out plan puts dual-token acceptance on **chart-renderer**. Measured in code: chart-renderer **never validates the render token** — it navigates to whatever URL it is handed. The token is checked in two places, both on **web**: `app/src/pages/*Render.jsx` (14 pages; `ChartRender.jsx:76` reads `import.meta.env.VITE_CHART_RENDER_TOKEN`, baked at BUILD time, compared at `:778`) and `api/routers/render_panels.py:61` (`CHART_RENDER_TOKEN`, the `/api/r/*` payload gate). A `CHART_RENDER_TOKEN_PREVIOUS` on the renderer would be read by nothing. | Put dual acceptance where the check is: accept `VITE_CHART_RENDER_TOKEN` **or** `VITE_CHART_RENDER_TOKEN_PREVIOUS` in the render pages, and `CHART_RENDER_TOKEN` **or** `CHART_RENDER_TOKEN_PREVIOUS` in `render_panels.py`. Ship that first (additive, dark-safe), then one `web` rebuild flips new+previous together — no window where a sender's token is rejected, because the new bundle accepts both. Monday's job clears only the `_PREVIOUS` pair. | the recommendation (built in 1.1) |
+| OI-20 | The hygiene gate can run as a **pre-commit hook** (`--staged`), which would enforce it at the moment of `git add -A` rather than at gate time. But git hooks live in the **shared** git directory: installing one reaches all ~57 worktrees and every concurrent session at once, and a hook that misfires (no `python` on that shell's PATH) blocks every session's commits. | Ship the gate as a **test rail** now (shared through git, cannot break anyone's commit), and leave the hook opt-in: `git config core.hooksPath .githooks` after copying the one-liner from the runbook. Revisit as a hook once it has a week of green in the gate. | gate rail now; hook documented, not installed |
 
 ## Loop log
 
@@ -140,6 +274,8 @@ is not walked into twice.
 | Merge 2 | The post-deploy probe called `railway ssh` from Python's `subprocess` via `shutil.which` — on Windows the `.cmd` shim, so `cmd.exe` read the quoted `\|` as a local pipe ("The system cannot find the path specified"). A Git Bash retry printed nothing: MSYS path conversion rewrote `/opt/venv/bin/python` and `/proc/1/environ`. The HTTP checks had passed; only the in-process read was missing. | `VERIFY: FAIL` with `pod: NO ANSWER`, then an empty retry. | Stopped after two. Used merge 1's recorded recipe (`MSYS_NO_PATHCONV=1 railway ssh -s web echo <b64> "\|" base64 -d "\|" /opt/venv/bin/python`) with the probe as a file: answered first time. |
 | 2.4a | The production-data probe of `symbols.py` printed nothing: its `2>/dev/null` threw away the traceback. Run again with stderr showing, it failed in my loader, not in the code under test: on Python 3.12, a `@dataclass` in a module loaded by `spec_from_file_location` looks the module up in `sys.modules`, and I never registered it. The real module is imported normally in production. | An empty result where JSON was expected; the second run showed the traceback. | Registered the module before `exec_module`; a probe never discards stderr. The third run used a changed instrument, not a repeat. |
 | 2.4a | Two of 22 mutations stayed **green**. **S4:** the "swap" case in the one-edit test was APPL → AAPL, which is a substitution — only one position differs — so deleting the transposition branch changed nothing (the docstring example was wrong the same way). **S9:** the kill-switch test made `resolve` raise, but the check fails open, so the exception was swallowed and the request queued exactly as it would with the switch honoured. | The harness verdict `GREEN UNDER MUTATION`. | S4: a real adjacent swap (NDVA → NVDA) plus a two-position non-swap; docstring corrected. S9: the fake records calls and the test asserts none happened. Harness re-run; a rail whose failure the code under test swallows is not a rail. |
+| Step 0 | The restart capture withheld three files for "credential-shaped content". All three were **false positives**: the scanner's `sk-[A-Za-z0-9_-]{20,}` matched hyphenated slugs — `v2-ri`**`sk-register-and`**`-directives.md` and `feat/de`**`sk-sharpen-workshop-card`**. One session's reconstructed resume and a design doc were withheld for nothing. | Reading each match **in context** rather than trusting the hit count. | Verified in context, then committed and pushed (`944231be4` on `feat/catalyst-coverage-precision`). ⭐ A secret regex anchored on a two-letter prefix inside a hyphen-rich corpus is an instrument that manufactures findings; the fix for the next capture is a boundary (`(?<![A-Za-z0-9-])sk-`) plus an entropy floor, not a longer block list. |
+| 1.1a | The patch that rewired the 14 render pages detected each file's line ending **from disk** and wrote that back. Git stores these files LF; the working copies were CRLF, so every file came back as a whole-file rewrite — `918` changed lines on `ChartRender.jsx` instead of 2. A 14-file whole-file diff would have conflicted with every other session touching those pages. | `git diff --numstat` after the patch: 14 files, every line changed. | Normalised all 14 back to LF (a byte transform, never a `git checkout`), re-measured: **2 lines changed per file**. ⭐ The rule the script had wrong: an EOL-preserving patch must write the ending the **index** stores, not the one it finds on disk — on a box with `core.autocrlf=true` those differ by design. |
 
 ## Phase summaries
 

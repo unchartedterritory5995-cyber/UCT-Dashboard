@@ -37,8 +37,8 @@ import { useEffect, useRef, useState } from 'react'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 import styles from './BuzzRender.module.css'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 // ⛔ THE EXPORT CONTAINER'S GEOMETRY IS INLINE, AND MUST STAY INLINE.
 // `id="buzz-export"` is a literal string because buzz_image.py screenshots
 // `{"selector": "#buzz-export"}` — but this page's stylesheet is a CSS
@@ -102,7 +102,7 @@ export default function BuzzRender() {
     // never asserts readiness before it is real.
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token') || ''
-    if (TOKEN && token !== TOKEN) { setFailed(true); return }
+    if (!renderTokenOk(token)) { setFailed(true); return }
     const qs = new URLSearchParams({ token, window: params.get('window') || 'open' })
     fetch(`/api/r/buzz?${qs}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
