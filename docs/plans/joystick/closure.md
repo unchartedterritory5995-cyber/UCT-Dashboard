@@ -148,7 +148,30 @@
       (`HUB_PREVIEW_ENABLED=false`) must be **seen to take effect on a device**, not inferred
       from the flag being read per request — a `--kv` read confirms the service's config and is
       not evidence the running process has it.
-      **Evidence:**
+
+      ⭐ **STAGE 3 IS NOW DEFINED — owner ruling, 2026-09-13**, in full in `rollout.md`
+      ("THE STAGE DEFINITIONS"), which is the plan of record. In short: **stage 2** = an unset
+      preference resolves to `true` for every authenticated user, a stored preference always wins,
+      the kill switch applies, and the preview framing stays (chip hint *"Preview — more coming"*,
+      coach mark on first mount, Hide + Settings toggle + edge tab as the opt-out). **Stage 3** =
+      the same exposure with the preview framing removed — real tap hint, no `(preview)` suffix,
+      the Discord announcement moves from "preview" to "launched", listed in the member changelog.
+      The kill switch stays forever.
+
+      ⛔ **TWO THINGS THIS BOX MUST NOT BE TICKED WITHOUT**, both measured 2026-09-13 and written
+      up in `rollout.md` §2: the ruled ladder is **not** the one `rolloutStage.js` implements
+      (ruled stage 2 == the code's stage 3; `ROLLOUT_STAGE = 2` in today's source would ship the
+      RETIRED opt-in rung with the hub still OFF for every member), and "no new behaviour at
+      stage 3" is **false while `PREVIEW_MODES` still holds `home` and `flow`** — emptying it
+      exposes two full fans.
+
+      **Evidence:** ⬜ OPEN. This slot is filled by, in order —
+      **(i)** stage 3 defined as above (✅ done, this ruling);
+      **(ii)** stage 2 shipped on `________`, stage 3 on `________`, each merged by Patrick;
+      **(iii)** the kill switch **demonstrated on a device at each stage** — flip
+      `HUB_PREVIEW_ENABLED=false`, hub **gone** on the next authenticated request; flip it back,
+      hub **returns** — **with screenshots**. ⛔ A `--kv` read confirms the service's config and is
+      not evidence the running process has it, which is why this row says *on a device*.
 
 - [ ] **closure.md rewritten as LAUNCHED, citing each of the above.** This document: five filled
       evidence slots above this line (**two are filled today — boxes 3 and 4**), and this header replaced by one that says LAUNCHED and
@@ -442,6 +465,21 @@ G0 resolves, the G5 sweep unblocks, and §B/§C answer the rest in the same sitt
 | **Smoke-login hardening** | ✅ merged (#112, `1dbe230d0`), deployed, and the fragment link signed a real device in |
 | **G3-2** high contrast | ⚠️ mechanism confirmed armed on a real device; legibility is an eye row |
 | **G3-3 / G3-12** | 🗑️ **RETIRED** — both name the removed two-finger Peek as their door |
+
+### ⛔ POST-OWNER-RUN WORK — the order, decided 2026-09-13 so it is not rediscovered
+
+**Frozen until Patrick's marked-up `owner-run.md` and trace are in and boxes 1 and 2 are ticked on
+evidence.** Full text, with the two code collisions it depends on, is `rollout.md`
+("THE STAGE DEFINITIONS", §3). In order:
+
+| | step | who merges | note |
+|---|---|---|---|
+| **a** | **Stage 2 PR** — member preview | **Patrick** | ⛔ Not a one-line constant change; see `rollout.md` §2(a). Kill switch demonstrated on a Live device via the smoke account; that account is admin, so a synthetic member too if one can be minted through the same door — if not, the smoke account **plus a code-level test for the member default**, stated as that. |
+| **b** | **One week of member feedback** | — | Actions sheet → `/support`, **`[joystick preview]`** prefix, triaged into `71-open-items-proposals.md`. **D-47** and **D-38** reopen only from it. |
+| **c** | **D-39** — 6 pairs | agent | **Before stage 3, not before stage 2.** The non-blocking ruling was scoped to stages 1–2; this is what honours that scope at GA rather than inheriting it. |
+| **d** | **Stage 3 PR** — GA | **Patrick** | Blocked on `rollout.md` §2(b) being answered. Kill switch demonstrated again; **box 5 ticked**. |
+| **e** | **Box 6** | agent | Rewrite this document as LAUNCHED, citing every box's evidence. |
+| **f** | **Post-close housekeeping** | agent | Unset `SMOKE_LOGIN_LINK_ENABLED` on `web` **and record it**; keep the smoke account (clean); keep the Live-device policy; hand **D-40 / D-41** to Notebook, **R-29** to S4, **D-30** to its own production task. |
 
 ### What is newly OPEN, and each has an owner
 

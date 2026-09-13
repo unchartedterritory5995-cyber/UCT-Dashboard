@@ -57,10 +57,29 @@ def _et_today() -> str:
     return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
 
+def _accepted_tokens() -> list[str]:
+    """The render tokens this pod honours: the current one, plus the previous one WHILE a rotation
+    is in flight (`CHART_RENDER_TOKEN_PREVIOUS`).
+
+    Dual acceptance exists because the token is also baked into the frontend bundle at build time,
+    so a rotation spans a rebuild and several senders (the Discord chart path, /buzz, and Morning
+    Wire on the owner's PC). Accepting both means no sender is ever refused mid-rotation.
+
+    ⛔ Clear `CHART_RENDER_TOKEN_PREVIOUS` once every sender holds the new value — an uncleared
+    previous is not a rotation, it is two live tokens. chart-renderer is not in this path at all
+    (OI-19): it navigates to whatever URL it is handed and validates nothing."""
+    return [t for t in (os.environ.get("CHART_RENDER_TOKEN", ""),
+                        os.environ.get("CHART_RENDER_TOKEN_PREVIOUS", "")) if t]
+
+
 def _check_token(token: str, bucket: str = "default", limit: int | None = None) -> None:
     want = os.environ.get("CHART_RENDER_TOKEN", "")
-    # Fail CLOSED when unset, constant-time compare when set.
-    if not want or not hmac.compare_digest(str(token), want):
+    # Fail CLOSED when the CURRENT token is unset — a lone PREVIOUS must never hold the gate open.
+    # Constant-time compare against each accepted value; `any()` over compare_digest keeps every
+    # comparison constant-time, and the count of comparisons leaks only whether a rotation is in
+    # flight, which is not a secret.
+    given = str(token)
+    if not want or not any(hmac.compare_digest(given, t) for t in _accepted_tokens()):
         raise HTTPException(status_code=403, detail="forbidden")
     _rate_limit(bucket, limit)
 

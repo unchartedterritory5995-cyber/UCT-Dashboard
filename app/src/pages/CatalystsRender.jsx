@@ -13,8 +13,8 @@ import { useSearchParams } from 'react-router-dom'
 import HighlightThesis from '../utils/highlightThesis'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 const TAG_STYLE = {
   Catalyst: { background: 'rgba(56,132,255,0.14)', color: '#60a5fa' },
   Earnings: { background: 'rgba(74,222,128,0.14)', color: '#4ade80' },
@@ -76,7 +76,7 @@ export default function CatalystsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
+    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     const extra = `${quality ? `&quality=${quality}` : ''}${compact ? `&compact=${compact}` : ''}`
     fetch(`/api/r/catalysts?token=${encodeURIComponent(token)}&n=${n}${extra}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))

@@ -27,17 +27,20 @@ import threading
 import time
 
 from api.services import discord_interactions as di
-from api.services.discord_render import contract
+from api.services.discord_render import contract, observe, symbols
 from api.services.discord_render.delivery import DeliveryResult
 from api.services.discord_render.ids import corr_id
 from api.services.discord_render.jobs_store import JobsStore
-from api.services.discord_render.runtime import INTERACTIVE, Job, JobContext, JobRuntime
+from api.services.discord_render.runtime import INTERACTIVE, Job, JobContext, JobRuntime, _int_env
 
 log = logging.getLogger("discord_render")
 
 AUTOCOMPLETE_BUDGET_S = 1.2
 RETRY_LOOKUP_BUDGET_S = 0.5
+HEALTH_BUDGET_S = 2.0
+SYMBOL_BUDGET_S = 0.6
 FLOW_TIMEOUT_S = 10.0
+ADMINISTRATOR = 0x8
 
 _OFF = ("0", "false", "off", "no", "")
 
@@ -56,8 +59,15 @@ def command_enabled(name: str) -> bool:
 # ── runtime singleton ───────────────────────────────────────────────────────
 
 _runtime: JobRuntime | None = None
+_observer: observe.Observer | None = None
 _runtime_lock = threading.Lock()
 _io_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="drender-io")
+# Its own thread: a cold provider fetch can take seconds, and must never hold a worker that
+# autocomplete and the symbol check answer inside a budget with.
+_warm_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="drender-warm")
+# The symbol check can reach the bars serve core, which fetches a real-but-cold symbol for seconds
+# after the ack budget has moved on; it gets its own threads so autocomplete's never wait on it.
+_symbol_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="drender-symbols")
 
 
 def _last_edit_failure():
@@ -79,22 +89,34 @@ def get_runtime() -> JobRuntime:
 
 
 def start() -> dict:
-    """Lifespan startup: build the runtime and resume what a dead pod left behind."""
+    """Lifespan startup: build the runtime, resume what a dead pod left behind, and start the
+    observer (alerts, purge, the renderer reading /renderhealth shows)."""
+    global _observer
     rt = get_runtime()
     out = rt.resume_pending()
-    log.info("drender evt=started owner=%s resumed=%s abandoned=%s", rt.owner, out["resumed"], out["abandoned"])
+    from api.routers import discord_interactions as router
+    with _runtime_lock:
+        if _observer is None:
+            _observer = observe.Observer(
+                rt.store, renderer_fn=router._renderer_health, commit=rt.commit,
+                interval_s=_int_env("DISCORD_RENDER_OBSERVE_S", 60, 15, 900),
+                cooldown_s=_int_env("DISCORD_RENDER_ALERT_COOLDOWN_S", 1800, 60, 86400)).start()
+    observe.event("runtime_started", detail=rt.owner, outcome=f"resumed={out['resumed']} abandoned={out['abandoned']}")
     return out
 
 
 def stop() -> int:
     """Lifespan shutdown: stop taking work and hand leases back for the next pod."""
-    global _runtime
+    global _runtime, _observer
     with _runtime_lock:
         rt, _runtime = _runtime, None
+        obs, _observer = _observer, None
+    if obs is not None:
+        obs.stop()
     if rt is None:
         return 0
     released = rt.stop()
-    log.info("drender evt=stopped owner=%s released=%s", rt.owner, released)
+    observe.event("runtime_stopped", detail=rt.owner, outcome=f"released={released}")
     return released
 
 
@@ -134,7 +156,8 @@ def _enqueue(job: Job, defer: dict, received: float) -> dict:
     status, position = rt.offer(job)
     if status == "queued":
         rt.record_ack(job.corr_id, (time.perf_counter() - received) * 1000.0)
-        log.info("drender evt=enqueued cid=%s cmd=%s pos=%s", job.corr_id, job.command, position)
+        observe.event("enqueued", cid=job.corr_id, cmd=job.command, ms=(time.perf_counter() - received) * 1000.0,
+                      attempt=position)
         return defer
     if status == "user_busy":
         return _ephemeral(f"You already have {rt.per_user_max} requests rendering — they'll land in a moment. · id {job.corr_id}")
@@ -150,12 +173,84 @@ def _rate_limited(uid: str, n: int = 1, noun: str = "charts") -> dict | None:
     return None
 
 
-async def _bounded(fn, budget_s: float, default):
+async def _bounded(fn, budget_s: float, default, pool=None):
     loop = asyncio.get_running_loop()
     try:
-        return await asyncio.wait_for(loop.run_in_executor(_io_pool, fn), timeout=budget_s)
+        return await asyncio.wait_for(loop.run_in_executor(pool or _io_pool, fn), timeout=budget_s)
     except Exception:  # noqa: BLE001 — timeout or error: the ack still answers
         return default
+
+
+def is_render_admin(interaction: dict) -> bool:
+    """Server-side admin check for /renderhealth. `default_member_permissions` only hides the
+    command by default — a server can grant it to any role — so the handler checks again:
+    the ADMINISTRATOR bit on the invoking member, or a user id in
+    DISCORD_RENDER_ADMIN_USER_IDS."""
+    try:
+        if int((interaction.get("member") or {}).get("permissions") or 0) & ADMINISTRATOR:
+            return True
+    except (TypeError, ValueError):
+        pass
+    uid = di.interaction_user_id(interaction)
+    allowed = {s.strip() for s in os.environ.get("DISCORD_RENDER_ADMIN_USER_IDS", "").split(",") if s.strip()}
+    return bool(uid) and uid in allowed
+
+
+async def _render_health_reply(interaction: dict) -> dict:
+    """/renderhealth: ephemeral, answered inside the ack budget. The store read runs off the
+    loop under HEALTH_BUDGET_S; the renderer state is the observer's cached reading, so no
+    HTTP probe of chart-renderer ever runs on the ack path.
+
+    ⛔ READ-ONLY, INCLUDING WITH V2 OFF. It PEEKS `_runtime` and never calls `get_runtime()`:
+    starting the runtime from a health command would create the jobs database and the worker
+    threads as a side effect of asking how things are. That is also what makes the command safe to
+    register before the flip — it reports "V2 is off" instead of quietly turning it on. Mirrors
+    `GET /api/discord/render-health`."""
+    if not is_render_admin(interaction):
+        return _ephemeral("/renderhealth is for server admins.")
+    rt = _runtime                                        # peek: never build or start it from here
+    obs = _observer
+    renderer = obs.renderer if obs is not None and obs.renderer_at is not None else {"ready": None, "note": "not probed yet"}
+    misses = obs.renderer_misses if obs is not None else 0
+
+    def _payload():
+        from api.services.discord_render.jobs_store import JobsStore, default_path
+        store = rt.store if rt is not None else (JobsStore() if os.path.exists(default_path()) else None)
+        if store is None:
+            return None
+        return observe.health_payload(rt, store, renderer=renderer, renderer_misses=misses)
+
+    payload = await _bounded(_payload, HEALTH_BUDGET_S, "timeout")
+    if payload == "timeout":
+        return _ephemeral(f"Render health did not answer within {HEALTH_BUDGET_S:g} s. "
+                          "The same data: GET /api/discord/render-health.")
+    if payload is None:
+        return _ephemeral(f"Render V2 is **off** (`DISCORD_RENDER_V2_ENABLED` unset) and has never run "
+                          f"on this volume, so there is no job history yet. "
+                          f"Renderer: {(renderer or {}).get('note') or ('ready' if (renderer or {}).get('ready') else 'not probed')}. "
+                          f"Commit `{(os.environ.get('RAILWAY_GIT_COMMIT_SHA') or '?')[:12]}`.")
+    return _ephemeral(observe.format_health_text(payload))
+
+
+async def _symbol_refusal(interaction: dict, tickers: list[str]) -> dict | None:
+    """D-04 / OI-01: an unknown symbol is refused privately inside the ack, with ≤3 suggestions,
+    and a background fetch starts so a real-but-unseen ticker works on the re-run. Fails OPEN: a
+    check that exceeds SYMBOL_BUDGET_S, errors, or cannot answer lets the request through, where
+    the job gives its honest no-bars reply. Kill switch: DISCORD_RENDER_V2_SYMBOLS_ENABLED."""
+    if not command_enabled("symbols"):
+        return None
+    cid = corr_id(interaction.get("id"))
+    verdicts = await _bounded(lambda: [symbols.resolve(t) for t in tickers], SYMBOL_BUDGET_S, None, pool=_symbol_pool)
+    if verdicts is None:
+        observe.event("symbol_check", cid=cid, outcome="skipped: budget or error")
+        return None
+    unknown = [v for v in verdicts if v.status == symbols.UNKNOWN]
+    if not unknown:
+        return None
+    for v in unknown:
+        _warm_pool.submit(symbols.warm, v.symbol)
+    observe.event("symbol_refused", cid=cid, sym=",".join(v.symbol for v in unknown)[:60], cls="symbol_not_found")
+    return _ephemeral(symbols.refusal_text(unknown, cid))
 
 
 # ── the ack path ────────────────────────────────────────────────────────────
@@ -183,6 +278,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
         choices = await _bounded(lambda: router.fetch_ticker_choices(q), AUTOCOMPLETE_BUDGET_S, fallback)
         return router._autocomplete(choices)
 
+    if itype == 2 and name == di.RENDERHEALTH_COMMAND:
+        return await _render_health_reply(interaction)
+
     # Retry button on a failure message.
     retry_cid = contract.parse_retry(cid_field) if itype == 3 else None
     if retry_cid:
@@ -209,6 +307,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
         limited = _rate_limited(di.interaction_user_id(interaction), len(reqs))
         if limited:
             return limited
+        refusal = await _symbol_refusal(interaction, [r.ticker for r in reqs] + list(reqs[0].compare or ()))
+        if refusal:
+            return refusal
         label = contract.command_label("chart", {"tickers": [r.ticker for r in reqs]})
         return _enqueue(_job(interaction, "multi" if len(reqs) > 1 else "chart", label), {"type": 5}, received)
 
@@ -222,6 +323,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
         limited = _rate_limited(di.interaction_user_id(interaction), len(reqs))
         if limited:
             return limited
+        refusal = await _symbol_refusal(interaction, [r.ticker for r in reqs])
+        if refusal:
+            return refusal
         label = contract.command_label("chart", {"tickers": [r.ticker for r in reqs]})
         return _enqueue(_job(interaction, "charts", label), {"type": 5}, received)
 
@@ -235,6 +339,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
             tkr, days = di.parse_flow_command(interaction)
         except di.CommandError as e:
             return _ephemeral(str(e))
+        refusal = await _symbol_refusal(interaction, [tkr])
+        if refusal:
+            return refusal
         return _enqueue(_job(interaction, "flow", contract.command_label("flow", {"ticker": tkr, "days": days})),
                         {"type": 5}, received)
 
@@ -361,7 +468,7 @@ def _handle_flow(ctx: JobContext):
     job, inter = ctx.job, _rebuilt(ctx)
     tkr, days = di.parse_flow_command(inter)
     router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit, fail_fn=ctx.fail,
-                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id)
+                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id, source=symbols.flow_source(tkr))
     return "flow"
 
 

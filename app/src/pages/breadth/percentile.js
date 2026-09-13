@@ -20,3 +20,16 @@ export function latestValue(rows, key) {
   }
   return null
 }
+
+/** The newest numeric reading of `key`: its value, row index and date. Null when there is none. */
+export function latestPoint(rows, key) {
+  for (let i = (rows?.length ?? 0) - 1; i >= 0; i -= 1) {
+    if (isNum(rows[i]?.[key])) return { value: rows[i][key], index: i, date: rows[i].date }
+  }
+  return null
+}
+
+/** How many observations a percentile over `values` compares against. */
+export function comparableCount(values) {
+  return (values ?? []).filter(isNum).length
+}

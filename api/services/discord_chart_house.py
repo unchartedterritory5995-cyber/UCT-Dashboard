@@ -295,10 +295,13 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                     "ready_js": house_ready_js(sym), "ready_timeout_ms": ready_timeout_ms,
                     "probe_js": PROBE_JS,
                 }
-                r = c.post(f"{renderer}/render", json=body, headers={"X-Render-Secret": secret})
+                from api.services.discord_render import ids as render_ids, observe as render_observe
+                r = c.post(f"{renderer}/render", json=body,
+                           headers={"X-Render-Secret": secret, **render_ids.render_headers()})
                 if not r.is_success:
+                    # Scrubbed: the renderer's error body can quote the page URL, render token included (C-13).
                     log.warning("[discord-chart] house render HTTP %s for %s %s (attempt %d): %s",
-                                r.status_code, sym, tf, attempt, r.text[:160])
+                                r.status_code, sym, tf, attempt, render_observe.scrub(r.text)[:160])
                     continue
                 if not r.content.startswith(b"\x89PNG"):
                     log.warning("[discord-chart] house render returned non-PNG for %s %s (attempt %d)", sym, tf, attempt)
