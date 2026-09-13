@@ -609,6 +609,60 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 3 — 2026-09-13. The build queue: one unit at a time, §6 is the resume point.
 
+## ⭐⭐ ALL FOUR NEW DARK SWEEPS ARMED — owner-authorized, 2026-09-13 16:00:29 UTC
+
+**One pass, one rebuild.** `POSITION_RISK` · `SCAN_MEMBERSHIP` · `CATALYST_MATCH` · `REGIME_CHANGE`
+dark flags set to `1` on `web` in a single `railway variables` call, so the service rebuilt exactly
+once (deployment `506eeee6d`). ⛔ Names **derived by AST from their read sites**, never typed.
+
+**VERIFIED BY ARTIFACT, NEVER BY `--kv`:** deploy SUCCESS · `/api/health` uptime reset to **40 s** ·
+the **in-PROCESS** value read `'1'` over `railway ssh` · and **all six boot lines printed in the live
+log**. `--kv` says what the service is CONFIGURED with, which is not evidence the process has it.
+`flag_ledger_audit.py`: **0 discrepancies in all four categories**; the four ledger rows are `armed`
+with the flip timestamp and the dry-run result in each note.
+
+### THE DRY RUN — every zero carries its reason, because a zero without one is not a result
+
+A REAL first sweep of all four types against LIVE data, writing its bookkeeping to a **throwaway
+store**. ⛔ Not the real one: `_merged_sessions` keys sessions by MARKET DATE, so a Sunday tick would
+add 2026-09-13 to the session list and **inflate the 5-session verdict gate with a day that is not a
+trading session.**
+
+| type | projected | reason for the zero |
+|---|---|---|
+| **position-risk** | 2 members, 4 predicates, 14 positions, **11 priced** | 0 fires — no position is at or near its stop on Friday's closing prices. ⚠️ The 2 unpriced are **FXAIX and SPAXX — Fidelity mutual funds**, not exchange-listed, so no quote exists; they classify `not_comparable`, never agreement |
+| **scan-membership-change** | **0** | **no member of the s7-dark cohort holds a `screen_alert_subs` row** — nobody in the cohort has subscribed to a saved screen |
+| **catalyst-match** | 6 members, 12 predicates, **displayed = 0** | ⛔⛔ **F-CAT-1** — the catalyst engine has written no rows since 2026-09-08 while still billing. Not a wiring fault; an upstream outage |
+| **regime-change** | 6 members, 12 predicates, ledger id 2557 | **no flip** — the newest two ledger rows are both `bull_correction`. A quiet tick, not a failure |
+
+### ⛔⛔ THE REGIME LEDGER IS UNTOUCHED — confirmed after a real sweep, not assumed
+
+    REGIME LEDGER BEFORE: 2557 rows, newest (2557, 'bull_correction', '2026-09-12 00:40:00')
+    REGIME LEDGER AFTER : 2557 rows, newest (2557, 'bull_correction', '2026-09-12 00:40:00')
+    LEDGER UNCHANGED: True
+
+The one hazard that would have turned a comparison into an intervention, measured on the live store
+**after** the projection ran against it.
+
+### FIRST REAL TICKS ARE MONDAY, AND THAT IS NOT A FAULT
+
+All six crons are **mon-fri**; they were armed on a Sunday. `--ticking` in the pod reports **`n/a`
+for all six with the schedule named** rather than a false `NO` — "outside its window" and "armed but
+dead" leave an identical store and call for opposite actions.
+
+**`--ticking` now covers all six**, and the two bespoke functions were replaced by ONE generic
+implementation over a declared descriptor table — *three copies of a guard cannot all be
+mutation-proved.* The staleness bounds differ **by design**: 180 s for the per-minute sweeps, 3600 s
+for regime-change, **26 h** for the daily ones. ⛔ A 180 s bound applied to a daily sweep reports a
+healthy run as stalled every single time, and a liveness command that cries wolf gets ignored. The
+self-check **proves the discrimination** — one 4000 s-old beat, two descriptors, opposite verdicts,
+with the window forced open so a Sunday cannot mask the comparison.
+
+**Gate check, run IN THE POD:** `0 READY · 8 NOT READY · 0 UNREADABLE`. ⭐ **The fourth state is at
+zero** — every flag was readable where it actually lives. The four built types moved
+`S7CP3Unbuilt → S7DarkRead`, leaving **seven S7 gates**; `indicator-condition` keeps the unbuilt
+class because *"authorized but unbuilt"* and *"armed but no data yet"* are different facts.
+
 ## regime-change CP3 — MERGED `506eeee6d`. Fingerprint `9f0575340`. **The stake projection.**
 
 **In-pod:** **7** registered trigger types, **all four** dark flags read `None` in the running

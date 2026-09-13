@@ -112,9 +112,9 @@ blocker class.
 | **A3/A4** · **A5** · **A6/A7** · **A8** | SHIPPED | none | **DONE** (4 rows) |
 | **A9** Screening | live surface | ✅ `scan-membership-change` CP3 merged `df937146c` — but it fires **dark, flag OFF**. A9 needs CP4 + the FLIP, both owner-bound | **BLOCKED-OWNER** — arm the dark flag, read it, sign CP4 + FLIP |
 | **A10** Options & Flow | live, partner-owned | D3 + D4 as systems | **BLOCKED-DEPENDENCY** |
-| **A11** Breadth & Regime | live surface | one-regime ruling + `regime-change` CP3 + D2 coverage | **BLOCKED-OWNER** + **BLOCKED-DEPENDENCY** |
+| **A11** Breadth & Regime | live surface | ✅ `regime-change` CP3 merged `506eeee6d`, ARMED 2026-09-13 — but it compares **dark**. Still needs the one-regime ruling, D2 coverage, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip, the one-regime ruling — + **BLOCKED-DEPENDENCY** (D2) |
 | **A12** Watchlists | half-live | S5 + S6 | **BLOCKED-DEPENDENCY** |
-| **A13** Journal | live (528 files) | D2 + S5 + `position-risk` CP3 | **BLOCKED-DEPENDENCY** |
+| **A13** Journal | live (528 files) | ✅ `position-risk` CP3 merged `6a67a4b5d`, ARMED 2026-09-13 — but it compares **dark**. Still needs D2, S5, and this type's CP4 + FLIP | **BLOCKED-OWNER** — the flip — + **BLOCKED-DEPENDENCY** (D2, S5) |
 | **A14** Portfolio & Risk | no member door | D8 + S9 | **BLOCKED-OWNER** — OI-03, OI-12 |
 | **E1** | outside the named roster | — | **EXCLUDED** |
 | **I1** Intelligence Layer | SHIPPED, 3 slices, `1c426c199` | F-I1-2 parked by owner | **DONE** with one parked finding |
@@ -235,6 +235,39 @@ checkpoint roster (or, for S10, has one the earlier line predates). The two dang
 scope describing work its packet's §4 does not contain — remain exactly the two already recorded.
 **Each of the six is closed by NUMBERING the packet, not by re-signing it**, and all six describe
 work that is already delivered, so none of them blocks the queue.
+
+### ⛔⛔ 3.4d F-CAT-1 (new, 2026-09-13) — THE CATALYST ENGINE IS BILLING AND WRITING NOTHING
+
+> **Found while dry-running catalyst-match CP3. It is NOT this programme's to fix, and it is
+> reported rather than left to be rediscovered.**
+
+Measured in the pod, read-only, `/data/catalysts.db`:
+
+| market_date | rows | ranked | LLM calls | spend |
+|---|---|---|---|---|
+| 2026-09-13 | 0 | 0 | 0 | $0 |
+| 2026-09-12 | **0** | **0** | 2 | $0.01 |
+| 2026-09-11 | **0** | **0** | 40 | $1.54 |
+| 2026-09-10 | **0** | **0** | 35 | $1.28 |
+| 2026-09-09 | **0** | **0** | 53 | $1.83 |
+| 2026-09-08 | 125 | 20 | 59 | $2.02 |
+
+⛔ **$4.66 across 130 LLM calls on 09-09…09-12, and ZERO rows persisted.** `CATALYST_ENGINE_ENABLED=1`
+in the pod, `ANTHROPIC_API_KEY` set, and the cost log proves synthesis ran on those dates — so the
+engine is scheduled, reached, and billing. Something between synthesis and `upsert_catalyst` stopped
+persisting after 2026-09-08.
+
+⭐ **MEMBER-VISIBLE:** `get_for_date(today, ranked_only=True)` returns **0 rows**, so the Dashboard's
+"🎯 STOCK CATALYSTS" tile has had nothing to show for four trading days.
+
+⚠️ **AND IT BLOCKS A DARK RUN THAT IS NOW ARMED.** `catalyst-match` CP3 compares against the ranked
+set; with no rows there is **nothing to compare**, and the sweep will record `displayed=0` every day.
+⛔ **That must never be read as agreement** — it is the absence of an input, which is exactly the
+`UNREADABLE is not zero` distinction this programme keeps paying for.
+
+**What closes it:** somebody who owns the catalyst engine reads the 09-08 → 09-09 boundary. **Not
+touched here** — a fix outside a signed scope is how scopes stop meaning anything, and this is a
+different subsystem from Terminal-Next.
 
 ### 3.4c F-AUDIT-2 (new) — the derived §4 audit was retired under the two-correction rule
 
