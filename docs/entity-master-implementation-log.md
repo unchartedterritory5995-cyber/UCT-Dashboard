@@ -1,5 +1,18 @@
 # Entity Master — Implementation Log
 
+> ⚠️ **PATH NOTE, 2026-09-11:** the seed suite moved
+> `scripts/test_entity_master_seed.py` → **`tests/test_entity_master_seed.py`**. Command lines
+> recorded below name the old path; they are left as written because they record what was actually
+> run at the time. **Use the new path.**
+>
+> Why it moved: `pytest.ini` declares `testpaths = tests, api`, so the file — a genuine suite, not a
+> script — was collected by **no standard run**, and `tests/test_test_discovery_coverage.py` was
+> failing on master naming it as the single orphan. It passes when collected (**18 passed**).
+> ⛔ The alternative remedy, adding `scripts` to `testpaths`, was rejected: it would make a standard
+> run collect `scripts/test_massive_ws.py`, which that rail exempts because it is "a manual probe
+> against the LIVE Massive WS; Massive allows ~1 connection per key, so running it kicks production
+> off the OPRA feed."
+
 Tracks the 8-checkpoint implementation authorized 2026-09-02 ("Approved: IMPLEMENT
 ENTITY MASTER WITH CONDITIONS"). Checkpoint 4's real-seed-run report was reviewed
 and ACCEPTED by the owner 2026-09-02, with explicit conditions carried into
