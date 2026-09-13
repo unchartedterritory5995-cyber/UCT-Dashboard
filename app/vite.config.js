@@ -194,6 +194,16 @@ export default defineConfig({
     }
   },
   test: {
+    // ⛔ THE FLOW PERF CONTRACT RUNS UNDER ITS OWN MODE, NOT HERE.
+    // `OptionsFlow.perfContract.test.jsx` measures the member contract against
+    // the PRODUCTION flag set (VITE_FLOW_DEFER_TAPE/_PARTS/_SERVER_TOPPICKS),
+    // and Vite inlines those at transform time -- so they must be present when
+    // vitest starts. It refuses to run without them (rather than skipping, which
+    // would read as verified), which would turn the default suite red. It is run
+    // by `npm run test:flowperf`, which supplies them via `.env.flowperf`.
+    // `flowPerfHarness.test.js` is the always-on rail that this wiring still exists.
+    exclude: ['**/node_modules/**', '**/dist/**',
+              '**/OptionsFlow.perfContract.test.jsx'],
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test-setup.js',

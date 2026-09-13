@@ -10,7 +10,8 @@
     "lint:css": "stylelint \"src/**/*.css\"",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:flowperf": "vitest run --config vitest.flowperf.config.js --mode flowperf src/pages/OptionsFlow.perfContract.test.jsx"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",
