@@ -250,7 +250,7 @@ worse than no trace, and this is the most safety-critical file in the feature.
 
 | Piece | File |
 |---|---|
-| The toggle — *Settings → Joystick → "Record gesture trace"* | `app/src/pages/settings/JoystickSettingsCard.jsx` |
+| The toggle — *Settings → **Charts** → JOYSTICK → "Record gesture trace"* (⚠️ there is no top-level "Joystick" section; verified on production 2026-09-13) | `app/src/pages/settings/JoystickSettingsCard.jsx` |
 | The flag, resolved | `app/src/hub/useHubSettings.js` (`settings.traceGestures`) |
 | The recording | `app/src/hub/useJoystick.js` (`withTrace`) |
 | The ring buffer + the JSON payload | `app/src/hub/gestureTrace.js` |
