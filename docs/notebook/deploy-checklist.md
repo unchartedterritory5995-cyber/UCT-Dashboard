@@ -75,3 +75,36 @@ the deploy regardless of what any row here says.
 |---|---|---|---|---|---|
 | 2026-09-11 | `3f3abe3cd` | Wave R, flags OFF | 1277 files, 18,884 passed, 0 NEW, exit 0 | n/a — not a flag-on deploy | shipped |
 | 2026-09-11 | `3f3abe3cd` | (instrument validation) | — | **PASS** — 19 routes, 4 surfaces stable | `r27-smoke-waveR-flagsoff.json` |
+| 2026-09-12 | `53a181082` | **Wave K — the runtime kill switch, DARK** | 1305 runnable files, 19,296 passed, **0 NEW attributable** (manifest `2026-09-12T21-19-17`) | **n/a — not a flag-on deploy**, see below | shipped dark |
+
+### Wave K, 2026-09-12 — what this row does and does not certify
+
+⛔ **B IS NOT SATISFIED AND IS NOT REQUIRED.** Section B governs *"any deploy that
+turns a feature ON for members"*. K turns nothing on: with no variable set, every
+browser receives the four keys at their defaults and reads exactly what it read
+before. **Nothing member-visible moves until the owner flips a key**, and that flip
+is a B-row deploy in its own right when it happens.
+
+⚠️ **AND B2's REASONING STILL APPLIES TO THIS TREE**, which is why it is written
+here rather than left implied: K edits `AuthContext.jsx`, a shared component on the
+universal auth path, and B2 exists precisely because *"the defect was in a SHARED
+component, so it was exposure for every member regardless of which flag shipped"*.
+The K-specific instrument is the canary's new `notebook config served` row, which
+reads the payload a signed-in member actually receives; the app-wide client smoke
+is the right beside it and is run in the same window.
+
+⚠️ **THE GATED TREE AND THE PUSHED TREE DIFFER, AND BY WHAT IS NAMED HERE.** Master
+moved **eleven** commits between the gate finishing (`184debd1c`) and the push
+(`53a181082`), on a cadence no 20-minute gate can win — and lapping a moving master
+is its own recorded failure. The delta was MEASURED, not assumed: their eighteen
+files are two `alert_taxonomy` modules with their tests plus joystick docs and
+screenshots, and the intersection with this branch's authored files is **EMPTY**.
+K's own rails were re-run on the pushed tree (72 passed) before the push.
+
+⭐ **The one NEW gate failure is master's, proved by provenance rather than by
+`git status`:** `app/src/lib/context/focusDivergence.js` is an orphan added by
+`76c62c494`; its importer set here is identical to its importer set at
+`origin/master`, and `HubContext.jsx` names it only in a comment — prose, not an
+import. The first gate of this branch, taken before that commit was merged in, had
+a failing set matching the baseline **exactly**. ⛔ Not fixed here: another
+session's file, and the rail asks for a recorded decision, which is theirs to make.

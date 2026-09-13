@@ -12,6 +12,7 @@
 | Sampler unattended, heartbeat documented | **TRUE** | — |
 | Sunday canary + gate are SCHEDULED TASKS | **TRUE** | both `Ready`; detached runner retired |
 | Gate rails green | **TRUE** | 27/27 |
+| **Wave K — the runtime kill switch, SHIPPED DARK** | **TRUE** | `53a181082`, 2026-09-12. No `NOTEBOOK_*` variable set anywhere, so nothing member-visible moved. ⭐ **Rollback is now TWO levers and the fast one is a variable** — see *"ROLLBACK MECHANICS"* and `kill-switch-flip-packet.md` |
 | Sweep audited, fifth-pattern detectors added | **TRUE** | — |
 | CaptureHost resolved | **TRUE** | two clean gates, 0 NEW each; load-sensitive by name, no fix |
 | Q2 PRD, decisions, kill-switch recommendation | **TRUE** | before Q2-C, not before A/B |
@@ -657,6 +658,37 @@ localStorage.setItem('uct.j2.offline.enabled', '0')   // then RELOAD the page
 Takes effect on that browser's next load and reaches nobody else. Destroys
 nothing: a durable copy left behind by a switched-off layer is inert, and the
 server holds every synced note regardless.
+
+## ✅ WAVE K — SHIPPED DARK, 2026-09-12, `53a181082`
+
+**The runtime kill switch exists and nothing is flipped.** No `NOTEBOOK_*` variable
+is set on any service — read live from Railway before the push, so that is a
+measurement — and with none set, every browser reads the four keys at their defaults
+and behaves exactly as it did before K.
+
+| | |
+|---|---|
+| merged | `53a181082`, `web` **SUCCESS**, `/api/health` `uptime_seconds` **39** on a fresh boot |
+| three-way | local `HEAD` = `origin/master` = the deployed SHA |
+| gate | 1305 runnable files (RECONCILES), 19,296 passed, **0 NEW attributable**; manifest `2026-09-12T21-19-17` |
+| gauntlet | **34/34 reddened**, control 495 browser + 65 server green before and after |
+| spec · packet | `kill-switch-spec.md` · `kill-switch-flip-packet.md` |
+
+⛔ **The one NEW gate failure is master's, not K's.** `app/src/lib/context/focusDivergence.js`
+is an orphan from `76c62c494`; `HubContext.jsx` names it only in a COMMENT, so the
+reachability rail is right. Proved by provenance, not by `git status` — this branch's
+FIRST gate, taken before that commit merged in, matched the baseline **exactly**.
+Not fixed here; the rail asks for a recorded decision and that is the other session's.
+
+⛔ **What K did NOT change.** Q1's default, the durable layer, the outbox, the drain,
+the conflict behaviour — none of it. `offlineEnabled()` gained one question it asks
+FIRST of the latch, and when the latch has no answer (no variable, an older pod, a
+signed-out visitor) it returns the compile-time constant, unchanged. That is what
+makes the merge dark, and `notebookFlags.test.jsx`'s "K merges DARK" case is the rail.
+
+⭐ **The member's own opt-out still outranks everything** — the server, the latch and
+the constant alike, in both directions, checked first (`K-R3`). A member who set
+`uct.j2.offline.enabled` keeps their choice whatever Railway says.
 
 ## 🗂️ THE WORKTREE DIRECTORY — five trees, five branches, one queue
 

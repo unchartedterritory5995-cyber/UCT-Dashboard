@@ -240,13 +240,45 @@ find is that nothing looked.
 - [x] first-render gate on the Notebook route (shape A), K-R4 proving §21 across it,
       with the shape-B disproof beside it
 - [x] `offlineFlag.js` migrated, constant retained as fallback, value unchanged
-- [ ] K-R1…K-R10 in `tools/q1_mutation_gauntlet.py`, every one mutation-proved
-- [ ] `q1_flag_default_sweep.py` extended: every new default-reading site classified
-- [ ] `docs/feature_flags.json` gains the four keys, status `dark`
+- [x] K-R1…K-R10 in `tools/q1_mutation_gauntlet.py`, every one mutation-proved —
+      **GAUNTLET PASS, 34/34 reddened**, control 495 browser + 65 server green before
+      and after, every file restored byte-identical. The tool grew a **second runner**
+      to get there: two of K's guards are Python, and a gauntlet that could only reach
+      vitest would have left them "proved by hand, once"
+- [x] `q1_flag_default_sweep.py` extended: the served answer is a route to the default
+      with no `localStorage` call in it, so `__resetNotebookFlags()` classifies as
+      REACHES-DEFAULT while an EXPLICIT `latchNotebookFlags({…: false})` is deliberately
+      NOT listed. 53 sites, self-check PASS
+- [x] ⚠️ **`docs/feature_flags.json` gains THREE keys, not four — and the ledger's own
+      doctrine is why.** `needs_declaration` is false for a gate that defaults ON: it is
+      self-evidently a live decision. `NOTEBOOK_OFFLINE_DEFAULT_ON` defaults ON, so
+      declaring it would trip `test_the_ledger_does_not_describe_gates_that_no_longer_exist`.
+      The three enablement gates are declared `dark` with reasons.
+      ⛔⛔ **And the index could not SEE any of the four**: it matches a string constant,
+      `os.environ.get(env_name)` has none, so 140 flag tests passed over a ledger four
+      gates short — the failure that ledger exists to prevent, one level up. Fixed by
+      teaching `feature_flag_index` to read a gate TABLE
+      (`tests/test_notebook_flag_table_form.py`, with the control that a bare
+      loop-variable read is still invisible)
 - [x] rollback text rewritten in all five places, **K-R8 green and mutation-proved**
       (`tests/test_k_reach_statement.py`)
-- [ ] gate · plain-diff · sweep · sandbox canary · merge **dark** · SUCCESS ·
-      three-way · DEPLOY row · one Q1 production real-door canary after
+- [x] gate · plain-diff · sweep · merge **dark** · SUCCESS · three-way · DEPLOY row
+      — all done 2026-09-12, `53a181082`. Gate: 1305 runnable files, 19,296 passed,
+      **0 NEW attributable** (the one NEW is master's `focusDivergence` orphan, proved
+      by provenance). Plain diff: read line by line, and it found two comment-only
+      defects — both applied afterwards with a **byte-level proof** that the gated and
+      pushed trees are behaviourally identical, rather than an assertion that they are.
+      SUCCESS + `/api/health` `uptime_seconds` **39** — a fresh boot, read by the
+      artifact. Three-way: local `HEAD` = `origin/master` = the deployed SHA.
+      ⚠️ **Sandbox canary DELIBERATELY NOT RUN**, and this says so instead of quietly
+      dropping it: a sandbox boots against a synthetic DB where the four keys are unset
+      — which is the state the gate already covers exhaustively and the state production
+      is in anyway. The reading K actually needs is *what the payload served a real
+      signed-in member*, and only the rig can take it
+- [ ] **one Q1 production real-door canary after** — held for the window: the
+      `UCT-WaveQ1-Observe` task fires at 22:00 CT and the standing rule is that the rig
+      runs only when no Q1 scheduled task is due within the hour. ⛔ Recorded as OPEN
+      rather than skipped
 - [ ] flip packet posted — **the first packet the owner expects**
 
 ## 10. Open, named

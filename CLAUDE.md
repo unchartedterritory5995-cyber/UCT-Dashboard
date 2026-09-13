@@ -2247,6 +2247,28 @@ not a variable — see *"Rolling back a FRONTEND flag"* below.
 ⛔ **Unattended observation**: `tools/nb_observe.py`, Task Scheduler job
 `UCT-WaveQ1-Observe`, every 2 hours into `docs/notebook/wave-q1-observation-log.md`.
 
+### 📓 Wave K — the Notebook kill switch is LIVE (but nothing is flipped), 2026-09-12
+
+`53a181082` on master, `web` SUCCESS, `/api/health` `uptime_seconds` 39 on a fresh
+boot. **Shipped DARK: no `NOTEBOOK_*` variable is set on any service** (read live
+before the push), so every browser reads the four keys at their defaults and behaves
+exactly as it did before K.
+
+- **The switch:** `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web` — read per request in
+  `_access_payload`, no rebuild. Kill switch, so **unset means ON**. The three Q2
+  keys are enablement gates and **unset means OFF**; they are declared `dark` in
+  `docs/feature_flags.json`.
+- **Rollback and reach:** the section *"Rolling back the Notebook wave"* above. The
+  reach sentence is verbatim in five places and `tests/test_k_reach_statement.py`
+  keeps them identical.
+- **Flip packet:** `docs/notebook/kill-switch-flip-packet.md` — ⛔ named for the
+  mechanism, because `wave-k-*.md` in that directory already means the OTHER Wave K
+  (Ask Notebook). Manifest §10 trap 1.
+- ⛔ **K-1 is QUEUED, NOT PARKED:** flipping the constant to `false` so an
+  unreachable payload fails to OFF. Its precondition is a measured config-served
+  rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
+  and **off** as different facts, because a pod predating K serves no keys at all.
+
 ### ⛔ B7 / rule 12 owes a branch-identity check — OPEN, owned by the joystick session
 
 `app/src/hub/rule12Paths.test.js` (`327fa4c70`) asserts *"this branch must not
