@@ -268,6 +268,78 @@ def is_skipped(rec: dict) -> bool:
     return 'SKIPPED' in str(rec.get('flag', ''))
 
 
+
+# =============================================================================
+# TRIGGER 3 - READ THE CANARY'S OWN STAMP, do not print `n/a` beside evidence.
+# =============================================================================
+# The sampler runs OPTED OUT, so its outbox is structurally zero and it can say
+# nothing about a stuck queue. Only the Sunday canary drives a real queue. Its
+# result was already being written - and this gate printed
+# `n/a - canary or member report only` beside it, on the one run of the week
+# that reads it. 2026-09-13: the canary ran GREEN at 20:00:01Z and the verdict
+# still said n/a.
+#
+# !! WHAT THE CANARY CAN AND CANNOT EVIDENCE, stated so nobody overclaims.
+# A canary run lasts minutes, not hours, so it cannot observe an item stuck for
+# more than five minutes. What it CAN observe is the condition whose absence
+# that trigger watches for: it queues real work offline, reconnects, and reports
+# whether the queue SETTLED. `outbox 0` at the settle step is positive evidence
+# that the drain is not stranding work; it is not a five-minute observation, and
+# the verdict line says so in those words.
+CANARY_FRESH_HOURS = 30
+_CANARY_HEAD = re.compile(r'^### ([a-z0-9-]+) \u2014 \*\*(20[0-9-]{8}T[0-9:]{8}Z)\*\*',
+                          re.M)
+
+
+def canary_queue_evidence(now=None):
+    """The newest canary run's queue reading, or None with a reason.
+
+    !! FRESHNESS IS PART OF THE READING. A canary from last Sunday says nothing
+    about this window, and an old green is the most flattering thing a stale
+    artifact can say.
+    """
+    if not RESUME.exists():
+        return None, f'no resume doc at {RESUME}'
+    text = RESUME.read_text(encoding='utf-8', errors='replace')
+    heads = list(_CANARY_HEAD.finditer(text))
+    if not heads:
+        return None, 'no canary section in the resume doc'
+    # Newest by STAMP, not by position: the doc is prepend-ordered today and
+    # that is a layout choice, not a guarantee.
+    head = max(heads, key=lambda m: m.group(2))
+    label, stamp = head.group(1), head.group(2)
+    try:
+        when = datetime.datetime.strptime(stamp, '%Y-%m-%dT%H:%M:%SZ')
+    except ValueError:
+        return None, f'canary stamp {stamp!r} is unparseable'
+    # tz-aware, then dropped to naive for comparison with the naive stamp —
+    # `utcnow()` is deprecated and warns into the gate's own output.
+    now = now or datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    age_h = (now - when).total_seconds() / 3600.0
+    if age_h > CANARY_FRESH_HOURS:
+        return None, (f'the newest canary is {label} @ {stamp}, '
+                      f'{age_h:.0f}h old - older than {CANARY_FRESH_HOURS}h, so it '
+                      f'says nothing about this window')
+
+    # chr(10) here, not the NLV bound inside main() — a module-level helper
+    # must not depend on a caller's local.
+    nxt = text.find(chr(10) + '### ', head.end())
+    body = text[head.end(): nxt if nxt != -1 else len(text)]
+
+    settle = re.search(r'the queue settled[^|]*\|([^|]*)\|', body)
+    if not settle:
+        return None, (f'canary {label} @ {stamp} wrote no queue-settled step - '
+                      f'the run did not reach it')
+    cell = settle.group(1)
+    m = re.search(r'outbox\s+\*\*(\d+)\*\*', cell)
+    if not m:
+        return None, f'canary {label} @ {stamp}: the settle step names no outbox count'
+    outbox = int(m.group(1))
+    mini = re.search(r'\*\*mini-canary\*\*\s*\|[^|]*?(\d+)/(\d+)\*\* steps green', body)
+    steps = f'{mini.group(1)}/{mini.group(2)}' if mini else 'unreported'
+    return {'label': label, 'stamp': stamp, 'outbox': outbox,
+            'steps': steps, 'age_h': age_h}, None
+
 def main() -> int:
     at = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-4))).strftime("%Y-%m-%d %H:%M ET")
     NLV = chr(10)
@@ -353,7 +425,21 @@ def main() -> int:
     # serving; if fix 3 is an ancestor, the report predates the fix.
 
     # trigger 3 - NOT readable here, by construction
-    t3 = "n/a - canary or member report only"
+    ev, why = canary_queue_evidence()
+    if ev is None:
+        t3 = f'n/a - {why}'
+    elif ev['outbox'] == 0:
+        t3 = (f"PASS - canary `{ev['label']}` @ {ev['stamp']} queued real work "
+              f"offline and the queue SETTLED (outbox {ev['outbox']}, mini-canary "
+              f"{ev['steps']} green). \u26a0\ufe0f A canary run is minutes long, so this "
+              f"evidences that the drain does not strand work - it is not a "
+              f"five-minute observation")
+    else:
+        t3 = (f"FAIL - canary `{ev['label']}` @ {ev['stamp']} left "
+              f"**outbox {ev['outbox']}** at its settle step: the queue did NOT "
+              f"settle")
+        fails.append(f"trigger 3: the canary's queue did not settle "
+                     f"(outbox {ev['outbox']} at {ev['stamp']})")
 
     # trigger 4 - console errors seen by the rig (same bundle a member runs)
     # !!!! OBSERVED ROWS ONLY, and BY NAME. This read `x[6]` over EVERY row: the
@@ -424,7 +510,8 @@ def main() -> int:
     # does not say REVERT on its own - it says the reading is INCOMPLETE, which is
     # the third state this programme keeps having to re-learn.
     unreadable = bool(gripes)
-    verdict = "KEEP" if (hb_ok and not bad and not errs and not conf) else "REVERT"
+    stuck = isinstance(ev, dict) and ev.get("outbox", 0) > 0
+    verdict = "KEEP" if (hb_ok and not bad and not errs and not conf and not stuck) else "REVERT"
     if verdict == 'KEEP' and unreadable:
         verdict = 'INCOMPLETE - the log has rows this gate could not read; see below'
 
