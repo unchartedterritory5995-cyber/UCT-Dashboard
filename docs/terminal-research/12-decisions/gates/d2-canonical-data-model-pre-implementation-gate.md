@@ -353,10 +353,34 @@ costs nothing a member can see. `alerts-monitoring-prd.md` §10 already instruct
 | **CP1** | The manifest schema + the derivation + the axis-report rail. **Declarations only — no resolver, no consumer.** | no — inert data | **S** |
 | **CP2** | The resolver with its five statuses and the non-vacuity contract, plus S7's next trigger type reading through an address in a dark path with a forward-only comparison. | no — dark | **M** |
 | **CP3** | Retire the timeframe duplicates onto the declared map (three call sites, one of them frontend). | ⚠️ **YES** — `indicator_alert_evaluator.py` is in flow-worker's import closure and must be classified before it merges | **S/M** |
+| **CP4** | **The indicator axis** (PRD §9.5 / SPEC §5.4). A **SECOND address FORM** — `<indicator>[.<output>](<params>)@<timeframe>` — declared for the thirty indicator outputs, plus the `close` → `ohlcv.c` rename, plus a resolver that returns a **computation DESCRIPTOR and never a value**, flag-OFF by default. **Declares and describes; computes nothing.** | ⚠️ **measure at build** — additive unless `reachable_paths()` says the resolver is imported at flow-worker start | **M** |
 
-⛔ **CP3 IS THE ONLY ONE THAT CAN STRAND**, and it is named here rather than discovered at merge
-time. `tools/flow_worker_watch_coverage.py` decides it; if it is BEHAVIOUR-CHANGING it needs a
-marker bump and an after-hours window.
+⛔ **CP3 AND CP4 ARE THE ONES THAT CAN STRAND**, and they are named here rather than discovered
+at merge time. `tools/flow_worker_watch_coverage.py` decides it; if it is BEHAVIOUR-CHANGING it
+needs a marker bump and an after-hours window.
+
+⚰️ This read **"CP3 IS THE ONLY ONE THAT CAN STRAND"** until CP4 was added on 2026-09-13 — a
+count that went stale in the same commit that invalidated it, which is this file's most-repeated
+defect. CP4's risk is narrower than CP3's but it is not zero: CP3 EDITS a module already inside
+flow-worker's closure, while CP4 ADDS one that must be proved absent from the boot path.
+
+⛔⛔ **CP4 WAS ADDED 2026-09-13, RE-NUMBERING §4 IN THE SAME COMMIT THAT SIGNS IT, PER THE STANDING
+RULE.** The owner's instruction was to sign PRD-D2 §9.5 *"by its §4 checkpoint ID"* — and **there was
+no such row.** §4's three checkpoints were all written for the FIRST address form, a map from a name
+to a stored column: CP1 says *"Declarations only — no resolver"*, CP2 is that form's resolver, CP3
+retires its duplicates. §9.5 asks the book to describe a **computation**, which is a different KIND
+of thing (SPEC §5.4.2) and therefore a fourth checkpoint, not a sub-numbering of an existing one.
+
+⭐ The standing rule (owner, 2026-09-13) names exactly this case and gives the remedy: *"an approval
+line names a §4 checkpoint ID, **or it re-numbers §4 in the same commit** so that it does."* D4 took
+the same branch on the same day. The alternative — signing §9.5 against CP1 or CP3 because they are
+the nearest rows — is the scope/packet divergence the rule was written to stop, and it hid a hazard
+both times it happened (D4 spanned the flow-worker closure boundary; S5 spanned a live subsystem).
+
+⚠️ **This edit changes the bytes of this packet, so the CP1 and CP2 fingerprints above no longer
+re-derive from the current file.** That is correct and not a defect: a fingerprint pins what the
+owner approved **at approval time**, and `git show <sha>:<file>` recovers those exact bytes. A
+fingerprint that silently followed later edits would pin nothing at all.
 
 ⛔ **AND NOTHING ABOUT `pct_above_50ma` IS IN ANY CHECKPOINT.** It is the most quotable finding in
 the PRD and it is deliberately excluded: it is the one row in the inventory that is member-visible

@@ -583,11 +583,37 @@ Until 1 and 3, CP3 ships a projection over predicates that all refuse. **That is
 it is a CP3 with nothing in it.**
 
 ```
-APPROVED BY:      (empty — owner has not signed this addendum)
-APPROVED ON:      (empty)
-APPROVED AT SHA:  (empty — git hash-object of this packet as it stands at
-                  approval, with this field blank)
-SCOPE APPROVED:   (empty)
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  3257cc319
+SCOPE APPROVED:   GATE-D2 CP4 - THE INDICATOR AXIS, DECLARATION + FLAG-OFF
+                  RESOLVER. A SECOND address FORM
+                  `<indicator>[.<output>](<params>)@<timeframe>` declared for
+                  the thirty indicator outputs of
+                  `indicator_alert_evaluator.all_addresses()`, plus the ONE
+                  genuine rename `close` -> `ohlcv.c`, plus a resolver that
+                  returns a COMPUTATION DESCRIPTOR (source series, indicator
+                  function, bound parameters, warmup bar count) and is OFF by
+                  default behind its own flag.
+
+                  ⛔ THE RESOLVER MUST NOT COMPUTE. D2 describes; the caller
+                     computes. A resolver that returns numbers becomes a second
+                     calculation engine beside the one that already exists.
+
+                  ⛔ NO CHANGE TO `bars_fetch.py` OR `bars_sqlite.py`. Owner
+                     ruling 2026-09-13: flow-worker's watch list is NOT widened;
+                     those two stay in-closure-unwatched, and any change to them
+                     is BEHAVIOUR-CHANGING under the rail and merges after-hours
+                     with a marker bump. This checkpoint therefore declares the
+                     per-timeframe cadence WITHOUT editing them.
+
+                  ⛔ NOT AUTHORIZED: consuming the axis. `indicator-condition`
+                     CP3 reads through it under its own approval line, not this
+                     one.
+
+                  ⚠️ §4 WAS RE-NUMBERED IN THIS COMMIT to add CP4, per the
+                     standing rule — §9.5's scope matched none of CP1/CP2/CP3,
+                     all three of which were written for the stored-column form.
 ```
 
 ⛔ **Nothing in §9.5 or SPEC-D2 §5.4 is authorized to be built.** No code was written for it.

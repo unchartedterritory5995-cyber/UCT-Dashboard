@@ -61,7 +61,15 @@ UNNUMBERED = "UNNUMBERED"          # the packet carries no checkpoint roster at 
 DECLARED: list[tuple] = [
     ("d2-canonical-data-model", "line 1", ["CP1", "CP2"], "table", OK, ""),
     ("d2-canonical-data-model", "line 2", ["CP2", "CP3"], "table", OK,
-     "§9.5 CP1 is a sub-numbering inside CP3, not a fourth checkpoint"),
+     "⚰️ this note read '§9.5 CP1 is a sub-numbering inside CP3, not a fourth "
+     "checkpoint' until 2026-09-13. It was WRONG: §4's three rows were all written "
+     "for the stored-column form, and §9.5 asks the book to describe a COMPUTATION "
+     "(SPEC §5.4.2). §4 was re-numbered to add CP4 in the commit that signed it"),
+    ("d2-canonical-data-model-prd", "§9.5 line 1", ["CP4"], "table", OK,
+     "⛔ THIS APPROVAL BLOCK IS NOT IN THE GATES DIRECTORY — it lives in PRD-D2 §9.5, "
+     "so the undeclared-packet sweep below cannot see it. Declared explicitly here, "
+     "with EXTERNAL_PACKETS teaching packet_path where it is, so the drift check "
+     "covers it like any other line. Signed 2026-09-13, fingerprint 3257cc319"),
     ("d3-realtime-streaming", "line 1", ["CP1"], "table", OK, ""),
     ("d4-caching-and-serving", "line 1", ["CP1", "CP2", "CP3"], "table", OK,
      "§4 was re-numbered 2026-09-13 in the same commit, per the standing rule"),
@@ -112,10 +120,22 @@ DECLARED: list[tuple] = [
 ]
 
 _SUFFIXES = ("-pre-implementation-gate.md", "-gate.md")
+
+#: ⛔ Approval blocks that are NOT in the gates directory. A signed line the audit
+#: cannot SEE is precisely the drift this file exists to catch, so an external
+#: packet is named here rather than left to the suffix convention.
+EXTERNAL_PACKETS = {
+    "d2-canonical-data-model-prd":
+        "docs/terminal-research/05-product-strategy/prds/canonical-data-model-prd.md",
+}
 _SIGNED_BLOCK = re.compile(r"^APPROVED BY:[ \t]+[A-Za-z]", re.M)
 
 
 def packet_path(stem: str) -> pathlib.Path | None:
+    ext = EXTERNAL_PACKETS.get(stem)
+    if ext:
+        p = ROOT / ext
+        return p if p.exists() else None
     for suf in _SUFFIXES:
         p = GATES / (stem + suf)
         if p.exists():
