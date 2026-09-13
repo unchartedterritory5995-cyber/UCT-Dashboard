@@ -134,8 +134,13 @@ def compute_board() -> dict:
         leap_share = f.get("leap_share") or 0
         if not (leap_share >= LEAP_SHARE_MIN or leap_prem >= LEAP_PREM_MIN):
             continue                                    # LEAP-led gate
-        bull_ok = net > 0 and acc == "Acc" and bull >= FLOW_MIN and dpn >= DP_MIN
-        bear_ok = net < 0 and acc == "Dist" and bear >= FLOW_MIN and dpn >= DP_MIN
+        # Dark-pool DIRECTION is no longer gated on the accumulation call — a single
+        # unsigned dark print names a price, not a buyer, so it can't reveal intent
+        # (owner decision 2026-09-12). The dark-pool leg now contributes SIZE
+        # (dpn >= DP_MIN); direction comes from the options flow, and the card shows
+        # price-vs-their-average-price as live context instead of an Acc/Dist verdict.
+        bull_ok = net > 0 and bull >= FLOW_MIN and dpn >= DP_MIN
+        bear_ok = net < 0 and bear >= FLOW_MIN and dpn >= DP_MIN
         if not (bull_ok or bear_ok):
             continue
         # Survivor is a real confluence candidate — spend one cached FMP profile
@@ -172,6 +177,12 @@ def compute_board() -> dict:
             "leapPrem": leap_prem, "leapShare": round(leap_share, 3),
             "status": status, "freshRatio": round(ratio, 2),
             "bigPrint": d.get("bigPrintN") or 0, "bigDate": d.get("bigPrintDate"),
+            # dark-pool structure for the price-vs-zone ladder. The frontend overlays
+            # the LIVE price on top of these to compute the green/red performance vs
+            # the average (vwap). dpLast (last dark-pool session price) is the fallback
+            # when no live quote is available, so the ladder always renders.
+            "dpLo": d.get("lo"), "dpHi": d.get("hi"), "dpAvg": d.get("vwap"),
+            "dpLast": d.get("last"), "bigPrice": d.get("bigPrint"),
             "sector": sector,
         })
 

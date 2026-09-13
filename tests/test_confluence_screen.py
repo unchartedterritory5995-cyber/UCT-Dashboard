@@ -31,15 +31,18 @@ def _flow_name(net=5_000_000, bull=5_000_000, bear=0,
     }
 
 
-def _dp_item(t, cat="Large Cap", n=30_000_000, acc="Acc", sectype="", sector=""):
+def _dp_item(t, cat="Large Cap", n=30_000_000, acc="Acc", sectype="", sector="",
+             lo=90.0, hi=110.0, vwap=100.0, last=105.0, big_price=108.0):
     """One ticker's entry in the dark-pool 30d aggregate (allItems shape).
 
     `sectype`/`sector` default BLANK — the Massive-feed reality the fix targets.
+    lo/hi/vwap/last/big_price feed the price-vs-zone ladder the card renders.
     """
     return {
         "t": t, "cat": cat, "n": n, "accDist": acc,
         "securityType": sectype, "sector": sector,
-        "bigPrintN": 188_000_000, "bigPrintDate": "09/01",
+        "lo": lo, "hi": hi, "vwap": vwap, "last": last,
+        "bigPrint": big_price, "bigPrintN": 188_000_000, "bigPrintDate": "09/01",
     }
 
 
@@ -158,3 +161,43 @@ def test_below_dp_floor_is_dropped(monkeypatch):
         meta_fn=lambda s: {"sector": "Technology", "isEtf": False},
     )
     assert board["counts"]["total"] == 0
+
+
+def test_accumulation_is_not_required_for_the_gate(monkeypatch):
+    """2026-09-12 gate change: a name with NO accumulation call (accDist None) still
+    makes the board — a single unsigned print can't reveal intent, so direction comes
+    from flow and the dark pool contributes size."""
+    board = _run_board(
+        monkeypatch,
+        names={"AAA": _flow_name()},              # net +5M bull
+        dp_items=[_dp_item("AAA", acc=None)],     # no Acc/Dist verdict
+        meta_fn=lambda s: {"sector": "Technology", "isEtf": False},
+    )
+    assert board["counts"]["total"] == 1
+    assert board["rows"][0]["dir"] == "BULL"
+
+
+def test_bear_name_surfaces_from_flow_direction(monkeypatch):
+    """A bearish name (net < 0) is a BEAR row regardless of the dark-pool verdict."""
+    board = _run_board(
+        monkeypatch,
+        names={"AAA": _flow_name(net=-5_000_000, bull=0, bear=5_000_000)},
+        dp_items=[_dp_item("AAA", acc=None)],
+        meta_fn=lambda s: {"sector": "Technology", "isEtf": False},
+    )
+    assert board["counts"]["total"] == 1
+    assert board["rows"][0]["dir"] == "BEAR"
+
+
+def test_ladder_fields_pass_through(monkeypatch):
+    """The dark-pool structure the card's ladder needs is present on each row."""
+    board = _run_board(
+        monkeypatch,
+        names={"AAA": _flow_name()},
+        dp_items=[_dp_item("AAA", lo=90, hi=110, vwap=100, last=105, big_price=108)],
+        meta_fn=lambda s: {"sector": "Technology", "isEtf": False},
+    )
+    row = board["rows"][0]
+    assert row["dpLo"] == 90 and row["dpHi"] == 110
+    assert row["dpAvg"] == 100 and row["dpLast"] == 105
+    assert row["bigPrice"] == 108
