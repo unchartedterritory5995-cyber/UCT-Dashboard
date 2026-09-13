@@ -273,10 +273,15 @@ def test_the_heartbeat_follows_elapsed_time_not_a_modulo_of_the_clock(store):
     store.claim(job.corr_id, "pod-A", 20)
     from api.services.discord_render.runtime import JobContext
     rt._active[job.corr_id] = JobContext(rt, job)
-    t0 = 1_000_000.3                                       # never an integer multiple of 5
+    # ⛔ Every beat point is chosen so int(t) % 5 != 0. The first draft used t0 = 1_000_000.3,
+    # whose beat points landed ON multiples of 5 — so the modulo bug this rail names would
+    # have passed it. A fixture that cannot distinguish the bug from the fix is not a rail;
+    # the mutation harness is what proves this one can fail.
+    t0 = 1_000_001.3
+    assert int(t0) % 5 and int(t0 + 5.1) % 5 and int(t0 + 10.4) % 5
     assert rt.tick(t0)["beats"] == 1
     assert rt.tick(t0 + 2.2)["beats"] == 0
-    assert rt.tick(t0 + 5.1)["beats"] == 1                 # a modulo test would have skipped this
+    assert rt.tick(t0 + 5.1)["beats"] == 1                 # a modulo cadence skips this beat
     assert rt.tick(t0 + 10.4)["beats"] == 1
 
 

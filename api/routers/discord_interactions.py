@@ -193,15 +193,25 @@ def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -
 
 
 def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
-                      *, fetch_fn=None, render_fn=None, edit_fn=None) -> None:
+                      *, fetch_fn=None, render_fn=None, edit_fn=None, fail_fn=None,
+                      timeout_s: float = 30.0, cid: str | None = None) -> None:
     """Background job for /flow. Fetch the ticker's flow summary from the FLOW-WORKER,
     render the card, and post it PUBLICLY as the bot — the deferred interaction
     @original is app-owned, so the 'View chart' button routes back to us. Never raises;
-    an empty or errored read resolves the reply with an honest note (no false zero)."""
+    an empty or errored read resolves the reply with an honest note (no false zero).
+
+    `fail_fn(cls, detail)` (the Discord render V2 runtime) replaces the per-site
+    sentences with the failure contract, and gets the REAL cause: before it, every
+    non-ok read said "the flow feed is reconnecting" — a 30 s timeout on 2026-09-11,
+    a flow-worker restart on 2026-09-08, and every other cause alike. Without
+    `fail_fn` the replies are byte-identical to what members get today.
+    `cid` rides to flow-worker as a query parameter, so its access log carries the
+    correlation id without any change to a flow-worker file."""
     from api.flow_ticker_card import render_ticker_flow_card
     render = render_fn or render_ticker_flow_card
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
     data = None
+    fail_cls, fail_detail = "flow_error", ""
     try:
         if fetch_fn is not None:
             data = fetch_fn(ticker, days)
@@ -209,18 +219,32 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
             base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
             if base:
                 import httpx
-                r = httpx.get(f"{base}/api/live/massive/ticker-flow",
-                              params={"symbol": ticker, "days": days, "source": "stocks"},
-                              timeout=30.0)
+                params = {"symbol": ticker, "days": days, "source": "stocks"}
+                if cid:
+                    params["cid"] = cid
+                try:
+                    r = httpx.get(f"{base}/api/live/massive/ticker-flow", params=params, timeout=timeout_s)
+                except httpx.TimeoutException:
+                    fail_cls, fail_detail = "flow_timeout", f"no answer in {timeout_s:.0f}s"
+                    raise
+                except httpx.TransportError:
+                    fail_cls, fail_detail = "flow_unavailable", "connect/transport error"
+                    raise
+                if not r.is_success:
+                    fail_cls, fail_detail = "flow_error", f"HTTP {r.status_code}"
                 data = r.json() if r.is_success else None
             else:
                 from api import live_massive_router as lmr   # single-service fallback
                 data = lmr._compute_ticker_flow(ticker, days, "stocks", 15)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
+        fail_detail = fail_detail or type(e).__name__
         data = None
 
     if not data or not data.get("ok"):
+        if fail_fn is not None:
+            fail_fn(fail_cls, fail_detail or "ok:false")
+            return
         ack(app_id, token,
             content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
         return
@@ -232,6 +256,9 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         png = render(data)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow] render failed %s: %s", ticker, e)
+        if fail_fn is not None:
+            fail_fn("internal", "card render failed")
+            return
         ack(app_id, token, content="Couldn't render the card — try again in a moment.")
         return
     # Post the card PUBLICLY as the bot — the deferred interaction @original is

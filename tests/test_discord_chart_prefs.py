@@ -82,7 +82,7 @@ def test_render_options_hide_mas_and_volume_via_positional_overlays():
 def test_build_commands_has_chart_alias_and_settings_subcommands():
     from api.services.discord_interactions import build_commands, build_chart_command, GUILD_ONLY
     cmds = {c["name"]: c for c in build_commands()}
-    assert set(cmds) == {"chart", "c", "chartsettings", "buzz"}  # four doors, four picker rows
+    assert set(cmds) == {"chart", "c", "chartsettings", "buzz", "flow"}  # five doors since /flow (08cadbba9)
     assert cmds["chart"] == dict(build_chart_command(), **GUILD_ONLY)
     # every registered command is GUILD_INSTALL-only and usable only inside a guild —
     # never a user install that could carry /chart into any server or DM
@@ -182,7 +182,8 @@ def test_run_chart_job_passes_prefs_render_options_to_the_house_renderer_and_key
     seen.clear()
     assert run_chart_job("1", "t", ChartRequest("NVDA", "15"), bars_fn=lambda *a: _daily(), render_fn=lambda *a, **k: b"",
                          edit_fn=edits, house_fn=house_fn) == "ok"
-    assert seen[-1] == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None, "bars": None}
+    assert seen[-1] == {"indicators": None, "ext": False, "stats": True, "preset": None, "instances": None, "bars": None,
+                        "darkpool": False}   # per-request overlay toggle since a1ee351ec
 
 
 def test_fallback_renderer_honours_mas_and_volume_flags():
