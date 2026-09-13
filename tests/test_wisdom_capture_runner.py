@@ -42,19 +42,33 @@ def wisdom_db(tmp_path, monkeypatch):
 class FakeR2:
     def __init__(self):
         self.objects: dict = {}
-        self.puts: list = []
+        self.puts: list = []      # canonical keys only — the keys a consumer reads
+        self.staged: list = []    # wisdom/staging/<sha>/… — the disposable half
 
     def head_object(self, Bucket, Key):
         if Key not in self.objects:
             from botocore.exceptions import ClientError
 
             raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
-        return {"Metadata": {"sha256": self.objects[Key][1]}}
+        body, sha = self.objects[Key]
+        return {"Metadata": {"sha256": sha}, "ContentLength": len(body)}
 
     def put_object(self, Bucket, Key, Body, ContentType, Metadata):
         assert Key not in self.objects, f"overwrite attempted: {Key}"
         self.objects[Key] = (Body, Metadata["sha256"])
+        (self.staged if Key.startswith(r2.STAGING_PREFIX) else self.puts).append(Key)
+
+    def copy_object(self, Bucket, Key, CopySource):
+        """put_verified stages under wisdom/staging/<sha>/ and copies to the canonical key
+        (CONTRACTS §8c.1.3). A fake without this models a product that no longer exists."""
+        assert Key not in self.objects, f"overwrite attempted: {Key}"
+        self.objects[Key] = self.objects[CopySource["Key"]]
         self.puts.append(Key)
+
+    @property
+    def canonical(self) -> dict:
+        """Everything outside wisdom/staging/ — what a consumer can actually find."""
+        return {k: v for k, v in self.objects.items() if not k.startswith(r2.STAGING_PREFIX)}
 
 
 @pytest.fixture
@@ -165,7 +179,7 @@ def test_a_changed_capture_of_the_same_as_of_is_versioned_never_overwritten(wisd
     second = runner.run_family("wire", now=NOW)
     assert first["r2_key"] == "wisdom/context/2026-09-14/wire.json.gz"
     assert second["r2_key"].startswith("wisdom/context/2026-09-14/wire.") and second["r2_key"] != first["r2_key"]
-    assert second["versioned"] is True and len(fake_r2.objects) == 2
+    assert second["versioned"] is True and len(fake_r2.canonical) == 2
     assert archive.decode(fake_r2.objects[first["r2_key"]][0])["payload"] == {"n": 1}
 
 
@@ -182,17 +196,52 @@ def test_run_context_does_not_leak_into_the_archived_bytes(wisdom_db, fake_r2, m
 
 def test_a_dry_run_writes_nothing_anywhere(wisdom_db, fake_r2, pages, monkeypatch):
     seen: list = []
-    _only(monkeypatch, _dataset("detections", _reader("detections", [], seen=seen,
+    _only(monkeypatch, _dataset("detections", _reader("detections", [{"d": 1}], seen=seen,
                                                       meta={"watermark_next": 123, "window_lo": 1,
                                                             "window_as_of": "2026-09-14"})))
     out = runner.run_family("detections", now=NOW, dry_run=True)
-    assert out["dry_run"] is True and out["health"] == "zero" and out["r2_key"].endswith("detections.json.gz")
+    assert out["dry_run"] is True and out["r2_key"].endswith("detections.json.gz")
     assert out["bytes"] > 0 and out["paged"] is False
-    assert fake_r2.puts == [] and _runs() == [] and _registry("detections") is None and pages == []
-    # control: the same capture for real does write all three
-    real = runner.run_family("detections", now=NOW)
+    assert fake_r2.puts == [] and fake_r2.staged == [] and _runs() == []
+    assert _registry("detections") is None and pages == []
+    # control: the same capture for real writes the object, the run row AND the watermark
+    runner.run_family("detections", now=NOW)
     assert fake_r2.puts and _runs("detections") and _registry("detections")["watermark"] == 123
-    assert real["paged"] is True and pages == [("wisdom_capture_p1:detections", "critical")]
+
+
+def test_a_zero_row_capture_writes_no_object_and_moves_no_watermark(wisdom_db, fake_r2, pages, monkeypatch):
+    """The S-A capture-run finding, planted (CONTRACTS §8c.1.2 + §8c.1.3).
+
+    ⚰️ THIS TEST'S PREDECESSOR ASSERTED THE DEFECT. `test_a_dry_run_writes_nothing_anywhere`
+    used a ZERO-row reader and its control asserted that the same capture "for real" wrote an
+    object and set `watermark == 123` — which is precisely what the owner's ruling forbids, so
+    the rail that was supposed to protect this path was pinning the bug in place. A test
+    asserting a defect reads exactly like coverage, which is why review did not catch it.
+
+    Both halves are load-bearing and they fail for different reasons:
+      * NO OBJECT — an empty capture on an immutable key is permanent (this module has no
+        delete path), and it exiles the later genuine backfill to a sha-suffixed key.
+        ⛔ `put_verified`'s empty-BYTES guard cannot see this one: `{"payload": [], "rows": 0}`
+        gzips to plenty of bytes. The refusal has to be at the runner.
+      * NO WATERMARK — a watermark past an empty window makes every later run read `lo >= hi`,
+        capture nothing, and page forever, with no repair route.
+    """
+    _only(monkeypatch, _dataset("detections", _reader("detections", [],
+                                                      meta={"watermark_next": 123, "window_lo": 1,
+                                                            "window_as_of": "2026-09-14"})))
+    out = runner.run_family("detections", now=NOW)
+
+    assert out["status"] == "ok" and out["health"] == "zero"
+    assert out["r2_key"] is None and "empty_not_archived" in out["gaps"]
+    assert fake_r2.objects == {}, "nothing was written — not the canonical key, not staging"
+
+    reg = _registry("detections")
+    assert reg is not None and _runs("detections"), "the run is still RECORDED: we looked, and found nothing"
+    assert reg["watermark"] is None and reg["last_r2_key"] is None and reg["last_as_of"] is None
+
+    # ⭐ The withheld object is the only thing withheld — the page still fires, because a
+    # silent empty capture is the failure mode that lets a dataset die unnoticed.
+    assert out["paged"] is True and pages == [("wisdom_capture_p1:detections", "critical")]
 
 
 # ── 5-6. health, paging, unreachable and failed runs ────────────────────────
@@ -335,7 +384,7 @@ def test_hash_on_change_writes_no_object_for_an_unchanged_payload(wisdom_db, fak
     first, same, changed = (runner.run_family("themes", now=NOW) for _ in range(3))
     assert first["created"] is True and same["unchanged"] is True and same["r2_key"] == first["r2_key"]
     assert same["bytes"] == 0 and changed["r2_key"] == "wisdom/context/2026-09-15/themes.json.gz"
-    assert len(fake_r2.objects) == 2
+    assert len(fake_r2.canonical) == 2
 
 
 def test_a_stream_is_sharded_with_a_manifest(wisdom_db, fake_r2, tmp_path, monkeypatch):
@@ -406,3 +455,105 @@ def test_unknown_datasets_and_broken_state_never_raise(wisdom_db, monkeypatch):
     _only(monkeypatch, _dataset("rs", _reader("rs", None)))
     out = runner.run_family("rs", now=NOW)
     assert out["status"] == "unreachable" and "registry_state" in out["gaps"] and out.get("record_error")
+
+
+def test_a_backfill_of_an_older_day_never_walks_the_current_pointer_back(wisdom_db, fake_r2, monkeypatch):
+    """F3 (CONTRACTS §8c.1.2): `last_as_of` / `last_r2_key` are ORDERED, like the watermark.
+
+    ⚰️ The pointer UPDATE was unconditional while the watermark four lines below it was
+    monotonic — and EVERY legitimate backfill takes this path (`capture_result` → `_run_one`
+    → `_record`; `backfill.catalysts_history`, `vision_history`, `detections_retention` and
+    `x_posts` all route through it), so backfilling March walked the pointer back to March.
+
+    ⭐ Severity comes from hash_on_change: most canonical keys for such a dataset do not
+    exist, so `last_r2_key` is the ONLY way a consumer finds the CURRENT object. A
+    backfilled pointer hands S-D/S-E/S-F a months-old taxonomy with nothing on it to say so
+    — the worst shape of wrong, because it reads as fresh.
+    """
+    days = iter(("2026-09-14", "2026-03-02"))
+    payloads = iter(({"themes": ["today"]}, {"themes": ["march"]}))
+
+    @safe_reader("themes", "test")
+    def read(**_):
+        return result("themes", as_of=next(days), source="test", rows=1, payload=next(payloads))
+
+    _only(monkeypatch, _dataset("themes", read, hash_on_change=True, job_id=families.JOB_THEMES))
+    today = runner.run_family("themes", now=NOW)
+    sha_after_today = _registry("themes")["last_sha256"]
+    backfill = runner.run_family("themes", now=NOW)      # the same reader, now yielding March
+
+    assert today["r2_key"] == "wisdom/context/2026-09-14/themes.json.gz"
+    assert backfill["r2_key"] == "wisdom/context/2026-03-02/themes.json.gz"
+    assert backfill["created"] is True, "the older day IS archived — only the POINTER is ordered"
+
+    reg = _registry("themes")
+    assert reg["last_as_of"] == "2026-09-14" and reg["last_r2_key"] == today["r2_key"]
+    assert reg["last_sha256"] == sha_after_today, "a backfilled sha must not shadow the current one"
+
+
+def test_an_object_that_does_not_read_back_moves_no_watermark(wisdom_db, fake_r2, pages, monkeypatch):
+    """CONTRACTS §8c.1.2 — "only on a write whose object passed a non-empty + CHECKSUM check".
+
+    `status == "ok"` was the whole condition. It is not proof: it says the reader returned
+    and the put did not raise, neither of which is "the bytes are readable back at the
+    canonical key". Here the bucket accepts the write and then reports a different digest —
+    a silent-corruption shape — and the run must fail closed rather than stamp a watermark
+    over a window whose object nobody can trust.
+    """
+    real_head = fake_r2.head_object
+
+    def lying_head(Bucket, Key):
+        head = real_head(Bucket=Bucket, Key=Key)
+        if not Key.startswith(r2.STAGING_PREFIX):          # staging verifies; the canonical copy does not
+            head = {**head, "Metadata": {"sha256": "0" * 64}}
+        return head
+
+    monkeypatch.setattr(fake_r2, "head_object", lying_head)
+    _only(monkeypatch, _dataset("detections", _reader("detections", [{"d": 1}],
+                                                      meta={"watermark_next": 123, "window_lo": 1,
+                                                            "window_as_of": "2026-09-14"})))
+    out = runner.run_family("detections", now=NOW)
+
+    assert out["status"] == "failed" and "R2VerificationFailed" in (out["error"] or "")
+    reg = _registry("detections")
+    assert reg["watermark"] is None and reg["last_r2_key"] is None
+
+    # CONTROL: the same capture against an honest bucket advances everything, so the
+    # assertion above is about the checksum and not about the fixture being inert.
+    monkeypatch.setattr(fake_r2, "head_object", real_head)
+    fake_r2.objects.clear()
+    good = runner.run_family("detections", now=NOW)
+    assert good["status"] == "ok" and _registry("detections")["watermark"] == 123
+
+
+def test_an_archive_that_did_not_verify_moves_no_watermark_even_when_the_run_reads_ok(
+        wisdom_db, fake_r2, pages, monkeypatch):
+    """The §8c.1.2 invariant AT ITS DECISION POINT, not via a path that short-circuits first.
+
+    ⚰️ THE MUTATION HARNESS CAUGHT THIS AND REVIEW DID NOT. Replacing
+    `if nxt is not None and _advanceable(...)` with `if nxt is not None` left all 38 tests
+    GREEN, because every other rail reaches the watermark through a guard that fires
+    earlier: a zero-row capture leaves `arch is None`, and a failed checksum leaves
+    `status == "failed"` — so `_advanceable` was doing nothing any test could see.
+
+    ⭐ That is not an argument for deleting it. It is the reachable case: `put_versioned`
+    accepts a `putter`, so any archive path that did NOT go through `put_verified` returns a
+    result with no `verified` key — and a watermark must not move past a write nobody
+    checked. Leaving the invariant implicit in two unrelated short-circuits is exactly how
+    it comes back: change either one and the watermark is silently unguarded again.
+    """
+    unverified = {"key": "wisdom/context/2026-09-14/detections.json.gz", "sha256": "a" * 64,
+                  "bytes": 10, "created": True, "rows": 3}          # note: no "verified"
+    monkeypatch.setattr(runner, "_archive", lambda ds, out, **kw: dict(unverified))
+    _only(monkeypatch, _dataset("detections", _reader("detections", [{"d": 1}], rows=3,
+                                                      meta={"watermark_next": 123, "window_lo": 1,
+                                                            "window_as_of": "2026-09-14"})))
+    out = runner.run_family("detections", now=NOW)
+    assert out["status"] == "ok" and out["r2_key"] == unverified["key"], "the run itself reads fine"
+    assert _registry("detections")["watermark"] is None, "an unverified write moved the watermark"
+
+    # CONTROL: the SAME result with verified:True advances — so the assertion above is
+    # about the checksum flag and not about the fixture being inert in some other way.
+    monkeypatch.setattr(runner, "_archive", lambda ds, out, **kw: {**unverified, "verified": True})
+    runner.run_family("detections", now=NOW)
+    assert _registry("detections")["watermark"] == 123

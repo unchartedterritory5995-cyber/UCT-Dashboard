@@ -107,12 +107,18 @@ class StreamedObject:
 def put_versioned(key_for: Callable[[Optional[str]], str], data: bytes, *, dry_run: bool = False,
                   putter: Optional[Callable[[str, bytes, str], dict]] = None) -> dict:
     """Write ``data`` immutably at ``key_for(None)``; a different capture already
-    there sends it to ``key_for(sha256)``. Dry run computes and writes nothing."""
+    there sends it to ``key_for(sha256)``. Dry run computes and writes nothing.
+
+    ⛔ The default putter is ``r2.put_verified``, never ``put_immutable`` (CONTRACTS
+    §8c.1.3): a canonical key is written via a staging key and a verified copy, so a
+    truncated or unreadable object never becomes the permanent one — this module's
+    bucket has no delete path. The result carries ``verified``, and ``runner._record``
+    advances a watermark on nothing else."""
     sha = ids.sha256_bytes(data)
     primary = key_for(None)
     if dry_run:
         return {"key": primary, "sha256": sha, "bytes": len(data), "created": False, "dry_run": True}
-    put = putter or r2.put_immutable
+    put = putter or r2.put_verified
     try:
         out = dict(put(primary, data, CONTENT_TYPE))
         out["versioned"] = False

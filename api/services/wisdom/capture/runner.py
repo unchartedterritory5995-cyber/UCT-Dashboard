@@ -158,15 +158,30 @@ def _record(ds: families.Dataset, summary: dict, meta: dict, arch: Optional[dict
         )
         if summary["status"] != "ok" or arch is None:
             return
-        last_sha = arch.get("content_sha256") if ds.hash_on_change else arch.get("sha256")
-        conn.execute(
-            "UPDATE wisdom_capture_datasets SET last_as_of = ?, last_r2_key = ?, "
-            "last_sha256 = COALESCE(?, last_sha256) WHERE dataset = ?",
-            (summary["as_of"], arch.get("key"), last_sha, ds.name),
-        )
+        row = conn.execute(
+            "SELECT last_as_of, watermark FROM wisdom_capture_datasets WHERE dataset = ?", (ds.name,)
+        ).fetchone()
+
+        # ⛔ ORDERED, like the watermark below it (CONTRACTS §8c.1.2).
+        # ⚰️ This UPDATE was unconditional while the watermark four lines down was
+        # monotonic, so a backfill of an older day walked `last_as_of` / `last_r2_key`
+        # back to the oldest day it processed — and every legitimate backfill takes this
+        # path (`backfill.catalysts_history`, `vision_history`, `detections_retention`,
+        # `x_posts` all route through capture_result → _run_one → _record). For a
+        # hash_on_change dataset most canonical keys do not exist, so `last_r2_key` is
+        # the ONLY way a consumer finds the current object: a backfilled pointer hands
+        # S-D/S-E/S-F a months-old taxonomy with nothing to tell them it is stale.
+        prev_as_of = row["last_as_of"] if row else None
+        if prev_as_of is None or str(summary["as_of"]) >= str(prev_as_of):
+            last_sha = arch.get("content_sha256") if ds.hash_on_change else arch.get("sha256")
+            conn.execute(
+                "UPDATE wisdom_capture_datasets SET last_as_of = ?, last_r2_key = ?, "
+                "last_sha256 = COALESCE(?, last_sha256) WHERE dataset = ?",
+                (summary["as_of"], arch.get("key"), last_sha, ds.name),
+            )
+
         nxt = meta.get("watermark_next")
-        if nxt is not None:
-            row = conn.execute("SELECT watermark FROM wisdom_capture_datasets WHERE dataset = ?", (ds.name,)).fetchone()
+        if nxt is not None and _advanceable(summary, arch):
             current = row["watermark"] if row else None
             if current is None or int(nxt) >= int(current):
                 conn.execute(
@@ -174,6 +189,33 @@ def _record(ds: families.Dataset, summary: dict, meta: dict, arch: Optional[dict
                     "WHERE dataset = ?",
                     (int(nxt), meta.get("window_lo"), meta.get("window_as_of"), ds.name),
                 )
+
+
+def _advanceable(summary: dict, arch: Optional[dict]) -> bool:
+    """May this run's watermark move? Only past a write we can PROVE landed.
+
+    CONTRACTS §8c.1.2: "a watermark advances only on a write whose object passed a
+    non-empty + checksum check. Zero rows must never move a watermark."
+
+    ⛔ `status == "ok"` is not that proof — it was the whole condition, and a run that
+    captured ZERO rows reported `ok` and advanced anyway. The three facts that make a
+    watermark safe to move are separate: rows existed, an object was written, and the
+    object read back as what we wrote (`verified`, from core.r2.put_verified).
+
+    ⚠️ Consequence, stated rather than hidden: a genuinely quiet window does not advance,
+    so the next run re-reads it against a wider `hi`. That window grows until something
+    lands. It is the safe direction — re-reading costs a read, and skipping costs data
+    nobody will ever know is missing — but it is not free, and a dataset that is empty
+    for weeks will widen. `unchanged` (a hash_on_change no-op) advances: the canonical
+    object is the one a previous run verified, and the window WAS processed.
+    """
+    if arch is None or arch.get("dry_run"):
+        return False
+    if not summary.get("rows"):          # 0 or None — nothing was captured to be past
+        return False
+    if arch.get("unchanged"):
+        return True
+    return arch.get("verified") is True
 
 
 # ── running ─────────────────────────────────────────────────────────────────
@@ -210,6 +252,23 @@ def _run_one(ds: families.Dataset, *, as_of, dry_run: bool, now_et: dt.datetime,
         # an expected absence: nothing to keep. Rows that DO exist on a holiday
         # (catalysts can) are archived below and still read "holiday".
         status = "skipped_holiday"
+    elif rows == 0:
+        # ⛔ A ZERO-ROW CAPTURE NEVER REACHES A CANONICAL KEY (CONTRACTS §8c.1.2/.3).
+        # ⚰️ This is the S-A defect, and put_verified's empty-BYTES guard cannot see it:
+        # `{"payload": [], "rows": 0}` gzips to plenty of bytes. A past-dated run that
+        # found nothing wrote that object to wisdom/context/<date>/<dataset>.json.gz, and
+        # because this module has no delete path the later genuine backfill of the same
+        # date was exiled to a sha-suffixed key — leaving the empty capture canonical
+        # forever, with nothing on the object to say it was empty by accident.
+        #
+        # ⭐ The fact "we looked and found nothing" is NOT lost: it is the run row, whose
+        # health reads `zero`, and a run row is mutable. Only the immutable artifact is
+        # withheld, and only from the case where withholding is recoverable and writing
+        # is not. Suppressing the archive also leaves `arch is None`, so _record returns
+        # before BOTH state writes — a zero-row run moves no pointer and no watermark.
+        gaps["empty_not_archived"] = (
+            "0 rows: no object was written, so this date's canonical key stays free for a "
+            "real capture. tools/wisdom/capture_backfill.py can fill it.")
     else:
         try:
             arch = _archive(ds, out, state=state, dry_run=dry_run)

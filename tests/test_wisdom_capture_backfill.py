@@ -45,19 +45,33 @@ def wisdom_db(tmp_path, monkeypatch):
 class FakeR2:
     def __init__(self):
         self.objects: dict = {}
-        self.puts: list = []
+        self.puts: list = []      # canonical keys only — the keys a consumer reads
+        self.staged: list = []    # wisdom/staging/<sha>/… — the disposable half
 
     def head_object(self, Bucket, Key):
         if Key not in self.objects:
             from botocore.exceptions import ClientError
 
             raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
-        return {"Metadata": {"sha256": self.objects[Key][1]}}
+        body, sha = self.objects[Key]
+        return {"Metadata": {"sha256": sha}, "ContentLength": len(body)}
 
     def put_object(self, Bucket, Key, Body, ContentType, Metadata):
         assert Key not in self.objects, f"overwrite attempted: {Key}"
         self.objects[Key] = (Body, Metadata["sha256"])
+        (self.staged if Key.startswith(r2.STAGING_PREFIX) else self.puts).append(Key)
+
+    def copy_object(self, Bucket, Key, CopySource):
+        """put_verified stages under wisdom/staging/<sha>/ and copies to the canonical key
+        (CONTRACTS §8c.1.3). A fake without this models a product that no longer exists."""
+        assert Key not in self.objects, f"overwrite attempted: {Key}"
+        self.objects[Key] = self.objects[CopySource["Key"]]
         self.puts.append(Key)
+
+    @property
+    def canonical(self) -> dict:
+        """Everything outside wisdom/staging/ — what a consumer can actually find."""
+        return {k: v for k, v in self.objects.items() if not k.startswith(r2.STAGING_PREFIX)}
 
 
 @pytest.fixture
