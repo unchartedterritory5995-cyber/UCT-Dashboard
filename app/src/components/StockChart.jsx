@@ -93,6 +93,7 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
+import { symbolFamily } from '../hooks/useBreadthSymbols'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
 // dead — it keeps its own suite in `engine/instances.test.js` — but StockChart's
@@ -334,7 +335,14 @@ const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === unde
 // means it cannot break a caller whose lightweight-charts double predates them.
 let _engineLwc = null
 const engineLwc = () => (_engineLwc || (_engineLwc = {
-  LineSeries, HistogramSeries, AreaSeries, BaselineSeries, LineStyle, LineType,
+  // ⚠️ THE BINDER CAN ONLY BUILD WHAT THIS OBJECT CARRIES. `SERIES_CTOR` names a
+  // constructor and the binder reads it off HERE, so a series type absent from
+  // this literal resolves to `undefined`, `addSeries(undefined, …)` throws, and
+  // `attempt` swallows it into an orphaned binding — a plot that plans, computes
+  // and then silently does not exist. Measured on the first candle: capability
+  // said yes, the payload was 400 bars, and nothing drew.
+  LineSeries, HistogramSeries, AreaSeries, BaselineSeries, CandlestickSeries,
+  LineStyle, LineType,
 }))
 
 // "Same % scale" comparison → transform the comparison's raw closes into the base's
@@ -11037,6 +11045,17 @@ export default function StockChart({
         // data, exactly as `bars` does. Absent is not an error: it is a chart
         // with no symbol sources, and every lookup simply misses.
         secondary: secondarySources,
+        // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the semantic
+        // half of `ohlcCapability`. The breadth registry is the SAME authority
+        // `api/routers/bars.py` routes on, read synchronously because the binder
+        // has no hooks; it answers `'unknown'` until it has loaded and the gate
+        // refuses `'unknown'`, so a breadth measure can never be mistaken for a
+        // security while the page is still starting.
+        //
+        // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
+        // No ticker, no prefix: the binder asks what KIND of thing this is and
+        // `ohlcCapability` owns what each kind may be drawn as.
+        ohlcFamilyOf: symbolFamily,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
         bars: filteredBars,

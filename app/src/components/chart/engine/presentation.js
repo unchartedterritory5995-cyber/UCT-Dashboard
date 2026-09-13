@@ -31,6 +31,14 @@ export const DEFAULT_PLOT_STYLE = 'line'
  *  same fail-safe direction `resolvePlacement` takes. */
 export const PLOT_STYLES = Object.freeze([
   'line', 'histogram', 'dots', 'area', 'lastValueHorizontal',
+  // ⭐⭐ RECOGNISED, MAPPED, AND NOT YET OFFERED (Phase A). `candles` is the
+  // first style whose DATA SHAPE differs — every other entry above is a second
+  // way to draw one column of numbers, and this one draws four. The engine can
+  // carry it end to end; the member cannot choose it, because `availableStyles`
+  // refuses it until a caller proves the SOURCE can mean it (see
+  // `ohlcCapability`). Listing it here is what makes a stored value resolve
+  // rather than silently read as `line`.
+  'candles',
 ])
 
 /** What the Plot Style control offers, with the words a user sees. */
@@ -64,6 +72,11 @@ export const PLOT_STYLE_TO_DEF_STYLE = Object.freeze({
   dots: 'markers',
   area: 'area',
   lastValueHorizontal: 'line',
+  // ⚠️ THE ONE ENTRY THAT IS NOT A RE-SHAPE OF A COLUMN. The author vocabulary
+  // gains `candles` alongside the user one because `pool.poolKey` reads the
+  // DEFINITION style, and there is no existing shape to borrow: a candlestick is
+  // its own LWC series with its own data contract.
+  candles: 'candles',
 })
 
 /**
@@ -108,7 +121,21 @@ export function availableStyles(plot, ctx) {
   const declared = plot && plot.style
   if (!declared || !RESTYLEABLE_DEF_STYLES.has(declared)) return []
   const shared = ctx && ctx.target === 'volume'
-  return PLOT_STYLES.filter((s) => !(shared && SHARED_PANE_EXCLUDED.has(s)))
+  // ⛔⛔ CANDLES ARE NEVER OFFERED WITHOUT A SOURCE THAT CAN MEAN THEM. Every
+  // other style is a property of the OUTPUT — any column can be drawn as an area
+  // — and this one is a property of what the output READS: four fields that
+  // describe one auction period. A dropdown that offered it over an RSI, a
+  // formula, or a breadth measure would be a dropdown that lies, which is the
+  // rule `RESTYLEABLE_DEF_STYLES` already states one level up.
+  //
+  // ⚠️ ABSENT `ctx.ohlcCapable` MEANS NO. Phase A ships no caller that passes it,
+  // so the member-facing list is byte-identical to before; Phase B passes the
+  // answer `ohlcCapability.ohlcCapabilityOf` gives for this instance's source.
+  const ohlc = !!(ctx && ctx.ohlcCapable)
+  return PLOT_STYLES.filter((s) => {
+    if (s === 'candles') return ohlc
+    return !(shared && SHARED_PANE_EXCLUDED.has(s))
+  })
 }
 
 /**
@@ -136,7 +163,7 @@ export function availableStyles(plot, ctx) {
  * re-target every stored style) and NOT the display label (renaming or
  * translating one would lose it).
  */
-export function resolvePlotStyle(instance, plot) {
+export function resolvePlotStyle(instance, plot, ctx) {
   const pres = instance && instance.presentation
   const key = plot && plot.key
 
@@ -170,7 +197,16 @@ export function resolvePlotStyle(instance, plot) {
   // Area, because the instance still says so — the clamp is a reading of the
   // state at a placement, not an edit of it. Same shape as `placement.position`
   // surviving a round trip through Volume.
-  const allowed = availableStyles(plot, { target: instance && instance.placement && instance.placement.target })
+  // ⭐ CAPABILITY IS THE CALLER'S TO SUPPLY, because only the caller knows it.
+  // "Can this output be a candle?" is a question about the SOURCE — whether its
+  // provider family means an auction period by its four fields — and this module
+  // has never read a source. The binder resolves it once per binding and passes
+  // the answer; absent, the clamp refuses candles, which is the fail-closed half
+  // of the same rule.
+  const allowed = availableStyles(plot, {
+    target: instance && instance.placement && instance.placement.target,
+    ohlcCapable: !!(ctx && ctx.ohlcCapable),
+  })
   if (allowed.length && !allowed.includes(chosen)) return allowed[0]
   return chosen
 }
@@ -236,9 +272,9 @@ export function resolveDotSize(instance, plot) {
  * downstream (`guideSignature`, plan diffing), and allocating a copy per plot per
  * sync to write the value that was already there is pure churn.
  */
-export function presentedPlot(plot, instance) {
+export function presentedPlot(plot, instance, ctx) {
   if (!plot) return plot
-  const style = resolvePlotStyle(instance, plot)
+  const style = resolvePlotStyle(instance, plot, ctx)
   const defStyle = PLOT_STYLE_TO_DEF_STYLE[style]
   if (!defStyle || defStyle === plot.style) return plot
   const next = { ...plot, style: defStyle }

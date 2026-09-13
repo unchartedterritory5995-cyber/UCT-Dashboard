@@ -245,6 +245,23 @@ function Harness() {
     addMa(null, instanceSource(hostId, 'rsi'))
   }, [addMa])
 
+  // ⛔ PHASE A HAS NO MEMBER-FACING CANDLES, SO THIS IS THE ONLY DOOR. It writes
+  // the presentation shape the engine already resolves (`presentation.plots[key]
+  // .style`) directly into the page's own blob — no product control, no catalogue
+  // row, nothing persisted anywhere a member could reach. It exists so the engine
+  // capability can be looked at in a real renderer before the product exposes it.
+  const setStyle = useCallback((id, style) => {
+    write((c) => ({
+      ...c,
+      indicatorInstances: (c.indicatorInstances || []).map((i) => (
+        i && i.instanceId === id
+          ? { ...i, presentation: { ...(i.presentation || {}),
+            plots: { ...((i.presentation || {}).plots || {}), value: { style } } } }
+          : i
+      )),
+    }), `${id} → style ${style}`)
+  }, [write])
+
   const setTarget = useCallback((id, t) => {
     write((c) => setInstanceDisplayTarget(c, id, t, registry), `${id} → ${t}`)
   }, [write])
@@ -378,6 +395,12 @@ function Harness() {
                   {displayTargetOptions(i, cs, registry.getDefinition)
                     .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
+                {i.defId === 'dataSeries' ? (
+                  <button style={btn} onClick={() => setStyle(i.instanceId,
+                    (i.presentation?.plots?.value?.style === 'candles') ? 'line' : 'candles')}>
+                    {i.presentation?.plots?.value?.style === 'candles' ? 'line' : 'candles'}
+                  </button>
+                ) : null}
                 <button style={btn} onClick={() => setPos(i.instanceId, 'above')}>above</button>
                 <button style={btn} onClick={() => setPos(i.instanceId, 'below')}>below</button>
                 <button style={btn} onClick={() => drop(i.instanceId)}>delete</button>

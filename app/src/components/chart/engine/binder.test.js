@@ -1276,3 +1276,92 @@ describe('a single pane move still schedules the pass that resizes after it', ()
     }
   })
 })
+
+// ─── PHASE A · A CANDLE BINDING REACHES THE RENDERER AS A CANDLESTICK ───────
+//
+// ⭐⭐ THE END OF THE SEAM. Everything else about OHLC is arithmetic that can be
+// tested pure; this is the only case that proves a widened PAYLOAD survives the
+// binder and lands on the LWC series type it asked for, through the ordinary
+// placement the rest of the engine uses.
+describe('an OHLC binding is an ordinary binding carrying four fields', () => {
+  const SEC = [
+    { t: 10, o: 700, h: 703, l: 699, c: 701.5, v: 1000 },
+    { t: 20, o: 702, h: 706, l: 701, c: 705.25, v: 1200 },
+  ]
+
+  /** A `dataSeries` on QQQ whose OUTPUT is stored as candles. */
+  const candleInst = () => ({
+    instanceId: 'inst:dataSeries:1',
+    defId: 'dataSeries',
+    hidden: false,
+    inputs: { source: 'sym:QQQ:close', color: '#4f9cf9' },
+    presentation: { plots: { value: { style: 'candles' } } },
+  })
+
+  /** The bars the chart is drawing — the candle's domain. */
+  const primary = () => [
+    { t: 10, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
+    { t: 20, o: 2, h: 3, l: 1.5, c: 2.5, v: 20 },
+    // ⛔ A THIRD CHART BAR THE SECONDARY DOES NOT HAVE: it must simply be absent
+    // from the candle series, never filled and never borrowed.
+    { t: 30, o: 3, h: 4, l: 2.5, c: 3.5, v: 30 },
+  ]
+
+  const syncCandles = (familyOf) => {
+    const insts = [candleInst()]
+    return binder.sync({
+      ...ctxFor(insts),
+      bars: primary(),
+      secondary: new Map([['QQQ', { bars: SEC }]]),
+      ohlcFamilyOf: familyOf,
+      resolvePlacement: () => ({ paneIndex: 1, scaleId: 'right', scaleOptions: null, ownPane: true }),
+    })
+  }
+
+  it('⭐⭐ it creates a CandlestickSeries and feeds it {time, open, high, low, close}', () => {
+    syncCandles(() => 'security')
+
+    const added = fake.callsOf('addSeries')
+    expect(added, 'nothing was bound at all').toHaveLength(1)
+    expect(added[0].args[0], 'the candle did not get the candlestick constructor')
+      .toBe(fake.LWC.CandlestickSeries)
+    // ⭐ ORDINARY PLACEMENT: the pane index and scale the resolver gave, nothing
+    // candle-specific. `addSeries(definition, options, paneIndex)` is the same
+    // call every other series makes on lightweight-charts 5.2.0.
+    expect(added[0].args[2]).toBe(1)
+    expect(added[0].args[1].priceScaleId).toBe('right')
+
+    const set = fake.callsOf('setData')
+    expect(set).toHaveLength(1)
+    expect(set[0].args[0]).toEqual([
+      { time: 10, open: 700, high: 703, low: 699, close: 701.5 },
+      { time: 20, open: 702, high: 706, low: 701, close: 705.25 },
+    ])
+    // ⛔ THE THIRD CHART BAR IS ABSENT, not whitespace-with-borrowed-values and
+    // not a forward fill of bar 20.
+    expect(set[0].args[0].some((p) => p.time === 30)).toBe(false)
+  })
+
+  it('⛔ the legend still gets ONE number, and it is the close', () => {
+    syncCandles(() => 'security')
+    const [binding] = binder.bindings()
+    expect(binding.lastValue, 'a candle pane would have printed no chip').toBe(705.25)
+  })
+
+  it('⛔⛔ A BREADTH SOURCE DRAWS A LINE INSTEAD — the stored style is clamped', () => {
+    // Same instance, same stored `candles`, same structurally complete bars. The
+    // only difference is what the provider family MEANS, and it is the whole
+    // difference: the renderer falls back to the line every other scalar gets.
+    syncCandles(() => 'breadth')
+    const added = fake.callsOf('addSeries')
+    expect(added).toHaveLength(1)
+    expect(added[0].args[0], 'a breadth measure was drawn as candles')
+      .not.toBe(fake.LWC.CandlestickSeries)
+    expect(added[0].args[0]).toBe(fake.LWC.LineSeries)
+  })
+
+  it('⛔ and an UNCLASSIFIED family draws a line too — fail closed', () => {
+    syncCandles(undefined)
+    expect(fake.callsOf('addSeries')[0].args[0]).toBe(fake.LWC.LineSeries)
+  })
+})

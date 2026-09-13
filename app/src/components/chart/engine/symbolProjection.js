@@ -140,3 +140,81 @@ export function projectionFor(secondaryBars, field, primaryBars) {
 export function clearProjectionFor(secondaryBars) {
   if (secondaryBars && typeof secondaryBars === 'object') _cache.delete(secondaryBars)
 }
+
+
+// ─── THE OTHER TIMELINE RULE, AND IT IS DELIBERATELY NOT THE ONE ABOVE ──────
+//
+// ⭐⭐ A CANDLE IS A BAR, SO IT KEEPS ITS OWN `t`. Everything above PROJECTS a
+// foreign instrument onto the chart's index because a COLUMN has to be
+// index-aligned to feed compute: `MA(QQQ)` averages position by position, and a
+// value that landed on the wrong index would be arithmetic on the wrong day.
+// A candlestick feeds no compute. It is a picture of QQQ's own auction, and
+// rewriting its timestamp to AAPL's would attribute QQQ's open, high and low to
+// a bar that is not QQQ's. The two rules answer different questions, which is
+// why this is a second function and not a `field === 'ohlc'` branch in the first.
+//
+// ⛔ INTERSECTION, NEVER UNION (v1 ruling). Only secondary bars whose `t` is
+// already in the chart's time domain are emitted. A QQQ bar with no AAPL
+// counterpart is DROPPED rather than drawn, because drawing it would widen the
+// chart's shared time axis with a slot the primary has no candle for — a
+// chart-wide decision that belongs to a session policy nobody has written yet.
+// For two US equities the intersection is the whole set and this costs nothing;
+// for a 24-hour instrument it is the conservative half of a question still open.
+//
+// ⛔ AND NO FORWARD FILL, for the same reason `projectSymbolField` refuses one: a
+// gap is a gap. A bar the secondary does not have is simply absent from the
+// output, and the renderer draws nothing there.
+
+/**
+ * A secondary symbol's own OHLC bars, clipped to the primary's time domain.
+ *
+ * @param {Array} secondaryBars bars for the OTHER symbol, same timeframe
+ * @param {Array} primaryBars   the chart's bars — defines the admissible times
+ * @returns {Array} a subset of `secondaryBars`, in primary order, each carrying
+ *                  its OWN `t`
+ */
+export function clipBarsToDomain(secondaryBars, primaryBars) {
+  const secondary = Array.isArray(secondaryBars) ? secondaryBars : []
+  const primary = Array.isArray(primaryBars) ? primaryBars : []
+  if (!secondary.length || !primary.length) return []
+
+  // FIRST WINS on a duplicate timestamp, matching `projectSymbolField` exactly.
+  // Two lanes reading the same bars must make the same choice about a defect.
+  const at = new Map()
+  for (let j = 0; j < secondary.length; j++) {
+    const b = secondary[j]
+    const key = b && typeof b === 'object' ? b.t : undefined
+    if (key !== undefined && key !== null && !at.has(key)) at.set(key, b)
+  }
+
+  // ⭐ WALKED IN PRIMARY ORDER, so the output is sorted the way the axis is
+  // without this function having to know how either series is sorted.
+  const out = []
+  for (let i = 0; i < primary.length; i++) {
+    const p = primary[i]
+    const key = p && typeof p === 'object' ? p.t : undefined
+    if (key === undefined || key === null) continue
+    const bar = at.get(key)
+    if (bar !== undefined) out.push(bar)
+  }
+  return out
+}
+
+// ⭐ MEMOISED FOR THE REASON `projectionFor` IS: `binder.js` folds a payload's
+// identity into its memo signature, so a clip rebuilt every paint would make
+// every consumer miss while the numbers stayed right — the failure mode that is
+// hardest to notice. Keyed on both object identities, in the same WeakMap shape.
+const _clipCache = new WeakMap()   // secondaryBars -> { primary, bars }
+
+/** `clipBarsToDomain`, memoised on (secondary bars, primary bars). */
+export function clippedBarsFor(secondaryBars, primaryBars) {
+  if (!secondaryBars || typeof secondaryBars !== 'object') {
+    return clipBarsToDomain(secondaryBars, primaryBars)
+  }
+  let entry = _clipCache.get(secondaryBars)
+  if (!entry || entry.primary !== primaryBars) {
+    entry = { primary: primaryBars, bars: clipBarsToDomain(secondaryBars, primaryBars) }
+    _clipCache.set(secondaryBars, entry)
+  }
+  return entry.bars
+}

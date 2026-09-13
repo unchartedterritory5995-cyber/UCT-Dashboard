@@ -55,8 +55,14 @@ import { ALPHA, withAlpha } from '../designTokens'
 import { presentedPlot, histogramBaseline } from './presentation'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 
-/** The four LWC series constructors any v1 plot can need. */
-export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline'])
+/** The LWC series constructors any plot can need.
+ *
+ *  ⚠️ `candlestick` IS THE FIRST ONE THAT IS NOT SCALAR-SHAPED. Pool keys are
+ *  series TYPES, and two series are interchangeable only when their type is —
+ *  so a candlestick can never be re-purposed from a line, and a line never from
+ *  a candlestick. That falls out of the existing rule; nothing here had to learn
+ *  the difference. */
+export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline', 'candlestick'])
 
 /**
  * `plots[].style` → the LWC constructor that draws it.
@@ -91,7 +97,7 @@ export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline']
  * registration, so this is the second lock, not the first.)
  *
  * @param {object} plot a definition's plot
- * @returns {'line'|'histogram'|'area'|'baseline'|null}
+ * @returns {'line'|'histogram'|'area'|'baseline'|'candlestick'|null}
  */
 export function poolKey(plot) {
   switch (plot && plot.style) {
@@ -106,6 +112,8 @@ export function poolKey(plot) {
       return 'area'
     case 'baseline':
       return 'baseline'
+    case 'candles':
+      return 'candlestick'
     default:
       return null
   }
@@ -591,6 +599,20 @@ export function seriesOptionsForPlot(plot, ctx) {
     autoscaleInfoProvider: autoscaleProvider(c.autoscale, c.scaleDomain),
   }
 
+  // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ──────────────────────────────
+  //
+  // ⛔⛔ NONE OF THE LINE-SHAPED OPTIONS APPLY, AND EMITTING THEM WOULD BE
+  // DESCRIBING A SERIES THAT IS NOT THERE — the same reason the histogram branch
+  // returns early rather than falling through. A candlestick has no `color`, no
+  // `lineWidth`, no `lineStyle`, no point markers; it has four colours and a
+  // wick. `base` carries what every series needs (scale id, visibility,
+  // autoscale, the axis tag), and the rest is the candle's own.
+  //
+  // ⚠️ PHASE A LEAVES THE COLOURS TO LWC'S OWN DEFAULTS. Up/down/wick/border are
+  // member style, and no member can choose candles yet; inventing a palette here
+  // would be a product decision made in a renderer.
+  if (pk === 'candlestick') return base
+
   if (pk === 'histogram') {
     // A histogram has no line width, no line style and no crosshair marker.
     // Passing them would be describing a series that isn't there — and since a
@@ -737,6 +759,9 @@ function guidePlots(def) {
 export function planBindings(instances, registry, prevBindings, opts) {
   const get = resolveGet(registry)
   const hasData = opts && typeof opts.hasData === 'function' ? opts.hasData : null
+  // ⚠️ `(instance) => boolean`. Absent means nothing is candle-capable, which is
+  // what every caller written before this phase means — and the safe direction.
+  const ohlcCapable = opts && typeof opts.ohlcCapable === 'function' ? opts.ohlcCapable : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -760,7 +785,12 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // did the user set for colour and width"; `presentedPlot` answers "what
       // SHAPE did they ask this output to be". The second reads the first's
       // output so a restyled plot keeps the instance's colour.
-      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst)
+      // ⭐ THE CAPABILITY ANSWER TRAVELS WITH THE PLAN. `poolKey` decides the
+      // SERIES TYPE from the restyled plot, so a stored `candles` that the source
+      // cannot mean has to be clamped HERE too — otherwise the plan would create
+      // a candlestick the binder then refuses to feed.
+      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst,
+        { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)) })
       const pk = poolKey(plot)
       if (!pk) continue                       // unmappable style: bind nothing
       const key = bindingKey(inst.instanceId, plot.key)

@@ -109,9 +109,24 @@ describe('the capability model', () => {
     expect(availableStyles(plotOf('macd', 'zero'))).toEqual([])
   })
 
-  it('a scalar numeric output exposes the whole vocabulary in its own pane', () => {
-    expect(availableStyles(plotOf('rsi', 'rsi'))).toEqual([...PLOT_STYLES])
-    expect(availableStyles(plotOf('macd', 'histogram'))).toEqual([...PLOT_STYLES])
+  it('a scalar numeric output exposes every style a SCALAR can wear', () => {
+    // ⚰️ THIS READ `toEqual([...PLOT_STYLES])` — "the whole vocabulary" — and that
+    // was the same sentence while every style was a second way to draw ONE column.
+    // `candles` is the first that is not: it draws four fields that describe one
+    // auction period, so it is a property of what the output READS, not of the
+    // output. A scalar is offered everything except that.
+    const scalarStyles = PLOT_STYLES.filter((s) => s !== 'candles')
+    expect(availableStyles(plotOf('rsi', 'rsi'))).toEqual(scalarStyles)
+    expect(availableStyles(plotOf('macd', 'histogram'))).toEqual(scalarStyles)
+  })
+
+  it('⛔⛔ CANDLES ARE NOT OFFERED TO A SCALAR OUTPUT, whatever the pane', () => {
+    // A dropdown offering candles over an RSI would be a dropdown that lies —
+    // the same rule `RESTYLEABLE_DEF_STYLES` states for guides, one level up.
+    expect(availableStyles(plotOf('rsi', 'rsi'))).not.toContain('candles')
+    expect(availableStyles(plotOf('rsi', 'rsi'), { target: 'volume' })).not.toContain('candles')
+    // …and it takes an explicit capability answer to appear at all.
+    expect(availableStyles(plotOf('rsi', 'rsi'), { ohlcCapable: true })).toContain('candles')
   })
 
   it('⛔ Histogram and Area are withheld on the SHARED volume pane', () => {
