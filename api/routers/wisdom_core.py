@@ -4,6 +4,10 @@ Every route, reads included, carries Depends(require_admin); /api/admin/wisdom i
 not covered by AdminGuardMiddleware, so the dependency is the gate. On-demand
 runs go to a daemon thread, never the request path (the web pod has one shared
 threadpool), with a per-process overlap guard.
+
+OWNER-PRIVATE ROUTES (D16a) carry Depends(require_owner): require_admin plus the
+first ADMIN_EMAILS address, so a second admin, the smoke account and a contractor
+all get 403. This module is one of the three the private-store import rail allows.
 """
 from __future__ import annotations
 
@@ -11,11 +15,12 @@ import sqlite3
 import threading
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from api.middleware.auth_middleware import require_admin
 from api.services.wisdom import registry
-from api.services.wisdom.core import flags, heartbeat, store
+from api.services.wisdom.core import flags, heartbeat, private, store
+from api.services.wisdom.core.owner import require_owner
 
 router = APIRouter(prefix="/api/admin/wisdom/core", tags=["wisdom"])
 
@@ -90,3 +95,18 @@ def wisdom_run_job(job_id: str, dry_run: bool = Query(True), force: bool = Query
 
     threading.Thread(target=_go, name=f"wisdom-run-{job_id}", daemon=True).start()
     return {"started": True, "job_id": job_id, "dry_run": dry_run, "force": force}
+
+
+@router.get("/private/{record_id}")
+def wisdom_private_record(record_id: str, response: Response,
+                          _owner: dict = Depends(require_admin)) -> dict:  # MUTATION R-a
+    """The owner-private fields stored for one record, decrypted. Owner only."""
+    response.headers["Cache-Control"] = "no-store"
+    if not private.is_configured():
+        raise HTTPException(status_code=503,
+                            detail="WISDOM_PRIVATE_KEY is not configured; private values cannot be read")
+    try:
+        fields = private.get_private(record_id, for_request=True)
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"wisdom_private.db unavailable: {type(exc).__name__}")
+    return {"record_id": record_id, "fields": fields, "count": len(fields)}
