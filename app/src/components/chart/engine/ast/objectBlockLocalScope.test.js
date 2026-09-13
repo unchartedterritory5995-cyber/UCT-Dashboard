@@ -93,37 +93,126 @@ describe('⭐⭐ a block local reaches an object coordinate through the WALK', (
   })
 
   it('⛔ CONTROL — the diagnostic can be NON-zero, so the case above is not vacuous', () => {
-    // v2's Volume-table block stops at a tuple destructure `foldStatements`
-    // cannot fold, so everything after it in that block is still unbound. A
-    // counter that could only ever read zero would prove nothing.
-    const t = translatePine(V2, { strict: true })
+    // ⚰️ THIS CONTROL USED TO BE v2 ITSELF, and step 2a retired it by fixing the
+    // thing it measured: the Volume-table block stopped at a tuple destructure
+    // `foldStatements` could not fold, stranding nine names. It folds now and v2
+    // reads ZERO — so the control has to come from a construct the walk still
+    // genuinely gives up on, or this file would be asserting a counter that can
+    // only ever read zero.
+    //
+    // A `for` loop is that construct: `foldStatements` throws `pine:block` on it
+    // by ruling, so every local declared AFTER it in the same block is unbound.
+    const src = `//@version=5
+indicator("unbindable", overlay = true)
+var line ln = na
+if barstate.islast
+    total = 0.0
+    for i = 0 to 3
+        total := total + close[i]
+    lo = total / 4
+    ln := line.new(bar_index - 10, lo, bar_index, lo)
+plot(close)
+`
+    const t = translatePine(src, { strict: true })
     expect(t.objectDiagnostics.unboundLocals).toBeGreaterThan(0)
-    expect(t.objectDiagnostics.unboundLocalNames).toContain('volCellText')
+    expect(t.objectDiagnostics.unboundLocalNames).toContain('lo')
   })
 })
 
-describe('⭐⭐ v2 — what step 1 actually moved', () => {
+// ─── ⛔⛔ THE ELEMENT-WISE TUPLE FOLD, AND WHAT IT MUST STILL REFUSE ─────────
+//
+// R2 step 2a folds an `if/else if/else` chain whose every arm is a same-arity
+// tuple into a TUPLE of ternaries. That is what let `[tableUnit, tableDivisor] =
+// f_getVolumeUnit(volDisplay)` hand out its parts. ⛔ The two checks it kept are
+// the whole safety of the feature — the same pair `foldStatements` makes when it
+// builds a bare tuple return — and a fold that widened them would hand a name a
+// part from the wrong arm, which parses, lints, saves and is silently WRONG.
+describe('⛔ the tuple fold refuses what it always refused', () => {
+  const chain = (arms) => `//@version=6
+indicator("t", overlay=true)
+f_u(_v) =>
+    a = math.abs(_v)
+${arms}
+[p, q] = f_u(volume)
+plot(p)
+`
+  const guardsFor = (src) => (translatePine(src, { strict: true }).notes || [])
+    .map((n) => n.guard || n.code)
+
+  it('⭐ same arity in every arm folds — the case step 2a added', () => {
+    const src = chain(`    if a >= 1e9
+        ['B', 1e9]
+    else
+        ['M', 1e6]`)
+    expect(guardsFor(src)).not.toContain('pine:tuple')
+  })
+
+  it('⛔ MISMATCHED ARITY still refuses at pine:tuple', () => {
+    // Arm one answers two values and arm two answers three. Folding element-wise
+    // would silently drop the third, or pair `q` with the wrong element.
+    const src = chain(`    if a >= 1e9
+        ['B', 1e9]
+    else
+        ['M', 1e6, 3.0]`)
+    expect(guardsFor(src)).toContain('pine:tuple')
+  })
+
+  it('⛔ NO `else` arm still refuses — the chain has no total value', () => {
+    // Without an else the chain can fall through with no value at all, so there
+    // is nothing to hand the second name on those bars.
+    const src = chain(`    if a >= 1e9
+        ['B', 1e9]
+    else if a >= 1e6
+        ['M', 1e6]`)
+    expect(guardsFor(src)).toContain('pine:tuple')
+  })
+
+  it('⛔ a ONE-element arm is a list, not a tuple, and still refuses', () => {
+    const src = `//@version=6
+indicator("t", overlay=true)
+f_u(_v) =>
+    a = math.abs(_v)
+    if a >= 1e9
+        [1e9]
+    else
+        [1e6]
+[p] = f_u(volume)
+plot(p)
+`
+    expect(guardsFor(src)).toContain('pine:tuple')
+  })
+})
+
+describe('⭐⭐ v2 — the running measurement, step by step', () => {
   const t = translatePine(V2, { strict: true })
   const ops = (t.objects && t.objects.ops) || []
 
-  it('the two Range cells now carry their text', () => {
-    // BEFORE step 1: cells 0, dropReasons {cell:text: 6}, unboundLocals 41 over
-    // 20 names. The Range table's `rangeText` and `usedText` are ordinary block
-    // locals and were unbound purely because `foldIfChain` refuses a block that
-    // contains object statements — so nobody bound them at all.
-    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(2)
-    expect(t.objectDiagnostics.dropReasons['cell:text']).toBe(4)
+  // ⭐⭐ THE LEDGER THIS FILE EXISTS TO KEEP. Every number here is a measurement
+  // of one script through the shipped door, and each step moves it:
+  //
+  //   before step 1   cells 0   cell:text 6   unboundLocals 41 over 20 names
+  //   after  step 1   cells 2   cell:text 4   unboundLocals 22 over  9 names
+  //   after  step 2a  cells 3   cell:text 3   unboundLocals  0
+  //   target          cells 6   cell:text 0   unboundLocals  0
+  it('cells 3, cell:text 3 — the Range pair plus one Volume cell', () => {
+    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(3)
+    expect(t.objectDiagnostics.dropReasons['cell:text']).toBe(3)
   })
 
-  it('⛔ and the residue is NAMED, not a number', () => {
-    // Every remaining unbound name is inside the Volume-table block, downstream
-    // of `[tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)`. That is
-    // capability 2's work, and it is a list a reader can act on rather than "22".
-    const names = t.objectDiagnostics.unboundLocalNames
-    expect(names).toContain('volCellText')
-    expect(names).toContain('volMultText')
-    // ⛔ NOTHING FROM THE RANGE TABLE IS STILL IN IT — that half is done.
-    expect(names).not.toContain('rangeText')
-    expect(names).not.toContain('usedText')
+  it('⭐⭐ EVERY BLOCK LOCAL IS BOUND BY THE WALK — unboundLocals is 0', () => {
+    // Step 1 made the walk the authority; step 2a taught it the one construct it
+    // was still giving up on inside these blocks, the tuple destructure
+    // `[tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)`. Nothing in v2
+    // is left for a re-parse to have picked up.
+    expect(t.objectDiagnostics.unboundLocals || 0).toBe(0)
+  })
+
+  it('⛔ and the tuple destructure no longer refuses AT ALL', () => {
+    // `pine:tuple` fired twice on this script — lines 391 and 465 — because an
+    // `if/else if/else` chain whose every arm is a tuple folded to one scalar
+    // value, and `destructureBindings` then said *"returns one value, and 2
+    // names were given"*: a sentence about the FOLD, not about the script.
+    const tupleNotes = (t.notes || []).filter((n) => (n.guard || n.code) === 'pine:tuple')
+    expect(tupleNotes).toEqual([])
   })
 })

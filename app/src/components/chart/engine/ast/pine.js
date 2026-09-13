@@ -6949,6 +6949,62 @@ export class Resolver {
     } finally { this.frames.pop(); this.env = prevEnv }
   }
 
+  /** ⭐⭐ R2 STEP 2 — RESOLVE A NODE *INSIDE* A USER FUNCTION'S CALL FRAME.
+   *
+   *  ⛔⛔ THE TEXT READER USED TO HAND-ROLL THIS AND IT COULD NOT WORK. Its frame
+   *  was a scope Map with each parameter overwritten by the caller's argument —
+   *  which reaches a parameter read DIRECTLY in the body and nothing deeper.
+   *  Every ordinary local inside the function (`a = math.abs(_v)`) captured its
+   *  OWN env snapshot at bind time, and that snapshot still holds `_v` as a
+   *  `param` binding; a param is resolved from `this.frames`, which an ad-hoc Map
+   *  does not have. So `f_getVolumeUnit`'s three arm conditions all failed to
+   *  resolve and the tuple part came back null with `unresolvedValues` counting
+   *  it — the substitution looked right and reached exactly one level.
+   *
+   *  ⭐ THIS IS `inlineUserFunction`'S OWN FRAME PROTOCOL, lifted to a method so
+   *  there is ONE substitution mechanism in this file rather than two that agree
+   *  until they do not. Same push, same env swap, same `finally`.
+   *
+   *  @param {object} bound the `kind:'fn'` binding
+   *  @param {object[]} args the call's argument wrappers, in the caller's scope
+   *  @param {Map} callerEnv the scope those arguments read
+   *  @param {object} node the node to resolve, from inside the function
+   */
+  resolveInFrame(inline, node) {
+    // ⛔ EXACTLY ONE FRAME, because exactly one level is inlined. A text
+    // expression that calls a helper from inside another helper is REFUSED BY
+    // NAME in `textNodeOf` before it ever reaches here (see
+    // `nestedTextHelpers`), so this never has a chain to push. ⚰️ An earlier cut
+    // pushed the whole `parent` chain outermost-first — which is the shape
+    // `resolveBinding`'s `param` arm implies, since it pops the top frame while
+    // evaluating an argument — and it still did not resolve the inner call. That
+    // is an open question, not a shipped behaviour: refusing it by name costs a
+    // capability nothing in this corpus uses yet and keeps the cell honest.
+    if (this.frames.length >= MAX_CALL_DEPTH) {
+      throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — a text expression`, null)
+    }
+    this.frames.push((inline.args || []).map((a) => ({
+      kind: 'expr', node: a && a.value !== undefined ? a.value : a, env: inline.callerEnv,
+    })))
+    const bound = inline.bound
+    const bodyEnv = inline.bodyEnv
+    const chain = [inline]
+    const prevEnv = this.env
+    // ⛔ THE BODY'S OWN ENV, AND IT IS NOT ALWAYS `bound.value.env`. A function
+    // whose value is a TUPLE has no single `expr` binding to read an env off —
+    // each part carries its own, captured by `foldIfChain` inside the function —
+    // so the caller supplies it. ⚰️ Without this the fallback was the OBJECT
+    // PASS's scope, which does not hold the function's locals, and every arm
+    // condition of `f_getVolumeUnit` failed to resolve while looking correct.
+    this.env = bodyEnv || (bound.value && bound.value.env) || prevEnv
+    try {
+      return this.resolve(node)
+    } finally {
+      for (let k = 0; k < chain.length; k += 1) this.frames.pop()
+      this.env = prevEnv
+    }
+  }
+
   /** ⭐ THE DERIVED MAP. `pineName` is what the member wrote; `base` is it with a
    *  value namespace stripped; the MANIFEST decides whether the name exists, how
    *  many arguments it takes and what kind each one is. The only thing this
@@ -8197,6 +8253,52 @@ function foldIfChain(stmts, i, ctx, env) {
   // The chain's own value — only ever read by `x = if …`.
   let value = null
   const arm0 = arms[0]
+
+  // ⭐⭐ R2 STEP 2 — EVERY ARM A TUPLE OF THE SAME ARITY IS A TUPLE OF TERNARIES,
+  // NOT A TERNARY OVER TUPLES.
+  //
+  // ⚰️ MEASURED ON `uncharted-volume-v2.pine`: `f_getVolumeUnit` is an
+  // `if/else if/else` chain whose every arm is `['B', 1e9]` / `['M', 1e6]` /
+  // `['K', 1e3]` / `['', 1.0]`, and the scalar path below collapsed it to one
+  // value. `destructureBindings` then refused the perfectly ordinary
+  // `[tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)` with *"returns one
+  // value, and 2 names were given"* — a sentence about the FOLD, not about the
+  // script. Nine locals downstream of it were stranded and both Volume cells
+  // with them.
+  //
+  // ⛔ ELEMENT-WISE IS THE ONLY CORRECT SHAPE. `cond ? ['B',1e9] : ['M',1e6]`
+  // has no meaning here — a tuple is not a value this engine carries — whereas
+  // `[cond ? 'B' : 'M', cond ? 1e9 : 1e6]` is two ordinary selections, each of
+  // which the existing machinery already resolves. Same `boundNode`, same
+  // ternary construction, same order as the scalar path directly below; the only
+  // difference is that it runs once per element.
+  //
+  // ⛔ ARITY MUST MATCH ACROSS EVERY ARM, and `> 1` because `[x]` is a
+  // one-element list rather than a tuple — the same two checks `foldStatements`
+  // makes when it builds a bare tuple return. An arm of a different width is a
+  // script this engine must keep refusing: handing out a part from the wrong arm
+  // is the silent-wrong-answer the `kind === 'tuple'` check exists to prevent.
+  const tupleArity = (b) => (b && b.kind === 'tuple' && Array.isArray(b.parts) ? b.parts.length : -1)
+  if (hasElse && arms.every((a) => a.value) && tupleArity(arm0.value) > 1
+      && arms.every((a) => tupleArity(a.value) === tupleArity(arm0.value))) {
+    const width = tupleArity(arm0.value)
+    const parts = []
+    for (let pIdx = 0; pIdx < width; pIdx += 1) {
+      let node = boundNode(arms[arms.length - 1].value.parts[pIdx], null, arm0.tok)
+      for (let k = arms.length - 2; k >= 0; k -= 1) {
+        node = {
+          type: 'ternary',
+          test: arms[k].cond,
+          yes: boundNode(arms[k].value.parts[pIdx], null, arms[k].tok),
+          no: node,
+          tok: arms[k].tok,
+        }
+      }
+      parts.push(exprBinding(node, before, locate(arm0.tok)))
+    }
+    return { value: { kind: 'tuple', parts, at: locate(arm0.tok) }, next: chain.next }
+  }
+
   if (hasElse ? arms.every((a) => a.value) : false) {
     value = boundNode(arms[arms.length - 1].value, null, arm0.tok)
     for (let k = arms.length - 2; k >= 0; k -= 1) {
@@ -8486,9 +8588,12 @@ function foldStatements(stmts, ctx, env) {
    *  `ctx.bindingByStatement` is the object pass's ONLY source for a block
    *  local's value. See `scopeFor`'s header for the defect this replaces. */
   const record = (st2, name) => {
-    if (ctx && ctx.bindingByStatement && env.has(name)) {
-      ctx.bindingByStatement.set(st2, env.get(name))
-    }
+    if (!ctx || !ctx.bindingByStatement || !env.has(name)) return
+    // ⭐ A STATEMENT CAN BIND MORE THAN ONE NAME — `[u, d] = f()` binds two —
+    // so the record is a per-statement MAP, not a single binding. R2 step 2.
+    let byName = ctx.bindingByStatement.get(st2)
+    if (!byName) { byName = new Map(); ctx.bindingByStatement.set(st2, byName) }
+    byName.set(name, env.get(name))
   }
   while (i < stmts.length) {
     const st = stmts[i]
@@ -8564,6 +8669,9 @@ function foldStatements(stmts, ctx, env) {
       const d = destructureBindings(toks, env, first)
       if (d && d.bindings) {
         d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
+        // ⭐ R2 STEP 2 — and the record keeps BOTH names, so the object pass can
+        // read a destructured local the same way it reads any other.
+        d.names.forEach((n) => record(st, n.value))
         i += 1
         continue
       }
@@ -8795,10 +8903,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  exists only in the frame the caller built. Resolving that against the
    *  caller's scope answers `undefined` for the parameter and refuses the cell.
    *  Every existing call site passes nothing and behaves exactly as before. */
-  const canonicalOf = (node, frame) => {
+  const canonicalOf = (node, inline) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
     try {
+      // ⭐⭐ R2 STEP 2 — INSIDE A CALL FRAME WHEN THE TEXT READER IS INSIDE ONE.
+      // `inline` is `{bound, args, callerEnv}`, set only while walking a user
+      // function's body, and it routes through the Resolver's OWN frame protocol
+      // so a parameter read three bindings deep resolves exactly as it does for
+      // the numeric lane. See `Resolver.resolveInFrame`.
+      if (inline) {
+        return makeResolver(scopeEnv).resolveInFrame(inline, node)
+      }
       // ⭐⭐ R2 STEP 1 — THE SCOPE IS HONOURED NOW, because it is finally
       // trustworthy. `scopeFor` reads the WALK's binding for every block local
       // and re-parses nothing, so the Resolver built over it sees exactly the
@@ -8809,7 +8925,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ `frame` STILL WINS: an inlined user-function body must resolve its
       // parameters against the caller's arguments, and that frame is layered on
       // top of whichever scope the op already had.
-      return makeResolver(frame || scopeEnv).resolve(node)
+      return makeResolver(scopeEnv).resolve(node)
     } catch {
       diagnostics.unresolvedValues += 1
       return null
@@ -8828,7 +8944,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     byFormula.set(f, i)
     return { v: 'tree', tree: i }
   }
-  const resolveTree = (node, frame) => internTree(canonicalOf(node, frame))
+  const resolveTree = (node, inline) => internTree(canonicalOf(node, inline))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
    *  way `staticColourOf` already opens a colour behind a name. */
@@ -8849,7 +8965,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    * operation is dropped and counted. A blank cell where the author wrote a
    * number reads as a working dashboard and is not one.
    */
-  const textNodeOf = (node, scope, depth = 0, frame = null) => {
+  const textNodeOf = (node, scope, depth = 0, inline = null) => {
     if (!node || depth > 12) return null
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
     if (node.type === 'number') {
@@ -8857,25 +8973,71 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return ref ? { t: 'num', tree: ref.tree } : null
     }
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
-      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, frame)
+      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline)
       if (!ast) return null
       const ref = internTree(ast)
       const fmtNode = node.args && node.args[1] && node.args[1].value
       const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
       return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
     }
+    // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
+    // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
+    // comes back from a folded tuple part is made of `bound` nodes rather than
+    // `name` nodes and `openName` never sees them. ⛔ ONLY the `expr` kind is
+    // followed: a `state`, `tuplePart` or `opaque` binding reached this way is not
+    // a text expression, and following one blindly would be this reader inventing
+    // a value for a binding kind it does not understand.
+    if (node.type === 'bound' && node.binding && node.binding.kind === 'expr'
+      && node.binding.node) {
+      const viaBinding = textNodeOf(node.binding.node, scope, depth + 1, inline)
+      if (viaBinding) return viaBinding
+    }
     if (node.type === 'binary' && node.op === '+') {
-      const a = textNodeOf(node.left, scope, depth + 1, frame)
-      const b = textNodeOf(node.right, scope, depth + 1, frame)
+      const a = textNodeOf(node.left, scope, depth + 1, inline)
+      const b = textNodeOf(node.right, scope, depth + 1, inline)
       if (!a || !b) return null
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
-      const cond = resolveTree(node.test, frame)
-      const then = textNodeOf(node.yes, scope, depth + 1, frame)
-      const other = textNodeOf(node.no, scope, depth + 1, frame)
+      const cond = resolveTree(node.test, inline)
+      const then = textNodeOf(node.yes, scope, depth + 1, inline)
+      const other = textNodeOf(node.no, scope, depth + 1, inline)
       if (!cond || !then || !other) return null
       return { t: 'if', cond, then, else: other }
+    }
+    if (node.type === 'name') {
+      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
+      // The Resolver reads one out of `this.frames`; this reader has the same
+      // information in `inline` and answers from the caller's own argument node,
+      // in the caller's own scope. Without it a text parameter (`_unit`) is an
+      // unknown name and the whole cell is dropped.
+      const inFn = inline && inline.bound && Array.isArray(inline.bound.params)
+        ? inline.bound.params.indexOf(node.name) : -1
+      if (inFn >= 0 && inline.args[inFn]) {
+        const argNode = inline.args[inFn].value !== undefined
+          ? inline.args[inFn].value : inline.args[inFn]
+        return textNodeOf(argNode, inline.callerEnv || scope, depth + 1, null)
+      }
+      // ⭐⭐ R2 STEP 2 — A TEXT TUPLE PART. `[tableUnit, tableDivisor] =
+      // f_getVolumeUnit(volDisplay)` binds each name to a `tuplePart` — the
+      // callee, the caller's arguments and an index — exactly as
+      // `destructureBindings` hands it to the numeric lane. The DIVISOR needs
+      // nothing new: it is a number and the ordinary resolver already inlines the
+      // call for it. The UNIT is text, and this is the branch that reads it.
+      if (bound && bound.kind === 'tuplePart' && bound.fn && bound.fn.value
+        && bound.fn.value.kind === 'tuple' && Array.isArray(bound.fn.params)
+        && bound.fn.params.length === (bound.args || []).length
+        && !(bound.args || []).some((a) => a && a.name)) {
+        const held = bound.fn.value.parts[bound.index]
+        if (held && held.node) {
+          const asText = textNodeOf(held.node, scope, depth + 1, {
+            bound: bound.fn, args: bound.args, callerEnv: bound.env || scope,
+            bodyEnv: held.env,
+          })
+          if (asText) return asText
+        }
+      }
     }
     // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
     //
@@ -8885,51 +9047,58 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // `str.tostring(_vol / _divisor, '0.00') + _unit`, every piece of which this
     // reader already understood. What it could not do was step over the call.
     //
-    // ⛔ IT IS A SUBSTITUTION, NOT A SECOND EVALUATOR. The frame is an ordinary
-    // scope Map holding each parameter as an `expr` binding over the ARGUMENT
-    // node in the CALLER's scope — the same shape `openName` already opens and
-    // the same substitution `Resolver.inlineUserFunction` makes for numbers. So
-    // a text function cannot mean anything a numeric one would not.
+    // ⛔ IT IS THE RESOLVER'S OWN FRAME, NOT A SECOND SUBSTITUTION. `inline`
+    // carries the callee, the caller's arguments and the caller's scope, and
+    // every value underneath resolves through `Resolver.resolveInFrame` — so a
+    // parameter read three bindings deep behaves exactly as it does for numbers.
     //
     // ⛔ NAMED ARGUMENTS AND ARITY ARE REFUSED, NOT GUESSED. Binding positionally
     // through a named call would silently pair the wrong argument with the wrong
     // parameter and render a cell that is confidently wrong — the one outcome a
-    // dashboard must never produce. `Resolver.inlineUserFunction` refuses both by
-    // name; this returns null and the cell is dropped and counted, which is this
-    // door's own way of saying the same thing.
+    // dashboard must never produce.
     if (node.type === 'call' && node.name) {
-      const where = (frame && typeof frame.get === 'function' && frame.get(node.name))
-        || (scope && typeof scope.get === 'function' && scope.get(node.name))
-      const bound = where
+      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⛔⛔ A NESTED TEXT HELPER REFUSES BY NAME, AND THAT IS A DECISION.
+      //
+      // `f_outer(x) => '[' + f_inner(x) + ']'` is one user function reading
+      // another INSIDE a text expression. One level is inlined through the
+      // Resolver's own frame; two would need the frame CHAIN, and the attempt at
+      // that (push every `parent` outermost-first, which is what
+      // `resolveBinding`'s `param` arm implies) did not resolve. Rather than
+      // ship a half-working chain or let it fail into `unresolvedValues` — a
+      // number with no name on it — the outer call is refused here, recorded
+      // with its own line, and the cell is dropped and counted.
+      //
+      // ⭐ NOTHING IN THE CORPUS NEEDS IT YET: v2's `f_formatVolume` calls no
+      // helper. `nestedTextHelpers` in `objectDiagnostics` is how that stays a
+      // MEASUREMENT — a script that hits this is named, so the item's priority
+      // is a count rather than a guess.
+      if (inline && bound && bound.kind === 'fn') {
+        diagnostics.nestedTextHelpers = diagnostics.nestedTextHelpers || []
+        const at = node.tok ? locate(node.tok) : null
+        const entry = `${node.name}@${at ? at.line : '?'}`
+        if (!diagnostics.nestedTextHelpers.includes(entry)) {
+          diagnostics.nestedTextHelpers.push(entry)
+        }
+        return null
+      }
       if (bound && bound.kind === 'fn' && bound.value && bound.value.node
         && Array.isArray(bound.params)
         && bound.params.length === (node.args || []).length
         && !(node.args || []).some((a) => a && a.name)) {
-        // ⛔⛔ THE FRAME IS A SEPARATE PARAMETER, NOT A REPLACEMENT SCOPE, AND
-        // THE DIFFERENCE IS A MEASURED REGRESSION. The first cut handed the frame
-        // in as `scope` and let `canonicalOf` resolve everything against it. That
-        // reached the text — and broke `objectParams.test.js`: a `line.new`
-        // coordinate stopped moving when its member input moved, because the
-        // Resolver was being built over a COPY of the env rather than the env
-        // itself, and `declareInputs` mints into the object it was given. Passing
-        // the frame separately leaves every pre-existing path resolving against
-        // exactly what it always did (`frame` is null there), and only a body
-        // reached THROUGH a call resolves against the substitution.
-        const inner = new Map(frame || bound.value.env || scope)
-        bound.params.forEach((param, i) => {
-          inner.set(param, { kind: 'expr', node: node.args[i].value, env: frame || scope })
+        const inlined = textNodeOf(bound.value.node, scope, depth + 1, {
+          bound, args: node.args, callerEnv: scope,
         })
-        const inlined = textNodeOf(bound.value.node, scope, depth + 1, inner)
         if (inlined) return inlined
       }
     }
-    const opened = openName(node, frame || scope, depth)
-    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, frame)
+    const opened = openName(node, scope, depth)
+    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline)
     // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
     // required a string, so this is a value the author already stringified some
     // way this door cannot read — carrying the NUMBER is closer to the truth
     // than carrying nothing, and it is the only branch here that guesses.
-    const ast = canonicalOf(node, frame)
+    const ast = canonicalOf(node, inline)
     if (!ast) return null
     const ref = internTree(ast)
     return ref ? { t: 'num', tree: ref.tree } : null
@@ -9191,7 +9360,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (scopeCache.has(locals)) return scopeCache.get(locals)
     const scoped = new Map(env)
     for (const b of locals) {
-      const bound = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
+      const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
+      const bound = byName ? byName.get(b.name) : null
       if (bound) { scoped.set(b.name, bound); continue }
       diagnostics.unboundLocals = (diagnostics.unboundLocals || 0) + 1
       diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
@@ -9438,6 +9608,14 @@ export function translatePine(source, opts = {}) {
    *  needs no name matching and cannot mis-pair two locals of the same name in
    *  sibling blocks. */
   const bindingByStatement = new Map()
+  /** The same per-statement record the block folder keeps — see `record` inside
+   *  `foldStatements`. One statement may bind several names (`[u, d] = f()`). */
+  const recordTop = (stmt2, name) => {
+    if (!env.has(name)) return
+    let byName = bindingByStatement.get(stmt2)
+    if (!byName) { byName = new Map(); bindingByStatement.set(stmt2, byName) }
+    byName.set(name, env.get(name))
+  }
   const ctx = { consumed: new Set(), bindingByStatement }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
@@ -9537,6 +9715,8 @@ export function translatePine(source, opts = {}) {
       const d = destructureBindings(toks, env, first)
       if (d && d.bindings) {
         d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
+        // ⭐ R2 STEP 2 — both names recorded, same as the block folder's site.
+        d.names.forEach((n) => recordTop(stmt, n.value))
         continue
       }
       if (d) {
@@ -9908,7 +10088,7 @@ export function translatePine(source, opts = {}) {
         // object collector had walked past — including top-level ones — and a
         // re-parse produces a fresh node with no `stampInputName` on it. That is
         // how a member's `input.int` knob went dead inside an object coordinate.
-        bindingByStatement.set(stmt, env.get(nameTok.value))
+        recordTop(stmt, nameTok.value)
       } catch (err) {
         const r = fromError(err)
         // ⛔ THE REFUSAL IS STORED WHOLE — its guard, ITS OWN MESSAGE and ITS OWN

@@ -133,7 +133,17 @@ plot(close)
     expect(dropped['cell:text']).toBe(1)
   })
 
-  it('⭐ a helper calling a helper still substitutes, and recursion cannot hang it', () => {
+  // ─── ⛔⛔ NESTED TEXT HELPERS REFUSE BY NAME (R2 step 2a) ──────────────────
+  //
+  // One level of user function is inlined through the Resolver's own frame.
+  // TWO would need the frame CHAIN, and the attempt at that did not resolve —
+  // so rather than ship a half-working chain, or let it fail into
+  // `unresolvedValues` where it is a number with no name on it, the outer call
+  // is refused, recorded with its line, and the cell is dropped and counted.
+  //
+  // ⭐ Nothing in the corpus needs it yet: v2's `f_formatVolume` calls no helper.
+  // The diagnostic is what keeps that a measurement rather than an assumption.
+  it('⛔⛔ a helper calling a helper is REFUSED BY NAME, with its line', () => {
     const src = `${HEAD}f_inner(_x) =>
     str.tostring(_x, '#.##')
 f_outer(_x) =>
@@ -143,11 +153,34 @@ if barstate.islast
     table.cell(tt, 0, 0, f_outer(volume))
 plot(close)
 `
-    const { cells: got } = cells(src)
+    const { t, cells: got, dropped } = cells(src)
+    expect(got).toHaveLength(0)
+    expect(dropped['cell:text']).toBe(1)
+    // ⛔ NAMED AND LOCATED, never a silent `unresolvedValues` bump. The line is
+    // the INNER call's, inside `f_outer`'s body — which is the line a member
+    // would have to change.
+    expect(t.objectDiagnostics.nestedTextHelpers).toEqual(['f_inner@6'])
+  })
+
+  it('⭐ …and ONE level still resolves, so the refusal is about nesting only', () => {
+    const { cells: got, t } = cells(TEXT_FN)
     expect(got).toHaveLength(1)
-    const flat = JSON.stringify(got[0].props.text)
-    expect(flat).toContain('"s":"["')
-    expect(flat).toContain('"fmt":"#.##"')
-    expect(flat).toContain('"s":"]"')
+    expect(t.objectDiagnostics.nestedTextHelpers).toBeUndefined()
+  })
+
+  it('⛔ CONTROL — the refusal cannot fire on a body that calls nothing', () => {
+    // A helper whose body is pure text and arithmetic must never trip the guard.
+    // Without this the diagnostic could be recording every inlined helper and
+    // the case above would pass for the wrong reason.
+    const src = `${HEAD}f_fmt(_v) =>
+    'x' + str.tostring(_v, '0.00') + 'y'
+if barstate.islast
+    var table tt = table.new(position.top_right, 1, 1)
+    table.cell(tt, 0, 0, f_fmt(volume))
+plot(close)
+`
+    const { cells: got, t } = cells(src)
+    expect(got).toHaveLength(1)
+    expect(t.objectDiagnostics.nestedTextHelpers).toBeUndefined()
   })
 })

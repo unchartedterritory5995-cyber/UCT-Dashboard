@@ -289,7 +289,7 @@
    "token": "strategy"
   },
   "perOutputRefusals": {
-   "pine:tuple": 2
+   "pine:state": 2
   }
  },
  "20-smc-toolkit-udt.pine": {

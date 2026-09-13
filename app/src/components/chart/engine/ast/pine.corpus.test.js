@@ -264,7 +264,22 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       // index, `1 + 1`, `bar_index` — it is simply no longer reachable from any
       // PUBLISHED script in this corpus, which is what this list tracks.
       // `pine.offset.test.js` holds the snippets that still exercise it.
-      'pine:tuple', // 02, 06, 19
+      // ⚰️ `pine:tuple` LEFT THIS LIST 2026-09-13, CLOSED RATHER THAN WEAKENED —
+      // the fourth guard to go that way, after `pine:role-order`, `pine:na`,
+      // `pine:block` and `pine:offset-literal`. It fired on 02, 06 and 19 for
+      // the SAME shape: a user function whose body is an `if/else if/else` chain
+      // returning a tuple from every arm. The chain folded to ONE scalar value,
+      // so `destructureBindings` reported *"returns one value, and 2 names were
+      // given"* — a sentence about the fold rather than about the script.
+      // `foldIfChain` folds such a chain ELEMENT-WISE now (R2 step 2a), so the
+      // destructure hands out its parts and the refusal moves on: 19's two
+      // per-output refusals read `pine:state` instead, which is its next real
+      // blocker and a truer sentence.
+      // ⛔ THE GUARD IS STILL LIVE and still right for a right-hand side that
+      // genuinely answers one value, for mismatched arity, and for a shape this
+      // engine cannot take apart — `pine.tuples.test.js` and
+      // `pine.tupleBuiltins.test.js` (86 cases) hold the snippets that exercise
+      // it. It simply has no published script left in this corpus that trips it.
       // ⚰️ `pine:role-order` LEFT THIS LIST BECAUSE IT WAS CLOSED, not because it
       // stopped mattering. It fired on `18-normalized-average-true-range` for
       // `ta.atr(length)`, where the translator could see that `atr` exists and
@@ -362,7 +377,18 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // about why that survivor is not on offer. Same shape as the `pine:cycle` movement
     // above: a guard entering this set means a published script finally exercises a
     // sentence nobody had read.
-    expect(fired.size).toBe(11)
+    // ⚰️ 11 → 10 ON 2026-09-13, AND THIS ASSERTION IS WHAT NOTICED — the fourth
+    // time. `pine:tuple` left the set because an `if/else if/else` chain whose
+    // every arm is a same-arity tuple now folds ELEMENT-WISE (R2 step 2a), so a
+    // destructure of such a function hands out its parts instead of being told
+    // the function "returns one value". 19's two per-output refusals moved from
+    // `pine:tuple` to `pine:state`, which is its next real blocker.
+    // ⛔ DOWN, AND A WIN — but the direction alone does not say so, which is the
+    // whole reason this number is read alongside WHICH guard moved. 02 and 06
+    // stopped refusing for it too, and the guard stays live for a right-hand
+    // side that genuinely answers one value and for mismatched arity, railed by
+    // 86 constructed cases in `pine.tuples` / `pine.tupleBuiltins`.
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
