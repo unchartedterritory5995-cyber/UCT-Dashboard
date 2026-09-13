@@ -1,11 +1,39 @@
 ---
 id: WISDOM-LOOP-SESSION-STATE
 title: UCT Wisdom Loop — session state (SINGLE RESUME AUTHORITY)
-status: current — graceful pause for a machine restart
-written: 2026-09-13 ~15:45 ET (14:45 CT)
+status: current — resumed after the restart; S-B MERGED TO MASTER
+written: 2026-09-13 ~15:45 ET (14:45 CT); updated 2026-09-13 21:15 UTC after merge 1
 ---
 
 # Session state
+
+> ## ⭐ LATEST — merge 1 is live (2026-09-13 21:10:33Z)
+>
+> **`wisdom/w1-b-rails` `010fadbe2` → master `e5dfb23fb`. Railway `web` SUCCESS; `/api/health`
+> `uptime_seconds: 36` on a fresh boot.** Everything is DARK: all 25 `WISDOM_*` flags are `dark`
+> and none is set on any service. `/api/admin/wisdom/core/{status,runs,private/{id}}` each return
+> **401** to an anonymous caller. Ledger Section 2 row 1 carries the full evidence.
+>
+> **P1 CLOSED.** The 16 leaked production R2 objects (2,399 B) are listed by key in the ledger,
+> deleted, and the bucket re-probes `0 objects, 0 bytes` under `wisdom/`. The durable fix is
+> `core/r2.py` refusing a real client under pytest; S-C's suite re-run with the guard ARMED →
+> 71 passed, which is the isolation measurement rather than an absence of complaints.
+>
+> **P2 CLOSED.** The stranded `# MUTATION R-a` marker on the owner-gated private route is
+> restored (a sweep of all seven branches found exactly one extra marker, no others); §7 gate on
+> the MERGE (not the branch alone) 788 passed / 1 pre-existing non-Wisdom failure; four reviewer
+> findings fixed on the branch rather than deferred, plus a fifth the review did not reach.
+>
+> ⚠️ **Master moved twice under this work** (`d623baf1d` → `834034622` → `89c6b12bf`) from other
+> sessions. Re-measure "behind" rather than carrying a number forward, and check the deploy queue
+> is idle before pushing — one master merge at a time, repo-wide.
+>
+> **NEXT:** S-A is the next merge in the §8.4 order. Then P3 (Track A re-transcription + the desk
+> audit from id 350), P4 (golden-v1 freeze), P5 (resume the golden gate from $4.453353 of $15 —
+> never re-submit `msgbatch_01Kvf7Q9ZinucRR7xfKQTsnq` or `msgbatch_019NjdbTHu1eK3MXbW2zxMC7`),
+> P6 (remaining stream reviewers + S-F1 frontend chunked), P7 (Zoom pipeline fix + the 345s root
+> cause). ⛔ **F2's fix gates S-A**: the off-limits rail now covers the flow-worker watched files,
+> so an S-A diff touching one fails by name instead of shipping a permanent OPRA tape gap.
 
 Resume in this order: this file, then `docs/wisdom/RESUME.md` (the restart procedure), `CLAUDE.md`,
 `docs/wisdom/PROGRAM-MANIFEST.md` and `docs/wisdom/CONTRACTS.md` (the build contract; §8a holds the checkpoint-1 rulings).

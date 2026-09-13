@@ -186,8 +186,55 @@ still reaches the live bucket, exactly as the conftest tripwire is a test-suite 
 
 | # | branch | tip SHA | merge SHA | flow-worker classification | web SUCCESS observed |
 |---|---|---|---|---|---|
+| 1 | `wisdom/w1-b-rails` | `010fadbe2` | `e5dfb23fb` | **OK** — `reachable=154 watched=24 changed=75`, no Wisdom module in flow-worker's import closure, so web-only | **SUCCESS 2026-09-13 21:10:33Z** on `e5dfb23fb`; `/api/health` `status: ok`, `uptime_seconds: 36` (a fresh boot, not the old pod answering) |
 
-*(none yet — planned order S-B → S-A → S-C → S-D → S-E → S-F, one at a time; CONTRACTS.md §8)*
+*(next in the §8.4 order: S-A → S-C → S-D → S-E → S-F, one at a time, web SUCCESS between)*
+
+**Merge 1 evidence.**
+- Base `89c6b12bf`. Master moved TWICE during the gate (`d623baf1d` → `834034622` → `89c6b12bf`,
+  other sessions), so "60 behind" was re-measured rather than carried from the session start.
+- **The branch was brought current first.** `wisdom/w1-b-rails` forked at `1363d588b`, BEFORE the
+  Checkpoint-1 rulings landed on `feat/wisdom-loop`. Merging the tip alone would have put an
+  `authors.json` on master in which **"Uncharted Territory" is still an alias of TSDR** — the exact
+  thing ruling §8a.2 reverses — plus a schema with no `ticker_inferred` and a CONTRACTS.md with no
+  §8a at all. `feat/wisdom-loop` was merged into the branch first.
+- **Gated on the MERGE, not the branch.** The branch gate ran without master's 60 new commits, so it
+  could not answer the question that matters (`lesson_a_rail_can_be_green_alone_and_red_in_company`).
+  On the merge commit: **788 passed, 2 skipped, 1 failed** (159s). The one failure is the
+  pre-existing non-Wisdom `test_cross_module_imports_resolve`, provenance established from the
+  committed version. `core_check_bans.py` → PASS (46 / 46 / 1285 files; `offlimits` correctly
+  SKIPPED on a detached HEAD, having already run on the branch).
+- **Conflict:** exactly one, `docs/feature_flags.json`, resolved by UNION after measuring all three
+  sides — master had added 2 flags since the fork, S-B 25, **no flag added by both, neither side
+  removing one**; 137 → 164. Re-asserted equal to the union after writing.
+- **Anonymous probe of what shipped:** `/api/admin/wisdom/core/status`, `/runs` and
+  `/private/{id}` each return **401**. Mounted and gated.
+- **Member impact: none.** All 25 `WISDOM_*` flags are `dark` and none is set on any service;
+  no job is scheduled; nothing member-facing imports `api.services.wisdom`.
+
+**Findings fixed before the merge rather than deferred** (S-B reviewer verdict: SHIP WITH
+FOLLOW-UPS). Each was a rail that could not fire, so deferring would have shipped the rails while
+leaving the next five merges ungated:
+
+| # | what it was | why it mattered |
+|---|---|---|
+| F1 | `"Patrick"`, `"Blake"`, `"Manav"` were CALL-author **aliases** | an exact, case-insensitive match on a Zoom display name: any attendee in a ~750-member room whose display name was their own first name was written as a CALL by that author, and D6's merge map publishes CALLs into the brain KB, `ticker_mentions` and the exemplars. Moved to `ambiguous_speaker_labels` per §8a.2 |
+| **F1b** | **not in the review** — ruling §8a.2 had been applied to the DATA only | moving `"Uncharted Territory"` out of tsdr's aliases stopped it resolving to tsdr and started it resolving to **`guest:uncharted_territory`**: the guest branch matched both tokens against the session title and invented a person. `speakers.py` now checks ambiguous labels FIRST, and `author_for_alias` refuses one even if it is left in an alias list by mistake |
+| F2 | the off-limits rail enforced **8 of the ~20** paths CONTRACTS §1 names, and its test parametrised over the same 8 the code named | a tautology that could never go red on an omission. Missing were `api/routers/auth.py`, `auth_db.py`, `alert_taxonomy/**`, `data_sync.py`, `llm_batch.py`, `buzz_*.py`, `tweet_store.py`, `zoom_client.py`, `deploy-windows.md`, `CatalystTable.jsx`, `app/src/hub/**` and **the flow-worker watched files — where a green rail buys a PERMANENT OPRA tape gap**. The test now derives the expected set from the CONTRACTS paragraph and fails by name; the flow-worker list is derived from the tool that already parses it |
+| F3 | the private-store rail matched only the **module path** | the store stayed reachable by opening its file (`WISDOM_PRIVATE_DB_PATH` / `wisdom_private.db`) or naming its table (`wisdom_private_positions`) — neither is an import. §0.4d is about REACH, not readability. The fast path was also case-sensitive, skipping any file whose only mention was the uppercase env var |
+| F5 | both CI triggers carried a `paths:` filter naming Wisdom paths and **no off-limits path** | a `wisdom/*` branch touching only `journal-2-0/**` never started the workflow, so rail 4 never ran on the one diff shape it exists for. The filter is removed rather than extended — a longer list would be a third hand-typed mirror of §1 |
+
+Mutation-proved: dropping `auth.py`, dropping the buzz glob, and emptying the flow-worker list each
+fail **by name**; `bans.py` restored from original bytes and sha256-verified (`8e6cf8f1ee33d086`).
+
+**Open follow-ups from the review, not fixed here:** F4 (the Substack rail covers imports and two
+path strings, not `subprocess`/HTTP — no live reach exists today: Wisdom has zero
+`subprocess`/`httpx`/`requests`/`urllib`/`socket` surface), F6 (`ticker_inferred` has a column on
+the integration branch but no writer binds the bar-range pass to it — S-D), F7 (the off-limits rail
+is the only rail with no non-vacuity floor, so `0 files scanned` prints PASS), F8/F9/F10 (minor).
+⚠️ **`test_property_no_publish_adapter_output_carries_a_private_value` is SKIPPED** until S-F exists —
+the half of the D16a property test that covers member-facing OUTPUT has never executed. It must be
+re-run at the S-F merge, and that is recorded here so it is not mistaken for coverage.
 
 ### S-B pre-merge gate (branch `wisdom/w1-b-rails`, tip `f1e0e9d91`) — 2026-09-13
 
