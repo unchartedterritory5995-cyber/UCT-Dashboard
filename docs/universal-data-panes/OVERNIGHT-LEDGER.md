@@ -233,3 +233,85 @@ Universal Data Panes workflow itself is verified end to end.
 
 ### STOP CONDITIONS
 None active.
+
+---
+
+## CHART UX CONSOLIDATION PASS — 2026-09-13
+
+### CURRENT PHASE
+Indicators / Conditions / Formula Builder UX consolidation.
+
+### CURRENT STATUS
+Complete and checkpointed.
+
+### BRANCH / HEAD / LAST KNOWN GOOD
+`feat/universal-data-series` @ `3f870e51a` — polish(chart): one naming language
+across indicators, conditions and the builder. Previous good: `74387148e`.
+
+### WORKING TREE STATUS
+Clean at the time of writing.
+
+### COMPLETED
+- **Indicators.** An ACTIVE row is now named the way the chart names it, so the
+  list reads `EMA 9`, `SMA 50`, `RSI (14)`, `RSI (7)`, `MA (5)`, `QQQ` — one
+  language with the legend, the Display In menu and the source picker. Gated on
+  the definition already parameterising itself (`legendParams` / `labelFrom`), so
+  `Session VWAP` keeps the name that distinguishes it from the anchored one, and
+  the BROWSE catalogue is untouched.
+- **Conditions.** A collapsed row names what it draws (`Candle colour · Marker`)
+  instead of counting actions; zero actions reads `No action yet`. The starter
+  "＋ Add" chips no longer wrap — measured before at 25/37/25 px tall, now
+  identical.
+- **Formula Builder.** The Name example follows the consumer: `20-bar average`
+  for an indicator, `Trend up` for a condition, `Distance to 20-day` for an info
+  value.
+- Two test files added where there were none: the Conditions tab had no component
+  test at all, and the builder had no case holding its copy to its consumer.
+
+### DELIBERATELY NOT CHANGED
+- Validation messages are already member-readable ("Expected expression after >
+  at character 7", with Copy diagnostic). §11 needed nothing.
+- Display In is exactly as P2.3 left it.
+- No parser, AST, evaluator, truth, first-match, action meaning, alert durability
+  or persistence was touched.
+
+### TEST EVIDENCE (at `3f870e51a`)
+- Focused: `ChartSettingsModal.conditions.test.jsx` 6 pass (new);
+  `BuilderSheet.consumerCopy.test.jsx` 4 pass (new);
+  `ChartSettingsModal.indicators.test.jsx` 41 pass; `builder/` 1,613 pass.
+- Bite-checks: reverting the action summary → 5 red; reverting the Name example →
+  2 red.
+- Broader: full frontend suite **19,569 pass / 16 fail / 9 skipped** — the same
+  16 baseline failures, unchanged in name and count.
+- Build: `vite build` clean.
+- Browser: the harness now also mounts the real `BuilderSheet` for all three
+  consumer kinds (dev-only; the product's single `/charts` mount in
+  `ChartToolbar` is what `BuilderSheet.test.jsx` parses, and is untouched).
+
+### MAIN TRADING
+Never opened. `40d361fa…` → 5,354 bytes, sha256 `ea9ebaeee302`, unchanged.
+
+### BACKEND
+`:8000` untouched and healthy. `:5188` is worktree `C:\w\wm` — foreign, untouched.
+A `stash@{0}` from `feat/app-themes` exists and belongs to another session — not
+mine, not touched.
+
+### PRODUCT QUESTIONS FOR BLAKE
+1. **The plain-English box asks the wrong question for a condition.** The sheet
+   titled "New condition" is headed *"Describe the indicator in plain English"*,
+   because `ConciergeBox`'s `kind` is chosen by BUILD MODE
+   (`buildMode === 'picker' ? 'scan' : 'indicator'`), not by `consumerKind`. The
+   copy and the server request are one decision: fixing the words alone would
+   make them disagree, and changing the request changes what the server is asked
+   for. Left as-is and reported rather than guessed.
+2. Carried forward, unchanged: naming a missing pane host would need tombstone
+   metadata; `/api/ticker-search` reports `type: "stock"` for ETFs; two overlay
+   moving averages can both read `SMA 50` (positional fixtures, outside the
+   instance disambiguator, self-resolving on any period edit).
+
+### NEXT AUTHORIZED ACTION
+Blake's call. Not started: OHLC/candles for secondary symbols (deliberately —
+one plot → one column vs coordinated OHLC fields is an architecture review).
+
+### STOP CONDITIONS
+None active.
