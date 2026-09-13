@@ -77,6 +77,11 @@ export default function Confluence() {
 
   const counts = data?.counts || { total: rows.length, bull: 0, bear: 0, building: 0 }
   const totDP = useMemo(() => filtered.reduce((a, r) => a + (r.dpn || 0), 0), [filtered])
+  // breadth of the dark-pool read: names trading above big money's average price
+  const aboveCount = useMemo(() => rows.reduce((a, r) => {
+    const now = px[r.sym]?.price ?? r.dpLast ?? r.dpAvg ?? 0
+    return a + (r.dpAvg > 0 && now >= r.dpAvg ? 1 : 0)
+  }, 0), [rows, px])
 
   const Seg = ({ opts, val, set }) => (
     <div className={s.seg}>
@@ -180,7 +185,7 @@ export default function Confluence() {
         <div className={s.metric}><div className={s.k}>Confluence names</div><div className={`${s.v} mono`}>{counts.total}<small>{counts.bear ? `${counts.bull} bull · ${counts.bear} bear` : 'all bullish'}</small></div></div>
         <div className={s.metric}><div className={s.k}>Building now</div><div className={`${s.v} mono`}>{counts.building}<small>accelerating</small></div></div>
         <div className={s.metric}><div className={s.k}>Dark-pool premium</div><div className={`${s.v} mono`}>{usd(totDP)}<small>shown · 30d</small></div></div>
-        <div className={s.metric}><div className={s.k}>Window</div><div className={`${s.v} mono`}>{data?.days || 30}d<small>trailing</small></div></div>
+        <div className={s.metric}><div className={s.k}>Above avg price</div><div className={`${s.v} mono`} style={{ color: 'var(--c-green-br)' }}>{aboveCount}<small>of {counts.total} names</small></div></div>
       </div>
 
       <div className={s.filters}>
