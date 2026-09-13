@@ -1231,7 +1231,20 @@ function astColumnsFor(def, bars, inputs, ctx) {
   const bindConsts = bindingConstants({
     timeframe: timeframeFlags(ctx && ctx.tf),
     inputs,
-    symbol: ctx && ctx.sym,
+    // ⭐⭐ R-K (2026-09-13) — THE OBJECT, NOT THE STRING. `symbolConstantsWith`
+    // needs `{ticker, exchange}`: the ticker resolves `syminfo.ticker` for every
+    // symbol, and the exchange resolves `syminfo.tickerid` / `syminfo.prefix`
+    // ONLY where `symbolScope.json::confirmed` holds a witness for that
+    // exchange's spelling.
+    // ⚰️ THIS READ `ctx.sym` — a STRING — AND `symbolConstantsWith` RETURNS `{}`
+    // FOR ANYTHING THAT IS NOT AN OBJECT. So `bindConsts` was empty on every
+    // chart binding, every `syminfo.*` was NotFoldable, and the bind-time text
+    // predicates survived into the evaluator. Measured on the member pane:
+    // three of `uncharted-volume-v2`'s four columns refused.
+    // ⛔ AND IT IS NOT COERCED HERE. A caller that fails to thread the object
+    // gets `{}` and a refusal that names the field, which is loud; accepting a
+    // bare string as `{ticker}` would half-resolve it and hide the miswiring.
+    symbol: (ctx && ctx.symbol) || null,
   })
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the

@@ -2852,6 +2852,28 @@ export default function StockChart({
   const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
   const ipoBadgeAttachedRef = useRef(false)
   const tickerMeta = useTickerMeta(sym)
+  // ⭐⭐ R-K (2026-09-13) — THE SYMBOL OBJECT THE BIND-TIME FOLD NEEDS.
+  //
+  // `sym` alone is a ticker string, and `bind.js::symbolConstantsWith` returns
+  // `{}` for anything that is not an object — so every `syminfo.*` was
+  // NotFoldable on every chart binding until this existed. `{ticker, exchange}`
+  // is the WHOLE contract: `ticker` resolves `syminfo.ticker` for every symbol,
+  // and `exchange` resolves `syminfo.tickerid`/`syminfo.prefix` only where
+  // `symbolScope.json::confirmed` holds a witness for that spelling.
+  //
+  // ⛔ NOTHING ELSE IS THREADED, AND THAT IS THE MANIFEST'S DECISION RATHER THAN
+  // AN OMISSION. `mintick`, `type`, `currency`, `session`, `pointvalue` and
+  // `description` are in `symbolScope.json::unserved` — refused BY NAME at the
+  // door, each with a reason a member can act on — and `tickerid` is DERIVED
+  // from ticker + witnessed prefix, so supplying it here would put a second
+  // authority on the one string the whole witness table exists to settle.
+  //
+  // ⭐ The exchange is our STORE's friendly spelling ("NYSE Arca"), which is
+  // exactly what the witness table is keyed on — `ticker_meta.py` already
+  // produces it, and the rig confirmed the pairing independently on SPY.
+  const symbolMeta = useMemo(() => (
+    sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
+  ), [sym, tickerMeta])
   const ipoInfo = useTickerIpo(sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
@@ -10099,6 +10121,9 @@ export default function StockChart({
         // back to a preference, and a null timeframe would key the lane's cache
         // differently from the request the hook actually makes.
         sym,
+        // ⭐ R-K: the OBJECT beside the string. `sym` keys the server lane's
+        // fetch; `symbol` is what the bind-time fold reads. See `symbolMeta`.
+        symbol: symbolMeta,
         tf: resolvedTf,
         // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
         // from `bar_close_state` because that is the side the NYSE calendar lives

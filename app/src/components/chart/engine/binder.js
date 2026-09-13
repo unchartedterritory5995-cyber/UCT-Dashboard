@@ -662,7 +662,19 @@ export function createBinder({ chart, LWC }) {
           // ⛔ FAIL CLOSED: `?? null` keeps UNKNOWN as UNKNOWN. `false` would mean
           // SETTLED and blank nothing, which is the one wrong answer these columns
           // exist to prevent.
-          { sym: ctx.sym, tf: ctx.tf, newestBarIsForming: ctx.newestBarIsForming ?? null }))
+          // ⭐⭐ R-K (2026-09-13) — `symbol` RIDES BESIDE `sym`, AND THEY ARE NOT
+          // THE SAME THING. `sym` is the ticker STRING the server lane keys a
+          // fetch on. `symbol` is the OBJECT the bind-time fold needs —
+          // `{ticker, exchange}` — because `syminfo.tickerid` is only resolvable
+          // for a symbol whose exchange spelling has a witness, and that is a
+          // property of the SYMBOL, not of the script.
+          // ⚰️ Until today the fold was handed `ctx.sym`, a string, and
+          // `symbolConstantsWith` returns `{}` for anything that is not an
+          // object — so every `syminfo.*` was NotFoldable on every chart binding
+          // and three of Volume v2's four columns refused. The stage was built,
+          // wired and dark for want of a shape at one seam.
+          { sym: ctx.sym, symbol: ctx.symbol || null, tf: ctx.tf,
+            newestBarIsForming: ctx.newestBarIsForming ?? null }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least

@@ -68,6 +68,34 @@ export function quantise(value, unit = NO_GRANULARITY) {
   return Math.round(value / u) * u
 }
 
+/**
+ * ⭐⭐ T6's DEPTH PRECONDITION, CARRIED HERE NOW SO IT IS NOT REDISCOVERED
+ * (owner ruling, 2026-09-13).
+ *
+ * A column is only comparable if BOTH sides answered it over at least its own
+ * declared window. Below that the column is **excluded and disclosed**, never
+ * silently compared and never quietly dropped.
+ *
+ * ⚰️ THE CASE THAT SETTLED IT. `uncharted-volume-v2`'s `HVE Trigger` declares
+ * 2,751 bars. The 2026-09-12 SPY capture was taken at ~640 and the column read
+ * **flat 0**; the 2026-09-13 re-capture at 4,633 bars has it firing **25 times**,
+ * starting the week Lehman failed. A comparison run against the shallow capture
+ * would have agreed with our side perfectly and been agreeing about nothing.
+ *
+ * ⛔ AND THE EXCLUSION IS PER COLUMN. At 640 bars `Volume` (window 0) and the
+ * three 50-bar columns were byte-for-byte correct — measured, not assumed, by
+ * running both captures side by side. Voiding a whole comparison for one short
+ * column throws away four good series.
+ */
+export function depthVerdict({ window: w, barsLoaded }) {
+  if (!Number.isFinite(w) || w <= 0) return null            // nothing to be short of
+  if (barsLoaded === null || barsLoaded === undefined) {
+    return `window ${w} needs a bar count and none was declared`
+  }
+  if (barsLoaded < w) return `window ${w} > ${barsLoaded} bars loaded`
+  return null
+}
+
 /** A value that is present in neither series — the two blanks agree. */
 const blank = (v) => v === null || v === undefined
   || (typeof v === 'number' && Number.isNaN(v))
@@ -174,8 +202,22 @@ export function compareSeries(name, ours, theirs, kind = 'float', unit = NO_GRAN
 
 /** Every series, as the table the ruling asks for. */
 export function compareAll(spec) {
-  return spec.map(({ name, ours, theirs, kind, unit }) =>
-    compareSeries(name, ours, theirs, kind, unit))
+  return spec.map(({ name, ours, theirs, kind, unit, window: w, barsLoaded }) => {
+    // ⭐ THE DEPTH GATE RUNS BEFORE THE COMPARISON, not after it. A column
+    // short of its own window is EXCLUDED with the reason on the row; running
+    // the comparison first and labelling it afterwards would still put a
+    // number in the table that nobody should read.
+    const short = depthVerdict({ window: w, barsLoaded })
+    if (short) {
+      return {
+        name, kind, n: (theirs || []).length, compared: 0, blanks: 0, mismatches: 0,
+        maxRel: 0, absAtMaxRel: 0, worstBar: -1, worstPair: null,
+        roundedEqual: 0, unit: unit || NO_GRANULARITY,
+        excluded: true, ok: false, reason: `EXCLUDED — ${short}`,
+      }
+    }
+    return compareSeries(name, ours, theirs, kind, unit)
+  })
 }
 
 /** The table as text, for the report and for a failure message.

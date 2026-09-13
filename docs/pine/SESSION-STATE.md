@@ -1,5 +1,137 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ SESSION 3 · ITEM 1 — R-K's SYMBOL HALF. THE SEAM CLOSED IN ~1h15m.
+
+**Three of `uncharted-volume-v2`'s four columns went from refusing to computing.**
+
+```
+BEFORE  ctx = {sym: 'SPY'}                          computed [out2]                    refused 3
+AFTER   ctx = {symbol: {ticker:'SPY',
+                        exchange:'NYSE Arca'}}      computed [value,out2,out3,out4]    refused 0
+```
+
+### The enumeration first — which `syminfo.*` the corpus actually reads
+
+161 corpus files, comments stripped:
+
+| member | uses | files | status |
+|---|---|---|---|
+| `syminfo.tickerid` | **70** | 26 | folds where the exchange is witnessed |
+| `syminfo.ticker` | **53** | 13 | folds for every symbol |
+| `syminfo.mintick` | 31 | 20 | ⛔ refused BY NAME at the door |
+| `syminfo.type` | 8 | 1 | ⛔ refused BY NAME |
+| `syminfo.timezone` | 8 | 5 | not in either roster |
+| `syminfo.session` | 3 | 3 | ⛔ refused BY NAME |
+| `basecurrency` · `currency` · `root` · `pointvalue` | 1 each | 1 each | ⛔ refused / unlisted |
+
+⭐ **THE CONTRACT IS `{ticker, exchange}` AND THE TABLE IS WHY.** Those two unlock
+**123 of the 176 uses**. The ruling named `tickerid, type, currency` as well, and
+each is deliberately excluded:
+
+- **`tickerid` is DERIVED**, not supplied — `prefix + ':' + ticker`, where the
+  prefix comes from the witness table. Threading it would put a second authority
+  on the one string the whole capture exists to settle.
+- **`type`, `currency`, `mintick`, `session`, `pointvalue`, `description` are in
+  `symbolScope.json::unserved`** — refused by name at the door, each with a
+  reason a member can act on. `type`'s reason is the sharpest: *"this engine
+  screens US equities, so the answer would be the same constant for every symbol
+  it can reach — a value that cannot vary is not a value, it is a hidden
+  assumption."* Serving them would ship exactly that.
+
+### The thread — three edits, and the seam was one line
+
+```
+StockChart.jsx      symbolMeta = {ticker: sym, exchange: tickerMeta?.exchange}   → binder.sync({symbol})
+binder.js    :665   computeFor(..., { sym, symbol: ctx.symbol, tf, … })
+nativeRegistry:1231 bindingConstants({ …, symbol: ctx.symbol })     ← was `ctx.sym`, a STRING
+bind.js      :144   if (!symbol || typeof symbol !== 'object') return {}          ← unchanged
+```
+
+⭐ **NOTHING BELOW THE SEAM NEEDED CHANGING.** `bind.js`, `ast_bind.py`, the
+witness table and both `symbolConstantsWith` implementations were already correct
+and already reading the same `symbolScope.json`. **The backend half was done too**
+— `ticker_meta.py` has produced the friendly exchange spelling ("NYSE Arca") since
+2026-09-10, and `/api/ticker-meta` returns it whole. The stage was built, wired,
+and dark for want of a shape at one call site.
+
+⛔ **AND A BARE STRING IS STILL NOT COERCED.** A caller that forgets to thread the
+object gets `{}` and a refusal that names the field — loud. Accepting `'SPY'` as
+`{ticker:'SPY'}` would have half-resolved it and hidden the next miswiring.
+
+### Every remaining refusal, named to a line
+
+On a **witnessed** symbol: **none**.
+
+On an **unwitnessed** one, `value`, `out3` and `out4` refuse, and all three trace
+to **one line**:
+
+```
+line 224   isRatioSymbol = str.contains(syminfo.ticker, "/") or str.contains(syminfo.tickerid, "/")
+```
+
+⭐ **MEASURED, NOT INFERRED.** Every `symtext` node in the pane document sits
+inside a `textop` — six of them, three `ticker`/`tickerid` pairs, one per column
+that carries the ratio test — and **zero bare ones**. So line 261's
+`request.security(syminfo.tickerid, 'D', …)` never reaches the evaluator at all:
+the base-timeframe fold removed it, which is what the `baseTimeframeFolds`
+disclosure has been telling the member all along.
+
+⛔ **THE HONEST LIMIT.** `contains(ticker,"/")` folds to 1 on BTC/USD and is
+decisive in Pine's own semantics, but this engine evaluates **both** arms of an
+`or`, so the unsettled `tickerid` half survives and the column refuses. v2's ratio
+test resolves on a witnessed symbol and refuses on an unwitnessed one. Written
+down rather than rounded off.
+
+⭐ And the refusal **tracks what is missing**: no symbol at all → it names
+`syminfo.ticker`; a symbol with no witness → `syminfo.tickerid`. A refusal that
+said the same thing in both states would be a category, not a diagnosis.
+
+### Rails
+
+- **`symbolFoldParity.test.js` (8)** — the two lanes fold **every member, string
+  for string**, on SPY (`NYSE Arca`, witnessed), AGEN (`NASDAQ`, a second
+  witness so "it works for SPY" is not a statement about one row) and **BTC/USD**
+  (no witness, the `contains(ticker,"/")` case). The Python lane is driven
+  through a subprocess against `api.services.ast_bind`, so the comparison is
+  between the two shipped implementations. Non-vacuity: both lanes refusing
+  everything would satisfy `toEqual`, so the ticker must have resolved.
+- **`symbolThread.test.js` (4)** — the seam, on the real document: the BEFORE
+  state, the AFTER state, an unwitnessed exchange, and an absent one. ⛔ It
+  measures both directions because "the refusals went away" is a failure mode as
+  much as a fix.
+- The witness table is **read** in the rail, never typed — `NYSE Arca → AMEX`,
+  witnessed by `AMEX:SPY`, which the rig confirmed independently on 2026-09-13
+  when `symbolInfo().exchange` came back `"NYSE Arca"`.
+
+### ⭐ T6's depth precondition — carried in now, as ruled
+
+`seriesCompare.depthVerdict` + a gate in `compareAll`: a column whose declared
+window exceeds the bars loaded is **EXCLUDED with the reason on the row**, never
+compared and never dropped.
+
+```
+HVE Trigger    window 2751 > 640 bars loaded    EXCLUDED
+HVE Trigger    at 4,633 bars                    AGREES
+Volume         window 0                          never excluded, at any depth
+(no bar count declared)                          EXCLUDED — "needs a bar count"
+```
+
+⚰️ Its rail encodes the case that settled it: three zeros that **agree**, which
+compared rather than excluded would read AGREES while agreeing about a column the
+vendor answered over 640 bars of a 2,751-bar window.
+
+### Suites and metric
+
+| | |
+|---|---|
+| JS `chart/engine` + `chart/builder` | **341 files · 7,142 tests → 7,105 passed, 32 skipped, 5 failed in 3 files** |
+| Python bind + interpret + window | **162 passed** |
+| `tools/corpus_metric.json` | 266 / 31 / 44 — **unchanged, no movers** |
+
+The 5 reds are the same pre-existing HEAD trio. **Movers: +17 tests (7,088 →
+7,105), 0 new reds**, and the metric correctly does not move — the translator's
+verdicts are unchanged; what changed is what the chart lane hands the fold.
+
 ## ⭐⭐⭐ SESSION 3 · ITEM 0 — THE FORCED-DEPTH SPY RE-CAPTURE, AND THE RAIL WAS RIGHT
 
 `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json`.

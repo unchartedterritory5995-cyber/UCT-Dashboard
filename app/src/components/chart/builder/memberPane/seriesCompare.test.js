@@ -11,7 +11,7 @@
 // exercised here, in both directions, on numbers chosen to sit either side of it.
 import { describe, it, expect } from 'vitest'
 import {
-  compareSeries, compareAll, renderTable, MAX_REL, quantise,
+  compareSeries, compareAll, renderTable, MAX_REL, quantise, depthVerdict,
 } from './seriesCompare.js'
 
 describe('⭐ integers are EXACT — tolerance on a count is a hidden rounding rule', () => {
@@ -193,5 +193,75 @@ describe('R-L — an integer series at the coarser side\'s resolution', () => {
     const plain = renderTable([compareSeries('Volume', [1], [1], 'int')])
     expect(plain).toContain('exact')
     expect(plain).toContain('no rounding')
+  })
+})
+
+// ─── ⭐⭐ T6's DEPTH PRECONDITION, CARRIED IN BEFORE T6 ──────────────────────
+//
+// Owner ruling, 2026-09-13: "the 25 HVE firings at 4,633 bars are the vendor side
+// of T6; our side must be compared at >= 2,751 bars loaded or the column is
+// excluded and disclosed — carry that into T6's comparison rule now so it is not
+// rediscovered."
+describe('the depth precondition — a column short of its window is EXCLUDED', () => {
+  it('⛔⛔ a short column never reaches the comparison, and says why', () => {
+    const [row] = compareAll([{
+      name: 'HVE Trigger', ours: [0, 0, 0], theirs: [0, 0, 0], kind: 'float',
+      window: 2751, barsLoaded: 640,
+    }])
+    expect(row.excluded).toBe(true)
+    expect(row.ok).toBe(false)
+    expect(row.reason).toContain('EXCLUDED')
+    expect(row.reason).toContain('2751')
+    expect(row.reason).toContain('640')
+    // ⚰️ AND THIS IS THE CASE THAT SETTLED IT. Those three zeros AGREE. Compared
+    // rather than excluded, the row would read AGREES and be agreeing about a
+    // column the vendor answered over 640 bars of a 2,751-bar window — which is
+    // exactly the 2026-09-12 SPY capture, where HVE Trigger read flat 0 and at
+    // 4,633 bars fires 25 times.
+    expect(row.compared).toBe(0)
+  })
+
+  it('⭐ at full depth the same pair is compared normally', () => {
+    const [row] = compareAll([{
+      name: 'HVE Trigger', ours: [0, 0, 0], theirs: [0, 0, 0], kind: 'float',
+      window: 2751, barsLoaded: 4633,
+    }])
+    expect(row.excluded).toBeUndefined()
+    expect(row.ok).toBe(true)
+    expect(row.compared).toBe(3)
+  })
+
+  it('⛔ PER COLUMN, not all-or-nothing — the shallow-capture measurement', () => {
+    // At 640 bars the four drawn series were byte-for-byte correct and only the
+    // 2,751-bar column was wrong. A rule that voided the whole comparison would
+    // have discarded four good series.
+    const rows = compareAll([
+      { name: 'Volume', ours: [1], theirs: [1], kind: 'int', window: 0, barsLoaded: 640 },
+      { name: 'Avg Vol Line', ours: [2], theirs: [2], kind: 'float', window: 50, barsLoaded: 640 },
+      { name: 'HVE Trigger', ours: [0], theirs: [0], kind: 'float', window: 2751, barsLoaded: 640 },
+    ])
+    expect(rows.map((r) => !!r.excluded)).toEqual([false, false, true])
+    expect(rows.filter((r) => r.ok)).toHaveLength(2)
+  })
+
+  it('⛔ AN UNDECLARED BAR COUNT IS A REFUSAL, NOT A PASS', () => {
+    // The `UNMEASURED` case, one door over from `tools/vendor_window.py`: a
+    // capture that never recorded its depth cannot certify a windowed column.
+    const [row] = compareAll([{
+      name: 'HVE Trigger', ours: [0], theirs: [0], kind: 'float', window: 2751,
+    }])
+    expect(row.excluded).toBe(true)
+    expect(row.reason).toContain('needs a bar count')
+  })
+
+  it('⭐ CONTROL: a window-free column is never excluded, at any depth', () => {
+    for (const barsLoaded of [0, 1, 640, 4633]) {
+      const [row] = compareAll([{
+        name: 'Volume', ours: [7], theirs: [7], kind: 'int', window: 0, barsLoaded,
+      }])
+      expect(row.excluded, `barsLoaded=${barsLoaded}`).toBeUndefined()
+      expect(row.ok).toBe(true)
+    }
+    expect(depthVerdict({ window: 0, barsLoaded: 1 })).toBeNull()
   })
 })
