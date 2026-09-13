@@ -1,8 +1,8 @@
 # NOTEBOOK PROGRAMME — RESUME HERE
 
-**Last verified against git:** `f49da5ed67a8` · **2026-09-13T19:14:22Z**
-**Restart checkpoint:** 2026-09-13 14:14 CT — a planned reboot closed every
-PowerShell and Claude Code session. Nothing was mid-flight; see §1.
+**Last verified against git:** `bd57ffaf7ab6` · **2026-09-13T22:13:07Z**
+**Sunday gate CLOSED KEEP 2026-09-13 18:05 ET** — the planned restart did NOT
+happen (uptime 49 h at the checkpoint); no scheduled run was missed.
 
 ---
 
@@ -141,6 +141,24 @@ both files). Manifest §10.17.
 
 ---
 
+## 3b. The Sunday gate — CLOSED **KEEP**, 2026-09-13 18:05 ET
+
+```
+VERDICT: KEEP — no independent member exposure; 0 blocked-baseline events
+         measured over 0 real members
+rows read: 22 (3 skipped)
+POPULATION: organic = 0 | synthetic = 1 | rig/owner = 1
+1 unexplained red PASS · 2 unattributable fork PASS
+3 outbox stuck >5 min PASS (canary 2026-09-13T20:00:01Z, outbox 0, 11/11)
+4 member console error PASS · do-not-build CLEAN
+```
+
+⭐ The window continues to **2026-09-19 00:45 ET**. Trigger 3 was `n/a` in the
+run itself and was wired to the canary's stamp afterwards; the line above is
+the corrected re-run against the same log.
+
+---
+
 ## 4. Open items — verbatim, nothing rounded off
 
 ### ⛔ `append_widget_embed × drain-first` is RED and **NOT PUBLISHED**
@@ -223,6 +241,7 @@ content. **Provenance is `git show <sha>:<file>`, never `git status`.**
 | config-served column | live in the sampler; `0/0 — no member reported` on every row so far |
 | **organic members exposed** | **0** — nobody outside the rig has opened the Notebook in this window. Printed in every gate verdict and every end-of-day report until it changes |
 | synthetic member | the T-12 runs signed `member-smoke` in as a distinct identity. If an opt-in event appears, the qualifier becomes **"one synthetic member; zero organic members"** |
+| ⛔ **the 7 that were ours** | the sampler read `members 7` on 2026-09-13; **all seven were the T-12 smoke account**, proved from that account's own `/api/auth/export-data`. Rows are corrected in place with attribution; the sampler now reports **organic · synthetic · rig/owner**, by distinct identity, never summed |
 | ⛔ **consequence for K-1** | if the window closes with 0 organic members, K-1's precondition is **100% of a synthetic population**, and the packet must say so in those words |
 
 ---

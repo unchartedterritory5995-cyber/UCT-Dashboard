@@ -1083,6 +1083,104 @@ Closing it requires building an instrument first — that is a task, not a looku
     rails the window rule, and `tests/test_window_check_auth.py` rails fault 2's
     twin in the canary, mutation-proved by restoring the `!= 200` guard.
 
+22. ⛔⛔ **AN INSTRUMENT COUNTED ITSELF AS THE POPULATION IT WAS MEASURING — our
+    own test account published as SEVEN INDEPENDENT MEMBERS.**
+
+    2026-09-13. The sampler's 15:00 and 17:00 ET rows read `members 7`. All seven
+    were the T-12 smoke account. The Sunday gate would have printed
+    **`organic members exposed = 7`** into the artifact the K window is judged
+    on — inverting the window's central claim on the one run of the week that
+    decides keep-or-revert.
+
+    **Two faults, and they compound:**
+
+    | # | the fault |
+    |---|---|
+    | 1 | the exclusion list held `smoke@…` but **not** `member-smoke@…` — two different accounts, 30 and 37 characters, one excluded and one not |
+    | 2 | the count was `indep.length` — **ROWS, not identities** — while the config-served column *immediately beside it* is explicitly *"BY IDENTITY, not by row: one member with six tabs is one member."* |
+
+    ⭐ **THE SAME FILE HELD TWO NOTIONS OF "MEMBER" IN ADJACENT COLUMNS, and the
+    looser one was the one that fed the verdict.** Neither column was wrong about
+    what it computed; they simply disagreed about what the word means, and
+    nothing made them answer to each other.
+
+    ⭐ **HOW IT WAS PROVED, and the method is reusable:**
+    `/api/auth/export-data` returns an account's **own** activity and is gated
+    only by `get_current_user` — so the smoke identity could read its own rows
+    **without the rig, without admin, and without waiting for a clear rig
+    window**. Its log held exactly those seven `notebook_offline_opt_in` events,
+    17:51:57 → 18:14:46 UTC, one for one with the seven T-12 runs.
+    ⛔ `tools/q1_member_attribution.py` deliberately **does not open the
+    Notebook**: doing so would emit another opt-in and inflate the very count
+    under investigation — *an instrument that changes what it measures*.
+
+    ⭐ **SEVEN OPT-INS FROM SEVEN FRESH BROWSER CONTEXTS IS EXPECTED, NOT A DEDUPE
+    FAILURE.** The dedupe marker is per tab/context by design. The events were
+    never wrong; calling them seven **members** was. Said in the log annotation
+    so nobody reads 7 as *"dedupe broke"* and goes hunting.
+
+    **The fix — three populations, by distinct identity, never summed:**
+    **ORGANIC** (a person who is not us — the only number the wave's claims may
+    be divided by) · **SYNTHETIC** (an account we provisioned — counted and
+    **shown**, never excluded into invisibility) · **RIG/OWNER**. Matched by
+    **full email**, never prefix or substring: a `startsWith('smoke')` test would
+    have caught `member-smoke@` only by luck, and a substring test would swallow
+    a real member whose address happened to contain one.
+
+    ⛔ **An unknown address on `@uctintelligence.internal` is raised as an
+    ANOMALY, never counted as organic.** That domain is reserved (RFC 8375) and
+    unroutable, so nobody outside this programme can hold one — a new one is a
+    synthetic account somebody provisioned without declaring it, and silence is
+    how that arrives.
+
+    ⛔ **The rows already written are corrected in place, not rewritten.** The
+    NUMBER is preserved — seven events really were recorded — and only the LABEL
+    is corrected, with every timestamp named and the correction attributed, in
+    the same style as the hand-written 10:00 row. Rows predating the split are
+    counted **separately** by the gate and named in the verdict.
+
+    ⭐ **RAILS:** `tests/test_member_populations.py` — including the pair that
+    matters, *a real organic member still reaches the verdict*. Narrowing what
+    counts must not make a real member invisible; that is the same failure
+    pointing the other way, and far worse.
+
+23. ⛔ **THREE MORE FROM THE SAME DAY, each small, each the same shape: a reader
+    that could not see evidence sitting next to it.**
+
+    - **The gate printed `n/a` beside a GREEN canary.** Trigger 3 (*outbox stuck
+      >5 min*) is the one trigger the sampler cannot fill — it runs opted out, so
+      its outbox is structurally zero. The Sunday canary drives a real queue and
+      had already reported `outbox 0`, 11/11 steps green, two hours before the
+      verdict was written. The verdict said the evidence did not exist.
+      ⭐ It now reads the canary's own stamp — and **refuses to overclaim in the
+      line itself**: a canary run lasts minutes, so it evidences *that the queue
+      settles*, not a five-minute observation. A stale canary (>30 h), a run that
+      died before the settle step, and no canary at all are three different
+      answers and none of them is a PASS.
+
+    - **The C-4 sweep timed out inside the gate** at 180 s and printed *"DID NOT
+      RUN … this is not a clean result"* — **a tooling failure wearing a
+      verdict's clothes.** Measured rather than guessed: reading 4,711 files /
+      60 MB costs **0.3 s**; matching 75 patterns costs **~66 s**, because a
+      75-way regex alternation runs at a few MB/s. The timeout landed while
+      another session's six-shard gate loaded the box. Budget is now 900 s —
+      ~10× the measured cost — and the gate has no deadline of its own, so
+      waiting is free while *being unable to say whether §8 is intact* is not.
+
+    - ⚰️ **A hash mismatch that was only line endings.** `tools/nb_gate.py`
+      differed between the repo and `origin/master` — 462 CRLF vs 0 — and was
+      byte-identical once normalised. Recorded rather than waved through: **a
+      hash mismatch is a finding until it is explained**, and "it's just CRLF" is
+      a conclusion, not an observation.
+
+    - ⚰️ **And the handoff contained the bug it was warning about.** The
+      pre-restart resume doc's own step 3 called `resolve_profile(None)` without
+      exporting `UCT_Q1_RIG_PROFILE`; run from a worktree whose `.worktrees/`
+      does not exist, it reports `exists: False, value: None` — and **absence
+      reads as OPTED IN**. A fresh session following the doc would have "fixed" a
+      rig that was already correct. Caught by running my own instructions.
+      ⭐ *Write the handoff, then follow it as if you had never seen it.*
+
 ### Rows added by §10
 
 | id | feature | status |
