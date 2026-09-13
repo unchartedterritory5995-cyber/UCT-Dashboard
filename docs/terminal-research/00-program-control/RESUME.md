@@ -12,7 +12,7 @@
 | | |
 |---|---|
 | `origin/master` | **`7bd9c8785`** |
-| docs branch `terminal-research` | **`f6d528869`** |
+| docs branch `terminal-research` | **the commit carrying this block, or later** — a file cannot state its own SHA, so `f6d528869` was its parent. **Verify with §1's command; do not trust a literal here.** |
 | both trees | **clean**, both branches **on origin** |
 | doc-SHA rail | **OK** — 190 files, 272 SHA candidates, every cited SHA resolves |
 | flag audit | **0 / 0 / 0 / 0** |
