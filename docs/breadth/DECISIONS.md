@@ -370,3 +370,29 @@ Testing Library's budget is already 4,000 ms against a 250 ms debounce, so the r
 not a misplaced read. "Fixing" it would have meant raising a global timeout in another session's area to hide load. It is
 recorded in `gates.md` as pre-existing and load-sensitive instead. The test that gets rewritten is the one whose
 ASSERTION is in the wrong place; the test that gets recorded is the one the machine was too busy to answer.
+
+### D-037 · The R1 golden is the acceptance test for the whole of R1, and Tasks 2 and 3 may not touch it
+
+**Decision.** `app/src/pages/breadth/heatmapRegistry.golden.{test.js,json}` was written in R1 Task 1, before any
+consolidation, and pins what the heatmap registry produced at `0dd21c248`: every tile's `label`, `group`, `isHeader`,
+`drillKey`, `polarity`, `pair`, and its `getTier`/`getFmt` as source text, in registry order, plus `TREEMAP_DEF`,
+`FFILL_KEYS` and the sorted `PCTILE_KEYS` — 53 rows, 46 tiles, 16 drill keys, 5 fill keys, 29 percentile keys, 29
+treemap items, with five controls and a size floor. Tasks 2 and 3 were required to leave it **unchanged and
+unregenerated**, and did: it passed 7/7 after METRIC_META landed and again after `heatmapMetrics.js` became an adapter.
+
+⛔ **If a later task needs the golden to change, that is a finding, not a fixture update.** Regenerating it is allowed
+only for a deliberate, member-visible change, and only with its own line in this file naming what a member will now see
+that they did not see before. A fixture regenerated to make a suite green records the new behaviour as if it had always
+been correct, and the one artifact that could have reported the regression becomes the thing that certifies it.
+
+**Why this shape.** The consolidation's whole risk is silent: two registries agreeing today, one of them quietly
+re-ordered or re-labelled tomorrow, with nothing failing because both sides moved together. A golden captured BEFORE the
+refactor is the only artifact that cannot move with it. It earned that role immediately — deriving `WEEKLY_METRICS` from
+`METRIC_META` alone reordered `FFILL_KEYS` alphabetically (the catalog reads bulls → neutral → bears → spread → naaim,
+and `METRIC_META` is sorted by key). Under a "regenerate and move on" rule that would have shipped as a reordered
+forward-fill list with a green suite behind it; under this rule it was fixed at the source, in `chartMetrics.js`, with
+the reason written beside the derivation.
+
+⚠️ **A golden is a record of behaviour, not a claim that the behaviour is right.** It pins thirteen deliberate
+`label`/`short` disagreements and the picker-vs-tile group split (D-034) exactly as they are. Changing any of those
+remains a product decision; the golden only guarantees nobody makes one by accident.
