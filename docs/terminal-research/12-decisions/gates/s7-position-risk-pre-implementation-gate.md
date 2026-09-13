@@ -2,7 +2,7 @@
 id: GATE-S7-POSITION-RISK
 title: S7 trigger type — `position-risk` pre-implementation gate
 role: the approval packet for the FOURTH absorption candidate. It is HALF an absorption and HALF a new capability, and §2 is the measurement that says which half is which. Nothing builds past the scope on an approval line.
-status: ⛔ NOT APPROVED — no line has been written. Docs only.
+status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3, CP4 and the flip each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 6576f044e
 pairs_with: PRD-S7, SPEC-S7 §5.2, s7-alerts-completion-plan.md §1 row 5 / §4, GATE-S12-ROLLOUT
@@ -10,16 +10,52 @@ confidence: high on the source readings (every claim below is quotable at file:l
 evidence_ceiling: SOURCE ONLY. No production database was read, no Railway variable was read live, and no run was observed. Every population number in §7 is UNKNOWN.
 ---
 
-# ⛔ NOT APPROVED — `position-risk`
+# ✅ NOT APPROVED — `position-risk`
 
 ## ⛔ APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  052d21475   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP1-CP2 ONLY.
+
+                  CP1 = registration + params schema. No evaluator, no
+                        delivery, no projection of member rows. Legacy shapes
+                        REPORTED before the schema is pinned.
+
+                  CP2 = a dark evaluator + a FORWARD-ONLY comparison harness
+                        against HARNESS-ARMED predicates only. Never a replay.
+                        Four outcomes - agreed / new_only / legacy_only /
+                        not_comparable - never collapsed into a pass rate, and
+                        `legacy_only` means an alert a member LOSES at the flip.
+                        No delivery import. No legacy change.
+
+                  ⛔ CP3 (projecting real member rows for the rollout:s7-dark
+                     cohort) NEEDS A NEW LINE. So does CP4 and the flip.
 ```
+
+⛔ **This packet's `_EXPECTED` step applies.** `tests/test_alert_taxonomy_filing_watch_parity.py`'s
+control flips BY DESIGN when this type lands; it is updated **by naming, never by deleting the
+assertion**, and steps 2 and 3 of its docstring stay deliberately undone for a CP1-CP2 type that
+records no fire — with the reason written into the file, as for the three types before it.
+
+### ⭐ H14 SETTLED THIS PACKET'S OPEN RULING BEFORE CP1 STARTED
+
+§2.3 asked for a ruling on the placeholder-stop trap and said *"reuse the Awareness rule"* is not
+yet an answer. It was right, and the reason is now measured: `awareness/rules.py`'s absolute `1e-9`
+**missed the row that actually happened**.
+
+H14 (`GATE-H14-PLACEHOLDER-STOP`, merged `94209e962`) unified **five** detectors — this packet
+found three — onto `api/services/placeholder_stop.py::is_placeholder_stop` at
+`max(0.001, |entry| × 1e-5)`. **So absorbing R1/R2 no longer inherits the trap; it inherits one
+tested definition.**
+
+⛔ **§3's condition still stands and is not softened by that.** `PARAMS_SCHEMA` must carry **no
+field that encodes a placeholder verdict** — the verdict is now a shared function's answer, and a
+predicate row that froze a copy of it would be the sixth detector wearing a schema.
+
 
 ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint below may be built, merged or
 scheduled until the owner writes an approval line naming ONE of them. The block above is

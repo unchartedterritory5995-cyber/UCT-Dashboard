@@ -2,7 +2,7 @@
 id: GATE-S7-SCAN-MEMBERSHIP-CHANGE
 title: S7 trigger type — `scan-membership-change` pre-implementation gate
 role: the approval packet for an absorption the completion plan and SPEC-S7 both describe as NEW WORK. It is not. §1 is the measurement that says so, and it is the reason this packet exists before any code.
-status: ⛔ NOT APPROVED — no line has been written. Docs only.
+status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3, CP4 and the flip each need a new line.
 date: 2026-09-12
 measured_against: origin/master @ 6576f044e
 pairs_with: PRD-S7, SPEC-S7 §5.2 / §5.6, s7-alerts-completion-plan.md §1 row 6, GATE-D2-CANONICAL-DATA-MODEL, GATE-S12-ROLLOUT
@@ -10,16 +10,50 @@ confidence: high — every claim is quotable at file:line and was read from `api
 evidence_ceiling: SOURCE ONLY. `screener.db` was not opened, no Railway variable was read live, and no nightly run was observed. Every population and row-count number below is UNKNOWN.
 ---
 
-# ⛔ NOT APPROVED — `scan-membership-change`
+# ✅ NOT APPROVED — `scan-membership-change`
 
 ## ⛔ APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  b4280afaf   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP1-CP2 ONLY.
+
+                  CP1 = registration + params schema. No evaluator, no
+                        delivery, no projection of member rows. Legacy shapes
+                        REPORTED before the schema is pinned.
+
+                  CP2 = a dark evaluator + a FORWARD-ONLY comparison harness
+                        against HARNESS-ARMED predicates only. Never a replay.
+                        Four outcomes - agreed / new_only / legacy_only /
+                        not_comparable - never collapsed into a pass rate, and
+                        `legacy_only` means an alert a member LOSES at the flip.
+                        No delivery import. No legacy change.
+
+                  ⛔ CP3 (projecting real member rows for the rollout:s7-dark
+                     cohort) NEEDS A NEW LINE. So does CP4 and the flip.
 ```
+
+⛔ **This packet's `_EXPECTED` step applies.** `tests/test_alert_taxonomy_filing_watch_parity.py`'s
+control flips BY DESIGN when this type lands; it is updated **by naming, never by deleting the
+assertion**, and steps 2 and 3 of its docstring stay deliberately undone for a CP1-CP2 type that
+records no fire — with the reason written into the file, as for the three types before it.
+
+### ⛔ CP1 MUST SHIP THE RETENTION RAIL, AND ITS ONE-SESSION CONTROL
+
+The packet's own finding: two consecutive cycles are retained **by the absence of a caller, not by
+a policy** — `scan_store.prune` has zero callers (control: the same search found three other
+`.prune(` sites). The day anyone wires it, `diff_for` returns empty **silently**.
+
+⛔ And the previous session must come from `scan_coverage`, never `scan_hits`: a quiet night writes
+a coverage row and zero hits rows, so a hits-derived previous session reports every long-standing
+member as newly ENTERED.
+
+⚠️ Also in scope for CP1: correcting SPEC-S7 §5.2, which sources this type to
+`definition_evaluations` — the wrong artifact.
+
 
 ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint below may be built, merged or
 scheduled until the owner writes an approval line naming ONE of them.
