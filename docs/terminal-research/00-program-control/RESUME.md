@@ -1,6 +1,6 @@
 # RESUME — cold-start entry point (Document B §3A)
 
-**Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `68cf6924f` (2026-09-12). Rail PASS.**
+**Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `ccbab9bcd` (2026-09-12). Rail PASS.**
 
 ---
 
@@ -12,23 +12,43 @@
 |---|---|---|---|
 | 1 | **H14** — one placeholder-stop detector, five call sites | `94209e962` | ADDITIVE, 7 files · **MEMBER-VISIBLE** (a false alert stops being possible) |
 | 2 | **S4 CP1** — the focus-divergence detector | `76c62c494` | ADDITIVE, 3 files, all `app/**` |
+| 3 | **S7 `position-risk`** CP1–CP2 | `2b0547949` | ADDITIVE, DARK — no delivery, records no fire |
+| 4 | **S7 `scan-membership-change`** CP1–CP2 | `0c6caf25b` | ADDITIVE, DARK — but absorbs a LIVE path |
+| 5 | **S7 `regime-change`** CP1–CP2 | `0392c78bf` | ADDITIVE, DARK — two fixed schema values |
+| 6 | **S7 `indicator-condition`** CP1–CP2 | `ccbab9bcd` | ADDITIVE, DARK — every legacy predicate refuses |
 
 Day 1's five (`ffa8102c7`, `78ba40fe8`, `6576f044e`, `1c426c199`, `9458ea641`) are all live.
 
-## ⛔ IN FLIGHT AT THE TIME OF WRITING — four S7 types, parallel worktrees
+⛔ **ALL FOUR S7 TYPES ARE CP1–CP2 ONLY: registered, comparable, and FIRING NOTHING.** No CP3 was
+authorized and none was built. `_EXPECTED` in the parity control is now **seven** names.
 
-`position-risk` · `scan-membership-change` · `regime-change` · `indicator-condition`, each CP1+CP2,
-each on its own branch, **none merged**. All four packets are signed CP1–CP2.
+## ✅ THE FOUR S7 TYPES ARE MERGED — and the merge phase is the lesson
 
-⛔ **THEY MERGE SERIALLY AND EACH ONE REBASES ONTO THE PREVIOUS.** They all edit ONE line —
-`tests/test_alert_taxonomy_filing_watch_parity.py`'s `_EXPECTED` set — so four parallel branches
-means four conflicts on that line, resolved by ADDING one name each time, never by taking one side.
-Pre-merge baseline measured: that suite is **20 passed** at `76c62c494`.
+⚰️ This block read *"IN FLIGHT AT THE TIME OF WRITING … **none merged**."* All four are in, in the
+owner's order: `position-risk` → `scan-membership-change` → `regime-change` → `indicator-condition`.
+
+⛔ **THEY MERGED SERIALLY AND EACH ONE REBASED ONTO THE PREVIOUS**, exactly as predicted: they all
+edit ONE line — `tests/test_alert_taxonomy_filing_watch_parity.py`'s `_EXPECTED` set — so each
+merge conflicted there and was resolved by ADDING one name, never by taking one side. Pre-merge
+baseline was **20 passed** at `76c62c494`; the same suite is **20 passed** with seven names in it.
+
+⭐⭐ **THE BUILD PARALLELISES AND THE MERGE DOES NOT.** Four agents built simultaneously with no
+interference; the merge phase was a strict queue — rebase, re-run parity, re-run the control,
+mutate, push, four times. **That queue, not agent count, is what bounds a day.**
+
+⚠️ **MASTER MOVED DURING THE FOURTH MERGE** (the glass/closure workstream pushed) and the push was
+correctly rejected. Recovered with `git rebase origin/master` — ⛔ **never `git reset --soft`**,
+which on a behind branch stages the INVERSE of the intervening commits. Parity and the control were
+re-run on the new base before merging.
 
 ## ⛔ D2 CP3 IS HELD, AND ITS GATE IS UNREACHABLE AS WRITTEN
 
-Measured in the pod today: the dual-compute is armed and correct (fraction **100 %**, the book
-resolves `ohlcv.c` to position **4**) and the sample count is **0**.
+Measured in the pod EARLIER today: the dual-compute is armed and correct (fraction **100 %**, the
+book resolves `ohlcv.c` to position **4**) and the sample count was **0**.
+
+⚠️ **THE END-OF-DAY RE-READ THE OWNER ASKED FOR WAS BLOCKED** — the session's tool sandbox refused
+`railway ssh` as a production read. The 0 above is **not** carried forward as the end-of-day
+number: the day happened in between. Reported as a gap.
 
 ⛔ Zero here means *"the reader has not been called"*, not *"no disagreements"* —
 `ticker_returns._close` is reached only through the Desk's since-mention returns, which is neither
@@ -40,9 +60,11 @@ on each push — the `_FAIL_STREAKS` shape the desk-session audit already docume
 
 ## ⛔ NO MARKER BUMP ON EITHER DAY — measured per commit, never assumed
 
-`reachable_paths()` = 154, `watched_paths()` = 24. In-closure changed files: **0 for all seven
-merges**. A strand exists only when flow-worker RUNS a changed file and will not redeploy for it.
-Bumping to discharge nothing would drop the Massive OPRA socket, and Massive does not replay.
+`reachable_paths()` = 154, `watched_paths()` = 24. In-closure changed files: **0 for all eleven
+merges** (⚰️ this said *"all seven"*; four more landed). Cross-checked at end of day by hand: of the
+**19 files** merged in `94209e962..origin/master`, none is in the 154-module closure. A strand
+exists only when flow-worker RUNS a changed file and will not redeploy for it. Bumping to discharge
+nothing would drop the Massive OPRA socket, and Massive does not replay.
 
 ## The A-series instruction resolved to nothing to build
 

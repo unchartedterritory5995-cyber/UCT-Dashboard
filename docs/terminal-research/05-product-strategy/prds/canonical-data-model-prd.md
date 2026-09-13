@@ -475,6 +475,54 @@ populated, instead of shipping now with a key that would never be retired. ⚠�
 call, and this PRD's recommendation is to pay it, because the two live ad-hoc keys measured above
 are what the alternative looks like eighteen months later.
 
+### 9.4 ⛔⛔ CADENCE IS NOT A PROPERTY OF THE METRIC — for `bars_sqlite` it is a property of the **(metric, timeframe) PAIR**
+
+Recorded 2026-09-12 as GATE-S7-INDICATOR-CONDITION CP1 item 6 (its §4.3), at the point of use.
+**§9.3 item 1 above is incomplete as written**, and this is the correction: a declaration of
+`{store, column, as_of, cadence}` is sufficient for `screener_rows`, where a metric has one
+refresh rhythm — and it is **insufficient for `bars_sqlite`**, where `ohlcv.c` on `D` and `ohlcv.c`
+on `5` are the same column with different cadences. One `cadence` field per metric cannot express
+that, so a book that offers one is offering an answer that is wrong for every intraday timeframe
+of every bar metric.
+
+⭐ **This is why `indicator-condition` CP1 ships a REFUSAL and not a default.** The alert layer
+inventing `"intraday"` for `ohlcv.c` would be §9.2's ad-hoc-key defect committed prospectively, by
+the very system built to end it — and a defaulted cadence produces a silently wrong alert nobody
+will ever look for, where a refusal produces a named reason both a member and an engineer can act
+on. `REFUSAL_ADDRESS_UNRESOLVED` is the anchor, and it fires **before** any cadence question is
+asked, because nothing about a cadence can be said until the address resolves and guessing one
+there would invent a fact.
+
+⛔ **THE OBVIOUS FIX IS BLOCKED, AND THE BLOCK IS MEASURED — GATE-D2 §CP2.4 REFUSED IT ONCE
+ALREADY.** Declaring the bars cadence per timeframe means editing `bars_fetch.py` /
+`bars_sqlite.py`, which are **inside flow-worker's import closure and outside its watch list**: it
+would run a stale copy of the new declaration. So this is a follow-up D2 **owes**, not a task D2
+may quietly perform.
+
+⚠️ **AND THE VOCABULARY IS ALREADY COPIED AT LEAST THREE TIMES**, which is the cost of leaving it:
+the calendar/intraday split appears in seven places in `api/services/bars_fetch.py`; the alert lane
+keeps its own `_CALENDAR_TFS` + `_TF_MINUTES` in `indicator_alert_evaluator.py`; and
+`_LEDGER_TIMEFRAME` (`indicator_alert_evaluator.py:1692-1695`) is the ad-hoc copy §9.2 already
+indicts — *written with a comment explaining why it is dangerous, and not sunset.*
+
+⭐⭐ **MEASURED CONSEQUENCE, AND IT IS LARGER THAN THIS SECTION ANTICIPATED (F-S7-IC-1).** §9.3's
+item 4 assumed the first metrics registered would be *"the ones `indicator-condition` actually
+names."* Measured 2026-09-12 against the shipped code, **that set is empty**:
+
+```
+legacy addresses  indicator_alert_evaluator.all_addresses()    31
+book metrics      api/data/canonical_address_book.json        142
+INTERSECTION                                                     0
+CONTROL           legacy against one known legacy address        1   <- the operator works
+```
+
+The two lanes do not disagree about a metric; they **share no vocabulary at all**. Legacy speaks
+indicator (`adx.adx`, `bb.upper`, `atr`), the book speaks screener-row (`adr_pct`,
+`above_50sma`, `atr_ext_sma50`) — near-misses, never matches. So today **every legacy-expressible
+predicate refuses**, and §9.3's honest cost — *"`indicator-condition` waits"* — is not a delay of
+one axis but of a whole vocabulary D2 has not yet been asked to carry. The zero is reported with
+its control because an empty intersection is exactly where a broken instrument reads as a finding.
+
 ---
 
 ## 10. Migration posture — additive, never a rewrite of live readers

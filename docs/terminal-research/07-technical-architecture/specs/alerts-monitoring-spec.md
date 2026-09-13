@@ -383,11 +383,11 @@ call sites):
 | Type | `params` shape | Source of the shape |
 |---|---|---|
 | `price-level` | `{direction: "above"|"below", target_price: float, basis: "last"|"close"}` | `watchlist_alerts` columns (`api/services/auth_db.py:599-613`) |
-| `indicator-condition` | `{indicator: str, condition: "above"|"below"|"cross_above"|"cross_below"|"cross_zero"|"touch_upper"|"touch_lower", threshold: float, tf: str}` | `indicator_alerts` columns (`indicator_alert_service.py:87-100`) |
+| `indicator-condition` | `{address: str, condition: …, threshold: float}` — the timeframe rides INSIDE the address | ⚰️ **CORRECTED 2026-09-12 (GATE-S7-INDICATOR-CONDITION CP1, merged `ccbab9bcd`).** This cell carried a bare `{indicator, condition, threshold, tf}` mirroring `indicator_alerts` columns. It predates D2: a predicate now carries a **canonical ADDRESS**, and an address that the book does not declare is **refused at registration** with `REFUSAL_ADDRESS_UNRESOLVED` rather than silently accepted. ⛔⛔ **AND THE MEASURED CONSEQUENCE IS THAT NO LEGACY PREDICATE IS EXPRESSIBLE TODAY (F-S7-IC-1):** `indicator_alert_evaluator.all_addresses()` declares **31** addresses, the canonical book declares **142** metrics, and the **intersection is EMPTY** — reported with its control (intersecting the legacy set against one known legacy address returns 1, so the operator works and the zero is a finding, not a broken instrument). The lanes share no vocabulary: legacy speaks indicator (`adx.adx`, `bb.upper`, `atr`), the book speaks screener-row (`adr_pct`, `above_50sma`, `atr_ext_sma50`). See §5.2.1 and PRD-D2 §9.4. |
 | `scan-membership-change` | `{definition_id: str, direction: "entered"\|"left"\|"either"}` | ⚰️ **CORRECTED 2026-09-13 (GATE-S7-SCAN-MEMBERSHIP-CHANGE §1c, CP1).** This cell read *"new — thin wrapper over `scan_evaluator`'s `definition_evaluations` (§3)"* and named the WRONG ARTIFACT IN THE WRONG DATABASE. `definition_evaluations` is real — `api/services/definition_record.py:110` declares it `TABLE_NAME` and `definition_record.db_path()` resolves to `ledger._DB_PATH`, the Signature ledger `signal_ledger.db`, holding per-definition coverage receipts on a 540-day retention. The screener's hit sets are **`scan_hits` and `scan_coverage` in `screener.db`**, and the shipped diff reads those: **`api/services/screener/screen_alerts.py::diff_for` (`:141-154`)**, via `scan_store.recent_covered_as_ofs(def_hash, tf, limit=2)` and `scan_store.hits`. It is also **not "new"** — see the correction two tables up. ⭐ The `params` shape itself was and is CORRECT: `{definition_id, direction}` is exactly what `screen_alert_subs` stores as `(def_hash, mode)`, with `mode`'s `("entry","exit","both")` mapping onto `direction`'s `("entered","left","either")`. ⛔ And the previous session comes from **`scan_coverage`, never `scan_hits`**: a swept session that matched nothing writes a coverage row and zero hits rows, so a hits-derived previous session skips every quiet night and reports every long-standing member as newly ENTERED. |
 | `document-arrival` | `{form_type: str | None, keyword: str | None}` | union of `sec_filings.py`'s form-type filter and `transcript_keyword_alerts.py`'s keyword param |
 | `event-proximity` | `{window_days: int, event_kind: "earnings"|"econ"}` | `calendar_alerts.py`'s My-Stocks × reporters intersection, generalized with a window |
-| `regime-change` | `{}` (no params — the predicate is "the label changed since last cycle," global) | `awareness/rules.py:108-143` (`rule_regime_flip`) |
+| `regime-change` | `{labels: [str], min_confidence: float, stake: "positions"\|"watchlist"\|"either"\|"any", prior_label_source: "ledger"\|"session_summary", channels: FIXED `["in_app"]`, entity_ref: FIXED `null`}` | ⚰️ **CORRECTED 2026-09-12 (GATE-S7-REGIME-CHANGE CP1, merged `0392c78bf`).** This cell read **`{}` (no params — the predicate is "the label changed since last cycle," global)** and named ONE legacy source. Both halves are false. **(a) There are THREE emitters, not one.** `awareness/rules.py `rule_regime_flip` diffs the durable `awareness_regime_snapshots` ledger; `voice_proactive_service.py::maybe_emit_regime_shift` diffs the **TEXT of the member's last voice-session summary** by substring, with a hard-coded importance 8 and **no stake test at all**; and `alerts.py:502 alert_regime_change` emits a CRITICAL `regime_change` alert that `add_alert` forwards to Discord (**F-S7-RC-4** — one character from this trigger type's name, in the module that owns the S7 feed bridge; **excluded by name, not absorbed**). **(b) The params are not empty**, and `stake` is where the two absorbed emitters visibly disagree: `either` is path A's position-or-watchlist test, `any` is path B's absence of one. ⛔ `channels` and `entity_ref` are **FIXED VALUES, derived into `PARAMS_SCHEMA`**, because away-delivery is unreachable **by construction** — `awareness/engine.py:241` gates on importance clearing the floor of 8 **and** `candidate.symbol`, and `rule_regime_flip` returns `symbol=None`. In-app-only is therefore an ACCIDENT of that conjunct, not a rule, and widening either field edits the row `alert_trigger_registry` persists. |
 | `position-risk` | `{severity: "stop_hit"|"stop_proximity"|"aggregate_heat", threshold_pct: float | None}` | `awareness/rules.py:59-105` + `portfolio_heat.py` |
 | `catalyst-match` | `{list_ref: dict}` (which list to intersect against the day's top-20) | `catalyst/engine.py`'s `_fire_catalyst_alerts` |
 
@@ -396,6 +396,34 @@ requirement):** `entity_scope` resolution failure or a `params` value that fails
 is rejected synchronously with a named reason — never silently accepted. Interim (§8): resolution
 is a symbol-string lookup against `cap_universe.json` (the same universe gate `ticker_search.py`
 already uses), not S3, until S3 exists.
+
+#### 5.2.1 ⛔⛔ CADENCE IS A PROPERTY OF THE **(metric, timeframe) PAIR**, not of the metric
+
+Recorded 2026-09-12 as GATE-S7-INDICATOR-CONDITION CP1 item 6 (its §4.3), at the point of use. The
+companion half is **PRD-D2 §9.4**; this is the alert-layer statement of the same fact.
+
+For `screener_rows` a metric has one refresh rhythm and a single `cadence` field describes it. For
+`bars_sqlite` it does not: **`ohlcv.c` on `D` and `ohlcv.c` on `5` are the same column with
+different cadences.** A predicate therefore cannot be validated against a metric's cadence alone —
+`cadence_ceiling` needs the pair.
+
+⛔ **So the alert layer REFUSES rather than defaults.** Inventing `"intraday"` for `ohlcv.c` at
+this layer would be a **second authority over cadence**, which is the one thing D2 exists to
+prevent — PRD-D2 §9.2's ad-hoc-key defect, committed prospectively by the system built to end it.
+⭐ A refusal is repairable and names a reason; a default produces a silently wrong alert nobody
+will ever look for. Refusal is also the only branch that preserves the CoverageLine distinction the
+book was built around: *"we could not compute it"* is a third answer beside yes and no.
+
+⛔ **THE OBVIOUS FIX IS BLOCKED AND THE BLOCK IS MEASURED.** Declaring the bars cadence per
+timeframe means editing `bars_fetch.py` / `bars_sqlite.py`, which are **inside flow-worker's import
+closure and outside its watch list** — GATE-D2 §CP2.4 already refused it for that reason, because
+flow-worker would run a stale copy of the new declaration. It is a follow-up **D2 owes**, not
+something S7 may work around.
+
+⚠️ The timeframe vocabulary is already copied at least three times — seven places in
+`api/services/bars_fetch.py`, the alert lane's own `_CALENDAR_TFS` + `_TF_MINUTES`, and
+`_LEDGER_TIMEFRAME` (`indicator_alert_evaluator.py:1692-1695`), the ad-hoc copy PRD-D2 §9.2 indicts
+as *written with a comment explaining why it is dangerous, and not sunset.*
 
 ### 5.3 The fire receipt (generalizes `alert_fired_log.py`, §3)
 

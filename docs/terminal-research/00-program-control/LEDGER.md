@@ -609,6 +609,185 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 2 — Sunday 2026-09-13. Weekend window.
 
+## ⛒ END OF DAY 2 — the marker decision, MEASURED
+
+**NO MARKER BUMP. Zero files stranded, across all six of the day's merges.**
+
+The owner's instruction was *"one marker bump only if any merge stranded — measured, not assumed."*
+Measured two independent ways, both against `origin/master`:
+
+1. `tools/flow_worker_watch_coverage.py` returned a bare **`[watch-coverage] OK`** before each of
+   the four S7 merges (`reachable=154 watched=24 changed=5` each time), and OK is defined as *zero
+   stranded files*.
+2. Cross-checked by hand at end of day: of the **19 files** this programme merged in
+   `94209e962..origin/master`, **NONE** appears in `reachable_paths(root)`'s 154-module set.
+
+⭐ **This is the fourth consecutive gate cycle with no bump, and that is a property of WHAT was
+built, not luck.** Everything merged today lives under `api/services/alert_taxonomy/`,
+`app/src/lib/context/` and `tests/` — none of which flow-worker imports. A bump drops the Massive
+OPRA socket and **Massive does not replay**, so a gap it opens is permanent until the T+1 flat
+file. Not bumping is the whole point of measuring.
+
+### The day's ledger, in one place
+
+| item | merge | note |
+|---|---|---|
+| H14 placeholder-stop unification | `94209e962` | found a **fifth** detector and a live mislabelled AMD row |
+| S4 CP1 divergence detector | `76c62c494` | an ADOPTION gap, not a capability gap |
+| S7 `position-risk` CP1–CP2 | `2b0547949` | legacy rule DRIVEN, not mirrored |
+| S7 `scan-membership-change` CP1–CP2 | `0c6caf25b` | absorbs a path that is complete, wired and LIVE |
+| S7 `regime-change` CP1–CP2 | `0392c78bf` | in-app-only is a structural ACCIDENT; a third emitter found |
+| S7 `indicator-condition` CP1–CP2 | `ccbab9bcd` | every legacy predicate refuses today (F-S7-IC-1) |
+
+⚠️ **NOT DONE, and named rather than left to be noticed:** the **D2 CP3 sample count** the owner
+asked for at end of day. The in-pod read was refused by the session's tool sandbox as a production
+read. The last MEASURED value is **0**, taken in-pod earlier today — but that predates the day's
+six merges and the other workstreams' pushes, and an end-of-day count whose whole purpose is to
+span the day cannot be satisfied by a reading taken before it. Reported as a **gap, not carried
+forward** — see the roster's §5, which carries the structural argument that needs no pod (167
+commits landed on master today; every master push rebuilds web; the ledger is in-process).
+
+## S7 — FOUR TRIGGER TYPES, CP1+CP2, built in parallel and merged SERIALLY
+
+| # | type | merge | independent verification (mine, not the agent's) |
+|---|---|---|---|
+| 1 | `position-risk` | **`2b0547949`** | 136 passed · **2** mutations RED |
+| 2 | `scan-membership-change` | **`0c6caf25b`** | 108 passed · **1** RED (+1 false negative, mine) |
+| 3 | `regime-change` | **`0392c78bf`** | 138 passed · **3** mutations RED |
+| 4 | `indicator-condition` | **`ccbab9bcd`** | 158 passed · **2** mutations RED |
+
+All four packets were written EMPTY in ONE commit `6adb32f1e` and signed CP1-CP2 in ONE commit
+`dfc067b5f` — there is no per-packet gate SHA.
+
+⚰️ **THIS TABLE FIRST CARRIED FOUR PER-PACKET GATE SHAs** — `052d21475`, `b4280afaf`,
+`4b4c3549b`, `3460a279b` — and **not one of them is a valid git object**. They came out of my own
+working notes, not out of the repository, and they were caught only because every SHA written here
+is re-resolved against git before the commit. ⭐ **A plausible-looking SHA is the most
+convincing false citation there is**: it has the right shape, it sits in the right column, and
+nothing but `git cat-file` can tell you it is fiction. The four merge SHAs in the same table were
+re-verified the same way and are real (`git merge-base --is-ancestor` against `origin/master`).
+
+Every one: `[watch-coverage] OK`, **0 files in flow-worker's closure**, no marker bump. Every
+mutation restored by EDIT and the restore proved by an empty `git diff` before the commit.
+
+⛔ **THEY ALL EDIT ONE LINE, WHICH IS WHY THEY COULD NOT BE MERGED IN PARALLEL.**
+`tests/test_alert_taxonomy_filing_watch_parity.py`'s `_EXPECTED` is the serializer: four branches
+each cut from `94209e962` each added one name to the same set. Every merge conflicted there and was
+resolved by **adding a name, never by taking a side**. `_EXPECTED` is now seven.
+
+⭐ **AND THE CONTROL EARNED ITS KEEP FOUR TIMES.** Reverting `_EXPECTED` was run as a mutation
+before each of the four merges, and each time
+`test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package` failed **by name**.
+That is the assertion the docstring says to update by naming and never by deleting.
+
+---
+
+### 1. `position-risk` — `2b0547949`
+
+⭐ **THE LEGACY RULE IS DRIVEN, NOT MIRRORED.** `rule_stop_watch` is pure, so `legacy_would_fire`
+calls the real function; the three earlier types had to restate theirs because they mutate and
+deliver. What *is* mirrored is `stop_distance_pct`, railed against `rules._stop_distance_pct` over
+72 generated cases with a non-vacuity control.
+
+⭐ **H14 had already removed this type's blocker** — the packet's §2.3 asked for a placeholder
+ruling and quoted a line that no longer existed by build time.
+
+`not_comparable` carries **three** reasons counted separately: `unpriced`, `params_change`,
+`no_incumbent`. ⛔ A placeholder row is QUIET, not `unpriced`.
+⚠️ `aggregate_heat` is pinned and recorded **UNPOPULATED AND UNREACHABLE**.
+
+### 2. `scan-membership-change` — `0c6caf25b`
+
+⛔⛔ **AN ABSORPTION OF A PATH THAT IS COMPLETE, WIRED AND LIVE**, and SPEC-S7 said the opposite in
+three places. `screen_alerts.py`, job `screener_screen_alerts` at 05:10 ET, two tables, three
+`require_paid` endpoints, delivering in-app + email + Discord; both gates open on `web`.
+⭐ `screen_alerts_fired` is a **SEVENTH** alert-state table the six-table census does not carry.
+
+`scan_store.prune` has **zero callers** over 1,214 prose-stripped files (control: three real
+prune call sites elsewhere are still seen), so two sessions are retained **by the absence of a
+caller, not a policy** — shipped as a rail that goes red the day one appears.
+
+⛔ Finding B **demonstrated**: a three-session fixture with a quiet session in the middle produces
+the mass false alert against a real temp `screener.db`.
+
+⚰️ **MY OWN MUTATION GAVE A FALSE NEGATIVE AND I NEARLY BANKED IT.** I probed the retention rail
+with an arbitrary local receiver; green. Reading the rail showed it matches `scan_store.prune`
+specifically — correct, because the bare method name matches three unrelated sites in `main.py`.
+The faithful mutation goes RED. **A mutation that fails to go red is a claim about the mutation
+until the rail has been read.**
+
+SPEC-S7 corrected in **three** cells (`d9efa14af`), not the one the gate named — all three carried
+the same false attribution, and fixing one would have left two reading as corroboration.
+
+### 3. `regime-change` — `0392c78bf`
+
+⛔⛔ **"IN-APP ONLY" IS A STRUCTURAL ACCIDENT, NOT A RULE.** `awareness/engine.py:241` gates
+away-delivery on importance clearing the floor of 8 **and** `candidate.symbol` being set — and
+`rule_regime_flip` returns `symbol=None`. Away-delivery is unreachable **by construction**. The
+schema therefore pins TWO fixed values, `channels ["in_app"]` and `entity_ref null`, both DERIVED
+into `PARAMS_SCHEMA` so widening either edits the row `alert_trigger_registry` persists.
+**I mutated both independently: 2 RED each.**
+
+⭐⭐ **A THIRD EMITTER NOBODY NAMED (F-S7-RC-4).** `alerts.py:502 alert_regime_change` calls
+`add_alert` with type `regime_change`, `_TYPE_SEVERITY` marks it CRITICAL, and `add_alert` fires
+the Discord webhook for CRITICAL — in the module that owns the S7 feed bridge, one character from
+this type's `regime-change`. **Not absorbed; excluded by name with a rail.** So *"regime alerts are
+in-app only"* is already false as a statement about the product.
+
+F-S7-RC-1 **CONFIRMED both halves**: the `dedup_key` built at `rules.py:161` is never read, and
+`add_insight`'s per-symbol cooldown sits inside a truthiness test on the symbol — so a market-wide
+insight has no cooldown at all. Proved by running the shipped code.
+F-S7-RC-3 (new): path B has **no ledger and therefore no suppression** — it re-queues the same
+unchanged flip every window scan until the shared 8/day cap. Proved: exactly 8 rows land.
+
+### 4. `indicator-condition` — `ccbab9bcd`
+
+⛔⛔ **F-S7-IC-1 — THE TWO LANES SHARE NO VOCABULARY. I MEASURED IT MYSELF RATHER THAN TAKE ∅ ON
+TRUST**, because an empty intersection is exactly where a broken instrument looks like a finding:
+
+```
+legacy addresses (indicator_alert_evaluator.all_addresses())   31
+book metrics     (canonical address_book)                     142
+INTERSECTION                                                    0
+CONTROL: legacy against one known legacy address                1   <- the operator works
+```
+
+The samples say why: legacy speaks **indicator** (`adx.adx`, `bb.upper`, `atr`), the book speaks
+**screener-row** (`adr_pct`, `above_50sma`, `atr_ext_sma50`). Near-misses, not matches. So at CP1
+**every legacy-expressible predicate refuses**, and the anchor is `REFUSAL_ADDRESS_UNRESOLVED` —
+not `REFUSAL_CADENCE_UNDECLARED`, because nothing about a cadence can be said until the address
+resolves and guessing one would invent a fact.
+
+Mutation: disabling the address gate went **RED across 6 tests**, including
+`test_every_legacy_address_refuses_today_and_the_anchor_is_the_ADDRESS_one` and
+`test_the_cadence_gate_COSTS_a_member_an_alert_and_it_is_called_legacy_only`.
+
+⛔ **CP1–CP2 discipline verified by AST, not grep, docstrings stripped**, because Dict values
+survive `ast.unparse` and a crude scan false-positived on schema *description strings* earlier in
+this chain. The only calls into legacy/fire modules are `alert_fired_log.fire_key`,
+`indicator_alert_service.refusal_for` and `indicator_alert_evaluator.eval_mode` — all pure reads.
+**No record_fire, no delivery, no receipts, no writes.**
+
+⛔ **STEP 2 IS A CP3 PRECONDITION FOR `regime-change`, RECORDED HERE RATHER THAN DISCOVERED THERE:**
+`_s7_durable_alerts` reconstructs from a fire and every existing shape is TICKER-BEARING. A regime
+flip is market-wide with `entity_ref = None`, so its branch will be the first **symbol-less** one.
+
+---
+
+⚠️ **MASTER MOVED UNDER THE FOURTH MERGE.** The glass/closure workstream pushed between my mutation
+run and my push, and the push was correctly rejected. Recovered by `git rebase origin/master` —
+⛔ **never `git reset --soft`**, which on a behind branch stages the INVERSE of the intervening
+commits (this program's own recorded near-miss). Parity + the control were **re-run on the new
+base** before merging, per the owner's instruction, and the regime-change merge was re-proved an
+ancestor of the moved master rather than assumed.
+
+⚠️ **A DATE CONVENTION IS DIVERGING AND IT IS THE OWNER'S TO SETTLE.** The provenance block inside
+the parity control dates the Day-2 rows **2026-09-13** (the owner's session framing), while every
+Day-2 commit git actually carries is dated **2026-09-12**. Day-1 rows agree with git. I did **not**
+unilaterally rewrite the two existing rows — session-day and commit-day are both defensible
+readings of that column — but a provenance table that disagrees with the commits it points at is
+precisely this repo's recurring defect class, so it needs one answer.
+
 ## S4 CP1 — MERGED `76c62c494`. Gate `8007ad097`.
 
 ⭐⭐ **S4 IS AN ADOPTION GAP, NOT A CAPABILITY GAP.** The bus was built in August and two files
