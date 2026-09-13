@@ -48,3 +48,34 @@ owner action, Phase 6.
   app's real tokens, fonts and ECharts; one critique pass applied (irregular ticks, colliding end labels, a heavy
   not-recorded area, a gold slider band, a record key naming absent states).
 - Decisions D-019 … D-023. Tab-switch samples added to discovery §4 as not quotable, with the Phase 4 A/B method.
+
+## Phase 3 — C1 honest states — MERGED (2026-09-13)
+
+- Plan [`docs/superpowers/plans/2026-09-13-breadth-charts-c1-honest-states.md`](../superpowers/plans/2026-09-13-breadth-charts-c1-honest-states.md);
+  decisions D-024 … D-027. Flag-free: every change corrects the tab members already use.
+- Commits: `27677f534` plan · `b2491da5f` Eastern session dates · `0f4e78bf2` load-error sentences · `be0f8ac9f` readout
+  basis, stale date, Stage labels · `32f480a77` tab wiring · gate records · `2b0b184cd` merge of origin/master (42 commits,
+  none touching a C1 file or dependency).
+- The fixes and the tests that hold them, each written first and seen failing:
+
+| Fix | Audit | Tests |
+|---|---|---|
+| A failed load says what failed — sign in, plan, server error, lost connection — never "No data in selected range" | A-01, A-38 | `BreadthCharts.loadError.test.jsx`, `chartLoadError.test.js`, the `jsonFetcher` rail (tab removed from its list) |
+| The recorded row is fetched when the close supersedes the live point, and on return to an overdue tab (via `utils/marketSession.expectedLatestDailySessionET`) | A-09 | `BreadthCharts.refresh.test.jsx` |
+| A reading older than its cadence shows "last Aug 7" | A-10 | `MetricReadout.test.jsx`, `chartMetrics.cadence.test.js` |
+| Eastern Time dates that follow the calendar; "sessions", not "days" | A-35, A-15 | `sessionDates.test.js`; the 9:30 PM ET and next-Monday cases in `BreadthCharts.refresh.test.jsx`; ET fixtures in both existing suites |
+| The percentile names its set ("75th of 4 shown"); Stage 2/4 "(MA Stack)" | A-12, A-34 | `MetricReadout.test.jsx`, `BreadthCharts.test.jsx`, `percentile.test.js`, `chartMetrics.cadence.test.js` |
+
+- Mutation proofs, control run first, bytes restored and tree clean after — 7/7 caught: inline fetcher restored · superseded
+  check dropped · had-a-live-row check dropped · revisit throttle dropped · retry policy dropped · window on the UTC date ·
+  weekly allowance dropped.
+- Gate ([`gates.md`](gates.md)): baseline `5091a81cf` 12 failing tests, all master's; C1 `32f480a77` 9 — **none new**. The
+  three that did not recur are load timeouts that pass alone on the C1 tree; the reachability, polling-sites and tap-floor
+  rails name the same files as the baseline.
+- Watch coverage OK (web restart only). Pushed to master with this entry; the web deploy is recorded in the next entry.
+
+> **What members will see.** When Data Charts can't load its history it now says why — an ended session, a plan
+> requirement, a server error or a lost connection — with the right button, instead of "No data in selected range." A
+> chart left open across the close picks up the day's row on its own. A reading that stopped arriving shows when it was
+> last reported, each percentile says how many readings it ranks against, the window counts sessions on Eastern Time,
+> and Stage 2/4 read "(MA Stack)" as they do on the Monitor.
