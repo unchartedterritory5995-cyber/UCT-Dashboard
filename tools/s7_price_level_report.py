@@ -215,6 +215,24 @@ SWEEPS = (
 )
 
 
+def declared_sweeps() -> tuple:
+    """THE sweep registry — the one `--ticking` iterates and the one the
+    self-check counts.
+
+    ⛔ ONE SOURCE, READ AT CALL TIME. `--ticking` and `--self-check` must never be
+    able to disagree about what is declared, and they cannot if neither carries a
+    second copy. Read at call time (not bound at import) so a test can register a
+    throwaway descriptor and watch the count follow — which is the control that
+    proves this is a derivation and not a restated literal.
+    """
+    return SWEEPS
+
+
+def declared_sweep_count() -> int:
+    """How many sweeps are declared. ⛔ DERIVED, never typed — F-S7-PL-3."""
+    return len(declared_sweeps())
+
+
 def _window(hours) -> tuple[bool, str]:
     """Is NOW inside this sweep's cron window? Returns the reason either way, so
     no caller restates a schedule and the copies cannot drift."""
@@ -478,15 +496,38 @@ def _self_check() -> int:
         if miss_code != 1 or "no heartbeat at all" not in miss_text:
             print("SELF-CHECK FAIL: a missing heartbeat inside the window was not a NO"); ok = False
 
-        # NON-VACUITY: every declared sweep must be answerable, so a typo in a
+        # NON-VACUITY: every declared sweep must be ANSWERABLE, so a typo in a
         # table name cannot hide as a permanent n/a.
-        if len(SWEEPS) != 6:
-            print("SELF-CHECK FAIL: expected six declared sweeps, found %d" % len(SWEEPS))
+        #
+        # ⚰️ THIS READ `if len(SWEEPS) != 6` AND WENT RED THE DAY A SEVENTH SWEEP
+        # WAS DECLARED (F-S7-PL-3). A hand-typed count inside the instrument's own
+        # self-test is the same defect the gate check carried, and it is worse
+        # here: `--ticking` was CORRECT the whole time, so the only thing broken
+        # was the check that tells you the tool is broken.
+        #
+        # ⭐ THE COUNT IS NOW DERIVED FROM `declared_sweeps()` — the same registry
+        # `--ticking` itself iterates — so the self-check cannot disagree with the
+        # tool it checks. The count alone would be vacuous (`len == len`), so what
+        # is actually asserted is that EVERY declared descriptor is answerable:
+        # each one must render, name its own label, and return a real exit code.
+        unanswerable = []
+        for spec in declared_sweeps():
+            try:
+                text, code = ticking_one(hb, spec)
+            except Exception as exc:                          # noqa: BLE001
+                unanswerable.append("%s raised %s" % (spec[0], type(exc).__name__))
+                continue
+            if spec[1] not in text or code not in (0, 1):
+                unanswerable.append("%s did not name itself or gave code %r"
+                                    % (spec[0], code))
+        if unanswerable:
+            print("SELF-CHECK FAIL: declared sweeps that cannot answer: %s" % unanswerable)
             ok = False
 
-    print("self-check: %s" % ("PASS - the report distinguishes no-data from agreement, "
-                              "and the six staleness bounds discriminate"
-                              if ok else "FAIL"))
+    print("self-check: %s" % (
+        "PASS - the report distinguishes no-data from agreement, and all %d "
+        "declared sweeps answer with their own staleness bound" % declared_sweep_count()
+        if ok else "FAIL"))
     return 0 if ok else 1
 
 
