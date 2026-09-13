@@ -624,6 +624,104 @@ are measurements.**
 
 # ⛒ DAY 2 — Sunday 2026-09-13. Weekend window.
 
+## ⛒ END OF DAY 2 — three answers the owner asked for
+
+### (e) A-SERIES: THE BUCKET DID NOT MOVE. **BUILDABLE 0 of 8**, unchanged.
+
+Re-checked against today's merges rather than re-read from yesterday's sort. One line each:
+
+| system | waiting on | did today move it? |
+|---|---|---|
+| **A1** Markets | **D2** — no quote field is addressable (the book is `screener_rows` + `ohlcv`); secondarily D3/D4 as systems | no |
+| **A2** Charts | **S1 + S2**, both PROVISIONAL-SHIPPED ahead of **OI-06**; also S4, S5 | no — owner-bound |
+| **A9** Screening | S7 **`scan-membership-change`** | ⚠️ **the dependency landed (`0c6caf25b`) and A9 still does not unblock** — CP1–CP2 registers and compares and **fires nothing**. A9 needs that type's **CP3** |
+| **A10** Options & Flow | **D3 + D4** as platform systems, plus D2 for any flow metric | no |
+| **A11** Breadth & Regime | (i) the **one-regime-authority ruling**, (ii) S7 `regime-change`, (iii) **D2 coverage** — `pct_above_50sma` is absent from the book | ⚠️ **one of three** — `regime-change` merged (`0392c78bf`), also CP1–CP2. (i) and (iii) stand |
+| **A12** Watchlists | **S5** (no typed store for the list document) + **S6** (column presets); S2's `#watchlist` grammar owner-bound | no |
+| **A13** Journal | **D2** (it addresses zero journal state) + **S5**, plus S7 `position-risk` | ⚠️ one of three — `position-risk` merged (`2b0547949`), CP1–CP2 |
+| **A14** Portfolio & Risk | **D8** (deferred in its own block) + **S9** | no — owner-bound twice over |
+
+⭐⭐ **THE PATTERN IS ONE FACT, AND IT IS THE USEFUL ONE: THREE A-SERIES ROWS ARE WAITING ON S7
+TYPES THAT NOW EXIST AND DO NOT FIRE.** CP1–CP2 was authorized and CP3 was not, so what landed
+today is registration plus a dark comparison harness. **A9, A11 and A13 each move on a CP3, and
+A9's is a single type** — one CP3 unblocks a whole application, which is the cheapest unblock on
+the board and is the owner's to authorize.
+
+⛔ **Nothing was built to fill the bucket.** Six rows are GATE-ONLY *because the surface already
+exists and works*; a CP1 over a live page is a second authority, which is the rewrite-proposal
+failure this programme rejects.
+
+---
+
+### (f) F-S7-RC-4 — the CRITICAL `regime_change` Discord emitter. **RECOMMENDATION: EXCLUDE PERMANENTLY.**
+
+**It is member-facing today, and traced rather than assumed.** `api/routers/push.py:196` calls
+`alert_regime_change` on every `/api/push` — the morning wire's own push — whenever the brain's
+phase differs from the previous `intraday_update`. That calls `add_alert("regime_change", …)`
+with **`user_id=None`, which `add_alert`'s own docstring defines as "broadcast to every member"**,
+and `_TYPE_SEVERITY["regime_change"] = SEVERITY_CRITICAL` puts it in `fires_discord`'s
+`(WARNING, CRITICAL)` set. So the audience is **every member's in-app AlertBell, plus one Discord
+post** to whatever `DISCORD_ALERT_WEBHOOK` names — a var distinct from the admin
+`DISCORD_WEBHOOK_URL` and from the public `DISCORD_TSDR_WEBHOOK_URL`; I did not read its value and
+do not assert which room it lands in.
+
+**Exclude, for three reasons that are about identity rather than tidiness.** (1) It is a
+**different event from a different authority** — the brain's market *phase* out of `wire_data`,
+not DEC-13's regime labels; absorbing it would put one S7 predicate over two vocabularies that
+disagree about what a regime is. (2) It is a **broadcast system notice**, not a per-member
+subscription — S7 predicates are things a member asked for, and folding a broadcast into that
+model either spams everyone or silently drops the notice for members who never subscribed.
+(3) Its **trigger is a wire push**, not a scan cycle, so it has no place in the awareness
+cadence. ⭐ The absorption case rests entirely on the name being one character away, and that is
+the weakest possible reason to merge two products.
+
+⚠️ **One defect found in passing, worth a separate line:** `_DISCORD_WEBHOOK` is captured at
+MODULE IMPORT (`alerts.py:64`), so setting or clearing `DISCORD_ALERT_WEBHOOK` reaches nothing
+until the process restarts — the F-S7-5 class. Not fixed here; recorded.
+
+---
+
+### (g) F-S7-IC-1 — translation table or migration? **NEITHER AS POSED. The book owes a NEW AXIS.**
+
+**Measured, because the choice turns on what the 31 addresses actually are:**
+
+```
+adx.adx  adx.minusDI  adx.plusDI  atr  bb  bb.lower  bb.middle  bb.upper  cci  close
+donchian.lower/middle/upper  ichimoku.chikou/kijun/spanA/spanB/tenkan
+macd  macd.histogram  macd.signal  mfi  obv  price_vs_ma  rsi
+sar.priceCrossedSar  sar.trendFlipped  stoch  stoch.d  vwap  williams_r
+```
+
+**Exactly ONE of the 31 is a rename: `close` ↔ the book's `ohlcv.c`. The other thirty are
+indicator OUTPUTS the book does not carry in any form.** ⚰️ My own automated probe reported
+**zero** renames — it compared the leaf `close` against the leaf `c` and could not see an
+abbreviation. The instrument reproduced its own blind spot; the 1-of-31 figure is by inspection.
+
+- ⛔ **A translation table maps one row.** It would be a second authority over naming, for a
+  single abbreviation, while thirty predicates still refuse — and it would read as progress.
+- ⛔ **"Migrating the legacy vocabulary" is not available either.** You cannot migrate `bb.upper`
+  into a screener column: it is **parameterised** (period, stddev) and **per-timeframe**, computed
+  on demand, not a stored value with an `as_of`. The book's 137 screener metrics are columns of a
+  nightly row. These are different kinds of thing, which is why the intersection is empty rather
+  than merely small.
+- ✅ **What D2 owes is an INDICATOR AXIS** — those thirty addresses declared as first-class
+  metrics, each carrying its parameters, and **cadence declared as a (metric, timeframe) pair**,
+  which is exactly PRD-D2 §9.4 / SPEC-S7 §5.2.1. Plus the one rename, recorded as a rename.
+
+**Size: the scoping set is 30, and it is bounded by the legacy lane rather than by ambition** —
+`indicator_alert_evaluator.all_addresses()` is the whole population and it does not grow on its
+own. ⛔ **It is NOT a small task, and the blocker is measured, not aesthetic:** declaring a bars
+cadence per timeframe means editing `bars_fetch.py` / `bars_sqlite.py`, which are **inside
+flow-worker's import closure and outside its watch list** — GATE-D2 §CP2.4 already refused it
+once for that reason, because flow-worker would run a stale copy of the new declaration.
+
+**What `indicator-condition` CP3 needs from it, precisely:** (1) those thirty declared with
+per-timeframe cadence, so `cadence_ceiling` can answer; (2) the `close` → `ohlcv.c` rename
+recorded so the one expressible predicate stops refusing; (3) the flow-worker closure problem
+resolved, since without it the declaration exists in the book and the worker computes against a
+stale copy. Until (1) and (3), CP3 would ship a projection over predicates that all refuse —
+**which is not a smaller CP3, it is a CP3 with nothing in it.**
+
 ## ⛒ END OF DAY 2 — the marker decision, MEASURED
 
 **NO MARKER BUMP. Zero files stranded, across all six of the day's merges.**
