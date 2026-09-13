@@ -94,6 +94,10 @@ def _functions_that_reach_the_client() -> set[str]:
 
 _EXERCISED = {
     "put_immutable": lambda: r2.put_immutable("wisdom/probe/x.txt", b"x", "text/plain"),
+    # ⛔ NON-EMPTY on purpose: put_verified refuses an empty payload BEFORE it builds a
+    # client, so probing it with b"" would raise R2VerificationFailed and the isolation
+    # assertion would pass for the wrong reason.
+    "put_verified": lambda: r2.put_verified("wisdom/probe/x.txt", b"x", "text/plain"),
     "get": lambda: r2.get("wisdom/probe/x.txt"),
     # list_prefix is a generator: the body runs only when it is consumed.
     "list_prefix": lambda: list(r2.list_prefix("wisdom/probe/")),
