@@ -1476,6 +1476,145 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
+## Joystick hub — the one section to read before touching it
+
+> **What it is.** A glass thumb-joystick pinned to the bottom corner on phones and tablets. Drag
+> opens a fan of that page's actions; tap/double-tap/scrub drive the page's own list. It is
+> **mobile-only by construction** — `app/src/hub/useHubActive.js:84` requires
+> `(max-width: 1023px) and (pointer: coarse)`, and there is no mouse or keyboard path to build.
+> Mounted once from `Layout.jsx`; `App.jsx` gates `<GlobalVoiceGate/>` on the same
+> `hub/useHubActive.js` so the hub owns the corner rather than overlapping the voice orb.
+
+⛔ **The programme is CLOSED.** Everything remaining is one owner device session —
+`docs/plans/joystick/owner-run.md`, §A–§E. Do not start new hub work against the plan files; start
+here, then read `closure.md`.
+
+### The registry is the single authority
+
+**`app/src/hub/registry.js`.** Every mode and every action is data in that one file; adding a
+section is a data change, not a component. Use `defineMode()` (`:84`) — it runs `validateRegistry`,
+which is what keeps the fan well-formed.
+
+An action declares:
+
+| field | meaning |
+|---|---|
+| `id` | `'<mode>.<action>'`, unique across the whole registry (`registry.js:23`) |
+| `kind` | `'run'` · `'confirm'` · `'navigate'` · `'home'` |
+| `ring` | `0` = outer (Actions, max **5**), `1` = inner (Tools, max **4**) — `OUTER_MAX`/`INNER_MAX`, `registry.js:64-65` |
+| `confirmText` | `(ctx) => string`. **REQUIRED** when `kind === 'confirm'` (`registry.js:32`) |
+| `requires` | one of `HUB_REQUIREMENTS` (`registry.js:68`); an unmet requirement renders the bubble **disabled with a reason, never hidden** |
+| `flickable` | default `true`. `false` = deliberate selection only; a sub-`FLICK_MS` flick opens the fan instead of firing |
+| `escalate` | `warn()` haptic instead of `impact()`. Required on `confirm` |
+
+⛔ **`tier` is rejected outright** (`registry.js:994`) — there are no membership tiers (D-23).
+⭐ **Only `journal.close` is `flickable: false`**, and the reason its neighbours are not is written
+beside the declaration (D-45): they are sheet-mediated, so the sheet is the guard.
+
+A mode declares `route`, `label`, `tapHint`, `color`, `fan`, and optionally
+`cursor: { listId }` — the shared cursor a section registers through `useHubCursor`.
+
+### Controllers and the contract
+
+Section controllers live in `app/src/hub/sections/*.js`, one per mode. A controller returns a
+config object whose callbacks are `onTap` · `onDoubleTap` · `onScrub` · `onScrubCommit` · `readout`.
+
+⛔ **`app/src/hub/contracts.js` is the contract, and `hub/contractArity.test.js` is the rail.** It
+reads the argument list from the file that actually CALLS each callback (`HubRoot.jsx`,
+`useJoystick.js`) and fails if the typedef or a test harness disagrees. `onScrub(ctx, scrub)` —
+context first. A validator cannot catch arity (a wrong-arity function is still a function), which
+is why that rail exists.
+
+⛔ `validateSectionConfig` refuses an `onScrub` without a `readout()`: a scrub the chip cannot
+narrate is invisible.
+
+### Gestures and tuning
+
+**Every number lives in `app/src/hub/constants.js`. Point at it; never restate it here** — a
+hand-typed constant beside its source is the drift this feature has paid for repeatedly (D-44).
+
+`TRAVEL_PX` (`:10`) · `OPEN_AT_PX` (`:20`) · `RING_SPLIT` (`:34`) · `REACH_PX` (`:71`) ·
+`HOLD_MS` (`:88`) · `DOUBLE_TAP_MS` · `FLICK_MS`.
+
+The vocabulary: tap = Primary · double-tap = Reverse · hold 0.5s = Home · **hold then drag = Scrub**
+· soft drag = inner fan · hard drag = outer fan · drag past `REACH_PX` = reach mode · flick under
+`FLICK_MS` = fire without opening.
+
+⛔ **A drag WITHOUT the hold is a fan push, not a scrub** (`useJoystick.js:408`). It resolves by
+DIRECTION and fires that bubble. This has been mistaken for a broken scrub on a real device.
+
+⚰️ **Two-finger tap is REMOVED** (`ccd661051`, rail `hub/peekRemoved.test.jsx`): screen readers
+consume it, and two pointers fails WCAG 2.5.1. **The Actions button is the no-drag door.**
+
+### Exposure — the highest-leverage edit in the feature
+
+`PREVIEW_MODES` (`registry.js:720`) decides which modes are still a teaser. **Deleting one id from
+that Set is one line and can expose nineteen already-declared actions to members.**
+`ROLLOUT_STAGE` (`hub/rolloutStage.js:23`) is the stage gate.
+
+⛔ Any change to either **must arrive with regenerated artifacts in the same commit**:
+
+```
+node tools/hub_surface_matrix.mjs          > docs/plans/joystick/surface-matrix.md   (below its GENERATED marker)
+node tools/hub_surface_matrix.mjs --glass  > docs/plans/joystick/glass-acceptance-steps.md
+node tools/hub_surface_matrix.mjs --self-check
+```
+
+`hub/surfaceMatrixIsCurrent.test.js` byte-compares both and fails otherwise. The generator reads
+bindings from an **acorn parse tree** and expectations from the controller + spec §C3 — it was
+regex-based twice and wrong twice (D-42, D-44).
+
+### The rails, and what each is for
+
+| rail | catches |
+|---|---|
+| `hub/surfaceMatrixIsCurrent.test.js` | a registry/exposure change shipped without regenerating the docs |
+| `hub/contractArity.test.js` | a callback's shape drifting from its call site |
+| `hub/writePaths.test.js` | a new endpoint the hub can write, undeclared |
+| `hub/rule12Paths.test.js` | this branch editing `app/src/pages/journal-2-0/**` (⚠️ has **no branch identity check** — known-open B7) |
+| `hub/knobFocusReturn.test.jsx` | focus not returning to the knob when a sheet closes (D-46) |
+| `hub/peekRemoved.test.jsx` | the two-finger gesture coming back |
+| `hub/analyticsMarker.test.js` | the single `TODO(hub-analytics)` marker going missing or multiplying |
+| `styles/themeIslands.test.js` | a `--hub-*` token added without pinning it in every theme island |
+| `styles/tapFloor.test.js` | a sub-44px touch target |
+| `components/screener/reachable.test.js` | a hub module built and wired to nothing |
+| `scripts/gate_shards.py` | the six-shard gate; refuses a dirty tree, records the tree hash at both ends |
+
+### Flags, rollback, devices
+
+- **`HUB_PREVIEW_ENABLED`** — kill switch on `web`. **Unset or `true` = ON**; `false` hides the hub
+  for everyone on their next authenticated request, **no redeploy**. Read per request in
+  `api/routers/auth.py::_access_payload`; rail `tests/test_hub_preview_flag.py`.
+- **Rollback runbook:** `docs/plans/joystick/rollback-runbook.md`.
+- **Devices: BrowserStack LIVE only.** Automate is not on this account, so there is no scripted
+  device path — a human or an agent drives a screen mirror. ⛔ A Live mirror **cannot measure a
+  sub-300 ms gesture** (measured floor 260–427 ms per gesture) and **cannot hold a press**, so
+  flick, double-tap and scrub rows are INCONCLUSIVE-TRANSPORT there by construction.
+- **Signing a device in:** `python tools/smoke_login_link.py` mints a 2-minute, single-use link for
+  `smoke@uctintelligence.internal`; the token rides in the URL **fragment** and is scrubbed from the
+  address bar. Never type a password into a mirrored phone.
+
+### Where the records are
+
+- **Ledgers:** `docs/plans/joystick/deferred.md` (D-numbers) and `requests.md` (R-numbers).
+- **Scope vs reality:** `docs/plans/joystick/scope-reconciliation.md` — 81 rows, every promise mapped.
+- **Closure:** `closure.md`. **Owner's remaining run:** `owner-run.md`.
+
+### Known gaps (open D-numbers)
+
+| # | gap | owner |
+|---|---|---|
+| **D-38** | toast duration — accepted as-is | joystick |
+| **D-39** | chip vs page furniture — cosmetic, non-blocking | joystick |
+| **D-40** | Notebook phone list exposes no per-note DOM id | **Notebook** (rule 12) |
+| **D-41** | two `iteratorGlobalFloor` corrections | **Notebook** (rule 12) |
+| **D-47** | per-mode action editor: count + reset shipped, reorder/remove deferred post-launch | joystick |
+
+⛔ And one live rail defect that is not the hub's: `reachable.test.js` reds on master for
+`app/src/lib/context/focusDivergence.js` — filed as **R-29** for the S4 workstream.
+
+---
+
 ## Active feature branches
 
 **None.** Both joystick branches are merged and closed:

@@ -1,6 +1,7 @@
 // HubKnob — the lifted, opaque knob that sits on the glass pad.
 // See docs/plans/joystick/00-master-spec-v1.4.md §5 (dot recolour) and §C2 (naming for the mode).
 
+import { forwardRef } from 'react'
 import styles from './hub.module.css'
 import { PAD_PX, KNOB_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX } from './constants'
 
@@ -32,7 +33,7 @@ import { PAD_PX, KNOB_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX } from './constants'
  * @param {boolean} [props.dragging] True while a drag is live — suppresses the spring-back transition.
  * @param {boolean} [props.mirrored] Left-handed mode — anchors to the left edge instead of the right.
  */
-export default function HubKnob({
+const HubKnob = forwardRef(function HubKnob({
   mode,
   modeColor,
   targetColor = null,
@@ -40,7 +41,7 @@ export default function HubKnob({
   pressing = false,
   dragging = false,
   mirrored = false,
-}) {
+}, ref) {
   const sideStyle = mirrored ? { left: `${EDGE_OFFSET_PX}px` } : { right: `${EDGE_OFFSET_PX}px` }
   const dotColor = targetColor || modeColor
 
@@ -55,8 +56,31 @@ export default function HubKnob({
       }}
     >
       <div
+        ref={ref}
         role="button"
-        aria-label={`${mode} mode`}
+        /**
+         * ⛔⛔ `tabIndex` IS WHAT MAKES `focus()` DO ANYTHING. **D-46.**
+         *
+         * Spec §C4:952 promises *"Any action that opens a sheet returns focus to the knob on
+         * close."* For the life of the feature that was false, and the reason was one attribute:
+         * a `<div role="button">` with no `tabIndex` is **not focusable**, so `el.focus()` is a
+         * silent no-op. The scope reconciliation found the missing focus CALL; the attribute was
+         * the half underneath it, and fixing only the call would have shipped a second no-op.
+         *
+         * ⭐ `-1`, NOT `0`, and that is deliberate. The hub is mobile-only by construction
+         * (`useHubActive.js:84` requires `pointer: coarse`) and §C2 states there is no keyboard in
+         * this build, so adding the knob to a tab order nobody traverses would be noise. `-1`
+         * makes it programmatically focusable while leaving the screen-reader swipe sweep — which
+         * reaches `role="button"` regardless of `tabIndex` — exactly as it was.
+         */
+        tabIndex={-1}
+        /**
+         * ⭐ "Joystick, Scan" rather than "Scan mode" — owner ruling with D-46. §C2 requires the
+         * knob be "named for the current mode" and this still is; what it adds is the product
+         * noun, so a member who lands here from a closing sheet is told WHAT they have landed on
+         * and not only which mode it is in. The old name read as a heading for the page.
+         */
+        aria-label={`Joystick, ${mode}`}
         className={`${styles.knobFace} ${dragging ? styles.knobDragging : ''}`.trim()}
         style={{
           width: KNOB_PX,
@@ -71,4 +95,6 @@ export default function HubKnob({
       </div>
     </div>
   )
-}
+})
+
+export default HubKnob

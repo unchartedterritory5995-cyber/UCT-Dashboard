@@ -88,6 +88,36 @@ function HubShell({ setToastMsg }) {
   // The pending `confirm` action's sheet payload, or null. See runAction below (R-09).
   const [confirmPayload, setConfirmPayload] = useState(null)
 
+  /**
+   * ⛔⛔ FOCUS THE KNOB *BEFORE* A SHEET OPENS — D-46, and the mechanism is the point.
+   *
+   * Spec §C4:952: *"Any action that opens a sheet returns focus to the knob on close."* That was
+   * false for the life of the feature. `components/mobile/Sheet.jsx:81` already captures
+   * `document.activeElement` when it opens and restores it at `:126`; what was missing was anyone
+   * putting the knob INTO `activeElement` first. On the gesture path nothing is focused, so the
+   * captured element was `<body>` and a closing sheet dropped a screen-reader user at the top of
+   * the document.
+   *
+   * ⭐ SO THIS SETS THE ELEMENT RATHER THAN CHASING THE CLOSE. A post-close `focus()` would need a
+   * hook in all four sheets and a rule for who wins when two close together; pre-focusing needs
+   * one line here and **no change to `Sheet.jsx` at all**, which keeps one authority over focus
+   * restore instead of two. All four sheets the hub can open — `HubConfirmSheet`,
+   * `HubActionsButton`'s, `StopConfirmSheet` and `PlanTradeSheet` — mount that same component
+   * (verified), so one call covers every path including the two the Journal page mounts.
+   *
+   * ⚠️ A `navigate` action moves the route and the hub persists across it, so the restore lands on
+   * the knob of the page you arrived at. That is the honest outcome of this mechanism and it is
+   * railed; if the owner wants navigation to leave focus alone instead, that is a suppression flag
+   * in `Sheet.jsx` and a different ruling.
+   */
+  const knobRef = useRef(null)
+  const focusKnob = useCallback(() => {
+    // Guarded, never assumed: in jsdom the node exists but `focus` is the only thing we need, and
+    // an unmounted knob (hub hidden mid-gesture) must not throw inside an action dispatch.
+    knobRef.current?.focus?.()
+  }, [])
+
+
   const mirrored = settings.handedness === 'left'
   // ⛔ THE PREVIEW PROJECTION, not `mode.fan`. Phase 2.5 ships navigation-only plus Voice, so
   // an unwired action is ABSENT rather than present-and-inert — no "Phase 3" toast on a
@@ -179,6 +209,12 @@ function HubShell({ setToastMsg }) {
       })
       return
     }
+
+    // D-46 — put the knob into `document.activeElement` so `Sheet.jsx`'s existing
+    // restore returns focus there when whatever this action opens closes again. It runs
+    // for EVERY kind, not just `confirm`: a `run` action can open a page-mounted hub sheet
+    // (`StopConfirmSheet`, `PlanTradeSheet`) and those need the same treatment.
+    focusKnob()
 
     if (action.kind === 'confirm') {
       // ⛔ A `confirm` action NEVER writes on the gesture. It opens the sheet, and the sheet's
@@ -523,6 +559,7 @@ function HubShell({ setToastMsg }) {
       />
       <HubPad ref={padRef} {...handlers} mirrored={mirrored} />
       <HubKnob
+        ref={knobRef}
         mode={activeModeConfig?.label}
         modeColor={activeModeConfig?.color}
         targetColor={targetColor}
@@ -568,6 +605,7 @@ function HubShell({ setToastMsg }) {
           so navigating there keeps the capability whole without reaching into that
           component's internals. Phase 4 can restore the richer in-place form. */}
       <HubActionsButton
+        onBeforeOpen={focusKnob}
         onHide={hideHub}
         mode={activeModeConfig?.label}
         config={activeModeConfig}
