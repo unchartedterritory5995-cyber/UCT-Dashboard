@@ -453,3 +453,19 @@ further through `alert_taxonomy.document_arrival`.
 
 ⛔ Each of these is one read-only query or one `railway variables --kv` away, and **none of them was
 performed**. A CP2 approval that assumes any of them is assuming.
+
+## ⛔ APPROVAL — CHECKPOINT 3 (a NEW line; the CP1-CP2 block above is untouched)
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  ec2b197f8
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3. Read-only PROJECTION of
+                  real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF. Arming is
+                  the owner's flip, after the price-level dark read.
+```

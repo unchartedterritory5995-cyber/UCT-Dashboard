@@ -13,10 +13,16 @@ pairs_with: SPEC-D3-REALTIME-STREAMING
 ## ⛔ APPROVAL
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  00ebb5e80
+SCOPE APPROVED:   CP1 - RATIFICATION ONLY, MADE CHECKABLE. A rail
+                  that pins the one-connection-per-key invariant and the
+                  topology exactly as documented. NO RUNTIME CHANGE: no new
+                  socket, no new subscriber, no change to any existing stream.
+                  If the rail and the documentation disagree, the DOCUMENT is
+                  what gets corrected - the rail reports what is, and a rail
+                  written to match a stale doc is worse than no rail.
 ```
 
 > **NOTHING IN THIS PACKET IS AUTHORIZED.**

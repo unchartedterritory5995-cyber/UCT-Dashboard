@@ -364,3 +364,19 @@ the cohort. Those are product calls; this is a keying defect.
 5. **The cadence.** The catalyst engine refreshes every 5 minutes pre-market and every 30 midday,
    and the dedup is per DAY — so a per-minute sweep would re-ask a question whose answer cannot
    change until tomorrow, which is the same call `event-proximity` CP3 made.
+
+## ⛔ APPROVAL — CHECKPOINT 3 (a NEW line; the CP1-CP2 block above is untouched)
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  3ee80dc13
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3. Read-only PROJECTION of
+                  real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF. Arming is
+                  the owner's flip, after the price-level dark read.
+```

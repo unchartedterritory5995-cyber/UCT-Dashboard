@@ -13,10 +13,16 @@ pairs_with: SPEC-D4-CACHING-AND-SERVING
 ## ⛔ APPROVAL
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  37bfe4251
+SCOPE APPROVED:   CP1 - THE FIRST TWO OF THE FIVE NAMED ADOPTERS,
+                  additive, with a hit-rate counter. Snapshot-identity on the
+                  SERVED VALUES: the two adopters must return byte-identical
+                  results before and after. Name which two and why. The counter
+                  is observability, never a gate on serving; a cache that can
+                  refuse to serve because its counter is unhappy is a new
+                  failure mode.
 ```
 
 > ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** The block above is empty and that is its

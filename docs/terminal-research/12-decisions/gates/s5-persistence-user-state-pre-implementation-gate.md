@@ -13,10 +13,17 @@ pairs_with: SPEC-S5-PERSISTENCE-USER-STATE
 ## ⛔ APPROVAL
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  37e1823a6
+SCOPE APPROVED:   CP1 - EXTRACT THE NOTEBOOK OFFLINE PATTERN as a
+                  reusable module, with the Notebook as its first and UNCHANGED
+                  consumer. Snapshot-identity on the Notebook's behaviour -
+                  every existing Notebook test passes untouched, and the
+                  offline/outbox/leader-election semantics are byte-identical.
+                  NO SECOND ADOPTER in CP1: one consumer proves the extraction,
+                  two would let the module drift toward whichever adopter was
+                  written second.
 ```
 
 > ## ⛔⛔ NOTHING IN THIS PACKET IS AUTHORIZED.

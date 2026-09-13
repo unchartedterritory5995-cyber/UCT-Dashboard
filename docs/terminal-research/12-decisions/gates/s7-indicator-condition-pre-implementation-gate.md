@@ -552,3 +552,23 @@ paragraph.
    rather than raising (`address_book.py:59-87`).
 
 ⛔ Each is one read-only query or one authenticated GET away, and **none was performed.**
+
+## ⛔ APPROVAL — CHECKPOINT 3 (a NEW line; the CP1-CP2 block above is untouched)
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  148af5293
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3. Read-only PROJECTION of
+                  real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF. Arming is
+                  the owner's flip, after the price-level dark read.
+
+                  ⛔⛔ BLOCKED-ON-DEPENDENCY: this line is void unless D2 
+                  §9.5 CP1 has merged first. If it has not, indicator-condition
+                  CP3 is NOT authorized and the blocker is that dependency.
+```

@@ -413,3 +413,19 @@ marker bump #7): `alerts.py:64` captured `DISCORD_ALERT_WEBHOOK` at MODULE IMPOR
 clearing* it reached nothing until restart. **The dangerous direction is the clear** — blanking a
 webhook is how this estate turns a channel off, and against an import-time capture the operator
 blanks it, reads it back empty, sees `--kv` agree, and the process keeps posting.
+
+## ⛔ APPROVAL — CHECKPOINT 3 (a NEW line; the CP1-CP2 block above is untouched)
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  9f0575340
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3. Read-only PROJECTION of
+                  real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF. Arming is
+                  the owner's flip, after the price-level dark read.
+```
