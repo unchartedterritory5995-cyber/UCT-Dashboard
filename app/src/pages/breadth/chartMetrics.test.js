@@ -4,7 +4,7 @@ import {
   ALL_METRICS, LABEL_MAP, METRIC_UNITS, UNIT, UNIT_LABEL, CHART_GROUPS,
   CHART_PRESETS, unitOf, matchPreset, resolveAxes, axisForUnit,
   SCALED_UNITS, scaleForUnit, TONE, toneOf, resolveColors,
-  PRESET_GROUP_ORDER, resolveLines,
+  PRESET_GROUP_ORDER, resolveLines, METRIC_REF_LINES,
 } from './chartMetrics'
 
 describe('unit coverage', () => {
@@ -395,70 +395,67 @@ describe('preset set v2', () => {
   })
 })
 
-describe('resolveLines', () => {
+describe('resolveLines — lines belong to metrics (D-009)', () => {
   const always = () => [-1e9, 1e9]
 
-  it('drops a line whose family has no series on the chart', () => {
-    const lines = [{ unit: UNIT.RATIO, at: 1, label: 'parity' }]
-    expect(resolveLines(['up_4pct_today'], lines, always)).toEqual([])
+  it('draws nothing when no plotted metric owns a line', () => {
+    expect(resolveLines(['up_4pct_today', 'new_52w_highs'], always)).toEqual([])
   })
 
-  it('puts the line on the axis its family resolved to', () => {
-    // two counts, one ratio: counts take the left axis, ratio goes right
-    const out = resolveLines(
-      ['up_4pct_today', 'down_4pct_today', 'ratio_5day'],
-      [{ unit: UNIT.RATIO, at: 1, label: 'parity' }],
-      always,
-    )
-    expect(out).toHaveLength(1)
-    expect(out[0].axis).toBe(1)
+  it('draws a metric\'s lines on the axis its family resolved to, once per level', () => {
+    // two counts, two ratios: counts keep the left axis on the tie, ratios go right
+    const out = resolveLines(['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day'], always)
+    expect(out.map(l => [l.at, l.label, l.axis])).toEqual([[1, 'parity', 1], [2, 'thrust', 1]])
   })
 
-  // An anchored axis already includes 0, so letting a line extend it is
-  // harmless and wanted: sentiment's greed line at 75 must stay visible while
-  // Fear/Greed sits at 8.7, because the distance to it is the information.
+  // A-02: Volume Thrust's flat line was drawn at ratio 0, the bottom of the plot.
+  it('puts each family\'s line on its own axis when two families own lines', () => {
+    expect(resolveLines(['up_vol_ratio', 'adv_decline'], always)).toEqual([
+      { unit: UNIT.RATIO, at: 1, label: 'parity', axis: 0 },
+      { unit: UNIT.NET, at: 0, label: 'flat', axis: 1 },
+    ])
+  })
+
+  // An anchored axis already includes 0, so a line may extend it: greed at 75 stays
+  // visible while Fear/Greed sits at 8.7, because the distance to it is the information.
   it('always draws on an anchored family, even outside the data', () => {
-    const out = resolveLines(
-      ['cnn_fear_greed'],
-      [{ unit: UNIT.PCT, at: 75, label: 'greed' }],
-      () => [8.7, 12.0],
-    )
-    expect(out).toHaveLength(1)
+    expect(resolveLines(['cnn_fear_greed'], () => [8.7, 12.0])).toHaveLength(2)
   })
 
-  // ECharts expands an axis to contain a markLine, so a zero line on a window
-  // starting at 5,781 would drag the auto-framed CUM axis back to 0-13,981 and
-  // restore exactly the wasted plot the framing rule removes.
-  it('suppresses a line that would expand an auto-framed axis', () => {
-    const lines = [{ unit: UNIT.CUM, at: 0, label: 'flat' }]
-    expect(resolveLines(['adv_decline_cum'], lines, () => [5781, 13981])).toEqual([])
-    expect(resolveLines(['adv_decline_cum'], lines, () => [-995, 13981])).toHaveLength(1)
+  // ECharts expands an axis to contain a markLine, so a zero line on a window starting
+  // at 5,781 would drag the auto-framed CUM axis back to 0 and restore the wasted plot.
+  it('suppresses a line that would expand an auto-framed axis, and when the extent is unknown', () => {
+    expect(resolveLines(['adv_decline_cum'], () => [5781, 13981])).toEqual([])
+    expect(resolveLines(['adv_decline_cum'], () => [-995, 13981])).toHaveLength(1)
+    expect(resolveLines(['adv_decline_cum'], () => null)).toEqual([])
   })
 
-  it('suppresses when the extent is unknown rather than guessing', () => {
-    expect(resolveLines(['adv_decline_cum'], [{ unit: UNIT.CUM, at: 0, label: 'flat' }], () => null)).toEqual([])
+  it('only names metrics the catalog offers, with canonical constants', () => {
+    const CANON = new Set(['1|parity', '2|thrust', '25|fear', '75|greed', '20|20', '0|flat'])
+    for (const [key, lines] of Object.entries(METRIC_REF_LINES)) {
+      expect(LABEL_MAP[key], `${key} is not a catalog metric`).toBeTruthy()
+      for (const l of lines) expect(CANON, `${key} ${l.at} ${l.label}`).toContain(`${l.at}|${l.label}`)
+    }
   })
 
-  it('every declared line has a series to sit beside', () => {
+  it('leaves presets with no lines of their own — one authority', () => {
+    expect(CHART_PRESETS.filter(p => 'lines' in p).map(p => p.id)).toEqual([])
+  })
+
+  // The rail the audit asked for, over every preset.
+  it('draws every preset\'s lines on the axis of the family they name', () => {
     for (const preset of CHART_PRESETS) {
-      for (const line of preset.lines ?? []) {
-        const present = preset.metrics.some(k => unitOf(k) === line.unit)
-        expect(present, `${preset.label}: no ${line.unit} series for its ${line.at} line`).toBe(true)
+      const { axisByKey } = resolveAxes(preset.metrics)
+      for (const line of resolveLines(preset.metrics, always)) {
+        expect(line.axis, `${preset.label}: ${line.label}`).toBe(axisForUnit(preset.metrics, line.unit, axisByKey))
       }
     }
   })
 
-  it('never declares a line and an extremes group for the same family', () => {
-    for (const preset of CHART_PRESETS) {
-      const lineUnits = new Set((preset.lines ?? []).map(l => l.unit))
-      for (const group of preset.extremes ?? []) {
-        const units = new Set(
-          CHART_GROUPS.find(g => g.group === group).metrics.map(m => unitOf(m.key)),
-        )
-        for (const u of units) {
-          expect(lineUnits, `${preset.label} double-marks ${u}`).not.toContain(u)
-        }
-      }
+  it('never lets an extremes preset plot a percentage metric that owns a line', () => {
+    for (const preset of CHART_PRESETS.filter(p => p.extremes?.length)) {
+      const owners = preset.metrics.filter(k => METRIC_REF_LINES[k] && unitOf(k) === UNIT.PCT)
+      expect(owners, preset.label).toEqual([])
     }
   })
 })

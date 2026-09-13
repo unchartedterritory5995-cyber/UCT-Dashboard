@@ -175,10 +175,6 @@ export default function BreadthCharts() {
   }, [newestStored, mutate])
 
   const activePreset = useMemo(() => matchPreset(selected), [selected])
-  const activePresetDef = useMemo(
-    () => CHART_PRESETS.find(p => p.id === activePreset) ?? null,
-    [activePreset],
-  )
 
   // ReactECharts runs with notMerge, so any new option rebuilds the chart and
   // its legend selection resets to all-visible. Every path that changes the
@@ -263,16 +259,17 @@ export default function BreadthCharts() {
       return values.length ? [Math.min(...values), Math.max(...values)] : null
     }
 
-    // Every preset declares lines for a single family, which the "line has a
-    // series to sit beside" test keeps true — so one series carries them all.
-    // Split this per axis if a preset ever marks two families.
-    const refLines = resolveLines(selected, activePresetDef?.lines, extentOf)
-    if (refLines.length) {
+    // One marker series per axis, so each family's lines sit on its own scale
+    // (A-02), and the lines follow the metrics, not the preset (A-03).
+    const refLines = resolveLines(selected, extentOf)
+    for (const axis of [0, 1]) {
+      const onAxis = refLines.filter(l => l.axis === axis)
+      if (!onAxis.length) continue
       series.push({
-        name: '__ref_lines__',
+        name: `__ref_lines_${axis}__`,
         type: 'line',
         data: [],
-        yAxisIndex: refLines[0].axis,
+        yAxisIndex: axis,
         silent: true,
         markLine: {
           silent: true,
@@ -285,7 +282,7 @@ export default function BreadthCharts() {
             position: 'insideEndTop',
           },
           lineStyle: { color: '#4a4d3f', type: 'dashed', width: 1 },
-          data: refLines.map(l => ({ yAxis: l.at, label: l.label })),
+          data: onAxis.map(l => ({ yAxis: l.at, label: l.label })),
         },
       })
     }
@@ -472,7 +469,7 @@ export default function BreadthCharts() {
       ],
       series,
     }
-  }, [selected, rows, notableExtremes, liveIndex, live.clock, activePresetDef, showFtd])
+  }, [selected, rows, notableExtremes, liveIndex, live.clock, showFtd])
 
   return (
     <div className={styles.container}>
