@@ -313,6 +313,8 @@ def _channel_nudge() -> dict:
 
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
+    import time as _time
+    received = _time.perf_counter()        # the V2 ack SLO (S1) is measured from here
     key = _public_key()
     if not key:
         return JSONResponse(status_code=503, content={"error": "discord interactions not configured"})
@@ -337,6 +339,16 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                     interaction.get("authorizing_integration_owners"))
         # An autocomplete interaction may ONLY be answered with choices (type 8).
         return _autocomplete([]) if itype == 4 else _ephemeral(di.NOT_ALLOWED_MESSAGE)
+    # ── Discord render V2 (docs/discord-render/03-architecture.md) ──────────────
+    # Behind DISCORD_RENDER_V2_ENABLED (default OFF). When it answers, the interaction
+    # never reaches the pre-V2 branches below; when it returns None (flag off, a
+    # per-command kill switch, or an interaction V2 leaves to the old path such as the
+    # help/save picks) everything below runs exactly as before.
+    from api.services.discord_render import commands as render_v2
+    if render_v2.enabled():
+        v2_response = await render_v2.handle(interaction, received)
+        if v2_response is not None:
+            return v2_response
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
         if name == di.BUZZ_COMMAND:

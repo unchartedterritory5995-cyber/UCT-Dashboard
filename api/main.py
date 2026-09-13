@@ -7408,6 +7408,24 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] event-loop watchdog failed to start (non-fatal): {_e}")
 
+    # -- Discord render V2 runtime (docs/discord-render/03-architecture.md) ---
+    # Dark unless DISCORD_RENDER_V2_ENABLED. On boot it RESUMES the jobs a dead pod
+    # left mid-render (web's median deployment served 8.4 minutes over 2026-08-30..
+    # 09-13, and each restart used to strand every in-flight chart reply on
+    # "thinking..."). Non-fatal: a failure here leaves the pre-V2 path answering.
+    try:
+        # ⛔ LOCAL import. main.py has no module-level `import asyncio`; the only ones live
+        # inside other blocks thousands of lines up. Relying on them would raise here, the
+        # `except` below would call it non-fatal, and V2 would silently never start.
+        import asyncio as _v2_boot_aio
+        from api.services.discord_render import commands as _render_v2
+        if _render_v2.enabled():
+            _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
+            print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
+                  f"abandoned={_v2_boot['abandoned']}")
+    except Exception as _e:
+        print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
+
     yield
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
     # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
@@ -7440,6 +7458,19 @@ async def lifespan(app: FastAPI):
                   f"{'clean' if _lf_clean else 'join timed out (daemon finishing in drain window)'}")
     except Exception as e:
         print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
+    # -- Discord render V2: hand every held job lease back before the pod goes ---
+    # Inside uvicorn's 5 s graceful window. Releasing the leases NOW lets the
+    # replacement pod resume those renders at once instead of waiting out a 20 s
+    # lease. Thread joins run off the loop. Non-fatal either way: a lease that is
+    # not released simply lapses and the next pod resumes it 20 s later.
+    try:
+        import asyncio as _v2_aio
+        from api.services.discord_render import commands as _render_v2_stop
+        if _render_v2_stop.enabled():
+            _v2_released = await _v2_aio.to_thread(_render_v2_stop.stop)
+            print(f"[shutdown] discord-render V2 released {_v2_released} lease(s)")
+    except Exception as e:
+        print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
 

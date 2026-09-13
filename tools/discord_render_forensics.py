@@ -42,13 +42,24 @@ ENVIRONMENT_ID = os.environ.get("RAILWAY_ENVIRONMENT_ID", "4c2149a7-d7bd-4bf9-9a
 PAGE_LIMIT = 5000                      # deploymentLogs refuses larger ("Error in limit")
 
 
+RATE_LIMIT_ATTEMPTS = 7
+RATE_LIMIT_MAX_SLEEP_S = 90.0
+
+
 def gql(query: str, variables: dict | None = None) -> dict:
-    """One GraphQL call. Raises RuntimeError with the reason when every credential fails."""
+    """One GraphQL call. Raises RuntimeError with the reason when every attempt fails.
+
+    ⛔ 429 IS NOT A TRANSIENT BLIP HERE. The first full run of this tool (2026-09-13)
+    lost 755 of 1,078 deployments to HTTP 429 because two fetches ran at once and the
+    retry slept 1-2 s — well inside Railway's rate-limit window — so every retry was
+    refused too. A 429 now waits out `Retry-After` when Railway sends one, and backs
+    off exponentially (5 s -> 90 s) when it does not."""
     last = ""
     heads = rw._auth_headers()
     if not heads:
         raise RuntimeError("no Railway credential (log the CLI in)")
-    for attempt, h in enumerate(list(heads) + list(heads)):
+    for attempt in range(RATE_LIMIT_ATTEMPTS):
+        h = heads[attempt % len(heads)]
         try:
             req = urllib.request.Request(
                 rw.API, data=json.dumps({"query": query, "variables": variables or {}}).encode(),
@@ -56,15 +67,23 @@ def gql(query: str, variables: dict | None = None) -> dict:
             body = json.loads(urllib.request.urlopen(req, timeout=90).read().decode())
             if body.get("errors"):
                 last = "GraphQL errors: %s" % json.dumps(body["errors"][:1])[:300]
-                time.sleep(1.0 + attempt)
+                time.sleep(min(RATE_LIMIT_MAX_SLEEP_S, 2.0 * (attempt + 1)))
                 continue
             return body["data"]
         except urllib.error.HTTPError as e:
             last = "HTTP %s" % e.code
-            time.sleep(1.0 + attempt)
+            if e.code == 429:
+                retry_after = (e.headers or {}).get("Retry-After") if hasattr(e, "headers") else None
+                try:
+                    wait = float(retry_after) if retry_after else 5.0 * (2 ** attempt)
+                except ValueError:
+                    wait = 5.0 * (2 ** attempt)
+                time.sleep(min(RATE_LIMIT_MAX_SLEEP_S, wait))
+            else:
+                time.sleep(min(RATE_LIMIT_MAX_SLEEP_S, 2.0 * (attempt + 1)))
         except Exception as e:  # noqa: BLE001
             last = type(e).__name__
-            time.sleep(1.0 + attempt)
+            time.sleep(min(RATE_LIMIT_MAX_SLEEP_S, 2.0 * (attempt + 1)))
     raise RuntimeError(last or "unknown GraphQL failure")
 
 
@@ -117,21 +136,35 @@ def fetch_logs(args) -> int:
                          "Filter on a word from the message and post-filter the prefix.")
     deps = deployments(args.service, args.since)
     live = [d for d in deps if d["status"] not in ("SKIPPED",)]
-    print(f"{args.service}: {len(deps)} deployments since {args.since} ({len(live)} not SKIPPED)", file=sys.stderr)
+    if args.retry_failed:
+        # Re-fetch ONLY the deployments a previous run recorded as fetch_error, and keep every
+        # row that run did get. The output is the merged file; the input is left untouched.
+        prior = [json.loads(l) for l in open(args.retry_failed, encoding="utf-8") if l.strip()]
+        failed_ids = {r["deployment"] for r in prior if "fetch_error" in r}
+        keep = [r for r in prior if "fetch_error" not in r]
+        live = [d for d in live if d["id"] in failed_ids]
+        print(f"retrying {len(live)} failed deployment(s); keeping {len(keep)} row(s) from {args.retry_failed}",
+              file=sys.stderr)
+    else:
+        keep = []
+    print(f"{args.service}: {len(deps)} deployments since {args.since} ({len(live)} to fetch)", file=sys.stderr)
     q = """query($d:String!,$f:String,$l:Int,$end:DateTime){
       deploymentLogs(deploymentId:$d, filter:$f, limit:$l, endDate:$end){timestamp message severity}}"""
-    total = 0
+    total, failed = len(keep), 0
     with open(args.out, "w", encoding="utf-8") as fh:
+        for r in keep:
+            fh.write(json.dumps(r) + "\n")
         for d in live:
             end = None
             seen = set()
+            error = None
             for _page in range(40):
                 try:
                     rows = gql(q, {"d": d["id"], "f": args.filter, "l": PAGE_LIMIT, "end": end})["deploymentLogs"]
                 except RuntimeError as e:
-                    print(f"  {d['id']} {d['createdAt']}: FAILED {e}", file=sys.stderr)
+                    error = str(e)
                     fh.write(json.dumps({"deployment": d["id"], "created": d["createdAt"],
-                                         "fetch_error": str(e)}) + "\n")
+                                         "fetch_error": error}) + "\n")
                     break
                 fresh = [r for r in rows if (r["timestamp"], r["message"]) not in seen]
                 for r in fresh:
@@ -142,9 +175,20 @@ def fetch_logs(args) -> int:
                 if len(rows) < PAGE_LIMIT or not fresh:
                     break
                 end = min(r["timestamp"] for r in rows)
-            print(f"  {d['createdAt'][:19]} {d['status']:8} {_commit(d.get('meta'))} rows={len(seen)}", file=sys.stderr)
-    print(f"wrote {total} rows -> {args.out}", file=sys.stderr)
-    return 0
+            fh.flush()
+            if error is not None:
+                # ⛔ A deployment that could not be read is reported as FAILED and NOTHING else.
+                # The first version printed `rows=0` right after the failure, and 755 unreadable
+                # deployments read as 755 quiet ones.
+                failed += 1
+                print(f"  {d['createdAt'][:19]} {d['status']:8} {_commit(d.get('meta'))} FAILED {error}", file=sys.stderr)
+            else:
+                print(f"  {d['createdAt'][:19]} {d['status']:8} {_commit(d.get('meta'))} rows={len(seen)}", file=sys.stderr)
+            if args.sleep_ms:
+                time.sleep(args.sleep_ms / 1000.0)
+    print(f"wrote {total} rows -> {args.out}; {failed} deployment(s) FAILED to read"
+          + (" — the file is INCOMPLETE; re-run with --retry-failed" if failed else ""), file=sys.stderr)
+    return 1 if failed else 0
 
 
 def fetch_http(args) -> int:
@@ -326,6 +370,9 @@ def main(argv=None) -> int:
     f.add_argument("--since", required=True, help="ISO date, e.g. 2026-08-30")
     f.add_argument("--filter", default=None, help='Railway filter syntax, e.g. \'"discord-chart"\'')
     f.add_argument("--out", required=True)
+    f.add_argument("--retry-failed", default=None,
+                   help="a previous --out file: re-fetch only its fetch_error deployments, keep its rows")
+    f.add_argument("--sleep-ms", type=int, default=0, help="pause between deployments (rate-limit courtesy)")
     h = sub.add_parser("fetch-http")
     h.add_argument("--service", required=True)
     h.add_argument("--since", required=True)

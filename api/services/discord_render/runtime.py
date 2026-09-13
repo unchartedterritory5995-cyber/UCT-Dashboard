@@ -110,7 +110,9 @@ class JobContext:
 
     # The edit a job function receives in place of `di.edit_original`.
     def edit(self, app_id, token, **kw):
-        if not self.runtime.store.owns(self.job.corr_id, self.runtime.owner):
+        # held_by, not owns: a stand-in heal edits 45 s / 120 s after this job's row is
+        # terminal, and must still land; a job another pod reclaimed must not.
+        if not self.runtime.store.held_by(self.job.corr_id, self.runtime.owner):
             # A newer pod reclaimed this job; its result is the one the member gets.
             log.info("drender evt=edit_skipped_not_owner cid=%s", self.job.corr_id)
             return False
@@ -223,6 +225,14 @@ class JobRuntime:
 
     def record_ack(self, corr_id: str, ack_ms: float) -> None:
         self._writer.put(("update", corr_id, {"ack_ms": round(ack_ms, 1)}))
+
+    def record_refused(self, job: Job, cls: str) -> None:
+        """A job refused at the ack (queue full) still gets a TERMINAL row: it is a failure
+        the SLO must count, and its Retry button needs the stored args to re-run. Written
+        by the writer thread — the ack path does no I/O. No token is kept: the refusal was
+        the reply."""
+        row = {**job.row(), "state": "messaged", "token": None, "failure_class": cls, "outcome": "refused_at_ack"}
+        self._writer.put(("insert", row))
 
     def depth(self) -> dict:
         with self._active_lock:

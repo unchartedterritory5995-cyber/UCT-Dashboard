@@ -472,6 +472,11 @@
       ],
       "note": ""
     },
+    "DISCORD_RENDER_V2_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Off 2026-09-13, by design (docs/discord-render/03-architecture.md). Master switch for the Discord render V2 path: /chart, /charts, the chart controls, the flow popup, /flow and /buzz run through a bounded queue on dedicated workers with durable job leases (resume after a web restart), a 15 s deadline that always tells the member, and one failure-message contract with a Retry button. Unset = the pre-V2 path exactly (railed). Per-command kill switches DISCORD_RENDER_V2_{CHART,FLOW,BUZZ,CONTROLS}_ENABLED default ON under it. The owner flips it per docs/discord-render/06-flip-packet.md; rollback is unsetting this one variable."
+    },
     "EARNINGS_PREWARM_ENABLED": {
       "status": "dark",
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",

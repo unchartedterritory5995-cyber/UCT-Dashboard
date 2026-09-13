@@ -136,6 +136,19 @@ class JobsStore:
                 "SELECT lease_owner, state FROM discord_render_jobs WHERE corr_id=?", (corr_id,)).fetchone()
         return bool(r) and r["lease_owner"] == owner and r["state"] == "running"
 
+    def held_by(self, corr_id: str, owner: str) -> bool:
+        """True when this owner holds (or last held) the job, in ANY state.
+
+        `owns` is for starting and finishing work; this is for edits. A stand-in's
+        self-heal edits the message 45 s and 120 s AFTER its job reached a terminal
+        row — `owns` (state = running) would refuse those, silently undoing the
+        heal. A job another pod reclaimed carries that pod's `lease_owner`, so the
+        double-post guard still holds."""
+        with self._lock:
+            r = self._conn.execute(
+                "SELECT lease_owner FROM discord_render_jobs WHERE corr_id=?", (corr_id,)).fetchone()
+        return bool(r) and r["lease_owner"] == owner
+
     def update(self, corr_id: str, **fields) -> None:
         bad = set(fields) - _UPDATABLE
         if bad:
