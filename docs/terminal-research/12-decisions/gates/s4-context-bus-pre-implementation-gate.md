@@ -2,7 +2,7 @@
 id: GATE-S4-CONTEXT-BUS
 title: S4 — Context Bus — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ⛔ UNAPPROVED. No approval line exists. Nothing in this packet is authorized.
+status: ✅ CP1 APPROVED 2026-09-13 and BUILT. CP2-CP7 unsigned.
 date: 2026-09-12
 measured_against: origin/master @ ffa8102c7
 pairs_with: SPEC-S4-CONTEXT-BUS
@@ -38,19 +38,38 @@ sources: >
 ## ⛔ APPROVAL
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  8007ad097   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP1 ONLY - a derivation + a divergence rail. Read-only.
+                  Mounts nothing. One module deriving the current symbol from
+                  useAppFocus and reporting whether HubContext.symbol and
+                  groupSyms.A agree, plus one source-derived rail that fails BY
+                  NAME. No member-visible change. No new store. NO MIGRATION OF
+                  ANY LIVE CONSUMER.
+
+                  Sized M against the 24 measured consumers, not the L the
+                  build-day plan's delta 3 assumed - and CP1 migrates none of
+                  them, so the M is the rail's cost, not the module's.
+
+                  ⛔ CP2-CP7 EACH NEED A NEW LINE.
 ```
 
-> ## ⛔⛔ NOTHING IN THIS PACKET IS AUTHORIZED.
->
-> The approval block above is empty and that is its correct state today. No file may be created,
-> edited or deleted on the strength of this document. The checkpoints in §4 exist so that a future
-> approval line can NAME one — an approval reading "build S4" would authorize a scope nobody has
-> bounded, which is the defect the D2 packet's §2 note records. A line naming **CP1** authorizes
-> CP1 and nothing after it.
+> ⛔⛔ **CP2 THROUGH CP7 ARE NOT AUTHORIZED.** §4's order is load-bearing — **CP1 measures, CP2
+> rules, CP3+ move** — and a line naming CP1 authorizes CP1 and nothing after it.
+
+### ⚠️ ONE EDIT BEYOND "FILES EDITED: 0", DECLARED
+
+§5's size table forecasts *files edited: 0*. CP1 edited **one**: `hub/HubContext.jsx`'s header,
+which claimed *"⛔ NOT MOUNTED YET"* and *"It is reached from NO route"* while `Layout.jsx:124`
+mounts it app-wide. ⭐ **CP1's entire premise is that this context is LIVE**, so shipping the
+divergence detector while the file's first paragraph says the opposite would leave the next reader
+with a rail whose subject the code denies exists. Retired in place, sentence kept verbatim, and
+railed — the claim may now appear only after the ⚰️ marker.
+
+⭐ **The irony is exact and worth keeping:** that note was written to stop somebody trusting a
+stale reachability claim, and became one.
 
 ---
 

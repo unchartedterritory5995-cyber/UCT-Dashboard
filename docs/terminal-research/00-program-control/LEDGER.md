@@ -609,6 +609,55 @@ ceiling and 429 sleep-retry that the adapter does not).
 
 # ⛒ DAY 2 — Sunday 2026-09-13. Weekend window.
 
+## S4 CP1 — MERGED `76c62c494`. Gate `8007ad097`.
+
+⭐⭐ **S4 IS AN ADOPTION GAP, NOT A CAPABILITY GAP.** The bus was built in August and two files
+joined it. `useAppFocus.js` carries the owner's own ruling — *"charts Group A IS the app focus …
+exactly ONE value, so there is no second authority to drift"* — so CP1 is not a bus. It is the one
+measurement the estate cannot make today: **does `HubContext.symbol` ever actually disagree with
+Group A?** The ruling says one value; nothing checked it.
+
+⛔⛔ **AND CP1 IS ONE STEP FROM BEING THE TENTH MECHANISM.** It is one more module that says "the
+current symbol", which is the shape S4 exists to remove. It is safe only because it **holds
+nothing** — no state, no provider, no store, no default, no fallback, no normalisation — and the
+rail asserts every one of those from source, plus that the module has exactly ONE importer, so
+*revertible by deletion* is enforced by the tree rather than promised in a packet.
+
+**Six statuses, and `not_yet_read` never folds into `neither`.** A cold start has an unresolved
+preference; scoring that as "neither" — or as agreement — reports health about a read that never
+happened.
+
+⛔ **It normalises nothing, deliberately.** `useAppFocus` upper-cases and the hub does not, so
+upper-casing here would MANUFACTURE agreement between two authorities that genuinely disagree.
+
+### ⚠️ One edit beyond "files edited: 0", declared
+
+`hub/HubContext.jsx`'s header claimed *"⛔ NOT MOUNTED YET"* and *"It is reached from NO route"*
+while `Layout.jsx:124` mounts it app-wide. CP1's premise is that this context is LIVE, so shipping
+a divergence detector while the file's first paragraph denies its subject exists was not an option.
+Retired in place, sentence kept verbatim. ⭐ **The irony is exact: a note written to stop somebody
+trusting a stale reachability claim became one.**
+
+### ⚰️ Two assertions I wrote wrong, both caught by the rail
+
+1. The ⚰️ check asserted the retired sentence was **absent** — but the idiom REQUIRES it, quoted
+   verbatim. A rail demanding deletion of the record argues against this repo's own convention. It
+   now asserts the claim appears only AFTER the ⚰️ marker.
+2. The M-3 check asserted the existing `FOCUS_PREF_KEY` guard contains the literal key. It does
+   not: it **derives** the key by importing the constant and reading `ChartsWorkspace.jsx`'s
+   source — which is better than a literal, and a rail demanding one would have pushed it
+   backwards.
+
+**Mutations (packet §6), restored by EDIT:** M-2 upper-case both sides → **1 RED** · M-5 the
+derivation returns null → **7 RED** · M-8 `not_yet_read` collapses → **2 RED**. M-1 / M-3 / M-7 are
+asserted directly from source.
+
+**Measured:** 23 passed / 2 files, `VITEST_EXIT=0`. **ADDITIVE** — 3 files, all `app/**`, 0 in
+flow-worker's closure. Zero of the 24 measured consumers migrated.
+
+---
+
+
 ## H14 — one placeholder-stop detector. MERGED `94209e962`. Gate `4486f5cbc`.
 
 | | |
