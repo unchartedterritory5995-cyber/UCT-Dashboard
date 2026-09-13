@@ -660,7 +660,7 @@ const WITH_MA_OF_RSI = {
 }
 
 const maRow = () => {
-  const btn = expanders().find((b) => /Moving Average/i.test(b.textContent || ''))
+  const btn = expanders().find((b) => /^MA \(/.test(b.textContent || ''))
   expect(btn, `no MA row among: ${activeLabels().join(' | ')}`).toBeTruthy()
   return btn.closest('[data-row-id]')
 }
@@ -670,7 +670,7 @@ describe('a derived indicator gets BOTH menus, and they are independent', () => 
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base({ ...WITH_MA_OF_RSI, ...(extra || {}) })} onChange={onChange} onClose={() => {}} />)
     openIndicators()
-    expand(/Moving Average/i)
+    expand(/^MA \(/)
     return onChange
   }
 
@@ -723,7 +723,7 @@ describe('a derived indicator gets BOTH menus, and they are independent', () => 
     // it for derived instances must not widen it for everything.
     render(<ChartSettingsModal open settings={base({ indicators: { bb: { enabled: true } } })} onChange={() => {}} onClose={() => {}} />)
     openIndicators()
-    expand(/Bollinger/i)
+    expand(/^BB \(/)
     expect(screen.queryByLabelText(/display in/i)).toBeNull()
     cleanup()
   })
@@ -846,7 +846,7 @@ describe('a direct series in the settings tab', () => {
     })
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
     openIndicators()
-    const rsiRows = activeLabels().filter((l) => /Relative Strength/.test(l))
+    const rsiRows = activeLabels().filter((l) => /^RSI \(/.test(l))
     expect(rsiRows).toHaveLength(2)
     expect(new Set(rsiRows).size, 'two editable rows wore one name').toBe(2)
     cleanup()
@@ -858,9 +858,12 @@ describe('a direct series in the settings tab', () => {
     render(<ChartSettingsModal open settings={base({ indicators: { rsi: { enabled: true } } })}
       onChange={() => {}} onClose={() => {}} />)
     openIndicators()
-    const rsiRows = activeLabels().filter((l) => /Relative Strength/.test(l))
+    const rsiRows = activeLabels().filter((l) => /^RSI \(/.test(l))
     expect(rsiRows).toHaveLength(1)
-    expect(rsiRows[0], 'a lone row was given an ordinal').not.toMatch(/#\d|\(/)
+    // ⭐ THE LEGEND'S OWN NAME, AND NOTHING ADDED. `RSI (14)` is what the chip
+    // says; an ordinal would mean the disambiguator fired on a group of one.
+    expect(rsiRows[0]).toBe('RSI (14)')
+    expect(rsiRows[0], 'a lone row was given an ordinal').not.toMatch(/#\d/)
     cleanup()
   })
 
@@ -890,7 +893,7 @@ describe('a direct series in the settings tab', () => {
     })
     render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
     openIndicators()
-    expand(/Moving Average/i)
+    expand(/^MA \(/)
     const sel = within(maRow()).getByLabelText(/ Source$/)
     const shown = [...sel.options].find((o) => o.value === sel.value)
     expect(shown.textContent).toMatch(/unavailable/i)

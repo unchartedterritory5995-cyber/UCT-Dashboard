@@ -68,6 +68,34 @@ const SHAPE_LABEL = {
 }
 const POSITION_LABEL = { aboveBar: 'Above bar', belowBar: 'Below bar' }
 
+/**
+ * What a collapsed condition row says it DOES.
+ *
+ * ⭐ THE ACTION, NAMED — not counted. A member scanning this list is asking
+ * "what does this draw?", and `2 actions` answers a question nobody has: it
+ * costs a glance and still needs the row opened. `Candle colour · Marker` is the
+ * same width and is the answer.
+ *
+ * ⛔ AND ZERO IS NOT A BADGE SAYING ZERO. A condition with no action evaluates
+ * and draws nothing, which is worth saying once — as the next step, not as a
+ * count of things that are not there.
+ *
+ * ⚠️ DISTINCT TYPES, IN THE ORDER THEY WERE ADDED, capped at two. Two candle
+ * colours are one answer to "what does this draw"; a row that grew a third kind
+ * says `+1` rather than wrapping.
+ */
+function actionSummary(actions) {
+  const list = Array.isArray(actions) ? actions : []
+  if (!list.length) return 'No action yet'
+  const seen = []
+  for (const a of list) {
+    const label = ACTION_LABEL[a && a.type] || (a && a.type)
+    if (label && !seen.includes(label)) seen.push(label)
+  }
+  if (!seen.length) return 'No action yet'
+  return seen.length > 2 ? `${seen.slice(0, 2).join(' · ')} +${seen.length - 2}` : seen.join(' · ')
+}
+
 export default function ChartSettingsConditions({
   settings, onChange, conditionErrors = null, registry = null, onBuild = null,
   // ─── THE ALERT DOOR — A LAUNCHER, LIKE `onBuild` ───────────────────────────
@@ -247,9 +275,7 @@ export default function ChartSettingsConditions({
             <span className={styles.actLabel}>{c.name}</span>
             {/* ⭐ "2 actions", not "2 consumers". */}
             <span className={styles.actBadge}>
-              {err
-                ? err
-                : `${c.actions.length} action${c.actions.length === 1 ? '' : 's'}`}
+              {err ? err : actionSummary(c.actions)}
             </span>
             {/* ⭐ SAVED FORMULA — the one word that tells a member where this
                 condition's maths actually lives, and therefore why the box below
@@ -430,8 +456,10 @@ export default function ChartSettingsConditions({
       {STARTERS.map((s) => (
         <div key={s.name} className={styles.indRow}>
           <span className={styles.indLabel}>{s.name}</span>
-          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, opacity: 0.7 }}>{s.hint}</span>
+          <span style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+            {/* The hint is the part that reflows; the chip beside it does not —
+                see `.chip` for the measurement that made that explicit. */}
+            <span style={{ fontSize: 11, opacity: 0.7, minWidth: 0 }}>{s.hint}</span>
             <button
               type="button"
               className={styles.chip}

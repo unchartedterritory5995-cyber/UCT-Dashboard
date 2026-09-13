@@ -119,6 +119,20 @@ import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
 import styles from './BuilderSheet.module.css'
 
+/**
+ * A name of the kind this sheet is being used to author — the placeholder in the
+ * Name field, and nothing else.
+ *
+ * ⭐ ONE PER CONSUMER, because the example IS the instruction: a member reading
+ * `20-bar average` under "New condition" has been shown an indicator and asked
+ * for a condition. Keyed by `consumerKind` so a fourth consumer brings its own.
+ */
+const NAME_EXAMPLE = Object.freeze({
+  indicator: '20-bar average',
+  condition: 'Trend up',
+  infoValue: 'Distance to 20-day',
+})
+
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
  *  the authority (`lint.REPAINT_MODES`); this only cases it. Informational
  *  styling for the clean value, warning styling for the other two — a factual
@@ -2285,12 +2299,16 @@ export default function BuilderSheet({
 
           <div className={styles.fieldWrap}>
             <label className={styles.label} htmlFor="uct-formula-name">Name</label>
+            {/* ⛔ THE EXAMPLE BELONGS TO WHAT IS BEING AUTHORED. A sheet titled
+                "New condition" offered `20-bar average` — an INDICATOR's name —
+                as the thing to type here, which teaches the wrong shape of answer
+                in the one field the member must fill in. */}
             <input
               id="uct-formula-name"
               className={styles.nameField}
               type="text"
               maxLength={48}
-              placeholder="20-bar average"
+              placeholder={NAME_EXAMPLE[consumerKind] || NAME_EXAMPLE.indicator}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />

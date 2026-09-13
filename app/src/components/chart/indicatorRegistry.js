@@ -510,9 +510,32 @@ export function listEngineIndicators(settings, registry) {
     // ⛔ GATED ON `meta.labelFrom`, NOT ON A DEFINITION ID. Every other row keeps
     // the catalogue noun, and a future definition that names itself from an input
     // inherits this without an edit here.
-    const stemOf = (i) => ((def.meta && def.meta.labelFrom === 'source')
-      ? instanceLabel(def, i)
-      : (meta.name || meta.shortName || def.id))
+    // ⭐⭐ AN ACTIVE ROW IS NAMED THE WAY THE CHART NAMES IT. `meta.name` is the
+    // CATALOGUE noun — right in Browse, where a member is reading descriptions to
+    // decide what to add, and wrong in the ACTIVE list, where they are looking for
+    // the line they can already see. `instanceLabel` is the legend's own naming,
+    // so the row, the chip, the "Display in" menu and the source picker all say
+    // `RSI (14)`.
+    //
+    // ⚰️ MEASURED 2026-09-13: the active list read `EMA 9`, `SMA 50`, `Relative
+    // Strength Index (period 14)`, `Moving Average (Source)`. The first two are
+    // the legacy overlay rows, and they were already terse and parameterised —
+    // the engine rows were the ones out of step, wearing a catalogue noun plus a
+    // disambiguating suffix that named the same period twice.
+    //
+    // ⛔ BROWSE IS UNTOUCHED. `catalogRows` is a different list built from the
+    // definitions, so "Moving Average (Source)" still tells itself apart from the
+    // legacy overlay there — which is the collision that name exists for.
+    //
+    // ⛔ AND ONLY WHERE THE DEFINITION ALREADY PARAMETERISES ITSELF. `instanceLabel`
+    // is `shortName` plus `legendParams`, so for a definition that declares
+    // neither it would DROP information the catalogue noun carries: `Session
+    // VWAP` would become `VWAP`, which is a different indicator from the anchored
+    // one. A definition that declares `legendParams` has already said its
+    // instances are told apart by those values, and that is the case this is for.
+    const named = def.meta && (def.meta.labelFrom
+      || (Array.isArray(def.meta.legendParams) && def.meta.legendParams.length))
+    const stemOf = (i) => (named ? instanceLabel(def, i) : (meta.name || meta.shortName || def.id))
     // ⭐⭐ …AND TWO ROWS OF ONE DEFINITION ARE TOLD APART, through the one kernel.
     // ⚰️ MEASURED 2026-09-13: a member with two RSIs got two rows both reading
     // "Relative Strength Index" while their chips read `RSI(14) #1` and
@@ -524,7 +547,7 @@ export function listEngineIndicators(settings, registry) {
     // ⚠️ THE SESSION NOTE IS APPENDED AFTER, not disambiguated: "(intraday only)"
     // is a property of the DEFINITION, so it is identical across the group and
     // would only push the suffix away from the name it qualifies.
-    const named = live.length
+    const labels = live.length
       ? disambiguateLabels(live.map((i) => ({
         defId: def.id, instanceId: i.instanceId, inputs: i.inputs || {},
         label: stemOf(i),
@@ -543,7 +566,7 @@ export function listEngineIndicators(settings, registry) {
         // and "write the definition's mirror + its seeded instance".
         ...(instance ? { instanceId: instance.instanceId } : {}),
         engineOwned: true,
-        label: `${(instance && named && named[live.indexOf(instance)])
+        label: `${(instance && labels && labels[live.indexOf(instance)])
           || meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
         // The GROUP is the definition's short name, which is what the shipped tab
         // showed ("VWAP") — and it keeps the modal's section list derived from the

@@ -54,6 +54,13 @@ import IndicatorLibraryDialog from '../../components/chart/IndicatorLibraryDialo
 // state and the row labels all live here. Proving them in jsdom proves the markup;
 // mounting the real modal proves the member's actual surface.
 import ChartSettingsModal from '../../components/chart/ChartSettingsModal'
+// ⭐ THE THIRD MEMBER SURFACE (UX pass, 2026-09-13). `BuilderSheet` has exactly
+// one PRODUCT mount — `ChartToolbar` — and `BuilderSheet.test.jsx` parses THAT
+// FILE's AST to keep it that way. This page is a dev-only probe that never ships
+// (`vite build` takes `index.html` alone), so mounting one here adds no door a
+// member can reach and breaks no rail; what it buys is the ability to look at
+// the builder's three consumer contexts in a real browser.
+import BuilderSheet from '../../components/chart/builder/BuilderSheet'
 import * as engineRegistry from '../../components/chart/engine/nativeRegistry'
 
 // ─── LOCK 3 — THE PREFERENCE ENDPOINT IS SEVERED, BOTH WAYS ─────────────────
@@ -133,6 +140,8 @@ function Harness() {
   const [saved, setSaved] = useState(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  /** `null` when closed, otherwise the consumer the sheet is being opened FOR. */
+  const [builderFor, setBuilderFor] = useState(null)
   const hostRef = useRef(null)
 
   const say = useCallback((s) => {
@@ -325,6 +334,9 @@ function Harness() {
         <button style={{ ...btn, background: '#1d5fbf', borderColor: '#1d5fbf', color: '#fff' }}
           onClick={() => setLibraryOpen(true)}>＋ Add to Chart…</button>
         <button style={btn} onClick={() => setSettingsOpen(true)}>⚙ Chart Settings…</button>
+        {['indicator', 'condition', 'infoValue'].map((k) => (
+          <button key={k} style={btn} onClick={() => setBuilderFor(k)}>ƒ {k}</button>
+        ))}
         <span style={{ color: '#8b93a1' }}>the real dialogs</span>
       </Row>
 
@@ -432,7 +444,23 @@ function Harness() {
         onClose={() => setSettingsOpen(false)}
         settings={cs || mergeChartSettings({})}
         onChange={(next) => { setCs(next); say('settings write') }}
+        onCreateFormula={() => { setSettingsOpen(false); setBuilderFor('indicator') }}
       />
+
+      {builderFor ? (
+        <BuilderSheet
+          open
+          consumerKind={builderFor}
+          onClose={() => setBuilderFor(null)}
+          settings={cs || mergeChartSettings({})}
+          onChange={(next) => { setCs(next); say('builder write') }}
+          onAuthored={(r) => { say(`authored ${builderFor}: ${JSON.stringify(r).slice(0, 80)}`); setBuilderFor(null) }}
+          onSaved={() => { say('builder saved'); setBuilderFor(null) }}
+          bars={bars}
+          sym={SYM}
+          tf={TF}
+        />
+      ) : null}
     </div>
   )
 }
