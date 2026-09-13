@@ -104,6 +104,8 @@ CREATE TABLE IF NOT EXISTS wisdom_records (
   stop                   REAL,
   stop_text              TEXT,
   targets_json           TEXT NOT NULL DEFAULT '[]',
+  exit_price             REAL,                           -- stated exit on a closed / hindsight record (golden v1 request); open positions never
+  exit_text              TEXT,
   levels_json            TEXT NOT NULL DEFAULT '[]',
   thesis                 TEXT,
   confidence_language_json TEXT NOT NULL DEFAULT '[]',

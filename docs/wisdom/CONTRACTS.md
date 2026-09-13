@@ -352,7 +352,8 @@ flags are internal and are armed by the integrator after the merges, in one vari
   no per-type precision or recall regressed versus the previous accepted version (first version: thresholds recorded as baseline).
 - Golden set v1: ≥ 100, stratified by type and author, labelled from source text by a labeller that never sees the extractor
   prompt; `data/wisdom/golden/golden-v1.jsonl` (gitignored) + quote-free `docs/wisdom/golden/golden-v1.provenance.json`;
-  dev/test split by `sha24(gid)` parity.
+  dev/test split = `"dev"` when `int(sha256(gid)[:8], 16)` is even, else `"test"` (as built in golden v1). Consumers read
+  each record's stored `split` field and never recompute it.
 
 ### 6.5 S-E evals
 - Outcomes per manifest §7.3; bars via `bars_sqlite.get_bars_before/get_bars_since`, read-only; same-bar stop+target →

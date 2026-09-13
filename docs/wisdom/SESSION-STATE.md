@@ -35,11 +35,23 @@ is in the gitignored `data/wisdom/WAVE1-PROMPT-v2.0.md` in this worktree.
   - The Zoom web portal is signed out and asks for a password, which the agent may not enter.
   - **Needs:** the owner signs in to zoom.us once in the shared Chrome profile. The fallback is Whisper re-transcription
     from R2 `desk_audio/rKVAkk3811Q.m4a` (precedent `tools/desk_transcript_gapfill.py`), which has no speaker labels.
+  - **Fallback verified viable 13:50 ET:** the R2 object exists (83,057,014 bytes, uploaded 2026-09-11 22:47 UTC).
+    Do not run Whisper on the full ~2 h file while the seven builders hold the box lock; run it after the build.
+  - **R2:** `wisdom/` prefix measured empty (0 keys) before any Wisdom write.
 
 ## In flight
 
-- **S-D golden v1 agent** (worktree branch `wisdom/w1-d-golden`): verifies the 30 v0 labels, expands to ≥100, and
-  samples Discord.
+- **S-D golden v1 — DONE, integrated as `2e1f9f4bb`.**
+  - 125 records; every stratification minimum met; 8 provisional.
+  - 13 review-queue items: attribution 6, golden 4, contradictions 1, authors 1, vocabulary 1.
+  - The v0 corrections are G-002 (stop wording), G-018 (LITE → NOW) and G-028 (quote span).
+  - Integrator follow-ups applied to the shared files:
+    - "Uncharted Territory" removed from tsdr's aliases and moved to `ambiguous_speaker_labels`.
+    - "Joe Walburn" added as a chartmaster alias.
+    - `exit_price` and `exit_text` columns added to `wisdom_records`.
+    - The CONTRACTS split rule now reads `int(sha256(gid)[:8],16)` parity, and consumers read the stored `split` field.
+  - **Open:** S-B's speaker normalisation and S-D's extraction schema were built before these changes. Reconcile both at
+    integration (the extraction output has no exit field yet).
 - **Build streams:** Workflow run `wf_c1669d34-d75`, launched 13:32 ET. It has seven worktree builders, each followed by
   an adversarial reviewer. The branches are `wisdom/w1-b-rails`, `wisdom/w1-a-capture`, `wisdom/w1-c-sources`,
   `wisdom/w1-d-extract`, `wisdom/w1-e-evals`, `wisdom/w1-f-admin` and `wisdom/w1-f-publish`, all based on `1363d588b`.

@@ -16,7 +16,7 @@
       "discord_username": "tsdrtrading",
       "discord_verified": "46/50 most recent #tsdr messages (other 4 = UCT Intelligence webhook bot)",
       "x_handle": "TSDR_Trading",
-      "aliases": ["Patrick (TSDR)", "Patrick TSDR)", "Patrick (TSDR(", "Uncharted Territory", "TSDR Trading", "TSDR TRADING", "tsdrtrading", "TSDR_Trading", "TSDR", "Patrick"],
+      "aliases": ["Patrick (TSDR)", "Patrick TSDR)", "Patrick (TSDR(", "TSDR Trading", "TSDR TRADING", "tsdrtrading", "TSDR_Trading", "TSDR", "Patrick"],
       "substack_sections": ["TSDR's Weekly Outlook & Watchlist", "INTRO", "Earnings & Economic Calendar for the Week", "Market Breadth Data", "Index & ETFs"],
       "substack_section_attribution_source": "signed section; unsigned sections per D4 ruling"
     },
@@ -41,7 +41,7 @@
       "discord_username": "capt.joe_36972",
       "discord_verified": "50/50 most recent #1chartmaster messages; matches the channel's member permission override",
       "x_handle": "1ChartMaster",
-      "aliases": ["Chartmaster", "Chart Master", "1ChartMaster", "1chartmaster", "EliteSwingTrader", "capt.joe_36972"],
+      "aliases": ["Chartmaster", "Chart Master", "1ChartMaster", "1chartmaster", "EliteSwingTrader", "capt.joe_36972", "Joe Walburn"],
       "substack_sections": []
     },
     {
@@ -56,6 +56,9 @@
       "aliases": ["Manrav", "Manav", "manrav"],
       "substack_sections": []
     }
+  ],
+  "ambiguous_speaker_labels": [
+    { "label": "Uncharted Territory", "note": "The shared Zoom host account label. Golden v1 found it carrying Bracco's voice in session 348, so it is NOT an alias of any author. Resolve per session from host/show metadata; with no evidence, keep the raw label, set speaker_confidence=low and open an 'authors' review item. Never treat it as an attendee to drop." }
   ],
   "non_call_speakers": [
     { "label": "Ravi", "role": "team_non_author", "note": "partner (options flow). MENTION / PRINCIPLE only; not in the four §2.1 authors." }

@@ -55,6 +55,17 @@ subject column. Not merged.
 | 4 | `4b0eba32b` | 2026-09-13 12:20 | **W1** | 1 | docs(wisdom): W1 build contracts — 29 resolved contradictions, layout, registry/store API, flags, schedule |
 | 5 | `ca0b9b801` | 2026-09-13 12:20 | **W1** | 38 | feat(wisdom): W1 skeleton — registry, wisdom.db store, gates, jobs runner, R2, authors, owner gate, core routes |
 | 6 | `1363d588b` | 2026-09-13 12:26 | **W1** | 2 | docs(wisdom): #manrav granted + verified; volume-alerts, uncharted-scanners, test-chartmaster-alerts bot-authored, out of scope |
+| 7 | `3155b3c6d` | 2026-09-13 ~12:45 | **W1** | 3 | docs(wisdom): manifest brought in line with the W1 GO; ledger rows after rebase; session state |
+| 8 | `2e1f9f4bb` | 2026-09-13 ~14:40 | **W1 S-D golden** | 4 | feat(wisdom): golden v1 — verifier v1, discord sampler, quote-free provenance, methodology (cherry-picked from `wisdom/w1-d-golden` `21801941a`) |
+
+**Row 8 evidence.** The integrator re-ran the verifier on the integration branch:
+- `--self-check` → `SELF-CHECK PASS`.
+- v0 defaults → `records=30 … PASS`.
+- v1 with `--require-strata` → `STRATA PASS`, 125 records.
+
+Totals: 117 confirmed, 8 provisional. Types: CALL 40, NEGATIVE_CALL 17, MENTION 22, PRINCIPLE 27, LEVEL 11, MARKET_SIGNAL 8. Authors: tsdr 76, bracco 25, manrav 11, chartmaster 10, ravi 1, guests 2. Split: dev 67, test 58.
+
+The quote-leak scan of the committed files found 0 quote fragments; the only provenance keys are `quote_sha256` and `text_sha256`. The labels and the 13-item review queue are gitignored under `data/wisdom/golden/`. The Discord samples (400 messages per channel, all four channels returned 200) are gitignored under `data/wisdom/samples/discord/`.
 
 Ledger-only commits (exempt): `a89b4f5aa`, `f786ac72a`.
 
