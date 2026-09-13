@@ -607,6 +607,102 @@ verification: the session report and `docs/d1-implementation-log.md` on that bra
 own tree. Fixing it requires a behaviour change (gap G5: that file has retry, backoff, a request
 ceiling and 429 sleep-retry that the adapter does not).
 
+# ⛒ DAY 2 — Sunday 2026-09-13. Weekend window.
+
+## H14 — one placeholder-stop detector. MERGED `94209e962`. Gate `4486f5cbc`.
+
+| | |
+|---|---|
+| classification | **ADDITIVE** — 7 files, **0** in flow-worker's 154-module closure. No marker bump. |
+| member-visible | **YES, in one direction only** — two classes of false alert stop being possible |
+| provisional | §2 of the gate: which reading of "strictest". The protective one was taken |
+
+### The three values, shown before the choice
+
+| detector | rule | @ $1 | @ $126.0049 | @ $10,000 | the ORCL row |
+|---|---|---|---|---|---|
+| `awareness/rules.py:74` | `< 1e-9` absolute | 1.0e-9 | 1.0e-9 | 1.0e-9 | **NOT a placeholder** |
+| `portfolio_heat.py:35` | `<= entry × 1e-9` | 1.0e-9 | 1.3e-7 | 1.0e-5 | **NOT a placeholder** |
+| `broker/balances.py:459` | `<= max(0.001, entry × 1e-5)` | 1.0e-3 | 1.3e-3 | 1.0e-1 | placeholder ✅ |
+
+⛔ **"Strictest" split two ways and the readings give opposite code.** Narrowest tolerance is
+`rules.py`'s `1e-9` — the value that PRODUCED the defect. Strictest about what counts as a real
+stop is `balances.py`'s wide window. **The protective reading was taken**, PROVISIONAL; two
+constants reverse it and `test_the_adopted_tolerance_is_the_WIDEST_of_the_three_not_the_narrowest`
+fails by name if either retired value returns.
+
+### ⭐⭐ THE SCOPE SAID THREE. THE RAIL FOUND FIVE.
+
+| # | where | what its failure cost |
+|---|---|---|
+| 4 | `journal_two/tag_suggest.py:61` | the member never gets the **`no_stop` suggestion** for a position with no stop |
+| 5 | `journal_two/metrics_registry.py:328` — the **inverse** | ⛔ it mislabels the **provenance** of a number: a fabricated `drift × shares` of risk lands in the average risk-per-trade **and is booked under `sources["stop"]`** |
+
+Found by matching the **arithmetic**, not a function name — the five were called
+`_is_placeholder_stop`, `stop_is_placeholder` (twice, inline), nothing at all, and an inverted
+condition. ⚠️ And the pattern needed the COMPARISON: `abs(entry − stop)` is also risk-per-share, and
+`metrics_registry.py:329` does exactly that **one line below** a real placeholder test.
+
+### ✅ IN-POD VERIFICATION — and it found a live row the packet did not predict
+
+Running process, 2026-09-13, read-only, ids elided. All five modules import the shared detector;
+`ABS=0.001`, `REL=1e-5`; three controls green (the ORCL row is a placeholder, a 1¢ stop is real,
+the function is callable — an import that half-failed would make every line read as "not
+deployed").
+
+```
+open positions: 19   ·   of which source='broker': 17
+classified PLACEHOLDER by the OLD absolute-1e-9 rule ....  17
+classified PLACEHOLDER by the UNIFIED detector .........   18
+rows whose classification CHANGED .......................   1
+
+  sym   side   source   entry      stop     old -> new
+  AMD   Long   None     444.000000 0.000000 False -> True
+```
+
+⛔⛔ **ONE LIVE ROW, AND IT IS NOT THE CASE ANYONE WAS LOOKING FOR.** It is not a broker row and it
+is not a drifted placeholder — it is a **manually-entered Long with a stop of `0`**, which the
+absolute-`1e-9` rule called a REAL stop because `|0 − 444| = 444`.
+
+**What that cost, per consumer, before this merge:**
+
+| consumer | before | after |
+|---|---|---|
+| `rule_stop_watch` | **unchanged** — `source` is `None`, not `'broker'`, so the skip never applied either way, and for a LONG a zero stop computes distance `+1.0`, so it was not firing | unchanged |
+| `portfolio_heat` | **unchanged** — it already had the `stop <= 0` unusable clause | unchanged |
+| `tag_suggest` | no `no_stop` suggestion, because 444 ≠ 0 within `1e-9` | ✅ suggests `no_stop` |
+| `metrics_registry._risk_per_trade` | ⛔ **`abs(444 − 0) × shares` of fabricated risk**, booked under `sources["stop"]` | ✅ falls through to the realised-R path |
+
+⭐ **The metric was reporting a $444-per-share risk on a position whose member set no stop, and
+attributing it to a stop.** That is the fifth detector's failure mode with a live instance —
+discovered only because the rail went looking for the arithmetic rather than the name.
+
+⚠️ **The two false-alert classes named in the gate have NO live population today:** zero SHORT
+positions carry a non-positive stop, and all 17 broker rows still carry an exact placeholder with
+no drift. Those remain hazards closed in advance. ⛔ **Not evidence the old rule was correct** —
+evidence that nothing has drifted *yet*.
+
+### Two defects the tests found in the fix itself, before merge
+
+1. **NaN was reported as a REAL stop.** `abs(nan − x) <= y` is `False`, so it fell through every
+   comparison — and a "real" stop gets watched while every comparison against NaN is also `False`,
+   so the position would be **silently never alerted on at all**.
+2. **The one-definition rail could not see its own definition.** After `ast.unparse` the module read
+   `abs(s - e)`; the non-vacuity control failed exactly as designed.
+
+### Declared behaviour change, and the policy that stayed
+
+The unified detector carries the **unusable** clause `rule_stop_watch` lacked. **The source gate
+STAYED at the call site** — a member's own stop is never discarded for sitting near their entry,
+railed end-to-end with a non-vacuity leg proving the rule still fires on a genuine
+through-the-stop row.
+
+**Mutations:** A restore the weakest tolerance → **4 RED** · B a sixth copy appears → **1 RED**.
+**Measured:** 82 passed, `PYTEST_EXIT=0`.
+
+---
+
+
 # ⛒ BUILD DAY — 2026-09-12. Every unblocked system to its gate boundary, one session.
 
 Control file: `10-roadmap/2026-09-12-build-day-plan.md` (`f9a759a8c`). Rules for the day are its
