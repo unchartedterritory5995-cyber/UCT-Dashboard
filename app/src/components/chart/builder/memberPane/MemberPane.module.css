@@ -51,3 +51,31 @@
 .notes li + li {
   margin-top: 6px;
 }
+
+/* ⭐⭐ T5b — the attach row. It sits under the notes because the order is the
+ * argument: here is the drawing, here is what it does not tell you, and only
+ * then the button that keeps it. */
+.attach {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev, var(--bg));
+  color: var(--color-text, inherit);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.attach:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.attachOk,
+.attachErr {
+  margin-left: 10px;
+  font-size: 12px;
+}
+
+.attachOk { color: var(--color-success, #4ade80); }
+.attachErr { color: var(--color-danger, #f87171); }

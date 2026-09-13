@@ -3244,5 +3244,16 @@
     "whenRuntime": "boundByDeclaredMaxval",
     "_whenRuntime": "⭐ THE WAVE-2 RULE, RECORDED NOW SO WAVE-2 LANDS ON IT RATHER THAN RE-DECIDING IT. Once inputs are runtime parameters an instance can carry, a window naming one is bounded by that input's DECLARED `maxval`; an input with no `maxval` makes the window UNBOUNDED and the reader REFUSES rather than guessing. ⛔ Refuse, never fall back to the default: a default is what the knob starts at, and a lookback bound must hold for every value the knob can reach.",
     "_followup": "`tests/fixtures/member/uncharted-volume-v2.pine` was edited on 2026-09-12 to give `lookbackBarsHVE` a `maxval` of 5000, so the one member script this wave draws already carries the bound wave-2 will need."
+  },
+  "_engine_limits": {
+    "_": "⛔⛔ THINGS THIS ENGINE DOES NOT DO, WRITTEN DOWN WITH THE CASE THAT FOUND EACH ONE. A limit nobody records is rediscovered as a bug, argued about, and sometimes 'fixed' by widening something that was correct. Each entry names the evidence and what it costs, so the next reader can tell a decision from an oversight.",
+    "both_arms_of_a_boolean_are_evaluated": {
+      "what": "`or` and `and` evaluate BOTH arguments. Pine short-circuits; this engine does not. A boolean whose first arm is decisive still fails if the second arm cannot be evaluated.",
+      "evidence": "`uncharted-volume-v2.pine` line 224: `isRatioSymbol = str.contains(syminfo.ticker, \"/\") or str.contains(syminfo.tickerid, \"/\")`. On a symbol whose exchange has no witness, `syminfo.ticker` folds and `syminfo.tickerid` does not, so the first arm is 1-or-0 and decided while the second survives as a `textop` — and `interpret` refuses the column with `interpret:bind-time-text`, naming `syminfo.tickerid`.",
+      "what_it_costs": "⭐ MEASURED 2026-09-13, and it is small: 3,781 of 3,795 cached symbols carry a WITNESSED exchange spelling, so 99.63% of them fold both arms and render. The 14 that do not are outside the tracked universe, and 13 of those are stale cache rows whose raw yfinance tier code (`OQB`/`OID`/`OQX`) the current `_YF_EXCHANGE` map already turns into `OTC`, which IS witnessed. The genuine residual is one symbol, `BF.B` (`YHD`).",
+      "what_a_member_sees": "The three drawn columns that carry line 224 refuse and `Avg Vol Columns` still draws — one of four series, plus the disclosures. ⭐ The pane degrades rather than breaking, and the refusal sentence names the field: *this value is decided when a symbol is chosen, and this binding did not settle syminfo.tickerid*.",
+      "routed": "⏭️ SHORT-CIRCUIT EVALUATION IS A WAVE-2 ITEM (owner, 2026-09-13). It is what stands between a witnessed and an unwitnessed symbol rendering, and it is a change to how every boolean in the engine is evaluated — not something to bolt onto one refusal.",
+      "_why_not_just_fold_harder": "⛔ BECAUSE THE FOLD IS NOT WRONG. `foldBound` leaves an operand it cannot settle exactly as it was, which is the honest answer; teaching it to drop an arm of an `or` would make it an evaluator with an opinion about boolean semantics, in a pass whose whole discipline is that it only replaces what a binding decides."
+    }
   }
 }

@@ -11,6 +11,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import url from 'node:url'
+import { stripComments } from './sourceScan'
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url))
 const APP = path.resolve(HERE, '..', '..', '..', '..', '..')
@@ -73,9 +74,34 @@ describe('the member-pane gate', () => {
   })
 
   it('⛔ is read in exactly ONE place, so a rename is one line', () => {
-    const readers = sourceFiles().filter((f) => fs.readFileSync(f, 'utf8').includes(GATE_NAME))
+    // ⛔⛔ CODE, NEVER PROSE — the repo's most repeated instrument defect, and
+    // this sweep committed it. ⚰️ 2026-09-13: T5b's `pane/AttachedPineDisclosures
+    // .jsx` explains IN A COMMENT why the flag must not reach that file, and this
+    // check, matching raw text, reported it as a second reader of the flag. The
+    // fix is the tool: strip comments before matching. Deleting the sentence would
+    // make the check pass and leave the next reader without the reason a
+    // disclosure surface is deliberately ungated.
+    const readers = sourceFiles()
+      .filter((f) => stripComments(fs.readFileSync(f, 'utf8')).includes(GATE_NAME))
     expect(readers.map((f) => path.relative(APP, f).split(path.sep).join('/')))
       .toEqual(['src/components/chart/engine/memberPaneGate.js'])
+  })
+
+  it('⛔ …and the stripper has a CONTROL, so the sweep cannot pass by seeing nothing', () => {
+    // The needle is built by concatenation so this case does not contain the
+    // literal it hunts — the other half of the same rule.
+    const needle = `VITE_PINE_MEMBER${'_'}PANE_ENABLED`
+    expect(needle).toBe(GATE_NAME)
+    // A real read is still SEEN …
+    expect(stripComments(`const x = import.meta.env.${needle}`)).toContain(needle)
+    // … and the same words in a comment are NOT.
+    expect(stripComments(`// we deliberately never read ${needle} here`)).not.toContain(needle)
+    expect(stripComments(`/* ${needle} */`)).not.toContain(needle)
+    // And the file that provoked the fix really does mention it, in prose only.
+    const disclosures = fs.readFileSync(
+      path.join(APP, 'src/components/chart/pane/AttachedPineDisclosures.jsx'), 'utf8')
+    expect(disclosures).toContain(needle)
+    expect(stripComments(disclosures)).not.toContain(needle)
   })
 
   it('the ledger declares it, and names the reader that really reads it', () => {
@@ -113,14 +139,28 @@ describe('the member-pane gate', () => {
       'the member-pane gate has no non-test importer. If the pane was deleted, '
       + 'delete this case with it; if it stopped importing the gate, that is the '
       + 'defect this file exists for.')
+      // ⭐⭐ T5b DELIBERATELY DID NOT JOIN THIS LIST, and the reason is the one
+      // thing about this flag worth writing twice. T5b puts the same three
+      // disclosures on the member's REAL chart
+      // (`pane/AttachedPineDisclosures.jsx`), and that file reads NO flag: the
+      // gate decides whether a member may ATTACH a Pine document, never whether
+      // an attached one discloses. A build constant turned off is a deploy, and
+      // every definition attached while it was on keeps drawing — gating the
+      // sentences would strip them off drawings that survive the flip. So the
+      // census stays at one, and a second name appearing here is a question, not
+      // a formality.
       .toEqual(['src/components/chart/builder/memberPane/MemberPane.jsx'])
 
-    // ⛔ IMPORTING IT IS NOT CONSULTING IT. A component that pulled the module in
-    // and never called the reader would satisfy an import scan and still show a
-    // member an unfinished pane on a default build.
-    const pane = fs.readFileSync(
-      path.join(APP, 'src/components/chart/builder/memberPane/MemberPane.jsx'), 'utf8')
-    expect(pane).toContain('memberPaneEnabled()')
+    // ⛔ IMPORTING IT IS NOT CONSULTING IT, AND THAT IS ASSERTED OF EVERY
+    // IMPORTER RATHER THAN OF THE ONE THIS CASE WAS WRITTEN FOR. A component that
+    // pulled the module in and never called the reader would satisfy an import
+    // scan and still show a member an unfinished pane on a default build — and
+    // checking only the first name in the list is how the fourth importer gets
+    // to be the one that does it.
+    for (const rel of known) {
+      const src = fs.readFileSync(path.join(APP, rel), 'utf8')
+      expect(src, `${rel} imports the gate and never calls it`).toContain('memberPaneEnabled()')
+    }
 
     // ⭐ AND THE WALKER IS STILL SHOWN TO WORK ON A MODULE WITH MANY IMPORTERS,
     // so a walker that had broken into "finds exactly one file, always" reds.

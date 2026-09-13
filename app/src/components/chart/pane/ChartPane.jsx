@@ -9,6 +9,7 @@ import ChartTfBar from './ChartTfBar'
 import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 import ChartSettingsModal from '../ChartSettingsModal'
+import AttachedPineDisclosures from './AttachedPineDisclosures'
 import UIcon from '../../ui/UIcon'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
 import { tfLabel, tfSortKey } from '../timeframes'
@@ -219,6 +220,37 @@ function ChartPane({
     chartsTheme,
   })
   const extHoursOn = chartCs.extendedHoursShading ?? true
+
+  // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
+  //
+  // `_requirement_tags.window_dependent.why_the_pane_may` makes the badge the
+  // CONDITION on a pane serving `ta.cum` at all, and the sentence names a number
+  // only the chart that just drew can know. `AttachedPineDisclosures` finishes it
+  // with `parse.js::requirementNote`; this is where the number comes from.
+  //
+  // ⛔ IT IS RECORDED UNCONDITIONALLY, AND THAT IS A CORRECTION OF THE OBVIOUS
+  // DESIGN. ⚰️ MEASURED IN THE BROWSER 2026-09-13: gating this on "does anything
+  // attached need it" put **"an unknown number of bars here"** on a real /charts
+  // widget holding 8,462 of them. `StockChart` fires `onDrawnBarCount` from an
+  // effect keyed on `ohlcData` and reads the handler through a REF, so the count
+  // is reported once when the bars land and never again — which is BEFORE the
+  // member adds the indicator. A gate that is false at that moment is false
+  // forever, and the badge is then permanently vague on the one surface it exists
+  // for. There is no offline test that could have said so: jsdom has no chart, so
+  // the callback never fires at all.
+  //
+  // ⛔ THE COST IS A COMPARISON, NOT A RENDER. The updater returns `prev`
+  // unchanged whenever the count has not moved, so React bails out; on the
+  // twenty-odd surfaces that mount this shell and have nothing attached, a live
+  // tick costs one function call and no re-render.
+  //
+  // ⛔ `onDrawnBarCount`, NOT `onBarsReady` — the same distinction `MemberPane`
+  // draws. Ready fires on a fatal error too, and a badge reading "0 bars" on a
+  // dead ticker is a disclosure about nothing.
+  const [drawnBars, setDrawnBars] = useState(null)
+  const noteDrawnBars = useCallback((n) => {
+    setDrawnBars((prev) => (Number.isFinite(n) && n !== prev ? n : prev))
+  }, [])
 
   // D/W/M "Include pre/post-market" view. Local state for an instant toggle, SEEDED
   // and re-hydrated from the persisted chart setting, and persisted on change — so it
@@ -896,6 +928,7 @@ function ChartPane({
              if the underlying chart instance is ever recreated. */
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
+          onDrawnBarCount={(n) => { noteDrawnBars(n); stockChartProps?.onDrawnBarCount?.(n) }}
         />
         {flagToast && (
           <div className={styles.flagToast}>
@@ -904,6 +937,13 @@ function ChartPane({
         )}
         {slots?.overlay}
       </div>
+      {/* ⭐⭐ T5b — THE THREE DISCLOSURES, ON THE MEMBER'S OWN CHART.
+          Reads `indicatorInstances` — the route a member actually walks — and
+          renders `meta.disclosures` verbatim off each attached definition. Flag
+          gated INSIDE the component (one authority, the one the rails measure),
+          and `null` when nothing attached raises anything, which is every chart
+          in the app today. */}
+      <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
       <ChartSettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

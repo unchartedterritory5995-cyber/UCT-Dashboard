@@ -208,6 +208,33 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       notes.push(n)
     }
   }
+  // ⭐⭐ T5b — THE DISCLOSURES RIDE ON THE SAVED DOCUMENT, OR THE MEMBER NEVER
+  // SEES THEM.
+  //
+  // ⚰️ MEASURED 2026-09-13: a saved definition does NOT carry the member's Pine.
+  // `compute.source` is the SCAN PLOT'S FORMULA — 126 characters for a 34,378-
+  // character script — so nothing downstream can re-derive these sentences from
+  // the artifact. Until now the alert note, the fold note and the window badge
+  // existed only inside the builder's preview, and a member who SAVED the script
+  // and opened it on their own chart got the drawing with no disclosure at all.
+  // ⛔ That is the one surface the rulings are actually about: D1's sentence,
+  // ruling 3.5's fold sentence, and the badge that
+  // `_requirement_tags.window_dependent.why_the_pane_may` makes the CONDITION on
+  // a pane being allowed to serve `ta.cum`.
+  //
+  // ⭐ `meta.*` IS THE SANCTIONED HOME. `defSchema` documents unknown `meta`
+  // keys as IGNORE-AND-PRESERVE, so this survives validation, the round trip and
+  // the server without a schema change.
+  // ⛔ THE TAG IS CARRIED, NOT THE FINISHED SENTENCE. The badge needs the bar
+  // count, which only the chart knows; the producer still owns the wording
+  // (`parse.js::requirementNote`) and the consumer supplies the number.
+  const requirementTags = requirementTagsRaised(t)
+  definition.meta = {
+    ...(definition.meta || {}),
+    disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    requirementTags,
+  }
+
   return {
     ok: true,
     definition,
@@ -219,7 +246,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // ⚠️ NOT A NOTE YET — a tag needs the BAR COUNT, which only the chart knows.
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
-    requirementTags: requirementTagsRaised(t),
+    requirementTags,
   }
 }
 

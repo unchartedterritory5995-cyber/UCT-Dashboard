@@ -124,6 +124,10 @@ export const KEEP = Object.freeze([
  *  naming the key.
  */
 export const DROP = Object.freeze([
+  // ⭐ R-K (2026-09-13). Prose: the limits this engine has, each with the case
+  // that found it. Read by engineers, never by the product — so it DROPS, and
+  // a member never receives a paragraph about `or` evaluation.
+  "_engine_limits",
   "_shape",
   "_canonical",
   "_no_offset",

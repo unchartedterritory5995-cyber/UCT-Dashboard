@@ -1,0 +1,32 @@
+/* app/src/components/chart/pane/AttachedPineDisclosures.module.css
+ *
+ * ⚰️ THE SAME MEASUREMENT `MemberPane.module.css` RECORDS, ONE SURFACE OVER. An
+ * unstyled `<ul>` under a chart takes the browser default — full bleed, bullets
+ * hanging outside the pane's border, 16px serif-ish body text — and the D1 alert
+ * sentence then reads like an error the chart just threw rather than a note about
+ * the drawing above it.
+ *
+ * ⛔ IT MUST NOT EAT THE CHART. This list sits BELOW `.chartFill`, which is the
+ * flex child that grows; the list is `flex: 0 0 auto` with a hard `max-height` so
+ * a script with many disclosures scrolls its own notes instead of squeezing the
+ * candles. A pane is a chart with a note under it, never a note with a chart
+ * above it.
+ */
+
+.notes {
+  flex: 0 0 auto;
+  max-height: 84px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px 10px 6px 24px;
+  list-style: disc;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev, var(--bg));
+  color: var(--color-text-muted, #9aa0a6);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.notes li + li {
+  margin-top: 4px;
+}

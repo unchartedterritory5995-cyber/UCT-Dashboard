@@ -1,5 +1,173 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ SESSION 3 · ITEM 2 — T5b. THE SAVED DEFINITION REACHES THE MEMBER'S CHART, AND THE PIXELS FOUND TWO DEFECTS
+
+**A member pastes Pine, presses one button, and the script is on their own chart
+the next time they open it — with the three disclosures under it.**
+
+```
+BEFORE   BuilderSheet saves the SCAN document (one plot, 126 chars of formula).
+         The pane exists only inside the sheet, in React state, under a
+         throwaway id that is uninstalled on unmount.
+AFTER    "Add this script to my chart" → /api/user-definitions → the store →
+         useInstalledUserDefinitions installs on every page load →
+         indicatorInstances → the binder draws four series → the three
+         disclosures render under the chart with the live bar count.
+```
+
+### The route, end to end, measured in a browser on SPY 1D
+
+| stage | evidence |
+|---|---|
+| the script the browser ran | sha256 `518a6b22…b28a` computed **in the page**, byte-identical to the fixture and to what TradingView ran for the vendor capture |
+| the store | `GET /api/user-definitions` → `u_5b9240bd0673` · `Uncharted Volume v2` · plots `value,out2,out3,out4` · `meta.disclosures` 2 · `meta.requirementTags` `window_dependent` · **`compute.source` 126 chars** |
+| the chart | four legend rows with values — `45,477,300` / `43,317,108` / `43,317,108` / `56,846,625` |
+| the sub-pane | 96 px of a 387 px stack — 0.248 against a declared `0.25` |
+| the disclosures | all three, verbatim, **"8,462 bars here"** |
+
+### ⛔⛔ WHY THE SENTENCES HAD TO RIDE ON THE DOCUMENT
+
+⚰️ **MEASURED: a saved pane document does not carry the member's Pine.**
+`compute.source` is **126 characters** — the first plot's expression — for a
+script of **34,378**. Nothing downstream can re-translate it, re-read its
+`alertcondition`, or notice that a `request.security` was folded. So the three
+sentences are written onto `meta` at build time (`defSchema` documents unknown
+`meta.*` keys as IGNORE-AND-PRESERVE, and the store persists the object verbatim)
+and read back by `pane/AttachedPineDisclosures.jsx`.
+
+⭐ **The bar count is the one thing the document cannot carry**, so the tag rides
+and `parse.js::requirementNote` still owns the words — the same split `MemberPane`
+makes, deliberately the same two functions, so the builder and the chart cannot
+disagree about a sentence. A rail asserts they produce the identical list.
+
+### ⛔⛔ THE FLAG DECIDES WHO MAY ATTACH — IT DOES NOT DECIDE WHO DISCLOSES
+
+The instruction said "flag-gated". `AttachedPineDisclosures.jsx` reads **no flag**,
+and that is a deliberate, one-line-reversible departure:
+
+- `VITE_PINE_MEMBER_PANE_ENABLED` is a **build constant**. Turning it off is a
+  deploy — and every definition a member attached while it was on is still in
+  their `chart_settings` and still draws.
+- Gating the disclosures would make that deploy silently strip the sentences off
+  drawings that keep drawing, including the `window_dependent` badge that
+  `_requirement_tags.window_dependent.why_the_pane_may` makes the **condition** on
+  a pane serving `ta.cum` at all.
+
+⭐ **Flag-off is still non-vacuous, and it is measured three separate ways on the
+real route**, because "nothing in the DOM" is satisfied by a component that never
+mounts, by a route that produced no instance, and by a test that forgot to build
+anything — and only the middle one is the claim:
+
+```
+NO PANE      MemberPane returns null before any build → no attach control exists,
+             onAttach is never called, listUserDefinitions() is empty.
+NO INSTANCE  the settings that route produced carry no u_ instance.
+NOTHING IN   ChartPane over those settings renders no disclosure node …
+THE DOM      … and the SAME assertion is positive once the route has run.
+```
+
+Photographed both ways: flag ON, four series + three disclosures on `/charts`;
+flag OFF, the same 34,378-character script pasted into the Import tab with **no
+pane and no button** — and the already-attached instance still drawing and still
+disclosing, which is the paragraph above in pixels.
+
+### ⚰️⚰️ THE TWO DEFECTS ONLY THE REAL ROUTE COULD SHOW
+
+**1. `useTickerMeta` dropped `exchange`, and R-K was dark on every chart in the app.**
+
+The binder probe printed it in one line:
+
+```
+symbol: { ticker: "SPY", exchange: null }        ← on a chart whose
+GET /api/ticker-meta/SPY → { …, exchange: "NYSE Arca" }
+```
+
+`useTickerMeta`'s fetcher projected **four** fields and the endpoint answers
+**five**. So `tickerMeta.exchange` was `undefined` everywhere, `StockChart`'s
+`symbolMeta` built `{ticker, exchange: null}`, `symbolConstantsWith` had no
+witness to key on, and **three of v2's four columns refused on a witnessed
+symbol** — item 1's exact BEFORE state, one layer above the seam item 1 closed.
+
+⛔ **`lesson_a_projection_drops_what_it_does_not_name`.** Item 1's rails could not
+see it: every one of them hands the fold a `{ticker, exchange}` object directly.
+The seam nobody tested was the one that BUILDS that object. The fix is one field
+plus a rail that reads the contract out of `get_ticker_meta`'s own docstring
+rather than typing it, with a non-vacuity control on the parse. ⭐ And
+`lsPut` now counts an exchange-only answer as a real hit — SPY has no sector and
+no industry, so the one field the fold needs was the one field never seeded.
+
+**2. The `window_dependent` badge said "an unknown number of bars here" on a
+chart holding 8,462.**
+
+`ChartPane` first gated its bar-count recording on *"does anything attached need
+it"*, which reads as the careful thing to do and is wrong: `StockChart` publishes
+the count from an effect keyed on `ohlcData`, **through a ref**, so it fires ONCE
+when the bars land — before the member adds the indicator. The gate was false at
+that instant and false forever. It is unconditional now; the updater returns
+`prev` unchanged when the count has not moved, so a chart with nothing attached
+costs one comparison and no re-render.
+
+⛔ **No offline test could have caught either one**, and the rails now encode both
+orderings: jsdom has no chart, so `onDrawnBarCount` never fires there at all
+unless a case fires it deliberately — in the order the browser does.
+
+### Two definitions from one script, coexisting — and the knob that cannot
+
+`memberPaneVariants` on `__uct_param_1` (`lenWeekly`, locators in out2/out3/out4)
+gives two documents whose `compute.trees` differ, both install, both take an
+instance, both draw, and the disclosure list is **three sentences, not six**.
+
+⛔⛔ **`lookbackBarsHVE` — the parameter the ruling named — is REFUSED BY NAME, and
+the refusal is the product.** `__uct_param_3` feeds `triggerHVE_Daily` →
+`isHVEvent` → `alertcondition(isHVEvent, title='HVE Trigger')`, and ruling D1 says
+a pane never selects an `alertcondition`. Once that output is gone the knob has no
+drawn series left to move, so it is absent from `compute.paramManifest` and
+`memberPaneVariants` answers:
+
+> `HVE lookback (bars)` is declared by this script but reaches no series this pane
+> draws — every place it is used sits in an output the pane declined (an alert
+> condition draws nothing). Varying it would change no pixel.
+
+Building two documents that differ on a parameter neither of them draws would put
+two identical panes on a member's chart under two names and look like it worked.
+
+### Rails
+
+- **`pane/attachedPineDisclosures.test.jsx` (14)** — every door is the shipped
+  one: `memberPaneDefinition` → a JSON round trip (the store's whole contribution)
+  → `installUserDefinitions` → `addInstance` → **`ChartPane`**, the shell
+  `ChartWidget`, `MobileChartsApp`, `TickerPopup`, the drill modal and the scan
+  results all mount. **Nine mutations killed**, including the two the browser
+  found and the one that shipped: the count gated on "something attached".
+- **`hooks/useTickerMeta.test.jsx` (20, +4)** — the projection carries every field
+  the endpoint declares, the contract parsed out of the Python docstring, with a
+  control proving the parse found something. **Three mutations killed.**
+- **`engine/__tests__/memberPaneGate.test.js` (7, +1)** — ⛔ the flag-name sweep
+  matched a COMMENT in the new file explaining why the flag must not reach it. Fixed
+  the tool, not the explanation: it strips comments now, and carries a control
+  proving it still sees a real read. That is the repo's own most-repeated
+  instrument defect, caught by its own rail.
+
+### Suites
+
+| | |
+|---|---|
+| `src/components/chart` + `src/hooks` | 459 files · 8,973 tests → **8,935 passed, 32 skipped, 6 failed in 4 files** |
+| `src/components/chart/engine` + `/builder` (item 1's scope) | 7,106 passed — **+1** (the new sweep control) |
+| Python bind + interpret + window (+ conformance) | **219 passed, 5 skipped**, unchanged |
+
+⛔ **ALL SIX REDS ARE PRE-EXISTING, AND EACH WAS CHECKED RATHER THAN ASSUMED.**
+Five are the HEAD trio (`BuilderSheet.pine`, `ImportBox.thinkscript`,
+`pineBoxSuggestVoice` ×3) — confirmed by restoring `BuilderSheet.jsx` from
+`git show HEAD:` and re-running the file, which failed identically. The sixth is
+`hooks/pollingSites.rail.test.js`, which fires only when `src/hooks` is in scope
+and names **`floor2/hooks/useFloor.js` (5 sites)** and
+**`hooks/useWatchlistIntelligence.js` (1)** — neither is in this diff, and both
+were last touched by *Seam 8: Price-Move Evidence Timestamp Convergence V1*. It is
+somebody's census row to add, and it is not this item's to add for them.
+
+---
+
 ## ⭐⭐⭐ SESSION 3 · ITEM 1 — R-K's SYMBOL HALF. THE SEAM CLOSED IN ~1h15m.
 
 **Three of `uncharted-volume-v2`'s four columns went from refusing to computing.**
@@ -352,7 +520,7 @@ wave added is red.**
 | # | item | estimate |
 |---|---|---|
 | **1** | **R-K's symbol half** — thread a symbol object `{ticker, exchange, …}` from the chart's symbol resolution through `binder.sync` → `computeFor` → `symbolConstants`, **with the Python twin**. | **2–3 h**, hard stop at 3 |
-| **2** | **T5b — the saved-definition pane surface** — a member's saved definition drawn through `indicatorInstances` on the surface they actually open. Flag-gated, and the flag-off rail non-vacuous **on the real route**. | 2–3 h |
+| **2** ✅ | **T5b — the saved-definition pane surface** — a member's saved definition drawn through `indicatorInstances` on the surface they actually open. Flag-gated, and the flag-off rail non-vacuous **on the real route**. | **DONE** |
 | **3** | **R2 text layer + `table.*` ×10** — both tables rendered and anchored, cell-by-cell string compare against `7f94f4404` and `5c4d67ef2`, **including the trailing-space cell**. | 3 h |
 | **4** | **Mobile audit at 390×844 and 1024×768** via `tools/mobile_audit.py`, viewport pinned, 4 screenshots, pass/UNTESTED per row. ⛔ The 29px frame is the exact thing to look for. | 1–2 h |
 | **5** | **Merge `origin/master`** after a fresh dry-run against the CURRENT tip; both lanes + rails post-merge; **flag default OFF confirmed on the merged tree**. | 1–2 h |

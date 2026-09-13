@@ -1687,6 +1687,60 @@ export default function BuilderSheet({
     setPendingDelete(null)
   }, [])
 
+
+  /** ⭐⭐ T5b — THE PINE TAB'S OWN SAVE, THROUGH THE DOORS `save` ALREADY USES.
+   *
+   *  ⛔⛔ IT IS A DIFFERENT DOCUMENT FROM THE ONE `save` WRITES, and that is the
+   *  entire gap this closes. The Formula tab stores the SCAN definition — one
+   *  tree, one plot, the expression the sheet is editing. A member who pastes
+   *  `uncharted-volume-v2.pine` has FOUR drawn series and three disclosures, and
+   *  none of that survived the save: the artifact carried the scan plot's
+   *  126-character formula and nothing else. `memberPaneDefinition` builds the
+   *  document that has all of it; this is the button that keeps it.
+   *
+   *  ⛔ THE SAME FOUR DOORS, IN THE SAME ORDER, AS `save` — `validateUserDefinitions`
+   *  → `saveUserDefinition` → `installUserDefinitions` → `addInstance`. Not a
+   *  parallel path: a second way to write a definition is a second shape of
+   *  definition, and the thing that would tell us is the member's chart, by
+   *  making it disappear. The id the instance names is the STORE's (the server
+   *  mints it and overwrites `definition.id`), never the draft's.
+   *
+   *  ⚠️ ALWAYS A CREATE. There is no "editing" state for a pasted script — the
+   *  Pine tab has no way to reopen one — so this never PUTs, and a member who
+   *  attaches twice gets two definitions. That is the honest behaviour while
+   *  inputs are still folded parameters (ruling R-H): two variants of one script
+   *  ARE two definitions, and `memberPaneVariants` says so in its own header.
+   */
+  const attachPine = useCallback(async (definition) => {
+    const { defs, errors } = validateUserDefinitions([definition])
+    if (errors.length || defs.length !== 1) {
+      return { ok: false, error: errors.join('\n') || 'The registry refused this definition.' }
+    }
+    const res = await saveUserDefinition(definition, null, importTelemetryRef.current)
+    if (!res.ok) return res
+    importTelemetryRef.current = null
+    const row = res.row || {}
+    const storedDoc = {
+      ...definition,
+      id: row.def_id || definition.id,
+      ...(Number.isInteger(row.version) ? { version: row.version } : {}),
+      compute: {
+        ...definition.compute,
+        ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
+      },
+    }
+    const { installed, errors: installErrors } = engineRegistry.installUserDefinitions([storedDoc])
+    if (installErrors.length || installed.length !== 1) {
+      return {
+        ok: false,
+        error: installErrors.join('\n')
+          || 'Saved, but this script could not be added to the chart.',
+      }
+    }
+    if (settings && onChange) onChange(addInstance(settings, installed[0].id, engineRegistry))
+    return { ok: true }
+  }, [settings, onChange])
+
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
   // ⭐⭐ ESCAPE MUST NOT SILENTLY BIN A MEMBER'S WORK.
@@ -2407,7 +2461,13 @@ export default function BuilderSheet({
               installs nothing, registers nothing and renders nothing. A second
               flag read at the call site would be a second authority over one
               value — and the one on the inside is the one the rails measure. */}
-          <MemberPane sym={sym} tf={tf} source={pineText} settings={settings} />
+          <MemberPane
+            sym={sym}
+            tf={tf}
+            source={pineText}
+            settings={settings}
+            onAttach={attachPine}
+          />
 
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
               `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`

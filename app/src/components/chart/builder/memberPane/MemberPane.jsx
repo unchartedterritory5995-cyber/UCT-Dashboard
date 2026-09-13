@@ -21,6 +21,20 @@
 // address read. The uninstall runs on unmount and whenever the flag or the
 // source changes.
 //
+// ⭐⭐ T5b — AND THE DOOR OUT OF THE HARNESS. Everything above is a PREVIEW: the
+// script lives in React state, the definition installs under a throwaway id, and
+// closing the sheet uninstalls all of it. `onAttach` is what makes the preview a
+// thing a member keeps — it hands the built document to the caller, which saves
+// it to `/api/user-definitions` and adds an instance through `addInstance`, the
+// same two doors the Formula tab's Save button has always used.
+//
+// ⛔ THE BUTTON IS INSIDE THE FLAG, NOT BESIDE IT. `memberPaneEnabled()` already
+// returns `null` above for a default build, so on the flag-off path the attach
+// control does not exist, cannot be clicked, and no instance can be written. That
+// is what makes "flag-off is non-vacuous" a statement about the MEMBER ROUTE
+// rather than about a component nobody reaches: no pane, no instance, nothing in
+// the DOM, and each of the three is measured separately.
+//
 // ⚠️ WHAT THIS FILE CANNOT PROVE, STATED HERE RATHER THAN IN A REPORT NOBODY
 // OPENS: its tests mock `ChartPane`, so every case is about WHAT the pane is
 // HANDED, never about pixels. Whether four series actually paint, whether Scale
@@ -50,9 +64,13 @@ const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: f
  * @param {string|null} props.source the member's Pine
  * @param {string} [props.defId]     the id to install under
  * @param {object|null} props.settings the member's own chart settings
+ * @param {((definition: object) => Promise<{ok: boolean, error?: string}>)|null}
+ *        [props.onAttach] omit for a preview-only pane; supply it and the pane
+ *        offers to SAVE the document and put it on the member's real chart.
  */
 export default function MemberPane({
   sym = null, tf = null, source = null, defId = MEMBER_PANE_DEF_PREFIX, settings = null,
+  onAttach = null,
 }) {
   // ⛔ FIRST, AND BEFORE ANY BUILD. Reading the flag after `memberPaneDefinition`
   // would translate a member's script on a build that may not show it — work
@@ -136,6 +154,41 @@ export default function MemberPane({
     return [...base, ...badges]
   }, [built, drawnBars])
 
+
+  // ⭐⭐ T5b — THE ATTACH, AND ITS THREE OUTCOMES SAID OUT LOUD.
+  //
+  // ⛔ THE DOCUMENT IT HANDS OVER IS THE ONE ON SCREEN, and that is the whole
+  // claim of this button: the definition drawn in the pane above is byte-for-byte
+  // what gets stored, so a member who likes what they see gets what they saw.
+  // Re-translating on click would put a second build between the preview and the
+  // artifact, which is where "it looked different once I saved it" comes from.
+  //
+  // ⛔ AND THE STORE'S REFUSAL IS RENDERED VERBATIM. `saveUserDefinition` owns
+  // the caps and their wording (64 KiB a row, 50 live definitions); a paraphrase
+  // here is a second vocabulary for one decision — the rule `useUserDefinitions`
+  // is written under, applied at its caller.
+  const [attach, setAttach] = useState({ state: 'idle', error: null })
+  const doAttach = useCallback(async () => {
+    if (!onAttach || !built || !built.ok) return
+    setAttach({ state: 'busy', error: null })
+    let res = null
+    try {
+      res = await onAttach(built.definition)
+    } catch (e) {
+      // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
+      // answered, so there is no sentence of its to render and inventing one that
+      // sounds like a policy would be worse than saying what happened.
+      setAttach({ state: 'error', error: 'Could not reach the store. Nothing was saved.' })
+      return
+    }
+    if (res && res.ok) { setAttach({ state: 'done', error: null }); return }
+    setAttach({
+      state: 'error',
+      error: (res && typeof res.error === 'string' && res.error.trim())
+        ? res.error : 'The store refused this definition.',
+    })
+  }, [onAttach, built])
+
   if (!enabled) return null
   if (!live) return null
   // ⭐ A REFUSAL IS A SENTENCE, NEVER A BLANK. `paneGate` already produced one;
@@ -173,6 +226,29 @@ export default function MemberPane({
         <ul data-testid="pine-member-pane-notes" className={styles.notes}>
           {disclosures.map((n) => <li key={n.name}>{n.note}</li>)}
         </ul>
+      )}
+      {/* ⭐⭐ T5b — THE ONE CONTROL THAT LEAVES THE HARNESS. Present only when a
+          caller supplied a place to put the result; absent on a default build,
+          because this whole component already returned `null` above. */}
+      {onAttach && (
+        <div data-testid="pine-member-pane-attach">
+          <button
+            type="button"
+            className={styles.attach}
+            disabled={attach.state === 'busy'}
+            onClick={doAttach}
+          >
+            {attach.state === 'busy' ? 'Adding…' : 'Add this script to my chart'}
+          </button>
+          {attach.state === 'done' && (
+            <span className={styles.attachOk} role="status">
+              Saved, and added to this chart.
+            </span>
+          )}
+          {attach.state === 'error' && attach.error && (
+            <span className={styles.attachErr} role="alert">{attach.error}</span>
+          )}
+        </div>
       )}
     </div>
   )
