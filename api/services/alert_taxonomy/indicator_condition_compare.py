@@ -347,6 +347,41 @@ def classify(dark: dict[str, Any], legacy: dict[str, Any]) -> tuple[Optional[str
     return None, observations
 
 
+def note_not_comparable(predicate_id: str, params: dict[str, Any], reason: str,
+                        market_date: str, *, now: Optional[float] = None,
+                        db_path: str | None = None) -> dict[str, Any]:
+    """Record a tick that could NOT be compared — the vocabularies do not meet.
+
+    ⛔⛔ THIS IS A FIRST-CLASS OUTCOME, NOT A SKIP. F-S7-IC-1 measured 31 legacy
+    addresses against 142 book metrics with an EMPTY intersection: one rename
+    (`close` -> `ohlcv.c`) and thirty genuine absences. For those thirty the two
+    lanes never met, so a comparison is UNDEFINED — and the dangerous failure is
+    not silence, it is `LEGACY_ONLY`. Letting such a predicate reach `classify()`
+    would score it as a disagreement every time the legacy side fired, which
+    reads as *"the new lane is missing fires"*. It is not missing them; it was
+    never asked a question it could answer.
+
+    ⭐ AND IT STILL BEATS. A tick that could not be compared is a tick that
+    HAPPENED, and the liveness signal must not depend on comparability — or the
+    heartbeat would stop dead on the thirty and look exactly like a dead sweep.
+    """
+    now = time.time() if now is None else now
+    mode = legacy_eval_mode()
+    span = open_span_if_absent(predicate_id, params, mode, now=now, db_path=db_path)
+    beat(market_date, now=now, db_path=db_path)
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE indicator_condition_comparison_spans "
+            "SET ticks = ticks + 1, not_comparable = not_comparable + 1, sessions = ? "
+            "WHERE id = ?",
+            (_merged_sessions(span["sessions"], market_date), int(span["id"])))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"outcome": NOT_COMPARABLE, "reason": reason, "eval_mode": mode}
+
+
 def observe(predicate_id: str, params: dict[str, Any], market_date: str, *,
             entity_ref: str,
             value: Optional[float],

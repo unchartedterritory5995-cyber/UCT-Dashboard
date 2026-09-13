@@ -137,7 +137,11 @@ GATES = [
     # ⛔ THE SEVENTH IS STILL UNBUILT and its approval line is VOID until its
     # precondition merges — a different state from the six above, deliberately
     # not flattened into them.
-    S7CP3Unbuilt("indicator-condition", depends="D2 §9.5 CP1"),
+    # ⚰️ WAS S7CP3Unbuilt(depends="D2 §9.5 CP1") until 2026-09-13. That
+    # dependency is DISCHARGED: PRD-D2 §9.5 is signed as GATE-D2 CP4
+    # (3257cc319) and merged (404b808c5), and CP3 is signed by its own
+    # approval line 3 (4e8d3af5d). It is now a dark read like its siblings.
+    S7DarkRead("indicator-condition", "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED"),
 ]
 
 

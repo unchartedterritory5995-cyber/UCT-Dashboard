@@ -204,6 +204,14 @@ SWEEPS = (
     ("regime_change", "REGIME-CHANGE", "ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED",
      "regime_change_heartbeat", "last_tick_at", (4, 20), 3600,
      "every 20 min behind the awareness scan, weekdays 04:00-20:59 ET"),
+    # GATE-S7-INDICATOR-CONDITION CP3, approval line 3 (fingerprint 4e8d3af5d).
+    # ⚠️ ITS OWN STALENESS BOUND, like every row here. It rides the RTH minute
+    # cadence because an indicator condition is evaluated against forming bars,
+    # so 180s is two missed ticks — the same reading as price-level and
+    # position-risk, and NOT a number copied for tidiness.
+    ("indicator_condition", "INDICATOR-COND", "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED",
+     "indicator_condition_heartbeat", "last_tick_at", (9, 16), 180,
+     "every minute, weekdays 09:00-16:59 ET"),
 )
 
 
@@ -277,7 +285,28 @@ def ticking_one(db_path: str, spec) -> tuple[str, int]:
 
     # Type-specific extras, printed only where the table actually carries them.
     if "projected" in beat:
-        lines.append("  projected %s" % beat["projected"])
+        lines.append("  projected=%s" % beat["projected"])
+        # ⚰️ RESTORED 2026-09-13. Generalising --ticking over the SWEEPS table
+        # dropped this guidance, and dropping it is worse than it looks: a
+        # ticking sweep with an EMPTY cohort prints a healthy YES and a bare
+        # zero, which reads as "running, nothing to report" when the truth is
+        # "running, and nobody is enrolled so it can never report anything."
+        # ⛔ Those two states leave an IDENTICAL store and call for opposite
+        # actions — the same distinction --ticking exists to make for the
+        # window case. A zero with no reason is the defect this whole tool
+        # was written against.
+        if not int(beat["projected"] or 0):
+            lines.append("  Arm one: nothing is enrolled in the rollout:s7-dark "
+                         "cohort, so this sweep has nothing to project. That is "
+                         "an EMPTY COHORT, not a quiet market.")
+        else:
+            # ⚰️ RESTORED with it, and for the mirror-image reason: a sweep that
+            # IS projecting but has recorded no outcomes yet is HEALTHY. Without
+            # this the reader sees spans and zero outcomes and concludes the
+            # comparison is broken, which is the one misreading that would get a
+            # working dark run switched off.
+            lines.append("  (0 outcome rows is NORMAL early -- it means nobody's "
+                         "line has been crossed yet, not that the sweep is broken)")
     if "priced" in beat:
         lines.append("  priced %s, no_price %s" % (beat["priced"], beat.get("no_price")))
     if "reschedules" in beat:
