@@ -112,4 +112,27 @@ is in the commit but deploys separately (row 9).
 **Gate** (`a69dfc574`; master had not moved since merge 2, nothing to merge): 25 scoped files,
 **724 passed, 0 failed**. Watch coverage `OK` (changed 12). Mutation proofs 22/22 red.
 
-**Deploy, measured:** *(filled from the running pod after the push)*
+**Deploy, measured:**
+
+| Check | Result |
+|---|---|
+| Push | fast-forward `6d779dd47..d32d14d60`, 18:44:29 UTC; `web` SUCCESS and master 0 ahead immediately before |
+| `web` deployment on `d32d14d60` | BUILDING 18:44:42 → DEPLOYING 18:46:50 → SUCCESS 18:47:11 UTC |
+| Running commit, read in-process | `d32d14d604ee` |
+| `/api/health` | 200; uptime 61 s |
+| Interactions endpoint, bad signature | `401 invalid request signature` ×3, 0.20–0.26 s |
+| `GET /api/discord/render-health`, no bearer | `401 unauthorized` |
+| V2 flag / alert webhook in the running process | both absent |
+| flow-worker | SKIPPED (no tape gap) |
+| `worker` · `bars-api` | SUCCESS · SUCCESS (re-read 18:49 UTC) |
+
+**chart-renderer deploy (row 9), measured:**
+
+| Check | Result |
+|---|---|
+| Payload | `git archive a69dfc574 -- services/chart_renderer` → sha256 = committed blobs, 0 CR; unchanged at master `d32d14d60` |
+| Deployment `6090d306` | BUILDING 18:48:34 → DEPLOYING 18:49:16 → SUCCESS 18:49:58 UTC |
+| Image | `/app/app.py` 584 lines, 23,944 bytes = payload |
+| `/health` (from the web pod) | 19 keys (was 3); `ready: true`, `pool_enabled: false`, `launch_error: null`, `timeouts: 0`, `failures: 0`, `rss_mb: 790.4`, `p95_render_ms: 2300.1` over 7 renders |
+| Render log lines | 9 × `render cid=- path=/r/chart status=200 prio=background ready=True` — the warm cycle's header, end to end |
+| Unredacted `token=` in the post-deploy log | 0 (no failed render occurred to exercise the scrub) |
