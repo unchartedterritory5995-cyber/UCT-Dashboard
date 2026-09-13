@@ -47,7 +47,7 @@ def quiet(monkeypatch):
     its own two entries in the out-dict, and a fake here would be this file
     asserting against its own stub. Only the webhook underneath it is cut.
     """
-    monkeypatch.setattr(alerts_svc, "_DISCORD_WEBHOOK", "", raising=False)
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "")
     monkeypatch.setattr(wls, "_get_user_email", lambda uid: "member@test")
     monkeypatch.setattr(wls, "send_email", lambda *a, **k: True)
 
