@@ -100,6 +100,34 @@ The PC restarted; every PowerShell session was replaced. Verified before touchin
 | `#render-alerts` (0.5) | one alert fired through the **real code path** — `Observer.run_once` → `evaluate_alerts` → durable `alert_due` → `post_webhook` → `record_alert` — on a **temporary** jobs DB so production's alert cooldown is not consumed: `breached:["ack_over_3s"] sent:["ack_over_3s"]` |
 | Other sessions' artifacts (0.4) | all four excluded files still on disk and untracked; the captured branches carry their reconstructed `docs/RESUME.md`. ⚠️ They are untracked but **not gitignored** — a `git add -A` in those worktrees would publish them to this **public** repo. The standing rule (memory `lesson_uct_dashboard_shared_worktree`) is already "never `git add -A`" there; left as-is rather than editing another session's shared git config. The owning sessions own their next steps. |
 
+### Post-restart close-out adds A and B (2026-09-13, Sunday)
+
+**B — was the Step 0 `ack_over_3s` breach real?** **No, and it could not have been.**
+`/data/discord_render_jobs.db` **does not exist** on the web pod (read in-process): V2 has never run in
+production, so there are zero job rows and no live path can produce an ack at all. The breach came from
+the single synthetic row (`ack_ms = 4200`) my probe wrote to a temporary database. No forensics row.
+⭐ The proof is the absent database, not a zero count — a zero count is also what a wrong path returns.
+
+**A — the three withheld files are now ignored, and a gate enforces it.**
+
+| Worktree | Entry added | Commit |
+|---|---|---|
+| `uct-worktrees/flow-nav-prefetch` | `app/.env.flowperf` | `423d7e6ee` → `perf/route-intent-prefetch` |
+| `uct-worktrees/options-desk` | `app/tests/fixtures/_raw_flow10.csv` | `f0571e102` → `feat/options-desk` |
+| `uct-intelligence` (private repo) | `data/uct_intelligence.pre_tsdr_import.bak` | `dd4ab93` → `master` |
+
+Each verified with `git check-ignore -v`; each noted in that worktree's reconstructed `docs/RESUME.md`;
+the files are untouched on disk. The spec doc and two resume files withheld as "credential-shaped" were
+**false positives** (loop log) and were pushed instead: `944231be4`.
+
+**The gate:** `tools/check_repo_hygiene.py` + `tests/test_repo_hygiene.py` — refuses any tracked file
+over 5 MB and any tracked `.env*` outside an allowlist, in `--staged` mode too so it can serve as a
+pre-commit hook. ⛔ It is an **allowlist**, not a bare limit: 15 files over 5 MB are already tracked
+(`api/patches-6-25.json` is 23.7 MB), so a bare limit would be red on arrival and muted within a week.
+⛔ And it **refuses rather than passing on an empty scan** — `git ls-files` from the wrong directory
+answers successfully with nothing, and every assertion over an empty list passes. Mutation proofs
+**5/5 red**, control green (8 tests). Self-check: `python tools/check_repo_hygiene.py --self-check`.
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
@@ -126,6 +154,7 @@ Full context for every row is in `03-architecture.md` §6.
 | OI-17 | §3.7's boot warm renders `/r/chart?fixedbars=…`, but the page refuses a request without the render token (`ChartRender.jsx`: `TOKEN && token !== TOKEN` → "unauthorized") and chart-renderer does not hold `CHART_RENDER_TOKEN`. | Always warm with a hermetic render (Chromium launch + one canvas screenshot, no network); also render `RENDER_WARM_URL` when it is set. Recommend the owner set `RENDER_WARM_URL=https://uctintelligence.com/r/chart?sym=NVDA&tf=D&fixedbars=nvda-d&token=<render token>` on chart-renderer **after** the rotation in OI-13 — copying a credential between services is the owner's call. | hermetic warm shipped; `RENDER_WARM_URL` unset |
 | OI-18 | §3.7 sets `RENDER_HARD_TIMEOUT_S` to 20 s by default, but web budgets 15 s then 25 s of readiness per attempt (`discord_chart_house._ATTEMPTS`) on top of 21/31 s of navigation, so a 20 s ceiling would 504 renders that succeed today. | Default the ceiling to the budget the request declares (2 × readiness + 6 s navigation + settle + 10 s): only a hang is cut, and no render that succeeds today changes. Lower it to 20 s once web's attempts are re-budgeted inside the 15 s deadline (2.4/2.6) and the RTH p99 is measured. | request-declared ceiling; env unset |
 | OI-19 | The close-out plan puts dual-token acceptance on **chart-renderer**. Measured in code: chart-renderer **never validates the render token** — it navigates to whatever URL it is handed. The token is checked in two places, both on **web**: `app/src/pages/*Render.jsx` (14 pages; `ChartRender.jsx:76` reads `import.meta.env.VITE_CHART_RENDER_TOKEN`, baked at BUILD time, compared at `:778`) and `api/routers/render_panels.py:61` (`CHART_RENDER_TOKEN`, the `/api/r/*` payload gate). A `CHART_RENDER_TOKEN_PREVIOUS` on the renderer would be read by nothing. | Put dual acceptance where the check is: accept `VITE_CHART_RENDER_TOKEN` **or** `VITE_CHART_RENDER_TOKEN_PREVIOUS` in the render pages, and `CHART_RENDER_TOKEN` **or** `CHART_RENDER_TOKEN_PREVIOUS` in `render_panels.py`. Ship that first (additive, dark-safe), then one `web` rebuild flips new+previous together — no window where a sender's token is rejected, because the new bundle accepts both. Monday's job clears only the `_PREVIOUS` pair. | the recommendation (built in 1.1) |
+| OI-20 | The hygiene gate can run as a **pre-commit hook** (`--staged`), which would enforce it at the moment of `git add -A` rather than at gate time. But git hooks live in the **shared** git directory: installing one reaches all ~57 worktrees and every concurrent session at once, and a hook that misfires (no `python` on that shell's PATH) blocks every session's commits. | Ship the gate as a **test rail** now (shared through git, cannot break anyone's commit), and leave the hook opt-in: `git config core.hooksPath .githooks` after copying the one-liner from the runbook. Revisit as a hook once it has a week of green in the gate. | gate rail now; hook documented, not installed |
 
 ## Loop log
 
