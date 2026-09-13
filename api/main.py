@@ -3113,6 +3113,7 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import event_proximity as _at_event_prox
         from api.services.alert_taxonomy import position_risk as _at_position_risk
         from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
+        from api.services.alert_taxonomy import catalyst_match as _at_catalyst_match
         _at_db.init_db()
         _at_doc_arrival.register()
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
@@ -3171,6 +3172,7 @@ async def lifespan(app: FastAPI):
         # so the sixth cannot be discovered the same way the fifth was.
         _at_position_risk.register()
         _at_scan_membership.register()
+        _at_catalyst_match.register()
         logging.getLogger(__name__).info(
             "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
             "beyond document-arrival). A type appears here when its CP3 is "
@@ -6880,6 +6882,43 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 scan-membership-change DARK comparison OFF "
                   "(set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-CATALYST-MATCH CP3 -- the fifth DARK comparison.
+        # Owner approval line 2 (fingerprint 3ee80dc13), answering the packet's
+        # §9 "what CP3 would have to name" item by item.
+        #
+        # ⛔ DEFAULT OFF. It reads real member watchlists.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS DAILY -- §9 item 5, verbatim: "the catalyst engine
+        # refreshes every 5 minutes pre-market and every 30 midday, and the dedup
+        # is per DAY -- so a per-minute sweep would re-ask a question whose answer
+        # cannot change until tomorrow". 17:30 ET is after the close and after the
+        # engine's last refresh, so the day's ranked set is settled.
+        if os.environ.get("ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED", "0") == "1":
+            def _catalyst_match_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.catalyst_match_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep: "
+                          f"members={r['members']} displayed={r['displayed']} "
+                          f"evaluated={r['evaluated']} fires={r['fires']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _catalyst_match_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=30,
+                                    timezone=_ET),
+                id="alert_taxonomy_catalyst_match_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 catalyst-match DARK comparison ENABLED "
+                  "(17:30 ET weekdays, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 catalyst-match DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)")
 
         def _compass_daily_focus_run():
             try:

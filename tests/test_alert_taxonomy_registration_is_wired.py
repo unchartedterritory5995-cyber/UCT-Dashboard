@@ -68,7 +68,7 @@ CP3_SIGNED = {
     "position_risk": True,             # line 2, ec2b197f8
     "regime_change": False,            # CP1-CP2 merged; CP3 queued
     "scan_membership_change": True,    # line 2, d0415f251
-    "catalyst_match": False,           # CP1-CP2 merged; CP3 queued
+    "catalyst_match": True,            # line 2, 3ee80dc13
     "indicator_condition": False,      # CP1-CP2 merged; CP3 queued
 }
 
