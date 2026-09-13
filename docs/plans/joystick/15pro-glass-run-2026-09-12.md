@@ -111,3 +111,27 @@ pod swap is not a glass result.
 in `UNSHIMMED_STATIC` annotated `since: 'Safari 18.4'`. The rail is not wrong to scan for it — it is
 conservative in the safe direction — but the annotation is inaccurate against this device and should
 be corrected rather than trusted.
+
+## Smoke-login hardening — verified on glass, 2026-09-12 20:41
+
+PR #112 merged as `1dbe230d0`; `web` deploy **SUCCESS** at 20:38:31 and `/api/health` uptime reset
+(23s -> 39s). Minted URL shape checked from the terminal first:
+
+```
+https://uctintelligence.com/smoke-login#token=...
+  -> '#token=' present; nothing before the '#' but the path; no query string
+```
+
+✅ **The fragment link signed the device in.** iPhone 15 Pro / iOS Safari 17.6: typed the `#token=`
+URL into the address bar, committed with the keyboard's Go key (never a suggestion row), and the
+device landed signed-in on `/dashboard` with the hub rendering. So the client-side redemption —
+read `location.hash`, POST the token in a request body — works on a real engine, not just jsdom.
+
+⚠️ **What this glass result does NOT prove, stated rather than implied:** the address bar afterwards
+reads plain `uctintelligence.com`, but Safari collapses an unfocused address bar to the bare domain
+anyway, so the screenshot is not evidence of the `replaceState` scrub. The scrub is proven by
+`SmokeLogin.test.jsx` asserting `window.location.hash === ''` after the read. The device proves the
+REDEMPTION path; the unit rail proves the SCRUB.
+
+⭐ The TTL is now 2 minutes, which changes the operator rhythm: mint only once the device's address
+bar is already open and cleared. Minted 20:40:46, used within ~20s.
