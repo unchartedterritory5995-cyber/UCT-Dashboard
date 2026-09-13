@@ -99,3 +99,17 @@ reads come from `/health` (`p95_render_ms`, `pool_hits`) in the Phase 3 canary.
   background): at most **2** background renders at once; all 12 valid.
 - **C-13 against a real Playwright error:** navigation to an unresolvable host with a token in the
   URL — the raw error message contained the token (control), `scrub()` output did not.
+
+---
+
+## Merge 3 — 2.3 web half (headers + scrub) · 2026-09-13 (Sunday)
+
+**Shipped:** `ids.bind / background / carry / render_headers`; the V2 runtime binds each job; the
+multi-chart pool carries the binding; the warm cycle marks itself background; house and buzz renders
+send the headers and scrub the renderer's error body before logging it. `services/chart_renderer/app.py`
+is in the commit but deploys separately (row 9).
+
+**Gate** (`a69dfc574`; master had not moved since merge 2, nothing to merge): 25 scoped files,
+**724 passed, 0 failed**. Watch coverage `OK` (changed 12). Mutation proofs 22/22 red.
+
+**Deploy, measured:** *(filled from the running pod after the push)*
