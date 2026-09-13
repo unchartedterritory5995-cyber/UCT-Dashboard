@@ -38,3 +38,7 @@ dfd22f046 2026-09-08 Detection was 68% of the cold window, and it was blocked by
 - The WIP commit is NOT reviewed and may not pass tests.
 - If this branch tracks `origin/master`, push with an explicit refspec (`git push origin HEAD:refs/heads/<branch>`).
 - One master merge at a time repo-wide; scoped pytest only (named files); see the root `CLAUDE.md`.
+
+## Addendum — gitignored 2026-09-13 (by the discord-render session)
+
+`app/.env.flowperf` was withheld from the capture (env-shaped name) and is now in `.gitignore`, so a `git add -A` cannot publish it to this PUBLIC repo. The file is untouched on disk. Remove the line if you need it tracked.

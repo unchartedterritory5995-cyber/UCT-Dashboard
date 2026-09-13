@@ -102,3 +102,6 @@ tools/share_phone_out/
 tools/wave_l_e2e_out/
 tools/semantic_benchmark_out/
 tools/prod_asset_proof_out/
+
+# Withheld from the 2026-09-13 restart capture (env-shaped name) — never publish to this repo.
+app/.env.flowperf
