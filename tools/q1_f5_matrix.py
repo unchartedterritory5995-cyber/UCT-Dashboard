@@ -487,6 +487,89 @@ def drive_append(page, family, base, log):
 # the artifact
 # ══════════════════════════════════════════════════════════════════════════════
 
+
+# ==============================================================================
+# THE RIG WINDOW RULE, ENCODED RATHER THAN REMEMBERED
+# ==============================================================================
+# "Rig only when no Q1 scheduled task is due within the hour" (owner ruling).
+# A rule an operator has to remember is a rule that gets skipped on the run that
+# matters -- and the cost here is not abstract: the sampler and this tool drive
+# THE SAME signed-in profile, so an overlap corrupts whichever one is mid-flight
+# and leaves a SKIPPED row or a half-finished cell with no way to tell which.
+#
+# It REFUSES and names the task, rather than waiting: a run that silently blocks
+# for fifty minutes looks identical to a run that hung.
+RIG_TASKS = ("UCT-WaveQ1-Observe", "UCT-WaveQ1-Canary", "UCT Wave Q1 Window Check")
+WINDOW_MINUTES = 60
+
+
+def rig_window_refusal(now=None, query=None):
+    """The reason to refuse, or None when the window is clear.
+
+    Derived from the SCHEDULER, never from a remembered timetable -- the sampler's
+    cadence has already changed once this wave. A task whose next run cannot be
+    read is treated as DUE: unknown is not clear.
+    """
+    import datetime
+    import json
+    import subprocess
+    now = now or datetime.datetime.now()
+    if query is None:
+        def query():
+            ps = (
+                "Get-ScheduledTask | Where-Object { $_.TaskName -match 'WaveQ1|Wave Q1' } | "
+                "ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
+                "[pscustomobject]@{name=$_.TaskName; next=$i.NextRunTime} } | ConvertTo-Json"
+            )
+            out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                                 capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=90)
+            return out.stdout
+    try:
+        raw = query()
+        data = json.loads(raw) if raw and raw.strip() else []
+    except Exception as e:  # noqa: BLE001
+        return ("the scheduler could not be read (" + type(e).__name__ + ") -- unknown is "
+                "not clear, so the rig stays untouched")
+    if isinstance(data, dict):
+        data = [data]
+    seen = []
+    for row in data:
+        name = str(row.get("name") or "")
+        if name not in RIG_TASKS:
+            continue
+        nxt = row.get("next")
+        if not nxt:
+            continue
+        txt = str(nxt)
+        stamp = None
+        if txt.startswith("/Date("):
+            try:
+                stamp = datetime.datetime.fromtimestamp(int(txt[6:].split(")")[0].split("+")[0]) / 1000)
+            except (ValueError, IndexError):
+                stamp = None
+        else:
+            for fmt in ("%Y-%m-%dT%H:%M:%S", "%m/%d/%Y %I:%M:%S %p", "%Y-%m-%d %H:%M:%S"):
+                try:
+                    stamp = datetime.datetime.strptime(txt.split(".")[0], fmt)
+                    break
+                except ValueError:
+                    continue
+        if stamp is None:
+            return "cannot read the next run time of " + name + " (" + txt + ") -- unknown is not clear"
+        mins = (stamp - now).total_seconds() / 60.0
+        seen.append((name, stamp, mins))
+    if not seen:
+        return ("no Q1 scheduled task was found at all -- that is an instrument answer, not a "
+                "clear window; check the task names before running the rig")
+    due = [x for x in seen if 0 <= x[2] < WINDOW_MINUTES]
+    if due:
+        n, st, m = min(due, key=lambda x: x[2])
+        return (n + " runs at " + st.strftime("%H:%M") + ", in " + str(int(m)) + " min. "
+                "It drives the SAME signed-in profile; wait for it, then re-run.")
+    return None
+
+
 def load_state():
     if STATE.exists():
         try:
@@ -764,6 +847,9 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--ignore-window", action="store_true",
+                    help="run anyway. Only for a window verified by hand; "
+                         "the refusal names the task it is protecting.")
     args = ap.parse_args()
 
     stamp = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
@@ -805,6 +891,12 @@ def main() -> int:
         pathlib.Path(args.out).write_text(render(st, stamp), encoding="utf-8")
         print("nothing to do — table re-rendered")
         return 0
+
+    refusal = None if args.ignore_window else rig_window_refusal()
+    if refusal:
+        print("STOP -- the rig window is not clear: " + refusal)
+        return 5
+    print("rig window clear (no Q1 task due within " + str(WINDOW_MINUTES) + " min)")
 
     proc, endpoint, ver = rig.spawn_rig()
     if ver is None:
