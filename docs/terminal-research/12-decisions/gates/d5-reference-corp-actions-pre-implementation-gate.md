@@ -2,7 +2,7 @@
 id: GATE-D5-REFERENCE-CORP-ACTIONS
 title: D5 — Reference Data & Corporate Actions — pre-implementation gate
 role: the approval packet. Nothing builds until an approval line is signed, and nothing builds past the scope that line names.
-status: ⛔ UNSIGNED. The approval block below is EMPTY. NOTHING IN THIS PACKET IS AUTHORIZED.
+status: ✅ CP1 APPROVED 2026-09-12. CP2-CP7 UNSIGNED — each needs its own line.
 date: 2026-09-12
 measured_against: origin/master @ ffa8102c7
 pairs_with: PRD-D5-REFERENCE-CORP-ACTIONS · SPEC-D5-REFERENCE-CORP-ACTIONS
@@ -19,21 +19,32 @@ evidence_ceiling: >
 sources: see PRD-D5-REFERENCE-CORP-ACTIONS's `sources`.
 ---
 
-# ⛔ UNSIGNED — D5 pre-implementation gate
+# ✅ CP1 APPROVED — the corporate-actions census, and nothing else
 
-## ⛔ APPROVAL
+## ⛔ APPROVAL — CP1 ONLY
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  96fa0e5d4   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP1 - the corporate-actions census. One DERIVED inventory of
+                  every corporate-action provider READ and every adjustment
+                  APPLICATION in the repo, three-state (outstanding / migrated /
+                  deliberately outside with a written reason), plus a rail that
+                  fails BY NAME on a new unregistered one.
+
+                  INSTRUMENT ONLY. No ledger, no producer, no reader migrated,
+                  no product module edited, no store touched, no member-visible
+                  change. tools/** + tests/** only.
+
+                  CP2-CP7 EACH NEED A NEW LINE.
 ```
 
-> ⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** The four labels above are empty, and an empty
-> approval block authorizes no file, no checkpoint, no rail and no measurement that writes
-> anything. Every checkpoint below is a PROPOSAL. Until a line is signed naming ONE checkpoint
-> by its id, D5 is documents.
+> ⛔⛔ **CP2 THROUGH CP7 ARE NOT AUTHORIZED.** They remain PROPOSALS, and the two that touch an
+> INERT STRAND (CP4 and CP7, both reaching `bars_sanitize.py`, which flow-worker RUNS and does
+> not WATCH) need their live-or-incidental classification settled on the line that approves
+> them, not afterwards.
 
 ⚠️ **AND A SIGNED LINE MUST NAME A CHECKPOINT, NOT "D5".** The PRD's §8 argues that *"the day D5
 ships"* is not a checkable condition; an approval line reading "build D5" would reproduce that
