@@ -1,7 +1,11 @@
 # Joystick hub — completion audit
 
 > **The feature is built and shipped; the plan is closed except for one owner session and four
-> owned follow-ups — and one instrument is lying about ten shipped surfaces.**
+> owned follow-ups — and the instrument that was lying about ten shipped surfaces has been fixed.**
+>
+> **CLOSED 2026-09-13:** D-42 and D-43, merged `d153215d0`, live in `4beb06c00`. §1 moves from
+> INCOMPLETE to COMPLETE-PENDING-OWNER-RUN. One new instrument defect (**D-44**) was found on
+> glass in the same session and is filed, owned and non-blocking.
 
 Audit SHA: **`ccbab9bcd`** (master tip at the start of the audit; `de519c969` by the end — master
 moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim below cites a
@@ -12,10 +16,11 @@ moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim
 | # | Action | Estimate |
 |---|---|---|
 | 1 | `owner-run.md` §A — the flick-safety block on a real iPhone, then `Copy trace` and run `tools/hub_trace_analyze.py`. **Closes G0-1 and D4, and unblocks Block G5's 96 rows.** | **20 min** |
-| 2 | `owner-run.md` §B — nine G3 rows a 0.42-scale mirror could not aim at | 15 min |
+| 2 | `owner-run.md` §B — nine G3 rows a 0.42-scale mirror could not aim at, **plus B10–B15**, the twelve steps D-42 had hidden | 25 min |
 | 3 | `owner-run.md` §C — four Android/TalkBack rows on your own phone | 10 min |
+| 3b | `owner-run.md` **§C-iOS** — three VoiceOver rows (G2-3, G2-4, D1-iOS). ⭐ These were BLOCKED on a BrowserStack limitation, not a product one, and your own iPhone lifts it | 10 min |
 | 4 | `owner-run.md` §D/§E — two eye rows, one weekend row, two fps ratios | 10 min + a Saturday |
-| 5 | Decide **G-DEFECT-1** below (the surface-matrix blind spot) — fix it or accept 10 unstepped surfaces | ruling only |
+| 5 | Rule on **D-44** — the glass sheet’s expected results are derived from the binding KEY alone, so the scrub step omits its mandatory 500 ms hold and `home`’s four rows describe a mode that does not exist. Fix the generator, or accept that six rows carry a correction note | ruling only |
 
 Nothing else in this programme waits on anybody.
 
@@ -39,7 +44,7 @@ Ten modes ship (nine routed + `catalysts` in-place). Against spec §C3:
 | chart | ✅ | ✅ | ✅ | Plan trade · Alert · Flag · Draw · Compare | Log trade · Note · Voice · Home | **SHIPPED** |
 | journal | ✅ `journalSection.js:642` | ✅ `:643` | ✅ `:553`/`:568` | Chart it · Move stop · Breakeven · Close | Plan trade · Note · Voice · Home | **SHIPPED** |
 | catalysts | ✅ | ✅ | ✅ | Chart it · Flag · Why? | Filter · Note · Voice · Home | **SHIPPED** |
-| notebook | ✅ `notebookSection.js:496` | ⛔ **absent** | ✅ `:501` | New note · Voice note · Set ticker · Templates | Daily plan · Postmortem · Voice · Home | **Reverse MISSING** |
+| notebook | ✅ `notebookSection.js:496` | ✅ `:521` *(shipped 2026-09-13, D-43)* | ✅ `:546` | New note · Voice note · Set ticker · Templates | Daily plan · Postmortem · Voice · Home | **SHIPPED** |
 | calendar | ✅ | ✅ | ✅ | Macro · My names | Voice · Home | **SHIPPED**; "Earnings" DEFERRED |
 | home | ✅ `homeSection.js:200` | ✅ `:211` | ✅ `:153`/`:175` | Scan · Chart · Breadth · Wire · Flow | Journal · Notebook · Calendar · Voice | **SHIPPED** (no Home bubble — spec §C3 exempts it) |
 | flow | — | — | — | *(none)* | Voice · Home | **SHIPPED as specified** (navigate-only) |
@@ -88,7 +93,15 @@ not a live claim — noted, not filed.
 | theme island | `app/src/styles/themeIslands.test.js` |
 | PREVIEW_MODES membership | `rolloutStages.test.js` |
 
-### ⛔ G-DEFECT-1 — the surface matrix is blind to 10 shipped surfaces, and publishes two FALSE glass steps
+### ~~⛔ G-DEFECT-1~~ — the surface matrix was blind to 10 shipped surfaces, and published two FALSE glass steps
+
+> ✅ **RESOLVED 2026-09-13 — filed as D-42, fixed in `6d2945d84`, merged `d153215d0`, live in
+> `4beb06c00`.** `bindingsIn` reads an **acorn parse tree** instead of a regex, so shorthand, the
+> comma-list form and quoted keys all resolve while a destructure, a member read, a computed key
+> and a string literal never can. The self-check went 9 → **20 cases** (count derived, not typed)
+> and is mutation-proved: restoring the colon-only regex turns eleven red by name and leaves nine
+> green. The sheet went **95 → 107 steps** and `GS-wire-0` is gone. The account below is kept as
+> the record of what the defect was.
 
 `bindingsIn()` (`tools/hub_surface_matrix.mjs:81`) matches `` `(^|[^\w.])${key}\s*:` `` — **the colon
 form only**. It cannot see ES6 **shorthand** properties. Consequences, measured:
@@ -115,7 +128,14 @@ the control is real but incomplete, and never exercises shorthand. This is
 neither. **Owner ruling needed:** fix `bindingsIn` to accept shorthand and regenerate both files
 (≈30 min, then the 96-row sheet grows), or accept 10 unstepped surfaces.
 
-### ⛔ G-DEFECT-2 — `notebook` has no Reverse
+### ~~⛔ G-DEFECT-2~~ — `notebook` had no Reverse
+
+> ✅ **RESOLVED 2026-09-13 — filed as D-43, same commit.** `onDoubleTap` is wired symmetrically
+> with `onTap` — same clamp, same computed target, `prev()` through the shared cursor. Its rail
+> drives the REGISTERED config and reads the §C3 promise out of the spec of record. ⛔ Its glass
+> row `GS-notebook-b2` is INCONCLUSIVE-TRANSPORT and sits on `owner-run.md` §B as **B12**: a
+> double-tap needs two presses inside 280 ms and the mirror floor is 260–427 ms. **It has never
+> been on glass.**
 
 Spec §C3 notebook: *"Primary: next note. **Reverse: previous note.**"* `notebookSection.js` declares
 no `onDoubleTap`. No D-number covers it. Filed here; needs a D-number or a spec amendment.
@@ -131,9 +151,44 @@ no `onDoubleTap`. No D-number covers it. Filed here; needs a D-number or a spec 
 | BLOCKED (platform) | 2 | G2-3, G2-4 — BrowserStack iOS has no screen reader |
 | INCONCLUSIVE-TRANSPORT / on `owner-run.md` | 21 | G1-1…6 (§A), G2-1/2 (§C), nine G3 rows (§B), G3-2+G3-16a+G3-5 (§D), G4-1/2 (§E) |
 | BLOCKED-BY-G0 | 96 | Block G5's derived sweep |
-| **NOT RUN and NOT on owner-run.md** | **0 rows / 10 surfaces** | the surfaces G-DEFECT-1 hides never became rows |
+| ~~**NOT RUN and NOT on owner-run.md**~~ | **0 rows / 0 surfaces** | ✅ **Closed 2026-09-13.** The 10 surfaces G-DEFECT-1 hid are now steps, and every one of them is either run or on `owner-run.md` §B. See the addendum below. |
 
-> ### §1 verdict: **INCOMPLETE** — G-DEFECT-1 (10 surfaces unstepped, 2 false steps) and G-DEFECT-2 (notebook Reverse missing). Everything else is SHIPPED or a closed DEFERRED.
+### Addendum — what the 14 new steps did on glass (2026-09-13)
+
+Record: `15pro-new-rows-2026-09-13.md`. iPhone 15 Pro / iOS Safari 17.6, Web Inspector CLOSED.
+
+| Steps | Outcome |
+|---|---|
+| `GS-wire-b1` | ✅ **PASS.** Two taps, each advancing **exactly one segment** and scrolling it into view. |
+| `GS-home-b1` | ⚠️ **PASS on the spec.** The tap navigated to the last-used section (Morning Wire) — `homeSection.js:200`, spec §C3:905. The sheet expected cursor-stepping, which `home` does not do → **D-44**. |
+| 3 × Reverse (`*-b2`) | ⛔ **INCONCLUSIVE-TRANSPORT** → `owner-run.md` B10–B12. 280 ms window vs a 260–427 ms floor. |
+| 9 × scrub / commit / readout (`*-b3/b4/b5`) | ⛔ **INCONCLUSIVE-TRANSPORT** → `owner-run.md` B13–B15. A scrub is a **500 ms hold** that turns into a drag (`useJoystick.js:408`); the mirror has no way to hold a press. |
+
+⚰️ **One reading was recorded as a PASS and then retracted.** A drag from the pad on `/dashboard`
+navigated to Screener and was briefly logged as a working scrub-commit. It was a **fan push**:
+without the hold, a drag resolves by DIRECTION, and straight up is the `home.scan` bubble. What
+exposed it was the same gesture on `/morning-wire` firing `wire.voice` and raising a microphone
+permission prompt — an outcome no scrub could produce. ⭐ The lesson is not "be careful": it is
+to ask **what else would produce this exact observation**, and the answer was sitting in the fan.
+
+> ### §1 verdict: **COMPLETE-PENDING-OWNER-RUN**
+>
+> **G-DEFECT-1 (= D-42) and G-DEFECT-2 (= D-43) are both CLOSED IN PRODUCTION**, `d153215d0`,
+> live in `4beb06c00`. Every mode now declares what spec §C3 promises, including `notebook`’s
+> Reverse, and the acceptance sheet can see all of it: **95 → 107 steps**, the two false
+> “does nothing here” rows gone, and the one that remains (`GS-flow-b0`) true.
+>
+> **PENDING-OWNER-RUN, not COMPLETE**, for one reason only: of the fourteen steps that appeared,
+> **two were run on a 15 Pro** (`GS-wire-b1` PASS, `GS-home-b1` PASS on the spec) and **twelve are
+> INCONCLUSIVE-TRANSPORT** on `owner-run.md` §B. Both reasons are measured, not argued: Reverse
+> needs two presses inside 280 ms against a 260–427 ms floor, and a scrub needs a 500 ms HOLD
+> before the drag which the mirror has no way to perform.
+>
+> ⛔ **One new defect, and it is the sheet’s prose, not the product: D-44.** Every behaviour
+> measured on glass matched the SPEC; what did not match was the generated expected-result text.
+> It is an instrument defect of exactly D-42’s class one layer up — D-42 was the sheet not knowing
+> a binding EXISTS, D-44 is the sheet not knowing what it DOES — and it blocks nothing, because
+> the six affected rows are transport-limited anyway and now carry the correction inline.
 
 ---
 

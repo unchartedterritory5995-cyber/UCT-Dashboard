@@ -10,6 +10,8 @@ facts:
 | reason | what it means | rows |
 |---|---|---|
 | **Mirror timing floor** | BrowserStack Live costs **260–427 ms per gesture** (measured, 16 gestures, two drag lengths). `FLICK_MS = 120`. A flick is physically unmeasurable through it — the cost is per pointer-event round trip, so a shorter drag does not help. | G1-1…G1-6, D4 |
+| **Mirror timing floor, again** | The same 260–427 ms floor is longer than the **280 ms** double-tap window (`DOUBLE_TAP_MS`), so Reverse cannot be driven through a mirror either. | B10, B11, B12 |
+| **The mirror cannot HOLD a press** | A scrub is a 500 ms hold that turns into a drag (`HOLD_MS`, `useJoystick.js:408`). The mirror’s only drag primitive is one down-move-up, so a “scrub” through it is a **fan push** and fires an action instead. | B13, B14, B15 |
 | **Mirror pointing precision** | With the Web Inspector attached the device renders at **~0.42 of CSS size**: a 44 px target is ~18 px on screen with ~20 px spacing. Aiming at one fan bubble hit its neighbour. | G3-4, G3-6…G3-11, G3-13, G3-14, G3-8 |
 | **Cannot authenticate the device** | Android's mirror keyboard **drops capitalisation**; the login token is case-sensitive base64url. BrowserStack's `url=` preload is overwritten by its own session state. An agent may not type a password. | D1, G2-1, G2-2, Android rows |
 | **Needs a human eye** | No instrument can answer "is this legible / distinguishable to a person". | G3-16(a), G3-2 legibility |
@@ -65,6 +67,46 @@ Right-handed, normal settings. Each is one gesture and one observation.
 | B8 | G3-13 | Notebook: activate **Link ticker**. | The confirm sheet carries a symbol field — never a permanently dimmed bubble, never a label that lies. | ☐ PASS ☐ FAIL |
 | B9 | G3-14 | Any confirm action with fields. | Steppers and numeric input operate on the same value the gesture produces, and the committed value is the adjusted one. | ☐ PASS ☐ FAIL |
 
+### B10-B15 - the steps D-42 was hiding (added 2026-09-13)
+
+⭐ **Why these exist now.** `tools/hub_surface_matrix.mjs` matched an object key only in its colon
+form, so ES6 shorthand was invisible to it: `wire` and `home` wire all four gestures plus a readout
+and the generator printed **“— none —”** for both, while `journal`'s scrub was missing from a table
+that listed its tap. Fixing it (**D-42**, `d153215d0`) added fourteen steps to
+`glass-acceptance-steps.md`. `notebook`'s Reverse is one of them and is genuinely new (**D-43**).
+
+**Two were run on a 15 Pro** (`15pro-new-rows-2026-09-13.md`): `GS-wire-b1` **PASS**, `GS-home-b1`
+**PASS on the spec**. The twelve below could not be, for two different measured reasons.
+
+⛔ **Reverse — the double-tap window is shorter than the transport.** The second press must land
+before a **280 ms** timer (`DOUBLE_TAP_MS`, `constants.js:91`). The measured BrowserStack Live cost
+is **260–427 ms per gesture**, per pointer-event round trip, so a faster tap does not help.
+
+⛔ **Scrub — it needs a 500 ms HOLD before the drag, and the mirror cannot hold a press.**
+`useJoystick.js:408`: *“A hold that turns into a drag is Scrub — never a fan push, whatever the
+distance (C1)”*, `HOLD_MS = 500`. The mirror's only drag primitive is one down-move-up. A drag
+without the hold is a **fan push resolved by direction** — during the run it fired `home.scan` and
+navigated to Screener, and on the Wire it fired `wire.voice` and raised a microphone prompt.
+
+⭐ **On your own phone both are trivial**: double-tap normally, and for a scrub press and hold about
+half a second until the fan disappears, then drag without lifting.
+
+| # | Sheet row(s) | Do this | What should happen | Result |
+|---|---|---|---|---|
+| B10 | `GS-wire-b2` | Morning Wire: **double-tap** the pad. | The segment cursor steps **back** one and that segment scrolls into view. A single tap must not also fire. | ☐ PASS ☐ FAIL |
+| B11 | `GS-home-b2` | Dashboard: **double-tap** the pad. | You land on **Morning Wire** — Reverse is a fixed destination and needs nothing stored (`homeSection.js:211`). ⛔ It must NOT be the same destination Primary just used, or the two gestures are indistinguishable. | ☐ PASS ☐ FAIL |
+| B12 | `GS-notebook-b2` | Notebook: **double-tap** the pad. | The cursor steps back one note **and opens it** — the mirror of tap. At the first note it **CLAMPS**; it must not wrap onto the last. ⭐ **Shipped 2026-09-13 and never seen on glass.** | ☐ PASS ☐ FAIL |
+| B13 | `GS-wire-b3/b4/b5` | Morning Wire: press the pad, **hold ~0.5s**, then drag along y and release. | While dragging, the chip names **the segment under the cursor**, in the page's own words. On release that segment is **revealed** — scrolled into view, not merely selected. | ☐ PASS ☐ FAIL |
+| B14 | `GS-journal-b3/b4/b5` | Journal, with at least one open position: same hold-then-drag. | The chip names **the position** under the cursor. On release that row is revealed. ⭐ This is the stop-adjust flagship's own scrub, and the matrix could not see it until today. | ☐ PASS ☐ FAIL |
+| B15 | `GS-home-b3/b4/b5` | Dashboard: same hold-then-drag. | ⚠️ **Read the expectation here, not the sheet's.** The chip says **“Go to <section>”** and **nothing on the page moves** — by design (`homeSection.js:175`). On release you **NAVIGATE** to the section the chip named. The sheet says “the landing row is revealed”, which `home` does not do: that is **D-44**, not a product fault. | ☐ PASS ☐ FAIL |
+
+⚠️ **`GS-home-b1` is PASSED and needs no row, but read this before judging `home` anywhere.**
+A tap on the Dashboard navigates to your **last-used section** — measured, it went to Morning Wire —
+and on a first-ever visit with nothing stored it is **deliberately inert** (spec §C3:915 rejected
+defaulting it to Wire, because Primary and Reverse would then fire the same destination). The
+generated sheet says “the cursor steps once and the target scrolls into view” for that row. It is
+wrong, it is filed as **D-44**, and `home` is the only mode it is wrong about.
+
 ---
 
 ## C — Android phone + TalkBack
@@ -81,6 +123,29 @@ are already signed in.
 | C2 | G2-2 | With TalkBack, activate **every** action on Home's sheet in turn. No drag at any point. | Each activates its own target. | ☐ PASS ☐ FAIL |
 | C3 | D1 | The no-drag door generally: reach and operate the hub using TalkBack only. | Everything reachable; nothing requires a drag. | ☐ PASS ☐ FAIL |
 | C4 | D4 (Android) | The flick-safety block above, on Android. | Same expectation as A1–A6. | ☐ PASS ☐ FAIL |
+
+---
+
+## C-iOS - iPhone + VoiceOver
+
+⭐ **These were BLOCKED and they are not any more — the block was BrowserStack's, not the
+product's.** Its iOS devices answer *“Screen Reader is currently not supported for this device”*,
+which is a tooling fact, and a tooling fact is exactly the kind a real phone answers differently.
+Your own iPhone has VoiceOver, so **G2-3 and G2-4 move from BLOCKED to this list.**
+
+⛔ **This is not a duplicate of §C.** VoiceOver and TalkBack consume different gestures, and the
+hub's no-drag door has only ever been exercised against one of them. “It works with TalkBack” is
+not evidence about VoiceOver.
+
+**Setup:** Settings → Accessibility → VoiceOver ON. ⚠️ Set the Accessibility Shortcut up FIRST
+(Settings → Accessibility → Accessibility Shortcut → VoiceOver), because switching VoiceOver off
+without it is considerably harder than switching it on.
+
+| # | Row | Do this | What should happen | Result |
+|---|---|---|---|---|
+| Ci1 | G2-3 | Swipe to focus the hub's **Actions** button, then double-tap. **No drag anywhere.** | The Actions sheet opens. | ☐ PASS ☐ FAIL |
+| Ci2 | G2-4 | With VoiceOver on, activate **every** action on Home's sheet in turn. No drag at any point. | Each one activates its own target — not its neighbour, and not nothing. | ☐ PASS ☐ FAIL |
+| Ci3 | D1 (iOS) | A confirm action that carries fields: reach its numeric field and its ± steppers with VoiceOver, adjust the value, and commit. | The committed value is the **adjusted** one, and nothing along the way needed a drag. ⛔ This is the half §C's C3 cannot answer for iOS. | ☐ PASS ☐ FAIL |
 
 ---
 
@@ -116,11 +181,14 @@ would measure the phone, not the hub.)
 - **B1–B9** close the G3 rows a mirror could not aim at.
 - **C1–C4** close **G2-1 / G2-2 / D1** (Android).
 - **D1–D3** close the judgement rows.
+- **B10–B15** close the twelve steps D-42 had hidden, including `notebook`’s brand-new Reverse.
+- **Ci1–Ci3** close **G2-3 / G2-4** and the iOS half of **D1**.
 
-⛔ **G2-3 / G2-4 (iOS VoiceOver) are NOT on this list and stay BLOCKED.** BrowserStack's iOS devices
-answer *"Screen Reader is currently not supported for this device"* — a tooling fact, not something
-a phone can answer differently. If you want them covered they need a real iPhone with VoiceOver,
-which is the same device as section A; add them there if you choose to.
+☠️ ~~**G2-3 / G2-4 (iOS VoiceOver) are NOT on this list and stay BLOCKED.**~~ — **superseded
+2026-09-13 by §C-iOS.** The sentence was right about the cause and wrong about the conclusion:
+BrowserStack cannot run a screen reader on its iOS devices, but *your* iPhone can, and this is a
+list of things done on your own phone. Struck rather than deleted, because a reader who remembers
+only the old heading will leave two accessibility rows permanently unclosed.
 
 ⛔ **A FAIL anywhere in section A is a stop-and-ring finding**, not a note for later: it would mean a
 fast tap can fire a destructive action on real glass.
