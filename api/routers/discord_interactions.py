@@ -723,6 +723,45 @@ def index_close_status(request: Request):
             "armed": idx.enabled(), "webhook_configured": bool(idx.webhook_url())}
 
 
+def _renderer_health(timeout_s: float = 2.0) -> dict | None:
+    """chart-renderer's own /health, bounded. None when unconfigured; {"ready": False, ...}
+    when it does not answer — "could not reach it" is reported, never read as healthy."""
+    base = (os.environ.get("CHART_RENDERER_URL") or "").strip().rstrip("/")
+    if not base:
+        return None
+    try:
+        import httpx
+        r = httpx.get(f"{base}/health", timeout=timeout_s)
+        body = r.json() if r.is_success else {}
+        return {"reachable": True, "status": r.status_code, "ready": bool(body.get("ready", body.get("browser"))), **body}
+    except Exception as e:  # noqa: BLE001
+        return {"reachable": False, "ready": False, "error": type(e).__name__}
+
+
+@router.get("/api/discord/render-health")
+def render_health(request: Request):
+    """Discord render V2 health: queue, SLOs from the durable jobs table, renderer state and
+    the alert rules currently breached. Gated by the PUSH_SECRET bearer like
+    /api/discord/index-close/status. Read-only on purpose: with V2 off it does NOT start the
+    runtime and does NOT create the jobs database — it says V2 is off."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return JSONResponse(status_code=401, content={"error": "unauthorized"})
+    from api.services.discord_render import commands as render_v2, observe
+    from api.services.discord_render.jobs_store import JobsStore, default_path
+    runtime = render_v2._runtime                       # peek: never build or start it from here
+    store = runtime.store if runtime is not None else (JobsStore() if os.path.exists(default_path()) else None)
+    payload = {"v2_enabled": render_v2.enabled(), "runtime_started": runtime is not None,
+               "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12]}
+    renderer = _renderer_health()
+    if store is None:
+        return {**payload, "renderer": renderer, "slo": None, "note": "no jobs database yet (V2 has never run on this volume)"}
+    obs = render_v2._observer                          # its consecutive-miss count, unless this reading is ready
+    misses = obs.renderer_misses if obs is not None and not (renderer or {}).get("ready") else None
+    return {**payload, **observe.health_payload(runtime, store, renderer=renderer, renderer_misses=misses)}
+
+
 @router.get("/api/discord/activity/handoff")
 def activity_handoff(channel_id: str = ""):
     """What the Discord Activity in `channel_id` should open: the channel's

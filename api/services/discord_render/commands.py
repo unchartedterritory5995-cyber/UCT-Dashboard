@@ -27,17 +27,19 @@ import threading
 import time
 
 from api.services import discord_interactions as di
-from api.services.discord_render import contract
+from api.services.discord_render import contract, observe
 from api.services.discord_render.delivery import DeliveryResult
 from api.services.discord_render.ids import corr_id
 from api.services.discord_render.jobs_store import JobsStore
-from api.services.discord_render.runtime import INTERACTIVE, Job, JobContext, JobRuntime
+from api.services.discord_render.runtime import INTERACTIVE, Job, JobContext, JobRuntime, _int_env
 
 log = logging.getLogger("discord_render")
 
 AUTOCOMPLETE_BUDGET_S = 1.2
 RETRY_LOOKUP_BUDGET_S = 0.5
+HEALTH_BUDGET_S = 2.0
 FLOW_TIMEOUT_S = 10.0
+ADMINISTRATOR = 0x8
 
 _OFF = ("0", "false", "off", "no", "")
 
@@ -56,6 +58,7 @@ def command_enabled(name: str) -> bool:
 # ── runtime singleton ───────────────────────────────────────────────────────
 
 _runtime: JobRuntime | None = None
+_observer: observe.Observer | None = None
 _runtime_lock = threading.Lock()
 _io_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="drender-io")
 
@@ -79,22 +82,34 @@ def get_runtime() -> JobRuntime:
 
 
 def start() -> dict:
-    """Lifespan startup: build the runtime and resume what a dead pod left behind."""
+    """Lifespan startup: build the runtime, resume what a dead pod left behind, and start the
+    observer (alerts, purge, the renderer reading /renderhealth shows)."""
+    global _observer
     rt = get_runtime()
     out = rt.resume_pending()
-    log.info("drender evt=started owner=%s resumed=%s abandoned=%s", rt.owner, out["resumed"], out["abandoned"])
+    from api.routers import discord_interactions as router
+    with _runtime_lock:
+        if _observer is None:
+            _observer = observe.Observer(
+                rt.store, renderer_fn=router._renderer_health, commit=rt.commit,
+                interval_s=_int_env("DISCORD_RENDER_OBSERVE_S", 60, 15, 900),
+                cooldown_s=_int_env("DISCORD_RENDER_ALERT_COOLDOWN_S", 1800, 60, 86400)).start()
+    observe.event("runtime_started", detail=rt.owner, outcome=f"resumed={out['resumed']} abandoned={out['abandoned']}")
     return out
 
 
 def stop() -> int:
     """Lifespan shutdown: stop taking work and hand leases back for the next pod."""
-    global _runtime
+    global _runtime, _observer
     with _runtime_lock:
         rt, _runtime = _runtime, None
+        obs, _observer = _observer, None
+    if obs is not None:
+        obs.stop()
     if rt is None:
         return 0
     released = rt.stop()
-    log.info("drender evt=stopped owner=%s released=%s", rt.owner, released)
+    observe.event("runtime_stopped", detail=rt.owner, outcome=f"released={released}")
     return released
 
 
@@ -134,7 +149,8 @@ def _enqueue(job: Job, defer: dict, received: float) -> dict:
     status, position = rt.offer(job)
     if status == "queued":
         rt.record_ack(job.corr_id, (time.perf_counter() - received) * 1000.0)
-        log.info("drender evt=enqueued cid=%s cmd=%s pos=%s", job.corr_id, job.command, position)
+        observe.event("enqueued", cid=job.corr_id, cmd=job.command, ms=(time.perf_counter() - received) * 1000.0,
+                      attempt=position)
         return defer
     if status == "user_busy":
         return _ephemeral(f"You already have {rt.per_user_max} requests rendering — they'll land in a moment. · id {job.corr_id}")
@@ -156,6 +172,39 @@ async def _bounded(fn, budget_s: float, default):
         return await asyncio.wait_for(loop.run_in_executor(_io_pool, fn), timeout=budget_s)
     except Exception:  # noqa: BLE001 — timeout or error: the ack still answers
         return default
+
+
+def is_render_admin(interaction: dict) -> bool:
+    """Server-side admin check for /renderhealth. `default_member_permissions` only hides the
+    command by default — a server can grant it to any role — so the handler checks again:
+    the ADMINISTRATOR bit on the invoking member, or a user id in
+    DISCORD_RENDER_ADMIN_USER_IDS."""
+    try:
+        if int((interaction.get("member") or {}).get("permissions") or 0) & ADMINISTRATOR:
+            return True
+    except (TypeError, ValueError):
+        pass
+    uid = di.interaction_user_id(interaction)
+    allowed = {s.strip() for s in os.environ.get("DISCORD_RENDER_ADMIN_USER_IDS", "").split(",") if s.strip()}
+    return bool(uid) and uid in allowed
+
+
+async def _render_health_reply(interaction: dict) -> dict:
+    """/renderhealth: ephemeral, answered inside the ack budget. The store read runs off the
+    loop under HEALTH_BUDGET_S; the renderer state is the observer's cached reading, so no
+    HTTP probe of chart-renderer ever runs on the ack path."""
+    if not is_render_admin(interaction):
+        return _ephemeral("/renderhealth is for server admins.")
+    rt = get_runtime()
+    obs = _observer
+    renderer = obs.renderer if obs is not None and obs.renderer_at is not None else {"ready": None, "note": "not probed yet"}
+    misses = obs.renderer_misses if obs is not None else 0
+    payload = await _bounded(lambda: observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses),
+                             HEALTH_BUDGET_S, None)
+    if payload is None:
+        return _ephemeral(f"Render health did not answer within {HEALTH_BUDGET_S:g} s. "
+                          "The same data: GET /api/discord/render-health.")
+    return _ephemeral(observe.format_health_text(payload))
 
 
 # ── the ack path ────────────────────────────────────────────────────────────
@@ -182,6 +231,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
         fallback = [{"name": f"{typed} - chart it"[:100], "value": typed}] if di._TICKER_RE.match(typed) else []
         choices = await _bounded(lambda: router.fetch_ticker_choices(q), AUTOCOMPLETE_BUDGET_S, fallback)
         return router._autocomplete(choices)
+
+    if itype == 2 and name == di.RENDERHEALTH_COMMAND:
+        return await _render_health_reply(interaction)
 
     # Retry button on a failure message.
     retry_cid = contract.parse_retry(cid_field) if itype == 3 else None

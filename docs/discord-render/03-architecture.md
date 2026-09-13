@@ -235,6 +235,18 @@ No stack trace, exception text or URL ever reaches a member (railed on the build
 - **Deploy swap on web (C-01):** `422 selector not found` and a page-load timeout are
   "page not served" signatures; one retry after 1.5 s if the deadline allows, then the stand-in.
 
+*Built in 2.3* (`services/chart_renderer/app.py`; measured against real Chromium in `05`): log
+hygiene, the hard ceiling (504) and the correlation log line are **unconditional**; boot warm, spare
+contexts (kept — the one measured gain), recycle with the replacement launched at retire time, and
+the background cap are behind `RENDER_POOL_ENABLED`. Web sends `X-Correlation-Id` from the V2 job
+(a thread-local binding, carried across the multi-chart pool) and `X-Render-Priority: background`
+from the warm cycle, and scrubs the renderer's error body before logging it. Where it differs from
+the text above: the hard ceiling defaults to the budget the request declares, not 20 s (**OI-18**);
+the boot warm is hermetic plus an optional `RENDER_WARM_URL`, because `/r/chart` refuses a request
+without the render token and the renderer does not hold it (**OI-17**). `/health` also reports
+`pool_enabled, pool_hits, pool_misses, timeouts, failures, launch_error`. The web-side breaker and
+the deploy-swap retry are 2.4.
+
 ### 3.8 Data layer — one resolver, one clock, a freshness envelope (C-07, C-10, D-04)
 
 - **Symbol resolution** `api/services/discord_render/symbols.py::resolve(sym)` composes the
@@ -281,6 +293,11 @@ No stack trace, exception text or URL ever reaches a member (railed on the build
   final > 8 s with ≥10 jobs; 1-h success < 99.5 % with ≥20), renderer not ready for 2 probes,
   breaker open, ≥5 failures in 5 minutes, any job non-terminal at 60 s. Cooldown **durable** in
   the jobs DB (an in-memory cooldown resets every 8 minutes and pages on every pod).
+  *Built in 2.2* (`observe.evaluate_alerts`, run every 60 s by `observe.Observer`): every rule above
+  except **breaker open**, which arrives with the breakers in 2.4 — plus **any acknowledgement over
+  3 s in the last hour** (S1's hard ceiling: Discord has already failed that interaction). A blank
+  webhook still writes each alert as a `drender` log event under the same cooldown; a failed POST
+  records no cooldown. The observer also runs `store.purge()` hourly.
 - **Running SHA:** `/api/discord/render-health` reports `RAILWAY_GIT_COMMIT_SHA`, which is how
   every merge in `05-progress.md` proves the deployed code.
 
@@ -349,3 +366,6 @@ revisiting it only if the V2 jobs table shows `resumed` rates that break S2 afte
 | OI-13 | The render token has been written to renderer logs in plaintext. | Ship the log fix (2.3), then rotate `CHART_RENDER_TOKEN` (owner action — it touches web and the SPA build var `VITE_CHART_RENDER_TOKEN`). |
 | OI-14 | 77 web deploys/day is the root of C-01 for every feature on the pod, not only this one. | Out of this program's scope; recorded with the measurement. |
 | OI-15 | flow-worker `/ticker-flow` has no internal time budget (9/11: Massive OI fallback >60 s while web gave up at 30 s). | Our side: 10 s timeout + cached card + honest class. Their side (partner file): a budget inside `_compute_ticker_flow` — raised, not built here. |
+
+OI-16 onward were raised during the build and live **only** in `LEDGER.md` (one table, so the two
+cannot drift): OI-16 the ETF partition, OI-17 the renderer warm-up URL, OI-18 the hard-ceiling default.
