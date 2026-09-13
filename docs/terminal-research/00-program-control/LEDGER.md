@@ -3389,3 +3389,94 @@ program edited shared high-traffic files (`api/main.py` and the like) that every
 the program **created** (102 files): those have a single origin, so a later commit touching one is
 either this program continuing, or another workstream building on it — and both belong in the
 ledger. That is the query above, and it is the rail's PASS condition.
+
+---
+
+## ⛔ CROSS-PROGRAM — F-CAT-1, the catalyst engine spent money and wrote nothing
+
+> **NOT Terminal-Next scope. Recorded here because it was fixed by this session, on
+> this session's branch, while it was live in production.** Owner ruling 2026-09-13:
+> *"production outage takes priority over the queue … Ledger it under a cross-program
+> section: not Terminal-Next scope, fixed because it's live."*
+
+**Merged `f49da5ed6` → master 2026-09-13.** Classification **OK** by
+`tools/flow_worker_watch_coverage.py` (`reachable=154 watched=24 changed=5`) — five
+files, none in flow-worker's closure, so Tier 1, web-only restart.
+
+### What was wrong
+
+The catalyst engine's last per-ticker synthesis call was **2026-09-08 12:47Z**. Over
+2026-09-09/10/11 it billed **118 `_CURATOR` calls** plus `__hunter__` calls at
+$0.10–0.22 each and persisted **zero rows** — not even the unranked backfill. The
+member-facing "🎯 STOCK CATALYSTS" tile served nothing new for four trading days.
+
+`engine.py` had **eight consecutive unguarded calls** between `curator.curate()`
+(which bills an LLM) and the first `store.upsert_catalyst()`. Each enrichment
+promises in its own docstring to be best-effort; **the span did not**, so one
+exception propagated out of `run_refresh` — whose docstring claims *"Never raises —
+all errors swallowed + logged"* — skipping the synthesis loop AND the unranked
+backfill together.
+
+⭐ **The spend happens above that line; everything that makes it worth paying for
+happens below it.**
+
+### Ruled out by measurement, not inference
+
+| hypothesis | verdict |
+|---|---|
+| schema drift | **No** — live table's 23 columns match the INSERT's 23 binds exactly; a real row inserts cleanly against the live DDL |
+| upstream data outage | **No** — 13,123 of 13,577 gate rows carry price on 09-11, the same rate as healthy 09-04 |
+| parser rejecting every row | **No** — curator prompt was **8,436 tokens** on 09-11 vs **9,930** on 09-04: a full 40-name pool reached the LLM |
+| daily cost cap | **No** — it short-circuits *before* the call, so it would produce zero curator spend |
+| synthesis failing | **No** — every path in `synthesize_ticker` *returns* a thesis dict; even a total LLM outage writes fallback rows |
+
+### Why it took four days to find, and what now prevents that
+
+`summary["errors"]` was **logged and never persisted**. Railway log retention had
+rolled, and the engine correctly skips weekends, so by the time anyone looked there
+was no artifact to read and no way to reproduce. `catalyst_runs` is now a durable run
+receipt.
+
+⛔ **No live run was triggered to capture the exception.** `run_refresh` calls
+`_fire_catalyst_alerts`, which sends real watchlist alerts to members, and it would
+stamp Sunday rows. The fix does not depend on naming the specific exception — that is
+the point of guarding the span rather than one stage.
+
+### The rail
+
+`api/services/catalyst/spend_rail.py` asks the one question no existing guard asked:
+**did this run spend money and persist nothing?** The cost cap watched total spend
+(normal). `curator_health` watched whether the curator ran (it ran). The coverage
+audit recorded `ranked: 0, missed: 40` into a table with no alarm attached.
+
+- Zero-row paid run → **admin** Discord, never a member. Deduped per market date.
+- **N consecutive** such runs → the engine stops spending. `CATALYST_ZERO_ROW_KILL_AFTER`
+  (default 3); manual switch `CATALYST_SPEND_DISABLED=1`.
+- ⛔ The streak is a **SQLite query over `catalyst_runs`**, not a module counter. This
+  engine has already been burned twice by guards a redeploy silently re-armed
+  (`_DEEP_CONTEXT_DONE`, `news_catalysts._gen_count`), and this repo ships enough
+  commits in a day to reset an in-memory counter before it reaches N.
+- ⛔ The kill switch is an **env var, never a tag and never a delete**
+  (`feedback_kill_switch_never_a_delete`).
+- `rows_written_since` counts by `refreshed_at`, giving a true **per-run** count. A
+  day-level count reads 2026-09-08 — one run succeeded, thirty-four failed — as healthy.
+
+### Tests
+
+`tests/test_catalyst_enrichment_isolation.py` parametrises over **all seven** stages
+rather than pinning the one that happened to fail, so the next unguarded call added to
+that block is caught by name. Verified **RED before the fix (15 failed / 1 passed)** and
+GREEN after — the control passing is what proves the failures were real and not a broken
+fixture. `tests/test_catalyst_spend_rail.py` pairs every assertion with a control,
+including proof the kill switch can actually fire and that a free run neither breaks nor
+extends the streak. **135 passed** across 16 named catalyst suites.
+
+### ⛔ OPEN — F-CAT-2, registered not built
+
+On 2026-09-11 four `__hunter__` calls ran with **input_tokens of 14, 16 and 18** —
+against 17k–42k on healthy days — while still emitting ~2,000 output tokens and billing
+~$0.10 each. **The hunter is being paid to hallucinate from an empty prompt.** A
+sub-100-token prompt is not a query and the call should be refused. Deliberately NOT
+built in this change: it is a separate defect from the unguarded span, the kill switch
+now bounds the loss, and scope discipline beats a drive-by. Sized: one guard plus a
+control, in `sources.py`.
