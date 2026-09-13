@@ -27,7 +27,7 @@ import threading
 import time
 
 from api.services import discord_interactions as di
-from api.services.discord_render import contract, observe
+from api.services.discord_render import contract, observe, symbols
 from api.services.discord_render.delivery import DeliveryResult
 from api.services.discord_render.ids import corr_id
 from api.services.discord_render.jobs_store import JobsStore
@@ -38,6 +38,7 @@ log = logging.getLogger("discord_render")
 AUTOCOMPLETE_BUDGET_S = 1.2
 RETRY_LOOKUP_BUDGET_S = 0.5
 HEALTH_BUDGET_S = 2.0
+SYMBOL_BUDGET_S = 0.6
 FLOW_TIMEOUT_S = 10.0
 ADMINISTRATOR = 0x8
 
@@ -61,6 +62,12 @@ _runtime: JobRuntime | None = None
 _observer: observe.Observer | None = None
 _runtime_lock = threading.Lock()
 _io_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="drender-io")
+# Its own thread: a cold provider fetch can take seconds, and must never hold a worker that
+# autocomplete and the symbol check answer inside a budget with.
+_warm_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="drender-warm")
+# The symbol check can reach the bars serve core, which fetches a real-but-cold symbol for seconds
+# after the ack budget has moved on; it gets its own threads so autocomplete's never wait on it.
+_symbol_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="drender-symbols")
 
 
 def _last_edit_failure():
@@ -166,10 +173,10 @@ def _rate_limited(uid: str, n: int = 1, noun: str = "charts") -> dict | None:
     return None
 
 
-async def _bounded(fn, budget_s: float, default):
+async def _bounded(fn, budget_s: float, default, pool=None):
     loop = asyncio.get_running_loop()
     try:
-        return await asyncio.wait_for(loop.run_in_executor(_io_pool, fn), timeout=budget_s)
+        return await asyncio.wait_for(loop.run_in_executor(pool or _io_pool, fn), timeout=budget_s)
     except Exception:  # noqa: BLE001 — timeout or error: the ack still answers
         return default
 
@@ -205,6 +212,27 @@ async def _render_health_reply(interaction: dict) -> dict:
         return _ephemeral(f"Render health did not answer within {HEALTH_BUDGET_S:g} s. "
                           "The same data: GET /api/discord/render-health.")
     return _ephemeral(observe.format_health_text(payload))
+
+
+async def _symbol_refusal(interaction: dict, tickers: list[str]) -> dict | None:
+    """D-04 / OI-01: an unknown symbol is refused privately inside the ack, with ≤3 suggestions,
+    and a background fetch starts so a real-but-unseen ticker works on the re-run. Fails OPEN: a
+    check that exceeds SYMBOL_BUDGET_S, errors, or cannot answer lets the request through, where
+    the job gives its honest no-bars reply. Kill switch: DISCORD_RENDER_V2_SYMBOLS_ENABLED."""
+    if not command_enabled("symbols"):
+        return None
+    cid = corr_id(interaction.get("id"))
+    verdicts = await _bounded(lambda: [symbols.resolve(t) for t in tickers], SYMBOL_BUDGET_S, None, pool=_symbol_pool)
+    if verdicts is None:
+        observe.event("symbol_check", cid=cid, outcome="skipped: budget or error")
+        return None
+    unknown = [v for v in verdicts if v.status == symbols.UNKNOWN]
+    if not unknown:
+        return None
+    for v in unknown:
+        _warm_pool.submit(symbols.warm, v.symbol)
+    observe.event("symbol_refused", cid=cid, sym=",".join(v.symbol for v in unknown)[:60], cls="symbol_not_found")
+    return _ephemeral(symbols.refusal_text(unknown, cid))
 
 
 # ── the ack path ────────────────────────────────────────────────────────────
@@ -261,6 +289,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
         limited = _rate_limited(di.interaction_user_id(interaction), len(reqs))
         if limited:
             return limited
+        refusal = await _symbol_refusal(interaction, [r.ticker for r in reqs] + list(reqs[0].compare or ()))
+        if refusal:
+            return refusal
         label = contract.command_label("chart", {"tickers": [r.ticker for r in reqs]})
         return _enqueue(_job(interaction, "multi" if len(reqs) > 1 else "chart", label), {"type": 5}, received)
 
@@ -274,6 +305,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
         limited = _rate_limited(di.interaction_user_id(interaction), len(reqs))
         if limited:
             return limited
+        refusal = await _symbol_refusal(interaction, [r.ticker for r in reqs])
+        if refusal:
+            return refusal
         label = contract.command_label("chart", {"tickers": [r.ticker for r in reqs]})
         return _enqueue(_job(interaction, "charts", label), {"type": 5}, received)
 
@@ -287,6 +321,9 @@ async def handle(interaction: dict, received: float) -> dict | None:
             tkr, days = di.parse_flow_command(interaction)
         except di.CommandError as e:
             return _ephemeral(str(e))
+        refusal = await _symbol_refusal(interaction, [tkr])
+        if refusal:
+            return refusal
         return _enqueue(_job(interaction, "flow", contract.command_label("flow", {"ticker": tkr, "days": days})),
                         {"type": 5}, received)
 
@@ -413,7 +450,7 @@ def _handle_flow(ctx: JobContext):
     job, inter = ctx.job, _rebuilt(ctx)
     tkr, days = di.parse_flow_command(inter)
     router.run_flow_card_job(job.app_id, job.token, tkr, days, edit_fn=ctx.edit, fail_fn=ctx.fail,
-                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id)
+                             timeout_s=FLOW_TIMEOUT_S, cid=job.corr_id, source=symbols.flow_source(tkr))
     return "flow"
 
 

@@ -177,7 +177,7 @@ Each class gets a fix in Phase 2 and a regression test before it is closed (`05-
 | **C-11** | A delivery failure or crash ends with nothing said | 23 × 10015 + 23 × ATT finals produced no member message; crash path edits nothing | 2.1 runtime terminal-state guarantee | `test_C11_*` (2.1, mutation-proved) |
 | **C-12** | Failures cannot be tied to a command, symbol, member or request | Finding #1 | 2.2 correlation ids, structured events, jobs table | 2.2 built (`2509cc0de`, merged `6d779dd47`): `test_discord_render_observe.py` · `test_discord_render_health_command.py` · `test_discord_render_health_endpoint.py` — 18 mutations red |
 | **C-13** | A credential in logs | 142 renderer call logs with the render token | 2.3 renderer log hygiene · OI-13 rotation | 2.3 (pending) |
-| **C-14** | `/flow` queries the wrong partition: ETFs report no flow | SPY 0 / 182, QQQ 0 / 136, SMH 0 / 83 | 2.4 resolver picks the partition (OI-16) | 2.4 (pending) |
+| **C-14** | `/flow` queries the wrong partition: ETFs report no flow | SPY 0 / 182, QQQ 0 / 136, SMH 0 / 83 | 2.4 resolver picks the partition (OI-16) | 2.4a built (`0e331168a`), V2 path: `test_the_flow_partition_follows_flow_ingestions_classifier_then_the_etf_list` · `test_the_v2_flow_handler_passes_the_resolved_partition` · `test_the_flow_job_reads_the_partition_it_is_given_and_defaults_to_stocks`. Production class table: SPY/QQQ/SMH/IWM/SPX/NDX → `etfs`, NVDA/AAPL → `stocks` |
 
 **Where the gaps are, stated once:** the member-facing split of the 764 house-render problems, the
 denominator for every rate, the command/ticker behind each Discord PATCH failure, and the count of

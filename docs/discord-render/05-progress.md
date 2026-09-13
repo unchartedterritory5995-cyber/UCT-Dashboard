@@ -112,4 +112,73 @@ is in the commit but deploys separately (row 9).
 **Gate** (`a69dfc574`; master had not moved since merge 2, nothing to merge): 25 scoped files,
 **724 passed, 0 failed**. Watch coverage `OK` (changed 12). Mutation proofs 22/22 red.
 
+**Deploy, measured:**
+
+| Check | Result |
+|---|---|
+| Push | fast-forward `6d779dd47..d32d14d60`, 18:44:29 UTC; `web` SUCCESS and master 0 ahead immediately before |
+| `web` deployment on `d32d14d60` | BUILDING 18:44:42 → DEPLOYING 18:46:50 → SUCCESS 18:47:11 UTC |
+| Running commit, read in-process | `d32d14d604ee` |
+| `/api/health` | 200; uptime 61 s |
+| Interactions endpoint, bad signature | `401 invalid request signature` ×3, 0.20–0.26 s |
+| `GET /api/discord/render-health`, no bearer | `401 unauthorized` |
+| V2 flag / alert webhook in the running process | both absent |
+| flow-worker | SKIPPED (no tape gap) |
+| `worker` · `bars-api` | SUCCESS · SUCCESS (re-read 18:49 UTC) |
+
+**chart-renderer deploy (row 9), measured:**
+
+| Check | Result |
+|---|---|
+| Payload | `git archive a69dfc574 -- services/chart_renderer` → sha256 = committed blobs, 0 CR; unchanged at master `d32d14d60` |
+| Deployment `6090d306` | BUILDING 18:48:34 → DEPLOYING 18:49:16 → SUCCESS 18:49:58 UTC |
+| Image | `/app/app.py` 584 lines, 23,944 bytes = payload |
+| `/health` (from the web pod) | 19 keys (was 3); `ready: true`, `pool_enabled: false`, `launch_error: null`, `timeouts: 0`, `failures: 0`, `rss_mb: 790.4`, `p95_render_ms: 2300.1` over 7 renders |
+| Render log lines | 9 × `render cid=- path=/r/chart status=200 prio=background ready=True` — the warm cycle's header, end to end |
+| Unredacted `token=` in the post-deploy log | 0 (no failed render occurred to exercise the scrub) |
+
+---
+
+## Step 2.4a — symbol resolution and the `/flow` partition, measured on production data (branch)
+
+**How:** the branch's `symbols.py` (sha-verified upload to `/tmp`) run by a read-only probe in the
+`web` pod as a separate process — the real ticker-search snapshot (26,624 rows), cap universe
+(3,742), liquid-ETF list (100), `bars.db`, `entity_master.db`. Cold process: an upper bound. Plus
+the live `/api/bars` answer for the same symbols, from outside, 19:05 UTC.
+
+| Symbol | Static authorities (first version) | `/api/bars` (live) | Verdict now |
+|---|---|---|---|
+| NVDA · SPY · GDX · BRK-B | universe, 0 ms | bars | known |
+| UCTA50 | breadth, 0 ms | — | known |
+| AEHL · MSFY | search index, 0 ms | — | known |
+| TCEHY | bars store, 0.2 ms | — | known |
+| BRK.B | entity master, **634 ms** (cold) | — | known via universe as `BRK-B`, 0 ms (share-class alias) |
+| ^GSPC | **miss**, 23 ms | 200, 5 bars, 1,465 ms | the bars check exceeds the 0.6 s budget → **fails open** (queued, charts) |
+| BTC-USD · FNMA | **miss**, 8–9 ms | 200 `no_data: symbol_not_carried`, 109–239 ms | refused — the same outcome `/chart` gives today, sooner and with suggestions |
+| ZZZZQ · QQQQQ · XQZVW | miss, 7–8 ms | 200 `no_data`, 211–310 ms | refused |
+| APPL | miss | — | suggestions were `MAPPLNCT, AAPL, AMPL` → now `AAPL, AMPL, APPN` order (prefix, one edit, contains, name) |
+| NVDAA | miss | — | suggests `NVDA` |
+
+Three corrections came from this run, before any commit: (1) a static miss alone no longer refuses —
+the bars serve path decides, and only its explicit not-carried answer refuses (^GSPC is in no static
+authority and charts); (2) suggestions rank one-edit matches above symbols merely containing the
+input; (3) a dot share class is tried in the universe's hyphen spelling. And one correction to this
+program's own record: the 2026-08-26 note that BTC-USD and FNMA chart is **stale** — `/api/bars`
+does not carry them today.
+
+`flow_source` on production's class table: **SPY, QQQ, SMH, IWM, SPX, NDX, GDX, DRAM, TSLL → `etfs`**;
+**NVDA, AAPL → `stocks`**; SPCX (a stock the legacy list had as an ETF) → `stocks`.
+
+---
+
+## Merge 4 — 2.4a, dark · 2026-09-13 (Sunday)
+
+**Shipped (dark):** `api/services/discord_render/symbols.py`; the symbol check at the ack for
+`/chart`, `/charts` and `/flow` (kill switch `DISCORD_RENDER_V2_SYMBOLS_ENABLED`); the V2 flow handler's
+`etfs`/`stocks` partition; `run_flow_card_job(..., source="stocks")` so the pre-V2 path is unchanged.
+
+**Gate on the merged tree** (`cee1b269b`, after merging 14 master commits): 26 scoped files,
+**763 passed, 0 failed**. Watch coverage `OK` (changed 8). Mutation proofs 22/22 red (second run;
+two rails fixed after the first).
+
 **Deploy, measured:** *(filled from the running pod after the push)*

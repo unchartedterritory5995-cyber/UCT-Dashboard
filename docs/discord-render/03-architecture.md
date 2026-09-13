@@ -273,6 +273,17 @@ the deploy-swap retry are 2.4.
   otherwise the honest class message. "The flow feed is reconnecting" is retired: it was the
   message for every cause, including the three that were not a reconnect.
 
+*Built in 2.4a* (`api/services/discord_render/symbols.py`; measured on production data in `05`):
+symbol resolution at the ack for `/chart` (compare tickers included) and `/flow`, inside a 0.6 s budget
+on its own threads, failing OPEN on a timeout, an error, or an unloaded search index. One authority
+was added to the list above after measuring production: when every static authority misses,
+`/api/bars` itself decides, and only its `symbol_not_carried` answer refuses (^GSPC is in no static
+authority and charts). Suggestions rank symbol-prefix matches, then one edit away in the universe,
+then symbols merely containing the input, then name matches. `/flow` reads the `etfs` partition for an
+ETF or index underlying (`massive_processor.is_index_source`, then the liquid-ETF list) — C-14, on the
+V2 path only. Kill switch: `DISCORD_RENDER_V2_SYMBOLS_ENABLED`. The market clock, the freshness
+envelope, the STALE badge, per-dependency timeouts and breakers, and the cached flow card are 2.4b.
+
 ### 3.9 Observability (C-12)
 
 - **Correlation id** = 8 hex chars of `sha1(interaction_id)` — deterministic, shown to the member,
