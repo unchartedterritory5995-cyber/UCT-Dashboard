@@ -4344,6 +4344,294 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### ⛔ SIGN-IN REQUIRED — the rig profile is signed out
+
+⛔ **No check row was written, and none will be until this clears.** A
+signed-out rig can read nothing, and a row assembled from nothing reads as
+evidence. The daily task keeps running and keeps landing here.
+
+| | |
+|---|---|
+| first seen | **2026-09-13T14:00:01Z** |
+| last seen | **2026-09-13T14:00:01Z** |
+| consecutive runs blocked | **1** |
+| notification | a desktop balloon fires on every occurrence |
+
+**⭐ THE FIX IS ONE THING AND NOTHING ELSE: sign in once, in the rig window.**
+
+```
+python tools/window_check.py --park      # opens the rig at /login and leaves it up
+```
+
+Sign in there by hand, close nothing, and the next scheduled run picks the
+session up. ⛔ Do not add a credentials file, do not script the login form,
+do not copy cookies from another profile. The session cookie is a 30-day
+cookie, so one sign-in covers the whole observation window.
+
+### check 15 — **2026-09-12T14:00:03Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **21592** · Chrome/152.0.7977.83 · CDP `127.0.0.1:53567` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **19** · latest 2026-09-12 13:33:06 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [25376] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 47 append(s) · tail `101010M01010` |
+| door this run | **`ticker`** — `DOORS[28 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T14:00:40.680539+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `ticker` moved the baseline under the queued entry | run **#28** ⇒ `DOORS[28 % 3]` = **`ticker`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T14:01:04.852844+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T14:01:04.852844+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T14:01:04.852844+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `ticker`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T14:00:03Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T14:01:04.852844+00:00`: **False** · door value kept: **True** (`ticker` = 'NVDA') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-7-of-7 — **2026-09-12T01:50:39Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **41192** · Chrome/152.0.7977.83 · CDP `127.0.0.1:62120` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **14** · latest 2026-09-12 01:49:01 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 27 append(s) · tail `101010101010` |
+| door this run | **`folder`** — `DOORS[27 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:51:01.790760+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#27** ⇒ `DOORS[27 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:51:23.382931+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:51:23.382931+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:51:23.382931+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:50:39Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:51:23.382931+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-6-of-7 — **2026-09-12T01:48:49Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **28824** · Chrome/152.0.7977.83 · CDP `127.0.0.1:56754` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **13** · latest 2026-09-12 01:47:12 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 25 append(s) · tail `101010101010` |
+| door this run | **`tags`** — `DOORS[26 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:49:12.429130+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `tags` moved the baseline under the queued entry | run **#26** ⇒ `DOORS[26 % 3]` = **`tags`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:49:34.143905+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:49:34.143905+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:49:34.143905+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `tags`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:48:49Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:49:34.143905+00:00`: **False** · door value kept: **True** (`tags` = ['window-check-door']) |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-5-of-7 — **2026-09-12T01:47:00Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **34352** · Chrome/152.0.7977.83 · CDP `127.0.0.1:49279` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **12** · latest 2026-09-12 01:45:22 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 23 append(s) · tail `101010101010` |
+| door this run | **`ticker`** — `DOORS[25 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:47:23.180848+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `ticker` moved the baseline under the queued entry | run **#25** ⇒ `DOORS[25 % 3]` = **`ticker`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:47:44.776326+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:47:44.776326+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:47:44.776326+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `ticker`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:47:00Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:47:44.776326+00:00`: **False** · door value kept: **True** (`ticker` = 'NVDA') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-4-of-7 — **2026-09-12T01:45:10Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **36796** · Chrome/152.0.7977.83 · CDP `127.0.0.1:49347` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **11** · latest 2026-09-12 01:43:32 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 21 append(s) · tail `101010101010` |
+| door this run | **`folder`** — `DOORS[24 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:45:33.677152+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#24** ⇒ `DOORS[24 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:45:55.388210+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:45:55.388210+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:45:55.388210+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:45:10Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:45:55.388210+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-3-of-7 — **2026-09-12T01:43:21Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **16844** · Chrome/152.0.7977.83 · CDP `127.0.0.1:64799` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **10** · latest 2026-09-12 01:41:43 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 19 append(s) · tail `101010101010` |
+| door this run | **`tags`** — `DOORS[23 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:43:43.897201+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `tags` moved the baseline under the queued entry | run **#23** ⇒ `DOORS[23 % 3]` = **`tags`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:44:05.551761+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:44:05.551761+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:44:05.551761+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `tags`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:43:21Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:44:05.551761+00:00`: **False** · door value kept: **True** (`tags` = ['window-check-door']) |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-2-of-7 — **2026-09-12T01:41:31Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **45072** · Chrome/152.0.7977.83 · CDP `127.0.0.1:65400` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **9** · latest 2026-09-12 01:39:52 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 17 append(s) · tail `101010101010` |
+| door this run | **`ticker`** — `DOORS[22 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:41:54.280350+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `ticker` moved the baseline under the queued entry | run **#22** ⇒ `DOORS[22 % 3]` = **`ticker`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:42:15.969822+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:42:15.969822+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:42:15.969822+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `ticker`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:41:31Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:42:15.969822+00:00`: **False** · door value kept: **True** (`ticker` = 'NVDA') |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
+### streak-1-of-7 — **2026-09-12T01:39:40Z**
+
+⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
+
+| | reading |
+|---|---|
+| rig | PID **43040** · Chrome/152.0.7977.83 · CDP `127.0.0.1:63783` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` · claimable: **True** |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **37** · canary notes 3 · `sync-conflict` 3 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **8** · latest 2026-09-12 01:35:31 · scope: population-wide (admin) |
+| teardown | killed **0** by marker · 0 left · owner's browser [38500] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| opt-out reached DISK (Chrome not running) | on-disk `uct.j2.offline.enabled` = **`'0'`** · 15 append(s) · tail `101010101010` |
+| door this run | **`folder`** — `DOORS[21 % 3]`, derived from this run's own row number |
+| **mini-canary** | ✅ **11/11** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-12T01:40:03.806119+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 4 door `folder` moved the baseline under the queued entry | run **#21** ⇒ `DOORS[21 % 3]` = **`folder`** · PUT **200** in **1** attempt(s) · baseline `None` → `2026-09-12T01:40:25.850844+00:00` · queued sends that beat it: **3** |
+|  ↳ 3 reload (network UP) → the local layers hold THE OFFLINE SENTENCE | record holds the sentence: **True** · draft holds the sentence: **False** · outbox entries: **0** · baseline `2026-09-12T01:40:25.850844+00:00` |
+|  ↳ 4 reconnect → the queue settled (this step says NOTHING about the body) | `dirty` **0** · outbox **0** · baseline `2026-09-12T01:40:25.850844+00:00` |
+|  ↳ 4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `folder`) | `WINDOW-CHECK-SENTINEL typed offline @ 2026-09-12T01:39:40Z` is in the server body: **True** · a send carried the post-door baseline `2026-09-12T01:40:25.850844+00:00`: **False** · door value kept: **True** — `folder`'s VALUE check is N/A by construction (this note has no folder); the door is proved by the baseline move above |
+|  ↳ 5 no fork from a single writer | no `(conflicted copy)` created by this run - 1 pre-existing, excluded by baseline |
+|  ↳ 5 note count moved by exactly this run's own note | **37 → 38** (expected **38**) |
+|  ↳ 5 cleanup → stores 0, sync lock claimable, opted out | stores all zero: **True** · sync lock claimable: **True** (census **1**) · key **`'0'`** · leftover canary notes **0** (+3 pre-existing, excluded) · notes **37 → 37** |
+|  ↳ 5 opted back out — ALWAYS, finding or not | `uct.j2.offline.enabled` read back as `'0'` |
+
 ### check 14 — **2026-09-12T01:35:20Z**
 
 ⛔ **ROLLBACK — one line:** set `OFFLINE_DEFAULT_ON=false` on the Railway `web` service. It stops processing; it destroys nothing.
@@ -4989,7 +5277,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 14 — 2026-09-12T01:35:20Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 15 — 2026-09-12T14:00:03Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.
@@ -4997,13 +5285,13 @@ checked by eye on the day.
 | # | condition | latest reading |
 |---|---|---|
 | 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
-| 2 | Opted-in browsers (the denominator) | **7** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **9** — need **7** |
+| 2 | Opted-in browsers (the denominator) | **19** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **17** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
 ## ✅ RECOMMENDATION: **GO**
 
-**Met:** zero blocked-baseline events · 7 opted-in browsers · 9 consecutive green runs
+**Met:** zero blocked-baseline events · 19 opted-in browsers · 17 consecutive green runs
 
 ⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
 the numerator 05:06:56Z. A browser that opted in inside that window is
