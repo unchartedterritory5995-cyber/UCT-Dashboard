@@ -199,18 +199,36 @@ def is_render_admin(interaction: dict) -> bool:
 async def _render_health_reply(interaction: dict) -> dict:
     """/renderhealth: ephemeral, answered inside the ack budget. The store read runs off the
     loop under HEALTH_BUDGET_S; the renderer state is the observer's cached reading, so no
-    HTTP probe of chart-renderer ever runs on the ack path."""
+    HTTP probe of chart-renderer ever runs on the ack path.
+
+    ⛔ READ-ONLY, INCLUDING WITH V2 OFF. It PEEKS `_runtime` and never calls `get_runtime()`:
+    starting the runtime from a health command would create the jobs database and the worker
+    threads as a side effect of asking how things are. That is also what makes the command safe to
+    register before the flip — it reports "V2 is off" instead of quietly turning it on. Mirrors
+    `GET /api/discord/render-health`."""
     if not is_render_admin(interaction):
         return _ephemeral("/renderhealth is for server admins.")
-    rt = get_runtime()
+    rt = _runtime                                        # peek: never build or start it from here
     obs = _observer
     renderer = obs.renderer if obs is not None and obs.renderer_at is not None else {"ready": None, "note": "not probed yet"}
     misses = obs.renderer_misses if obs is not None else 0
-    payload = await _bounded(lambda: observe.health_payload(rt, rt.store, renderer=renderer, renderer_misses=misses),
-                             HEALTH_BUDGET_S, None)
-    if payload is None:
+
+    def _payload():
+        from api.services.discord_render.jobs_store import JobsStore, default_path
+        store = rt.store if rt is not None else (JobsStore() if os.path.exists(default_path()) else None)
+        if store is None:
+            return None
+        return observe.health_payload(rt, store, renderer=renderer, renderer_misses=misses)
+
+    payload = await _bounded(_payload, HEALTH_BUDGET_S, "timeout")
+    if payload == "timeout":
         return _ephemeral(f"Render health did not answer within {HEALTH_BUDGET_S:g} s. "
                           "The same data: GET /api/discord/render-health.")
+    if payload is None:
+        return _ephemeral(f"Render V2 is **off** (`DISCORD_RENDER_V2_ENABLED` unset) and has never run "
+                          f"on this volume, so there is no job history yet. "
+                          f"Renderer: {(renderer or {}).get('note') or ('ready' if (renderer or {}).get('ready') else 'not probed')}. "
+                          f"Commit `{(os.environ.get('RAILWAY_GIT_COMMIT_SHA') or '?')[:12]}`.")
     return _ephemeral(observe.format_health_text(payload))
 
 

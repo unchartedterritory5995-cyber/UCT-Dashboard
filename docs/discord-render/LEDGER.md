@@ -167,6 +167,54 @@ not a measurement (same family as the broker_sync 405).
 | Retire job | Task Scheduler **`UCT Render Token Retire`**, Monday 2026-09-14 **07:15 CT = 08:15 ET**, one-shot, `StartWhenAvailable`, 30-min limit → `uct-q1-observe/render_token_retire.cmd`. Gated on `morning_wire_state.json::last_run_date == today`; aborts if the CURRENT token is not already 200; idempotent; posts the outcome to `#render-alerts`. Opt out with `render_token_retire.disabled`. |
 | Retire job proven today | Ran it live: `WIRE MARKER ABSENT — last_run_date=2026-09-11 today=2026-09-13. Changing nothing.` exit 0, all four variables unchanged, skip notice posted. The gate is measured, not assumed. |
 
+### Step 1.2 — renderer repo connection + warm pool, and `/renderhealth` made safe to register (2026-09-13)
+
+**Railway service config, applied field by field** (a combined mutation returned HTTP 400: the
+`Builder` enum has only `HEROKU · NIXPACKS · PAKETO · RAILPACK` — there is no `DOCKERFILE` value,
+Railway resolves that from `dockerfilePath`):
+
+| Setting | Value |
+|---|---|
+| `rootDirectory` | `services/chart_renderer` |
+| `watchPatterns` | `["services/chart_renderer/**"]` — **set BEFORE connecting**, because an empty list on a repo-connected service means "rebuild on every push" (CLAUDE.md) |
+| `dockerfilePath` · `healthcheckPath` · `healthcheckTimeout` | `Dockerfile` · `/health` · 300 |
+| `source.repo` | `unchartedterritory5995-cyber/UCT-Dashboard` @ `master` |
+
+⭐ **The scoping is proven, not assumed:** the very next master push (`834034622`, then `d31b78b750`)
+arrived as **SKIPPED** on chart-renderer — neither touched `services/chart_renderer/**`.
+
+**Pool live** (`RENDER_POOL_ENABLED=1`, `RENDER_WARM_URL` set as a Railway reference
+`${{web.CHART_RENDER_TOKEN}}`, so no human or log ever handles the value):
+
+| Measurement | Result |
+|---|---|
+| Boot warm | `chromium launched (pool)` 20:41:17.049 → `warm render path=/r/chart ok` 20:41:19.461 → `pool: warm complete`. **2.41 s**, and the real `/r/chart` page rendered — an unauthorised page has no `#chart-export`, so "ok" also proves the token reference resolved. |
+| First render after boot | **1,184 ms** — no cold start. The documented pre-warm behaviour was a 20–40 s first render after every deploy. |
+| Five renders | 1,096–1,184 ms, median 1,140, `p95_render_ms` 1,180; all valid PNGs, `X-Chart-Ready: true`; 0 failures, 0 timeouts |
+| Spare-context pool | `pool_hits 5 / pool_misses 1` — only the warm render missed |
+| RSS | 528 MB, against a 2,500 MB recycle ceiling |
+| Token in logs | 0 occurrences of `token=` in any form |
+
+**Self-heal, measured by killing the browser** (`pkill` inside the renderer container):
+
+| Step | Result |
+|---|---|
+| After the kill | `browser_connected: false`, RSS **528 → 120 MB** — Chromium genuinely gone |
+| Next renders | all 5 succeeded, **1,004–1,074 ms**, 0 failures, 0 timeouts |
+| Evidence of a NEW browser | `renders_since_recycle` reset (7 → 2) and RSS returned to 533 MB — `_current_slot()` saw `is_connected()` false and relaunched |
+
+⚠️ `ready` stays `true` while `browser_connected` is `false`: `ready` means "a render sent now will be
+served" (and it was), and the pool relaunches on demand. `browser_connected` is the field that tells
+the truth about the browser. Recorded so nobody reads `ready` as a browser liveness check.
+
+**`/renderhealth` made safe to register before the flip.** It was unregistered, and registering it
+with V2 off would have produced a visibly broken admin command: the router only consults V2 when the
+flag is on, and the handler called `get_runtime()`, which would have STARTED the runtime and created
+the jobs database as a side effect of asking how things are. Now the router answers this one command
+whatever the flag says (read-only admin diagnostic, most useful *before* the flip), and the handler
+PEEKS `_runtime` and opens a store only if the database already exists — mirroring
+`GET /api/discord/render-health`. Two new rails cover the flag-off path.
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.

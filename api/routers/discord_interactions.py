@@ -347,7 +347,12 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
     # per-command kill switch, or an interaction V2 leaves to the old path such as the
     # help/save picks) everything below runs exactly as before.
     from api.services.discord_render import commands as render_v2
-    if render_v2.enabled():
+    # ⛔ /renderhealth is answered whatever the flag says. It is a read-only admin diagnostic that
+    # peeks at state and starts nothing, and it is most useful BEFORE the flip — that is how an
+    # admin watches the queue and the renderer while V2 is still dark. Every other command stays
+    # behind DISCORD_RENDER_V2_ENABLED.
+    _v2_always = (interaction.get("data") or {}).get("name") == di.RENDERHEALTH_COMMAND and itype == 2
+    if render_v2.enabled() or _v2_always:
         v2_response = await render_v2.handle(interaction, received)
         if v2_response is not None:
             return v2_response

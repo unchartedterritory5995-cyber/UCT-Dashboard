@@ -95,6 +95,13 @@
       ],
       "note": "GATE-S7-EVENT-PROXIMITY CP3 (owner approval line 2, 2026-09-12). Arms the alert_taxonomy_event_proximity_dark cron -- 07:05 and 18:05 ET weekdays, the legacy path's own two slots -- running the FORWARD-ONLY dark comparison of the new event-proximity evaluator against calendar_alerts.run_prereport_alerts. ARMED 2026-09-12 17:29:02 UTC on `web`, owner-authorized for this one variable only. DEFAULT IS OFF BY DESIGN: it reads real member rows (ADMIN-ROLE ACCOUNTS ONLY, via a read-only projection of My Stocks x the day's reporters), so an unset variable must mean nothing runs. IT DELIVERS NOTHING even when armed: it writes alert_fires + receipts + comparison spans, and no delivery path is imported by any module it touches (rail: test_no_cp3_module_imports_delivery). ⛔ CADENCE IS DAILY, NOT PER-MINUTE, unlike its price-level sibling: the legacy path's whole notion of time is a DATE, so a minute-by-minute sweep would re-ask a question whose answer cannot change until tomorrow. The report tool's staleness bound follows that (26h, not 180s) -- copying the sibling's number would report a healthy sweep as stalled every time. Verdict gate five full trading sessions; read with `tools/s7_price_level_report.py --ticking`, which covers BOTH dark runs. CP4 (all members) and the FLIP each need a new owner approval line."
     },
+    "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "note": "S7 indicator-condition CP3, GATE-S7-INDICATOR-CONDITION approval line 3 (introduced by d31b78b75). Default '0'. When set to '1' it registers the alert_taxonomy_indicator_condition_dark cron (every minute, weekdays 09:00-16:59 ET, api/main.py) running run_dark_sweep() from api/services/alert_taxonomy/indicator_condition_projection.py -- a FORWARD-ONLY dark comparison of the new indicator-condition evaluator against the legacy lane, with NO delivery. Unset today. Declared by the discord-render session on 2026-09-13 because the gate rail test_every_off_by_default_gate_is_declared reds for every workstream until it is; the owning S7 session should correct this note if the intent differs."
+    },
     "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED": {
       "status": "armed",
       "where": [
