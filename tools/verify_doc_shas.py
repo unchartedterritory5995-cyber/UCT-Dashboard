@@ -61,6 +61,12 @@ def _is_sha_shaped(tok: str) -> bool:
 #: phantom-checked: if a string here stops appearing in the docs, the allowlist has
 #: rotted and the scan fails on THAT.
 QUOTED_DEAD: dict[str, str] = {
+    "37bfe4251": (
+        "D4's SUPERSEDED approval fingerprint. It was a real hash-object of the "
+        "packet's single-line approval block, which the owner replaced on 2026-09-13 "
+        "with a three-line CP1/CP2/CP3 block (now 40caca541). A superseded "
+        "fingerprint is no longer derivable from any packet, so the rail flags it "
+        "correctly -- it is cited in COMPLETION_AUDIT as history, not as current."),
     "650865d5": (
         "the one genuinely unresolvable citation, kept verbatim inside the LEDGER "
         "tombstone that replaces it. Cited as the 2026-07-26 healthcheck 'deploy'; "
