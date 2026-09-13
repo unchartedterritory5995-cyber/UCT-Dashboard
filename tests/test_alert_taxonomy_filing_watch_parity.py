@@ -597,6 +597,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     #   2026-09-12  `catalyst-match`          GATE-S7-CATALYST-MATCH CP1
     #   2026-09-13  `position-risk`           GATE-S7-POSITION-RISK CP1-CP2
     #   2026-09-13  `scan-membership-change`  GATE-S7-SCAN-MEMBERSHIP-CHANGE CP1-CP2
+    #   2026-09-13  `regime-change`           GATE-S7-REGIME-CHANGE CP1-CP2
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.
@@ -649,6 +650,25 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # removing that job and the three `require_paid` router endpoints -- is
     # MEMBER-VISIBLE and needs a member-impact paragraph in the same PR.
     #
+    # `regime-change` CP1-CP2 is catalyst-match's case again -- an evaluator that
+    # NOTHING wires, importing neither `receipts` nor `delivery`, every predicate
+    # armed by its own harness, with
+    # `test_the_harness_is_the_only_caller_of_would_fire` keeping that true. No
+    # fire, so nothing to reconstruct and no feed row to drop.
+    # ⛔⛔ BUT ITS STEP 2 HAS A WRINKLE THE OTHER THREE DO NOT, AND IT IS RECORDED
+    # HERE RATHER THAN DISCOVERED AT CP3: `_s7_durable_alerts` reconstructs an
+    # alert shape from a fire, and every existing shape is TICKER-BEARING. A
+    # regime flip is market-wide and carries `entity_ref = None` -- pinned as a
+    # FIXED VALUE in `regime_change.PARAMS_SCHEMA`, because it is the same field
+    # `awareness/engine.py:241` uses to decide away-delivery. So this type's
+    # reconstruction branch will be the first symbol-less one, and writing it is
+    # a PRECONDITION of CP3, not a follow-up.
+    # ⚠️ ALSO WORTH SEEING FROM HERE: `api/services/alerts.py` -- the module that
+    # OWNS this bridge -- already ships a legacy alert type string
+    # `regime_change`, one character from this trigger type's `regime-change`
+    # (F-S7-RC-4). They are different events from different authorities. Whoever
+    # writes the branch must not conflate them.
+    #
     # ⛔ `price-level` IS DIFFERENT NOW AND THE DISTINCTION MATTERS. It has an
     # evaluator (CP2) that is WIRED and ARMED (CP3/CP3b), writing real
     # alert_fires rows for the admin cohort. It still owes no reconstruction
@@ -665,7 +685,7 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # rather than left pointing at a name that no longer exists.
     _EXPECTED = {"document-arrival", "price-level", "event-proximity",
                  "catalyst-match", "position-risk",
-                 "scan-membership-change"}
+                 "scan-membership-change", "regime-change"}
 
     files, declared = _declared_trigger_types()
 
