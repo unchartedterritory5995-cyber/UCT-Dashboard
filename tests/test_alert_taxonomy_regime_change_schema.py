@@ -250,7 +250,7 @@ def test_the_THIRD_regime_emitter_is_declared_and_deliberately_NOT_absorbed():
     # ...and CRITICAL is exactly what opens the Discord branch.
     assert "fires_discord = alert['severity'] in (SEVERITY_WARNING, SEVERITY_CRITICAL)" \
         in alerts_code
-    assert "if _DISCORD_WEBHOOK and fires_discord:" in alerts_code
+    assert "if discord_webhook() and fires_discord:" in alerts_code
 
     # The exclusion is DECLARED, and it is NOT a prior_label_source.
     assert rc.EXCLUDED_EMITTER_ALERTS_TYPE == "regime_change"

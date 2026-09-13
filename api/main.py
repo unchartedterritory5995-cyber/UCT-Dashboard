@@ -8062,13 +8062,15 @@ from api.flow_admin_auth import (  # noqa: E402
 
 
 @app.get("/api/confluence")
-async def _confluence_board(_auth: dict = Depends(_require_flow_user)):
-    """The Confluence board — names with dark-pool accumulation AND aligned
-    LEAP/size-with-time options flow. Served from a scheduler-warmed cache; never
-    computes on the request path (a cold cache returns {ok:false, status:'warming'})."""
+async def _confluence_board(days: int = 30, _auth: dict = Depends(_require_flow_user)):
+    """The Confluence board — names with a dark-pool footprint AND aligned
+    LEAP/size-with-time options flow, over a `days`-trading-day lookback (default 30;
+    an unsupported value falls back to 30). Served from a per-window cache; never
+    computes on the request path — the default window is scheduler-warmed and other
+    windows warm in the background (a cold window returns {ok:false, status:'warming'})."""
     from fastapi.concurrency import run_in_threadpool
     from api import confluence_screen
-    return await run_in_threadpool(confluence_screen.get_board, False)
+    return await run_in_threadpool(confluence_screen.get_board, days, False)
 
 
 @app.post("/api/admin/confluence/refresh")

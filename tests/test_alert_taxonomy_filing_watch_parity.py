@@ -230,7 +230,7 @@ def real_delivery(monkeypatch):
     """The REAL delivery path with only the outbound transports stubbed, so the
     ephemeral in-app row filing watch actually renders really gets written."""
     monkeypatch.setattr(_was, "_get_user_email", lambda user_id: None)
-    monkeypatch.setattr(_alerts, "_DISCORD_WEBHOOK", "")
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "")
 
 
 def _arm_watch(sec: _SecStub, *, form_type: str | None = None) -> str:

@@ -55,7 +55,8 @@ function ladderPos(lo, hi, avg, now) {
 }
 
 export default function Confluence() {
-  const { data, isLoading } = useConfluence()
+  const [days, setDays] = useState(30)        // lookback window (trading days)
+  const { data, isLoading } = useConfluence(days)
   const [dir, setDir] = useState('all')       // all | BULL | BEAR
   const [cap, setCap] = useState('all')       // all | L | M | S
   const [status, setStatus] = useState('all') // all | BUILDING | STEADY | ESTABLISHED
@@ -77,6 +78,11 @@ export default function Confluence() {
 
   const counts = data?.counts || { total: rows.length, bull: 0, bear: 0, building: 0 }
   const totDP = useMemo(() => filtered.reduce((a, r) => a + (r.dpn || 0), 0), [filtered])
+  // breadth of the dark-pool read: names trading above big money's average price
+  const aboveCount = useMemo(() => rows.reduce((a, r) => {
+    const now = px[r.sym]?.price ?? r.dpLast ?? r.dpAvg ?? 0
+    return a + (r.dpAvg > 0 && now >= r.dpAvg ? 1 : 0)
+  }, 0), [rows, px])
 
   const Seg = ({ opts, val, set }) => (
     <div className={s.seg}>
@@ -180,10 +186,12 @@ export default function Confluence() {
         <div className={s.metric}><div className={s.k}>Confluence names</div><div className={`${s.v} mono`}>{counts.total}<small>{counts.bear ? `${counts.bull} bull · ${counts.bear} bear` : 'all bullish'}</small></div></div>
         <div className={s.metric}><div className={s.k}>Building now</div><div className={`${s.v} mono`}>{counts.building}<small>accelerating</small></div></div>
         <div className={s.metric}><div className={s.k}>Dark-pool premium</div><div className={`${s.v} mono`}>{usd(totDP)}<small>shown · 30d</small></div></div>
-        <div className={s.metric}><div className={s.k}>Window</div><div className={`${s.v} mono`}>{data?.days || 30}d<small>trailing</small></div></div>
+        <div className={s.metric}><div className={s.k}>Above avg price</div><div className={`${s.v} mono`} style={{ color: 'var(--c-green-br)' }}>{aboveCount}<small>of {counts.total} names</small></div></div>
       </div>
 
       <div className={s.filters}>
+        <span className={s.winLab}>Lookback</span>
+        <Seg val={days} set={setDays} opts={(data?.allowedDays || [20, 30, 60, 90]).map(d => ({ v: d, l: `${d}d` }))} />
         <Seg val={dir} set={setDir} opts={[{ v: 'all', l: 'All' }, { v: 'BULL', l: 'Bull', cls: 'bull' }, { v: 'BEAR', l: 'Bear', cls: 'bear' }]} />
         <Seg val={cap} set={setCap} opts={[{ v: 'all', l: 'All caps' }, { v: 'L', l: 'Large' }, { v: 'M', l: 'Mid' }, { v: 'S', l: 'Small' }]} />
         <Seg val={status} set={setStatus} opts={[{ v: 'all', l: 'Any' }, { v: 'BUILDING', l: 'Building' }, { v: 'STEADY', l: 'Steady' }, { v: 'ESTABLISHED', l: 'Established' }]} />

@@ -220,3 +220,42 @@ def test_the_one_migrated_reader_names_itself_at_the_call_site():
     src = open("api/services/ticker_returns.py", encoding="utf-8").read()
     assert 'reader="ticker_returns._close"' in src, (
         "the only migrated reader passes no name, so every row would say 'unknown'")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚰️ THE STORE SHIPPED WITH init_db() WIRED INTO NOTHING.
+#
+# On the pod every record() raised `no such table: d2_dual_samples`, was
+# swallowed by the never-raises contract, and returned False. Monday would have
+# collected ZERO rows, and a zero here is indistinguishable from a cold reader.
+#
+# ⛔ THE SUITE COULD NOT SEE IT because the fixture above calls init_db(), which
+# production never did. A fixture that performs a step production omits is blind
+# to the step being missing — it was caught by an in-pod read instead.
+#
+# These tests deliberately DO NOT use that fixture's init.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_record_works_on_a_VIRGIN_data_dir_with_no_explicit_init(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "virgin"))
+    (tmp_path / "virgin").mkdir()
+    import importlib
+    importlib.reload(store)                    # a fresh process, nothing initialised
+    assert store.record("r", "ohlcv.c", 1.0, 1.0, "agreed", now=RTH) is True, (
+        "record() failed on a database nobody had created — this is the defect that "
+        "would have collected nothing on Monday")
+    assert store.gate_status()["rows"] == 1
+
+
+def test_gate_status_works_on_a_VIRGIN_data_dir_and_reports_ZERO_not_UNREADABLE(
+        tmp_path, monkeypatch):
+    """⛔ The two must stay distinguishable. Before the fix a virgin store read as
+    'could not be read', which is the right words for the wrong reason."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "virgin2"))
+    (tmp_path / "virgin2").mkdir()
+    import importlib
+    importlib.reload(store)
+    s = store.gate_status()
+    assert s["observed"] is True, "a virgin store reported as unreadable"
+    assert s["rows"] == 0
+    assert "not 'no disagreements'" in s["why"]

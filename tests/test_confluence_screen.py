@@ -201,3 +201,19 @@ def test_ladder_fields_pass_through(monkeypatch):
     assert row["dpLo"] == 90 and row["dpHi"] == 110
     assert row["dpAvg"] == 100 and row["dpLast"] == 105
     assert row["bigPrice"] == 108
+
+
+def test_flow_leg_still_computing_reports_warming(monkeypatch):
+    """A flow leg still BUILDING on the worker (reason 'computing') must yield a
+    warming board, never a thin partial one cached over the good board (the
+    2026-09-12 post-deploy 37-of-254 bug)."""
+    monkeypatch.setattr(cs, "_flow_leg", lambda cap, days: {"ok": False, "reason": "computing"})
+    monkeypatch.setattr(cs.dpa, "is_window_warm", lambda **kw: True)
+    monkeypatch.setattr(cs.dpa, "get_aggregated",
+                        lambda **kw: {"allItems": [], "meta": {"dateRange": "x"}})
+    monkeypatch.setattr(darkpool_eod, "_ticker_meta",
+                        lambda s: {"sector": None, "isEtf": False})
+    board = cs.compute_board()
+    assert board["ok"] is False
+    assert board["status"] == "warming"
+    assert not board["rows"]

@@ -47,7 +47,7 @@ def clean_alert_store():
 
 @pytest.fixture(autouse=True)
 def no_discord(monkeypatch):
-    monkeypatch.setattr(alerts_svc, "_DISCORD_WEBHOOK", "", raising=False)
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "")
 
 
 # ─── deliver_alert_payload — the shared seam (6 legacy families + S7) ───────
