@@ -69,22 +69,86 @@ def hash_object(text: str) -> str:
         pathlib.Path(tmp).unlink(missing_ok=True)
 
 
-def fingerprint(text: str) -> str:
-    """The packet's hash WITH the AT SHA field blank — the format's own rule."""
-    blanked = _AT_LINE.sub(lambda m: m.group(1), text, count=1)
-    return hash_object(blanked)[:9]
+#: An AT SHA line that is EMPTY — the unsigned one. `[0-9a-f]*` in `_AT_LINE`
+#: also matches the empty string, so `_AT_LINE` matches signed AND unsigned lines
+#: alike; this one matches only a field with nothing in it.
+_AT_LINE_BLANK = re.compile("^(APPROVED AT SHA:" + _H + ")$", re.M)
+
+
+def target_span(text: str):
+    """The span of the AT SHA line to write — THE UNSIGNED ONE.
+
+    ⚰️⚰️ **THIS FUNCTION EXISTS BECAUSE THE TOOL DESTROYED A SIGNED FINGERPRINT,
+    2026-09-13.** `sign()` used `_AT_LINE.sub(..., count=1)`, which writes the
+    first line the regex MATCHES — and `_AT_LINE`'s `[0-9a-f]*` matches a FILLED
+    field just as happily as an empty one. In
+    `s7-indicator-condition-pre-implementation-gate.md` the CP1-CP2 block's line
+    carries trailing prose (`3460a279b   (git hash-object of this packet ...`) so
+    it does **not** match `$`; the first line that DID match was the **already
+    signed CP3 block**, whose historical `148af5293` was overwritten with a fresh
+    hash while the genuinely unsigned third block was left blank.
+
+    ⭐ **THE FAILURE DIRECTION IS THE DANGEROUS ONE, AGAIN.** It still reported
+    `signed ... AT SHA <new>` and exited 0. Nothing said a value had been lost —
+    and the lost value is precisely the one the module docstring above calls
+    *"the one value that pins each approval to the bytes the owner approved."*
+
+    ⛔ So the target is chosen by EMPTINESS, never by position, and the count is
+    asserted: zero unsigned blocks means there is nothing to sign (re-signing is
+    not this tool's job), and more than one means the caller must say which.
+    """
+    blanks = list(_AT_LINE_BLANK.finditer(text))
+    if not blanks:
+        raise SystemExit(
+            "⛔ no UNSIGNED `APPROVED AT SHA:` line (every block already carries a "
+            "fingerprint). Re-signing would destroy a historical value — add the new "
+            "approval block first, then sign.")
+    if len(blanks) > 1:
+        raise SystemExit(
+            f"⛔ {len(blanks)} unsigned APPROVED AT SHA lines — refusing to guess which. "
+            "Leave exactly one block blank.")
+    return blanks[0].span()
+
+
+def blank_span(text: str, span) -> str:
+    """`text` with the AT SHA line at `span` reduced to its bare label."""
+    lo, hi = span
+    return text[:lo] + "APPROVED AT SHA:" + text[hi:]
+
+
+def fingerprint(text: str, span=None) -> str:
+    """The packet's hash with ONE block's AT SHA field blank — the format's rule.
+
+    `span` names WHICH block. Omitted, it is the unsigned one (`target_span`),
+    which is what SIGNING wants. Passed explicitly, any block can be
+    RE-DERIVED — blanking a filled field and hashing must return the value that
+    was in it, and that round trip is the only way an approval can be checked
+    after the fact.
+
+    ⭐ Every OTHER block is left exactly as it stands. A fingerprint pins the
+    bytes the owner approved AT approval time, so a sibling's filled field is
+    part of those bytes — which is also why a later edit elsewhere in the packet
+    legitimately stops a fingerprint re-deriving from the CURRENT file, and
+    `git show <sha>:<file>` is how it is recovered.
+    """
+    if span is None:
+        span = target_span(text)
+    return hash_object(blank_span(text, span))[:9]
 
 
 def sign(path: pathlib.Path, by: str, on: str, scope: str) -> str:
     t = path.read_text(encoding="utf-8")
     if not _AT_LINE.search(t):
         raise SystemExit(f"⛔ no APPROVED AT SHA line in {path.name}")
-    fp = fingerprint(t)
+    span = target_span(t)
+    fp = fingerprint(t, span)
     # ⚠️ Normalise the padding rather than preserving whatever was there: an
     # UNSIGNED block has zero spaces after the colon, so preserving it produced
     # "APPROVED AT SHA:40caca541" — correct, unreadable, and inconsistent with
     # every signed packet in the tree.
-    t = _AT_LINE.sub(lambda m: "APPROVED AT SHA:      " + fp, t, count=1)
+    # ⛔ WRITTEN BY SPAN, into the UNSIGNED block — see target_span.
+    lo, hi = span
+    t = t[:lo] + "APPROVED AT SHA:  " + fp + t[hi:]
     t = re.sub("^APPROVED BY:" + _H + "$", "APPROVED BY:      " + by, t, count=1, flags=re.M)
     t = re.sub("^APPROVED ON:" + _H + "$", "APPROVED ON:      " + on, t, count=1, flags=re.M)
     path.write_text(t, encoding="utf-8")
@@ -105,10 +169,14 @@ def main() -> int:
         body = ("APPROVED BY:      x\nAPPROVED ON:      y\n"
                 "APPROVED AT SHA:  \nSCOPE APPROVED:   z\n")
         f1 = fingerprint(body)
-        # CONTROL 1 — filling the field must NOT change the fingerprint
+        # CONTROL 1 — filling the field must NOT change the fingerprint, i.e. a
+        # SIGNED block must RE-DERIVE. Its span is passed explicitly because a
+        # filled packet has no unsigned block for target_span to find, and
+        # re-derivation is the ONLY way an approval can be checked after the fact.
         filled = body.replace("APPROVED AT SHA:  \n", f"APPROVED AT SHA:  {f1}\n")
-        if fingerprint(filled) != f1:
-            print("  ⛔ the fingerprint changes once written — the blanking is wrong"); ok = False
+        _m = re.search("^APPROVED AT SHA:.*$", filled, re.M)
+        if fingerprint(filled, _m.span()) != f1:
+            print("  ⛔ a signed block does not re-derive — verification is impossible"); ok = False
         # CONTROL 2 — changing the SCOPE MUST change it
         if fingerprint(body.replace("z", "zz")) == f1:
             print("  ⛔ the fingerprint ignores the packet body"); ok = False
@@ -146,6 +214,48 @@ def main() -> int:
             print("  the fingerprint is written without the standard padding"); ok = False
         if out.count("APPROVED BY:") != 1 or out.count("SCOPE APPROVED:") != 1:
             print("  a field was duplicated or consumed"); ok = False
+        # CONTROL 5 — ⚰️ THE 2026-09-13 DEFECT, EXACTLY. A packet with a SIGNED
+        # block whose line carries trailing prose (so it does NOT match `$`),
+        # followed by a genuinely UNSIGNED block. The old code wrote the first
+        # REGEX-MATCHING line: it destroyed the signed CP3 fingerprint and left
+        # the unsigned block blank, while reporting success and exiting 0.
+        # ⭐ THREE blocks, the real packet's shape — and the ORDER is the whole
+        # point. Block 1's line carries trailing prose so it does NOT match `$`;
+        # block 2's is CLEAN so it DOES. The old code therefore skipped the
+        # first and wrote the second — destroying a signed fingerprint — while
+        # block 3, the only genuinely unsigned one, stayed blank. A fixture
+        # without a clean signed block reproduces the symptom and not the loss.
+        two = chr(10).join([
+            "# packet", "", "```",
+            "APPROVED BY:      Patrick", "APPROVED ON:      2026-09-13",
+            "APPROVED AT SHA:  3460a279b   (git hash-object as it stood at",
+            "                  approval, with this field blank)",
+            "SCOPE APPROVED:   CP1-CP2", "```", "",
+            "## second", "", "```",
+            "APPROVED BY:      Patrick", "APPROVED ON:      2026-09-12",
+            "APPROVED AT SHA:  148af5293",
+            "SCOPE APPROVED:   CP3", "```", "",
+            "## third", "", "```",
+            "APPROVED BY:", "APPROVED ON:", "APPROVED AT SHA:",
+            "SCOPE APPROVED:   CP3 discharge", "```", ""])
+        d2 = tempfile.mkdtemp()
+        f2 = pathlib.Path(d2) / "two.md"
+        f2.write_text(two, encoding="utf-8")
+        newfp = sign(f2, "Patrick", "2026-09-13", "")
+        after = f2.read_text(encoding="utf-8")
+        if "APPROVED AT SHA:  148af5293" not in after:
+            print("  ⛔ SIGNING DESTROYED THE ALREADY-SIGNED FINGERPRINT"); ok = False
+        if f"APPROVED AT SHA:  {newfp}" not in after:
+            print("  ⛔ the unsigned block was left blank"); ok = False
+        if after.count("APPROVED BY:      Patrick") != 3:
+            print("  ⛔ the approver did not land on the unsigned block"); ok = False
+        # CONTROL 6 — re-signing a fully signed packet must REFUSE, not clobber.
+        try:
+            sign(f2, "Patrick", "2026-09-13", "")
+            print("  ⛔ re-signing a fully signed packet was allowed"); ok = False
+        except SystemExit:
+            pass
+
         print("SELF-CHECK:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
 

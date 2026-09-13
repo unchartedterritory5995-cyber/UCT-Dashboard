@@ -572,3 +572,65 @@ SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3. Read-only PROJECTION of
                   §9.5 CP1 has merged first. If it has not, indicator-condition
                   CP3 is NOT authorized and the blocker is that dependency.
 ```
+
+## ✅ APPROVAL — CHECKPOINT 3, DEPENDENCY DISCHARGED (a THIRD line; both blocks above untouched)
+
+⛔⛔ **WHY A NEW LINE AND NOT AN EDIT TO THE ONE ABOVE.** The CP3 block above is **not wrong** — it
+is **conditional**, and it says so: *"this line is void unless D2 §9.5 CP1 has merged first."*
+Editing it in place would erase both facts worth keeping: that CP3 was authorized subject to a
+named dependency, and that the dependency was discharged on a specific date by a specific merge.
+This line records the discharge; the scope is unchanged and is restated verbatim so no reader has
+to reconcile two documents.
+
+⭐ **THE DEPENDENCY IS DISCHARGED, AND THE NAME IT WAS WRITTEN UNDER CHANGED — READ THIS BEFORE
+CALLING IT A MISMATCH.** The line above blocks on *"D2 §9.5 CP1"*. PRD-D2 §9.5 **is signed and
+merged** — but as **`GATE-D2 CP4`**, not as a "§9.5 CP1", because when it came to be signed on
+2026-09-13 the standing rule (*an approval line names a §4 checkpoint ID, or it re-numbers §4 in
+the same commit so that it does*) found that **GATE-D2 §4 had no row matching §9.5's scope**: CP1
+says *"Declarations only — no resolver"*, CP2 is the first address form's resolver, CP3 retires
+that form's duplicates — all three written for a map from a name to a **stored column**, while
+§9.5 asks the book to describe a **computation**. §4 was therefore re-numbered to add **CP4** in
+the same commit that signed it.
+
+| | |
+|---|---|
+| the blocker as written | *"D2 §9.5 CP1 has merged"* |
+| what actually merged | **PRD-D2 §9.5**, signed as **GATE-D2 CP4**, fingerprint **`3257cc319`**, merged **`404b808c5`** |
+| same artifact? | **Yes** — same PRD section, same SPEC-D2 §5.4 technical form. Only the checkpoint ID differs, and it differs because the standing rule required it. |
+
+⚠️ **AND WHAT CP4 DID *NOT* CLEAR IS STATED HERE RATHER THAN DISCOVERED AT BUILD.** CP4 declares
+the **indicator axis** — the second address form, the thirty outputs, the one rename. It does
+**not** declare a per-timeframe cadence for `ohlcv.*`, because that means editing `bars_fetch.py` /
+`bars_sqlite.py`, measured 2026-09-13 as **inside flow-worker's 154-module import closure** and
+outside its watch list, and the owner's 2026-09-13 ruling is that **the watch list is not widened**.
+⛔ **So every `ohlcv.*` predicate still REFUSES on cadence at CP3, exactly as it did at CP1.** That
+is the correct dark state, and a CP3 that reported those as agreement would be lying.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  4e8d3af5d
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3, restated VERBATIM from the
+                  block above so the two lines cannot drift. Read-only PROJECTION
+                  of real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else; NO delivery
+                  import; NO legacy change.
+
+                  ⛔ THE DEPENDENCY NAMED IN THE BLOCK ABOVE IS DISCHARGED:
+                     PRD-D2 §9.5 is signed as GATE-D2 CP4 (fingerprint 3257cc319)
+                     and merged (404b808c5). That line is no longer void.
+
+                  ⛔⛔ NOT COMPARABLE IS A FIRST-CLASS OUTCOME, NOT AGREEMENT.
+                     F-S7-IC-1 measured 31 legacy addresses against 142 book
+                     metrics with an EMPTY intersection - one rename (close <->
+                     ohlcv.c) and thirty genuine absences. A predicate whose
+                     vocabularies do not intersect is NOT COMPARABLE BY
+                     CONSTRUCTION and the harness must say so PER PREDICATE.
+                     Counting one as agreement would manufacture a clean
+                     comparison out of two lanes that never met.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF in this
+                     checkpoint. Arming is the owner's flip.
+```

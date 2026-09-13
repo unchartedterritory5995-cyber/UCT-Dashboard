@@ -107,7 +107,13 @@ DECLARED: list[tuple] = [
     ("s7-event-proximity", "line 1", ["CP1", "CP2"], "headings", OK, ""),
     ("s7-event-proximity", "line 2", ["CP3"], "headings", OK, ""),
     ("s7-indicator-condition", "line 1", ["CP1", "CP2"], "headings+bold", OK, ""),
-    ("s7-indicator-condition", "line 2", ["CP3"], "headings+bold", OK, ""),
+    ("s7-indicator-condition", "line 2", ["CP3"], "headings+bold", OK,
+     "CONDITIONAL: void unless D2 §9.5 merged first. Discharged by line 3"),
+    ("s7-indicator-condition", "line 3", ["CP3"], "headings+bold", OK,
+     "the DEPENDENCY-DISCHARGE line, signed 2026-09-13, fingerprint 4e8d3af5d. "
+     "Line 2 was not wrong, it was CONDITIONAL and said so; this records that "
+     "PRD-D2 §9.5 merged (as GATE-D2 CP4, 404b808c5) rather than editing line 2 "
+     "and erasing the fact that a dependency existed and was discharged"),
     ("s7-position-risk", "line 1", ["CP1", "CP2"], "headings+bold", OK, ""),
     ("s7-position-risk", "line 2", ["CP3"], "headings+bold", OK, ""),
     ("s7-price-level", "line 1", ["CP1", "CP2"], "spelled-out headings", OK,
