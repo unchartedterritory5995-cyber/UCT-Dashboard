@@ -1,9 +1,12 @@
 // app/src/components/chart/engine/ohlcCapability.js
 //
-// ─── MAY THIS SOURCE BE DRAWN AS CANDLES? ───────────────────────────────────
+// ─── MAY THIS OUTPUT BE DRAWN AS CANDLES? ───────────────────────────────────
 //
-// ⭐⭐ TWO DIMENSIONS, AND THE SECOND ONE IS THE WHOLE POINT.
+// ⭐⭐ THREE DIMENSIONS, AND THE TWO THAT ARE NOT "does it have o/h/l/c" ARE
+// WHERE BOTH MEASURED DEFECTS HAVE LIVED.
 //
+//   IDENTITY   — is this ROW the instrument, or a CALCULATION over it? A moving
+//                average of QQQ declares the same source string QQQ does.
 //   STRUCTURAL — are there usable `o`/`h`/`l`/`c` numbers in the bars we hold?
 //   SEMANTIC   — does this source's PROVIDER FAMILY mean an auction period by
 //                those fields, or merely store four numbers in a bar-shaped row?
@@ -38,6 +41,8 @@ export const OHLC_FAMILY = Object.freeze({
 /** Why a source may not be drawn as candles. One string per reason, so a caller
  *  can say something true rather than "unsupported". */
 export const OHLC_REFUSAL = Object.freeze({
+  NOT_PASSTHROUGH: 'this row draws a calculation over the instrument, not the '
+    + 'instrument itself',
   NOT_SYMBOL: 'only a canonical symbol can be drawn as candles',
   FAMILY_UNKNOWN: 'this symbol has not been classified yet',
   FAMILY_NOT_OHLC: 'this source has no real open, high and low — its bars are '
@@ -45,6 +50,23 @@ export const OHLC_REFUSAL = Object.freeze({
   NO_BARS: 'no bars are loaded for this symbol yet',
   FIELDS_MISSING: 'the bars carry no usable open, high and low',
 })
+
+/**
+ * Does this definition's OUTPUT equal its source, unchanged?
+ *
+ * ⭐⭐ THE DIMENSION A SOURCE CANNOT ANSWER. `MA(sym:QQQ:close)` and a direct QQQ
+ * series declare the SAME source string; one of them IS QQQ and the other is a
+ * five-bar average of it. Asking the source therefore says yes to both — which
+ * is exactly what shipped as far as a browser and drew QQQ's own bars in the
+ * moving average's pane, legend and all. See `nativeRegistry.js`, `passthrough`.
+ *
+ * ⛔ THE DEFINITION DECLARES IT; THIS DOES NOT GUESS. No defId list, no name
+ * test — the same posture the family gate takes below, and for the same reason:
+ * a list is a thing to forget to update, and forgetting is the unsafe direction.
+ */
+export function outputIsSource(def) {
+  return !!(def && def.passthrough === true)
+}
 
 /**
  * The families whose bars are a genuine auction period.
@@ -85,15 +107,28 @@ export function barsCarryOhlc(bars) {
 }
 
 /**
- * May this parsed symbol source be presented as candles?
+ * May THIS OUTPUT of this definition be presented as candles?
  *
+ * ⚠️ THE DEFINITION COMES FIRST BECAUSE IT IS THE FIRST QUESTION, and because a
+ * required leading argument is the shape that fails closed: a call site that has
+ * not been taught about identity passes `undefined` here and is refused, rather
+ * than silently keeping the old source-only answer.
+ *
+ * @param {object|null} def      the instance's definition; must declare
+ *                               `passthrough` to be eligible at all
  * @param {object|null} parsed   `sourceRef.parseSource` output
  * @param {object|null} entry    the supplier's cache entry — `{bars, status}`
  * @param {Function} [familyOf]  `(symbol) => OHLC_FAMILY[...]`; absent means
  *                               nothing has been classified, which refuses
  * @returns {{ok: boolean, family: string, reason: string|null}}
  */
-export function ohlcCapabilityOf(parsed, entry, familyOf) {
+export function ohlcCapabilityOf(def, parsed, entry, familyOf) {
+  // ⛔ IDENTITY FIRST. "This row is an average" is a truer and more durable
+  // reason than anything about the instrument behind it, and answering about
+  // the SYMBOL's business would send the next reader to the wrong module.
+  if (!outputIsSource(def)) {
+    return { ok: false, family: OHLC_FAMILY.UNKNOWN, reason: OHLC_REFUSAL.NOT_PASSTHROUGH }
+  }
   if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) {
     return { ok: false, family: OHLC_FAMILY.UNKNOWN, reason: OHLC_REFUSAL.NOT_SYMBOL }
   }

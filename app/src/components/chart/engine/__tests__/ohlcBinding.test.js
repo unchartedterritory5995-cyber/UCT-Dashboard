@@ -21,7 +21,7 @@ import { createDirectSeries, lastCreatedInstance } from '../../discoveryCatalog'
 import { symbolSource, parseSource } from '../sourceRef'
 import { clipBarsToDomain, clippedBarsFor, projectionFor } from '../symbolProjection'
 import {
-  ohlcCapabilityOf, barsCarryOhlc, OHLC_FAMILY, OHLC_REFUSAL,
+  ohlcCapabilityOf, barsCarryOhlc, outputIsSource, OHLC_FAMILY, OHLC_REFUSAL,
 } from '../ohlcCapability'
 import { poolKey, seriesOptionsForPlot, POOL_KEYS } from '../pool'
 import { PLOT_STYLES, PLOT_STYLE_CHOICES, availableStyles, resolvePlotStyle } from '../presentation'
@@ -50,15 +50,22 @@ const primaryBars = (n) => Array.from({ length: n }, (_, i) => ({
 
 const familyOf = (sym) => (sym === 'UCTA50' ? OHLC_FAMILY.BREADTH : OHLC_FAMILY.SECURITY)
 
+// ⭐ THE REAL DEFINITIONS, not shapes typed here. `dataSeries` is the passthrough
+// and `movingAverage` is not, and both say so in `nativeRegistry`; a case that
+// invented its own `{passthrough: true}` would pass while the product's own
+// definition had lost the claim.
+const DIRECT = registry.getDefinition('dataSeries')
+const DERIVED = registry.getDefinition('movingAverage')
+
 beforeEach(() => { clearSecondaryBars() })
 
-// ─── capability: two dimensions, and the second is the point ────────────────
+// ─── capability: three dimensions, and only one of them is the bar shape ────
 
-describe('OHLC capability is structural AND semantic', () => {
+describe('OHLC capability is identity AND semantic AND structural', () => {
   const bars = [secBar('2026-09-01', 700), secBar('2026-09-02', 702)]
 
   it('⭐ an ordinary security with real bars qualifies', () => {
-    const v = ohlcCapabilityOf(parseSource(symbolSource('QQQ', 'close')), { bars }, familyOf)
+    const v = ohlcCapabilityOf(DIRECT, parseSource(symbolSource('QQQ', 'close')), { bars }, familyOf)
     expect(v.ok).toBe(true)
     expect(v.family).toBe(OHLC_FAMILY.SECURITY)
     expect(v.reason).toBeNull()
@@ -75,7 +82,7 @@ describe('OHLC capability is structural AND semantic', () => {
     expect(barsCarryOhlc(breadth), 'the fixture does not reproduce the real bar shape')
       .toBe(true)
 
-    const v = ohlcCapabilityOf(parseSource(symbolSource('UCTA50', 'close')), { bars: breadth }, familyOf)
+    const v = ohlcCapabilityOf(DIRECT, parseSource(symbolSource('UCTA50', 'close')), { bars: breadth }, familyOf)
     expect(v.ok, 'a breadth pseudo-ticker was admitted as candle-capable').toBe(false)
     expect(v.family).toBe(OHLC_FAMILY.BREADTH)
     // ⛔ AND FOR THE RIGHT REASON: what it MEANS, not what it lacks. Reporting a
@@ -89,22 +96,63 @@ describe('OHLC capability is structural AND semantic', () => {
     // security", every breadth measure would be candle-capable for the first few
     // hundred milliseconds of every page load.
     const parsed = parseSource(symbolSource('QQQ', 'close'))
-    expect(ohlcCapabilityOf(parsed, { bars }, () => 'unknown').ok).toBe(false)
-    expect(ohlcCapabilityOf(parsed, { bars }, undefined).ok).toBe(false)
-    expect(ohlcCapabilityOf(parsed, { bars }, undefined).reason).toBe(OHLC_REFUSAL.FAMILY_UNKNOWN)
+    expect(ohlcCapabilityOf(DIRECT, parsed, { bars }, () => 'unknown').ok).toBe(false)
+    expect(ohlcCapabilityOf(DIRECT, parsed, { bars }, undefined).ok).toBe(false)
+    expect(ohlcCapabilityOf(DIRECT, parsed, { bars }, undefined).reason).toBe(OHLC_REFUSAL.FAMILY_UNKNOWN)
+  })
+
+  it('⛔⛔ A CALCULATION OVER A CANDLE-CAPABLE SYMBOL IS NOT CANDLE-CAPABLE', () => {
+    // ⚰️ MEASURED IN A BROWSER 2026-09-13, Phase C. `MA(sym:QQQ:close)` declares
+    // the SAME source string a direct QQQ series does, so a source-only gate said
+    // yes: the row was offered Candles, and choosing it drew QQQ's OWN BARS in the
+    // moving average's pane. The legend read `MA(5) 714.88` beside `QQQ 714.88` —
+    // the same number, because the average had been replaced by the instrument.
+    const parsed = parseSource(symbolSource('QQQ', 'close'))
+    expect(ohlcCapabilityOf(DIRECT, parsed, { bars }, familyOf).ok).toBe(true)
+    const v = ohlcCapabilityOf(DERIVED, parsed, { bars }, familyOf)
+    expect(v.ok, 'a moving average was admitted as an auction period').toBe(false)
+    expect(v.reason).toBe(OHLC_REFUSAL.NOT_PASSTHROUGH)
+  })
+
+  it('⛔ …and the claim is DECLARED, so an untaught caller is refused', () => {
+    const parsed = parseSource(symbolSource('QQQ', 'close'))
+    // The fail-closed shape of a required leading argument: no definition, no
+    // candles — never the old source-only answer.
+    expect(ohlcCapabilityOf(undefined, parsed, { bars }, familyOf).ok).toBe(false)
+    expect(ohlcCapabilityOf({}, parsed, { bars }, familyOf).reason)
+      .toBe(OHLC_REFUSAL.NOT_PASSTHROUGH)
+    // ⛔ AND IT IS THE PRODUCT'S OWN DEFINITIONS THAT CARRY IT. `domainBehavior`
+    // is a claim about RANGE and BOTH of these make it; only one is an identity.
+    expect(outputIsSource(DIRECT), 'the direct series stopped declaring passthrough').toBe(true)
+    expect(outputIsSource(DERIVED)).toBe(false)
+    expect(DIRECT.domainBehavior).toBe('inherit')
+    expect(DERIVED.domainBehavior, 'the two claims were collapsed into one').toBe('inherit')
+  })
+
+  it('⛔⛔ A CENSUS: exactly ONE definition in the registry may wear candles', () => {
+    // ⭐ ENUMERATION-FREE, ON PURPOSE. "Not RSI, not an MA, not a formula, not an
+    // Info Value" is a list somebody has to remember to extend; this asks the
+    // REGISTRY instead, so a definition added next quarter is refused on the day
+    // it appears and its author has to make the identity claim deliberately.
+    const parsed = parseSource(symbolSource('QQQ', 'close'))
+    const admitted = registry.listDefinitions()
+      .filter((d) => ohlcCapabilityOf(d, parsed, { bars }, familyOf).ok)
+      .map((d) => d.id)
+    expect(admitted, 'a definition that computes something gained candles')
+      .toEqual(['dataSeries'])
   })
 
   it('⛔ a NON-SYMBOL source is never candle-capable', () => {
-    expect(ohlcCapabilityOf(parseSource('close'), { bars }, familyOf).ok).toBe(false)
-    expect(ohlcCapabilityOf(parseSource('@inst:rsi:1::rsi'), { bars }, familyOf).ok).toBe(false)
-    expect(ohlcCapabilityOf(null, { bars }, familyOf).reason).toBe(OHLC_REFUSAL.NOT_SYMBOL)
+    expect(ohlcCapabilityOf(DIRECT, parseSource('close'), { bars }, familyOf).ok).toBe(false)
+    expect(ohlcCapabilityOf(DIRECT, parseSource('@inst:rsi:1::rsi'), { bars }, familyOf).ok).toBe(false)
+    expect(ohlcCapabilityOf(DIRECT, null, { bars }, familyOf).reason).toBe(OHLC_REFUSAL.NOT_SYMBOL)
   })
 
   it('⛔ a capable FAMILY with no usable bars is still refused', () => {
     const parsed = parseSource(symbolSource('QQQ', 'close'))
-    expect(ohlcCapabilityOf(parsed, { bars: [] }, familyOf).reason).toBe(OHLC_REFUSAL.NO_BARS)
+    expect(ohlcCapabilityOf(DIRECT, parsed, { bars: [] }, familyOf).reason).toBe(OHLC_REFUSAL.NO_BARS)
     const closeOnly = [{ t: '2026-09-01', c: 700 }]
-    expect(ohlcCapabilityOf(parsed, { bars: closeOnly }, familyOf).reason)
+    expect(ohlcCapabilityOf(DIRECT, parsed, { bars: closeOnly }, familyOf).reason)
       .toBe(OHLC_REFUSAL.FIELDS_MISSING)
   })
 })

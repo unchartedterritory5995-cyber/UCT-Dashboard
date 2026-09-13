@@ -458,7 +458,7 @@ export default function ChartSettingsIndicators({
       if (!declared.length) return false
       const parsed = parseSource(declared[0][1])
       if (!parsed || parsed.kind !== 'symbol') return false
-      return ohlcCapabilityOf(parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
+      return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
     })()
     const styleCtx = { target, ohlcCapable }
     const restyleable = plots.filter((p) => availableStyles(p, styleCtx).length > 0)

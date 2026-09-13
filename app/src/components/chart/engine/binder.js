@@ -921,7 +921,7 @@ export function createBinder({ chart, LWC }) {
         const parsed = parseSource(declared[0][1])
         if (!parsed || parsed.kind !== 'symbol') return null
         const entry = secondary ? secondary.get(parsed.symbol) : null
-        const cap = ohlcCapabilityOf(parsed, entry, ctx.ohlcFamilyOf)
+        const cap = ohlcCapabilityOf(definition, parsed, entry, ctx.ohlcFamilyOf)
         if (!cap.ok) return null
         const plot = (definition.plots || []).find((p) => p && p.key === plotKey)
         if (!plot) return null
@@ -1029,7 +1029,7 @@ export function createBinder({ chart, LWC }) {
       const parsed = parseSource(declared[0][1])
       if (!parsed || parsed.kind !== 'symbol') return false
       const entry = ctx.secondary ? ctx.secondary.get(parsed.symbol) : null
-      return ohlcCapabilityOf(parsed, entry, ctx.ohlcFamilyOf).ok
+      return ohlcCapabilityOf(def, parsed, entry, ctx.ohlcFamilyOf).ok
     }
     const { bind, release } = planBindings(instances, registry, held, {
       hasData, ohlcCapable: ohlcCapableFor,

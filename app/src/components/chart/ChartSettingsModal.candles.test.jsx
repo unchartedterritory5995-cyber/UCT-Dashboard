@@ -122,6 +122,31 @@ describe('Candles is offered only where the source can mean it', () => {
     expect(styleOptions('MA \\(5\\)')).not.toContain('Candles')
   })
 
+  it('⛔⛔ …NOR A MOVING AVERAGE OF A REAL INSTRUMENT, WHICH IS THE HARD CASE', () => {
+    // ⚰️ MEASURED IN A BROWSER 2026-09-13, Phase C — and the case above did not
+    // catch it. That one sources the MA from `@legacy:rsi::rsi`, an INSTANCE
+    // reference the gate already refused for being the wrong KIND of source. An
+    // MA over `sym:QQQ:close` names the very same source string a direct QQQ
+    // series does, so a source-only gate said yes: the row was offered Candles
+    // and drew QQQ'S OWN BARS in the average's pane, `MA(5) 714.88` against
+    // `QQQ 714.88`. The question is not what the source is — it is whether THIS
+    // OUTPUT is that instrument or a calculation over it.
+    primeSecondaryBars('QQQ', TF, WINDOW, {
+      bars: [secBar('2026-09-01', 700), secBar('2026-09-02', 702)],
+    })
+    const cs = mergeChartSettings({
+      indicatorInstances: [
+        { instanceId: 'inst:movingAverage:1', defId: 'movingAverage', hidden: false,
+          inputs: { source: symbolSource('QQQ', 'close'), period: 5 } },
+      ],
+    })
+    show(cs)
+    openIndicators()
+    expand(/^MA \(/)
+    expect(styleOptions('MA \\(5\\)'),
+      'a calculation over QQQ was offered QQQ’s candles').not.toContain('Candles')
+  })
+
   it('⛔⛔ AN UNCLASSIFIED SOURCE IS NOT OFFERED — no flash of a style that vanishes', () => {
     // Capability fails closed while the bars have not landed, so the option never
     // appears and then disappears; it simply is not there until the source is

@@ -1031,6 +1031,24 @@ const RAW_DEFS = [
           role: 'primary', legend: { decimals: 2 } },
       ]),
     domainBehavior: 'inherit',
+    // ⭐⭐ THE IDENTITY CLAIM, AND IT IS NOT `domainBehavior` SAID TWICE.
+    // `domainBehavior: 'inherit'` is a claim about RANGE — an average of a
+    // 0-100 series is still 0-100 — and `movingAverage` makes it too. This is
+    // the stronger and rarer claim that the output IS the source, unchanged:
+    // no window, no smoothing, no arithmetic. Every other native in this file
+    // computes something FROM a series; this one is its series.
+    //
+    // ⚰️ MEASURED IN A BROWSER 2026-09-13 — the defect that made this explicit.
+    // OHLC capability was asked of the instance's SOURCE, so `MA(sym:QQQ:close)`
+    // answered yes, was offered Candles, and drew QQQ'S OWN BARS in the moving
+    // average's pane: the legend read `MA(5) 714.88` against `QQQ 714.88`, the
+    // same number, and the average was gone. A candle is a presentation of an
+    // INSTRUMENT, so only a row whose output is that instrument may wear one.
+    //
+    // ⛔ DECLARED, NOT INFERRED, AND ABSENT MEANS NO. A future identity
+    // transform says so here; a difference, a ratio or a smoothing cannot
+    // acquire the claim by being named like one.
+    passthrough: true,
   }),
 
 ]

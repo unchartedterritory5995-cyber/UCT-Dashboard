@@ -553,3 +553,129 @@ None. Phase B is complete and awaiting review.
 - Axis domain for non-US-session secondaries: intersect (today) vs union.
 - Splitting wick/border from the body is appearance work, deliberately deferred;
   it would not move the seam `pool.seriesOptionsForPlot` already owns.
+
+## SECONDARY OHLC / CANDLES — PHASE C (hardening + closure)
+
+### THE DEFECT THE WALKTHROUGH FOUND
+**A moving average of QQQ was offered Candles, and drawing them replaced the
+average with QQQ's own bars.** Measured in a browser: the row's legend read
+`MA(5) 714.88` beside `QQQ 714.88` — the same number, to the cent, because the
+five-bar mean was gone and the instrument was drawn in its place.
+
+**Root cause — one question, asked wrong in two places.** Both the settings gate
+(`ChartSettingsIndicators`) and the payload producer (`binder.ohlcBarsForPlot`)
+asked *"is this instance's SOURCE a candle-capable symbol?"*. `MA(sym:QQQ:close)`
+declares the SAME source string a direct QQQ series does, so the answer was yes.
+The honest question is *"is this OUTPUT the instrument, or a calculation over
+it?"*
+
+**Why the existing rails missed it.** The one case that looked like this —
+`ChartSettingsModal.candles.test.jsx`, "nor a moving average" — sourced the MA
+from `@legacy:rsi::rsi`, an INSTANCE reference the gate already refused for being
+the wrong KIND of source. The dangerous shape, an MA over a real symbol, was
+never written down. ⚠️ A negative case proves nothing until it is the negative
+case that could actually happen.
+
+### THE FIX — A THIRD CAPABILITY DIMENSION, DECLARED
+`ohlcCapability` now answers IDENTITY before anything else, and the definition
+makes the claim:
+- `nativeRegistry` — `dataSeries` declares `passthrough: true`. ⛔ NOT the same
+  as its `domainBehavior: 'inherit'`, which is a claim about RANGE that
+  `movingAverage` makes too. `passthrough` is the stronger, rarer claim that the
+  output IS the source: no window, no smoothing, no arithmetic.
+- `ohlcCapability` — `outputIsSource(def)`, `OHLC_REFUSAL.NOT_PASSTHROUGH`, and
+  `ohlcCapabilityOf(def, parsed, entry, familyOf)`. The definition is the FIRST
+  and REQUIRED argument, so a call site that has not been taught about identity
+  passes `undefined` and is refused rather than inheriting the old answer.
+- `binder` (both seams) and `ChartSettingsIndicators` pass the definition they
+  already hold. Still ONE capability answer, shared — the Phase A shape.
+
+⛔ NO defId LIST, NO NAME TEST, matching the family gate's posture in the same
+file. A future identity transform declares it; a difference or a ratio cannot
+acquire it by being named like one.
+
+### RAILS ADDED (all bite-checked by reverting the fix)
+- `ohlcBinding` — a calculation over a candle-capable symbol is refused;
+  the claim is declared, so an untaught caller is refused; and a CENSUS over
+  `registry.listDefinitions()` asserting **exactly one** definition may wear
+  candles. ⭐ The census is enumeration-free on purpose: a definition added next
+  quarter is refused on the day it appears.
+- `candleLifecycle.test.js` (new, 15 cases) — the whole trader lifecycle against
+  the REAL binder and the recording renderer double: Line↔Candles↔Line with the
+  old series removed; breadth persisted as `candles` binds a LINE and is fed
+  SCALARS; a capable source is fed four fields from its OWN bars; MA(QQQ) stored
+  as `candles` draws the AVERAGE; colours default/override/cleanup reaching
+  `addSeries` options; duplicates with independent presentation; composition,
+  hide, delete, re-add; one fetch for the whole lifecycle.
+- `ChartSettingsModal.candles.test.jsx` — the member-facing half of the defect.
+
+Bite-checks, each reverting one thing: breadth admitted → 1 red; candle colours
+ignored → 4 red; payload never compound → 2 red; identity dimension removed →
+3 red across two files.
+
+### ⚠️ A FIXTURE TRAP WORTH REMEMBERING
+`computePaneLayout` needs `includeKeys: paneOwnKeys(instances, cs)`. A definition
+whose STATIC target is the price pane — `movingAverage` — is not in
+`paneTargetIds()`, so an MA a member sent to its own pane gets no pane, binds
+nothing, and a case written without it "proves" the renderer refused something it
+never saw. `StockChart.jsx:10548` passes it; the test ctx must too.
+
+### BROWSER PROOF (harness, real ChartSettingsModal, AAPL primary)
+Built QQQ + SPY + UCTA50 + RSI + MA(QQQ) through the member-facing paths.
+- Offered Candles: QQQ, SPY only. **Refused: RSI, MA(5), UCTA50** — and MA(5)
+  was the defect, now refused live.
+- Line→Candles→Line→Candles: same instance, same source, same legend, no refetch.
+- Colours per instance, measured PER PANE CANVAS: QQQ up `#00e5ff` / down
+  `#ffcc00` gave **2,480 cyan px in QQQ's own pane canvas and 0 in the price
+  pane**, while SPY's candles in the next pane stayed chart-default (2,374 green
+  / 2,812 red) and the price pane stayed 25,779 / 17,868. ⚠️ The amber count in
+  QQQ's pane (3,760) conflates the down-candle override with the MA's own yellow
+  line sharing that canvas; the CYAN count is the clean per-instance proof.
+- Composition: `MA(5) 715.44 · QQQ 714.88`, one pane, one scale, one canvas.
+- Hide/show either instance independently, including hiding the pane HOST.
+- Below → Above → Below: the guest travelled with its host; final geometry
+  converged EXACTLY — 483 + 1 + 103 + 1 + 102 + 28 = 718 = container.
+- Duplicates: `QQQ #1` (candles) / `QQQ #2` (line); **SPY stayed `SPY`**.
+- Save → reconstruct: style, both colours, placement, source, duplicate identity,
+  pane composition and the MA's source all recovered exactly; SPY's *absence* of
+  an override survived too (the delete-on-default rule).
+- Delete: instance gone, legend gone, no stale pane; the surviving QQQ dropped
+  its ordinal back to `QQQ`; the orphaned MA showed **"Pane unavailable"** with
+  its intent preserved — ruling A intact under a candle host.
+- Re-add: a FRESH identity (`inst:dataSeries:5`), arriving as a line with no
+  colours — no tombstone resurrection — and Candles offered again normally.
+- **One `/api/bars/` request per secondary symbol per mounted lifecycle**, across
+  style switches, a duplicate, hide/show, pane moves, reconstruct, delete and
+  re-add. The only repeats are across a page RELOAD, which is cache disposal, not
+  a duplicate.
+- Console: no errors.
+
+### OBSERVED, NOT PHASE C, CARRIED FORWARD
+With SIX own-pane instances in a 718px chart the renderer settled at FIVE panes,
+SPY and UCTA50 sharing the last one with two scales. The layout asked for six and
+said so (`paneLayout: the chart has 5 panes, expected at least 6`). It is
+**candles-independent** — byte-identical pane geometry with zero candles on the
+chart — and predates all OHLC work. On a backgrounded tab the single re-apply
+cannot land, so this session could not separate "needs another frame" from a
+height-budget outcome. Not a candles defect; worth a look when pane capacity is
+next opened.
+
+### THE HIDDEN-TAB CONDITION, AGAIN
+`document.visibilityState === 'hidden'` for the whole pass. Frames advance only
+when a CDP capture forces one, which is why pane counts read stale between
+actions and why the two `paneLayout` one-frame warnings printed. Final geometry
+was correct every time. Per the Phase C brief this is not a regression and no
+production code was changed for it.
+
+### MAIN TRADING
+Never opened; `40d361fa…` → 5,354 bytes, `ea9ebaeee302`, unchanged.
+
+### STATUS
+**SECONDARY-SYMBOL OHLC / CANDLES — COMPLETE FOR V1.** No Phase D.
+
+Carried forward, unstarted:
+- non-US / cross-session axis-union question (intersect is v1)
+- formula-visible `open`/`high`/`low`
+- richer candle appearance (wick/border width, hollow, Heikin Ashi) only if asked
+- `/api/bars` entitlement / release review
+- the six-pane capacity observation above

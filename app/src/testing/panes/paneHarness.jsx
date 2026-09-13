@@ -117,6 +117,47 @@ function readPanes(container) {
   return rows.length
 }
 
+/**
+ * ⭐⭐ EVERY PANE'S OWN CANVAS, MEASURED SEPARATELY — the helper that exists
+ * because the obvious query is WRONG.
+ *
+ * ⚰️ MEASURED 2026-09-13: a colour check written as
+ * `document.querySelector('canvas')` reads the PRICE pane and reports zero of a
+ * secondary's colour while that secondary's pane is full of it. Every pane is
+ * its own canvas; a global first-canvas query answers a different question and
+ * answers it confidently.
+ *
+ * ⛔ DEV-ONLY, AND IT STAYS THAT WAY. `vite build` takes `index.html` alone, so
+ * nothing here ships; the product needs no pane-pixel reader.
+ *
+ * @param {(r:number,g:number,b:number)=>string|null} classify  name a pixel, or null
+ * @returns per-pane `{top, height, counts}` in stack order, the time axis last
+ */
+function readPaneColors(classify) {
+  const seen = new Map()
+  for (const c of document.querySelectorAll('canvas')) {
+    const r = c.getBoundingClientRect()
+    // The price-axis gutter is its own canvas at the same top; the pane's own
+    // canvas is the wide one, and two are stacked per pane (grid + series).
+    if (r.width < 300) continue
+    const key = Math.round(r.top)
+    if (seen.has(key)) continue
+    const counts = {}
+    let painted = 0
+    try {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+      for (let p = 0; p < d.length; p += 4) {
+        if (d[p + 3] < 40) continue
+        painted += 1
+        const name = classify(d[p], d[p + 1], d[p + 2])
+        if (name) counts[name] = (counts[name] || 0) + 1
+      }
+    } catch { continue }
+    seen.set(key, { top: key, height: Math.round(r.height), painted, counts })
+  }
+  return [...seen.values()].sort((a, b) => a.top - b.top)
+}
+
 function Row({ label, children }) {
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
@@ -508,4 +549,4 @@ createRoot(document.getElementById('root')).render(
 
 // Kept out of the component so an accidental edit cannot make it a render-time
 // read; exported for a console poke during a session.
-window.__paneHarness = { readPanes, BLOCKED }
+window.__paneHarness = { readPanes, readPaneColors, BLOCKED }
