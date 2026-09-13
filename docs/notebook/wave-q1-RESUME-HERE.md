@@ -658,8 +658,52 @@ Takes effect on that browser's next load and reaches nobody else. Destroys
 nothing: a durable copy left behind by a switched-off layer is inert, and the
 server holds every synced note regardless.
 
-## ⛔ ROLLBACK MECHANICS — a deploy, not a variable
+## 🗂️ THE WORKTREE DIRECTORY — five trees, five branches, one queue
 
+⛔⛔ **READ THIS BEFORE `git worktree add`.** Owner ruling 2026-09-12 approved one
+worktree per track so that **a gate run in its own tree means something** — a tree
+hash is evidence only when nothing else is moving in that tree. A session that
+creates a sixth tree for work one of these already owns splits the branch and
+loses the attribution the split was for.
+
+| track | worktree | branch |
+|---|---|---|
+| **K** — runtime kill switch | `C:\Users\Patrick\uct-worktrees\notebook-k` | `feat/notebook-kill-switch` |
+| **S** — the measured debt rows | `C:\Users\Patrick\uct-worktrees\notebook-s` | `feat/notebook-wave-s` |
+| **Q2-A** — offline read | `C:\Users\Patrick\uct-worktrees\notebook-q2a` | `feat/notebook-q2a-offline-read` |
+| **R-4a** — image paste/drop | `C:\Users\Patrick\uct-worktrees\notebook-r4a` | `feat/notebook-wave-r` |
+| **F5 drivers** — the three append-family production drivers | `C:\Users\Patrick\uct-worktrees\notebook-f5` | `feat/notebook-f5-drivers` |
+| docs / roadmap | `C:\Users\Patrick\uct-worktrees\notebook-flip` | `docs/notebook-roadmap` |
+
+- ⛔ **`node_modules` is a JUNCTION** in each new tree, not an install — a fresh
+  worktree copies tracked files only, so `npx vitest` without one fails at config
+  load, which is a startup error wearing a test result's clothes. **Delete the
+  junction with `cmd /c rmdir` BEFORE `git worktree remove`**, or the remove walks
+  through it and deletes the real `node_modules`.
+- ⛔ **The `f5Freeze` rail runs in EVERY tree** (owner ruling): while Q1-F5 is open,
+  the five append call sites, the classifier and the settle are frozen, and a tree
+  that could not see that freeze would be the one to break it.
+- ⛔ **ONE GATE AT A TIME ON THIS BOX.** Three concurrent sessions OOM-swept this
+  machine on 2026-09-12 and destroyed a worktree's `node_modules` *and* its `.git`
+  file. Serial execution with per-tree attribution is the ruling; it is also the
+  only arrangement that has been measured to work here.
+- **Merges still serialise through the one queue.** A worktree buys isolated gates,
+  never parallel merges.
+
+## ⛔ ROLLBACK MECHANICS — TWO levers since Wave K
+
+☠️ ~~*"a deploy, not a variable"*~~ — **struck 2026-09-12, superseded by Wave K**,
+which puts `NOTEBOOK_OFFLINE_DEFAULT_ON` on the auth payload. Marked, not deleted:
+the old heading would send the next reader to revert a commit where one Railway
+variable is enough.
+
+**(1) THE SWITCH.** `railway variables --service web --set "NOTEBOOK_OFFLINE_DEFAULT_ON=0"`.
+Read per request in `_access_payload`; no app rebuild. Verify a NEW BOOT (`--set`
+is measured both ways) and read the value in-process, never from `--kv`.
+
+> **REACH — verbatim, §2b of `kill-switch-spec.md`:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
+
+**(2) THE DEPLOY**, unchanged, and still the only way to remove the code:
 `OFFLINE_DEFAULT_ON` is a **compile-time constant** compiled into the bundle.
 There is no Railway variable behind it, and setting one named after it changes
 nothing while looking like it worked. Rollback = merge `3db89e205`, wait for the
@@ -687,7 +731,7 @@ it".
 |---|---|---|---|
 | a | `rule12Paths` (joystick B7, `327fa4c70`) has no branch-identity check, so it fires on any branch editing `journal-2-0/` — including the Notebook's own. Waived by name for tonight's gate, never modified. | joystick session (owner carrying) | one guard condition + a rail |
 | b | `tests/test_gate_shards.py` — **3 red on master**, and they are the rails over the gate's own **baseline-comparison** logic, which every verdict tonight leaned on. Verdicts were cross-checked by plain `sed`/`sort`/`comm` diff instead. | TBD | worth its own decision |
-| c | Runtime kill switch, shape (a) server-served flag. **MEDIUM, 6–12 h.** ⛔ Does **not** fix the open-tab case either — a boot-read flag is still a boot-time value. | deferred | costed, not built |
+| c | ~~Runtime kill switch, shape (a) server-served flag. **MEDIUM, 6–12 h.**~~ ✅ **BUILT — Wave K, 2026-09-12.** It rides `_access_payload` (no new endpoint), and it is **latched for the tab's lifetime** by ruling, so the "does not fix the open-tab case" caveat is now the DESIGN, stated verbatim in the reach statement, not a shortfall. Spec: `kill-switch-spec.md`. | ✅ closed | shipped dark; flip packet `kill-switch-flip-packet.md` |
 | d | The flag sweep now detects a **fourth** way to reach the default (injected storage stubs). Its docstring promised three and warned "reading cannot prove there is no fifth" — neither can the tool. | Notebook | watch for a fifth |
 | e | No PR page for the rollback branch (`gh` absent, REST blocked). | owner | 10 seconds from the branch page, if a clickable revert is wanted for Sunday |
 

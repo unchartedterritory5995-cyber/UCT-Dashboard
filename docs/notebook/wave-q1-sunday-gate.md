@@ -116,6 +116,15 @@ closing **2026-09-19 00:45 ET**. Nothing to do but let the sampler run.
 
 ## 5b. REVERT
 
+0. ⭐ **SINCE WAVE K THERE IS A FASTER LEVER, AND IT IS THE ONE TO PULL FIRST.**
+   `railway variables --service web --set "NOTEBOOK_OFFLINE_DEFAULT_ON=0"` turns
+   the wave off without removing any code — read per request in `_access_payload`,
+   so no rebuild. Verify a NEW BOOT and read the value in-process, never `--kv`.
+   Steps 1–3 below still apply when the CODE has to come out (a defect in the
+   durable layer itself, not a decision to stop defaulting it on).
+
+   > **REACH — verbatim, §2b of `kill-switch-spec.md`:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
+
 1. Merge the **draft rollback PR** for `rollback/notebook-offline-default-off`
    @ `3db89e205`, **with a MERGE COMMIT** — not squash, not rebase, because this
    record cites these hashes.

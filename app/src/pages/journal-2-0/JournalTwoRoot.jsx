@@ -24,6 +24,7 @@ import CalendarTab from './tabs/CalendarTab'
 import AccountsTab from './tabs/AccountsTab'
 import AnalyticsTab from './tabs/AnalyticsTab'
 import NotebookTab from './tabs/NotebookTab'
+import NotebookFlagGate from './components/notebook/NotebookFlagGate'
 import CompassTab from './tabs/CompassTab'
 import CommunityTab from './tabs/CommunityTab'
 import AccountSelector from './components/accounts/AccountSelector'
@@ -190,7 +191,18 @@ export default function JournalTwoRoot() {
           <AccountsTab onNewAccount={() => setShowNewAccount(true)} />
         )}
         {nestedTab === 'analytics' && <AnalyticsTab />}
-        {nestedTab === 'notebook' && <NotebookTab />}
+        {/* ⛔⛔ WAVE K — THE FIRST-RENDER GATE. Nothing in the Notebook mounts
+            until the server's capability answer has latched, or the gate's
+            deadline passes and the compile-time constant stands in. Mounting
+            first and correcting afterwards would let the durable layer open the
+            store, take the sync lock and write a working copy for a wave the
+            server is in the middle of switching off — §21 forbids exactly that,
+            and K-R4 is the rail. */}
+        {nestedTab === 'notebook' && (
+          <NotebookFlagGate>
+            <NotebookTab />
+          </NotebookFlagGate>
+        )}
         {nestedTab === 'compass' && isPaid && <CompassTab />}
         {nestedTab === 'community' && <CommunityTab />}
       </div>

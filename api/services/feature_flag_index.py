@@ -93,6 +93,49 @@ def _default_of(node: ast.AST) -> Any:
     return None
 
 
+def _table_gates(tree: ast.AST, rel: str, found: dict) -> None:
+    """A TABLE of gates, read through a loop variable.
+
+    (Deliberately not numbered against the forms in the module docstring: a count
+    typed beside the list it describes is the defect this repo keeps re-committing.)
+
+    ⛔⛔ THE SCAN IS BLIND TO `os.environ.get(env_name)` BY CONSTRUCTION, and that
+    is not a corner case: Wave K's four Notebook capabilities are declared once
+    as `NOTEBOOK_FLAGS = {"NAME": default, ...}` and read in a loop, precisely so
+    the env name and the payload key cannot drift apart. Four gates therefore
+    shipped INVISIBLE to this index on 2026-09-12 — the ledger stayed green while
+    describing a repo that was four gates short, which is the exact failure this
+    module exists to prevent, one level up.
+
+    ⭐ The default comes from the TABLE'S OWN VALUE, which is better evidence than
+    a second argument: it is the literal the code falls back to, in the same
+    expression a reader audits.
+
+    Narrow on purpose — a module-level `*_FLAGS` dict whose keys are ALL string
+    constants and ALL gate-shaped. A fixture that looks like one is recorded and
+    demands a ledger entry; that direction is loud, and the other is silent.
+    """
+    for node in getattr(tree, "body", []):
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name) or not target.id.endswith("_FLAGS"):
+            continue
+        if not isinstance(node.value, ast.Dict) or not node.value.keys:
+            continue
+        pairs = []
+        for k, v in zip(node.value.keys, node.value.values):
+            if not (isinstance(k, ast.Constant) and isinstance(k.value, str) and is_gate(k.value)):
+                pairs = []
+                break
+            pairs.append((k.value, v.value if isinstance(v, ast.Constant) else None))
+        for name, default in pairs:
+            e = found.setdefault(name, {"default": None, "sites": set()})
+            if e["default"] is None and default is not None:
+                e["default"] = default
+            e["sites"].add(rel)
+
+
 def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any]]:
     """{env_name: {"default": ..., "sites": [paths]}} over `roots`.
 
@@ -153,6 +196,7 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
                 except ValueError:
                     pass  # scanning outside the base (a test tree) — absolute is fine
             V(rel, _os_aliases(tree)).visit(tree)
+            _table_gates(tree, rel, found)
 
     return {k: {"default": v["default"], "sites": sorted(v["sites"])}
             for k, v in sorted(found.items())}

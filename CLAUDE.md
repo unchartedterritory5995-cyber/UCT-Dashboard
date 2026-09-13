@@ -2262,17 +2262,51 @@ fix belongs to the joystick session**: gate the rail on being ON a joystick
 branch (or on the diff containing hub changes), so it only fires where rule 12
 applies. Until then every Notebook gate carries a waiver it should not need.
 
-### ⛔ Rolling back a FRONTEND flag is a deploy, not a variable
+### ⛔ Rolling back the Notebook wave — TWO levers since Wave K, and the fast one IS a variable
 
-Constants like `OFFLINE_DEFAULT_ON`
+☠️ ~~*"Rolling back a FRONTEND flag is a deploy, not a variable"*~~ — **struck
+2026-09-12, superseded by Wave K.** Left marked rather than deleted, because a
+reader who remembers only the old heading will revert a commit where one Railway
+variable would have done it, and this file has twice had a rescinded rule
+re-derived from its surviving rationale.
+
+**(1) THE SWITCH — `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web`.** Wave K puts four
+Notebook capability flags on the **auth payload** (`_access_payload` in
+`api/routers/auth.py`, the same helper `HUB_PREVIEW_ENABLED` rides — **there is
+still no feature-flag endpoint in this app, and K deliberately did not add one**).
+The value is read PER REQUEST, so the app needs no rebuild. Polarity is per
+capability: `NOTEBOOK_OFFLINE_DEFAULT_ON` is a KILL switch (unset = ON, nothing
+killed); the other three are enablement gates (unset = OFF, not released).
+⚠️ `railway variables --set` has been measured BOTH ways — verify a NEW BOOT and
+read the value in-process, never from `--kv`.
+
+> **REACH — verbatim, §2b of `docs/notebook/kill-switch-spec.md`, owner ruling
+> 2026-09-12:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
+
+⭐ The client **latches** the answer for the tab's lifetime
+(`lib/offline/notebookFlags.js`), deliberately: §21 requires that a tab which has
+already decided it may write never sees "am I allowed to write" change between a
+PUT going out and its ack coming back. A later poll disagreeing is COUNTED, not
+applied.
+
+**(2) THE DEPLOY — still real, and still the only way to remove CODE.** Constants
+like `OFFLINE_DEFAULT_ON`
 (`app/src/pages/journal-2-0/lib/offline/offlineFlag.js`) are **compiled into the
-bundle**. There is no Railway variable behind them, and setting one named after
-the constant changes nothing while looking like it worked. Rollback = revert the
+bundle**. There is no Railway variable behind THE CONSTANT — ⚠️ and that is a
+narrower claim than it looks now that lever (1) exists: `NOTEBOOK_OFFLINE_DEFAULT_ON`
+governs the same DECISION at runtime, but a variable named after the constant
+(`OFFLINE_DEFAULT_ON=0`) still reaches nothing and still looks like it worked. Rollback = revert the
 commit, push to `master`, wait for the `web` rebuild (**~2–3 min**; one
 measurement, 138 s), and **every member with an open tab keeps the OLD bundle
 until they reload** — there is no service worker and no new-version prompt, by
 charter. ⚰️ For most of Wave Q1 the canary stamped the opposite instruction on
-every evidence row; it was corrected 2026-09-12.
+every evidence row; it was corrected 2026-09-12. **The constant is also the
+fallback lever (1) cannot replace:** a browser talking to a pod that predates K
+receives no `notebook_*` keys at all and reads the constant — which is why
+"absent" and "off" are reported as different facts by the canary's
+`notebook config served` row, and why **K-1** (flipping the constant to `false`
+so an unreachable payload fails to OFF) is queued behind a measured
+config-served rate rather than assumed.
 
 ### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
 

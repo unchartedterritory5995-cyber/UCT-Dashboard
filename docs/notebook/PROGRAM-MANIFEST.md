@@ -393,6 +393,33 @@ discipline exists to exclude. Running T-12 does not move T-12's *other* half.
 
 ## 7. CONTRADICTIONS RESOLVED — later-wins, and where CODE overrules both docs
 
+### ⚖️ 2026-09-12 — the kill switch's MECHANISM: the spec said `/api/config`; the live architecture already had one
+
+`kill-switch-spec.md` §1 specified a new `GET /api/config`, read once at boot.
+**Struck the same day, while building K.** `CLAUDE.md` records the absence of a
+config endpoint as deliberate — *"There is no feature-flag endpoint in this app —
+the flag rides that payload by design"* — and
+`api/routers/auth.py::_access_payload`, shared by signup, login and
+`/api/auth/me`, already serves three flags that way, saying in its own comments
+*"READ AT REQUEST TIME, NOT AT IMPORT … RIDES AN EXISTING PAYLOAD RATHER THAN
+ADDING AN ENDPOINT."*
+
+**Owner ruling: ride `_access_payload`, latch for the tab's lifetime.** A new
+endpoint would have been a SECOND AUTHORITY over server-served flags, and it
+reaches members later — a boot-read needs a reload, the payload arrives on the
+next authenticated request.
+
+⭐ **Fresh on the server, frozen per tab, and the two are not in tension.** The
+server re-reads so a flip needs no redeploy. The client latches so the answer
+cannot move under a running tab: Q1's `SESSION_ID`, its sync Web Lock and its
+in-flight marker all belong to a tab that has already decided it may write, and a
+mid-session flip would change "am I allowed to write" during a write. Rail K-R9.
+
+⛔ **The general shape:** a spec can be internally perfect and still specify a
+mechanism the codebase has already chosen against, for reasons written down
+somewhere the spec's author did not look. Before building a mechanism, grep for
+one — `lesson_grep_for_a_name_finds_one_ask_the_module_finds_ten`.
+
 ### ⚖️ 2026-09-12 — the kill switch's POSITION: the Q2 PRD said "not before Q2-A/B"; the owner ruled K FIRST
 
 `wave-q2-PRD.md` carried a bolded recommendation — **"BUILD BEFORE Q2-C, NOT
@@ -512,6 +539,17 @@ POST share service worker, ruled NO and moved here permanently 2026-09-12.**
   implement from this document."* ⚠️ **The 2026-09-11 charter names this work as a
   MUST.** The charter is the later owner instruction and wins; R-1a carries it. Logged
   because a reader of the older ruling will otherwise think it is still descoped.
+- ⛔⛔ **K-1 — K'S OWN SECOND FLIP PACKET. QUEUED, NOT PARKED.** Owner ruling
+  2026-09-12. Flip `OFFLINE_DEFAULT_ON` to `false` so an **unreachable auth payload
+  fails to OFF** instead of ON. Precondition, stated so it cannot be softened later:
+  *config-served rate 100% over the K window, measured by identity, rig excluded.*
+  ⭐ Something now MEASURES that: the canary's `notebook config served` row
+  (`tools/window_check.py`) reads the payload a signed-in member receives and reports
+  **absent** and **off** as different facts — a pod predating K serves no keys and the
+  browser reads the constant, which is exactly the fleet state K-1 must not be flipped
+  in front of. Until K-1 ships, the limitation is printed verbatim in the flip packet
+  and in every copy of the rollback text (§2b of `kill-switch-spec.md`, rail K-R8).
+  Detail: `kill-switch-spec.md` §10; packet shape: `kill-switch-flip-packet.md`.
 - Competitor AI source-counting rows remain **NOT ASSESSED** and must keep saying so.
 - The readiness scorecard is **stale** and internally inconsistent (it quotes its own
   composite as both ~5.7 and 4.9). Do not re-score it from this manifest; re-measure.
@@ -595,7 +633,18 @@ Closing it requires building an instrument first — that is a task, not a looku
    a re-baseline: Waves L–P shipped afterwards. **The 2026-09-11 charter is the current
    re-baseline and supersedes that stop.**
 
-6. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
+6. ⛔ **A LIVE FILE ARGUES FROM A RESCINDED RULE — `shellFlag.js`.** It justifies its
+   own design with *"The deploy freeze (9:15am–4:20pm ET options tape) makes a same-day
+   deploy-rollback impossible"*. **That freeze was removed 2026-08-24** (CLAUDE.md,
+   *"Shipping window: NO FREEZE"*), so the justification is a mechanism explaining a
+   rule that no longer exists — the shape this file has twice had a rescinded
+   restriction re-derived from. ⛔ **RECORDED, NOT TOUCHED BY WAVE K** (owner ruling
+   2026-09-12): it is a THIRD flag mechanism with a different scope (a per-browser
+   rollout dial), and editing it inside K would widen K into somebody else's surface.
+   It needs an owner ruling on whether to restate or retire it; carried as **K-2** in
+   `kill-switch-spec.md` §10.
+
+7. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
    WRONG BY THREE.** Wave Q1 recorded *"the FOUR doors — every path that advances
    `updatedAt`"* and named body, folder, ticker, tags. That list came from the
    DERIVED WIRE RAIL, which can only see doors a canary actually opened; no canary
@@ -615,7 +664,7 @@ Closing it requires building an instrument first — that is a task, not a looku
    "24" beside 26). **This one was not a stale count in a doc — it was a stale count
    the PRODUCT was built on.** Full entry: `docs/notebook/wave-q1-RESUME-HERE.md`.
 
-7. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
+8. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
    The fix for the four-doors trap (§10.6) was itself got wrong twice before it
    was got right, and both failures were the same shape: **a grep answered, so
    the search stopped.**
@@ -641,7 +690,7 @@ Closing it requires building an instrument first — that is a task, not a looku
    instead of from a list of callers, derive it — the list goes stale silently
    and the diff cannot.
 
-8. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
+9. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
    `hero` shipped unsettled **because no canary could reach it**, and that was
    not bad luck. The note editor renders three file inputs, and the hero
    picker's accept list is BYTE-IDENTICAL to the editor's hidden inline-image

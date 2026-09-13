@@ -14,6 +14,13 @@
     "        dark   = deliberately off; note MUST say why",
     "        pending= built, no decision yet; note + since MUST be present",
     "",
+    "A gate can also be declared as a TABLE - a module-level *_FLAGS dict whose",
+    "keys are gate names, read in a loop. feature_flag_index learned that form on",
+    "2026-09-12, after Wave K shipped four capabilities the AST could not see:",
+    "os.environ.get(env_name) has no string constant to match, so 140 flag tests",
+    "passed over a ledger that was four gates short. tests/test_notebook_flag_table_form.py",
+    "is the rail, with the control that a bare loop-variable read is still invisible.",
+    "",
     "This file records INTENT. It cannot see Railway, so it can drift from reality:",
     "run tools/flag_ledger_audit.py to compare it against what is actually set.",
     "",
@@ -669,6 +676,21 @@
         "web"
       ],
       "note": ""
+    },
+    "NOTEBOOK_ATTACHMENTS_ON": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave K, 2026-09-12. Enablement gate for the Q2 Notebook attachments surface, which is NOT BUILT. The key ships with K so the wave that builds it ships behind a switch that already works, instead of bolting one on afterwards. Unset means OFF and that is the decision. Rides the auth payload (_access_payload); see docs/notebook/wave-k-flip-packet.md."
+    },
+    "NOTEBOOK_CONFLICT_UX_ON": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave K, 2026-09-12. Enablement gate for the Q2 conflict-resolution UX, which is NOT BUILT. Q1's fork-never-clobber already runs and is not gated by this; this key only releases the surface that would let a member reconcile a fork. Unset means OFF, deliberately."
+    },
+    "NOTEBOOK_OFFLINE_READ_ON": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave K, 2026-09-12. Enablement gate for Q2-A, the offline READ path, which is NOT BUILT. Distinct from NOTEBOOK_OFFLINE_DEFAULT_ON, which is a KILL switch defaulting ON and therefore needs no entry here by this ledger's own doctrine. Unset means OFF."
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",

@@ -60,6 +60,26 @@ NB = "src/pages/journal-2-0/components/notebook"
 # guard is the property itself. Both are used below, and their UNION is the set.
 RAIL_DIRS = [f"{OFF}"]
 RAIL_FILES = [
+    # ⚰️ SEVEN RAILS THE HARNESS WAS NOT RUNNING, found by its own self-check
+    # on 2026-09-12. Every one names `lib/offline` and every one arrived with the
+    # door work (`0ecc4f886`) — so from that merge until now, a mutation to a door
+    # guard could redden nothing here and be reported as UNRAILED. ⛔ That is the
+    # dangerous direction: under-reported coverage invites deleting a guard that
+    # was fine, which is why the coverage case exists at all.
+    "src/pages/journal-2-0/components/AddPositionModal.test.jsx",
+    "src/pages/journal-2-0/GlobalAddPositionProvider.settle.test.jsx",
+    "src/pages/journal-2-0/components/notebook/HeroImagePicker.settle.test.jsx",
+    "src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx",
+    "src/pages/journal-2-0/tabs/NotebookTab.test.jsx",
+    "src/pages/journal-2-0/components/notebook/ThesisReviewSection.test.jsx",
+    "src/pages/journal-2-0/components/notebook/doorsThroughTheEditor.property.test.jsx",
+    # ⛔ WAVE K lives in THREE places, and only one of them is `lib/offline`.
+    # The gate is a component; the applier is in `src/context`, outside
+    # journal-2-0 entirely. A rail set derived from the offline directory sees
+    # neither — which is the same under-reporting that made `EMIT_NOTHING` look
+    # untested, one wave later.
+    f"{NB}/NotebookFlagGate.test.jsx",
+    "src/context/authFlagPaths.test.js",
     f"{NB}/NoteEditorPage.durable.test.jsx",
     f"{NB}/NoteEditorPage.interleavings.test.jsx",
     f"{NB}/NoteEditorPage.nullbaseline.test.jsx",
@@ -70,6 +90,8 @@ RAIL_FILES = [
 # The property the directory proxy misses. Any journal-2-0 test naming one of
 # these must be in the rail set no matter which directory it sits in.
 GUARD_NAMES = (
+    # Wave K
+    "notebookFlags", "latchNotebookFlags", "NotebookFlagGate", "applyServerFlags",
     "lib/offline", "settleLandedSave", "EMIT_NOTHING", "emitUpdate",
     "usableBaseline", "landedBaseline", "isSupersededBaseline",
     "outboxDrain", "useDurableNote", "offlineFlag", "hydratedRef",
@@ -260,12 +282,135 @@ MUTATIONS = [
          repl="export const OFFLINE_DEFAULT_ON = false",
          note="flipping it silently changes what an unset key means for every member"),
 
+    # ══════════════════════════════════════════════════════════════════════
+    # WAVE K — the runtime kill switch. K-R1 … K-R10.
+    # ══════════════════════════════════════════════════════════════════════
+    # ⛔ HALF OF THIS WAVE IS PYTHON. Two of its guards live on the server and
+    # are broken against pytest rails (`runner="pytest"`, `root="repo"`); a
+    # gauntlet that could only reach vitest would have left them as "proved by
+    # hand, once" — the evidence-outliving-the-experiment failure this whole
+    # tool was written to end.
+    #
+    # ⛔ TEN RAILS, TEN MUTATIONS, AND THEY ARE NOT ONE-TO-ONE ON PURPOSE.
+    # K-R9 has two halves — *fresh on the server, frozen per tab* — and they are
+    # different guards in different languages (K9 and K5). K-R1 has a provider
+    # and a consumer (K7 and K1), and breaking either loses the kill. One
+    # mutation per rail would have meant writing the same guard twice, and a
+    # guard repeated is a guard unproved.
+
+    dict(id="K1", guard="K-R1 — the CONSUMER honours the served answer",
+         file=f"{OFF}/offlineFlag.js",
+         find="""  const served = notebookFlag('notebook_offline_default_on')
+  return served === null ? OFFLINE_DEFAULT_ON : served""",
+         repl="""  const served = notebookFlag('notebook_offline_default_on')
+  void served
+  return OFFLINE_DEFAULT_ON""",
+         note="the switch is set, the payload carries it, and nothing reads it — "
+              "a kill switch that answers correctly to nobody"),
+
+    dict(id="K7", guard="K-R1/K-R7 — the PROVIDER answers at all",
+         file=f"{OFF}/notebookFlags.js",
+         find="""export function notebookFlag(key) {
+  if (!latched) return null""",
+         repl="""export function notebookFlag(key) {
+  if (latched) return null""",
+         note="with the latch mute, all sixteen doors fall back to the constant "
+              "and the flip reaches no one"),
+
+    dict(id="K2", guard="K-R2 — an OLDER BACKEND does not latch",
+         file=f"{OFF}/notebookFlags.js",
+         find="    if (!has) return null",
+         repl="    if (false) return null",
+         note="a payload with none of the keys is a stale pod, not a decision; "
+              "latching from it kills the wave on one stale answer"),
+
+    dict(id="K3", guard="K-R3 — the member's opt-out is TERMINAL",
+         file=f"{OFF}/offlineFlag.js",
+         find="    if (v === '0') return false",
+         repl="    if (v === '0') { /* mutated: the member's own choice is ignored */ }",
+         note="a member who switched this wave off must never be switched back on "
+              "by a value somebody set in Railway"),
+
+    dict(id="K4", guard="K-R4 — the first-render gate renders NOTHING before the answer",
+         file=f"{NB}/NotebookFlagGate.jsx",
+         find="  if (!ready && !timedOut) return fallback",
+         repl="  if (false) return fallback",
+         note="shape B in one line: the durable layer mounts, opens the account's "
+              "IndexedDB and takes the sync lock before the server's false arrives"),
+
+    dict(id="K5", guard="K-R5/K-R9 — FROZEN PER TAB: the first payload wins",
+         file=f"{OFF}/notebookFlags.js",
+         find="""      return latched
+    }
+    if (!payload) return null""",
+         repl="""      latched = null
+    }
+    if (!payload) return null""",
+         note="unlatched, `offlineEnabled()` can answer no between a PUT going out "
+              "and its ack coming back — the one thing §21 cannot survive"),
+
+    dict(id="K10", guard="K-R10 — every auth path applies the one map",
+         file="src/context/AuthContext.jsx",
+         find="""    applyServerFlags(data)
+    return data
+  }
+
+  const signup""",
+         repl="""    // MUTATED: the TOTP path stops applying the server flags
+    return data
+  }
+
+  const signup""",
+         note="a flag wired into three paths and missed in the fourth works for "
+              "everyone except the members who take that door"),
+
+    dict(id="K6", guard="K-R6 — the env var and the payload key are DERIVED",
+         runner="pytest", root="repo",
+         file="api/routers/auth.py",
+         find="    return env_name.lower()",
+         repl='    return env_name.lower().replace("notebook_", "nb_")',
+         note="two names for one flag, drifting apart with nothing to notice"),
+
+    dict(id="K9", guard="K-R9 — FRESH ON THE SERVER: read per request, not at import",
+         runner="pytest", root="repo",
+         file="api/routers/auth.py",
+         find="""    out = {}
+    for env_name, default_on in NOTEBOOK_FLAGS.items():""",
+         repl="""    out = _notebook_flags.__dict__.setdefault("mutant_cache", {})
+    if out:
+        return dict(out)
+    for env_name, default_on in NOTEBOOK_FLAGS.items():""",
+         note="captured once, the flip needs a redeploy and every no-redeploy "
+              "sentence in the flip packet is a fiction"),
+
+    dict(id="K8", guard="K-R8 — the reach statement is VERBATIM in all five places",
+         runner="pytest", root="repo",
+         file="tools/window_check.py",
+         find='"until K-1."',
+         repl='"until K-1 (see the spec)."',
+         note="the last rollback sentence that drifted took eleven evidence rows "
+              "to find, and it is read at the worst possible moment"),
+
     dict(id="M12", guard="the editor emits NOTHING when it sets content itself",
          file=f"{NB}/NoteEditorPage.jsx",
          find="const EMIT_NOTHING = { emitUpdate: false }",
          repl="const EMIT_NOTHING = { emitUpdate: true }",
          note="onUpdate fires when the DATA changed, not when a PERSON did"),
 
+]
+
+
+# ⛔⛔ WAVE K PUT HALF OF ITSELF IN PYTHON, so half of its guards cannot be
+# broken against a vitest rail. The kill switch is served by `_access_payload`
+# and its two load-bearing properties — the env↔key derivation and the
+# PER-REQUEST read — are pytest rails. A gauntlet that could only run vitest
+# would have recorded those two guards as "proved by hand, once", which is the
+# precise failure this tool's docstring was written about: the evidence
+# outliving the experiment.
+PY_RAILS = [
+    "tests/test_notebook_flags.py",
+    "tests/test_hub_preview_flag.py",
+    "tests/test_k_reach_statement.py",
 ]
 
 
@@ -293,6 +438,29 @@ def run_rails(run) -> tuple[int, int, list[str]]:
     files = set(re.findall(r"(?:FAIL|❯)\s+(\S*?[\w.-]+\.test\.jsx?)", clean))
     files |= set(re.findall(r"^\s*(?:FAIL|×|✗)\s+(\S*?[\w.-]+\.test\.jsx?)", clean, re.M))
     return failed, passed, sorted(files)
+
+
+def run_py_rails(run_py) -> tuple[int, int, list[str]]:
+    """The pytest half. → (failed, passed, failing node ids).
+
+    ⛔ SAME REFUSAL AS THE VITEST HALF. pytest prints its own totals line and a
+    run that dies at collection prints none; reading the exit code instead is
+    how a gate reports green for a suite that never started.
+    """
+    out = run_py([sys.executable, "-m", "pytest", *PY_RAILS, "-q", "-p", "no:warnings"])
+    clean = re.sub(r"\x1b\[[0-9;]*m", "", out)
+    # pytest's summary is the LAST line carrying "N passed" / "N failed".
+    lines = [ln for ln in clean.splitlines()
+             if re.search(r"\b\d+ (?:passed|failed)\b", ln)]
+    if not lines:
+        raise SystemExit(
+            "  ⛔ NO PYTEST TOTALS LINE — the rails did not run. A run without a "
+            "totals line is not a run, and a mutation judged on one is worse than none.")
+    line = lines[-1]
+    failed = int(re.search(r"(\d+) failed", line).group(1)) if "failed" in line else 0
+    passed = int(re.search(r"(\d+) passed", line).group(1)) if "passed" in line else 0
+    names = sorted(set(re.findall(r"^FAILED (\S+)", clean, re.M)))
+    return failed, passed, names
 
 
 def apply(path: pathlib.Path, find: str, repl: str) -> str:
@@ -330,6 +498,23 @@ def self_check() -> int:
     fake = "Test Files  2 failed | 15 passed (17)\nTests  3 failed | 173 passed (176)\n"
     f, p, _ = run_rails(lambda _a: fake)
     case("a totals line is parsed as failures, not as text", f == 3 and p == 173)
+
+    # ⛔ THE PYTEST HALF REFUSES THE SAME WAY. Wave K put two guards on the
+    # server, so the gauntlet grew a second runner — and a second runner that
+    # could not tell "0 failed" from "never ran" would report a green gauntlet
+    # for a suite that died at collection.
+    try:
+        run_py_rails(lambda _a: "collected 0 items / 1 error, and no summary")
+        case("a PYTEST run with no totals line is refused", False)
+    except SystemExit:
+        case("a PYTEST run with no totals line is refused", True)
+
+    fy, py_, names = run_py_rails(
+        lambda _a: ("FAILED tests/test_notebook_flags.py::test_x - AssertionError\n"
+                    "2 failed, 55 passed in 1.20s\n"))
+    case("a pytest totals line is parsed as failures, not as text", fy == 2 and py_ == 55)
+    case("…and the failing NODE IDS are named, never just counted",
+         names == ["tests/test_notebook_flags.py::test_x"])
 
     # An ambiguous site must refuse rather than mutate an arbitrary occurrence.
     import tempfile
@@ -373,7 +558,7 @@ def self_check() -> int:
 
     # Every declared mutation site must exist exactly once in the real tree.
     for m in MUTATIONS:
-        p_ = APP / m["file"]
+        p_ = (REPO if m.get("root") == "repo" else APP) / m["file"]
         n = p_.read_text(encoding="utf-8").count(m["find"]) if p_.exists() else 0
         case(f"{m['id']}: its guard is present exactly once", n == 1)
 
@@ -393,6 +578,16 @@ def main() -> int:
         return subprocess.run(argv, cwd=APP, capture_output=True,
                               encoding="utf-8", errors="replace", shell=True).stdout
 
+    def run_py(argv):
+        # ⛔ cwd=REPO, not APP: pytest resolves `tests/...` and the repo-root
+        # conftest (the shared-data-root tripwire) from the repository root, and
+        # a run started anywhere else silently loses both.
+        return subprocess.run(argv, cwd=REPO, capture_output=True,
+                              encoding="utf-8", errors="replace").stdout
+
+    def site_of(m):
+        return (REPO if m.get("root") == "repo" else APP) / m["file"]
+
     todo = list(MUTATIONS)
     if args.only:
         todo = [m for m in todo if m["id"] == args.only]
@@ -402,14 +597,24 @@ def main() -> int:
     if f0:
         print(f"  ⛔ {f0} rail(s) already red. A mutation proves nothing against a red control.")
         return 1
-    print(f"  control: {p0} tests green\n")
+    # ⛔ BOTH halves, and the pytest control runs even when no pytest mutation
+    # is selected: a --only K1 that skipped it would report a green gauntlet
+    # over a rail set half of which was never executed.
+    fy0, py0, _ = run_py_rails(run_py)
+    if fy0:
+        print(f"  ⛔ {fy0} SERVER rail(s) already red. A mutation proves nothing.")
+        return 1
+    print(f"  control: {p0} browser + {py0} server tests green\n")
 
     rows = []
     for m in todo:
-        path = APP / m["file"]
+        path = site_of(m)
         original = apply(path, m["find"], m["repl"])
         try:
-            failed, _passed, files = run_rails(run)
+            if m.get("runner") == "pytest":
+                failed, _passed, files = run_py_rails(run_py)
+            else:
+                failed, _passed, files = run_rails(run)
         finally:
             restore(path, original)
         rows.append((m, failed, files))
@@ -422,11 +627,13 @@ def main() -> int:
 
     print("\n⭐ CONTROL AGAIN — every file restored, the rails must be green once more.")
     f1, p1, _ = run_rails(run)
-    print(f"  after restore: {p1} tests green, {f1} red")
+    fy1, py1, _ = run_py_rails(run_py)
+    print(f"  after restore: {p1} browser + {py1} server green, {f1 + fy1} red")
     dull = [m["id"] for m, failed, _ in rows if not failed]
-    ok = not dull and f1 == 0 and p1 == p0
+    ok = not dull and f1 == 0 and fy1 == 0 and p1 == p0 and py1 == py0
     print("\nGAUNTLET:", "PASS — every guard reddened its own rails" if ok
-          else f"FAIL — dulled: {dull or 'none'}; control drift: {p0}->{p1}")
+          else f"FAIL — dulled: {dull or 'none'}; control drift: "
+               f"{p0}->{p1} browser, {py0}->{py1} server")
     return 0 if ok else 1
 
 
