@@ -33,3 +33,7 @@ tools/taxonomy_out/
 
 # Local Python virtual environment (local dev only)
 .venv/
+
+# Deploy-window guard scratch output (written by the CI step and by any local
+# `check_deploy_window.py | tee verdict.txt` run)
+verdict.txt

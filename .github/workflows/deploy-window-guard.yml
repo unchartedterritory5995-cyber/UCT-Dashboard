@@ -20,6 +20,18 @@ name: Deploy window guard
 on:
   push:
     branches: [master]
+  # Manual trigger so the VIOLATION path can be proven on real CI without
+  # waiting for (or causing) a market-hours push. A normal run uses the real
+  # clock, so the automatic path can only ever demonstrate the compliant case.
+  # Actions tab -> Deploy window guard -> Run workflow -> set `at`, e.g.
+  #   2026-07-24T15:45:00Z  (= Fri 11:45 AM ET, mid-session -> expect a red X)
+  #   2026-07-24T21:30:00Z  (= Fri 5:30 PM ET             -> expect green)
+  workflow_dispatch:
+    inputs:
+      at:
+        description: 'UTC instant to evaluate (ISO-8601). Blank = now.'
+        required: false
+        default: ''
 
 jobs:
   window:
@@ -45,7 +57,13 @@ jobs:
             ARGS="$ARGS --base $BEFORE"
           fi
           # Evaluate at RUN time, not author time: it is the push that deploys.
-          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # A manual run may override the instant to exercise the other branch.
+          NOW="${{ github.event.inputs.at }}"
+          if [ -z "$NOW" ]; then
+            NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          else
+            echo "Manual run: evaluating at $NOW instead of the current time."
+          fi
           python tools/check_deploy_window.py $ARGS --at "$NOW" | tee verdict.txt
           echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
@@ -71,7 +89,9 @@ jobs:
 
       - name: Ping Discord
         # Best-effort. A missing webhook must never change the guard's verdict.
-        if: failure() && steps.check.outputs.code == '1'
+        # `push` only: a manual run exists to REHEARSE the violation path, and a
+        # rehearsal must not cry wolf in the alert channel.
+        if: failure() && steps.check.outputs.code == '1' && github.event_name == 'push'
         continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
