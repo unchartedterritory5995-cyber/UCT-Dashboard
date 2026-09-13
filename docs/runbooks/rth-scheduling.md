@@ -244,7 +244,37 @@ powershell -File .\scripts\rth-open.ps1 -HealthUrl "https://uctintelligence.inva
 Everything a rehearsal writes is labelled **NOT A MEASUREMENT**. Reset a rehearsal commit
 with `git reset HEAD~1` (never a push).
 
-## ⚰️ What the rehearsals caught — four real bugs, before Monday
+## ⚰️ What the rehearsals caught — seven real bugs, before Monday
+
+Every one of these would have failed silently at 08:20 Monday.
+
+1. **`$args` is a PowerShell automatic variable.** A registration helper took `$args` as a
+   parameter, so it interpolated to **empty** and every task launched
+   `powershell.exe -NoProfile -ExecutionPolicy Bypass` with **no `-File`** — an idle
+   interactive shell that sat there until its time limit. No log, no error, no output:
+   from the outside, indistinguishable from a slow run. The real tasks used a different
+   parameter name and were unaffected, which is luck, not design.
+2. **A quoted `-Deadline` never bound.** Through `powershell -File`, `-Deadline '…'`
+   arrives with its quotes and fails to coerce to `[datetime]`. Parameter binding fails
+   **before the script body**, so it exited 1 having written nothing. The parameter is now
+   `[string]`, parsed inside, and accepts both quoted and unquoted forms.
+3. **A non-zero exit that was not a failure.** The smoke session did all its work, wrote
+   its files and committed — then exited 1 because a SessionEnd *plugin* hook was
+   cancelled. Both runners now judge by the artifacts and report both numbers, so a
+   healthy morning is never alarmed as a failed one.
+4. **`Tee-Object` writes UTF-16** in PowerShell 5.1, making every log unreadable to
+   `grep`/`tail`. Now written as UTF-8 explicitly.
+5. **`run-<phase>.json` had a UTF-8 BOM** — `json.load` refuses it outright.
+6. **The rig saved nothing** without `--out`; a clean run left no artefact.
+7. **`powercfg` subgroups** — `STANDBYIDLE` is under `SUB_SLEEP`, not `SUB_VIDEO`; the
+   wrong pair is fatal under `ErrorActionPreference = Stop`. And **`/api/health` has no
+   `uptime_s`** — the field is `uptime_seconds`, so pod age was reporting blank.
+
+⭐ Most of these share a shape: **a step that "worked" and produced nothing durable, or
+produced a blank that nothing checked.** None would have raised an alarm on Monday; the
+morning would simply have been empty.
+
+## ⚰️ What the earlier rehearsal caught — four real bugs, before Monday
 
 1. **`run-<phase>.json` was written with a UTF-8 BOM** — `json.load` refuses it outright.
    Every consumer would have crashed on line 1. Now `UTF8Encoding($false)`.
