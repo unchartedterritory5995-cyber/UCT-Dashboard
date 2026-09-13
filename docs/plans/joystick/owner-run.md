@@ -94,6 +94,22 @@ are already signed in.
 
 ---
 
+## E — FPS, as a ratio (Block G4)
+
+⛔ **Never measured, and a mirror cannot measure it** — frames through a screen mirror are the
+mirror's frames, not the device's.
+
+**The criterion is a RATIO, not an absolute:** PASS = fan-open fps **>= 0.9 x the same device's idle
+baseline**. (A Galaxy S24 idles at 30.1 fps where a Pixel 8 idles at 60.3, so an absolute threshold
+would measure the phone, not the hub.)
+
+| # | Device | Idle baseline (hub idle, no fan) | Fan-open fps during a 5s drag | Ratio | Result |
+|---|---|---|---|---|---|
+| E1 | ____________ | ______ | ______ | ______ | ☐ PASS ☐ FAIL |
+| E2 | ____________ | ______ | ______ | ______ | ☐ PASS ☐ FAIL |
+
+---
+
 ## What happens with your answers
 
 - **A1–A6 + the trace** close **G0-1** and **D4**, and unblock rollout stage 2's last glass gate.

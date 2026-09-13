@@ -400,3 +400,67 @@ request with **no redeploy**. An already-open page keeps its hub until its next 
 A member who wants it gone for themselves has two doors that both work: the session-only hide
 from the Actions sheet (writes nothing), and Settings → Joystick (persistent). The edge tab
 restores either.
+
+
+---
+
+## 2026-09-12, end of day — where the gate actually stands, and what is left
+
+⭐ **The shape of the remainder changed today.** It is no longer "a programme with open questions";
+it is **one owner session** (`owner-run.md`) plus deferred items that each have an owner. Nothing
+else in this programme waits on anybody.
+
+### The gate: still **2 of 6**, and box 2 is deliberately NOT ticked
+
+| box | state | why |
+|---|---|---|
+| 1 · G0 resolved | ⬜ **OPEN** | `INCONCLUSIVE-TRANSPORT`. A Live mirror costs 260–427 ms per gesture against a 120 ms window; the floor is per pointer-event round trip, so no shorter drag exists. Needs a real finger — `owner-run.md` §A. |
+| 2 · Glass acceptance on ≥1 iOS + ≥1 Android | ⬜ **OPEN** | See below. |
+| 3 · Post-deploy client smoke | ✅ CLOSED | |
+| 4 · Preference-key validation | ✅ CLOSED | |
+| 5 · Rollout at stage 3 | ⬜ OPEN | Stage stays **1**. |
+| 6 · closure.md rewritten as LAUNCHED | ⬜ OPEN | This is that document; it is not yet that. |
+
+⛔ **Why box 2 is not ticked, stated precisely rather than argued around.** Every row a mirror
+*could* answer is answered, and several are new PASSes. But **Block G5's 96 derived sweep rows all
+still carry BLOCKED-BY-G0**, and G0 is box 1. A row that is blocked is neither a PASS nor an
+INCONCLUSIVE-with-a-transport-reason — it is a row that has not been asked yet, on purpose. Ticking
+box 2 while 96 rows sit blocked would be exactly the "absence recorded as a pass" this programme
+has refused four times.
+
+⭐ **So box 2 is one measurement away, not one programme away:** owner takes §A of `owner-run.md`,
+G0 resolves, the G5 sweep unblocks, and §B/§C answer the rest in the same sitting.
+
+### What closed today
+
+| item | result |
+|---|---|
+| **G3-15** chip vs Actions button | ✅ **PASS** — fixed (#109, `9b51eaf1a`), 27/27 pairs clear on the deployed build, **8px** clear on real glass across three modes, 0/51 points covered |
+| **G3-17** mirrored chip growth | ✅ **FINE** — at its `max-width` cap on `/screener` it still stops **24px** short of the far edge; bounded and symmetric |
+| **G3-1** left-hand mirror | ✅ PASS (summary row now carries the tick its detail block always had) |
+| **iOS-17 Notebook crash** | ✅ **VERIFIED FIXED on the engine that broke** — `Iterator` is `undefined` on Safari 17.6 and `/journal/notebook` renders with zero JS errors. Retroactive gate appended to #111. |
+| **Smoke-login hardening** | ✅ merged (#112, `1dbe230d0`), deployed, and the fragment link signed a real device in |
+| **G3-2** high contrast | ⚠️ mechanism confirmed armed on a real device; legibility is an eye row |
+| **G3-3 / G3-12** | 🗑️ **RETIRED** — both name the removed two-finger Peek as their door |
+
+### What is newly OPEN, and each has an owner
+
+| id | what | owner |
+|---|---|---|
+| **G3-18 / D-39** | The chip is partly covered by page-level fixed furniture (Journal's "Log a trade" FAB; a Breadth span at 360). Cosmetic-plus, **non-blocking** by ruling. Fix is hub-side, never a `journal-2-0` edit. | joystick |
+| **D-40** | The Notebook's phone note list exposes **no per-note DOM id** (`ResponsiveTable`'s `rowKey` is a React key), so no automated check can open a specific note on a phone. This is why the iOS-17 **preview** path is recorded unexercised. | Notebook |
+| **D-41** | Two corrections owed to `iteratorGlobalFloor.test.js`: the `Array.fromAsync` since-note is wrong against a measured 17.6 device, and the bundle-scan test needs an explicit timeout. Blocked from this side by rule 12. | Notebook |
+| **B7 / rule 12** | `rule12Paths.test.js` still has no branch-identity check, so it reddens ANY branch touching those paths — it did exactly that to the hardening branch today. | joystick |
+
+### The honest ledger on what a mirror can and cannot do
+
+⭐ Three limits were **measured** this programme, not assumed, and they are why the remainder is an
+owner session rather than more agent time:
+
+1. **Timing** — 260–427 ms per gesture. Anything under that threshold is unmeasurable.
+2. **Pointing** — with the inspector attached the device renders at ~0.42 of CSS size; a 44 px
+   target is ~18 px with ~20 px spacing. Aiming at one fan bubble hit its neighbour.
+3. **Text entry (Android)** — the mirror keyboard **drops capitalisation**, and the login token is
+   case-sensitive, so the Pixel 8 could not be signed in at all.
+
+⛔ None of the three is a product defect, and none of them should ever be recorded as one.

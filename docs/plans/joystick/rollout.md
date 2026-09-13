@@ -66,6 +66,32 @@ ruling**, not a data point that arrives on its own — so *this* half of the gat
 decision, which is a change to the paragraph above and is why it is written here rather than
 edited into it.
 
+
+### 2026-09-12, later — the SECOND blocker is GONE. Stage 2 is back to being held behind ONE number.
+
+⭐ **G3-15 is fixed, merged and verified on glass.** PR #109 merged as `9b51eaf1a` and deployed;
+`tools/hub_chip_clearance.py` against the deployed build reports **27 of 27 (mode × width) pairs
+clear of the Actions button**, and a real iPhone 15 Pro / iOS 17.6 measures the chip **8px** clear
+on three modes with **0 of 51** sampled points covered. The instrument was proved able to print
+both verdicts before the run (`--self-check` + `--fixture-control`).
+
+So the row that was *"a SECOND blocker, independent of G0"* is now **PASS**. The paragraph above
+stands as the record of why it was written; it is no longer the state.
+
+| stage-2 condition | state, 2026-09-12 end of day |
+|---|---|
+| *"Owner reports G0 ≥ 8/10 on an iPhone 15 Pro-class device"* | ⬜ **still the only open condition.** `INCONCLUSIVE-TRANSPORT` stands; the measurement needs a real finger. The protocol and the analyser are ready and self-checked — see `owner-run.md` section A. |
+| *"the glass-acceptance rows pass on ≥1 notched iOS + ≥1 Android"* | ⚠️ **PARTIAL, and the remainder is transport-bound, not product-bound.** Every row a mirror could answer is answered: G3-1 PASS, G3-15 PASS, G3-17 FINE, G3-16(b) BETTER, G3-2's mechanism confirmed armed. The rest is collected in `owner-run.md` with a stated reason per row. ⛔ Android specifically could not even be signed in (`pixel8-run-2026-09-12.md`). |
+
+⛔ **G3-18 does NOT block either stage.** Owner ruling, 2026-09-12: the chip being partly covered by
+page-level fixed furniture (the Journal's own "Log a trade" FAB at 360/375/430, a Breadth span at
+360) is **cosmetic-plus** — the covering element stays on top and remains tappable, so nothing is
+unreachable; the chip's readout is partly hidden at max width. It is recorded as a known glass gap
+with a deferred hub-side fix (D-39), not as a gate.
+
+🔒 **ROLLOUT_STAGE stays 1.** Nothing in today's work advances it, and nothing in today's work
+should: the one remaining condition is a measurement only the owner can take.
+
 ---
 
 ## What does NOT change at any stage
