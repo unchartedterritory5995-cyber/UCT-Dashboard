@@ -172,6 +172,15 @@ function Gaps({ notUnderstood, unavailable }) {
 // but ONLY if it was told which question it is answering. A box that always asked
 // for an indicator would be a box whose scan stage can never fire, which is the
 // built-tested-green-and-unreachable shape this phase keeps finding.
+//
+// ⭐⭐ AND WHAT IS ASKED FOR IS NOT ALWAYS WHAT IT IS CALLED. The server draughts
+// two things — a column of numbers (`indicator`) or a yes-or-no tree (`scan`) —
+// and `scan` is the right REQUEST for a chart Condition as well as for a screen:
+// `_KIND_BRIEF` asks for "a yes-or-no CONDITION" and `scan_definition
+// .is_boolean_tree` is the gate that enforces it. But a charting member is not
+// building a screen, and showing them that word would be the request's vocabulary
+// leaking into their sheet. So this table is keyed by BOTH vocabularies and the
+// caller says which one to speak — see `copyKind`.
 const KIND_COPY = {
   scan: {
     label: 'Describe the screen in plain English',
@@ -180,6 +189,14 @@ const KIND_COPY = {
   indicator: {
     label: 'Describe the indicator in plain English',
     placeholder: 'e.g. the twenty bar average of the close',
+  },
+  condition: {
+    label: 'Describe the condition in plain English',
+    placeholder: 'e.g. the close crosses above the 20 day average',
+  },
+  infoValue: {
+    label: 'Describe the value in plain English',
+    placeholder: 'e.g. how far the close is above the 20 day average',
   },
 }
 
@@ -190,12 +207,22 @@ const KIND_COPY = {
  * @param {string}   [props.kind]      'indicator' (a column) or 'scan' (a
  *                                     condition). Sent on the request; the server
  *                                     owns what it means.
+ * @param {string}   [props.copyKind]  which vocabulary to SPEAK — defaults to
+ *                                     `kind`, so every caller that predates the
+ *                                     chart consumers reads exactly as it did.
+ *                                     ⛔ IT NEVER REACHES THE REQUEST: the words
+ *                                     and the contract are two derivations of one
+ *                                     decision made by the caller, and folding
+ *                                     them into one prop would mean a chart
+ *                                     Condition either asks for the wrong thing
+ *                                     or is told it is building a screen.
  * @param {Function} [props.onAccept]  called with `{ast, source, repaint, sentence}`
  *                                     — `sentence` is THIS box's, from the tree
  * @param {Function} [props.fetchImpl] injection point for tests ONLY; production
  *                                     uses the global `fetch`
  */
-export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetchImpl,
+export default function ConciergeBox({ bars, kind = 'indicator', copyKind = null,
+                                       onAccept, fetchImpl,
                                        disabled = false, replacedAt = 0 }) {
   const [prompt, setPrompt] = useState('')
   // The `replacedAt` value the description was last written against. When the host
@@ -263,10 +290,11 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
     }
   }, [prompt, busy, bars, kind, fetchImpl])
 
-  const copy = KIND_COPY[kind] || KIND_COPY.indicator
+  const copy = KIND_COPY[copyKind] || KIND_COPY[kind] || KIND_COPY.indicator
 
   return (
-    <div style={S.box} data-testid="concierge-box" data-kind={kind}>
+    <div style={S.box} data-testid="concierge-box" data-kind={kind}
+      data-copy-kind={copyKind || kind}>
       <label style={S.label} htmlFor={fieldId}>{copy.label}</label>
       <textarea
         id={fieldId}

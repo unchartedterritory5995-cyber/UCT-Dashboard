@@ -1306,6 +1306,38 @@ export default function BuilderSheet({
   // where it will be stored. Derived from the SAME settled evaluation the read-back
   // and the document are built from, so the three cannot disagree.
   const isIndicator = consumerKind === 'indicator'
+
+  // ─── THE CONCIERGE'S TWO ANSWERS ──────────────────────────────────────────
+  //
+  // ⛔⛔ THE REQUEST FOLLOWED THE BUILD MODE ALONE, AND A CONDITION ASKED FOR AN
+  // INDICATOR. `buildMode === 'picker' ? 'scan' : 'indicator'` was right for the
+  // screener — where the picker IS the scan door — and blind to the consumer:
+  // a sheet opened as a chart Condition, on any other tab, asked the server for
+  // "a column of numbers drawn on a chart" and then refused the numeric tree it
+  // got back at `validateFor`. The member saw a formula that would not save and
+  // no reason why.
+  //
+  // ⭐ `scan` IS THE RIGHT CONTRACT FOR A CHART CONDITION, proven from the server
+  // rather than from the word: `_KIND_BRIEF[SCAN_KIND]` asks for "a yes-or-no
+  // CONDITION", `_validate` gates it on `scan_definition.is_boolean_tree`, and the
+  // response shape is identical for both kinds — there is nothing
+  // screener-specific in it. The chart's own extra rule (a screener scalar is NaN
+  // on every bar) is enforced downstream by `validateFor`'s `chartEvaluability`
+  // for exactly the doors this is one of.
+  //
+  // ⚠️ AND `infoValue` REUSES `indicator` rather than earning a third server kind:
+  // it wants a number, which is what that contract already draughts, and a boolean
+  // coming back is refused by `validateFor` with the offer to make it a Condition.
+  const conciergeRequest = (consumerKind === 'condition' || buildMode === 'picker')
+    ? 'scan'
+    : 'indicator'
+  // ⚠️ THE PICKER STILL SAYS "SCREEN" FOR AN INDICATOR CONSUMER, because that is
+  // what it is: `ScreensManager` mounts this sheet with the default consumer and
+  // opens it on the picker, and telling a screener member they are describing an
+  // indicator would be the same leak in the other direction.
+  const conciergeCopy = (consumerKind === 'condition' || consumerKind === 'infoValue')
+    ? consumerKind
+    : conciergeRequest
   const authored = useMemo(() => authoredResult(result, {}), [result])
   // ⛔⛔ TYPED INTENT, AT THE SAVE DOOR. A condition must answer true or false; an
   // info value must answer a number and is REFUSED a boolean rather than saved as
@@ -1668,9 +1700,14 @@ export default function BuilderSheet({
               match every symbol on the board. A box that always asked for an
               indicator would be a box whose scan stage can never fire, and no
               component test on either side could see it. */}
+          {/* ⭐⭐ WHAT THE SERVER IS ASKED FOR, AND WHAT THE MEMBER IS ASKED FOR —
+              two derivations of ONE decision, made above where both the consumer
+              and the build mode are known. `conciergeRequest` is the contract;
+              `conciergeCopy` is the vocabulary. See `ConciergeBox`'s KIND_COPY. */}
           <ConciergeBox
             bars={bars}
-            kind={buildMode === 'picker' ? 'scan' : 'indicator'}
+            kind={conciergeRequest}
+            copyKind={conciergeCopy}
             disabled={saving}
             replacedAt={replacedAt}
             onAccept={(proposal) => setSource(proposal?.source || '')}
