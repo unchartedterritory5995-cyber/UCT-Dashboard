@@ -371,6 +371,24 @@ export const modes = [
         // ⛔⛔ flickable:false STAYS, and it is not decoration: `useJoystick.js:396` gates on
         // `flickable !== false` with NO kind check, so it is live on a `run` action exactly as it
         // was on a `confirm` one. A flick in this direction OPENS THE FAN instead of firing.
+        //
+        // ⭐⭐ AND IT IS THE ONLY ONE — OWNER RULING 2026-09-13, D-45. That asymmetry was real but
+        // unrecorded, so it read as an oversight; twice now a reader has assumed its neighbours
+        // were guarded too, and `owner-run.md` §A was written asking for "0 of 8 fire" at five
+        // targets when only this one suppresses. The reason, so nobody re-derives it wrongly:
+        //
+        //   · `journal.moveStop`, `journal.breakeven`, `journal.planTrade` and `scan.alert` are
+        //     SHEET-MEDIATED. A flick onto any of them opens a sheet and nothing happens without a
+        //     second, deliberate press on that sheet's own primary. **The sheet IS the guard**, so
+        //     a flick guard in front of it would be a second lock on the same door.
+        //   · `journal.close` is singled out because it ENDS A POSITION and writes a permanent
+        //     `j2_trades` row. It gets belt-and-braces: the flick opens the fan, and only then does
+        //     the form appear.
+        //
+        // ⛔ DO NOT "fix" the asymmetry by adding flickable:false to the other four. It is a
+        // decision, not a gap. `owner-run.md` §A measures all five on real glass precisely so this
+        // rests on finger data rather than on taste — revisit ONLY if that run shows accidental
+        // flicks reaching a sheet at a rate a member would notice.
         id: 'journal.close',
         label: 'Close',
         icon: 'x',

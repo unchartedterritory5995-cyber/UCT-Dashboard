@@ -5,7 +5,9 @@
 >
 > **CLOSED 2026-09-13:** D-42 and D-43, merged `d153215d0`, live in `4beb06c00`. §1 moves from
 > INCOMPLETE to COMPLETE-PENDING-OWNER-RUN. One new instrument defect (**D-44**) was found on
-> glass in the same session and is filed, owned and non-blocking.
+> glass in the same session — and closed the same day, `462d8f3d7`, merged `2b4fc75cc`. **All three glass
+> defects this audit found are now shipped fixes.** Nothing in the programme waits on anyone
+> but Patrick.
 
 Audit SHA: **`ccbab9bcd`** (master tip at the start of the audit; `de519c969` by the end — master
 moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim below cites a
@@ -15,12 +17,12 @@ moved 4 commits under it, none touching `app/src/hub`). Read-mostly. Every claim
 
 | # | Action | Estimate |
 |---|---|---|
-| 1 | `owner-run.md` §A — the flick-safety block on a real iPhone, then `Copy trace` and run `tools/hub_trace_analyze.py`. **Closes G0-1 and D4, and unblocks Block G5's 96 rows.** | **20 min** |
+| 1 | `owner-run.md` §A — twenty flicks, then five deliberate control presses LAST, then `Copy trace` and `tools/hub_trace_analyze.py`. **Closes G0-1 and D4, and unblocks Block G5's 96 rows.** ⚰️ **§A was rewritten 2026-09-13**: it had asked for "0 of 8 fire" at five targets when only `journal.close` is `flickable: false`, interleaved the controls that `--control N` reads as the LAST N gestures, and published an `--expect` list naming two targets the block never used. Four of six rows would have reported FAIL against correct behaviour. | **20 min** |
 | 2 | `owner-run.md` §B — nine G3 rows a 0.42-scale mirror could not aim at, **plus B10–B15**, the twelve steps D-42 had hidden | 25 min |
 | 3 | `owner-run.md` §C — four Android/TalkBack rows on your own phone | 10 min |
 | 3b | `owner-run.md` **§C-iOS** — three VoiceOver rows (G2-3, G2-4, D1-iOS). ⭐ These were BLOCKED on a BrowserStack limitation, not a product one, and your own iPhone lifts it | 10 min |
 | 4 | `owner-run.md` §D/§E — two eye rows, one weekend row, two fps ratios | 10 min + a Saturday |
-| 5 | Rule on **D-44** — the glass sheet’s expected results are derived from the binding KEY alone, so the scrub step omits its mandatory 500 ms hold and `home`’s four rows describe a mode that does not exist. Fix the generator, or accept that six rows carry a correction note | ruling only |
+| ~~5~~ | ~~Rule on **D-44**~~ — ✅ **CLOSED 2026-09-13**, `462d8f3d7`: the generator now reads the gesture model and each mode's controller instead of the binding name, so no row carries a correction note and nothing here needs a ruling. ~~ — the glass sheet’s expected results are derived from the binding KEY alone, so the scrub step omits its mandatory 500 ms hold and `home`’s four rows describe a mode that does not exist.~~ | — |
 
 Nothing else in this programme waits on anybody.
 
@@ -160,7 +162,7 @@ Record: `15pro-new-rows-2026-09-13.md`. iPhone 15 Pro / iOS Safari 17.6, Web Ins
 | Steps | Outcome |
 |---|---|
 | `GS-wire-b1` | ✅ **PASS.** Two taps, each advancing **exactly one segment** and scrolling it into view. |
-| `GS-home-b1` | ⚠️ **PASS on the spec.** The tap navigated to the last-used section (Morning Wire) — `homeSection.js:200`, spec §C3:905. The sheet expected cursor-stepping, which `home` does not do → **D-44**. |
+| `GS-home-b1` | ⚠️ **PASS on the spec.** The tap navigated to the last-used section (Morning Wire) — `homeSection.js:200`, spec §C3:905. The sheet expected cursor-stepping, which `home` does not do → **D-44**, ✅ since fixed (`462d8f3d7`): that row now reads *“The **ROUTE changes** — spec §C3 says **“last-used section”**”* and carries the inert-on-a-first-visit caveat. |
 | 3 × Reverse (`*-b2`) | ⛔ **INCONCLUSIVE-TRANSPORT** → `owner-run.md` B10–B12. 280 ms window vs a 260–427 ms floor. |
 | 9 × scrub / commit / readout (`*-b3/b4/b5`) | ⛔ **INCONCLUSIVE-TRANSPORT** → `owner-run.md` B13–B15. A scrub is a **500 ms hold** that turns into a drag (`useJoystick.js:408`); the mirror has no way to hold a press. |
 
@@ -184,11 +186,14 @@ to ask **what else would produce this exact observation**, and the answer was si
 > needs two presses inside 280 ms against a 260–427 ms floor, and a scrub needs a 500 ms HOLD
 > before the drag which the mirror has no way to perform.
 >
-> ⛔ **One new defect, and it is the sheet’s prose, not the product: D-44.** Every behaviour
+> ✅ **One new defect, and it was the sheet’s prose, not the product: D-44 — NOW CLOSED** (`462d8f3d7`,
+> merged `2b4fc75cc`). Every behaviour
 > measured on glass matched the SPEC; what did not match was the generated expected-result text.
 > It is an instrument defect of exactly D-42’s class one layer up — D-42 was the sheet not knowing
-> a binding EXISTS, D-44 is the sheet not knowing what it DOES — and it blocks nothing, because
-> the six affected rows are transport-limited anyway and now carry the correction inline.
+> a binding EXISTS, D-44 was the sheet not knowing what it DOES. The generator now derives every
+> expected result from `constants.js`, the mode’s own controller and spec §C3, and its self-check
+> grew to 36 cases with fixtures for a navigate, a cursor and a cycle mode. **No row on the owner
+> run carries a correction note any more** — the sheet says what the product does.
 
 ---
 
@@ -224,15 +229,26 @@ to ask **what else would produce this exact observation**, and the answer was si
 
 ### Ledger — no orphans
 
-- **D-numbers:** 41 total. **37 CLOSED**, **4 OPEN, all owned** — D-38 (toast duration, joystick,
-  accepted as-is), D-39 (chip vs page furniture, joystick), D-40 (Notebook phone list has no per-note
-  DOM id, **Notebook**), D-41 (two `iteratorGlobalFloor` corrections, **Notebook**).
-- **R-numbers:** 20 present. **19 CLOSED**; R-28 is OPEN with its owner in its own heading
-  (`requests.md:920`, "owner: The Desk") — a cross-workstream row, not a joystick item.
+- **D-numbers:** ~~41 total, 37 CLOSED~~ → **45 total, 41 CLOSED** as of 2026-09-13. The audit
+  itself added four and every one is now closed: **D-42** (matrix blind to shorthand) and **D-43**
+  (notebook Reverse) in `d153215d0`, **D-44** (the sheet described the wrong gesture) in
+  `2b4fc75cc`, **D-45** (only `journal.close` is flick-guarded) RULED as designed with the reason
+  recorded in `registry.js`. **The SAME 4 remain OPEN, all owned** — D-38 (toast duration,
+  joystick, accepted as-is), D-39 (chip vs page furniture, joystick), D-40 (Notebook phone list
+  has no per-note DOM id, **Notebook**), D-41 (two `iteratorGlobalFloor` corrections,
+  **Notebook**). ⛔ Neither of the two joystick rows blocks anything; both Notebook rows are
+  another workstream's.
+- **R-numbers:** ~~20 present~~ → **21 present. 19 CLOSED**; **R-28** is OPEN with its owner in
+  its own heading ("owner: The Desk"), and **R-29** was filed 2026-09-13 for the **S4**
+  workstream — `app/src/lib/context/focusDivergence.js` is an unlisted orphan that reds
+  `reachable.test.js` on master for everybody. Both are cross-workstream rows, neither is a
+  joystick item.
 - **ORPHANS: none.**
 
-⚠️ Two new defects above (G-DEFECT-1, G-DEFECT-2) have no D-number yet — that is this audit's own
-output, not a pre-existing orphan.
+✅ The two defects this audit found became **D-42** and **D-43**, and both shipped the same day;
+the glass run that verified them found **D-44**, which shipped too, and raised **D-45**, which is
+ruled. This audit's own output is therefore fully absorbed into the ledger — no orphans, and
+nothing it discovered is still waiting on this build.
 
 ### Closure gate — **2 of 6**
 
