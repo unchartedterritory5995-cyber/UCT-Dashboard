@@ -168,6 +168,32 @@ def job_weekly() -> tuple[str, str, bool]:
     return ("WEEKLY READ — seven types + the D2 sample gate", "\n".join(parts), bad)
 
 
+#: (job, weekday-predicate, ET hour, ET minute). ⛔ THE SCHEDULE IS IN **ET**,
+#: decided here, because Railway cron is **UTC** and ET is UTC-4 in summer and
+#: UTC-5 in winter. A UTC crontab expressing "09:12 ET" silently becomes 10:12 ET
+#: the day DST ends — the sweeps would be checked an hour after they started, and
+#: nothing would say so. The cron therefore fires a SUPERSET and this table is the
+#: authority on what is actually due.
+SCHEDULE = (
+    ("catalyst",   lambda d: d < 5, 7, 20),    # weekdays 07:20 ET — before the open
+    ("ticking",    lambda d: d < 5, 9, 12),    # weekdays 09:12 ET — sweeps live
+    ("gate-check", lambda d: True,  16, 30),   # daily 16:30 ET
+    ("weekly",     lambda d: d == 5, 8, 0),    # Saturday 08:00 ET
+)
+
+#: The Railway cron that must cover every row above, in UTC, both halves of the
+#: year. ⭐ A SUPERSET ON PURPOSE: 16 firings a day, of which 4 are due. The
+#: alternative — four services with four crons — is four things to forget.
+RAILWAY_CRON_UTC = "0,12,20,30 11,12,13,14,20,21 * * *"
+
+
+def due_jobs(now: dt.datetime | None = None) -> list[str]:
+    """Which jobs are due at this ET minute. Empty on a firing that is not one."""
+    n = now or dt.datetime.now(_ET)
+    return [name for name, when, h, m in SCHEDULE
+            if when(n.weekday()) and n.hour == h and n.minute == m]
+
+
 JOBS = {
     "ticking": job_ticking,
     "catalyst": job_catalyst_receipt,
@@ -201,9 +227,16 @@ def main(argv=None) -> int:
     # the schedule lives in ONE place (the service config) instead of two that
     # can disagree. A container that slept between crons would also bill for the
     # sleeping.
-    print("[monitor] no --once given. Railway cron should invoke: "
-          "python -m api.terminal_next_monitor_main --once <job>")
-    return 0
+    due = due_jobs()
+    if not due:
+        # ⛔ NOT AN ERROR. The cron fires a superset; a firing with nothing due is
+        # the normal case and must cost nothing and say nothing.
+        print("[monitor] nothing due at %s — exiting quietly." % _now())
+        return 0
+    rc = 0
+    for name in due:
+        rc = max(rc, run_job(name))
+    return rc
 
 
 if __name__ == "__main__":

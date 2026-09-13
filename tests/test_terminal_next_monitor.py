@@ -188,3 +188,67 @@ def test_every_post_carries_the_commit_and_a_timestamp(monkeypatch):
 
 def test_the_job_registry_matches_the_four_schedules():
     assert set(_load().JOBS) == {"ticking", "catalyst", "gate-check", "weekly"}
+
+
+# ───────────────────────── the ET schedule, and the DST hazard it exists for
+
+def _et(y, mo, d, h, mi):
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    return dt.datetime(y, mo, d, h, mi, tzinfo=ZoneInfo("America/New_York"))
+
+
+@pytest.mark.parametrize("when,expect", [
+    ((2026, 9, 14, 7, 20), ["catalyst"]),      # Monday
+    ((2026, 9, 14, 9, 12), ["ticking"]),
+    ((2026, 9, 14, 16, 30), ["gate-check"]),
+    ((2026, 9, 19, 8, 0), ["weekly"]),         # Saturday
+    ((2026, 9, 14, 9, 13), []),                # one minute off
+    ((2026, 9, 19, 9, 12), []),                # Saturday: ticking is weekdays only
+    ((2026, 9, 20, 16, 30), ["gate-check"]),   # Sunday: gate-check is daily
+])
+def test_due_jobs_fires_exactly_on_its_ET_minute(when, expect):
+    assert _load().due_jobs(_et(*when)) == expect
+
+
+def test_the_schedule_is_ET_and_survives_the_DST_change():
+    """⛔⛔ THE HAZARD THIS TABLE EXISTS FOR. Railway cron is UTC; ET is UTC-4 in
+    summer and UTC-5 in winter. A UTC crontab expressing '09:12 ET' silently
+    becomes 10:12 ET the day DST ends — the sweeps would be checked an hour after
+    they started and nothing would say so. Asserted on both sides of the change."""
+    m = _load()
+    assert m.due_jobs(_et(2026, 9, 14, 9, 12)) == ["ticking"]     # EDT (UTC-4)
+    assert m.due_jobs(_et(2026, 12, 14, 9, 12)) == ["ticking"]    # EST (UTC-5)
+    # CONTROL — the same UTC instant is NOT due in December, which is the whole
+    # point: a UTC schedule would have fired at the wrong ET minute.
+    import datetime as dt
+    utc_1312 = dt.datetime(2026, 12, 14, 13, 12, tzinfo=dt.timezone.utc)
+    assert m.due_jobs(utc_1312.astimezone(m._ET)) == [], "a UTC-pinned schedule would have drifted"
+
+
+def test_the_declared_cron_covers_every_scheduled_row():
+    """The Railway cron must be a SUPERSET of the ET table, in UTC, year-round."""
+    import datetime as dt
+    m = _load()
+    mins, hours = m.RAILWAY_CRON_UTC.split()[0], m.RAILWAY_CRON_UTC.split()[1]
+    cron_min = {int(x) for x in mins.split(",")}
+    cron_hr = {int(x) for x in hours.split(",")}
+    for name, _when, h, mi in m.SCHEDULE:
+        for month in (9, 12):                       # EDT and EST
+            local = _et(2026, month, 14, h, mi)
+            u = local.astimezone(dt.timezone.utc)
+            assert u.minute in cron_min, f"{name}: minute {u.minute} not in cron"
+            assert u.hour in cron_hr, f"{name} in month {month}: hour {u.hour} not in cron"
+
+
+def test_a_firing_with_nothing_due_exits_quietly(monkeypatch, capsys):
+    """⛔ The cron fires a superset; a firing with nothing due is the normal case
+    and must cost nothing and say nothing."""
+    m = _load()
+    monkeypatch.setenv(m.FLAG, "1")
+    monkeypatch.setattr(m, "due_jobs", lambda now=None: [])
+    posted = []
+    monkeypatch.setattr(m, "post", lambda *a, **k: posted.append(a) or True)
+    assert m.main([]) == 0
+    assert posted == [], "a not-due firing posted to Discord"
+    assert "nothing due" in capsys.readouterr().out
