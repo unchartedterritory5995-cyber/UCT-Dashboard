@@ -69,6 +69,11 @@
         "name": "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js > no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear",
         "seen": "harden/smoke-login-fragment tree 813291e30, six-shard run 2026-09-12T20:31",
         "evidence": "TIMED OUT at 15000ms in-shard; PASSES ALONE on the same tree with app/dist/assets present (292 JS files). Not an assertion -- the body reads and regex-scans every built bundle, tens of MB, which is slow under a loaded six-shard run. ⛔ NOT banked: a timeout in the baseline leaves a slot a real failure can occupy, and this rail's whole job is to catch a real one. ⭐ THE DURABLE FIX IS AN EXPLICIT PER-TEST TIMEOUT on that `it(...)`, because the work is genuinely large -- but the file is a journal-2-0 path and rule 12 assigns it to the Notebook workstream, so it is handed over rather than patched here."
+      },
+      {
+        "name": "src/hub/iframeFocusBlindSpot.test.jsx > the OR is still load-bearing — do not delete either half on a guess > useKeyboardVisible has a consumer OUTSIDE the hub, so deleting it is not a hub-local call",
+        "seen": "fix/b7-rule12-scope over base f4fc5d1c1, 84-file hub run 2026-09-13 (local ~09:17)",
+        "evidence": "NOT an assertion failure — the stack pointed at the `it(` declaration (:140:3), the timeout signature, while the tapFloor red in the same run pointed at its expect (:113:7). Passed ALONE (6 tests, 949 ms for this case, 3.06 s file) and passed AGAIN in the SAME 84-file run repeated immediately after (1320 ms), so the population was 1 failed / 1108 then 1 failed / 1108 with only the baselined tapFloor left. The test walks every .js/.jsx under app/src reading each file, which is why it is load-sensitive at all. ⚠️ HONEST CAVEAT: the same branch grew rule12Paths.test.js from 5 tests / 667 ms to 23 tests / ~1.1-1.6 s (B7), so this branch added ~0.4-1.0 s to a shard-mate and may have contributed. Not banked; re-run it alone before ever classifying it."
       }
     ]
   },
