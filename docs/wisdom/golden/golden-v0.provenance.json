@@ -1,0 +1,182 @@
+{
+ "G-001": {
+  "char_end": 7755,
+  "char_start": 7641,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-002": {
+  "char_end": 8288,
+  "char_start": 8197,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-003": {
+  "char_end": 18152,
+  "char_start": 17991,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-004": {
+  "char_end": 19947,
+  "char_start": 19889,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-005": {
+  "char_end": 17676,
+  "char_start": 17450,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-006": {
+  "char_end": 10549,
+  "char_start": 10511,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-007": {
+  "char_end": 7980,
+  "char_start": 7960,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-008": {
+  "char_end": 8004,
+  "char_start": 7981,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-009": {
+  "char_end": 7959,
+  "char_start": 7934,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-010": {
+  "char_end": 13853,
+  "char_start": 13720,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-011": {
+  "char_end": 12451,
+  "char_start": 12356,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-012": {
+  "char_end": 12164,
+  "char_start": 12012,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-013": {
+  "char_end": 20332,
+  "char_start": 20075,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-014": {
+  "char_end": 1469,
+  "char_start": 1430,
+  "sample_file": "zoom_video_356.transcript_cues.json",
+  "sample_sha256": "5760643de91f6f7899cae02c5a7153520730dde5e275160a049c4e1ae3a7e822"
+ },
+ "G-015": {
+  "char_end": 7943,
+  "char_start": 7797,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-016": {
+  "char_end": 6501,
+  "char_start": 6329,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-017": {
+  "char_end": 10686,
+  "char_start": 10640,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-018": {
+  "char_end": 12927,
+  "char_start": 12842,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-019": {
+  "char_end": 8856,
+  "char_start": 8785,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-020": {
+  "char_end": 9316,
+  "char_start": 9237,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-021": {
+  "char_end": 2232,
+  "char_start": 2181,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-022": {
+  "char_end": 12024,
+  "char_start": 11827,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-023": {
+  "char_end": 1641,
+  "char_start": 1611,
+  "sample_file": "zoom_video_356.transcript_cues.json",
+  "sample_sha256": "5760643de91f6f7899cae02c5a7153520730dde5e275160a049c4e1ae3a7e822"
+ },
+ "G-024": {
+  "char_end": 4272,
+  "char_start": 4204,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-025": {
+  "char_end": 16492,
+  "char_start": 16321,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-026": {
+  "char_end": 22335,
+  "char_start": 22216,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-027": {
+  "char_end": 14473,
+  "char_start": 14277,
+  "sample_file": "sunday_scans_2026-08-30.txt",
+  "sample_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+ },
+ "G-028": {
+  "char_end": 20613,
+  "char_start": 20453,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ },
+ "G-029": {
+  "char_end": 11234,
+  "char_start": 11074,
+  "sample_file": "sunday_scans_2026-09-06.txt",
+  "sample_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+ },
+ "G-030": {
+  "char_end": 24257,
+  "char_start": 24095,
+  "sample_file": "zoom_video_355.transcript_cues.json",
+  "sample_sha256": "02224597de5ddef2c6b3293ebcb25de816d94ecd0453440198a465016ac62a52"
+ }
+}
