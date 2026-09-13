@@ -105,6 +105,74 @@ Ledger-only commits (exempt): `a89b4f5aa`, `f786ac72a`.
 - `python tools/flow_worker_watch_coverage.py` at base `f34ce660b`: `reachable=154 watched=24 changed=47 OK`.
   No Wisdom module is in flow-worker's import closure.
 
+### Incident — this program wrote to the PRODUCTION bucket, and how it is closed (2026-09-13)
+
+**What happened.** An S-C (sources) test run, before its hermetic fixture existed, wrote **16 objects,
+2,399 bytes** into the production R2 bucket under `wisdom/sources/zoom_vtt/`. All 16 were written
+2026-09-13 ~18:00 UTC; every `.vtt` carried the same content hash (`134614f9aa8c`), i.e. one fixture
+transcript repeated across eight synthetic meeting ids.
+
+⛔ **Nothing failed.** `DATA_SYNC_*` were already present in the operator's shell, so the real client
+built itself and every `put_object` SUCCEEDED. This is the class the repo-root `conftest.py` tripwire
+exists for, in a namespace that tripwire does not cover: **a test that reaches production data does
+not go red — it passes, against live files.**
+
+**The 16 keys removed** (owner instruction, P1; recovered from the pre-deletion inventory
+`audit_r2_inventory.json`, taken 14:09 CDT before the deletion):
+
+```
+wisdom/sources/zoom_vtt/259b77c380fdc13aff5ce4fb/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/259b77c380fdc13aff5ce4fb/recording-c2428ec2e5bf62f9.json
+wisdom/sources/zoom_vtt/3d22b8ed5e449d975b7ef3b7/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/3d22b8ed5e449d975b7ef3b7/recording-c2428ec2e5bf62f9.json
+wisdom/sources/zoom_vtt/3d22b8ed5e449d975b7ef3b7/recording-ef48220d12b00265.json
+wisdom/sources/zoom_vtt/690a90d364ceab6bfc02d7cd/recording-3b37ae33a0194c02.json
+wisdom/sources/zoom_vtt/bbd888be9c0eb1229c281130/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/bbd888be9c0eb1229c281130/recording-6d76576e5c6bba4f.json
+wisdom/sources/zoom_vtt/beefc3762535ae72b0857a9a/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/beefc3762535ae72b0857a9a/recording-c2428ec2e5bf62f9.json
+wisdom/sources/zoom_vtt/db6ee1f4b0ba70043e771b75/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/db6ee1f4b0ba70043e771b75/recording-c2428ec2e5bf62f9.json
+wisdom/sources/zoom_vtt/f76fee84e0c524d56820bec2/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/f76fee84e0c524d56820bec2/recording-c2428ec2e5bf62f9.json
+wisdom/sources/zoom_vtt/fa9c889b5946d02b0b22379a/d9dfa78ba7ea375fd6de35f2.vtt
+wisdom/sources/zoom_vtt/fa9c889b5946d02b0b22379a/recording-c2428ec2e5bf62f9.json
+```
+
+**How they were removed.** A one-off guarded script (scratchpad, never committed — this module has no
+delete path by design, and that stays true). Dry run first:
+`candidates=16 bytes=2399 not-fixture-shaped(kept)=0`; then applied. **Re-verified after the fact**
+with the read-only lister: `TOTAL objects=0 bytes=0` under `wisdom/`. Nothing else in the bucket was
+touched — every key deleted is listed above.
+
+**The durable fix (S-B, `f1e0e9d91`).** `api/services/wisdom/core/r2.py` refuses to build a real
+client under pytest. It sits INSIDE `_client_and_bucket()`, which is the function every hermetic
+wisdom suite already monkeypatches — so it is unreachable for a test that has isolated itself and
+fires only for one that has not. `put_immutable`, `get` and `list_prefix` all funnel through it.
+
+- ⛔ **Not an env var, and not "delete `DATA_SYNC_*` in a fixture."** A kill switch nobody sets is
+  indistinguishable from a working one, and the leaking run was in a shell that already had them.
+  The opt-in is a module attribute a test must monkeypatch deliberately, leaving one reviewable line.
+- ⛔ **The predicate is deliberately NOT `"pytest" in sys.modules`.** pytest is a *production*
+  dependency here (`requirements.txt`) and `api/` carries `*_test.py` modules, so that check could
+  arm the guard on the web pod and break real archiving. It reads `PYTEST_CURRENT_TEST`, plus the
+  last two path components of `argv[0]` for collection time — `bin/pytest` and `pytest/__main__.py`
+  match, `bin/uvicorn` and `bin/python` do not. **The rail caught the first attempt**, which used
+  the basename alone and so missed `python -m pytest` entirely.
+- **Mutation-proved four ways**, `r2.py` restored from original bytes each time and sha256-verified
+  identical (`0576394ded84495b` before and after all four), final run green:
+  opt-in pinned True → 5 failed/5 passed · guard clause deleted → 4 failed/6 passed ·
+  `_under_pytest` pinned True → 1 failed/9 passed · pinned False → 6 failed/4 passed.
+- **S-C re-run against the isolated target:** the guard was applied into the S-C worktree as an
+  uncommitted change and its whole suite run with the guard ARMED —
+  `tests/test_wisdom_sources_{transcripts,sunday_scans,discord,routes}.py` + `test_wisdom_skeleton.py`
+  → **71 passed**. With the guard armed, any test still reaching a real client would have gone red,
+  so that green is the isolation measurement, not just an absence of complaints. The worktree was
+  then restored from HEAD and verified byte-identical.
+
+⚠️ **Scope, stated rather than implied:** this is a *pytest* rail. A bare `python tools/...` run
+still reaches the live bucket, exactly as the conftest tripwire is a test-suite rail only.
+
 ### Owner-task evidence (W1 GO Part 2)
 
 | Task | Done | How verified |
@@ -120,6 +188,26 @@ Ledger-only commits (exempt): `a89b4f5aa`, `f786ac72a`.
 |---|---|---|---|---|---|
 
 *(none yet — planned order S-B → S-A → S-C → S-D → S-E → S-F, one at a time; CONTRACTS.md §8)*
+
+### S-B pre-merge gate (branch `wisdom/w1-b-rails`, tip `f1e0e9d91`) — 2026-09-13
+
+The first merge in the §8.4 order. Recorded BEFORE the merge so the row above can be filled with a
+merge SHA and an observed deploy rather than an intention.
+
+| gate | result |
+|---|---|
+| CONTRACTS §7, run by name in full | **741 passed, 2 skipped, 1 failed** in 198.75s |
+| the one failure | `test_cross_module_imports_resolve` — `api/services/discord_render/commands.py:34` imports `INTERACTIVE` from `…discord_render.runtime`. **Provenance asked of the committed version, not the working tree** (`git show origin/master:…`): the import is already on master, and `git log origin/master..HEAD -- api/services/discord_render/` is EMPTY, so this branch touches no file in that package. Belongs to the Discord render program; not Wisdom's to fix. |
+| import bans (W1 GO §0.4 a/b/d/i) | `tests/test_wisdom_bans.py` **182 passed**. All four families present with planted-violation proofs: **substack** (`§0.4a` — `import`/`from`/`importlib`/`__import__`/drafts path/saved-login path, each planted at four program paths), **journal** (`§0.4b` — 18 planted reaches incl. `j2_` tables, broker router, `lib/offline`), **private store** (`§0.4d` — 8 reach forms × 8 member-facing modules, plus `test_the_real_router_does_reach_the_store_so_its_allowance_is_load_bearing`, which stops the allow-list passing for the wrong reason), **off-limits paths** (`§0.4i` — 11 named, 7 near-misses that must NOT trip). Each scan carries a floor: `test_a_scan_below_its_floor_is_inconclusive`, `test_an_unparseable_file_is_a_violation_not_a_pass`, `test_the_grep_on_this_checkout_measures_and_finds_no_live_journal_reference_in_code`. |
+| owner gate | `tests/test_wisdom_core_private_routes.py` 2 passed, after `153050f71` restored `Depends(require_owner)` on `GET /api/admin/wisdom/core/private/{record_id}`. See the stranded-mutation note below. |
+| R2 isolation | `tests/test_wisdom_r2_isolation.py` 10 passed, mutation-proved four ways (previous section). |
+
+**The stranded mutation — why S-B was red at the pause.** `api/routers/wisdom_core.py:102` still read
+`Depends(require_admin)) -> dict:  # MUTATION R-a`: a mutation-proof left in place when the pause
+interrupted the agent mid-proof. The rail was correct and the code was wrong — a second admin reached
+owner-private data (`assert 200 == 403`). Restored byte-exact to `Depends(require_owner)`.
+**A sweep of all seven stream branches** for the marker found 280 pre-existing prose matches on every
+branch and 281 on `w1-b-rails` — exactly one extra, this one. No other stranded mutation exists.
 
 ## Section 3 — other programs' commits on paths this program created
 
