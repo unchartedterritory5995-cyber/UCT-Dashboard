@@ -57,6 +57,8 @@ subject column. Not merged.
 | 6 | `1363d588b` | 2026-09-13 12:26 | **W1** | 2 | docs(wisdom): #manrav granted + verified; volume-alerts, uncharted-scanners, test-chartmaster-alerts bot-authored, out of scope |
 | 7 | `3155b3c6d` | 2026-09-13 ~12:45 | **W1** | 3 | docs(wisdom): manifest brought in line with the W1 GO; ledger rows after rebase; session state |
 | 8 | `2e1f9f4bb` | 2026-09-13 ~14:40 | **W1 S-D golden** | 4 | feat(wisdom): golden v1 — verifier v1, discord sampler, quote-free provenance, methodology (cherry-picked from `wisdom/w1-d-golden` `21801941a`) |
+| 9 | `7f788aa7f` | 2026-09-13 ~14:50 | **W1** | 5 | docs(wisdom): golden v1 follow-ups — ambiguous host label, chartmaster workshop alias, exit_price/exit_text, split wording; ledger rows 7-8 |
+| 10 | `3f46c768d` | 2026-09-13 ~15:10 | **W1** | 6 | docs(wisdom): checkpoint-1 owner rulings (CONTRACTS §8a) and the Zoom correction (no trash recovery; store-and-verify before delete; desk-check-first) |
 
 **Row 8 evidence.** The integrator re-ran the verifier on the integration branch:
 - `--self-check` → `SELF-CHECK PASS`.
@@ -64,6 +66,29 @@ subject column. Not merged.
 - v1 with `--require-strata` → `STRATA PASS`, 125 records.
 
 Totals: 117 confirmed, 8 provisional. Types: CALL 40, NEGATIVE_CALL 17, MENTION 22, PRINCIPLE 27, LEVEL 11, MARKET_SIGNAL 8. Authors: tsdr 76, bracco 25, manrav 11, chartmaster 10, ravi 1, guests 2. Split: dev 67, test 58.
+
+Stratification as committed in `2e1f9f4bb` (record type × author; the owner asked for this table here). The counts are
+from the S-D golden report and the verifier's `--require-strata` matrix:
+
+| type | tsdr | bracco | chartmaster | manrav | ravi | guests | total | minimum |
+|---|---|---|---|---|---|---|---|---|
+| CALL | 22 | 10 | 3 | 5 | – | – | 40 | 30 |
+| NEGATIVE_CALL | 14 | 3 | – | – | – | – | 17 | 12 |
+| MENTION | 8 | 5 | 3 | 5 | 1 | – | 22 | 20 |
+| PRINCIPLE | 17 | 3 | 4 | 1 | – | 2 | 27 | 20 |
+| LEVEL | 9 | 2 | – | – | – | – | 11 | 8 |
+| MARKET_SIGNAL | 6 | 2 | – | – | – | – | 8 | 5 |
+| **total** | 76 | 25 | 10 | 11 | 1 | 2 | **125** | 100 |
+
+Other counts:
+- **Verification:** text-only 64, text+bars 53, text+bars+positions 8.
+- **Streams:** sunday_scans 51, zoom_live 43, discord 27, workshop 4.
+- **Distinct sources:** 28 live sessions, 15 Sunday Scans issues.
+
+⚠️ **This is NOT yet the frozen `golden-v1`.** Per the owner's checkpoint-1 ruling, v1 is frozen only after the §8a
+propagation lands and a re-run of all three verifier passes plus the leaked-quote check passes. Author re-tags from the
+"Uncharted Territory" re-resolution may move these counts. The frozen table and the sha256 of
+`data/wisdom/golden/golden-v1.jsonl` get their own row.
 
 The quote-leak scan of the committed files found 0 quote fragments; the only provenance keys are `quote_sha256` and `text_sha256`. The labels and the 13-item review queue are gitignored under `data/wisdom/golden/`. The Discord samples (400 messages per channel, all four channels returned 200) are gitignored under `data/wisdom/samples/discord/`.
 
