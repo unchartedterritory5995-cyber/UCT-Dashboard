@@ -66,9 +66,9 @@ CP3_SIGNED = {
     "price_level": True,               # line 2, 2026-09-12
     "event_proximity": True,           # line 2, 2026-09-12
     "position_risk": True,             # line 2, ec2b197f8
-    "regime_change": False,            # CP1-CP2 merged; CP3 queued
-    "scan_membership_change": False,   # CP1-CP2 merged; CP3 queued
-    "catalyst_match": False,           # CP1-CP2 merged; CP3 queued
+    "regime_change": True,             # line 2, 9f0575340
+    "scan_membership_change": True,    # line 2, d0415f251
+    "catalyst_match": True,            # line 2, 3ee80dc13
     "indicator_condition": False,      # CP1-CP2 merged; CP3 queued
 }
 

@@ -74,10 +74,21 @@ def evaluate(mode: str, width: int, chip: dict | None, btn: dict | None,
     covered = [h for h in hits if not h["isChip"]]
     if covered:
         where = ", ".join(f"x={h['x']:.0f}->{h['what']}" for h in covered[:6])
-        fails.append(
-            f"{mode} @{width}: {len(covered)}/{len(hits)} points inside the chip resolve to "
-            f"something else ({where})"
-        )
+        # ⛔ A MEASUREMENT TAKEN THROUGH THE CINEMATIC INTRO IS NOT A PRODUCT FACT. The intro
+        # plays on every real page load for ~9.3s and paints over everything; this sweep loads a
+        # page per (mode, width). Still a failure — an invalid measurement must never read as a
+        # pass — but named, so nobody files the animation as a chip-clearance defect.
+        if all(h.get("intro") for h in covered):
+            fails.append(
+                f"{mode} @{width}: MEASURED THROUGH THE INTRO ANIMATION — all {len(covered)} "
+                f"covered points resolve inside the cinematic overlay, not to page furniture. "
+                f"This is an instrument artifact: re-run so the sweep waits the overlay out."
+            )
+        else:
+            fails.append(
+                f"{mode} @{width}: {len(covered)}/{len(hits)} points inside the chip resolve to "
+                f"something else ({where})"
+            )
     return fails
 
 
@@ -112,11 +123,19 @@ PROBE = """() => {
   for (let x = r.left + 1; x < r.right - BAND; x += 8) xs.push(x);
   for (const x of xs) {
     const el = document.elementFromPoint(x, y);
+    // ⛔ NAME THE INTRO OVERLAY WHEN IT IS THE THING THAT ANSWERED. Its capability pills are
+    // anonymous `<span>`s, so a bare tagName reported them as "span" — indistinguishable from a
+    // page's own furniture, and that is how a full-screen animation gets written down as a
+    // product defect. The overlay's root carries aria-label="Welcome".
+    const intro = Boolean(el && el.closest && el.closest('[aria-label="Welcome"]'));
     out.hits.push({
       x,
       isChip: Boolean(el && (el === chip || chip.contains(el))),
-      what: el ? (el.getAttribute('data-testid') || el.getAttribute('aria-label')
-                  || el.tagName.toLowerCase()) : 'null',
+      intro,
+      what: el ? (intro ? 'INTRO-ANIMATION'
+                        : (el.getAttribute('data-testid') || el.getAttribute('aria-label')
+                           || el.tagName.toLowerCase()))
+                : 'null',
     });
   }
   return out;
@@ -189,6 +208,18 @@ def run(base: str, headed: bool) -> int:
                         err=True)
                     all_fails.append(f"{mode} @{width}: hub-root never appeared")
                     continue
+                # ⛔ WAIT THE CINEMATIC INTRO OUT BEFORE MEASURING. It runs ~9.3s on every real
+                # page load (`components/intro/IntroAnimation.jsx`) and paints a full-screen
+                # overlay over the whole app — and this sweep does a page load per (mode, width),
+                # so at the old fixed 1200ms some of its 27 readings were taken THROUGH it. An
+                # instrument that measures its own overlay reports a product defect that does not
+                # exist. Absence resolves immediately, so a build without the intro costs nothing.
+                try:
+                    page.wait_for_selector('[aria-label="Welcome"]', state="detached",
+                                           timeout=15000)
+                except Exception:  # noqa: BLE001 - recorded, never silently measured through
+                    say(f"  ⚠️ {mode} @{width}: the intro overlay was still up after 15s; the "
+                        f"reading below may be of the animation, not the page")
                 page.wait_for_timeout(1200)
                 out = page.evaluate(PROBE.replace("BAND", str(SWALLOWED_BAND_PX)))
                 if out["chip"] is None:
