@@ -644,7 +644,55 @@ Closing it requires building an instrument first — that is a task, not a looku
    It needs an owner ruling on whether to restate or retire it; carried as **K-2** in
    `kill-switch-spec.md` §10.
 
-7. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
+7. ⛔⛔ **AN AST FLAG INDEX IS BLIND TO A TABLE-DRIVEN ENV READ — and the ledger
+   read GREEN over four missing gates.** `feature_flag_index` matched a string
+   CONSTANT (`os.getenv("X")`, `os.environ["X"]`, the `or "1"` fallback). Wave K
+   declares its four capabilities once as `NOTEBOOK_FLAGS = {"NAME": default}` and
+   reads them in a loop — precisely so the env name and the payload key cannot
+   drift — and `os.environ.get(env_name)` has no constant to match. **140 flag
+   tests passed over a ledger that was four gates short**, which is the exact
+   failure the ledger exists to prevent, one level up: a gate nobody can
+   distinguish from a gate nobody decided on.
+   ⭐ **RAIL:** `tests/test_notebook_flag_table_form.py` — the index now reads a
+   gate TABLE, with a CONTROL proving a bare loop-variable read is still
+   invisible, so the rail's boundary is stated rather than assumed. Mutation-proved
+   both ways (drop the table pass → the three dark entries read as stale).
+
+8. ⛔⛔ **A MUTATION GAUNTLET CAN STOP RUNNING ITS OWN RAILS, SILENTLY.** Seven
+   test files naming `lib/offline` arrived with the door work (`0ecc4f886`) and
+   were never added to the gauntlet's rail set, so from that merge onward a
+   mutation to a door guard could redden NOTHING and be reported as *"a guard
+   nothing tests"*. ⛔ **That is the dangerous direction**: under-reported coverage
+   invites deleting a guard that was fine, which is worse than under-reported
+   failures.
+   ⭐ **RAIL:** the gauntlet's own `--self-check` already had the case and it
+   found them the first time it was run after Wave K widened `GUARD_NAMES`. The
+   lesson is that the self-check has to be RUN — it is not a rail if nobody drives
+   it — so it is now part of every gauntlet invocation's record.
+
+9. ⛔ **THE LEDGER TOOK THREE KEYS, NOT FOUR, AND THE SPEC WAS WRONG.** Wave K's
+   definition of done said *"`docs/feature_flags.json` gains the four keys, status
+   `dark`"*. The ledger's own doctrine refuses the fourth: `needs_declaration` is
+   FALSE for a gate that defaults ON, because a gate on by default is
+   self-evidently a live decision, and declaring `NOTEBOOK_OFFLINE_DEFAULT_ON`
+   would have tripped `test_the_ledger_does_not_describe_gates_that_no_longer_exist`.
+   ⭐ **RAIL:** that test, which already existed and which is why the discrepancy
+   surfaced immediately rather than as a stale entry months later. **The
+   artifact deferred to the rail, not the other way round** — a DoD row is a plan,
+   and a plan that contradicts a measurement loses.
+
+10. ⛔ **A PACKET IS NAMED FOR ITS MECHANISM, NEVER ITS WAVE LETTER.** Wave K's
+    flip packet is `docs/notebook/kill-switch-flip-packet.md`, deliberately NOT
+    `wave-k-flip-packet.md`: in that same directory `wave-k-*.md` already means the
+    OTHER Wave K — Ask Notebook — which has its own closure and production
+    certification. Trap 1 of this section is that *the wave letters I, J and K each
+    mean two different things*, and a filename is the one place a reader cannot see
+    the ambiguity before acting on it. The spec beside it is `kill-switch-spec.md`
+    for the same reason.
+    ⭐ **RAIL:** `tests/test_k_reach_statement.py` addresses the packet by path, so
+    a rename that resurrects the collision reds immediately.
+
+11. ⛔⛔ **"THE FOUR DOORS" WAS AN ENUMERATION OF WHAT A CANARY DROVE, AND IT WAS
    WRONG BY THREE.** Wave Q1 recorded *"the FOUR doors — every path that advances
    `updatedAt`"* and named body, folder, ticker, tags. That list came from the
    DERIVED WIRE RAIL, which can only see doors a canary actually opened; no canary
@@ -664,7 +712,7 @@ Closing it requires building an instrument first — that is a task, not a looku
    "24" beside 26). **This one was not a stale count in a doc — it was a stale count
    the PRODUCT was built on.** Full entry: `docs/notebook/wave-q1-RESUME-HERE.md`.
 
-8. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
+12. ⛔⛔ **DERIVE THE SERVER LIST FIRST, AND DO NOT TRUST A GREP TO FIND IT.**
    The fix for the four-doors trap (§10.6) was itself got wrong twice before it
    was got right, and both failures were the same shape: **a grep answered, so
    the search stopped.**
@@ -690,7 +738,7 @@ Closing it requires building an instrument first — that is a task, not a looku
    instead of from a list of callers, derive it — the list goes stale silently
    and the diff cannot.
 
-9. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
+13. ⛔⛔ **AN INSTRUMENT'S REACH IS PART OF THE PRODUCT'S RISK SURFACE.**
    `hero` shipped unsettled **because no canary could reach it**, and that was
    not bad luck. The note editor renders three file inputs, and the hero
    picker's accept list is BYTE-IDENTICAL to the editor's hidden inline-image

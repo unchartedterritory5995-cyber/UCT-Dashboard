@@ -35,6 +35,7 @@ _env = os.environ.get("NB_OBSERVE_LOG", "").strip()
 LOG = (pathlib.Path(_env) if _env
        else pathlib.Path(__file__).resolve().parent / "wave-q1-observation-log.md")
 OPT_IN = "j2:notebook_offline_opt_in"
+CONFIG_SERVED = "j2:notebook_config_served"
 
 # ⛔⛔ ATTRIBUTION BY IDENTITY, NOT BY CLOCK. The gate excluded rig activity by
 # CANARY TIMING alone, and on 2026-09-12 it reported the owner's own 14:00:28
@@ -87,8 +88,18 @@ new event arrives regardless of roll-off. Every opt-in up to
 the rig never opts in during a sampler run, so a latest NEWER than that, with no
 canary running, is a REAL MEMBER.
 
-| at (ET) | latest opt-in (UTC) | opt-in (windowed) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
-|---|---|---|---|---|---|---|---|
+⛔⛔ WAVE K COLUMN — `config-served (members)`. K-1 flips the compile-time
+constant to `false` so an unreachable auth payload fails to OFF; its precondition
+is a **config-served rate of 100%% over the K window, measured by identity, rig and
+owner-browser excluded** (owner ruling 2026-09-12). The column reads
+`served/total` over DISTINCT member identities, where a member is an identity that
+is neither the shared owner+rig account nor the smoke account — the same exclusion
+the opt-in column uses, because two exclusion lists over one question is how they
+drift. ⛔ `0/0` is NOT 100%%: an empty population cannot satisfy a rate, and the
+column prints `0/0` rather than a percentage so nobody can read it as one.
+
+| at (ET) | latest opt-in (UTC) | opt-in (windowed) | config-served (members) | blocked-baseline | sync-conflict notes | outbox (rig only, layer off — structurally 0) | console errors (rig) | flag |
+|---|---|---|---|---|---|---|---|---|
 """ % RIG_OPT_IN_BASELINE
 
 
@@ -98,8 +109,51 @@ def et_now() -> str:
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-4))).strftime("%Y-%m-%d %H:%M ET")
 
 
-def row(at, latest, total, blocked, conflicts, outbox, errors, flag) -> str:
-    return f"| {at} | {latest} | {total} | {blocked} | {conflicts} | {outbox} | {errors} | {flag} |\n"
+def row(at, latest, total, served, blocked, conflicts, outbox, errors, flag) -> str:
+    return f"| {at} | {latest} | {total} | {served} | {blocked} | {conflicts} | {outbox} | {errors} | {flag} |\n"
+
+
+def render_config_served(cs) -> str:
+    """`served/total` over distinct MEMBER identities. PURE, so a rail drives it.
+
+    ⛔⛔ 0/0 IS NOT 100%. A rate over an empty population is undefined, and the
+    one way this measurement gets faked is to render it as a percentage anyway —
+    at which point K-1's precondition reads SATISFIED on a window in which no
+    member ever opened the Notebook. It prints both numbers and lets the reader
+    see the denominator.
+
+    ⛔ And `absent` is not `off`: a browser talking to a pod that predates K
+    reports `served: false`, counted in the denominator and NOT in the numerator.
+    That asymmetry IS the precondition.
+    """
+    if not isinstance(cs, dict):
+        return "ERR"
+    if cs.get("err"):
+        return f"ERR ({cs['err']})"
+    served, total = cs.get("served", 0), cs.get("total", 0)
+    if not total:
+        return "0/0 — no member reported"
+    return f"**{served}/{total}**" + ("" if served == total else "  ⛔ NOT 100%")
+
+
+def _column_line(header: str) -> str:
+    """The `| at (ET) | … |` line — the part a schema change actually changes.
+
+    ⚰️ THE DETECTOR USED TO READ `HEADER.split("|")[0]`, WHICH IS THE PROSE ABOVE
+    THE TABLE. Adding a column while leaving that prose alone would have appended
+    MISALIGNED ROWS UNDER THE OLD HEADER — silently, in the one file whose whole
+    purpose is that a hole stays visible. Found 2026-09-12 while adding the Wave K
+    column, by reading the guard before relying on it.
+    """
+    # ⛔ THE FIRST TABLE LINE, whatever it is called. An earlier version of
+    # this matched `"| at ("` specifically, which refuses a header whose
+    # first column is ever renamed — and the rail that drives a schema
+    # change with DIFFERENT columns caught it immediately. A guard that only
+    # works for the schema in front of it is not a guard.
+    for ln in header.splitlines():
+        if ln.startswith("|") and not ln.startswith("|--"):
+            return ln
+    raise SystemExit("⛔ the header has no column line — refusing to guess at the schema")
 
 
 def append(line: str) -> None:
@@ -119,7 +173,7 @@ def append(line: str) -> None:
     existing = LOG.read_text(encoding="utf-8") if LOG.exists() else ""
     if not existing.strip():
         LOG.write_text(HEADER, encoding="utf-8")
-    elif HEADER.split("|")[0] not in existing:
+    elif _column_line(HEADER) not in existing:
         # ⭐ Schema changed: a NEW header block, appended. Old rows stay readable
         # and stay labelled by the header that was above them when written.
         with LOG.open("a", encoding="utf-8") as fh:
@@ -146,6 +200,32 @@ OPTIN_JS = """async (excluded) => {
   };
 }"""
 
+CONFIG_SERVED_JS = """async (excluded) => {
+  const r = await fetch('/api/auth/admin/activity?limit=200', {credentials:'include'});
+  if (!r.ok) return {err: 'HTTP ' + r.status};
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) return {err: 'not JSON (deploy blip?)'};
+  const j = await r.json();
+  const rows = Array.isArray(j) ? j : (j.rows || j.activity || []);
+  const hits = rows.filter(x => String(x.action).includes('notebook_config_served'));
+  // BY IDENTITY, not by row: one member with six tabs is one member.
+  const byEmail = new Map();
+  for (const x of hits) {
+    const email = String(x.email || '').toLowerCase();
+    if (excluded.includes(email)) continue;        // the rig+owner account, and the smoke account
+    let served = false;
+    try { served = !!JSON.parse(x.details || '{}').served } catch { served = false }
+    // ANY served:true in the window counts that identity as served; a member
+    // whose FIRST tab predated the deploy must not be held against the rate
+    // forever by that one row.
+    byEmail.set(email, (byEmail.get(email) || false) || served);
+  }
+  const total = byEmail.size;
+  let served = 0;
+  for (const v of byEmail.values()) if (v) served += 1;
+  return {total, served, rows: hits.length};
+}"""
+
 NOTES_JS = """async () => {
   const r = await fetch('/api/j2/notes?limit=300', {credentials:'include'});
   if (!r.ok) return {err: 'HTTP ' + r.status};
@@ -163,12 +243,12 @@ def main() -> int:
     try:
         released, held = wc.profile_lock_released(timeout=5)
         if not released:
-            append(row(at, "—", "—", "—", "—", "—", "—",
+            append(row(at, "—", "—", "—", "—", "—", "—", "—",
                        f"**SKIPPED** — rig profile busy ({', '.join(held)})"))
             print("SKIPPED: profile busy")
             return 0
     except Exception as e:                                   # noqa: BLE001
-        append(row(at, "—", "—", "—", "—", "—", "—", f"**SKIPPED** — {type(e).__name__}"))
+        append(row(at, "—", "—", "—", "—", "—", "—", "—", f"**SKIPPED** — {type(e).__name__}"))
         return 0
 
     from playwright.sync_api import sync_playwright
@@ -197,6 +277,10 @@ def main() -> int:
             members = oi.get("memberCount", "ERR")
             member_latest = oi.get("memberLatest") or "—"
             blocked = (act.get(BLOCKED) or {}).get("count", "ERR")
+            # ⛔ WAVE K — the same exclusion list as the opt-in column, passed to
+            # the same admin feed. Two lists over one question is how they drift.
+            served_txt = render_config_served(
+                page.evaluate(CONFIG_SERVED_JS, [e.lower() for e in NOT_A_MEMBER]))
             notes = page.evaluate(NOTES_JS)
             conflicts = notes.get("conflicts", f"ERR ({notes.get('err')})")
 
@@ -212,7 +296,7 @@ def main() -> int:
             # for its post-door read.
             unreachable = (not isinstance(total, int)) and any("502" in e or "503" in e for e in errors)
             if unreachable:
-                append(row(at, "—", "—", "—", "—", "—", len(errors),
+                append(row(at, "—", "—", "—", "—", "—", "—", len(errors),
                            "**SKIPPED** — production unreachable (HTTP 5xx, deploy in flight); "
                            "not a finding, and not evidence of a clean interval either"))
                 print(f"{at}  SKIPPED - production 5xx")
@@ -226,10 +310,11 @@ def main() -> int:
             flag = "OK" if not reasons else "**ANOMALY** — " + " · ".join(reasons)
 
             append(row(at, f"{latest} · members {members}" + ("" if members in (0, "ERR") else f" (latest {member_latest})"),
-                       total, blocked, conflicts, 0, len(errors), flag))
-            print(f"{at}  latest={latest} members={members} total={total} blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
+                       total, served_txt, blocked, conflicts, 0, len(errors), flag))
+            print(f"{at}  latest={latest} members={members} total={total} config-served={served_txt} "
+                  f"blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
     except Exception as e:                                   # noqa: BLE001
-        append(row(at, "—", "—", "—", "—", "—", "—",
+        append(row(at, "—", "—", "—", "—", "—", "—", "—",
                    f"**SKIPPED** — {type(e).__name__}: {str(e)[:80]}"))
         traceback.print_exc()
     finally:

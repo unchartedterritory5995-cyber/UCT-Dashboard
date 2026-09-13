@@ -111,3 +111,68 @@ def test_every_baseline_shape_the_incident_could_have_had_is_enumerated(shape):
     that collapsed them would answer the wrong question.
     """
     assert f"'{shape}'" in CLIENT.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# ⛔⛔ DERIVED, SO THE NEXT EVENT IS COVERED THE DAY IT LANDS.
+#
+# The tests above name one event each, by hand. That is exactly the artifact
+# this repo keeps re-committing: a hand-typed enumeration beside the source that
+# owns it. Wave K added a third event and the pattern would have been a third
+# hand-written pair — green for the two that existed and blind to the one that
+# mattered, because a name missing from the allow-list is a 400 and a 400 here
+# is a SILENT nothing (`postJ2Telemetry` swallows, by design: an instrument that
+# can break the thing it measures is worse than no instrument).
+#
+# So this sweeps the directory for every `export const *_EVENT = '...'` and
+# holds the server to all of them at once.
+# ---------------------------------------------------------------------------
+
+OFFLINE_DIR = Path("app/src/pages/journal-2-0/lib/offline")
+_EVENT_DECL = re.compile(r"export\s+const\s+\w*EVENT\s*=\s*['\"]([a-z0-9_]+)['\"]")
+
+
+def _client_event_names() -> dict[str, str]:
+    """{event name: the file that declares it}, read from the client source."""
+    found: dict[str, str] = {}
+    for path in sorted(OFFLINE_DIR.glob("*.js")):
+        if path.name.endswith(".test.js"):
+            continue
+        for name in _EVENT_DECL.findall(path.read_text(encoding="utf-8")):
+            found[name] = path.name
+    return found
+
+
+def test_the_sweep_actually_finds_the_events_it_is_meant_to_hold():
+    """⭐ NON-VACUITY. Every assertion below is `for name in found` — and an
+    empty `found` satisfies all of them. A regex that stops matching (a rename, a
+    different quote style, a `const` moved behind a factory) would turn this
+    whole rail into a no-op that reads as coverage."""
+    names = _client_event_names()
+    assert len(names) >= 3, f"the sweep found {len(names)} event declarations: {names}"
+    for expected in ("notebook_blocked_no_baseline", "notebook_offline_opt_in",
+                     "notebook_config_served"):
+        assert expected in names, f"{expected} is declared in the client and the sweep missed it"
+
+
+def test_every_client_event_is_on_the_server_allowlist():
+    missing = {n: f for n, f in _client_event_names().items() if n not in _J2_TELEMETRY_EVENTS}
+    assert not missing, (
+        "these events are POSTed by the client and REFUSED by the server with a 400 — "
+        "and the client swallows the refusal, so the measurement is silently nothing:\n"
+        + "\n".join(f"  {n}  (declared in {f})" for n, f in sorted(missing.items()))
+    )
+
+
+def test_the_config_served_event_carries_no_note_content():
+    """⛔ Wave K's event, held to the same key-set rule as its two neighbours:
+    the SET is pinned, because "there is no body key" is satisfied by a payload
+    that ships the title instead."""
+    src = (OFFLINE_DIR / "configServedEvent.js").read_text(encoding="utf-8")
+    # The props object is written out literally; read the keys it builds.
+    body = src[src.index("export function configServedReport"):]
+    body = body[:body.index("\n}")]
+    keys = set(re.findall(r"^\s{4}(\w+):", body, re.M))
+    assert keys == {"served", "waited_bucket_ms"}, keys
+    for forbidden in ("title", "body", "bodyJson", "content", "text", "html"):
+        assert forbidden not in keys

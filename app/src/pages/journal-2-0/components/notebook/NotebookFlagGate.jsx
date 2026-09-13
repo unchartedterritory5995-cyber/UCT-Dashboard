@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { notebookFlagsReady } from '../../lib/offline/notebookFlags'
+import { reportConfigServed } from '../../lib/offline/configServedEvent'
 
 /**
  * Wave K — the first-render gate. Shape A, and it is the only admissible shape.
@@ -34,6 +35,12 @@ export default function NotebookFlagGate({ children, fallback = null, timeoutMs 
   // answer has been known for minutes.
   const [ready, setReady] = useState(() => notebookFlagsReady())
   const [timedOut, setTimedOut] = useState(false)
+  // ⛔ THE GATE IS THE ONLY PLACE THAT KNOWS WHETHER THE ANSWER ARRIVED.
+  // `mountedAt` is a ref, not state: reading it must never be a render input,
+  // or the wait time becomes a reason to re-render and the gate starts
+  // measuring itself.
+  const mountedAt = useRef(Date.now())
+  const reported = useRef(false)
 
   useEffect(() => {
     if (ready) return undefined
@@ -49,6 +56,23 @@ export default function NotebookFlagGate({ children, fallback = null, timeoutMs 
     const to = setTimeout(() => { if (alive) setTimedOut(true) }, timeoutMs)
     return () => { alive = false; clearInterval(iv); clearTimeout(to) }
   }, [ready, timeoutMs])
+
+  // ⛔⛔ WAVE K's MEASUREMENT, and it reports the NEGATIVE case too.
+  // K-1's precondition is a config-served RATE, so a browser that never got the
+  // keys has to be counted, not merely absent from a list of successes. A rate
+  // whose denominator is "whoever succeeded" is always 100%.
+  useEffect(() => {
+    if (reported.current || (!ready && !timedOut)) return undefined
+    reported.current = true
+    // ⛔ `notebookFlagsReady()` at the moment of resolve, never `ready` — the
+    // state is seeded once and a deadline release leaves it false while the
+    // latch may have landed in the same tick.
+    reportConfigServed({
+      served: notebookFlagsReady(),
+      waitedMs: Date.now() - mountedAt.current,
+    })
+    return undefined
+  }, [ready, timedOut])
 
   // ⛔⛔ NOTHING RENDERS UNTIL ONE OF THE TWO IS TRUE. Not the editor, not the
   // drain, not a hidden mount that "just reads" — every one of those is a
