@@ -11,6 +11,34 @@
 
 ---
 
+## 0 · Reset the smoke account to a control
+
+```sh
+python tools/smoke_reset.py          # --self-check proves the verifier can fail
+```
+
+> **Owner ruling, 2026-09-13: this runs as step 0 AND as the final step.** A smoke account
+> that accumulates state stops being a control — the next run cannot tell a product change
+> from its own leftovers.
+
+Control state: `joystick_hub` **unset** · `coachMarkSeen` unset · `handedness` right ·
+`traceGestures` false · no notes, flags or positions. The last three follow from the first.
+
+⚰️ **Why, in one sentence:** the §3.2 dry run found the account carrying a stored
+`enabled:true` from an earlier run, so the hub's visibility had **two** available
+explanations — *admin* and *stored true* — and the device could not tell them apart.
+
+⭐ **With the reset applied, the account exercises the UNSET-DEFAULT path — the path the
+stage ladder actually decides.** At stage 1 that means **the hub is visible ONLY because the
+account is admin.** Write it that way; never let the two explanations merge again.
+
+⛔ "Unset" is written as `{}`: there is no product path to delete a preference key
+(`delete_user_preference` is imported at `api/routers/auth.py:75` and bound to no route).
+`{}` is equivalent for the resolver — `stored.enabled` is `undefined`, so `everChose` is
+false and `unsetDefault()` decides. Detail: `HARNESS-NOTES.md`.
+
+---
+
 ## 1 · The deploy landed
 
 ```sh
@@ -58,6 +86,11 @@ On the Live device: tap the address bar's ⊗ to clear it, type the URL, go.
 
 The smoke account is **admin** (`ADMIN_EMAILS` promotes it at login, `auth.py:253`), so at stage 1
 *and* stage 2 it sees the hub — which means **this step alone cannot distinguish the two stages.**
+
+⭐ **Step 0 removes the SECOND confound, not this one.** With `joystick_hub` unset the account
+no longer carries a stored `enabled:true`, so "the hub is visible" has exactly one remaining
+explanation instead of two: **it is admin.** That is a real gain — it is what makes the
+sentence below honest — but it does not turn an admin into a member.
 
 - **If a synthetic MEMBER can be minted through the same door**, use it: that is the real evidence.
 - ⛔ **Signup is closed** (`COMING_SOON_MODE=1` → `auth.py:192` refuses every request), and
@@ -129,6 +162,13 @@ zero frames because its own action unmounted the host.
 
 ## 6 · Write the evidence into box 5
 
+⛔ **Box 5's evidence slot is filled from THIS run and only this run.** The stage-1 dry run
+(`smoke-runs/2026-09-13T23-19Z-stage2-dryrun.md`) recorded the chip hint as
+**"Preview — more coming"**, which is correct at stage 1 and **wrong at stage 2** — stage 2
+empties `PREVIEW_MODES`, so each mode shows its real tap hint and the `(preview)` suffix on
+the Settings label carries the framing instead. Copying the 5a reading forward would put a
+stage-1 string in a stage-2 record. Owner ruling, 2026-09-13.
+
 `closure.md`, box 5's evidence slot:
 
 > stage 2 shipped on `<merge-sha>`; kill switch demonstrated on device `<date>`
@@ -142,6 +182,42 @@ and leave the rest open.
 Draft from `50-preview-announcement.md` as **ready-to-post text** in a docs commit. ⛔ Do not post
 it — `feedback_explicit_ship_gate`: marketing and member-facing copy ship on the owner's explicit
 go-ahead, not an agent's.
+
+---
+
+## 8 · Reset the smoke account again — the final step
+
+```sh
+python tools/smoke_reset.py
+```
+
+⛔ **The run is not finished until this exits 0.** Whatever this run created, this run
+removes; the next run must start from a control, not from our leftovers. Record the exit
+line in the evidence file.
+
+---
+
+## 9 · The first post-merge commit carries R-29 into the baseline
+
+⛔ **`gate-baseline.json` is NOT amended while the stage-2 PR is frozen.** Owner ruling,
+2026-09-13: adding R-29 now would put a 27th file on a frozen PR and invalidate the gate
+already run against it.
+
+**After Patrick merges stage 2, the first docs/tool commit adds it**, with this reason
+recorded verbatim beside the entry:
+
+> *orphan at `origin/master`; S4-owned; not attributable to any hub branch; passes when S4
+> records its AWAITING_A_DECISION entry*
+
+⛔ **And it is REMOVED the moment `reachable.test.js` is green on master again.** A baseline
+entry that outlives its defect is a slot a real failure can occupy unnoticed — which is the
+whole reason a timeout is never banked as permitted breakage.
+
+The row is `src/components/screener/reachable.test.js > 🔴 every module under app/src is
+REACHABLE from an entry point > and nothing committed is connected to nothing`. Direction was
+proved twice: `focusDivergence.js` is orphaned at `origin/master` (its only non-test mention
+in `HubContext.jsx` sits inside a **comment**, zero real imports), and no hub branch diff has
+touched that file, `reachable.test.js`, or `HubContext.jsx`.
 
 ---
 

@@ -113,10 +113,13 @@ Baseline (`258c5609d`) has **7**; observed **8**; **NEW = 1**, and it is not thi
 
 Full procedure: **`docs/plans/joystick/stage-2-verification.md`**, executed unattended after merge.
 
+0. **`python tools/smoke_reset.py`** — the account starts as a control: `joystick_hub` unset, no notes/flags/positions. Owner ruling 2026-09-13.
 1. Railway `web` SUCCESS on a SHA containing the merge; `/api/health` 200 with fresh uptime.
 2. Code-level proof of the stage-2 exposure rule via the merged tests (already in the gate above).
-3. Live iPhone 15 Pro, smoke-login link: hub visible for an account with no stored preference.
+3. Live iPhone 15 Pro, smoke-login link: hub visible for an account with **no stored preference** — true only because step 0 made it so.
 4. **Kill-switch demonstration on the device** — `HUB_PREVIEW_ENABLED=false` → hub gone on the next authenticated request; `true` → hub returns. Screenshots and timestamps both ways.
-5. Chip hint reads "Preview — more coming"; coach mark appears once; Hide → reload restores; Settings toggle round-trips; edge tab restores.
-6. Results written into `closure.md` box 5's evidence slot.
+5. ⛔ **Chip hint reads each mode's REAL tap hint — NOT "Preview — more coming".** Stage 2 empties `PREVIEW_MODES`, so that string appears nowhere; the `(preview)` suffix on the Settings label (`JoystickSettingsCard.jsx:139`) is what carries the preview framing. Coach mark appears once; Hide → reload restores; Settings toggle round-trips; edge tab restores.
+6. Results written into `closure.md` box 5's evidence slot — **from this run only.** The stage-1 dry run recorded the opposite chip string, correctly for stage 1; copying it forward would put a stage-1 reading in a stage-2 record.
 7. Member announcement drafted as ready-to-post text.
+8. **`python tools/smoke_reset.py`** again — the run is not finished until it exits 0.
+9. The first post-merge docs/tool commit adds R-29 to `gate-baseline.json` (*orphan at `origin/master`; S4-owned; not attributable to any hub branch; passes when S4 records its AWAITING_A_DECISION entry*), and removes it the moment `reachable.test.js` is green on master again.
