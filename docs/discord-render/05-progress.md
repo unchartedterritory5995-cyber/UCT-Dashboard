@@ -36,3 +36,25 @@ changed 26). Mutation proofs: 18 across three harnesses, all red, restores sha-v
 the pre-V2 code (railed). The first flag-on bench row belongs to the canary in Phase 3/4.
 
 **Member impact:** none visible (see `LEDGER.md` row 4).
+
+---
+
+## Merge 2 — 2.2 observability, dark · 2026-09-13 (Sunday)
+
+**Shipped (dark):** `api/services/discord_render/observe.py` — scrubbed `drender` events (exceptions
+through `observe.exception`, so a failed Discord edit cannot log the interaction token), SLOs from
+the durable jobs table (5 min / 30 min / 1 h / 24 h / 7 d), the §3.9 alert rules, and the observer
+thread (alerts to `DISCORD_RENDER_ALERT_WEBHOOK` with a durable cooldown recorded only after Discord
+accepts, hourly `store.purge()`, a cached renderer reading); `GET /api/discord/render-health`; the
+`/renderhealth` handler with a server-side admin check, plus `build_commands(renderhealth=True)` and
+`register --renderhealth` (not registered); one stale test corrected.
+
+**Gate on the merged tree** (`72cfddf87`, after merging 22 master commits): 13 scoped files,
+**479 passed, 0 failed**. flow-worker watch coverage `OK` (reachable 154, watched 24, changed 14).
+Mutation proofs: 18 on the branch tree, all red, restores sha-verified, control green.
+
+**Deploy, measured:** *(filled from the running pod after the push)*
+
+**Bench before → after:** no change measurable by design — the flag is unset.
+
+**Member impact:** none visible (see `LEDGER.md` row 6).
