@@ -265,3 +265,36 @@ def test_the_discord_post_sends_a_browser_user_agent():
     code = _code_only(_MON)
     assert "User-Agent" in code, "the Discord post sends no User-Agent — Cloudflare will 1010 it"
     assert "Mozilla/5.0" in code
+
+
+def test_a_long_post_is_truncated_UNDER_discords_limit_and_says_so(monkeypatch):
+    """⚰️ Discord's `content` limit is 2000 chars and exceeding it is a flat
+    HTTP 400 with no hint — measured on the first live gate-check trigger. ⛔ And
+    a silently truncated report reads as a complete one, which matters most for a
+    gate check, whose verdict is in the TAIL."""
+    m = _load()
+    sent = {}
+    monkeypatch.setenv(m.ADMIN_WEBHOOK_ENV, "https://discord.example/hook")
+    monkeypatch.setattr(m.urllib.request, "urlopen",
+                        lambda req, timeout=30: type("R", (), {"read": lambda s: b"ok"})())
+    monkeypatch.setattr(m.urllib.request, "Request",
+                        lambda url, data=None, headers=None: sent.update(
+                            {"body": json.loads(data.decode())}) or object())
+    m.post("a very long gate check " * 3, "X" * 9000)
+    content = sent["body"]["content"]
+    assert len(content) <= m.DISCORD_CONTENT_LIMIT, len(content)
+    assert "TRUNCATED" in content, "it was cut and did not say so"
+
+
+def test_control_a_short_post_is_not_truncated(monkeypatch):
+    m = _load()
+    sent = {}
+    monkeypatch.setenv(m.ADMIN_WEBHOOK_ENV, "https://discord.example/hook")
+    monkeypatch.setattr(m.urllib.request, "urlopen",
+                        lambda req, timeout=30: type("R", (), {"read": lambda s: b"ok"})())
+    monkeypatch.setattr(m.urllib.request, "Request",
+                        lambda url, data=None, headers=None: sent.update(
+                            {"body": json.loads(data.decode())}) or object())
+    m.post("short", "all seven sweeps answered")
+    c = sent["body"]["content"]
+    assert "TRUNCATED" not in c and "all seven sweeps answered" in c
