@@ -128,6 +128,17 @@ pre-commit hook. ⛔ It is an **allowlist**, not a bare limit: 15 files over 5 M
 answers successfully with nothing, and every assertion over an empty list passes. Mutation proofs
 **5/5 red**, control green (8 tests). Self-check: `python tools/check_repo_hygiene.py --self-check`.
 
+### Step 1.1a — dual render-token acceptance (2026-09-13, Sunday)
+
+| # | Date (ET) | Commit | Step | Files | Flags added (default) | flow-worker strand | Tests (scoped, totals) | Bench before → after | Deploy: status · running SHA | Member impact |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 12 | 2026-09-13 | `4821ec3f2` | 1.1a — dual render-token acceptance, and one shared guard replacing 14 copies (OI-19) | `api/routers/render_panels.py` · `app/src/lib/renderToken.{js,test.js}` (new) · 14 × `app/src/pages/*Render.jsx` · `tests/test_render_token_rotation.py` (new) | none. Config, inert until set: `CHART_RENDER_TOKEN_PREVIOUS` (backend) · `VITE_CHART_RENDER_TOKEN_PREVIOUS` (build). With both unset the gate behaves byte-identically to today — dark by construction. | none — watch coverage `reachable=154 watched=24 changed=25 OK` | 28 scoped files: **780 passed**; frontend `renderToken.test.js` **6 passed**; all 14 pages parse under esbuild. Mutation proofs **8/8 red** (5 backend, 3 frontend), restores sha-verified, controls green. | n/a — no render path timing change | *(after the push)* | None. The token check moves into one shared module and gains the ability to accept a previous token during a rotation; with no previous token set, every page and the `/api/r/*` gate accept exactly what they accept today. |
+
+⭐ **Why the guard moved rather than being edited fourteen times.** Each page carried its own
+`const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''` and `if (TOKEN && token !== TOKEN)`.
+Fourteen copies cannot be mutation-proved (memory `lesson_a_guard_repeated_is_a_guard_unproved`) and
+a rotation would have to edit all fourteen correctly. `app/src/lib/renderToken.js` is now the one copy.
+
 ## Owner decisions (OI-xx)
 
 Each: the question, my recommendation, what I proceeded on. The owner overrides before the flip.
@@ -188,6 +199,7 @@ is not walked into twice.
 | 2.4a | The production-data probe of `symbols.py` printed nothing: its `2>/dev/null` threw away the traceback. Run again with stderr showing, it failed in my loader, not in the code under test: on Python 3.12, a `@dataclass` in a module loaded by `spec_from_file_location` looks the module up in `sys.modules`, and I never registered it. The real module is imported normally in production. | An empty result where JSON was expected; the second run showed the traceback. | Registered the module before `exec_module`; a probe never discards stderr. The third run used a changed instrument, not a repeat. |
 | 2.4a | Two of 22 mutations stayed **green**. **S4:** the "swap" case in the one-edit test was APPL → AAPL, which is a substitution — only one position differs — so deleting the transposition branch changed nothing (the docstring example was wrong the same way). **S9:** the kill-switch test made `resolve` raise, but the check fails open, so the exception was swallowed and the request queued exactly as it would with the switch honoured. | The harness verdict `GREEN UNDER MUTATION`. | S4: a real adjacent swap (NDVA → NVDA) plus a two-position non-swap; docstring corrected. S9: the fake records calls and the test asserts none happened. Harness re-run; a rail whose failure the code under test swallows is not a rail. |
 | Step 0 | The restart capture withheld three files for "credential-shaped content". All three were **false positives**: the scanner's `sk-[A-Za-z0-9_-]{20,}` matched hyphenated slugs — `v2-ri`**`sk-register-and`**`-directives.md` and `feat/de`**`sk-sharpen-workshop-card`**. One session's reconstructed resume and a design doc were withheld for nothing. | Reading each match **in context** rather than trusting the hit count. | Verified in context, then committed and pushed (`944231be4` on `feat/catalyst-coverage-precision`). ⭐ A secret regex anchored on a two-letter prefix inside a hyphen-rich corpus is an instrument that manufactures findings; the fix for the next capture is a boundary (`(?<![A-Za-z0-9-])sk-`) plus an entropy floor, not a longer block list. |
+| 1.1a | The patch that rewired the 14 render pages detected each file's line ending **from disk** and wrote that back. Git stores these files LF; the working copies were CRLF, so every file came back as a whole-file rewrite — `918` changed lines on `ChartRender.jsx` instead of 2. A 14-file whole-file diff would have conflicted with every other session touching those pages. | `git diff --numstat` after the patch: 14 files, every line changed. | Normalised all 14 back to LF (a byte transform, never a `git checkout`), re-measured: **2 lines changed per file**. ⭐ The rule the script had wrong: an EOL-preserving patch must write the ending the **index** stores, not the one it finds on disk — on a box with `core.autocrlf=true` those differ by design. |
 
 ## Phase summaries
 
