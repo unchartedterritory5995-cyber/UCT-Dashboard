@@ -16,7 +16,10 @@ param(
     [string] $PromptFile = "docs\runbooks\monday-rth-prompt-close.md",
     [string] $Phase      = "close",
     [double] $MinFreeGB  = 3.0,
-    [switch] $AllowWeekend
+    [switch] $AllowWeekend,
+    # ⛔ Rehearsals must not be able to push a fake report to master. Instructing the
+    # model not to push is weaker than removing the tool, so this removes the tool.
+    [switch] $NoPush
 )
 
 $ErrorActionPreference = 'Stop'
@@ -108,19 +111,20 @@ $allowed = @(
     'Bash(git add *)','Bash(git commit *)','Bash(git status*)','Bash(git log*)',
     'Bash(git diff*)','Bash(git show*)','Bash(git rev-parse*)','Bash(git branch*)',
     'Bash(git fetch*)','Bash(git merge-base*)','Bash(git rev-list*)','Bash(git rebase*)',
-    'Bash(git push origin HEAD:master)','Bash(git config*)',
+    $(if ($NoPush) { 'Bash(git config*)' } else { 'Bash(git push origin HEAD:master)','Bash(git config*)' }),
     'Bash(railway deployment*)','Bash(railway status*)',
     'Bash(curl *)','Bash(mkdir *)','Bash(ls*)','Bash(cat*)','Bash(head*)','Bash(tail*)',
     'Bash(grep*)','Bash(find *)','Bash(date*)','Bash(echo *)','Bash(wc*)','Bash(sed -n*)',
     'Bash(cp *)','Bash(sort*)','Bash(uniq*)','Bash(jq*)','Bash(python *)'
 ) -join ','
 
-$denied = @(
+$denied = (@(
     'Bash(git push --force*)','Bash(git push -f*)',
+    $(if ($NoPush) { 'Bash(git push*)' } else { '' }),
     'Bash(python tools/flow_cold_paint_rig.py*)','Bash(python tools/flow_storm_probe.py*)',
     'Bash(railway variables*)','Bash(railway redeploy*)','Bash(railway up*)','Bash(railway ssh*)',
     'WebFetch','WebSearch'
-) -join ','
+) | Where-Object { $_ } | Select-Object -Unique) -join ','
 
 Say 'preconditions passed - starting headless session'
 Say ("allowedTools: {0}" -f $allowed)
