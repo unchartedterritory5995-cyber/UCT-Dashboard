@@ -300,3 +300,49 @@ starts "Jun '26"; longer: year starts "2026". The tooltip header always reads "F
 **Why.** 02-design §4. In a short window crossing New Year, ECharts' automatic spacing can skip the one label that carries
 the year; the window is under six months there, so the months themselves disambiguate, and the tooltip always names the
 year. Forcing that label on would fight `hideOverlap`.
+
+### D-032 · More is a disclosure of buttons until V2 builds the keys a listbox or menu promises
+
+**Decision.** The More trigger carries `aria-expanded` and `aria-controls` and no `aria-haspopup`; the list is headed groups
+of plain buttons, the active one `aria-pressed`. Escape closes it and returns focus to More. No `listbox`, `option` or
+`menu` role in C3.
+
+**Why.** A-24: `listbox`/`option` (and `menu`/`menuitem` just as much) tell assistive technology to expect arrow-key
+movement and selection the component does not have, so a screen-reader user presses keys that do nothing. A disclosure
+promises exactly what exists — open, close, press a button. 02-design §3 puts arrow keys inside popover lists in V2; the
+role can change when the behaviour arrives.
+
+### D-033 · Finger targets move to the TOUCH tier with `var(--tap-min)`; phone layout stays at ≤ 640
+
+**Decision.** Every Data Charts finger target — group toggles, Notable Extremes, metric rows, date fields, the FTD toggle,
+readout chips, preset pills and More-list items, the load-problem action — declares the floor under
+`@media (max-width: 1024px)` with `var(--tap-min)`. Padding, font size and gaps stay in the phone block.
+`breadth/tapTier.test.js` reads the stylesheets and refuses a typed 40/44 px.
+
+**Why.** A-19 measured 14 of 22 controls under 44 px at 768 px because the rules sat at ≤ 640 while the app's touch tier is
+≤ 1024 (CLAUDE.md *Breakpoints*). The app-wide `tapFloor` rail only sees rules already written with `var(--tap-min)`, so
+this tab's typed 44 px rules were invisible to it; the tab-level rail closes that gap without widening the shared rail.
+
+### D-034 · The registry gains `METRIC_META`; joining the catalog is not joining the picker
+
+**Decision.** `chartMetrics.js` holds `METRIC_META` — `short`, `drillKey`, `cadence`, `chartable` — for every chart metric
+and every heatmap metric. The nine heatmap-only keys (`is_ftd`, `advancing`, `declining`, `up/down_from_open`,
+`up/down_on_volume`, `spy_ma_stack`, `qqq_ma_stack`) enter `METRIC_META` but not `CHART_GROUPS`; `WEEKLY_METRICS` and
+`FFILL_KEYS` derive from `cadence`; `METRIC_REF_LINES` stays a sibling map in the same module.
+
+**Why.** R1 must be member-invisible (audit: `HM_METRICS` byte-identical). Adding the nine keys to `CHART_GROUPS` would put
+six new checkboxes in the legacy picker in a registry merge; D-012 offers them in V2 with coverage badges. Deriving the
+weekly set from `cadence` removes the last second copy of that list (`chartMetrics.WEEKLY_METRICS` and
+`heatmapMetrics.FFILL_KEYS` were two typed copies of the same five keys).
+
+### D-035 · The series endpoint is columnar, oldest-first, at most eight keys, cached as bytes under `breadth_history_`, and dark as a 404
+
+**Decision.** `GET /api/breadth-monitor/series?keys=&from=&to=` returns `{from, to, sessions, dates[], series{key: []},
+reconstructed[], missing[]}`; non-finite values are `null`; the span is counted in stored sessions and served through
+`get_history_deep` so reconstructed rows and rolling warm-up are unchanged; the encoded bytes are cached five minutes under
+`breadth_history_series_…`; `Cache-Control: private, max-age=60`; `BREADTH_SERIES_ENDPOINT_ENABLED` unset → 404.
+
+**Why.** D-008 chose a projected, pre-encoded route over a bigger `days=`. Columns carry each date once instead of once per
+metric; the `breadth_history_` prefix means every existing `delete_prefix` on snapshot writes already invalidates it, so no
+new invalidation path can be forgotten; `private` because the data is paid; and a dark route that answers 404 cannot be
+probed as a paid feature before it ships.

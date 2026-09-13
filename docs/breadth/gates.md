@@ -44,3 +44,17 @@ new files), reconciles · **9 failing tests in 8 files, 19,382 passed**.
   passed in 6.4 s, and it passed in this gate.
 
 **Verdict: no new failure.** C1 passes.
+
+## C2 chart mechanics (2026-09-13 13:45)
+
+Tree `391818e44` at start and end (C1, the merge of origin/master `2b0b184cd`, and C2's six commits) · wrapper
+`scripts/gate_shards.py` blob `2240e9c49` (updated by that merge) · 1,320 test files on disk, reconciles · **9 failing
+tests in 8 files, 19,448 passed**.
+
+- **Failing only on C2: none. Failing only on C1: none.** The nine are the same nine, test for test.
+- **Named-list rails unchanged:** reachability names only `lib/context/focusDivergence.js`; polling sites names the same
+  four files; tap floor names only `CaptureDialog.module.css: .actions`. The new modules `breadth/chartTicks.js`,
+  `breadth/chartZoom.js` and `breadth/chartMagnitude.js` are reachable and hold no polling site.
+- The file count rose by C2's four new test files and the test files the merge brought in from master.
+
+**Verdict: no new failure.** C2 passes.

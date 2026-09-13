@@ -79,3 +79,41 @@ owner action, Phase 6.
 > chart left open across the close picks up the day's row on its own. A reading that stopped arriving shows when it was
 > last reported, each percentile says how many readings it ranks against, the window counts sessions on Eastern Time,
 > and Stage 2/4 read "(MA Stack)" as they do on the Monitor.
+
+## Phase 3 — C1 in production (2026-09-13)
+
+- `d6ac61816` pushed 17:46:40Z; web SUCCESS 17:49:16Z; `/api/health` uptime 22 → 33 → 43 s on the new boot.
+- Member check on production (member-smoke; evidence local in `screenshots/after-c1/` and `measurements/after-c1.json`):
+  401 "Your session has ended.", 402 "Data Charts is part of the UCT plan.", 500 and a dropped connection "Breadth
+  history didn't load." at 1280 and 390 px, no page errors. None of them renders "No data in selected range." any more.
+
+## Phase 3 — C2 chart mechanics — MERGED (2026-09-13)
+
+- Plan [`docs/superpowers/plans/2026-09-13-breadth-charts-c2-chart-mechanics.md`](../superpowers/plans/2026-09-13-breadth-charts-c2-chart-mechanics.md);
+  decisions D-028 … D-031.
+- Commits: `db61fda59` plan · `b696d9398` axis dates carry their year · `f6fcb3e11` zoom as dates · `8f8b32986` lines belong
+  to metrics · `38ee722d0` runtime magnitude rule · `391818e44` tab wiring · `05f809314` merge of origin/master (7 commits,
+  none touching a C2 file or dependency).
+
+| Fix | Audit | Tests |
+|---|---|---|
+| Reference lines belong to metrics, survive a hand edit, and sit on their own family's axis (Volume Thrust's flat line on the net axis) | A-02, A-03 | `chartMetrics.test.js` resolveLines rails incl. every preset; `BreadthCharts.test.jsx` hand-edit and Volume Thrust |
+| A series flattened on a shared axis is named ("52W Lows (Close) is 300× smaller than Universe Count on this axis."); the `MAX_ABS` table is gone | A-04 | `chartMagnitude.test.js` (both round-one defects as fixtures; 4.8× and cross-axis controls); `BreadthCharts.mechanics.test.jsx` |
+| Axis dates carry their year by visible span; tooltip header "Fri, Sep 11, 2026" | A-06 | `chartTicks.test.js`; mechanics |
+| Zoom holds across selection changes and live ticks; a new range drops it | A-07 | `chartZoom.test.js`; mechanics (changed-range control) |
+| A hidden series stays hidden through rebuilds; the chart draws once, then updates instantly | A-08 | mechanics |
+| Notable Extremes only under MA Breadth | A-22 | mechanics |
+
+- Mutation proofs, control first, bytes restored, tree clean — 9/9 caught: inside-zoom write-back dropped · zoom range
+  check dropped · `legend.selected` dropped · first-paint motion dropped · Volume Thrust flat line dropped · every line on
+  axis 0 · magnitude limit 1000 · extremes in every group · ticks back to MM/DD.
+- One existing test changed meaning with A-03: "ignores a stored metric that no longer exists" compared every series name,
+  and VIX now brings its canonical 20 line as a marker series; it compares metric series only.
+- Gate ([`gates.md`](gates.md)): C2 `391818e44` fails the same nine tests as C1 — none new, none gone; the reachability,
+  polling-sites and tap-floor rails name the same files.
+- Watch coverage OK (web restart only). Pushed with this entry.
+
+> **What members will see.** Reference lines stay put when you add or remove a metric, and each sits on its own scale.
+> Axis dates carry their year. Zooming in holds while you change metrics or while the chart updates during the session, a
+> hidden series stays hidden, and the chart no longer replays its drawing every minute. When one line is too small to read
+> beside another on the same axis, the chart says so. Notable Extremes appears only under MA Breadth, where it draws.
