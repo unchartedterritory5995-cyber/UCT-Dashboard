@@ -448,6 +448,19 @@ def prepare_family(page, family, note_id, stamp, log):
 # while the run was online. The door is then one click away the instant the
 # transport comes back.
 FORCE_NAV = {"on": False, "path": "/charts"}
+
+# ⛔⛔ THE CELL THAT DECIDES — navigation with NO door at all.
+#
+# Every RED so far has changed TWO things at once: it left the note AND fired an
+# append door. Four reproductions of a confounded pair is still a confounded
+# pair. This removes the door entirely: queue an offline edit, leave the note,
+# fire NOTHING, come back, reconnect, drain.
+#
+# ⭐ If the member's words are gone with no door in the picture, the finding is
+# not about append doors at all — it is that a remount with queued work
+# overwrites the dirty record and deletes its intent, on the ordinary navigation
+# path every member takes.
+NO_DOOR = {"on": False, "path": "/charts"}
 SPA_RETURN = {"on": False}
 
 WARM_ROUTES = {
@@ -1099,7 +1112,11 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                          and 200 <= p["status"] < 300]
         offline(False)
         before_door = len(landed_before)
-        if family in METADATA:
+        if NO_DOOR["on"]:
+            # ⛔ NOTHING IS FIRED. The navigation already happened above; this
+            # cell's whole content is the absence of a door.
+            res = {"ok": True, "via": "NO DOOR — navigation only"}
+        elif family in METADATA:
             if family == "hero":
                 res = rig._fire_hero_door(page)
             else:
@@ -1118,7 +1135,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         page.wait_for_timeout(5000)
 
         # For an append family the row only counts if its OWN endpoint was hit.
-        if family in APPEND:
+        if family in APPEND and not NO_DOOR["on"]:
             hit = [p for p in posts if ENDPOINT[family] in p["u"]]
             if not hit:
                 return {"verdict": "INCONCLUSIVE",
@@ -1173,6 +1190,20 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         else:
             log("      stayed on the note — no return navigation (this is the variable)")
             page.wait_for_timeout(2000)
+
+        # ⛔⛔ THE EDITOR OWNS ITS OWN NOTE, so the drain SKIPS it (`excludeNoteId`).
+        # Measured 2026-09-13: after returning to the note, nothing was sent for
+        # 120s — the entry was not stuck, it was simply not the drain's to send,
+        # and the editor does not re-save content it did not change. Sitting on
+        # the note is therefore a state in which queued words never leave.
+        #
+        # ⭐ So the cell does what a member does next: it leaves the note. That
+        # releases the entry to the drain WITHOUT firing any door, which is the
+        # only way this experiment can reach the question it is asking.
+        if NO_DOOR["on"]:
+            page.goto(f"{base}/journal/notebook", wait_until="domcontentloaded")
+            page.wait_for_timeout(5000)
+            log("      released the note (editor closed) so the drain may take the entry")
         # ⛔ WATCH THE STORE, NOT JUST THE CLOCK. "The outbox emptied" has two
         # completely different causes and the same appearance:
         #   SENT       the entry went out and the server took the words
@@ -1184,7 +1215,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # the transition in the act, so the cell can NAME which one happened.
         drained, waited = False, 0
         trail = []
-        for _ in range(24):
+        for _ in range(48):
             page.wait_for_timeout(2500)
             waited += 2.5
             q2 = page.evaluate(QUEUED_JS, {"acct": acct, "noteId": note_id, "sentence": sentence})
@@ -1204,10 +1235,19 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         went_clean = any(t[1] in (0, False) for t in trail[1:]) if len(trail) > 1 else False
         lost_locally = any(t[3] is False for t in trail[1:]) if len(trail) > 1 else False
         if not drained:
+            # ⛔ AN INCONCLUSIVE CELL STILL OWES ITS EVIDENCE. The first version
+            # returned before computing the wire, so the one run that most needed
+            # explaining produced the least. What is queued, what went out, and
+            # what the record holds are facts whether or not the drain finished.
+            w = " · ".join(f"{q['m']} {q['u'].replace('/api/j2/notes','')[:40] or '/'}"
+                           f"{'+SENT' if q.get('carries_sentence') else ''}"
+                           f"→{q.get('status')}" for q in posts) or "no note calls"
+            log(f"      wire: {w}")
             return {"verdict": "INCONCLUSIVE",
                     "why": (f"the outbox still held this note's entry after {waited}s — the drain "
                             f"had not finished, so the server read would measure the clock rather "
-                            f"than the product. Not 'lost'; not yet delivered")}
+                            f"than the product. Not 'lost'; not yet delivered. "
+                            f"⭐ store trail: {trail} · wire: {w}")}
 
         # ── 6. read the SERVER (the editor is already open on the note) ──
         served = page.evaluate("""async (id) => {
@@ -1245,7 +1285,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
 
         # Did the door's own node survive the drain? Only an append family has one.
         node_ok, node_note = True, ""
-        if family in APPEND:
+        if family in APPEND and not NO_DOOR["on"]:
             marks = {"append_widget_embed": "widgetEmbed",
                      "append_financial_fact": "financialFact",
                      "append_document_excerpt": "documentExcerpt"}
@@ -1339,6 +1379,10 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--render-only", action="store_true")
+    ap.add_argument("--navigate-no-door", metavar="PATH", nargs="?", const="/charts",
+                    help="leave the note and come back WITHOUT firing any door. The "
+                         "cell that separates navigation from the append families. "
+                         "A CONTROLLED EXPERIMENT, never a table row.")
     ap.add_argument("--spa-return", action="store_true",
                     help="come back to the Notebook by SPA route change instead "
                          "of a document load. A CONTROLLED EXPERIMENT, never a row.")
@@ -1351,6 +1395,14 @@ def main() -> int:
                          "the refusal names the task it is protecting.")
     args = ap.parse_args()
 
+    if args.navigate_no_door:
+        NO_DOOR["on"] = True
+        NO_DOOR["path"] = args.navigate_no_door
+        WARM_ROUTES.clear()
+        for f in list(METADATA) + list(APPEND):
+            WARM_ROUTES[f] = args.navigate_no_door
+        print(f"⚠️ NAVIGATE-NO-DOOR: leave the note to {args.navigate_no_door} and come "
+              f"back, firing NOTHING. CONTROLLED EXPERIMENT, not a table row.")
     if args.spa_return:
         SPA_RETURN["on"] = True
         FORCE_NAV["on"] = FORCE_NAV["on"]  # independent switches
@@ -1536,7 +1588,7 @@ def main() -> int:
                     res = {"verdict": "INCONCLUSIVE",
                            "why": f"the cell raised {type(e).__name__}: {str(e)[:200]}"}
                 print(f"   ⇒ {res['verdict']}  {res['why'][:150]}")
-                if FORCE_NAV["on"] or SPA_RETURN["on"]:
+                if FORCE_NAV["on"] or SPA_RETURN["on"] or NO_DOOR["on"]:
                     # ⛔ A FORCED-NAV CELL IS NOT A TABLE CELL. It answers a
                     # different question, and banking it would put an answer to
                     # the wrong question in the artifact the freeze lifts on.
