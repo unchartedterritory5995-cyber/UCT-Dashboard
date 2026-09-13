@@ -583,11 +583,20 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
          fixture event, and re-run the mutation proof.
     """
     # ⛔ UPDATED BY NAMING, NEVER BY DELETING THE ASSERTION -- the docstring's own
-    # instruction. Flipped twice:
-    #   2026-09-12  `price-level`      GATE-S7-PRICE-LEVEL CP1
-    #   2026-09-12  `event-proximity`  GATE-S7-EVENT-PROXIMITY CP1
-    #   2026-09-12  `catalyst-match`   GATE-S7-CATALYST-MATCH CP1
-    #   2026-09-13  `position-risk`    GATE-S7-POSITION-RISK CP1-CP2
+    # instruction. The LIST is the authority; there is deliberately no count
+    # beside it.
+    #
+    # ⚰️ This line said "Flipped twice" next to a list of three, and then
+    # "Flipped four times" next to a list of four that was about to become five.
+    # A hand-typed count sitting beside the list it counts is the drift this
+    # repo keeps re-committing — inside the very control that exists to catch
+    # drift. The count is gone; read the list.
+    #
+    #   2026-09-12  `price-level`             GATE-S7-PRICE-LEVEL CP1
+    #   2026-09-12  `event-proximity`         GATE-S7-EVENT-PROXIMITY CP1
+    #   2026-09-12  `catalyst-match`          GATE-S7-CATALYST-MATCH CP1
+    #   2026-09-13  `position-risk`           GATE-S7-POSITION-RISK CP1-CP2
+    #   2026-09-13  `scan-membership-change`  GATE-S7-SCAN-MEMBERSHIP-CHANGE CP1-CP2
     #
     # ⚠️ STEPS 2 AND 3 ABOVE ARE STILL DELIBERATELY NOT DONE, and this is the
     # record of that decision rather than an oversight.
@@ -625,6 +634,21 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # being TOLD when a stop is hit. Precondition of the CP3 PR, never a
     # follow-up.
     #
+    # `scan-membership-change` CP1-CP2 is the same case as `catalyst-match`, and
+    # its own rails say so from the source: it imports neither `receipts` nor
+    # `delivery`, it reads NO screener table (it is handed the two sessions and
+    # their hit sets), every predicate it sees is armed by its own comparison
+    # harness, and `test_the_harness_is_the_only_caller_of_would_fire` keeps that
+    # true. It records no fire, so there is nothing to reconstruct and no feed
+    # row to drop. ⛔ Step 2 is a PRECONDITION at CP3, when the projection first
+    # writes a real fire against `screen_alert_subs`.
+    # ⚠️ This one is an ABSORPTION of a path that is COMPLETE, WIRED AND LIVE
+    # (`screen_alerts.run_nightly`, job `screener_screen_alerts`, 05:10 ET, both
+    # gates open on `web` as of a live read 2026-09-12). So its step 3 has a
+    # second half the other three did not: at the FLIP, the legacy switch-off --
+    # removing that job and the three `require_paid` router endpoints -- is
+    # MEMBER-VISIBLE and needs a member-impact paragraph in the same PR.
+    #
     # ⛔ `price-level` IS DIFFERENT NOW AND THE DISTINCTION MATTERS. It has an
     # evaluator (CP2) that is WIRED and ARMED (CP3/CP3b), writing real
     # alert_fires rows for the admin cohort. It still owes no reconstruction
@@ -640,7 +664,8 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
     # rather than left pointing at a name that no longer exists.
     _EXPECTED = {"document-arrival", "price-level", "event-proximity",
-                 "catalyst-match", "position-risk"}
+                 "catalyst-match", "position-risk",
+                 "scan-membership-change"}
 
     files, declared = _declared_trigger_types()
 
