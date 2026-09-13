@@ -307,6 +307,9 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     // ⭐ …and `movingAverage`, which shipped after that legend and therefore was
     // never in it either. One output, one chip.
     'movingAverage::ma',
+    // ⭐ …and `dataSeries` (P2.1), which postdates it by a further phase. Its one
+    // output IS the number, so it declares the chip the pane needs to be readable.
+    'dataSeries::value',
   ]
 
   /** Every plot in the registry that declares a VISIBLE chip. */

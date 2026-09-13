@@ -1628,6 +1628,10 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'avwap::avwap',
       'bb::middle',
       'cci::cci',
+      // ⭐ `dataSeries` AT P2.1 — the definition that computes nothing. A pane
+      // whose crosshair prints no number is a value nobody can read, and this one
+      // IS its number, so it declares a chip like every other primary plot.
+      'dataSeries::value',
       'donchian::middle',
       'ichimoku::kijun', 'ichimoku::tenkan',
       'macd::macd', 'macd::signal',
@@ -1678,7 +1682,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       // registrar for it to come from — it was never a `cs.indicators` block —
       // which makes it the first entry here that is engine-lane by construction
       // rather than by migration.
-      'movingAverage']
+      //
+      // ⭐ …AND SO IS `dataSeries` (P2.1), for the same reason one step further:
+      // it did not exist in any legacy shape at all, so the legacy lane could not
+      // have produced its chip even in principle.
+      'movingAverage', 'dataSeries']
     const LEGACY_LANE_CHIPS = []
     for (const id of ENGINE_LANE_CHIPS) {
       expect(ENGINE_OWNED.has(id),
@@ -2614,9 +2622,15 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // shape with no instance id — so there is no `cs.indicators.ma` block that was
     // retired and no hand-written refs to record. It is additive beside them.
     movingAverage: [],
+    // ⭐ `dataSeries` (P2.1) — the same claim, one step further out. It was never a
+    // legacy indicator, never a `cs.indicators` section and never a `cs.overlays`
+    // row: it did not exist in any shape before this phase, so there is nothing
+    // retired to record. The empty row is the declaration, and `neverHadABlock`
+    // below proves it by forbidding the id anywhere in `StockChart.jsx`.
+    dataSeries: [],
   }
   /** The definitions that never had a hand-written block to retire. */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'movingAverage', 'rsLine']
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'movingAverage', 'rsLine', 'dataSeries']
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
     rsi: 'computeRSI', bb: 'computeBB', macd: 'computeMACD', vwap: 'computeVWAP',
@@ -2625,7 +2639,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, movingAverage: null, rsLine: null,
+    avwap: null, atrBands: null, movingAverage: null, rsLine: null, dataSeries: null,
   }
 
   it('⛔ the two tables COVER the flip set — a missing row is a silent no-op', () => {
@@ -2915,7 +2929,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       flippedNotMigrated: [],
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
-      flipSetSize: 18,
+      flipSetSize: 19,
       mutableSets: [],
     })
   })

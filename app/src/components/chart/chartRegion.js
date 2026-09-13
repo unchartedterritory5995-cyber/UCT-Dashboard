@@ -96,6 +96,7 @@ export function resolveChartRegion(p) {
  * @param {object} [p.pane0Bands] `{volume?: {top,bottom}}` as fractions of pane 0
  * @param {number} [p.separatorHeight=1] pane divider thickness (px)
  * @param {string} [p.volumePaneKey='volume'] the key a separate volume pane carries
+ * @param {number} [p.pricePaneIndex=0] which pane the CANDLES are in
  * @returns {{type:'priceAxis'|'timeAxis'|'volume'|'indicator'|'price', key?:string}}
  */
 export function resolveChartRegionFromPanes(p) {
@@ -107,6 +108,19 @@ export function resolveChartRegionFromPanes(p) {
     pane0Bands = {},
     separatorHeight = 1,
     volumePaneKey = 'volume',
+    // ⛔⛔ THE CANDLES ARE NOT ALWAYS PANE 0, AND THIS USED TO ASSUME THEY WERE.
+    //
+    // ⚰️ MEASURED IN A BROWSER (P2.0d), on a chart with RSI moved Above Price:
+    // right-clicking the RSI pane opened the PRICE menu ("At $401.12" — a price
+    // read off a 0..100 oscillator axis), and right-clicking the CANDLES opened
+    // the VOLUME menu. Both wrong, both silent, and neither visible to any unit
+    // case because the suites that drive this resolver pass panes directly and
+    // had never built a stack with something above the candles.
+    //
+    // The hard-coded `0` dates from before a top pane was expressible. The caller
+    // knows where the candles actually are — it holds the candle series — so it
+    // says, and the default keeps every existing call site byte-identical.
+    pricePaneIndex = 0,
   } = p
 
   const plotBottom = height - timeAxisHeight
@@ -123,12 +137,18 @@ export function resolveChartRegionFromPanes(p) {
     // sixth type would be a new branch every consumer has to learn for a
     // one-pixel strip, and the menu it would open does not exist yet.
     if (y < bottom + separatorHeight || i === panes.length - 1) {
-      if (i === 0) {
+      if (i === pricePaneIndex) {
         // Pane 0 still holds bands: the overlay-mode volume row is inside it.
         const band = pane0Bands && pane0Bands.volume
         if (band && h > 0) {
-          const bandTop = band.top * h
-          const bandBot = (1 - band.bottom) * h
+          // ⛔ THE BAND IS A FRACTION OF **THIS PANE**, SO IT IS MEASURED FROM
+          // THIS PANE'S TOP. Both edges read `band.top * h` — an offset from the
+          // top of the CHART — which is the same buried "the candles start at 0"
+          // assumption as the hard-coded index above, and it misfires the same
+          // way once something sits above them. `top` is this pane's own offset,
+          // and it is 0 in every stack that has no top pane, so nothing moves.
+          const bandTop = top + band.top * h
+          const bandBot = top + (1 - band.bottom) * h
           if (y >= bandTop && y <= bandBot) return { type: 'volume' }
         }
         return { type: 'price' }

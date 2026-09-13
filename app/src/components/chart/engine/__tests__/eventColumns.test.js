@@ -205,6 +205,11 @@ const SHIPPED_COLUMNS = Object.freeze({
   // definition is covered by exactly the same rail as a native. Where the two
   // lanes differ is who FILLS the column, which is `computeFor`'s business.
   rsLine: ['rsLine'],
+  // ── P2.1, the DIRECT SERIES ──
+  // One plot, one column, no events — and the leanest row in this table by
+  // construction: the definition computes nothing, so there is nothing for it to
+  // signal. `columnKeys` reads the declaration, and the declaration is one line.
+  dataSeries: ['value'],
 })
 
 describe('columnKeys — plots ∪ events', () => {

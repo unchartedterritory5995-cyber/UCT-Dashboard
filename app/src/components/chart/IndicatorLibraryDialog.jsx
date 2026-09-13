@@ -66,11 +66,18 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
+import { catalogGeneration, userRefusalRows, REFUSED_CATEGORY } from './indicatorCatalog'
+// ⭐⭐ THE DISCOVERY SEAM (P2.2). The dialog used to union three local catalogues
+// itself. With securities and breadth in the picture that would have become five
+// sources, two of them remote, and "the dialog decides what discovery means" is
+// exactly what the facade exists to prevent. One list in, one row shape out.
 import {
-  catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
-  BUILT_IN_ROWS,
-} from './indicatorCatalog'
+  libraryRows, symbolLibraryRow, createFromResult, CAPABILITY,
+  SYMBOL_CATEGORY, BREADTH_CATEGORY,
+} from './discoveryCatalog'
+import useSymbolDiscovery from './useSymbolDiscovery'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
+import { parseSource } from './engine/sourceRef'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
@@ -106,9 +113,44 @@ export function matches(row, q) {
 export function isRowOn(row, settings) {
   if (row.builtIn === 'overlay') return liveOverlays(settings).length > 0
   if (row.builtIn === 'volume') return !isVolumeRemoved(settings)
+  // ⭐ A SYMBOL ROW IS "ON" WHEN AT LEAST ONE INSTANCE PLOTS IT. There is no
+  // `cs.indicators.QQQ` and never will be — the definition is `dataSeries` and
+  // the symbol is its INPUT — so the only honest reading is to count the
+  // instances actually pointed at it.
+  if (row.kind === 'security' || row.kind === 'breadth') return addedCount(row, settings) > 0
   return row.carvedOut
     ? settings?.indicators?.[row.id]?.enabled === true
     : isIndicatorEnabled(settings, row.id, ENGINE_OWNED)
+}
+
+/**
+ * How many visual instances currently plot this symbol.
+ *
+ * ⛔⛔ AND A COUNT IS NOT A CHECKMARK. For a technical indicator "on" means "it is
+ * on the chart" and clicking again turns it OFF. For a symbol that reading would
+ * be a lie in both directions: adding QQQ twice is APPROVED behaviour, so a tick
+ * implying "already added, nothing more to do" is wrong, and a click that REMOVED
+ * one of two identical panes would be unpredictable. The row therefore reports a
+ * count and always adds — see `rowAction`.
+ */
+export function addedCount(row, settings) {
+  const wanted = row.create && row.create.source
+  if (!wanted) return 0
+  const list = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
+  let n = 0
+  for (const inst of list) {
+    if (!inst || inst.deleted === true || inst.hidden === true) continue
+    const src = inst.inputs && inst.inputs.source
+    if (typeof src !== 'string') continue
+    // Compared through the PARSER, not by string equality: `sym:QQQ:close` and a
+    // future `sym:QQQ:volume` are the same instrument and different series, and
+    // only the grammar knows that.
+    const a = parseSource(src)
+    const b = parseSource(wanted)
+    if (a && b && a.kind === 'symbol' && b.kind === 'symbol'
+        && a.symbol === b.symbol && a.field === b.field) n += 1
+  }
+  return n
 }
 
 /** The settings blob after flipping one catalog row — the ONE write every
@@ -266,11 +308,22 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // now. They are unioned HERE rather than inside `catalogRows()` for the reason
   // written beside them: that function is the shipped DEFINITION manifest and two
   // railed consumers assert against it id-for-id.
-  const all = useMemo(
-    () => [...BUILT_IN_ROWS, ...catalogRows(registry), ...userCatalogRows(registry)],
-    [registry, generation],
+  const all = useMemo(() => libraryRows(registry), [registry, generation])
+  const localRows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
+
+  // ─── SYMBOLS AND BREADTH (P2.2) ──────────────────────────────────────────
+  //
+  // ⛔ SEARCH-ONLY, AND DELIBERATELY. The local catalogue is a browsable list of
+  // a few dozen things; the symbol universe is ~13,000 and is not a list anybody
+  // scrolls. A member sees these when they ask for them, which is also why the
+  // hook fires no request until there is a query.
+  const { results: symbolResults, loading: symbolsLoading, error: symbolsError } =
+    useSymbolDiscovery(query, open)
+  const symbolRows = useMemo(
+    () => symbolResults.map(symbolLibraryRow).filter(Boolean),
+    [symbolResults],
   )
-  const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
+  const rows = useMemo(() => [...localRows, ...symbolRows], [localRows, symbolRows])
 
   // ─── THE FORMULAS THAT ARE NOT ON THAT LIST, AND WHY ──────────────────────
   const refusals = useMemo(
@@ -298,17 +351,47 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   const groups = useMemo(() => {
     const order = [...new Set(rows.map((r) => r.category))]
     const mine = new Set(rows.filter((r) => r.userDefined).map((r) => r.category))
-    return [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+    // ⭐ AND THE THING YOU TYPED COMES FIRST (P2.2). A member who types `QQQ` is
+    // not browsing Momentum — they have named an instrument, and the answer must
+    // not be below four headings of technical indicators that happened to match
+    // on a tag. With an EMPTY box there are no symbol rows at all, so this is a
+    // search behaviour rather than a permanent re-ordering of the library.
+    const hits = new Set([SYMBOL_CATEGORY, BREADTH_CATEGORY].filter((c) => order.includes(c)))
+    return [
+      ...order.filter((c) => hits.has(c)),
+      ...order.filter((c) => !hits.has(c) && mine.has(c)),
+      ...order.filter((c) => !hits.has(c) && !mine.has(c)),
+    ]
   }, [rows])
 
+  /**
+   * What a click on this row DOES.
+   *
+   * ⛔⛔ TWO VERBS, AND THE ROW DECIDES WHICH. A technical row TOGGLES — that is
+   * the behaviour every member is trained on and it does not change. A symbol row
+   * ADDS, every time, because duplicates are approved and a toggle would have to
+   * pick one of two identical panes to remove.
+   */
+  const rowAction = useCallback((row) => {
+    if (row.kind === 'security' || row.kind === 'breadth') {
+      if (row.capability === CAPABILITY.UNSUPPORTED) return settings
+      // ⭐ THROUGH THE FACADE'S OWN CREATOR — the same door P2.1 proved, carrying
+      // the catalogue's display name so the legend reads `QQQ` and not `Series`.
+      return createFromResult(settings, {
+        ...row, shortName: row.id, capability: row.capability, create: row.create,
+      }, registry)
+    }
+    return toggledRow(row, settings, registry)
+  }, [settings, registry])
+
   const toggle = useCallback((row) => {
-    const next = toggledRow(row, settings, registry)
+    const next = rowAction(row)
     // Identity, not deep-equality: a REFUSED write returns `settings` itself and
     // the caller must be able to skip persisting. Calling `onChange`
     // unconditionally would persist a no-op and mark the preset custom for a
     // click that changed nothing.
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry])
+  }, [settings, onChange, rowAction])
 
   /** ⭐ chart-UX-walls TASK 6 — "+ Add another", on a row that is already ON.
    *
@@ -346,8 +429,8 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           type="search"
           role="searchbox"
           className={styles.search}
-          placeholder="Search indicators"
-          aria-label="Search indicators"
+          placeholder="Search indicators, symbols, breadth…"
+          aria-label="Search indicators, symbols and breadth"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -376,8 +459,17 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             <span className={styles.createArrow} aria-hidden="true">→</span>
           </button>
         )}
-        {rows.length === 0 && refusals.length === 0 && (
-          <div className={styles.empty}>No indicator matches “{query}”.</div>
+        {symbolsLoading && (
+          <div className={styles.empty} data-testid="symbols-loading">Searching symbols…</div>
+        )}
+        {/* ⛔ QUIET UNLESS IT IS THE WHOLE ANSWER. A member searching `rsi` who
+            also happens to hit a symbol-search failure does not care; one who
+            searched `QQQ` and got nothing does. */}
+        {symbolsError && rows.length === 0 && (
+          <div className={styles.empty} data-testid="symbols-error">{symbolsError}</div>
+        )}
+        {rows.length === 0 && refusals.length === 0 && !symbolsError && (
+          <div className={styles.empty}>No match for “{query}”.</div>
         )}
         {groups.map((category) => (
           <section key={category} className={styles.group}>
@@ -385,12 +477,16 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             <ul className={styles.list} role="listbox" aria-label={category}>
               {rows.filter((r) => r.category === category).map((row) => {
                 const on = isRowOn(row, settings)
+                const isSymbol = row.kind === 'security' || row.kind === 'breadth'
+                const count = isSymbol ? addedCount(row, settings) : 0
+                const unavailable = row.capability === CAPABILITY.UNSUPPORTED
                 return (
                   <li
-                    key={row.id}
+                    key={row.key || row.id}
                     role="option"
                     aria-selected={on}
                     data-def-id={row.id}
+                    data-kind={row.kind || 'technical'}
                     /* ⭐ THE PROVENANCE, ON THE ROW ITSELF. A member's formula is
                        a different KIND of thing from a shipped indicator — they
                        wrote it, only they have it, and it is theirs to delete —
@@ -399,13 +495,19 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                        happens to sit under. */
                     data-user-defined={row.userDefined ? 'true' : 'false'}
                     tabIndex={0}
+                    aria-disabled={unavailable ? 'true' : undefined}
                     className={`${styles.row} ${on ? styles.rowOn : ''} ${row.userDefined ? styles.rowMine : ''}`}
-                    onClick={() => toggle(row)}
+                    onClick={() => { if (!unavailable) toggle(row) }}
                     onKeyDown={(e) => {
+                      if (unavailable) return
                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(row) }
                     }}
                   >
-                    <span className={styles.check} aria-hidden="true">{on ? '✓' : ''}</span>
+                    {/* ⛔ A CHECKMARK ONLY WHERE IT MEANS "ON / CLICK TO TURN OFF".
+                        A symbol row reports how many copies are on the chart
+                        instead — see `addedCount` — because "added" must not read
+                        as "you cannot add another". */}
+                    <span className={styles.check} aria-hidden="true">{isSymbol ? '' : (on ? '✓' : '')}</span>
                     <span className={styles.main}>
                       <span className={styles.titleRow}>
                         {/* The LONG name here — `meta.name`. Menus, region titles
@@ -418,6 +520,19 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             heading scrolls out of view on a long list. */}
                         {row.userDefined && <span className={styles.mine}>Your formula</span>}
                         {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
+                        {/* ⭐ COMPACT, AND ONLY WHEN THERE IS SOMETHING TO SAY. */}
+                        {isSymbol && count > 0 && (
+                          <span className={styles.pill} data-testid="added-count">
+                            {count === 1 ? 'Added' : `Added ${count}`}
+                          </span>
+                        )}
+                        {/* ⛔ CAPABILITY, IN THE SERVER'S OWN WORDS. Never a
+                            guess, never a proxy — see `discoveryCatalog`. */}
+                        {unavailable && (
+                          <span className={styles.pill} data-testid="unavailable">
+                            {row.capabilityReason || 'Not available'}
+                          </span>
+                        )}
                         {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
                             definition's declared badge. See `repaintNotice`. */}
                         {repaintNotice(row)}
@@ -444,7 +559,10 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                         live control that writes nowhere — the exact defect this
                         phase retires. A second volume profile is not a thing the
                         canvas overlay can draw anyway. */}
-                    {on && !row.carvedOut && !row.singleton && (
+                    {/* ⛔ NOT ON A SYMBOL ROW. Clicking the row already ADDS, so a
+                        second control saying the same thing is two buttons for one
+                        verb. */}
+                    {on && !isSymbol && !row.carvedOut && !row.singleton && (
                       <button
                         type="button"
                         className={styles.addAnother}

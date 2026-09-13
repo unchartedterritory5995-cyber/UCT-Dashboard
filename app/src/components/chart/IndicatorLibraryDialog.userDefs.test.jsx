@@ -34,6 +34,7 @@ import { render, screen, cleanup, fireEvent, within } from '@testing-library/rea
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
 import { catalogRows, userCatalogRows, USER_CATEGORY, BUILT_IN_ROWS } from './indicatorCatalog'
+import { libraryRows, LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 import * as engineRegistry from './engine/nativeRegistry'
 import { installUserDefinitions, clearUserDefinitions, listDefinitions } from './engine/nativeRegistry'
 import { SHIPPED_DEF_IDS, REGISTRY_SIZES, idsByLane } from './engine/registrySizes'
@@ -58,7 +59,13 @@ import { evaluateFormula } from './builder/FormulaField'
 
 /** Every row the DIALOG offers from the SHIPPED lists, in render order. The
  *  member's own formulas are appended by the cases that install one. */
-const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows()]
+// ⭐ THE FACADE'S OWN LIST (P2.2) — see the sibling suite's note.
+//
+// ⚠️ THE SHIPPED HALF ONLY, which is what this name meant when it read
+// `[...BUILT_IN_ROWS, ...catalogRows()]`. `libraryRows` is the WHOLE union
+// including the member's formulas, and every case below adds a formula and
+// asserts `OFFERED() + 1` — so leaving them in would count each one twice.
+const OFFERED = () => libraryRows(engineRegistry).filter((r) => !r.userDefined)
 
 const USER_ID = 'u_a1b2c3d4e5f6'
 const OTHER_ID = 'u_ffffffffffff'
@@ -165,8 +172,21 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     install(memberFormula('20-bar average'))
     open()
     const ids = optionIds()
+    // ⛔ MINUS THE SUBSTRATE, WHICH IS A WRITTEN CLAIM AND NOT AN INLINE `if`.
+    // `dataSeries` is registered and deliberately NOT browsable — it plots
+    // whatever it is pointed at, so a row reading "Data Series" offering to plot
+    // `close` means nothing; its member-facing rows are QQQ and UCTA50, which
+    // carry the source. The set is asserted below so it cannot quietly grow.
     for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]) {
+      if (LIBRARY_HIDDEN_IDS.includes(shipped)) continue
       expect(ids, `${shipped} fell out of the library`).toContain(shipped)
+    }
+    expect([...LIBRARY_HIDDEN_IDS],
+      'the not-browsable set moved — a definition that silently stops being listed '
+      + 'is an indicator nobody can find, and no pixel gate can see it')
+      .toEqual(['dataSeries'])
+    for (const hidden of LIBRARY_HIDDEN_IDS) {
+      expect(ids, `${hidden} is hidden but still listed`).not.toContain(hidden)
     }
     expect(ids).toContain('volumeProfile')
     // Exactly the shipped catalogue plus exactly the installed formulas — no

@@ -63,6 +63,13 @@ export const SHIPPED_DEF_IDS = Object.freeze({
     // numeric sources — see `sourceRef.js`. In registration order, which is why
     // it is last rather than filed alphabetically.
     'movingAverage',
+    // ⭐⭐ AND THE FIRST DEFINITION THAT IS ITS SOURCE (P2.1). Every other id
+    // above names a CALCULATION; `series` names none — it hands its source
+    // through unchanged so a symbol, a breadth measure or another indicator's
+    // output can be plotted directly. It ships like any other native because it
+    // IS one; what is unusual is only that its member-facing name comes from its
+    // source rather than from this manifest.
+    'dataSeries',
   ]),
   server: Object.freeze(['rsLine']),
   ast: Object.freeze([]),

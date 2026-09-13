@@ -62,8 +62,8 @@ import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
   setInstancePanePosition, setInstanceDisplayTarget,
   setInstancePlotStyle, setInstanceDotSize } from './engine/instanceControls'
-import { resolveDisplayTarget } from './engine/displayTarget'
-import { sourceOptions, parsePaneOfTarget, derivedTargetFor } from './engine/sourceRef'
+import { resolveDisplayTarget, displayTargetOptions } from './engine/displayTarget'
+import { sourceOptions } from './engine/sourceRef'
 import {
   resolvePlotStyle, resolveDotSize, availableStyles, styleIrrelevantInputs,
   PLOT_STYLE_CHOICES, DOT_SIZE_CHOICES,
@@ -519,67 +519,62 @@ export default function ChartSettingsIndicators({
     // The one seam decides where it draws — the settings UI reads that answer, it
     // does not compute its own. (`displayTarget.js`: four places used to.)
     const where = resolveDisplayTarget(inst || { defId: row.defId }, settings, declared || 'pane')
-    const follows = parsePaneOfTarget(where)
-    const sourcePane = derivedTargetFor(
-      { ...(inst || { defId: row.defId }), placement: undefined },
-      def,
-      Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : [],
-      (id) => (registry && registry.getDefinition ? registry.getDefinition(id) : null),
-      (other) => resolveDisplayTarget(other, settings),
-    )
-    // A DERIVED instance has somewhere of its own to go back to; a plain pane
-    // oscillator has the two destinations it always had. A price overlay that is
-    // NOT derived still has none — and still gets its style controls below.
+    // ⭐⭐ THE DESTINATIONS COME FROM THE ENGINE SEAM (P2.3), NOT FROM HERE. This
+    // used to build its own three-entry list — the derived default, Price, Volume —
+    // and label it with its own `labelForTarget`, which meant the menu was the one
+    // place that decided what a pane could be called and which panes existed. The
+    // generator in `displayTarget.js` answers both, shares the legend's naming and
+    // tie-break, and is testable without mounting a modal. The view renders it.
+    const options = displayTargetOptions(inst || { defId: row.defId }, settings,
+      (id) => (registry && registry.getDefinition ? registry.getDefinition(id) : null))
     // ⛔ A PLAIN PRICE OVERLAY STILL GETS NOTHING, and that is not an oversight:
     // Bollinger and VWAP have exactly one place to draw and one shape to draw in,
     // so a destination menu would be a menu entry for something that does not
-    // work. What changed is that "price overlay" is no longer decided by the
-    // DECLARED target alone — a DERIVED instance declares `price` and means
-    // "wherever my source is", which is a real choice and gets the real menu.
-    if (!sourcePane && declared !== 'pane') return null
-    const labelForTarget = (t) => {
-      const owner = parsePaneOfTarget(t)
-      if (owner) {
-        const od = registry && registry.getDefinition ? registry.getDefinition(owner) : null
-        // Named after the pane's OWNER, which is what the user sees on the chart —
-        // "RSI pane", not "@rsi" and not the anonymous "Source pane".
-        const stem = od && od.meta ? (od.meta.shortName || od.meta.name) : null
-        return stem ? `${stem} pane` : 'Source pane'
-      }
-      if (t === 'volume') return 'Volume'
-      if (t === 'price') return 'Price'
-      return 'Own pane'
-    }
-    // ⭐ THE DERIVED DEFAULT IS THE FIRST ENTRY, and the other two shared panes
-    // follow it. De-duplicated by VALUE so `MA(Volume)` — whose default already is
-    // the volume pane — gets one Volume row, not two.
-    const options = sourcePane
-      ? [sourcePane, 'price', 'volume']
-        .filter((v, i, a) => a.indexOf(v) === i)
-        .map((v) => [v, labelForTarget(v)])
-      : (declared === 'pane' ? [['pane', 'Own pane'], ['volume', 'Volume']] : [])
-    const current = options.some(([v]) => v === where)
-      ? where
-      : (options.length ? options[0][0] : null)
-    const onOwnPane = where !== 'volume' && (declared === 'pane' || !!follows)
+    // work. The generator holds that gate now — it returns an EMPTY list for a
+    // definition that neither declares a pane nor reads a source — and the style
+    // controls below are NOT rendered for it either, which is the half of this
+    // gate that is easy to lose: the early return has always covered the WHOLE
+    // display section, and `ChartToolbar.flipB.test.jsx` reads VWAP's colour
+    // swatch by position — a second Outputs block is a different dialog.
+    if (!options.length) return null
+    const shared = options.filter((o) => o.group === 'shared')
+    const panes = options.filter((o) => o.group === 'panes')
+    // ⚠️ `where` CAN BE ABSENT FROM THE LIST, in exactly one case: a stored target
+    // naming a host that has since been DELETED. The dead host is deliberately not
+    // offered (see the generator), and nothing is written here — the fallback only
+    // decides what the closed select reads until the member picks a destination.
+    const current = options.some((o) => o.value === where) ? where : options[0].value
+    // ⭐ POSITION BELONGS TO WHATEVER OWNS A PANE, which is now a resolved fact
+    // rather than a definition one: `declared === 'pane'` was the old spelling and
+    // it excluded an MA the member has just given a pane of its own. Every case
+    // that showed this control before still shows it — RSI resolves to `'pane'`,
+    // an RSI on Volume resolves to `'volume'`, a guest resolves to `@host`.
+    const ownsPane = where === 'pane'
     const pos = inst && inst.placement && inst.placement.position === 'above' ? 'above' : 'below'
     const commit = (next) => { if (next !== settings) onChange?.({ ...next, preset: 'custom' }) }
     return (
       <>
-        {options.length ? (
-          <div className={styles.indRow}>
-            <span className={styles.indLabel}>Display in</span>
-            <select
-              className={styles.indSelect}
-              value={current}
-              aria-label={`${row.label} display in`}
-              onChange={(e) => commit(setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry))}
-            >
-              {options.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-            </select>
-          </div>
-        ) : null}
-        {onOwnPane && declared === 'pane' ? (
+        <div className={styles.indRow}>
+          <span className={styles.indLabel}>Display in</span>
+          <select
+            className={styles.indSelect}
+            value={current}
+            aria-label={`${row.label} display in`}
+            onChange={(e) => commit(setInstanceDisplayTarget(settings, row.instanceId, e.target.value, registry))}
+          >
+            {shared.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {/* ⭐ THE EXISTING PANES, UNDER A HEADING RATHER THAN MIXED IN. The
+                three above are places the chart always has; these are other
+                series the member put there, and an `optgroup` is the platform's
+                own way of saying so — no second menu, no second control. */}
+            {panes.length ? (
+              <optgroup label="Existing panes">
+                {panes.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </optgroup>
+            ) : null}
+          </select>
+        </div>
+        {ownsPane ? (
           <div className={styles.indRow}>
             <span className={styles.indLabel}>Pane position</span>
             <select

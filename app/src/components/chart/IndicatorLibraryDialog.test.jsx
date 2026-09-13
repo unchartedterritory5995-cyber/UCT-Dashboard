@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
 import { catalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
+import { libraryRows, DIRECT_SERIES_DEF_ID } from './discoveryCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
@@ -27,7 +28,17 @@ import * as engineRegistry from './engine/nativeRegistry'
 /** Every row the DIALOG offers, in render order — the union it actually makes.
  *  ⛔ DERIVED, NEVER TYPED: a row added to either list arrives here for free,
  *  which is the property the hand-typed section list this suite replaced lost. */
-const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows()]
+// ⭐⭐ READ FROM THE FACADE, NOT RE-UNIONED HERE (P2.2). The dialog's list used
+// to be `[...BUILT_IN_ROWS, ...catalogRows()]` composed in the component, and
+// this helper mirrored it. `discoveryCatalog.libraryRows` is that union now — so
+// reading it keeps this a derivation of the product rather than a second copy
+// that has to be edited every time the catalogue widens.
+//
+// ⛔ IT EXCLUDES THE SUBSTRATE, AND THAT IS A CLAIM WITH ITS OWN CASE BELOW.
+// `dataSeries` is registered and NOT browsable: it plots whatever it is pointed
+// at, so a row called "Data Series" offering to plot `close` means nothing to
+// anyone. The member-facing rows are QQQ and UCTA50, which carry the source.
+const OFFERED = () => libraryRows(engineRegistry)
 
 // ─── THE BROWSE / ADD SURFACE (spec §6) ─────────────────────────────────────
 //
@@ -93,7 +104,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     open()
     type('zzzzz')
     expect(screen.queryAllByRole('option')).toHaveLength(0)
-    expect(screen.getByText(/No indicator matches/)).toBeTruthy()
+    expect(screen.getByText(/No match for/)).toBeTruthy()
   })
 
   it('adding leaves the dialog OPEN and ticks the row (spec §6 add-and-stay-open)', () => {

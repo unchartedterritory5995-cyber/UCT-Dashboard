@@ -1450,9 +1450,9 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     // a user cannot put a name to. The literal is WIDENED and stays an equality:
     // a chip-bearing definition that stops being one still fails here.
     expect(chipBearing.sort(), 'the set of chip-bearing definitions moved')
-      .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku',
-        'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
-        'williamsR'])
+      .toEqual(['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian',
+        'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch',
+        'vwap', 'williamsR'])
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -3906,8 +3906,9 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // ⭐ SEVENTEEN AT PHASE C TASK 13: `rsLine` is the first `compute.kind:
     // 'server'` definition, so the set grew again with no flip and no block.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian', 'ichimoku',
+        'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
+        'williamsR'])
     for (const id of ENGINE_OWNED) expect(ENGINE_OWNED.has(id), id).toBe(true)
   })
 
@@ -4100,7 +4101,7 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     // menu with no edit to the menu, which is the same proof one definition
     // further out, and the first time it has been made by a definition that was
     // never a legacy indicator at all.
-    expect(items).toHaveLength(19)
+    expect(items).toHaveLength(20)
     expect(items).toHaveLength(catalogRows().length)
     expect(items.map(i => i.id)).toEqual(catalogRows().map(r => 'ind-' + r.id))
     expect(items.map(i => i.label)).toEqual(catalogRows().map(r => r.shortName))
@@ -4514,7 +4515,11 @@ describe('B4 Task 5 — the share link is derived, not a hand-list of the pilots
 describe('B4 Task 12 — Alt+Shift+A and right-click both reach the ONE library', () => {
   /** The dialog's own search box — `Sheet` portals into `document.body`, so this
    *  is queried on the document rather than on the render container. */
-  const libraryOpen = () => !!document.body.querySelector('[aria-label="Search indicators"]')
+  // ⚠️ A PREFIX MATCH, NOT AN EQUALITY. This read the label verbatim and broke
+  // when P2.2 widened the box to "Search indicators, symbols and breadth" — a
+  // copy edit failing a case about a KEYBOARD CHORD. The claim is that the
+  // library opened, which its search box is the marker for.
+  const libraryOpen = () => !!document.body.querySelector('[aria-label^="Search indicators"]')
 
   /** Press the chord and hand back the EVENT, so `defaultPrevented` is readable.
    *  `fireEvent` collapses that into a boolean return nobody reads by accident. */
@@ -6019,27 +6024,31 @@ describe('the chart options StockChart builds under PANE_MODE panes', () => {
     return H.chartOptionsCalls[0]
   }
 
+  /**
+   * The last `scaleMargins` the CANDLES' OWN scale was actually written.
+   *
+   * ⛔ NOT `opts()`. The chart-options effect runs BEFORE the render path on the
+   * first paint, so `paneLayoutRef` is still null there and `createChart` is
+   * handed `NO_STACK_MAIN_MARGINS`. The render path re-asserts the rectangle on
+   * the candles' own scale in the SAME pass that builds the layout — measured,
+   * and the reason that write exists at all: a parity case photographs the FIRST
+   * frame and nothing else.
+   *
+   * ⭐ HOISTED TO THE DESCRIBE so the pane-count rails below read the SAME write
+   * the bands/panes comparison does — one definition of "what the candles' scale
+   * was actually handed", not two.
+   */
+  const candleMargins = () => {
+    const candleSeries = (H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries') || {}).series
+    expect(candleSeries, 'no candle series was created').toBeTruthy()
+    const writes = H.scaleApplyCalls.filter(
+      c => c.series === candleSeries && c.options && c.options.scaleMargins)
+    expect(writes.length, 'the candles were never re-asserted a scaleMargins').toBeGreaterThan(0)
+    return writes[writes.length - 1].options.scaleMargins
+  }
+
   it('the candles keep the LAYOUT\'S rectangle, not the bands one', async () => {
     const { computePaneLayout, paneStackHeightPx, SEPARATOR_PX } = await import('../paneLayout')
-
-    /**
-     * The last `scaleMargins` the CANDLES' OWN scale was actually written.
-     *
-     * ⛔ NOT `opts()`. The chart-options effect runs BEFORE the render path on the
-     * first paint, so `paneLayoutRef` is still null there and `createChart` is
-     * handed `NO_STACK_MAIN_MARGINS`. The render path re-asserts the rectangle on
-     * the candles' own scale in the SAME pass that builds the layout — measured,
-     * and the reason that write exists at all: a parity case photographs the FIRST
-     * frame and nothing else.
-     */
-    const candleMargins = () => {
-      const candleSeries = (H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries') || {}).series
-      expect(candleSeries, 'no candle series was created').toBeTruthy()
-      const writes = H.scaleApplyCalls.filter(
-        c => c.series === candleSeries && c.options && c.options.scaleMargins)
-      expect(writes.length, 'the candles were never re-asserted a scaleMargins').toBeGreaterThan(0)
-      return writes[writes.length - 1].options.scaleMargins
-    }
 
     // ⭐ B5 TASK 12 — THE ORACLE IS ONE LAYOUT, READ TWICE. It used to be
     // `computePaneMargins(csForPaneMarginsFromSettings(cs, …), false).main` for
@@ -6081,6 +6090,55 @@ describe('the chart options StockChart builds under PANE_MODE panes', () => {
     } finally { __setPaneModeForTest(null); H.paneModel = null }
   })
 
+  // ─── THE CANDLES ARE NOT SQUEEZED OUT OF THEIR OWN PANE ──────────────────
+  //
+  // ⚰️ MEASURED IN A BROWSER, 2026-09-12: four indicator panes on a 690px chart
+  // left the candles 2.3 % of pane 0, and the price axis read −400 … 2,400 with
+  // AAPL at 332 drawn as a flat line. `paneLayout` computed the headroom from the
+  // whole price-pane BUDGET and divided it by the SHRINKING candle pane.
+  //
+  // ⛔ THIS IS THE RENDERER-SIDE HALF OF THAT RAIL, and it is deliberately not a
+  // second reading of `computePaneLayout`. It asserts on what the COMPONENT
+  // actually wrote to the candles' own price scale — `H.scaleApplyCalls`, the
+  // real `applyOptions` payload — so a layout that is right while the wiring
+  // hands the renderer something else still fails here. A mock cannot satisfy it
+  // with a frozen answer: the numbers come from the write.
+  it('⛔⛔ the candles keep a usable share of their scale, however many panes', () => {
+    __setPaneModeForTest('panes')
+    try {
+      // Every shipped oscillator on at once — the heaviest stack the registry can
+      // produce, and far past the four that were measured failing.
+      const HEAVY = () => mergeChartSettings({
+        volume: { visible: true },
+        indicators: Object.fromEntries(
+          ['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv']
+            .map((id) => [id, { enabled: true }])),
+      })
+      H.paneModel = { stackPx: 600 }
+      renderChart({ settings: HEAVY() })
+      const m = candleMargins()
+      const share = 1 - m.top - m.bottom
+      expect(share, `the candles were handed ${(share * 100).toFixed(1)}% of their pane — `
+        + 'a price scale given a sliver expands its range to fill it, and the axis '
+        + `reads nonsense (top ${m.top.toFixed(3)}, bottom ${m.bottom.toFixed(3)})`)
+        .toBeGreaterThan(0.25)
+      // ⭐ AND THE HEADROOM IS THE CONSTANT, not a number that grew with the stack.
+      expect(m.top, 'the headroom stopped being MAIN_TOP of the candles\' own pane')
+        .toBeCloseTo(0.30, 2)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+
+  it('⭐ CONTROL — with no oscillator pane at all the rectangle is unmoved', () => {
+    // The other direction: pane 0 IS the whole budget with an empty stack, so the
+    // fix may not have moved this chart by a fraction.
+    __setPaneModeForTest('panes')
+    try {
+      H.paneModel = { stackPx: 600 }
+      renderChart({ settings: mergeChartSettings({ volume: { visible: false }, indicators: {} }) })
+      expect(candleMargins().top).toBeCloseTo(0.30, 6)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+
   it('declares the divider draggable — spec 6, and not merely the library default', () => {
     __setPaneModeForTest('panes')
     try {
@@ -6096,6 +6154,107 @@ describe('the chart options StockChart builds under PANE_MODE panes', () => {
       H.paneModel = { stackPx: 300 }
       renderChart({ settings: SETTINGS(), frozen: true })
       expect(opts().layout.panes.enableResize).toBe(false)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+})
+// ─── P2.3 · A CHOSEN PANE SURVIVES THE WHOLE PIPELINE ───────────────────────
+//
+// ⭐⭐ THE ONE CLAIM ONLY THIS FILE CAN MAKE. Every engine suite can prove that
+// `resolveDisplayTarget` returns `@<host>` and that `resolvePlacement` turns it
+// into the host's pane index. None of them can prove that the instance carrying
+// that target SURVIVES the settings pipeline the component actually runs —
+// merge, migrate, normalise — and that is precisely where it did not.
+//
+// ⚰️ MEASURED. `validateInstance` knew three placement targets, so the instance
+// a member had just moved was judged malformed and DROPPED; the legacy
+// derivation then put a different moving average back, with no source and a
+// `price` target. The member saw their MA of QQQ recomputed against the chart's
+// own candles — `MA(5) 322.07` instead of `715.44` — with no error anywhere.
+// Every unit test stayed green throughout, because none of them rendered.
+describe('P2.3 — an explicit pane-host target reaches the binder', () => {
+  const build = async (target) => {
+    const registry = await import('../nativeRegistry')
+    const { createDirectSeries, lastCreatedInstance } = await import('../../discoveryCatalog')
+    const { addInstance, setInstanceInput, setInstanceDisplayTarget } = await import('../instanceControls')
+    const { symbolSource, paneOfTarget } = await import('../sourceRef')
+    let cs = mergeChartSettings({ volume: { visible: false }, indicators: {} })
+    const c1 = createDirectSeries(cs, symbolSource('QQQ', 'close'), registry, { name: 'QQQ' })
+    const host = lastCreatedInstance(cs, c1).instanceId
+    cs = c1
+    const withMa = addInstance(cs, 'movingAverage', registry)
+    const ma = lastCreatedInstance(cs, withMa).instanceId
+    cs = setInstanceInput(withMa, ma, 'source', symbolSource('QQQ', 'close'), registry)
+    cs = setInstanceDisplayTarget(cs, ma, target === 'host' ? paneOfTarget(host) : target, registry)
+    return { cs, host, ma }
+  }
+
+  const registryFor = async (defId) => (await import('../nativeRegistry')).getDefinition(defId)
+
+  /** What the BINDER was handed — not what the test built. */
+  const synced = () => {
+    const last = H.syncCalls[H.syncCalls.length - 1]
+    expect(last, 'no sync happened — this case would be vacuous').toBeTruthy()
+    return last
+  }
+
+  it('the instance is not dropped, and keeps its source AND its target', async () => {
+    __setPaneModeForTest('panes')
+    try {
+      const { cs, host, ma } = await build('host')
+      H.paneModel = { stackPx: 300 }
+      renderChart({ settings: cs })
+      await act(async () => { await Promise.resolve() })
+
+      const got = (synced().instances || []).find((i) => i.instanceId === ma)
+      expect(got, 'the moved instance never reached the binder — the list was '
+        + JSON.stringify((synced().instances || []).map((i) => i.instanceId))).toBeTruthy()
+      // The assertion that would have caught the live defect: the replacement
+      // instance read `close`.
+      expect(got.inputs.source, 'the move changed WHAT IT READS').toBe('sym:QQQ:close')
+      expect(got.placement.target).toBe(`@${host}`)
+      // …and no second moving average was conjured to stand in for it.
+      expect((synced().instances || []).filter((i) => i.defId === 'movingAverage').length).toBe(1)
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+
+  it('…and it lands in the HOST pane, on the host scale', async () => {
+    __setPaneModeForTest('panes')
+    try {
+      const { cs, host } = await build('host')
+      H.paneModel = { stackPx: 300 }
+      renderChart({ settings: cs })
+      await act(async () => { await Promise.resolve() })
+
+      const ctx = synced()
+      const pane = (ctx.paneLayout.panes || []).find((p) => p.key === host)
+      expect(pane, 'the host was allocated no pane').toBeTruthy()
+
+      // ⛔ RESOLVED AGAINST THE COMPONENT'S OWN LAYOUT AND ITS OWN `targetOf`,
+      // not a layout this file built. No QQQ bars exist in jsdom, so the guest
+      // computes an all-NaN column and correctly binds NOTHING — asserting on
+      // `addSeriesCalls` here would assert the absence of data, not placement.
+      // What this case owns is the DECISION the renderer would act on.
+      const inst = (ctx.instances || []).find((i) => i.defId === 'movingAverage')
+      const placed = ctx.resolvePlacement(inst, await registryFor(inst.defId), ctx)
+      expect(placed, 'the guest resolved to no placement at all').toBeTruthy()
+      expect(placed.paneIndex, 'the guest joined the candles instead of its host').toBe(pane.index)
+      expect(placed.follows, 'the guest did not name the host it follows').toBe(host)
+      expect(placed.scaleId, 'the guest asked for a ladder of its own').toBe('right')
+    } finally { __setPaneModeForTest(null); H.paneModel = null }
+  })
+
+  it('CONTROL — the same instance on its OWN pane was always fine', async () => {
+    // The half that already worked, kept so the case above is a statement about
+    // the TARGET and not about direct series in general.
+    __setPaneModeForTest('panes')
+    try {
+      const { cs, ma } = await build('pane')
+      H.paneModel = { stackPx: 300 }
+      renderChart({ settings: cs })
+      await act(async () => { await Promise.resolve() })
+      const got = (synced().instances || []).find((i) => i.instanceId === ma)
+      expect(got).toBeTruthy()
+      expect(got.inputs.source).toBe('sym:QQQ:close')
     } finally { __setPaneModeForTest(null); H.paneModel = null }
   })
 })

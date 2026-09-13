@@ -72,8 +72,23 @@ const H = vi.hoisted(() => ({
   legendChipKeys: [],
   engineChipKeys: [],
   legacyChipKeys: [],
+  // ── A REAL PANE LIST, BECAUSE PANE COUNT IS NOW A CLAIM (P2.0c) ────────────
+  //
+  // ⛔⛔ THE OLD MOCK ANSWERED `panes()` WITH ONE FROZEN PANE and `getPane()`
+  // with a fresh stub carrying no index. Under that harness the binder's
+  // "create at `chart.panes().length`" always meant index 1, so EVERY own-pane
+  // indicator landed on the same recorded index and "one pane" and "two panes"
+  // were the same measurement. The case below asserted ONE pane for two RSIs and
+  // would have stayed green through the reversal — the exact shape of the Alerts
+  // lesson: a fixture that cannot express the variant cannot protect the class.
+  //
+  // This models what the binder actually uses: a growing ordered list, membership
+  // per pane, `paneIndex()` read off the list (so a `moveTo` really renumbers),
+  // and `getSeries()` for the exclusivity test.
+  panes: [],
   reset() {
     H.addSeriesCalls.length = 0
+    H.panes.length = 0
     H.crosshairHandlers.length = 0
     H.chartContainers.length = 0
     H.legendChipKeys.length = 0
@@ -112,9 +127,45 @@ vi.mock('../readout', async (importOriginal) => {
 })
 
 vi.mock('lightweight-charts', () => {
+  /** The pane at `i`, creating every pane up to it — `addSeries(…, n)` where `n`
+   *  is the current count is how LWC is asked for a NEW pane. */
+  const ensurePane = (i) => {
+    while (H.panes.length <= i) {
+      const members = []
+      const pane = {
+        __members: members,
+        getHeight: () => 300,
+        getHTMLElement: () => document.createElement('div'),
+        getSeries: () => members.slice(),
+        paneIndex: () => H.panes.indexOf(pane),
+        // REMOVE-AND-INSERT, as `PaneApi.moveTo` is — see `binder.reconcilePaneOrder`.
+        moveTo: (to) => {
+          const from = H.panes.indexOf(pane)
+          if (from < 0 || to === from || to < 0 || to >= H.panes.length) return
+          H.panes.splice(from, 1)
+          H.panes.splice(to, 0, pane)
+        },
+        setStretchFactor: () => {}, getStretchFactor: () => 1,
+        priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
+      }
+      H.panes.push(pane)
+    }
+    return H.panes[i]
+  }
+  const joinPane = (s, i) => {
+    const prev = s.__pane
+    if (prev) {
+      const at = prev.__members.indexOf(s)
+      if (at >= 0) prev.__members.splice(at, 1)
+    }
+    const pane = ensurePane(i)
+    pane.__members.push(s)
+    s.__pane = pane
+  }
   const makeSeries = (ctor, options) => {
     const s = {
       __ctor: ctor,
+      __pane: null,
       __options: { ...(options || {}) },
       setData: () => {}, update: () => {},
       applyOptions: (o) => { Object.assign(s.__options, o || {}) },
@@ -122,7 +173,8 @@ vi.mock('lightweight-charts', () => {
       createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {},
       attachPrimitive: () => {}, detachPrimitive: () => {},
       priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => s.__options,
-      moveToPane: () => {}, getPane: () => ({ getHeight: () => 300 }),
+      moveToPane: (to) => { joinPane(s, to) },
+      getPane: () => s.__pane || ensurePane(0),
       dataByIndex: () => null,
     }
     return s
@@ -143,15 +195,23 @@ vi.mock('lightweight-charts', () => {
   const chart = {
     addSeries: (ctor, options, paneIndex) => {
       const s = makeSeries(ctor, options)
+      joinPane(s, Number.isInteger(paneIndex) ? paneIndex : 0)
       H.addSeriesCalls.push({ ctor, options, paneIndex, series: s })
       return s
     },
     addCustomSeries: (_impl, options, paneIndex) => {
       const s = makeSeries('custom', options)
+      joinPane(s, Number.isInteger(paneIndex) ? paneIndex : 0)
       H.addSeriesCalls.push({ ctor: 'custom', options, paneIndex, series: s })
       return s
     },
-    removeSeries: () => {},
+    removeSeries: (s) => {
+      const pane = s && s.__pane
+      if (!pane) return
+      const at = pane.__members.indexOf(s)
+      if (at >= 0) pane.__members.splice(at, 1)
+      s.__pane = null
+    },
     applyOptions: () => {},
     priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
     timeScale: () => timeScale,
@@ -161,7 +221,7 @@ vi.mock('lightweight-charts', () => {
       const i = H.crosshairHandlers.indexOf(fn); if (i >= 0) H.crosshairHandlers.splice(i, 1)
     },
     subscribeClick: () => {}, unsubscribeClick: () => {},
-    panes: () => [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div') }],
+    panes: () => { ensurePane(0); return H.panes.slice() },
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
@@ -1320,6 +1380,8 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
         // …and `movingAverage`, the first definition whose INPUT is a series.
         'movingAverage::ma',
+        // …and `dataSeries` (P2.1), the first definition that IS its series.
+        'dataSeries::value',
       ].sort())
     // …and the control: the shipped nine are still in it, character for character,
     // read off the SHIPPED ARTIFACT rather than re-typed above.
@@ -1589,7 +1651,19 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     return []
   }
 
-  it('⭐ TWO RSIs at different periods draw TWO lines, in ONE pane, with TWO chips', async () => {
+  it('⭐⭐ TWO RSIs at different periods draw TWO LINES, TWO PANES and TWO CHIPS', async () => {
+    // ⚰️ THIS CASE USED TO ASSERT **ONE** PANE, and it said so in a paragraph that
+    // told the next reader to STOP and report if the count ever moved. The count
+    // moved, on purpose: the owner's P2.0c ruling is OPTION D — *"a definition is
+    // not a pane"*. Two instances each set to their own pane are two panes, the
+    // same way three `series` instances carrying three different instruments are
+    // three panes. The old premise was a consequence of `orderedPaneKeys` keying
+    // by `def.id`, never a display decision anybody made.
+    //
+    // ⛔ AND THE HARNESS HAD TO GROW BEFORE THIS COULD BE MEASURED. The mock
+    // answered `panes()` with one frozen pane, so both RSIs recorded the same
+    // create index and this case would have stayed green through the reversal.
+    // See `H.panes`.
     const two = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
       settingsOverride={legendAlways(TWO_RSI())} alwaysShowLegend />)
     const labels = (await offCursorChips(two)).map(t => t.split(' ')[0])
@@ -1602,26 +1676,25 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const twoLines = H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor)
     expect(twoLines, 'the second instance was never bound — one line, two chips')
       .toHaveLength(2)
+    // ⭐⭐ AND THEY ARE IN DIFFERENT PANES — asked of the SERIES, not of the
+    // layout, because the layout is the intention and this is the renderer.
+    expect(twoLines[0].series.getPane(), 'the two RSIs share one pane — the P2.0c '
+      + 'ruling is that a definition is not a pane, so two own-pane instances are two panes')
+      .not.toBe(twoLines[1].series.getPane())
     const twoPanes = paneIndices()
     two.unmount(); cleanup(); H.reset()
 
-    // ⛔ ONE PANE, NOT TWO — `orderedPaneKeys` dedupes by `def.id`, so both land
-    // on the pane keyed 'rsi' and share its 0..100 scale. That is the v1 ruling
-    // and it is the display a fast/slow RSI trader wants; a pane-count change
-    // here is a regression, not a feature, because the pane manifest is what the
-    // pixel gate diffs.
+    // …against the ONE-RSI control, which must still be one pane. The widening
+    // has to add a pane per extra INSTANCE and not per anything else.
     const one = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
       settingsOverride={legendAlways(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))}
       alwaysShowLegend />)
     expect((await offCursorChips(one)).length, 'the one-RSI control drew nothing').toBe(1)
     expect(H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor),
       'the control drew more than one RSI line').toHaveLength(1)
-    expect(twoPanes, 'the duplicate created a SECOND pane. `orderedPaneKeys` dedupes by defId '
-      + '(paneLayout) and `resolvePlacement` resolves `const key = def.id`, so if this is now '
-      + 'two panes the v1 premise moved and every pane-manifest expectation in '
-      + '`tools/chart_parity_cases.json` has to be re-derived — STOP and report.')
-      .toEqual(paneIndices())
-    expect(twoPanes.size, 'the fixture drew into a single pane — "one pane, not two" is vacuous')
+    expect(twoPanes.size, 'the duplicate did NOT create a second pane')
+      .toBe(paneIndices().size + 1)
+    expect(paneIndices().size, 'the control drew into a single pane — the comparison is vacuous')
       .toBeGreaterThan(1)
     one.unmount()
   })
@@ -1819,7 +1892,7 @@ describe('the indicator pane prints its own name and value, top-left', () => {
   it('an RSI pane carries `RSI(14)` and the hovered value', async () => {
     const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
-    const row = paneRow(view, 'rsi')
+    const row = paneRow(view, 'legacy:rsi')
     expect(row, 'the RSI pane printed no readout at all').toBeTruthy()
     // ⚠️ THE LABEL COMES FROM `legendParams`, NOT FROM THIS FILE. RSI declares
     // `legendParams: ['period']`, which is what puts the 14 in parentheses — the
@@ -1846,13 +1919,65 @@ describe('the indicator pane prints its own name and value, top-left', () => {
     // that reason and it had to come back out.
     const rows = paneRows(view).map((el) => el.dataset.paneLegend)
     expect(rows.length, 'expected one readout per indicator pane').toBe(2)
-    expect(rows).toEqual(['rsi', 'macd'])
+    expect(rows).toEqual(['legacy:rsi', 'legacy:macd'])
+  })
+
+  it('⭐⭐ §11 · TWO RSI INSTANCES GET TWO READOUTS, one per pane, not one merged', async () => {
+    // ⛔⛔ THE LEGEND HALF OF OPTION D. `paneReadoutRows` grouped by `defId`: two
+    // RSIs collapsed into ONE row, so the second pane — a real pane, with a real
+    // series in it — printed nothing at all, and the row that did print named a
+    // definition rather than either instance.
+    //
+    // ⚠️ HOST KEYS, NOT LABELS, ARE WHAT THIS ASSERTS. Both rows read `RSI(…)`
+    // and differ only in the period; matching on text would pass on one row
+    // rendered twice. The attribute is the identity.
+    const cs = mergeChartSettings({ indicators: { rsi: { enabled: true } } })
+    const seeded = cs.indicatorInstances.find((i) => i.defId === 'rsi')
+    const view = draw({
+      ...cs,
+      indicatorInstances: [
+        { ...seeded, inputs: { ...(seeded.inputs || {}), period: 14 } },
+        { instanceId: 'inst:rsi:1', defId: 'rsi', defVersion: seeded.defVersion,
+          inputs: { ...(seeded.inputs || {}), period: 7 },
+          placement: seeded.placement, hidden: false },
+      ],
+    })
+    // ⚠️ NO PER-CHIP VALUES: `seriesByChip` resolves a chip by its DECLARED
+    // COLOUR, and two instances of one definition wear the same one, so it throws
+    // by name rather than guess. The label is what this case is about, and the
+    // label prints off-cursor.
+    await settledLegend(view, crosshairWith(null))
+    const rows = paneRows(view).map((el) => el.dataset.paneLegend)
+    expect(rows, 'the two RSI panes did not get one readout each — grouping by '
+      + 'definition merges them and the second pane goes silent')
+      .toEqual(['legacy:rsi', 'inst:rsi:1'])
+    // Non-vacuity: they really are the two different periods, in stack order.
+    expect(paneRow(view, 'legacy:rsi').textContent).toContain('RSI(14)')
+    expect(paneRow(view, 'inst:rsi:1').textContent).toContain('RSI(7)')
+  })
+
+  it('⭐ §11 · …and a follower prints in ITS HOST\'s row, not in a row of its own', async () => {
+    // `MA(RSI)` draws inside RSI's pane and reserves none, so its chip belongs to
+    // RSI's readout. A follower that opened a row would be claiming a pane.
+    const cs = mergeChartSettings({ indicators: { rsi: { enabled: true } } })
+    const seeded = cs.indicatorInstances.find((i) => i.defId === 'rsi')
+    const view = draw({
+      ...cs,
+      indicatorInstances: [
+        seeded,
+        { instanceId: 'inst:ma:1', defId: 'movingAverage', hidden: false,
+          inputs: { source: '@legacy:rsi::rsi', period: 5, maType: 'sma' } },
+      ],
+    })
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
+    const rows = paneRows(view).map((el) => el.dataset.paneLegend)
+    expect(rows, 'the follower opened a readout row of its own').toEqual(['legacy:rsi'])
   })
 
   it('a pane prints EVERY chip-bearing plot and no other — MACD, SIG, no histogram', async () => {
     const view = draw(mergeChartSettings({ indicators: { macd: { enabled: true } } }))
     await settledLegend(view, crosshairWith({ 'macd::macd': 2.5, 'macd::signal': 1.75 }))
-    const row = paneRow(view, 'macd')
+    const row = paneRow(view, 'legacy:macd')
     expect(row.textContent).toContain('MACD')
     expect(row.textContent).toContain('SIG')
     // ⛔ THE HISTOGRAM IS THE CONTROL. It declares `legend: { hide: true }`, so a
@@ -2024,5 +2149,110 @@ describe('the volume pane — its legend row and its own strip', () => {
     const volLegend = css.match(/\.volLegend,\s*\.paneLegend\s*\{([^}]*)\}/)
     expect(volLegend, 'the strip no longer shares the readout box rule').toBeTruthy()
     expect(volLegend[1]).toMatch(/font-size:\s*10px/)
+  })
+})
+
+// ─── §22 · "ABOVE PRICE" IS A PANE-KEY QUESTION TOO ─────────────────────────
+//
+// ⛔⛔ THE SEAM WITH NO COVERAGE UNTIL NOW. `StockChart` derives `topKeys` from
+// the instances carrying `placement.position: 'above'` and hands the set to
+// `computePaneLayout`, which intersects it with the pane keys it just built. Pane
+// keys became host instance ids in P2.0c; the derivation still emitted `defId`,
+// so the intersection was EMPTY and every top pane silently fell to the bottom of
+// the stack. Nothing failed — the chart just drew the wrong stack, which is the
+// exact class of defect the Alerts round was about.
+//
+// ⭐ MEASURED OFF THE SERIES, not off the layout: the layout is the intention and
+// this is what the renderer was actually asked for.
+describe('§22 · an instance placed ABOVE price really lands above the candles', () => {
+  const rsiAbove = () => {
+    const cs = mergeChartSettings({ indicators: { rsi: { enabled: true } } })
+    const seeded = cs.indicatorInstances.find((i) => i.defId === 'rsi')
+    return {
+      ...cs,
+      indicatorInstances: [{
+        ...seeded,
+        placement: { ...(seeded.placement || {}), position: 'above' },
+      }],
+    }
+  }
+  const rsiColor = () => registry.getDefinition('rsi').inputs.find(i => i.key === 'color').default
+  /** The pane the RSI line ENDED UP in. Not the create index: an own pane is
+   *  always CREATED at the end of the stack — the one index LWC reads as "make a
+   *  new pane" — and `reconcilePaneOrder` then moves it, one move per frame. */
+  const settledAt = async (view, color) => {
+    const hit = H.addSeriesCalls.find(c => c.options && c.options.color === color)
+    expect(hit, 'the RSI line was never created').toBeTruthy()
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise(r => setTimeout(r, 20)) })
+      if (hit.series.getPane().paneIndex() === 0) break
+    }
+    return hit.series.getPane().paneIndex()
+  }
+
+  it('⛔⛔ the top pane is asked for at index 0, not appended to the bottom', async () => {
+    const view = draw(rsiAbove())
+    await settledLegend(view, crosshairWith(null))
+    expect(await settledAt(view, rsiColor()), 'RSI above price never reached the top — '
+      + '`topKeys` is a PANE-KEY set and the derivation handed it definition ids, so the '
+      + 'intersection with the built keys was empty and the pane stayed at the bottom')
+      .toBe(0)
+    const candles = H.addSeriesCalls.find(c => c.ctor === 'CandlestickSeries')
+    expect(candles.series.getPane().paneIndex(), 'the candles were not displaced').toBe(1)
+    view.unmount()
+  })
+
+  it('⛔⛔ …and the right-click menu knows WHICH pane is which, top to bottom', async () => {
+    // ⚰️ MEASURED IN A BROWSER (P2.0d), on exactly this chart: right-clicking the
+    // RSI pane opened the PRICE menu — "At $401.12", a price read off a 0..100
+    // oscillator axis — and right-clicking the CANDLES opened the VOLUME menu.
+    // `resolveChartRegionFromPanes` hard-coded "index 0 is the candles", which was
+    // true until an indicator could sit above them.
+    //
+    // ⛔ THE PURE RESOLVER'S OWN CASES CANNOT COVER THIS, because they pass
+    // `pricePaneIndex` themselves. What has to be proven HERE is that StockChart
+    // tells it where the candles actually are.
+    const view = draw(rsiAbove())
+    await settledLegend(view, crosshairWith(null))
+    await settledAt(view, rsiColor())          // let the pane move land
+
+    const el = H.chartContainers.at(-1)
+    const H_PX = 800
+    el.getBoundingClientRect = () => ({
+      left: 0, top: 0, right: 900, bottom: H_PX, x: 0, y: 0, width: 900, height: H_PX,
+      toJSON: () => ({}),
+    })
+    const seen = []
+    const onCtx = (e) => seen.push(e.detail.region)
+    window.addEventListener('uct:chart-contextmenu', onCtx)
+    try {
+      for (let y = 2; y < H_PX; y += 4) {
+        fireEvent.contextMenu(el, { clientX: 120, clientY: y })
+      }
+    } finally {
+      window.removeEventListener('uct:chart-contextmenu', onCtx)
+      delete el.getBoundingClientRect
+    }
+
+    // The ORDER the regions appear in scanning downward IS the pane stack.
+    const order = seen
+      .map((r) => (r.type === 'indicator' ? `indicator:${r.key}` : r.type))
+      .filter((v, i, a) => v !== a[i - 1])
+    expect(order[0], 'the pane ABOVE the candles did not resolve to its indicator — '
+      + `the scan read ${JSON.stringify(order)}`)
+      .toBe('indicator:rsi')
+    expect(order, 'the candles never resolved to the price area').toContain('price')
+    expect(order.indexOf('price'), 'the price area came out ABOVE the top pane')
+      .toBeGreaterThan(0)
+    view.unmount()
+  })
+
+  it('⭐ …and the control — no `position` — still asks for the bottom', async () => {
+    // Non-vacuity. Without this the case above passes on any chart whose first
+    // indicator happens to be created at 0.
+    const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
+    await settledLegend(view, crosshairWith(null))
+    expect(await settledAt(view, rsiColor()), 'the default stack changed').not.toBe(0)
+    view.unmount()
   })
 })

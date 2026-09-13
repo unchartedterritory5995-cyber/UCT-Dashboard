@@ -454,12 +454,17 @@ export function createBinder({ chart, LWC }) {
    */
   function reconcilePaneOrder(layout, entries) {
     if (!layout || !Array.isArray(layout.panes) || !layout.panes.length) return
-    /** defId → a series known to live in that indicator's own pane. */
+    /** HOST INSTANCE id → the series living in that host's own pane.
+     *
+     *  ⭐⭐ INSTANCE, NOT DEFINITION (P2.0c). `want.key` is a PANE key, and a pane
+     *  is named by the instance that hosts it — two own-pane RSIs are two panes and
+     *  a `defId` map could only ever answer for one of them, so the second pane
+     *  never got moved to its index. */
     const paneSeries = new Map()
     for (const e of entries) {
       if (!e || !e.ownPane || !e.series) continue
-      const defId = e.b && e.b.defId
-      if (typeof defId === 'string' && defId && !paneSeries.has(defId)) paneSeries.set(defId, e.series)
+      const host = e.b && e.b.instanceId
+      if (typeof host === 'string' && host && !paneSeries.has(host)) paneSeries.set(host, e.series)
     }
     if (!paneSeries.size) return
 
@@ -520,12 +525,14 @@ export function createBinder({ chart, LWC }) {
    */
   function reconcileTenants(entries) {
     if (!Array.isArray(entries) || !entries.length) return false
-    /** defId → a series living in that indicator's own pane. */
+    /** HOST INSTANCE id → the series living in that host's own pane. `e.follows`
+     *  is an instance id since P2.0c — `MA(RSI B)` follows RSI **B**, and keying
+     *  this by `defId` would have handed it RSI A's pane. */
     const owners = new Map()
     for (const e of entries) {
       if (!e || !e.ownPane || !e.series) continue
-      const defId = e.b && e.b.defId
-      if (typeof defId === 'string' && defId && !owners.has(defId)) owners.set(defId, e.series)
+      const host = e.b && e.b.instanceId
+      if (typeof host === 'string' && host && !owners.has(host)) owners.set(host, e.series)
     }
     let moved = false
     for (const e of entries) {
@@ -942,16 +949,16 @@ export function createBinder({ chart, LWC }) {
      *  the two that matter, and neither is a binding. */
     const seriesOwner = new Map()
     for (const h of held) {
-      if (!h || !h.series || typeof h.defId !== 'string' || !h.defId) continue
-      if (!ownPaneSeries.has(h.defId)) ownPaneSeries.set(h.defId, h.series)
-      seriesOwner.set(h.series, h.defId)
+      if (!h || !h.series || typeof h.instanceId !== 'string' || !h.instanceId) continue
+      if (!ownPaneSeries.has(h.instanceId)) ownPaneSeries.set(h.instanceId, h.series)
+      seriesOwner.set(h.series, h.instanceId)
     }
 
     /** Is `pane` occupied by this indicator ALONE? */
-    const paneIsExclusivelyOurs = (pane, defId) => {
+    const paneIsExclusivelyOurs = (pane, host) => {
       const list = attempt(() => pane.getSeries())
       if (!list.ok || !Array.isArray(list.value)) return false
-      return list.value.every((s2) => seriesOwner.get(s2) === defId)
+      return list.value.every((s2) => seriesOwner.get(s2) === host)
     }
     for (const b of bind) {
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
@@ -1051,7 +1058,7 @@ export function createBinder({ chart, LWC }) {
           // belonged (measured in `flipCGeometry`). The first series of an
           // indicator CREATES the pane; its siblings JOIN the pane it landed in,
           // read back live because a reconcile may have moved it since.
-          const sibling = ownPaneSeries.get(b.defId)
+          const sibling = ownPaneSeries.get(b.instanceId)
           if (sibling) {
             const at = attempt(() => sibling.getPane().paneIndex())
             if (at.ok && Number.isInteger(at.value)) createAt = at.value
@@ -1065,8 +1072,9 @@ export function createBinder({ chart, LWC }) {
         if (!created.ok || !created.value) continue
         series = created.value
         guideHandles = []
-        if (ownPane && typeof b.defId === 'string' && b.defId && !ownPaneSeries.has(b.defId)) {
-          ownPaneSeries.set(b.defId, series)
+        if (ownPane && typeof b.instanceId === 'string' && b.instanceId
+            && !ownPaneSeries.has(b.instanceId)) {
+          ownPaneSeries.set(b.instanceId, series)
         }
       } else {
         // ── THE #2049 ESCAPE ──
@@ -1180,7 +1188,7 @@ export function createBinder({ chart, LWC }) {
             // as "make a new pane" — and the reconcile then positions it. Skipping
             // this is what broke `#2049 — moving a series to a new pane REUSES it`.
             const cur = attempt(() => series.getPane())
-            const mine = cur.ok && cur.value && paneIsExclusivelyOurs(cur.value, b.defId)
+            const mine = cur.ok && cur.value && paneIsExclusivelyOurs(cur.value, b.instanceId)
             if (!mine) {
               const count = attempt(() => chart.panes().length)
               const to = (count.ok && Number.isInteger(count.value)) ? count.value : paneIndex

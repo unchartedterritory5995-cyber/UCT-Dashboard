@@ -242,7 +242,10 @@ describe('the catalog covers every settings section, and nothing else', () => {
   })
 
   it('splits by placement target, not by a hand-written list', () => {
-    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'rsLine'])
+    // ⭐ `dataSeries` (P2.1) IS A PANE DEFINITION and lands at the END, after the
+    // server lane, because `listDefinitions()` is `natives ++ server` and order is
+    // z-order — it was registered last among the natives.
+    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'rsLine'])
     // ⭐ `movingAverage` DECLARES `price` because `MA(Close)` is its base case —
     // the derived placements (`MA(RSI)`, `MA(Volume)`) are resolved from the
     // SOURCE at runtime by `displayTarget`, not from this static split.
@@ -655,6 +658,15 @@ describe('the library needs a sentence per indicator, and the schema already all
       avwap: 'non-repainting',
       atrBands: 'non-repainting',
       rsLine: 'non-repainting',
+      // ⭐⭐ JUDGED DELIBERATELY, AND IT IS THE EASIEST JUDGEMENT IN THIS TABLE.
+      // `dataSeries` (P2.1) applies no calculation at all: it hands its source
+      // through bar for bar, with no window, no forward shift and no state. It
+      // therefore repaints EXACTLY as much as its source does and adds nothing of
+      // its own — the same claim `movingAverage` makes above, in its strongest
+      // form. ⚠️ The linter still cannot confirm it (spec §11 forbids it reading
+      // hand-written JS), so this stays a human judgement and the record's
+      // `decided 1` is unchanged.
+      dataSeries: 'non-repainting',
     }
 
     // ⛔ THE RECORD'S OWN MEASUREMENT BLOCK, READ OUT OF THE REPO. `.superpowers/`

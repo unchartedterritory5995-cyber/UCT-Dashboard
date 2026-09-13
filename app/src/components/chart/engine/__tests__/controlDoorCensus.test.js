@@ -718,6 +718,31 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'that is not on the chart. editTarget and the write door SHARE the resolver: ' +
        'resolving them separately would show one instance while writing another, the ' +
        'exact defect this door exists to make sayable'],
+      ['app/src/testing/panes/paneHarness.jsx',
+       '⭐ NEW AT P2.0d — the pane-identity LIVE HARNESS, and it is ledgered rather ' +
+       'than excluded on purpose. It is a dev-server-only probe (no app route imports ' +
+       'it; `vite build` takes index.html as its only input, so it cannot ship), but it ' +
+       'IS a surface that addresses one instanceId, and the census asks who can say ' +
+       '"which copy" — not who ships. It exists because the strongest P2.0c unit case ' +
+       'would have stayed green through the ruling that reversed it: the mock answered ' +
+       '`panes()` with one frozen pane, so "one pane" and "two panes" were the same ' +
+       'measurement. This drives the REAL StockChart against the REAL renderer through ' +
+       'the same four doors every shipped surface uses, and it found a live pane-order ' +
+       'defect no unit case could reach (chartRegion `pricePaneIndex`). ⛔ IT WRITES ' +
+       'NOTHING: `onSettingsPersist` takes every settings write into page state, and its ' +
+       'own `fetch` wrapper severs /api/auth/preferences in both directions'],
+      ['app/src/components/chart/discoveryCatalog.js',
+       '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight ' +
+       'rather than a ninth door. A catalogue result becomes a chart series by ' +
+       'composing two existing writers: `addInstance` mints the instance and ' +
+       '`setInstanceInput` points it at `sym:QQQ:close`. ⛔ THE SECOND CALL IS WHY ' +
+       'it needs the per-instance door at all — the source belongs to ONE copy, and ' +
+       'doors 1-7 all take `legacyInstanceId(defId)` and therefore always mean the ' +
+       'first. Adding QQQ twice has to produce two instances pointing at the same ' +
+       'canonical source, which is unsayable through any per-DEFINITION door. ' +
+       '⚠️ It also reads `findInstance` to identify the instance it just minted — ' +
+       'by set difference, never by position: after a delete the list ENDS with a ' +
+       'tombstone, and the positional version addressed the corpse (measured).'],
     ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')

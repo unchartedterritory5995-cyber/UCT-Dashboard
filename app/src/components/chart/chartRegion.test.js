@@ -137,6 +137,63 @@ describe('resolveChartRegionFromPanes', () => {
       .toEqual({ type: 'indicator', key: 'macd' })
   })
 
+  // ─── A PANE ABOVE THE CANDLES ────────────────────────────────────────────
+  //
+  // ⚰️ MEASURED IN A BROWSER, P2.0d. With RSI moved *Above Price* the resolver
+  // hard-coded "index 0 is the candles", so right-clicking the RSI pane opened
+  // the PRICE menu — reading "At $401.12" off a 0..100 oscillator axis — and
+  // right-clicking the CANDLES opened the VOLUME menu, because the candle pane
+  // carries no key and an unkeyed pane that is not pane 0 is volume.
+  //
+  // ⛔ NO UNIT CASE COULD HAVE CAUGHT IT, and that is the point of these three:
+  // every existing case above builds a stack with the candles first, so the
+  // assumption and the fixtures agreed. `pricePaneIndex` is what lets the caller
+  // say otherwise, and it defaults to 0 so nothing above changes.
+  describe('the candles are NOT always pane 0', () => {
+    // 400px tall, 24px axis ⇒ 376px of panes. rsi (80) | price (240) | macd (54).
+    const topStack = [
+      { key: 'rsi', height: 80 },
+      { key: null, height: 240 },
+      { key: 'macd', height: 54 },
+    ]
+    const top = {
+      width: 800, height: 400, axisWidth: 60, timeAxisHeight: 24,
+      panes: topStack, separatorHeight: 1, pricePaneIndex: 1,
+    }
+
+    it('⛔⛔ the TOP pane is its indicator, not the price area', () => {
+      // rsi: [0, 80) — the rectangle the member sees an oscillator in.
+      expect(resolveChartRegionFromPanes({ ...top, x: 300, y: 40 }))
+        .toEqual({ type: 'indicator', key: 'rsi' })
+    })
+
+    it('⛔⛔ …and the CANDLES are the price area, wherever they ended up', () => {
+      // price: [81, 321) — unkeyed, and NOT pane 0.
+      expect(resolveChartRegionFromPanes({ ...top, x: 300, y: 200 }))
+        .toEqual({ type: 'price' })
+    })
+
+    it('⭐ the bottom stack is unaffected, and volume still reads off pane 0 bands', () => {
+      expect(resolveChartRegionFromPanes({ ...top, x: 300, y: 350 }))
+        .toEqual({ type: 'indicator', key: 'macd' })
+      // The overlay-mode volume band is a slice of the CANDLES' pane, so it is
+      // measured from that pane's top — not from the top of the chart.
+      const withVol = { ...top, pane0Bands: { volume: { top: 0.85, bottom: 0 } } }
+      // band within price pane: 0.85*240 = 204 .. 240, i.e. y 285..321 absolute.
+      expect(resolveChartRegionFromPanes({ ...withVol, x: 300, y: 300 }).type).toBe('volume')
+      expect(resolveChartRegionFromPanes({ ...withVol, x: 300, y: 200 }).type).toBe('price')
+    })
+
+    it('⭐ and the DEFAULT is still 0 — every existing caller is byte-identical', () => {
+      const asBefore = { ...top }
+      delete asBefore.pricePaneIndex
+      // Without the index the old (wrong) answers come back, which is what makes
+      // this a real parameter rather than a rename.
+      expect(resolveChartRegionFromPanes({ ...asBefore, x: 300, y: 40 }))
+        .toEqual({ type: 'price' })
+    })
+  })
+
   it('pane 0 still holds the overlay-mode volume BAND, because volume gets no pane', () => {
     const withVol = {
       ...base,

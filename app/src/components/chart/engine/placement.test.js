@@ -450,7 +450,10 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
     const paneDefs = registry.listDefinitions().filter(d => d.placement.target === 'pane')
     expect(paneDefs.length).toBeGreaterThan(0)
     for (const d of paneDefs) {
-      const p = resolvePlacement({ instanceId: `i:${d.id}`, defId: d.id }, d, ctx)
+      // ⭐ THE SAME HOST THE LAYOUT ABOVE BUILT (P2.0c). Pane keys are instance
+      // ids, so an instance minted with a DIFFERENT id finds no pane and resolves
+      // to null — which would make this sweep vacuous rather than green.
+      const p = resolvePlacement(inst(d.id), d, ctx)
       expect(p.autoscale, `${d.id} OWNS its band's scale and must drive it`).toBe('default')
     }
   })

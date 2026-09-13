@@ -33,7 +33,7 @@ function _load() {
   return _promise
 }
 
-/** Returns { ready, isBreadth(sym), get(sym), groups }. */
+/** Returns { ready, isBreadth(sym), get(sym), all(), groups }. */
 export default function useBreadthSymbols() {
   const [cache, setCache] = useState(_cache)
   useEffect(() => {
@@ -49,6 +49,12 @@ export default function useBreadthSymbols() {
     ready: !!cache,
     isBreadth: (sym) => !!map && !!sym && map.has(String(sym).toUpperCase()),
     get: (sym) => (map && sym ? map.get(String(sym).toUpperCase()) || null : null),
+    // ⭐ THE WHOLE CATALOGUE, FOR A SURFACE THAT SEARCHES IT (P2.2). The rows are
+    // already here — this module fetches `/api/breadth-symbols` once per module
+    // and indexes it — so a caller that wanted to match against every breadth
+    // measure would otherwise have fetched the same payload a second time.
+    // ⚠️ A COPY, so a caller cannot mutate the shared index.
+    all: () => (map ? [...map.values()] : []),
     groups: cache?.groups || [],
   }
 }

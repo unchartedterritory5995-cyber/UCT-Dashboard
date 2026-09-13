@@ -176,7 +176,8 @@ describe('a PRICE overlay and a pane above the candles', () => {
     // drew at 494.69 INSIDE RSI's 0-100 rectangle, because the price branch said
     // `paneIndex: 0` and had said so since before a top pane was possible.
     const insts = [rsi({ placement: { position: 'above' } }), ma('close')]
-    const ctx = ctxFor(insts, { topKeys: ['rsi'] })
+    // ⭐ TOP KEYS ARE PANE KEYS — HOST INSTANCE IDS (P2.0c).
+    const ctx = ctxFor(insts, { topKeys: ['legacy:rsi'] })
     expect(ctx.paneLayout.mainPaneIndex, 'the layout stopped knowing where the candles are')
       .toBe(1)
     const p = ctx.resolvePlacement(insts[1], registry.getDefinition('movingAverage'))
@@ -254,7 +255,7 @@ describe('a follower and a stack that is still moving', () => {
     f.chart.addSeries(f.LWC.CandlestickSeries, {}, 0)
 
     const insts = [rsi({ placement: { position: 'above' } }), ma(instanceSource('legacy:rsi', 'rsi'))]
-    binder.sync(ctxFor(insts, { topKeys: ['rsi'] }))
+    binder.sync(ctxFor(insts, { topKeys: ['legacy:rsi'] }))
     runFrames(6)
 
     const held = binder.bindings()

@@ -560,6 +560,26 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
 }
 
 /**
+ * The member-facing stem of a definition whose identity IS its source.
+ *
+ * `sym:QQQ:close` → `QQQ`. `sym:UCTA50:close` → `UCTA50`. An instance source
+ * (`@inst:rsi:1::rsi`) has no name of its own here — the host's label is the
+ * caller's to resolve, and guessing one would be a second naming rule — so this
+ * answers `null` and the ordinary stem applies.
+ *
+ * ⚠️ THE SYMBOL ONLY, NOT `symbolSourceLabel`'s `QQQ · Close`. That form names a
+ * SOURCE in a picker, where the field matters because `close` and `volume` are
+ * different choices. This names a SERIES in a legend, where the field is noise:
+ * a pane reading `QQQ · Close 715.44` says "close" twice.
+ */
+function sourceStem(def, instance) {
+  const sources = sourceInputsOf(def, instance)
+  if (!sources.length) return null
+  const parsed = parseSource(sources[0][1])
+  return parsed && parsed.kind === 'symbol' ? parsed.symbol : null
+}
+
+/**
  * `RSI (14)` — the definition's short name plus the inputs its legend prints.
  *
  * ⭐ THE SAME `legendParams` THE CHIP USES, so the source list and the readout
@@ -567,6 +587,32 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
  * in step, and this one is already correct for every definition.
  */
 export function instanceLabel(def, instance) {
+  // ⭐⭐ THE ONE DEFINITION WHOSE NAME IS NOT ITS OWN (P2.1). `dataSeries` plots
+  // whatever it is pointed at, so calling every instance "Series" would give a
+  // member three panes with one name; the thing they picked was `QQQ`. The stem
+  // comes from the SOURCE and the definition stays generic.
+  //
+  // ⛔⛔ DERIVED, NOT STORED, AND IDENTITY IS UNTOUCHED. The instance still
+  // carries `inputs.source = 'sym:QQQ:close'`; the friendly name is recomputed
+  // from it every time. Encoding a label INTO the source string would make two
+  // symbols differing only in display name two different sources.
+  //
+  // ⚠️ THE LONG NAME ("Invesco QQQ Trust") IS NOT HERE, DELIBERATELY. Only the
+  // catalogue knows it — the chart never learns it — so it would have to be
+  // STORED. The instance shape already tolerates that (`validateInstance` returns
+  // the instance unchanged and whitelists no fields, proven in
+  // `discoveryCatalog.test.js`), so `instance.display` is available to P2.2 with
+  // no migration. It is not written today because nothing reads it, and a
+  // persisted field with no consumer is a guess later code has to keep true.
+  if (def && def.meta && def.meta.labelFrom === 'source') {
+    // ⭐ THE CATALOGUE'S NAME FIRST (P2.2), the derived one as the fallback. An
+    // instance added through Add-to-Chart carries `display.name`; one created by
+    // any other door, or before P2.2, still names itself from its source.
+    const stored = instance && instance.display && instance.display.name
+    if (typeof stored === 'string' && stored) return stored
+    const fromSource = sourceStem(def, instance)
+    if (fromSource) return fromSource
+  }
   const stem = (def && (def.meta?.shortName || def.meta?.name)) || (def && def.id) || '?'
   const params = (def && def.meta && Array.isArray(def.meta.legendParams)) ? def.meta.legendParams : []
   if (!params.length) return stem
@@ -675,5 +721,12 @@ export function derivedTargetFor(instance, def, instances, defOf, targetOfInstan
   // because that is how `computePaneLayout` keys panes.
   if (srcTarget === 'volume' || srcTarget === 'price') return srcTarget
   const owner = parsePaneOfTarget(srcTarget)
-  return paneOfTarget(owner || src.defId)
+  // ⭐⭐ THE HOST IS THE SOURCE **INSTANCE**, NOT ITS DEFINITION (P2.0c). This
+  // read `src.defId`, because that was how `computePaneLayout` keyed panes — and
+  // it made two follower groups collide: `MA(RSI A)` and `MA(RSI B)` both
+  // resolved to `@rsi`, so both landed in whichever single RSI pane existed. A
+  // follower wants THE PANE ITS OWN SOURCE IS IN, which is an instance-level
+  // fact; naming the definition was only ever an approximation that held while
+  // one definition could have only one pane.
+  return paneOfTarget(owner || src.instanceId)
 }

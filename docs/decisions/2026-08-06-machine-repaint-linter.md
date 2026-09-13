@@ -111,13 +111,26 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 18
-plots 43
+definitions 19
+plots 44
 decided 1
-undecidable-hand-written 42
+undecidable-hand-written 43
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
+
+**2026-09-12 — the catalogue grew by one again (P2.1).** `dataSeries` is the first
+shipped definition that computes NOTHING: it hands its source through unchanged so
+a symbol, a breadth measure or another indicator's output can be plotted directly.
+It is hand-written JS like every other native, so it lands in the undecidable
+column exactly as `movingAverage` did. 18→19 definitions, 43→44 plots, 42→43
+undecidable; `decided` stays 1 and the single recorded disagreement is untouched.
+
+⚠️ Worth recording because it is the second time: the identity transform is
+**non-repainting by construction** — it has no window, no forward shift and no
+state — and the linter still cannot say so, because spec §11 forbids it reading
+hand-written JS. `decided 1` is not a gap in this definition; it is the same gap
+in the linter's remit. Re-measured, not re-typed.
 
 **2026-09-11 — the catalogue grew by one.** `movingAverage` is the first shipped
 definition whose INPUT is a numeric series rather than the bars (`sourceRef.js`),

@@ -295,12 +295,16 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     // ⛔ NON-VACUITY. An `oscillatorIds()` that returned `[]` would pass every
     // line above without executing one of them.
     // ⭐ TEN AT PHASE C TASK 13. `rsLine` joined the `pane` target on the SERVER
-    // lane, so `oscillatorIds()` returns ten. Its `before` is DERIVED rather than
+    // lane, so `oscillatorIds()` returned ten. Its `before` is DERIVED rather than
     // historical — it never shipped, so there is no pre-Flip-C picture of it — and
     // the loop is a self-consistency check for it while it stays a transcription
-    // check for the nine that did ship. Kept as an equality, not a floor.
-    expect(checked).toBe(10)
-    expect(ids).toHaveLength(10)
+    // check for the nine that did ship.
+    //
+    // ⭐ ELEVEN AT P2.1, and `dataSeries` is the second of that kind: it takes a
+    // pane, it never shipped, and its `before` is derived for the same reason.
+    // Kept as an equality, not a floor.
+    expect(checked).toBe(11)
+    expect(ids).toHaveLength(11)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {
@@ -388,10 +392,20 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     expect(paneLayout.panes.map((p) => p.heightPx).every((x) => x > SEPARATOR_PX)).toBe(true)
   })
 
-  it('the pane-0 rectangle is the SAME ABSOLUTE PIXELS the bands gave it', async () => {
-    // ⭐ THE §A6 IDENTITY, on a live chart. `mainMargins` are fractions of pane
-    // 0's OWN height now, and pane 0 is shorter — so the only thing that can be
-    // compared is where the candles' rectangle LANDS, in chart pixels.
+  it('the pane-0 BOTTOM edge is the same absolute pixel the bands gave it', async () => {
+    // ⚰️ 2026-09-12 — THE §A6 IDENTITY, NARROWED TO THE HALF THAT IS TRUE.
+    //
+    // It compared BOTH edges. The BOTTOM is a real physical boundary — where the
+    // candles stop and the volume band (or the stack) begins — and it must not
+    // move; it is still asserted, to the pixel.
+    //
+    // ⛔ THE TOP WAS NEVER AN IDENTITY. In `'bands'` mode the oscillators are
+    // INSIDE pane 0, so `MAIN_TOP` of the chart is a modest slice of a tall pane.
+    // In `'panes'` mode the same ABSOLUTE pixels are a huge slice of a short one —
+    // and holding the pixels fixed is what left the candles 2.3 % of their pane at
+    // four panes, with the price axis reading −400 … 2,400 (measured in a browser).
+    // The invariant that survives the cutover is asserted instead: the headroom is
+    // `MAIN_TOP` of the pane the candles are actually in.
     __setPaneModeForTest('panes')
     const h = openChart()
     const { paneLayout } = await sync(h, ['rsi', 'macd'])
@@ -402,8 +416,14 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
 
     const topPx = Math.round(paneLayout.pane0.mainMargins.top * pane0)
     const bottomPx = Math.round((1 - paneLayout.pane0.mainMargins.bottom) * pane0)
-    expect(topPx).toBe(Math.round(bands.top * CHART_H))
-    expect(bottomPx).toBe(CHART_H - Math.round(bands.bottom * CHART_H))
+    expect(bottomPx, 'the candles/volume boundary moved')
+      .toBe(CHART_H - Math.round(bands.bottom * CHART_H))
+    expect(topPx, 'the headroom stopped being MAIN_TOP of the candles\' own pane')
+      .toBe(Math.round(0.30 * pane0))
+    // ⛔ AND THE CANDLES KEEP A USABLE RECTANGLE, which is the thing the old
+    // identity silently gave away.
+    expect((bottomPx - topPx) / pane0, 'the candles were squeezed out of their pane')
+      .toBeGreaterThan(0.25)
   })
 
   it('a redistribution CONVERGES instead of blanking the chart — D2', async () => {
@@ -533,7 +553,12 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     const h = openChart()
     const { paneLayout } = await sync(h, ['rsi', 'macd'])
 
-    const keyAt = new Map(paneLayout.panes.map((p) => [p.index, p.key]))
+    // ⭐ THROUGH `defByKey`, EXACTLY AS `StockChart` DOES (P2.0c). Pane keys are
+    // host instance ids; the right-click menu is definition-shaped, so the seam
+    // translates once and the region keeps naming the indicator.
+    const keyAt = new Map(paneLayout.panes.map(
+      (p) => [p.index, paneLayout.defByKey.get(p.key) || p.key],
+    ))
     const panes = h.raw.panes().map((p, i) => ({ key: keyAt.get(i) || null, height: p.getHeight() }))
     const at = (y) => resolveChartRegionFromPanes({
       x: 300, y, width: 600, height: CHART_H, axisWidth: 0, timeAxisHeight: 0,
@@ -769,9 +794,18 @@ describe('the shipped configuration — a separate volume pane', () => {
       (1 - layout.pane0.mainMargins.bottom) * own,
     ]
     // Sub-pixel: the pane's own height is an integer and the band edge is not, so
-    // the bottom edge can differ by the rounding and by nothing else.
-    expect(Math.abs(panesRect[0] - bandsRect[0])).toBeLessThan(1)
+    // the BOTTOM edge can differ by the rounding and by nothing else.
+    //
+    // ⚰️ THE TOP EDGE IS NO LONGER COMPARED, and 2026-09-12 is why — see the
+    // sibling case above. `MAIN_TOP` of the chart and `MAIN_TOP` of the candles'
+    // own pane are the same pixels only while the oscillators live inside pane 0;
+    // after the cutover, holding them equal squeezes the candles out of their own
+    // rectangle as the stack grows. The headroom invariant is asserted instead.
     expect(Math.abs(panesRect[1] - bandsRect[1])).toBeLessThan(1)
+    expect(panesRect[0], 'the headroom stopped being MAIN_TOP of pane 0')
+      .toBeCloseTo(0.30 * own, 0)
+    expect((panesRect[1] - panesRect[0]) / own, 'the candles lost their pane')
+      .toBeGreaterThan(0.25)
     // ⛔ NON-VACUITY — and this is the number that used to be wrong. The OLD
     // divisor was the price-pane budget; using it here puts the bottom edge past
     // the pane and lightweight-charts refuses a negative margin outright.
@@ -967,7 +1001,7 @@ describe('paneMargins.js and paneMarginsProjection.js are RETIRED, not renamed',
       chartHeight: CHART_H, hasVolumeBand: true, separatorPx: SEPARATOR_PX,
     })
     expect(Object.keys(layout.bands)).toEqual(['macd', 'rsi', 'volume', 'main'])
-    expect(layout.panes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    expect(layout.panes.map((p) => p.key)).toEqual(['legacy:rsi', 'legacy:macd'])
     // The two readings agree: the stack the bands reserve is the stack the panes
     // fill, to the pixel, separators included.
     // `bands.volume.bottom` is the volume band's distance from the BOTTOM of
@@ -991,7 +1025,7 @@ describe('paneMargins.js and paneMarginsProjection.js are RETIRED, not renamed',
 // These run against a REAL `createChart`, so they are claims about the library's
 // behaviour and not about a mock's.
 describe('POC B — own-pane creation and ordering', () => {
-  const TOP = new Set(['rsi'])
+  const TOP = new Set(['legacy:rsi'])
 
   it('⛔⛔ a top pane does NOT join the price pane — the regression this suite is for', async () => {
     __setPaneModeForTest('panes')
@@ -1033,7 +1067,7 @@ describe('POC B — own-pane creation and ordering', () => {
     // and produced seven panes where four belonged.
     __setPaneModeForTest('panes')
     const h = openChart({ volumePane: true })
-    await sync(h, ['macd'], { hasVolumeBand: true, topKeys: new Set(['macd']) })
+    await sync(h, ['macd'], { hasVolumeBand: true, topKeys: new Set(['legacy:macd']) })
     expect(h.raw.panes()).toHaveLength(3)
     const macd = h.seriesFor('legacy:macd::macd')
     const signal = h.seriesFor('legacy:macd::signal')

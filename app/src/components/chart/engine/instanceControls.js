@@ -68,8 +68,8 @@
 import { validateInputValue } from './defSchema'
 import { getDefinition } from './nativeRegistry'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
-import { resolveDisplayTarget, isWritableDisplayTarget } from './displayTarget'
-import { wouldCycle, severReferencesTo } from './sourceRef'
+import { resolveDisplayTarget, isWritableDisplayTarget, legacyVolumeTarget } from './displayTarget'
+import { wouldCycle, severReferencesTo, parsePaneOfTarget } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE } from './presentation'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
@@ -573,10 +573,35 @@ function placementFor(def, defId, cs) {
   // ⭐ THE RULE IS NO LONGER SPELLED OUT HERE. It used to be, with a comment
   // saying so and a byte-identity test to catch this copy drifting from the
   // migrator's — see `displayTarget.js` for why one function replaced four.
-  // A brand-new instance has no stored placement, so this resolves through the
-  // legacy list exactly as the duplicated rule did.
-  const target = resolveDisplayTarget({ defId, placement: null }, cs, declared)
-  return { target: target || declared }
+  //
+  // ⛔⛔ AND IT ASKS THE **LEGACY** QUESTION ONLY, NEVER THE DERIVED ONE. This
+  // used to call the whole of `resolveDisplayTarget`, which its own comment said
+  // resolved "through the legacy list" — true when it was written, and no longer
+  // true once rule (2.5) added the DERIVED default (a source's own home). The
+  // difference is invisible for every definition whose declared target already
+  // agrees with its default source's home, which was all of them until P2.1.
+  //
+  // ⚰️ MEASURED ON `dataSeries`: it declares `pane`, its default source is the
+  // placeholder `close`, and `close`'s home is the candles — so `addInstance`
+  // stamped `placement: {target: 'price'}` into the brand-new instance. Setting
+  // the real source a moment later could not undo it, because a STORED target
+  // outranks a derived one by design, and a member's QQQ series landed on the
+  // price pane instead of its own. Nobody had chosen that.
+  //
+  // ⭐ THE PRINCIPLE, WHICH IS THE P2.0 DOCTRINE ONE STEP OUT: a DERIVED default
+  // is re-derived every paint and must never be frozen as ACTIVE STATE. Storing
+  // it turns "wherever my source lives" into "price, forever".
+  //
+  // ⚠️ SO THE DECLARED TARGET IS STILL STAMPED, and only the DERIVED one is not.
+  // That keeps this BYTE-IDENTICAL to what the migrator writes for all eighteen
+  // pre-existing definitions — `movingAverage` is the only other source-taking
+  // one and its declared `price` already equals its default source's home — and
+  // it stays harmless by the reader's own rule: `resolveDisplayTarget` treats a
+  // stored target that merely RESTATES the declaration as no override at all, so
+  // a `dataSeries` carrying `{target: 'pane'}` still resolves through the derived
+  // rule once its real source arrives. The narrow fix is the whole fix.
+  const legacy = legacyVolumeTarget(defId, declared, cs)
+  return { target: legacy || declared }
 }
 
 /**
@@ -604,6 +629,15 @@ function placementFor(def, defId, cs) {
 export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   if (!cs || typeof cs !== 'object') return cs
   if (!isWritableDisplayTarget(target)) return cs
+  // ⛔⛔ NOTHING MAY BE ITS OWN GUEST (P2.3). `@<self>` is a WRITABLE-looking
+  // target — the grammar cannot tell whose id it is — and storing it is not a
+  // harmless no-op that resolves back to "own pane": `paneFollowerKeys` would
+  // stop counting this instance as an owner, so `orderedPaneKeys` would allocate
+  // no pane, and `placement.js` would then fail closed on the pane it is
+  // following. The series would disappear with nothing anywhere reporting why.
+  // Refused by IDENTITY, like every other rejected write here: the caller's test
+  // is `next !== cs`.
+  if (parsePaneOfTarget(target) === instanceId) return cs
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs
   const defId = inst.defId

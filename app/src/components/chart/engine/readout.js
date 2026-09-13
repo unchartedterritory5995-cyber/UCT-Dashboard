@@ -103,8 +103,53 @@ function resolveRegistry(registry) {
  *  resolved against THIS instance's inputs (falling back to the definition's
  *  declared defaults, which is what "unset means current default" means
  *  everywhere else in the engine). */
-function chipLabel(def, plot, inputs) {
+/**
+ * `sym:QQQ:close` → `QQQ`, for a definition that declares `meta.labelFrom`.
+ *
+ * ⛔ PARSED HERE RATHER THAN IMPORTED, and the duplication is deliberate and
+ * one line long. This module's header is *"pure, no LWC, no DOM"* and it is the
+ * formatting pipeline the LEGACY lane shares; pulling in `sourceRef` would drag
+ * the whole source grammar — `parseSource`, the gravestone rules, the instance
+ * resolver — into a function that needs the characters between two colons.
+ * `symbolSource()` builds exactly `sym:<SYMBOL>:<field>` and `canonicalSymbol`
+ * refuses a symbol containing `:`, so the middle segment IS the symbol.
+ *
+ * ⚠️ ANYTHING ELSE ANSWERS `null` and the ordinary stem applies — a bar field
+ * (`close`) and an instance source (`@inst:rsi:1::rsi`) both have names that are
+ * somebody else's to give.
+ */
+function sourceStemOf(def, inputs) {
+  const declared = (def.inputs || []).find((i) => i && i.type === 'source')
+  if (!declared) return null
+  const raw = (inputs && inputs[declared.key] !== undefined) ? inputs[declared.key] : declared.default
+  if (typeof raw !== 'string' || !raw.startsWith('sym:')) return null
+  const parts = raw.split(':')
+  return parts.length === 3 && parts[1] ? parts[1] : null
+}
+
+function chipLabel(def, plot, inputs, displayName) {
   if (plot.legend && typeof plot.legend.label === 'string') return plot.legend.label
+  // ⭐⭐ `meta.labelFrom: 'source'` — THE ONE DEFINITION WHOSE NAME IS NOT ITS OWN
+  // (P2.1). `dataSeries` plots whatever it is pointed at, so every instance of
+  // it would print the same chip: a member with QQQ, SPY and UCTA50 on screen
+  // would read "Series" three times. The stem comes from the SOURCE instead.
+  //
+  // ⚠️ SPELLED HERE AS WELL AS IN `sourceRef.instanceLabel` BECAUSE THERE ARE
+  // TWO NAMING SURFACES AND THEY ARE NOT THE SAME FUNCTION — measured in a
+  // browser: fixing `instanceLabel` alone left the pane legend reading
+  // "Series 714.88" over a QQQ line. `instanceLabel` names an instance in the
+  // SOURCE PICKER (one optgroup per instance); this names a PLOT in the chip
+  // strip and the pane readout. They share `meta`, which is where the rule
+  // lives, so the two agree by reading the same declaration rather than by
+  // one calling the other — this module is pure and imports no source grammar.
+  if (def.meta && def.meta.labelFrom === 'source') {
+    // ⭐ THE CATALOGUE'S NAME FIRST (P2.2). An instance added through
+    // Add-to-Chart carries `display.name`; one created by any other door, or
+    // before P2.2, still names itself from its source.
+    if (typeof displayName === 'string' && displayName) return displayName
+    const fromSource = sourceStemOf(def, inputs)
+    if (fromSource) return fromSource
+  }
   const name = (def.meta && def.meta.shortName) || def.id
   const params = (def.meta && def.meta.legendParams) || []
   if (!params.length) return name
@@ -160,7 +205,7 @@ function resolvePlotColor(plot, inputs, def) {
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
  *        order the entries were given.
  */
-export function chipsFrom(entries, seriesData, registry, inputsFor) {
+export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor) {
   const get = resolveRegistry(registry)
   const out = []
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
@@ -209,7 +254,8 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
     // definition default alone.
     const resolved = resolvePlotColor(plot, inputs, def)
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
-    const label = chipLabel(def, plot, inputs)
+    const label = chipLabel(def, plot, inputs,
+      typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null)
 
     out.push({
       defId: def.id,
@@ -223,7 +269,7 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
     })
     inputsByChip.set(out.length - 1, inputs)
   }
-  return disambiguateSiblings(out, inputsByChip)
+  return disambiguateSiblings(out, inputsByChip, get)
 }
 
 /**
@@ -246,13 +292,26 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
  * yes. Folding that test in here would give one of the two callers the wrong
  * answer.
  *
+ * ⛔⛔ AND IT MAY NOT DISCRIMINATE ON AN INPUT THE LABEL ALREADY CARRIES (P2.1).
+ * That is the same claim the caller's "already tells them apart" guard makes
+ * about `legendParams` — `RSI(14) (period 14)` — one level down, for the
+ * definition whose whole NAME comes from an input. ⚰️ MEASURED IN A BROWSER: with
+ * QQQ, SPY, UCTA50 and a second QQQ on screen the labels collided (two QQQs), the
+ * guard correctly let suffixing run, and the only differing input was `source` —
+ * so all four chips read `QQQ (source sym:QQQ:close)`, `SPY (source
+ * sym:SPY:close)` …, printing the ADDRESS beside the name it was derived from,
+ * on two rows that were never ambiguous. Excluding it falls through to the
+ * ordinal, which is thin but true.
+ *
  * @param {object[]} inputsList one resolved-inputs object per sibling, in order
+ * @param {string[]} [ignoreKeys] inputs the label already spells out
  * @returns {string[]} one suffix per sibling, same order, each already spaced
  */
-export function siblingSuffixes(inputsList) {
+export function siblingSuffixes(inputsList, ignoreKeys) {
   const rows = (Array.isArray(inputsList) ? inputsList : [])
     .map(o => (o && typeof o === 'object' ? o : {}))
-  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].sort()
+  const skip = new Set(Array.isArray(ignoreKeys) ? ignoreKeys : [])
+  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].filter(k => !skip.has(k)).sort()
   const differing = keys.filter((k) => {
     const seen = new Set(rows.map(o => JSON.stringify(o[k])))
     return seen.size > 1
@@ -287,7 +346,7 @@ export function siblingSuffixes(inputsList) {
  * what keeps this out of the existing chart assertions, which are written against
  * single-instance legends.
  */
-function disambiguateSiblings(chips, inputsByChip) {
+function disambiguateSiblings(chips, inputsByChip, get) {
   const groups = new Map()
   for (let i = 0; i < chips.length; i++) {
     const k = `${chips[i].defId}::${chips[i].plotKey}`
@@ -309,7 +368,14 @@ function disambiguateSiblings(chips, inputsByChip) {
 
     // The suffix grammar lives in `siblingSuffixes` above — CALLED here, so the
     // legend and the pane menu cannot word two copies of one indicator differently.
-    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}))
+    // ⛔ THE LABEL-BEARING INPUT IS NOT A DISCRIMINATOR. A definition that names
+    // itself from an input (`meta.labelFrom`) already prints that input's meaning;
+    // appending it reads `QQQ (source sym:QQQ:close)`. See `siblingSuffixes`.
+    const def0 = typeof get === 'function' ? get(chips[idxs[0]].defId) : null
+    const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
+      ? (def0.inputs || []).filter(i => i && i.type === 'source').map(i => i.key)
+      : []
+    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}), ignore)
 
     idxs.forEach((chipIdx, n) => {
       const label = `${chips[chipIdx].label}${suffixes[n]}`
@@ -346,7 +412,14 @@ export function engineChips(bindings, seriesData, registry, instances) {
     const inst = byId.get(instanceId)
     return (inst && inst.inputs) || null
   }
-  return chipsFrom(entries, seriesData, registry, inputsFor)
+  // ⭐ THE STORED DISPLAY NAME, BY INSTANCE (P2.2) — the same per-instance read
+  // `inputsFor` makes, for the same reason: two copies of one definition can
+  // carry two names, and `cs.indicators[defId]` cannot express that.
+  const displayFor = (_defId, instanceId) => {
+    const inst = byId.get(instanceId)
+    return (inst && inst.display && inst.display.name) || null
+  }
+  return chipsFrom(entries, seriesData, registry, inputsFor, displayFor)
 }
 
 /**
@@ -421,7 +494,7 @@ export function legendChips(bindings, seriesData, registry, instances) {
       if (!plot || !plot.legend || plot.legend.hide === true) continue
       const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
       if (bound) { out.push({ ...bound, hidden: false, computed: true }); continue }
-      const label = chipLabel(def, plot, inputs)
+      const label = chipLabel(def, plot, inputs, inst.display && inst.display.name)
       out.push({
         defId: def.id,
         plotKey: plot.key,

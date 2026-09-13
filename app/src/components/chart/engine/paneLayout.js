@@ -276,7 +276,7 @@ function paneHeightFor(defId) {
  * order the list is in. `legendFromDefinitions.test.jsx` pins the two together;
  * one list, two readings.
  */
-function orderedPaneKeys(instances, excluded, keep, include) {
+function orderedPaneKeys(instances, excluded, keep, include, defByKey) {
   const paneIds = paneTargetIds()
   const keys = []
   const seen = new Set()
@@ -309,22 +309,25 @@ function orderedPaneKeys(instances, excluded, keep, include) {
     // ⭐ …UNLESS SOMETHING VISIBLE DRAWS IN ITS PANE. A hidden RSI reserves
     // nothing on its own account, and everything if `MA(RSI)` is still on screen —
     // see `displayTarget.paneOwnersNeeded`.
-    if (inst.hidden === true && !(keep && keep.has(id0))) continue
-    const id = id0
-    // ⭐⭐ ELIGIBLE BY DEFINITION **OR** BY ACTIVE INSTANCE PLACEMENT.
-    // `paneIds` is what each DEFINITION declared; `include` is what an instance
-    // ACTUALLY resolved to (`displayTarget.paneOwnKeys`). Reading only the first
-    // made a writable placement unrealisable: a member could move a price overlay
-    // to its own pane, `resolveDisplayTarget` agreed, and the layout allocated
-    // nothing — so `resolvePlacement` failed closed and the series vanished.
-    //
-    // ⚠️ DEFAULT vs ACTIVE. The definition's declaration still decides where an
-    // instance goes when the member has chosen nothing; this only widens what a
-    // CHOICE can realise.
-    if (typeof id !== 'string') continue
-    if (!paneIds.has(id) && !(include && include.has(id))) continue
+    if (inst.hidden === true && !(keep && keep.has(inst.instanceId))) continue
+    // ⭐⭐ THE PANE KEY IS THE HOST **INSTANCE**, NOT ITS DEFINITION (P2.0c).
+    // Keying by `defId` collapsed every own-pane instance of one definition into
+    // a single pane: two RSIs shared one, and three generic `series` instances
+    // would have shared one no matter which instruments they carried. A
+    // definition describes behaviour and defaults; it is not a presentation
+    // container.
+    const id = inst.instanceId
+    if (typeof id !== 'string' || !id) continue
+    // Eligible because the DEFINITION asks for a pane by default, or because
+    // THIS INSTANCE's active placement resolved to one (`displayTarget.paneOwnKeys`).
+    if (!paneIds.has(id0) && !(include && include.has(id))) continue
     if (excluded.has(id) || seen.has(id)) continue
     seen.add(id)
+    // ⚠️ THE DEFINITION IS CARRIED BESIDE THE KEY, not encoded into it. Pane
+    // HEIGHT is still a definition default (`paneHeightFor`), so the layout needs
+    // to get from a host back to the definition that supplies it — without the
+    // key having to be parseable, which would make it a format rather than an id.
+    defByKey.set(id, id0)
     keys.push(id)
   }
 
@@ -577,7 +580,10 @@ export function computePaneLayout(instances, opts) {
   // half — the ones an ACTIVE instance placement says need one. Absent behaves
   // exactly as before, so every existing caller is unchanged.
   const includeKeys = o.includeKeys instanceof Set ? o.includeKeys : new Set(o.includeKeys || [])
-  const allKeys = orderedPaneKeys(instances, excluded, keepKeys, includeKeys)
+  // key → defId, so a definition default can still be found from a host key.
+  const defByKey = new Map()
+  const allKeys = orderedPaneKeys(instances, excluded, keepKeys, includeKeys, defByKey)
+  const heightOf = (key) => paneHeightFor(defByKey.get(key))
 
   // ─── PHASE 2 · PANES ABOVE THE PRICE PANE ─────────────────────────────────
   //
@@ -608,7 +614,7 @@ export function computePaneLayout(instances, opts) {
   // the same definition would take as a bottom pane. `separatorPx` per top pane
   // because each one adds a separator the stack below no longer has to pay for.
   const topHeights = (Number.isFinite(chartHeight) && chartHeight > 0)
-    ? topList.map((k) => Math.max(MIN_PANE_PX, Math.round(paneHeightFor(k) * chartHeight)))
+    ? topList.map((k) => Math.max(MIN_PANE_PX, Math.round(heightOf(k) * chartHeight)))
     : topList.map(() => MIN_PANE_PX)
   const topTotalPx = topHeights.reduce((a, b) => a + b, 0) + nTop * separatorPx
 
@@ -624,7 +630,7 @@ export function computePaneLayout(instances, opts) {
   // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits
   // directly under the price area, exactly as the retired `PANES` put it last.
   const bottomToTop = [...keys].reverse()
-  const baseHeights = bottomToTop.map(paneHeightFor)
+  const baseHeights = bottomToTop.map(heightOf)
   if (hasVolumeBand) baseHeights.push(VOLUME_PANE_HEIGHT)
 
   const heightsC = stackHundredths(baseHeights)
@@ -633,7 +639,23 @@ export function computePaneLayout(instances, opts) {
   // ⭐ THE BAND MAP IS COMPUTED BEFORE ANY HEIGHT GUARD, because it does not need
   // a height and its consumers (a right-click resolver, the candles' own
   // margins) can be asked before the renderer can answer one.
-  const bands = bandMap(bottomToTop, heightsC, oscCount, hasVolumeBand)
+  // ⛔⛔ AND IT IS KEYED BY **DEFINITION**, NOT BY PANE KEY (P2.0c).
+  // `bands` is the `'bands'`-mode geometry: the stacked slices of pane 0 that
+  // exist when there are no real panes at all. Its two readers ask definition
+  // questions — `placement.js` looks up `paneMargins[def.id]` beside a scale
+  // named after the same definition, and `chartRegion`'s bands resolver hands
+  // its key to the context menu, which is definition-shaped end to end
+  // (`labelFor`, `indEnabled`, `liveInstanceIdsFor`). Widening this map to
+  // instance keys renamed every legacy scale and every right-click region, which
+  // is exactly the accidental blast radius §22 rules out.
+  //
+  // ⚠️ TWO OWN-PANE INSTANCES OF ONE DEFINITION COLLIDE HERE, and that is the
+  // honest answer for a mode that has no panes to give them: a band is a slice of
+  // pane 0 named after a definition, and `'bands'` predates instances entirely.
+  // `PANE_MODE` is the constant `'panes'`, so production never reaches it.
+  const bands = bandMap(
+    bottomToTop.map((k) => defByKey.get(k) || k), heightsC, oscCount, hasVolumeBand,
+  )
 
   if (!Number.isFinite(chartHeight) || chartHeight <= 0) {
     return pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneIndex, bands)
@@ -682,7 +704,38 @@ export function computePaneLayout(instances, opts) {
   // of. `above` still carries the other panes' heights unchanged, which is why
   // the volume pane no longer shrinks through the cutover.
   const pane0HeightPx = mainHeightPx - px(oscTotalC)
-  const mainTopPx = Math.round(MAIN_TOP * mainHeightPx)
+  // ⭐⭐ THE HEADROOM IS A FRACTION OF THE CANDLES' OWN PANE, AND IT USED TO BE A
+  // FRACTION OF THE WHOLE PRICE-PANE BUDGET.
+  //
+  // ⚰️ MEASURED: `MAIN_TOP * mainHeightPx` is a fixed PIXEL amount — 207px on a
+  // 690px chart — and it was then divided by `pane0HeightPx`, which SHRINKS with
+  // every oscillator pane the member adds. So the top margin grew without anybody
+  // asking it to:
+  //
+  //     panes   pane 0     top      top+bottom   candles get
+  //       0      690px    0.300       0.451         55 %
+  //       2      483px    0.429       0.644         36 %
+  //       3      379px    0.546       0.818         18 %
+  //       4      310px    0.668       0.977        2.3 %   ← −400 … 2,400
+  //
+  // At four panes the candles were left 2.3 % of their own pane, so the price
+  // scale expanded ~44× to fill it: AAPL at 332 drew as a flat line on an axis
+  // running −400 to 2,400. Nothing about the CANDLES changed — only how much of
+  // their pane the margins had claimed.
+  //
+  // ⛔ AND THE BUG IS THE PIXEL-PARITY GOAL OUTLIVING ITS OWN CUTOVER. Using the
+  // budget kept the candle rectangle on the same ABSOLUTE pixels `'bands'` mode
+  // put it on, which is what Flip C wanted and what the note below still says.
+  // That identity only holds while the oscillators are INSIDE pane 0. Once they
+  // have panes of their own, `mainHeightPx` and `pane0HeightPx` are different
+  // numbers and the gap between them is the whole stack — so the more panes a
+  // member has, the more headroom they were charged for panes that are not there.
+  //
+  // ⚠️ ZERO PANES IS UNCHANGED, BYTE FOR BYTE: `oscTotalC` is 0, so
+  // `pane0HeightPx === mainHeightPx` and this is the same 0.30 it always was.
+  // `'bands'` mode never reaches here at all — `StockChart._mainMargins` reads
+  // `layout.bands.main` there, which is untouched.
+  const mainTopPx = Math.round(MAIN_TOP * pane0HeightPx)
   const mainBottomPx = mainHeightPx - px(oscTotalC + volumeC)
   above[mainPaneIndex] = pane0HeightPx
 
@@ -716,6 +769,11 @@ export function computePaneLayout(instances, opts) {
     // `topPanes` would resolve to nothing and bind nowhere — fail-closed, silent,
     // and exactly the shape of the "oscillator with no pane" bug the resolver's
     // null branch exists to prevent.
+    // ⭐ THE HOST → DEFINITION MAP, EXPOSED. `placement.js` needs it to honour a
+    // LEGACY `@<defId>` follow target deterministically — see its follower branch.
+    // Pane keys themselves are never persisted, so this is the only place the old
+    // vocabulary has to be interpreted, and it is a read, never a rewrite.
+    defByKey,
     panes: [
       ...topList.map((key, i) => ({
         key, index: i, heightPx: topHeights[i], stretchFactor: topHeights[i],

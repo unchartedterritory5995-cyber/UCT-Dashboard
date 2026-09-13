@@ -279,8 +279,11 @@ describe('derived placement — a default, never a weld', () => {
   it('⭐ MA(RSI) defaults into RSI\'s pane', () => {
     const m = ma(instanceSource('legacy:rsi', 'rsi'))
     const cs = csOf([rsi(), m])
-    expect(resolveDisplayTarget(m, cs)).toBe('@rsi')
-    expect(paneOwnerOf(m, cs)).toBe('rsi')
+    // ⭐⭐ THE HOST IS THE SOURCE **INSTANCE**, NOT ITS DEFINITION (P2.0c). With
+    // two RSIs on the chart `'@rsi'` named neither of them; `'@legacy:rsi'` names
+    // the one this MA actually reads.
+    expect(resolveDisplayTarget(m, cs)).toBe('@legacy:rsi')
+    expect(paneOwnerOf(m, cs)).toBe('legacy:rsi')
   })
 
   it('⭐ MA(Volume) defaults into the volume pane, MA(Close) onto the candles', () => {
@@ -298,13 +301,13 @@ describe('derived placement — a default, never a weld', () => {
     const m = ma(instanceSource('legacy:rsi', 'rsi'), { placement: { target: 'pane' } })
     expect(resolveDisplayTarget(m, csOf([rsi(), m]))).toBe('pane')
     expect(paneOwnerOf(m, csOf([rsi(), m])), 'it did not get a pane of its OWN')
-      .toBe('movingAverage')
+      .toBe('inst:ma:1')
   })
 
   it('⛔ a follower RESERVES NO PANE OF ITS OWN', () => {
     const m = ma(instanceSource('legacy:rsi', 'rsi'))
     const cs = csOf([rsi(), m])
-    expect([...paneFollowerKeys([rsi(), m], cs)]).toEqual(['movingAverage'])
+    expect([...paneFollowerKeys([rsi(), m], cs)]).toEqual(['inst:ma:1'])
   })
 
   it('a MISSING source derives nothing — it falls back to the definition', () => {
@@ -317,8 +320,8 @@ describe('derived placement — a default, never a weld', () => {
     const below = csOf([rsi(), m])
     const above = csOf([rsi({ placement: { position: 'above' } }), m])
     // The same answer in both, because the answer is "RSI's pane" and not "pane 2".
-    expect(resolveDisplayTarget(m, below)).toBe('@rsi')
-    expect(resolveDisplayTarget(m, above)).toBe('@rsi')
+    expect(resolveDisplayTarget(m, below)).toBe('@legacy:rsi')
+    expect(resolveDisplayTarget(m, above)).toBe('@legacy:rsi')
   })
 })
 
@@ -537,9 +540,9 @@ describe('an instance with THREE outputs', () => {
     const a = maOf('macd', 'inst:ma:1')
     const b = maOf('signal', 'inst:ma:2')
     const cs = csOf([macd, a, b])
-    expect(resolveDisplayTarget(a, cs)).toBe('@macd')
-    expect(resolveDisplayTarget(b, cs)).toBe('@macd')
-    expect(paneOwnerOf(a, cs)).toBe('macd')
+    expect(resolveDisplayTarget(a, cs)).toBe('@legacy:macd')
+    expect(resolveDisplayTarget(b, cs)).toBe('@legacy:macd')
+    expect(paneOwnerOf(a, cs)).toBe('legacy:macd')
   })
 
   it('⛔ and the ORDER is still right with two consumers of one source', () => {

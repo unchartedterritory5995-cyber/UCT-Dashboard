@@ -958,7 +958,8 @@ describe('FLIP C — a paneLayout in the ctx is INERT under bands', () => {
   )
 
   it('the layout really does put them in panes 1 and 2 — so the case is not vacuous', () => {
-    expect(LAYOUT.panes.map((p) => [p.key, p.index])).toEqual([['rsi', 1], ['macd', 2]])
+    expect(LAYOUT.panes.map((p) => [p.key, p.index]))
+      .toEqual([['legacy:rsi', 1], ['legacy:macd', 2]])
   })
 
   const callsWith = (extra) => {

@@ -179,11 +179,38 @@ function layoutBoundaries(out) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ⚰️ 2026-09-12 — THIS BLOCK PINNED THE ASSUMPTION THAT CAUSED A BUG, and the
+// change below is the fix's other half.
+//
+// It asserted all THREE boundaries were pixel-identical to `'bands'` mode. Two of
+// them are genuine identities and stay: `candleBottom` (where price stops and the
+// volume band begins) and `pane0Bottom` (where pane 0 ends and the stack begins)
+// are the same PHYSICAL edges in both modes, and a layout that moved them would
+// be shaving the separators out of the wrong place.
+//
+// ⛔ `candleTop` NEVER WAS ONE. In `'bands'` mode the oscillators live INSIDE
+// pane 0, so 178px of headroom is 26 % of a 690px pane. In `'panes'` mode the
+// same 178px is 57 % of a 310px pane — same pixels, opposite meaning. Holding the
+// PIXELS fixed while the pane shrank is precisely what left the candles 2.3 % of
+// their own rectangle at four panes, and the price axis read −400 … 2,400.
+//
+// So the identity is replaced by the invariant that survives the cutover: the
+// headroom is MAIN_TOP of the pane the candles are actually in. The two real
+// identities are asserted more strictly than before — on their own, where a
+// failure names which edge moved.
 describe('pane 0 keeps its rectangle, to the pixel', () => {
   it.each([0, 1, 3, 7, 0b101010101, 511])('subset %i', (mask) => {
     const before = shippedBoundaries(mask, true)
     const after = layoutBoundaries(computePaneLayout(INSTS[mask], OPTS()))
-    expect(after).toEqual(before)
+    expect(after.candleBottom, 'the volume band moved').toBe(before.candleBottom)
+    expect(after.pane0Bottom, 'the oscillator stack moved').toBe(before.pane0Bottom)
+    // The headroom is a fraction of the CANDLES' pane — see the block comment.
+    const p0 = computePaneLayout(INSTS[mask], OPTS()).pane0
+    expect(after.candleTop, 'the headroom stopped being MAIN_TOP of pane 0')
+      .toBe(Math.round(0.30 * p0.heightPx))
+    // …and with NO oscillator pane the two readings agree exactly, as they must:
+    // pane 0 IS the whole budget there, so nothing about this chart changed.
+    if (mask === 0) expect(after.candleTop).toBe(before.candleTop)
   })
 
   // ⭐ THE POINT OF THE WHOLE MODULE. `pane0Bottom` is in the comparison and not
@@ -198,10 +225,16 @@ describe('pane 0 keeps its rectangle, to the pixel', () => {
     for (let mask = 0; mask < 512; mask++) {
       const before = shippedBoundaries(mask, hasVolumeBand)
       const after = layoutBoundaries(computePaneLayout(INSTS[mask], OPTS({ hasVolumeBand })))
-      if (after.candleTop !== before.candleTop
-          || after.candleBottom !== before.candleBottom
+      // ⛔ THE TWO REAL EDGES, over all 512. `candleTop` is asserted by the
+      // invariant above instead — see this block's header.
+      if (after.candleBottom !== before.candleBottom
           || after.pane0Bottom !== before.pane0Bottom) {
         bad.push({ mask, before, after })
+      }
+      // …and the headroom is MAIN_TOP of pane 0 on every one of them.
+      const p0 = computePaneLayout(INSTS[mask], OPTS({ hasVolumeBand })).pane0
+      if (after.candleTop !== Math.round(0.30 * p0.heightPx)) {
+        bad.push({ mask, why: 'headroom', candleTop: after.candleTop, pane0: p0.heightPx })
       }
       // The stack the shave loop is about: main's `bottom` at the 0.69 ceiling —
       // exactly where `1c1b84bf`'s 1,178 illegal layouts lived.
@@ -323,8 +356,12 @@ describe('the geometry is TOTAL — no input in the layout space produces an ill
     // Half the nine, chosen so the pair straddles both squeezed and unsqueezed
     // stacks: excluding from a full stack drops it out of the shave, and
     // excluding from a small one does not.
-    const excluded = new Set(['macd', 'atr', 'rsi', 'obv'])
-    const dropped = OSC.reduce((m, k, i) => (excluded.has(k) ? m : m | (1 << i)), 0)
+    // ⛔ PANE KEYS, NOT DEFINITION IDS (P2.0c) — `INSTS` mints `legacy:<defId>`
+    // hosts, and `excludeKeys` is matched against the pane a host would get. The
+    // MASK is still built from definition ids, because that is what indexes `OSC`.
+    const excludedDefs = ['macd', 'atr', 'rsi', 'obv']
+    const excluded = new Set(excludedDefs.map((k) => `legacy:${k}`))
+    const dropped = OSC.reduce((m, k, i) => (excludedDefs.includes(k) ? m : m | (1 << i)), 0)
     const bad = []
     for (let mask = 0; mask < 512; mask++) {
       const withExclude = computePaneLayout(INSTS[mask], OPTS({ excludeKeys: excluded }))
@@ -394,7 +431,12 @@ describe('stack order is DATA, and it comes from the instance list', () => {
                    { instanceId: 'legacy:obv', defId: 'obv' },
                    { instanceId: 'legacy:atr', defId: 'atr' }]
     const out = computePaneLayout(insts, OPTS())
-    expect(out.panes.map(p => p.key)).toEqual(['adx', 'obv', 'atr'])
+    // ⭐ PANE KEYS ARE HOST INSTANCE IDS (P2.0c), AND THE CLAIM IS UNCHANGED:
+    // the ORDER is the instance list's. The definition each host came from is
+    // carried beside the key in `defByKey`, which is what the assertion below
+    // compares against registry order.
+    expect(out.panes.map(p => p.key)).toEqual(['legacy:adx', 'legacy:obv', 'legacy:atr'])
+    expect(out.panes.map(p => out.defByKey.get(p.key))).toEqual(['adx', 'obv', 'atr'])
     // Registry order for the same three is adx, obv... no: it is atr, adx, obv
     // (rsi, macd, stoch, atr, mfi, cci, williamsR, adx, obv). Naming it here is
     // what makes "not by registry order" a claim and not a slogan.
@@ -402,7 +444,7 @@ describe('stack order is DATA, and it comes from the instance list', () => {
       .filter(d => d.placement.target === 'pane' && ['adx', 'obv', 'atr'].includes(d.id))
       .map(d => d.id)
     expect(registryOrder).toEqual(['atr', 'adx', 'obv'])
-    expect(out.panes.map(p => p.key)).not.toEqual(registryOrder)
+    expect(out.panes.map(p => out.defByKey.get(p.key))).not.toEqual(registryOrder)
   })
 
   // ***** B5 TASK 12 -- THE `cs` FALLBACK IS GONE, AND ITS THREE CASES WITH IT.
@@ -429,7 +471,8 @@ describe('stack order is DATA, and it comes from the instance list', () => {
     const seeded = SHIPPED_STACK_ORDER.filter((id) => OSC.includes(id))
     expect(seeded).toEqual([...OSC].reverse())
     const out = computePaneLayout(seeded.map((id) => ({ instanceId: `legacy:${id}`, defId: id })), OPTS())
-    expect(out.panes.map(p => p.key)).toEqual([...OSC].reverse())
+    expect(out.panes.map(p => p.key)).toEqual([...OSC].reverse().map((id) => `legacy:${id}`))
+    expect(out.panes.map(p => out.defByKey.get(p.key))).toEqual([...OSC].reverse())
     expect(out.panes.map(p => p.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
     expect(out.pane0.volumeMargins).not.toBeNull()
   })
@@ -457,7 +500,7 @@ describe('stack order is DATA, and it comes from the instance list', () => {
     const insts = [{ instanceId: 'i:rsi', defId: 'rsi' },
                    { instanceId: 'i:macd', defId: 'macd', deleted: true }]
     const out = computePaneLayout(insts, OPTS())
-    expect(out.panes.map(p => p.key)).toEqual(['rsi'])
+    expect(out.panes.map(p => p.key)).toEqual(['i:rsi'])
   })
 
   it('a PRICE overlay in the instance list reserves no pane', () => {
@@ -468,7 +511,11 @@ describe('stack order is DATA, and it comes from the instance list', () => {
 
   it('an excluded id reserves no pane even when an instance names it', () => {
     const insts = [{ instanceId: 'i:rsi', defId: 'rsi' }]
-    const out = computePaneLayout(insts, OPTS({ excludeKeys: new Set(['rsi']) }))
+    // ⛔ EXCLUDE KEYS ARE PANE KEYS — HOST INSTANCE IDS (P2.0c). They are matched
+    // against the pane the layout would build, not against the definition behind
+    // it; `StockChart` translates the definition-keyed volume-overlay list through
+    // `volumeOverlayPaneKeys` for exactly this reason.
+    const out = computePaneLayout(insts, OPTS({ excludeKeys: new Set(['i:rsi']) }))
     expect(out.panes).toEqual([])
   })
 })
@@ -569,7 +616,9 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
    * `filter(id => OSC.includes(id))` would go on passing if one of the nine
    * disappeared, which is the whole thing this case is for.
    */
-  const NEVER_A_SHIPPED_PANE = ['rsLine']
+  // ⭐ `dataSeries` JOINS IT AT P2.1, for the same reason: it takes a pane and
+  // there is no legacy band geometry for it to match, because it did not exist.
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {
     const paneDefs = listDefinitions().filter(d => d.placement.target === 'pane')
@@ -840,11 +889,11 @@ describe('a HIDDEN instance takes no pane — the layout agrees with the binder'
   it('drops the hidden one and does NOT leave a gap in the indices', () => {
     const both = [inst('rsi'), inst('macd')]
     expect(keysOf(both), 'the control — two visible oscillators, two panes')
-      .toEqual(['rsi', 'macd'])
+      .toEqual(['legacy:rsi', 'legacy:macd'])
 
     const rsiHidden = [inst('rsi', { hidden: true }), inst('macd')]
     const panes = computePaneLayout(rsiHidden, LAYOUT).panes
-    expect(panes.map((p) => p.key), 'a hidden instance still claimed a pane').toEqual(['macd'])
+    expect(panes.map((p) => p.key), 'a hidden instance still claimed a pane').toEqual(['legacy:macd'])
     // ⛔ AND MACD TAKES THE FIRST INDEX, which is the half that actually broke:
     // leaving it at the second one is the off-by-one the returning RSI collided
     // with, and it is invisible until something comes back.
@@ -855,7 +904,7 @@ describe('a HIDDEN instance takes no pane — the layout agrees with the binder'
   it('⭐ …and un-hiding restores TWO panes, in their original order', () => {
     const back = [inst('rsi'), inst('macd')]
     const panes = computePaneLayout(back, LAYOUT).panes
-    expect(panes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    expect(panes.map((p) => p.key)).toEqual(['legacy:rsi', 'legacy:macd'])
     expect(new Set(panes.map((p) => p.index)).size, 'the two oscillators share one pane index')
       .toBe(2)
   })
@@ -961,5 +1010,108 @@ describe('topKeys — an ordered pane stack above the candles', () => {
     const plan = paneStretchPlan(top, [0, 0, 0, 0])
     expect(plan[0]).toBe(top.topPanes[0].stretchFactor)   // RSI, above the candles
     expect(plan[top.mainPaneIndex]).toBeGreaterThan(0)    // the candles
+  })
+})
+
+// ─── THE CANDLES KEEP THEIR OWN PANE ────────────────────────────────────────
+//
+// ⚰️ MEASURED IN A BROWSER, 2026-09-12: on a 690px chart with FOUR indicator
+// panes the price axis read −400 … 2,400 and AAPL at 332 drew as a flat line at
+// the top. `mainMargins.top` was `MAIN_TOP * mainHeightPx` — a fixed 207px of the
+// whole price-pane BUDGET — divided by `pane0HeightPx`, which shrinks with every
+// pane added. The candles were left 2.3 % of their own pane and the price scale
+// expanded ~44× to fill it.
+//
+// ⛔ THE RAIL IS A PROPERTY OVER THE WHOLE RANGE, NOT A NUMBER AT FOUR PANES.
+// Pinning "four panes gives 0.30" would have gone green on a special case for
+// four, which is exactly what the fix must not be. What has to hold is that the
+// candles never lose their pane to their own margins, at ANY pane count.
+describe('the candle pane is not consumed by its own margins', () => {
+  const inst = (n) => ({ instanceId: `inst:rsi:${n}`, defId: 'rsi', inputs: {}, hidden: false })
+  const layoutWith = (n, chartHeight = 690) => computePaneLayout(
+    Array.from({ length: n }, (_, i) => inst(i + 1)),
+    { chartHeight, hasVolumeBand: true, separatorPx: 1, firstPaneIndex: 1 },
+  )
+
+  it('⛔⛔ the candles keep a usable share of their pane at EVERY pane count', () => {
+    // ⭐ THE SHARE IS WHAT THE PRICE SCALE ACTUALLY GETS: 1 − top − bottom. A
+    // scale handed a sliver expands its range to fill it, which is the whole
+    // failure — the numbers below are the ones that were measured going wrong.
+    const bad = []
+    for (let n = 0; n <= 9; n++) {
+      const { pane0 } = layoutWith(n)
+      const { top, bottom } = pane0.mainMargins
+      const share = 1 - top - bottom
+      if (!(share > 0.25)) bad.push({ panes: n, top, bottom, share })
+    }
+    expect(bad, 'the candles were squeezed out of their own pane — a price scale '
+      + 'handed a sliver expands its range to fill it, and the axis reads nonsense')
+      .toEqual([])
+  })
+
+  it('⛔⛔ the HEADROOM is a fraction of the candles\' pane, not of the stack', () => {
+    // The root cause in one line: the top margin must not depend on how many
+    // OTHER panes exist. It is 30 % of the candles' own rectangle, always.
+    for (let n = 0; n <= 9; n++) {
+      expect(layoutWith(n).pane0.mainMargins.top, `${n} panes moved the headroom`)
+        .toBeCloseTo(0.30, 2)
+    }
+  })
+
+  it('⭐ …and it holds at other chart heights too', () => {
+    for (const h of [420, 690, 900, 1400]) {
+      for (const n of [0, 2, 4, 6]) {
+        const { top, bottom } = layoutWith(n, h).pane0.mainMargins
+        expect(top, `${n} panes at ${h}px`).toBeCloseTo(0.30, 2)
+        expect(1 - top - bottom, `${n} panes at ${h}px left the candles nothing`)
+          .toBeGreaterThan(0.25)
+      }
+    }
+  })
+
+  it('⛔ ZERO PANES IS BYTE-IDENTICAL — the fix changed nothing that was working', () => {
+    // The regression risk in the other direction: a chart with no oscillator pane
+    // has `pane0HeightPx === mainHeightPx`, so the two expressions agree and this
+    // rectangle may not move by a pixel.
+    const { pane0 } = layoutWith(0)
+    expect(pane0.mainMargins.top).toBe(0.30)
+    expect(pane0.heightPx).toBe(690)
+    // …and the volume band still starts where it did.
+    expect(pane0.volumeMargins.top).toBeCloseTo(1 - pane0.mainMargins.bottom, 10)
+  })
+
+  it('⭐ the volume band keeps its own share — only the HEADROOM moved', () => {
+    // Non-vacuity for the fix's scope: `mainBottomPx` was already a fraction of
+    // pane 0 (the algebra cancels), so it is untouched and the band still sits
+    // directly under the candles with no gap and no overlap.
+    for (const n of [0, 1, 4]) {
+      const { pane0 } = layoutWith(n)
+      expect(pane0.volumeMargins.top + pane0.mainMargins.bottom, `${n} panes`)
+        .toBeCloseTo(1, 10)
+      expect(pane0.volumeMargins.bottom).toBe(0)
+    }
+  })
+
+  it('⛔ AND THE DETECTOR WOULD HAVE CAUGHT THE OLD CODE — the positive control', () => {
+    // ⭐ THE PRE-FIX EXPRESSION, WRITTEN OUT. Without this the property above is
+    // only a claim that today's numbers are fine; this proves the claim is
+    // capable of failing, and records what it failed on.
+    const MAIN_TOP = 0.30
+    const bad = []
+    for (let n = 0; n <= 9; n++) {
+      const { pane0, chartHeight } = layoutWith(n)
+      // `mainHeightPx` is the candle pane PLUS the stack it no longer contains —
+      // recoverable here as pane0 + everything the oscillators took.
+      const stack = layoutWith(n).panes.reduce((a, p) => a + p.heightPx, 0)
+      const budget = pane0.heightPx + stack
+      const oldTop = Math.round(MAIN_TOP * budget) / pane0.heightPx
+      const share = 1 - oldTop - pane0.mainMargins.bottom
+      if (!(share > 0.25)) bad.push({ panes: n, oldTop: Number(oldTop.toFixed(3)), share: Number(share.toFixed(3)) })
+      expect(chartHeight).toBe(690)
+    }
+    expect(bad.length, 'the old expression never squeezed the candles, so the '
+      + 'property above is not testing anything').toBeGreaterThan(0)
+    // …and it failed WORST at the counts the browser showed it failing at.
+    expect(bad.map((b) => b.panes)).toContain(4)
   })
 })

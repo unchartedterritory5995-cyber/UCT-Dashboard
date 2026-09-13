@@ -1,6 +1,9 @@
 import { getDefinition } from './nativeRegistry'
 import { isInstanceTombstone } from '../chartDefaults'
-import { derivedTargetFor, parsePaneOfTarget } from './sourceRef'
+import {
+  derivedTargetFor, parsePaneOfTarget, paneOfTarget, sourceInputsOf, instanceLabel,
+} from './sourceRef'
+import { siblingSuffixes } from './readout'
 
 /**
  * WHERE AN INDICATOR DRAWS — the one place that decides it.
@@ -60,6 +63,28 @@ export function isWritableDisplayTarget(t) {
  * @param {object} cs         chart settings (read for the legacy list only)
  * @param {string} [defTarget] the definition's declared target; looked up when omitted
  */
+/**
+ * Rule (2) of `resolveDisplayTarget`, on its own — the LEGACY answer.
+ *
+ * ⭐⭐ EXTRACTED SO THE WRITER AND THE READER SHARE ONE IMPLEMENTATION. It has
+ * two callers and they ask the same question from opposite ends:
+ * `resolveDisplayTarget` asks *"where does this instance go?"*, and
+ * `instanceControls.placementFor` asks *"what should a brand-new instance
+ * STORE?"* — and the honest answer to the second is *only this*, never the
+ * derived default. See `placementFor` for the measured reason.
+ *
+ * ⛔ ONLY A PANE OSCILLATOR CAN BE OVERLAID ONTO VOLUME. A price overlay listed
+ * in `cs.volumeOverlayIndicators` (which nothing writes, but data is data) keeps
+ * its declared target rather than being moved somewhere it cannot draw.
+ *
+ * @returns {'volume'|null}
+ */
+export function legacyVolumeTarget(defId, declared, cs) {
+  if (declared !== 'pane') return null
+  if (!Array.isArray(cs?.volumeOverlayIndicators)) return null
+  return cs.volumeOverlayIndicators.includes(defId) ? 'volume' : null
+}
+
 export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
   if (!instance || typeof instance !== 'object') return null
   const defId = instance.defId
@@ -89,13 +114,11 @@ export function resolveDisplayTarget(instance, cs, defTarget, depth = 0) {
   const explicit = instance.placement && instance.placement.target
   if (typeof explicit === 'string' && explicit && explicit !== declared) return explicit
 
-  // (2) The legacy answer. Only a PANE oscillator can be overlaid onto volume —
-  // a price overlay listed there (which nothing writes, but data is data) keeps
-  // its declared target rather than being moved somewhere it cannot draw.
-  if (declared === 'pane' && Array.isArray(cs?.volumeOverlayIndicators)
-      && cs.volumeOverlayIndicators.includes(defId)) {
-    return 'volume'
-  }
+  // (2) The legacy answer — see `legacyVolumeTarget`, which is the ONE
+  // implementation of this rule and is also what `instanceControls.placementFor`
+  // reads when it decides what a brand-new instance should STORE.
+  const legacy = legacyVolumeTarget(defId, declared, cs)
+  if (legacy) return legacy
 
   // (2.5) ⭐⭐ A DERIVED INDICATOR DEFAULTS TO ITS SOURCE'S PANE. `MA(RSI)` into
   // RSI's pane, `MA(Volume)` into the volume pane, `MA(Close)` onto the candles —
@@ -141,7 +164,13 @@ export function paneOwnerOf(instance, cs) {
   if (!target || target === 'price' || target === 'volume') return null
   const owner = parsePaneOfTarget(target)
   if (owner) return owner
-  return instance && typeof instance.defId === 'string' ? instance.defId : null
+  // ⭐⭐ AND AN INSTANCE THAT HOSTS ITS OWN PANE IS NAMED BY ITS **INSTANCE**
+  // ID (P2.0c). `def.id` here answered "which definition's pane", which collapsed
+  // two own-pane RSIs onto one key. `defId` stays the fallback only for a
+  // malformed instance carrying no id at all.
+  if (!instance) return null
+  if (typeof instance.instanceId === 'string' && instance.instanceId) return instance.instanceId
+  return typeof instance.defId === 'string' ? instance.defId : null
 }
 
 /**
@@ -173,7 +202,10 @@ export function paneFollowerKeys(instances, cs) {
     if (!inst || typeof inst !== 'object' || inst.hidden === true) continue
     const target = resolveDisplayTarget(inst, cs)
     const owner = parsePaneOfTarget(target)
-    if (owner && owner !== inst.defId) out.add(inst.defId)
+    // ⭐ INSTANCE KEYS (P2.0c). An instance that names ANOTHER host draws in that
+    // host's pane and reserves none of its own. Comparing against `inst.defId`
+    // used to make a second RSI look like its own follower.
+    if (owner && owner !== inst.instanceId) out.add(inst.instanceId)
   }
   return out
 }
@@ -207,7 +239,7 @@ export function paneFollowerKeys(instances, cs) {
  * separate, deliberate mechanism for a hidden OWNER whose pane a visible follower
  * still needs.
  *
- * @returns {Set<string>} defIds — the key space `computePaneLayout` uses
+ * @returns {Set<string>} instanceIds — the key space `computePaneLayout` uses
  */
 export function paneOwnKeys(instances, cs) {
   const out = new Set()
@@ -217,7 +249,7 @@ export function paneOwnKeys(instances, cs) {
     // ⛔ THE RESOLVED ANSWER, NOT `inst.placement.target`. A DERIVED instance's
     // target is computed from its SOURCE (`MA(RSI)` follows RSI), and reading the
     // stored field would call a follower a pane owner.
-    if (resolveDisplayTarget(inst, cs) === 'pane') out.add(inst.defId)
+    if (resolveDisplayTarget(inst, cs) === 'pane') out.add(inst.instanceId)
   }
   return out
 }
@@ -262,6 +294,36 @@ export function volumeOverlayKeys(instances, cs) {
 }
 
 /**
+ * The same answer in PANE-KEY language: the instance ids drawing inside volume.
+ *
+ * ⭐⭐ THE SIBLING `computePaneLayout` NEEDS, AND THE REASON IT IS A SECOND
+ * FUNCTION RATHER THAN A WIDENED FIRST. `volumeOverlayKeys` answers "which
+ * DEFINITION is overlaid" — the question `placement.js`'s overlay branch and the
+ * legacy `cs.volumeOverlayIndicators` list both ask. `excludeKeys` asks a
+ * different question: "which PANE KEY reserves no pane", and pane keys are
+ * instance ids since P2.0c. Handing the first answer to the second question
+ * silently stopped excluding anything, and every volume-overlaid oscillator
+ * started reserving a band for a pane the binder never creates.
+ *
+ * ⛔ NO LEGACY-LIST FALLBACK, deliberately. `volumeOverlayKeys` adds defIds named
+ * by `cs.volumeOverlayIndicators` that NO instance carries; those cannot appear in
+ * the pane stack either, because `orderedPaneKeys` walks instances. There is
+ * nothing for them to exclude.
+ */
+export function volumeOverlayPaneKeys(instances, cs) {
+  const out = new Set()
+  for (const inst of (Array.isArray(instances) ? instances : [])) {
+    if (!inst || typeof inst !== 'object' || inst.hidden === true) continue
+    let tombstone = false
+    try { tombstone = isInstanceTombstone(inst) } catch { /* booby-trapped getter */ }
+    if (tombstone) continue
+    if (typeof inst.instanceId !== 'string' || !inst.instanceId) continue
+    if (resolveDisplayTarget(inst, cs) === 'volume') out.add(inst.instanceId)
+  }
+  return out
+}
+
+/**
  * Definition ids that must KEEP a pane even though their own instance is hidden.
  *
  * ⭐⭐ BECAUSE SOMETHING VISIBLE IS DRAWING IN IT. Hiding RSI is a statement about
@@ -279,7 +341,137 @@ export function paneOwnersNeeded(instances, cs) {
   for (const inst of (Array.isArray(instances) ? instances : [])) {
     if (!inst || typeof inst !== 'object' || inst.hidden === true) continue
     const owner = parsePaneOfTarget(resolveDisplayTarget(inst, cs))
-    if (owner && owner !== inst.defId) out.add(owner)
+    // ⭐ HOST KEY vs HOST KEY (P2.0c). `owner` is an instance id now, so comparing
+    // it to `inst.defId` never matched and every own-pane instance kept itself
+    // alive as its own "follower".
+    if (owner && owner !== inst.instanceId) out.add(owner)
+  }
+  return out
+}
+
+/**
+ * The destinations a MEMBER may send one instance to — the menu, as data.
+ *
+ * ⭐⭐ P2.3: PANES BECOME MULTI-SERIES BY BEING *CHOOSABLE*, NOT BY NEW MACHINERY.
+ * Every part of "SPY draws in QQQ's pane" already worked before this function
+ * existed — `isWritableDisplayTarget` accepts `@<hostInstanceId>`,
+ * `resolveDisplayTarget` returns it, `paneOwnKeys`/`paneFollowerKeys` sort hosts
+ * from guests, `paneLayout.orderedPaneKeys` allocates the host's pane and
+ * `placement.js`'s follower branch joins it on the host's own scale. What was
+ * missing was a way to SAY it: the settings menu offered a hard-coded two or
+ * three entries and never mentioned another pane. So this phase is an option
+ * list, one writer guard, and the existing seams underneath.
+ *
+ * ⛔⛔ SOURCE AND DESTINATION STAY SEPARATE, and this function is where that is
+ * most tempting to break. It never looks at what an instance READS to decide
+ * where it may DRAW — a host qualifies by owning a pane, full stop. `MA(QQQ)`
+ * may join `SPY`'s pane; two unrelated series may share one. Gating the list on
+ * a source relationship would make "where should I draw it?" a property of
+ * "what data is this?", which is the one confusion the whole phase exists to
+ * prevent.
+ *
+ * ⛔ THE GATE IS "HAS THIS SERIES SOMEWHERE TO GO", NOT "IS IT DERIVED". The old
+ * gate asked `derivedTargetFor` for a source pane and returned nothing when that
+ * came back null — which is exactly what a SYMBOL source does (`sym:QQQ:close`
+ * resolves no pane, by design, because a canonical symbol is not an instance).
+ * So `MA` pointed at QQQ — the headline workflow — had no destination menu at
+ * all while `MA` pointed at `close` had one. The honest question is whether the
+ * definition reads a source at all; a plain price overlay (Bollinger, VWAP)
+ * declares none and still gets no menu, which is the rail
+ * `ChartSettingsModal.indicators.test.jsx` has always held.
+ *
+ * ⚠️ A DEAD HOST IS NEVER OFFERED. Tombstoned instances are skipped, so deleting
+ * a pane host removes it from every other series' menu on the next render. What
+ * an already-stored target pointing AT that host does is `placement.js`'s
+ * long-standing answer — no pane for the owner means no binding, not a guess —
+ * and this function deliberately does not paper over it with a phantom entry.
+ *
+ * @param {object} instance the instance whose menu this is
+ * @param {object} cs       chart settings
+ * @param {Function} [defOf] definition lookup; the native registry when omitted
+ * @returns {{value: string, label: string, group: 'shared'|'panes'}[]}
+ */
+export function displayTargetOptions(instance, cs, defOf) {
+  if (!instance || typeof instance !== 'object') return []
+  const lookup = typeof defOf === 'function' ? defOf : getDefinition
+  const def = lookup(instance.defId)
+  const declared = def && def.placement && def.placement.target
+  if (typeof declared !== 'string' || !declared) return []
+  if (declared !== 'pane' && sourceInputsOf(def, instance).length === 0) return []
+
+  const instances = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+  const self = instance.instanceId
+  const hosts = []
+  for (const other of instances) {
+    if (!other || typeof other !== 'object') continue
+    if (typeof other.instanceId !== 'string' || !other.instanceId) continue
+    // ⛔ NOT ITSELF. A series that named its own pane as its destination would be
+    // its own guest: `paneFollowerKeys` would stop counting it as an owner, the
+    // pane it is "following" would never be allocated, and it would vanish.
+    if (other.instanceId === self) continue
+    let tombstone = false
+    try { tombstone = isInstanceTombstone(other) } catch { /* booby-trapped getter */ }
+    if (tombstone) continue
+    // ⭐ ONLY A HOST CAN BE JOINED, and asking the resolver is what makes that
+    // true rather than hopeful. A guest resolves to `@somebodyElse`, so it can
+    // never appear here — which is also what makes a placement CYCLE
+    // unconstructible through this menu: every offered target already owns a pane.
+    if (resolveDisplayTarget(other, cs) !== 'pane') continue
+    hosts.push(other)
+  }
+
+  const labels = paneHostLabels(hosts, lookup)
+  const out = []
+  const seen = new Set()
+  const push = (value, label, group) => {
+    if (!value || seen.has(value)) return
+    seen.add(value)
+    out.push({ value, label, group })
+  }
+  // The three shared destinations first, in the order the member reads them.
+  push('price', 'Price', 'shared')
+  push('volume', 'Volume', 'shared')
+  push('pane', 'Own pane', 'shared')
+  hosts.forEach((h, i) => push(paneOfTarget(h.instanceId), labels[i], 'panes'))
+  return out
+}
+
+/**
+ * Menu labels for a set of pane hosts — `QQQ`, `RSI (14)`, `UCTA50`.
+ *
+ * ⭐ THE SAME TWO RULES THE LEGEND USES, CALLED RATHER THAN RESTATED.
+ * `instanceLabel` is what names a chip on the chart, so a pane called `QQQ` in
+ * the menu is the pane labelled `QQQ` on screen; `siblingSuffixes` is the
+ * existing deterministic tie-break, so two identical QQQ series are `QQQ #1` and
+ * `QQQ #2` in both places. `readout.js` already says out loud that these two
+ * surfaces "cannot word two copies of one indicator differently" — this is the
+ * other surface it meant.
+ *
+ * ⛔ GROUPED BY THE LABEL THAT COLLIDES, not by definition. Two RSIs with
+ * different periods already print `RSI (14)` and `RSI (7)` and need no help; two
+ * `dataSeries` on different symbols print `QQQ` and `SPY` and need none either.
+ * Only an actual collision is disambiguated, which is why an ordinary chart's
+ * menu carries no suffixes at all.
+ */
+function paneHostLabels(hosts, lookup) {
+  const base = hosts.map((h) => instanceLabel(lookup(h.defId), h))
+  const byLabel = new Map()
+  base.forEach((label, i) => {
+    if (!byLabel.has(label)) byLabel.set(label, [])
+    byLabel.get(label).push(i)
+  })
+  const out = base.slice()
+  for (const idxs of byLabel.values()) {
+    if (idxs.length < 2) continue
+    // ⛔ THE LABEL-BEARING INPUT IS NOT A DISCRIMINATOR — `QQQ (source
+    // sym:QQQ:close)` is an address, not a name. Same exclusion `readout.js`
+    // makes, for the same reason.
+    const def0 = lookup(hosts[idxs[0]].defId)
+    const ignore = (def0 && def0.meta && def0.meta.labelFrom === 'source')
+      ? (def0.inputs || []).filter((i) => i && i.type === 'source').map((i) => i.key)
+      : []
+    const suffixes = siblingSuffixes(idxs.map((i) => hosts[i].inputs || {}), ignore)
+    idxs.forEach((hi, n) => { out[hi] = `${base[hi]}${suffixes[n]}` })
   }
   return out
 }

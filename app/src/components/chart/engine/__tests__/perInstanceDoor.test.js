@@ -304,6 +304,29 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // identically and each blob gained one additive empty array. An info field
       // is neither an indicator nor a condition and takes no door here — which
       // is the point.
-      .toBe('19f30cb4f264438e4f7c9b14f142597f23930a4e4691f72eab87314d2b08ada3')
+      // ⭐ 2026-09-12 (P2.1) — re-pinned for the `dataSeries` definition, the first
+      // that computes NOTHING: it hands its source through unchanged so a symbol, a
+      // breadth measure or another indicator's output can be plotted directly.
+      // INVESTIGATED BY MEASUREMENT, not regenerated: this corpus rebuilt with
+      // `dataSeries` SKIPPED reproduces `19f30cb4…` EXACTLY, so every pre-existing
+      // per-definition row is byte-identical and no door changed behaviour. The
+      // corpus simply grew by that definition's own rows — 260 → 270, i.e. TWO per
+      // base rather than three, because `dataSeries` declares no `int` input for
+      // the `setIndicatorInput` leg to exercise.
+      // ⭐ 2026-09-12 (P2.1, second move, same change) — `placementFor` stopped
+      // freezing a DERIVED target into a brand-new instance. It called the whole
+      // of `resolveDisplayTarget`, whose rule (2.5) resolves a source's own home;
+      // at mint time an instance has no inputs yet, so `dataSeries` — declared
+      // `pane`, default source the placeholder `close` — was stamped
+      // `{target: 'price'}` and a member's QQQ series landed on the candles'
+      // pane. It now asks the LEGACY question only and stamps the DECLARED
+      // target. INVESTIGATED BY MEASUREMENT: this corpus rebuilt with
+      // `dataSeries` skipped reproduces `19f30cb4…` — the PRE-P2.1 literal —
+      // EXACTLY, so the narrowing is byte-identical for all eighteen
+      // pre-existing definitions and the only rows that moved are `dataSeries`'
+      // own, from the wrong stamp to the right one.
+      // (Prior value: 7c2db55d71352122d4717023a814bfb1bf7cb6ec728e497cd4f06f9de9adabd9)
+      // (Pre-P2.1 value: 19f30cb4f264438e4f7c9b14f142597f23930a4e4691f72eab87314d2b08ada3)
+      .toBe('207cde77a46584575621cb9368d8e5bc6c465ffe9a8b89a368f1eb261621d8cc')
   })
 })

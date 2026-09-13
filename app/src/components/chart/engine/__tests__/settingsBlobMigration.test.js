@@ -155,7 +155,9 @@ describe('a blob written before the engine existed', () => {
       'the stored blob\'s panes came out in REGISTRY order — MACD and Stochastics '
       + 'swapped for every existing user, which is exactly what the owner\'s '
       + '"preserve today\'s pane heights" answer refused')
-      .toEqual(byStack)
+      // ⭐ PANE KEYS ARE HOST INSTANCE IDS (P2.0c); the ORDER is the claim, and
+      // the migrator mints `legacy:<defId>` for each of the fifteen legacy toggles.
+      .toEqual(byStack.map((id) => `legacy:${id}`))
     // Non-vacuity: three panes really were built, and they are BELOW the volume
     // pane the `firstPaneIndex: 2` says is there.
     expect(layout.panes.map(p => p.index)).toEqual([2, 3, 4])
@@ -193,7 +195,10 @@ describe('a blob written before the engine existed', () => {
     // `computePaneMargins` never gave it a band, so it is APPENDED by
     // `computeShippedStackOrder` like every other later definition rather than
     // inserted into the frozen head. Naming it keeps both lines below equalities.
-    const NEVER_A_SHIPPED_PANE = ['rsLine']
+    // ⭐ `dataSeries` (P2.1) IS THE SECOND. Same claim: a pane definition with no
+    // legacy band, so it is APPENDED to the stack order rather than inserted into
+    // the frozen head, and the two equalities below stay equalities.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries']
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
       expect(paneIds, `NEVER_A_SHIPPED_PANE names ${id}, which is not a pane definition`)
@@ -207,14 +212,15 @@ describe('a blob written before the engine existed', () => {
       'the nine head entries are not the nine pane definitions').toEqual([...shippedPaneIds].sort())
     expect(SHIPPED_STACK_ORDER.slice(9))
       .toEqual(registryOrder.filter(id => !shippedPaneIds.includes(id)))
-    // ⭐ EIGHT SINCE PHASE C TASK 13. The derived line above is the claim that
-    // matters — the tail IS everything outside the shipped nine, in registry
-    // order — and it grew with the registry on its own. This literal is the
-    // record of WHICH ones, and the first five may never move: they are the
-    // shipped z-order. `rsLine` is last and is a PANE, which is exactly what
+    // ⭐ NINE SINCE P2.1. The derived line above is the claim that matters — the
+    // tail IS everything outside the shipped nine, in registry order — and it grew
+    // with the registry on its own. This literal is the record of WHICH ones, and
+    // the first five may never move: they are the shipped z-order. `dataSeries`
+    // and `rsLine` are both PANES sitting in the tail, which is exactly what
     // `computeShippedStackOrder` appending rather than inserting means.
     expect(SHIPPED_STACK_ORDER.slice(9))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands', 'movingAverage', 'rsLine'])
+      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
+        'movingAverage', 'dataSeries', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -432,7 +438,8 @@ describe('a blob written before the engine existed', () => {
     // ⭐ APPENDED, NOT INSERTED. `FROZEN_SHIPPED_STACK_ORDER` records the
     // fourteen the July blob knew; anything registered since lands after it in
     // registry order. `ma` is the first definition never in a legacy blob at all.
-    expect(SHIPPED_STACK_ORDER.slice(14)).toEqual(['avwap', 'atrBands', 'movingAverage', 'rsLine'])
+    expect(SHIPPED_STACK_ORDER.slice(14))
+      .toEqual(['avwap', 'atrBands', 'movingAverage', 'dataSeries', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

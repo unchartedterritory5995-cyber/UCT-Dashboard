@@ -98,6 +98,11 @@ import {
   listDefinitions as listNativeDefinitions,
 } from './nativeRegistry'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
+// ⭐ THE PANE-HOST HALF OF THE TARGET VOCABULARY (P2.3). Imported from the module
+// that DEFINES the grammar rather than re-spelled here, so "what is a legal
+// target" has one answer for the writer, the resolver and the validator.
+// `sourceRef` imports only `defSchema` and `pool`, so this adds no cycle.
+import { parsePaneOfTarget } from './sourceRef'
 
 // Re-exported so engine code has ONE import for everything instance-shaped. The
 // definitions live in `chart/instanceShape.js` — beside `mergeSettingsOverride`,
@@ -642,10 +647,34 @@ export function validateInstance(inst, registry, ctx) {
     if (inst.placement !== undefined && inst.placement !== null) {
       if (!isPlainObject(inst.placement)) {
         errors.push(`placement: expected an object, got ${fmt(inst.placement)}`)
-      } else if (inst.placement.target !== undefined && !PLACEMENT_TARGETS.includes(inst.placement.target)) {
+      } else if (inst.placement.target !== undefined
+        && !PLACEMENT_TARGETS.includes(inst.placement.target)
+        // ⭐⭐ …OR THE PANE ANOTHER INSTANCE HOSTS (P2.3). `@<hostInstanceId>` is a
+        // fourth legal target and always has been — `isWritableDisplayTarget`
+        // accepts it, `resolveDisplayTarget` returns it, `placement.js` resolves
+        // it to the host's live pane. It was absent HERE only because nothing
+        // ever STORED one: a follower's derived target has its key deleted
+        // (`setInstanceDisplayTarget`), so the value existed at runtime and never
+        // in a blob.
+        //
+        // ⚰️ MEASURED THE FIRST TIME A MEMBER COULD SAY IT. P2.3's menu writes
+        // `@inst:dataSeries:1`, this rejected the WHOLE INSTANCE, `normalize`
+        // dropped it, and the legacy derivation put a DIFFERENT moving average
+        // back — no source, target `price`. On a real chart that read as
+        // `MA(5) 322.07` on the candles instead of `715.44` in QQQ's pane: the
+        // right indicator, silently recomputed against the wrong instrument.
+        // A validator that does not know the whole vocabulary does not reject a
+        // field, it deletes a series.
+        //
+        // ⛔ THE DEFINITION VOCABULARY IS UNCHANGED. `defSchema` still holds a
+        // DEFINITION to the three static targets — a definition cannot declare
+        // that it lives in some other instance's pane, because at authoring time
+        // there are no instances. This is an INSTANCE-only widening.
+        && !parsePaneOfTarget(inst.placement.target)) {
         errors.push(
           `placement.target: unknown target ${fmt(inst.placement.target)} — expected one of: ` +
-          `${list(PLACEMENT_TARGETS)}. An instance may legally OVERRIDE its definition's target ` +
+          `${list(PLACEMENT_TARGETS)}, or "@<hostInstanceId>" to draw inside the pane another ` +
+          `instance hosts. An instance may legally OVERRIDE its definition's target ` +
           `(a user moving an overlay into its own pane), but only to a target the binder knows.`,
         )
       }

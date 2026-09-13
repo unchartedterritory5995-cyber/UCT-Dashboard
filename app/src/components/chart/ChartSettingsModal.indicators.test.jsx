@@ -687,9 +687,21 @@ describe('a derived indicator gets BOTH menus, and they are independent', () => 
   it('⭐⭐ …and a SEPARATE "Display in" control, defaulting to the SOURCE pane', () => {
     openMa()
     const sel = within(maRow()).getByLabelText(/display in/i)
-    // Named after the owner of the pane, which is what the chart shows.
-    expect([...sel.options].map((o) => o.textContent)).toEqual(['RSI pane', 'Price', 'Volume'])
-    expect(sel.options[sel.selectedIndex].textContent).toBe('RSI pane')
+    // ⚰️ P2.3 — THE LIST GREW AND THE ORDER SETTLED. It read
+    // `['RSI pane', 'Price', 'Volume']`: the derived default first, then the two
+    // shared panes, and no way to say "a pane of your own" or "somebody else's".
+    // Now the three destinations every chart HAS come first in a fixed order, and
+    // the panes the member actually made follow under their own heading — so the
+    // menu no longer reorders itself depending on what the indicator reads.
+    //
+    // ⭐ AND THE HOST IS NAMED THE WAY THE LEGEND NAMES IT — `RSI (14)`, the same
+    // string on the chip, rather than the generic "RSI pane" this file invented.
+    expect([...sel.options].map((o) => o.textContent))
+      .toEqual(['Price', 'Volume', 'Own pane', 'RSI (14)'])
+    expect(sel.querySelector('optgroup')?.getAttribute('label')).toBe('Existing panes')
+    // ⛔ THE DEFAULT IS UNCHANGED, which is the actual subject of this case: with
+    // nothing stored, `MA(RSI)` still resolves into RSI's pane.
+    expect(sel.options[sel.selectedIndex].textContent).toBe('RSI (14)')
     cleanup()
   })
 

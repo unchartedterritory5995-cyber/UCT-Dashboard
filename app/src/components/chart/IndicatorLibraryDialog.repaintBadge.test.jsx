@@ -42,6 +42,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, within } from '@testing-library/react'
 
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 import { mergeChartSettings } from './chartDefaults'
 import { catalogRows, userCatalogRows } from './indicatorCatalog'
 import * as engineRegistry from './engine/nativeRegistry'
@@ -151,6 +152,8 @@ describe('🔴 the library row badges the LINTER\'S measurement, per plot', () =
 
     open()
     for (const def of quiet) {
+      // ⛔ THE SUBSTRATE IS NOT BROWSABLE — see `LIBRARY_HIDDEN_IDS`.
+      if (LIBRARY_HIDDEN_IDS.includes(def.id)) continue
       const row = rowFor(def.id)
       expect(row, `${def.id} is missing from the library`).toBeTruthy()
       expect(badgeIn(row),

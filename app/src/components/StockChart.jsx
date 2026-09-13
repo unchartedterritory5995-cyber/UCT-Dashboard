@@ -14,8 +14,9 @@ import { createConditionShadingPrimitive } from './chart/conditionShadingPrimiti
 import { normaliseInfoFields } from './chart/engine/infoFields'
 import { publishInfoValues, clearInfoValues } from '../lib/infoValueStore'
 import {
-  volumeOverlayKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
+  volumeOverlayKeys, volumeOverlayPaneKeys, paneFollowerKeys, paneOwnersNeeded, resolveDisplayTarget,
   derivedTargetOf, paneOwnKeys } from './chart/engine/displayTarget'
+import { parsePaneOfTarget } from './chart/engine/sourceRef'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -195,15 +196,23 @@ const NO_PANE_KEYS = Object.freeze([])
  * @param {object|null} layout `paneLayoutRef.current`
  * @returns {{key: string, index: number, chips: object[]}[]}
  */
-function paneReadoutRows(chips, layout) {
+function paneReadoutRows(chips, layout, hostOf) {
   const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
   if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
+  // ⭐⭐ GROUPED BY ACTUAL PANE MEMBERSHIP, NOT BY DEFINITION (P2.0c). This
+  // grouped on `c.defId` and matched it against `pane.key`, which was only ever
+  // right while a pane WAS a definition. With host-instance keys, two RSIs in two
+  // panes would otherwise put both chips in whichever pane matched first — one
+  // legend showing a value from a series that is not in it, which is worse than a
+  // missing chip because it reads as correct.
   const byKey = new Map()
   for (const c of chips) {
-    if (!c || c.hidden === true || typeof c.defId !== 'string') continue
-    const group = byKey.get(c.defId)
+    if (!c || c.hidden === true) continue
+    const key = hostOf ? hostOf(c) : null
+    if (typeof key !== 'string' || !key) continue
+    const group = byKey.get(key)
     if (group) group.push(c)
-    else byKey.set(c.defId, [c])
+    else byKey.set(key, [c])
   }
   const out = []
   for (const pane of panes) {
@@ -5650,6 +5659,21 @@ export default function StockChart({
   // while nothing changes, which is what stops that dependency repainting
   // continuously — see the hook's own note.
   const _storedInstances = useCallback(() => cs.indicatorInstances, [cs])
+
+  // ⭐⭐ WHICH PANE A LEGEND CHIP BELONGS TO (P2.0c). Pane keys are host INSTANCE
+  // ids, so a chip's pane is: its own instance when it hosts one, or the host it
+  // follows. `resolveDisplayTarget` is the same authority the layout and placement
+  // both consume, so the legend cannot disagree with where the series actually
+  // drew — which is the failure mode that reads as correct.
+  const chipPaneHost = useCallback((chip) => {
+    const id = chip && chip.instanceId
+    if (typeof id !== 'string' || !id) return null
+    const inst = (cs.indicatorInstances || []).find((i) => i && i.instanceId === id)
+    if (!inst) return null
+    const target = resolveDisplayTarget(inst, cs)
+    if (target === 'pane') return id
+    return parsePaneOfTarget(target)
+  }, [cs])
   const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
@@ -10481,9 +10505,14 @@ export default function StockChart({
     const _topKeys = new Set(
       (engineInstances || [])
         .filter((i) => i && i.hidden !== true && i.placement && i.placement.position === 'above')
-        .map((i) => i.defId)
-        .filter((id) => typeof id === 'string' && id
-          && !volOverlaySet.has(id) && !_followerKeys.has(id)),
+        // ⭐⭐ THE TOP SET IS FILTERED ON THE DEFINITION AND EMITTED AS THE
+        // PANE KEY (P2.0c). `volOverlaySet` answers a definition question; the
+        // set this builds is intersected with `allKeys`, which are INSTANCE ids.
+        // Emitting `defId` here made every top pane silently fall out of the
+        // top list and drop to the bottom of the stack.
+        .filter((i) => !volOverlaySet.has(i.defId) && !_followerKeys.has(i.instanceId))
+        .map((i) => i.instanceId)
+        .filter((id) => typeof id === 'string' && id),
     )
     const paneLayout = computePaneLayout(engineInstances, {
       chartHeight: paneStackHeightPx(chart),
@@ -10494,7 +10523,11 @@ export default function StockChart({
       // oscillator would cause, which is why both sets are subtracted here and in
       // the same place. `displayTarget` decides who follows whom; this consumes
       // that answer rather than forming its own.
-      excludeKeys: new Set([...volOverlaySet, ..._followerKeys]),
+      // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the
+      // legacy list's own units); `excludeKeys` is matched against pane keys,
+      // which are instance ids since P2.0c. `volumeOverlayPaneKeys` is the same
+      // answer in the units this call site speaks.
+      excludeKeys: new Set([...volumeOverlayPaneKeys(engineInstances, cs), ..._followerKeys]),
       // ⭐ A HIDDEN OWNER KEEPS ITS PANE WHILE SOMETHING VISIBLE DRAWS IN IT.
       // Hiding RSI must not take `MA(RSI)` with it — the eye icon is about ink,
       // not about existence.
@@ -14668,7 +14701,24 @@ export default function StockChart({
       if (paneMode() === 'panes' && _layout) {
         let livePanes = []
         try { livePanes = chart.panes() } catch { livePanes = [] }
-        const keyAt = new Map(_layout.panes.map((p) => [p.index, p.key]))
+        // ⭐⭐ THE PANE KEY IS TRANSLATED BACK TO A DEFINITION HERE (P2.0c).
+        // Pane keys are instance ids now, and the right-click menu is definition-
+        // shaped end to end — `labelFor`, `indEnabled`, `firstLiveInstanceId` and
+        // `liveInstanceIdsFor` all take a defId, and the W0.2 sibling rows are how
+        // two copies each get a settings door. Handing it `legacy:rsi` named
+        // nothing and the region resolved to no menu at all. `defByKey` is the
+        // layout's own record of which definition supplied each host, so this is a
+        // lookup rather than a second opinion — and the key stays an OPAQUE id,
+        // never parsed out of the host string.
+        let livePriceIdx = _layout.mainPaneIndex
+        try {
+          const at = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
+          if (Number.isInteger(at)) livePriceIdx = at
+        } catch { /* the renderer has no candle pane yet — keep the layout's answer */ }
+        const _byDef = _layout.defByKey
+        const keyAt = new Map(_layout.panes.map(
+          (p) => [p.index, (_byDef && _byDef.get(p.key)) || p.key],
+        ))
         region = resolveChartRegionFromPanes({
           x: px, y: py, width: rect.width, height: rect.height,
           axisWidth, timeAxisHeight,
@@ -14679,6 +14729,17 @@ export default function StockChart({
           }),
           pane0Bands: { volume: _layout.pane0.volumeMargins || undefined },
           separatorHeight: _layout.separatorPx,
+          // ⭐⭐ WHERE THE CANDLES ACTUALLY ARE. Pane 0 stopped being the price
+          // pane the moment an indicator could sit Above Price: the resolver's
+          // hard-coded `0` then named the TOP oscillator's pane "price" and the
+          // candles' pane "volume" (measured in a browser, P2.0d).
+          //
+          // ⛔ ASKED OF THE RENDERER FIRST, layout second — the same order the
+          // pane heights above are read in, and for the same reason this whole
+          // branch exists: the layout is the intention, and a pane move lands one
+          // frame at a time. If the candles have not been displaced yet, the
+          // menu must describe the chart on screen, not the one being built.
+          pricePaneIndex: livePriceIdx,
         })
       } else {
         region = resolveChartRegion({
@@ -17082,7 +17143,7 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current).map((row) => (
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost).map((row) => (
         <div
           key={row.key}
           ref={(el) => {

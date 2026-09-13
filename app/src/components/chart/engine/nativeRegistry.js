@@ -968,6 +968,63 @@ const RAW_DEFS = [
     domainBehavior: 'inherit',
   }),
 
+  // ── DIRECT SERIES (P2.1) ─────────────────────────────────────────────────
+  //
+  // ⭐⭐ THE DEFINITION THAT IS NOT AN INDICATOR. Every other native in this file
+  // computes something FROM a series; this one IS its series. `QQQ` on an AAPL
+  // chart, `UCTA50`, `MACD.signal` lifted into its own pane — one definition, and
+  // the member-facing identity is the SOURCE rather than the definition.
+  //
+  // ⛔⛔ SOURCE-FAMILY BLIND, AND THAT IS THE WHOLE DESIGN. There is no `if
+  // breadth`, no `if security`, no symbol list. A security and a breadth
+  // pseudo-ticker differ in DISCOVERY metadata and in the string after `sym:` —
+  // nowhere else. `api/routers/bars.py` is the layer that knows what a symbol IS
+  // (`secondaryBars.js:21-24`), and it stays the only one.
+  //
+  // ⚠️ WHY IT IS NOT `movingAverage` WITH `period: 1`. An average of one is an
+  // identity only by arithmetic accident, it carries a period control that means
+  // nothing, and it names itself "MA" in every legend, menu and settings row. A
+  // member plotting QQQ is not smoothing anything.
+  //
+  // ⛔⛔ AND WHY THE ID IS `dataSeries` AND NOT THE OBVIOUS `series`. `'series'` is
+  // already an AST NODE TYPE (`ast/parse.js` `NODE_TYPES`), and `ast/lint.test.js`
+  // proves the repaint linter has NO per-indicator exemption by asserting that no
+  // string literal in `lint.js` equals a shipped definition id. A definition
+  // called `series` makes that literal match forever, and the rail can no longer
+  // tell "the linter mentions an indicator" from "the linter mentions a node
+  // type" — it would go red on the true statement and stay red. The rail is worth
+  // more than the shorter id. MEASURED: naming it `series` failed that case with
+  // `expected ['series'] to deeply equal []`.
+  //
+  // ⚠️ AND WHY IT DECLARES `autoPane` RATHER THAN A FIXED SCALE. Its range is its
+  // source's: QQQ is ~715, UCTA50 is 0-100, a MACD signal straddles zero. A
+  // declared `scale` would be a claim about numbers this definition has never
+  // seen. `domainBehavior: 'inherit'` says the same thing to the scale system —
+  // the identity transform preserves its source's domain EXACTLY, which is the
+  // strongest form of the claim `movingAverage` already makes.
+  ({
+    ...nativeDef('dataSeries', 'dataSeries',
+      { name: 'Data Series', shortName: 'Series', category: 'Data',
+        description: 'Plots a numeric source directly, with no calculation applied — '
+          + 'the values exactly as they are.',
+        tags: ['series', 'source', 'derived'],
+        // ⛔ NO `legendParams`. The parameter that identifies this instance is its
+        // SOURCE, and a raw `sym:QQQ:close` in a legend chip is an address, not a
+        // name. `sourceRef.instanceLabel` reads `labelFrom` instead and derives
+        // `QQQ` from the parsed source — see its header.
+        labelFrom: 'source' },
+      autoPane(0.15),
+      [
+        { key: 'source', type: 'source', label: 'Source', default: 'close' },
+        colorInput('color', 'Color', '#4f9cf9'),
+      ],
+      [
+        { key: 'value', label: 'Series', style: 'line', color: '$color', width: 1,
+          role: 'primary', legend: { decimals: 2 } },
+      ]),
+    domainBehavior: 'inherit',
+  }),
+
 ]
 
 // ─── the compute adapter ─────────────────────────────────────────────────────
@@ -1111,6 +1168,33 @@ const NATIVE_COMPUTE = {
     const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
     if (!src) return { ma: new Array(n) }
     return { ma: p.maType === 'ema' ? emaOfSeries(src, p.period, n) : smaOfSeries(src, p.period, n) }
+  },
+
+  // ⭐⭐ THE IDENTITY COMPUTE (P2.1). The whole of it: hand back the source.
+  //
+  // ⛔ POINTS, NOT THE RAW COLUMN, AND THE COPY IS NOT AVOIDABLE. `ctx.source` is
+  // a Float64Array of numbers; `toColumn` reads `points[i].value`, so returning
+  // the array itself type-checks, computes, and lands as an ALL-NaN column with
+  // no error anywhere — the same silent shape that cost `movingAverage` a live
+  // debugging round (see its comment). Every other native already pays this
+  // O(bars) translation; this one is simply the shortest.
+  //
+  // ⛔ NO FALLBACK TO CLOSE, for the reason `movingAverage` gives: an unresolved
+  // source computes NOTHING. Drawing the chart's own closes and labelling them
+  // `QQQ` is the one failure a source system must not have.
+  dataSeries: (bars, p, ctx) => {
+    const n = Array.isArray(bars) ? bars.length : 0
+    // ⛔⛔ NOT `Array.isArray` — a resolved column is a Float64Array, and
+    // `Array.isArray(new Float64Array(3))` is FALSE. Measured once already.
+    const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
+    if (!src) return { value: new Array(n) }
+    const out = new Array(n)
+    const m = Math.min(src.length, n)
+    for (let i = 0; i < m; i++) {
+      const v = src[i]
+      if (Number.isFinite(v)) out[i] = { value: v }
+    }
+    return { value: out }
   },
 
   donchian: (bars, p) => {

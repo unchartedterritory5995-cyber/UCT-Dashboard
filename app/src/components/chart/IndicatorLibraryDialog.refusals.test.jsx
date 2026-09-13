@@ -34,6 +34,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent, within } from '@testing-library/react'
+import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
 
 // ⚠️ A SIGNED-IN USER, AND A REAL `createContext`. `useUserDefinitions` reads
 // `useContext(AuthContext)` and hands SWR a NULL KEY without a user — so a file
@@ -260,7 +261,7 @@ describe('🔴 a formula the gates refuse SAYS SO, in the gate\'s own words', ()
     // ⛔ CONTROL: the empty-state line is about the SEARCH, and it must not
     // appear while a refusal is the only thing matching.
     type('stale')
-    expect(screen.queryByText(/No indicator matches/)).toBeNull()
+    expect(screen.queryByText(/No match for/)).toBeNull()
   })
 
   it('⛔⛔ the SHIPPED rails do not move while a refusal is on screen', async () => {
@@ -286,8 +287,21 @@ describe('🔴 a formula the gates refuse SAYS SO, in the gate\'s own words', ()
     open()
     await settle()
     const ids = optionIds()
+    // ⛔ MINUS THE SUBSTRATE, WHICH IS A WRITTEN CLAIM AND NOT AN INLINE `if`.
+    // `dataSeries` is registered and deliberately NOT browsable — it plots
+    // whatever it is pointed at, so a row reading "Data Series" offering to plot
+    // `close` means nothing; its member-facing rows are QQQ and UCTA50, which
+    // carry the source. The set is asserted below so it cannot quietly grow.
     for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]) {
+      if (LIBRARY_HIDDEN_IDS.includes(shipped)) continue
       expect(ids, `${shipped} fell out of the library`).toContain(shipped)
+    }
+    expect([...LIBRARY_HIDDEN_IDS],
+      'the not-browsable set moved — a definition that silently stops being listed '
+      + 'is an indicator nobody can find, and no pixel gate can see it')
+      .toEqual(['dataSeries'])
+    for (const hidden of LIBRARY_HIDDEN_IDS) {
+      expect(ids, `${hidden} is hidden but still listed`).not.toContain(hidden)
     }
     expect(ids).toContain('volumeProfile')
   })

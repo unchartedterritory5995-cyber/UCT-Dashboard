@@ -379,7 +379,18 @@ export function resolvePlacement(instance, def, ctx) {
   if (follows) {
     if (paneMode() !== 'panes') return null
     const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
-    const pane = panes ? panes.find((p) => p && p.key === follows) : null
+    let pane = panes ? panes.find((p) => p && p.key === follows) : null
+    // ⚠️ LEGACY `@<defId>` READ COMPATIBILITY (P2.0c). Pane keys are host
+    // INSTANCE ids now, so a follow target written under the old vocabulary names
+    // no pane. Nothing shipped actually stores one — a target equal to the default
+    // has its key DELETED, and that is the only way a follower's `@` target is
+    // produced — but interpreting it costs three lines and removes a whole
+    // silent-disappearance class. FIRST matching host in pane order, which is
+    // exactly the single pane the old model would have had.
+    if (!pane && panes && !follows.includes(':')) {
+      const byDef = c.paneLayout && c.paneLayout.defByKey
+      pane = byDef ? panes.find((p) => p && byDef.get(p.key) === follows) : null
+    }
     // ⛔ NO PANE FOR THE OWNER MEANS NO BINDING, not a guess. The owner may be
     // off, hidden, or not on this chart at all; landing the follower in pane 0
     // would paint an oscillator over the candles on their own scale.
@@ -420,7 +431,28 @@ export function resolvePlacement(instance, def, ctx) {
 
   if (target !== 'pane' && target !== 'volume') return null
   if (typeof def.id !== 'string' || !def.id) return null
+  // ⭐ THE DEFINITION KEY. Two of the questions below are about the DEFINITION
+  // and stay keyed by it: the legacy `volumeOverlayIndicators` list (`cs` stores
+  // defIds there and that list is READ-ONLY — `displayTarget.js` step 2), and the
+  // `'bands'`-mode named scale plus its band, which exist to be byte-identical to
+  // the retired per-definition render blocks. Widening either would RENAME a
+  // scale nothing asked to rename — the owner's §15/§22 line: the host-key
+  // widening must affect actual independent own panes and intentional host
+  // references, and nothing else.
   const key = def.id
+  // ⭐⭐ THE PANE KEY IS THE HOST INSTANCE (P2.0c), AND IT IS A DIFFERENT KEY.
+  // The pane lookup read `def.id`, which meant every instance of one definition
+  // found the SAME pane — fine while a definition could only ever have one, and
+  // wrong the moment two instances each own theirs. An instance that resolved to
+  // `target: 'pane'` hosts its own; the follower case never reaches here (it
+  // returns above, on the `@host` branch).
+  //
+  // ⛔ IT IS NOT A SCALE ID. A real pane carries its own `'right'` axis, so the
+  // panes-mode branch below names no scale after anything; only `'bands'` mode
+  // does, and `'bands'` mode has no panes to host.
+  const paneKey = (instance && typeof instance.instanceId === 'string' && instance.instanceId)
+    ? instance.instanceId
+    : def.id
 
   const scale = def.placement && def.placement.scale
   const range = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max))
@@ -552,7 +584,7 @@ export function resolvePlacement(instance, def, ctx) {
   // paint straight over the candles.
   if (paneMode() === 'panes') {
     const panes = c.paneLayout && Array.isArray(c.paneLayout.panes) ? c.paneLayout.panes : null
-    const pane = panes ? panes.find((p) => p && p.key === key) : null
+    const pane = panes ? panes.find((p) => p && p.key === paneKey) : null
     if (!pane || !Number.isInteger(pane.index)) return null
     return {
       paneIndex: pane.index,

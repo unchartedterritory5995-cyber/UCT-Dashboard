@@ -287,8 +287,9 @@ describe('the blob shapes themselves — without these the cases below prove not
     // `atrBands` are the first definitions that never were one, so the set grew
     // with no flip happening at all. That distinction is the whole of §A5.
     expect([...ENGINE_OWNED].sort()).toEqual(
-      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'donchian', 'ichimoku', 'macd',
-        'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+      ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'donchian', 'ichimoku',
+        'macd', 'mfi', 'movingAverage', 'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap',
+        'williamsR'])
   })
 })
 
