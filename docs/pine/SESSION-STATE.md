@@ -1,5 +1,181 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ RESUME 2026-09-13 — read this first
+
+**Session closed for an operator reboot. This section is authoritative; everything
+below it is history.**
+
+### 1. Where the work is
+
+| | |
+|---|---|
+| worktree | `C:\Users\Patrick\uct-worktrees\indicator-r0r1` |
+| branch | `feat/indicator-r0r1` |
+| last CODE commit | `c28808d4d` — *R-Q — the step ceiling, derived: 1,000,000 → 12,000,000, and v2 reads at 1D* |
+| tip | the commit that added THIS section, one above `c28808d4d` |
+| verify | `git -C C:/Users/Patrick/uct-worktrees/indicator-r0r1 status && git -C C:/Users/Patrick/uct-worktrees/indicator-r0r1 log --oneline -1` |
+
+⛔ **The tree was CLEAN at shutdown and there is NO WIP PATCH.** R-Q landed green
+and was pushed; the next step had not been started, so nothing was shelved.
+`git status` must come back empty — if it does not, something touched this
+worktree while the session was down and that is a stop-and-ask, not a cleanup
+(worktree-ownership rule below).
+
+### 2. The exact next action
+
+> **Step-5 follow-through: wire the IR lane to read the R-K symbol object through
+> the same `symbolConstants` path the definition lane uses — one authority — then
+> re-run `buildRuntimeIr` on `uncharted-volume-v2.pine` told `forming=false` and
+> paste it verbatim.**
+
+- Estimate **45–60 min**, 2× stop at **2h**, **0 min elapsed** — the clock has not
+  started. R-Q is CLOSED (~3h against its own 4h stop) and needs nothing further.
+- The blocker this addresses is measured and named: `buildRuntimeIr` stops at
+  **v2:249**, `str.contains(syminfo.ticker, "/")`. The refusal is raised while
+  LOWERING, so passing `{ticker, exchange}` through `interpretOpts` changes
+  nothing — the fold has to happen before the lowering, the way `binder.sync` →
+  `computeFor` → `symbolConstantsWith` already does it for the definition lane.
+- ⛔ **If the IR lane is still not on the pane path after that, NAME the remaining
+  gap and stop chasing it.** It is not on the criterion (owner, 2026-09-13).
+
+### 3. WIP patch
+
+**None.** Nothing to re-apply. If a future session shelves work it goes in BOTH
+`scratchpad/<step>-wip.patch` and `docs/pine/wip/<step>-wip.patch`, and is
+re-applied with `git -C <worktree> apply docs/pine/wip/<step>-wip.patch`.
+
+### 4. Rig checklist — run this before any browser claim
+
+```bash
+# 1. backend, SANDBOXED. ⛔ NOT port 8077: that has held a stale backend on the
+#    owner's LIVE C:\data, and C:\data exists on this box. boot_rig.py pins
+#    DATA_DIR and AUTH_DB_PATH into the scratchpad and turns every scheduler off.
+python <scratchpad>/boot_rig.py          # serves 127.0.0.1:8129
+curl -s http://127.0.0.1:8129/api/health # expect {"status":"ok"...}
+
+# 2. the account (already created in the sandbox DB; recreate only if DATA_DIR was lost)
+curl -s -X POST http://127.0.0.1:8129/api/auth/signup -H "Content-Type: application/json" \
+  -d '{"email":"panetest@local.dev","password":"LocalTest2026!","display_name":"Pane Rig"}'
+
+# 3. the v2 fixture over CORS, for the paste-into-the-real-door route
+python <scratchpad>/fixture_server.py    # serves 127.0.0.1:8124/v2.pine
+```
+
+⭐ **ALL THREE SCRIPTS ARE IN THE WORKTREE** at `docs/pine/wip/rig/` — the
+scratchpad is session-scoped and does not survive a reboot, so they were copied in
+rather than described. Substitute that path for `<scratchpad>` above.
+
+⚠️ **`boot_rig.py`'s sandbox is under the OLD scratchpad path, which is gone**, so
+it will come up on an empty DB: re-sign-up and reinstall both definitions.
+The sandbox DB living under the old scratchpad means **both saved definitions are
+probably gone too** — reinstall them.
+
+**Both definitions, through the member's own door** (`/charts` → chart toolbar
+→ **Indicators** → **New formula** → **Import** tab → paste → **"Add this script
+to my chart"**):
+
+| id at shutdown | source | draws |
+|---|---|---|
+| `u_3ec24af8e7c6` | `tests/fixtures/member/uncharted-volume-v2.pine` verbatim | 4 cells |
+| `u_dd21a7ba8888` | the same script with `show_dcr_in_range_table` and `show_avg_volume` flipped `false → true` | 6 cells |
+
+⛔ The build must carry the flag: `VITE_PINE_MEMBER_PANE_ENABLED=1 npm run build`
+in `app/`, or the attach door does not exist.
+
+**Chrome:** the extension connection drops on reboot — nothing to do but
+reconnect. Then, before any write or screenshot, **re-read gate v2.1 on the
+driving tab**: `visibilityState === 'visible'` AND `availTop <= screenY` AND
+`screenY + outerHeight <= availTop + availHeight`.
+
+⚠️ **Activating the driving tab is not `Ctrl+2`.** The MCP window holds tabs
+outside its group, so the reliable move is: enumerate every Chrome window, focus
+each, send `^1`…`^9`, and stop when the window TITLE matches the page you want
+(`*complete trading desk*`). `focus_tab.ps1` in the scratchpad does this.
+
+**Rig tab, expected state:** `https://www.tradingview.com/chart/e3cTXatd/?symbol=AMEX%3ASPY`
+— *"UCT AGENT VISIT 2026-09-10 (disposable)"*, **0 studies, editor closed**. One
+read confirms the reconnect.
+
+### 5. Rulings this next action depends on — pointers only
+
+| ruling | recorded in |
+|---|---|
+| **R-Q** (step ceiling derived, 12,000,000) | commit `c28808d4d`; derivation in `app/src/components/chart/engine/ast/recurrenceSteps.measure.test.js`; constant + docblock in `ast/interpret.js`, mirrored in `api/services/ast_interpret.py` |
+| **R-K** (the symbol OBJECT, not the string; `syminfo.*` settled at bind time) | `app/src/components/chart/engine/ast/bind.js::symbolConstantsWith`; witnesses in `symbolScope.json::confirmed`; consumed via `nativeRegistry::bindConstsFor` |
+| **R-L** (the depth gate) | `app/src/components/chart/builder/memberPane/seriesCompare.js::depthVerdict` |
+| **R-M** (container resize) | exercised in commit `352cba711`; the DOM table layer's anchor is `objectTableDom.js::anchorStyle` |
+| **compareAll gate** | `seriesCompare.js::compareAll`; both branches driven in `engine/__tests__/pineTableVendorParity.test.js` |
+| **D1** (an `alertcondition` is not a plot) | `memberPane/memberPaneDefinition.js`, disclosure text on `meta.disclosures` |
+| **R-H** (two definitions) | the toggles-on second document, `pineTableVendorParity.test.js` |
+
+### 6. Remaining session-3 items, in order
+
+1. ~~**R-Q**~~ — DONE, `c28808d4d`.
+2. **Step-5 follow-through** — the IR lane's `syminfo` wiring (section 2 above).
+3. **Item 4 — mobile audit** on `127.0.0.1:8129` with both definitions installed:
+   `tools/mobile_audit.py`, Chromium, viewport pinned at **390×844** and
+   **1024×768**, gate v2.1 on the audit tab, gestures scrub / pinch-zoom / scroll
+   / rotate, **two zoom levels per viewport = 4 images**. Pass per row requires:
+   no redraw artefacts; both tables anchored to their declared corners through
+   every gesture; no overlap with the price scale, the toolbar inset, or the
+   mobile joystick-hub region; no 29px frame. **Pass / UNTESTED stated per row;
+   nothing described as expected.**
+4. **Item 5 — merge `origin/master`** into the branch after a **fresh dry-run
+   against the current tip**; conflict list with one line each; scoped suites +
+   sweep-alone + rails post-merge; **Python lane one run at a time**; flag default
+   **OFF** on the merged tree; flag-off test green post-merge.
+5. **Item 6 — PR body**: title; what a member can and cannot see; flag name and
+   default; measured metrics with commit hashes; disclosed divergences and open
+   rows; every ruling with where it is recorded; what is deferred to wave 2
+   (arrays, loops, runtime inputs, nested text helpers, short-circuit evaluation,
+   `alertSets` wiring, `s := close` typing); the **worktree-ownership rule first
+   under process**; member-impact paragraph. ⛔ **No `gh pr create`.**
+
+### 7. Suite baseline — compare against this, do not read it fresh
+
+**Scope:** `cd app && node node_modules/vitest/vitest.mjs run src/components/chart/engine src/components/chart/builder src/components/chart/pane`
+
+```
+354 files → 7,316 passed · 32 skipped · 5 failed in 3 files · 0 timeouts
+```
+
+The five are the **pre-existing HEAD trio**, red before this branch and outside
+its diff:
+
+- `BuilderSheet.pine.test.jsx` — *the SAVED DOCUMENT is byte-identical…*
+- `ImportBox.thinkscript.test.jsx` — *the Pine door shows the offer and NO button*
+- `pineBoxSuggestVoice.test.jsx` — three cases
+
+⚠️ **The sweep-scope TIMEOUTS are gone and should stay gone.** Six whole-repo
+source-sweep suites (`manifestProse` ×2, `EvidenceTab.doors` ×2, `flipCGeometry`,
+`memberPaneGate`) were tripping vitest's 15s default under load; R-Q's explicit
+timeouts on the `.measure.` suites removed the contention. If they come back they
+are a LOAD property, not a regression — prove it by re-running the same scope
+with `--exclude` on this wave's three new suites, which produced 3 of them before.
+
+**Python:** `python -m pytest tests/test_ast_interpret.py -q` → **105 passed**
+(it asserts the step ceiling equal across lanes, read out of the JS source).
+
+⛔ **No Python lane run was in flight at shutdown.** Nothing to void.
+⚠️ **But another session's work was:** `uct-clips/tools/heavy_lock.py` labels
+`wisdom-f-publish` (a pytest run) and `wisdom-f-admin-vitest-2`, plus a
+`--shard=6/6` vitest in the `joystick-launch-close` worktree. **This session did
+not touch them** — they are not ours to kill — and the reboot will end them.
+Their owners will need to re-run.
+
+### 8. Standing rules, one line each
+
+- **Worktree ownership** — a session deletes only what it created in that same
+  session; read `.uct-session-owner` first; no owner file is not permission.
+- **Pipe rule** — never verify a runner through a pipe; redirect, read the bare
+  exit code, then read the file. A run with no totals line is not a run.
+- **One lane run at a time** — never two Python lanes; backend pytest is SCOPED,
+  never repo-wide (an unscoped run reached 18 GB and was OOM-killed).
+- **Gate v2.1 on the driving tab** — re-read before EVERY browser write and EVERY
+  screenshot, on the tab being driven, not on a sibling.
+- **Nothing to master.** No `gh pr create`. Branch pushes any time.
+
+---
 ## ⭐⭐⭐ SESSION 3 · ITEM 3 — TABLES. **FINISHED.** BOTH DASHBOARDS DRAW, IN DOM, AT THE CORNER THE SCRIPT DECLARES, AND THE CELLS MATCH TRADINGVIEW.
 
 `uncharted-volume-v2.pine` through the shipped Import door on a real chart —
