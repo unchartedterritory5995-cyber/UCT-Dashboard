@@ -53,6 +53,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from tools import flow_cold_paint_rig as fcr   # noqa: E402  login pacing + UA + uptime
+from tools.secret_scrub import brief, scrub, scan_text   # noqa: E402  the ONE scrubber
 
 BASE = fcr.BASE
 UA = fcr.UA
@@ -72,11 +73,21 @@ LAYOUT = {"widgets": [{"id": "ab-breadth", "type": "breadth",
                        "x": 0, "y": 0, "w": 24, "h": 20, "opts": {}}],
           "cols": 24}
 
+# ⛔ ASK THE PRODUCT'S OWN QUESTION. The first version waited for a `<canvas>` and timed
+# out four times over a widget that had rendered perfectly — this heatmap is DOM tiles, and
+# the treemap canvas belongs to a DIFFERENT view. A detector that cannot see a working
+# product reports INCONCLUSIVE forever (`lesson_did_it_render_needs_the_products_own_answer`).
+#
+# The section captions are the right signal precisely because they are NOT under test:
+# `named()` passes `isHeader` rows through untouched, so they read the same in both builds
+# by construction, and keying readiness on a tile label would key it on the thing being
+# compared.
 READY_JS = """() => {
-  const t = document.body.innerText || '';
-  if (/Unknown widget type/.test(t)) return 'unknown-widget';
-  if (document.querySelector('canvas')) return 'ok';
-  if (/Couldn.t|didn.t load|session has ended|part of/.test(t)) return 'refused';
+  const t = (document.body.innerText || '').toUpperCase();
+  if (/UNKNOWN WIDGET TYPE/.test(t)) return 'unknown-widget';
+  const caps = ['PRIMARY BREADTH', 'MA BREADTH', 'REGIME', 'SENTIMENT'];
+  if (caps.every(c => t.includes(c))) return 'ok';
+  if (/COULDN.T|DIDN.T LOAD|SESSION HAS ENDED|PART OF/.test(t)) return 'refused';
   return '';
 }"""
 
@@ -87,6 +98,19 @@ def say(msg):
 
 def sha(p):
     return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+
+
+# ⛔ A PLAYWRIGHT ERROR CARRIES THE REQUEST HEADERS OF THE CALL THAT FAILED, AND ONE OF
+# THOSE HEADERS IS THE MEMBER'S SESSION COOKIE. The first run of this tool crashed during
+# teardown and printed a live one straight into the run log; the credential had to be
+# rotated. Never print a raw playwright exception — print `brief(exc)`.
+#
+# ⛔ The scrubber lives in ONE place (`tools/secret_scrub.py`) and is imported, never
+# copied. A second copy is the guard that never gets the next fix
+# (`lesson_a_guard_repeated_is_a_guard_unproved`). Its own draft here was also narrower
+# than the real leak: it required a word boundary before the cookie's name, which does not
+# exist between the `uct_` prefix and the rest, so it redacted the unprefixed spelling and
+# missed the actual one. Runbook: `docs/runbooks/rig-credential-hygiene.md`.
 
 
 # ── pure helpers (self-checked) ────────────────────────────────────────────────
@@ -136,6 +160,21 @@ def self_check() -> int:
     case("verdict: unmeasured is INCONCLUSIVE, never SAME", verdict(None, 0.15) == "INCONCLUSIVE")
     case("the swap list is exactly the product change", len(SWAP) == 2 and all(
         (REPO / f).exists() for f in SWAP))
+    # ⛔ SYNTHETIC VALUE ONLY. The first version of this block pasted a slice of the
+    # REAL leaked token in as a fixture — in a committed file, in a PUBLIC repo. The
+    # scanner found it, which is the entire argument for having a scanner. A rail for a
+    # credential leak must never carry a credential, not even a partial one.
+    fake = "cookie: " + "uct_" + "session=" + ("Z" * 40)
+    case("scrub removes a session cookie", "Z" * 40 not in scrub(fake))
+    case("scrub keeps the header name so the line still reads",
+         "cookie" in scrub(fake).lower() and "<redacted>" in scrub(fake))
+    case("scrub survives a multi-line playwright call log",
+         "Z" * 40 not in scrub(f"Route.fetch failed\n  - {fake}\n  - x: 1"))
+    case("scrub leaves ordinary text alone", scrub("charts-breadth__390__after.png")
+         == "charts-breadth__390__after.png")
+    case("brief drops the call log", "\n" not in brief(RuntimeError(f"boom\n  - {fake}")))
+    case("this file carries no credential of its own",
+         not scan_text(pathlib.Path(__file__).read_text(encoding="utf-8")))
     say("SELF-CHECK " + ("PASS" if not fails else f"FAIL ({len(fails)})"))
     return 0 if not fails else 1
 
@@ -209,29 +248,41 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
                                           viewport={"width": width, "height": height})
 
                 def api(route, request):
-                    target = rewrite_target(request.url)
-                    path = urlsplit(request.url).path
-                    if path == PREFS_PATH and request.method != "GET":
-                        rec["pref_writes_blocked"] += 1
+                    # The widget keeps polling; a request still in flight when the
+                    # context closes raises here. That is teardown, not a finding —
+                    # swallow it, and NEVER let the raw error out (it carries the
+                    # session cookie of the call that failed).
+                    try:
+                        target = rewrite_target(request.url)
+                        path = urlsplit(request.url).path
+                        if path == PREFS_PATH and request.method != "GET":
+                            rec["pref_writes_blocked"] += 1
+                            try:
+                                rec["pref_write_keys"].append((request.post_data_json or {}).get("key"))
+                            except Exception:                   # noqa: BLE001
+                                rec["pref_write_keys"].append(None)
+                            return route.fulfill(status=200, json={"ok": True})
+                        resp = route.fetch(url=target)
+                        rec["proxied"] += 1
+                        if path == PREFS_PATH:
+                            try:
+                                data = resp.json()
+                            except Exception:                   # noqa: BLE001
+                                return route.fulfill(response=resp)
+                            if isinstance(data, dict):
+                                return route.fulfill(response=resp, json=inject_layout(data))
+                        return route.fulfill(response=resp)
+                    except Exception as e:                      # noqa: BLE001
+                        rec["route_errors"] = rec.get("route_errors", 0) + 1
                         try:
-                            rec["pref_write_keys"].append((request.post_data_json or {}).get("key"))
+                            route.abort()
                         except Exception:                       # noqa: BLE001
-                            rec["pref_write_keys"].append(None)
-                        return route.fulfill(status=200, json={"ok": True})
-                    resp = route.fetch(url=target)
-                    rec["proxied"] += 1
-                    if path == PREFS_PATH:
-                        try:
-                            data = resp.json()
-                        except Exception:                       # noqa: BLE001
-                            return route.fulfill(response=resp)
-                        if isinstance(data, dict):
-                            return route.fulfill(response=resp, json=inject_layout(data))
-                    return route.fulfill(response=resp)
+                            pass
+                        return None
 
                 ctx.route("**/api/**", api)
                 page = ctx.new_page()
-                page.on("pageerror", lambda e: rec["errors"].append(str(e)[:200]))
+                page.on("pageerror", lambda e: rec["errors"].append(scrub(e)[:200]))
                 page.goto(origin + "/charts", wait_until="commit", timeout=60000)
                 # Non-vacuity control: the rewrite must actually reach production AS
                 # the member. Without this the page can be a signed-out shell and
@@ -251,6 +302,10 @@ def capture(dist: pathlib.Path, tag: str, out_dir: pathlib.Path, email, password
                 shot = out_dir / f"charts-breadth__{width}__{tag}.png"
                 page.screenshot(path=str(shot))
                 rec["shots"][str(width)] = shot.name
+                try:                       # drain in-flight routes before teardown
+                    page.unroute_all(behavior="ignoreErrors")
+                except Exception:                               # noqa: BLE001
+                    pass
                 ctx.close()
             browser.close()
     finally:
@@ -389,4 +444,13 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # ⛔ EXIT 1 MEANS "A DIFFERENCE WAS MEASURED". An uncaught exception would exit 1
+    # too, which makes a crash indistinguishable from a finding — the exact collapse
+    # `CoverageLine` and `hub_nav_smoke` exist to avoid. A crash is INCONCLUSIVE (2).
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except BaseException as _e:                                 # noqa: BLE001
+        say(f"INCONCLUSIVE: the run did not complete — {brief(_e)}")
+        raise SystemExit(2) from None
