@@ -159,9 +159,22 @@ def test_a_live_session_waits_for_the_desk_pipeline():
     assert tr.ingest_video(v["id"], now_s=now + 4 * 3600)["action"] == "new"
 
 
-def test_r2_objects_are_byte_stable_and_a_failed_put_writes_no_source(env):
+def test_r2_objects_are_byte_stable_and_a_failed_put_writes_no_source(env, monkeypatch):
+    # ⚠️ Python 3.14 (this box) may write a zero mtime by default while Railway's
+    # Python 3.12 stamps the wall clock — so the header bytes alone cannot prove
+    # the explicit mtime=0 (a mutation removing it survived that check). Spy the call.
+    seen = []
+    real = gzip.compress
+
+    def spy(data, *args, **kwargs):
+        seen.append(kwargs.get("mtime"))
+        return real(data, *args, **kwargs)
+
+    monkeypatch.setattr(gzip, "compress", spy)
     assert common.gzip_text("same")[4:8] == b"\x00\x00\x00\x00"  # gzip mtime = 0
+    assert seen == [0]
     assert common.gzip_text("same") == common.gzip_text("same")
+    monkeypatch.setattr(gzip, "compress", real)
     v = _seed()
     env.fail = True
     res = tr.ingest_new()
