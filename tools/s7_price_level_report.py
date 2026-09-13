@@ -162,155 +162,155 @@ def render(rep: dict, db_path: str) -> str:
     return "\n".join(out)
 
 
-def _in_window() -> tuple[bool, str]:
-    """Is NOW inside the sweep's cron window (mon-fri 09:00-16:59 ET)?
+# ═════════════════════════════════════════════════════════════════════════════
+# ⛔⛔ SIX DARK SWEEPS, ONE COMMAND, AND THE BOUNDS ARE PER TYPE BY DESIGN
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# ⚰️ This file once held TWO bespoke `ticking_*` functions, and a third was about
+# to be written. Three copies of one guard cannot all be mutation-proved
+# (`lesson_a_guard_repeated_is_a_guard_unproved`), and the interesting part —
+# the staleness bound — is the ONE thing that legitimately differs per sweep.
+# So the descriptors are DECLARED and the logic is written once.
+#
+# ⛔ A BOUND COPIED FROM A SIBLING IS A FALSE ALARM GENERATOR. price-level ticks
+# every minute, so 180 s is two missed ticks. catalyst-match ticks ONCE A DAY;
+# judged at 180 s it would report a perfectly healthy sweep as stalled every
+# single time anyone ran this, and a liveness command that cries wolf gets
+# ignored — which is worse than not having one.
+#
+# ⛔ AND THE WINDOW IS NOT THE BOUND. "Outside its cron window" and "armed but
+# dead" leave an IDENTICAL store and call for OPPOSITE actions (wait, versus
+# investigate). Every descriptor carries both.
 
-    Returns the reason as text either way, so the caller never restates the
-    schedule and the two copies cannot drift.
-    """
+#: (key, label, flag, table, ts_col, hours, bound_s, cadence)
+#: `hours` is the ET hour range the cron runs in, or None for a daily slot where
+#: only the weekday matters. All six are mon-fri.
+SWEEPS = (
+    ("price_level", "PRICE-LEVEL", "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED",
+     "price_level_sweep_heartbeat", "last_tick", (9, 16), 180,
+     "every minute, weekdays 09:00-16:59 ET"),
+    ("event_proximity", "EVENT-PROXIMITY", "ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED",
+     "event_proximity_sweep_heartbeat", "last_tick", None, 26 * 3600,
+     "07:05 and 18:05 ET, weekdays"),
+    ("position_risk", "POSITION-RISK", "ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED",
+     "position_risk_heartbeat", "last_tick_at", (9, 16), 180,
+     "every minute, weekdays 09:00-16:59 ET"),
+    ("scan_membership", "SCAN-MEMBERSHIP", "ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED",
+     "scan_membership_heartbeat", "last_tick_at", None, 26 * 3600,
+     "nightly, 20 min after the scan sweep (~05:20 ET), weekdays"),
+    ("catalyst_match", "CATALYST-MATCH", "ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED",
+     "catalyst_match_heartbeat", "last_tick_at", None, 26 * 3600,
+     "17:30 ET, weekdays"),
+    ("regime_change", "REGIME-CHANGE", "ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED",
+     "regime_change_heartbeat", "last_tick_at", (4, 20), 3600,
+     "every 20 min behind the awareness scan, weekdays 04:00-20:59 ET"),
+)
+
+
+def _window(hours) -> tuple[bool, str]:
+    """Is NOW inside this sweep's cron window? Returns the reason either way, so
+    no caller restates a schedule and the copies cannot drift."""
     try:
         from zoneinfo import ZoneInfo
         import datetime as _dt
         now = _dt.datetime.now(ZoneInfo("America/New_York"))
-    except Exception:
-        # Never guess QUIET: an unresolvable clock must not silence a real stall.
+    except Exception:                                   # noqa: BLE001
+        # ⛔ Never guess QUIET: an unresolvable clock must not silence a stall.
         return (True, "could not resolve ET -- assuming inside the window")
     stamp = now.strftime("%a %H:%M ET")
     if now.weekday() >= 5:
-        return (False, "it is %s" % stamp)
-    if not (9 <= now.hour <= 16):
-        return (False, "it is %s, outside 09:00-16:59" % stamp)
+        return (False, "it is %s (weekend)" % stamp)
+    if hours is not None and not (hours[0] <= now.hour <= hours[1]):
+        return (False, "it is %s, outside %02d:00-%02d:59" % (stamp, hours[0], hours[1]))
     return (True, stamp)
 
 
-def ticking_event_proximity(db_path: str) -> tuple[str, int]:
-    """The same liveness question for the SECOND dark run.
-
-    ⛔ Its cadence is different and the staleness bound must follow it, not be
-    copied. price-level ticks every minute (180 s is two missed ticks);
-    event-proximity ticks TWICE A DAY at 07:05 and 18:05 ET, so a 180 s bound
-    would report a healthy sweep as stalled every single time it was run. The
-    bound here is ~26 h: longer than the longest legitimate gap (Friday evening
-    to Monday morning is longer still, which is why the weekend check below
-    excuses it rather than this number stretching to cover it).
-    """
-    import time as _t
-    beat = None
+def _beat_row(db_path: str, table: str) -> dict | None:
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         try:
-            r = conn.execute("SELECT * FROM event_proximity_sweep_heartbeat "
-                             "WHERE id = 1").fetchone()
-            beat = dict(r) if r else None
+            r = conn.execute(f"SELECT * FROM {table} LIMIT 1").fetchone()
+            return dict(r) if r else None
         finally:
             conn.close()
     except sqlite3.OperationalError:
-        beat = None
-
-    if beat is None:
-        inside, when = _in_window()
-        if not inside:
-            return ("EVENT-PROXIMITY  n/a -- %s, and its slots are 07:05 / 18:05 ET "
-                    "on weekdays. No heartbeat yet is EXPECTED." % when, 0)
-        return ("EVENT-PROXIMITY  NO  -- no heartbeat, and it IS a weekday (%s).\n"
-                "  Check ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 and the boot "
-                "line 'S7 event-proximity DARK comparison ENABLED'." % when, 1)
-
-    age = _t.time() - float(beat["last_tick"])
-    alive = age < 26 * 3600
-    lines = [
-        "EVENT-PROXIMITY  %s -- last tick %.1fh ago, %d ticks total"
-        % ("YES" if alive else "NO ", age / 3600.0, int(beat["ticks"])),
-        "  projected %d, reschedules %d"
-        % (int(beat["projected"]), int(beat["reschedules"])),
-    ]
-    if not alive:
-        lines.append("  STALLED -- it has missed at least one slot. Check the web log "
-                     "for 'event-proximity DARK sweep failed'.")
-    if int(beat["projected"]) == 0:
-        lines.append("  ! projected=0 -- no admin account's My Stocks intersected the "
-                     "day's reporters. Healthy, but comparing NOBODY.")
-    return ("\n".join(lines), 0 if alive else 1)
+        return None          # table absent = the sweep has never run once
 
 
-def ticking(db_path: str) -> tuple[str, int]:
-    """The Monday-morning question, answered in one line: IS IT TICKING AND
-    WRITING ROWS?
+def ticking_one(db_path: str, spec) -> tuple[str, int]:
+    """One sweep's liveness, as TWO facts that fail separately.
 
-    ⛔ TWO FACTS, NOT ONE, because they fail separately and the fix differs:
-      * TICKING  — the heartbeat's wall-clock age. A sweep that died at 09:01
-        leaves a store that looks, at 15:00, exactly like one that never
-        stopped, so age is the only thing that can tell them apart.
-      * WRITING  — spans and recorded outcomes. A sweep can tick perfectly and
-        write nothing (no admin alert, or no price reaching it), and that is a
-        different problem with a different cause.
+    * TICKING — the heartbeat's wall-clock age. A sweep that died at 09:01
+      leaves a store that looks, at 15:00, exactly like one that never stopped.
+    * WRITING — spans and outcomes. A sweep can tick perfectly and write nothing
+      (nobody in the cohort, no price reaching it), and that is a different
+      problem with a different cause.
 
-    ⛔ NEITHER IS INFERRED FROM THE OTHER, and "no rows yet" is never reported
-    as a fault: on Monday at 09:05 the honest answer is usually
-    "ticking, 0 outcome rows" — nobody's line has been crossed yet.
+    ⛔ NEITHER IS INFERRED FROM THE OTHER, and "no rows yet" is never a fault.
     """
     import time as _t
-    beat = None
-    try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        conn.row_factory = sqlite3.Row
-        try:
-            r = conn.execute("SELECT * FROM price_level_sweep_heartbeat "
-                             "WHERE id = 1").fetchone()
-            beat = dict(r) if r else None
-        finally:
-            conn.close()
-    except sqlite3.OperationalError:
-        beat = None          # table absent = the sweep has never run once
-
-    try:
-        rep = build(db_path)
-    except sqlite3.OperationalError:
-        rep = {"predicates": 0, "spans": 0, "observed": 0}
+    key, label, flag, table, ts_col, hours, bound, cadence = spec
+    beat = _beat_row(db_path, table)
 
     if beat is None:
-        # THE WEEKEND CASE. "Outside the sweep window" and "armed but broken"
-        # leave an IDENTICAL store and call for OPPOSITE actions -- wait, vs
-        # investigate. Reporting the first as the second is a false alarm, and a
-        # liveness command that cries wolf gets ignored, which is worse than not
-        # having one.
-        inside, when = _in_window()
+        inside, when = _window(hours)
         if not inside:
-            return ("TICKING: n/a -- %s, and the sweep only runs weekdays "
-                    "09:00-16:59 ET.\n"
-                    "  No heartbeat yet is EXPECTED here, not a fault. Re-run "
-                    "after Monday's open." % when, 0)
-        return ("TICKING: NO  -- no heartbeat row at all, and it IS inside the "
-                "window (%s).\n"
-                "  The sweep should have stamped within the last minute. Check "
-                "ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1, the boot line "
-                "'S7 price-level DARK comparison ENABLED', and the web log for "
-                "'price-level DARK sweep failed'." % when, 1)
+            return ("%-16s n/a -- %s; it runs %s.\n"
+                    "  No heartbeat yet is EXPECTED here, not a fault."
+                    % (label, when, cadence), 0)
+        return ("%-16s NO  -- no heartbeat at all, and it IS inside the window (%s).\n"
+                "  Check %s=1, the boot line, and the web log for a 'DARK sweep "
+                "failed' line." % (label, when, flag), 1)
 
-    age = _t.time() - float(beat["last_tick"])
-    # The sweep runs every minute inside the window; 3 minutes is two missed
-    # ticks, which is a stall rather than a slow one.
-    alive = age < 180
-    verdict = "YES" if alive else "NO "
-    lines = [
-        "TICKING: %s -- last tick %.0fs ago, %d ticks total"
-        % (verdict, age, int(beat["ticks"])),
-        "  WRITING: %d spans, %d recorded outcomes, %d predicates projected"
-        % (rep["spans"], rep["observed"], int(beat["projected"])),
-        "  priced %d, no_price %s" % (int(beat["priced"]), beat["no_price"]),
-    ]
-    if alive and rep["observed"] == 0:
-        lines.append("  (0 outcome rows is NORMAL early -- it means nobody's line has "
-                     "been crossed yet, not that the sweep is broken)")
+    raw = beat.get(ts_col)
+    if raw is None:
+        return ("%-16s UNREADABLE -- a heartbeat row exists with no %s. That is not a "
+                "zero and must not be read as one." % (label, ts_col), 1)
+
+    age = _t.time() - float(raw)
+    alive = age < bound
+    unit = ("%.0fs" % age) if bound < 3600 else ("%.1fh" % (age / 3600.0))
+    lines = ["%-16s %s -- last tick %s ago, %d ticks total (bound %s; %s)"
+             % (label, "YES" if alive else "NO ", unit, int(beat.get("ticks") or 0),
+                ("%ds" % bound) if bound < 3600 else ("%dh" % (bound // 3600)), cadence)]
+
+    # Type-specific extras, printed only where the table actually carries them.
+    if "projected" in beat:
+        lines.append("  projected %s" % beat["projected"])
+    if "priced" in beat:
+        lines.append("  priced %s, no_price %s" % (beat["priced"], beat.get("no_price")))
+    if "reschedules" in beat:
+        lines.append("  reschedules %s" % beat["reschedules"])
+    if "last_market_date" in beat:
+        lines.append("  last market date observed: %s" % beat["last_market_date"])
+
     if not alive:
-        lines.append("  STALLED. The sweep wrote once and stopped, which looks "
-                     "identical to a healthy store without this age. Check the web "
-                     "logs for 'price-level DARK sweep failed'.")
-    if int(beat["projected"]) == 0:
-        lines.append("  ! projected=0 -- no ACTIVE watchlist_alerts row belongs to an "
-                     "admin account, so there is nothing to compare. Arm one.")
+        inside, when = _window(hours)
+        if not inside:
+            lines[0] = lines[0].replace(" NO  --", " n/a --", 1)
+            lines.append("  ...but %s, so the gap is the schedule, not a stall. "
+                         "Re-run inside the window." % when)
+            return ("\n".join(lines), 0)
+        lines.append("  STALLED inside its own window. It wrote once and stopped, "
+                     "which looks identical to a healthy store without this age.")
     return ("\n".join(lines), 0 if alive else 1)
+
+
+def ticking_all(db_path: str) -> tuple[str, int]:
+    """⭐ ONE COMMAND, ALL SIX. Separate commands would mean a Monday where
+    somebody checks one and assumes the others — and four of the six have
+    cadences nobody has a feel for yet.
+
+    ⛔ THE WORST RESULT WINS. A green overall line beside one stalled sweep is
+    exactly the reassurance that stops anyone reading further.
+    """
+    out, worst = [], 0
+    for spec in SWEEPS:
+        text, code = ticking_one(db_path, spec)
+        out.append(text)
+        worst = max(worst, code)
+    return ("\n".join(out), worst)
 
 
 def main() -> int:
@@ -346,13 +346,9 @@ def main() -> int:
         # ⭐ ONE COMMAND, BOTH DARK RUNS. Two commands would mean a Monday where
         # somebody checks one and assumes the other, and the second is the one
         # with the twice-a-day cadence nobody has a feel for yet.
-        t1, c1 = ticking(db)
-        t2, c2 = ticking_event_proximity(db)
-        print("PRICE-LEVEL      " + t1.replace("TICKING: ", "", 1))
-        print(t2)
-        # ⛔ The worse of the two wins. A green overall line beside one stalled
-        # sweep is exactly the reassurance that stops anyone reading further.
-        return max(c1, c2)
+        text, code = ticking_all(db)
+        print(text)
+        return code
     rep = build(db)
     if args.json:
         rep["per"] = {k: {**v, "sessions": sorted(v["sessions"])}
@@ -405,7 +401,62 @@ def _self_check() -> int:
         if "NO DATA" in text:
             print("SELF-CHECK FAIL: a populated store reported NO DATA"); ok = False
 
-    print("self-check: %s" % ("PASS - the report distinguishes no-data from agreement"
+    # ── the six-sweep liveness check ────────────────────────────────────────
+    # ⛔⛔ THE CONTROL THAT MATTERS: the per-type bounds must DISCRIMINATE. One
+    # age, six sweeps, opposite verdicts — otherwise the bounds are decoration
+    # and a daily sweep would be reported as stalled every time anyone looked.
+    import tempfile as _tf, time as _tt
+    with _tf.TemporaryDirectory() as d:
+        hb = os.path.join(d, "hb.db")
+        conn = sqlite3.connect(hb)
+        conn.executescript(
+            "CREATE TABLE price_level_sweep_heartbeat (id INTEGER PRIMARY KEY, "
+            " last_tick REAL, ticks INTEGER, projected INTEGER, priced INTEGER, no_price TEXT);"
+            "CREATE TABLE catalyst_match_heartbeat (key TEXT PRIMARY KEY, ticks INTEGER, "
+            " last_tick_at REAL, last_market_date TEXT);")
+        stale = _tt.time() - 4000          # 1.1h: past 180s, well inside 26h
+        conn.execute("INSERT INTO price_level_sweep_heartbeat VALUES (1,?,1,0,0,'[]')", (stale,))
+        conn.execute("INSERT INTO catalyst_match_heartbeat VALUES ('k',1,?,'d')", (stale,))
+        conn.commit(); conn.close()
+
+        spec_pl = [s for s in SWEEPS if s[0] == "price_level"][0]
+        spec_cm = [s for s in SWEEPS if s[0] == "catalyst_match"][0]
+        # Force "inside the window" so the weekend cannot mask the comparison —
+        # otherwise this control passes on a Sunday for the wrong reason.
+        _real_window = globals()["_window"]
+        globals()["_window"] = lambda hours: (True, "forced inside (self-check)")
+        try:
+            pl_text, pl_code = ticking_one(hb, spec_pl)
+            cm_text, cm_code = ticking_one(hb, spec_cm)
+        finally:
+            globals()["_window"] = _real_window
+
+        if pl_code != 1:
+            print("SELF-CHECK FAIL: a 4000s-old beat passed price-level's 180s bound"); ok = False
+        if cm_code != 0:
+            print("SELF-CHECK FAIL: a 4000s-old beat failed catalyst-match's 26h bound — "
+                  "the bounds are not per type and a daily sweep will read as stalled"); ok = False
+        if "STALLED" not in pl_text:
+            print("SELF-CHECK FAIL: a stale beat inside the window did not say STALLED"); ok = False
+
+        # A sweep whose table is absent, inside its window, must be NO — not n/a.
+        globals()["_window"] = lambda hours: (True, "forced inside (self-check)")
+        try:
+            miss_text, miss_code = ticking_one(hb, [s for s in SWEEPS
+                                                    if s[0] == "position_risk"][0])
+        finally:
+            globals()["_window"] = _real_window
+        if miss_code != 1 or "no heartbeat at all" not in miss_text:
+            print("SELF-CHECK FAIL: a missing heartbeat inside the window was not a NO"); ok = False
+
+        # NON-VACUITY: every declared sweep must be answerable, so a typo in a
+        # table name cannot hide as a permanent n/a.
+        if len(SWEEPS) != 6:
+            print("SELF-CHECK FAIL: expected six declared sweeps, found %d" % len(SWEEPS))
+            ok = False
+
+    print("self-check: %s" % ("PASS - the report distinguishes no-data from agreement, "
+                              "and the six staleness bounds discriminate"
                               if ok else "FAIL"))
     return 0 if ok else 1
 
