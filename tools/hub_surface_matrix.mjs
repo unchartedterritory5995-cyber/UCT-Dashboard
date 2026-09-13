@@ -16,11 +16,18 @@
 //   3. `app/src/hub/writePaths.test.js` — the write-path MANIFEST, which is already the repo's
 //      single claim about what the hub can write, joined here rather than restated.
 //
-// ⛔ COMMENTS ARE STRIPPED BEFORE ANY MATCH, and `--self-check` proves it. This repo has paid six
-// times in one session for an instrument that matched the prose describing a call instead of the
-// call — including in this very directory (`writePaths.test.js` says so in its own header). Every
-// controller here writes `onScrub` in its comments; a scanner that counts those reports bindings
-// nobody wired.
+// ⛔ PROSE IS NEVER MATCHED. Two mechanisms, and the difference matters: the GESTURE BINDINGS are
+// read from a parse tree (`bindingsIn`), where a comment is not a node at all; everything else —
+// the handler arms, the write join — still runs over `strip()`ed source, and `--self-check` proves
+// both. This repo has paid six times in one session for an instrument that matched the prose
+// describing a call instead of the call, including in this very directory (`writePaths.test.js`
+// says so in its own header). Every controller here writes `onScrub` in its comments; a scanner
+// that counts those reports bindings nobody wired.
+//
+// ⚰️ AND IT PAID A SEVENTH TIME HERE. `bindingsIn` was a regex for the COLON form, so ES6
+// shorthand — `{ onTap, onDoubleTap, onScrub, onScrubCommit, readout }`, which is how `wire`,
+// `home` and half of `journal` declare theirs — was invisible, and this file published
+// "— none —" for two modes that wire everything. See `bindingsIn` below: **D-42**.
 //
 // ── WHAT IT DOES NOT CLAIM ─────────────────────────────────────────────────────────────────────
 // The write column is a JOIN, not a dataflow proof: an action is credited with an endpoint when its
@@ -37,6 +44,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -53,6 +61,46 @@ const BASELINE = arg('--baseline', 'febe8ee67')
 
 /** ⛔ Strip block comments, then line comments — nothing below ever matches prose. */
 const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+
+/**
+ * ⛔ THE REPO'S OWN PARSER, RESOLVED THE WAY THE APP RESOLVES IT — this adds no dependency.
+ *
+ * `acorn` + `acorn-jsx` are already imported directly by two standing rails
+ * (`components/screener/reachable.test.js:48` and
+ * `chart/engine/__tests__/singleWriterIndex.test.js:51`), which is what makes them "the repo's
+ * existing parser" rather than a new one. They live in `app/node_modules` and this script runs
+ * from the repo ROOT, so the require is anchored at `app/package.json` instead of being left to
+ * walk up from `tools/` and find nothing.
+ */
+const appRequire = createRequire(pathToFileURL(path.join(REPO, 'app', 'package.json')))
+let PARSER = null
+function parseJs(src) {
+  if (!PARSER) {
+    try {
+      const { Parser } = appRequire('acorn')
+      PARSER = Parser.extend(appRequire('acorn-jsx')())
+    } catch (e) {
+      // ⛔⛔ NO SILENT FALLBACK TO A REGEX. A scanner that quietly degrades and keeps printing a
+      // confident table is exactly how D-42 shipped a glass sheet asserting the opposite of the
+      // product. A missing parser is a FAILED INVOCATION, not a clean tree (rule 14).
+      throw new Error('hub_surface_matrix: acorn is unavailable — run `npm ci` in app/ '
+        + `(resolution is anchored at app/package.json). Original: ${e?.message || e}`)
+    }
+  }
+  return PARSER.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
+}
+
+/** Depth-first over every node. Positional fields are skipped — they carry no children, and a
+ *  `loc` object would otherwise be walked once per node for nothing. */
+function walk(node, visit) {
+  if (!node || typeof node !== 'object') return
+  if (Array.isArray(node)) { for (const n of node) walk(n, visit); return }
+  if (typeof node.type === 'string') visit(node)
+  for (const k of Object.keys(node)) {
+    if (k === 'type' || k === 'start' || k === 'end' || k === 'loc' || k === 'range') continue
+    walk(node[k], visit)
+  }
+}
 
 /** Gesture bindings a mode controller can declare. Keys, not mentions. */
 const BINDING_KEYS = ['onTap', 'onDoubleTap', 'onScrub', 'onScrubCommit', 'readout', 'onPeek']
@@ -77,8 +125,72 @@ const controllersFor = (modeId, ctrls) => ctrls
   .filter((c) => c.file === `${modeId}Section.js` || c.src.includes(`'${modeId}.`))
   .map((c) => c.file)
 
-/** Bindings a controller DEFINES (`onScrub:` as an object key), never ones it talks about. */
-const bindingsIn = (src) => BINDING_KEYS.filter((k) => new RegExp(`(^|[^\\w.])${k}\\s*:`, 'm').test(src))
+/**
+ * Bindings a controller DEFINES — the keys of an object LITERAL, read from the parse tree.
+ *
+ * ⚰️⛔⛔ THIS MATCHED THE COLON FORM ONLY (`key` followed by `:`) AND WAS THEREFORE BLIND TO ES6
+ * SHORTHAND. `wireSection.js:282-286` and `homeSection.js:240-244` return
+ * `{ onTap, onDoubleTap, onScrub, onScrubCommit, readout }` and this file printed **“— none —”**
+ * for both. `journalSection.js:642-646` writes `onTap:`/`onDoubleTap:` with a colon and
+ * `onScrub,`/`onScrubCommit,`/`readout,` shorthand, so its SCRUB — the stop-adjust flagship — was
+ * missing from a matrix that confidently listed its tap.
+ *
+ * `glass-acceptance-steps.md` is GENERATED from this output, so ten shipped surfaces had no glass
+ * step at all and `GS-wire-0` published *“Tap, double-tap and scrub do **nothing** here”* for a
+ * mode that wires all four. An operator running that sheet files a FAIL against working code, or
+ * passes a broken one. Filed **D-42** by the completion audit, 2026-09-13; fixed here.
+ *
+ * ⭐ THE SELF-CHECK COULD NOT HAVE CAUGHT IT. Its case 2 fixture was `{ onScrub: (ctx, s) => s }`
+ * — the colon form — so the control only ever exercised the one shape the scanner could see. A
+ * fixture that cannot distinguish is not a rail, and this one sat inside the instrument built to
+ * make exactly this class of gap visible.
+ *
+ * ⛔ AN AST, NOT A WIDER REGEX. Accepting a comma or a brace after the key would also match a
+ * destructuring pattern (`const { onScrub } = props`), an argument list, and a key inside a
+ * string — every one of them a MENTION, which is the defect this file's header is about. The
+ * parse tree separates them by construction: only the properties of an **ObjectExpression**
+ * count, a computed key is skipped because `{ [k]: v }` names nothing statically, and an
+ * **ObjectPattern** is a different node type, so a destructure can never read as a declaration.
+ *
+ * ⭐ IT ALSO RETIRES `strip()` HERE, so this reads the RAW file: a parser never sees a comment at
+ * all, which is a stronger guarantee than deleting them first — and `strip`'s line-comment pass
+ * would truncate a `'https://…'` literal on its way past and fail the parse.
+ *
+ * ⚠️ SCOPE, stated rather than discovered later from a blank cell: an object literal's own keys.
+ * A binding attached afterwards (`config.onTap = fn`) is not seen. No controller does that today;
+ * if one ever does, widen this deliberately.
+ *
+ * ── MUTATION PROOF, PERFORMED 2026-09-13 ──────────────────────────────────────────────────────
+ * ⛔ Not a claim — a run. The AST body below was replaced, IN PLACE, with the colon-only regex it
+ * supersedes, and `--self-check` was re-run. It exited 1 with eleven named failures, among them:
+ *
+ *     ES6 shorthand bindings were missed
+ *     the mixed colon + comma-list form was missed
+ *     wireSection.js declares onScrubCommit and the scanner did not see it
+ *
+ * ⭐ Nine cases stayed GREEN — the colon-form positive, the destructure and computed-key
+ * negatives, the manifest parse, the controller lookup, the write map and both dispatch cases —
+ * which is what proves the red came from the PARSER and not from the harness falling over. A
+ * mutation run where everything goes red proves only that something broke.
+ *
+ * The mutation was reverted by writing the original bytes back, never `git checkout`
+ * (`feedback_mutation_check_never_git_checkout`), and the restored file was byte-compared.
+ */
+const bindingsIn = (src) => {
+  const found = new Set()
+  walk(parseJs(src), (n) => {
+    if (n.type !== 'ObjectExpression') return
+    for (const p of n.properties || []) {
+      if (p.type !== 'Property' || p.computed) continue
+      const k = p.key
+      const name = k?.type === 'Identifier' ? k.name : (k?.type === 'Literal' ? k.value : null)
+      if (typeof name === 'string' && BINDING_KEYS.includes(name)) found.add(name)
+    }
+  })
+  // Ordered by BINDING_KEYS, never by source position: the glass sheet numbers its steps off this
+  // list, so a step id must not move because a controller reordered its own object.
+  return BINDING_KEYS.filter((k) => found.has(k))
+}
 
 /** The manifest in `writePaths.test.js`, read from the array literal itself. */
 function writeManifest() {
@@ -234,7 +346,7 @@ async function build() {
   const rows = []
   for (const m of now.modes) {
     const modeControllers = controllersFor(m.id, ctrls)
-    const bindings = [...new Set(modeControllers.flatMap((f) => bindingsIn(ctrls.find((c) => c.file === f).src)))]
+    const bindings = [...new Set(modeControllers.flatMap((f) => bindingsIn(ctrls.find((c) => c.file === f).raw)))]
     const was = base.modes.find((x) => x.id === m.id)
     rows.push({
       row: 'mode', mode: m.id, label: m.label, route: m.route, cursor: m.cursor,
@@ -288,14 +400,53 @@ function markdown({ baseline, rows }) {
 
 function selfCheck() {
   const fails = []
-  const ok = (cond, what) => { if (!cond) fails.push(what) }
-  // 1. A binding mentioned ONLY in a comment must not count.
-  ok(bindingsIn(strip('// onScrub: the thing\nconst x = 1\n')).length === 0, 'comment-only onScrub was counted')
-  // 2. A real binding must count — the control that proves case 1 is not vacuous.
-  ok(bindingsIn(strip('const cfg = { onScrub: (ctx, s) => s }')).includes('onScrub'), 'a real onScrub was missed')
+  let cases = 0
+  // ⛔ THE CASE COUNT IS DERIVED. The line this printed read "9 cases" while the function
+  //    held nine — and a hand-typed number beside the thing it counts is the drift this whole
+  //    file exists to stop (`lesson_a_second_authority_over_one_value`).
+  const ok = (cond, what) => { cases += 1; if (!cond) fails.push(what) }
+  // ── BINDING DISCOVERY ────────────────────────────────────────────────────────────────────────
+  // ⛔ RAW SOURCE, NOT `strip()`ed. These cases test the PARSER, which is what refuses prose now;
+  // passing pre-stripped text would have tested `strip` and left the real mechanism unproved —
+  // the shape of D-42 itself, whose only binding fixture was the one form the scanner could see.
+  //
+  // 1. A binding mentioned ONLY in a comment must not count — neither comment style.
+  ok(bindingsIn('// onScrub: the thing\n/* onTap: nor this */\nconst x = 1\n').length === 0,
+    'a comment was counted as a binding')
+  // 2. A real colon-form binding must count — the control that proves case 1 is not vacuous.
+  ok(bindingsIn('const cfg = { onScrub: (ctx, s) => s }').includes('onScrub'),
+    'a real colon-form onScrub was missed')
+  // 2b. ⛔⛔ D-42, THE CASE THAT DID NOT EXIST. `{ onScrub }` is the same declaration as
+  //     `{ onScrub: onScrub }`, and the colon-only matcher this replaced read it as ABSENT — for
+  //     all of `wire`, all of `home`, and the scrub half of `journal`.
+  ok(bindingsIn('const cfg = { onTap, onDoubleTap }').join() === 'onTap,onDoubleTap',
+    'ES6 shorthand bindings were missed')
+  // 2c. …and the comma-list form as the controllers actually write it: a spread, a colon key, then
+  //     a run of shorthand keys, inside the `useMemo` every section returns.
+  ok(bindingsIn('const c = useMemo(() => ({ ...mode, onTap: f, onDoubleTap, onScrub, onScrubCommit,'
+    + ' readout, listAdapter }), [])').join() === 'onTap,onDoubleTap,onScrub,onScrubCommit,readout',
+    'the mixed colon + comma-list form was missed')
+  // 2d. A quoted key is still a key.
+  ok(bindingsIn("const c = { 'onPeek': f }").includes('onPeek'), 'a quoted key was missed')
   // 3. The needle this repo keeps tripping on: a comment that NAMES the key it forbids.
-  ok(bindingsIn(strip('/* never add onPeek: here */\nconst c = { onTap: () => {} }')).join() === 'onTap',
+  ok(bindingsIn('/* never add onPeek: here */\nconst c = { onTap: () => {} }').join() === 'onTap',
     'a forbidding comment was read as a binding')
+  // 3b. ⛔ A DESTRUCTURE IS NOT A DECLARATION — the false positive a merely-widened regex would
+  //     have introduced. `const { onScrub } = props` CONSUMES a binding; it does not offer one.
+  ok(bindingsIn('const { onScrub, readout } = props').length === 0,
+    'a destructuring pattern was counted as a declaration')
+  // 3c. …nor is a member read, a call argument, or a string that happens to contain the key.
+  ok(bindingsIn('mode.onScrub(ctx); const s = "onTap: x"; f({ a: 1 })').length === 0,
+    'a member read, an argument or a string literal was counted')
+  // 3d. A computed key names nothing statically, so it is skipped rather than guessed at.
+  ok(bindingsIn('const k = "onTap"; const c = { [k]: f }').length === 0, 'a computed key was counted')
+  // 3e. ⭐ THE CONTROL ON THE REAL TREE. Cases 2b-2d are fixtures; this is the shipped file that
+  //     D-42 reported as "— none —". Named members, never a count: a count drifts the day a
+  //     controller gains a binding and turns a correct change into a red self-check.
+  const wireBindings = bindingsIn(controllerFiles().find((c) => c.file === 'wireSection.js').raw)
+  for (const k of ['onTap', 'onDoubleTap', 'onScrub', 'onScrubCommit', 'readout']) {
+    ok(wireBindings.includes(k), `wireSection.js declares ${k} and the scanner did not see it`)
+  }
   // 4. The manifest must parse to the same count the file declares.
   const man = writeManifest()
   const declared = (readFileSync(path.join(HUB, 'writePaths.test.js'), 'utf8').match(/\n\s{4}endpoint:/g) || []).length
@@ -316,7 +467,7 @@ function selfCheck() {
     console.error('SELF-CHECK FAILED:\n  ' + fails.join('\n  '))
     process.exit(1)
   }
-  console.log(`self-check OK — 9 cases, ${man.length} manifest entries parsed`)
+  console.log(`self-check OK — ${cases} cases, ${man.length} manifest entries parsed`)
 }
 
 // ── THE GLASS SHEET ────────────────────────────────────────────────────────────────────────────
@@ -393,9 +544,18 @@ function glassSheet({ baseline, rows }) {
     L.push('')
     L.push('| # | Step | Expected | Device | Runner | Result |')
     L.push('|---|---|---|---|---|---|')
-    let n = 0
+    // ⛔⛔ TWO COUNTERS, AND THE `b` PREFIX IS LOAD-BEARING. Binding steps are numbered `b1, b2…`
+    // and action steps keep their own plain sequence, because a step id is what an operator writes
+    // a result against and a SINGLE counter makes every id positional. When D-42's fix added five
+    // binding rows to `wire`, a single counter moved `GS-wire-1` from "Chart it" to "Primary
+    // (tap)" and shifted every action row in four modes — silently, in a file whose whole purpose
+    // is to be filled in by hand. Nothing was lost that day only because no result had been
+    // recorded yet (the sheet is gated behind G0-1). Separate sequences make a binding change
+    // purely ADDITIVE: `GS-wire-3` means the same step before and after.
+    let nb = 0
+    let na = 0
     for (const b of m.bindings) {
-      n += 1
+      nb += 1
       const step = {
         onTap: `Tap the pad once. (The chip says “${m.tapHint}”.)`,
         onDoubleTap: 'Tap twice inside the double-tap window (`DOUBLE_TAP_MS` 280).',
@@ -412,18 +572,18 @@ function glassSheet({ baseline, rows }) {
         readout: 'The chip names the thing under the cursor in the page\'s OWN words (a ticker, a note title, a date), never a bare index.',
         onPeek: 'The Peek sheet opens once.',
       }[b.key]
-      L.push(`| GS-${m.mode}-${n} | **${b.role}.** ${step} | ${expected} | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+      L.push(`| GS-${m.mode}-b${nb} | **${b.role}.** ${step} | ${expected} | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
     }
     if (!m.bindings.length) {
-      L.push(`| GS-${m.mode}-0 | _This mode declares no gesture bindings._ | Tap, double-tap and scrub do **nothing** here, and the chip does not promise otherwise. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+      L.push(`| GS-${m.mode}-b0 | _This mode declares no gesture bindings._ | Tap, double-tap and scrub do **nothing** here, and the chip does not promise otherwise. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
     }
     for (const a of acts) {
-      n += 1
+      na += 1
       const req = a.requires.length
         ? ` Then repeat with **no ${a.requires.join('/')}** in context: the bubble must render **DISABLED with a reason, never hidden**.`
         : ''
       const tag = a.isNew ? ' 🆕' : a.becameReachable ? ' ⭐' : ''
-      L.push(`| GS-${m.mode}-${n} | **${a.label}**${tag} (\`${a.id}\`) — flick to it from the pad.${req} | ${expectedForAction(a)} | ${deviceFor(a)} | ${runnerFor(a)} | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
+      L.push(`| GS-${m.mode}-${na} | **${a.label}**${tag} (\`${a.id}\`) — flick to it from the pad.${req} | ${expectedForAction(a)} | ${deviceFor(a)} | ${runnerFor(a)} | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |`)
     }
     L.push('')
   }
