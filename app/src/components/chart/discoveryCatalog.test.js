@@ -481,6 +481,18 @@ describe('§32, §33 · a direct series is not called "Series"', () => {
       .toBe('MA (5)')
   })
 
+  it('⛔ no member-facing surface calls a QQQ series "Series"', () => {
+    // §15, and the reason `meta.shortName` and the PLOT label are different
+    // fields. The picker groups by instance and then names the output: `RSI (14)
+    // → RSI`, and this one used to read `QQQ → Series` — the internal word, in
+    // the one place a member chooses what an indicator reads.
+    const def = registry.getDefinition(DIRECT_SERIES_DEF_ID)
+    expect(def.plots.map((p) => p.label)).toEqual(['Value'])
+    // ⚠️ …while the generic STEM is untouched, because a series over an instance
+    // source genuinely has no instrument to be named after — the case below.
+    expect(def.meta.shortName).toBe('Series')
+  })
+
   it('⭐ a dataSeries over an INSTANCE source falls back to the generic stem', () => {
     // `@inst:rsi:1::rsi` has no name of its own here; guessing the host's label
     // would be a second naming rule. The ordinary stem applies.

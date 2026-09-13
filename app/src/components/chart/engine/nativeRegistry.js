@@ -1019,7 +1019,15 @@ const RAW_DEFS = [
         colorInput('color', 'Color', '#4f9cf9'),
       ],
       [
-        { key: 'value', label: 'Series', style: 'line', color: '$color', width: 1,
+        // ⛔ `label: 'Series'` READ AS ENGINE VOCABULARY WHERE A MEMBER SEES IT.
+        // A plot label names an indicator's OUTPUT — `RSI (14) → RSI`,
+        // `MACD → MACD | SIG` — and in the source picker this one produced
+        // `QQQ → Series`, which says nothing the group has not already said and
+        // says it in the internal word. The passthrough's output is its value.
+        // ⚠️ `meta.shortName` IS STILL `Series`, deliberately: it is the generic
+        // stem for a series over an INSTANCE source, which has no symbol to be
+        // named after.
+        { key: 'value', label: 'Value', style: 'line', color: '$color', width: 1,
           role: 'primary', legend: { decimals: 2 } },
       ]),
     domainBehavior: 'inherit',

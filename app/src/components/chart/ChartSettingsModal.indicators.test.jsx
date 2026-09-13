@@ -832,6 +832,38 @@ describe('a direct series in the settings tab', () => {
     cleanup()
   })
 
+  it('⭐⭐ two copies of an ORDINARY definition are told apart too', () => {
+    // ⚰️ MEASURED 2026-09-13: two RSIs produced two rows both reading "Relative
+    // Strength Index", while their legend chips read `RSI(14) #1` and
+    // `RSI(14) #2`. The surface that EDITS an indicator could not distinguish two
+    // of them; the surface that merely NAMES them could.
+    const cs = base({
+      indicators: { rsi: { enabled: true } },
+      indicatorInstances: [
+        { instanceId: 'legacy:rsi', defId: 'rsi', hidden: false, inputs: {} },
+        { instanceId: 'inst:rsi:2', defId: 'rsi', hidden: false, inputs: {} },
+      ],
+    })
+    render(<ChartSettingsModal open settings={cs} onChange={() => {}} onClose={() => {}} />)
+    openIndicators()
+    const rsiRows = activeLabels().filter((l) => /Relative Strength/.test(l))
+    expect(rsiRows).toHaveLength(2)
+    expect(new Set(rsiRows).size, 'two editable rows wore one name').toBe(2)
+    cleanup()
+  })
+
+  it('⛔ …and ONE copy is left completely alone', () => {
+    // The group of one is skipped, so an ordinary chart's rows are unchanged —
+    // which is what keeps every other case in this file reading `RSI` plainly.
+    render(<ChartSettingsModal open settings={base({ indicators: { rsi: { enabled: true } } })}
+      onChange={() => {}} onClose={() => {}} />)
+    openIndicators()
+    const rsiRows = activeLabels().filter((l) => /Relative Strength/.test(l))
+    expect(rsiRows).toHaveLength(1)
+    expect(rsiRows[0], 'a lone row was given an ordinal').not.toMatch(/#\d|\(/)
+    cleanup()
+  })
+
   it('⭐ the SOURCE control shows the symbol it actually holds', () => {
     render(<ChartSettingsModal open settings={withSeries()} onChange={() => {}} onClose={() => {}} />)
     openIndicators()

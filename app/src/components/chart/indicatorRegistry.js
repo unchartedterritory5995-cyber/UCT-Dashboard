@@ -507,15 +507,27 @@ export function listEngineIndicators(settings, registry) {
     // hide. `instanceLabel` is the SAME authority the legend chip and the
     // "Display in" menu already use, so all three surfaces say `QQQ`.
     //
-    // ⛔ GATED ON `meta.labelFrom`, NOT ON A DEFINITION ID. Every other row is
-    // byte-identical, and a future definition that names itself from an input
+    // ⛔ GATED ON `meta.labelFrom`, NOT ON A DEFINITION ID. Every other row keeps
+    // the catalogue noun, and a future definition that names itself from an input
     // inherits this without an edit here.
-    // ⛔ …AND DISAMBIGUATED AMONG ITS OWN SIBLINGS, through the one kernel, so two
-    // QQQ rows read `QQQ #1` / `QQQ #2` exactly as their chips do.
-    const named = (def.meta && def.meta.labelFrom === 'source' && live.length)
+    const stemOf = (i) => ((def.meta && def.meta.labelFrom === 'source')
+      ? instanceLabel(def, i)
+      : (meta.name || meta.shortName || def.id))
+    // ⭐⭐ …AND TWO ROWS OF ONE DEFINITION ARE TOLD APART, through the one kernel.
+    // ⚰️ MEASURED 2026-09-13: a member with two RSIs got two rows both reading
+    // "Relative Strength Index" while their chips read `RSI(14) #1` and
+    // `RSI(14) #2` — so the legend could distinguish them and the surface that
+    // EDITS them could not. `disambiguateLabels` is what the legend and the
+    // "Display in" menu already use; a definition with one live instance is a
+    // group of one and is left completely alone.
+    //
+    // ⚠️ THE SESSION NOTE IS APPENDED AFTER, not disambiguated: "(intraday only)"
+    // is a property of the DEFINITION, so it is identical across the group and
+    // would only push the suffix away from the name it qualifies.
+    const named = live.length
       ? disambiguateLabels(live.map((i) => ({
         defId: def.id, instanceId: i.instanceId, inputs: i.inputs || {},
-        label: instanceLabel(def, i),
+        label: stemOf(i),
       })), () => def)
       : null
     // Read through the ONE reader every other control door uses, so a
@@ -531,7 +543,7 @@ export function listEngineIndicators(settings, registry) {
         // and "write the definition's mirror + its seeded instance".
         ...(instance ? { instanceId: instance.instanceId } : {}),
         engineOwned: true,
-        label: `${(named && named[live.indexOf(instance)])
+        label: `${(instance && named && named[live.indexOf(instance)])
           || meta.name || meta.shortName || def.id}${sessionOnly ? ' (intraday only)' : ''}`,
         // The GROUP is the definition's short name, which is what the shipped tab
         // showed ("VWAP") — and it keeps the modal's section list derived from the
