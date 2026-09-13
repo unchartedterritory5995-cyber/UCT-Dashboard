@@ -27,10 +27,10 @@ three states is marked **`⛔ NOT-YET-CLASSIFIED`** with what it would take.
 | state | count | meaning |
 |---|---|---|
 | **DONE** | **11** | shipped and nothing outstanding against its own PRD/spec definition |
-| **BLOCKED-DATA** | **4** | waiting on a measurement; the command that produces it is named |
+| **BLOCKED-DATA** | **5** | waiting on a measurement; the command that produces it is named |
 | **BLOCKED-OWNER** | **8** | waiting on a ruling; the OI id or the ruling is named |
 | **BLOCKED-SPEC-READ** | **5** | a spec or gate exists, unsigned, awaiting the owner's reading |
-| **BLOCKED-DEPENDENCY** | **3** | waiting on another system, named |
+| **BLOCKED-DEPENDENCY** | **2** | waiting on another system, named |
 | **EXCLUDED** | **1** | E1, outside the named roster |
 | **⛔ NOT-YET-CLASSIFIED** | **0** | ⭐ **THE FOURTH STATE IS AT ZERO** |
 
@@ -92,7 +92,7 @@ blocker class.
 | **S4** Context Bus | **CP1 MERGED** `76c62c494` | context-bus-spec §3.1 — one bus, both contexts as thin adapters, every consumer unchanged | CP1 is the divergence DETECTOR only; the bus adoption itself is CP2+ | **BLOCKED-SPEC-READ** — CP2 line unsigned |
 | **S5** Persistence & User State | spec + gate written, **UNSIGNED** | persistence-user-state-spec — a typed store for list/preference documents | no CP1 authorized | **BLOCKED-SPEC-READ** |
 | **S6** Personalization | ✅ packet written + **CP1 built** `12b6c3946` | personalization-spec | CP2–CP5 need four owner rulings the spec says it cannot make | **BLOCKED-OWNER** — SET-vs-WEIGHTED-SET, derive-vs-mirror, `personal_edge`, paid-gating |
-| **S7** Alerts | **8 of 8 types registered**; 4 live, 4 dark CP1–CP2 | alerts-monitoring-spec §5 — every type registered, comparable, and flipped | four types need CP3 (projection) then a flip | **BLOCKED-DEPENDENCY** — own CP3s |
+| **S7** Alerts | **8 of 8 types registered**; **every CP3 merged and ARMED** as of 2026-09-13 | alerts-monitoring-spec §5 — every type registered, comparable, and flipped | the dark READ, then the flip | **BLOCKED-DATA** — ⚰️ was BLOCKED-DEPENDENCY *"own CP3s"*; there are no CP3s left to build. What it waits on is now a MEASUREMENT with a named command: `railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"` over seven dark sweeps, and next weekend's read of `legacy_only`. |
 | **S8** Provenance & Freshness | SHIPPED | provenance-freshness-spec | full `<Cited>` still D2-gated | **BLOCKED-DEPENDENCY** — D2 |
 | **S9** Entitlements | not built, **NO GATE** | — | owner-bound | **BLOCKED-OWNER** — OI-03(a)(b), OI-12 |
 | **S10** Presentation Primitives | **SHIPPED** `3c539d011` · CP2 `6576f044e` | presentation spec | F-S10-1 residue (§3.1) | **DONE** with one open finding |
@@ -141,11 +141,11 @@ blocker class.
 | S4 | ✅ | CP1 | CP1 | CP2 unsigned |
 | S7 `price-level` | ✅ | CP1–CP3, CP3b | all | dark read pending |
 | S7 `event-proximity` | ✅ | CP1, CP2 | both | dark read pending |
-| S7 `catalyst-match` | ✅ | CP1, CP2 | both | CP3 unsigned |
-| S7 `position-risk` | ✅ | CP1–CP2 | both | CP3 unsigned |
-| S7 `scan-membership-change` | ✅ | CP1–CP2 | both | CP3 unsigned |
-| S7 `regime-change` | ✅ | CP1–CP2 | both | CP3 unsigned |
-| S7 `indicator-condition` | ✅ | CP1–CP2 | both | CP3 unsigned **and** blocked on D2 §9.5 |
+| S7 `catalyst-match` | ✅ | CP1–CP3 | all | dark read pending |
+| S7 `position-risk` | ✅ | CP1–CP3 | all | dark read pending |
+| S7 `scan-membership-change` | ✅ | CP1–CP3 | all | dark read pending |
+| S7 `regime-change` | ✅ | CP1–CP3 | all | dark read pending |
+| S7 `indicator-condition` | ✅ | CP1–CP3 | all | dark read pending — ⛔ and 30 of 31 predicates are NOT COMPARABLE by vocabulary (F-S7-IC-1), so the read will be about the ONE comparable pair |
 | D3 | ❌ | — | — | unsigned |
 | D4 | ❌ | — | — | unsigned |
 | S5 | ❌ | — | — | unsigned |
@@ -479,6 +479,26 @@ with an in-pod verification. Four more of those is not an afternoon.
 
 ## 6. ⛒ THE BUILD QUEUE — AUTHORIZED-AND-UNBUILT, in dependency order
 
+# ✅ **THE QUEUE IS EMPTY — 2026-09-13.** Every numbered row below is DONE with its SHA.
+
+**AUTHORIZED-AND-UNBUILT = 0.** Nothing in this programme is both signed and unbuilt. The three
+rows that are not DONE are not buildable and each says why:
+
+| row | state | why it is not buildable |
+|---|---|---|
+| ~~S5 CP1~~ (the extraction) | ⏸️ **DEFERRED — F-S5-1** | needs a second adopter and Wave Q1 live 30 days (**2026-10-12**). It matches no §4 row, so it is UNSIGNABLE as written. |
+| A9 CP1 | ⛔ **NOT BUILDABLE** | see below — and A9/A11/A13 are **BLOCKED-OWNER** on the flips after the dark reads. |
+| S6 CP2–CP5 | ⛔ **SPEC-BLOCKED** | four owner rulings, each named in its §4 row: SET-vs-WEIGHTED-SET, derive-vs-mirror, `personal_edge`, paid-gating. |
+
+⛔ **THE FOURTH STATE IS STILL AT ZERO.** Nothing is `⛔ NOT-YET-CLASSIFIED`.
+
+⭐ **WHAT THE PROGRAMME IS WAITING ON IS NOW A MEASUREMENT, NOT A BUILD.** Seven dark sweeps are
+armed and ticking; the next decision is next weekend's read, and the deciding column is
+**`legacy_only`** — the count of fires the legacy lane made that the new lane did not. Agreement
+is cheap when both sides are quiet; `legacy_only` is the only column that can say the new lane
+would have dropped a member's alert.
+
+
 ⛔ **THIS SECTION IS THE RESUME POINT. A session that runs out stops between units and the next
 one starts HERE, not from memory.** One unit in flight at a time; never two on shared lines.
 
@@ -499,7 +519,7 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | 7 | **regime-change CP3** | `9f0575340` | ✅ **DONE** | **`506eeee6d`** |
 | 8 | **S6 CP1** — the source-vocabulary rail | **`b3073c67c`** signed 2026-09-13 | ✅ **DONE** | **`12b6c3946`** |
 | — | S6 **CP2–CP5** | packet written, unsigned | ⛔ **SPEC-BLOCKED** — four owner rulings, each named in §4: SET-vs-WEIGHTED-SET (SPEC §2), derive-vs-mirror (§5.1·2), `personal_edge` (§5.1·3), paid-gating | — |
-| 11 | `indicator-condition` CP3 | `148af5293` | ⚠️ **DEPENDENCY CLEARED, BUT DO NOT BUILD BLIND.** Its line was void unless D2 §9.5 CP1 merged first; §9.5 is now CP4, merged `404b808c5`. ⛔ **OPEN CONFLICT:** SPEC-S7 §5.2 specifies the predicate as `{address, condition, threshold}` with the timeframe INSIDE the address and calls the eight-column form *"predates D2"* — **the merged CP1–CP2 code ships the eight-column form.** Spec and code disagree; resolve before CP3 writes a line. | — |
+| 11 | **`indicator-condition` CP3** | **`4e8d3af5d`** signed 2026-09-13 (line 3, the dependency-discharge line) | ✅ **DONE.** Dependency discharged — PRD-D2 §9.5 is GATE-D2 CP4 (`3257cc319`, `404b808c5`). Classified **ADDITIVE**: measured, all CP3 modules ABSENT from flow-worker's 154-module closure, so the packet's *"CP3 strands the substrate regardless"* prediction is **recorded as wrong** rather than dropped. ⛔⛔ **THIRTY OF THIRTY-ONE PREDICATES ARE NOT COMPARABLE** (F-S7-IC-1) — said per predicate, never as agreement, with the `close` ↔ `ohlcv.c` rename as the non-vacuity control. SPEC-S7 §5.2 amended to the code (8 keys) in `6e5564501`. | **`d31b78b75`** |
 | 9 | **D2 §9.5 CP1** — the indicator axis | **`3257cc319`** signed 2026-09-13 as **GATE-D2 CP4** | ✅ **DONE.** §4 was RE-NUMBERED in the signing commit to add CP4, per the standing rule: §9.5's scope matched none of CP1/CP2/CP3, all three written for the stored-column form. Classified **ADDITIVE** — `indicator_axis` is absent from flow-worker's 154-module closure. Flag `CANONICAL_INDICATOR_AXIS_ENABLED` **dark**. | **`404b808c5`** |
 | 10 | **S2 CP1** — chord table + collision rail | **`7ae6d9ca2`** signed 2026-09-13 | ✅ **DONE** | **`feb7ba1f8`** |
 

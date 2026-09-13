@@ -3480,3 +3480,130 @@ sub-100-token prompt is not a query and the call should be refused. Deliberately
 built in this change: it is a separate defect from the unguarded span, the kill switch
 now bounds the loss, and scope discipline beats a drive-by. Sized: one guard plus a
 control, in `sources.py`.
+
+---
+
+## S7 `indicator-condition` — CP3 MERGED 2026-09-13 · ADDITIVE · **thirty of thirty-one NOT COMPARABLE**
+
+| | |
+|---|---|
+| approval | **line 3**, the dependency-discharge line, fingerprint **`4e8d3af5d`** |
+| dependency | ✅ **DISCHARGED** — PRD-D2 §9.5 signed as **GATE-D2 CP4** (`3257cc319`), merged `404b808c5` |
+| merge | **`d31b78b75`** |
+| classification | **ADDITIVE**, no marker bump — measured, see below |
+| flag | `ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED` |
+
+### ⛔ A THIRD APPROVAL LINE, BECAUSE THE SECOND WAS CONDITIONAL AND SAID SO
+
+Line 2 (2026-09-12, `148af5293`) reads *"this line is void unless D2 §9.5 CP1 has
+merged first."* It is **not wrong** — it is conditional. Editing it in place would
+have erased two facts worth keeping: that CP3 was authorized subject to a named
+dependency, and that the dependency was discharged on a specific date by a
+specific merge.
+
+⭐ **AND THE NAME THE BLOCKER WAS WRITTEN UNDER CHANGED.** It says *"D2 §9.5 CP1"*;
+what merged is **GATE-D2 CP4**. Same PRD section, same SPEC-D2 §5.4 technical
+form — the checkpoint ID differs because the standing rule found GATE-D2 §4 had
+no row matching §9.5's scope (all three were written for the stored-column form,
+while §9.5 asks the book to describe a **computation**), so §4 was re-numbered in
+the signing commit. Recorded as a table inside the block so a later reader cannot
+mistake it for a mismatch.
+
+### ⛔⛔ THE RESULT: THIRTY OF THIRTY-ONE ARE **NOT COMPARABLE**, AND THAT IS THE MEASUREMENT
+
+```
+legacy addresses  indicator_alert_evaluator.all_addresses()    31
+book metrics      api/data/canonical_address_book.json        142
+INTERSECTION                                                    0
+  -> ONE rename (close <-> ohlcv.c) + THIRTY genuine absences
+```
+
+**The two lanes do not disagree. They never met.** Legacy speaks indicator
+(`rsi`, `bb.upper`, `adx.adx`); the book speaks screener-row (`adr_pct`,
+`above_50sma`).
+
+⛔ So comparability is decided **per predicate, before any value is read**, and is
+**never** agreement. Letting a non-intersecting predicate reach `classify()` would
+score it `LEGACY_ONLY` every time the legacy side fired — which reads as *"the new
+lane is missing fires"* for a question it was never able to be asked. **A
+comparison that reports a disagreement between two vocabularies sharing no terms
+is manufacturing a finding.**
+
+⭐ **AND IT STILL BEATS.** A tick that could not be compared is a tick that
+happened. A heartbeat gated on comparability would stop dead on the thirty and
+look exactly like a dead sweep.
+
+### ⭐ THE NON-VACUITY CONTROL IS THE ONE RENAMED PAIR
+
+A harness that had broken and called *everything* incomparable produces nearly the
+same count as the true answer. So `close` **must** come back comparable and
+**must** reach `observe()`. Asserted by name; the census is recomputed from source
+every call, never cached into a literal.
+
+### ⛔ COMPARABILITY ASKS `declarations()`, NOT `resolve()` — AND THAT IS LOAD-BEARING
+
+`resolve()` is gated on `CANONICAL_INDICATOR_AXIS_ENABLED`, which is **dark and
+stays dark**. Routing comparability through it would make every predicate
+incomparable **in the shipped state** — thirty-one instead of thirty — deleting
+the one real signal exactly when nobody has set the flag
+(`lesson_a_rails_important_half_can_be_opt_in`). Railed in **both** flag states.
+It is the same authority either way: `resolve()` is built on `declarations()`.
+
+### ⛔ THE PACKET PREDICTED A STRAND. MEASUREMENT SAYS OTHERWISE.
+
+GATE §5 said *"CP3 strands the substrate regardless, because wiring `register()`
+puts the new module into flow-worker's closure."* **Measured on the merge:**
+
+```
+flow-worker closure                       154 modules
+indicator_condition_projection.py         ABSENT
+indicator_condition.py                    ABSENT
+indicator_condition_compare.py            ABSENT
+canonical/indicator_axis.py               ABSENT
+```
+
+`api/main.py` is **not in flow-worker's closure**, so a `register()` call there
+cannot pull a module into it. **ADDITIVE, no marker bump** — and the prediction is
+recorded as wrong rather than quietly dropped, because the next checkpoint will
+otherwise inherit it.
+
+### Rails, and the one that could not fail
+
+18 rails. **Five mutations proved RED and restored by edit**: the NOT-COMPARABLE
+bucket, the role-gate fallback, a delivery import, a legacy mutator, and
+heartbeat-on-success-only.
+
+⚠️ **The role-gate mutation initially stayed GREEN.** The rail monkeypatched
+`cohort_user_ids` — *the function it was testing* — so it asserted against its own
+stub while a real `or {"admin-fallback"}` sailed through. Rewritten to patch
+`rollout` underneath it; it now fires. **A rail that replaces the thing it tests
+cannot fail** (`lesson_gate_that_cannot_fail`).
+
+### ⚰️ REPAIRED EN ROUTE, AND THE BREAKAGE WAS MINE
+
+Generalising `--ticking` over the `SWEEPS` table (earlier this weekend) renamed
+`ticking` → `ticking_one`/`ticking_all` and `_in_window()` → `_window(hours)`, and
+**dropped two guidance lines**, leaving five stale call sites in a test file a
+named-subset run never included. Restored:
+
+- **"Arm one"** — a ticking sweep with an EMPTY cohort printed a healthy `YES` and
+  a bare zero, which reads as *"running, nothing to report"* when the truth is
+  *"running, and nobody is enrolled."* Those two states leave an identical store
+  and call for opposite actions.
+- **"0 outcome rows is NORMAL early"** — its mirror image: a sweep that IS
+  projecting but has recorded no outcomes yet is healthy, and without the line a
+  reader concludes the comparison is broken. That is the one misreading that would
+  get a working dark run switched off.
+
+⚠️ **PROVISIONAL RULING, owner — F-S7-PL-2.** Per-sweep windows **narrow** what
+`--ticking` calls a stall: a sweep that dies mid-window and is only checked after
+the close now reports `0`. **Recommendation: keep the narrowing** — the alternative
+flags every sweep every weekend and gets muted, and the Monday 09:05 ET check is
+inside every window, so it is not a gap today. Marked and continuing.
+
+### Coverage now
+
+`--ticking` covers **seven dark sweeps** with per-type staleness bounds
+(indicator-condition: **180s**, RTH minute cadence — two missed ticks, the same
+reading as price-level and position-risk, not a number copied for tidiness).
+The gate check carries **eight** gates: those seven dark reads plus D2 CP3.
