@@ -163,13 +163,31 @@ def research_quote(sym: str):
         return None
     try:
         from api.services.cache import cache
-        from api.services.earnings_estimates import _fmp_get
+        from api.services import fmp_client as _fmp
+        from api.services import provider_degraded as _degraded
         ck = f"research_quote::{sym}"
         hit = cache.get(ck)
         if hit is not None:
             return hit
-        rows = _fmp_get("/stable/quote", {"symbol": sym}, timeout=10)
+        try:
+            rows = _fmp.get_quote(sym, timeout=10).value
+        except Exception as exc:            # noqa: BLE001 -- every D1 typed error
+            # ⛔ DEGRADED IS NOT ABSENT. Before this, an outage returned `null`
+            # at 200 -- indistinguishable from "this ticker has no quote", so a
+            # member could not tell a provider failure from a quiet name. The
+            # empty shape is preserved EXACTLY (every key present, every value
+            # None, so a client reading `.price` is unchanged); the envelope is
+            # ADDITIVE beside it. ⛔ Never a 500.
+            _logger.warning("research quote degraded for %s: %s", sym, exc)
+            return {"sym": sym, "price": None, "change": None, "change_pct": None,
+                    "open": None, "high": None, "low": None, "prev_close": None,
+                    "volume": None, "year_high": None, "year_low": None,
+                    "market_cap": None,
+                    "provenance": _degraded.envelope(exc, activity="research.quote")}
         if not isinstance(rows, list) or not rows:
+            # ⭐ Genuinely absent stays `None`, unchanged -- a caller checking
+            # truthiness keeps its meaning for "no data". Only the DEGRADED case
+            # gains a body.
             return None
         q = rows[0] or {}
         out = {

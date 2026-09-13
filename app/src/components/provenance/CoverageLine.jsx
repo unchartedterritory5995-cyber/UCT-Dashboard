@@ -1,4 +1,9 @@
-// app/src/components/screener/CoverageLine.jsx
+// app/src/components/provenance/CoverageLine.jsx
+//
+// ⚰️ This first line read `app/src/components/screener/CoverageLine.jsx` — the
+// path the file had before S8 Step 1 moved it. That path still exists and is a
+// thirteen-line re-export shim, so following the stale comment lands a reader
+// on the shim and not on this file. Corrected in passing, 2026-09-12.
 //
 // ─── A SCREEN STATES ITS OWN COVERAGE (spec §6.3) ───────────────────────────
 //
@@ -50,12 +55,21 @@
 // count belongs, is this repo's most repeated defect wearing a new hat.
 
 import UIcon from '../ui/UIcon'
+import { formatNumber } from '../../lib/presentation/presentationPrimitives'
 import styles from './CoverageLine.module.css'
 
-/** ⛔ AN EXPLICIT LOCALE. `toLocaleString()` with no argument formats to
+/** ⚰️ THIS WAS THE IMPLEMENTATION; IT IS NOW S10's, AND THE SENTENCE THAT
+ *  JUSTIFIED IT MOVED WITH IT VERBATIM. The rule has not changed and neither
+ *  has a single rendered character (`presentationPrimitives.test.js` holds a
+ *  frozen copy of the line below as its oracle) — what changed is that the rule
+ *  is now stated in ONE place for the whole app instead of once per component:
+ *
+ *      const n = (v) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US') : '—')
+ *
+ *  ⛔ AN EXPLICIT LOCALE. `toLocaleString()` with no argument formats to
  *  whatever the browser is set to, so the same screen would read `3,742` for one
  *  member and `3.742` for another — and the second one reads as a decimal. */
-const n = (v) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US') : '—')
+const n = formatNumber
 
 /**
  * `density` (S8 Step 1, SPEC-S8 §4.4 item 2) — additive, not a behavior

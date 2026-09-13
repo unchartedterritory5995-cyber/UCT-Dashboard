@@ -61,6 +61,9 @@ def _row_to_candidate(row: sqlite3.Row, attached: set[str]) -> dict[str, Any]:
         # publisher's quotation.
         "text": row["captured_text"],
         "annotation": row["annotation"],
+        # ⛔ Provenance, never identity: the candidate is still a document
+        # excerpt at a real page. A web capture has no scan behind it.
+        "textOrigin": None if is_web else row["text_origin"],
         "coverage": "selected_passage" if is_web else "document_page",
         "alreadyAttached": row["id"] in attached,
     }
@@ -96,9 +99,17 @@ def list_candidates(
             "SELECT e.id, e.note_id, e.page_number, e.captured_text, e.annotation,"
             " d.name AS document_name, d.source_kind AS source_kind,"
             " d.source_url AS source_url"
+            # ⛔ WAVE P4 §24: WHERE THE QUOTED WORDS CAME FROM, so the
+            # picker can say "Scanned text" beside a passage read off an
+            # image. Derived from the PAGE — an excerpt never stores a
+            # provenance of its own that could disagree with its source.
+            ", pg.text_origin AS text_origin"
             " FROM j2_note_excerpts e"
             " JOIN j2_note_documents d ON d.id = e.document_id"
             " JOIN j2_notes n ON n.id = e.note_id"
+            " LEFT JOIN j2_note_document_pages pg"
+            "        ON pg.document_id = e.document_id"
+            "       AND pg.page_number = e.page_number"
             " WHERE e.note_id = ? AND e.user_id = ? AND n.deleted_at IS NULL"
         )
         params: list[Any] = [note_id, user_id]

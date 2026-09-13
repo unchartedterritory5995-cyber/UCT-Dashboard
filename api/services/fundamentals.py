@@ -260,14 +260,21 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
     _qt = str(info.get("quoteType") or "").upper()
     if result.get("market_cap") is None and _qt in ("", "EQUITY"):
         try:
-            from api.services.earnings_estimates import _fmp_get
-            rows = _fmp_get("/stable/quote", {"symbol": sym}, timeout=10)
+            from api.services import fmp_client as _fmp
+            rows = _fmp.get_quote(sym, timeout=10).value
             mc = (rows[0] or {}).get("marketCap") if isinstance(rows, list) and rows else None
             if mc:
                 result["market_cap"] = _fmt_billions(mc)
                 result["market_cap_source"] = "fmp"
-        except Exception as exc:                    # noqa: BLE001
-            _log.warning("FMP market-cap backfill failed for %s: %s", sym, exc)
+        except Exception as exc:                    # noqa: BLE001 -- D1 typed errors
+            # ⛔ A failed backfill must not fail the whole fundamentals call --
+            # market cap is ONE field of many. But it must not be SILENT either:
+            # a blank cap from an outage and a blank cap from an ETF (which has
+            # no meaningful one) rendered identically before this envelope.
+            from api.services import provider_degraded as _degraded
+            _log.warning("FMP market-cap backfill degraded for %s: %s", sym, exc)
+            result["market_cap_provenance"] = _degraded.envelope(
+                exc, activity="fundamentals.market_cap_backfill")
 
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result

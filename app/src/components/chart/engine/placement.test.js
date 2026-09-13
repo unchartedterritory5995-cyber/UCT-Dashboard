@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { resolvePlacement, resolvePreset, PRESET_SURFACES, MAIN_PRICE_SCALE_ID } from './placement'
+import { resolvePlacement, resolvePreset, PRESET_SURFACES, MAIN_PRICE_SCALE_ID, PANE_BAND } from './placement'
 import * as registry from './nativeRegistry'
 import { computePaneLayout, __setPaneModeForTest, SEPARATOR_PX } from './paneLayout'
 import { PRESETS, CHART_DEFAULTS } from '../chartDefaults'
@@ -529,15 +529,59 @@ describe('resolvePlacement — its own REAL pane (PANE_MODE panes)', () => {
     }
   })
 
-  it('takes ZERO scaleMargins — the drawable rectangle is the whole pane now', () => {
+  it('takes PANE_BAND scaleMargins — the plot does not touch the pane edges', () => {
     // ⚠️ SPELLED OUT, NEVER OMITTED. `applyOptions` MERGES and `merge()` skips
     // `undefined`, so leaving the key out would leave the previous BAND standing
     // on a re-purposed scale — a pooled series drawing into a 15% slice of a pane
     // it owns outright.
+    //
+    // ⚰️ THIS CASE READ `toEqual({ top: 0, bottom: 0 })` AND WAS TITLED "takes ZERO
+    // scaleMargins — the drawable rectangle is the whole pane now". It was, and
+    // that was the defect the owner reported (2026-09-10, screenshot of an RSI on
+    // AAPL 1D): the line's peaks and troughs were welded to the separator above
+    // and the time axis below, because an oscillator lives at its extremes and the
+    // rectangle had no room in it. The rail is INVERTED rather than deleted — it
+    // still pins the exact numbers, and it still proves the key is present, so
+    // going back to zero fails here and makes you read this note first.
     const cs = csWith('rsi')
     const p = resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layoutFor(['rsi']) })
-    expect(p.scaleOptions.scaleMargins).toEqual({ top: 0, bottom: 0 })
+    expect(p.scaleOptions.scaleMargins).toEqual({ top: 0.16, bottom: 0.1 })
+    expect(p.scaleOptions.scaleMargins, 'the exported constant is what ships').toEqual(PANE_BAND)
     expect(Object.keys(p.scaleOptions)).toContain('scaleMargins')
+  })
+
+  it('hands out a FRESH margins object — a caller cannot poison the next resolve', () => {
+    // `scaleOptions` goes straight to `applyOptions`, and `PANE_BAND` is frozen —
+    // but the copy must be real, not the frozen object itself, or a caller that
+    // merges into it throws in strict mode instead of doing nothing.
+    const cs = csWith('rsi')
+    const layout = layoutFor(['rsi'])
+    const a = resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout })
+    const b = resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout })
+    expect(a.scaleOptions.scaleMargins).not.toBe(PANE_BAND)
+    expect(a.scaleOptions.scaleMargins).not.toBe(b.scaleOptions.scaleMargins)
+    a.scaleOptions.scaleMargins.top = 0.9
+    expect(b.scaleOptions.scaleMargins.top).toBe(0.16)
+  })
+
+  it('is the ONLY branch that asks for the right-axis value tag', () => {
+    // ⭐ THE PANE'S OWN AXIS CARRIES ITS OWN NUMBER — the owner's ask, and the
+    // reason sub-choice 2.2 bought that axis in the first place.
+    //
+    // ⛔ AND NOWHERE ELSE. A price overlay would hang a tag on the CANDLES' axis
+    // next to the live price; the volume-pane overlay would hang one on a LEFT
+    // axis it shares with everything else overlaid there. Both are asserted, both
+    // directions, because "the pane got it" and "only the pane got it" are two
+    // different regressions.
+    const cs = csWith('rsi')
+    expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layoutFor(['rsi']) }).lastValue)
+      .toBe(true)
+    expect(resolvePlacement(inst('bb'), def('bb'), { ...ctxFor(cs), paneLayout: layoutFor(['rsi']) }).lastValue)
+      .toBeUndefined()
+    expect(resolvePlacement(inst('rsi'), def('rsi'), {
+      ...ctxFor(cs), paneLayout: layoutFor(['rsi']),
+      volSeparatePane: true, volOverlaySet: new Set(['rsi']), VOL_PANE_INDEX: 1,
+    }).lastValue).toBeUndefined()
   })
 
   it('binds NOTHING when the layout reserved no pane — the twin of the 0.82 fallback', () => {
@@ -563,9 +607,9 @@ describe('resolvePlacement — its own REAL pane (PANE_MODE panes)', () => {
     const cs = csWith('rsi', 'atr')
     const layout = layoutFor(['rsi', 'atr'])
     expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout }).scaleOptions)
-      .toEqual({ borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, autoScale: false, minimum: 0, maximum: 100 })
+      .toEqual({ borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: false, minimum: 0, maximum: 100 })
     expect(resolvePlacement(inst('atr'), def('atr'), { ...ctxFor(cs), paneLayout: layout }).scaleOptions)
-      .toEqual({ borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, autoScale: true })
+      .toEqual({ borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: true })
   })
 
   it('autoscale is still default — exclude collapses the band in BOTH modes', () => {

@@ -54,7 +54,7 @@ export const P = {
   be:"#df4646",   // --loss
   ac:"#dcbb5e",   // --ut-gold
   tx:"#f0efea",   // --text
-  dm:"#8a8a8f",   // --menu-text-dim  (the app's dimmest text tier)
+  dm:"#b3b3b9",   // --menu-text-dim  (the app's dimmest text tier; raised 2026-09-10)
   mt:"#cfcac0",   // --text-muted     (was identical to `tx`; now a real tier)
   wh:"#f8f7f3",   // --text-bright
   ye:"#dcbb5e",   // --ut-gold
@@ -64,7 +64,7 @@ export const P = {
   // forced onto a token that does not mean the same thing.
   sw:"#6ba3be",
   bk:"#6ba3be",
-  uc:"#8a8a8f",   // --menu-text-dim
+  uc:"#b3b3b9",   // --menu-text-dim
 };
 
 // ─── Grade System ──────────────────────────────────────────────────────────────

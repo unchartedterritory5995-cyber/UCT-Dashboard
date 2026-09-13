@@ -118,12 +118,31 @@ const CALL_SITES = [
   {
     file: 'app/src/components/chart/IndicatorLibraryDialog.jsx',
     writes: true,
-    door: 'the library dialog — reached from the toolbar button, Alt+Shift+A and right-click Add indicator…',
+    door: 'the library dialog — reached from Alt+Shift+A, both right-click rows and the phone ƒx '
+      + 'sheet. ⚰️ ITS TOOLBAR BUTTON IS RETIRED (the consolidation): Chart Settings → Indicators '
+      + 'is the add-flow now, and two labelled entry points onto one job was the split it ended. '
+      + 'The dialog itself is unchanged and still writes through this door',
+  },
+  {
+    file: 'app/src/components/chart/ChartSettingsIndicators.jsx',
+    writes: true,
+    door: '⭐ NEW AT THE INDICATORS CONSOLIDATION — Chart Settings → Indicators, which is now the '
+      + 'ONE home for finding, adding, editing and removing an indicator. ⛔ IT IS A SECOND USE OF '
+      + 'THE LIBRARY DIALOG\'S DOOR AND NOT A SECOND WRITER: the add IMPORTS `toggledRow` from '
+      + '`IndicatorLibraryDialog` rather than calling `setIndicatorEnabled` a second way, so an '
+      + 'indicator added here is byte-identical to one added there. What it calls DIRECTLY is '
+      + '`setIndicatorEnabled(…, false)` on Remove for a row with NO live instance — the case '
+      + '`removeInstance` cannot express, because there is no instanceId to name. ⛔ AND THE '
+      + 'ROW\'S TOGGLE IS DELIBERATELY **NOT** THIS DOOR: it writes `hidden` through door eight, '
+      + 'because on this surface "off" must mean hidden-and-still-listed, not deleted-with-its-'
+      + 'settings. That split is the one behaviour change the consolidation makes',
   },
   {
     file: 'app/src/components/chart/ChartToolbar.jsx',
     writes: false,
-    door: 'the Manage-indicators launcher COUNTS what is on and opens the dialog; it does not write',
+    door: 'the Manage-indicators launcher COUNTS what is on and opens the dialog; it does not write. '
+      + '⚠️ STILL TRUE AFTER THE CONSOLIDATION RETIRED THE LABELLED BUTTON — what went is an '
+      + 'opener, and an opener was never a writer',
   },
 ]
 
@@ -248,7 +267,7 @@ describe('the control-door census — how many doors, and whether an eighth exis
     // proves the regex works only if the regex could have found a fourth; the
     // stronger control is that it still matches inside the file it EXCLUDES.
     expect(callers.length, 'the census found no caller at all — a scan that finds nothing is ' +
-      'a broken scan, not a tree with no doors').toBe(3)
+      'a broken scan, not a tree with no doors').toBe(4)
     const writerSrc = SHIPPED.find(f => f.file === THE_WRITER)
     expect(writerSrc, 'the writer module is not in the walk — the scan cannot see its own subject')
       .toBeTruthy()
@@ -616,6 +635,24 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'census above) and addInstance for the add — and it excludes volumeProfile from ' +
        'the second, because a carved-out row has no definition and addInstance returns ' +
        'the settings BY IDENTITY for it'],
+      ['app/src/components/chart/ChartSettingsIndicators.jsx',
+       '⭐ NEW AT THE INDICATORS CONSOLIDATION — Chart Settings → Indicators. It calls THREE of ' +
+       'the four per-instance doors, and each one is a thing doors 1-7 cannot say. (1) ' +
+       '`setInstanceHidden` is the ACTIVE ROW\'S TOGGLE, and that is the whole reason this ' +
+       'surface needed door eight: the tab used to write `enabled`, which tombstones every ' +
+       'instance — so "turn RSI off for a second" deleted its period, its colour and its width ' +
+       'and took its row off the list, and a settings list whose disable switch is a delete ' +
+       'button is a list nobody dares touch. `hidden` is skipped by binder/pool before compute ' +
+       'and is still counted ON by isIndicatorEnabled, which is exactly what keeps the row in ' +
+       'place; it is the same eye the legend chip writes. (2) `removeInstance` is "Remove ' +
+       'indicator", inside the OPEN row — the destructive verb, one level in, because a trash ' +
+       'icon on a dense collapsed list is one mis-click from deleting a configured indicator. ' +
+       'It addresses the instance so a sibling keeps drawing. (3) `addInstance` is the search ' +
+       'result\'s "＋" on a row that is ALREADY ON, and it is here for the identical reason ' +
+       'IndicatorLibraryDialog\'s "+ Add another" is: setIndicatorEnabled REVIVES legacy:<id>, ' +
+       'so a ticked row clicked twice can never produce two lines, and addInstance is the only ' +
+       'door that means "another". ⛔ IT IS A SECOND USE, NOT A SECOND RECIPE — the ADD path ' +
+       'imports `toggledRow`/`isRowOn` from the library dialog rather than re-deriving them'],
       ['app/src/components/chart/builder/BuilderSheet.jsx',
        '⭐ NEW AT PHASE D TASK 16 — the builder adds an instance ON SAVE, and until Task 16 ' +
        'it deliberately did NOT. Task 11 measured why and wrote the refusal into the file: ' +

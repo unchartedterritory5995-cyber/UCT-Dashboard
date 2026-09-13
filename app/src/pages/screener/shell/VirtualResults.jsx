@@ -1,11 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
 import PatternFeedbackChip from '../../../components/PatternFeedbackChip'
 import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
 import ColumnDesc from './ColumnDesc'
-import { sortRowsLive } from './liveSort'
 import styles from './ScannerShell.module.css'
 
 // The virtualized grid-table door: an ARIA grid on top of @tanstack/react-virtual.
@@ -25,11 +24,43 @@ const colWidth = key =>
   : descFor(key) ? `${NUM_W + DESC_TRIGGER_W}px`
   : `${NUM_W}px`
 
-export default function VirtualResults({ rows, columns, sort, onSort, livePrices,
-  liveSortOn, density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }) {
+// `ref` exposes `scrollToIndex` off the `@tanstack/react-virtual` instance
+// this component already creates — the seam Phase 3's shared hub cursor binds
+// to (joystick-hub spec §2d / exception (d)). Nothing consumes it yet; this
+// only opens the door.
+//
+// ⚠️ MERGE NOTE — master's version of this line still took `liveSortOn`, and it
+// is deliberately NOT restored here. The live re-sort moved UP to `ScannerShell`
+// (see the `displayRows` comment below), which no longer passes the prop; taking
+// master's list verbatim would reintroduce a dead parameter whose presence
+// claims this component still sorts — the exact confusion the lift removed. The
+// forwardRef seam is master's and is preserved in full.
+  // ⛔ `itemProps` LANDS `data-hub-cursor="active"` ON THE CURSOR ROW.
+  //
+  // Without it Scan mode's Primary/Reverse moved a selection NOBODY COULD SEE: the index
+  // advanced, the list scrolled, the chip named a ticker — and no row was ever marked, so
+  // the member had to infer the selection from the scroll position. The Journal paints its
+  // carriers; this is the Screener half of the same job (R-15).
+  //
+  // ⭐ SAME exception (d), not a new one. These two files were already in scope for the
+  // hub's `scrollToIndex` seam; spreading the cursor's own props onto the row it already
+  // scrolls to is that seam finishing its sentence, not a second reach into the page.
+const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort, onSort, livePrices,
+  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
   const ta = useTickerActions()
   const scrollRef = useRef(null)
-  const displayRows = liveSortOn ? sortRowsLive(rows, sort, livePrices) : rows
+  /* ⛔ `rows` ARE ALREADY IN DISPLAY ORDER — the live re-sort moved UP to
+   * `ScannerShell` (which now owns it for every renderer) rather than living
+   * here for the desktop table alone. Two reasons, and the second is why it had
+   * to move rather than be copied:
+   *   1. the toggle is in the underbar, which the PHONE shows too, so
+   *      "Re-sort loaded rows live" did nothing at all on `ResultCards`;
+   *   2. "Review charts" publishes the order the member is looking at, and a
+   *      display order computed inside one renderer is not reachable by the
+   *      surface that has to name it. Deriving it a second time in the shell
+   *      would be two authorities over one list — and they would agree on the
+   *      day they were written. */
+  const displayRows = rows
   const rowH = ROW_H[density] || ROW_H.compact
 
   const virtualizer = useVirtualizer({
@@ -40,6 +71,10 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
     ...(virtualOpts || {}),
   })
   const items = virtualizer.getVirtualItems()
+
+  useImperativeHandle(ref, () => ({
+    scrollToIndex: (index, options) => virtualizer.scrollToIndex(index, options),
+  }), [virtualizer])
 
   // auto-append near the end (the explicit button below remains)
   const last = items[items.length - 1]
@@ -118,6 +153,7 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
             const live = !!livePrices?.[row.ticker]
             return (
               <div role="row" key={row.ticker} className={styles.gridRow}
+                {...(itemProps ? itemProps(vi.index) : null)}
                 style={{ position: 'absolute', top: vi.start, left: 0, right: 0, height: vi.size }}>
                 {columns.map(c => {
                   if (c === 'ticker') {
@@ -164,4 +200,6 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
       {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
-}
+})
+
+export default VirtualResults

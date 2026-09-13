@@ -172,6 +172,9 @@ function EquityRow({ row, spark }) {
         className={`${styles.row} ${styles.rowLink}`}
         to={`/journal-2-0/position/${encodeURIComponent(row.symbol)}`}
         aria-label={`${row.symbol} position detail`}
+        /* Joystick hub carrier (§3.4). Carries this row's key so the hub can paint
+           `data-hub-cursor` on it and read the RENDERED order; nothing else. */
+        data-hub-pos={row.key}
       >
         <CompanyLogo sym={row.symbol} size={28} tile />
         <div className={styles.ident}>

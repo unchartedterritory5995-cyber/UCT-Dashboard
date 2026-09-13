@@ -1141,10 +1141,47 @@ def _today_et_is_a_trading_day() -> bool:
     return not _is_nyse_holiday(int(now_et.strftime("%Y%m%d")))
 
 
+def _regular_session_has_opened_today() -> bool:
+    """Has TODAY's regular session actually STARTED (>= 09:30 ET on a trading day)?
+
+    ⛔ "IS IT A TRADING DAY" IS A DIFFERENT QUESTION, AND THE DIFFERENCE IS A
+    DUPLICATE CANDLE. `todays_daily_bar` STAMPS the current ET date onto whatever the
+    provider's `day` object holds, and that object is known NOT to reset promptly: the
+    2026-09-04 incident was every symbol serving a phantom Saturday bar that was
+    byte-for-byte Friday's OHLC. The fix added `_today_et_is_a_trading_day` — the right
+    instinct at the wrong granularity. It catches Saturday. It does not catch 07:00 on a
+    Thursday, when the ET calendar date has already rolled but the session has not
+    opened, so the PRIOR session's OHLC is stamped with TODAY's date and renders as a
+    second, identical copy of yesterday's candle.
+
+    ⚠️ THE BAD WINDOW IS MIDNIGHT→09:30, NOT 04:00→09:30. `_detect_session()` classifies
+    00:00-04:00 as `post_market` (the just-closed session, deliberately), so gating on
+    "not pre_market" would still let 00:30 through with the date already advanced — and
+    that is exactly when this was first seen from the charts, "last night after the
+    close". The only safe test is an explicit clock check against the 09:30 open.
+
+    ⭐ POST-MARKET STAYS TRUE. After 16:00 the `day` object holds TODAY's settled
+    regular bar and today's date is the correct stamp, so evening scanning keeps its
+    developing/settled candle. This closes only the window where the date has advanced
+    past a session that has not begun.
+    """
+    if not _today_et_is_a_trading_day():
+        return False
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("America/New_York"))
+    return (now.hour * 100 + now.minute) >= 930
+
+
 def todays_daily_bar(ticker: str) -> dict | None:
     """Today's developing daily bar as a chart-ready dict
     ``{"t": "YYYY-MM-DD", "o", "h", "l", "c", "v"}`` (t = today's ET date), or
     None when the regular session hasn't opened / on any error.
+
+    ⭐ "Hasn't opened" is enforced by `_regular_session_has_opened_today()` — a CLOCK
+    check, not just a calendar one. This docstring claimed the behaviour from the start;
+    until 2026-09-11 the code only checked the calendar, so every symbol served a
+    duplicate of the prior session's candle between ET midnight and the open.
 
     Per-ticker TTL-cached (~8s). A negative result is cached as ``{}`` so a
     pre-market / weekend miss doesn't re-hit Massive on every request either.
@@ -1163,7 +1200,7 @@ def todays_daily_bar(ticker: str) -> dict | None:
     hit = cache.get(ck)
     if hit is not None:
         return hit or None
-    if not _today_et_is_a_trading_day():
+    if not _regular_session_has_opened_today():
         cache.set(ck, {}, ttl=_TODAY_DAILY_BAR_TTL)
         return None
     try:
@@ -1650,6 +1687,22 @@ def get_snapshot() -> dict:
     return data
 
 
+#: The gap that makes a stock a "mover", in percent, ABSOLUTE.
+#:
+#: ⛔ ONE AUTHORITY, IMPORTED — NOT RE-TYPED. This lived as a bare `3.0` at four
+#: sites in this file plus a fifth hand-typed copy in
+#: `watchlist_intelligence.py`, whose comment said it "matches
+#: massive.py::get_movers()'s own gap-filter threshold". It matched by
+#: coincidence: nothing imported anything, so tuning either one would have left
+#: two different definitions of "notable move" shipping side by side, with the
+#: comment still claiming they agreed. Recorded as Seam 3.
+#:
+#: ⚠️ Do not confuse this with the `connect=3.0` in the httpx timeout above.
+#: Same literal, unrelated meaning — which is exactly why the bare number was
+#: worth naming.
+MOVER_THRESHOLD_PCT = 3.0
+
+
 def _fetch_finviz_movers_live() -> tuple[list, list]:
     """Fetch current session top % movers from Finviz Elite screener.
 
@@ -1717,7 +1770,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
     for row in _fetch_rows("-change"):
         sym = row.get("Ticker", "").strip()
         pct = _parse_pct(row.get("Change", "0"))
-        if not sym or pct < 3.0:
+        if not sym or pct < MOVER_THRESHOLD_PCT:
             break  # sorted descending; once below 3% all remaining are too
         if _is_lev_by_name(row):
             continue
@@ -1728,7 +1781,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
     for row in _fetch_rows("change"):
         sym = row.get("Ticker", "").strip()
         pct = _parse_pct(row.get("Change", "0"))
-        if not sym or pct > -3.0:
+        if not sym or pct > -MOVER_THRESHOLD_PCT:
             break  # sorted ascending; once above -3% all remaining are too
         if _is_lev_by_name(row):
             continue
@@ -1854,8 +1907,8 @@ def get_movers() -> dict:
     # - ripping: must still be >= +3% and positive (faded movers drop off)
     # - drilling: must still be <= -3% and negative (recovered movers drop off)
     # This keeps the list reflecting who is actually moving RIGHT NOW.
-    ripping  = [m for m in ripping  if _abs_pct(m) >= 3.0 and not m["pct"].startswith("-")]
-    drilling = [m for m in drilling if _abs_pct(m) >= 3.0 and     m["pct"].startswith("-")]
+    ripping  = [m for m in ripping  if _abs_pct(m) >= MOVER_THRESHOLD_PCT and not m["pct"].startswith("-")]
+    drilling = [m for m in drilling if _abs_pct(m) >= MOVER_THRESHOLD_PCT and     m["pct"].startswith("-")]
 
     # Re-sort by magnitude so biggest movers stay at the top
     ripping  = sorted(ripping,  key=_abs_pct, reverse=True)

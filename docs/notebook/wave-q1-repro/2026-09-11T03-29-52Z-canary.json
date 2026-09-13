@@ -1,0 +1,458 @@
+{
+  "ordering": "canary",
+  "started": "2026-09-11T03:29:52Z",
+  "sentence": "WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z",
+  "noteId": "53cf7364714247d58af071726b257bec",
+  "door": "folder",
+  "landed": false,
+  "notesBefore": 47,
+  "notesAfter": 49,
+  "steps": [
+    {
+      "step": "rig",
+      "ok": true,
+      "detail": "PID 42928 \u00b7 Chrome/152.0.7977.83"
+    },
+    {
+      "step": "signed in",
+      "ok": true,
+      "detail": "account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d"
+    },
+    {
+      "step": "opted in",
+      "ok": true,
+      "detail": "uct.j2.offline.enabled = '1'"
+    },
+    {
+      "step": "create a fresh note",
+      "ok": true,
+      "detail": "53cf7364714247d58af071726b257bec"
+    },
+    {
+      "step": "one CAS PUT while online",
+      "ok": true,
+      "detail": "1 PUT(s)"
+    },
+    {
+      "step": "offline is real",
+      "ok": true,
+      "detail": "FAILED: TypeError"
+    },
+    {
+      "step": "there IS queued work for the door to invalidate",
+      "ok": true,
+      "detail": "outbox 1 \u00b7 dirty 1"
+    },
+    {
+      "step": "door `folder` moved the baseline",
+      "ok": true,
+      "detail": "2026-09-11T03:30:09.823967+00:00 \u2192 2026-09-11T03:30:22.274136+00:00 \u00b7 sends that beat it: 3"
+    },
+    {
+      "step": "\u26d4 THE SENTENCE IS IN THE SERVER BODY",
+      "ok": false,
+      "detail": "THE OFFLINE SENTENCE IS GONE \u2014 round 3 reproduced"
+    },
+    {
+      "step": "no NEW single-writer fork",
+      "ok": false,
+      "detail": "8 pre-existing (preserved evidence) \u00b7 1 new"
+    },
+    {
+      "step": "opted back out",
+      "ok": false,
+      "detail": "read back 'ERR: Error' \u2014 in-memory only; confirm with `window_check.py --no-canary`"
+    }
+  ],
+  "findings": [
+    "`canary` \u2014 the server body does not contain the offline sentence (door `folder`, 3 send(s) beat it)",
+    "`canary` \u2014 a single-writer session forked: ['WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z (conflicted copy)']"
+  ],
+  "revisions": [
+    {
+      "phase": "door",
+      "status": 200,
+      "before": "2026-09-11T03:30:09.823967+00:00",
+      "after": "2026-09-11T03:30:22.274136+00:00",
+      "attempts": 1,
+      "sendsBeforeDoor": 3
+    },
+    {
+      "phase": "settled",
+      "updatedAt": "2026-09-11T03:30:22.274136+00:00"
+    }
+  ],
+  "puts": [
+    {
+      "seq": 0,
+      "at": "2026-09-11T03:30:09Z",
+      "url": "https://uctintelligence.com/api/j2/notes/53cf7364714247d58af071726b257bec",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T03:30:02.205092+00:00",
+      "sentenceInPut": false,
+      "status": 200,
+      "responseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+      "responseDetail": null
+    },
+    {
+      "seq": 1,
+      "at": "2026-09-11T03:30:16Z",
+      "url": "https://uctintelligence.com/api/j2/notes/53cf7364714247d58af071726b257bec",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+      "sentenceInPut": true,
+      "status": null,
+      "responseUpdatedAt": null,
+      "responseDetail": null
+    },
+    {
+      "seq": 2,
+      "at": "2026-09-11T03:30:17Z",
+      "url": "https://uctintelligence.com/api/j2/notes/53cf7364714247d58af071726b257bec",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+      "sentenceInPut": true,
+      "status": null,
+      "responseUpdatedAt": null,
+      "responseDetail": null
+    },
+    {
+      "seq": 3,
+      "at": "2026-09-11T03:30:19Z",
+      "url": "https://uctintelligence.com/api/j2/notes/53cf7364714247d58af071726b257bec",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+      "sentenceInPut": true,
+      "status": null,
+      "responseUpdatedAt": null,
+      "responseDetail": null
+    },
+    {
+      "seq": 4,
+      "at": "2026-09-11T03:30:22Z",
+      "url": "https://uctintelligence.com/api/j2/notes/53cf7364714247d58af071726b257bec",
+      "keys": [
+        "baseUpdatedAt",
+        "folderId"
+      ],
+      "carriedBody": false,
+      "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+      "sentenceInPut": false,
+      "status": 200,
+      "responseUpdatedAt": "2026-09-11T03:30:22.274136+00:00",
+      "responseDetail": null
+    },
+    {
+      "seq": 5,
+      "at": "2026-09-11T03:30:33Z",
+      "url": "https://uctintelligence.com/api/j2/notes/53cf7364714247d58af071726b257bec",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson",
+        "subtitle",
+        "title"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+      "sentenceInPut": true,
+      "status": 409,
+      "responseUpdatedAt": null,
+      "responseDetail": "note changed \u2014 refresh and retry"
+    }
+  ],
+  "layers": {
+    "forksBefore": [
+      "To Do List",
+      "To Do List (synced copy)",
+      "WINDOW-CHECK-SENTINEL 2026-09-11T00:00:56Z (conflicted copy)",
+      "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T02:57:30Z (conflicted copy)",
+      "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:13:49Z (conflicted copy)",
+      "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:25:29Z (conflicted copy)",
+      "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:26:23Z (conflicted copy)",
+      "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:27:32Z (conflicted copy)"
+    ],
+    "offline": {
+      "noteId": "53cf7364714247d58af071726b257bec",
+      "draft": {
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                }
+              ]
+            }
+          ]
+        },
+        "savedAt": 1789097415996,
+        "sessionId": "80cfd921-9653-4053-84df-33268c60997c"
+      },
+      "record": {
+        "noteId": "53cf7364714247d58af071726b257bec",
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                }
+              ]
+            }
+          ]
+        },
+        "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+        "generation": 95,
+        "sessionId": "80cfd921-9653-4053-84df-33268c60997c",
+        "localSavedAt": 1789097416201,
+        "dirty": 1
+      },
+      "outbox": [
+        {
+          "mutationId": "note:53cf7364714247d58af071726b257bec",
+          "noteId": "53cf7364714247d58af071726b257bec",
+          "kind": "note-update",
+          "patch": {
+            "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+            "subtitle": "",
+            "bodyJson": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+          "generation": 95,
+          "sessionId": "80cfd921-9653-4053-84df-33268c60997c",
+          "queuedAt": 1789097416201
+        }
+      ],
+      "server": "OFFLINE"
+    },
+    "reload": {
+      "noteId": "53cf7364714247d58af071726b257bec",
+      "draft": {
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                }
+              ]
+            }
+          ]
+        },
+        "savedAt": 1789097415996,
+        "sessionId": "80cfd921-9653-4053-84df-33268c60997c"
+      },
+      "record": {
+        "noteId": "53cf7364714247d58af071726b257bec",
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                }
+              ]
+            }
+          ]
+        },
+        "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+        "generation": 95,
+        "sessionId": "80cfd921-9653-4053-84df-33268c60997c",
+        "localSavedAt": 1789097416201,
+        "dirty": 1
+      },
+      "outbox": [
+        {
+          "mutationId": "note:53cf7364714247d58af071726b257bec",
+          "noteId": "53cf7364714247d58af071726b257bec",
+          "kind": "note-update",
+          "patch": {
+            "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+            "subtitle": "",
+            "bodyJson": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "baseUpdatedAt": "2026-09-11T03:30:09.823967+00:00",
+          "generation": 95,
+          "sessionId": "80cfd921-9653-4053-84df-33268c60997c",
+          "queuedAt": 1789097416201
+        }
+      ],
+      "server": {
+        "id": "53cf7364714247d58af071726b257bec",
+        "userId": "7a6d0299-fd98-4017-b8dc-51b849d1ab1d",
+        "accountId": null,
+        "folderId": null,
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": null,
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online."
+                }
+              ]
+            }
+          ]
+        },
+        "bodyPlain": "WINDOW-CHECK-SENTINEL typed online.",
+        "heroImageUrl": null,
+        "firstImageUrl": null,
+        "ticker": null,
+        "tags": [],
+        "createdAt": "2026-09-11T03:30:02.205092+00:00",
+        "updatedAt": "2026-09-11T03:30:22.274136+00:00",
+        "deletedAt": null,
+        "propertiesJson": {},
+        "isFavorite": false
+      }
+    },
+    "settled": {
+      "noteId": "53cf7364714247d58af071726b257bec",
+      "draft": {
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T03:29:52Z"
+                }
+              ]
+            }
+          ]
+        },
+        "savedAt": 1789097415996,
+        "sessionId": "80cfd921-9653-4053-84df-33268c60997c"
+      },
+      "record": {
+        "noteId": "53cf7364714247d58af071726b257bec",
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online."
+                }
+              ]
+            }
+          ]
+        },
+        "baseUpdatedAt": "2026-09-11T03:30:22.274136+00:00",
+        "generation": 0,
+        "sessionId": null,
+        "localSavedAt": 1789097434107,
+        "dirty": 0
+      },
+      "outbox": [],
+      "server": {
+        "id": "53cf7364714247d58af071726b257bec",
+        "userId": "7a6d0299-fd98-4017-b8dc-51b849d1ab1d",
+        "accountId": null,
+        "folderId": null,
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T03:29:52Z",
+        "subtitle": null,
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online."
+                }
+              ]
+            }
+          ]
+        },
+        "bodyPlain": "WINDOW-CHECK-SENTINEL typed online.",
+        "heroImageUrl": null,
+        "firstImageUrl": null,
+        "ticker": null,
+        "tags": [],
+        "createdAt": "2026-09-11T03:30:02.205092+00:00",
+        "updatedAt": "2026-09-11T03:30:22.274136+00:00",
+        "deletedAt": null,
+        "propertiesJson": {},
+        "isFavorite": false
+      }
+    },
+    "optOutReadBack": "ERR: Error"
+  },
+  "error": null
+}

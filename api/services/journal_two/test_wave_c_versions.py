@@ -448,3 +448,70 @@ def test_versions_are_tenant_scoped_in_list_even_with_a_shared_note_id_guess():
     note = _create(c, "u1", "Secret", _doc("v0"))
     update_note("u1", note["id"], {"title": "Edited"}, conn=c)
     assert list_note_versions("u2", note["id"], conn=c) == []
+
+
+# ── ⛔⛔ WAVE Q1 ENTRY GATE — IS THE PUT ACTUALLY SAFE TO RETRY? ──────────────
+#
+# The offline outbox retries. A duplicate delivery must not leave a duplicate
+# artifact — and the reason to believe it does not is currently a DOCSTRING:
+# `_versioned_content_of` says "a byte-identical resave never spuriously
+# versions". Wave Q refuses to build a queue on a comment (§26), so these are
+# the measurements.
+#
+# ⭐ If these hold, Q1 needs NO server-side idempotency key and the server
+# contract stays small (§27). If they break, the outbox needs one.
+
+class TestTheOutboxCanRetrySafely:
+    def test_a_duplicate_delivery_with_the_SAME_base_is_refused_not_applied_twice(self):
+        # The realistic outbox failure: the PUT lands, the RESPONSE is lost, the
+        # entry retries with the base it still believes in.
+        c = _conn()
+        n = _create(c, "u1", "Thesis", _doc("one"))
+        base = n["updated_at"] if "updated_at" in n.keys() else n["updatedAt"]
+        _backdate_updated_at(c, n["id"], "2020-01-01T00:00:00+00:00")
+        base = get_note("u1", n["id"], conn=c)["updatedAt"]
+
+        first = update_note("u1", n["id"], {"bodyJson": _doc("two")},
+                            conn=c, expected_updated_at=base)
+        assert first is not None
+        versions_after_first = len(list_note_versions("u1", n["id"], conn=c))
+
+        # The retry carries the SAME base, which the first write has moved past.
+        with pytest.raises(NoteConflictError):
+            update_note("u1", n["id"], {"bodyJson": _doc("two")},
+                        conn=c, expected_updated_at=base)
+
+        # ⛔ And it left nothing behind: no second apply, no second version.
+        assert len(list_note_versions("u1", n["id"], conn=c)) == versions_after_first
+        assert get_note("u1", n["id"], conn=c)["bodyJson"] == _doc("two")
+
+    def test_a_byte_identical_resave_creates_no_new_version(self):
+        # The docstring's claim, measured. This is the case where a retry DOES
+        # get through (no base sent, or the base still matches) and the content
+        # is unchanged.
+        c = _conn()
+        n = _create(c, "u1", "Thesis", _doc("one"))
+        _backdate_updated_at(c, n["id"], "2020-01-01T00:00:00+00:00")
+        update_note("u1", n["id"], {"bodyJson": _doc("two")}, conn=c)
+        before = len(list_note_versions("u1", n["id"], conn=c))
+
+        _backdate_updated_at(c, n["id"], "2020-01-02T00:00:00+00:00")
+        update_note("u1", n["id"], {"bodyJson": _doc("two")}, conn=c)
+
+        # ⛔ Backdated past the coalescing window on purpose, so a pass here is
+        # the CONTENT check doing the work and not the 30-minute coalesce.
+        assert len(list_note_versions("u1", n["id"], conn=c)) == before
+
+    def test_the_control_a_DIFFERENT_resave_does_version(self):
+        # ⭐ Without this the test above passes for a service that never
+        # versions anything at all.
+        c = _conn()
+        n = _create(c, "u1", "Thesis", _doc("one"))
+        _backdate_updated_at(c, n["id"], "2020-01-01T00:00:00+00:00")
+        update_note("u1", n["id"], {"bodyJson": _doc("two")}, conn=c)
+        before = len(list_note_versions("u1", n["id"], conn=c))
+
+        _backdate_updated_at(c, n["id"], "2020-01-02T00:00:00+00:00")
+        update_note("u1", n["id"], {"bodyJson": _doc("three")}, conn=c)
+
+        assert len(list_note_versions("u1", n["id"], conn=c)) == before + 1

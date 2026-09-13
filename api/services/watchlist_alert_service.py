@@ -51,13 +51,21 @@ def _delivery_report(claimed: bool, channels: dict, errors: dict) -> dict:
 
 
 def create_alert(user_id: str, sym: str, target_price: float, direction: str,
-                 alert_type: str = "price", anchors: tuple | None = None) -> dict:
+                 alert_type: str = "price", anchors: tuple | None = None,
+                 drawing_id: str | None = None) -> dict:
     """Create a price/line/trendline alert.
 
     anchors (trendline only) = (t1, p1, t2, p2) — two chart-line anchor points as
     (unix-seconds, price). The server-side checker interpolates the line's level at
     check time from these; for 'price'/'line' they stay NULL and target_price is the
     fixed level.
+
+    drawing_id BINDS the alert to a chart drawing ("follow this line", MOB-05).
+    A bound alert is the SAME row evaluated the same way — binding only means the
+    client re-pushes its geometry when the line moves, so no new evaluation
+    semantics exist to get wrong. NULL = a fixed level, snapshotted at creation
+    and thereafter independent: that is what every seeded price-context alert is,
+    and it stays the honest expression of "alert me at this number".
     """
     at1 = ap1 = at2 = ap2 = None
     if alert_type == "trendline" and anchors and len(anchors) == 4:
@@ -68,15 +76,17 @@ def create_alert(user_id: str, sym: str, target_price: float, direction: str,
         now = datetime.now(timezone.utc).isoformat()
         conn.execute(
             "INSERT INTO watchlist_alerts (id, user_id, sym, target_price, direction, is_active, created_at, "
-            "alert_type, anchor_t1, anchor_p1, anchor_t2, anchor_p2) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "alert_type, anchor_t1, anchor_p1, anchor_t2, anchor_p2, drawing_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (alert_id, user_id, sym.upper(), target_price, direction, 1, now,
-             alert_type, at1, ap1, at2, ap2),
+             alert_type, at1, ap1, at2, ap2, drawing_id or None),
         )
         conn.commit()
         return {"id": alert_id, "user_id": user_id, "sym": sym.upper(),
                 "target_price": target_price, "direction": direction,
                 "is_active": 1, "created_at": now, "alert_type": alert_type,
-                "anchor_t1": at1, "anchor_p1": ap1, "anchor_t2": at2, "anchor_p2": ap2}
+                "anchor_t1": at1, "anchor_p1": ap1, "anchor_t2": at2, "anchor_p2": ap2,
+                "drawing_id": drawing_id or None}
     finally:
         conn.close()
 
@@ -113,6 +123,54 @@ def delete_alert(user_id: str, alert_id: str) -> bool:
         )
         conn.commit()
         return result.rowcount > 0
+    finally:
+        conn.close()
+
+
+def resync_bound_alerts(user_id: str, drawing_id: str, *, target_price: float,
+                        alert_type: str = "trendline", anchors: tuple | None = None) -> int:
+    """Re-point every ACTIVE alert bound to `drawing_id` at the line's new geometry.
+
+    ⛔ ACTIVE ROWS ONLY, and that is the whole safety property. A TRIGGERED alert
+    is a historical fact — "price crossed this line on Tuesday" — and moving the
+    line on Thursday must not rewrite what Tuesday said. Scoping the UPDATE to
+    `is_active = 1` is what keeps a bound alert from editing its own past.
+
+    Returns the number of rows re-pointed (0 = nothing bound here, which is a
+    normal answer, not an error).
+    """
+    at1 = ap1 = at2 = ap2 = None
+    if alert_type == "trendline" and anchors and len(anchors) == 4:
+        at1, ap1, at2, ap2 = anchors
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE watchlist_alerts SET target_price = ?, alert_type = ?, "
+            "anchor_t1 = ?, anchor_p1 = ?, anchor_t2 = ?, anchor_p2 = ? "
+            "WHERE user_id = ? AND drawing_id = ? AND is_active = 1",
+            (target_price, alert_type, at1, ap1, at2, ap2, user_id, drawing_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def delete_bound_alerts(user_id: str, drawing_id: str) -> int:
+    """Drop every ACTIVE alert bound to a drawing that no longer exists.
+
+    ⛔ AGAIN ACTIVE-ONLY. An alert that already fired is a record of something
+    that happened; deleting the drawing afterwards must not erase the evidence
+    from the bell or the Alerts widget. Only the still-armed rows go.
+    """
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "DELETE FROM watchlist_alerts WHERE user_id = ? AND drawing_id = ? AND is_active = 1",
+            (user_id, drawing_id),
+        )
+        conn.commit()
+        return cur.rowcount
     finally:
         conn.close()
 

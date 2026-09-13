@@ -10,11 +10,14 @@ from __future__ import annotations
 import contextlib
 import datetime
 import json
+import logging
 import os
 import sqlite3
 import threading
 import time
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 _DB_PATH = os.environ.get("CATALYST_DB_PATH", "/data/catalysts.db")
 _WRITE_LOCK = threading.Lock()
@@ -151,6 +154,32 @@ CREATE TABLE IF NOT EXISTS catalyst_deep_context_done (
   done_at     INTEGER NOT NULL,
   PRIMARY KEY (market_date, ticker)
 );
+
+-- ⚰️ THE RUN RECEIPT (F-CAT-1, 2026-09-13). `run_refresh` built a `summary`
+-- dict with counts and an `errors` list, and only ever LOGGED it. When the
+-- engine billed 118 curator calls across 2026-09-09/10/11 and wrote zero rows,
+-- there was no durable record of why — Railway log retention had rolled, the
+-- engine skips weekends, and the failure could not be reproduced after the
+-- fact. Four days of spend were diagnosable only by inference.
+-- ⭐ A run that spends money must leave a record of what it bought. This is
+-- also the substrate for the zero-row spend rail + kill switch: both are
+-- queries over this table, not another in-memory counter that a redeploy
+-- resets (the exact defect catalyst_deep_context_done was created to fix).
+CREATE TABLE IF NOT EXISTS catalyst_runs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  market_date  TEXT    NOT NULL,
+  started_at   INTEGER NOT NULL,
+  finished_at  INTEGER NOT NULL,
+  candidates   INTEGER NOT NULL DEFAULT 0,
+  scored       INTEGER NOT NULL DEFAULT 0,
+  selected     INTEGER NOT NULL DEFAULT 0,
+  synthesized  INTEGER NOT NULL DEFAULT 0,
+  rows_written INTEGER NOT NULL DEFAULT 0,
+  spend_usd    REAL    NOT NULL DEFAULT 0.0,
+  skipped      TEXT,
+  errors_json  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_catalyst_runs_started ON catalyst_runs (started_at DESC);
 """
 
 
@@ -218,6 +247,92 @@ def mark_deep_context_done(market_date: str, ticker: str) -> None:
             "(market_date, ticker, done_at) VALUES (?, ?, ?)",
             (market_date, ticker.upper(), int(time.time())))
         c.commit()
+
+
+def spend_since(ts: int) -> float:
+    """Total LLM cost recorded on or after `ts`, across EVERY surface that
+    writes to catalyst_cost_log.
+
+    ⚠️ `catalyst_cost_log` is a SHARED ledger — `indicator-vision:<uuid>` and
+    `concierge:<uuid>` rows belong to other features. That is deliberate here:
+    this function answers "what did the wall clock cost while this run was in
+    flight", which is the honest denominator for a zero-row spend alert. Do NOT
+    filter it down to the engine's own tickers and then call the result "the
+    engine's spend" — the `_CURATOR` and `__hunter__` rows are the engine's and
+    they are the expensive ones.
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM catalyst_cost_log WHERE ts >= ?",
+            (int(ts),)).fetchone()
+    return float(row[0] or 0.0)
+
+
+def rows_written_since(market_date: str, ts: int) -> int:
+    """Rows THIS run actually persisted, not rows the day happens to hold.
+
+    ⭐ `upsert_catalyst` stamps `refreshed_at` with the wall-clock time of every
+    write, so "touched at or after the run started" is an exact per-run count
+    and needs no new bookkeeping. Counting the day's whole table instead would
+    have missed the real 2026-09-08 shape — one run succeeded and thirty-four
+    failed, and a day-level count reads that as healthy.
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT COUNT(*) FROM catalysts WHERE market_date = ? AND refreshed_at >= ?",
+            (market_date, int(ts))).fetchone()
+    return int(row[0] or 0)
+
+
+def record_run(*, market_date: str, started_at: int, candidates: int = 0,
+               scored: int = 0, selected: int = 0, synthesized: int = 0,
+               rows_written: int = 0, spend_usd: float = 0.0,
+               skipped: Optional[str] = None,
+               errors: Optional[list] = None) -> None:
+    """Persist one run receipt. Never raises — a failed receipt must not be able
+    to take down the run it is describing."""
+    try:
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            c.execute(
+                """INSERT INTO catalyst_runs
+                   (market_date, started_at, finished_at, candidates, scored,
+                    selected, synthesized, rows_written, spend_usd, skipped, errors_json)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (market_date, int(started_at), int(time.time()), int(candidates),
+                 int(scored), int(selected), int(synthesized), int(rows_written),
+                 float(spend_usd), skipped, json.dumps(errors or [])[:8000]))
+            c.commit()
+    except Exception:
+        logger.exception("[catalyst-store] run receipt write failed")
+
+
+def consecutive_zero_row_spending_runs() -> int:
+    """How many of the MOST RECENT runs spent money and persisted nothing,
+    counting back from the newest until the streak breaks.
+
+    ⛔ Runs that spent NOTHING do not break the streak and do not extend it —
+    a weekend skip or an empty-pull holiday is neither evidence of health nor
+    of failure, and letting it reset the counter would disarm the kill switch
+    over any quiet period (`lesson_a_recovery_sweep_can_watch_a_state_the_
+    failure_never_reaches`).
+    """
+    try:
+        with contextlib.closing(_connect()) as c:
+            rows = c.execute(
+                "SELECT rows_written, spend_usd FROM catalyst_runs "
+                "ORDER BY id DESC LIMIT 50").fetchall()
+    except Exception:
+        logger.exception("[catalyst-store] zero-row streak read failed")
+        return 0
+    streak = 0
+    for r in rows:
+        spend = float(r["spend_usd"] or 0.0)
+        if spend <= 0:
+            continue            # uninformative — neither breaks nor extends
+        if int(r["rows_written"] or 0) > 0:
+            break               # a healthy paid run breaks the streak
+        streak += 1
+    return streak
 
 
 def upsert_catalyst(row: dict) -> None:
@@ -679,10 +794,49 @@ def cost_stats_for_date(market_date: str) -> dict:
         return dict(row)
 
 
+#: ⛔⛔ F-S7-5 — THE MUST-KNOW RULE'S OWN DEDUP NAMESPACE.
+#:
+#: `catalyst_alerts_fired` is keyed `(user_id, ticker, market_date)` and TWO
+#: rules write it: `_fire_catalyst_alerts` (watchlist) runs first and
+#: `_fire_mustknow_alerts` (grade, admins only) runs second. Sharing the key
+#: meant **an admin who also WATCHED a name never received the must-know alert
+#: for it** — and the suppressed one is the HIGHER-severity alert, landing
+#: exactly on the names an operator cared enough to watch, while a must-know
+#: alert exists to reach somebody REGARDLESS of their watchlist.
+#:
+#: ⭐ THE FIX IS THE ONE THIS CODEBASE ALREADY MADE FOR THE SAME SHAPE.
+#: `awareness/rules.py` namespaces its cooldown keys `{sym}:stop_hit` vs
+#: `{sym}:stop_near`, with the comment: *"an earlier 'nearing stop' warning must
+#: never swallow the THROUGH-the-stop escalation."* Same defect, same remedy.
+#:
+#: ⛔ THE WATCHLIST RULE'S KEY IS UNTOUCHED — it still passes the bare ticker —
+#: so nobody loses an alert they get today. This can only ADD a delivery.
+#:
+#: ⚠️ THE TRADE, STATED: the `ticker` column now holds a value that is not a
+#: ticker for must-know rows. The alternative — a `kind` column in the PRIMARY
+#: KEY — is a full table rebuild in SQLite for a live dedup ledger, to express
+#: the same thing. `mustknow_dedup_key` is declared ONCE so the two sides cannot
+#: disagree about the spelling, and `ticker.upper()` inside `try_record_alert`
+#: normalises it the same way it always did.
+MUSTKNOW_DEDUP_PREFIX = "mustknow:"
+
+
+def mustknow_dedup_key(ticker: str) -> str:
+    """The must-know rule's dedup identity for a ticker. ⛔ ONE declaration: a
+    second spelling anywhere would silently re-share the key with the watchlist
+    rule and put F-S7-5 straight back."""
+    return f"{MUSTKNOW_DEDUP_PREFIX}{(ticker or '').upper()}"
+
+
 def try_record_alert(user_id: str, ticker: str, market_date: str) -> bool:
     """Atomically dedupe a catalyst alert. Returns True if newly recorded
     (caller should fire alert), False if already fired today for this
-    (user, ticker, market_date)."""
+    (user, ticker, market_date).
+
+    ⛔ `ticker` IS A DEDUP IDENTITY, NOT NECESSARILY A SYMBOL. The watchlist rule
+    passes the bare ticker; the must-know rule passes
+    `mustknow_dedup_key(ticker)` so the two rules cannot claim one key. See
+    F-S7-5 above."""
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         try:
             c.execute(

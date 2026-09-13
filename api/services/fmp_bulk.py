@@ -32,7 +32,7 @@ def _fmp_bulk_rows() -> list[dict]:
     """Raw bulk rows merged by symbol (ratios + key-metrics + profile bulk).
     Exact endpoint path/format verified live; returns [] on failure."""
     try:
-        rows = ee._fmp_get("/stable/ratios-bulk", {})
+        rows = ee._fmp_get("/stable/ratios-bulk", {}, timeout=10)
     except Exception as e:
         _log.warning("fmp ratios-bulk failed: %s", e)
         return []

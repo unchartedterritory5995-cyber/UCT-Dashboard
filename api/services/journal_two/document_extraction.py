@@ -283,6 +283,28 @@ def _process_document_bounded(document_id: str) -> None:
             process_document(document_id)
         except Exception as e:  # noqa: BLE001 — a background thread must never propagate
             log.warning("[doc-extract] background extraction crashed for %s: %s", document_id, e)
+            return
+        # ⭐ WAVE P1: classify the pages extraction could not read.
+        #
+        # ⛔ SEPARATE PASS, NOT A BRANCH INSIDE `process_document`. Extraction
+        # answers "what text does this PDF carry"; classification answers "which
+        # pages is OCR responsible for". Keeping them apart is what makes
+        # classification re-runnable on its own, which is what restart recovery
+        # needs — and it means a change to one cannot silently alter the other.
+        #
+        # ⛔ AND IT PROMISES NOTHING WHEN NO ENGINE IS WIRED. `plan_document`
+        # asks `ocr_available()` before claiming a page, so with no adapter the
+        # document keeps its honest `no_text` rather than sitting on
+        # "Processing..." forever.
+        try:
+            from api.services.journal_two import document_ocr
+            plan = document_ocr.plan_document(document_id)
+            if plan.get("ocr_required"):
+                document_ocr.queue_ocr(document_id, document_ocr.get_adapter())
+        except Exception as e:  # noqa: BLE001 — classification must never
+            # cost the extraction that already succeeded.
+            log.warning("[doc-extract] OCR planning failed for %s: %s",
+                        document_id, e)
 
 
 def queue_extraction(document_id: str) -> None:

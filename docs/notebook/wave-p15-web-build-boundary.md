@@ -369,3 +369,144 @@ was a clean experiment:
 
 ⛔ **A green health check is NOT proof the CMD was used.** The process's own
 command line is (`/proc/1/cmdline` in the running container).
+
+## I · SECOND CANARY — GREEN
+
+```
+DEPLOYMENT   66c5f325  commit 8be420d8f  SUCCESS
+CONFIG       /railway.web.json      BUILDER  DOCKERFILE / Dockerfile.web
+START        image CMD (manifest startCommand '')  -> uvicorn is PID 1
+OCR          Tesseract 5.3.0 PRESENT, English present, ACTIVATION OFF
+ISOLATION    worker / flow-worker / bars-api: binary absent, 0 dpkg matches, SKIPPED
+```
+
+⭐ **The hypothesis was right, and the one-variable change was the whole fix.**
+Same commit shape, same packages, same base, same everything except: no Railway
+start command, image `CMD` authoritative. The first canary died in under two
+seconds; this one started and has served since.
+
+### The proof that it was the CMD, not the health check
+
+⛔ A green health check proves the app is up, never *which command started it*.
+The process's own command line does:
+
+```
+/proc/1/cmdline
+  /opt/venv/bin/python /opt/venv/bin/uvicorn api.main:app --host 0.0.0.0
+  --port 8080 --proxy-headers --forwarded-allow-ips=* --timeout-graceful-shutdown 5
+```
+
+`uvicorn` **is PID 1** — the `exec` in the image's `CMD` replaced the shell, and
+nothing else was ever interposed. Corroborated by the deployment manifest:
+`startCommand: ''` with `deploy.startCommand` **absent from
+`propertyFileMapping`** (the config file supplied none), and the empty
+service-level value treated as no command at all.
+
+⭐ **So `""` is the real clear idiom for this control plane**, confirmed by a
+container that started rather than by a hopeful read-back.
+
+### The image, measured from inside it
+
+| | |
+|---|---|
+| identity | Debian GNU/Linux 12 (bookworm) · **NO_NIX** — definitively not the nixpacks image |
+| tesseract | **5.3.0**, leptonica 1.82.0, `/usr/bin/tesseract` |
+| languages | `eng`, `osd` at `/usr/share/tesseract-ocr/5/tessdata/` |
+| python | **3.12.14** (nixpacks image: 3.12.7 — same minor, newer patch) |
+| node | **v20.18.0** — exactly what production ran |
+| ffmpeg | 5.1.9 (nixpacks: 7.1) |
+| git | 2.39.5 |
+| volume | `/data` mounted, 74G, 47% used — the same volume |
+| health | `/api/health` 200, RSS 2418 MB, threads 89 |
+
+⛔ **Parity was checked the way the product checks it**, not by reading the
+Dockerfile back to myself. Asking the running process through the same
+`shutil.which` the code uses:
+
+```
+node      /usr/local/bin/node        ffmpeg     /usr/bin/ffmpeg
+tesseract /usr/bin/tesseract         git        /usr/bin/git
+```
+
+and the app's own environment carries `PATH=/opt/venv/bin:/usr/local/bin:…`
+with **no `J2_OCR_ENABLED` at all**.
+
+Reachability beyond the health probe: `/api/quote-of-the-day` 200 JSON,
+`/api/admin/bars-stream-status` 200 JSON, `/` 200 HTML 14,874 bytes (the SPA
+built in the frontend stage), `/favicon.svg` 200 — and
+`/api/breadth-monitor/live` 401, which is the auth gate working, not a fault.
+
+### Isolation held
+
+worker, flow-worker and bars-api all recorded **SKIPPED** for `8be420d8f`, and
+each answers `BINARY_ABSENT` with **0** `dpkg` matches for tesseract. The claim
+is *package absent from those environments*, never "they never invoke it".
+chart-renderer untouched.
+
+### The pointer stays
+
+Per the ruling, a green canary means the Docker config pointer remains the
+intended deployment contract: web reads `/railway.web.json` and builds
+`Dockerfile.web` from here on. ⚠️ **Every master push now builds this image** —
+including pushes from other workstreams, which is the point of a repo-owned
+build contract, and the reason the parity rails matter more than they did
+yesterday.
+
+## J · ⭐ The 5.3.0 question just got much smaller
+
+Production runs Tesseract **5.3.0**; the engine was selected and benchmarked at
+**5.4.0**. The ruling is right that the 5.4.0 numbers do not transfer for free.
+But one of the two variables can be eliminated outright:
+
+```
+Debian  tesseract-ocr-eng 1:4.1.0-2  ->  eng.traineddata
+        4,113,088 bytes  sha256 7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+
+Local   the file the whole Wave P benchmark ran against
+        4,113,088 bytes  sha256 7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+```
+
+⭐ **Byte-identical.** The recognition MODEL is not a variable — it is the same
+file. What remains is the engine binary (5.3.0 vs 5.4.0) and leptonica (1.82.0
+vs 1.84.1), which is a far narrower question than "a different OCR stack".
+
+⛔ It is still a question, and it is still unmeasured.
+
+## K · ⛔ The 5.3.0 certification is BLOCKED on this machine
+
+The ruling is right that the 5.4.0 recall numbers must not be carried over
+silently, and §9's list needs a runnable 5.3.0. Four routes were tried:
+
+| route | result |
+|---|---|
+| Docker locally | **absent** — no toolchain on this box |
+| WSL | **not installed** (`wsl --install` needs admin + a reboot — not mine to do) |
+| conda-forge `tesseract=5.3.0` (win-64) into an isolated prefix | installs, **will not execute**: `STATUS_DLL_NOT_FOUND` (0xC0000135) |
+| conda-forge `tesseract=5.3.4` (newer build, modern runtime deps) | same failure, with the env's own bin dirs on PATH |
+
+⛔ **And the production pod is not an option.** Running the corpus there would be
+a test scan in production and a heavy script on the member-serving pod — both
+forbidden, the second one twice-burned.
+
+⭐ **What was established instead, and it is the larger half of the risk:** the
+Debian language pack ships `eng.traineddata` **byte-identical** to the file the
+whole Wave P benchmark ran against (§J). The recognition model is not a
+variable. The open delta is engine binary 5.3.0 vs 5.4.0 and leptonica 1.82.0 vs
+1.84.1 — narrower than "a different OCR stack", and still unmeasured.
+
+⛔ **Unmeasured is not "probably fine."** No 5.3.0 recall number is claimed
+anywhere, and production OCR stays off regardless.
+
+**The decision this needs:**
+
+1. **Enable WSL (or Docker) on this box** — then Debian bookworm's exact
+   `tesseract-ocr 5.3.0-2` + `tesseract-ocr-eng 1:4.1.0-2` is reproducible
+   byte-for-byte and §9's whole list runs fail-closed, locally, repeatably. One
+   admin action, and it unblocks every future packaging question too.
+2. **Authorize a scoped local install of the 5.3.0 Windows build** — ⚠️ the last
+   attempt's `/D=` was ignored and it landed in `C:\Program Files\Tesseract-OCR`,
+   which is the install the current rails run against. It would overwrite 5.4.0.
+3. **Accept the narrowed risk and certify at P2** once a Linux runtime exists —
+   with production OCR disabled the whole time, which it is anyway.
+
+⚠️ Option 1 is the only one that measures what actually ships.

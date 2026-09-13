@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import UIcon from '../ui/UIcon'
 import haptics from '../mobile/haptics'
+import MobileToolPicker, { rememberRecent } from './MobileToolPicker'
 import { TOOL_ICONS } from './ChartToolbar'
 import styles from './MobileDrawBar.module.css'
 
@@ -39,14 +41,16 @@ export const DRAW_TOOLS = [
   { id: 'channel',    label: 'Channel' },
   { id: 'pitchfork',  label: 'Pitchfork' },
   { id: 'avwap',      label: 'AVWAP' },
-  { id: 'advance',    label: 'Advance %' },
+  { id: 'advance',    label: 'Price Move' },
   { id: 'vertical',   label: 'Vertical' },
   { id: 'extended',   label: 'Extended' },
   { id: 'arrow',      label: 'Arrow' },
   { id: 'circle',     label: 'Circle' },
   { id: 'text',       label: 'Text' },
   { id: 'measure',    label: 'Measure' },
-  { id: 'position',   label: 'Position' },
+  { id: 'dateRange',  label: 'Bars & Time' },
+  // The calculator panel, not the retired drawing — see ChartToolbar.
+  { id: 'position',   label: 'Position Calc' },
   { id: 'cup',        label: 'Cup' },
 ]
 
@@ -55,12 +59,22 @@ export default function MobileDrawBar({
   activeTool, setActiveTool,
   onUndo, onRedo, canUndo = false, canRedo = false,
   magnet, setMagnet,
+  repeatMode, setRepeatMode,
+  sheetClassName = '',
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
   if (!open) return null
 
   // The same tick the ƒx switches give — arming a tool is a mode change worth
   // feeling (Android; iOS Safari ignores vibrate and loses nothing).
-  const arm = (id) => { haptics.tap(); setActiveTool(activeTool === id ? null : id) }
+  const arm = (id) => {
+    haptics.tap()
+    // Arming from the RAIL feeds the same recency list the picker reads, so a
+    // tool used from the strip is where you left it next time you open the
+    // sheet. One list, both doors.
+    if (activeTool !== id) rememberRecent(id)
+    setActiveTool(activeTool === id ? null : id)
+  }
 
   return (
     <div className={styles.bar} role="toolbar" aria-label="Drawing tools" data-testid="mobile-draw-bar">
@@ -88,6 +102,20 @@ export default function MobileDrawBar({
           </button>
         ))}
       </div>
+
+      {/* ⛔ PINNED, AND OUTSIDE `.tools` ON PURPOSE. Put this inside the scroll
+          rail and it scrolls away with the tools it exists to reach — the door
+          would inherit the very defect it closes. */}
+      <button
+        type="button"
+        className={styles.allTools}
+        onClick={() => { haptics.tap(); setPickerOpen(true) }}
+        aria-label="All drawing tools"
+        aria-haspopup="dialog"
+      >
+        <span className={styles.glyph} aria-hidden="true">⊞</span>
+        <span className={styles.label}>All</span>
+      </button>
 
       <div className={styles.side}>
         <button
@@ -117,6 +145,17 @@ export default function MobileDrawBar({
           <UIcon name="magnet" size={17} gold={false} />
         </button>
       </div>
+
+      <MobileToolPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        tools={DRAW_TOOLS}
+        activeTool={activeTool}
+        onPick={(id) => setActiveTool(id)}
+        repeatMode={repeatMode}
+        setRepeatMode={setRepeatMode}
+        className={sheetClassName}
+      />
     </div>
   )
 }

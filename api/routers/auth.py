@@ -6,6 +6,7 @@ All NEW endpoints under /api/auth/*. Does not touch any existing routes.
 import os
 import csv
 import io
+import json
 import sqlite3
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
@@ -33,6 +34,8 @@ from api.services.auth_service import (
     verify_email_token,
     create_password_reset,
     execute_password_reset,
+    create_smoke_login_token,
+    redeem_smoke_login_token,
     log_activity,
     get_recent_activity,
     get_user_detail,
@@ -106,6 +109,61 @@ ADMIN_EMAILS.add("unchartedterritory5995@gmail.com")  # Owner always admin
 ADMIN_EMAILS.add("blake.bracco67@gmail.com")  # Admin
 
 
+# ── Wave K — the Notebook's capability flags ────────────────────────────────
+#
+# ⛔⛔ ONE CAPABILITY, TWO NAMES, DERIVED — NEVER TYPED TWICE. The Railway
+# variable is SCREAMING_SNAKE (and is what `docs/feature_flags.json` keys on);
+# the payload key is its lowercase form. `_notebook_flag_key` is the only place
+# that relationship exists, so a rename cannot leave one side behind. The flip
+# queue once listed `NOTEBOOK_OFFLINE_DEFAULT_ON` beside `notebook.offlineReadOn`
+# — two conventions for one kind of thing, in one table.
+#
+# ⛔ READ PER REQUEST, NEVER AT IMPORT, for the same reason the three flags below
+# this block are: a module-level capture makes the no-redeploy rollback a
+# fiction. `tests/test_hub_preview_flag.py` is the rail on that, and Wave K
+# extends it to these keys.
+#
+# ⛔ DEFAULT POLARITY IS PER CAPABILITY, and it is not a style choice.
+# `NOTEBOOK_OFFLINE_DEFAULT_ON` is a KILL switch over a SHIPPED wave, so unset
+# means "not killed" — a forgotten variable must never be indistinguishable from
+# a deliberate shutdown. The Q2 keys are ENABLEMENT gates over dark features, so
+# unset means "not turned on yet".
+NOTEBOOK_FLAGS = {
+    "NOTEBOOK_OFFLINE_DEFAULT_ON": True,    # kill switch  — unset means ON
+    "NOTEBOOK_OFFLINE_READ_ON": False,      # enablement   — unset means OFF
+    "NOTEBOOK_CONFLICT_UX_ON": False,       # enablement   — unset means OFF
+    "NOTEBOOK_ATTACHMENTS_ON": False,       # enablement   — unset means OFF
+}
+
+_TRUTHY = ("1", "true", "yes", "on")
+_FALSY = ("0", "false", "no", "off")
+
+
+def _notebook_flag_key(env_name: str) -> str:
+    """The payload key for a Notebook capability's Railway variable.
+
+    ⛔ The ONLY place the two names are related. K-R6 asserts every capability's
+    pair agrees by calling this, rather than comparing two hand-written lists.
+    """
+    return env_name.lower()
+
+
+def _notebook_flags() -> dict:
+    """Every Notebook capability flag, read from the environment PER REQUEST."""
+    out = {}
+    for env_name, default_on in NOTEBOOK_FLAGS.items():
+        raw = os.environ.get(env_name)
+        if raw is None:
+            value = default_on
+        else:
+            v = raw.strip().lower()
+            # ⛔ An unrecognised value takes the DEFAULT, never the opposite of
+            # it. A typo'd "flase" must not kill a shipped wave.
+            value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
+        out[_notebook_flag_key(env_name)] = value
+    return out
+
+
 def _access_payload(user: dict, plan: str) -> dict:
     """Shared access fields for every auth response (signup/login/me).
 
@@ -127,6 +185,68 @@ def _access_payload(user: dict, plan: str) -> dict:
         },
         "paid_equiv": bool(is_paid_plan or trial_active),
         "billing": {"annual_available": annual_available()},
+        # ── Joystick hub preview kill switch (Phase 2.5) ────────────────────
+        # ⭐ READ AT REQUEST TIME, NOT AT IMPORT. That is the whole point: flipping
+        # HUB_PREVIEW_ENABLED=false in Railway must hide the hub for everyone
+        # WITHOUT a redeploy. A module-level capture would need one, which is
+        # exactly the rollback this switch exists to avoid.
+        #
+        # ⭐ RIDES AN EXISTING PAYLOAD RATHER THAN ADDING AN ENDPOINT. The client
+        # already polls /api/auth/me, and signup/login share this block, so the
+        # flag is present the moment a session exists — no extra round trip and
+        # no new route (the preview release ships zero new hub endpoints).
+        #
+        # ⛔ DEFAULT ON. This is a KILL switch: unset means "not killed". Only an
+        # explicit "0"/"false"/"no"/"off" disables. The opposite default would make
+        # a forgotten variable indistinguishable from a deliberate shutdown.
+        "hub_preview_enabled": os.environ.get(
+            "HUB_PREVIEW_ENABLED", "1"
+        ).strip().lower() not in ("0", "false", "no", "off"),
+        # ── Research "Technical" tab (Chart/Technical Intelligence Convergence) ──
+        # Same request-time mechanism as the hub flag above: read HERE, per
+        # request, never captured at module import. That is what lets the flag be
+        # flipped without shipping code.
+        #
+        # ⚠️ IT IS NOT "no restart", and the comment above once said so. Measured
+        # 2026-08-30: `railway variables --set` STAGES the value — `--kv` reads it
+        # back immediately while the RUNNING process still has the old one, until
+        # an explicit `railway redeploy`. So a flip is: set the var, restart the
+        # service, and from then on every member's next /api/auth/me reflects it
+        # with no code change. Because a restart also clears APScheduler's
+        # in-memory job store and can kill an in-flight run, FLIP THIS OUTSIDE
+        # 09:00-16:00 ET so it cannot land on a Pattern Vision slot.
+        #
+        # ⛔ DEFAULT OFF, the OPPOSITE polarity to the hub switch, and that is
+        # deliberate. The hub flag is a KILL switch on a shipped feature, so unset
+        # means "not killed". This is an ENABLEMENT gate on a feature that ships
+        # dark: unset means "not turned on yet", so an unset variable can never
+        # silently expose a surface no one has decided to release. Only an
+        # explicit "1"/"true"/"yes"/"on" enables it.
+        "research_technical_tab_enabled": os.environ.get(
+            "RESEARCH_TECHNICAL_TAB_ENABLED", "0"
+        ).strip().lower() in ("1", "true", "yes", "on"),
+        # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
+        # Same request-time read and the same ENABLEMENT polarity as the
+        # Technical tab above: unset means "not turned on yet", so a forgotten
+        # variable can never expose a surface nobody decided to release.
+        #
+        # ⛔ THIS BRANCH SHIPPED WITH NO FLAG AT ALL. Its own commit message
+        # said "(dark, unmerged)" while the diff contained no env read, no
+        # gate and no payload field -- being UNMERGED was the only thing
+        # hiding it. Merging it in that state would have exposed member UI on
+        # three surfaces at once, with revert-and-deploy as the only rollback.
+        "s7_filing_watch_enabled": os.environ.get(
+            "S7_FILING_WATCH_ENABLED", "0"
+        ).strip().lower() in ("1", "true", "yes", "on"),
+        # ── Wave K — the Notebook's capability flags, read per request ──────
+        # ⭐ RIDES THIS PAYLOAD RATHER THAN A NEW ENDPOINT. `kill-switch-spec.md`
+        # first specified `GET /api/config`; that was struck on the day it was
+        # written, because this app records the absence of a config endpoint as
+        # deliberate and this payload already carries three flags. A second
+        # mechanism would have been a second authority — and it would have
+        # reached members LATER, since a boot-read needs a reload while this
+        # arrives on the next authenticated request.
+        **_notebook_flags(),
     }
 
 
@@ -543,6 +663,134 @@ def resend_verification(request: Request, user: dict = Depends(get_current_user)
 def _require_admin(user: dict):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
+
+
+# ── Smoke-account login link ─────────────────────────────────────────────────
+#
+# ⛔⛔ THIS IS AN AUTHENTICATION BYPASS, AND IT IS SHAPED SO THAT SAYING SO IS NOT ALARMING.
+#
+# It exists for one reason: real-device testing runs on BrowserStack Live, a screen mirror, and
+# there is no honest way to sign a device in there — an agent must not type a password into a
+# field, and the owner should not have to hand-type one for every session. So the session is
+# handed over as a link instead. Four independent conditions must ALL hold, and each one is
+# sufficient on its own to make a stolen link worthless:
+#
+#   1. the caller already holds an authenticated ADMIN session;
+#   2. `SMOKE_LOGIN_LINK_ENABLED=1` is set on the service (OFF by default, everywhere);
+#   3. the target is exactly one hard-coded synthetic user id — an allow-list of one;
+#   4. the token is single-use and expires in five minutes.
+#
+# ⭐ IT GRANTS NOTHING NEW. The link produces the same session a password login produces, for an
+# account that already exists and that the issuing admin could already act as. It is a transport
+# for an existing capability, not a new one — which is the property that makes it reviewable.
+#
+# ⛔ AND IT REFUSES TO BE A 2FA BYPASS. Not in the original ask, and added because without it the
+# feature would be exactly that: `login` hands back a challenge instead of a session when TOTP is
+# enabled, so a link that skipped straight to `create_session` would grant MORE than the password
+# does. `/smoke-login` refuses an account with TOTP on rather than silently out-ranking it.
+SMOKE_USER_ID_DEFAULT = "f4433528-6466-474a-949c-8d5eda8a7b91"
+
+
+def _smoke_login_enabled() -> bool:
+    return os.getenv("SMOKE_LOGIN_LINK_ENABLED", "") == "1"
+
+
+def _smoke_user_id() -> str:
+    return os.getenv("SMOKE_USER_ID", SMOKE_USER_ID_DEFAULT)
+
+
+class SmokeLoginLinkRequest(BaseModel):
+    user_id: str
+
+
+@router.post("/smoke-login-link")
+@limiter.limit("5/hour")
+def smoke_login_link(
+    request: Request,
+    req: SmokeLoginLinkRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Issue a single-use login URL for the synthetic smoke account. Admin only, flag-gated."""
+    _require_admin(user)
+
+    # ⛔ 404, NOT 403, FOR BOTH THE FLAG AND THE WRONG ID — and deliberately the SAME 404.
+    # A 403 on the flag would confirm the endpoint exists, and a distinguishable answer for
+    # "wrong user id" would turn this into an oracle for which id is the privileged one. An admin
+    # who needs to know why reads the service's env, not the status code.
+    if not _smoke_login_enabled() or req.user_id != _smoke_user_id():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # ⛔ THE USER MUST EXIST, AND THIS IS NOT A FORMALITY — it was found by a test. `password_resets`
+    # has a foreign key to `users`, so minting for an id with no row raises `IntegrityError` and the
+    # caller gets a 500 with a traceback in the log, for what is really just "wrong environment"
+    # (SMOKE_USER_ID pointed somewhere this database has never heard of). Same 404 as every other
+    # refusal: the endpoint's answer is "no", never "no, and here is why".
+    if not get_user_by_id(req.user_id):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    token = create_smoke_login_token(req.user_id)
+    # ⛔ THE TOKEN IS NEVER LOGGED. The row records that a link was issued, for whom, by whom —
+    # everything an audit needs — and nothing that would let a reader of the log use it.
+    log_activity(
+        user["id"],
+        "smoke_login_link_issued",
+        details=f"target={req.user_id}",
+        ip_address=client_ip(request),
+    )
+    # ⛔⛔ THE TOKEN GOES IN THE FRAGMENT, NEVER A QUERY STRING (hardened 2026-09-12).
+    # A fragment is never sent to ANY server: not to us, not to a CDN, not to a search engine
+    # if the URL is mistyped into a search box, and it does not appear in an access log or a
+    # Referer header. ⚰️ This changed after a mistyped navigation on a Live mirror ran a
+    # GOOGLE SEARCH for the whole URL, sending a live token to a third party. With the token
+    # after the `#`, that same mistake leaks the path and nothing else.
+    # ⭐ `/smoke-login` reads it from `location.hash` in the browser and POSTs it to
+    # `/api/auth/smoke-login`, so the secret still reaches this server -- in a request BODY,
+    # which is the part that is not logged.
+    return {"url": f"{DASHBOARD_URL.rstrip('/')}/smoke-login#token={token}"}
+
+
+class SmokeLoginRequest(BaseModel):
+    token: str
+
+
+@router.post("/smoke-login")
+@limiter.limit("10/hour")
+def smoke_login(request: Request, req: SmokeLoginRequest, response: Response):
+    """Exchange a smoke-login token for the ordinary session cookie."""
+    if not _smoke_login_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    user_id = redeem_smoke_login_token(req.token)
+    # ⛔ ONE MESSAGE FOR EVERY FAILURE. Expired, already used, wrong purpose, never existed — the
+    # caller learns "no" and nothing else. The page above it says "link expired" for all of them,
+    # which is the honest summary of every case from the operator's side.
+    if not user_id:
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    # ⛔ RE-CHECK THE ALLOW-LIST AT REDEMPTION. The token was minted under the id in force when it
+    # was issued; this asks the question again at the moment the session is created, so narrowing
+    # SMOKE_USER_ID takes effect on tokens already in flight rather than five minutes later.
+    if user_id != _smoke_user_id():
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    # See the header: a link must never out-rank a second factor.
+    if totp_service.is_enabled(user_id):
+        raise HTTPException(status_code=400, detail="This link is no longer valid")
+
+    log_activity(user_id, "smoke_login_redeemed", ip_address=client_ip(request))
+
+    # ⛔ THE SAME SESSION-CREATION PATH `login` USES. Not a copy of it — a second way to mint a
+    # session is a second place for a session bug to live, and the one that gets forgotten is
+    # always the one that skips a check the other one grew later.
+    ua = (request.headers.get("user-agent") or "")[:512]
+    token = create_session(user_id, user_agent=ua, ip_address=client_ip(request))
+    _set_session_cookie(response, token)
+    plan = get_user_plan(user_id)
+    return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
 # ── Feedback endpoints ────────────────────────────────────────────────────────
@@ -1683,6 +1931,198 @@ class SetPreferenceRequest(BaseModel):
     value: str
 
 
+# ── Preference key allow-list + per-key schema (B6) ───────────────────────────
+#
+# ⛔ WHAT THIS CLOSES, AND WHAT IT DOES NOT. Until now this endpoint took ANY
+# `{key, value}` from any authenticated caller and wrote it straight to the TEXT
+# column (`auth_service.set_user_preference`), so the key space was unbounded —
+# a signed-in caller could mint arbitrarily many preference rows against their
+# own account — and `joystick_hub` could be persisted in shapes its own Settings
+# card cannot produce and cannot undo. `JoystickSettingsCard.jsx`'s NumberSetting
+# names that second hazard exactly: "`holdMs` is compared numerically by the
+# engine — `'500' > 1200` is false but `'90' > '1200'` is TRUE under string
+# comparison, so a stray string survives every boundary check and misbehaves only
+# at some values."
+#
+# ⚠️ IT IS STILL AN EXPOSURE DEFAULT, NOT A SECURITY BOUNDARY, and nothing here
+# changes that. `joystick_hub.enabled: true` is a VALID value — a member who
+# posts it still turns the hub on for themselves. Bounding the key space and the
+# value shapes is worth doing on its own terms; do not read it as the gate.
+#
+# ⭐ THE KEY LIST IS DERIVED, NOT INVENTED. Every name below is a key the shipped
+# client actually writes through this endpoint, resolved from the call sites by
+# `tests/test_preference_key_validation.py`, which re-derives the same set from
+# `app/src/**` on every run and fails if the client grows a key this list lacks.
+# ⛔ A key added to the client WITHOUT a row here is a 400 in a member's face, so
+# that rail is the thing that must stay green — not this comment.
+#
+# ⚠️ ONE SURFACE CAN NOW REFUSE PART OF ITS INPUT: Settings' preference IMPORT
+# (`Settings.jsx:1397-1407`) replays whatever keys are in an uploaded file, one
+# POST each. It already counts per-key failures and renders them — "Imported 12
+# preferences · 3 failed" — so an import carrying a key this list does not know
+# degrades in the open rather than silently. That is the intended behaviour of a
+# validating endpoint; it is recorded here because it is the one place a member
+# can see a refusal without having done anything wrong.
+_PREF_OPAQUE = "opaque"
+
+#: `key -> schema id`. `_PREF_OPAQUE` means "any string", which is exactly the
+#: behaviour every one of these keys has shipped with; they are structured blobs
+#: with their own client-side parsers (`parsePref` falls back on bad input), and
+#: re-describing those shapes here would be a second authority over each one.
+#: Only `joystick_hub` — the key this charter owns — carries a real schema.
+_PREFERENCE_KEYS = {
+    "aisearch_settings": _PREF_OPAQUE,
+    "alert_sound": _PREF_OPAQUE,
+    "alert_sound_type": _PREF_OPAQUE,
+    "alerts_widget_settings": _PREF_OPAQUE,
+    "breadth_charts_state": _PREF_OPAQUE,
+    "breadth_drill_board": _PREF_OPAQUE,
+    "breadth_views_config": _PREF_OPAQUE,
+    "breadth_widget_settings": _PREF_OPAQUE,
+    "calendar_event_types_v2": _PREF_OPAQUE,
+    "calendar_filters_v2": _PREF_OPAQUE,
+    "calendar_mystocks_sources": _PREF_OPAQUE,
+    "calendar_view": _PREF_OPAQUE,
+    "calendar_view_v3": _PREF_OPAQUE,
+    "calendar_widget_settings": _PREF_OPAQUE,
+    "chart_saved_colors": _PREF_OPAQUE,
+    "chart_settings": _PREF_OPAQUE,
+    "chart_templates": _PREF_OPAQUE,
+    "charts_active_template": _PREF_OPAQUE,
+    "charts_layout_dock": _PREF_OPAQUE,
+    "charts_merged": _PREF_OPAQUE,
+    "charts_theme": _PREF_OPAQUE,
+    "charts_vol_pane_pct": _PREF_OPAQUE,
+    "charts_workspace_groups": _PREF_OPAQUE,
+    "charts_workspace_layout": _PREF_OPAQUE,
+    "default_chart_tf": _PREF_OPAQUE,
+    "fundamentals_settings": _PREF_OPAQUE,
+    "j2_calendar_pnl_basis": _PREF_OPAQUE,
+    "j2_custom_dashboard": _PREF_OPAQUE,
+    "joystick_hub": "joystick_hub",
+    "multichart_state": _PREF_OPAQUE,
+    "news_widget_settings": _PREF_OPAQUE,
+    "notebook_widget_settings": _PREF_OPAQUE,
+    "options_flow_widget_settings": _PREF_OPAQUE,
+    "profile_widget_settings": _PREF_OPAQUE,
+    # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
+    # through this endpoint — listed so a client that ever writes it directly
+    # is not refused for a key the product already owns.
+    "shared_tag_colors": _PREF_OPAQUE,
+    "tag_labels": _PREF_OPAQUE,
+    "theme": _PREF_OPAQUE,
+    "theme_tracker_settings": _PREF_OPAQUE,
+    "tracings_doc": _PREF_OPAQUE,
+    "volume_scan_lists": _PREF_OPAQUE,
+    # Written server-side by `watchlists.py` AND from Settings.jsx.
+    "watchlist_digest": _PREF_OPAQUE,
+    "watchlist_settings": _PREF_OPAQUE,
+    "watchlist_templates": _PREF_OPAQUE,
+}
+
+#: `joystick_hub` boolean fields. `coachMarkSeen` is NOT in the client's
+#: `HUB_SETTINGS_DEFAULTS` — it is written by `HubRoot.jsx:356` and read at
+#: `:479`, and it is the reason the field rule below is permissive. A schema
+#: built from the defaults alone would have 400'd the coach-mark dismissal and
+#: left that card on screen forever.
+_HUB_BOOLEAN_FIELDS = ("enabled", "haptics", "stickyFan", "highContrast", "coachMarkSeen")
+
+#: `field -> (min, max)`, inclusive. Derived from the ONLY control that writes
+#: them — `JoystickSettingsCard.jsx`'s three `<NumberSetting min= max=>` sliders.
+#: Bounds only, never `step`: a stored value off the slider's step is a value the
+#: member already has, and refusing it would strand them.
+_HUB_NUMERIC_BOUNDS = {
+    "holdMs": (300, 1200),
+    "travelPx": (16, 48),
+    "doubleTapMs": (200, 600),
+}
+
+_HUB_HANDEDNESS = ("left", "right")
+
+
+def _validate_joystick_hub(raw: str) -> None:
+    """Raise HTTPException(400) if `raw` is not a storable `joystick_hub` blob.
+
+    ⭐ UNKNOWN FIELDS ARE ACCEPTED, DELIBERATELY. `useHubSettings.withDefaults`
+    spreads the member's whole stored blob into every subsequent write, so a
+    field this build has never heard of — one an older build wrote — rides along
+    on the NEXT settings change. Rejecting it would turn one stale key into a
+    permanent 400 on every hub write for that member. Known fields are checked;
+    the rest are carried.
+    """
+    if raw == "" or raw is None:
+        return  # the client's "cleared" write; `parsePref` reads it as unset
+    try:
+        blob = json.loads(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="joystick_hub must be a JSON object.")
+    if blob is None:
+        return
+    if not isinstance(blob, dict):
+        raise HTTPException(status_code=400, detail="joystick_hub must be a JSON object.")
+
+    for field in _HUB_BOOLEAN_FIELDS:
+        if field in blob and not isinstance(blob[field], bool):
+            raise HTTPException(
+                status_code=400,
+                detail=f"joystick_hub.{field} must be true or false.",
+            )
+
+    if "handedness" in blob and blob["handedness"] not in _HUB_HANDEDNESS:
+        raise HTTPException(
+            status_code=400,
+            detail="joystick_hub.handedness must be 'left' or 'right'.",
+        )
+
+    for field, (lo, hi) in _HUB_NUMERIC_BOUNDS.items():
+        if field not in blob:
+            continue
+        val = blob[field]
+        # ⛔ `isinstance(True, int)` is True in Python. Without this bool check a
+        # `{"holdMs": true}` would pass the type gate and compare as 1 — the same
+        # hole R-08 records against `PUT /api/j2/positions/{id}`'s `shares`.
+        #
+        # ⭐ THE TYPE MESSAGE AND THE RANGE MESSAGE ARE DIFFERENT SENTENCES, AND
+        # THAT IS WHAT MAKES THIS GUARD PROVABLE. They were one sentence first,
+        # and deleting the `isinstance(val, bool)` test changed nothing a test
+        # could see: `True` is `1`, `1` is outside all three ranges, so the range
+        # branch raised the identical string and the mutation survived green. A
+        # guard whose removal no rail can distinguish is not a guard.
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"joystick_hub.{field} must be a number.",
+            )
+        if not (lo <= val <= hi):
+            raise HTTPException(
+                status_code=400,
+                detail=f"joystick_hub.{field} must be a number between {lo} and {hi}.",
+            )
+
+    if "overrides" in blob:
+        ov = blob["overrides"]
+        # A registry PATCH, never a copy of the registry — this endpoint checks
+        # that it is an object and never interprets an entry. Interpreting one
+        # would be a second authority over `hub/registry.js`.
+        if not isinstance(ov, dict):
+            raise HTTPException(
+                status_code=400,
+                detail="joystick_hub.overrides must be a JSON object.",
+            )
+
+
+def _validate_preference(key: str, value: str) -> None:
+    """Allow-list the key, then run that key's schema. Raises 400, or returns."""
+    schema = _PREFERENCE_KEYS.get(key)
+    if schema is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown preference key '{key}'.",
+        )
+    if schema == "joystick_hub":
+        _validate_joystick_hub(value)
+
+
 @router.get("/preferences")
 def get_preferences(user: dict = Depends(get_current_user)):
     return get_user_preferences(user["id"])
@@ -1690,6 +2130,7 @@ def get_preferences(user: dict = Depends(get_current_user)):
 
 @router.post("/preferences")
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
+    _validate_preference(req.key, req.value)
     set_user_preference(user["id"], req.key, req.value)
     return {"ok": True}
 

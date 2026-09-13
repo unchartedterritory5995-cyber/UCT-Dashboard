@@ -7,6 +7,8 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+import LayoutDock from './LayoutDock'
+import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -26,6 +28,7 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
@@ -739,6 +742,13 @@ export default function ChartsWorkspace() {
   // Hydration gate: don't persist until server prefs have settled, so RGL's
   // on-mount onLayoutChange can't clobber a returning user's saved layout with the
   // default before it loads (the "resets to default" bug).
+  // Set only by the handlers a person actually drives (close a widget, close a
+  // popped/floating one). It is what tells the auto-save that a board with FEWER
+  // widgets is intentional rather than a bad load — see the shrink guard. Declared
+  // up here with the other hydration refs because handleRemoveWidget, far above
+  // the dock code that reads it, is what sets it.
+  const userRemovedRef = useRef(false)
+
   const hydratedRef = useRef(false)
   useEffect(() => {
     if (!prefsLoading) hydratedRef.current = true
@@ -1188,6 +1198,10 @@ export default function ChartsWorkspace() {
   }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
 
   const handleRemoveWidget = useCallback((id) => {
+    // Tell the auto-save this shrink is YOURS, so it is allowed to persist a
+    // board with fewer widgets. Everything else that reduces the widget count is
+    // treated as a bad load and refused — see the shrink guard.
+    userRemovedRef.current = true
     setLayout(prev => {
       // Delete removes ONLY the closed widget — no reflow. Every other widget keeps
       // its exact position/size (owner decision); the freed space is simply left blank.
@@ -1672,12 +1686,28 @@ export default function ChartsWorkspace() {
   // ── Named layout templates (prebuilt + personal) ──
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
+  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
 
   const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
   // Which template's ✕ is awaiting delete confirmation (id), or null.
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  // Auto-save must not fire while a layout is being SWITCHED. applyTemplate
+  // replaces the board and the active-template pref in the same tick, but they
+  // reach this component through different paths (React state vs the SWR prefs
+  // cache); if the board landed first, the auto-save would see "active = the OLD
+  // layout, board = the NEW one" and write the new arrangement into the old row.
+  // A short suppression window makes that ordering irrelevant.
+  const suppressAutoSaveUntilRef = useRef(0)
+  const suppressAutoSave = useCallback(() => { suppressAutoSaveUntilRef.current = Date.now() + 1500 }, [])
+
+  // Assigned during render, far below, once handleSaveLayout and the dirty flag
+  // exist. Every path that REPLACES the board calls this first: a debounced save
+  // that has not fired yet must be completed before the board it belongs to is
+  // gone, or the edit is lost. That is exactly what "added a widget, switched two
+  // seconds later, came back and it was missing" was.
+  const flushNamedSaveRef = useRef(null)
+
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -1687,6 +1717,9 @@ export default function ChartsWorkspace() {
   // so any older-shaped template is normalized to the current grid.
   const applyTemplate = useCallback((tpl) => {
     if (!tpl?.layout?.widgets) return
+    flushNamedSaveRef.current?.()
+    userRemovedRef.current = false
+    suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
     // per-user override so nothing from the previously-open layout — theme, chart
     // styling, watchlist columns, volume-pane height — carries over. Personal
@@ -1746,7 +1779,7 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, setChartsTheme, flashSaved])
+  }, [setPref, setChartsTheme, flashSaved, suppressAutoSave])
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
@@ -1755,6 +1788,9 @@ export default function ChartsWorkspace() {
   // wiped by re-opening it. Color-group tickers are left as-is (Option A: content
   // loads live/personal, only the shell + settings are frozen).
   const applyUctDefault = useCallback(() => {
+    flushNamedSaveRef.current?.()
+    userRemovedRef.current = false
+    suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
     setPref('charts_workspace_layout', JSON.stringify(normalized))
@@ -1776,11 +1812,16 @@ export default function ChartsWorkspace() {
     // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
     // that otherwise survives — reset it so a dragged pane snaps back to the default.
     setPref('charts_vol_pane_pct', '')
-    // UCT Default is the frozen default, not a saved template → no active template.
-    setPref('charts_active_template', 'null')
+    // UCT Default is the frozen default, not a saved template — but the Layout
+    // Dock still has to light it up as the open layout, and 'null' is what a BLANK
+    // board (New Layout) writes, so the two would be indistinguishable. A sentinel
+    // id names it without inventing a row. Safe for every existing reader:
+    // handleSaveLayout's `list.some(t => t.id === active.id)` can never match it,
+    // and handleDeleteTemplate compares against numeric row ids.
+    setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, setChartsTheme, flashSaved, prefs.theme])
+  }, [setPref, setChartsTheme, flashSaved, prefs.theme, suppressAutoSave])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -1811,6 +1852,8 @@ export default function ChartsWorkspace() {
   // so a returning user stays on the blank board until they add a widget or open a
   // saved layout. (Named/saved layouts are untouched — only the working board is.)
   const handleNewLayout = useCallback(() => {
+    flushNamedSaveRef.current?.()
+    suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
     setLayout(blank)
     setPref('charts_workspace_layout', JSON.stringify(blank))
@@ -1831,10 +1874,14 @@ export default function ChartsWorkspace() {
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
     setPref('charts_active_template', 'null')
-  }, [setPref, setChartsTheme])
+  }, [setPref, setChartsTheme, suppressAutoSave])
 
-  const handleSaveAsTemplate = useCallback(async () => {
-    const nm = saveAsName.trim()
+  /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
+     onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
+     Layouts sheet owns its own input and passes the name explicitly. One handler,
+     two callers: the alternative was a second save path that would drift. */
+  const handleSaveAsTemplate = useCallback(async (nameArg, scopeArg) => {
+    const nm = (typeof nameArg === 'string' ? nameArg : saveAsName).trim()
     if (!nm) { setSaveErr('Name required'); return }
     try {
       // Templates store the arrangement + the current CHART SETTINGS (so opening
@@ -1849,7 +1896,7 @@ export default function ChartsWorkspace() {
       const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
       const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
       const watchlistColumns = readWatchlistColumns()
-      const scope = isAdmin ? saveAsScope : 'user'
+      const scope = isAdmin ? ((typeof scopeArg === 'string' && scopeArg) || saveAsScope) : 'user'
       const saved = await saveLayout({
         name: nm,
         layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -1866,7 +1913,7 @@ export default function ChartsWorkspace() {
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
+  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
 
   // Explicit "Save current arrangement" — flush the debounced auto-save + persist
   // the working board immediately (the auto-save is debounced 500ms, so a refresh
@@ -1898,11 +1945,13 @@ export default function ChartsWorkspace() {
   }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
-    try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }
-    // If the layout you just deleted was the one open on screen, fall back to the
-    // UCT Default so you're never left staring at a now-gone layout.
+    // Fall back BEFORE awaiting the delete: if the layout you just deleted was
+    // the one open on screen, waiting for the round-trip left you staring at a
+    // board that no longer has a layout for a beat. deleteLayout removes it from
+    // the bar optimistically, so both halves of the click land together.
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id === id) applyUctDefault()
+    try { await deleteLayout(id) } catch { /* restored by the optimistic rollback */ }
   }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
 
   const [, setAddMenuOpen] = useState(false)  // nested under Widgets ▾
@@ -2000,7 +2049,10 @@ export default function ChartsWorkspace() {
   }, [scheduleSave])
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
-  const mc = useMultiChartState()
+  // MOB-08 — the grid's `mode` is DEVICE-SCOPED. `isMobile` is already the one
+  // authority for which shell renders (a single MQL, deliberately), so the
+  // device class is derived from it rather than from a second opinion.
+  const mc = useMultiChartState(deviceClassOf(isMobile))
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
@@ -2042,11 +2094,192 @@ export default function ChartsWorkspace() {
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   // Grid-kind templates live in the same /api/charts/layouts store; keep them
   // out of the workspace Open-layout menu (their {widgets:[]} shape would
   // apply as a blank board) — the Multi Charts dropdown lists them instead.
+  // ⭐ COMPUTED ABOVE THE MOBILE RETURN ON PURPOSE: the phone's Layouts sheet reads the
+  // same two lists as the desktop menu. They sat below it until 2026-09-08, which is
+  // the entire reason the phone had no layout door.
   const wsGlobalLayouts = globalLayouts.filter(t => t.layout?.kind !== 'multichart')
   const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
+
+  // ── Layout Dock ────────────────────────────────────────────────────────
+  // The fast path between saved layouts, rendered at the bottom of the frame.
+  // Entries are the frozen UCT Default plus every workspace-kind layout in the
+  // same order the Open Layout menu lists them — multichart rows stay out for
+  // the same reason they do there (their {widgets:[]} shape applies as a blank
+  // board). Defined here, above the mobile return, only because wsGlobal/wsMy
+  // are; the dock itself renders in the desktop branch alone.
+  const dockEntries = useMemo(() => ([
+    { id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' },
+    ...wsGlobalLayouts.map(t => ({ id: t.id, name: t.name, scope: 'global' })),
+    ...wsMyLayouts.map(t => ({ id: t.id, name: t.name, scope: 'user' })),
+  ]), [wsGlobalLayouts, wsMyLayouts])
+
+  const dockActiveTpl = useMemo(
+    () => parsePref(prefs?.charts_active_template, null),
+    [prefs?.charts_active_template],
+  )
+  const dockActiveId = dockActiveTpl?.id ?? null
+
+  // Does the board differ from what is STORED for the open layout?
+  //
+  // ⭐ ARRANGEMENT ONLY (id/type/x/y/w/h + cols). The appearance blobs that ride
+  // along in a template — chart settings, watchlist columns, per-widget opts —
+  // are rewritten by normal use and by theme resolution, so comparing them would
+  // light the dot on a board nobody touched. A false dirty is the one failure
+  // that would make people hate this: it fires the switch-away confirm on every
+  // switch, and the confirm is the thing protecting the board.
+  const dockCompare = useMemo(() => {
+    if (!dockActiveId || dockActiveId === UCT_DEFAULT_ID) return null
+    const tpl = globalLayouts.find(t => t.id === dockActiveId) || myLayouts.find(t => t.id === dockActiveId)
+    if (!tpl?.layout?.widgets) return null
+    const stored = parseLayout(tpl.layout) || tpl.layout
+    return {
+      dirty: arrangementSig(layout) !== arrangementSig(stored),
+      // Fewer widgets on screen than the layout is stored with. Either you just
+      // closed one — or the board was not fully there when we looked.
+      shrunk: (layout.widgets?.length || 0) < (stored.widgets?.length || 0),
+    }
+  }, [dockActiveId, globalLayouts, myLayouts, layout])
+  const dockDirty = !!dockCompare?.dirty
+
+  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts.
+  //
+  // A prebuilt (global) row is what every member sees, so nudging a widget on
+  // one must never rewrite it; the frozen UCT Default is not a row at all.
+  // Those two stay exactly as they always were — deliberate saves only.
+  const dockAutoSaves = !!dockActiveId
+    && dockActiveId !== UCT_DEFAULT_ID
+    && (dockActiveTpl?.scope || 'user') !== 'global'
+
+  // Refs assigned during render (the idiom this file already uses for layoutRef):
+  // they let the switch paths above — defined earlier — reach the save without a
+  // circular dependency, and let the debounce below depend on the ARRANGEMENT
+  // rather than on a callback's identity.
+  const namedSaveRef = useRef(null)
+  namedSaveRef.current = handleSaveLayout
+
+  // ⛔ TWO GATES, both learned the hard way — a layout lost its widget because
+  // auto-save faithfully persisted a board that was not yet real.
+  //
+  // 1. HYDRATION. `layout` is seeded from React state that starts at
+  //    DEFAULT_LAYOUT — an EMPTY board — and is only replaced once the prefs
+  //    fetch resolves. charts_active_template can therefore name a layout while
+  //    the board is still empty. Auto-saving in that window overwrites a real
+  //    layout with nothing, and the unmount flush made it worse: navigate away
+  //    from /charts before it hydrates and the empty board was written out.
+  //    Nothing may be written until prefs AND the layout list have settled and
+  //    the board has actually been taken from prefs.
+  //
+  // 2. SHRINK. Auto-save turns any transient bad board into permanent loss, so
+  //    losing widgets is never assumed to be intentional: a board with fewer
+  //    widgets than the stored layout is written ONLY when the user actually
+  //    closed one. Worst case is now "we did not save", never "we saved the
+  //    damage". The flag is cleared after each save, so every shrink needs its
+  //    own deliberate removal.
+  const boardSeeded = loadedFromPrefsRef.current || !prefs?.charts_workspace_layout
+  const autoSaveReady = !prefsLoading && !templatesLoading && boardSeeded
+  const shrinkBlocked = !!dockCompare?.shrunk && !userRemovedRef.current
+  const autoSaveOk = autoSaveReady && dockAutoSaves && dockDirty && !shrinkBlocked
+
+  const runNamedSave = useCallback(() => {
+    namedSaveRef.current?.()
+    userRemovedRef.current = false
+  }, [])
+
+  flushNamedSaveRef.current = () => { if (autoSaveOk) runNamedSave() }
+
+  // Persist the arrangement into the open layout shortly after it settles.
+  //
+  // ⛔ Keyed on the arrangement SIGNATURE, not on handleSaveLayout. That callback
+  // is rebuilt whenever any of half a dozen prefs change, and every rebuild
+  // restarted the timer — so on a busy board the write could be pushed back
+  // indefinitely and a "debounced" save might never land at all. The signature
+  // only moves when the board actually moves, so the timer means what it says.
+  // dockDirty is the trigger AND the stop condition (the save clears it), so
+  // this cannot loop. Switching away no longer depends on this at all — the
+  // flush above covers it.
+  // The guard is silent by design, which makes it invisible when it fires. Say so
+  // once per transition: if a layout ever "loses" a widget again, this line in the
+  // console is the evidence that the board came back short — and the proof that
+  // the short board was NOT written to the library.
+  useEffect(() => {
+    if (!shrinkBlocked) return
+    console.warn('[layout-dock] auto-save skipped — the board has fewer widgets than the layout stored, and nothing was closed by hand. The stored layout was left intact.')
+  }, [shrinkBlocked])
+
+  const dirtySig = autoSaveOk ? arrangementSig(layout) : null
+  const runNamedSaveRef = useRef(null)
+  runNamedSaveRef.current = runNamedSave
+  useEffect(() => {
+    if (!dirtySig) return
+    const t = setTimeout(() => { runNamedSaveRef.current?.() }, 400)
+    return () => clearTimeout(t)
+  }, [dirtySig])
+
+  // Leaving /charts entirely (SPA nav, tab close) is a switch too.
+  useEffect(() => () => { flushNamedSaveRef.current?.() }, [])
+
+  // Duplicate — the COPY is made from what is STORED for that layout, not from
+  // the board on screen, so duplicating a layout you are not in does what it
+  // says. A prebuilt duplicates into a personal copy you can actually edit.
+  const handleDockDuplicate = useCallback(async (entry) => {
+    const src = entry.id === UCT_DEFAULT_ID
+      ? { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT }
+      : (globalLayouts.find(t => t.id === entry.id) || myLayouts.find(t => t.id === entry.id))
+    if (!src?.layout) return
+    const taken = new Set([...globalLayouts, ...myLayouts].map(t => t.name))
+    let name = `${entry.name} copy`
+    for (let n = 2; taken.has(name); n += 1) name = `${entry.name} copy ${n}`
+    try {
+      await saveLayout({ name, layout: src.layout, groups: null, scope: 'user' })
+    } catch { /* surfaced by SWR revalidate */ }
+  }, [globalLayouts, myLayouts, saveLayout])
+
+  // Rename — PATCHes the row in place. The name also lives in
+  // charts_active_template, and handleSaveLayout UPSERTS BY THAT NAME, so a
+  // stale copy there would make the very next auto-save recreate the layout
+  // under its old name — a duplicate, from a rename. Keep the two in step.
+  const handleDockRename = useCallback(async (id, name) => {
+    suppressAutoSave()
+    try {
+      const saved = await renameLayout(id, name)
+      const active = parsePref(prefs?.charts_active_template, null)
+      if (active?.id === id) {
+        setPref('charts_active_template', JSON.stringify({ ...active, name: saved?.name || name }))
+      }
+    } catch { /* rolled back in the hook */ }
+  }, [renameLayout, prefs?.charts_active_template, setPref, suppressAutoSave])
+
+  // Delete — reuses the workspace's own handler, so deleting the layout you are
+  // IN still falls back to UCT Default rather than leaving you on a ghost.
+  const handleDockDelete = useCallback((entry) => {
+    if (!entry || entry.id === UCT_DEFAULT_ID) return
+    handleDeleteTemplate(entry.id)
+  }, [handleDeleteTemplate])
+
+  // Same contract as Open Layout: opening a workspace layout leaves grid mode.
+  const handleDockOpen = useCallback((entry) => {
+    if (gridMode) mc.exitGrid()
+    if (entry.id === UCT_DEFAULT_ID) { applyUctDefault(); return }
+    const tpl = globalLayouts.find(t => t.id === entry.id) || myLayouts.find(t => t.id === entry.id)
+    if (tpl) applyTemplate(tpl)
+  }, [gridMode, mc, applyUctDefault, applyTemplate, globalLayouts, myLayouts])
+
+  // ＋ — blank the board, then save it under the typed name, so the layout
+  // exists and is the active one the moment you press Enter. You build it from
+  // there and save again through Layouts ▾ (the dot lands in Phase 2).
+  const handleDockCreate = useCallback(async (name) => {
+    handleNewLayout()
+    try {
+      const saved = await saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user' })
+      if (saved?.id != null) {
+        setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || name, scope: saved.scope || 'user' }))
+      }
+    } catch { /* surfaced by SWR revalidate */ }
+  }, [handleNewLayout, saveLayout, setPref])
 
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
@@ -2057,9 +2290,13 @@ export default function ChartsWorkspace() {
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
           <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Phone toolbar: grid mode persists from desktop, and without an
-                exit control a phone user is TRAPPED in it (mega-review #15 —
-                the desktop entry flyout doesn't exist on phone). */}
+            {/* Phone toolbar: an exit control, kept as a safety net.
+                ⚰️ It used to read "grid mode persists from desktop… a phone user
+                is TRAPPED in it" — that inheritance was the MOB-08 defect and is
+                fixed at the source: `mode` is device-scoped, so a phone no longer
+                inherits the desktop's grid at all. The button stays because a
+                phone that reaches grid mode by any future path still needs a way
+                out, and exiting now writes only the MOBILE branch. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: '1px solid var(--border, #2a3340)', flex: '0 0 auto' }}>
               <span style={{ fontSize: 12, color: 'var(--ut-gold, #c9a84c)', fontWeight: 600 }}>▦ Multi Chart</span>
               <button
@@ -2081,6 +2318,20 @@ export default function ChartsWorkspace() {
             onOptsChange={handleOptsChange}
             onAddWidget={handleAddWidget}
             tablet={shellTablet}
+            /* MOB-01 — the phone's door to the EXISTING layout system. Every one of
+               these is the same callback the desktop menu uses; the sheet adds no
+               persistence of its own. */
+            layoutsMine={wsMyLayouts}
+            layoutsPrebuilt={wsGlobalLayouts}
+            layoutsActive={parsePref(prefs?.charts_active_template, null)}
+            layoutsLoading={templatesLoading}
+            layoutsSavedFlash={savedFlash}
+            isAdmin={isAdmin}
+            onApplyLayout={applyTemplate}
+            onApplyUctDefault={applyUctDefault}
+            onSaveLayout={handleSaveLayout}
+            onSaveLayoutAs={handleSaveAsTemplate}
+            onDeleteLayout={handleDeleteTemplate}
           />
         )}
       </WorkspaceContext.Provider>
@@ -2483,6 +2734,24 @@ export default function ChartsWorkspace() {
             />
           )}
         </main>
+
+        {/* The Layout Dock closes the frame the header opens. It is a flex
+            sibling of <main>, so the ResizeObserver on .workspaceBody re-tiles
+            the grid for its 29px on its own — no layout math changes. Desktop
+            only by construction: the phone returns above this. */}
+        <LayoutDock
+          entries={dockEntries}
+          activeId={dockActiveId}
+          loading={templatesLoading}
+          merged={merged}
+          isAdmin={isAdmin}
+          onOpen={handleDockOpen}
+          onCreate={handleDockCreate}
+          onSave={handleSaveLayout}
+          onDuplicate={handleDockDuplicate}
+          onDelete={handleDockDelete}
+          onRename={handleDockRename}
+        />
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and

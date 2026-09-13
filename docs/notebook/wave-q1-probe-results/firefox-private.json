@@ -1,0 +1,113 @@
+{
+ "probeVersion": "1.0.0",
+ "runId": "mtu8qgri-4tfc2v",
+ "startedAt": "2026-09-09T15:15:54.846Z",
+ "env": {
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0",
+  "platform": "Win32",
+  "vendor": null,
+  "language": "undefined",
+  "origin": "https://uctintelligence.com",
+  "isSecureContext": true,
+  "cookieEnabled": true,
+  "onLine": true,
+  "hardwareConcurrency": 8,
+  "screen": "1280x720@1",
+  "standalone": false
+ },
+ "carryover": {
+  "checked": true,
+  "found": false
+ },
+ "storage": {
+  "estimateSupported": true,
+  "quotaBytes": 10737418240,
+  "usageBytes": 106576,
+  "quotaMB": 10240,
+  "usageMB": 0.1,
+  "persistSupported": true,
+  "persistedBefore": false,
+  "persistResult": false,
+  "persistedAfter": false
+ },
+ "idb": {
+  "available": true,
+  "opened": true,
+  "openMs": 25,
+  "storesCreated": [
+   "notes",
+   "outbox"
+  ],
+  "atomicWriteMs": 0,
+  "wrote": true,
+  "readBackSameSession": true
+ },
+ "reload": {
+  "tested": true,
+  "noteSurvived": true,
+  "bodyIntact": true,
+  "outboxSurvived": true,
+  "outboxEntryNotPermanent": true
+ },
+ "webLocks": {
+  "present": true,
+  "exclusiveAcquired": true,
+  "grantCallbackDelayMs": 0,
+  "secondContenderRefusedWhileHeld": true,
+  "queuedWaitedWhileHeld": true,
+  "queuedGrantedAfterRelease": true,
+  "querySupported": true,
+  "stillHeldAfterRelease": 0
+ },
+ "versionchange": {
+  "withHandler": {
+   "upgraded": true,
+   "oldConnectionGotVersionChange": true,
+   "blockedEventFired": false,
+   "ms": 15
+  },
+  "withoutHandler": {
+   "upgraded": false,
+   "timedOut": true,
+   "blockedEventFired": true,
+   "ms": 2510
+  },
+  "handlerIsLoadBearing": true
+ },
+ "drain": {
+  "queuedWorkPresent": true,
+  "stillRetryable": true,
+  "leadershipObtainable": true,
+  "eligible": true
+ },
+ "verdict": {
+  "indexedDbUsable": true,
+  "durableAcrossReload": true,
+  "webLocksUsable": true,
+  "versionchangeSafe": true,
+  "drainPossible": true,
+  "classification": "DURABLE_OFFLINE_SUPPORTED"
+ },
+ "cleanup": {
+  "attempted": [
+   "uct_q1_browser_probe_mtu8qgri-4tfc2v",
+   "uct_q1_browser_probe_vc_with_mtu8qgri-4tfc2v",
+   "uct_q1_browser_probe_vc_without_mtu8qgri-4tfc2v"
+  ],
+  "results": {
+   "uct_q1_browser_probe_mtu8qgri-4tfc2v": "deleted",
+   "uct_q1_browser_probe_vc_with_mtu8qgri-4tfc2v": "deleted",
+   "uct_q1_browser_probe_vc_without_mtu8qgri-4tfc2v": "deleted"
+  },
+  "carryoverWritten": true
+ },
+ "finishedAt": "2026-09-09T15:15:58.390Z",
+ "_runner": {
+  "label": "firefox-private",
+  "engine": "firefox",
+  "mode": "private",
+  "playwrightBrowserVersion": "146.0.1",
+  "url": "https://uctintelligence.com/q1-probe.html",
+  "userDataDir": null
+ }
+}

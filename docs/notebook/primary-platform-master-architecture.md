@@ -1,5 +1,24 @@
 # UCT Notebook — Primary-Platform Master Architecture Spec
 
+> ⚰️ **SUPERSEDED IN PART — 2026-09-11. The current authority is
+> `docs/notebook/PROGRAM-MANIFEST.md`.** This spec is dated 2026-09-05. Waves K,
+> L, M, N, O, O6 and P closed in production afterwards, so the **"Current state"
+> / "Absent" / "Remaining build" columns throughout describe a product that no
+> longer exists.** Sections the code has overtaken carry an inline ⚰️
+> **SUPERSEDED** marker naming the manifest row and the wave that closed it.
+>
+> ⛔ **The original text is preserved beneath every marker on purpose** — a reader
+> must be able to see what was believed and when. Do not delete it.
+> ⛔ **The DESIGNS here are not superseded — the STATUS claims are.** Where this
+> doc says "build X this way", the shape it prescribes is generally what shipped
+> (`/notes/folder-counts`, the version table, the capture envelope). Read the
+> design; re-measure the status.
+> ⛔ **The absence of a marker means nobody has re-checked that line, not that it
+> is true.**
+> ⚠️ **This file already carries a ⚰️ CORRECTION of its own (§4, 2026-09-05) that
+> is ITSELF now superseded.** A correction can go stale exactly like the claim it
+> corrected — see the marker stacked beneath it.
+
 **Status:** Phase Two. Defines *how* every capability in `primary-platform-master-product-spec.md` gets built. Every design decision below either (a) extends an idiom already proven elsewhere in this codebase — cited by file — or (b) is explicitly marked as new architecture, with the alternatives considered. Nothing here invents infrastructure that already exists.
 
 ---
@@ -36,6 +55,24 @@ Current quality bar, verified directly, with the Stage-A build list against each
 | Attachments | Image-only (no generic file/PDF path) | Not scheduled for Stage A; revisit demand in Stage B |
 | Export | Disk-streaming, concurrency-limited, hardened against a prior OOM incident | None — genuine strength, must not regress |
 
+⚰️ **SUPERSEDED (2026-09-11) — the Status column above is out of date for six of
+its fourteen rows.** Preserved verbatim, not rewritten; corrected status below,
+measured against the code (PROGRAM-MANIFEST.md §1 and §7).
+
+| Row | Said | Actual, 2026-09-11 |
+|---|---|---|
+| Folders / navigation | "the sidebar leaf-row bug (P0-2)" | **fixed** — `GET /api/j2/notes/folder-counts` exists, exactly the §3.2 design (§7 #4) |
+| Trash / undo-delete | Absent → Build (P0-1) | **shipped**, Wave 0, with 30-day retention purge |
+| Version history | Absent → Build (P1-6, Stage B) | **shipped**, Wave C — panel, `/versions`, diff, restore (§7 #2) |
+| Quick-switch / command palette | Absent → Not scheduled | **the palette PULLS Notebook** (Wave B). §7 #7 records the "ZERO participation" claim as **retracted** |
+| Find-in-note | "Browser Ctrl+F only" | **shipped**, Wave B — scoped ephemeral highlight, match counter, next/prev |
+| Attachments | "Image-only (no generic file/PDF path)" | **shipped**, Wave I/J — PDF upload, text extraction, page model, excerpts, and **OCR live in production** since Wave P5 |
+
+⚠️ **Still accurate and still not scheduled:** breadcrumbs, multi-tab / split view.
+⭐ **The two rows that aged best are the two that said "None — do not touch"**
+(autosave, export). The "Absent" rows all moved; the "genuine strength, must not
+regress" rows did not. A status column ages; a design constraint does not.
+
 **Ranking discipline:** rank by actual beachhead-workflow frequency, not by "what a mature notebook has." Quick-switch/breadcrumbs/split-view are real gaps versus serious competitors but unproven to matter for the trader beachhead's actual daily loop (capture → write → link → retrieve) — do not build ahead of evidence.
 
 ---
@@ -55,6 +92,21 @@ Current quality bar, verified directly, with the Stage-A build list against each
 **Fix:** apply the exact pattern already proven in the same file for `unfiledTotalFromServer` — a cheap `limit:1`-shaped server COUNT per folder, rather than deriving counts from the client-side page. New endpoint or query param: `GET /api/j2/notes/folder-counts` returning `{folder_id: count}` in one request (avoid N+1).
 
 ### 3.3 Version history (P1-6, Stage B)
+
+⚰️ **SUPERSEDED AS A BUILD ITEM (2026-09-11) — this shipped in Wave C and is live
+in production.** Manifest §7 #2, `[m]`. **The design below is what was built** —
+`j2_note_versions`, a version row captured before overwrite, a restore that is
+itself non-destructive, and `GET /api/j2/notes/{id}/versions` for a diff-capable
+history — so read it as documentation of the shipped system, not as work to do.
+⚠️ **One prescription below was NOT followed, and the disagreement is unresolved:**
+this section specifies capping retention ("keep last 50 versions or 30 days"),
+and Wave C's own decision 10 chose **no automatic pruning — all versions kept
+indefinitely**. Wave C's decision is later and more specific and governs, but
+**nothing prunes `j2_note_versions` today** and the storage-growth item this
+paragraph was written to prevent is unowned. Manifest **S-16**.
+⭐ The `user_id`-as-a-real-column-from-day-one requirement below held: the table
+is covered by `account_purge`, which is the thing this program's own
+account-deletion incident existed to teach.
 
 **Schema (new):** `j2_note_versions(id, note_id, user_id, body_json, body_plain, title, subtitle, created_at)`, one row per save (or debounced — see performance note below), FK-shaped to `user_id` directly (a lesson from the account-deletion finding: **every new table in this program declares `user_id` as a real column from day one**, and is added to `account_purge._DIRECT_USER_TABLES` in the same commit that creates it — this is now a structural requirement, not a suggestion, given what happened when it wasn't).
 **Write path:** on `update_note`, insert a version row before overwriting, capped (e.g., keep last 50 versions or 30 days, whichever is smaller, to bound storage growth = note-count × edit-frequency × note-size).
@@ -105,6 +157,25 @@ Current quality bar, verified directly, with the Stage-A build list against each
 
 **Corrected scope for the ongoing-mention piece specifically:** build a genuine note-lifecycle-integrated detection pass (create/update/delete/restore), not just a persistence layer bolted onto one that already runs. Fast local detection only (reuse `buzz_extract`'s cashtag matcher + the local ticker-metadata cache) — never synchronous/blocking on an external provider at note-save time. Persist a minimal `note↔symbol` relationship (schema decided at implementation time — do not assume a `source='mention'` row on the embed-shaped table is the right shape without checking whether the reverse-index needs to distinguish embed-derived from prose-derived rows, or just needs deduplicated note ids). The sector/earnings/theme joins remain read-time-only, exactly as scoped above.
 
+⚰️⚰️ **SUPERSEDED (2026-09-11) — AND THIS IS A MARKER ON A CORRECTION, NOT ON THE
+ORIGINAL CLAIM.** The ⚰️ CORRECTION above (2026-09-05) is itself now out of date.
+Its sharpest sentence — *"There is no ongoing detection pass at all — not
+'detects but doesn't persist,' but 'does not run.'"* — was true when written and
+is false today. Manifest §7 #3, `[m]`: **`_sync_note_mentions` is called on
+create AND on update**, persisting to `j2_note_mentions`; the prose-mention
+entity sidecar is live (manifest §1 "Knowledge"). The corrected scope this
+paragraph prescribed — a genuine note-lifecycle-integrated pass rather than a
+persistence layer bolted onto a pass that never ran — **is what was built.**
+
+⭐ **Why both layers stay on the page.** The research-time claim ("~75% already
+shipped") was wrong in one direction; the implementation-time correction ("does
+not run at all") is now wrong in the other; the code is the only thing that was
+ever right. ⛔ **Do not delete either.** A reader who sees only the latest text
+learns a status; a reader who sees the stack learns that **this specific claim
+has been restated confidently and wrongly twice**, which is the thing worth
+knowing before restating it a third time. The manifest's §7 #3 records it as a
+case where the code overrules *both* documents.
+
 ---
 
 ## 5. Temporal Content Contract
@@ -123,6 +194,18 @@ Every financial content type declares one of four states:
 **Known live bug to fix (bundled into P0-4):** the Calendar embed's `reconstructable: true` is unconditional — correct for REFERENCE-ONLY (backward-looking review) but currently misapplied to the LIVE+ORIGINAL-SNAPSHOT case (a note captured *before* an event resolves). Fix: gate `reconstructable` on whether the captured date is in the future relative to `capturedAt`; a forward-looking capture falls back to a payload freeze of the day's row, matching every other widget's default.
 
 **The append-only fact ledger (shared prerequisite for P0-4's revision-indicator fast-follow and P1-2/P1-3):** `(ticker, metric, value, observed_at, source)`, populated whenever a SNAPSHOT-typed capture happens. Not needed to stop embeds from re-fetching (the per-embed frozen payload already does that) — needed specifically to answer "what changed since I captured this" as a queryable diff, which the thesis changelog (P1-3) and the revision-count UI both need.
+
+⚰️ **SUPERSEDED AS A BUILD ITEM (2026-09-11) — the append-only fact ledger
+SHIPPED in Wave F.** Manifest §7 #6, `[m]`: `note_facts.py`, carrying
+`observed_at` / `source_as_of` / `rights_class`, with four explicit temporal
+modes contracted in `docs/notebook/financial-temporal-semantics.md`. The thesis
+changelog (P1-3) shipped on top of it in Wave G, as designed. ⚠️ **The status
+here was "unclear", which is why the manifest had to resolve it** — an
+undecidable status in a prerequisite blocks everything that cites it, and three
+later rows in this file cite this one. ⛔ **One dependency named below never
+arrived:** `j2_verdicts` is still NOT a source of the thesis changelog —
+`thesis_changelog.py` reads content transitions, evidence, facts and trade refs,
+and the string `verdict` does not appear in it. Manifest **S-11**, open.
 
 ---
 
@@ -201,7 +284,27 @@ Given this codebase's own §11 principle ("an unexplained 'AI match' reads as un
 
 **The one real gap:** the destination registry's `targetsFor()` has zero callers outside its own test. **Fix:** wire it onto the 9 existing capture buttons as an optional picker (default stays one-click Quick Save — never force a modal on the common path). Add a comment/annotation field to the envelope. Complete the `tradeRef` attribute's wiring (schema-ready — `notes.py`/`widgetEmbedCore.js` both accept it — confirm whether any current frontend writer populates it; if not, wire `TradeDrawer`/`AddPositionModal` to set it).
 
+⚰️ **SUPERSEDED (2026-09-11) — "zero callers" is FALSE; the CODE overrules this
+document.** Manifest §7 #15, `[m]`: `CaptureMenu.jsx` calls `targetsFor()`, and
+"Send to Journal (choose where)…" ships on **7 widget headers + 2 pages**,
+alongside the one-click default exactly as prescribed. `tradeRef` +
+`tradeRefType` are wired (manifest §1 "Widgets"). ⭐ **The fix was implemented
+the way this paragraph specified** — the default stayed one-click and the picker
+is optional — which is why the paragraph reads as unfinished work rather than as
+a design that landed. ⚠️ The count moved too: 7 widgets + 2 pages, not "9
+buttons" (manifest §4 R-1). Do not plan against the 9.
+
 **Future capture sources (Stage B+):** filings, transcript excerpts, news, screener/scanner results (currently NOT among the 9 confirmed capture-door widgets, despite being used as the flagship trading-journal-moat example — wire this door explicitly, don't assume it exists). Each new source is a thin adapter into the same envelope — no architectural change needed.
+
+⭐ **NOT SUPERSEDED — this paragraph is still true and is now the charter's
+work.** The Screener/scanner capture door **still does not exist**: the widget has
+embed params and an embed renderer, and no door. It is carried as manifest
+**R-1a**, and the manifest cites this very sentence as its source — *"wire this
+door explicitly, don't assume it exists."* ⚠️ Note the reversal around it: G-040
+(Screener · COT · Model Book · Options Flow capture) was descoped by owner ruling
+2026-09-08 as `NOT SCHEDULED`, then named a MUST by the 2026-09-11 charter, which
+is later and wins (manifest §9). A reader of the 09-08 ruling alone will
+wrongly believe this is out of scope.
 
 ---
 

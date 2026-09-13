@@ -80,6 +80,34 @@ _J2_TELEMETRY_EVENTS = {
     # funnels through (sendToJournal.js::sendCaptureToJournal), covering all
     # three destinations (current note / new note / inbox) uniformly.
     "notebook_tab_visit", "notebook_capture_saved",
+    # Wave K — did this browser RECEIVE the capability flags? K-1's precondition
+    # is a config-served RATE measured by identity, and nothing recorded the
+    # numerator OR the denominator: the rig can only report on the rig. One
+    # event carries both, `served: false` being the state that matters — a pod
+    # predating K sends no keys, the client falls back to the compile-time
+    # constant, and the kill switch reaches that member not at all.
+    "notebook_config_served",
+    # Wave Q1 — the outbox drain refused to send a write with no compare-and-set
+    # (`baseUpdatedAt` missing/blank). Nine driven paths failed to reproduce the
+    # 2026-09-09 incident's `null` baseline, so it is INSTRUMENTED instead of
+    # hunted: this fires once per transition into that block, during the
+    # observation window, and zero occurrences is the flip condition that
+    # replaced "explained".
+    #
+    # ⛔ NEVER note content. The client sends ids, counters, the flag state, and
+    # an ENUMERATED description of the baseline (`null` / `empty-string` /
+    # `whitespace` / `non-string:<type>`) — never the raw value, never the patch.
+    # Railed both sides: app/.../blockedBaselineEvent.test.js pins the key set,
+    # tests/test_j2_telemetry_allowlist.py pins acceptance here.
+    "notebook_blocked_no_baseline",
+    # Wave Q1 — THE DENOMINATOR for the line above. "Zero blocked-baseline
+    # events" is not evidence unless something says how many browsers ran the
+    # offline layer at all, and with OFFLINE_DEFAULT_ON false that population
+    # may be nobody. Fires once per browser on the transition into an opted-in
+    # state (localStorage 'uct.j2.offline.enabled' becoming '1').
+    #
+    # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
+    "notebook_offline_opt_in",
 }
 
 
@@ -2736,7 +2764,12 @@ def delete_note_hero_endpoint(
     n = notes_service.update_note(user["id"], note_id, {"heroImageUrl": None})
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"ok": True}
+    # ⛔ THE NOTE COMES BACK. This route ADVANCES updated_at, so the browser that
+    # made the call must record that revision in its durable landed ring or the
+    # offline drain asks "is this server copy ours?", answers no about our own
+    # write, and forks the member's note (measured 2026-09-12). It cannot record
+    # a revision it was never told. `{"ok": True}` is not enough.
+    return {"ok": True, "note": n}
 
 
 @router.post("/notes/{note_id}/attachments")
@@ -2813,13 +2846,65 @@ def list_note_documents_endpoint(
         # (heroImageUrl/bodyJson/createdAt/...) — a raw dict(row) would leak
         # snake_case SQL column names into the one JSON shape in this file
         # that didn't go through a service-layer dict-builder.
-        return {"documents": [{
-            "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
-            "status": r["status"], "pageCount": r["page_count"],
-            "createdAt": r["created_at"], "processedAt": r["processed_at"],
-        } for r in rows]}
+        # ⭐ WAVE P1: page-level truth beside the job status (§13/§14/§15).
+        # ⛔ `status` alone cannot answer "can you read this document" —
+        # measured in P0, a mixed PDF holding [492, 0, 781] characters reported
+        # `ready`, and one unreadable page was invisible. These are counts of
+        # pages we actually have text for, so the editor can say "text
+        # available for 2 of 3 pages" instead of implying completion.
+        from api.services.journal_two import document_ocr
+        out = []
+        for r in rows:
+            st = document_ocr.document_text_state(conn, user["id"], r["id"])
+            out.append({
+                "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
+                "status": r["status"], "pageCount": r["page_count"],
+                "createdAt": r["created_at"], "processedAt": r["processed_at"],
+                "pagesTotal": st.get("pages_total", 0),
+                "pagesWithText": st.get("pages_with_text", 0),
+                "pagesFromOcr": st.get("pages_from_ocr", 0),
+                "pagesAwaitingOcr": st.get("pages_awaiting_ocr", 0),
+                # ⛔ WAVE P2 §19: pages claimed by an engine that is no longer
+                # there. Without this the surface can only say "reading…", and
+                # says it forever.
+                "ocrUnavailable": bool(st.get("ocr_unavailable")),
+                "pagesUnreadable": st.get("pages_unreadable", 0),
+                # ⛔ THE FIELD THAT MAY NOT BE ROUNDED UP. "The job finished"
+                # and "we have the whole document" are different facts (§15).
+                "textComplete": bool(st.get("text_complete")),
+            })
+        return {"documents": out}
     finally:
         conn.close()
+
+
+@router.get("/notes/documents/{document_id}/pages/{page_number}/text")
+def document_page_text_endpoint(
+    document_id: str,
+    page_number: int,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave P4 — the text UCT read from ONE page, so a member can select it.
+
+    ⛔ A SELECTION AID, NOT THE DOCUMENT. The scanned page stays the source of
+    truth; this is the derived transcript, and the surface that renders it says
+    so (§11/§13).
+
+    ⛔ NON-CONFIRMING (§41). A foreign or missing document answers 404 the same
+    way, so this cannot be used to learn that somebody else's scan exists.
+    """
+    from api.services.journal_two import document_ocr
+    out = document_ocr.page_transcript(user["id"], document_id, page_number)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "documentId": out["document_id"],
+        "pageNumber": out["page_number"],
+        "name": out["name"],
+        "textOrigin": out["text_origin"],
+        "text": out["text"],
+        "available": out["available"],
+    }
 
 
 @router.get("/notes/documents/search")
@@ -2842,6 +2927,12 @@ def search_note_documents_endpoint(
         # must never be rendered as a page).
         "sourceKind": r["source_kind"] or "attachment",
         "sourceUrl": r["source_url"],
+        # ⛔ WAVE P2 §21: PROVENANCE, NOT IDENTITY. The result is still a
+        # DOCUMENT at a real page — this only says how UCT came to hold that
+        # page's text, so a member reading a figure off a scanned filing knows
+        # to check it against the page itself. It is never a confidence score,
+        # and it never names an engine (§24).
+        "textOrigin": r["text_origin"] or "native",
     } for r in rows]}
 
 
@@ -2937,7 +3028,13 @@ def create_excerpt_endpoint(
     note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
-    return {"excerpt": excerpt}
+    # Wave Q1 (2026-09-12): ADDITIVE -- the note travels back with the excerpt.
+    # `append_document_excerpt` advanced this note's `updated_at`, and a browser
+    # cannot record a revision it was never told: without this the offline queue
+    # sees a revision it has never heard of, decides somebody else wrote it, and
+    # forks the member's note against their own excerpt capture. Every other
+    # door route already returns the note; this was the one that did not.
+    return {"excerpt": excerpt, "note": note}
 
 
 @router.get("/notes/{note_id}/evidence-candidates")
@@ -3057,10 +3154,16 @@ def delete_folder_endpoint(
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
-        ok = notes_service.delete_folder(user["id"], folder_id)
+        moved: list[dict[str, Any]] = []
+        ok = notes_service.delete_folder(user["id"], folder_id, moved_out=moved)
         if not ok:
             raise HTTPException(status_code=404, detail="Not found")
-        return {"ok": True}
+        # Wave Q1 (2026-09-12): ADDITIVE — the revisions this cascade created
+        # travel back with the result. The bulk UPDATE advanced `updated_at` on
+        # every note in the folder, and a browser cannot record a revision it was
+        # never told: without this a member with unsent offline work in any of
+        # those notes got a `(conflicted copy)` for deleting a folder.
+        return {"ok": True, "moved": moved}
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

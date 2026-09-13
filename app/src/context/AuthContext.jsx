@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
+import { latchNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 
 export const AuthContext = createContext(null)
 
@@ -12,6 +14,64 @@ export function AuthProvider({ children }) {
   const [trial, setTrial] = useState(null)
   // Whether an annual Stripe price is configured (pricing page honest copy).
   const [annualAvailable, setAnnualAvailable] = useState(false)
+  // Joystick hub preview kill switch, read per request by the backend and carried
+  // on every auth payload (see api/routers/auth.py::_access_payload).
+  // ⛔ DEFAULTS TRUE. A backend too old to send the field, or a payload that failed
+  // to parse, must not silently hide a shipped feature — only an explicit `false`
+  // from the server kills it. `=== false` below, never a truthiness test.
+  const [hubPreviewEnabled, setHubPreviewEnabled] = useState(true)
+  // Default FALSE, mirroring the server's off-by-default enablement gate:
+  // an unset flag, a failed fetch, or the pre-settle first render must all
+  // read as "not enabled" so the tab can never flash into view unreleased.
+  const [researchTechnicalTabEnabled, setResearchTechnicalTabEnabled] = useState(false)
+  // S7 filing watch. Default FALSE like the Technical tab: an enablement
+  // gate must never default to exposed while the payload is still loading.
+  const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
+  // ⛔ WAVE K KEEPS NO REACT STATE FOR THE NOTEBOOK'S FLAGS, deliberately.
+  // They are LATCHED for the life of the tab (`notebookFlags.js`), so they can
+  // never change — and a `useState` that can never change is a second copy of a
+  // value that already has one authority, which is how the two halves drift.
+  // The Notebook asks `notebookFlag()`; nothing re-renders on a flag.
+
+  /**
+   * ⛔⛔ ONE MAP, FOUR PATHS. Every server-served flag is applied here and only
+   * here: the initial `/api/auth/me` (and every `refetch` through it), login,
+   * the TOTP second factor, and signup.
+   *
+   * ⚰️ This said "signup, login, refresh and the initial /api/auth/me" — wrong
+   * twice, and a comment naming a mechanism is a claim about a run. `refetch` IS
+   * the /me path, so that list double-counted one seat and omitted the real
+   * fourth, the second factor. An auditor would have hunted a "refresh" seat
+   * that does not exist and left `verifyTotp` unexamined.
+   *
+   * ⚰️ It was four hand-copied blocks of three lines. Adding Wave K's flags
+   * would have made it four blocks of SEVEN — and the failure mode of that
+   * shape is silent: a flag wired into three paths and missed in the fourth
+   * works everywhere except the one entry point nobody tested, which is
+   * typically signup. `K-R10` asserts every flag reaches all four paths.
+   *
+   * ⛔ EACH TEST IS WRITTEN OUT, not generalised to truthiness. `!== false` and
+   * `=== true` are DIFFERENT DEFAULTS on purpose (kill switch vs enablement
+   * gate) and collapsing them to `!!` would silently flip a polarity —
+   * `lesson_chosen_with_nullish_consumed_with_truthiness`.
+   */
+  const SERVER_FLAGS = [
+    ['hub_preview_enabled', (d) => d.hub_preview_enabled !== false, setHubPreviewEnabled],
+    ['research_technical_tab_enabled', (d) => d.research_technical_tab_enabled === true, setResearchTechnicalTabEnabled],
+    ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
+  ]
+
+  const applyServerFlags = (data) => {
+    for (const [, read, set] of SERVER_FLAGS) set(read(data || {}))
+    // ⛔ The Notebook LATCHES its own answer for the life of the tab (K-R9).
+    // This call is what feeds the latch; the latch decides whether to take it.
+    latchNotebookFlags({
+      notebook_offline_default_on: (data || {}).notebook_offline_default_on,
+      notebook_offline_read_on: (data || {}).notebook_offline_read_on,
+      notebook_conflict_ux_on: (data || {}).notebook_conflict_ux_on,
+      notebook_attachments_on: (data || {}).notebook_attachments_on,
+    })
+  }
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
   // (5xx, or the fetch itself threw) must never read as "logged out" — only a
@@ -26,6 +86,14 @@ export function AuthProvider({ children }) {
   // closure, so the ref tracks the last committed value instead.
   const userRef = useRef(null)
   useEffect(() => { userRef.current = user }, [user])
+  // ⛔⛔ THE SINGLE WRITER of the out-of-React account id. Six client call sites
+  // advance a note's server revision and must record it in the durable landed
+  // ring or the drain forks the member's note (measured 2026-09-12); two of them
+  // are plain lib functions that cannot call a hook. This is the ONE place the
+  // signed-in user is established, so it is the one place that publishes it.
+  // ⛔ Clearing on sign-out is not optional: a stale id points a write at the
+  // PREVIOUS member's IndexedDB store.
+  useEffect(() => { setCurrentAccountId(user?.id ?? null) }, [user])
 
   const fetchUser = useCallback(async () => {
     // The backend did not ANSWER (>=500, or fetch threw). Distinct from a
@@ -49,6 +117,7 @@ export function AuthProvider({ children }) {
         setSubscription(data.subscription || null)
         setTrial(data.trial || null)
         setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+        applyServerFlags(data)
         setAuthTransient(false)
         return { plan: data.plan, role: data.user?.role }
       } else if (res.status >= 500) {
@@ -90,6 +159,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    applyServerFlags(data)
     return data
   }
 
@@ -112,6 +182,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    applyServerFlags(data)
     return data
   }
 
@@ -132,6 +203,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    applyServerFlags(data)
     return data
   }
 
@@ -173,7 +245,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, s7FilingWatchEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

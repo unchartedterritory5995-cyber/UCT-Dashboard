@@ -283,3 +283,54 @@ describe('follow-up history', () => {
     expect(body.history[0].q).toBe('margins?')
   })
 })
+
+// ⛔ WAVE P3 §35/§36 — a citation whose words were READ OFF AN IMAGE says so,
+// quietly, and says it to a screen reader too.
+describe('scanned-text provenance on a citation', () => {
+  const PAGE = {
+    n: 1, type: 'document_page', label: 'q3-filing.pdf · p.4', citation: 'page_only',
+    snippet: 'revenue of $12.48 billion',
+    navigation: { kind: 'document', document_id: 'd1', page_number: 4 },
+    location: { document_id: 'd1', page_number: 4 },
+    payload: {}, stance: null, truncated: false,
+  }
+  const answer = [
+    { type: 'delta', text: 'Revenue was $12.48 billion [1].' },
+    { type: 'final', answer: 'Revenue was $12.48 billion [1].', cited: [1], invalidCitations: [] },
+  ]
+
+  it('marks a citation read from a scan', async () => {
+    await ask({}, [head({ sources: [{ ...PAGE, textOrigin: 'ocr' }] }), ...answer])
+    expect(screen.getByTestId('ask-sources').textContent).toContain('Scanned text')
+  })
+
+  it('leaves a natively extracted citation unmarked', async () => {
+    await ask({}, [head({ sources: [{ ...PAGE, textOrigin: 'native' }] }), ...answer])
+    expect(screen.getByTestId('ask-sources').textContent).not.toContain('Scanned text')
+  })
+
+  it('says nothing when the server sent no provenance at all', async () => {
+    await ask({}, [head({ sources: [PAGE] }), ...answer])
+    expect(screen.getByTestId('ask-sources').textContent).not.toContain('Scanned text')
+  })
+
+  it('tells a screen reader, not just a hover tooltip', async () => {
+    // ⛔ §36 — a title attribute is hover-only and a chip is a glyph to a
+    // screen reader. The accessible name has to carry it.
+    await ask({}, [head({ sources: [{ ...PAGE, textOrigin: 'ocr' }] }), ...answer])
+    expect(screen.getByRole('button', { name: /Open source 1: q3-filing\.pdf · p\.4, Scanned text/ }))
+      .toBeInTheDocument()
+  })
+
+  it('still cites the document at its page, and still navigates there', async () => {
+    // §11/§12 — provenance never replaces source identity or its destination.
+    const onNavigate = vi.fn()
+    await ask({ onNavigate }, [head({ sources: [{ ...PAGE, textOrigin: 'ocr' }] }), ...answer])
+    const row = screen.getByRole('button', { name: /Open source 1/ })
+    expect(row.textContent).toContain('q3-filing.pdf · p.4')
+    fireEvent.click(row)
+    expect(onNavigate).toHaveBeenCalled()
+    expect(onNavigate.mock.calls[0][0].navigation)
+      .toEqual({ kind: 'document', document_id: 'd1', page_number: 4 })
+  })
+})

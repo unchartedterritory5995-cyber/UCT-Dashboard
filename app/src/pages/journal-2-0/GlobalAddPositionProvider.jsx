@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { settleNoteWrite } from './lib/offline/settleNoteWrite'
 import useSWR, { useSWRConfig } from 'swr'
 import { useAuth } from '../../context/AuthContext'
 import { useFlagged } from '../../hooks/useFlagged'
@@ -160,9 +161,16 @@ export default function GlobalAddPositionProvider() {
         try {
           const fd = new FormData()
           fd.append('file', heroBlob, `${ticker || 'chart'}-${today}.png`)
-          await fetch(`/api/j2/notes/${noteId}/hero`, {
+          const heroRes = await fetch(`/api/j2/notes/${noteId}/hero`, {
             method: 'POST', credentials: 'include', body: fd,
           })
+          // ⛔ Same door as HeroImagePicker, reached from position creation.
+          // ⛔ GATED ON `ok` LIKE EVERY OTHER DOOR. A failed upload advanced
+          // nothing, so there is no revision to land — `settleNoteWrite` would
+          // correctly record nothing either way, but a door that reads
+          // differently from its thirteen siblings is the one a later reader
+          // copies wrongly.
+          if (heroRes.ok) await settleNoteWrite(noteId, heroRes)
         } catch (e) {
           console.warn('hero upload failed', e)
         }

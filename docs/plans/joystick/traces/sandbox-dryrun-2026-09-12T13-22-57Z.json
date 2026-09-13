@@ -1,0 +1,28 @@
+{
+  "trace": "uct-joystick-g0",
+  "schema": 1,
+  "capturedAt": "2026-09-12T13:24:46.827Z",
+  "constants": {
+    "FLICK_MS": 120,
+    "TRAVEL_PX": 24,
+    "OPEN_AT_RATIO": 0.4166666666666667
+  },
+  "device": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+    "maxTouchPoints": 1,
+    "devicePixelRatio": 3,
+    "screenWidth": 393,
+    "screenHeight": 852,
+    "innerWidth": 393,
+    "innerHeight": 852
+  },
+  "window": {
+    "capacity": 500,
+    "recorded": 0,
+    "kept": 0,
+    "dropped": 0,
+    "firstSeq": null,
+    "lastSeq": null
+  },
+  "rows": []
+}

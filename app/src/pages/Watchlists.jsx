@@ -73,6 +73,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
+import { enter as enterReview, publish as publishReview } from './charts/review/reviewSession'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
@@ -642,7 +643,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -2025,8 +2026,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Handlers that read mutable render state reach it through a ref, so the callback identity
   // never changes even as the underlying value does. ──
   const rowStateRef = useRef({})
-  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists, setAttnPopover }
-  const onRowSelect = useCallback((sym) => { clickSelectRef.current = sym; setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
+  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists, setAttnPopover, visibleSymsFlat }
+  /* ⭐ WHERE A REVIEW IS BORN. Picking a row publishes the ordered set ALONGSIDE
+   * the symbol, so the chart inherits the context instead of receiving one
+   * ticker and losing the list. `visibleSymsFlat` is passed as-is — it is
+   * already deduped and in VISUAL order across Flagged, the tag auto-lists and
+   * user lists, and re-deriving that ordering here is how the phone and the
+   * desktop would start disagreeing about what "next" means.
+   * ⛔ Best-effort: a failure to open a review must never stop a chart opening. */
+  const onRowSelect = useCallback((sym) => {
+    clickSelectRef.current = sym
+    setSelectedSym(sym)
+    rowStateRef.current.setHubSym(sym)
+    try {
+      const flat = rowStateRef.current.visibleSymsFlat || []
+      publishReview(enterReview({
+        source: 'watchlist',
+        label: 'Watchlist',
+        symbols: flat,
+        symbol: sym,
+      }))
+    } catch { /* a review is a convenience; the chart is not */ }
+  }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
   const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
@@ -2506,6 +2527,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   aria-label="Add a symbol"
                 ><UIcon name="plus" size={15} /></button>
               )}
+              {/* Host-supplied header actions for a SCAN (Wave R R-1a: the Scanner's
+                  send-to-Journal door). The node is built by the host that owns the
+                  scan's data (ScannerResults) — this page only gives it a home in the
+                  same action row as ⚙ and the criteria popover, which is where the
+                  other nine capture doors live (a header/tab row, not a footer). */}
+              {scanMode && scanActions}
               {/* Scan criteria — a read-only popover listing what the preset filters on. */}
               {scanMode && scanCriteria && scanCriteria.length > 0 && (
                 <div ref={filterWrapRef} style={{ position: 'relative', display: 'flex' }}>

@@ -1,0 +1,118 @@
+{
+ "probeVersion": "1.0.0",
+ "runId": "mtu8qkji-n7ptna",
+ "startedAt": "2026-09-09T15:15:59.742Z",
+ "env": {
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "platform": "Win32",
+  "vendor": "Google Inc.",
+  "language": "en-US",
+  "origin": "https://uctintelligence.com",
+  "isSecureContext": true,
+  "cookieEnabled": true,
+  "onLine": true,
+  "hardwareConcurrency": 24,
+  "screen": "1280x720@1",
+  "standalone": false
+ },
+ "carryover": {
+  "checked": true,
+  "found": false
+ },
+ "storage": {
+  "estimateSupported": true,
+  "quotaBytes": 2197412683,
+  "usageBytes": 1757,
+  "quotaMB": 2095.6,
+  "usageMB": 0,
+  "persistSupported": true,
+  "persistedBefore": false,
+  "persistResult": false,
+  "persistedAfter": false
+ },
+ "idb": {
+  "available": true,
+  "opened": true,
+  "openMs": 0.2,
+  "storesCreated": [
+   "notes",
+   "outbox"
+  ],
+  "atomicWriteMs": 0.5,
+  "wrote": true,
+  "readBackSameSession": true
+ },
+ "reload": {
+  "tested": true,
+  "noteSurvived": true,
+  "bodyIntact": true,
+  "outboxSurvived": true,
+  "outboxEntryNotPermanent": true
+ },
+ "webLocks": {
+  "present": true,
+  "exclusiveAcquired": true,
+  "grantCallbackDelayMs": 0.4,
+  "secondContenderRefusedWhileHeld": true,
+  "queuedWaitedWhileHeld": true,
+  "queuedGrantedAfterRelease": true,
+  "querySupported": true,
+  "stillHeldAfterRelease": 0
+ },
+ "versionchange": {
+  "withHandler": {
+   "upgraded": true,
+   "oldConnectionGotVersionChange": true,
+   "blockedEventFired": false,
+   "ms": 0.4
+  },
+  "withoutHandler": {
+   "upgraded": false,
+   "timedOut": true,
+   "blockedEventFired": true,
+   "ms": 2506
+  },
+  "handlerIsLoadBearing": true
+ },
+ "drain": {
+  "queuedWorkPresent": true,
+  "stillRetryable": true,
+  "leadershipObtainable": true,
+  "eligible": true
+ },
+ "verdict": {
+  "indexedDbUsable": true,
+  "durableAcrossReload": true,
+  "webLocksUsable": true,
+  "versionchangeSafe": true,
+  "drainPossible": true,
+  "classification": "DURABLE_OFFLINE_SUPPORTED"
+ },
+ "cleanup": {
+  "attempted": [
+   "uct_q1_browser_probe_mtu8qkji-n7ptna",
+   "uct_q1_browser_probe_vc_with_mtu8qkji-n7ptna",
+   "uct_q1_browser_probe_vc_without_mtu8qkji-n7ptna"
+  ],
+  "results": {
+   "uct_q1_browser_probe_mtu8qkji-n7ptna": "deleted",
+   "uct_q1_browser_probe_vc_with_mtu8qkji-n7ptna": "deleted",
+   "uct_q1_browser_probe_vc_without_mtu8qkji-n7ptna": "deleted"
+  },
+  "carryoverWritten": true
+ },
+ "finishedAt": "2026-09-09T15:16:03.091Z",
+ "_runner": {
+  "label": "chromium-incognito",
+  "engine": "chromium",
+  "mode": "incognito",
+  "playwrightBrowserVersion": "persistent-context",
+  "url": "https://uctintelligence.com/q1-probe.html",
+  "userDataDir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\q1-incognito-_w6akci3"
+ },
+ "privateContext": {
+  "secondLaunchFoundCarryover": false,
+  "confirmedPrivate": true,
+  "note": "an ordinary profile keeps its carryover across launches; a private session cannot. confirmedPrivate=false means this run measured an ORDINARY profile and must NOT be read as private-mode evidence."
+ }
+}

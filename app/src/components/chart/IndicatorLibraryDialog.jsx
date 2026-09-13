@@ -68,8 +68,14 @@ import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
+  BUILT_IN_ROWS,
 } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
+// The blob-shape readers for the two BUILT-IN rows. They are not instances and
+// not settings slices, so `instanceControls` cannot answer for them — see
+// `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
+// flag rather than a splice.
+import { liveOverlays, isVolumeRemoved, isOverlayRemoved, newOverlay } from './chartDefaults'
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
@@ -89,8 +95,17 @@ export function matches(row, q) {
 }
 
 /** Is this indicator on? Through the ONE reader for an engine row; through the
- *  settings slice for the carved-out one, which has no instance to read. */
+ *  settings slice for the carved-out one, which has no instance to read; and
+ *  through the blob's own shape for the two BUILT-IN rows, which are neither.
+ *
+ *  ⭐ THE `builtIn` BRANCH IS WHAT MAKES A MOVING AVERAGE FINDABLE. `cs.overlays`
+ *  is a positional ARRAY and `cs.volume` is a SECTION — neither is an instance
+ *  and neither is `cs.indicators.<id>`, so both older branches answer `false` for
+ *  them forever, which is precisely why the catalogue used to say "no indicator
+ *  matches 'moving average'" over a chart drawing four of them. */
 export function isRowOn(row, settings) {
+  if (row.builtIn === 'overlay') return liveOverlays(settings).length > 0
+  if (row.builtIn === 'volume') return !isVolumeRemoved(settings)
   return row.carvedOut
     ? settings?.indicators?.[row.id]?.enabled === true
     : isIndicatorEnabled(settings, row.id, ENGINE_OWNED)
@@ -103,6 +118,40 @@ export function isRowOn(row, settings) {
  *  BY IDENTITY so callers can skip persisting a no-op. */
 export function toggledRow(row, settings, registry) {
   const on = isRowOn(row, settings)
+  // ⭐ THE BUILT-IN ROWS: a moving average and the volume pane.
+  //
+  // ⛔ ADD-BACK PREFERS A TOMBSTONE OVER A NEW SLOT, and that is the member's
+  // work being handed back to them rather than replaced. Removing EMA 9 leaves
+  // its slot in place carrying `removed: true` (see `chartDefaults`'s
+  // `isOverlayRemoved` for why a splice is unsafe), so the colour, the period and
+  // the line width they set are all still there — reviving the tombstone gives
+  // them the EMA 9 they had, not a fresh SMA 50 they have to configure again.
+  // Only when nothing is tombstoned does this mint a new overlay, appended to the
+  // END (the merge reads `.concat(parsed.overlays.slice(4))`, and the array's own
+  // comment says new slots go on the end).
+  //
+  // ⛔ THE OVERLAY ROW IS ADD-ONLY, AND `on` IS DELIBERATELY NOT CONSULTED. A
+  // chart holds MANY moving averages, so there is no single thing for "off" to
+  // mean: the honest readings are "delete every moving average I have" — which no
+  // one click should mean — or "delete the last one", which is a rule nobody can
+  // predict. Removal of a SPECIFIC moving average already has a precise door: the
+  // ✕ on its own row in the active list, which names the one you are looking at.
+  if (row.builtIn === 'overlay') {
+    const list = Array.isArray(settings?.overlays) ? settings.overlays : []
+    const revive = list.findIndex(isOverlayRemoved)
+    const overlays = revive >= 0
+      ? list.map((o, i) => (i === revive ? { ...o, removed: false, enabled: true } : o))
+      : [...list, newOverlay(list.length)]
+    return { ...settings, overlays }
+  }
+  // ⛔ THE VOLUME PANE FLIPS `removed`, NEVER `visible`. `visible` is the hide
+  // toggle the member already has on the row and in three other menus; writing it
+  // from the CATALOGUE would make "add volume back" silently un-hide a pane they
+  // had deliberately hidden, and would make the catalogue and the row's own
+  // switch two controls over one fact.
+  if (row.builtIn === 'volume') {
+    return { ...settings, volume: { ...(settings?.volume || {}), removed: on } }
+  }
   if (row.carvedOut) {
     return {
       ...settings,
@@ -212,8 +261,13 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // Member's formulas LAST, so their section heading lands at the bottom of the
   // list rather than wherever an alphabet would have put it, and so the shipped
   // rows a user is pre-trained on keep the positions they have always had.
+  // ⭐ `BUILT_IN_ROWS` FIRST — the moving averages and the volume pane, which are
+  // neither definitions nor settings slices and so appeared in NO catalogue until
+  // now. They are unioned HERE rather than inside `catalogRows()` for the reason
+  // written beside them: that function is the shipped DEFINITION manifest and two
+  // railed consumers assert against it id-for-id.
   const all = useMemo(
-    () => [...catalogRows(registry), ...userCatalogRows(registry)],
+    () => [...BUILT_IN_ROWS, ...catalogRows(registry), ...userCatalogRows(registry)],
     [registry, generation],
   )
   const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
@@ -270,7 +324,14 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
    * it says. */
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
-    const next = addInstance(settings, row.id, registry)
+    // ⛔ A BUILT-IN ROW HAS NO DEFINITION TO INSTANTIATE, so `addInstance` would
+    // return the settings BY IDENTITY and the ＋ would be a live control that
+    // writes nowhere. `toggledRow`'s overlay branch is what means "another moving
+    // average" — it revives a tombstone or appends a slot — so the two doors
+    // share one writer here exactly as they do everywhere else.
+    const next = row.builtIn
+      ? toggledRow(row, settings, registry)
+      : addInstance(settings, row.id, registry)
     if (next !== settings) onChange?.({ ...next, preset: 'custom' })
   }, [settings, onChange, registry])
 
@@ -383,7 +444,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                         live control that writes nowhere — the exact defect this
                         phase retires. A second volume profile is not a thing the
                         canvas overlay can draw anyway. */}
-                    {on && !row.carvedOut && (
+                    {on && !row.carvedOut && !row.singleton && (
                       <button
                         type="button"
                         className={styles.addAnother}

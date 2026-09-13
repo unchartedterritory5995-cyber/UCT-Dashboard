@@ -70,6 +70,33 @@ COVERAGE_METADATA_ONLY = "metadata_only"       # title/URL/domain only; no body 
 
 COVERAGES = frozenset({COVERAGE_COMPLETE, COVERAGE_PASSAGE_ONLY, COVERAGE_METADATA_ONLY})
 
+# ── Wave P3 · HOW UCT CAME TO HOLD THIS TEXT ────────────────────────────────
+#
+# ⛔⛔ PROVENANCE IS NOT IDENTITY. A page whose words were read off a scan is
+# still a DOCUMENT_PAGE — there is deliberately NO `OCR_CHUNK` source type, no
+# second source object and no separate lineage. `source_type` answers "what is
+# this"; `text_origin` answers "how did we come to have its words", and the two
+# must never be collapsed the way a confident system collapses identity and
+# location.
+#
+# ⛔ AND IT IS NOT CORROBORATION. Native page + OCR representation + an excerpt
+# saved from it are ONE source with several records (see the lineage note
+# above); nothing here may raise the number of sources an answer claims.
+#
+# ⛔ IT TRAVELS WITH THE EVIDENCE, like `coverage`, rather than living in
+# `payload` — payload is serialized into the prompt as typed structure, and the
+# word "ocr" is engine vocabulary that has no business in the model's context
+# or in a member's citation (§11/§24). Consumers decide what to do with it.
+#
+# The vocabulary itself is owned by the page schema; import it rather than
+# retyping the strings, so a third spelling can never appear.
+from api.services.journal_two.document_ocr import (  # noqa: E402
+    ORIGIN_NATIVE, ORIGIN_OCR,
+)
+
+TEXT_ORIGIN_WEB = "web_passage"
+TEXT_ORIGINS = frozenset({ORIGIN_NATIVE, ORIGIN_OCR, TEXT_ORIGIN_WEB})
+
 #: capture_type -> what a reader may claim. Absent capture_type means a
 #: pre-Wave-L PDF row, whose extracted text IS the document.
 _COVERAGE_BY_CAPTURE = {
@@ -183,6 +210,7 @@ def make_evidence(
     rights: dict[str, Any] | None = None,
     stance: str | None = None,
     coverage: str = COVERAGE_COMPLETE,
+    text_origin: str = ORIGIN_NATIVE,
     curation: int = 0,
     score: float = 0.0,
     corroborates: bool = True,
@@ -199,6 +227,8 @@ def make_evidence(
         raise ValueError(f"unknown source_type {source_type!r}")
     if coverage not in COVERAGES:
         raise ValueError(f"unknown coverage {coverage!r}")
+    if text_origin not in TEXT_ORIGINS:
+        raise ValueError(f"unknown text_origin {text_origin!r}")
     return {
         # identity -- survives edits
         "source_type": source_type,
@@ -222,6 +252,10 @@ def make_evidence(
         # ignores it can over-claim; a consumer that never receives it cannot
         # even try to be truthful.
         "coverage": coverage,
+        # ⛔ WAVE P3 §13/§15 — how we came to hold these words. Metadata for the
+        # citation indicator and for debugging; NEVER a source, a score, or a
+        # ranking input.
+        "text_origin": text_origin,
         # ⛔⛔ WAVE O6 §15 — MAY THIS ITEM RAISE THE NUMBER OF SOURCES AN ANSWER
         # CLAIMS? For everything retrieved before this wave: yes, unchanged.
         # For a member's own review of their thesis: NO. A review discussing the
@@ -261,16 +295,33 @@ def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, An
 
     Lineage is the PAGE, not this row -- an excerpt saved from the same page
     must collide with it.
+
+    ⛔⛔ `text_origin` IS DEMANDED, NOT DEFAULTED (Wave P3 §13/§14). Four
+    separate retrieval queries build this evidence -- Notebook, Ask Document,
+    Current Note and Security Research -- each with its own SQL. A default here
+    would let any one of them silently forget to select the column and report
+    every scanned page as natively extracted, which is precisely the Wave N
+    defect: a correct branch that production SQL never fed. Missing the key
+    raises where a test can see it, rather than lying where a member can.
     """
     return make_evidence(
+        text_origin=row["text_origin"],
         source_type=DOCUMENT_PAGE,
         source_id=f"{row['document_id']}#p{row['page_number']}",
         user_id=row["user_id"],
         label=passage_label(row, row["page_number"]),
         text=snippet,
         location={"document_id": row["document_id"], "page_number": row["page_number"]},
+        # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+        # lives inside a note, and Ask Notebook / Ask Security Research both
+        # span notes, so a citation that names only the document cannot be
+        # opened from them. `note_id` is optional rather than demanded: a host
+        # that already knows the note (the editor asking about ITS note) can
+        # supply it, and a missing one degrades to "open the note I am in"
+        # rather than to a confident jump into the wrong one.
         navigation={"kind": "document", "document_id": row["document_id"],
-                    "page_number": row["page_number"]},
+                    "page_number": row["page_number"],
+                    **({"note_id": row["note_id"]} if row.get("note_id") else {})},
         citation_validity=CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
         coverage=coverage_for_row(row),

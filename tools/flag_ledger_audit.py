@@ -10,6 +10,37 @@ This is the half that looks. It shells out to the Railway CLI rather than
 importing anything, runs read-only (`railway variables --kv` does NOT redeploy;
 `--set` does), and prints names, never counts.
 
+⛔⛔ **WHAT `0 / 0 / 0 / 0` ACTUALLY COVERS — READ THIS BEFORE QUOTING IT.**
+Recorded 2026-09-13 as **F-FLAG-1**, from an in-pod measurement; the behaviour
+below is DELIBERATELY unchanged.
+
+All four questions this tool asks are about **PRESENCE**, never about VALUE:
+
+    is it ARMED here but set by NO service?          -> fiction
+    is it OFF here but SET on some service?          -> undocumented decision
+    is it off-by-default and UNDECLARED?             -> the suite should be red
+    is it still awaiting a decision?                 -> pending
+
+⛔ **NONE of them is "is it ON where the ledger says it is?"** For a flag whose
+`where` lists two services, *"some service sets it"* is satisfied by the service
+where it is ON, and the service where it is OFF is never examined.
+
+⚰️ **MEASURED CONSEQUENCE:** this tool reports a clean **0/0/0/0** while FIVE
+flags declared `armed` with `web` in `where` read `'0'` in the live web process —
+`MASSIVE_WS_ENABLED`, `FLOW_BACKUP_ENABLED`, `FLOW_GAP_AUTOFILL_ENABLED` (all
+three deliberately `0` on web under the P5 flow-worker cutover),
+`DESK_SESSION_DISCORD_RECAP_ENABLED` and `J2_SHARE_LINKS_ENABLED` (unexplained).
+
+⭐ **The point is not the three that are fine — it is that this tool cannot tell
+them apart from the two that may not be.** A clean run here means *"the ledger
+and Railway agree about which flags EXIST"*, and nothing at all about whether a
+feature is on where a reader would believe it is.
+
+⚠️ Widening it to per-service VALUES needs a ruling on what `where` means —
+*"the variable exists here"* or *"the feature is ON here"*. Today it is read as
+the second and implemented as the first. **That question belongs to the flow
+workstream**, which owns the three cutover flags; it is not changed here.
+
     py tools/flag_ledger_audit.py                 # all three services
     py tools/flag_ledger_audit.py --json          # machine-readable
 
@@ -51,7 +82,14 @@ def _services() -> tuple[str, ...]:
             "the `railway` CLI is not on PATH — cannot enumerate services")
     try:
         r = subprocess.run([exe, "status", "--json"],
-                           capture_output=True, text=True, timeout=90, check=False)
+                           capture_output=True, text=True, timeout=90, check=False,
+                           # The Railway CLI emits UTF-8 (box-drawing, arrows).
+                           # Python on Windows decodes a pipe as cp1252 by
+                           # default and dies on the first such byte -- which
+                           # made this auditor unusable on the only machine
+                           # that runs it, and the failure surfaced as "could
+                           # not enumerate the services", not as an encoding bug.
+                           encoding="utf-8", errors="replace")
         edges = json.loads(r.stdout)["services"]["edges"]
         names = tuple(sorted(e["node"]["name"] for e in edges))
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as e:
@@ -83,6 +121,13 @@ def _vars_for(service: str) -> set[str]:
         r = subprocess.run(
             [exe, "variables", "--service", service, "--kv"],
             capture_output=True, text=True, timeout=90, check=False,
+                           # The Railway CLI emits UTF-8 (box-drawing, arrows).
+                           # Python on Windows decodes a pipe as cp1252 by
+                           # default and dies on the first such byte -- which
+                           # made this auditor unusable on the only machine
+                           # that runs it, and the failure surfaced as "could
+                           # not enumerate the services", not as an encoding bug.
+                           encoding="utf-8", errors="replace",
         )
     except (OSError, subprocess.SubprocessError) as e:
         raise RailwayUnavailable(f"reading {service}: {e}") from e

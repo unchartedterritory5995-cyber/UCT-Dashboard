@@ -1,0 +1,144 @@
+/* Review transport control — three candidate shapes, one geometry contract.
+ *
+ * ⛔ ANCHORED LOWER-LEFT IN ALL THREE. The right edge is the price scale and the
+ * newest bars; the left edge is the oldest. Same argument as the landscape rail,
+ * and it must stay true in both orientations.
+ *
+ * ⛔ SAFE AREAS ARE NOT DECORATION. `env(safe-area-inset-*)` keeps the control
+ * off the home indicator in portrait and off the notch side in landscape. A
+ * transport control the thumb cannot reach is worse than none, because the user
+ * still pays the visual cost.
+ */
+
+.root {
+  position: absolute;
+  z-index: 5;                       /* over the chart, under the drawing bar (40) */
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 26px;
+  background: color-mix(in srgb, var(--bg-surface, #0f1216) 88%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  /* The control fades when idle; it must never be display:none, or it would
+     MOVE the moment it reappears and muscle memory would be worthless. */
+  opacity: 1;
+  transition: opacity 160ms ease-out;
+  /* Nothing here should ever start a chart pan or a text selection. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.dimmed { opacity: 0.34; }
+
+@media (prefers-reduced-motion: reduce) {
+  .root { transition: none; }
+}
+
+/* ── A · vertical rail ────────────────────────────────────────────────────── */
+.rail {
+  flex-direction: column;
+  left: max(8px, env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  width: calc(var(--tap-min, 44px) + 8px);
+}
+
+/* ── B · horizontal pill ──────────────────────────────────────────────────── */
+.pill {
+  flex-direction: row;
+  left: max(8px, env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── B-right · the SAME pill, mirrored to the right thumb ─────────────────
+ * ⛔ THE ONLY DIFFERENCE IS THE ANCHOR. Same controls, same order, same
+ * dimensions — because the question hardware has to answer is reach versus
+ * obstruction, and any second variable would make the comparison unreadable.
+ *
+ * ⚠️ It sits ABOVE the price axis rather than beside it: the axis owns the full
+ * right edge, so the mirrored pill is inset by the axis width. That inset is the
+ * cost being measured — if it pushes the control back off the thumb, right-hand
+ * anchoring buys nothing. */
+.pillRight {
+  flex-direction: row;
+  right: calc(max(8px, env(safe-area-inset-right, 0px)) + 64px);
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: auto;
+}
+
+/* ── C · compact edge control ─────────────────────────────────────────────── */
+.edge {
+  flex-direction: row;
+  left: max(4px, env(safe-area-inset-left, 0px));
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  gap: 0;
+  padding: 2px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-surface, #0f1216) 72%, transparent);
+}
+
+/* ── the controls themselves ──────────────────────────────────────────────── */
+.btn,
+.pos {
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--text, #e8e4d8);
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pos {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;   /* 9/47 → 10/47 must not shift the arrows */
+  letter-spacing: 0.2px;
+  color: var(--ut-gold, #c9a84c);
+  padding: 0 6px;
+  min-width: 0;
+}
+
+/* ⛔ A DISABLED END IS VISIBLE, NOT JUST INERT. Without a wrap policy the user
+   has to be able to SEE that a scan is finished; an unchanged button that simply
+   stops working reads as a bug. */
+.btn:disabled {
+  color: var(--text-muted, #6b7280);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn:active:not(:disabled) { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 18%, transparent); }
+
+/* The compact variant trades height for chart area; it keeps a 44px TOUCH box
+   via padding even though it paints smaller. */
+.edge .btn { min-height: 40px; min-width: 40px; font-size: 15px; }
+.edge .pos { font-size: 11px; }
+
+/* ── landscape ────────────────────────────────────────────────────────────── */
+/* In landscape height is the scarce axis and the toolbar has become a left rail
+   (MOB-06′ landscape mode), so the transport moves inboard of it rather than
+   fighting it for the same edge. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  .rail,
+  .pill,
+  .edge {
+    left: calc(max(8px, env(safe-area-inset-left, 0px)) + 60px);
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .pillRight {
+    right: calc(max(8px, env(safe-area-inset-right, 0px)) + 64px);
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: auto;
+  }
+  .rail { flex-direction: row; width: auto; }   /* height is scarce; go wide */
+}

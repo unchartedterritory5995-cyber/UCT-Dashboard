@@ -31,6 +31,7 @@ import re
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from api.bars_auth import require_bars_access
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import breadth_monitor as svc
 from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
@@ -448,10 +449,18 @@ def purge_breadth_ohlc_reconstructed(request: Request):
 
 
 @router.get("/api/breadth-symbols")
-def get_breadth_symbols():
-    """Public catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart
-    UI can recognize them (daily-only, no live quote, breadth watermark) and group
-    them. No auth — the charts they power are free-tier, and this is only metadata."""
+def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
+    """Catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart UI can
+    recognize them (daily-only, no live quote, breadth watermark) and group them.
+
+    🔴 THIS SAID "No auth — the charts they power are free-tier, and this is
+    only metadata", and BOTH HALVES had stopped being true. Charts have been paid
+    since the 2026-07-19 free-tier decision (`AuthGuard.jsx`: only Morning Wire is
+    free), and "only metadata" is what made it the ENUMERATION half of a two-step:
+    an anonymous caller reads all 44 proprietary symbol names here, then reads
+    their full history from `/api/bars/{sym}`. Naming the product's own breadth
+    measures is not a lesser disclosure when the data behind them is what is sold.
+    """
     from api.services import breadth_symbols as bs
     return {
         "symbols": bs.list_breadth_symbols(),
@@ -474,6 +483,22 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     year list) and `next_date` (the session after the top row — its ▶ step).
     """
     anchor = anchor if anchor in ("le", "ge") else "le"
+    # ⛔ THIS FUNCTION IS ALSO CALLED DIRECTLY AS A PYTHON FUNCTION, NOT ONLY
+    # THROUGH FASTAPI. `api/main.py`'s boot warm task calls
+    # `get_breadth_history(days=90)`, which bypasses the request pipeline — so
+    # any parameter left at its default holds a `Query(...)` SENTINEL OBJECT
+    # rather than a value. `anchor` survived that because the line above
+    # happens to reject anything outside ("le", "ge"); `end` did not, because
+    # `end or None` sees a Query instance as TRUTHY and passes the sentinel
+    # straight through to a `<` comparison against a date string:
+    #   TypeError: '<' not supported between instances of 'Query' and 'str'
+    # The warm task is wrapped in try/except, so this never broke a request —
+    # it silently meant the breadth-history cache was NEVER pre-warmed, and the
+    # first real request after every deploy paid full cold compute.
+    # (Recorded as Seam 27. That entry blames `anchor`; the measurement says
+    # `end` and `days`. Normalise both the same way `anchor` already is.)
+    days = days if isinstance(days, int) else 90
+    end = end if isinstance(end, str) else ""
     # Request-driven self-heal (cooldown-gated, background): any Monitor view
     # re-checks the newest days so a corrupt collection the scheduled passes missed
     # (or ran too early to fix) gets healed from bars promptly.

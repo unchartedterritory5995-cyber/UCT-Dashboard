@@ -1,0 +1,45 @@
+{
+  "label": "EMULATED - NOT DEVICE EVIDENCE",
+  "at": "2026-09-10T08:35:47",
+  "base": "http://127.0.0.1:8077",
+  "viewport": "393x852 has_touch is_mobile device_scale_factor 3",
+  "route": "/morning-wire",
+  "rows": [
+    {
+      "engine": "chromium",
+      "row": "A \u2014 hub mounted, visualViewport present",
+      "E1_visible_nothing_focused": true,
+      "E2_hidden_while_focused": true,
+      "E3_restored_after_blur": true,
+      "visualViewport_height_before": 852,
+      "visualViewport_height_during_focus": 852,
+      "E4_control_viewport_did_not_move": true,
+      "ok": true
+    },
+    {
+      "engine": "chromium",
+      "row": "B \u2014 visualViewport deleted before mount",
+      "vv_seen_by_page": false,
+      "E5_hub_absent_as_the_floor_requires": true,
+      "ok": true
+    },
+    {
+      "engine": "webkit",
+      "row": "A \u2014 hub mounted, visualViewport present",
+      "E1_visible_nothing_focused": true,
+      "E2_hidden_while_focused": true,
+      "E3_restored_after_blur": true,
+      "visualViewport_height_before": 852,
+      "visualViewport_height_during_focus": 852,
+      "E4_control_viewport_did_not_move": true,
+      "ok": true
+    },
+    {
+      "engine": "webkit",
+      "row": "B \u2014 visualViewport deleted before mount",
+      "vv_seen_by_page": false,
+      "E5_hub_absent_as_the_floor_requires": true,
+      "ok": true
+    }
+  ]
+}

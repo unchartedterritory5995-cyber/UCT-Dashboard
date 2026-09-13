@@ -223,6 +223,21 @@
   padding: 1px 5px;
 }
 
+/* Wave P3 §35: the scanned-text note on a citation.
+   ⛔ QUIET ON PURPOSE — the citation is a good one, and a loud banner on every
+   OCR source would train the member to ignore it. Same restraint, and the same
+   words, as the Search result chip. */
+.sourceScanned {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #9b9684);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

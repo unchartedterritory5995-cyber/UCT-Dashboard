@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway (single service) at `https://uctintelligence.com` (Cloudflare DNS)
+- **Deployment:** Railway, **FIVE services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -114,6 +114,8 @@ the second-authority-over-one-value defect that has caused three separate outage
 | `components/PositionCalc.jsx` — "TickerPopup … position calculator" | 🗑️ **DELETED** (`d26cee0c`). `TickerPopup.jsx` contains no calculator. |
 | `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
 | `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
+
+| `journal-2-0/lib/offline/patchNote` — mentioned in Wave Q1 round-2 working notes | ⚰️ **REMOVED, NOT ORPHANED (2026-09-10).** It was ADDED by the Wave Q1 round-2 work and deleted again when the in-flight marker moved to the meta store; it is absent from `lib/offline/**`, not merely unreferenced. Recorded here so nobody files it as a dead export and goes looking for the file. Wave Q1 ruling **R-H** (`docs/notebook/wave-q1-RESUME-HERE.md`). |
 
 **Also mid-audit, unfixed, and NOT this doc's to fix** — recorded so nobody trusts
 them: `scan_evaluator.enabled()`'s docstring and the comment above the sweep's
@@ -276,8 +278,10 @@ Full session detail: user memory `project_broker_sync_2026_06_15.md`.
 `SNAPTRADE_CLIENT_ID` (`UNCHARTED-TERRITORY-REAQG`) · `SNAPTRADE_CONSUMER_KEY` ·
 `BROKER_ENCRYPTION_KEY` (Fernet — PERMANENT, backed up) · `SNAPTRADE_WEBHOOK_SECRET` ·
 `BROKER_SYNC_ENABLED=1` (scheduler: 20-min incremental + 2:30am ET nightly reconcile).
-Inert with these unset. `railway variables --set` STAGES → must `railway redeploy
---service web --yes` to apply.
+Inert with these unset. ⚠️ For how `railway variables --set` behaves, read
+**"`railway variables --set` — measured BOTH ways"** below — this line's flat
+"STAGES → must redeploy" was measured on `chart-renderer` and did NOT hold on
+`web` on 2026-09-09. Verify the boot.
 
 ### Schema (j2_broker_* tables in db.py)
 `j2_broker_users` (encrypted secret), `j2_broker_accounts` (1:1 → a `j2_accounts` row,
@@ -605,7 +609,9 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 > contention (see the 8/day limitation below) and blast radius against a system they
 > believed was dark. **Never assert a flag state from a code default or a past
 > decision — `railway variables --service web --kv` is the only authority, and it is
-> one command.** (⚠️ `railway variables --set` AUTO-REDEPLOYS; the read form does not.)
+> one command.** (⚠️ For `--set`'s restart behaviour see **"`railway variables
+> --set` — measured BOTH ways"** below; this line's flat "AUTO-REDEPLOYS" is one
+> of two measurements, not the rule. The read form never restarts.)
 
 ### Known limitations / tuning backlog (surfaced by the final review, deferred to M2)
 - **Shared 8/day insight cap:** `add_insight`'s per-user daily cap is global across
@@ -629,7 +635,7 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 
 Shown at ≤1024px (desktop uses the left `NavBar`). ONE piece in `Layout.jsx`:
 - **`MobileNav` top bar** — fixed header: top-left menu button + page title + movers shortcut + `AlertBell`. The menu button opens **`MoreSheet`** — the SINGLE comprehensive directory (sectioned Core/Markets/Trading/Help/Account, identity header, free/paid/admin gating, active-route highlight, Compass badge).
-- ⚰️ **`MobileTabBar` (bottom) was REMOVED 2026-09-01** (owner call: it duplicated the top-left menu route-for-route, and its 58px belonged to the chart). Its `--mobile-tabbar-h` token is gone from tokens.css and guarded against resurrection by `pages/charts/mobileShellHeight.test.js`; `navGroups.js` (the shared route taxonomy it derived from) lives on for NavBar + the route rail. On the phone chart shell — where the top bar also hides — the app-menu door is the **Menu button in the chart symbol strip** (`MobileSymbolStrip`, via `MoreSheetContext`). The old side drawer was removed 2026-06-19 for the same reason: one menu (`MoreSheet`), and every trigger opens THAT — don't reintroduce a second nav surface.
+- ⚰️ **`MobileTabBar` (bottom) was REMOVED 2026-09-01** (owner call: it duplicated the top-left menu route-for-route, and its 58px belonged to the chart). Its `--mobile-tabbar-h` token is gone from tokens.css and guarded against resurrection by `pages/charts/mobileShellHeight.test.js`; `navGroups.js` (the shared route taxonomy it derived from) lives on for NavBar + the route rail. On the phone chart shell — where the top bar also hides — the app-menu door is the **Menu button in the chart symbol strip** (`MobileSymbolStrip`, via `MoreSheetContext`). **The gold timeframe pill is the strip's far-RIGHT control** (moved up from the bottom toolbar 2026-09-11, owner call — that bottom row is being freed for shortcut tools; `MobileChartToolbar` now carries four doors and must not grow a second timeframe door; rail `pages/charts/mobile/tfDoor.wire.test.jsx`). The old side drawer was removed 2026-06-19 for the same reason: one menu (`MoreSheet`), and every trigger opens THAT — don't reintroduce a second nav surface.
 
 ### Floating buttons (FABs)
 The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedback "?" (`FeedbackWidget.jsx`, bottom-left) are `position:fixed` just above the bottom safe area (they stepped down when the tab bar was removed). Both **auto-hide on scroll-down** via `hooks/useHideOnScroll.js` and restore on scroll-up / near-top / ~1.4s idle. The orb stays put during a live call or drag; the feedback button stays put while its menu is open.
@@ -658,6 +664,372 @@ The whole app is being made mobile-seamless with **near-full feature parity** (T
 
 ### Tap targets
 `--tap-min: 44px` is defined in tokens.css. Enforce on all interactive elements on touch (use `.touchTarget` or `min-height/width: var(--tap-min)`).
+
+### Preview environments for a feature branch — the decision, and why
+
+**There is ONE Railway environment (`production`) and no per-branch preview.** Measured
+`railway status --json`, 2026-01: project `luminous-recreation`, environments = `[production]`,
+services = `web · worker · flow-worker · bars-api · chart-renderer`. A single `web` service serves
+the built React SPA *and* `/api/*` from one FastAPI process — there is no separate frontend service.
+
+⚠️ **There is no Postgres and no Redis.** The entire data layer is **SQLite files on the Railway
+volume at `/data`** (auth.db, bars.db, breadth_monitor.db, catalysts.db, community.db, flow.db,
+education.db, …). This matters for previews: a Postgres plugin can be duplicated and migrated, **a
+Railway volume cannot** — there is no clone-volume primitive, so any new environment starts with an
+EMPTY `/data`.
+
+**CHOSEN (device testing): a local sandbox + BrowserStack Local tunnel.** Run
+`scripts/hub-sandbox.ps1`, then point BrowserStack Live at the tunnel. The script pins
+`DATA_DIR` to a sandbox, mints an admin via `ADMIN_EMAILS`, and zeroes/blanks every scheduler and
+outbound channel. **It hard-exits if `DATA_DIR` would resolve to `C:\data` or `/data`.**
+The BrowserStack Local binary is an **operator tool on the owner's machine, not a repo dependency** —
+it appears in no `package.json` or `requirements.txt` and must not be added to either.
+
+**APPROVED IN PRINCIPLE, NOT BUILT (durable): a persistent Railway staging environment.**
+⛔ **Ruling, recorded before it can become a blocker: NEVER copy `auth.db` or any member data to
+staging.** Production `auth.db` holds ~20,640 real members; duplicating it into a second environment
+duplicates real PII for a convenience. Staging uses a **synthetic `auth.db`** containing only the one
+`ADMIN_EMAILS` account, plus non-PII data files if any are needed at all (bars, breadth, catalysts).
+
+**REJECTED: Railway PR / ephemeral environments.** Recorded so it is not re-proposed. Railway copies
+env vars into the new environment, and **this app's env vars arm schedulers** — a booted clone posts
+to a ~750-member Discord channel, publishes to YouTube, and emails members via Resend, all on live
+credentials. It is also still data-empty (see the volume note), so it buys **no realism** over a local
+run while carrying the entire blast radius. Wrong trade in both directions.
+
+**Named test account: `hubtest@local.dev`**, promoted by `ADMIN_EMAILS` inside the sandbox DB.
+Never the owner's account, never a colleague's, never a member.
+
+**Every device script names its preview URL explicitly**, as a stated precondition at the top of the
+file. A device script that does not say what it is pointed at is not a test.
+
+### Testing → Smoke — the ONE synthetic production account
+
+> **`smoke@uctintelligence.internal` is the only account any automated tool may sign in as on
+> production.** Owner ruling, 2026-09-12.
+
+**What it is for.** `tools/hub_nav_smoke.py` (the post-deploy client smoke, box 3 of
+`docs/plans/joystick/closure.md`) and any future automated production check. It exists because the
+smoke needs a signed-in session and the alternatives were both wrong: a member's account puts a
+robot inside someone's data, and the owner's account makes every automated run
+indistinguishable from a human one in the activity log.
+
+**Rules, and they are not negotiable:**
+
+- ⛔ **It must never hold a real position, a real note, a real watchlist entry or a real alert.**
+  A smoke account that accumulates state stops being a control: the next run cannot tell a
+  product change from its own leftovers. Anything it creates, it removes.
+- ⛔ **It is the ONLY account an automated production tool signs in as.** `SMOKE_EMAIL` /
+  `SMOKE_PASSWORD` in the operator's environment (`setx`, same pattern as the BrowserStack
+  credentials), never in the repo, never in a log, never in a commit.
+- ⛔ **Never a personal address in `ADMIN_EMAILS` for this purpose.** The three real entries there
+  belong to people; the synthetic one is a fourth and is the only one automation uses.
+- Its admin role comes from `ADMIN_EMAILS` because there is **no other path**: `api/routers/auth.py`
+  promotes on signup (`:205`) and on login (`:253`) from that set, and no admin endpoint sets a
+  role. Its paid access comes from `POST /api/auth/admin/comp-access` — the same endpoint the admin
+  page uses — so the subscription row is the shape the rest of the app already reads
+  (`plan='pro'`, `status='comped'`, no Stripe ids).
+- ⭐ **The domain is deliberately unroutable.** `.internal` is reserved (RFC 8375), so the address
+  can neither receive nor send mail and cannot be mistaken for a person's. It passes the signup
+  model's `EmailStr` validation — verified against the installed validator — while `*.invalid` does
+  not (the validator rejects special-use domains by name).
+
+#### ✅ PROVISIONED 2026-09-12 — one production write, on an explicit owner allow
+
+| | |
+|---|---|
+| Email | `smoke@uctintelligence.internal` |
+| User id | `f4433528-6466-474a-949c-8d5eda8a7b91` |
+| Role | `admin` — auto-promoted at LOGIN from `ADMIN_EMAILS` (`auth.py:253`), not set by hand |
+| Plan | `pro`, `status='comped'`, no Stripe ids — via `comp_user_access`, the function `POST /api/auth/admin/comp-access` calls |
+| `email_verified` | `false`, and that is fine: admins skip verification, and the domain cannot receive mail |
+
+**How it was created, and why not through HTTP.** `COMING_SOON_MODE=1` on production, so
+`POST /api/auth/signup` refuses every request (`auth.py:192`), and no admin endpoint creates a
+user. The account was created by calling **the app's own service functions in the web pod** —
+`create_user` (the exact function signup calls, `auth.py:200`) then `comp_user_access` — with no
+raw SQL against `users` or `subscriptions`. One write, on an explicit owner allow.
+
+⛔⛔ **DOOR B IS REFUSED PERMANENTLY. Never flip `COMING_SOON_MODE` to create an account.**
+Owner ruling, 2026-09-12. Flipping it opens **public registration to the entire internet** for
+the length of the window and re-opens Stripe subscriptions with it (`auth.py:1700`); anyone who
+registers during the window keeps their account. It is a site-wide state change in exchange for
+one test account, and it is the larger risk of the two **despite looking like the normal path**.
+⭐ The reasoning to watch for in yourself is "door B runs without a permission prompt" — the gate
+on the pod write is doing its job, and routing around it through a change that touches every
+visitor is worse, not safer.
+
+**What the write was verified against.** A `VACUUM INTO` backup of production `auth.db` was taken
+FIRST — `/data/backups/auth-2026-09-12-pre-smoke-account.db`, `quick_check = ok`, 26 users / 21
+subscriptions / 43 sessions, and a SHA of the users table's ids (`7ae697e7bf814601`). ⛔ A backup,
+never a file copy: a plain copy of a WAL database omits whatever is still in the `-wal` sidecar and
+looks complete while lagging the source. The provisioning script then fingerprinted the users table
+before and after and asserted the **set difference was exactly one id — the new one — with nothing
+removed**. ⭐ A count going up by one is compatible with one row added and another silently
+rewritten; a set difference is not. Result: 26 → 27 users, 21 → 22 subscriptions,
+`ids_added = [f4433528-…]`, `ids_removed = []`.
+⚠️ **`/data/backups/` IS ON THE SAME RAILWAY VOLUME AS THE DATABASE IT BACKS UP.** It covers a
+logical mistake — a bad write, a wrong `UPDATE`, a migration that did more than it meant to — which
+is exactly what this write risked. It covers **nothing** about losing the volume itself: volume
+gone, backup gone with it. An off-volume copy of `auth.db` is a launch-week housekeeping item
+(`docs/plans/joystick/71-open-items-proposals.md`), deliberately not this programme's.
+
+⚰️ **AND A CREDENTIAL THAT EXISTS ONLY ON A CLIPBOARD DOES NOT EXIST.** 2026-09-12: the generated
+password was put on the clipboard for `setx`, the scratchpad copy was deleted in the same breath —
+and the clipboard was overwritten by ordinary work before anyone pasted it. The account was fine;
+the way IN to it was gone, and the next run had to stop. ⛔ **Persist first, verify it persisted,
+delete last.** Recovery, if it happens again: an admin `POST /api/auth/admin/reset-password`
+(`{email, new_password}`) sets a password directly — no email, which matters because the synthetic
+address is unroutable by design.
+
+**⛔ It must never hold a real position, note, or plan.** A smoke account that accumulates state
+stops being a control — the next run cannot tell a product change from its own leftovers.
+Whatever a run creates, that run removes.
+
+**Credentials.** `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the operator's environment via `setx`, the
+same pattern as the BrowserStack credentials. Never in the repo, never in a log, never in a commit,
+never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
+account itself (it is an admin), then re-`setx`.
+
+**Runs against it:** box 3 of `docs/plans/joystick/closure.md` — the desktop pass (PASS, 16
+routes, 25 nav entries, live SHA `7fce88bd2`) and the touch pass (OK, 16 routes, live SHA
+`36596a88a`). Records under `docs/plans/joystick/smoke-runs/`.
+
+⛔ **PRESENT IS NOT SHOWING — and the touch pass published that mistake once before it was caught.**
+`HubRoot.jsx` keeps `<div data-testid="hub-root">` in the DOM and sets the HTML `hidden` attribute,
+so a `querySelector` presence check answers "did React render the container", never "can the member
+see it" — and the first run therefore reported a product defect in the chart shell's
+landscape-immersive mode that did not exist. ⚠️ `offsetParent === null` is not the signal either:
+the hub is `position: fixed`, so that is null while it is plainly on screen. Measure the `hidden`
+attribute, the computed `display`, and a non-zero box, and keep a fixture that must read SHOWING or
+the checker passes by answering "no" to everything.
+
+### The G0 trace mirror is LIVE — `data-hub-trace`, admin-only, since 2026-09-12
+
+`PR #108` merged as `d899489124`; `web` is serving `59388e52c`, of which that commit is an
+ancestor (`git merge-base --is-ancestor`, not inferred from the push). `/api/health` 200 on a
+fresh boot.
+
+**What it is:** on the Settings → Joystick card, while *Record gesture trace* is ON, the
+admin-only trace section carries `data-hub-trace` holding exactly the JSON the *Copy trace*
+button would produce — so it feeds `tools/hub_trace_analyze.py` unchanged.
+
+⛔ **It exists because BrowserStack LIVE is the only device path this account funds.** A Live
+session is a screen mirror: there is no automation transport to return a value through, and the
+clipboard belongs to the REMOTE device, so "Copy trace" copies where nobody watching can reach.
+The attribute is the read path.
+
+⛔ **Attribute only — no endpoint, nothing sent** (a test spies on `fetch` and asserts it is never
+called). Two gates, both already load-bearing: `isAdmin` gates the section, and
+`settings.traceGestures` itself resolves as `isAdmin && stored === true`, so a member who writes
+the preference key straight to the endpoint still gets nothing. **Absent, not empty**, when the
+toggle is off — an empty string would read as "a capture that recorded nothing".
+
+⚠️ Computed at RENDER: gesture on `/screener`, then navigate to Settings and the card reads the
+buffer as it stands. It does not live-update, and cannot need to.
+
+⭐ **The read path, proven on a real session 2026-09-12:** BrowserStack Live's own toolbar →
+**DevTools → Safari Web Inspector** attaches a full inspector, *rendered in the operator's own
+browser*, whose Console evaluates in the device's page. `data-hub-trace` is read there, and a
+summary can be computed on-device so only a short string has to come back. **Attaching and
+detaching the inspector does NOT reload the device's tab** — a `window` marker survived two
+cycles — which matters because the trace ring is module state with no sink and a reload destroys
+it. The console *log* is cleared on each attach; `window` is not. Navigate with
+`history.pushState` + `PopStateEvent` from that console, never a document load, for the same
+reason. ⚠️ The attribute is computed at render, so after gesturing you must actually re-mount the
+card (route away and back) — re-reading it in place returns the value from the previous render.
+
+### ⛔⛔ A LIVE SCREEN MIRROR CANNOT MEASURE A SUB-300 ms GESTURE — measured, 2026-09-12
+
+**Floor: 260–427 ms per gesture, on an iPhone 15 Pro / iOS 17.6 Live session, read from the
+device's own clock.** Sixteen gestures, two drag lengths. Anything whose threshold is shorter than
+that — the joystick's `FLICK_MS = 120` is the live example — **cannot be tested through a Live
+mirror at all**, and a run that tries produces a table of the websocket.
+
+⛔ **THE COST IS PER POINTER-EVENT ROUND TRIP, NOT PER PIXEL — so "drag a shorter distance" is not
+a fix.** Shrinking the drag 6× (139 px → 23 px of travel) left the move count at 16–19 (from
+11–22) and made the median *worse*, 280 → 329 ms. There is no shorter drag; the client decides how
+many events to send and the operator does not.
+
+⛔ **SYNTHETIC MOUSE/POINTER EVENTS ON THE MIRROR CANVAS ARE SILENTLY DISCARDED.** Dispatching
+`PointerEvent`/`MouseEvent` on `#flashlight-overlay-native` inside `#flashParent.streaming-container`
+returns plausible local durations (39–60 ms) and changes nothing on the phone. Five attempts left
+the device's own `recorded` counter at **exactly** its previous value — zero events arrived.
+⭐ **It looked like it worked.** The only thing that caught it was reading a counter the *device*
+owns, not the timings the *operator's* browser reported — the same rule as reading the wire instead
+of the call site.
+
+⭐ **What a Live mirror IS good for:** anything untimed — does it render, where is it, does it
+resolve the right target, does the label say the right thing. A deliberate press fired 10/10
+correctly in the same run, and the *same* session settled a geometry question no local suite can
+answer (glass-acceptance G3-15) by reading `getBoundingClientRect` and `elementFromPoint` from
+real Safari. Reserve it for those, and route every timing question to a real finger or to a
+transport that owns the clock.
+
+⛔ **A LIVE SESSION DIES ON INACTIVITY — DO NOT START A LONG LOCAL JOB IN THE MIDDLE OF ONE.**
+Kicking off a six-shard gate (~15 min) mid-run cost the device session: *"Your remote session has
+been closed due to inactivity."* The device work and the local gate are **serialised**, not
+parallel. Finish the device, then gate — and if a gate must run first, expect to re-open the
+session and to need the owner's sign-in again.
+
+⚠️ **A device-console `PointerEvent` probe is an ENGINE test, never a glass result.** It can prove
+a branch is reachable and that two clocks agree; it cannot say anything about the touch pipeline,
+because no finger touched glass. Label it as such in the artifact or it will be cited as the
+measurement it is not.
+
+### Testing → BrowserStack — WHAT IS PAID FOR, measured 2026-09-12 in the dashboard
+
+> **Live and App Live are paid. Automate and App Automate are NOT on this account at all.**
+> One username, `patrickgosz_y3zhil` — the same one `BROWSERSTACK_USERNAME` holds.
+
+| Product | State | How it was read |
+|---|---|---|
+| **Live** | ✅ **PAID** | `live.browserstack.com/dashboard` loads the real device picker |
+| **App Live** | ✅ **PAID** | `app-live.browserstack.com/dashboard` loads the app/device picker |
+| **Automate** | ❌ **NOT ON THE ACCOUNT** | `automate.browserstack.com/dashboard` **redirects to `/request_access`** — the "Get started with Automate" marketing page |
+| **App Automate** | ❌ **NOT ON THE ACCOUNT** | `app-automate.browserstack.com/dashboard` → same `/request_access` redirect |
+
+**Invoices, both Paid:** `INV02573416` $49 on 7 Sep 2026 · `INV02574188` $47.37 on 8 Sep 2026.
+Card on file ends 0594. So the purchase a week ago was real — it was **Live**.
+
+⭐⭐ **THIS SETTLES THE "PAID A WEEK AGO BUT THE API SAYS FREE" CONTRADICTION, AND THERE NEVER WAS
+ONE.** `GET /automate/plan.json` reporting `{"automate_plan":"Free"}` is **correct**: Automate was
+never purchased. BrowserStack publishes a plan API for **Automate and App Automate only** — *Live
+and App Live have none* — so a paid Live seat is invisible to every endpoint an agent can reach,
+and "the dashboard says paid" and "the API says Free" were describing two different products the
+whole time. ⛔ **No support ticket. No billing glitch. No purchase.**
+
+⛔ **CONSEQUENCE FOR DEVICE WORK, and it is not a small one:** the CI device job
+(`.github/workflows/joystick-device.yml`) is an **Automate** job. It will keep taking its
+unfunded-skip branch — correctly, on positive proof from `plan.json` — until somebody buys
+Automate. Anything that needs a real device today goes through **Live**, which means a human or an
+agent driving the screen mirror in a browser, not a script.
+
+**For information only, priced once and not proposed** (monthly, from the account's own pricing
+page, 2026-09-12): Automate **Chrome $129** · **Desktop $129** · **Desktop & Mobile $225** ·
+**Desktop & Mobile Pro $275**. The cheapest tier that includes **real mobile devices** — the only
+kind that could run G0-1 — is **Desktop & Mobile, $225/month**. The two $129 tiers are desktop
+browsers only and cannot run it.
+
+⚠️ **Live ≠ Automate, and they are metered separately.** This was already recorded in
+`40-phase2-device.md` after run 4 lost three of four devices to *"Automate testing time expired"*:
+*"a Live seat does not fund this suite."* The dashboard now confirms the stronger version — there
+is no Automate seat to expire.
+
+### ⭐ HOW A LIVE DEVICE SIGNS IN — the smoke-account login link, never a typed password
+
+**Standing procedure. No human types a password into a mirrored phone, and neither does an agent.**
+
+```sh
+# 1. authenticate as the smoke account from the terminal (an API call from a script — the same
+#    thing tools/hub_nav_smoke.py:247 already does; the password never touches a form field)
+#    then mint a link. SMOKE_EMAIL / SMOKE_PASSWORD come from the operator's environment.
+python tools/smoke_login_link.py            # prints one URL, valid 5 minutes, single use
+# 2. on the Live device: tap the address bar's ⊗ to clear it, type the URL, go.
+#    ⛔ NEVER ctrl+a — on the Live mirror that types a literal "a" into the field.
+```
+
+The device is then signed in with an ordinary session cookie and every route behaves exactly as
+it does for a member. `/smoke-login` burns the token on first use.
+
+⛔ **THE FLAG IS THE SWITCH, AND IT IS OFF BY DEFAULT EVERYWHERE.** The endpoint answers **404**
+— not 403 — unless `SMOKE_LOGIN_LINK_ENABLED=1` is set on the service. Set for this programme on
+`web` only. **Removal instruction, to be run when the programme closes:**
+
+```sh
+railway variables --service web --unset SMOKE_LOGIN_LINK_ENABLED
+```
+
+⚠️ **The token travels through a third party.** It is typed into BrowserStack's client, so it
+lands in their session recording. ⭐ **Since 2026-09-12 it rides in the URL FRAGMENT**
+(`/smoke-login#token=…`), which is never sent to any server — so it does NOT appear in this app's
+access log, at a CDN, or at a search engine if the URL is mistyped into a search box. The page reads
+`location.hash`, POSTs the token in a request body, and scrubs it from the address bar.
+⚰️ It was a query string until a mistyped navigation on a Live mirror ran a GOOGLE SEARCH for the
+whole URL and sent a live token to a third party. **Two-minute** expiry plus single-use plus
+fragment-only is what makes this acceptable **for a synthetic account** and is exactly what would
+make it unacceptable for a real one. The allow-list is one hard-coded id
+(`SMOKE_USER_ID`, default `f4433528-…`); any other id gets the same 404 as the flag being off, so
+the endpoint cannot be used as an oracle for which account is the privileged one.
+
+⭐ **Watch-coverage classification for this change (required by `docs/runbooks/deploy-windows.md`,
+which makes a red a REVIEW GATE, not a block) — INERT STRAND, no flow-worker redeploy.**
+`tools/flow_worker_watch_coverage.py` goes red on `api/services/auth_service.py` and
+`api/services/auth_db.py`: flow-worker RUNS them and will not redeploy for them. Traced rather
+than assumed — flow-worker's import closure reaches `auth_service` by exactly one hop
+(`flow_worker_main` → `flow_gap_autofill` → `flow_admin_auth`) for exactly one symbol,
+**`validate_session`**, which this change does not touch; and `api/routers/auth.py` — the *only*
+caller of every changed function — **is not in that closure at all**. The migration is additive
+with `DEFAULT 'reset'`, so even a stale writer produces correct rows. ⛔ Forcing a redeploy via
+the marker would be Tier 2 during market hours: a dropped Massive OPRA socket is a permanent tape
+gap, paid for zero behavioural difference.
+
+⛔ **`password_resets` now backs two token kinds and the `purpose` column is what keeps them
+apart.** The direction that matters is not the obvious one: without the filter, a leaked
+**password-reset** token would be redeemable as a **login**, turning every reset email into a
+bearer credential. Both directions are railed in `tests/test_smoke_login_link.py` and
+mutation-proved. A link also refuses an account with TOTP enabled — otherwise it would grant
+strictly more than the password does, which is the one thing it must never do.
+
+### ⛔⛔ REAL-DEVICE iOS FOUND A PRODUCTION CRASH jsdom AND CHROMIUM CANNOT SEE
+
+**The touch smoke MUST include one iOS-17 device. Not "a mobile viewport" — a real old Safari.**
+
+⚰️ **2026-09-12.** A Live iPhone 15 Pro on **iOS Safari 17.5** opened `/journal/notebook` on
+production and got the ROUTE-LEVEL error boundary instead of the page:
+
+```
+ReferenceError: Can't find variable: Iterator — DocumentPreviewSheet-*.js
+```
+
+`pdfjs-dist@6` carries its own compatibility shim at module top level —
+`if (typeof Iterator.prototype.join !== "function")` — which is pdf.js feature-detecting Iterator
+Helpers **written so that it throws on exactly the engines it is detecting for**: `typeof
+X.prototype` still evaluates `X`, and the `Iterator` global did not ship until Safari 18.4. Every
+member on iOS below 18.4 lost the Notebook.
+
+⛔ **THE ENGINE WE TEST IN HAS THE THING WHOSE ABSENCE IS THE BUG.** jsdom has `Iterator`. Chromium
+has `Iterator`. So the unit suite, the six-shard gate and a headless-Chromium device sweep were all
+green — that same morning, one of those sweeps loaded `/journal/notebook` in Chromium and reported
+the hub mounting normally. No amount of emulation finds this class; only an old engine does.
+
+⭐ **THREE TRAPS, EACH OF WHICH LOOKED LIKE THE ANSWER:**
+1. **"Use the legacy build."** `pdfjs-dist/legacy` reads the global safely in **17** places to the
+   modern build's 2 — and carries **the same fatal shim**. Both builds crash identically. Reading
+   six of seventeen matches and generalising is what made it look fixed.
+2. **"Grep the bundle for `Iterator.`"** That check **fails the fix and passes the bug**: the safe
+   build has eight times more mentions. The predicate is UNGUARDED ACCESS, never presence.
+3. **"Define the global above the import."** ES imports are **hoisted** — a top-level statement
+   written above them runs *after* every import has been evaluated. The shim must be its own
+   module, imported first. `lib/pdfjs.js` says so at the import line.
+
+⭐ **AND A TEXT SCAN OF A BUNDLE CANNOT SEE A SHIM.** Once another chunk defines the global, the
+offending text is still there and now inert. `iteratorGlobalFloor.test.js` therefore **simulates
+the engine** — deletes `globalThis.Iterator`, loads the real module chain, asserts it survives —
+and keeps the bundle scan only for globals nothing shims, with a rail that fails if those two
+lists ever drift.
+
+⭐ **THE RAIL IMMEDIATELY FOUND A SECOND ONE THE DEVICE COULD NOT SHOW:**
+`Promise.withResolvers` (Safari **17.4**) in the same chunk. The debugging phone was on 17.5, so it
+never threw there — but the declared floor is iOS 16, where it would have. Shimmed too.
+
+⚠️ **The floor was UNDECLARED before this.** No `browserslist`, no `build.target`; Vite's default
+`'modules'` (~safari14) would have led a reader to believe old Safari was covered. Now declared as
+`iOS >= 16` in both. ⛔ **`build.target` would not have caught this anyway** — it downlevels
+SYNTAX and adds no polyfills, and `Iterator` is a global.
+
+### Real-device testing — BrowserStack Live (paid)
+
+**Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no
+BrowserStack MCP or SDK configured**, and none is to be installed — that would be a new dependency.
+Run scripts live in `docs/plans/joystick/*-device.md`; **results are recorded in the same file**, by
+the operator who ran them.
+
+⛔ **Never claim a device result from jsdom or an emulator.** jsdom performs no layout — it never
+resolves `calc()`, never applies `env(safe-area-inset-*)`, and reports zero for every measured box —
+so "the control sits 68px above the home indicator" is not a claim any local suite can make. A
+script written for a device and a result gathered from a device are two different artifacts; only
+the second closes a gate.
 
 ### Mobile audit harness — `tools/mobile_audit.py` (no device needed)
 Playwright sweep (Python Playwright + Chromium already installed). Boots phone/tablet viewports, dismisses the intro overlay, visits each route, flags **horizontal overflow** (the #1 objective mobile bug) + sub-44px tap targets, saves a full-page screenshot per route/viewport to `tools/mobile_audit_out/` (gitignored) + `report.md`.
@@ -1021,7 +1393,7 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   alias-resolved with shadowing respected) and fails BY NAME on a seventh writer or a
   deleted guard. **Do not re-type a count here — read that test.**
 - **`delivering` is recency-gated with hysteresis** (`barsStreamManager.js`): engage when a bar
-  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after 300s (`BARS_LIVE_DISENGAGE_MS`)
+  arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after **150s** (`BARS_LIVE_DISENGAGE_MS = 150000`) — ⚰️ this said 300s
   so a thin ticker doesn't thrash push↔Finnhub. A silent-but-heartbeating feed hands the bar back
   to Finnhub within ~10s (watchdog `_notifyAllStatus`). NEVER make delivering sticky/no-recency.
 - **Rollout + revert.** `export const BARS_PUSH_ROLLOUT_PCT = 100` in `StockChart.jsx` = % of
@@ -1063,6 +1435,26 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   the `isDragging` closure (state needs a render to reach a callback; the ref
   is written synchronously — the stale closure stuck drags on fast taps and
   dropped a drag's first moves).
+- **Touch drag routing (2026-09-11)**: ⛔ **lightweight-charts starts a pan from
+  a native `touchstart` on its own canvas and never listens to pointer events.**
+  The overlay's touch router used to claim a drawing touch by stopping
+  `pointerdown` in the capture phase — a correct stop of the wrong event, so the
+  chart panned under every drawing drag on a phone. The router in
+  `ChartDrawingOverlay.jsx` now stops BOTH families (`pointerdown` +
+  `touchstart`/`touchmove`/`touchend`) from ONE shared hit test (`claimAt`),
+  order-independently, and latches `handleScroll`/`handleScale` off for the
+  drag (restored from the chart's OWN options, so a frozen chart stays frozen).
+  A selected handle's grab radius on touch is `handleGrabRadius()` (24px) in
+  `coarsePointer.js` — the halo paints the same read. The document tap-away
+  deselect asks the router's hit test before stripping a selection (a handle
+  touch lands on the CHART canvas, not the overlay). Also on touch: a PAN on
+  empty space keeps the selection (only a tap within the drag slop deselects,
+  decided on release); the selected drawing's BODY is re-grabbable
+  `SELECTED_BODY_BOOST_COARSE` px wider (`withHitBoost`, second pass in
+  `hitTestAll`, selected drawing only, never a first tap); and the quick bar
+  carries Undo wherever the surface passes `undo`. Rail:
+  `ChartDrawingOverlay.touchRouting.test.jsx` — behavioural, with a chart
+  stand-in carrying bubble listeners where the library binds its own.
 
 ### Chart Header — Consistent UI Across All Surfaces
 - **SymbolSearch** (`app/src/components/chart/SymbolSearch.jsx`): clickable ticker title that opens search dropdown with popular tickers + type-any-ticker
@@ -1070,6 +1462,13 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Read-only on: Breadth DrillModal, Journal TradeDrawer (contextual, symbol locked)
 - **Flag button** (⚑ Flag/Flagged) on: ThemeTrackerPage, Watchlists, CustomScan, Breadth DrillModal, TickerPopup
 - **Period tabs**: 5min / 30min / 1hr / Daily / Weekly (Journal: Daily/Weekly only)
+- **The "Pre"/"Post" word is a DOM chip ON the price scale (2026-09-11)**, stacked
+  directly above the orange ext price label (`sessionExtChipRef` + a rAF glue loop in
+  `StockChart.jsx`; rail `StockChart.sessionExtChip.test.jsx`). ⛔ Do not put it back
+  as the price line's `title` — lightweight-charts draws a title on the PANE, hugging
+  the axis from the left, and on a phone it sat over the newest candles. The session
+  tag applier blanks `title` for `_sessionTag === 'ext'` on purpose. (`ChartRender`'s
+  `?exttag=` bot path still passes a titled line through `priceLines` — different door.)
 - **TickerPopup**: click-to-open modal with StockChart, live price, flag, earnings intel, insider activity. NO Finviz hover preview, NO external links. ⚰️ This also claimed a **position calculator** — `components/PositionCalc.jsx` has zero importers and `TickerPopup.jsx` contains no calculator (see *⚰️ DOCUMENTED BUT UNREACHABLE*).
 
 ## Live Pricing
@@ -1089,7 +1488,231 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
+## ⛔ Resume after restart — read `docs/plans/joystick/RESUME.md` FIRST
+
+The machine was restarted on **2026-09-13**, which closed every PowerShell and Claude Code session
+mid-programme. **`docs/plans/joystick/RESUME.md` is the checkpoint** and it is the first thing a
+resuming session should open — before this section, before `closure.md`, before anything.
+
+It carries, each with a `file:line` or a SHA: where the programme actually is (LAUNCHED **2 of 6**;
+the owner run still pending); the next actions in order with the exact command lines; the
+environment and tooling checklists to verify after reboot (⛔ two of which were wrong on disk and
+are recorded as MEASURED, not expected); the worktree table; the standing rules; the open ledger
+with owners; and a production snapshot.
+
+⛔ **The one thing not to get wrong on resume:** `launch/stage-2-member-preview` at **`e60545210`**
+is **prepared, pushed and UNGATED**, and it is **frozen** — it must not be opened as a PR until
+Patrick's marked-up `owner-run.md` and trace are in and boxes 1 and 2 are ticked on evidence. It
+advances `ROLLOUT_STAGE` to 2, which turns the hub on for every member, and **Patrick merges it**,
+not an agent.
+
+⚠️ `RESUME.md` is on **master**, not on `launch/closure` — that branch is already merged and 176
+commits behind, and a resume file on a dead branch is not findable from a normal checkout.
+
+## Joystick hub — the one section to read before touching it
+
+> **What it is.** A glass thumb-joystick pinned to the bottom corner on phones and tablets. Drag
+> opens a fan of that page's actions; tap/double-tap/scrub drive the page's own list. It is
+> **mobile-only by construction** — `app/src/hub/useHubActive.js:84` requires
+> `(max-width: 1023px) and (pointer: coarse)`, and there is no mouse or keyboard path to build.
+> Mounted once from `Layout.jsx`; `App.jsx` gates `<GlobalVoiceGate/>` on the same
+> `hub/useHubActive.js` so the hub owns the corner rather than overlapping the voice orb.
+
+⛔ **The programme is CLOSED.** Everything remaining is one owner device session —
+`docs/plans/joystick/owner-run.md`, §A–§E. Do not start new hub work against the plan files; start
+here, then read `closure.md`.
+
+### The registry is the single authority
+
+**`app/src/hub/registry.js`.** Every mode and every action is data in that one file; adding a
+section is a data change, not a component. Use `defineMode()` (`:84`) — it runs `validateRegistry`,
+which is what keeps the fan well-formed.
+
+An action declares:
+
+| field | meaning |
+|---|---|
+| `id` | `'<mode>.<action>'`, unique across the whole registry (`registry.js:23`) |
+| `kind` | `'run'` · `'confirm'` · `'navigate'` · `'home'` |
+| `ring` | `0` = outer (Actions, max **5**), `1` = inner (Tools, max **4**) — `OUTER_MAX`/`INNER_MAX`, `registry.js:64-65` |
+| `confirmText` | `(ctx) => string`. **REQUIRED** when `kind === 'confirm'` (`registry.js:32`) |
+| `requires` | one of `HUB_REQUIREMENTS` (`registry.js:68`); an unmet requirement renders the bubble **disabled with a reason, never hidden** |
+| `flickable` | default `true`. `false` = deliberate selection only; a sub-`FLICK_MS` flick opens the fan instead of firing |
+| `escalate` | `warn()` haptic instead of `impact()`. Required on `confirm` |
+
+⛔ **`tier` is rejected outright** (`registry.js:994`) — there are no membership tiers (D-23).
+⭐ **Only `journal.close` is `flickable: false`**, and the reason its neighbours are not is written
+beside the declaration (D-45): they are sheet-mediated, so the sheet is the guard.
+
+A mode declares `route`, `label`, `tapHint`, `color`, `fan`, and optionally
+`cursor: { listId }` — the shared cursor a section registers through `useHubCursor`.
+
+### Controllers and the contract
+
+Section controllers live in `app/src/hub/sections/*.js`, one per mode. A controller returns a
+config object whose callbacks are `onTap` · `onDoubleTap` · `onScrub` · `onScrubCommit` · `readout`.
+
+⛔ **`app/src/hub/contracts.js` is the contract, and `hub/contractArity.test.js` is the rail.** It
+reads the argument list from the file that actually CALLS each callback (`HubRoot.jsx`,
+`useJoystick.js`) and fails if the typedef or a test harness disagrees. `onScrub(ctx, scrub)` —
+context first. A validator cannot catch arity (a wrong-arity function is still a function), which
+is why that rail exists.
+
+⛔ `validateSectionConfig` refuses an `onScrub` without a `readout()`: a scrub the chip cannot
+narrate is invisible.
+
+### Gestures and tuning
+
+**Every number lives in `app/src/hub/constants.js`. Point at it; never restate it here** — a
+hand-typed constant beside its source is the drift this feature has paid for repeatedly (D-44).
+
+`TRAVEL_PX` (`:10`) · `OPEN_AT_PX` (`:20`) · `RING_SPLIT` (`:34`) · `REACH_PX` (`:71`) ·
+`HOLD_MS` (`:88`) · `DOUBLE_TAP_MS` · `FLICK_MS`.
+
+The vocabulary: tap = Primary · double-tap = Reverse · hold 0.5s = Home · **hold then drag = Scrub**
+· soft drag = inner fan · hard drag = outer fan · drag past `REACH_PX` = reach mode · flick under
+`FLICK_MS` = fire without opening.
+
+⛔ **A drag WITHOUT the hold is a fan push, not a scrub** (`useJoystick.js:408`). It resolves by
+DIRECTION and fires that bubble. This has been mistaken for a broken scrub on a real device.
+
+⚰️ **Two-finger tap is REMOVED** (`ccd661051`, rail `hub/peekRemoved.test.jsx`): screen readers
+consume it, and two pointers fails WCAG 2.5.1. **The Actions button is the no-drag door.**
+
+### Exposure — the highest-leverage edit in the feature
+
+`PREVIEW_MODES` (`registry.js:720`) decides which modes are still a teaser. **Deleting one id from
+that Set is one line and can expose nineteen already-declared actions to members.**
+`ROLLOUT_STAGE` (`hub/rolloutStage.js:23`) is the stage gate.
+
+⛔ Any change to either **must arrive with regenerated artifacts in the same commit**:
+
+```
+node tools/hub_surface_matrix.mjs          > docs/plans/joystick/surface-matrix.md   (below its GENERATED marker)
+node tools/hub_surface_matrix.mjs --glass  > docs/plans/joystick/glass-acceptance-steps.md
+node tools/hub_surface_matrix.mjs --self-check
+```
+
+`hub/surfaceMatrixIsCurrent.test.js` byte-compares both and fails otherwise. The generator reads
+bindings from an **acorn parse tree** and expectations from the controller + spec §C3 — it was
+regex-based twice and wrong twice (D-42, D-44).
+
+### The rails, and what each is for
+
+| rail | catches |
+|---|---|
+| `hub/surfaceMatrixIsCurrent.test.js` | a registry/exposure change shipped without regenerating the docs |
+| `hub/contractArity.test.js` | a callback's shape drifting from its call site |
+| `hub/writePaths.test.js` | a new endpoint the hub can write, undeclared |
+| `hub/rule12Paths.test.js` | a JOYSTICK change set editing `app/src/pages/journal-2-0/**` — it identifies whose change set it is from the DIFF first and the branch name second (B7, closed 2026-09-13) |
+| `hub/knobFocusReturn.test.jsx` | focus not returning to the knob when a sheet closes (D-46) |
+| `hub/peekRemoved.test.jsx` | the two-finger gesture coming back |
+| `hub/analyticsMarker.test.js` | the single `TODO(hub-analytics)` marker going missing or multiplying |
+| `styles/themeIslands.test.js` | a `--hub-*` token added without pinning it in every theme island |
+| `styles/tapFloor.test.js` | a sub-44px touch target |
+| `components/screener/reachable.test.js` | a hub module built and wired to nothing |
+| `scripts/gate_shards.py` | the six-shard gate; refuses a dirty tree, records the tree hash at both ends |
+
+### Flags, rollback, devices
+
+- **`HUB_PREVIEW_ENABLED`** — kill switch on `web`. **Unset or `true` = ON**; `false` hides the hub
+  for everyone on their next authenticated request, **no redeploy**. Read per request in
+  `api/routers/auth.py::_access_payload`; rail `tests/test_hub_preview_flag.py`.
+- **Rollback runbook:** `docs/plans/joystick/rollback-runbook.md`.
+- **Devices: BrowserStack LIVE only.** Automate is not on this account, so there is no scripted
+  device path — a human or an agent drives a screen mirror. ⛔ A Live mirror **cannot measure a
+  sub-300 ms gesture** (measured floor 260–427 ms per gesture) and **cannot hold a press**, so
+  flick, double-tap and scrub rows are INCONCLUSIVE-TRANSPORT there by construction.
+- **Signing a device in:** `python tools/smoke_login_link.py` mints a 2-minute, single-use link for
+  `smoke@uctintelligence.internal`; the token rides in the URL **fragment** and is scrubbed from the
+  address bar. Never type a password into a mirrored phone.
+
+### Where the records are
+
+- **Ledgers:** `docs/plans/joystick/deferred.md` (D-numbers) and `requests.md` (R-numbers).
+- **Scope vs reality:** `docs/plans/joystick/scope-reconciliation.md` — 81 rows, every promise mapped.
+- **Closure:** `closure.md`. **Owner's remaining run:** `owner-run.md`.
+
+### Known gaps (open D-numbers)
+
+| # | gap | owner |
+|---|---|---|
+| **D-38** | toast duration — accepted as-is | joystick |
+| **D-39** | chip vs page furniture — cosmetic, non-blocking | joystick |
+| **D-40** | Notebook phone list exposes no per-note DOM id | **Notebook** (rule 12) |
+| **D-41** | two `iteratorGlobalFloor` corrections | **Notebook** (rule 12) |
+| **D-47** | per-mode action editor: count + reset shipped, reorder/remove deferred post-launch | joystick |
+
+⛔ And one live rail defect that is not the hub's: `reachable.test.js` reds on master for
+`app/src/lib/context/focusDivergence.js` — filed as **R-29** for the S4 workstream.
+
+---
+
+## Active feature branches
+
+**None.** Both joystick branches are merged and closed:
+
+⚰️ `feat/joystick-hub` is **merged and closed** (PR #101 → `d3bf38f44`, live in production). Keep
+the branch for history; do not add to it.
+
+⚰️ `feat/joystick-increment-2` is **merged and closed** (`0fcefb649`, 2026-09-10, merged from
+base `7ed6b2ce5`, live in production). It carried B3 (the Journal's three write actions stop
+stacking two sheets), B4 (the write-path invariant becomes a rail), B5 (the commit-sheet haptic
+reads `escalate`, not `kind`), B6 (the Settings card is admin-only except for anyone already
+opted in), the committed gate wrapper `scripts/gate_shards.py` and its rails, and the named
+failure baseline. Keep the branch for history; do not add to it.
+
+⛔ **Increment 2 gates on "no NEW failures relative to a measured baseline", never on a green
+suite** — the repo is not green and this branch cannot make it so. The baseline is re-measured in
+a detached worktree at a named SHA and recorded in `docs/plans/joystick/60-phase3-plan.md`; a
+timeout is never banked as permitted breakage, and provenance is `git show <sha>:<file>`, never
+`git status`. Both rules and the method are in this file above.
+
 ## Worktree Directory
+
+### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
+
+> **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
+> BOX UNDER MEMORY PRESSURE.**
+
+What was running at once, none of it aware of the others (31.8 GB box, free memory fell to
+**4.8 GB**):
+
+| PID shape | What | Cost |
+|---|---|---|
+| `python -m pytest tests/ -q -k "journal_two or notebook or j2"` | an **unscoped backend pytest** | **11,854 MB RSS**, still climbing |
+| `python scripts/gate_shards.py --shards 6` + `uct-worktrees/notebook-flip/app/node_modules/.bin/vitest` | **a second six-shard gate**, another worktree | 6 shards |
+| `python -u analysis/4f-r_part_b/motion_lab.py` under `heavy_lock` | render job | ongoing |
+
+**The damage, in order:**
+1. Gate attempt 1 -> `INVALID`: shards 5 and 6 produced **no totals line**.
+2. Gate attempt 2 (`--max-workers 4`) -> `INVALID`: **all six**, in under a minute.
+3. Running one shard by hand gave the real cause: `ERR_MODULE_NOT_FOUND: Cannot find package 'vite'`.
+4. `app/node_modules` was down to **2 entries**, then **0**, then **did not exist** - with **no npm
+   process running**. A killed `npm ci` deletes before it installs.
+5. An `npm ci` started to repair it logged `added 527 packages ... in 10s` and left **nothing on
+   disk** - swept mid-write.
+6. The worktree's **`.git` file was destroyed too**, so the tree was not a repository any more.
+
+**NOTHING WAS LOST, AND THE REASON IS WORTH KNOWING.** A worktree's commits live in the MAIN
+repository's object store, and its branch refs in the main `.git/refs` - so the hotfix branch was
+intact and pushable from the main checkout after verifying the SHA matched on the remote. Recovery
+is `git worktree prune` then `git worktree add <path> <branch>`. Move the damaged tree aside rather
+than deleting it (`_dead-<name>-<date>`) - a post-mortem needs the body.
+
+**`gate_shards.py` REFUSING ITSELF IS THE SYSTEM WORKING.** It wrote `INVALID-*.md` and deleted the
+partial shard logs *precisely so* an empty log directory could not later read as a completed run.
+Both INVALIDs were the environment; neither said anything about the code. **Never read an INVALID
+manifest as a signal about your branch, and never merge on one.**
+
+**`pytest tests/ -q -k "..."` IS NOT A SCOPED RUN.** The `-k` filter selects which tests *execute*;
+every test in the tree is still **collected**, and collection is where the memory goes
+(`--collect-only` alone reached 6.6 GB - see the backend-pytest rule). Scoping means **naming the
+files**.
+
+**The evidence of an OOM sweep is that there is no evidence** - no traceback, no error, a
+suspiciously fast success line, an empty directory. Treat a too-good-to-be-true result on a
+contended box as a killed run until proven otherwise, and check free memory before blaming code.
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
@@ -1172,6 +1795,49 @@ gone. Read both. `tests/test_pytest_chunks_runner.py` carries a reproduction of
 the masking so the next reader does not have to take this on trust.
 
 
+## ⛔⛔ A FRESH WORKTREE, AND THE JUNCTION THAT DELETED A LIVE `node_modules`
+
+<!-- merge seam 2026-09-13: both sides inserted a worktree warning here and BOTH
+     are kept. The heading is added by the merge so master's block is not read as
+     a continuation of the pipe rule above it, which is about test runners. -->
+⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**
+`git worktree add` copies tracked files only, and `node_modules` is gitignored, so `npx vitest`
+in a new worktree fails at config load (`Cannot find package 'vite'`) — a startup error, not a
+test result. Every "green" reported before that install is meaningless. If you need to run a
+suite against a *second* checkout (e.g. an origin/master baseline for a reachability diff), a
+directory junction to an installed `node_modules` is enough:
+`New-Item -ItemType Junction -Path <new>\app\node_modules -Target <existing>\app\node_modules`
+— and **delete the junction with `cmd /c rmdir` BEFORE `git worktree remove`**, or the remove
+walks through it and deletes the real one.
+
+> ⚰️⚰️ **AND THE REMOVAL ITSELF DELETED THE TARGET, 2026-09-13.** The warning above was followed
+> in spirit and the `node_modules` of a live worktree was still emptied — 368 packages gone, mid
+> programme. **The command matters as much as the order:**
+>
+> - **`cmd /c rmdir <link>`** — no `/s`. It removes the LINK only.
+> - ⛔ **`Remove-Item -Recurse`, `rm -rf`, and `[IO.Directory]::Delete(path, true)` FOLLOW the
+>   junction and delete the TARGET's contents.** `-Recurse` is the whole hazard; without it
+>   PowerShell refuses a non-empty directory, which is the refusal you want.
+> - ⛔ **`cmd //c` through Git Bash is not `cmd /c`.** The path is mangled (`//c` → `/c`) and the
+>   command fails with *"The filename, directory name, or volume label syntax is incorrect"* —
+>   which reads as a typo, so the next thing tried is usually the PowerShell one that destroys the
+>   target. Run it from the PowerShell tool, or quote it so bash cannot rewrite it.
+>
+> ⭐ **VERIFY BEFORE REMOVING, because a junction and a real directory look identical in `ls`:**
+>
+> ```powershell
+> Get-Item <link> -Force | Select-Object LinkType, Target
+> ```
+>
+> `LinkType` is `Junction` and `Target` names the real path. ⛔ `Get-Item` WITHOUT `-Force` can
+> report `LinkType` empty on a reparse point — on 2026-09-13 it printed `is junction: False` for a
+> junction that had resolved 372 entries a minute earlier, and that false negative is what made
+> deleting it look safe. **Never conclude "not a junction" from an unforced read.**
+>
+> ⭐ And afterwards, verify the TARGET, not the link: `ls <existing>/app/node_modules | wc -l`
+> against the count you started with. A missing `node_modules` is recoverable (`npm ci`, ~370
+> packages) but only on a quiet box, so the damage is discovered at the worst possible moment.
+
 ## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
 
 **`/data` exists as `C:\data` on the dev machine, so every product path that
@@ -1210,6 +1876,870 @@ them:**
 - ⚠️ Still true and NOT fixed by this: writes into `C:\data` from outside pytest
   (a bare `python tools/...` run, a `railway ssh`-less local script) hit the live
   files. The guard is a *test-suite* rail only.
+
+  ⚰️ **AND SETTING `DATA_DIR` IS NOT THE REMEDY — that is root cause 1 above,
+  re-committed 2026-09-12.** A bare probe of the fundamentals widget set
+  `DATA_DIR` to a scratchpad, looked sandboxed, and wrote
+  `C:\data\fundamentals_estimates.db` and `C:\data\fundamentals_tables.db`
+  anyway. Both resolve through their OWN vars (`FUNDAMENTALS_ESTIMATES_DB_PATH`,
+  `FUNDAMENTALS_TABLES_DB_PATH`), which `DATA_DIR` does not reach. The writes
+  were benign — correct current rows into two snapshot caches, both
+  `quick_check = ok`, no member data — and they were benign by luck, not by
+  design.
+
+  ⭐ **The remedy is to apply the CENSUS, never a hand-picked var.** The pins are
+  derived, `unpinnable` is currently **0**, so nothing needs guessing:
+
+  ```python
+  import conftest, os
+  _, pins, _ = conftest.shared_data_root_census()
+  for env, literal in pins.items():
+      os.environ[env] = literal.replace("/data", r"C:\some\sandbox")
+  # ...only now import anything from api.**
+  ```
+
+  Order is load-bearing: these paths are captured at MODULE IMPORT, so a pin set
+  after the import reaches nothing. `scripts/hub_sandbox_boot.py` already does
+  this properly for a full boot — prefer it over a hand-rolled probe.
+
+## ⛔ Sandbox boots — the 2026-09-08 incident, and the two rails that make a sandbox trustworthy
+
+**The section above is a *test-suite* rail. This one is about everything else that
+boots on this machine**, which the conftest tripwire does not reach.
+
+### What happened
+
+`scripts/hub-sandbox.ps1` was written to boot the app for joystick-hub device
+testing against a sandbox data dir. It set `DATA_DIR`, printed a clean startup and
+served a healthy `/api/health` — **while writing to the live `C:\data`**:
+
+| Live file | Written | What it is |
+|---|---|---|
+| `C:\data\auth.db` | 22:04:46 | 1.01 GB, ~20,640 real members |
+| `C:\data\desk.db` | 22:04:23 | Desk sessions |
+| `C:\data\flow.db-shm` / `-wal` | 22:04:16 | Options flow tape |
+| `C:\data\buzz.db-shm` | 22:04:16 | Ticker-mention board |
+
+No member data was altered (`quick_check` ok on all four; newest user row predated
+the incident by three days; zero rows for the test account). The writes were
+idempotent schema-init and WAL churn. **It could just as easily not have been.**
+
+### Root cause 1 — `DATA_DIR` IS NOT AN AUTHORITY
+
+**There are 72 environment variables naming paths inside the shared root, and they
+resolve INDEPENDENTLY of `DATA_DIR`.** `api/services/auth_db.py:10` is the whole
+class in one line:
+
+```python
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
+```
+
+`/data` is a real directory on this box, so the default resolved to
+`C:\data\auth.db`. The script *did* have a guard — it refused `-DataDir C:\data` —
+and that guard was real, verified against five spellings, and **completely
+irrelevant**: the sandbox path was correct and 71 of the 72 vars ignored it.
+⭐ Verifying the guard you wrote is not the same as verifying the property you want.
+
+### Root cause 2 — AN INVENTED KILL-SWITCH NAME
+
+The kill-list set **`BARS_PREWARM_DISABLED=1`, which matches nothing in the
+codebase.** It was invented and never grepped. The bars seeder is gated only by
+`USE_REMOTE_BARS`, so it ran (`3160 jobs, 4 workers`) against live data while the
+operator believed it was off.
+
+> ⛔ **RULE: never invent an env flag. Every kill-switch name must be grepped to an
+> actual read site before use.** An env var nobody reads is indistinguishable from
+> a working kill switch — both produce silence.
+
+### The two rails that make a sandbox trustworthy
+
+Neither is optional, and they fail for different reasons:
+
+1. **The census rail** — `tests/test_hub_sandbox_launcher.py`. The pin list is
+   DERIVED by AST from `api/**` via `conftest.shared_data_root_census()`, never
+   typed, so the sandbox and the pytest suite cannot drift and a `/data` literal
+   added tomorrow is pinned the day it lands. The rail proves the derivation is
+   actually *applied*, that no typed `/data/...` literal has crept back in, and
+   that **every kill-list flag name resolves to a real read site** (the check that
+   would have caught root cause 2). Mutation-proved both ways: drop the
+   `AUTH_DB_PATH` pin → red; re-add `BARS_PREWARM_DISABLED` → red.
+2. **The snapshot rail** — `scripts/data_root_snapshot.py`. Content-hashes every
+   main `.db` under the shared root before boot, again at +15 s and +120 s (past
+   the ~60 s / ~75 s darkpool, industry-map and ticker-logos prewarms), and again
+   at shutdown. Any change aborts the run. Logs land in
+   `docs/plans/joystick/sandbox-runs/<timestamp>.md`.
+
+⚠️ **Hash the main `.db` file; EXCLUDE `-wal` / `-shm`.** Opening a WAL database
+**read-only still rewrites its `-shm` index**, so an mtime-based check cries wolf on
+its own diagnostics. Judge a leak by the main file's content, never by a sidecar's
+mtime.
+
+`scripts/hub-sandbox.ps1` is now a thin wrapper: it builds the frontend and hands
+off to `scripts/hub_sandbox_boot.py`, which owns all env sandboxing, arms the
+conftest tripwire in-process, and runs the snapshot rail.
+
+### > Gate criterion is hub cost relative to the device's idle baseline, not an absolute fps. Pass = fan-open fps >= 0.9 x idle baseline on the same device.
+
+Ruled after a Galaxy S24 measured 29.9 fps and an absolute >=45 gate would have called it a
+hub regression. It is not one: with the hub idle and **no fan open at all**, that unit
+already renders at **30.1 fps**, while a Pixel 8 on the identical build sits at 60.3. The
+S24 in BrowserStack is an **Exynos 2400 / Xclipse 940** part under ANGLE-on-Vulkan, Chrome
+149. An absolute threshold measures the device; a ratio measures the feature.
+
+### > Hub sandbox owns port 8077. `tools/local_backend_sandbox.py` and any other local server must use a different port; the launcher refuses a busy port and never kills another process.
+
+A concurrent session bound a second server to 8077 mid-run. Windows allowed it, and the
+BrowserStack phones drove the wrong server through the tunnel for the rest of the run:
+signup and login answered **200** against a store the hub sandbox could not see, and every
+gesture step reported "hub-pad not present". Nothing errored. That run is void.
+`hub_sandbox_boot.py` now refuses to boot on a busy port and names the command to find the
+owner — it does **not** kill the other process, which may belong to someone else's work.
+
+### > ⛔⛔ A PORT ASSIGNMENT IS NOT A SERVER IDENTITY. Before any local or tunnelled certification run: verify the port has no listener, verify the server's own identity with a per-run nonce, verify the tunnelled URL returns that SAME nonce, and fail closed on any ambiguity.
+
+**This generalises the rule above, and it exists because the rule above was read as being
+about the number 8077.** On 2026-09-09 port **8099** had FOUR listeners: another
+workstream's hub sandbox on `0.0.0.0:8099` since 00:02, and three Wave Q
+`python -m http.server` processes bound beside it at 09:57 and 10:04. Windows allowed every
+one of those binds without an obvious failure. The probe fetches came back empty, and from
+the outside that is indistinguishable from a browser that cannot run the probe.
+
+⛔ **`bind()` succeeding proves nothing on Windows** — a second listener on `127.0.0.1` is
+permitted while another process holds `0.0.0.0`, and which socket answers a given
+connection is not the binder's to decide. **`connect()` succeeding is proof somebody is
+there**, which is why an ownership check connects rather than binds.
+
+⚰️ And on this box, connecting to an *unbound* loopback port does not get refused — the
+packets are dropped and the connect TIMES OUT. So "nothing is there" and "something is
+slow" are the same observation at the socket layer. **Timing can never establish identity.
+Ask, and recognise the answer.**
+
+The working pattern is `tools/q1_probe_server.py` + `tools/q1_browser_probe_run.py`: a
+nonce minted before anything binds, served at `/__uct_probe_identity`; an OS-assigned port
+(an ephemeral port narrows the odds and settles nothing on its own); a pre-bind connect
+check that raises rather than squatting, and **never kills the incumbent**; a post-bind
+self-verification before the URL is handed to anything; the browser-side page refusing to
+measure at all on a mismatch; and seven distinct outcomes so infrastructure failures never
+collapse into "the browser cannot do it". Run its controls with
+`python tools/q1_browser_probe_run.py --self-check`.
+
+⛔ Also: a local shake-out is **NOT** certification evidence and must not be able to
+overwrite any. Certification runs go against the deployed origin; local runs write
+separately and carry `"certifying": false`.
+
+### > A results file is claimed (truncated + timestamped) before the session starts; a run that dies leaves an explicit INCOMPLETE, never a stale pass.
+
+Same failure shape as the line below, in file form. Phase 2 device run 2's Pixel 8 threw
+mid-session, before the code that writes its result. The PREVIOUS run's JSON stayed on
+disk — older session id, healthy-looking rows — and read as a current pass. The runner now
+writes a placeholder naming the device and `(session did not complete)` **before** opening
+the session, and overwrites it only with a real result.
+
+### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
+
+### ⛔ A WINDOWS PATH THROUGH THE BASH TOOL LOSES ITS BACKSLASH — quote it, or use PowerShell
+
+2026-09-12, booting the hub sandbox. The command read
+`powershell -File scripts/hub-sandbox.ps1 -DataDir C:\\data-hubtest -Port 8077`, and what the
+launcher actually received was **`--data-dir C:data-hubtest`** — read back from the running
+process's own command line (`Get-CimInstance Win32_Process`), not guessed. `C:data-hubtest` is a
+DRIVE-RELATIVE path: Windows resolves it against the current directory on C:, so the sandbox wrote
+to `...\uct-worktrees\joystick-launch-close\data-hubtest` instead of `C:\data-hubtest`.
+
+⭐ **The guard held and every checkpoint was CLEAN** — pre-boot, +15s and +120s, 53 db files hashed
+each time — because the launcher's protection is the AST-derived env pins and the tripwire on the
+shared root, not the spelling of the sandbox path. That is the design working: a mangled argument
+produced a wrong-but-harmless directory rather than a write into `C:\data`.
+
+⛔ **The fix is the tool boundary, not more escaping.** Pass Windows paths from the PowerShell tool,
+or single-quote them (`-DataDir 'C:\data-hubtest'`). And **verify what the PROCESS received**, not
+what the command said — the same rule as reading the wire instead of the call site.
+
+### Live-data backup (operator safety net)
+
+⛔⛔ **HOW MANY USERS ARE IN PRODUCTION: 26** (measured 2026-09-12, `railway ssh` →
+`SELECT COUNT(*) FROM users` on `/data/auth.db`; 21 subscriptions, 143 MB). The site is in
+`COMING_SOON_MODE`, so account creation is closed and the roster is admins and testers.
+⚰️ **The ~20,640-user figure elsewhere in this file is the DEV BOX's `C:\data\auth.db`, not
+production** — a local file that grew through test runs and imports. They are different databases
+and the names are identical. **A migration, a backfill or a cost estimate sized off the wrong one
+is a real risk**, and the direction of the error is the dangerous one: production is ~800x smaller
+than the number a reader would otherwise carry.
+
+**`C:\data-backup-2026-09-08\`** — 53 databases, 3.88 GB, taken before the first
+device run. Made with `VACUUM INTO`, **not** a file copy: a plain copy of a main
+`.db` from a WAL database omits every transaction still in the `-wal` sidecar and
+produces a backup that looks complete and silently lags the source. All 53 verified
+`quick_check = ok`; `auth.db` row counts match live exactly (20,664 users / 597
+sessions).
+
+💡 Noted in passing: **live `auth.db` is 1.01 GB but vacuums to 35 MB — ~96% free
+pages.** Reclaiming that is a separate, unscheduled task; do not VACUUM a live
+production DB casually.
+
+### D-30 (deferred, NOT this project's to build)
+
+The 72 independent pins are a **latent production risk**, not just a testing
+inconvenience: any contributor can add a 73rd `os.environ.get("X", "/data/y")` and
+every sandbox, staging boot and local run silently inherits the hazard. The durable
+fix is a single `data_root()` helper that every path resolver derives from, so one
+env var moves the whole tree. **Recommended as a separate, non-hub task** — it
+touches ~68 call sites across `api/**` and must not ride along with a UI feature
+branch. Recorded in `docs/plans/joystick/deferred.md`.
+
+
+### Joystick hub preview — `HUB_PREVIEW_ENABLED` (Deploy)
+
+> **`HUB_PREVIEW_ENABLED` unset or `true` → hub eligible; `false` → hub hidden for everyone on
+> next authenticated request. Production sets it `true` deliberately so "on on purpose" is
+> distinguishable from "unset".**
+
+It is a **kill switch**, so the default is ON. The opposite default would make a variable
+someone forgot to set indistinguishable from a deliberate shutdown — the ambiguity
+`project_feature_flag_ledger` exists to prevent.
+
+- Read **at request time** in `api/routers/auth.py::_access_payload`, which signup, login and
+  `/api/auth/me` all share. There is **no feature-flag endpoint in this app** — the flag rides
+  that payload by design, so it needs no new route and is present the moment a session exists.
+- Accepted off values: `0`, `false`, `no`, `off` (case- and whitespace-insensitive). Everything
+  else, including unset, is ON.
+- **Rollback:** set `HUB_PREVIEW_ENABLED=false` in Railway → takes effect on each user's next
+  authenticated request, **no redeploy**. ⚠️ An already-open page keeps its hub until its next
+  `/api/auth/me` — in practice a reload or route change, not a background poll.
+  ⚠️ `railway variables --set`'s restart behaviour is NOT settled — see
+  **"`railway variables --set` — measured BOTH ways"** below. `--kv` confirms the
+  SERVICE's config, which is not evidence the RUNNING process has it; verify the
+  boot and read the value in-process.
+- Rails: `tests/test_hub_preview_flag.py` — `test_the_flag_is_read_per_request` (the
+  load-bearing one: a module-level capture passes every other test and makes the no-redeploy
+  rollback a fiction) and `test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed`
+  (pins the literal, not just the behaviour, so the default cannot be changed and the test
+  "fixed" to match).
+
+
+### ⛔ A dismissable control needs a recovery path IN THE SAME COMMIT — the joystick "Hide" defect
+
+**"Hide joystick" shipped writing `joystick_hub.enabled = false` while the Settings toggle that
+turns it back on was scheduled for Phase 4.** The two documented routes back were *an admin
+editing `user_preferences`* and *the member pasting a `fetch()` into a devtools console*. The
+owner hit it on the live admin preview, on production, as an admin.
+
+> **A control that can be dismissed and not recovered is a defect regardless of how good the
+> toast copy is.** The toast read "Hidden. Re-enable in Settings soon" — honest, friendly, and
+> describing a screen that did not exist.
+
+⚰️ **The gap was known and written down, and that is what made it survive.**
+`45-phase2.5-plan.md` carried a ⚠️ block instructing that both workarounds "must be documented
+for support". Writing the workaround down made the hole feel handled. **A recorded workaround is
+not a recovery path — it is a record of one being missing.**
+
+The fix (`docs/plans/joystick/47-hide-recovery.md`) is three parts, and a persistent hide is
+only allowed to exist because part 2 sits beside it:
+1. hiding from the sheet is **session-only** and writes nothing — "Hidden for now. Reload to
+   bring it back." is true only because `hubSessionVisibility.js` has no persistence layer, so
+   the load-bearing test asserts **no write**, not that the hub vanished;
+2. **Settings → Joystick** (pulled forward from Phase 4) is the one control that writes a
+   persistent hide — and it must `clearSessionOverride()` before writing, or a member who
+   session-hid then switched it ON sees nothing happen;
+3. a 12×36px **edge tab** at the hub's resting position restores it, for either kind of hide.
+   `HUB_PREVIEW_ENABLED=false` removes the tab too — a way back that outlives the kill switch is
+   a live door into a feature that is supposed to be gone.
+
+**Two defects found while building it, both invisible to structural tests, both in the same
+place:** the toast was passed `message` where `JournalToast` reads `msg` (rendered blank), and
+both toasts were owned by the branch their own action unmounts (rendered for zero frames). The
+hub still hid, the tab still worked, every assertion stayed green — **the only broken part was
+the half that talks to the member.** `hubHideRestore.test.jsx` therefore has a **copy contract**
+section asserting rendered TEXT, not just state transitions.
+
+⚠️ **`POST /api/auth/preferences` is `{key: str, value: str}` and REPLACES the whole value**
+(`set_user_preference` writes one TEXT column). Any recovery snippet must be read-modify-write
+or it silently wipes `handedness` and `coachMarkSeen`. The snippet previously in
+`46-preview-production-check.md` posted `{joystick_hub: {...}}`, called itself "a JSON-patch
+merge", and was neither.
+
+
+### ⛔ Assert user-facing feedback by RENDERED TEXT, never by state (Testing)
+
+> **User-facing feedback is asserted by rendered DOM text after the triggering action settles,
+> never by state alone.**
+
+Owner ruling, 2026-09-09, after two toast defects shipped in the joystick hub that left **every
+structural assertion green**:
+
+1. The toast was passed `message` where `JournalToast` reads `msg` — the component renders `''`
+   for anything else, so the copy was blank.
+2. Both toasts were owned by the element their own action unmounts. "Hide joystick" lives in
+   the Actions sheet inside `HubShell`; firing it unmounts `HubShell`. Tapping the restore tab
+   unmounts the hidden branch. Each message was destroyed in the same commit that set it and
+   rendered for **zero frames**.
+
+In both cases the state transition was correct, the control worked, and the only broken part was
+the half that talks to the member. A test that asserts `setToastMsg` was called proves nothing
+about whether a human ever saw the sentence.
+
+**Structural corollary:** a toast/banner/confirmation host must OUTLIVE the control that fires
+it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible/hidden branch,
+written to by both sides, with one fixed anchor so the message lands in the same place either
+way. Do not nest a feedback element inside a subtree that its own trigger tears down.
+
+### ⛔ Registering a hub mode must never re-render the registrant — the 2026-09-10 navigation freeze
+
+> **A `useHubMode` config is memoized by its caller on the values it is built from, and the hook
+> reads its registrar from `HubRegistrarContext`, never from `useHub()`.**
+
+The night §3.6 Catalysts went live (`80a520cb3`), clicking any nav entry on `/dashboard` changed
+the URL and left the screen where it was; only a hard refresh recovered. Measured: Dashboard
+rendered 0/sec, the hub-owning `CatalystTable` ~4,500/sec. A passive-effect loop — React never
+throws "Maximum update depth" for one — starved React Router's transition commit, and the member
+was held on the exact page that was looping, which is why it read as app-wide.
+
+The chain: `useHubCursor` returned a fresh object every render → `catalystsSection`'s config
+memo was keyed on that object → `useHubMode` re-registered → `setPageModeConfig` changed the hub
+context value → the tile, a context consumer THROUGH `useHubMode`, re-rendered. A second leg:
+while the catalysts fetch was pending, `data?.rows || []` manufactured a new array per render, so
+the loop began on the first mount, before the API had answered at all.
+
+⚰️ It was filed as *"only when the catalysts API returns no data."* Measured under the real
+`HubProvider`, the owning tile never settled with a healthy payload, a 401, a network error OR a
+still-pending request — the API state was a coincidence of when it was noticed. And
+`useHubMode`'s own docstring asserted a fresh config per render *"costs one setState … and
+correctness never depends on it."* It was the loop.
+
+Four fixes, four rails, each mutation-proved by reverting exactly that fix:
+- `useHubCursor` returns a memoized object (`hubRegistrarLoop.test.jsx`);
+- `useHubMode` reads a SEPARATE, never-changing registrar context, so registering cannot
+  re-render the registrant — a per-render config is now wasteful, not fatal (same file);
+- `catalystsSection` keys its config on the cursor's stable parts, and `CatalystTable` derives
+  `allRows` from a frozen constant (`CatalystTable.renderLoop.test.jsx` renders the REAL tile under
+  the REAL provider across all four API states and asserts the render count stays bounded — the
+  section's unit tests stub the cursor and the Dashboard tests mock the tile, so neither could see it);
+- `Dashboard.jsx` prunes the hero out of whichever branch the stylesheet hides
+  (`useCssDisplayed`, measured from computed style, never a second breakpoint literal), so the
+  tile mounts ONCE in a browser and hub ownership follows the visible copy — the old
+  "mobile copy owns it" rule handed the hub to a `display:none` tree on every tablet
+  (`Dashboard.heroMount.test.jsx`). jsdom applies no CSS, so tests still see both branches.
+
+⭐ ESLint had already named the second leg at HEAD — *"the `allRows` logical expression could make
+the dependencies of useMemo change on every render"* — in a file whose pre-existing
+`rules-of-hooks` errors made one more red line invisible. A lint finding on a file you touch is a
+report, not noise.
+
+### ⛔ A test run without a totals line is not a run (Testing)
+
+> **Assert the totals line before reading the exit code.**
+
+Owner ruling, 2026-09-09. A full-suite run was launched with an invalid `--minWorkers` flag; vitest
+died at argument parsing having executed nothing, and the background-task wrapper reported
+**exit 0**. Nothing in the status distinguished "17,000 tests passed" from "the runner never
+started". It was caught only because the log had no `Test Files` / `Tests` line in it — had that
+been trusted, a green gate would have been reported for a suite that never ran
+(`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
+
+**Corollary — a CHUNKED run must be diffed against the full test-file list before its total is
+quoted.** The same gate was later split by directory to survive host memory pressure, and the chunk
+list covered 1,016 of 1,178 files — missing a known baseline row. A partial suite fails in the
+flattering direction: fewer files run, fewer failures found. Count the files, not just the passes:
+
+```sh
+find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
+```
+
+### ⛔ Run the suite in its OWN tool call, before `git commit` — never in the same one (Testing)
+
+> **The verification and the commit are two separate acts, in that order. Chaining them into one
+> shell invocation means the commit lands whatever the tests said.**
+
+Owner ruling, 2026-09-10, from the model's own slip an hour earlier. Adding a `@typedef` to
+`hub/contracts.js` broke `hub/phase3Contracts.test.jsx` — the rail that pairs every Phase 3 typedef
+with a `validate*` export, on the grounds that *"a @typedef is a comment; it enforces nothing."*
+The run and the `git commit` were in a single Bash call, so the failure printed and the red commit
+landed in the same breath.
+
+⭐ **The mistake is not "forgot to run the tests" — they DID run.** The output was right there. What
+failed is that nothing in the sequence could act on it: `npx vitest run … ; git commit …` commits on
+a non-zero exit exactly as happily as on a zero one, and by the time a human or a model reads the
+combined output the commit already exists. Two calls, and the second one is only issued after
+reading the first.
+
+⚠️ Corollary, same disease: this is why `scripts/gate_shards.py` refuses a dirty tree and records
+the tree hash at start AND end rather than trusting that the caller checked. A verification that
+cannot block the thing it verifies is decoration.
+
+### ⛔ An empty result is a failed invocation until proven otherwise (Testing)
+
+> **Any rail that shells out — git, a subprocess, the network — carries a NON-VACUITY CONTROL: a
+> case proving the command returned something before any assertion over its output means anything.
+> Its mutation proof is run BEFORE the rail is called done, not after.**
+
+Owner ruling, 2026-09-10 (rule 14). Same disease as the totals-line rule above, different organ: a
+command that returns nothing produces an assertion that passes over an empty set, and an empty set
+satisfies almost every check anyone writes.
+
+**Three instances in two days, each caught only by the mutation proof, never by review:**
+
+| Rail | What the command actually returned | Why it read green |
+|---|---|---|
+| `hub/rule12Paths.test.js` v1 | `git status --porcelain` sliced at a fixed offset, eating the first character of every MODIFIED path — `pp/src/pages/...` | the forbidden-prefix filter matched nothing, so a real violation passed |
+| `hub/rule12Paths.test.js` v2 | `git diff -- app/src/...` run from vitest's cwd (`app/`), so the PATHSPEC resolved to `app/app/src/...` | zero added lines compared against zero removed lines: `0 === 0` |
+| `scripts/deploy_watch.py` v1 | `subprocess.run(["railway", ...])` cannot resolve a `.cmd`/`.exe` shim on Windows without `shutil.which` | forty consecutive `FileNotFoundError`s, then **exit 0** |
+
+⭐ **The three fixes generalise.** Pin the working directory (`git -C $(git rev-parse
+--show-toplevel)`) rather than trusting the caller's cwd — git resolves pathspecs relative to the
+cwd and `--porcelain` paths relative to the repo, and the two disagreeing is invisible. Resolve
+executables with `shutil.which` and exec the resolved path, never `shell=True`, which fixes the
+symptom by handing an interpolated string to a shell. Parse nothing you can avoid parsing: prefer
+commands whose output needs no offset arithmetic (`git ls-files --others --exclude-standard` over
+slicing status codes).
+
+⚠️ **The control must be able to fail.** `expect(files.length).toBeGreaterThan(0)` is only a control
+if a broken invocation would actually make it zero — assert on something the command CANNOT
+legitimately return empty (this repo's branch always changes at least its own resume file), and
+prefer naming a specific expected member (`expect(files).toContain('HubRoot.jsx')`) over a count.
+
+### ⛔⛔ H14 — A HAZARD CLASS FOUND WHILE THE CODE IS LIVE IS A HARD STOP, NOT A FOOTNOTE
+
+> **The moment you name a hazard class, ask whether code exhibiting it is in production right
+> now. If it is: check the live build immediately, and the NEXT deploy is blocked until that
+> check is done. It is never a line in a report.**
+
+Owner ruling, 2026-09-11, and it is written from a case where every other rule in this file was
+followed and the outcome was still four and a half hours of broken navigation.
+
+**What happened.** On the evening of 2026-09-10 a subagent finishing unrelated chart work hit an
+out-of-memory kill in its own test harness, diagnosed it, and reported this sentence:
+
+> "`useHubMode` re-registration is identity-driven, so any host passing an unmemoized callback
+> loops."
+
+That is a complete, correct description of a hazard class. It was reported as a curiosity —
+"worth knowing" — and relayed to the owner the same way. **At that moment the class was already
+live in production**: `catalystsSection` keyed its config memo on the object `useHubCursor`
+returned, a fresh literal every render, and had been shipping since the 19:45 ET deploy. Clicking
+any nav entry on `/dashboard` changed the URL and left the screen where it was, app-wide. It was
+found by a member, and fixed by a different session hours later.
+
+**Why nothing else caught it, and why this rule is about ATTENTION rather than tooling.** The
+gate was green (1,261 files, 18,708 tests, 0 NEW). `/api/health` returned 200 throughout. The
+first-hour watch recorded five clean samples while the defect was live, because it polled the
+server and the server was never unwell. ⭐ **A green suite, a 200 and a rising uptime are all
+compatible with a browser that cannot change pages.** The one instrument that would have caught
+it did not exist; it does now (`tools/hub_nav_smoke.py`). But the *information* was already in
+hand before the tooling gap mattered — somebody had described the exact mechanism in prose.
+
+**What H14 requires, in order:**
+
+1. **Name the class**, not the instance. "This host loops" is an instance; "re-registration is
+   identity-driven" is the class.
+2. **Enumerate what exhibits it, from source.** A grep for callers, not a memory of which ones
+   exist. The freeze's host was not the one the finding came from.
+3. **Check the live build now.** Not the branch, not the suite — the deployed thing, at the layer
+   the hazard would show up in. A render loop shows in a browser, never in `/api/health`.
+4. **Block the next deploy** until 1–3 are done. A deploy that ships while a live hazard class is
+   un-checked is a second bet on the same coin.
+
+⛔ **The tell to watch for in your own writing is the word "interesting".** A hazard class
+reported as interesting has already been demoted. If it is real enough to write down, it is real
+enough to ask whether it is running.
+
+⚠️ This is deliberately stricter than "add a rail". A rail protects the next change; H14 is about
+the change that already shipped.
+
+### ⛔⛔ H15 — A FAILING POST-DEPLOY SMOKE IS ROLLED BACK FIRST AND DIAGNOSED SECOND
+
+> **When the post-deploy smoke fails, roll back via the runbook, THEN report. Never diagnose on
+> a live failure.**
+
+Owner ruling, 2026-09-11, written into the member-launch charter. It exists because the
+2026-09-10 navigation freeze was live for **four and a half hours**, and essentially none of that
+was spent fixing it — it was spent not knowing. Once a member is looking at a broken screen, the
+time cost of a diagnosis is paid by them, and the rollback is cheaper than the investigation in
+every case where both are available.
+
+**The order, and it is not negotiable:**
+
+1. **Roll back.** `HUB_PREVIEW_ENABLED=false` in Railway removes the hub per request with **no
+   redeploy** — `docs/plans/joystick/rollback-runbook.md` §1. If the failure is not hub-scoped,
+   §3's revert-and-push is the slow path.
+2. **Confirm the rollback took**, at the layer the failure appeared in — not by reading the
+   variable back. `--kv` shows what the service is CONFIGURED with, which is not evidence the
+   running process has it.
+3. **Then** report, and only then diagnose. The branch is still there; the member is not.
+
+⛔ **"Let me just check one thing first" is the failure mode this rule names.** A smoke that
+fails has already done the checking — it names the route and the shape of the break. Reading its
+output is not diagnosing; opening a browser to see how bad it is, is.
+
+⚠️ **INCONCLUSIVE is not FAILED, and must not trigger a rollback.** `tools/hub_nav_smoke.py`
+exits **2** when nothing was measurable and **1** when a break was measured, precisely so this
+rule cannot fire on an unmeasured deploy. "We could not compute it" and "it is broken" are
+different facts; rolling back on the first one teaches everyone to stop running the smoke.
+
+### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
+
+> **A contract is verified against the runtime call site, never against a harness that restates
+> it. Arity is not a shape; validators do not catch it, derivation rails do.**
+
+Owner ruling, 2026-09-09, after R-05. `HubRoot.jsx` had called `onScrub(ctx, scrub)` since Phase 2.
+The Phase 3 typedef said `onScrub(scrub)` — and the contract test's harness hand-wired the
+one-argument form **to match the typedef**. The contract and its test agreed with each other and
+neither agreed with the product, so a section built against the documented shape would have read
+`ctx.delta === undefined` on a real page with a green suite behind it.
+
+**A runtime validator cannot see this.** `validateSectionConfig` asserts `onScrub` is a *function*,
+and a function of the wrong arity is still a function — JavaScript calls it and drops the context
+into a parameter named `scrub`. Nothing throws, nothing logs; the gesture silently does the wrong
+thing. Two integrators found it independently, from opposite sections, on their first day.
+
+**The rail:** `app/src/hub/contractArity.test.js`. For every callback `contracts.js` documents, it
+READS the argument list from the file that actually calls it (`HubRoot.jsx`, `useJoystick.js`),
+asserts the typedef declares the same, and asserts the harness invokes it the same way.
+Mutation-proved on `onScrub` and `onScrubCommit`. ⭐ It strips comments before matching — its own
+first version matched the prose "passed through to the mode's own onScrub(ctx, delta)" a few lines
+above the real call site, which is the invented-citation defect committed by a machine.
+
+### ⛔ A citation you cannot quote is struck
+
+> **A plan citation to a document or file must be verified AT WRITE TIME by quoting the cited
+> line. A citation that cannot be quoted is struck, not softened.**
+
+Owner ruling, 2026-09-09. The Phase 3 plan carried *"`Screener.jsx` no longer exposes an
+`activeTab` — the Wave 0 scout described one"*. The string `activeTab` appears **nowhere** in
+`10-wave0-discovery.md`. A binding was attributed to a document that never made the claim, and it
+survived weeks of review because a citation looks like evidence: nobody re-opens a source that has
+already been named.
+
+This is the same failure as a stale line number, one level up — and worse, because a wrong line
+number is discovered the moment someone follows it, while an invented citation sends them to a
+real document that simply does not say the thing. Quote the line into the plan, or do not cite it.
+
+### ⛔ Provenance: `git show <sha>:<file>`, never `git status`
+
+> **"Did my change cause this?" is answered by asking the committed version, not by looking at
+> what is dirty in the working tree.**
+
+Owner ruling, 2026-09-09. A suite baseline turned up four failing rails caused by the joystick
+hub — three of them shipped by PR #100 — and **not one of the four offending files was in that
+branch's working set**:
+
+| Rail | Offender | Hub cause |
+|---|---|---|
+| `styles/tokens.reachable.test.js` | `hub/hub.module.css` | `--color-text-muted` is not a token and never was, so the declaration was a silent no-op |
+| `__tests__/sourcesAreText.test.js` | `hub/useHubCursor.js` | a raw `0x01` byte made the file binary to git and ripgrep |
+| `research/EarningsResearchModal.themeIsland.test.js` | `styles/tokens.css` | three `--hub-*` glass tokens added with `[data-theme]` variants, never pinned in the island |
+| `screener/reachable.test.js` | `hub/contracts.js` | typedef-only module with no runtime importers |
+
+A `git status`-based argument would have cleared all four and filed them to other owners. Run
+`git show <sha>:<file>` and look for the construct.
+
+**Corollary — a timeout is never banked as permitted breakage.** A test that fails a full run on
+a timeout and passes in isolation is load-sensitive, not broken (`enumerationSites.test.js`:
+15 000 ms under the full suite, **1461 ms** alone on the same SHA). Banking one leaves a slot in
+the baseline that a real failure can occupy unnoticed. Re-run it alone before classifying it.
+
+### ⛔ A themed token must be pinned in every theme island
+
+> **Adding a custom property with a `[data-theme]` variant is a change to every theme island in
+> the app, whether or not you have heard of them.**
+
+A "theme island" re-declares theme-variant tokens at their `:root` values so everything inside it
+renders as one consistent surface whatever theme the page wears. PR #100 added
+`--hub-glass-tint`, `--hub-glass-tint-strong` and `--hub-rim` to `tokens.css` with theme variants
+and did not pin them in `EarningsResearchModal.module.css`'s island — so descendants of that
+modal resolved the hub's glass against the page theme instead of the dark chrome the modal is
+drawn on. The feature that added the tokens and the surface that broke were in different
+directories and neither had reason to look at the other.
+
+**Rail:** `app/src/styles/themeIslands.test.js`. Islands declare themselves with
+`--theme-island: <name>;`; the required set is derived from `tokens.css` every run; a missing
+token fails by name. Mutation-proved both directions. Self-declaring rather than
+threshold-guessed on purpose — `floor2/standalone.css` (substitutes for `tokens.css` on a page
+that never loads it) and `ChartsWorkspace.module.css` (pins under `[data-theme='light']`) both
+look like islands to a naive scan and are not (`lesson_a_guard_that_tests_the_adjacent_thing`).
+
+### Rebasing a feature branch — when, and when not
+
+> **Rebase only when master has touched a file the branch touches, or the branch is more than
+> five commits behind. Otherwise merge clean.**
+
+Owner ruling, 2026-09-09. Rebasing rewrites already-published commits and forces a
+`--force-with-lease` push; when master's changes cannot interact with the branch's, that buys
+nothing and risks clobbering a concurrent session's work on the same branch (see
+`feedback_agent_authority_and_worktree_isolation`). Measure it, don't guess:
+
+```sh
+BASE=$(git merge-base origin/master HEAD)
+git rev-list --count $BASE..origin/master                       # behind
+comm -12 <(git diff --name-only $BASE..origin/master | sort -u)          <(git diff --name-only $BASE..HEAD          | sort -u) # overlap
+```
+
+Empty overlap and fewer than six behind ⇒ push and open the PR as-is.
+
+### Deploy windows — the FILES decide, not the clock
+
+**`docs/runbooks/deploy-windows.md` is the single authority. This section states no
+rule of its own.**
+
+In short: which services restart depends on which files a push touches, and only one
+restart is expensive.
+
+- **Docs, tests, tools, scripts, `app/**` → push any time.** These restart web only.
+  Cost is a ~1 min `/api/*` blip and a possible lost scheduler slot (APScheduler's job
+  store is in memory, so a slot whose minute passes during the swap is lost outright,
+  not run late). If a scheduled job is due in the next minute or two, wait for it.
+- **Anything on flow-worker's watch list → after-hours or weekend only.** A flow-worker
+  restart drops the Massive OPRA socket, and Massive does not replay: the gap is
+  permanent until the T+1 flat file. Physics, not policy.
+
+⛔⛔ **ONE MASTER MERGE AT A TIME, REPO-WIDE — Railway `web` SUCCESS before the
+next push.** Owner ruling 2026-09-13. Stacked pushes are what caused the 2026-09-12
+502 (two merges four minutes apart, each marking the previous deploy `REMOVED`,
+serving Bad Gateway through the swap) and the 23:00 sampler **SKIP** that followed
+it — an observation row lost to somebody else's deploy, inside a 7-day window whose
+whole point is that a hole stays visible. ⭐ This is a QUEUE, not a window: the cost
+is not the blip, it is that two sessions pushing inside one swap make every
+instrument in flight unreadable, and neither session can tell whose change did it.
+
+`python tools/flow_worker_watch_coverage.py` prints what this branch touches and what
+flow-worker reaches. `railway deployment list --service flow-worker --json` reports
+**`SKIPPED`** for a push that missed the list — it was SKIPPED on **14 of 14** pushes to
+2026-09-11.
+
+⚰️ **Two rules this replaces, and the history is kept deliberately.**
+**"No master push Mon–Fri 09:00–16:00 ET, docs-only included"** was justified by *"every
+master push redeploys web, worker, bars-api and flow-worker in lockstep"* — measurement
+disproves it: over 14 pushes flow-worker deployed **zero** times, worker and bars-api
+only on the two `api/**` commits, and only **web** deploys on every push.
+**"Ignore the no push window, we can push anytime anyday forever"** dropped the
+flow-worker case entirely, and that case is real.
+
+⛔ **Neither should be restored, and neither should be re-derived from its surviving
+rationale.** This file has had a rescinded restriction reinstated that way twice: the
+mechanism under a struck rule explains a class of bug, it is not the rule.
+
+⚰️ **How the wrong version of this was nearly written into a rule:** a Wave Q1
+session read a deployment list by SHA and never read the `status` column, which
+said `SKIPPED` — concluding *"every master push restarts web, worker, bars-api
+and flow-worker in lockstep"* and nearly widening the RTH freeze to docs on that
+basis. Counting presence is not reading a verdict.
+
+### 📓 Notebook Wave Q1 — LIVE (not dark) since 2026-09-12 00:45 ET
+
+`OFFLINE_DEFAULT_ON = true` on `master` as of `739218e48`. The durable IndexedDB
+working copy, the outbox, Web Locks leader election and conflict-fork-never-clobber
+are the DEFAULT path for every member, not an opt-in.
+
+⭐ **The closing entry is the authority** — `docs/notebook/wave-q1-RESUME-HERE.md`,
+first section. It carries the verification, the canary table, the Sunday
+18:00 ET keep-or-revert gate, and the per-browser opt-out.
+
+⛔ **Rollback is pre-authored and pushed**: `rollback/notebook-offline-default-off`
+at `3db89e205`, gated and gauntleted green with the flag false. It is a DEPLOY,
+not a variable — see *"Rolling back a FRONTEND flag"* below.
+
+⛔ **Unattended observation**: `tools/nb_observe.py`, Task Scheduler job
+`UCT-WaveQ1-Observe`, every 2 hours into `docs/notebook/wave-q1-observation-log.md`.
+
+### 📓 Wave K — the Notebook kill switch is LIVE (but nothing is flipped), 2026-09-12
+
+`53a181082` on master, `web` SUCCESS, `/api/health` `uptime_seconds` 39 on a fresh
+boot. **Shipped DARK: no `NOTEBOOK_*` variable is set on any service** (read live
+before the push), so every browser reads the four keys at their defaults and behaves
+exactly as it did before K.
+
+- **The switch:** `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web` — read per request in
+  `_access_payload`, no rebuild. Kill switch, so **unset means ON**. The three Q2
+  keys are enablement gates and **unset means OFF**; they are declared `dark` in
+  `docs/feature_flags.json`.
+- **Rollback and reach:** the section *"Rolling back the Notebook wave"* above. The
+  reach sentence is verbatim in five places and `tests/test_k_reach_statement.py`
+  keeps them identical.
+- **Flip packet:** `docs/notebook/kill-switch-flip-packet.md` — ⛔ named for the
+  mechanism, because `wave-k-*.md` in that directory already means the OTHER Wave K
+  (Ask Notebook). Manifest §10 trap 1.
+- ⛔ **K-1 is QUEUED, NOT PARKED:** flipping the constant to `false` so an
+  unreachable payload fails to OFF. Its precondition is a measured config-served
+  rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
+  and **off** as different facts, because a pod predating K serves no keys at all.
+
+### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
+
+`app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit
+the Notebook workstream's files"* and enforces it by diffing
+`merge-base(origin/master, HEAD)..HEAD` plus the working tree for anything under
+`app/src/pages/journal-2-0/`.
+
+⚰️ **It used to fire on EVERY branch that edits those paths — including the
+Notebook workstream editing its own code**, so it could not distinguish the case
+it was written for from that case's exact opposite
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), and the Wave Q1 flip
+gate was waived by the owner on 2026-09-11 rather than modified. A first fix by
+the Notebook workstream named ONE literal branch (`notebook-primary-platform`) —
+right about the mechanism, too narrow by a family, since they also ship from
+`feat/notebook-*`, `hotfix/notebook-*`, `notebook-flip` and `rollback/notebook-*`.
+
+⭐ **The fix identifies the change set, not the branch name, because a name is
+typed and a diff is evidence.** `rule12Applies({branch, changed})` scopes out on
+any `notebook`-family branch first, then fires on a `joystick`/`hub`-named branch,
+then — the load-bearing clause — on any change set touching `app/src/hub/`,
+`docs/plans/joystick/`, `tools/hub_` or `scripts/hub`. That last clause is what
+actually carries this programme: **not one** of `fix/d46-d48-closeout`,
+`docs/scope-reconciliation`, `launch/closure` or `docs/d45-ruling` contains the
+word "joystick" or "hub", and every one of them touches those paths.
+
+⚠️ **The residual hole is stated in the file rather than hidden:** a joystick
+branch whose name says nothing and whose diff touches ONLY `journal-2-0/` files
+reads as Notebook work and is scoped out. From a diff alone those two cases are
+genuinely indistinguishable; the programme is closed, so that branch is close to
+hypothetical, while the false positive it replaces was firing daily on somebody
+else's gate.
+
+⛔ **Rails, in the same file:** fifteen table cases over REAL branch names read
+off `git branch -r`, a discriminator proving the table is not quietly one answer,
+a check that every owned prefix matches real tracked files (a typo matches
+nothing), and a check that no prefix claims the forbidden paths. Mutation-proved
+four ways — predicate pinned true (10 red), pinned false (6 red), a prefix typo
+(4 red), and the branch-name word boundary dropped, which alone reds
+`fix/github-actions-cache`, the branch that contains "hub" inside "git**hub**".
+End-to-end proof separately: a planted file under `journal-2-0/` still makes the
+real check fire.
+
+### ⛔ Rolling back the Notebook wave — TWO levers since Wave K, and the fast one IS a variable
+
+☠️ ~~*"Rolling back a FRONTEND flag is a deploy, not a variable"*~~ — **struck
+2026-09-12, superseded by Wave K.** Left marked rather than deleted, because a
+reader who remembers only the old heading will revert a commit where one Railway
+variable would have done it, and this file has twice had a rescinded rule
+re-derived from its surviving rationale.
+
+**(1) THE SWITCH — `NOTEBOOK_OFFLINE_DEFAULT_ON=0` on `web`.** Wave K puts four
+Notebook capability flags on the **auth payload** (`_access_payload` in
+`api/routers/auth.py`, the same helper `HUB_PREVIEW_ENABLED` rides — **there is
+still no feature-flag endpoint in this app, and K deliberately did not add one**).
+The value is read PER REQUEST, so the app needs no rebuild. Polarity is per
+capability: `NOTEBOOK_OFFLINE_DEFAULT_ON` is a KILL switch (unset = ON, nothing
+killed); the other three are enablement gates (unset = OFF, not released).
+⚠️ `railway variables --set` has been measured BOTH ways — verify a NEW BOOT and
+read the value in-process, never from `--kv`.
+
+> **REACH — verbatim, §2b of `docs/notebook/kill-switch-spec.md`, owner ruling
+> 2026-09-12:** a flip reaches a member on their next authenticated request or reload; it does not reach a tab mid-session (latched for §21). If the auth payload is unreachable, the wave stays ON — the switch kills a decision, not an outage, until K-1.
+
+⭐ The client **latches** the answer for the tab's lifetime
+(`lib/offline/notebookFlags.js`), deliberately: §21 requires that a tab which has
+already decided it may write never sees "am I allowed to write" change between a
+PUT going out and its ack coming back. A later poll disagreeing is COUNTED, not
+applied.
+
+**(2) THE DEPLOY — still real, and still the only way to remove CODE.** Constants
+like `OFFLINE_DEFAULT_ON`
+(`app/src/pages/journal-2-0/lib/offline/offlineFlag.js`) are **compiled into the
+bundle**. There is no Railway variable behind THE CONSTANT — ⚠️ and that is a
+narrower claim than it looks now that lever (1) exists: `NOTEBOOK_OFFLINE_DEFAULT_ON`
+governs the same DECISION at runtime, but a variable named after the constant
+(`OFFLINE_DEFAULT_ON=0`) still reaches nothing and still looks like it worked. Rollback = revert the
+commit, push to `master`, wait for the `web` rebuild (**~2–3 min**; one
+measurement, 138 s), and **every member with an open tab keeps the OLD bundle
+until they reload** — there is no service worker and no new-version prompt, by
+charter. ⚰️ For most of Wave Q1 the canary stamped the opposite instruction on
+every evidence row; it was corrected 2026-09-12. **The constant is also the
+fallback lever (1) cannot replace:** a browser talking to a pod that predates K
+receives no `notebook_*` keys at all and reads the constant — which is why
+"absent" and "off" are reported as different facts by the canary's
+`notebook config served` row, and why **K-1** (flipping the constant to `false`
+so an unreachable payload fails to OFF) is queued behind a measured
+config-served rate rather than assumed.
+
+⭐ **"THERE IS NO SERVICE WORKER" — PRECISELY, because the rollback reasoning
+leans on it.** Measured 2026-09-12: `app/src/main.jsx` registers **no caching
+service worker**, and §8 DO-NOT-BUILD is untouched. What DOES exist is
+`/sw.js`, a **self-uninstalling KILL SWITCH** (2026-04-26) that the app fetches
+*only* for a browser that still carries the LEGACY cache-first SW — it deletes
+that SW's caches, unregisters itself and reloads. So the sentence is true for
+every clean browser, and for a browser still carrying the legacy worker it
+becomes true the first time it loads the app. ⛔ The reason to state it this
+exactly rather than leave it absolute: a cache-first SW would serve a STALE
+bundle straight through a revert, which is the one failure the rollback text
+tells a reader not to worry about.
+
+### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
+
+> **Whether `--set` restarts the service is not settled, and this file asserted
+> three different answers in three places. The rule that survives either
+> behaviour: after setting a variable, verify a NEW BOOT by startup-line
+> timestamp. Never assume which behaviour you got.**
+
+Two measurements, both real, both kept:
+
+| Date | Service | What happened |
+|---|---|---|
+| 2026-08-30 | `chart-renderer` | `--set` **STAGED only**. `--kv` read the new value back immediately while `/proc/1/environ` still held the old one; only an explicit `railway redeploy` applied it. |
+| 2026-09-09 | `web` | `--set` **auto-redeployed**. An explicit `railway redeploy` issued 16s later was REFUSED — *"cannot be redeployed... currently building"*. The new value was live in the running process after the boot. |
+
+It may be per-service, or the CLI changed between those dates. **Do not
+re-litigate it from either data point alone** — that is how this file ended up
+with three contradictory sentences (the lines that now point here).
+
+**The procedure, either way:**
+1. `railway variables --service <svc> --set "K=V"`
+2. Watch for a **new boot** — a startup line stamped AFTER the `--set`.
+3. **Only if no boot appears within ~3 minutes**, `railway redeploy --service <svc> --yes`.
+4. Confirm the RUNNING process, not the service config: `--kv` shows what the
+   service is configured with, which is **not evidence the process has it**.
+   Read it in-process (`os.environ.get(...)` over `railway ssh`) or from
+   `/proc/1/environ`.
+
+5. ⛔⛔ **UPDATE `docs/feature_flags.json` IN THE SAME DOCS PUSH THAT RECORDS
+   THE FLIP TIME.** A flip is not finished when the process has the value; it
+   is finished when the ledger says so. Set `status` to `armed`, put the
+   SERVICE in `where`, and put the FLIP TIMESTAMP in the note.
+
+⚰️ **This rule exists because the ledger described an unreleased surface while
+members were using it.** `RESEARCH_TECHNICAL_TAB_ENABLED` was flipped ON by
+owner ruling at **2026-09-09 23:22:30 ET** and verified in the running process.
+Its ledger entry kept the MERGE-TIME `dark` state for a full day. Two
+independent readers then disagreed about whether the Research > Technical tab
+was live, and a session reading the LEDGER reported the live flag as a
+"discovery" — in a file that recorded the flip, with its timestamp, 488 lines
+higher up.
+
+⭐ **The ledger records INTENT and cannot see Railway; the checkpoint records
+WHAT HAPPENED. When they disagree about a live flag, the checkpoint wins and
+the ledger is the thing that drifted.** Do not infer a flag's state from the
+ledger — it is the artifact most likely to be stale, because nothing fails
+when it is.
+
+⚠️ **And the half that would have caught it was unrunnable.**
+`tools/flag_ledger_audit.py` is the only thing that compares the ledger to
+Railway. On Windows `subprocess.run(..., text=True)` decodes the pipe with the
+locale codec (cp1252); the Railway CLI emits UTF-8, so the first box-drawing
+byte killed a reader thread and the tool reported **"could not enumerate the
+project's services"** — which reads as an auth or project problem, not as an
+encoding bug. That is why it went unfixed rather than unnoticed. Fixed
+2026-09-10 (`encoding="utf-8", errors="replace"`); run it after any flip.
+
+⚠️ **A flip is therefore a RESTART either way**, so it is bound by the push
+window above.
+
+⭐ **One probe during a swap is not a verdict.** Right after a redeploy the old
+pod can still answer; re-probe. Cf.
+`lesson_a_railway_var_set_stages_it_does_not_restart` (the 2026-08-30
+measurement, still accurate for what it measured) and
+`lesson_two_points_do_not_establish_a_rate`.
+
+### Tooling — GitHub MCP reads `GITHUB_PERSONAL_ACCESS_TOKEN`
+
+The `github` MCP server (plugin `claude-plugins-official`) is configured as:
+
+```json
+"github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/",
+            "headers": { "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}" } }
+```
+
+⛔ **It reads `GITHUB_PERSONAL_ACCESS_TOKEN` (user scope). `GITHUB_TOKEN` is NOT read** —
+setting that one does nothing, and the unexpanded `${...}` is what produces the connection
+error *"Authorization header is badly formatted"*, which reads like a malformed value rather
+than a missing variable. **A restart is required after setting it.**
 
 ## Design Documents
 
@@ -1917,7 +3447,7 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - `app/src/components/tiles/ThemeTracker.jsx` — dashboard tile
 - `api/services/theme_performance.py` — background compute + live overlay + taxonomy enrichment
 - `api/services/theme_db.py` — SQLite schema + seed from JSON
-- `api/services/realtime_stream.py` — Massive/Polygon WebSocket tick-by-tick streaming
+- `api/services/realtime_stream.py` — **Finnhub** WebSocket tick-by-tick trade streaming (`wss://ws.finnhub.io`, `FINNHUB_API_KEY`). ⚰️ This said *"Massive/Polygon"* — wrong vendor, and the line below said the wrong URL and key with it. Pinned by `tests/test_d3_realtime_topology_rail.py` (D3 CP1).
 - `api/routers/stream.py` — SSE endpoint for real-time price push to browser
 - `themes_taxonomy.json` — source of truth. **Measure it, don't quote it** (`json.load(...)` → `version`, `len(themes)`, `len(sectors)`, `sum(len(t["holdings"]))`). At 2026-08-07 it reads **v4.22.0, 112 themes, 2029 holdings, 12 sectors**. ⚰️ This line said *111 themes, 2049 holdings, v4.16.0* — three of the four numbers had moved across six minor versions while calling itself "source of truth", which is precisely what discourages re-measuring. It matters for anyone reasoning about coverage before a version-gated reseed, or sizing what the Theme Membership Engine's orphan absorption works against.
 - `morning-wire/morning_wire_engine.py` — reads taxonomy, fetches holdings, pushes to Railway
@@ -1939,7 +3469,7 @@ Autonomous AI overlay that absorbs orphan stocks (in no theme) and refines membe
 - **Provenance in UI**: dim dot on engine-sourced Multi-Chart grid cell badges + Theme Tracker holding chips. The engine overlay survives version-gated taxonomy reseeds (separate tables).
 
 ### Real-Time Streaming
-- **WebSocket**: `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`
+- **WebSocket**: `wss://ws.finnhub.io` via `FINNHUB_API_KEY` — ⚰️ this said `wss://socket.polygon.io/stocks` via `MASSIVE_API_KEY`, which is a DIFFERENT socket owned by `bar_stream.py`. ⛔ **THERE ARE THREE VENDOR SOCKETS AND THEY ARE NOT INTERCHANGEABLE:** `realtime_stream.py` → Finnhub ticks · `bar_stream.py` → `wss://socket.massive.com/stocks` bar aggregates · `api/massive_ws_worker.py` → `wss://socket.massive.com/options`, the OPRA tape on flow-worker. D3 CP1 ratifies that topology and its rail fails by name on a fourth.
 - **Channels**: `T.*` (tick-by-tick trades) + `AM.*` (per-minute aggregates)
 - **SSE endpoint**: `GET /api/stream/prices?tickers=X,Y,Z` — pushes to browser every 100ms
 - **Frontend hook**: `useRealtimePrices` — EventSource client, falls back to REST polling
@@ -2986,9 +4516,83 @@ this closes that gap.
   earnings_table:: key has no trailing separator, so `delete_prefix` would
   over-match, e.g. 'A' wiping AAPL) + `cache.delete_prefix(f"mb_year_earnings_{S}_")`
   (separator-anchored, safe).
-- **Alert-on-change:** Discord + in-app (`chart_health_alerts`) fire ONLY on
-  newly-flagged tickers, so a persistent upstream anomaly (self-heal can't fix a
-  bad SOURCE) stays visible in the status endpoint without re-spamming hourly.
+- **Alert-on-change:** Discord + in-app (`chart_health_alerts`) fire ONLY on a
+  newly-seen defect that indicates OUR pipeline regressed. The "newly" baseline
+  is the **durable `defect_state` table** in `/data/fundamentals_monitor.db`,
+  written back only for the tickers a cycle ACTUALLY CHECKED.
+  ⛔ That last clause is the whole design: this monitor SAMPLES ~30 of ~3,700, so
+  "absent from the flagged set" almost always means "not looked at", and clearing
+  those is the bug. `provider_coverage_monitor`'s version replaces the whole set
+  each cycle because it evaluates its entire population — **do not copy it back
+  here.**
+  ⚰️ This previously read *"fire ONLY on newly-flagged tickers … without
+  re-spamming hourly"* and described an intent that did not hold: the baseline
+  was `_state["_prev_flagged_syms"]`, an in-memory set holding only the PREVIOUS
+  cycle's flagged names. Half of the 30 sample slots are a random shuffle of warm
+  entries plus a random cold tail, so a long-tail name left the set the moment it
+  went unsampled and paged again on its next appearance — and every master push
+  restarts web and cleared it outright (measured on prod 2026-09-12: started_at
+  minutes old, `cycles_completed` 1, `_prev_flagged_syms` empty). It produced
+  several pages a day for defects nobody could act on. **A suppression set whose
+  population is a rotating sample is not a suppression set.**
+- **`_CRITICAL_KINDS` is wired** and decides what pages. The split is "who is
+  supposed to guarantee this?": `exception` · `bad_shape` · `nan` ·
+  `dup_quarter` · `dup_forward` · `reported_forward_overlap` ·
+  `label_period_mismatch` are invariants OUR code enforces, so one surfacing
+  means a guard stopped working → page. `forward_gap` ·
+  `forward_noncontiguous` · `stale_reported` describe a HOLE a provider handed
+  us that our code faithfully reproduces → recorded in `flagged_current`, served
+  by the health endpoint, and summarised in **one digest per
+  `FUNDAMENTALS_MONITOR_DIGEST_SECONDS`** (default daily; stamp is in
+  `monitor_meta` on disk, or a pod that redeploys three times a day sends three
+  "daily" digests). ⚰️ The tuple existed from 2026-07-03 referenced NOWHERE, so
+  every kind paged equally; it also listed `label_mismatch`, which
+  `check_ticker` has never emitted — wiring it as written would have demoted the
+  real `label_period_mismatch` signal.
+- **Funds/ETFs are never flagged** (`_is_fund`, reusing `darkpool_eod._ticker_meta`'s
+  cached profile lookup, consulted only for a ticker that already FAILED so the
+  clean majority costs nothing). 42 of the 55 stale names in a 900-ticker sample
+  were closed-end funds, which can never have a quarterly EPS strip. ⚠️ FMP's
+  `isFund`/`isEtf` misses some CEFs (RNP is one) and an industry-based test would
+  be worse — DHIL is also "Asset Management" and is a real operating company.
+  A missed fund is recorded and digested, never paged.
+- **`stale_reported`** catches the member-visible half: `_build_and_cache`'s
+  completeness guard only ever asked whether there were ZERO reported quarters,
+  so a strip whose newest actual was two quarters old passed as complete, held
+  the full TTL, persisted to the snapshot store, and was served as current. The
+  payload now carries `reported_through` + `stale_quarters` and the widget says
+  so. Threshold is 2 quarters: one behind is an ordinary late filer.
+  ⛔⛔ **THE MONITOR'S FLAG IS CONFIRMED AGAINST SEC EDGAR; THE DISPLAY IS NOT.**
+  `reported_staleness` compares against a GENERIC 75-day expectation, which
+  answers *"is what we hold old?"* — right for the member notice, useless as a
+  defect signal. `check_ticker` therefore consults
+  `edgar.newest_reported_quarter(sym)` and raises `stale_reported` ONLY when the
+  filings show a periodic report we do not have. Validated live 2026-09-12:
+  HOLX/EXAS/ACLX/FOLD/DHIL/BRY → **no flag** (SEC agrees with what we serve;
+  the companies have not reported), MMC's pre-fix state → **flag** (SEC showed
+  2026 Q2 against our 2025 Q4). ⭐ Display asks "is what we hold old?"; the
+  monitor asks "has the company filed something we lack?" — only the second is
+  actionable and only the filings can answer it. ⚠️ SEC is consulted only for an
+  already-stale strip (a healthy ticker spends no round-trip), cached per ticker
+  per UTC day, and a `None` answer does NOT flag — unknown and current must stay
+  distinguishable or an SEC outage manufactures findings for the universe.
+  ⛔ Tests that exercise a stale fixture MUST stub `sec_newest_reported_quarter`;
+  without it `check_ticker` makes two live HTTP calls to sec.gov.
+  Measurement and the three upstream failure modes:
+  **`docs/fundamentals-provider-gaps-2026-09-12.md`**.
+  ⛔⛔ **THAT DOC'S FMP TICKET IS WITHDRAWN — DO NOT SEND IT.** It accused FMP of
+  dropping filed quarters for EXAS/FOLD/ACLX/DHIL/BRY/HOLX. Checked against SEC
+  EDGAR's submissions index 2026-09-12 (control: MMC, BK and AAPL each return a
+  2026 Q2 10-Q, so the method finds current filings), **every one of those six
+  has filed nothing newer than what FMP already has** — HOLX's newest 10-Q is
+  period-end 2025-12-27, filed 2026-01-29. They are not provider gaps; the
+  companies have not reported. ⭐ `stale_reported` cannot distinguish "the
+  provider is missing a filed quarter" from "the company has not filed one", so
+  the member-facing notice states only *nothing newer has been reported yet* —
+  it previously blamed the providers, for six names where they were blameless.
+  ⚰️ And `sec.gov/files/company_tickers.json` is PARTIAL (10,426 entries, missing
+  MMC and BK): resolve a CIK via `browse-edgar?action=getcompany&CIK=<ticker>`,
+  and never read that file's silence as "not a US filer".
 - **Cold-tail bounded** (`_COLD_TAIL`, default 6/cycle) — a cold check can fire
   the scarce AlphaVantage 25/day deep-history budget the widget itself uses;
   warm+priority sampling keeps external-quota cost tiny (near-zero on Railway,
@@ -3000,8 +4604,42 @@ this closes that gap.
   `_CYCLE_SECONDS` (7200) · `_SAMPLE` (30) · `_COLD_TAIL` (6) · `_STARTUP_DELAY`.
 - **Known day-1 flag:** HUBG (its 2026 Q1 actual is missing from FMP's
   stable/earnings but lingers as a stale forward estimate card) — a real
-  surfaced anomaly, not a false positive. Grace-window tightening in
-  `earnings_table._UNREPORTED_GRACE_DAYS` (130d) is a possible follow-up.
+  surfaced anomaly, not a false positive. **Still flagged 2026-09-12**, now with
+  twelve more operating companies; it was the first instance of a class, not a
+  one-off.
+- ⚰️ **`_UNREPORTED_GRACE_DAYS` (130d) is NOT the follow-up this used to
+  suggest.** Measured 2026-09-12: the floor is doing the right thing in both
+  directions. On MMC it correctly drops the 2026-03-31 estimate row — that
+  quarter should be a reported actual by now, and showing it as a forward
+  estimate is precisely the lie to avoid. Tightening it drops MORE real forward
+  quarters; loosening it re-admits stale estimates for quarters already
+  reported, which is the `reported_forward_overlap` class. **The gap is upstream
+  absence, not our window.** Leave it at 130 unless a measurement says
+  otherwise.
+- ✅ **THE DATA WAS RECOVERABLE FROM A SOURCE WE ALREADY PAY FOR.**
+  `/stable/earnings` is the only *earnings* endpoint on this plan, but
+  `/stable/income-statement?period=quarter` — same vendor, same key, different
+  endpoint — carries the reports it drops. It is now the THIRD gap-fill leg in
+  `get_year_earnings` (ahead of yfinance: it has revenue, it is the plan we
+  already pay for, and Yahoo's record is shorter for exactly these names).
+  Measured 2026-09-12: recovers MMC (+2 quarters), SJW (+2), RNP (+2), BK (+1);
+  **nine of the fifteen investigated stale names came out clean**, MMC and BK
+  (~$90B and ~$97B) among them. ⛔ It is labelled by
+  `_fiscal_q_from_period_end`, NEVER by FMP's own `period`/`fiscalYear` — HOLX
+  ends its fiscal Q1 in late December, so the provider's numbering disagrees
+  with this pipeline's and trusting it duplicates one quarter while dropping
+  another, which is the trap `_year_earnings_from_stock` already documents.
+  ⚠️ Actuals only — no estimate, so no surprise %; inventing one would render to
+  a member as analyst consensus nobody published.
+- ⛔ **The yfinance leg was UNREACHABLE for every plain US ticker** until
+  2026-09-12 — `get_year_earnings._gather` gated it on `"." in prov or
+  any(ch.isdigit())`, a test of the SYMBOL'S SHAPE, so a three-provider chain was
+  two deep for exactly the names members open. Now gated on whether the year is
+  still on screen (`_is_recent_year`: current or previous), which is the cost the
+  shape test was really protecting. ⚠️ **This does not close the gap** — Yahoo is
+  empty for MMC, BK and HOLX too (control: AAPL/NVDA return five quarters in the
+  same session). It fixes a decorative fallback; it recovers nothing for the
+  worst names.
 
 ## ⚠️ FOR RAVI — a one-line change landed in `api/live_massive_router.py` (2026-09-01)
 
@@ -3092,3 +4730,9 @@ does NOT replay — every feed gap is permanent until the T+1 flat file. Full de
 - **Railway healthcheck timeout** — set to 600s in `railway.json` (default 300s was too tight for startup with COT seed + DB migrations + scheduler init).
 - **Breadth collector Task Scheduler** — runs 4:30 PM ET weekdays (`UCT Breadth Collector`). Battery settings disabled (was killing the job on unplug). Logs: `uct-intelligence/data/breadth_collector.log` (Python) + `breadth_collector_stdout.log` (OS-level stdout/stderr capture).
 - **COT refresh timing** — CFTC publishes after 3:30 PM ET on Fridays (publish time varies; `last-modified` on `deacot{YEAR}.zip` reveals the exact timestamp). Three independent defense layers: (1) APScheduler — Fri 3:50/4:15/4:45 PM ET + daily 6 PM catch-up; (2) Startup catch-up — calendar-aware (uses `expected_latest_report_date()`, NOT `already_ran_today`); (3) Request-driven self-heal — `get_status()` triggers background refresh with 30-min cooldown if data is stale. The 2026-05-22 incident: Railway redeployed at 2 PM ET before CFTC published; startup catch-up downloaded the not-yet-updated zip and marked `last_updated=today`; later scheduler jobs silently failed (likely lost `acquire_scheduler_lock()`); the misleading `already_ran_today` flag would have blocked future startup catch-ups. Hardening in commit `12851ef`. Check `/api/cot/status` to self-heal; `POST /api/cot/refresh` to force.
+
+## Restart protocol
+
+Before a PC restart every session checkpoints: nothing uncommitted, its branch pushed, and `docs/RESUME.md` rewritten (HEADs, programs, open decisions, processes, flags, gotchas, verification checklist).
+After the restart: open PowerShell, run `scripts/resume.ps1` (verifies, prints the packet, lists every worktree, opens a window per active worktree), then paste the one-sentence prompt it prints into Claude Code.
+Until `discord-render-hardening` merges, the packet and scripts live at `C:\Users\Patrick\uct-worktrees\discord-render\docs\RESUME.md` and `...\scripts\resume.ps1`.

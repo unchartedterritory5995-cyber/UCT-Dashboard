@@ -1,0 +1,314 @@
+[
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D1",
+    "pass": true,
+    "detail": "gesture=578ms dialogs=1 hubConfirm=False primary='Set stop 395.25'",
+    "screenshot": "D1-movestop-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D2",
+    "pass": true,
+    "detail": "gesture=573ms dialogs=1 hubConfirm=False primary='Set stop 402.49'",
+    "screenshot": "D2-breakeven-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D3",
+    "pass": true,
+    "detail": "gesture=563ms dialogs=1 hubConfirm=False labels=['shares', 'exit price', 'exit date']",
+    "screenshot": "D3-close-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D4",
+    "pass": true,
+    "detail": "GENUINE flicks (<120ms) [85, 83, 90, 76, 84, 90, 82, 90, 104, 94, 81, 93, 80, 81] -> fired=0 (want 0); CONTROL over-threshold [] -> fired=0 (want >0, proves the gesture reaches Close); writes=NONE",
+    "screenshot": "D4-close-flick-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D5-moveStop",
+    "pass": true,
+    "detail": "5/5 flicks fired @[81, 87, 80, 77, 81]ms \u2014 prediction stated before the run: it FIRES",
+    "screenshot": "D5-flick-fires-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D5-breakeven",
+    "pass": true,
+    "detail": "5/5 flicks fired @[97, 75, 86, 91, 88]ms \u2014 prediction stated before the run: it FIRES",
+    "screenshot": "D5-flick-fires-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D6",
+    "pass": null,
+    "detail": "N/A under emulation \u2014 a browser cannot feel a haptic. Covered by the B5 unit rail (useJoystick.test.js: warn=[22,60,22] vs impact=18 through the real fireTarget).",
+    "screenshot": null
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D7a",
+    "pass": true,
+    "detail": "reached /journal/trades=True (precondition) pad=False",
+    "screenshot": "D7a-member-no-pad-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D7b",
+    "pass": true,
+    "detail": "on charts section=True (precondition) joystickCard=False",
+    "screenshot": "D7b-member-no-card-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D7e",
+    "pass": true,
+    "detail": "prefs POST=200 padAfterOptIn=True cardAfterOptIn=True \u2014 the strand case: an opted-in member keeps their way off",
+    "screenshot": "D7e-member-card-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D7c",
+    "pass": true,
+    "detail": "admin joystickCard=True",
+    "screenshot": "D7c-admin-card-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D7d-1",
+    "pass": true,
+    "detail": "reached journal=True (precondition) :8078 flag OFF, admin, pref true -> pad=False",
+    "screenshot": "D7d-killswitch-off-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D7d-2",
+    "pass": true,
+    "detail": ":8077 CONTROL same account -> pad=True",
+    "screenshot": "D7d-control-on-chromium-393x852.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D1",
+    "pass": true,
+    "detail": "gesture=588ms dialogs=1 hubConfirm=False primary='Set stop 395.25'",
+    "screenshot": "D1-movestop-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D2",
+    "pass": true,
+    "detail": "gesture=562ms dialogs=1 hubConfirm=False primary='Set stop 402.49'",
+    "screenshot": "D2-breakeven-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D3",
+    "pass": true,
+    "detail": "gesture=549ms dialogs=1 hubConfirm=False labels=['shares', 'exit price', 'exit date']",
+    "screenshot": "D3-close-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D4",
+    "pass": true,
+    "detail": "GENUINE flicks (<120ms) [66, 67, 78, 71, 73, 74, 67, 64, 69, 75, 73, 65, 77, 72] -> fired=0 (want 0); CONTROL over-threshold [] -> fired=0 (want >0, proves the gesture reaches Close); writes=NONE",
+    "screenshot": "D4-close-flick-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D5-moveStop",
+    "pass": true,
+    "detail": "5/5 flicks fired @[66, 75, 76, 69, 67]ms \u2014 prediction stated before the run: it FIRES",
+    "screenshot": "D5-flick-fires-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D5-breakeven",
+    "pass": true,
+    "detail": "5/5 flicks fired @[69, 77, 65, 70, 76]ms \u2014 prediction stated before the run: it FIRES",
+    "screenshot": "D5-flick-fires-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D6",
+    "pass": null,
+    "detail": "N/A under emulation \u2014 a browser cannot feel a haptic. Covered by the B5 unit rail (useJoystick.test.js: warn=[22,60,22] vs impact=18 through the real fireTarget).",
+    "screenshot": null
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D7a",
+    "pass": true,
+    "detail": "reached /journal/trades=True (precondition) pad=False",
+    "screenshot": "D7a-member-no-pad-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D7b",
+    "pass": true,
+    "detail": "on charts section=True (precondition) joystickCard=False",
+    "screenshot": "D7b-member-no-card-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D7e",
+    "pass": true,
+    "detail": "prefs POST=200 padAfterOptIn=True cardAfterOptIn=True \u2014 the strand case: an opted-in member keeps their way off",
+    "screenshot": "D7e-member-card-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D7c",
+    "pass": true,
+    "detail": "admin joystickCard=True",
+    "screenshot": "D7c-admin-card-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D7d-1",
+    "pass": true,
+    "detail": "reached journal=True (precondition) :8078 flag OFF, admin, pref true -> pad=False",
+    "screenshot": "D7d-killswitch-off-chromium-360x800.png"
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D7d-2",
+    "pass": true,
+    "detail": ":8077 CONTROL same account -> pad=True",
+    "screenshot": "D7d-control-on-chromium-360x800.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D1",
+    "pass": true,
+    "detail": "gesture=430ms dialogs=1 hubConfirm=False primary='Set stop 395.25'",
+    "screenshot": "D1-movestop-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D2",
+    "pass": true,
+    "detail": "gesture=438ms dialogs=1 hubConfirm=False primary='Set stop 402.49'",
+    "screenshot": "D2-breakeven-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D3",
+    "pass": true,
+    "detail": "gesture=444ms dialogs=1 hubConfirm=False labels=['shares', 'exit price', 'exit date']",
+    "screenshot": "D3-close-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D4",
+    "pass": true,
+    "detail": "GENUINE flicks (<120ms) [13, 18, 20, 17, 15, 18, 19, 10, 15, 16, 15, 11, 18, 7] -> fired=0 (want 0); CONTROL over-threshold [] -> fired=0 (want >0, proves the gesture reaches Close); writes=NONE",
+    "screenshot": "D4-close-flick-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D5-moveStop",
+    "pass": true,
+    "detail": "5/5 flicks fired @[11, 17, 17, 18, 18]ms \u2014 prediction stated before the run: it FIRES",
+    "screenshot": "D5-flick-fires-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D5-breakeven",
+    "pass": true,
+    "detail": "5/5 flicks fired @[11, 19, 9, 23, 24]ms \u2014 prediction stated before the run: it FIRES",
+    "screenshot": "D5-flick-fires-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D6",
+    "pass": null,
+    "detail": "N/A under emulation \u2014 a browser cannot feel a haptic. Covered by the B5 unit rail (useJoystick.test.js: warn=[22,60,22] vs impact=18 through the real fireTarget).",
+    "screenshot": null
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D7a",
+    "pass": true,
+    "detail": "reached /journal/trades=True (precondition) pad=False",
+    "screenshot": "D7a-member-no-pad-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D7b",
+    "pass": true,
+    "detail": "on charts section=True (precondition) joystickCard=False",
+    "screenshot": "D7b-member-no-card-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D7e",
+    "pass": true,
+    "detail": "prefs POST=200 padAfterOptIn=True cardAfterOptIn=True \u2014 the strand case: an opted-in member keeps their way off",
+    "screenshot": "D7e-member-card-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D7c",
+    "pass": true,
+    "detail": "admin joystickCard=True",
+    "screenshot": "D7c-admin-card-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D7d-1",
+    "pass": true,
+    "detail": "reached journal=True (precondition) :8078 flag OFF, admin, pref true -> pad=False",
+    "screenshot": "D7d-killswitch-off-webkit-393x852.png"
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D7d-2",
+    "pass": true,
+    "detail": ":8077 CONTROL same account -> pad=True",
+    "screenshot": "D7d-control-on-webkit-393x852.png"
+  }
+]

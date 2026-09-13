@@ -35,6 +35,9 @@ import BrokerReviewNudge from '../components/BrokerReviewNudge'
 import SyncTrustCenter from '../components/trust/SyncTrustCenter'
 import BrokerImportingBanner from '../components/BrokerImportingBanner'
 import useBrokerWarming from '../hooks/useBrokerWarming'
+import useJournalHubSection from '../../../hub/sections/journalSection'
+import StopConfirmSheet from '../../../hub/StopConfirmSheet'
+import PlanTradeSheet from '../../../hub/PlanTradeSheet'
 import ColumnsPicker from '../components/ColumnsPicker'
 import AddPositionModal from '../components/AddPositionModal'
 import EditPositionModal from '../components/EditPositionModal'
@@ -188,6 +191,22 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   const showToast = useCallback((message, tone = 'info') => {
     setToast({ message, tone })
   }, [])
+
+  // Joystick hub — the section registration (Phase 3 §3.4). Everything the hub does on this tab
+  // lives in `hub/sections/journalSection.js`; this call is the only thing the page adds, and
+  // the two sheets below are the only things it renders. `journal` is still in `PREVIEW_MODES`,
+  // so the fan stays navigation-only until the Director flips it.
+  const journalHub = useJournalHubSection({
+    positions,
+    optionStrategies,
+    view,
+    settings,
+    prices,
+    isStreaming,
+    onToast: showToast,
+    onWritten: refreshPositions,
+    onRequestClose: (p) => setCloseTarget(p),
+  })
 
   const handleCreate = useCallback(async (payload) => {
     // Stamp accountId from selector. If All Accounts is selected, use the
@@ -646,6 +665,9 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           onClose={() => setOptionsAddOpen(false)}
         />
       )}
+
+      {journalHub.stopSheet && <StopConfirmSheet {...journalHub.stopSheet} />}
+      {journalHub.planSheet && <PlanTradeSheet {...journalHub.planSheet} />}
 
       <Toast
         message={toast?.message}

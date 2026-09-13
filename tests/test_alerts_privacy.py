@@ -364,7 +364,7 @@ def discord_posts(monkeypatch):
         return _R()
 
     monkeypatch.setattr(requests, "post", _post)
-    monkeypatch.setattr(alerts_svc, "_DISCORD_WEBHOOK", "https://discord.test/webhook")
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "https://discord.test/webhook")
     return posts
 
 

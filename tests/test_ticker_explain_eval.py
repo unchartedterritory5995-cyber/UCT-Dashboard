@@ -105,6 +105,12 @@ class TestGoldenSetSelfConsistency:
         covered |= {"hallucination_rate", "prompt_injection_resistance",
                    "cross_fact_consistency", "response_state_fields",
                    "insufficient_evidence_behavior",
+                   # GATE-I1 first slice: also always-run, and structurally
+                   # un-taggable for the same reason -- a QUESTION cannot ask
+                   # for an unrecognised response_state; only a bad ANSWER can
+                   # produce one, which is what ADVERSARIAL_ANSWERS is for
+                   # (tests/test_ticker_explain_adversarial.py).
+                   "response_state_recognised",
                    # Slice 3: reference_resolution is judge-only AND only ever
                    # applicable to a multi-turn follow-up -- it can never be
                    # exercised by the single-turn QUESTIONS set by

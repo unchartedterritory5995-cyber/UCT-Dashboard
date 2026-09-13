@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Provenance from '../../../components/provenance/Provenance'
 import styles from '../ResearchPage.module.css'
 
 // AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2 + 3
@@ -19,6 +20,42 @@ import styles from '../ResearchPage.module.css'
 // isolation, and every grounding guarantee. This is still explicitly NOT a
 // chat product: no streaming, no rich-chat framework, no message editing --
 // just a list of independently-grounded question/answer turns.
+//
+// ── GATE-I1 slice 2 (owner-authorized, 2026-09-11) — THE SOURCES BLOCK IS S8'S,
+//    NOT I1's ───────────────────────────────────────────────────────────────
+// This tab used to draw its own citation list: an [E#] mark, the source, the
+// date and the link, in local `ResearchPage.module.css` classes. That was the
+// S8/I1 double-ownership defect Phase 2's adversarial validation found -- two
+// owners for "the one provenance renderer" -- and it was "fixed" in 2026-09-02
+// by a sentence in an architecture document. A sentence cannot fail, so it did
+// not (`lesson_a_comment_claiming_agreement_is_not_agreement`). The Sources
+// block now composes S8's `<Provenance>`, so the Ask-AI answer shows a member
+// the SAME provenance affordance as every sibling tab on this page (NewsTab,
+// OwnershipTab, AnalystRatingsTab). The rail is
+// `pages/research/i1S8Boundary.test.js`.
+//
+// ⛔ WHY `<Provenance>` AND NOT `<Cited>`, stated so the next reader does not
+// "correct" it: `<Cited>`'s prop contract (SPEC-S8 §4.5) addresses either a BAR
+// row (`{ticker, tf, bar_time, source, validated_at, verified_at}`) or a
+// `{uctUri}`. The explain payload's evidence carries NEITHER -- an evidence item
+// is `{id, type, date, source, text, url}` -- and a row with neither key renders
+// an empty detail panel. Manufacturing a `uctUri`, or a `tf` this evidence does
+// not have, to reach the nicer-looking primitive would be exactly the fabricated
+// citation S8's own honest-degraded principle forbids. `<Provenance>` takes what
+// the payload really holds (`sourceActivity`) and nothing it does not:
+// `timestamp` is deliberately NOT passed, because `date` here is often a label
+// rather than an instant ("current snapshot", "Q2 2026 (calendar-quarter
+// label...)"), and `formatEtTime` would turn a date-only string into a
+// confident wrong wall-clock time.
+//
+// ⛔ THE [E#] MARK IS NOT PART OF THAT AFFORDANCE and stays local on purpose:
+// it is the footnote number that ties a key fact to its source, the same
+// concept as `explainFactMark` on the key-fact side, and it must keep mapping
+// 1:1 onto the ids the backend emits (`ticker_explain.py::_result` builds
+// `citations` by filtering evidence on the ids key_facts cite). Rendering it
+// through a provenance primitive would not make it more honest; losing or
+// duplicating one would make the answer wrong, which is why
+// `AskAiTab.test.jsx` counts them against the payload.
 const SUGGESTIONS = [
   'What changed with this company recently?',
   'What changed in analyst sentiment or ratings?',
@@ -93,17 +130,23 @@ function AskAiTurnResult({ data }) {
           {!!(data.citations || []).length && (
             <>
               <div className={styles.explainSectionLbl}>Sources</div>
-              <div className={styles.explainCitations}>
+              <ul className={styles.explainSources} data-testid="ask-ai-sources">
                 {data.citations.map(c => (
-                  <div key={c.id} className={styles.explainCitation}>
-                    <span className={styles.explainCitationMark}>[{c.id}]</span>
-                    <span>
-                      {c.source} · {c.date}
-                      {c.url ? <> — <a href={c.url} target="_blank" rel="noopener noreferrer">source</a></> : null}
-                    </span>
-                  </div>
+                  <li
+                    key={c.id}
+                    className={styles.explainSourceRow}
+                    data-testid="ask-ai-source"
+                    data-evidence-id={c.id}
+                  >
+                    <span className={styles.explainSourceRef}>[{c.id}]</span>
+                    <Provenance
+                      value={`${c.source} · ${c.date}`}
+                      provenance={{ sourceActivity: c.source }}
+                    />
+                    {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer">source</a> : null}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </>
           )}
 

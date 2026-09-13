@@ -54,6 +54,9 @@ import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
+// A moving average the member REMOVED keeps its slot (the merge is positional)
+// and must not be listed. See `chartDefaults`'s tombstone header.
+import { isOverlayRemoved } from './chartDefaults'
 import { chordForTool } from './keyboardShortcuts'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
@@ -89,6 +92,18 @@ export const TOOL_ICONS = {
   avwap:      I(<><path d="M3 12 C5 6, 8 4, 13 5" fill="none" /><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none" /><text x="9" y="13" fontSize="6" fill="currentColor" stroke="none" fontFamily="monospace">V</text></>),
   text:       I(<text x="4" y="12.5" fontSize="11" fontWeight="700" fill="currentColor" stroke="none" fontFamily="monospace">T</text>),
   measure:    I(<><rect x="2" y="4" width="12" height="8" strokeDasharray="2 1" /><line x1="4" y1="8" x2="12" y2="8" /><line x1="4" y1="6" x2="4" y2="10" /><line x1="12" y1="6" x2="12" y2="10" /></>),
+  // ⛔ A SPAN WITH END CAPS, AND NOTHING THAT READS AS A LINE TOOL. At 14px the
+  // eye has one job: tell this apart from Trendline, Arrow and Horizontal Line,
+  // all of which are also "a line". The two caps are what does it — they say
+  // "between here and here", which is the whole tool.
+  //
+  // ⚰️ THE FIRST VERSION READ AS A CAPITAL "H". Full-height caps on a
+  // centre-height rule is exactly that letter, and on a toolbar of glyphs it is
+  // the one shape the eye resolves as a character rather than a picture. Short
+  // caps on a rule that runs edge to edge is wider than it is tall, which no
+  // letter is — it reads as a measured span, and it reads that way at 14px,
+  // which is the only size it will ever be seen at.
+  dateRange:  I(<><line x1="2" y1="8" x2="14" y2="8" /><line x1="2" y1="5.5" x2="2" y2="10.5" /><line x1="14" y1="5.5" x2="14" y2="10.5" /></>),
   advance:    I(<><line x1="2" y1="13" x2="9" y2="6" /><polyline points="6,6 9,6 9,9" fill="none" /><text x="8.5" y="14" fontSize="6" fontWeight="700" fill="currentColor" stroke="none" fontFamily="monospace">%</text></>),
   position:   I(<><line x1="1" y1="5" x2="15" y2="5" strokeDasharray="none" /><line x1="1" y1="8" x2="15" y2="8" strokeDasharray="2 1" /><line x1="1" y1="11" x2="15" y2="11" strokeDasharray="none" /><text x="12" y="7" fontSize="4" fill="currentColor" stroke="none">T</text><text x="12" y="12" fontSize="4" fill="currentColor" stroke="none">S</text></>),
   delete:     I(<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>),
@@ -164,9 +179,19 @@ export const TOOLS = [
   'sep',
   { id: 'text',       label: chorded('text', 'Text Note') },
   { id: 'measure',    label: chorded('measure', 'Measure') },
-  { id: 'advance',    label: 'Advance % Label — click the setup candle, then the candle where the move tops' },
+  { id: 'dateRange',  label: chorded('dateRange', 'Bars & Time') },
+  // ⭐ RENAMED, NOT RETYPED. The stored type stays `'advance'` — see
+  // `drawingObjects` and the schema. A display name is a display name; migrating
+  // an id for one costs every saved chart, every Tracings archive and every
+  // Model Book row a rewrite, to change a word.
+  { id: 'advance',    label: 'Price Move — click the setup candle, then the candle where the move tops' },
   'sep',
-  { id: 'position',   label: chorded('position', 'Position Tool') },
+  // ⚰️ THE 3-POINT POSITION DRAWING IS RETIRED (Phase 9) — but this button is
+  // NOT the drawing tool, it is the door to the Position CALCULATOR: a numeric
+  // panel plus entry/stop/target price lines that StockChart shows while this
+  // tool is armed. The two shared an id and nothing else. The label now says
+  // which of them it opens.
+  { id: 'position',   label: chorded('position', 'Position Calculator') },
 ]
 
 const WIDTHS = [1, 2, 3]
@@ -416,7 +441,11 @@ function ChartSettingsPanel({
       {/* Indicators */}
       <div className={styles.sGroup}>
         <span className={styles.sLabel}>Moving Averages</span>
-        {cs.overlays.map((ov, i) => (
+        {/* ⛔ INDEX FIRST, FILTER SECOND. `updateOverlay(i, …)` addresses the slot
+            in the STORED array, so `i` has to be the real index — filtering the
+            array before mapping would renumber every row after a tombstone and
+            send an edit to the wrong moving average. */}
+        {cs.overlays.map((ov, i) => [ov, i]).filter(([ov]) => !isOverlayRemoved(ov)).map(([ov, i]) => (
           <div key={i} className={styles.sOverlayRow}>
             <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
             <select className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>
@@ -1097,6 +1126,7 @@ function ChartToolbar({
   const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
   const favBtnRef = useRef(null)
   const DRAW_TOOL_LIST = useMemo(() => TOOLS.filter(t => t !== 'sep'), [])
+
   // The floating favorites toolbar PORTALS to <body>, so it can't inherit the
   // chart-scoped --chart-toolbar-* vars. Compute the exact toolbar-button colours
   // from the canvas here (same helper StockChart uses) and pass them as props so
@@ -1132,6 +1162,28 @@ function ChartToolbar({
       setLibraryOpen(true)
       return true
     },
+    // ⭐ THE FORMULA BUILDER'S THIRD OPENER, AND ON `/charts` ITS ONLY ONE.
+    //
+    // The builder is mounted here and NOWHERE ELSE — `BuilderSheet.test.jsx`
+    // parses this file and fails if a second `<BuilderSheet>` element appears,
+    // because two mounts is two drafts over one member's work. Its two existing
+    // doors are the legacy settings panel (hidden on `/charts`) and the library
+    // dialog (whose toolbar button this consolidation removes), so without this
+    // entry the nine tasks of authoring work would once again be unreachable from
+    // the one surface a charting member lives on. `ChartSettingsModal` →
+    // Indicators → "New Formula" reaches it through `StockChart`'s
+    // `toolbarApiRef`.
+    //
+    // ⚠️ IT REPORTS ITS REFUSAL rather than silently no-opping, for the same
+    // reason `openIndicatorLibrary` does: a read-only mount site passes no
+    // `onUpdateSettings`, and a caller that got `true` would render a button that
+    // opened nothing.
+    openFormulaBuilder: () => {
+      if (!canManageIndicators) return false
+      setLibraryOpen(false)   // never two Sheets: see the mount comment below
+      openBuilder()
+      return true
+    },
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
     // right-click **Add alert on <label>…** row, reach THIS popover rather than
     // mounting a second one. ⚠️ IT RETURNS `false` WHEN THERE IS NO SYMBOL, for
@@ -1144,7 +1196,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym])
+  }), [canManageIndicators, currentSym, openBuilder])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1265,7 +1317,11 @@ function ChartToolbar({
     <>
     <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={hiddenHost ? { display: 'none' } : prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
-      {/* Separators removed — every button is evenly spaced by the flex `gap`. */}
+      {/* Every button is evenly spaced by the flex `gap`. TOOLS still carries its
+          'sep' markers and DRAW_TOOL_LIST still drops them: V2 tried rendering them
+          as ~6px of breathing room between lines / shapes / studies / annotation,
+          and the owner's call on the real chart was that the even row reads better.
+          One rhythm the whole way across. */}
       <div className={styles.tools}>
         {(toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => (
           <button
@@ -1310,7 +1366,7 @@ function ChartToolbar({
             aria-label={magnet ? 'Magnet: on' : 'Magnet: off'}
             style={{ fontSize: '13px' }}
           >
-            <UIcon name="magnet" size={15} />
+            <UIcon name="magnet" size={15} gold={false} strokeWidth={1.82} />
           </button>
         )}
 
@@ -1348,7 +1404,7 @@ function ChartToolbar({
               title={`OHLCV legend: ${STATE[mode]} — click for ${NEXT_LABEL[mode]}`}
               aria-label={`OHLCV legend: ${STATE[mode]}`}
             >
-              <UIcon name={ICON[mode]} size={14} />
+              <UIcon name={ICON[mode]} size={14} gold={false} strokeWidth={1.95} />
             </button>
           )
         })()}
@@ -1478,7 +1534,7 @@ function ChartToolbar({
             aria-label="Indicator alerts"
             disabled={!currentSym}
           >
-            <UIcon name="bell" size={14} />
+            <UIcon name="bell" size={14} gold={false} strokeWidth={1.95} />
           </button>
           {alertPopoverOpen && currentSym && (
             <IndicatorAlertPopover
@@ -1491,25 +1547,28 @@ function ChartToolbar({
           )}
         </div>
 
-        {/* Indicators — spec §6 asks for a LABELLED button, "not icon-only in
-            v1": the add-flow is the thing users are hunting for and a glyph is a
-            guess. Gated on the same pair as the settings panel, so a read-only
-            mount site (which passes no `onUpdateSettings`) gets neither.
+        {/* ⚰️ A LABELLED "Indicators" BUTTON STOOD HERE, AND IT IS RETIRED RATHER
+            THAN MOVED — the dialog it opened is still mounted below and still has
+            three live doors (see them at the mount).
 
-            ⚠️ NOT gated on `hideSettingsButton`. That flag retires the LEGACY V1
-            gear on surfaces that have the new modal; the library launcher is the
-            add-flow itself and has no equivalent in the modal, so hiding it with
-            the gear would leave the charts workspace with no way to add one. */}
-        {canManageIndicators && (
-          <button
-            type="button"
-            className={`${styles.btn} ${styles.indicatorsBtn} ${libraryOpen ? styles.active : ''}`}
-            onClick={() => { setLibraryOpen(true); closeOthers(null) }}
-            title="Indicators — browse and add"
-          >
-            <UIcon name="breadth" size={14} /> Indicators
-          </button>
-        )}
+            It existed because spec §6 wanted the add-flow visible and because
+            *"the library launcher is the add-flow itself and has no equivalent in
+            the modal, so hiding it with the gear would leave the charts workspace
+            with no way to add one"*. That sentence was true and is now false:
+            `ChartSettingsModal` → Indicators IS the add-flow — the same catalogue,
+            the same `matches()` search, the same `toggledRow` write, the same
+            "+ Add another", plus the settings for what is already on and a door
+            to the formula builder. Two labelled entry points onto one job is the
+            split this consolidation exists to end; a member should not have to
+            know that "find an indicator" and "configure an indicator" are
+            different buttons.
+
+            ⛔ WHAT DID **NOT** GO WITH IT. `IndicatorLibraryDialog` keeps every
+            other opener — `Alt+Shift+A`, both right-click rows, the phone ƒx
+            sheet through `toolbarApiRef` — because those are chords and menus,
+            not a second permanent surface, and the mobile shell has no settings
+            modal to fall back on. Deleting the component would have been the
+            regression; deleting the BUTTON is the consolidation. */}
 
         {/* Chart settings — legacy V1 inline panel. Hidden on surfaces that have
             the new ChartSettingsModal (charts workspace); still the settings entry

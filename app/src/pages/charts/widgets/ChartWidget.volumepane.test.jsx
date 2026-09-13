@@ -67,6 +67,11 @@ test('the workspace settings modal shows Separate pane as not-applicable', () =>
 
   fireEvent.click(screen.getByRole('button', { name: 'Chart settings' }))
   fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
+  // ⚰️ THE TAB USED TO RENDER EVERY ROW'S FIELDS AT ONCE. The consolidated
+  // Indicators tab lists what the chart draws, collapsed, and opens one row at a
+  // time — so reaching the volume pane's own controls takes the gesture a member
+  // makes: click the row. The claim below is unchanged.
+  fireEvent.click(document.body.querySelector('[data-row-id="volume"] [aria-expanded]'))
 
   const toggle = screen.getByRole('switch', { name: 'Separate pane' })
   expect(toggle).toBeDisabled()

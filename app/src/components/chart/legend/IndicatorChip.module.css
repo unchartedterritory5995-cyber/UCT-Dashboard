@@ -59,7 +59,8 @@
  * control cannot be focused, so `:focus-within` could never re-open the strip and
  * a keyboard user would have no way in at all. Collapsed-but-rendered keeps the
  * three buttons in the tab order and in the accessibility tree, and the reveal is
- * then reachable from BOTH a mouse (`:hover`) and a keyboard (`:focus-within`).
+ * then reachable from BOTH a mouse (`:hover`) and a keyboard
+ * (`:has(:focus-visible)` — see the rule itself for why not `:focus-within`).
  *
  * ⛔ AND IT COLLAPSES TO ZERO WIDTH RATHER THAN JUST FADING. `opacity: 0` alone
  * keeps ~60 px of dead box on every chip; nine chips would push the strip past
@@ -67,7 +68,11 @@
 .chipControls {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+  /* ⭐ 1 → 5, to match `LegendRow`'s strip exactly (owner: "the ✕ is too
+     distanced from settings — they should all be spaced the same"). All three are
+     the same 16px box holding the same 11px glyph, so one gap is even spacing;
+     see `.chipBtnDanger` for the margin that used to break it. */
+  gap: 5px;
   margin-left: 0;
   max-width: 0;
   opacity: 0;
@@ -75,12 +80,19 @@
   vertical-align: bottom;
   transition: max-width 140ms ease-out, opacity 140ms ease-out, margin-left 140ms ease-out;
 }
-/* 82px, not 72px: three 16px buttons + two 1px gaps is 50px, and the 10px safety
-   margin in front of `.chipBtnDanger` (see below) takes it to 60px. The headroom
-   above that is what keeps the strip from clipping its own last control — the
-   failure this file's `overflow: hidden` would otherwise hide in silence. */
+/* 82px for three 16px buttons and two 5px gaps (58px). The headroom is what keeps
+   the strip from clipping its own last control — the failure this file's
+   `overflow: hidden` would otherwise hide in silence. ⚰️ The arithmetic used to
+   include a 10px safety margin in front of `.chipBtnDanger`; that margin is
+   retired (see its tombstone) and the headroom simply grew. */
+/* ⛔ `:has(:focus-visible)`, NOT `:focus-within` — the SAME fix the grid variant
+   took at the foot of this file, because this is the same defect. A mouse click
+   leaves DOM focus on the button and nothing takes it away, so the chip you just
+   acted on kept its strip open behind whatever you moved to next. `:focus-visible`
+   fires for tab-navigation and not for a pointer, so the keyboard reveal this
+   rule was added for survives untouched. */
 .chip:hover .chipControls,
-.chip:focus-within .chipControls {
+.chip:has(:focus-visible) .chipControls {
   max-width: 82px;
   opacity: 1;
   margin-left: 5px;
@@ -123,7 +135,29 @@
  * size lands on nothing instead of on Remove. (The other half of the answer is
  * that Remove no longer costs the member their settings — see
  * `engine/instanceControls.js::setInstanceInput`.) */
-.chipBtnDanger { margin-left: 10px; }
+/* ⚰️ `.chipBtnDanger` CARRIED `margin-left: 10px`, AND RETIRING IT IS AN OWNER
+   DECISION OVER A REAL MEASUREMENT — so the measurement is kept, not deleted.
+   MEASURED ON PRODUCTION 2026-08-14, MACD chip on WMT 1D:
+
+       chip text        Hide             Settings         Remove
+       MACD 0.1605      396.1–412.1      413.1–429.1      430.1–446.1
+       MACD -0.1458     401.5–417.5      418.5–434.5      435.5–451.5
+
+   One extra glyph — the minus sign — moved every control +5.4px, and page-x
+   430.1–434.5 is `Remove` in the first row and `Settings` in the second. The 10px
+   of dead space meant a drift that size landed on nothing instead of on Remove.
+
+   ⚠️ WHAT CHANGED, AND WHY IT IS DEFENSIBLE NOW: the owner asked for even spacing
+   across every legend control after seeing the two kinds of row side by side, and
+   the hazard is narrower than it was — `LegendRow`'s value sits in its own grid
+   column and cannot reflow its strip at all, so the asymmetry only ever protected
+   the INLINE chip and made the two disagree everywhere else. The other half of
+   the original answer still stands and is what carries the risk now: Remove no
+   longer costs the member their settings (`instanceControls.setInstanceInput`),
+   and the control turns RED on hover before it is clicked.
+   ⛔ IF MIS-CLICKED REMOVES ARE EVER REPORTED, THIS PARAGRAPH IS THE PLACE TO
+   START — the fix is a confirm on the destructive verb, not a re-introduced gap
+   that puts one legend out of step with the other. */
 .chipBtnDanger:hover { background: rgba(196, 31, 45, 0.35); }
 
 /* GRAY = intentional (spec §6's colour language: red broken / amber degraded /
@@ -314,4 +348,104 @@
   .chip {
     min-width: var(--tap-min);
   }
+}
+
+/* ── THE GRID VARIANT: this chip as three cells of the vertical legend ──────
+ *
+ * ⚰️ IN THAT LEGEND THE CHIP USED TO TAKE `.vlFull` (`grid-column: 1 / -1`), so
+ * `RSI(14) 57.3` was one blob spanning both tracks at this file's own
+ * `600 11px`. The value therefore did not line up with the Open/High/Low/Close
+ * and moving-average values stacked above it, and the label was a different size
+ * from every row it sat under — both reported by the owner, and both are what a
+ * row that opts out of a shared grid looks like.
+ *
+ * ⛔ NO `font` DECLARATION IN THIS BLOCK, DELIBERATELY. `.legendVertical` sets the
+ * legend's type once and `.legendCompact` shrinks it; a row carrying its own
+ * cannot agree with its neighbours at two densities, which is exactly the defect
+ * being fixed.
+ */
+.chipGridLabel {
+  /* Undo the one-box chip's own metrics — in the grid the row is a CELL, and its
+     height, font and truncation all come from the legend. `max-width` in
+     particular would otherwise cap a track the grid is trying to size. */
+  display: block;
+  height: auto;
+  line-height: inherit;
+  max-width: none;
+  font: inherit;
+  font-weight: 500;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.chipGridVal {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The control gutter cell. Empty until hover, so the track measures zero and the
+   legend keeps the width it had — the same contract `.vlCtlPad` carries for the
+   rows with no controls. See `StockChart.module.css` `.legendVertical`. */
+.chipGridCtl {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  pointer-events: auto;
+}
+/* ⛔ AND IN THE GRID THE STRIP IS NOT COLLAPSED-BUT-PRESENT. The inline chip can
+   afford `max-width: 0` (it is one box, and `:focus-within` re-opens it); here
+   three zero-width buttons on every row would still give the shared third track a
+   permanent width, which is the reflow the gutter exists to prevent. It opens on
+   the CELL's hover instead — and the keyboard path to all three verbs is Chart
+   Settings → Indicators, a real focus surface with the same controls per row. */
+/* ⚰️ FOUR SIBLING-COMBINATOR SELECTORS STOOD HERE, trying to reconstruct "this
+   row is hovered" out of `.chipGridLabel:hover ~ .chipGridVal ~ .chipGridCtl`.
+   They could never cover the GAPS between the cells, which is where the pointer
+   actually was when the strip vanished. `.chipGridRow:hover` at the foot of this
+   file is the whole rule, because the row is now a real box. */
+
+/* ⭐ THE GRID VARIANT'S ROW BOX — one continuous hover target, borrowing the
+   legend's own tracks.
+   🔴 IT WAS THREE LOOSE CELLS, and `.legend` is `pointer-events: none`, so the
+   column gaps between them were not hit targets: hovering a chip's VALUE armed
+   nothing, and the controls disappeared the moment the pointer crossed a gap on
+   its way to them. `subgrid` keeps the label and value on the legend's columns —
+   the alignment this variant exists for — while the row is one box. */
+.chipGridRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  pointer-events: auto;
+}
+/* ⛔ THE STRIP COLLAPSES TO ZERO WIDTH, NOT `display: none`. A `display: none`
+   control cannot be focused, so `:focus-within` could never re-open it. At rest
+   the cell contributes nothing to the legend's third track, which is what keeps
+   the numbers from moving.
+
+   ⭐ AND IT APPEARS AT ONCE — `transition: none` (owner, 2026-09-10). `.chip`'s
+   own strip animates `max-width` from 0, which on the INLINE chip reads as the
+   controls unfurling beside the text. In the vertical legend the same transition
+   put an RSI row visibly out of step with the moving average directly above it:
+   the MA's controls were simply THERE and the RSI's grew in from the left. Two
+   rows of one list revealing the same three buttons two different ways is the
+   kind of detail that reads as a bug even when nobody can name it. The MA
+   behaviour is the one that wins because it is the one that feels immediate. */
+.chipGridCtl .chipControls {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  transition: none;
+}
+/* ⛔ `:has(:focus-visible)`, NOT `:focus-within` — see `LegendRow.module.css`'s
+   `.vRow` for the measurement. A mouse click leaves DOM focus on the button, so
+   `:focus-within` kept the row you just acted on open behind the one you moved
+   to; `:focus-visible` fires for keyboard navigation only, which keeps the
+   keyboard reveal and drops the stuck one. */
+.chipGridRow:hover .chipControls,
+.chipGridRow:has(:focus-visible) .chipControls {
+  max-width: 82px;
+  opacity: 1;
+  margin-left: 6px;
+  transition: none;
 }

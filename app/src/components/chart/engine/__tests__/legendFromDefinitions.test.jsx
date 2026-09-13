@@ -1794,3 +1794,233 @@ function hexToRgb(hex) {
   const [r, g, b] = [0, 2, 4].map(i => parseInt(n.slice(i, i + 2), 16))
   return `rgb(${r},${g},${b})`
 }
+
+
+// ─── THE PANE'S OWN TOP-LEFT READOUT ────────────────────────────────────────
+//
+// ⭐ OWNER, 2026-09-10: *"the top left of the pane [should] show the RSI label
+// (like RSI 14) in parentheses, and then the value next to it, just like for the
+// volume pane we have the volume label showing."* The volume pane has had
+// `.volLegend` since it was built; every oscillator pane was a bare rectangle
+// whose number could only be read off a gridline ladder, or matched by colour to
+// a chip in a strip six hundred pixels away.
+//
+// ⛔ AND THE PIXEL GATE CANNOT SEE THIS EITHER, for the same reason the rest of
+// this file exists: `ChartRender.jsx` CSS-hides `[class*="legend" i]` and no
+// parity case hovers. THIS is the gate.
+describe('the indicator pane prints its own name and value, top-left', () => {
+  /** The pane readouts, in DOM order. Structural — read by the data attribute
+   *  the rows carry, never by matching the text a case is about to assert. */
+  const paneRows = (view) => [...view.container.querySelectorAll('[data-pane-legend]')]
+  const paneRow = (view, key) => view.container.querySelector(`[data-pane-legend="${key}"]`)
+
+  it('an RSI pane carries `RSI(14)` and the hovered value', async () => {
+    const view = draw(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25 }))
+    const row = paneRow(view, 'rsi')
+    expect(row, 'the RSI pane printed no readout at all').toBeTruthy()
+    // ⚠️ THE LABEL COMES FROM `legendParams`, NOT FROM THIS FILE. RSI declares
+    // `legendParams: ['period']`, which is what puts the 14 in parentheses — the
+    // owner asked for "RSI 14 in parentheses" and the definition already said it.
+    expect(row.textContent).toContain('RSI(14)')
+    // ⭐ `57.3`, NOT `57.25` — and that ONE decimal is the point of the case.
+    // The readout formats through the chip's own `legend.decimals`, so it cannot
+    // print a number the strip six pixels above it would round differently. A
+    // pane label that did its own `toFixed` is exactly the second formatting
+    // pipeline `readout.chipsFrom` exists to prevent.
+    expect(row.textContent).toContain('57.3')
+    expect(row.textContent, 'the raw value leaked past the declared precision').not.toContain('57.25')
+  })
+
+  it('two pane indicators get two readouts, in the LAYOUT s pane order', async () => {
+    const view = draw(mergeChartSettings({
+      indicators: { rsi: { enabled: true }, macd: { enabled: true } },
+    }))
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 57.25, 'macd::macd': 2.5 }))
+    // ⭐ ORDER IS THE LAYOUT'S, and the layout is what the chart actually stacked.
+    // Deriving the expectation from `computePaneLayout` rather than typing
+    // `['rsi', 'macd']` is what makes this fail if the readouts ever sort
+    // themselves — the legend strip shipped a `_period` sort once for exactly
+    // that reason and it had to come back out.
+    const rows = paneRows(view).map((el) => el.dataset.paneLegend)
+    expect(rows.length, 'expected one readout per indicator pane').toBe(2)
+    expect(rows).toEqual(['rsi', 'macd'])
+  })
+
+  it('a pane prints EVERY chip-bearing plot and no other — MACD, SIG, no histogram', async () => {
+    const view = draw(mergeChartSettings({ indicators: { macd: { enabled: true } } }))
+    await settledLegend(view, crosshairWith({ 'macd::macd': 2.5, 'macd::signal': 1.75 }))
+    const row = paneRow(view, 'macd')
+    expect(row.textContent).toContain('MACD')
+    expect(row.textContent).toContain('SIG')
+    // ⛔ THE HISTOGRAM IS THE CONTROL. It declares `legend: { hide: true }`, so a
+    // readout that walked `def.plots` instead of the CHIPS would print a third
+    // item here — and would also hang a third tag on the pane's axis, since
+    // `pool.seriesOptionsForPlot` gates the tag on the same declaration.
+    expect(row.textContent).not.toContain('Histogram')
+    expect(row.children.length, 'one item per chip — the histogram declares legend.hide').toBe(2)
+  })
+
+  it('a PRICE overlay gets no pane readout — it has no pane', async () => {
+    // ⚠️ NO per-chip values: BB's three plots all wear `$color`, so `seriesByChip`
+    // cannot tell them apart and throws by name rather than guessing. The case is
+    // about a MISSING pane, and a label-only chip proves the indicator drew.
+    const view = draw(mergeChartSettings({ indicators: { bb: { enabled: true } } }))
+    await settledLegend(view, crosshairWith())
+    expect(paneRows(view)).toHaveLength(0)
+    // …and the control: the chip for it is still in the legend strip, so this is
+    // "BB has no pane", not "BB did not draw".
+    expect(legendTextOf(view)).toContain('BB(20, 2)')
+  })
+
+  it('the readout is NOT `volLegend` — the export CSS rail', () => {
+    // ⛔ A STRUCTURAL RAIL, AND IT IS ABOUT A DIFFERENT PRODUCT. `ChartRender.jsx`
+    // injects `#chart-export [class*="legend" i]{display:none}` and then re-shows
+    // `[class*="volLegend" i]`. A `composes: volLegend` on the pane readout would
+    // put that hashed name on the element and silently add indicator labels to
+    // every branded newsletter chart — a change to the newsletter, made by a
+    // styling shortcut, invisible to every other test in this repo.
+    //
+    // Both halves are asserted: the class must still MATCH the hiding rule (so
+    // the export is not changed by accident) and must NOT match the re-show.
+    const css = readFileSync.call(fs, path.resolve(
+      path.dirname(STOCK_CHART_PATH), 'StockChart.module.css'), 'utf8')
+    const rule = stripComments(css)
+    expect(rule, 'the pane readout class vanished').toContain('.paneLegend')
+    expect(/\.paneLegend[^{,]*\{[^}]*composes/.test(rule),
+      'composes: volLegend would un-hide this in the newsletter export').toBe(false)
+    expect('paneLegend'.toLowerCase().includes('legend'),
+      'the export hides [class*="legend" i]; this name must match it').toBe(true)
+    expect('paneLegend'.toLowerCase().includes('vollegend'),
+      'the export re-shows [class*="volLegend" i]; this name must NOT match it').toBe(false)
+  })
+
+  it('a HIDDEN indicator prints no pane readout — there is no pane to label', async () => {
+    // `orderedPaneKeys` skips a hidden instance so lightweight-charts is never
+    // asked to hold an empty pane. A readout that walked the CHIPS alone would
+    // print a floating label over whatever pane took that index.
+    const view = draw(mergeChartSettings({
+      indicators: { rsi: { enabled: true } },
+      indicatorInstances: [{ instanceId: 'rsi', defId: 'rsi', hidden: true, inputs: {} }],
+    }))
+    await settledLegend(view, crosshairWith())
+    expect(paneRows(view)).toHaveLength(0)
+  })
+})
+
+
+// ─── THE VOLUME PANE READS LIKE EVERY OTHER ROW ─────────────────────────────
+describe('the volume pane — its legend row and its own strip', () => {
+  const legendRows = (view) => [...view.container.querySelectorAll('[data-legend-row]')]
+  const volRow = (view) => legendRows(view).find((r) => r.dataset.legendRow === 'volume')
+  const strip = (view) => view.container.querySelector('[class*="volLegend"]')
+
+  it('⭐ a HIDDEN volume pane KEEPS its legend row, dimmed and valueless', async () => {
+    // ⚰️ THE GATE WAS `crosshairData.volume != null`. Hiding the pane stops the
+    // series reporting, so the payload's `volume` went null and the row VANISHED —
+    // taking with it the only control that could bring it back. A hidden moving
+    // average has always stayed put and greyed out; owner: *"for volume it
+    // disappears from the legend sometimes, make sure it stays there if toggled
+    // off."*
+    const view = draw(mergeChartSettings({ volume: { separatePane: true, visible: false } }))
+    await settledLegend(view, crosshairWith())
+    const row = volRow(view)
+    expect(row, 'the volume row left the legend when the pane was hidden').toBeTruthy()
+    expect(row.getAttribute('data-hidden')).toBe('true')
+    // …and it prints no number, exactly as a hidden MA does: a value would claim a
+    // reading for a series that is not drawing.
+    // ⚠️ `V` OR `Vol` — the three legend layouts label it differently (the compact
+    // vertical row and the default horizontal strip both shorten it), and which
+    // one this harness renders is not what the case is about. Pinning the label
+    // would make this fail on a layout change that broke nothing.
+    expect(row.textContent.replace(/\s/g, '')).toMatch(/^V(ol)?$/)
+  })
+
+  it('…and a REMOVED volume pane still takes its row away — hidden ≠ removed', async () => {
+    // The other half of the rule, and the reason the gate could not simply be
+    // deleted. `removed` means it has left the chart and comes back from the
+    // catalogue; there is nothing for a row to address.
+    const view = draw(mergeChartSettings({ volume: { separatePane: true, removed: true } }))
+    await settledLegend(view, crosshairWith())
+    expect(volRow(view)).toBeFalsy()
+  })
+
+  it('a VISIBLE volume pane prints its value, as before', async () => {
+    // The control. Without it, "the row is always there" would pass on a build
+    // that never printed a volume figure at all.
+    const view = draw(mergeChartSettings({ volume: { separatePane: true, visible: true } }))
+    await settledLegend(view, crosshairWith())
+    const row = volRow(view)
+    expect(row.getAttribute('data-hidden')).toBe('false')
+    expect(row.textContent.replace(/\s/g, '')).not.toBe('Vol')
+  })
+
+  it('⭐ the pane s own strip carries the same three verbs', async () => {
+    // Owner: *"when I hover over this with my mouse the buttons should pop up on
+    // the right just like for RSI."* The strip's row carries NO label and NO value
+    // — the three readings beside it are already the volume pane's — so this
+    // asserts on the controls, and on the absence of a fourth `Vol 69.8M`.
+    const view = draw(mergeChartSettings({ volume: { separatePane: true, labelVisible: true } }))
+    await settledLegend(view, crosshairWith())
+    const box = strip(view)
+    expect(box, 'the volume strip did not render').toBeTruthy()
+    const ctl = box.querySelector('[data-legend-ctl]')
+    expect(ctl, 'the strip has no control cell').toBeTruthy()
+    expect([...ctl.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')))
+      .toEqual(['Hide Volume', 'Volume settings', 'Remove Volume'])
+    // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". `controlLabel` is what a screen
+    // reader and the tooltip get, and a row with an empty label would otherwise
+    // announce three buttons called "Hide ", "settings" and "Remove ".
+    expect(box.textContent).not.toMatch(/Vol\s*$/)
+  })
+
+  it('⛔ the strip s reveal is keyed on the STRIP, not on its row', () => {
+    // A CSS-ARTIFACT ASSERTION, and it has to be: the row carries no text, so its
+    // own `.flat:hover` has a zero-width hover target and the controls would be
+    // unreachable with a mouse. jsdom implements no pointer-events hit-testing, so
+    // a synthetic hover would pass either way — the same trap `IndicatorChip`'s
+    // suite documents.
+    const css = readFileSync.call(fs, path.resolve(
+      path.dirname(STOCK_CHART_PATH), 'StockChart.module.css'), 'utf8')
+    const rule = stripComments(css)
+    expect(rule, 'nothing reveals the strip s controls on hover')
+      .toMatch(/\.volLegend:hover\s+span\[data-legend-ctl\]/)
+    // ⚰️ THIS ASSERTED `.volLegItem { pointer-events: auto }` WITH THE CONTAINER
+    // LEFT `none`, to keep the crosshair passing through the gaps between
+    // readings. It did exactly that — and made the gaps, the padding and the space
+    // the controls expand into DEAD, so the buttons vanished under a mouse that was
+    // travelling toward them. The rail is INVERTED rather than deleted: the WHOLE
+    // BOX must take the pointer, and putting it back on the items alone fails here.
+    expect(rule, 'the strip must be ONE hover region, not one island per reading')
+      .toMatch(/\.volLegend\s*\{\s*pointer-events:\s*auto/)
+    expect(/\.volLegItem\s*\{[^}]*pointer-events/.test(rule),
+      'pointer-events is back on the items — that leaves the gaps between them dead')
+      .toBe(false)
+  })
+
+  it('⛔ its type is the LEGEND s, declaration for declaration', () => {
+    // Owner: *"make sure in the volume pane that the labels and values are the
+    // same font size, thickness, and color as it is in the legend."* Pinned
+    // against `.legendLabel` / `.legendVal` THEMSELVES rather than against typed
+    // literals, so editing one and not the other fails here.
+    const css = stripComments(readFileSync.call(fs, path.resolve(
+      path.dirname(STOCK_CHART_PATH), 'StockChart.module.css'), 'utf8'))
+    const decls = (sel) => {
+      const m = css.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`))
+      expect(m, `no rule for ${sel}`).toBeTruthy()
+      return Object.fromEntries(m[1].split(';').map((d) => d.split(':').map((x) => x.trim()))
+        .filter((kv) => kv[0] && kv[1]))
+    }
+    const legLabel = decls('.legendLabel'), legVal = decls('.legendVal')
+    const volLabel = decls('.volLegLabel'), volVal = decls('.volLegVal')
+    expect(volLabel.color).toBe(legLabel.color)
+    expect(volLabel['font-weight']).toBe(legLabel['font-weight'])
+    expect(volVal.color).toBe(legVal.color)
+    expect(volVal['font-weight']).toBe(legVal['font-weight'])
+    // ⚠️ SIZE IS ON THE CONTAINERS, not on the label/value rules.
+    expect(decls('.legend')['font-size']).toBe('10px')
+    const volLegend = css.match(/\.volLegend,\s*\.paneLegend\s*\{([^}]*)\}/)
+    expect(volLegend, 'the strip no longer shares the readout box rule').toBeTruthy()
+    expect(volLegend[1]).toMatch(/font-size:\s*10px/)
+  })
+})

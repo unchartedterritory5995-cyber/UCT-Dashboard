@@ -41,9 +41,17 @@ def _seed_store(tmp_path, monkeypatch):
     return s
 
 
+def _fresh_asof(days_ago=1):
+    """get_confirmed applies a recency bound against the real clock, and these
+    tests reach it over HTTP so they cannot inject `today`. Seed relative to
+    now rather than a fixed date, which would silently age out."""
+    import datetime
+    return (datetime.date.today() - datetime.timedelta(days=days_ago)).isoformat()
+
+
 def test_confirmed_endpoint_returns_verdicts(client, monkeypatch, tmp_path):
     s = _seed_store(tmp_path, monkeypatch)
-    s.put_verdict({"ticker": "NVDA", "tf": "D", "setup": "vcp", "asof_date": "2026-06-19",
+    s.put_verdict({"ticker": "NVDA", "tf": "D", "setup": "vcp", "asof_date": _fresh_asof(),
                    "confirmed": 1, "vision_confidence": 80, "rationale": "tight",
                    "signals_hash": "x", "judged_at": 1})
     _login(client)
@@ -54,7 +62,7 @@ def test_confirmed_endpoint_returns_verdicts(client, monkeypatch, tmp_path):
 
 def test_confirmed_only_default_on_sym_route(client, monkeypatch, tmp_path):
     s = _seed_store(tmp_path, monkeypatch)
-    s.put_verdict({"ticker": "AAPL", "tf": "D", "setup": "bull_flag", "asof_date": "2026-06-19",
+    s.put_verdict({"ticker": "AAPL", "tf": "D", "setup": "bull_flag", "asof_date": _fresh_asof(),
                    "confirmed": 1, "vision_confidence": 75, "rationale": "clean pole",
                    "signals_hash": "y", "judged_at": 1})
     _login(client)

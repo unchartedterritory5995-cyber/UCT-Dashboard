@@ -105,6 +105,7 @@ import { addInstance } from '../chart/engine/instanceControls'
 import Sheet from '../mobile/Sheet'
 import EvidenceTab from '../chart/builder/EvidenceTab'
 import { SESSION_TZ } from './scanSession'
+import ReviewChartsButton from '../../pages/charts/review/ReviewChartsButton'
 import styles from './ScanResults.module.css'
 
 /** The route E-4 registered. Spelled once, and the query builder below is the
@@ -428,6 +429,29 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
   const screenName = (definition && definition.meta && definition.meta.name)
     || (definition && definition.id) || ''
 
+  /** The symbols a review would walk, IN THE ORDER THIS PAGE SHOWS THEM.
+   *
+   *  ⭐ BOTH BLOCKS, because both are on screen. A member scrolling this surface
+   *  reads the nightly hits and then the live-only tail; a review that silently
+   *  stopped at the end of the first block would end while there were still
+   *  rows below the fold, and "20 / 20" would appear beside a list of 24.
+   *
+   *  ⛔ AND IN THAT ORDER — nightly first, then live-only — because that is the
+   *  reading order of the page, not because one tier outranks the other. The
+   *  two blocks answer different questions (a closed bar vs. this tick's forming
+   *  one) and the review preserves the separation the page already draws rather
+   *  than interleaving them into one ranking nobody chose.
+   *
+   *  ⛔ `shown`, NOT `scanned`: if the member has sorted by value, the review
+   *  must walk THEIR order. Publishing the sweep's order while the screen shows
+   *  another is the "next is not what comes next" defect in its purest form.
+   *
+   *  `normaliseSymbols` in the button dedupes, so a symbol appearing in both
+   *  blocks is reviewed once — at its first, nightly, position. */
+  const reviewSymbols = useMemo(
+    () => [...shown, ...liveOnly.map((r) => r.symbol)],
+    [shown, liveOnly])
+
   return (
     <div className={styles.wrap}>
       {/* ⭐ EVERY AFFORDANCE IS TRUE OF THE DEFINITION IT SITS ON. Evidence keys
@@ -453,18 +477,43 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
         </p>
       )}
 
-      {definition && definition.id && defHash && (
+      {/* ⭐ THE TOOLBAR IS NO LONGER EVIDENCE'S ALONE. It appears once the screen
+          has ANSWERED — Review charts is true of any evaluated screen, including
+          one that matched nothing (where it is disabled and says why), while
+          Evidence keeps its own stricter conditions. Gating the whole bar on
+          Evidence's conditions would have hidden the review door on every
+          unsaved screen, for a reason that has nothing to do with reviewing. */}
+      {(status === 'evaluated' || (definition && definition.id && defHash)) && (
         <div className={styles.toolbar}>
-          <button
-            type="button"
-            className={styles.chartBtn}
-            data-testid="scan-evidence-open"
-            aria-label={`Evidence for ${screenName}`}
-            onClick={() => setEvidenceOpen(true)}
-          >
-            <UIcon name="equity" size={13} />
-            <span className={styles.chartBtnLabel}>Evidence</span>
-          </button>
+          {status === 'evaluated' && (
+            <ReviewChartsButton
+              symbols={reviewSymbols}
+              source="scan"
+              // The hash IS the definition's identity here — the same one the
+              // receipt is filed under, so a review can be traced back to the
+              // exact tree that produced its list.
+              sourceId={defHash}
+              label={screenName}
+              // ⛔ THE ORDERING IS NAMED, because "next" only means anything
+              // under the order that produced the list. A review captured under
+              // the member's value sort is a DIFFERENT review from one captured
+              // under the sweep's order, and the session records which.
+              sort={sortByValue ? 'value' : null}
+              tf={tf}
+            />
+          )}
+          {definition && definition.id && defHash && (
+            <button
+              type="button"
+              className={styles.chartBtn}
+              data-testid="scan-evidence-open"
+              aria-label={`Evidence for ${screenName}`}
+              onClick={() => setEvidenceOpen(true)}
+            >
+              <UIcon name="equity" size={13} />
+              <span className={styles.chartBtnLabel}>Evidence</span>
+            </button>
+          )}
         </div>
       )}
 

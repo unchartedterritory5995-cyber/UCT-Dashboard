@@ -9,6 +9,8 @@ import MorningWireIndexes from '../components/tiles/MorningWireIndexes'
 import MarketClock from '../components/tiles/MarketClock'
 import CatalystTable from '../components/tiles/CatalystTable'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
+import useHubMode from '../hub/useHubMode'
+import useWireSection from '../hub/sections/wireSection'
 import useTweetFeed from '../hooks/useTweetFeed'
 import { rundownToSpeechText } from '../utils/htmlToSpeech'
 import { timeAgo } from '../utils/timeAgo'
@@ -160,6 +162,19 @@ export default function MorningWire() {
     containerRef: rundownRef,
     trackId: `morning-wire-${rundown?.date || 'today'}`,
   })
+
+  // ── Joystick hub, Phase 3 §3.1 — MOUNT ONLY ────────────────────────────────
+  // Tap = next segment · double-tap = previous · scrub = segment index · chip = the segment's
+  // own `.rd-seg-label` text. Every mechanism lives in `hub/sections/wireSection.js`; this page
+  // only hands it the three things it cannot know: the element the rundown was written into,
+  // the wire's own date (a new wire is a new list — the cursor MUST reset), and the HTML string
+  // that signals the segment DOM has been replaced. Nothing here writes; the hub is a shortcut
+  // over a page that works identically without it.
+  useHubMode(useWireSection({
+    rootRef: rundownRef,
+    wireDate: rundown?.date,
+    html: rundown?.html,
+  }))
 
   // Per-segment + overall feedback: inject 👍/👎 AND a ✎ note affordance into the
   // rundown DOM (the rundown is dangerouslySetInnerHTML, so controls are injected,

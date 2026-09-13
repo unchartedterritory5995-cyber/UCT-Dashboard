@@ -246,3 +246,125 @@ def test_todays_daily_bar_gate_checks_weekday_and_nyse_holidays(monkeypatch):
     # An ordinary trading Friday
     monkeypatch.setattr(_dt_mod, "datetime", _frozen_datetime_class("2026-09-04"))
     assert massive._today_et_is_a_trading_day() is True
+
+
+# ── the SESSION-OPEN gate (2026-09-11 fix) ───────────────────────────────────
+# 🔴 THE REGRESSION THIS EXISTS FOR: from the charts, "yesterday's candle was
+# duplicated — two candles for yesterday", seen BOTH late in the evening and again
+# while scanning pre-market. One cause for both sightings: `todays_daily_bar` stamps
+# the CURRENT ET date onto the provider's `day` object, which keeps the PRIOR
+# session's nonzero OHLC well past the close. The 2026-09-04 fix checked the
+# CALENDAR (is it a trading day) and so caught Saturday, but not 00:30 or 07:00 on
+# a Thursday — the date has rolled, the session has not opened, and yesterday's bar
+# gets re-dated onto today.
+
+def _freeze_et(monkeypatch, iso_datetime):
+    """Freeze ET 'now' for BOTH gate helpers. Each does a deferred
+    `from datetime import datetime` inside its body, so the patch has to land on
+    the datetime MODULE attribute (see the weekday/holiday test above)."""
+    import datetime as _dt_mod
+    real = _dt_mod.datetime
+
+    class _Frozen(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real.fromisoformat(iso_datetime).replace(tzinfo=tz)
+    monkeypatch.setattr(_dt_mod, "datetime", _Frozen)
+
+
+def test_session_open_gate_is_a_clock_check_not_only_a_calendar_check(monkeypatch):
+    # Thursday 2026-09-10, an ordinary trading day, at four times of day.
+    for when, expected in (
+        ("2026-09-10T00:30:00", False),   # date rolled, session not open  ← "last night"
+        ("2026-09-10T07:00:00", False),   # pre-market                     ← "this morning"
+        ("2026-09-10T09:30:00", True),    # the open, inclusive
+        ("2026-09-10T20:00:00", True),    # post-market: today's settled bar is real
+    ):
+        _freeze_et(monkeypatch, when)
+        assert massive._regular_session_has_opened_today() is expected, when
+
+
+def test_the_calendar_gate_alone_would_have_passed_the_duplicate_window(monkeypatch):
+    """Nails WHY the previous fix missed it: at 00:30 and 07:00 on a trading day the
+    OLD gate says True. The new gate must say False at exactly those times."""
+    for when in ("2026-09-10T00:30:00", "2026-09-10T07:00:00"):
+        _freeze_et(monkeypatch, when)
+        assert massive._today_et_is_a_trading_day() is True      # the old gate: passes
+        assert massive._regular_session_has_opened_today() is False   # the new gate: refuses
+
+
+def test_weekend_holiday_refusal_still_holds(monkeypatch):
+    _freeze_et(monkeypatch, "2026-09-05T12:00:00")               # Saturday, mid-day
+    assert massive._regular_session_has_opened_today() is False
+    _freeze_et(monkeypatch, "2026-09-07T12:00:00")               # Labor Day Monday
+    assert massive._regular_session_has_opened_today() is False
+
+
+def test_no_phantom_bar_before_the_open_and_provider_is_never_asked(monkeypatch):
+    """End to end: the stale-but-nonzero snapshot shape, at 07:00 on a trading day."""
+    from api.services.cache import cache
+    cache.invalidate("today_daily_bar_AAPL")
+    calls = {"n": 0}
+
+    def _yesterdays_ohlc(self, tk):
+        calls["n"] += 1
+        return {"o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 8451583}
+    monkeypatch.setattr(massive._MassiveRestClient, "get_todays_daily_ohlcv", _yesterdays_ohlc)
+    monkeypatch.setattr(massive, "_get_client", lambda: object.__new__(massive._MassiveRestClient))
+    _freeze_et(monkeypatch, "2026-09-10T07:00:00")
+
+    assert massive.todays_daily_bar("AAPL") is None
+    assert calls["n"] == 0, "must refuse BEFORE asking the provider — no wasted snapshot call"
+    cache.invalidate("today_daily_bar_AAPL")
+
+
+def test_post_market_still_gets_todays_settled_bar(monkeypatch):
+    """⛔ The fix must not cost evening scanning its candle — post-market is the
+    window where the `day` object genuinely IS today's."""
+    from api.services.cache import cache
+    cache.invalidate("today_daily_bar_AAPL")
+    monkeypatch.setattr(massive._MassiveRestClient, "get_todays_daily_ohlcv",
+                        lambda self, tk: {"o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10})
+    monkeypatch.setattr(massive, "_get_client", lambda: object.__new__(massive._MassiveRestClient))
+    _freeze_et(monkeypatch, "2026-09-10T20:00:00")
+
+    bar = massive.todays_daily_bar("AAPL")
+    assert bar is not None and bar["t"] == "2026-09-10"
+    cache.invalidate("today_daily_bar_AAPL")
+
+
+# ── LAYER 2: the re-dated stale snapshot, caught without a clock ─────────────
+# Both duplicate incidents (2026-09-04 Saturday phantom, 2026-09-11 pre-open
+# duplicate) were the provider's `day` object holding the PRIOR session while we
+# stamped the CURRENT date on it. Both were fixed by tightening WHEN we ask. This
+# layer checks the VALUES instead, so it survives the next provider quirk.
+
+def test_a_today_bar_identical_to_yesterday_is_refused(monkeypatch):
+    """The exact shape of both incidents: same o/h/l/c AND same cumulative volume,
+    a new date. That is the previous session wearing a new date — refuse it."""
+    yday = {"t": "2026-09-09", "o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 8451583}
+    monkeypatch.setattr(
+        massive, "todays_daily_bar",
+        lambda tk: {"t": "2026-09-10", "o": 353.63, "h": 356.83, "l": 337.11,
+                    "c": 337.18, "v": 8451583})
+    out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
+    assert _bars_of(out) == [yday], "a re-dated copy of yesterday must never be appended"
+
+
+def test_a_genuine_new_session_is_still_appended(monkeypatch):
+    """⛔ The guard must not cost a real developing bar. Volume alone differing is
+    enough to prove a live session — that is why it is in the comparison."""
+    yday = {"t": "2026-09-09", "o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 8451583}
+    today = {"t": "2026-09-10", "o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 12}
+    monkeypatch.setattr(massive, "todays_daily_bar", lambda tk: dict(today))
+    out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
+    assert _bars_of(out) == [yday, today]
+
+
+def test_the_guard_survives_a_missing_field(monkeypatch):
+    """A shape surprise must never block a good serve — the serve is what matters."""
+    yday = {"t": "2026-09-09", "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5}   # no volume key
+    today = {"t": "2026-09-10", "o": 9.0, "h": 9.0, "l": 9.0, "c": 9.0, "v": 7}
+    monkeypatch.setattr(massive, "todays_daily_bar", lambda tk: dict(today))
+    out = bars._augment_daily_with_today(_daily_resp([dict(yday)]), "AAPL")
+    assert _bars_of(out) == [yday, today]

@@ -28,6 +28,7 @@ import {
 import BreadthViews from './breadth/BreadthViews'
 import UnmountReporter from './breadth/UnmountReporter'
 import useBreadthUrlState from './breadth/useBreadthUrlState'
+import useBreadthHubSection, { resolveBreadthTabs } from '../hub/sections/breadthSection'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -513,18 +514,19 @@ const phaseClass = (phase, styles) => {
 }
 
 // Shared tab strip (DRY — was duplicated across every render branch). On mobile
-// it scrolls horizontally as a chip strip. Monitor leads — it's what people
-// come for. "Overview" stays the mobile-default readable landing but sits
-// demoted in the strip.
-const BREADTH_TAB_ITEMS = [
-  { key: 'breadth', label: 'Monitor' },
-  { key: 'heatmap', label: 'Views' },
-  { key: 'overview', label: 'Daily' },
-  { key: 'cot', label: 'COT Data' },
-  { key: 'charts', label: 'Data Charts' },
-]
+// it scrolls horizontally as a chip strip.
+//
+// ⛔ THE LIST AND THE ADMIN APPEND MOVED TO `hub/sections/breadthSection.js`.
+// The joystick hub's tap / double-tap / scrub all walk this same strip, and the ONE way an
+// admin and a member can end up with different behaviour from identical code is two copies of
+// "which tabs exist". `resolveBreadthTabs` is that answer; both the strip below and the hub
+// call it. Do not re-inline the array here.
+//
+// `hub/sections/breadthSection.test.jsx` asserts the hub's gestures against THIS strip — it
+// mounts the whole page rather than a stand-in, because a harness with its own tab strip could
+// not notice the page rendering a different list from the one the gesture walks.
 function BreadthTabs({ active, onChange, isAdmin }) {
-  const items = isAdmin ? [...BREADTH_TAB_ITEMS, { key: 'analogues', label: 'Analogues' }] : BREADTH_TAB_ITEMS
+  const items = resolveBreadthTabs(isAdmin)
   return (
     <div className={styles.tabs}>
       {items.map((t) => (
@@ -562,6 +564,14 @@ export default function Breadth() {
     try { return window.matchMedia('(max-width: 640px)').matches ? 'overview' : 'breadth' }
     catch { return 'breadth' }
   })
+  // ── the joystick hub's mount point (Phase 3 §3.2) ─────────────────────────
+  // Registers this page as the hub's controller while it is mounted: tap = next tab,
+  // double-tap = previous, scrub = tab index. It reads `resolveBreadthTabs(isAdmin)` — the same
+  // resolved list `BreadthTabs` renders — so the gesture can never walk a list the member is
+  // not looking at. Inert with no `HubProvider` above it (`useHub`'s no-op default), which is
+  // what keeps the headless `BreadthRender` path unaffected.
+  useBreadthHubSection({ isAdmin, activeTab, setActiveTab })
+
   const [viewsDays, setViewsDays] = useState(urlInitial.days ?? 90)
   const isViewsTab = activeTab === 'heatmap'
   const effectiveDays = isViewsTab ? viewsDays : MONITOR_WINDOW

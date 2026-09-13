@@ -818,3 +818,54 @@ describe('paneManifest reads the renderer back', () => {
     off()
   })
 })
+
+// ─── A HIDDEN INSTANCE HOLDS NO PANE ────────────────────────────────────────
+//
+// 🔴 MEASURED ON A REAL CHART: RSI and MACD each had a pane; hiding RSI dropped
+// its pane (correct — nothing draws in it) and showing it again put RSI INTO
+// MACD's pane, where the two then shared one band forever.
+//
+// The cause was this module disagreeing with `binder.js`, which opens its compute
+// loop with the identical `if (inst.hidden === true) continue`. The layout
+// reserved an index for the hidden RSI and pushed MACD to the next one, while the
+// binder made a series for MACD alone — and lightweight-charts does not keep an
+// empty pane, so MACD actually rendered one index higher than the layout believed.
+// Everything after it was off by one, and the returning RSI landed on top.
+describe('a HIDDEN instance takes no pane — the layout agrees with the binder', () => {
+  const inst = (defId, extra) => ({ instanceId: `legacy:${defId}`, defId, inputs: {}, ...extra })
+  const LAYOUT = { chartHeight: 900, hasVolumeBand: false, separatorPx: 1 }
+  const keysOf = (instances) => computePaneLayout(instances, LAYOUT).panes.map((p) => p.key)
+
+  it('drops the hidden one and does NOT leave a gap in the indices', () => {
+    const both = [inst('rsi'), inst('macd')]
+    expect(keysOf(both), 'the control — two visible oscillators, two panes')
+      .toEqual(['rsi', 'macd'])
+
+    const rsiHidden = [inst('rsi', { hidden: true }), inst('macd')]
+    const panes = computePaneLayout(rsiHidden, LAYOUT).panes
+    expect(panes.map((p) => p.key), 'a hidden instance still claimed a pane').toEqual(['macd'])
+    // ⛔ AND MACD TAKES THE FIRST INDEX, which is the half that actually broke:
+    // leaving it at the second one is the off-by-one the returning RSI collided
+    // with, and it is invisible until something comes back.
+    expect(panes[0].index, 'MACD kept the index the hidden RSI was holding')
+      .toBe(computePaneLayout([inst('macd')], LAYOUT).panes[0].index)
+  })
+
+  it('⭐ …and un-hiding restores TWO panes, in their original order', () => {
+    const back = [inst('rsi'), inst('macd')]
+    const panes = computePaneLayout(back, LAYOUT).panes
+    expect(panes.map((p) => p.key)).toEqual(['rsi', 'macd'])
+    expect(new Set(panes.map((p) => p.index)).size, 'the two oscillators share one pane index')
+      .toBe(2)
+  })
+
+  it('⛔ the rule is spelled the same way the binder spells it', () => {
+    // Two files, one predicate. They drifted once and the symptom took a chart to
+    // see; a text read is cheap insurance that the next edit moves both.
+    const at = (f) => fs.readFileSync(path.resolve(process.cwd(), 'src/components/chart/engine', f), 'utf8')
+    const here = at('paneLayout.js')
+    const binder = at('binder.js')
+    expect(here).toContain('if (inst.hidden === true) continue')
+    expect(binder).toContain('if (inst.hidden === true) continue')
+  })
+})

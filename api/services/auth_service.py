@@ -5,6 +5,7 @@ Pure business logic, no HTTP concerns.
 
 import uuid
 import time
+import base64
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -503,21 +504,68 @@ def verify_email_token(token: str) -> str | None:
 
 # ── Password reset ──────────────────────────────────────────────────────────
 
-def create_password_reset(email: str) -> str | None:
-    """Generate a password reset token (1hr TTL). Returns token or None if user not found."""
-    user = get_user_by_email(email)
-    if not user:
-        return None
-    token = secrets.token_urlsafe(32)
-    reset_id = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+# ⛔⛔ TWO PURPOSES SHARE THIS TABLE, AND NEITHER MAY REDEEM THE OTHER'S TOKEN.
+#
+# `password_resets` now backs a password reset AND the admin-issued smoke-account login link.
+# They share the storage because they share the property that matters — a single-use, expiring,
+# unguessable string — and a second table would be a second implementation of single-use
+# semantics, which is the thing most worth having exactly one of.
+#
+# ⭐ THE DANGEROUS DIRECTION IS NOT THE OBVIOUS ONE. "A login token must not reset a password" is
+# the one that reads as scary; the one that actually costs you is the reverse — a leaked
+# PASSWORD-RESET token being redeemed as a LOGIN, which would turn every reset email into a
+# bearer credential for the account. Both directions are filtered, both are railed, and the
+# filters live in these two functions and nowhere else.
+PURPOSE_RESET = "reset"
+PURPOSE_SMOKE_LOGIN = "smoke-login"
+
+
+def _mint_token(purpose: str) -> str:
+    """Mint the token body for `purpose`. 256 bits of entropy either way — only the ALPHABET differs.
+
+    ⚰️ WHY SMOKE-LOGIN IS DIFFERENT. 2026-09-12, Pixel 8 on BrowserStack Live: the Android mirror
+    keyboard AUTO-CAPITALISES, and `token_urlsafe` is case-sensitive base64url, so the link could not
+    be typed onto the device at all — the whole Android glass leg was lost to it. Read back off the
+    device, an intended `...TT8786rRI3sGUWFyQHKb8Ep4OK4PxBFozzXw` arrived as
+    `:786rri3sguwfyqhkb8ep4ok4pxbfozzxw`.
+
+    ⭐ base32 IS THE FIX, not a shortened alphabet. RFC 4648 base32 is case-insensitive BY
+    DEFINITION, so lowercasing on the way in is lossless rather than a collision risk, and 32 random
+    bytes still carry their full 256 bits — this trades no entropy for the typeability. A hand-rolled
+    "lowercase letters and digits" alphabet would have had to be lengthened to keep the same entropy
+    and would have invited exactly that arithmetic to be got wrong.
+
+    ⛔ PASSWORD-RESET TOKENS ARE UNCHANGED AND MUST STAY THAT WAY. They are a MEMBER-facing
+    credential that arrives by email and is never typed by hand, so they gain nothing here; widening
+    the change to them would be a security-relevant edit made for a testing convenience.
+    `test_reset_tokens_are_untouched_by_the_smoke_login_alphabet` is the rail on that.
+    """
+    if purpose != PURPOSE_SMOKE_LOGIN:
+        return secrets.token_urlsafe(32)
+    return base64.b32encode(secrets.token_bytes(32)).decode("ascii").rstrip("=").lower()
+
+
+def _create_single_use_token(user_id: str, purpose: str, ttl: timedelta) -> str:
+    """One implementation of "mint a single-use, expiring token for this user and purpose".
+
+    ⛔ THE DELETE IS SCOPED BY PURPOSE. It used to be `WHERE user_id = ? AND used = 0`, which was
+    correct while one purpose existed and becomes a cross-purpose eviction the moment two do:
+    issuing a login link would silently cancel a password reset the same member had in flight
+    (and vice versa), producing a "the link in my email stopped working" report with no trace.
+    """
+    token = _mint_token(purpose)
+    row_id = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + ttl
     conn = get_connection()
     try:
-        # Remove any existing unused resets for this user
-        conn.execute("DELETE FROM password_resets WHERE user_id = ? AND used = 0", (user["id"],))
         conn.execute(
-            "INSERT INTO password_resets (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)",
-            (reset_id, user["id"], token, expires_at.isoformat()),
+            "DELETE FROM password_resets WHERE user_id = ? AND used = 0 AND purpose = ?",
+            (user_id, purpose),
+        )
+        conn.execute(
+            "INSERT INTO password_resets (id, user_id, token, expires_at, purpose) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (row_id, user_id, token, expires_at.isoformat(), purpose),
         )
         conn.commit()
         return token
@@ -525,19 +573,43 @@ def create_password_reset(email: str) -> str | None:
         conn.close()
 
 
+def _redeem_single_use_token(conn, token: str, purpose: str):
+    """Return the row for a VALID, unused, unexpired token of exactly `purpose`, else None.
+
+    Does not mark it used — the caller does that in the same transaction as whatever the token
+    buys, so a failure between validation and effect cannot burn the token for nothing.
+    """
+    row = conn.execute(
+        "SELECT id, user_id, expires_at, used, purpose FROM password_resets WHERE token = ?",
+        (token,),
+    ).fetchone()
+    if not row or row["used"]:
+        return None
+    # ⛔ THE PURPOSE CHECK. Never `!=` against one value — an unknown purpose must also fail.
+    if row["purpose"] != purpose:
+        return None
+    expires = datetime.fromisoformat(row["expires_at"])
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
+        return None
+    return row
+
+
+def create_password_reset(email: str) -> str | None:
+    """Generate a password reset token (1hr TTL). Returns token or None if user not found."""
+    user = get_user_by_email(email)
+    if not user:
+        return None
+    return _create_single_use_token(user["id"], PURPOSE_RESET, timedelta(hours=1))
+
+
 def execute_password_reset(token: str, new_password: str) -> bool:
     """Validate reset token and update password. Returns True on success."""
     conn = get_connection()
     try:
-        row = conn.execute(
-            "SELECT id, user_id, expires_at, used FROM password_resets WHERE token = ?", (token,)
-        ).fetchone()
-        if not row or row["used"]:
-            return False
-        expires = datetime.fromisoformat(row["expires_at"])
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)
-        if expires < datetime.now(timezone.utc):
+        row = _redeem_single_use_token(conn, token, PURPOSE_RESET)
+        if not row:
             return False
         # Update password
         new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -545,6 +617,59 @@ def execute_password_reset(token: str, new_password: str) -> bool:
         conn.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (row["id"],))
         conn.commit()
         return True
+    finally:
+        conn.close()
+
+
+# ── Smoke-account login link (admin-issued, single-use) ──────────────────────
+
+#: Minted 5 minutes before it is typed into a device address bar and burned on first use. Short
+#: because the token travels through a THIRD PARTY: it is typed into the BrowserStack Live mirror,
+#: so it passes through their client and lands in their session recording and in this app's own
+#: access log as a query string. Single-use plus a five-minute floor is what makes that acceptable
+#: for a synthetic account and would NOT make it acceptable for a real one.
+# ⛔ TWO MINUTES, NOT FIVE (hardened 2026-09-12). The link is a bearer credential typed into a
+# third party's client, and the operator mints it seconds before using it — five minutes was
+# three minutes of pure exposure buying nothing. ⚰️ It was shortened after a mistyped
+# navigation sent a live token to a search engine: the token had already expired by the time
+# that was noticed, and the smaller this number is the more often that is true.
+SMOKE_LOGIN_TTL = timedelta(minutes=2)
+
+
+def create_smoke_login_token(user_id: str) -> str:
+    """Mint a single-use login token for `user_id`. The CALLER owns every authorisation check —
+    admin session, the env flag, and the one-id allow-list — because those are policy and this
+    is storage. Keeping them out of here is what stops a future caller acquiring the capability
+    by importing it (`lesson_a_flag_closes_one_door_a_capability_closes_all` cuts the other way
+    only if the door is the one place the policy lives)."""
+    return _create_single_use_token(user_id, PURPOSE_SMOKE_LOGIN, SMOKE_LOGIN_TTL)
+
+
+def redeem_smoke_login_token(token: str) -> str | None:
+    """Burn a smoke-login token and return its user id, or None if it is not valid RIGHT NOW.
+
+    ⭐ THE ROW IS MARKED USED IN THE SAME TRANSACTION AS THE READ. Two devices redeeming the same
+    link concurrently must not both get a session: SQLite serialises the write, so the second
+    `UPDATE ... WHERE id = ? AND used = 0` touches zero rows and that caller is refused. Checking
+    `used` and then setting it in two statements would leave exactly that race open.
+    """
+    # ⭐ NORMALISE AT THIS BOUNDARY, NOT INSIDE THE SHARED HELPER. Smoke-login tokens are base32,
+    # which is case-insensitive by definition; password-reset tokens are base64url, where case is
+    # meaningful. Lowercasing inside `_redeem_single_use_token` would therefore be correct for one
+    # purpose and silently wrong for the other.
+    token = (token or "").strip().lower()
+    conn = get_connection()
+    try:
+        row = _redeem_single_use_token(conn, token, PURPOSE_SMOKE_LOGIN)
+        if not row:
+            return None
+        cur = conn.execute(
+            "UPDATE password_resets SET used = 1 WHERE id = ? AND used = 0", (row["id"],)
+        )
+        conn.commit()
+        if cur.rowcount != 1:
+            return None
+        return row["user_id"]
     finally:
         conn.close()
 

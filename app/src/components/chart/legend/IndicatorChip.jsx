@@ -89,6 +89,26 @@ import styles from './IndicatorChip.module.css'
  */
 export default function IndicatorChip({
   chip, className, onToggleHidden, onOpenSettings, onRemove, onMenu, onBodyTap, repaint,
+  // ⭐⭐ `grid` — THE VERTICAL LEGEND'S TWO-COLUMN VARIANT (owner, 2026-09-10).
+  //
+  // ⚰️ IN THE VERTICAL LEGEND THIS CHIP USED TO TAKE `.vlFull` — `grid-column:
+  // 1 / -1` — so `RSI(14) 57.3` rendered as ONE blob spanning both tracks, at
+  // `.chip`'s own `600 11px`. Two things were wrong with that and the owner
+  // reported both: the number did not line up with Open / High / Low / Close and
+  // the moving averages stacked above it, and the label was a different size from
+  // every row it sat under. A legend whose last row is the only one out of true
+  // reads as broken even when the value is right.
+  //
+  // ⛔ SO IT SPLITS INTO THE SAME TWO CELLS EVERY OTHER ROW EMITS, plus the
+  // control gutter — not a nested grid, because `.legendVertical` is ONE grid for
+  // the whole legend and that shared track is exactly what puts every value on
+  // the same right edge. A wrapper would take one cell and leave the alignment
+  // where it started.
+  //
+  // ⚠️ AND IT DROPS `.chip`'s FONT so the row inherits the legend's, which is
+  // what `.legendCompact` shrinks. A row that brings its own type cannot agree
+  // with its neighbours at two densities.
+  grid = false,
 }) {
   const interactive = typeof onToggleHidden === 'function'
     && typeof onOpenSettings === 'function'
@@ -118,6 +138,113 @@ export default function IndicatorChip({
   // wrapper underneath.
   const fire = (fn) => (e) => { e.stopPropagation(); fn(chip.instanceId) }
 
+  /** The VALUE, formatted the way the inline chip's own text is.
+   *
+   * 🔴 `chip.value` IS THE RAW COLUMN NUMBER. The inline layout never touches it —
+   * it prints `chip.text`, which `readout.js` built as
+   * `${label} ${value.toFixed(decimals)}` — so the grid variant's first draft put
+   * `57.959877655480824` in the value column, next to prices carrying two places.
+   * Caught in the browser, not by a test: every chip case asserts on `text`.
+   *
+   * ⛔ IT REUSES THE ROW'S OWN `decimals`, which `readout.js` resolves from
+   * `plots[].legend.decimals` and defaults to 2 — never a number typed here. A
+   * plot that declares four places means four. */
+  const chipValueText = Number.isFinite(Number(chip.value))
+    ? Number(chip.value).toFixed(Number.isInteger(chip.decimals) ? chip.decimals : 2)
+    : ''
+
+  // One sentence, both layouts — see `marks` / `controlStrip` below.
+  const chipTitle = chip.computed === false
+    ? `${chip.label} — no value on these bars. Its window reaches back further `
+      + 'than the history loaded here; try a longer timeframe or a shorter length.'
+    : (interactive ? `${chip.label} — right-click for options` : undefined)
+
+  // ⛔ THE CONTROLS, THE REPAINT MARK AND EVERY DATA ATTRIBUTE ARE BUILT ONCE AND
+  // SHARED BY BOTH LAYOUTS. Two copies of a control strip is two places for the
+  // eye to stop matching the ✕, which is the drift this file's own header warns
+  // about one level up.
+  const marks = (
+    <>
+      {repaint && (
+        <span
+          className={styles.chipRepaint}
+          data-repaint={repaint.mode}
+          role="img"
+          aria-label={`${chip.label} ${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
+          title={`${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
+        ><UIcon name="warning" size={11} gold={false} /></span>
+      )}
+    </>
+  )
+  const controlStrip = interactive ? (
+    <span className={styles.chipControls}>
+      {/* ⚠️ EVERY `aria-label` NAMES THE CHIP. "Hide" on nine chips is nine
+          identical controls to a screen reader; "Hide RSI(14)" is one. */}
+      <button
+        type="button"
+        className={styles.chipBtn}
+        aria-label={`${chip.hidden ? 'Show' : 'Hide'} ${chip.label}`}
+        onClick={fire(onToggleHidden)}
+      ><UIcon name="eye" size={11} gold={false} /></button>
+      <button
+        type="button"
+        className={styles.chipBtn}
+        aria-label={`${chip.label} settings`}
+        onClick={fire(onOpenSettings)}
+      ><UIcon name="gear" size={11} gold={false} /></button>
+      <button
+        type="button"
+        className={`${styles.chipBtn} ${styles.chipBtnDanger}`}
+        aria-label={`Remove ${chip.label}`}
+        onClick={fire(onRemove)}
+      ><UIcon name="x" size={11} gold={false} /></button>
+    </span>
+  ) : null
+
+  if (grid) {
+    // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
+    // the next row's label fall into the control gutter — see
+    // `StockChart.module.css` `.legendVertical`.
+    //
+    // ⛔ THE LABEL CELL KEEPS EVERY ATTRIBUTE THE ONE-BOX CHIP CARRIED —
+    // `data-instance-id`, `data-plot-key`, `data-hidden`, `data-computed`, the
+    // long-press binding and the body tap. Six files and three rails address a
+    // chip by those, and splitting the layout must not split the identity.
+    return (
+      /* 🔴 ONE ROW BOX, NOT THREE SIBLING CELLS — the same fix `LegendRow` took,
+         for the same four reported bugs. `.legend` is `pointer-events: none`, so
+         the COLUMN GAPS between sibling cells were not hit targets and the
+         pointer left the row every time it crossed one: the controls could not be
+         clicked, and hovering a chip's VALUE armed nothing at all. `subgrid` keeps
+         the label and value on the legend's own tracks — which is the alignment
+         this variant exists for — while the row is one continuous hover box. */
+      <span
+        className={`${styles.chipGridRow} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
+        style={{ color: chip.color }}
+      >
+        <span
+          className={`${cls} ${styles.chipGridLabel}`}
+          data-instance-id={chip.instanceId}
+          data-plot-key={chip.plotKey}
+          data-hidden={chip.hidden ? 'true' : 'false'}
+          data-computed={chip.computed === false ? 'false' : undefined}
+          title={chipTitle}
+          {...(interactive ? longPress : null)}
+          onClick={typeof onBodyTap === 'function'
+            ? (e) => { e.stopPropagation(); onBodyTap(chip) }
+            : undefined}
+        >{chip.label}{marks}</span>
+        {/* ⛔ THE CALLER'S CLASS IS ON THE ROW, NOT ON EACH CELL. The one it
+            passes here is `.chipFolded` — `display: none` — and hiding one cell
+            of three would leave the value and the gutter occupying tracks with
+            nothing in front of them. A fold takes the whole row or none of it,
+            which one wrapper makes structural rather than remembered. */}
+        <span className={styles.chipGridVal}>{chipValueText}</span>
+        <span className={styles.chipGridCtl}>{controlStrip}</span>
+      </span>
+    )
+  }
+
   return (
     <span
       className={cls}
@@ -138,10 +265,7 @@ export default function IndicatorChip({
          because `binder.js` skips a hidden instance before computing it — so this
          renders the attribute only when the question was actually put. */
       data-computed={chip.computed === false ? 'false' : undefined}
-      title={chip.computed === false
-        ? `${chip.label} — no value on these bars. Its window reaches back further `
-          + 'than the history loaded here; try a longer timeframe or a shorter length.'
-        : (interactive ? `${chip.label} — right-click for options` : undefined)}
+      title={chipTitle}
       {...(interactive ? longPress : null)}
       /* The body tap short-circuits like `openMenu`, and stops propagation for
          the same reason the controls do — a tap on the chip must not also reach
@@ -152,39 +276,8 @@ export default function IndicatorChip({
         : undefined}
     >
       {chip.text}
-      {repaint && (
-        <span
-          className={styles.chipRepaint}
-          data-repaint={repaint.mode}
-          role="img"
-          aria-label={`${chip.label} ${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
-          title={`${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
-        ><UIcon name="warning" size={11} gold={false} /></span>
-      )}
-      {interactive && (
-        <span className={styles.chipControls}>
-          {/* ⚠️ EVERY `aria-label` NAMES THE CHIP. "Hide" on nine chips is nine
-              identical controls to a screen reader; "Hide RSI(14)" is one. */}
-          <button
-            type="button"
-            className={styles.chipBtn}
-            aria-label={`${chip.hidden ? 'Show' : 'Hide'} ${chip.label}`}
-            onClick={fire(onToggleHidden)}
-          ><UIcon name="eye" size={11} gold={false} /></button>
-          <button
-            type="button"
-            className={styles.chipBtn}
-            aria-label={`${chip.label} settings`}
-            onClick={fire(onOpenSettings)}
-          ><UIcon name="gear" size={11} gold={false} /></button>
-          <button
-            type="button"
-            className={`${styles.chipBtn} ${styles.chipBtnDanger}`}
-            aria-label={`Remove ${chip.label}`}
-            onClick={fire(onRemove)}
-          ><UIcon name="x" size={11} gold={false} /></button>
-        </span>
-      )}
+      {marks}
+      {controlStrip}
     </span>
   )
 }

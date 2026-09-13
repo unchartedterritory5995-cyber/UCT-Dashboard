@@ -51,6 +51,7 @@ from api.routers import quote_of_the_day as quote_of_the_day_router
 from api.routers import ticker_search as ticker_search_router
 from api.routers import compare as compare_router
 from api.routers import breadth_monitor as breadth_monitor_router
+from api.routers import terminal_next_reports
 from api.routers import theme_performance as theme_performance_router
 from api.routers import groups as groups_router
 from api.routers import sector_strength as sector_strength_router
@@ -67,6 +68,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
@@ -96,6 +98,7 @@ from api.routers import massive_adapter_status as massive_adapter_status_router
 from api.routers import provenance_quote as provenance_quote_router
 from api.routers import provenance_bar as provenance_bar_router
 from api.routers import alert_taxonomy as alert_taxonomy_router
+from api.routers import entity_master_admin as entity_master_admin_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -2310,10 +2313,38 @@ def register_wire_watchdog_job(scheduler):
     return True
 
 
-def _resolve_active_set_for_patterns() -> list[str]:
+PV_STALE_MAX_SESSIONS = 5
+
+
+def _ymd_to_iso(ymd) -> str:
+    s = str(int(ymd))
+    return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 else s
+
+
+def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list[str]:
     """Active set for the vision judge: the curated leader_universe (same active
     set the pattern scan prioritizes), falling back to the head of cap_universe.
-    Kept small + curated so the Opus judge never runs the full ~3,700 universe."""
+    Kept small + curated so the Opus judge never runs the full ~3,700 universe.
+
+    Hygiene: a symbol whose latest DAILY bar is older than PV_STALE_MAX_SESSIONS
+    trading sessions is dropped, and recorded in `diagnostics["dropped_stale"]`
+    as (symbol, last-bar-date) so the caller can write it to vision_slot_ticker.
+    N=5 is coupled to D1's 7-CALENDAR-day serve window rather than invented:
+    anything staler can only produce verdicts `get_confirmed` already refuses to
+    serve, so the drop forfeits nothing a member could ever reach.
+
+    This exists because SQ -- retired in the SQ->XYZ rename, bars frozen at
+    2025-01-16 -- sat in the leader file being judged against a 20-month-old
+    chart. The judge read its evidence bar correctly; the defect was upstream.
+
+    ⛔ FAILS OPEN ON EVERY PATH. The session floor comes from
+    nth_recent_trading_date, which derives the calendar from DISTINCT daily-bar
+    dates across ALL tickers -- so if ingestion itself breaks, the floor moves
+    back with it and nothing is dropped. No calendar dependency is introduced
+    (Seam 7 ruled against a fourth consumer). If the filter would empty a
+    non-empty universe, the UNFILTERED list is returned: a hygiene filter that
+    can starve the judge is worse than no filter at all.
+    """
     tickers: list[str] = []
     for fname in ("leader_universe.json", "cap_universe.json"):
         path = os.path.join(os.path.dirname(__file__), "data", fname)
@@ -2339,7 +2370,94 @@ def _resolve_active_set_for_patterns() -> list[str]:
         if u not in seen:
             seen.add(u)
             out.append(u)
-    return out
+
+    if diagnostics is not None:
+        diagnostics.setdefault("dropped_stale", [])
+        diagnostics.setdefault("dropped_no_bars", [])
+        diagnostics.setdefault("hygiene_skipped", None)
+
+    def _fail_open(reason: str) -> list[str]:
+        # ⛔ A FAIL-OPEN THAT LEAVES NO MARK WOULD BE THE SIXTH SILENT PATH.
+        # Every branch that declines to filter names itself on the slot row, so
+        # a broken bars store surfaces in the SAME query as every other
+        # failure -- not as a suspiciously untouched universe.
+        if diagnostics is not None:
+            diagnostics["hygiene_skipped"] = reason
+        return out
+
+    if not out:
+        return _fail_open("empty_universe")
+    try:
+        from api.services import bars_sqlite
+        floor = bars_sqlite.nth_recent_trading_date(PV_STALE_MAX_SESSIONS, 99999999)
+    except Exception as e:
+        return _fail_open(f"no_bars_store:{type(e).__name__}")
+    if not floor:
+        return _fail_open("no_session_floor")
+    kept, dropped, no_bars = [], [], []
+    for u in out:
+        try:
+            last = bars_sqlite.get_last_ts(u, "D")
+        except Exception:
+            last = None
+        # ⛔ TWO CAUSES, TWO PATHS, DELIBERATELY NOT MERGED. "Stale" and "no
+        # bars at all" are different facts about a symbol and a single counter
+        # would make them indistinguishable in `vision_slot_ticker` -- the same
+        # collapse this instrument exists to undo. PXD (Pioneer Natural
+        # Resources, acquired and delisted) returns None here; SQ returned a
+        # 2025-01-16 date. Both are dead symbols, neither arrived that way.
+        if last is None:
+            no_bars.append(u)
+            continue
+        if int(last) < int(floor):
+            dropped.append((u, _ymd_to_iso(last)))
+            continue
+        kept.append(u)
+    if not kept:
+        return _fail_open("would_empty_universe")   # a bug, not a result
+    if diagnostics is not None:
+        diagnostics["dropped_stale"].extend(dropped)
+        diagnostics["dropped_no_bars"].extend(no_bars)
+    return kept
+
+
+def _pattern_vision_contract_line() -> str:
+    """The pattern-vision contract, every token read from the SAME place the
+    running code reads it, each suffixed with its provenance.
+
+    ⛔ FOUR OF THE SIX TOKENS USED TO BE STRING LITERALS INSIDE THE print().
+    `model`, `active_set_only`, `skip_if_stable` and `confirmed_only` were typed
+    into the format string, so every "contract byte-identical" check this
+    program ran proved only that this line was unchanged -- it could not have
+    detected a real drift in any of them. Each value now comes from its actual
+    source: vision_judge.judge's signature, judge_ticker's `force` default, the
+    resolved active set, and the /api/patterns endpoint's own Query default.
+    """
+    import inspect
+    from api.routers.patterns import get_detections as _pv_endpoint
+    from api.services.pattern_vision import orchestrator as _pv_orch
+    from api.services.pattern_vision import vision_judge as _pv_judge
+
+    def _prov(key: str, dflt: str) -> str:
+        raw = os.environ.get(key)
+        return f"{raw}[env]" if raw not in (None, "") else f"{dflt}[default]"
+
+    def _sig(fn, name):
+        return inspect.signature(fn).parameters[name].default
+
+    try:
+        active_n = str(len(_resolve_active_set_for_patterns()))
+    except Exception as e:  # a contract line must never be why boot failed
+        active_n = f"unresolved({type(e).__name__})"
+    skip = _sig(_pv_orch.judge_ticker, "force") is False
+    conf_only = getattr(_sig(_pv_endpoint, "confirmed_only"), "default", None)
+    return ("[startup] pattern-vision: on "
+            f"model={_sig(_pv_judge.judge, 'model')}[code] "
+            f"cost_hard_cap=${_prov('PATTERN_VISION_COST_HARD_CAP', '10.0')} "
+            f"max_per_run={_prov('PATTERN_VISION_MAX_PER_RUN', '150')} "
+            f"active_set_only=on:{active_n}[resolved] "
+            f"skip_if_stable={'on' if skip else 'OFF'}[force_default] "
+            f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
 
 
 def register_call_recap_warm_jobs(scheduler):
@@ -2567,12 +2685,115 @@ def register_pattern_vision_jobs(scheduler):
     from api.services.pattern_vision import orchestrator as pv_orch
 
     def _run():
+        # ⛔ THE SLOT ROW IS WRITTEN IN A `finally`, ON PURPOSE. One bad ticker
+        # aborts this whole loop (the for-loop lives inside the try, and that
+        # behaviour is deliberately NOT changed here) -- so if the row were
+        # written at the end of the try, an aborted slot would record nothing
+        # and reproduce exactly the invisibility this table exists to remove.
+        # The aborting ticker is captured via `cur` rather than a per-ticker
+        # try/except, because catching per ticker would let the loop continue
+        # and silently change the abort semantics.
+        import time as _t
+        from api.services.pattern_vision import store as pv_store
+        started = _t.time()
+        slot_start = datetime.now(_ET).replace(
+            minute=0, second=0, microsecond=0).isoformat()
+        agg = {"judged": 0, "skipped": 0, "capped": 0, "render_failed": 0, "errored": 0,
+               "dropped_stale": 0, "dropped_no_bars": 0, "truncated": 0,
+               "hygiene_skipped": None}
+        problems, asofs, active_n, cur, err = [], [], 0, None, None
         try:
+            # ⛔ MUST run before the active-set fetch, not lazily inside the
+            # loop. init_db() otherwise only executes inside judge_ticker(), so
+            # an EMPTY active set never creates the tables, the `finally` below
+            # writes to a table that does not exist, and its own try/except
+            # correctly swallows that -- reproducing this instrument's blind
+            # spot for one of the four paths it exists to expose. Idempotent
+            # (CREATE TABLE IF NOT EXISTS), and reached only when the job is
+            # registered, which is already PATTERN_VISION_ENABLED-gated.
+            pv_store.init_db()
             cap = int(os.environ.get("PATTERN_VISION_MAX_PER_RUN", "150"))
-            for t in _resolve_active_set_for_patterns()[:cap]:
-                pv_orch.judge_ticker(t)
+            # ⛔ THE [:cap] SLICE WAS THE FIFTH SILENT PATH. It drops the tail of
+            # the universe with no counter and no log line, and `capped` above
+            # counts COST-cap events, not this. It is currently a no-op only
+            # because max_per_run (84) happens to equal the leader file's length
+            # (84) -- an 85th leader would vanish. Both hygiene drops and this
+            # truncation are recorded before anything can abort the loop.
+            diag: dict = {}
+            resolved = _resolve_active_set_for_patterns(diagnostics=diag)
+            active, truncated = resolved[:cap], resolved[cap:]
+            active_n = len(active)
+            agg["hygiene_skipped"] = diag.get("hygiene_skipped")
+            for _sym, _last in diag.get("dropped_stale", []):
+                agg["dropped_stale"] += 1
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": _last,
+                    "path": "dropped_stale",
+                    "message": f"latest daily bar {_last} older than "
+                               f"{PV_STALE_MAX_SESSIONS} sessions"})
+            for _sym in diag.get("dropped_no_bars", []):
+                agg["dropped_no_bars"] += 1
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
+                    "path": "dropped_no_bars",
+                    "message": "no stored daily bars at all"})
+            for _sym in truncated:
+                agg["truncated"] += 1
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
+                    "path": "truncated",
+                    "message": f"beyond PATTERN_VISION_MAX_PER_RUN={cap}"})
+            for t in active:
+                cur = t
+                r = pv_orch.judge_ticker(t) or {}
+                agg["judged"] += r.get("judged", 0)
+                agg["skipped"] += r.get("skipped", 0)
+                agg["capped"] += 1 if r.get("cost_capped") else 0
+                agg["render_failed"] += r.get("render_failed", 0)
+                agg["errored"] += r.get("errored", 0)
+                problems.extend(r.get("problems") or [])
+                asofs.extend(r.get("asof_dates") or [])
+            cur = None
         except Exception as e:
+            err = e
             print(f"[scheduler] pattern_vision job error: {e}")
+        finally:
+            try:
+                fin = _t.time()
+                uniq = sorted({a for a in asofs if a})
+                # ⛔ THE HISTOGRAM COVERS SKIPPED CANDIDATES TOO, which is the
+                # whole point. `judge_ticker` appends each candidate's asof_date
+                # BEFORE the skip check, so `asofs` already represents every
+                # candidate the slot saw -- and reducing it to min/max/distinct
+                # threw that detail away. On 2026-09-10 the 10:00 slot's 82
+                # skipped candidates had to be reasoned about from production
+                # bar tails because the instrument did not record them.
+                hist = {}
+                for _a in asofs:
+                    if _a:
+                        hist[_a] = hist.get(_a, 0) + 1
+                paid, spend = pv_store.slot_spend(int(started), int(fin) + 1)
+                pv_store.log_slot({
+                    "slot_start": slot_start, "source": "cron",
+                    "started_ts": int(started), "finished_ts": int(fin),
+                    "duration_s": round(fin - started, 2),
+                    "evidence_min": uniq[0] if uniq else None,
+                    "evidence_max": uniq[-1] if uniq else None,
+                    "evidence_distinct": len(uniq),
+                    "active_set_n": active_n, "judged": agg["judged"],
+                    "skipped": agg["skipped"], "capped": agg["capped"],
+                    "render_failed": agg["render_failed"], "errored": agg["errored"],
+                    "evidence_hist": json.dumps(hist, sort_keys=True) if hist else None,
+                    "dropped_stale": agg["dropped_stale"], "truncated": agg["truncated"],
+                    "dropped_no_bars": agg["dropped_no_bars"],
+                    "hygiene_skipped": agg["hygiene_skipped"],
+                    "aborted": 1 if err is not None else 0,
+                    "abort_ticker": cur if err is not None else None,
+                    "paid_calls": paid, "spend_usd": spend,
+                }, problems)
+            except Exception as le:
+                # Must never replace the real failure with a logging failure.
+                print(f"[scheduler] pattern_vision slot-log failed: {le}")
 
     # Cost tightening: only judge during regular market hours on weekdays
     # (was hourly, 24x/day → most runs happened overnight/weekends when charts
@@ -2917,12 +3138,116 @@ async def lifespan(app: FastAPI):
     # scheduler. Idempotent upsert -- safe on every boot.
     try:
         from api.services.alert_taxonomy import db as _at_db
+        from api.services.alert_taxonomy import registry as _at_registry
         from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
+        from api.services.alert_taxonomy import price_level as _at_price_level
+        from api.services.alert_taxonomy import event_proximity as _at_event_prox
+        from api.services.alert_taxonomy import position_risk as _at_position_risk
+        from api.services.alert_taxonomy import scan_membership_change as _at_scan_membership
+        from api.services.alert_taxonomy import catalyst_match as _at_catalyst_match
+        from api.services.alert_taxonomy import regime_change as _at_regime_change
+        from api.services.alert_taxonomy import indicator_condition as _at_indicator_cond
         _at_db.init_db()
         _at_doc_arrival.register()
-        logging.getLogger(__name__).info("alert_taxonomy: document-arrival trigger type registered")
+        # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
+        # Registration here; the DARK comparison sweep is wired further down
+        # under ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED.
+        #
+        # ⚰️ This comment read "Registration ONLY -- no scheduler entry" for
+        # exactly one commit. That was CP1/CP2's invariant, carried forward BY
+        # HABIT into a checkpoint whose own approval says the harness "runs
+        # against the projected predicates" -- so the module was registered,
+        # tested, green, and called by nothing. The CP3 ruling warned about
+        # classifying by habit; this is the same error pointing the other way.
+        #
+        # ⛔ What is still true, and is the half that matters: NO DELIVERY.
+        # `price_level` writes alert_fires + receipts and stops, the projection
+        # it reads is gated to admin-role accounts, and nothing here puts a
+        # price-level alert in front of a member. The FLIP is a separate
+        # approval line.
+        _at_price_level.register()
+        # GATE-S7-EVENT-PROXIMITY CP3: registration, beside its sibling. The
+        # DARK sweep is wired further down under
+        # ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED.
+        _at_event_prox.register()
+        # GATE-S7-POSITION-RISK: registration, beside its siblings. The DARK
+        # sweep is wired further down under
+        # ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED.
+        #
+        # ⛔⛔ WIRING A TYPE HERE IS CP3's ACT, NOT CP1's -- and that is a RAILED
+        # boundary, not a convention. Every type's CP1/CP2 suite asserts its own
+        # name is absent from this file, in those words:
+        #
+        #     assert "catalyst_match" not in main, (
+        #         "api/main.py wires catalyst-match -- that is CP3 and needs a
+        #          new approval line")
+        #
+        # So `regime_change`, `scan_membership_change`, `catalyst_match` and
+        # `indicator_condition` are ABSENT ON PURPOSE. They sit at CP2; their
+        # CP3s are the next units in the queue and each will wire its own.
+        #
+        # ⚰️ A DRAFT OF THIS COMMIT WIRED ALL FIVE, on the reading that CP1's
+        # "registration + params schema" scope had shipped a `register()` nobody
+        # called -- five types "built, tested, green and unreachable". The pod
+        # agreed: `alert_trigger_registry` held THREE rows while the package
+        # ships EIGHT modules defining `register()`. ⭐ **The reading was wrong
+        # and the four boundary rails caught it.** Three registered types is the
+        # CORRECT state of a programme where three types have reached CP3;
+        # "registration" at CP1 means the module OFFERS one, and the process
+        # takes it up when the dark run is approved.
+        #
+        # ⭐ The lesson is the one this file keeps re-teaching: a gap between
+        # what a module provides and what the process uses is not automatically
+        # a defect. Ask what the boundary is FOR before closing it.
+        #
+        # ⭐ `tests/test_alert_taxonomy_registration_is_wired.py` now fails BY
+        # NAME for any module that defines `register()` and is not called here,
+        # so the sixth cannot be discovered the same way the fifth was.
+        _at_position_risk.register()
+        _at_scan_membership.register()
+        _at_catalyst_match.register()
+        _at_regime_change.register()
+        # GATE-S7-INDICATOR-CONDITION CP3 (approval line 3, the dependency-discharge
+        # line, fingerprint 4e8d3af5d). Its blocker -- PRD-D2 §9.5, signed as
+        # GATE-D2 CP4 (3257cc319) -- merged as 404b808c5.
+        _at_indicator_cond.register()
+        logging.getLogger(__name__).info(
+            "alert_taxonomy: %d trigger type(s) registered -- %s (all DARK "
+            "beyond document-arrival). A type appears here when its CP3 is "
+            "signed, not when its module is written."
+            % (len(_at_registry.list_trigger_types()),
+               ", ".join(sorted(r["type_id"] for r in _at_registry.list_trigger_types()))))
     except Exception as e:
         logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
+
+    # ── S12 first migration: seed the `rollout:s7-dark` cohort ───────────────
+    #
+    # ⛔⛔ THIS IS WHAT MAKES THE COHORT SWAP A NO-OP BY CONSTRUCTION. Both S7
+    # dark projections now read `user_tags` instead of `users.role = 'admin'`,
+    # and an untagged cohort means NO MEMBERS -- never a fallback to admins
+    # (owner ruling, 2026-09-12). So without this line the swap would silently
+    # cover ZERO people, and five sessions of "agreement" over an empty set
+    # reads exactly like five sessions of agreement.
+    #
+    # ⭐ IDEMPOTENT AND ADDITIVE-ONLY. `INSERT OR IGNORE` against a
+    # `UNIQUE(user_id, tag)`, so every boot after the first inserts nothing. It
+    # NEVER removes a tag: a member added to the cohort by hand must survive a
+    # restart, and a member whose ROLE changed must not be silently dropped out
+    # of a running dark comparison.
+    #
+    # ⛔ IT IS HERE AND NOT IN `auth_db.init_db()`, DELIBERATELY. `auth_db.py` is
+    # inside flow-worker's import closure and is NOT on its watch list, so
+    # editing it would strand flow-worker on stale code for a change it runs --
+    # measured with `tools/flow_worker_watch_coverage.py`, not assumed. `main.py`
+    # is not in that closure.
+    try:
+        from api.services import rollout as _rollout
+        _seeded = _rollout.ensure_s7_dark_seeded()
+        logging.getLogger(__name__).info(
+            "rollout: cohort %r seeded from role %r (%d new tag rows)",
+            _rollout.S7_DARK, _rollout.LEGACY_S7_ROLE, _seeded)
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"rollout seed failed: {e}")
 
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
@@ -2941,6 +3266,16 @@ async def lifespan(app: FastAPI):
         _buzz_boot.init_db()
     except Exception as e:
         logging.getLogger(__name__).warning(f"[buzz] store init skipped: {e}")
+
+    # -- UCT Wisdom Loop store (docs/wisdom/CONTRACTS.md §2.2) --
+    # Unconditional, idempotent DDL: a reader must never depend on the scheduler
+    # lock or a flag to find its tables (same reasoning as the buzz init above).
+    try:
+        from api.services.wisdom import registry as _wisdom_registry_boot
+        _wisdom_boot = _wisdom_registry_boot.init_stores()
+        print(f"[startup] wisdom.db ready (migrations applied this boot: {len(_wisdom_boot.get('applied', []))})")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"[wisdom] store init skipped: {e}")
 
     # Live-chat presence: coalesced snapshot broadcast every ~8s (ephemeral frames).
     # Single web process → the in-memory chat hub needs no external pub/sub.
@@ -3045,6 +3380,50 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).exception(
             "[startup] awareness regime_snapshots schema init failed"
         )
+
+    # Wave P1.5: wire the OCR engine, or truthfully decline to.
+    #
+    # ⛔ DARK BY DEFAULT. `J2_OCR_ENABLED` gates EXECUTION only — page-truth
+    # readiness, `no_text` semantics and the FTS write invariants are correct
+    # whether it is on or off. With it off, no adapter is installed, nothing is
+    # ever marked "OCR required", and a scanned document keeps saying exactly
+    # what it says today.
+    #
+    # ⭐ The fingerprint line is how a PACKAGING build is verified without
+    # processing a single member document: it reports whether the binary
+    # reached the image and what version it is, and nothing else.
+    try:
+        from api.services.journal_two import document_ocr_tesseract as _j2_ocr
+        _ocr_state = _j2_ocr.install_if_enabled()
+        print(_j2_ocr.startup_fingerprint(), flush=True)
+        if _ocr_state.get("flag") and not _ocr_state.get("active"):
+            logging.getLogger(__name__).warning(
+                "[startup] J2_OCR_ENABLED is set but OCR could not be armed")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] OCR engine probe failed")
+
+    # Wave P1: reclaim OCR pages abandoned by a restart.
+    #
+    # ⛔⛔ NATIVE EXTRACTION NEVER NEEDED THIS AND OCR CANNOT DO WITHOUT IT.
+    # A pypdf pass finished in milliseconds, so a redeploy landing inside one
+    # was a rounding error. OCR takes SECONDS PER PAGE, which puts a Railway
+    # redeploy inside a job routinely — and a page left `processing` with
+    # nothing running would leave the member on "Processing scanned text..."
+    # forever, with no sweep anywhere to notice.
+    #
+    # ⛔ It reclaims by AGE, never on sight, so it cannot steal a page from a
+    # job that is still working on it. Inert by construction while no engine is
+    # wired: with no adapter nothing is ever marked `processing`, so this finds
+    # nothing and costs one indexed query.
+    try:
+        from api.services.journal_two import document_ocr as _doc_ocr
+        _rec = _doc_ocr.recover_stalled()
+        if _rec.get("reclaimed") or _rec.get("exhausted"):
+            logging.getLogger(__name__).info(
+                "[startup] OCR recovery: reclaimed=%s exhausted=%s documents=%s",
+                _rec["reclaimed"], _rec["exhausted"], _rec["documents"])
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] OCR recovery sweep failed")
 
     # Alert Durability V1 (2026-09-06): the user_alerts table backing
     # api/services/alert_durability.py. Cheap + idempotent; initialized
@@ -4655,6 +5034,45 @@ async def lifespan(app: FastAPI):
 
         # -- The Floor: UCT Mentor daily heartbeat (weekday ~9:20 AM ET) -------
         # One 'UCT Mentor' system post into #trading-floor each morning so the
+        # ⚰️⚰️ WAVE P5 — THE OCR RECOVERY SWEEP HAD NO SCHEDULE.
+        #
+        # `recover_stalled()` runs once, in the startup block above, and it only
+        # reclaims pages left `processing`. Two concurrent 100-page scans in the
+        # P5 load run produced the case neither half covers: a locked database
+        # killed one job on its FIRST write, so its hundred pages stayed
+        # `required`, no sweep could see them, and the member's document said
+        # "Processing…" until the next deploy. Which is to say: forever, on a
+        # quiet week.
+        #
+        # ⛔ SELF-GATING, not flag-gated here. `get_adapter()` returns None
+        # unless OCR is actually armed, so this is inert while the feature is
+        # dark — the same posture as the startup recovery beside it, and it
+        # cannot become a job that exists only when a flag was on at boot.
+        try:
+            from api.services.journal_two import document_ocr as _ocr_sweep
+
+            def _ocr_requeue_abandoned() -> None:
+                adapter = _ocr_sweep.get_adapter()
+                if adapter is None:
+                    return
+                out = _ocr_sweep.recover_stalled()
+                if out.get("reclaimed") or out.get("exhausted"):
+                    logging.getLogger(__name__).info(
+                        "[doc-ocr] sweep reclaimed=%s exhausted=%s",
+                        out["reclaimed"], out["exhausted"])
+                again = _ocr_sweep.requeue_awaiting(adapter)
+                if again.get("requeued"):
+                    logging.getLogger(__name__).info(
+                        "[doc-ocr] sweep re-queued %s abandoned document(s)",
+                        again["requeued"])
+
+            _scheduler.add_job(
+                _ocr_requeue_abandoned,
+                CronTrigger(minute="4/10"),
+                id="j2_ocr_recovery_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_ocr_sweep:
+            print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:
@@ -5559,6 +5977,17 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] auth.db R2 backup scheduler ON (every 6h + daily 2:55am ET)")
 
+        # -- UCT Wisdom Loop jobs (docs/wisdom/CONTRACTS.md §2.2, §5) --
+        # Registered unconditionally, in their own try: every run re-reads
+        # WISDOM_INGEST_ENABLED and the job's own kill switch, so turning a job
+        # off needs no deploy, and a Wisdom failure cannot skip the jobs below.
+        try:
+            from api.services.wisdom import registry as _wisdom_registry_jobs
+            _wisdom_job_ids = _wisdom_registry_jobs.register_jobs(_scheduler)
+            print(f"[startup] wisdom jobs registered: {len(_wisdom_job_ids)} ({', '.join(_wisdom_job_ids)})")
+        except Exception as e:
+            print(f"[scheduler] wisdom registration error: {e}")
+
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
@@ -5713,13 +6142,7 @@ async def lifespan(app: FastAPI):
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
-                import os as _os
-                print(
-                    "[startup] pattern-vision: on model=claude-opus-4-8 "
-                    f"cost_hard_cap=${_os.environ.get('PATTERN_VISION_COST_HARD_CAP', '10.0')} "
-                    f"max_per_run={_os.environ.get('PATTERN_VISION_MAX_PER_RUN', '150')} "
-                    "active_set_only=on skip_if_stable=on confirmed_only=on"
-                )
+                print(_pattern_vision_contract_line())
         except Exception as e:
             print(f"[scheduler] pattern_vision job registration error: {e}")
 
@@ -6340,6 +6763,303 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 document-arrival alerts PAUSED "
                   "(set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)")
+
+        # GATE-S7-PRICE-LEVEL CP3 -- the DARK forward-only comparison sweep.
+        # Owner approval line 2 (2026-09-12): the harness runs against the
+        # projected predicates, ADMIN-ROLE COHORT ONLY, five full trading
+        # sessions of forward data before a verdict is shown.
+        #
+        # ⛔ DEFAULT OFF, and the direction is deliberate. This reads REAL member
+        # rows, so an unset variable must mean NOTHING RUNS -- the same contract
+        # as DESK_TSDR_ANNOUNCE_SHOWS, where the failure direction is silence
+        # rather than exposure. Arming it is an explicit act by the owner, who is
+        # the second party to this gate.
+        #
+        # ⛔ IT DELIVERS NOTHING. It writes alert_fires + receipts and the
+        # comparison spans. No delivery import exists in any of the three modules
+        # it touches, and a rail asserts that from the SOURCE rather than from
+        # this comment.
+        if os.environ.get("ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED", "0") == "1":
+            def _price_level_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.price_level_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    # ⭐ no_price is printed EVERY tick, not only when it is
+                    # non-empty: a sweep that silently saw no price for half the
+                    # cohort would record agreement about ticks that never
+                    # happened, and read exactly like a quiet market.
+                    print(f"[alert_taxonomy] price-level DARK sweep: "
+                          f"projected={r['projected']} priced={r['priced']} "
+                          f"no_price={r['no_price']} outcomes={r['outcomes']} "
+                          f"anchor_moves={r['anchor_moves']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] price-level DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _price_level_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_price_level_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 price-level DARK comparison ENABLED (every minute, "
+                  "weekdays 09:00-16:59 ET, admin cohort, no delivery)")
+        else:
+            print("[startup] S7 price-level DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-EVENT-PROXIMITY CP3 -- the second DARK forward-only comparison.
+        # Owner approval line 2 (2026-09-12): read-only projection of the legacy
+        # cohort for ADMIN-ROLE accounts only, calendar re-read per tick with the
+        # reschedule reset, no delivery.
+        #
+        # ⛔ DEFAULT OFF. It reads real member rows, so an unset variable must
+        # mean NOTHING RUNS -- the same contract as its price-level sibling above.
+        #
+        # ⭐ THIS BLOCK IS §2a ITEM 3's ANSWER FOR THIS TYPE: "name the thing
+        # that CALLS the evaluator, and the rail that asserts the call site
+        # exists." price-level shipped without it once -- registered, built,
+        # eighteen tests green, and on nobody's tick.
+        #
+        # Cadence is DAILY, not per-minute: the legacy path it mirrors has
+        # exactly two slots a day and its whole notion of time is a date. A
+        # minute-by-minute sweep would re-ask a question whose answer cannot
+        # change until tomorrow.
+        if os.environ.get("ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED", "0") == "1":
+            def _event_proximity_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.event_proximity_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] event-proximity DARK sweep: "
+                          f"projected={r['projected']} outcomes={r['outcomes']} "
+                          f"reschedules={r['reschedules']} today={r['today']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] event-proximity DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _event_proximity_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7,18", minute=5,
+                                    timezone=_ET),
+                id="alert_taxonomy_event_proximity_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 event-proximity DARK comparison ENABLED (07:05 and "
+                  "18:05 ET weekdays, admin cohort, no delivery)")
+        else:
+            print("[startup] S7 event-proximity DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-POSITION-RISK CP3 -- the third DARK forward-only comparison.
+        # Owner approval line 2 (fingerprint ec2b197f8): read-only PROJECTION of
+        # real member rows, the rollout:s7-dark cohort ONLY, forward-only, four
+        # outcomes, the sweep behind its OWN flag DEFAULT OFF, with a caller-rail
+        # proving the evaluator is reachable from the sweep and from nothing else.
+        #
+        # ⛔ DEFAULT OFF. It reads real member positions, so an unset variable
+        # must mean NOTHING RUNS -- the same contract as its two siblings above.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ legacy_only MEANS SOMETHING DIFFERENT FOR THIS TYPE. Every stop
+        # breach already clears awareness' _DELIVER_IMPORTANCE_FLOOR = 8, so it
+        # emails and Discords the member TODAY. A legacy_only row is a message a
+        # member stops receiving at the flip, not a card they must go find.
+        #
+        # Cadence matches price-level's (every minute, RTH): the legacy rule runs
+        # off the shared live-price cache, which is what the 15 s poll refreshes,
+        # and a stop breach is a within-the-minute fact.
+        if os.environ.get("ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED", "0") == "1":
+            def _position_risk_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.position_risk_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    # ⭐ no_price is printed EVERY tick, not only when non-empty:
+                    # a symbol the cache did not hold is a blind spot, and a
+                    # sweep that swallowed it would bank agreement about ticks
+                    # that never happened.
+                    print(f"[alert_taxonomy] position-risk DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"priced={r['priced']} no_price={r['no_price']} "
+                          f"fires={r['fires']} outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] position-risk DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _position_risk_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_position_risk_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 position-risk DARK comparison ENABLED (every minute, "
+                  "weekdays 09:00-16:59 ET, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 position-risk DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-SCAN-MEMBERSHIP-CHANGE CP3 -- the fourth DARK comparison.
+        # Owner approval line 2 (fingerprint d0415f251): read-only PROJECTION of
+        # real member `screen_alert_subs` rows, rollout:s7-dark cohort ONLY,
+        # forward-only, four outcomes, own flag DEFAULT OFF, caller rail.
+        #
+        # ⛔ DEFAULT OFF. It reads real member subscriptions.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS NIGHTLY AND ITS OFFSET IS LOAD-BEARING. The legacy
+        # screen-alerts job runs at SWEEP_MINUTE_ET + 10 and WRITES
+        # screen_alerts_fired. This runs at +20, AFTER it, so the night's
+        # coverage is complete -- and the projection reconstructs the dedup state
+        # the legacy rule actually decided against (`already_fired_before`,
+        # strictly older than tonight's session). Without that reconstruction
+        # both rules would read tonight's own row, both would answer `deduped`,
+        # and every night would record a tally of ZEROS -- indistinguishable from
+        # a week of quiet markets.
+        #
+        # ⭐ The minute is DERIVED from scan_evaluator's constants, never typed:
+        # if the sweep moves, this moves with it.
+        if os.environ.get("ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED", "0") == "1":
+            def _scan_membership_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.scan_membership_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] scan-membership-change DARK sweep: "
+                          f"members={r['members']} subscriptions={r['subscriptions']} "
+                          f"evaluated={r['evaluated']} outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] scan-membership-change DARK sweep failed: {e}")
+
+            from api.services.screener import scan_evaluator as _scan_eval
+            _scheduler.add_job(
+                _scan_membership_dark_sweep_job,
+                trigger=CronTrigger(hour=_scan_eval.SWEEP_HOUR_ET,
+                                    minute=_scan_eval.SWEEP_MINUTE_ET + 20,
+                                    timezone=_ET),
+                id="alert_taxonomy_scan_membership_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 scan-membership-change DARK comparison ENABLED "
+                  "(nightly, 20 min after the scan sweep, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 scan-membership-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-CATALYST-MATCH CP3 -- the fifth DARK comparison.
+        # Owner approval line 2 (fingerprint 3ee80dc13), answering the packet's
+        # §9 "what CP3 would have to name" item by item.
+        #
+        # ⛔ DEFAULT OFF. It reads real member watchlists.
+        # ⛔ ARMING IT IS THE OWNER'S FLIP. Nothing here arms anything.
+        #
+        # ⛔⛔ THE CADENCE IS DAILY -- §9 item 5, verbatim: "the catalyst engine
+        # refreshes every 5 minutes pre-market and every 30 midday, and the dedup
+        # is per DAY -- so a per-minute sweep would re-ask a question whose answer
+        # cannot change until tomorrow". 17:30 ET is after the close and after the
+        # engine's last refresh, so the day's ranked set is settled.
+        if os.environ.get("ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED", "0") == "1":
+            def _catalyst_match_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.catalyst_match_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep: "
+                          f"members={r['members']} displayed={r['displayed']} "
+                          f"evaluated={r['evaluated']} fires={r['fires']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] catalyst-match DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _catalyst_match_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=30,
+                                    timezone=_ET),
+                id="alert_taxonomy_catalyst_match_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 catalyst-match DARK comparison ENABLED "
+                  "(17:30 ET weekdays, s7-dark cohort, no delivery)")
+        else:
+            print("[startup] S7 catalyst-match DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-REGIME-CHANGE CP3 -- the sixth DARK comparison.
+        # Owner approval line 2 (fingerprint 9f0575340). §4 warns this type's
+        # projection is UNUSUAL: the predicate is global, so "projecting member
+        # rows" means projecting the STAKE TEST over the cohort.
+        #
+        # ⛔ DEFAULT OFF. ⛔ ARMING IT IS THE OWNER'S FLIP.
+        #
+        # ⛔⛔ IT MUST NEVER WRITE THE REGIME LEDGER. `_compute_regime_component`
+        # does a read-then-APPEND on `awareness_regime_snapshots`; a dark run
+        # calling it would corrupt the prev_label the LIVE R4 rule reads next
+        # cycle -- a comparison turning into an intervention. The projection
+        # reads the ledger's newest two rows instead, which IS the record of
+        # what R4 saw, and costs no classifier call.
+        #
+        # ⛔⛔ CADENCE SHADOWS THE AWARENESS ENGINE (*/20, weekdays 4-20 ET),
+        # offset by 7 minutes so each of its appends is observed after it lands.
+        # A watermark on the ledger's own id makes each row observable ONCE --
+        # without it, re-counting one flip every tick would make `agreed` a
+        # function of the sweep's cadence rather than of the market.
+        if os.environ.get("ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED", "0") == "1":
+            def _regime_change_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.regime_change_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] regime-change DARK sweep: "
+                          f"members={r['members']} evaluated={r['evaluated']} "
+                          f"ledger_id={r['ledger_id']} skipped={r['skipped']} "
+                          f"outcomes={r['outcomes']}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] regime-change DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _regime_change_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="4-20",
+                                    minute="7-59/20", timezone=_ET),
+                id="alert_taxonomy_regime_change_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 regime-change DARK comparison ENABLED (every 20 min "
+                  "behind the awareness scan, weekdays 04:00-20:59 ET, no delivery)")
+        else:
+            print("[startup] S7 regime-change DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-S7-INDICATOR-CONDITION CP3 -- approval line 3, the
+        # dependency-discharge line (fingerprint 4e8d3af5d). Its blocker,
+        # PRD-D2 §9.5, is signed as GATE-D2 CP4 (3257cc319) and merged
+        # (404b808c5).
+        #
+        # ⛔⛔ THIRTY OF THIRTY-ONE PREDICATES ARE **NOT COMPARABLE** AND THAT IS
+        # THE EXPECTED READING, NOT A FAULT (F-S7-IC-1). The legacy lane's 31
+        # addresses and D2's 142 book metrics have an EMPTY intersection: one
+        # rename (close -> ohlcv.c) and thirty genuine absences. The sweep says
+        # so PER PREDICATE rather than letting a non-intersecting predicate
+        # score as LEGACY_ONLY, which would read as "the new lane is missing
+        # fires" for a question it was never able to be asked.
+        if os.environ.get("ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED", "0") == "1":
+            def _indicator_condition_dark_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.indicator_condition_projection import run_dark_sweep
+                    r = run_dark_sweep()
+                    print(f"[alert_taxonomy] indicator-condition DARK sweep: "
+                          f"members={r.get('members')} alerts={r.get('alerts')} "
+                          f"observed={r.get('observed')} "
+                          f"not_comparable={r.get('not_comparable')} "
+                          f"outcomes={r.get('outcomes')}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] indicator-condition DARK sweep failed: {e}")
+
+            _scheduler.add_job(
+                _indicator_condition_dark_sweep_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*", timezone=_ET),
+                id="alert_taxonomy_indicator_condition_dark",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 indicator-condition DARK comparison ENABLED (every "
+                  "minute, weekdays 09:00-16:59 ET, no delivery)")
+        else:
+            print("[startup] S7 indicator-condition DARK comparison OFF "
+                  "(set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)")
 
         def _compass_daily_focus_run():
             try:
@@ -7003,6 +7723,24 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] event-loop watchdog failed to start (non-fatal): {_e}")
 
+    # -- Discord render V2 runtime (docs/discord-render/03-architecture.md) ---
+    # Dark unless DISCORD_RENDER_V2_ENABLED. On boot it RESUMES the jobs a dead pod
+    # left mid-render (web's median deployment served 8.4 minutes over 2026-08-30..
+    # 09-13, and each restart used to strand every in-flight chart reply on
+    # "thinking..."). Non-fatal: a failure here leaves the pre-V2 path answering.
+    try:
+        # ⛔ LOCAL import. main.py has no module-level `import asyncio`; the only ones live
+        # inside other blocks thousands of lines up. Relying on them would raise here, the
+        # `except` below would call it non-fatal, and V2 would silently never start.
+        import asyncio as _v2_boot_aio
+        from api.services.discord_render import commands as _render_v2
+        if _render_v2.enabled():
+            _v2_boot = await _v2_boot_aio.to_thread(_render_v2.start)
+            print(f"[startup] discord-render V2 runtime up: resumed={_v2_boot['resumed']} "
+                  f"abandoned={_v2_boot['abandoned']}")
+    except Exception as _e:
+        print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
+
     yield
     # -- Massive WS graceful stop (deploy-survival P1) ---------------------
     # Runs on SIGTERM during the Railway drain window. Sends a clean WS close
@@ -7035,6 +7773,19 @@ async def lifespan(app: FastAPI):
                   f"{'clean' if _lf_clean else 'join timed out (daemon finishing in drain window)'}")
     except Exception as e:
         print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
+    # -- Discord render V2: hand every held job lease back before the pod goes ---
+    # Inside uvicorn's 5 s graceful window. Releasing the leases NOW lets the
+    # replacement pod resume those renders at once instead of waiting out a 20 s
+    # lease. Thread joins run off the loop. Non-fatal either way: a lease that is
+    # not released simply lapses and the next pod resumes it 20 s later.
+    try:
+        import asyncio as _v2_aio
+        from api.services.discord_render import commands as _render_v2_stop
+        if _render_v2_stop.enabled():
+            _v2_released = await _v2_aio.to_thread(_render_v2_stop.stop)
+            print(f"[shutdown] discord-render V2 released {_v2_released} lease(s)")
+    except Exception as e:
+        print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
 
@@ -7327,6 +8078,7 @@ def health_cache(_admin: dict = Depends(require_admin)):
 
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
+app.include_router(terminal_next_reports.router)
 app.include_router(render_panels_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)
@@ -7467,6 +8219,9 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+# Phase 2a — the joystick hub's planned-trades backend. No client writes to it
+# yet; the preview is navigation-only plus Voice.
+app.include_router(hub_planned_trades_router.router)
 # Browser Capture authorization handshake + the two scoped extension
 # surfaces. Separate path space from POST /api/j2/capture, so no route
 # shadows another; mounted beside it so the family reads as one.
@@ -7539,6 +8294,7 @@ app.include_router(massive_adapter_status_router.router)  # /api/admin/massive-a
 app.include_router(provenance_quote_router.router)  # /api/provenance/quote — S8 Step 2 live D1 wiring
 app.include_router(provenance_bar_router.router)  # /api/provenance/bar — S8 <Cited> narrow interim form
 app.include_router(alert_taxonomy_router.router)  # /api/alerts/taxonomy/* — S7 document-arrival first slice
+app.include_router(entity_master_admin_router.router)  # /api/admin/entity-master/* — S3 admin status/ops (admin-only)
 app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
@@ -7568,6 +8324,11 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
+# UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
+# every route) and /api/internal/wisdom/<pkg>/* (require_push_secret). One loop so streams never edit main.py.
+from api.services.wisdom import registry as wisdom_registry  # noqa: E402
+for _wisdom_router in wisdom_registry.routers():
+    app.include_router(_wisdom_router)
 
 
 # -- Massive WS consumer health endpoint --------------------------------
@@ -7655,13 +8416,15 @@ from api.flow_admin_auth import (  # noqa: E402
 
 
 @app.get("/api/confluence")
-async def _confluence_board(_auth: dict = Depends(_require_flow_user)):
-    """The Confluence board — names with dark-pool accumulation AND aligned
-    LEAP/size-with-time options flow. Served from a scheduler-warmed cache; never
-    computes on the request path (a cold cache returns {ok:false, status:'warming'})."""
+async def _confluence_board(days: int = 30, _auth: dict = Depends(_require_flow_user)):
+    """The Confluence board — names with a dark-pool footprint AND aligned
+    LEAP/size-with-time options flow, over a `days`-trading-day lookback (default 30;
+    an unsupported value falls back to 30). Served from a per-window cache; never
+    computes on the request path — the default window is scheduler-warmed and other
+    windows warm in the background (a cold window returns {ok:false, status:'warming'})."""
     from fastapi.concurrency import run_in_threadpool
     from api import confluence_screen
-    return await run_in_threadpool(confluence_screen.get_board, False)
+    return await run_in_threadpool(confluence_screen.get_board, days, False)
 
 
 @app.post("/api/admin/confluence/refresh")
@@ -9721,6 +10484,65 @@ if os.path.exists(DIST):
             os.path.join(DIST, "og-coming-soon.png"),
             media_type="image/png",
             headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    # Wave Q1 cross-browser certification probe (app/public/q1-probe.html).
+    # Root-level public/ files are not covered by the /assets mount, so without
+    # this route the SPA catch-all would answer with index.html and the probe
+    # would silently never load -- the same trap the OG card fell into above.
+    # It is a synthetic, unauthenticated measurement page: it touches only
+    # databases named `uct_q1_browser_probe*` and no member data.
+    # REMOVAL CONDITION: delete this route and the file together when the
+    # Wave Q1 browser matrix in docs/notebook/wave-q1-browser-certification.md
+    # is complete.
+    # Where a probe run reports its result. ⛔ A remote real device (a
+    # BrowserStack iPhone, Patrick's own phone) cannot hand a 3 KB JSON back by
+    # hand, and transcribing a certification result off a screenshot is exactly
+    # how a matrix acquires a number nobody measured. So the page posts it here.
+    #
+    # Deliberately unauthenticated, because the device running the probe is not
+    # signed in: bounded to 32 KB, keeps only the newest 25, stores the payload
+    # verbatim and nothing about the caller. Reading them back IS admin-gated.
+    # REMOVAL CONDITION: goes with the probe page, when the matrix is complete.
+    _Q1_RESULTS_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "q1_probe_results.json")
+
+    @app.post("/api/q1-probe-result", include_in_schema=False)
+    async def _q1_probe_result(request: Request):
+        raw = await request.body()
+        if len(raw) > 32768:
+            return JSONResponse({"ok": False, "error": "too large"}, status_code=413)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except Exception:
+            return JSONResponse({"ok": False, "error": "not json"}, status_code=400)
+        try:
+            rows = []
+            if os.path.exists(_Q1_RESULTS_PATH):
+                with open(_Q1_RESULTS_PATH, "r", encoding="utf-8") as fh:
+                    rows = json.load(fh) or []
+            rows.append({"receivedAt": datetime.now().astimezone().isoformat(), "result": payload})
+            rows = rows[-25:]
+            tmp = _Q1_RESULTS_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(rows, fh)
+            os.replace(tmp, _Q1_RESULTS_PATH)
+            return {"ok": True, "stored": len(rows)}
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/q1-probe-results", include_in_schema=False)
+    def _q1_probe_results(_admin: dict = Depends(require_admin)):
+        if not os.path.exists(_Q1_RESULTS_PATH):
+            return {"ok": True, "results": []}
+        with open(_Q1_RESULTS_PATH, "r", encoding="utf-8") as fh:
+            return {"ok": True, "results": json.load(fh) or []}
+
+    @app.get("/q1-probe.html", include_in_schema=False)
+    def _serve_q1_probe():
+        return FileResponse(
+            os.path.join(DIST, "q1-probe.html"),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store"},
         )
 
     @app.get("/robots.txt", include_in_schema=False)

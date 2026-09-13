@@ -448,6 +448,30 @@ const ICONS = {
   onedrive: (
     <path d="M18 10.3h-1.3a8 8 0 1 0-7.7 10.2h9a5 5 0 0 0 0-10.2z" />
   ),
+
+  // ── Joystick hub (docs/plans/joystick/00-master-spec-v1.3.md §2f) ────────
+  // `ruler` and `dollar` were explicitly rejected as stand-ins for these two —
+  // both are generic and would not distinguish these actions from their fan
+  // neighbours.
+  // A horizontal stop line with an up/down chevron pair centred on it —
+  // Journal -> Move stop.
+  moveStop: (
+    <>
+      <path d="M4 12h16" />
+      <path d="M9 7.5L12 4.5L15 7.5" />
+      <path d="M9 16.5L12 19.5L15 16.5" />
+    </>
+  ),
+  // The existing `calendar` frame with a small candle body + wick inside —
+  // Calendar -> Earnings.
+  earnings: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.2" />
+      <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" />
+      <path d="M12 12v6.5" />
+      <rect x="10.3" y="13.3" width="3.4" height="3.6" rx="0.4" fill="currentColor" stroke="none" />
+    </>
+  ),
 }
 
 export const UICON_NAMES = Object.keys(ICONS)

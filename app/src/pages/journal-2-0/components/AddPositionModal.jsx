@@ -11,6 +11,7 @@
  *   - fixed_percent_distance: entry × (1 − p/100) (Long) or × (1 + p/100) (Short)
  */
 
+import { prefillStop } from '../lib/disciplineGuards'
 import { useState, useCallback, useId, useEffect } from 'react'
 import styles from './ModalShell.module.css'
 import bannerStyles from './AlertBanner.module.css'
@@ -34,6 +35,7 @@ import InterventionBanner from './InterventionBanner'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
+import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import SecuritySymbolInput from './SecuritySymbolInput'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
@@ -56,43 +58,6 @@ function positionChartWindow(entryDateIso) {
   }
 }
 
-function prefillStop({ side, sharesVal, entryVal, defaultStop, barLow, barHigh }) {
-  const shares = Number(sharesVal)
-  const entry = Number(entryVal)
-  if (!defaultStop || defaultStop.mode === 'custom') return ''
-  if (!Number.isFinite(entry) || entry <= 0) return ''
-
-  // Chart-right-click path: bar low/high available → compute immediately
-  // for bar_low_high mode. No shares needed.
-  if (defaultStop.mode === 'bar_low_high') {
-    const anchor = side === 'Long' ? Number(barLow) : Number(barHigh)
-    if (!Number.isFinite(anchor)) return ''  // manual entry — no bar context
-    const buffer = Number(defaultStop.buffer) || 0
-    const offset = defaultStop.bufferUnit === '%'
-      ? anchor * (buffer / 100)
-      : buffer
-    const raw = side === 'Long' ? anchor - offset : anchor + offset
-    return raw < 0 ? 0 : Math.round(raw * 100) / 100
-  }
-
-  if (defaultStop.mode === 'fixed_percent_distance') {
-    const p = Number(defaultStop.percent) || 0
-    if (p <= 0 || p >= 100) return ''
-    const raw = side === 'Long' ? entry * (1 - p / 100) : entry * (1 + p / 100)
-    return raw < 0 ? 0 : Math.round(raw * 100) / 100
-  }
-
-  // fixed_dollar_risk needs shares to distribute the $ risk across
-  if (defaultStop.mode === 'fixed_dollar_risk') {
-    if (!Number.isFinite(shares) || shares <= 0) return ''
-    const amt = Number(defaultStop.amount) || 0
-    if (amt <= 0) return ''
-    const raw = side === 'Long' ? entry - amt / shares : entry + amt / shares
-    return raw < 0 ? 0 : Math.round(raw * 100) / 100
-  }
-
-  return ''
-}
 
 export default function AddPositionModal({ settings, onSave, onClose, prefill, accountName }) {
   const titleId = useId()
@@ -284,6 +249,11 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
         body: JSON.stringify({ attrs }),
       })
       if (!res.ok) return String(res.status)
+      // ⛔⛔ THE APPEND MOVED THE NOTE'S REVISION. A browser cannot record a
+      // revision it was never told, and an unrecorded revision is what makes
+      // the offline queue decide somebody else wrote — and fork the member's
+      // note against their own trade link. `settleNoteWrite` never throws.
+      await settleNoteWrite(noteId, res)
       return null
     } catch (e) {
       return String(e?.message || e)
@@ -347,7 +317,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
               body: JSON.stringify({
                 properties: { 'builtin:research_type': side === 'Short' ? 'short_thesis' : 'long_thesis' },
               }),
-            }).catch(() => {})
+            })
+              // ⛔ Best-effort stays best-effort — but a PUT that SUCCEEDS has
+              // moved the revision, and that has to be landed or the member's
+              // next offline drain forks this note.
+              .then(async (r) => (r.ok ? settleNoteWrite(thesisNoteId, r) : null))
+              .catch(() => {})
           }
         }
       }

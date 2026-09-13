@@ -159,3 +159,44 @@ export function excerptRevisitTarget(excerpt) {
     emphasizeExcerptId: excerpt.id,
   }
 }
+
+/** Where an ASK CITATION should land, in the same `?note=&doc=&page=` shape
+ *  Search already uses.
+ *
+ *  ⚰️ WAVE P3 §12 — THIS EXISTS BECAUSE A CITED DOCUMENT PAGE WENT NOWHERE.
+ *  The note editor's citation handler knew about reviews and about the note
+ *  body and returned silently for `kind: 'document'`, so Ask could say
+ *  "q3-filing.pdf · p.1", the member could click it, and nothing happened.
+ *  Search reached the page in Wave M; the Ask citation never learned the same
+ *  contract. Found by driving the real UI — every unit rail asserts a target,
+ *  and none of them clicks the row.
+ *
+ *  ⛔ ONE CONTRACT, NOT AN OCR-SPECIFIC ONE. A scanned page opens exactly the
+ *  way a native page does; that is what keeps the ORIGINAL page authoritative
+ *  rather than the text we derived from it.
+ *
+ *  @param source  a public source from the Ask `sources` event
+ *  @param fallbackNoteId  the note the host is already showing, used only when
+ *         the evidence cannot name its own (a scope that spans notes always can)
+ *  @returns a target for `applyTargetToParams`, or null when it cannot say
+ *           where to go — in which case navigate NOWHERE rather than guessing.
+ */
+export function citationTarget(source, { fallbackNoteId = null } = {}) {
+  const nav = source && source.navigation
+  if (!nav) return null
+  if (nav.kind === 'review') {
+    return nav.note_id && nav.review_id
+      ? { noteId: nav.note_id, reviewId: nav.review_id, depth: 'review' }
+      : null
+  }
+  if (nav.kind !== 'document') return null
+  const noteId = nav.note_id || fallbackNoteId
+  if (!noteId || !nav.document_id) return null
+  const page = Number(nav.page_number)
+  return {
+    noteId,
+    documentId: nav.document_id,
+    ...(Number.isFinite(page) && page > 0 ? { page } : {}),
+    depth: 'page',
+  }
+}

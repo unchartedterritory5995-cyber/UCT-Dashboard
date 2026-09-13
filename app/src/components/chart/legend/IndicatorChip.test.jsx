@@ -67,14 +67,19 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(legendBlock, 'the `.legend` rule was not found — this gate read nothing').toContain('position: absolute')
   })
 
-  it('⛔ the reveal is CSS — collapsed by default, opened by :hover AND :focus-within', () => {
+  it('⛔ the reveal is CSS — collapsed by default, opened by :hover AND keyboard focus', () => {
+    // ⚰️ THIS ASSERTED `:focus-within` UNTIL 2026-09-10, and that selector was a
+    // measured bug: a mouse click leaves DOM focus on the button, so the chip you
+    // just acted on kept its controls open behind the one you moved to next.
+    // `:has(:focus-visible)` keeps the keyboard reveal this case exists to defend
+    // while dropping the stuck-open mouse case.
     expect(flat, 'the control row is not collapsed by default — every chip carries ~60px '
       + 'of dead box and the strip wraps').toMatch(/\.chipControls\{[^}]*max-width:0;/)
     expect(flat, 'no :hover reveal — the controls can never open with a mouse')
       .toMatch(/\.chip:hover\.chipControls|\.chip:hover\s*\.chipControls/)
     expect(CSS.replace(/\s+/g, ' '),
-      'no :focus-within reveal — a keyboard user can tab into the controls and never see them')
-      .toMatch(/\.chip:focus-within \.chipControls/)
+      'no keyboard reveal — a keyboard user can tab into the controls and never see them')
+      .toMatch(/\.chip:has\(:focus-visible\) \.chipControls/)
     // ⛔ AND NOT `display: none`, which is the obvious way to write this and the
     // one that puts the controls out of the tab order — at which point
     // `:focus-within` can never fire and the keyboard path above is decorative.

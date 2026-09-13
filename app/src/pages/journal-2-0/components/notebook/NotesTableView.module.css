@@ -24,6 +24,21 @@
   color: var(--color-text-muted, #98a0aa);
   opacity: 0.6;
 }
+/* Wave Q1 — the same badge as the card grid, on the other list view.
+   ⛔ Same token (`--color-warning`, declared in tokens.css), same words: two
+   list views that describe one state differently teach a member they are two
+   states. */
+.unsynced {
+  margin-left: 8px;
+  color: var(--color-warning);
+  background: rgba(234, 179, 8, 0.10);
+  border: 1px solid rgba(234, 179, 8, 0.22);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
 .valueChip {
   background: rgba(220, 187, 94, 0.12);
   border: 1px solid rgba(220, 187, 94, 0.3);

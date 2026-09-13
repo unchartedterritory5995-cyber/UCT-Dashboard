@@ -8,11 +8,20 @@ import { AuthContext } from '../../context/AuthContext'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 
-// ─── THE THREE DOORS ONTO THE LIBRARY, AND THE ONE MOUNT SITE THAT GETS NONE ─
+// ─── THE DOORS ONTO THE LIBRARY, AND THE ONE MOUNT SITE THAT GETS NONE ──────
 //
 // The dialog's own suite covers what it renders. What only this file can cover
-// is the WIRING: a labelled button (spec §6, "not icon-only in v1"), the
-// imperative door `Alt+Shift+A` will use, and the read-only mount-site rule.
+// is the WIRING: the imperative door `Alt+Shift+A` uses, the builder door the
+// consolidated Chart Settings → Indicators tab uses, and the read-only
+// mount-site rule.
+//
+// ⚰️ A LABELLED TOOLBAR BUTTON WAS THE FIRST DOOR, AND IT IS RETIRED. Spec §6
+// asked for one ("not icon-only in v1") because the add-flow had no other home;
+// `ChartSettingsModal` → Indicators IS that home now — same catalogue, same
+// `matches()` search, same `toggledRow` write, plus the settings for what is
+// already on. Two labelled entry points onto one job is the split the
+// consolidation ends. The library COMPONENT stays, because the chords, the two
+// right-click rows and the phone ƒx sheet still open it; only the button went.
 //
 // ⚠️ THE READ-ONLY RULE IS THE ONE THAT COULD SILENTLY BE WRONG. The shipped
 // `Alt+Shift+A` branch is guarded by `typeof onOpenSettings === 'function'`, so
@@ -37,25 +46,29 @@ function mount({ settings = base(), onUpdateSettings = vi.fn(), ref } = {}) {
   return { onUpdateSettings }
 }
 
-const launcher = () => screen.getByRole('button', { name: /Indicators/ })
-
 describe('ChartToolbar — the indicator library', () => {
-  it('offers a LABELLED Indicators button, and it opens the library', async () => {
-    const user = userEvent.setup()
-    mount()
-    // Not icon-only: the accessible name carries the WORD, which is what a user
-    // hunting for "how do I add RSI" is scanning for.
-    expect(launcher().textContent).toMatch(/\bIndicators\b/)
+  it('⛔ NO labelled Indicators button — Chart Settings → Indicators is the one home', async () => {
+    // ⚰️ THIS CASE USED TO DEMAND THE OPPOSITE. See the header: the button is
+    // retired because the settings tab is the add-flow now. What still has to be
+    // true — and is asserted here — is that the library is REACHABLE and renders
+    // everything it always did, because the chords and menus still open it.
+    const ref = createRef()
+    mount({ ref })
+    expect(screen.queryByRole('button', { name: /^Indicators$/ }),
+      'the retired toolbar Indicators button is back — there are two homes again').toBeNull()
     expect(screen.queryByRole('searchbox')).toBeNull()
-    await user.click(launcher())
-    expect(screen.getByRole('searchbox')).toBeTruthy()
+
+    expect(ref.current.openIndicatorLibrary()).toBe(true)
+    expect(await screen.findByRole('searchbox')).toBeTruthy()
     expect(screen.getAllByRole('option').length).toBeGreaterThan(10)
   })
 
   it('adds an indicator end to end, through the toolbar\'s own settings writer', async () => {
     const user = userEvent.setup()
-    const { onUpdateSettings } = mount()
-    await user.click(launcher())
+    const ref = createRef()
+    const { onUpdateSettings } = mount({ ref })
+    ref.current.openIndicatorLibrary()
+    await screen.findByRole('searchbox')
     await user.click(screen.getByRole('option', { name: /Average True Range/ }))
     expect(onUpdateSettings).toHaveBeenCalledTimes(1)
     const next = onUpdateSettings.mock.calls[0][0]
@@ -75,11 +88,26 @@ describe('ChartToolbar — the indicator library', () => {
         <ChartToolbar ref={ref} activeTool="cursor" setActiveTool={() => {}} chartSettings={base()} />
       </AuthContext.Provider>,
     )
-    expect(screen.queryByRole('button', { name: /Indicators/ })).toBeNull()
-    // …and the IMPERATIVE door — the one `Alt+Shift+A` will call — refuses too,
-    // reporting the refusal rather than silently no-opping.
+    // The IMPERATIVE doors — the one `Alt+Shift+A` calls and the one Chart
+    // Settings → Indicators → "New Formula" calls — refuse, and REPORT the
+    // refusal rather than silently no-opping.
     expect(ref.current.openIndicatorLibrary()).toBe(false)
+    expect(ref.current.openFormulaBuilder()).toBe(false)
     expect(screen.queryByRole('searchbox')).toBeNull()
+  })
+
+  it('⭐ opens the ONE mounted builder through `openFormulaBuilder`', async () => {
+    // The door Chart Settings → Indicators → "New Formula" travels down:
+    // `ChartPane` holds the toolbar API, `StockChart` publishes into it, and the
+    // sheet itself is mounted HERE and nowhere else (an AST rail in
+    // `BuilderSheet.test.jsx` fails the build on a second element). A launcher
+    // that reported success while opening nothing is the defect this pins.
+    const ref = createRef()
+    mount({ ref })
+    expect(ref.current.openFormulaBuilder()).toBe(true)
+    // The sheet is `lazy()` — deliberately, so the two translators stay out of
+    // the chunk every StockChart in the app loads — so this awaits the chunk.
+    expect(await screen.findByText('New formula', {}, { timeout: 5000 })).toBeTruthy()
   })
 
   it('…and a MANAGED mount site opens it through the same imperative door', async () => {

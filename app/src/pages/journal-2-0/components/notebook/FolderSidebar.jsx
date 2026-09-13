@@ -11,6 +11,8 @@ import { searchResultTitle, searchResultHint, reviewDateText }
   from '../../lib/searchResultLabel'
 import { outcomeLabel } from '../../lib/reviewOutcomes'
 import { searchResultTarget } from '../../lib/searchNavigation'
+import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
+  from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -1002,6 +1004,18 @@ export default function FolderSidebar({
                   <span className={styles.searchResultBody}>
                     <span className={styles.searchResultTitle}>
                       {searchResultTitle(d, { kind: 'page' })}
+                      {/* ⛔ WAVE P2 §21: ONLY WHEN THERE IS SOMETHING TO SAY.
+                          A native page gets no chip — the label exists to warn
+                          that exact figures were READ off an image, and putting
+                          it on every row would make it invisible on the rows
+                          that need it. It sits beside the page number because
+                          that is where the member is already deciding whether
+                          to open the page. */}
+                      {isScannedText(d) && (
+                        <span className={styles.scannedChip} title={SCANNED_TEXT_HINT}>
+                          {SCANNED_TEXT_LABEL}
+                        </span>
+                      )}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
                   </span>

@@ -5,6 +5,8 @@ import ThemesWidget from './widgets/ThemesWidget'
 import ScannerWidget from './widgets/ScannerWidget'
 import FundamentalsWidget from './widgets/FundamentalsWidget'
 import BreadthWidget from './widgets/BreadthWidget'
+import IndexesWidget from './widgets/IndexesWidget'
+import MarketContextWidget from './widgets/MarketContextWidget'
 import AiSearchWidget from './widgets/AiSearchWidget'
 import NewsWidget from './widgets/NewsWidget'
 // Lazy — the Notebook pulls the TipTap bundle; keep it OUT of the base charts chunk
@@ -54,6 +56,12 @@ export const WORKSPACE_WIDGETS = {
   scanner: { component: ScannerWidget, props: standardProps },
   fundamentals: { component: FundamentalsWidget, props: standardProps },
   breadth: { component: BreadthWidget, props: ({ opts, onOptsChange }) => ({ opts, onOptsChange }) },
+  // Market-wide readings: no symbol, so no `color` — the breadth prop shape.
+  indexes: { component: IndexesWidget, props: ({ opts, onOptsChange }) => ({ opts, onOptsChange }) },
+  // …and market context has no per-widget options either, so it receives NONE
+  // (the aisearch idiom: a widget takes what it uses). Growing one is a
+  // decision the registry rail makes visible.
+  marketcontext: { component: MarketContextWidget, props: () => ({}) },
   aisearch: { component: AiSearchWidget, props: ({ colorKey }) => ({ color: colorKey }) },
   news: { component: NewsWidget, props: standardProps },
   notebook: { component: NotebookWidget, props: standardProps },

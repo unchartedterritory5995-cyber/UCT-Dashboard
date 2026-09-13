@@ -1,4 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { parseResearchReturnParam, researchReturnTarget, researchReturnLabel } from '../../lib/journal-2-0'
 import { useAuth } from '../../context/AuthContext'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useComparison from './hooks/useComparison'
@@ -63,6 +65,21 @@ export default function ResearchComparePage() {
   const sym = (rawSym || '').toUpperCase()
   const comparator = (rawComparator || '').toUpperCase()
   const { data, isLoading } = useComparison(sym, comparator)
+  const [searchParams] = useSearchParams()
+  // Seam 22. All THREE writers already send this page a return marker --
+  // PositionDetailPage, TradeDetailPage and TradeDrawer each route their
+  // Compare action through withResearchReturnParam -- but this page never
+  // read it, so Compare was the one destination of the Seam 12 fix that
+  // still dead-ended. Same shared parse helper as ResearchPage.jsx (never a
+  // second copy of the format), seeded once at mount, same convention: a
+  // one-time entry marker, not live state.
+  const [returnTo] = useState(() => parseResearchReturnParam(searchParams.get('from')))
+  const returnLink = returnTo ? (
+    <Link to={researchReturnTarget(returnTo)} className={styles.returnLink}
+          data-testid="compare-return-link">
+      &larr; {researchReturnLabel(returnTo)}
+    </Link>
+  ) : null
 
   if (!isPaid) {
     return <div className={styles.page}><PaywallTeaser sym={sym} /></div>
@@ -77,6 +94,7 @@ export default function ResearchComparePage() {
   if (data?.error) {
     return (
       <div className={styles.page}>
+        {returnLink}
         <div className={styles.errorBox}>{data.error}</div>
         <button className={styles.backLink} onClick={() => navigate(`/research/${sym}`)}>
           &larr; Back to {sym} Research
@@ -90,6 +108,7 @@ export default function ResearchComparePage() {
 
   return (
     <div className={styles.page} data-testid="research-compare-page">
+      {returnLink}
       <header className={styles.hdr}>
         <UIcon name="columns" size={20} />
         <div className={styles.hdrTitle}>

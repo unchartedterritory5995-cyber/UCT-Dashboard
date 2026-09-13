@@ -42,10 +42,15 @@ def create_document_arrival_alert(body: DocumentArrivalCreate, user: dict = Depe
 
 
 @router.get("/api/alerts/taxonomy/document-arrival")
-def list_document_arrival_alerts(user: dict = Depends(get_current_user)):
+def list_document_arrival_alerts(active_only: bool = True, user: dict = Depends(get_current_user)):
+    """`active_only=True` (default, unchanged) is the pre-existing "is this
+    currently watched" answer used everywhere. `active_only=false` additionally
+    surfaces the caller's own SUSPENDED predicates -- Stage 4/5 UI need this to
+    render SUSPENDED state and offer reactivation; without it a suspended
+    predicate would vanish from every surface with no way back to it."""
     return {
         "predicates": _predicates.list_predicates(
-            type_id=_doc_arrival.TYPE_ID, user_id=user["id"], active_only=True,
+            type_id=_doc_arrival.TYPE_ID, user_id=user["id"], active_only=active_only,
         ),
     }
 

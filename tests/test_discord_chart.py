@@ -1387,7 +1387,14 @@ def test_chart_components_reflect_the_image_and_round_trip_through_parse_compone
     assert picked.style == "line" and picked.theme == "house"
     row5 = rows[1]["components"]
     assert [b["label"] for b in row5[:2]] == ["MAs: House", "Volume off"]   # intraday: no pan, no link button
-    assert row5[-1]["emoji"]["name"] == "▲" and len(row5) == 3         # ...and the control that closes it all
+    # Dark Pools joined this row in a1ee351ec (flow popup, owner). The collapse control is the
+    # REAL emoji U+1F53C, never the bare symbol U+25B2: Discord refused the symbol as
+    # COMPONENT_INVALID_EMOJI and stripped every expanded chart's controls (36 rejected edits
+    # 08-30..09-06; fixed in 9d38e5d8e). This line used to ASSERT the bare symbol -- the suite
+    # pinned the bug it should have caught.
+    assert row5[2]["label"] == "Dark Pools"
+    assert row5[-1]["emoji"]["name"] == "\U0001F53C" and len(row5) == 4    # ...and the control that closes it all
+    assert all(c.get("emoji", {}).get("name") != "\u25b2" for r in rows for c in r["components"])
     assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).mas == "10-20-50"
     assert di.parse_component({"data": {"custom_id": row5[1]["custom_id"]}}).volume is False
     # daily: pan buttons, Later disabled while live, Earlier steps back a window
@@ -1473,9 +1480,30 @@ def test_endpoint_autocomplete_answers_choices_and_only_choices(monkeypatch):
 
 def test_fetch_ticker_choices_uses_the_dashboards_search_and_never_raises(monkeypatch):
     from api.routers import discord_interactions as rt, ticker_search as ts
-    monkeypatch.setattr(ts, "ticker_search", lambda q, limit: {"results": [{"ticker": "NVDA", "name": "NVIDIA Corp"}, {"ticker": "NVAX", "name": None}]})
+    import inspect
+    real = inspect.signature(ts.ticker_search)
+    seen = {}
+
+    def fake(q, limit, type, uct_session=None):
+        seen.update(q=q, limit=limit, type=type)
+        return {"results": [{"ticker": "NVDA", "name": "NVIDIA Corp"}, {"ticker": "NVAX", "name": None}]}
+    # The stand-in carries the REAL signature. The old `lambda q, limit` matched the call site
+    # as it was before 7d85bed1e, which passed no `type` -- so the route's Query() default
+    # leaked in as an object and every autocomplete answered [] for six days (178 logged
+    # failures, 08-31 10:38 to 09-06 14:47 ET). A fake that mirrors the caller cannot catch a
+    # caller that is wrong about the callee.
+    # ⚠️ `uct_session` JOINED THAT SIGNATURE in the 2026-09-13 chart-data security
+    # port: the route reads the cookie to decide whether to include UCT’s paid
+    # breadth rows. THIS RAIL CAUGHT IT — the double had drifted the moment the
+    # real function grew a parameter, which is the whole reason it compares
+    # signatures instead of arguments. An in-process caller (this one) passes no
+    # cookie and therefore sees no breadth rows, which is correct: those symbol
+    # names are the enumeration half of paid data.
+    assert set(inspect.signature(fake).parameters) == set(real.parameters)
+    monkeypatch.setattr(ts, "ticker_search", fake)
     assert rt.fetch_ticker_choices("NV") == [{"name": "NVDA - NVIDIA Corp", "value": "NVDA"}, {"name": "NVAX", "value": "NVAX"}]
-    def boom(q, limit):
+    assert all(not hasattr(v, "default") for v in seen.values()), "a Query() object reached the search"
+    def boom(q, limit, type, uct_session=None):
         raise RuntimeError("universe missing")
     monkeypatch.setattr(ts, "ticker_search", boom)
     assert rt.fetch_ticker_choices("NV") == []
@@ -2633,10 +2661,14 @@ def test_a_posted_chart_is_one_row_and_the_gear_opens_the_rest(monkeypatch):
     assert opened.expanded is True
     assert (opened.ticker, opened.tf, opened.mas, opened.zoom) == ("NVDA", "D", "house", "auto")
     full = di.chart_components(opened, dict(p.DEFAULTS))
-    assert len(full) == 3 and [b["label"] for b in full[0]["components"]] == ["D", "W", "60m", "15m", "5m"]
+    # FOUR rows on a daily chart since the Dark Pools toggle (a1ee351ec) filled the toggle row to
+    # five: timeframes / pan-MAs-volume-dark pools / the collapse control / the dropdown.
+    assert len(full) == 4 and [b["label"] for b in full[0]["components"]] == ["D", "W", "60m", "15m", "5m"]
+    collapse = [b for r in full for b in r["components"] if b.get("emoji", {}).get("name") == "\U0001F53C"]
+    assert len(collapse) == 1
 
     # ...and the collapse control closes it again, back to the one row
-    back = di.parse_component({"data": {"custom_id": full[1]["components"][-1]["custom_id"]}})
+    back = di.parse_component({"data": {"custom_id": collapse[0]["custom_id"]}})
     assert back.expanded is False and back.tf == "D"
     assert len(di.chart_components(back, dict(p.DEFAULTS))) == 1
 
@@ -2677,7 +2709,7 @@ def test_the_collapse_control_survives_a_full_toggle_row(monkeypatch):
                                guild_id="1524909611054792786")
     assert all(len(r["components"]) <= 5 for r in rows) and len(rows) <= 5
     buttons = [c for r in rows for c in r["components"] if c["type"] == 2]
-    collapse = [b for b in buttons if b.get("emoji", {}).get("name") == "▲"]
+    collapse = [b for b in buttons if b.get("emoji", {}).get("name") == "\U0001F53C"]
     assert len(collapse) == 1, "the way back must exist exactly once"
     assert di.parse_component({"data": {"custom_id": collapse[0]["custom_id"]}}).expanded is False
     assert "Open in Discord" in [b.get("label") for b in buttons]     # ...and nothing was displaced
@@ -2701,7 +2733,12 @@ def test_an_id_minted_before_the_gear_still_parses():
                               "2": (False, True), "3": (True, True)}.items():
         r = di.parse_component({"data": {"custom_id": f"{P}|NVDA|D|house|{flags}|auto|none|candles|house|||t"}})
         assert (r.volume, r.expanded) == (vol, exp), flags
-    for bad in ("4", "9", "x", "-1", ""):
+    # bit 2 (values 4-7) is the dark-pool overlay since a1ee351ec: it carries volume and expanded
+    # exactly as 0-3 do, plus the overlay.
+    for flags, (vol, exp) in {"4": (False, False), "5": (True, False), "6": (False, True), "7": (True, True)}.items():
+        r = di.parse_component({"data": {"custom_id": f"{P}|NVDA|D|house|{flags}|auto|none|candles|house|||t"}})
+        assert (r.volume, r.expanded, r.darkpool) == (vol, exp, True), flags
+    for bad in ("8", "9", "x", "-1", ""):
         with pytest.raises(di.CommandError):
             di.parse_component({"data": {"custom_id": f"{P}|NVDA|D|house|{bad}|auto|none|candles|house|||t"}})
     # and an id is no LONGER than it was before the gear existed - the flag is a

@@ -17,7 +17,7 @@ import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from api.services import earnings_estimates as ee
 from api.services import fundamentals_snapshot_store as snap_store
@@ -32,6 +32,27 @@ _SLOW_TTL = 21_600    # 6 h — normal cadence
 _EMPTY_TTL = 120      # 2 min — a fully-empty payload (transient outage) self-heals fast
 _STALE_SERVE_MAX = 3 * 86400   # serve an expired snapshot up to 3 days old while refreshing
 _SNAP_KIND = "earnings_table"
+
+# ⛔ BUMP THIS whenever the payload SHAPE changes or the quarterly strip's
+# composition changes (a provider added to / removed from `get_year_earnings`,
+# a new top-level field). A persisted snapshot stamped with an older version is
+# treated as a MISS and rebuilt, instead of being served for up to _SLOW_TTL.
+#
+# ⚰️ Version 2 exists because version 1 shipped without one. Minutes after the
+# 2026-09-12 staleness deploy the code was live and provably running — the admin
+# endpoint carried the new keys — while `GET /api/fundamentals/earnings-table
+# ?sym=MMC` still answered `reported_through: None, stale_quarters: None` and a
+# newest reported quarter of 2025 Q4. MMC's snapshot had been written by the
+# previous build, it passes `_snapshot_is_complete` (annual rows and reported
+# quarters are both present), and it was inside its TTL — so the serve path
+# returned it verbatim and scheduled no rebuild.
+#
+# ⭐ A payload cannot heal into a new shape by being refreshed in place, which is
+# the same reason `barsIDB.CACHE_LOGIC_VERSION` exists on the browser side.
+# And the lesson worth keeping: the deploy was green throughout — build SUCCESS,
+# uptime reset, new code demonstrably serving. **Verifying the CODE is live is
+# not verifying the ANSWER changed.**
+_PAYLOAD_VERSION = 2
 
 try:
     from zoneinfo import ZoneInfo
@@ -68,6 +89,58 @@ def _label_from_period_end(date_str):
     source — share ONE fiscal-quarter numbering."""
     q, y = ee._fiscal_q_from_period_end(date_str)
     return f"{y} Q{q}" if q else None
+
+
+# Days after a fiscal quarter ENDS by which a typical filer has reported it.
+# 75 clears the Dec-31 quarters that land late Jan / Feb without reaching back
+# into the quarter before, so the expectation never runs a quarter hot.
+_REPORT_LAG_DAYS = 75
+
+
+def expected_latest_reported_label(now=None):
+    """The newest fiscal quarter a typical filer should ALREADY have reported.
+
+    Walks back one reporting lag from `now` and asks the shared period-end
+    mapper which quarter that lands in, so this shares the ONE fiscal numbering
+    the rest of the widget uses rather than inventing a second one."""
+    ts = time.time() if now is None else now
+    d = datetime.fromtimestamp(ts, tz=timezone.utc) - timedelta(days=_REPORT_LAG_DAYS)
+    return _label_from_period_end(d.date().isoformat())
+
+
+def _parse_q_label(label):
+    m = re.match(r"(\d{4})\s*Q([1-4])$", str(label or "").strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def _quarters_between(older, newer):
+    """How many fiscal quarters `newer` sits ahead of `older`
+    ('2025 Q4' → '2026 Q2' = 2). None if either label is not 'YYYY Qn'."""
+    a, b = _parse_q_label(older), _parse_q_label(newer)
+    if not a or not b:
+        return None
+    return (b[0] - a[0]) * 4 + (b[1] - a[1])
+
+
+def reported_staleness(quarterly, now=None):
+    """How many fiscal quarters BEHIND the newest REPORTED row is, versus what a
+    typical filer should have reported by `now`. 0 when current, ahead, absent
+    or unlabelled.
+
+    ⚠️ Deliberately 0 for a strip with NO reported rows: that is the
+    forward-only payload `_build_and_cache`'s partial guard already catches, and
+    scoring it here would both double-report it and invent a defect for a
+    genuinely pre-revenue name that has neither leg.
+
+    The newest row is taken as the MAX parsed label rather than the last element
+    so the answer does not depend on the caller's ordering."""
+    labels = [_parse_q_label(r.get("label")) for r in (quarterly or []) if r.get("reported")]
+    labels = [x for x in labels if x]
+    if not labels:
+        return 0
+    newest = "%d Q%d" % max(labels)
+    behind = _quarters_between(newest, expected_latest_reported_label(now=now))
+    return max(0, behind) if behind is not None else 0
 
 
 def _yoy_label(label):
@@ -126,7 +199,7 @@ def _next_earnings(ticker):
     # multi-day calendar sweep), so the "one call per day" truncation rule
     # that governs the calendar.py/calendar_alerts.py breadth legs doesn't
     # apply here.
-    fmp_rows = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
+    fmp_rows = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8}, timeout=10)
     if isinstance(fmp_rows, list):
         today_iso = today.isoformat()
         upcoming = [
@@ -236,7 +309,7 @@ def _fmp_forward_quarters(ticker, limit, reported_labels=frozenset()):
     if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
         return []
     data = ee._fmp_get("/stable/analyst-estimates",
-                       {"symbol": ticker, "period": "quarter", "limit": 40})
+                       {"symbol": ticker, "period": "quarter", "limit": 40}, timeout=10)
     if not isinstance(data, list):
         return []
     from datetime import date, timedelta
@@ -316,7 +389,7 @@ def _next_report_date(ticker, now=None):
     made the seam untestable — a pinned-date test drifted into failure the day
     its fixture's scheduled report slipped into the real past."""
     try:
-        data = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8})
+        data = ee._fmp_get("/stable/earnings", {"symbol": ticker, "limit": 8}, timeout=10)
         if isinstance(data, list):
             from datetime import date, datetime, timezone
             today = (date.today().isoformat() if now is None else
@@ -459,9 +532,17 @@ def _build(ticker, now):
         fresh = _is_fresh_window(ticker, now)
         quarterly = _build_quarterly(ticker, now, fresh=fresh)
         annual = fut_annual.result()
+    # How far behind the REPORTED half is, carried on the payload so the widget
+    # can say so instead of presenting an 8-month-old quarter as the latest.
+    # `reported_through` is the newest reported label; `stale_quarters` is 0
+    # whenever the strip is current, ahead, unlabelled or forward-only.
+    rep = [r.get("label") for r in quarterly if r.get("reported") and r.get("label")]
     # Sanitize any non-finite float (NaN/inf) → None so the response always
     # renders (Starlette json.dumps allow_nan=False) and no poison is cached.
-    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly})
+    result = _sanitize({"ticker": ticker, "annual": annual, "quarterly": quarterly,
+                        "reported_through": rep[-1] if rep else None,
+                        "stale_quarters": reported_staleness(quarterly, now=now),
+                        "_v": _PAYLOAD_VERSION})
     return result, fresh
 
 
@@ -481,6 +562,21 @@ def _snapshot_is_complete(payload) -> bool:
     if payload.get("annual") and not any(r.get("reported") for r in quarterly):
         return False
     return True
+
+
+def _snapshot_is_current(payload) -> bool:
+    """Was this PERSISTED payload written by code with today's payload shape?
+
+    Separate from `_snapshot_is_complete` on purpose: completeness asks whether
+    the data is usable, currency asks whether the SHAPE is one we still serve.
+    A payload can be perfectly complete and still be the wrong shape, which is
+    exactly the state that let an eight-month-old quarter reach members after
+    the 2026-09-12 deploy. Equality, not `>=`: a rollback must not serve a newer
+    shape it cannot read either.
+    """
+    if not isinstance(payload, dict):
+        return False
+    return payload.get("_v") == _PAYLOAD_VERSION
 
 
 def _build_and_cache(ticker, now=None):
@@ -596,11 +692,22 @@ def get_earnings_table(ticker, now=None, debug=False):
 
     ckey = f"earnings_table::{ticker}"
     hit = cache.get(ckey)
-    if hit is not None:
+    # ⛔ The MEMORY layer needs the same version gate as the disk layer below,
+    # and the first cut of this fix wired only the disk branch. This read runs
+    # FIRST and used to return unconditionally, so an old-shape payload pinned
+    # here kept serving for up to _SLOW_TTL (6h) while the gate sat downstream
+    # doing nothing for it. Caught in production by a watcher on SJW's member
+    # payload: every other ticker reported _v=2 within minutes, SJW sat at
+    # _v=None for twenty.
+    #
+    # ⭐ Gating the slow layer and not the fast one is worse than gating
+    # neither, because the fix LOOKS present — the constant exists, the disk
+    # branch honours it, and that branch's tests pass.
+    if hit is not None and _snapshot_is_current(hit):
         return hit
 
     snap = snap_store.get(_SNAP_KIND, ticker, now=now)
-    if snap is not None and _snapshot_is_complete(snap[0]):
+    if snap is not None and _snapshot_is_complete(snap[0]) and _snapshot_is_current(snap[0]):
         payload, age, ttl = snap
         if age <= ttl:
             # Fresh on disk (e.g. right after a redeploy) — seed memory, serve.

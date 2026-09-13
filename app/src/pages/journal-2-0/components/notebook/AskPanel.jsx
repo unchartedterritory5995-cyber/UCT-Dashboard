@@ -8,6 +8,8 @@ import {
   resolveNoteCitation,
   splitAnswer,
 } from '../../lib/askCitation'
+import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
+  from '../../lib/documentProvenance'
 import styles from './AskPanel.module.css'
 
 // Wave K Slice 6 — THE Ask surface. One panel, four scopes.
@@ -276,10 +278,25 @@ export default function AskPanel({
                   type="button"
                   className={styles.sourceRow}
                   onClick={() => handleCitation(s)}
-                  aria-label={`Open source ${s.n}: ${s.label}`}
+                  /* ⛔ WAVE P3 §36 — PROVENANCE NON-VISUALLY. A title attribute
+                     is hover-only and a chip is a glyph to a screen reader, so
+                     the accessible name carries it too. Colour and hover can
+                     never be the only channel. */
+                  aria-label={`Open source ${s.n}: ${s.label}`
+                    + (isScannedText(s) ? `, ${SCANNED_TEXT_LABEL}` : '')}
                 >
                   <span className={styles.sourceNum}>{s.n}</span>
                   <span className={styles.sourceLabel}>{s.label}</span>
+                  {/* ⛔ WAVE P3 §35 — QUIET, NOT A WARNING BANNER. The citation
+                      is a good one; this only tells the member the words were
+                      READ OFF AN IMAGE, so a figure deserves a look at the
+                      page. Same treatment and same words as Search, from the
+                      same module, so the two surfaces cannot drift. */}
+                  {isScannedText(s) && (
+                    <span className={styles.sourceScanned} title={SCANNED_TEXT_HINT}>
+                      {SCANNED_TEXT_LABEL}
+                    </span>
+                  )}
                   {/* Degradation is stated in WORDS, never by colour alone. */}
                   {!PRECISE_CITATION.has(s.citation) && (
                     <span className={styles.sourceApprox}>

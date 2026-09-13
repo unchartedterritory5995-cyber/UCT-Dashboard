@@ -1670,6 +1670,10 @@ def _prepare_once(last_version):
 
     source, days, date_filter = flow_aggregate.DEFAULT_VIEW
     key = (source, days, date_filter)
+    # Claim the slot BY NAME so a version sighted while this runs can record who
+    # it waited on. Cleared by the caller's finally, not here — an exception must
+    # not leave a stale holder that blames an innocent roll forever.
+    _INFLIGHT_HOLDER.update({"version": version, "since": time.time(), "pass": 1})
     t0 = time.monotonic()
     try:
         # ⛔ TWO PASSES: PUBLISH THE CRITICAL PATH, THEN FILL THE REST.
@@ -1720,9 +1724,11 @@ def _prepare_once(last_version):
             if _current_version() != version:
                 log.info("[flow-prepare] version moved during pass 1 — skipping "
                          "the remainder for v=%s", version)
-                _record_roll(version, ms, pass2_skipped=True, published_at=published_at)
+                _record_roll(version, ms, pass2_skipped=True, published_at=published_at,
+                             prev_version=last_version)
                 return version
             t1 = time.monotonic()
+            _INFLIGHT_HOLDER["pass"] = 2
             rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
                          if p not in flow_aggregate.FIRST_PAINT_PARTS)
             flow_aggregate.get_cached_or_build_part(
@@ -1732,7 +1738,8 @@ def _prepare_once(last_version):
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] remainder pass failed (first paint is "
                         "already live): %s", e)
-        _record_roll(version, ms, pass2_skipped=False, published_at=published_at)
+        _record_roll(version, ms, pass2_skipped=False, published_at=published_at,
+                     prev_version=last_version)
         return version
 
     _PREPARE_STATE["declined"] += 1
@@ -1764,29 +1771,83 @@ _VERSION_FIRST_SEEN = {}
 _PREPARE_ROLLS = collections.deque(maxlen=80)
 
 
+# ── Who held the build slot when a version was first sighted ──────────────
+#
+# `handoff_ms` (detector sighting -> pass 1 start) is ≤2 ms on most rolls and
+# 4.4-15.2 s on a few, and the ledger could not say WHY: it recorded when a
+# version was seen and how long its own build took, never who was occupying
+# `_PREPARE_INFLIGHT` at the moment of sighting. The only thing that can delay
+# dispatch is that semaphore, which is held across BOTH passes, so naming the
+# holder and the pass turns "a big handoff happened" into "roll N waited on
+# roll M's pass 2".
+#
+# ⛔ THREE SCALARS PER ROLL, NOT A TRACE. The ledger is served on an
+# unauthenticated endpoint and capped at 80 entries; a per-roll timeline would
+# multiply its size for a question that three fields answer.
+_INFLIGHT_HOLDER = {"version": None, "since": None, "pass": None}
+_VERSION_BLOCKED_BY = {}
+
+
 def _note_version_seen(version) -> None:
     """Called by the detector the moment it observes a version it has not seen."""
     if version in _VERSION_FIRST_SEEN:
         return
     if len(_VERSION_FIRST_SEEN) > 200:
         _VERSION_FIRST_SEEN.clear()
-    _VERSION_FIRST_SEEN[version] = time.time()
+        _VERSION_BLOCKED_BY.clear()
+    now = time.time()
+    _VERSION_FIRST_SEEN[version] = now
+    # Snapshot the holder AT SIGHTING. Reading it later would report whoever
+    # holds the slot when the roll finishes — which is this roll itself, always.
+    holder, since = _INFLIGHT_HOLDER["version"], _INFLIGHT_HOLDER["since"]
+    if holder is not None and holder != version and since:
+        _VERSION_BLOCKED_BY[version] = {
+            "blocked_by": holder,
+            "blocked_pass": _INFLIGHT_HOLDER["pass"],
+            "blocked_held_ms": int((now - since) * 1000),
+        }
 
 
-def _record_roll(version, prepare_ms, pass2_skipped, published_at=None) -> None:
+def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
+                 prev_version=None) -> None:
     # `published_at` is when FIRST PAINT became servable. Falling back to now
     # keeps older callers working, but the preparer always passes it.
     now = published_at if published_at is not None else time.time()
     first_seen = _VERSION_FIRST_SEEN.get(version)
     born_bucket = version * _VERSION_BUCKET_SEC if _FORCE_BUMP_OFFSET == 0 else None
-    kind = "steady_state_roll"
-    if born_bucket is None or born_bucket < _PROCESS_START_WALL:
-        # Predates this process (or the bucket arithmetic is invalidated by a
-        # forced bump) — a catch-up, never a measurement of the detector.
-        kind = "startup_catchup"
+    if born_bucket is not None:
+        kind = ("startup_catchup" if born_bucket < _PROCESS_START_WALL
+                else "steady_state_roll")
+    else:
+        # ⛔⛔ A FORCED BUMP INVALIDATES THE BUCKET, NOT THE QUESTION.
+        # This branch used to fall straight to "startup_catchup", so from the
+        # first bump onward EVERY roll was filed as a catch-up and
+        # `rolls_steady` stayed empty for the life of the process — while
+        # `rolls_startup` is served [-5:], so a whole session compressed to its
+        # last five rows. That is not an exotic state: flow_gap_autofill
+        # re-bumps AT BOOT after a recent fill and ships enabled in production,
+        # so the offset is non-zero before the first roll is ever recorded and
+        # the steady-state gate could never collect one sample. The 2026-09-09
+        # RTH session was lost to exactly this.
+        #
+        # The classification asks one thing: did this generation predate the
+        # process? `_FORCE_BUMP_OFFSET` is process-local and starts at 0, so a
+        # version carrying a non-zero offset was MINTED BY THIS PROCESS and
+        # cannot predate it. The only catch-up in that regime is the version the
+        # preparer found already in place on its first pass — which is
+        # precisely `prev_version is None`.
+        kind = "startup_catchup" if prev_version is None else "steady_state_roll"
+    # Who owned the build slot when THIS version was first sighted. Absent when
+    # the slot was free — which is the common case and the reason handoff is
+    # ≤2 ms on most rolls; a present `blocked_by` is the whole explanation for a
+    # large one. ⛔ Popped, so the map cannot grow with the process.
+    blocked = _VERSION_BLOCKED_BY.pop(version, None) or {}
     _PREPARE_ROLLS.append({
         "version": version,
         "kind": kind,
+        "blocked_by": blocked.get("blocked_by"),
+        "blocked_pass": blocked.get("blocked_pass"),
+        "blocked_held_ms": blocked.get("blocked_held_ms"),
         # EXACT: detector sighting -> first paint published.
         "observed_s": round(now - first_seen, 2) if first_seen else None,
         "handoff_ms": (round((first_seen and (now - first_seen) * 1000 - prepare_ms) or 0)
@@ -1848,6 +1909,8 @@ def _prepare_loop():
                     except Exception as e:  # noqa: BLE001
                         log.warning("[flow-prepare] build failed: %s", e)
                     finally:
+                        _INFLIGHT_HOLDER.update(
+                            {"version": None, "since": None, "pass": None})
                         _PREPARE_INFLIGHT.release()
                 threading.Thread(target=_run, name="flow-prepare-build",
                                  daemon=True).start()

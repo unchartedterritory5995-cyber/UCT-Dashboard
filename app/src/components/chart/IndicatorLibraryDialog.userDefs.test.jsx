@@ -33,7 +33,7 @@ import { render, screen, cleanup, fireEvent, within } from '@testing-library/rea
 
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
-import { catalogRows, userCatalogRows, USER_CATEGORY } from './indicatorCatalog'
+import { catalogRows, userCatalogRows, USER_CATEGORY, BUILT_IN_ROWS } from './indicatorCatalog'
 import * as engineRegistry from './engine/nativeRegistry'
 import { installUserDefinitions, clearUserDefinitions, listDefinitions } from './engine/nativeRegistry'
 import { SHIPPED_DEF_IDS, REGISTRY_SIZES, idsByLane } from './engine/registrySizes'
@@ -41,6 +41,24 @@ import { isIndicatorEnabled } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
+
+// ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
+//
+// ⭐ THE MOVING AVERAGES AND THE VOLUME PANE JOINED THE CATALOGUE (2026-09-10).
+// They are `cs.overlays` (a positional ARRAY) and `cs.volume` (a SECTION), so
+// they are not definitions and not settings slices, and until this change they
+// appeared in NO catalogue: searching "moving average" answered *"No indicator
+// matches"* over a chart drawing four of them.
+//
+// ⛔ THEY ARE **NOT** IN `catalogRows()`, AND THE CASE THAT PROVES IT IS KEPT.
+// That function is the shipped DEFINITION manifest — the right-click submenu and
+// the share-link payload are asserted against it id-for-id — so the union is made
+// at the CONSUMER, exactly as it already was for a member's own formulas. Which
+// is why the expectations below name the union and not the manifest.
+
+/** Every row the DIALOG offers from the SHIPPED lists, in render order. The
+ *  member's own formulas are appended by the cases that install one. */
+const OFFERED = () => [...BUILT_IN_ROWS, ...catalogRows()]
 
 const USER_ID = 'u_a1b2c3d4e5f6'
 const OTHER_ID = 'u_ffffffffffff'
@@ -153,15 +171,15 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     expect(ids).toContain('volumeProfile')
     // Exactly the shipped catalogue plus exactly the installed formulas — no
     // duplicate, no drop.
-    expect(optionIdsSorted()).toEqual([...catalogRows().map((r) => r.id), USER_ID].sort())
-    expect(ids).toHaveLength(catalogRows().length + 1)
+    expect(optionIdsSorted()).toEqual([...OFFERED().map((r) => r.id), USER_ID].sort())
+    expect(ids).toHaveLength(OFFERED().length + 1)
   })
 
   it('⛔ CONTROL — with nothing installed the list is byte-for-byte what it always was', () => {
     // The negative control on the whole feature: a member who has authored
     // nothing sees no new section, no new row, no empty heading.
     open()
-    expect(optionIdsSorted()).toEqual(catalogRows().map((r) => r.id).sort())
+    expect(optionIdsSorted()).toEqual(OFFERED().map((r) => r.id).sort())
     expect(headings()).not.toContain(USER_CATEGORY)
     expect(userCatalogRows(engineRegistry)).toEqual([])
   })
@@ -306,6 +324,6 @@ describe('🔴 THE WIRE ITSELF — the rows arrive AFTER first paint', () => {
                               onChange={() => {}} registry={engineRegistry} />,
     )
     expect(optionIds()).not.toContain(USER_ID)
-    expect(optionIdsSorted()).toEqual(catalogRows().map((r) => r.id).sort())
+    expect(optionIdsSorted()).toEqual(OFFERED().map((r) => r.id).sort())
   })
 })

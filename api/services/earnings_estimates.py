@@ -684,6 +684,71 @@ def _year_earnings_from_stock(ticker: str, year: int) -> list:
     return rows
 
 
+def _year_earnings_from_fmp_income(ticker: str, year: int) -> list:
+    """Quarterly ACTUALS (EPS + revenue) from FMP `stable/income-statement`.
+
+    The third gap-fill for reported quarters. `stable/earnings` is the only
+    earnings endpoint on this plan, and for a slice of US operating companies it
+    stops returning rows for reports that DID happen — MMC's stops at
+    2026-01-29 with two quarters reported since, Finnhub is empty for those
+    names, and Yahoo's record is shorter still, so the widget showed 2025 Q4 as
+    MMC's latest quarter. The income statement is the SAME vendor and the same
+    key, a different endpoint, and it carries them.
+
+    Measured 2026-09-12 against the fifteen stale names, using this module's own
+    fiscal mappers rather than a hand-rolled comparison: it recovers a genuinely
+    newer fiscal quarter for MMC (+2), BK (+1), SJW (+2) and RNP (+2) — four of
+    fifteen, and the first two are ~$90B and ~$97B names. The other eleven are
+    cases where FMP's whole record stops rather than one endpoint, and those
+    need the provider escalation in
+    `docs/fundamentals-provider-gaps-2026-09-12.md`.
+
+    ACTUALS ONLY. An income statement carries no analyst estimate, so
+    `eps_estimate` / `revenue_estimate` stay None and no surprise % is computed.
+    Deriving one from anything else here would render to a member as analyst
+    consensus that nobody published.
+
+    ⛔ The fiscal (quarter, year) is re-derived from the PERIOD END with the
+    shared mapper and NEVER read from FMP's own `period` / `fiscalYear` fields —
+    the same rule `_year_earnings_from_stock` documents in-file. HOLX ends its
+    fiscal Q1 in late December, so the provider's numbering (Q1 2026) disagrees
+    with this pipeline's (2025 Q4); trusting it would slot one physical quarter
+    under the wrong Q, duplicating a quarter and dropping another during exactly
+    the gap-fill this function exists to perform.
+    """
+    rows = _raw_history(
+        "fmp_is", ticker,
+        lambda n: _fmp_get("/stable/income-statement",
+                           {"symbol": ticker, "period": "quarter",
+                            "limit": min(int(n), 60)}, timeout=10))
+    if not isinstance(rows, list):
+        return []
+    out = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        ds = str(r.get("date") or "")[:10]
+        fq, fy = _fiscal_q_from_period_end(ds)
+        if fq is None or fy != int(year):
+            continue
+        eps_a = _float_or_none(r.get("eps"))
+        rev_a = _float_or_none(r.get("revenue"))
+        if eps_a is None and rev_a is None:
+            continue
+        out.append({
+            "date": ds,
+            "quarter": fq,
+            "year": fy,
+            "eps_actual": eps_a,
+            "eps_estimate": None,
+            "eps_surprise_pct": None,
+            "revenue_actual": rev_a,
+            "revenue_estimate": None,
+            "revenue_surprise_pct": None,
+        })
+    return out
+
+
 def _year_earnings_from_yf(ticker: str, year: int) -> list:
     """Quarterly EPS + revenue (ACTUALS only — Yahoo gives no estimates for these,
     so surprise % stays blank) from yfinance's quarterly income statement. Yahoo
@@ -759,6 +824,24 @@ def _year_earnings_from_yf(ticker: str, year: int) -> list:
         return []
 
 
+def _is_foreign_shaped(sym: str) -> bool:
+    """A suffixed or digit-bearing symbol (005930.KS, 285A, 000660) — one with
+    no US-provider coverage, for which Yahoo is the only source at any age."""
+    s = (sym or "").upper()
+    return "." in s or any(ch.isdigit() for ch in s)
+
+
+def _is_recent_year(year: int) -> bool:
+    """Is this fiscal year still on screen? The current one and the previous
+    one are: a Q4 reported in January belongs to the previous fiscal year and is
+    the newest row the widget shows for weeks afterwards."""
+    from datetime import datetime, timezone
+    try:
+        return int(year) >= datetime.now(timezone.utc).year - 1
+    except (TypeError, ValueError):
+        return False
+
+
 def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bool = False) -> list:
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the 4
     fiscal quarters of `year`. Returns rows sorted Q1→Q4; [] on failure.
@@ -771,9 +854,19 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bo
     MERGES sources by fiscal quarter to maximize coverage (FMP often has GAPS for
     older years / ADRs — e.g. only Q1 2013 for JKS — and the old all-or-nothing
     fallback never filled them):
-      1. FMP `stable/earnings` — EPS + revenue (richest; the only one with revenue).
+      1. FMP `stable/earnings` — EPS + revenue, actual AND estimated (richest;
+         the only leg that can produce a surprise %).
       2. Finnhub `/stock/earnings` — EPS only — fills quarters FMP is missing.
-      3. yfinance — EPS + revenue actuals (no estimates) — foreign-listing fallback.
+      3. FMP `stable/income-statement?period=quarter` — EPS + revenue ACTUALS.
+         Same vendor and key as leg 1, a DIFFERENT endpoint that carries reports
+         `stable/earnings` has dropped. Added 2026-09-12 after `stable/earnings`
+         was found to stop mid-year for a slice of US operating companies: it
+         recovers MMC (+2 quarters), SJW (+2), RNP (+2) and BK (+1), and nine of
+         the fifteen investigated stale names came out clean. Ahead of yfinance
+         because it has revenue, is the plan we already pay for, and Yahoo's
+         record is shorter for exactly the names that need rescuing.
+      4. yfinance — EPS + revenue actuals (no estimates) — foreign-listing
+         fallback, and a last resort for a recent year (see `_gather`).
     (AlphaVantage's EARNINGS leg was removed 2026-08-05, data-dependability
     migration plan Phase 3 Task 12: its free tier is 25 requests/DAY,
     already exhausted on every observation, and it returns the SAME `[]` on
@@ -812,10 +905,33 @@ def get_year_earnings(ticker: str, year: int, data_symbol: str = None, fresh: bo
         _fill(_year_earnings_from_fmp(prov, year))
         if len(by_q) < 4:
             _fill(_year_earnings_from_stock(prov, year))
-        # yfinance (Yahoo) covers international markets the US providers miss.
-        # Only for foreign-looking symbols (suffixed/numeric) to avoid adding a
-        # slow yfinance call to every US stock that merely has an FMP gap.
-        if len(by_q) < 4 and ("." in prov or any(ch.isdigit() for ch in prov)):
+        # FMP's quarterly income statement — same vendor, same key, a different
+        # endpoint that carries reports `stable/earnings` has dropped. Ahead of
+        # yfinance on purpose: it has revenue (Finnhub does not), it is the same
+        # plan we already pay for, and Yahoo's record is shorter for exactly the
+        # names that need rescuing. `_fill` only populates quarters still empty,
+        # so a richer `stable/earnings` row (which carries estimates and a real
+        # surprise %) is never overwritten by an actuals-only one.
+        if len(by_q) < 4:
+            _fill(_year_earnings_from_fmp_income(prov, year))
+        # yfinance (Yahoo) covers international markets the US providers miss,
+        # AND is the only remaining source when FMP and Finnhub both have a hole
+        # in a year that is still on screen.
+        #
+        # ⚰️ This used to be gated on the SYMBOL'S SHAPE — `"." in prov or
+        # any(ch.isdigit())` — so a plain US ticker could never reach the third
+        # provider in a three-provider chain. Measured 2026-09-12: 24 of 300
+        # random universe tickers had a stale reported strip and the Finnhub
+        # gap-fill rescued ZERO of them, because for `MMC` / `BK` / `HOLX` this
+        # line was unreachable. The chain read like defence in depth and was two
+        # deep for exactly the names a member opens.
+        #
+        # The gate is now about WHEN a gap matters. A hole in the current or
+        # previous fiscal year is the member-visible strip; a hole in a
+        # decade-old year is historical trivia that does not justify a slow
+        # call, which is the cost the old gate was really protecting. Foreign
+        # shapes keep reaching Yahoo at any age — it is their only source.
+        if len(by_q) < 4 and (_is_foreign_shaped(prov) or _is_recent_year(year)):
             _fill(_year_earnings_from_yf(prov, year))
 
     # 1. The admin's explicit provider symbol (e.g. 005930.KS) wins; else the

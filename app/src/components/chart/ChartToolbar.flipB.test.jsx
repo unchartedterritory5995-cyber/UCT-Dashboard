@@ -117,28 +117,52 @@ function mountDialog(settings, onChange) {
 }
 const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 
-/** One indicator's SECTION in the dialog. The section label is the definition's
- *  short name, which is unique — scoping to it is what keeps `Period` and
- *  `Color` (which repeat across fifteen sections) unambiguous. */
-const sectionFor = (shortName) =>
-  [...document.body.querySelectorAll('[class*="sectionLabel"]')]
-    .find((n) => n.textContent === shortName).parentElement
+/** One indicator's ROW in the dialog, OPENED.
+ *
+ *  ⚰️ THIS USED TO BE `sectionFor(shortName)` — a lookup by section heading,
+ *  because the tab rendered one section per definition with every field already
+ *  open. The consolidated tab renders an ACTIVE LIST of collapsed rows, so the
+ *  address is the definition id the row publishes (`data-def-id`) and reaching a
+ *  field means expanding the row first. Two changes, one reason: the fields are
+ *  not on screen until a member asks for them.
+ *
+ *  ⚠️ IT EXPANDS ONLY WHEN CLOSED, so asking for two fields of one indicator does
+ *  not toggle the row shut between them — the accordion allows exactly one open
+ *  row, and a blind click would close the one just opened. */
+const openRowFor = (defId) => {
+  const block = document.body.querySelector(`[data-def-id="${defId}"]`)
+  expect(block, `no ACTIVE row for ${defId} — the list shows what the chart draws`).toBeTruthy()
+  const expander = block.querySelector('[aria-expanded]')
+  if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
+  return block
+}
 
-/** One field row inside a section, addressed BY DECLARATION INDEX.
+/** One field row inside an indicator's open settings, addressed BY DECLARATION
+ *  INDEX.
  *  ⚠️ NOT by label: MACD declares `signalPeriod` and `signalColor` BOTH labelled
- *  "Signal", and `macdColor`'s label is "MACD", which is also the section's own
- *  heading. A label lookup finds two elements and reads as a missing control.
- *  The dialog renders `row.fields` in declaration order, so the Nth field row IS
- *  the Nth declared input — and if that ever stops being true, the case that
- *  asserts declaration order goes red first. */
+ *  "Signal", and `macdColor`'s label is "MACD", which is also the row's own name.
+ *  A label lookup finds two elements and reads as a missing control. The tab
+ *  renders `row.fields` in declaration order, so the Nth field row IS the Nth
+ *  declared input — and if that ever stops being true, the case that asserts
+ *  declaration order goes red first. */
 const fieldFor = (shortName, defId, key) => {
   const idx = engineRegistry.getDefinition(defId).inputs.findIndex((i) => i.key === key)
-  const rows = sectionFor(shortName).querySelectorAll('[class*="indRow"]')
+  const rows = openRowFor(defId).querySelectorAll('[class*="indRow"]')
   return rows[idx]
 }
 const numberIn = (row) => within(row).getByRole('spinbutton')
 const swatchIn = (row) => row.querySelector('[data-color-swatch]')
-const toggleFor = (shortName) => within(sectionFor(shortName)).getByRole('switch')
+/** The row's own on/off switch — the FIRST switch in the block, which is the
+ *  header's; a field of type `toggle` renders one too, further down. */
+const toggleFor = (defId) => {
+  const block = document.body.querySelector(`[data-def-id="${defId}"]`)
+  expect(block, `no ACTIVE row for ${defId}`).toBeTruthy()
+  return block.querySelector('[role="switch"]')
+}
+/** Is this indicator in the ACTIVE list at all? The consolidated tab lists what
+ *  the chart DRAWS, so "absent" is a meaningful answer where the old tab could
+ *  only say "present and unticked". */
+const isListed = (defId) => !!document.body.querySelector(`[data-def-id="${defId}"]`)
 
 describe('the generated dialog — a FLIPPED indicator writes the instance, field by field', () => {
   it('the period control is live, shows the INSTANCE, and says nothing about an engine', () => {
@@ -212,29 +236,63 @@ describe('the generated dialog — a FLIPPED indicator writes the instance, fiel
     expect(next.indicators.rsi.color, 'the mirror was not written').toBe('#00ff00')
   })
 
-  it('the TOGGLE reads the instance list: a tombstone beats a still-true toggle', () => {
+  it('the LIST reads the instance list: a tombstone beats a still-true toggle', () => {
     // The blob says `enabled: true` — under Flip A that was the switch, and the
-    // toggle would be on over an indicator the user deleted.
+    // row would be shown, ticked, over an indicator the user deleted.
+    //
+    // ⚰️ THE OLD FORM ASSERTED `aria-checked === 'false'` ON A ROW THAT WAS ALWAYS
+    // RENDERED, because the tab listed every definition whether the chart drew it
+    // or not. The consolidated tab lists what the chart DRAWS, so the same defect
+    // surfaces one step earlier — the row is not there at all — and that is what
+    // is asserted. The claim is unchanged: the read is `isIndicatorEnabled`, not
+    // the mirror.
     mountDialog(settingsWith({ indicatorInstances: [{ instanceId: 'legacy:rsi', deleted: true }] }), vi.fn())
     openIndicators()
-    expect(toggleFor('RSI').getAttribute('aria-checked')).toBe('false')
+    expect(isListed('rsi'), 'a tombstoned RSI is listed as active').toBe(false)
     // MACD has a true toggle and NO instance of its own here, so
     // `isIndicatorEnabled` projects it. The claim is that RSI's tombstone is
     // per-DEFINITION and does not reach its neighbour.
-    expect(toggleFor('MACD').getAttribute('aria-checked'),
-      'RSI tombstone switched MACD off too — the read is not per definition').toBe('true')
+    expect(isListed('macd'),
+      'RSI tombstone switched MACD off too — the read is not per definition').toBe(true)
+    expect(toggleFor('macd').getAttribute('aria-checked')).toBe('true')
   })
 
-  it('switching it off writes a TOMBSTONE and clears the mirror', async () => {
+  it('REMOVING it writes a TOMBSTONE and clears the mirror', async () => {
+    // 🔴 THE VERB MOVED, AND THAT IS THE POINT OF THE CONSOLIDATION'S ONE
+    // BEHAVIOUR CHANGE. This used to click the row's TOGGLE, because on the old
+    // tab the toggle WAS the removal — one control meaning both "hide this for a
+    // second" and "delete this and everything I set on it". The ✕ in the row's
+    // header is the destructive verb now; the toggle hides (next case). The WRITE
+    // is unchanged, which is what this asserts.
     const user = userEvent.setup()
     const spy = vi.fn()
     mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
     openIndicators()
-    await user.click(toggleFor('RSI'))
+    await user.click(within(document.body.querySelector('[data-def-id="rsi"]'))
+      .getByRole('button', { name: /^Remove / }))
     const next = spy.mock.calls.at(-1)[0]
     expect(next.indicatorInstances).toContainEqual({ instanceId: 'legacy:rsi', deleted: true })
     expect(live(next).filter((i) => i.defId === 'rsi')).toEqual([])
     expect(next.indicators.rsi.enabled, 'the mirror still says the indicator is on').toBe(false)
+  })
+
+  it('⭐ …and the TOGGLE hides without deleting — the settings survive an off/on', async () => {
+    const user = userEvent.setup()
+    const spy = vi.fn()
+    mountDialog(settingsWith({ indicatorInstances: [RSI_7] }), spy)
+    openIndicators()
+    await user.click(toggleFor('rsi'))
+    const off = spy.mock.calls.at(-1)[0]
+    const hidden = (off.indicatorInstances || []).find((i) => i.instanceId === 'legacy:rsi')
+    expect(hidden.hidden, 'the toggle did not hide the line').toBe(true)
+    expect(hidden.deleted, 'the toggle deleted it — off must not mean gone').toBeFalsy()
+    expect(hidden.inputs.period, 'hiding threw away the period').toBe(RSI_7.inputs.period)
+    // …and it comes back, still at 7, from a row that never left the list.
+    await user.click(toggleFor('rsi'))
+    const on = spy.mock.calls.at(-1)[0]
+    const back = (on.indicatorInstances || []).find((i) => i.instanceId === 'legacy:rsi')
+    expect(back.hidden).toBe(false)
+    expect(back.inputs.period).toBe(RSI_7.inputs.period)
   })
 
   it('BB is flipped too: period, std-dev and colour are all live and all write', async () => {

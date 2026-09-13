@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>UCT · authenticated device harness</title>
+<style>
+  html,body{margin:0;height:100%;background:#080907;color:#e8e4d8;
+    font:11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+  /* ⛔⛔ THE `height` IS LOAD-BEARING, AND ITS ABSENCE COST EVERY RUN SO FAR.
+     An <iframe> carries a DEFAULT height of 150px (HTML's 300x150 replaced-element
+     default). With `top`, `bottom` AND `height` all non-auto, CSS is
+     over-constrained and `bottom` is the one that gets dropped — so this frame
+     resolved to 150px tall on a 659px phone, and the app inside it spent every
+     device run rendering into a 393x150 window. Measured, not guessed:
+     computed height 150px while top/bottom both read 0px. */
+  /* ⭐ FULL-SCREEN BY DEFAULT. The split screen was a workaround for the
+     one-minute session cap — the only channel a capped device had for reporting
+     was a screenshot. With real session length the phone POSTs its results to
+     `tools/device_result_sink.py` over the tunnel and shows ONLY the app, which
+     is what a device look was always supposed to be. `?panel=1` restores the
+     split, and a failed POST restores it automatically (see below). */
+  #app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#000}
+  body.split #app{inset:0 0 46% 0;height:54%}
+  body:not(.split) #panel{display:none}
+  #panel{position:fixed;left:0;right:0;bottom:0;height:46%;overflow:auto;
+    background:rgba(8,9,7,.98);border-top:1px solid #3a3a3a;padding:4px 6px;
+    z-index:2147483647}
+  .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .PASS{color:#4ade80} .FAIL{color:#ef4444} .BLOCKED{color:#facc15}
+  .dim{color:#8a8578} .hd{color:#e8e4d8;font-weight:700}
+</style>
+</head>
+<body>
+<iframe id="app" title="the real authenticated app"></iframe>
+<div id="panel">starting…</div>
+<script type="module">
+/* The driver. Everything it knows about flows lives in the committed
+ * `authHarness.js`; everything it knows about WHO IT IS arrives from the
+ * generated `uct-r1.cred.js`, which the launcher deletes after the run. */
+import { buildSteps, runSteps, summarise, cleanup, STATE, skipIntro } from './uct-r1.js'
+import { buildFeedSteps, SESSION_KEY, FEED_SYMS } from './uct-r1-feed.js'
+import { buildSlopSteps } from './uct-r1-slop.js'
+import { CRED } from './uct-r1.cred.js'
+
+const panel = document.getElementById('panel')
+const frame = document.getElementById('app')
+const runId = 'r1-' + Date.now().toString(36)
+const t0 = Date.now()
+
+const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
+
+function render(results, done) {
+  const s = summarise(results)
+  const head =
+    `<div class="hd">UCT R1 · ${innerWidth}×${innerHeight} · ` +
+    `${innerWidth > innerHeight ? 'LANDSCAPE' : 'portrait'} · ` +
+    `${((Date.now() - t0) / 1000).toFixed(1)}s · ${new Date().toISOString().slice(11, 19)}</div>` +
+    `<div>PASS <b class="PASS">${s.pass}</b> · FAIL <b class="FAIL">${s.fail}</b> · ` +
+    `BLOCKED <b class="BLOCKED">${s.blocked}</b> / ${s.total}` +
+    ` · ROUNDTRIP <b class="${s.deviceWorkspaceRoundTrip}">${s.deviceWorkspaceRoundTrip}</b>` +
+    ` · MOB08 <b class="${s.deviceScopedPresentation}">${s.deviceScopedPresentation}</b>` +
+    (done ? ' · <b>DONE</b>' : '') + '</div>'
+  const rows = results.map((r) =>
+    `<div class="row"><span class="${r.state}">${r.state[0]}</span> ` +
+    `<span class="dim">T${r.tier}</span> ${esc(r.title)}` +
+    (r.observed != null ? ` <span class="dim">→ ${esc(r.observed)}</span>` : '') +
+    (r.note ? ` <span class="dim">(${esc(r.note)})</span>` : '') +
+    ` <span class="dim">${r.ms}ms</span></div>`).join('')
+  panel.innerHTML = head + rows
+}
+
+;(async () => {
+  /* VIEW MODE — `?view=<path>` logs in and simply SHOWS that path, running no
+   * steps. It exists so a placement or layout question can be LOOKED at on real
+   * hardware inside the 60s cap, without a 22-step suite competing for the
+   * minute. It asserts nothing; the screenshot is the evidence. */
+  // ⛔ FLAT PARAMS, NOT A NESTED URL. `?view=/charts%3Fnavprobe%3Dx` has to be
+  // double-encoded to survive being a query value inside BrowserStack's own hash
+  // param, and one missed layer sends the device to a 404 — a wasted device
+  // minute for a typing error. `?view=charts&navprobe=x` cannot be mis-encoded.
+  const _q = new URLSearchParams(location.search)
+  const _v = _q.get('view')
+  const _np = _q.get('navprobe')
+  /* ⭐ SEED A REVIEW BEFORE SHOWING THE CHART. The density and pill-placement
+     questions are LOOKING questions — a person has to see the surface with a
+     real review on it — and without this the view mode shows a chart with no
+     transport control and no feed, which is not the thing being judged. */
+  const _rv = _q.get('review')
+  if (_rv) {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        v: 1, source: _rv, sourceId: 'device', label: _rv, sort: null,
+        symbols: FEED_SYMS, index: 0, reviewed: [FEED_SYMS[0]], pending: true,
+      }))
+    } catch (e) { /* the panel will say what happened */ }
+  }
+  const _extra = []
+  if (_np) _extra.push('navprobe=' + encodeURIComponent(_np))
+  if (_rv) _extra.push('sym=' + encodeURIComponent(FEED_SYMS[0]), 'tf=D')
+  const view = _v ? ('/' + _v.replace(/^\/+/, '') + (_extra.length ? ('?' + _extra.join('&')) : '')) : null
+  if (view) {
+    try {
+      const me = await fetch('/api/auth/me', { credentials: 'include' })
+      if (!me.ok) await fetch('/api/auth/login', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(CRED),
+      })
+    } catch { /* the panel will say what happened */ }
+    frame.src = view
+    frame.style.height = '100%'
+    /* ⛔ SKIP THE INTRO IN VIEW MODE TOO. The cinematic intro plays on every page
+       load and runs ~9 seconds — a sixth of a device session, spent on an
+       animation, before the thing being looked at exists. The step suite has
+       always skipped it; view mode did not, and one pill-placement run was lost
+       to a compass. */
+    const _skip = setInterval(() => { try { skipIntro(frame) } catch (e) {} }, 200)
+    setTimeout(() => clearInterval(_skip), 20000)
+    document.getElementById('app').style.inset = '0'
+    panel.style.height = 'auto'
+    /* ⛔ AUTO-OPEN THE FEED WHEN ASKED. A device session is 60 seconds and about
+       20 of them are spent typing the URL; spending more of it hunting a 44px
+       chip for a LOOKING question leaves no time for the thing being looked at.
+       `&feed=1` taps the position chip as soon as it exists — the same control a
+       member taps, not a back door into the component. */
+    if (_q.get('feed')) {
+      (async () => {
+        for (let i = 0; i < 120; i++) {
+          const d = frame.contentDocument
+          const p = d && d.querySelector('[data-review-nav]')
+          if (p) { const b = [...p.querySelectorAll('button')][1]; if (b) { b.click(); break } }
+          await new Promise((r) => setTimeout(r, 150))
+        }
+        /* ⛔⛔ A SCREENSHOT OF A DARK PANEL IS NOT AN OBSERVATION. Three device
+           runs showed the feed open with cards that looked empty, and from a
+           picture there is no way to tell "no cards", "cards with no charts",
+           "charts with no bars" or "scrolled past them" apart — four different
+           verdicts, one identical image. This strip answers in numbers, and it
+           re-measures forever so it can never report a stale moment as now. */
+        const strip = document.createElement('div')
+        strip.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;'
+          + 'background:rgba(8,9,7,.97);border-top:1px solid #3a3a3a;padding:4px 6px;font:10px/1.35 ui-monospace,monospace;color:#e8e4d8'
+        document.body.appendChild(strip)
+        setInterval(() => {
+          const d = frame.contentDocument
+          if (!d) { strip.textContent = 'no app document'; return }
+          const sc = d.querySelector('[data-testid="feed-scroll"]')
+          const cards = [...d.querySelectorAll('[data-feed-index]')]
+          const charts = sc ? sc.querySelectorAll('.tv-lightweight-charts').length : 0
+          const painted = sc ? [...sc.querySelectorAll('canvas')].filter((c) => c.width > 0 && c.height > 0).length : 0
+          const shots = d.querySelectorAll('[data-testid^="feed-shot-"]').length
+          const skels = d.querySelectorAll('[data-testid^="feed-skeleton-"]').length
+          const h0 = cards[0] ? Math.round(cards[0].getBoundingClientRect().height) : 0
+          const vh = frame.contentWindow.innerHeight
+          strip.innerHTML =
+            `<b>FEED</b> ${sc ? 'open' : 'CLOSED'} · cards ${cards.length} · charts ${charts}`
+            + ` · canvases ${painted} · shots ${shots} · skeletons ${skels}`
+            + `<br>card ${h0}px of ${vh}px viewport = <b>${vh ? (vh / (h0 || 1)).toFixed(2) : '?'} cards/screen</b>`
+            + ` · scrollTop ${sc ? Math.round(sc.scrollTop) : '-'} · ${new Date().toISOString().slice(11, 19)}`
+        }, 400)
+      })()
+    }
+    panel.innerHTML = `<div class="hd">VIEW ${esc(view)} · ${innerWidth}×${innerHeight} · `
+      + `${innerWidth > innerHeight ? 'LANDSCAPE' : 'portrait'}</div>`
+    return
+  }
+  /* ⛔ THE SUITE IS SELECTABLE BECAUSE A DEVICE MINUTE IS ONE MINUTE. Re-proving
+     the phone shell before every feed question would spend half the session on
+     answers already recorded, and the run would be cut off mid-feed — which
+     reads as a feed failure. */
+  const ctx = {}
+  const suite = _q.get('suite')
+  if (_q.get('panel') === '1') document.body.classList.add('split')
+  const steps = suite === 'feed' ? buildFeedSteps({ frame, cred: CRED })
+    : suite === 'slop' ? buildSlopSteps({ frame, cred: CRED })
+    : buildSteps({ frame, cred: CRED, runId, ctx })
+  const results = await runSteps(steps, {}, (r) => render(r, false))
+  let cleaned = []
+  try { cleaned = await cleanup(runId, ctx) } catch (e) { cleaned = ['cleanup threw: ' + e.message] }
+  const summary = summarise(results)
+  // Machine-readable, and deliberately free of anything secret.
+  window.__r1 = {
+    runId, ua: navigator.userAgent, viewport: [innerWidth, innerHeight],
+    elapsedMs: Date.now() - t0, results, summary, cleaned,
+  }
+  render(results, true)
+  panel.innerHTML += `<div class="dim">cleanup: ${esc(cleaned.join(' · ') || 'nothing to clean')}</div>`
+
+  /* ⛔⛔ A CLEAN SCREEN AND NO RESULTS IS THE ONE OUTCOME WORSE THAN A SPLIT ONE.
+     The panel is hidden on the assumption that the sink received this run; if
+     the POST fails — sink not started, port not forwarded, tunnel down — the
+     assumption is false and the split screen comes back, so a device session
+     can never end having shown a tidy app and reported nothing. */
+  const SINK = `${location.protocol}//${location.hostname}:8094/r`
+  try {
+    const res = await fetch(SINK, {
+      method: 'POST',
+      // text/plain keeps this a SIMPLE cross-origin request — no preflight,
+      // which a stdlib server would have to be taught to answer.
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ ...window.__r1, suite: suite || 'full' }),
+    })
+    if (!res.ok) throw new Error('sink HTTP ' + res.status)
+  } catch (e) {
+    document.body.classList.add('split')
+    panel.innerHTML += `<div class="FAIL">results not delivered (${esc(e.message)}) — `
+      + `showing the panel instead</div>`
+  }
+})()
+</script>
+</body>
+</html>

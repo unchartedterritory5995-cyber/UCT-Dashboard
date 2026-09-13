@@ -73,8 +73,8 @@ import { paneHeightAlerts } from '../components/chart/engine/binder'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
-const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 
+import { renderTokenOk } from '../lib/renderToken'
 const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
 
 // Height of the optional `?stats=` strip; the caller adds it to `?h=`.
@@ -775,7 +775,7 @@ export default function ChartRender() {
     }
   }, [fixedBars, userDefsInstall])
 
-  if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
+  if (!renderTokenOk(token)) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
 
   // 40px header + 20px footer (+ the optional stats strip, whose height the

@@ -33,6 +33,14 @@ import { SCHEMA_VERSION } from '../chart/engine/defSchema'
 import { AST_LANE_TIER, clearUserDefinitions } from '../chart/engine/nativeRegistry'
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from '../chart/builder/builderInputs'
 
+// ⚠️ THE HEADER NOW HAS A REVIEW-CHARTS ACTION, AND IT NAVIGATES, so this
+// component needs a router. Mocked rather than wrapped in a `MemoryRouter`:
+// every case below is about what the RESULTS say, and real routing here would
+// be scaffolding that asserts nothing. The navigation itself — that entering a
+// review publishes the session and lands on the chart — is owned by
+// `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
+
 vi.mock('../chart/pane/ChartPane', () => ({
   default: ({ sym, tf }) => <div data-testid={`pane-inner-${sym}-${tf}`}>pane</div>,
 }))

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "uct://wisdom/contracts/extraction-output-v0",
+  "title": "Wisdom extractor output v0 — one response per SEGMENT",
+  "description": "Contract between S-D (extractor), S-E (eval/outcomes), S-F (review/publish). The model returns ONLY what the text supports; offsets are computed server-side by locating `quote` in the normalised segment text (tools/wisdom_golden_verify.py normalisation). A record whose quote is not found exactly once is rejected and counted, never kept. Levels are AS STATED (R5): never inferred from bars. Private fields (size_shares, and entry on an open position) are split into the owner-private store by the writer, never by the model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["segment_id", "records"],
+  "properties": {
+    "segment_id": { "type": "string" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "nullableNumber": { "type": ["number", "null"] },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type", "quote", "speaker_label", "ticker_as_written", "ticker_as_heard", "tickers",
+        "direction", "stance", "setup_name_raw", "setup_vocab", "timeframe", "trigger_timeframe", "trigger",
+        "entry", "entry_zone", "stop", "stop_text", "targets", "levels", "size_shares",
+        "thesis", "confidence_language", "reason", "reason_class", "stated_outcome", "stated_return_pct",
+        "event_at_text", "hindsight", "principle", "market_signal", "extraction_confidence", "notes"
+      ],
+      "properties": {
+        "record_type": { "enum": ["CALL", "NEGATIVE_CALL", "MENTION", "PRINCIPLE", "LEVEL", "MARKET_SIGNAL"] },
+        "quote": { "type": "string", "description": "Verbatim substring of the segment text (speaker prefixes excluded), minimal but sufficient." },
+        "speaker_label": { "type": ["string", "null"], "description": "Raw speaker label as it appears (Zoom cue prefix / Discord author display name / Sunday Scans section owner). Normalised to an author server-side via authors.json." },
+        "ticker_as_written": { "type": ["string", "null"] },
+        "ticker_as_heard": { "type": ["string", "null"], "description": "For transcripts: the word as transcribed when it is not a clean symbol (e.g. 'light' for LITE)." },
+        "tickers": { "type": "array", "items": { "type": "string" }, "description": "List records (R2) only; otherwise []." },
+        "direction": { "enum": ["long", "short", null] },
+        "stance": { "enum": ["watching", "taking", "in_it", "added", "trimmed", "exited", "stopped_out", "hindsight", "passed", "avoid", "no_view", null] },
+        "setup_name_raw": { "type": ["string", "null"] },
+        "setup_vocab": { "type": ["string", "null"], "description": "MUST be an exact name from the vocabulary list supplied in the prompt, or null. Unknown names stay in setup_name_raw and become vocabulary candidates." },
+        "timeframe": { "enum": ["1", "5", "15", "30", "60", "D", "W", "M", null] },
+        "trigger_timeframe": { "enum": ["1", "5", "15", "30", "60", "D", "W", "M", "intraday", null] },
+        "trigger": { "type": ["string", "null"], "description": "Observable trigger event as stated (R1b), e.g. 'gap down then red to green'." },
+        "entry": { "type": ["number", "null"] },
+        "entry_zone": { "type": ["array", "null"], "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+        "stop": { "type": ["number", "null"] },
+        "stop_text": { "type": ["string", "null"], "description": "Stop as worded when relative ('yesterday's low', 'breakeven')." },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["price", "text"],
+            "properties": { "price": { "type": ["number", "null"] }, "text": { "type": "string" } }
+          }
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["type", "price", "price_as_heard"],
+            "properties": {
+              "type": { "enum": ["support", "resistance", "hvc", "gap", "avwap", "psyche", "undercut", "breakout", "zone", "other"] },
+              "price": { "type": ["number", "null"] },
+              "price_as_heard": { "type": ["string", "null"], "description": "Raw spoken/written form when it differs (e.g. '9.30' for 930); normalised server-side by the price-sanity pass." }
+            }
+          }
+        },
+        "size_shares": { "type": ["number", "null"], "description": "OWNER-PRIVATE. Routed to the private store by the writer; never returned by any member-facing module." },
+        "thesis": { "type": ["string", "null"] },
+        "confidence_language": { "type": "array", "items": { "type": "string" }, "description": "Verbatim phrases; never averaged into a score." },
+        "reason": { "type": ["string", "null"] },
+        "reason_class": { "enum": ["chart", "liquidity", "opportunity_cost", "fundamental", "none", null] },
+        "stated_outcome": { "enum": ["profit", "loss", "breakeven", "stopped", "still_holding", null] },
+        "stated_return_pct": { "type": ["number", "null"] },
+        "event_at_text": { "type": ["string", "null"], "description": "Relative time as worded ('Friday', 'this week'); resolved server-side against the source publish/recording time." },
+        "hindsight": { "type": "boolean", "description": "True for teaching/retrospective examples (R4, D8): excluded from UCT-see rate." },
+        "principle": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "required": ["statement", "category", "empirical_claim", "testable_claim"],
+          "properties": {
+            "statement": { "type": "string", "description": "Near-verbatim restatement in the author's own terms." },
+            "category": { "enum": ["risk", "entry", "exit", "sizing", "psychology", "market_context", "scanning"] },
+            "empirical_claim": { "type": "boolean" },
+            "testable_claim": { "type": ["string", "null"], "description": "D15: the factual claim in testable form, or null." }
+          }
+        },
+        "market_signal": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "required": ["name", "direction"],
+          "properties": { "name": { "type": "string" }, "direction": { "enum": ["bullish", "bearish", "neutral", null] } }
+        },
+        "extraction_confidence": { "enum": ["high", "medium", "low"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

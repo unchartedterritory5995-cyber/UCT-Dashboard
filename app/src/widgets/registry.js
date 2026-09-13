@@ -83,12 +83,15 @@
 // the insertion-workflow phase), and normalizeParams() below is the shared
 // normalizer that turns that loose read-out into schema-shaped frozen params.
 
+import { releasedTypes } from './captureRelease'
+
 // ⚠️ DELIBERATE MIRROR of the server's intraday fetch ceilings —
 // api/services/bars_fetch.py:684 `max_lookback` — the authority on how far
 // back each intraday timeframe can be fetched. If the server WIDENS a
 // ceiling, this mirror only under-promises (an embed shows its archived image
 // where a live re-render had become possible); it can never break an entry.
 // Daily/weekly/monthly are effectively unbounded (30y + yfinance to IPO).
+
 const CHART_TF_CEILING_DAYS = { 1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200 }
 
 // Search-index text for a timeframe code. Deliberately LOCAL and minimal:
@@ -287,6 +290,75 @@ export const WIDGET_REGISTRY = deepFreeze({
     // render the captured heat-map verbatim — including a mid-session live
     // row the 4:15 collector discards, which exists nowhere else.
     reconstructable: (p) => !!(p?.row && typeof p.row === 'object'),
+    liveCapable: false,
+  },
+  indexes: {
+    labels: { header: 'Indexes', menu: 'Indexes', tab: 'Indexes' },
+    defaults: { w: 6, h: 6, minW: 3, minH: 3 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'hiddenSymbols', type: 'json', default: [] },
+      // The captured READINGS as they stood: {sym, price, chg} per index.
+      // ⛔ The tint is NOT stored beside them — direction derives from `chg`
+      // in one shared helper, so a frozen row's colour can never disagree
+      // with its own number (lesson_a_second_authority_over_one_value).
+      { key: 'rows', type: 'json' },
+      { key: 'updated', type: 'string' },        // ET clock at capture
+    ],
+    plainText: (p) => {
+      const rows = Array.isArray(p?.rows) ? p.rows : []
+      const body = rows.length
+        ? rows.map(r => [r?.sym, r?.price, r?.chg].filter(Boolean).join(' ')).join(' · ')
+        : 'no readings'
+      return `[indexes: ${body}${p?.updated ? ` — ${p.updated}` : ''}]`
+    },
+    // ⛔ PAYLOAD FREEZE, and the test the architecture doc sets is failed
+    // squarely: `/api/snapshot` answers ONE question — "what are the indexes
+    // right now" — and accepts no date. Nothing in this app can return SPY's
+    // level as it stood at 1:26 PM on a past Thursday. The daily bar store is
+    // date-addressable but answers a DIFFERENT question (that session's
+    // CLOSE), and a member who captured an intraday reading captured it on
+    // purpose. Re-fetching would quietly substitute one number for another
+    // under the same caption. The frozen rows are the only honest record.
+    reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length > 0,
+    liveCapable: false,
+  },
+  marketcontext: {
+    labels: { header: 'Market Context', menu: 'Market Context', tab: 'Context' },
+    defaults: { w: 5, h: 8, minW: 3, minH: 4 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      // The captured market state: {marketPhase, exposureScore, exposureDelta,
+      // breadthScore, distributionDays, pctAbove50, pctAbove200, powerTrend}.
+      // ⛔ powerTrend is null BY OWNER DIRECTION (2026-04-17, "rule not yet
+      // defined") and renders as an em dash. It is stored so the note records
+      // that the reading was undefined at capture, not merely absent.
+      { key: 'readings', type: 'json' },
+      { key: 'wireDate', type: 'string' },       // the wire run the readings came from
+      { key: 'updated', type: 'string' },        // ET clock at capture
+    ],
+    plainText: (p) => {
+      const r = (p?.readings && typeof p.readings === 'object') ? p.readings : {}
+      const bits = []
+      if (r.marketPhase) bits.push(String(r.marketPhase))
+      if (r.exposureScore != null) bits.push(`exposure ${r.exposureScore}`)
+      if (r.breadthScore != null) bits.push(`breadth ${r.breadthScore}`)
+      return `[market context: ${bits.length ? bits.join(' · ') : 'no readings'}${p?.wireDate ? ` — ${p.wireDate}` : ''}]`
+    },
+    // ⛔ PAYLOAD FREEZE, and a harder case than breadth's. `/api/breadth` takes
+    // no date: it serves the CURRENT wire payload only. `wire_data.json` is
+    // OVERWRITTEN by each morning's run, so yesterday's exposure score and
+    // market phase exist nowhere — there is no archive to query even in
+    // principle. (`/api/breadth-monitor?end=` IS date-addressable, but it is a
+    // DIFFERENT store — the 4:15 collector's row — whose breadth number is not
+    // the wire's. Re-fetching from it would answer a similar question with a
+    // different answer and call it the same reading, which is worse than
+    // showing the archive.) The frozen readings are the only record.
+    reconstructable: (p) => !!(p?.readings && typeof p.readings === 'object' && !Array.isArray(p.readings)),
     liveCapable: false,
   },
   aisearch: {
@@ -530,10 +602,26 @@ export const WIDGET_REGISTRY = deepFreeze({
 export const WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 
 // Derived membership views (computed once; the registry is frozen).
-export const WORKSPACE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.workspace)
-export const TAB_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.tab)
-export const MOBILE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.mobile)
-export const JOURNAL_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.journal)
+// -- What EXISTS (the registry's own answer, ungated) -----------------------
+// These describe the catalogue. Rails about categories, catalog cards and
+// params coverage read THESE, because an unreleased widget is still a widget
+// and a stored embed of one must still render.
+export const WORKSPACE_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.workspace)
+export const TAB_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.tab)
+export const MOBILE_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.mobile)
+export const JOURNAL_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.journal)
+
+// -- What this release OFFERS (the gated answer every menu surface renders) --
+// [STOP] ONE gate, seven surfaces: the workspace add-menu, ChartWidget's
+// add-menu, the add-tab menu, the phone sheet, the slash menu, the insert
+// palette, and menuGroups() (which reads these arrays through
+// _MENU_TYPE_SETS). Gating here rather than at each menu is deliberate --
+// lesson_a_guard_repeated_is_a_guard_unproved: seven copies cannot be
+// mutation-proved, one can.
+export const WORKSPACE_MENU_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
+export const TAB_MENU_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
+export const MOBILE_MENU_TYPES = releasedTypes(MOBILE_MENU_TYPES_ALL)
+export const JOURNAL_MENU_TYPES = releasedTypes(JOURNAL_MENU_TYPES_ALL)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
 
 // ── Add-menu categories ──────────────────────────────────────────────────────
@@ -548,7 +636,7 @@ export const WIDGET_CATEGORIES = [
   { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
-  { key: 'internals', label: 'Market Internals',       items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
+  { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
   { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar', 'notebook'] },
   { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
@@ -567,6 +655,8 @@ export const WIDGET_CATALOG = {
   scanner:      { icon: 'screener', blurb: 'Build & run scans on your own criteria.' },
   fundamentals: { icon: 'scale',    blurb: 'Earnings, valuation & key financials.' },
   breadth:      { icon: 'breadth',  blurb: 'Market breadth & participation monitor.', live: true },
+  indexes:      { icon: 'equity',   blurb: 'Index levels and the day’s move, live.', live: true },
+  marketcontext:{ icon: 'compass',  blurb: 'Phase, exposure and breadth in one read.' },
   aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },

@@ -9,8 +9,16 @@
 // screen. This file is the last hop, and without it the previous three commits are
 // data nobody can see.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+
+// ⚠️ THE HEADER NOW HAS A REVIEW-CHARTS ACTION, AND IT NAVIGATES, so this
+// component needs a router. Mocked rather than wrapped in a `MemoryRouter`:
+// every case below is about what the RESULTS say, and real routing here would
+// be scaffolding that asserts nothing. The navigation itself — that entering a
+// review publishes the session and lands on the chart — is owned by
+// `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 
 import ScanResults, { ScanResultRow, formatHitValue } from './ScanResults'
 

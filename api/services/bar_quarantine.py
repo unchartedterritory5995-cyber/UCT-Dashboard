@@ -37,6 +37,60 @@ def init_schema():
         db.executescript(_SCHEMA)
 
 
+def _key(bar_time) -> int:
+    """Normalise, or raise. A None key inside this module means a caller passed
+    something that is not a bar time at all; silently writing a wrong key would
+    filter a GOOD bar off a member's chart, which is worse than missing a bad one."""
+    k = norm_bar_time(bar_time)
+    if k is None:
+        raise ValueError("un-keyable bar_time: %r" % (bar_time,))
+    return k
+
+
+def norm_bar_time(t):
+    """Canonical quarantine key for a bar's `t`, or None when there is no key.
+
+    INTRADAY IS IDENTITY. An int in gives the same int out, so every existing
+    epoch-keyed row keeps matching and nothing is re-keyed. This is the whole
+    reason the fix is key-ADDITIVE rather than key-changing: no migration, and no
+    way to break a caller that already works.
+
+    D/W/M bars carry an ISO date string (`"2026-09-11"`), and BOTH halves of the
+    quarantine failed on it, in the same direction:
+
+      * the WRITE did `int(bar["t"])` inside a bare `except: pass`
+        (`bars_disk_cache.py`), so `int("2026-09-11")` raised and was swallowed —
+        no daily row was ever written;
+      * the READ compared that ISO string against a `set[int]`
+        (`bars_disk_cache.py`), which can never match.
+
+    Either failure alone would have left the feature dead, which is why no partial
+    symptom ever appeared and nobody noticed.
+
+    Returns None for anything unparseable rather than guessing — a wrong key
+    would filter a GOOD bar out of the member's chart, which is worse than not
+    quarantining a bad one.
+    """
+    if isinstance(t, bool):
+        return None
+    if isinstance(t, int):
+        return t
+    if isinstance(t, float):
+        return int(t)
+    if not isinstance(t, str):
+        return None
+    s = t.strip()
+    if not s:
+        return None
+    if s.lstrip("-").isdigit():          # an epoch that arrived as text
+        return int(s)
+    head = s[:10]                         # "YYYY-MM-DD" from a date or datetime
+    if len(head) == 10 and head[4] == "-" and head[7] == "-":
+        y, m, d = head[:4], head[5:7], head[8:10]
+        if y.isdigit() and m.isdigit() and d.isdigit():
+            return int(y + m + d)
+    return None
+
 def add(ticker: str, tf: str, bar_time: int, reason: str, source: Optional[str] = None) -> None:
     """Quarantine a bad bar so it is skipped on subsequent cache reads.
 
@@ -47,7 +101,7 @@ def add(ticker: str, tf: str, bar_time: int, reason: str, source: Optional[str] 
         db.execute(
             "INSERT OR REPLACE INTO quarantined_bars "
             "(ticker, tf, bar_time, reason, source, detected_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (ticker.upper(), tf, int(bar_time), reason, source, int(time.time())),
+            (ticker.upper(), tf, _key(bar_time), reason, source, int(time.time())),
         )
     # Invalidate the read cache so the new quarantine takes effect immediately.
     # Lazy import avoids circular-import risk (bar_quarantine_cache imports this module).
@@ -62,7 +116,7 @@ def remove(ticker: str, tf: str, bar_time: int) -> None:
     with _conn() as db:
         db.execute(
             "DELETE FROM quarantined_bars WHERE ticker=? AND tf=? AND bar_time=?",
-            (ticker.upper(), tf, int(bar_time)),
+            (ticker.upper(), tf, _key(bar_time)),
         )
     try:
         from api.services import bar_quarantine_cache
@@ -75,7 +129,7 @@ def is_quarantined(ticker: str, tf: str, bar_time: int) -> bool:
     with _conn() as db:
         row = db.execute(
             "SELECT 1 FROM quarantined_bars WHERE ticker=? AND tf=? AND bar_time=? LIMIT 1",
-            (ticker.upper(), tf, int(bar_time)),
+            (ticker.upper(), tf, _key(bar_time)),
         ).fetchone()
     return row is not None
 
@@ -121,3 +175,4 @@ def quarantined_times(ticker: str, tf: str) -> set[int]:
             (ticker.upper(), tf),
         ).fetchall()
     return {r[0] for r in rows}
+

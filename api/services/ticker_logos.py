@@ -149,7 +149,10 @@ def _fmp_profile_row(sym: str):
     failure and returns None; this just normalizes the list-of-one shape)."""
     from api.services import earnings_estimates as ee
 
-    data = ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=_FMP_TIMEOUT)
+    try:
+        data = _fmp_client.get_company_profile(sym, timeout=_FMP_TIMEOUT).value
+    except Exception:                   # noqa: BLE001 -- see the docstring's promise
+        return None
     if isinstance(data, list) and data and isinstance(data[0], dict):
         return data[0]
     if isinstance(data, dict):
@@ -446,6 +449,7 @@ def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool =
 # ── Bounded async resolver (politeness to third parties) ──────────────────────
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from api.services import fmp_client as _fmp_client
 
 _POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="logo-resolve")
 _INFLIGHT: set = set()

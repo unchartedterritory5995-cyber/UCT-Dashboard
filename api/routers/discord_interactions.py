@@ -193,15 +193,27 @@ def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -
 
 
 def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
-                      *, fetch_fn=None, render_fn=None, edit_fn=None) -> None:
+                      *, fetch_fn=None, render_fn=None, edit_fn=None, fail_fn=None,
+                      timeout_s: float = 30.0, cid: str | None = None, source: str = "stocks") -> None:
     """Background job for /flow. Fetch the ticker's flow summary from the FLOW-WORKER,
     render the card, and post it PUBLICLY as the bot — the deferred interaction
     @original is app-owned, so the 'View chart' button routes back to us. Never raises;
-    an empty or errored read resolves the reply with an honest note (no false zero)."""
+    an empty or errored read resolves the reply with an honest note (no false zero).
+
+    `fail_fn(cls, detail)` (the Discord render V2 runtime) replaces the per-site
+    sentences with the failure contract, and gets the REAL cause: before it, every
+    non-ok read said "the flow feed is reconnecting" — a 30 s timeout on 2026-09-11,
+    a flow-worker restart on 2026-09-08, and every other cause alike. Without
+    `fail_fn` the replies are byte-identical to what members get today.
+    `cid` rides to flow-worker as a query parameter, so its access log carries the
+    correlation id without any change to a flow-worker file.
+    `source` is the flow partition: the default `stocks` is what every pre-V2 reply reads; the V2
+    handler passes `etfs` for an ETF or index underlying (C-14, `discord_render.symbols.flow_source`)."""
     from api.flow_ticker_card import render_ticker_flow_card
     render = render_fn or render_ticker_flow_card
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
     data = None
+    fail_cls, fail_detail = "flow_error", ""
     try:
         if fetch_fn is not None:
             data = fetch_fn(ticker, days)
@@ -209,18 +221,32 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
             base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
             if base:
                 import httpx
-                r = httpx.get(f"{base}/api/live/massive/ticker-flow",
-                              params={"symbol": ticker, "days": days, "source": "stocks"},
-                              timeout=30.0)
+                params = {"symbol": ticker, "days": days, "source": source}
+                if cid:
+                    params["cid"] = cid
+                try:
+                    r = httpx.get(f"{base}/api/live/massive/ticker-flow", params=params, timeout=timeout_s)
+                except httpx.TimeoutException:
+                    fail_cls, fail_detail = "flow_timeout", f"no answer in {timeout_s:.0f}s"
+                    raise
+                except httpx.TransportError:
+                    fail_cls, fail_detail = "flow_unavailable", "connect/transport error"
+                    raise
+                if not r.is_success:
+                    fail_cls, fail_detail = "flow_error", f"HTTP {r.status_code}"
                 data = r.json() if r.is_success else None
             else:
                 from api import live_massive_router as lmr   # single-service fallback
-                data = lmr._compute_ticker_flow(ticker, days, "stocks", 15)
+                data = lmr._compute_ticker_flow(ticker, days, source, 15)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
+        fail_detail = fail_detail or type(e).__name__
         data = None
 
     if not data or not data.get("ok"):
+        if fail_fn is not None:
+            fail_fn(fail_cls, fail_detail or "ok:false")
+            return
         ack(app_id, token,
             content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
         return
@@ -232,6 +258,9 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         png = render(data)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow] render failed %s: %s", ticker, e)
+        if fail_fn is not None:
+            fail_fn("internal", "card render failed")
+            return
         ack(app_id, token, content="Couldn't render the card — try again in a moment.")
         return
     # Post the card PUBLICLY as the bot — the deferred interaction @original is
@@ -286,6 +315,8 @@ def _channel_nudge() -> dict:
 
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
+    import time as _time
+    received = _time.perf_counter()        # the V2 ack SLO (S1) is measured from here
     key = _public_key()
     if not key:
         return JSONResponse(status_code=503, content={"error": "discord interactions not configured"})
@@ -310,6 +341,21 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                     interaction.get("authorizing_integration_owners"))
         # An autocomplete interaction may ONLY be answered with choices (type 8).
         return _autocomplete([]) if itype == 4 else _ephemeral(di.NOT_ALLOWED_MESSAGE)
+    # ── Discord render V2 (docs/discord-render/03-architecture.md) ──────────────
+    # Behind DISCORD_RENDER_V2_ENABLED (default OFF). When it answers, the interaction
+    # never reaches the pre-V2 branches below; when it returns None (flag off, a
+    # per-command kill switch, or an interaction V2 leaves to the old path such as the
+    # help/save picks) everything below runs exactly as before.
+    from api.services.discord_render import commands as render_v2
+    # ⛔ /renderhealth is answered whatever the flag says. It is a read-only admin diagnostic that
+    # peeks at state and starts nothing, and it is most useful BEFORE the flip — that is how an
+    # admin watches the queue and the renderer while V2 is still dark. Every other command stays
+    # behind DISCORD_RENDER_V2_ENABLED.
+    _v2_always = (interaction.get("data") or {}).get("name") == di.RENDERHEALTH_COMMAND and itype == 2
+    if render_v2.enabled() or _v2_always:
+        v2_response = await render_v2.handle(interaction, received)
+        if v2_response is not None:
+            return v2_response
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
         if name == di.BUZZ_COMMAND:
@@ -682,6 +728,45 @@ def index_close_status(request: Request):
     from api.services import discord_index_close as idx
     return {"last_run": _LAST_INDEX_CLOSE, "last_posted_session": idx.last_posted(),
             "armed": idx.enabled(), "webhook_configured": bool(idx.webhook_url())}
+
+
+def _renderer_health(timeout_s: float = 2.0) -> dict | None:
+    """chart-renderer's own /health, bounded. None when unconfigured; {"ready": False, ...}
+    when it does not answer — "could not reach it" is reported, never read as healthy."""
+    base = (os.environ.get("CHART_RENDERER_URL") or "").strip().rstrip("/")
+    if not base:
+        return None
+    try:
+        import httpx
+        r = httpx.get(f"{base}/health", timeout=timeout_s)
+        body = r.json() if r.is_success else {}
+        return {"reachable": True, "status": r.status_code, "ready": bool(body.get("ready", body.get("browser"))), **body}
+    except Exception as e:  # noqa: BLE001
+        return {"reachable": False, "ready": False, "error": type(e).__name__}
+
+
+@router.get("/api/discord/render-health")
+def render_health(request: Request):
+    """Discord render V2 health: queue, SLOs from the durable jobs table, renderer state and
+    the alert rules currently breached. Gated by the PUSH_SECRET bearer like
+    /api/discord/index-close/status. Read-only on purpose: with V2 off it does NOT start the
+    runtime and does NOT create the jobs database — it says V2 is off."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return JSONResponse(status_code=401, content={"error": "unauthorized"})
+    from api.services.discord_render import commands as render_v2, observe
+    from api.services.discord_render.jobs_store import JobsStore, default_path
+    runtime = render_v2._runtime                       # peek: never build or start it from here
+    store = runtime.store if runtime is not None else (JobsStore() if os.path.exists(default_path()) else None)
+    payload = {"v2_enabled": render_v2.enabled(), "runtime_started": runtime is not None,
+               "commit": (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12]}
+    renderer = _renderer_health()
+    if store is None:
+        return {**payload, "renderer": renderer, "slo": None, "note": "no jobs database yet (V2 has never run on this volume)"}
+    obs = render_v2._observer                          # its consecutive-miss count, unless this reading is ready
+    misses = obs.renderer_misses if obs is not None and not (renderer or {}).get("ready") else None
+    return {**payload, **observe.health_payload(runtime, store, renderer=renderer, renderer_misses=misses)}
 
 
 @router.get("/api/discord/activity/handoff")

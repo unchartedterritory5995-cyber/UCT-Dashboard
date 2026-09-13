@@ -36,6 +36,9 @@ import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // every link a member sent resolved to the catch-all 404 below.
 import { SHARED_FORMULA_ROUTE, FORMULA_LIBRARY_PATH } from './pages/formulas/formulaShareLink'
 import { createRoutePrefetcher, attachRoutePrefetch } from './routePrefetch'
+// The single authority for "is the joystick hub actually rendering" — shared with
+// Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
+import useHubActive from './hub/useHubActive'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -187,6 +190,7 @@ const BrokersPage = lazy(() => import('./pages/BrokersPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const SmokeLogin = lazy(() => import('./pages/SmokeLogin'))
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
 const VerifyPending = lazy(() => import('./pages/VerifyPending'))
 const NotFound = lazy(() => import('./pages/NotFound'))
@@ -201,6 +205,25 @@ const GlobalVoiceLayer = lazy(() => import('./components/voice/GlobalVoiceLayer'
  *  any of it. Returns null until auth resolves and the user is paid. */
 function GlobalVoiceGate() {
   const { isPaid } = useAuth()
+  const hubActive = useHubActive()
+
+  // ⛔ THE HUB IS THE CORNER (spec v1.5 §2c, exception (h)).
+  //
+  // When the joystick hub is active it is the ONLY floating control on a touch viewport, and Voice
+  // is reachable from its inner ring. Two floating controls in one corner is not a style choice:
+  // Wave 0 measured the hub's 84px box overlapping this cluster's AgentPicker and VisionAttach
+  // satellites by 36-42px horizontally and 42px vertically.
+  //
+  // This gate could NOT live in Layout.jsx with the feedback FAB's, because GlobalVoiceGate mounts
+  // HERE — a sibling of the routed <Layout/> tree, never a descendant. That mismatch is what made
+  // the corner decision half-delivered through Phase 2 (requests.md R-03).
+  //
+  // `useHubActive()` is the SAME predicate Layout uses for FeedbackWidget, imported from the one
+  // place that owns it, so the two gates cannot drift into disagreeing about whether the hub is up.
+  // It is fully gated (capability + viewport + settings), not just `settings.enabled` — so on a
+  // device that fails the backdrop-filter/visualViewport floor the orb still renders rather than
+  // leaving a dead corner.
+  if (hubActive) return null
   if (!isPaid) return null
   return (
     <Suspense fallback={null}>
@@ -387,6 +410,10 @@ export default function App() {
             <Route path="/subscribe" element={<PreLaunchGate><Subscribe /></PreLaunchGate>} />
             <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Admin-issued single-use login link for the synthetic device-test account.
+                Unauthenticated by design — the token IS the credential, and the backend refuses
+                it unless SMOKE_LOGIN_LINK_ENABLED is set and it names the one allow-listed id. */}
+            <Route path="/smoke-login" element={<SmokeLogin />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/verify-pending" element={<VerifyPending />} />
             <Route path="/terms" element={<Terms />} />

@@ -2,7 +2,10 @@ import { useRef } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import AskPanel from './AskPanel'
-import PdfDocumentViewer from './PdfDocumentViewer'
+// ⛔ THE VIEWER IS BEHIND A BOUNDARY, NOT IMPORTED DIRECTLY. A static import here is what
+// let a pdfjs incompatibility take the whole /journal/notebook route down on iOS 17
+// (2026-09-12). See PdfViewerBoundary.jsx for the incident and both mechanisms.
+import PdfViewerBoundary from './PdfViewerBoundary'
 import styles from './DocumentPreviewSheet.module.css'
 
 /**
@@ -22,6 +25,10 @@ export default function DocumentPreviewSheet({
   excerpts = [], onSaveExcerpt, emphasizeExcerptId,
   documentId = null,
 }) {
+  // Wave P5 — `bodyClassName` makes the sheet's body a flex column that does
+  // not scroll, so the viewer below can size to the space that is LEFT and
+  // its sticky Scanned text control lands on a visible edge. The measured
+  // reason is in `.body` in this module's CSS.
   const viewerRef = useRef(null)
   if (!href) return null
   return (
@@ -31,6 +38,7 @@ export default function DocumentPreviewSheet({
       variant="fullscreen"
       ariaLabel={name ? `Preview of ${name}` : 'Document preview'}
       className={styles.sheet}
+      bodyClassName={styles.body}
     >
       <div className={styles.bar}>
         <span className={styles.name}>{name || 'Document'}</span>
@@ -61,9 +69,12 @@ export default function DocumentPreviewSheet({
           )}
         </div>
       </div>
-      <PdfDocumentViewer
+      <PdfViewerBoundary
         ref={viewerRef}
         href={href}
+        /* Wave P4: the viewer needs the document id to fetch ONE page's
+           scanned-text transcript. */
+        documentId={documentId}
         initialPage={page}
         excerpts={excerpts}
         onSaveExcerpt={onSaveExcerpt}

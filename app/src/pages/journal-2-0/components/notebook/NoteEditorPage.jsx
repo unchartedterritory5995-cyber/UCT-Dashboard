@@ -9,9 +9,10 @@ import {
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
-import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
+import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
@@ -27,6 +28,17 @@ import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
+import {
+  useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
+  recordLandedRevision, SESSION_ID,
+} from '../../lib/offline/useDurableNote'
+import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
+import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
+import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
+import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import {
+  BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
+} from '../../lib/offline/serverChange'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -37,9 +49,12 @@ import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
 import ThesisSection from './ThesisSection'
+import { createNoteViaApi } from '../../lib/noteCreation'
+import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
+import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -87,33 +102,27 @@ function friendlySaveError(e, status, { retrying = false } = {}) {
 // second source of truth for content the server already has.
 const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
 
-// Toolbar Font dropdown — a broad set of common web-safe families (each option
-// previews in its own face). Value is a full CSS font-family stack; '' clears.
-const FONT_OPTIONS = [
-  { label: 'Default', value: '' },
-  { label: 'Sans Serif', value: 'Instrument Sans, Arial, sans-serif' },
-  { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
-  { label: 'Monospace', value: 'Consolas, "Courier New", monospace' },
-  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
-  { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
-  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-  { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
-  { label: 'Trebuchet MS', value: '"Trebuchet MS", Helvetica, sans-serif' },
-  { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
-  { label: 'Century Gothic', value: '"Century Gothic", sans-serif' },
-  { label: 'Georgia', value: 'Georgia, serif' },
-  { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
-  { label: 'Garamond', value: 'Garamond, serif' },
-  { label: 'Palatino', value: '"Palatino Linotype", "Book Antiqua", Palatino, serif' },
-  { label: 'Cambria', value: 'Cambria, Georgia, serif' },
-  { label: 'Baskerville', value: 'Baskerville, "Baskerville Old Face", serif' },
-  { label: 'Courier New', value: '"Courier New", Courier, monospace' },
-  { label: 'Consolas', value: 'Consolas, monospace' },
-  { label: 'Lucida Sans', value: '"Lucida Sans Unicode", "Lucida Grande", sans-serif' },
-  { label: 'Comic Sans MS', value: '"Comic Sans MS", "Comic Sans", cursive' },
-  { label: 'Impact', value: 'Impact, Haettenschweiler, sans-serif' },
-  { label: 'Brush Script MT', value: '"Brush Script MT", cursive' },
-]
+// ⛔⛔ `setContent(body, false)` STOPPED SUPPRESSING `onUpdate` AT TIPTAP v3, AND
+// SAID NOTHING. In v2 the second argument WAS `emitUpdate`; in v3 it is an
+// options OBJECT, destructured as `{ emitUpdate = true, … } = {}`. A `false`
+// there is not `undefined`, so the default does not apply to the argument — it
+// applies to the missing PROPERTY, and `emitUpdate` comes out **true**. Every
+// call site in this file carried a comment claiming the update was suppressed,
+// and every one of them had been emitting into `scheduleAutosave` since the v3
+// upgrade — turning three deliberate "put the canonical copy on screen" moments
+// (note load, draft restore, conflict reconcile) into autosaves of content the
+// server had just handed us. Measured against the installed TipTap, both ways:
+// `setContent(x, false)` emits, `setContent(x, EMIT_NOTHING)` does not.
+// ⛔ One authority, named, so a fifth call site cannot quietly get it wrong.
+const EMIT_NOTHING = { emitUpdate: false }
+
+// Toolbar Font dropdown — the app's approved family set (each option previews in
+// its own face). Value is a full CSS font-family stack; '' clears.
+//
+// ⭐ THE TABLE MOVED TO `utils/fontFamilies.js`. The chart's Text Note gained a
+// font picker in Phase 6, and a second hand-typed list is how two surfaces end
+// up offering "Helvetica" and "Helvetica Neue" with nobody able to say which is
+// approved. Imported under its own name, so nothing else in this file changed.
 const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
 
 // The capture inbox tray: hotkey captures banked during the session, offered
@@ -337,6 +346,32 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+  // Wave Q1: the durable local working copy. ⛔ The account is part of the
+  // DATABASE NAME, not a predicate — a wrong name yields no data, a forgotten
+  // filter yields another member's research. It degrades to `supported: false`
+  // (private windows, old browsers) without taking the editor with it.
+  const durable = useDurableNote({ accountId: user?.id, noteId })
+
+  // Wave Q1 — THE OPEN NOTE CAN ALSO BE BLOCKED, and until now it said nothing.
+  // The sweep never touches the open note (`excludeNoteId`), so this state can
+  // only arrive from a PREVIOUS session: the member closed a note whose queued
+  // write the drain then refused, and opened it again today. The header's
+  // existing "waiting to sync" line is gated on the editor's own save attempt
+  // (`error`/`reconnecting`), which on a freshly-opened note is neither — so
+  // the one surface that was honest was honest only while a save was failing.
+  // ⛔ `durable.status` is the refresh signal: a fresh durable write REPLACES
+  // the outbox entry and the replacement carries no `permanent` flag, so the
+  // badge has to be able to CLEAR itself the moment the member does the thing
+  // it asked them to do.
+  const { blocked: blockedNoteIds } = useBlockedNotes({
+    accountId: user?.id,
+    refreshToken: durable.status,
+  })
+  const noteIsBlocked = blockedNoteIds.has(noteId)
+  // Read through a ref for the same reason every other callback here does:
+  // TipTap's onUpdate and every scheduled timeout close over an old render.
+  const durableRef = useRef(durable)
+  durableRef.current = durable
 
   // Wave B Recents: fire the "opened" beacon once per real note view (not on
   // every render, not while it's still loading, not on a failed load). Keyed
@@ -417,7 +452,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       updatedAt: restoredNote.updatedAt || null,
     }
     try {
-      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, false)
+      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
     } catch {
       /* editor view not mounted yet -- next note-open effect will still show it */
     }
@@ -577,53 +612,132 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // (silently preferring a local draft over the server's copy could just as
   // easily clobber real, already-synced work from another tab/device).
   const [pendingDraft, setPendingDraft] = useState(null)
+  // The reasoning behind `pendingDraft` — which copy won, and whether the two
+  // local copies could be ordered at all. ⛔ An ambiguous answer is SAID so,
+  // not smoothed over: the member is the only one who can settle it.
+  const [recovery, setRecovery] = useState(null)
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
   const restoringDraftRef = useRef(false)
+  // ⛔⛔ NOTHING MAY BE PERSISTED BEFORE THE NOTE IS IN THE EDITOR.
+  //
+  // TipTap's `onUpdate` is NOT "the member typed" — it is "the document
+  // changed", and a document changes without a member the moment an editor is
+  // constructed with an EMPTY doc: `{type:'doc',content:[]}` violates the
+  // schema's `block+`, so ProseMirror appends a repair transaction that inserts
+  // an empty paragraph, synchronously, inside `new Editor(...)`. Measured, both
+  // directions: an editor built with real content emits ZERO updates; one built
+  // empty emits exactly one, and `getJSON()` is then `{doc,[paragraph]}`.
+  //
+  // `useEditor` is keyed on `[note?.id]`, so the editor is REBUILT when the note
+  // arrives — and rebuilt EMPTY whenever the server's copy of that note is empty
+  // (the server sends `{doc,content:[]}`, not null, for a blank body). That
+  // rebuild happens in `useEditor`'s own effect, which is registered BEFORE the
+  // effect below and therefore runs BEFORE it — so the repair fires while the
+  // title/subtitle refs still hold their pre-load values, and the autosave path
+  // ran with them. Reproduced end to end in `NoteEditorPage.slowload.test.jsx`:
+  // an empty title, an empty subtitle and an empty document written to the
+  // localStorage draft, the durable working copy AND the outbox, for a note the
+  // member never touched.
+  //
+  // ⛔ This is a GATE, not a nicety: it is the one place that can distinguish
+  // "the document changed because a person changed it" from "the document
+  // changed because it was constructed". It also closes the long-standing
+  // empty-localStorage-draft bug this predates Wave Q1.
+  const hydratedRef = useRef(false)
 
   useEffect(() => {
-    if (note) {
-      setTitle(note.title || '')
-      titleRef.current = note.title || ''
-      setSubtitle(note.subtitle || '')
-      subtitleRef.current = note.subtitle || ''
-      lastSavedRef.current = {
-        title: note.title || '',
-        subtitle: note.subtitle || '',
-        bodyJson: note.bodyJson,
-        updatedAt: note.updatedAt || null,
-      }
-
-      // Wave 0 (P1-10): a draft this note's own last session never
-      // successfully saved. Only offered when it actually differs from
-      // what the server has — a match means it saved fine (or was never
-      // touched) and is pure noise to surface.
-      try {
-        const raw = localStorage.getItem(DRAFT_KEY(note.id))
-        const draft = raw ? JSON.parse(raw) : null
-        const draftDiffers = draft && (
-          draft.title !== (note.title || '') ||
-          draft.subtitle !== (note.subtitle || '') ||
-          JSON.stringify(draft.bodyJson) !== JSON.stringify(note.bodyJson)
-        )
-        if (draftDiffers) {
-          setPendingDraft(draft)
-        } else {
-          if (raw) localStorage.removeItem(DRAFT_KEY(note.id))
-          setPendingDraft(null)
-        }
-      } catch {
-        setPendingDraft(null)
-      }
+    if (!note) return undefined
+    setTitle(note.title || '')
+    titleRef.current = note.title || ''
+    setSubtitle(note.subtitle || '')
+    subtitleRef.current = note.subtitle || ''
+    lastSavedRef.current = {
+      title: note.title || '',
+      subtitle: note.subtitle || '',
+      bodyJson: note.bodyJson,
+      updatedAt: note.updatedAt || null,
     }
+
+    // Wave 0 (P1-10) offered a draft this note's own last session never
+    // successfully saved. Wave Q1 makes that a THREE-way decision — the
+    // server, the durable working copy, and the synchronous draft — owned by
+    // `chooseLocalRecovery`.
+    //
+    // ⛔ IT IS NOT "PREFER THE OFFLINE STORE". Within a session the draft is
+    // written synchronously on the keystroke and the durable copy lags it by
+    // the coalescing window, so reaching for IndexedDB because it is the
+    // offline store would silently regress the member's last ~200ms of typing.
+    // ⛔ And it is still OFFERED, never applied: silently preferring a local
+    // copy can clobber real work another device already synced.
+    let cancelled = false
+    const decide = async () => {
+      let raw = null
+      let lsDraft = null
+      try {
+        raw = localStorage.getItem(DRAFT_KEY(note.id))
+        lsDraft = raw ? JSON.parse(raw) : null
+      } catch { lsDraft = null }
+      let decision
+      try {
+        decision = await durableRef.current.recover({ server: note, lsDraft })
+      } catch {
+        // A store we cannot read is not a reason to lose the draft we can.
+        decision = null
+      }
+      if (cancelled) return
+      if (decision && decision.unsynced) {
+        setPendingDraft({ ...decision.state, savedAt: lsDraft?.savedAt ?? null })
+        setRecovery(decision)
+        return
+      }
+      // Nothing local differs from the server: it saved fine (or was never
+      // touched) and surfacing it is pure noise.
+      if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
+      setPendingDraft(null)
+      setRecovery(null)
+    }
+    decide()
+    return () => { cancelled = true }
   }, [note?.id])
 
-  const saveDraftLocally = () => {
-    if (!noteId || !editorRef.current) return
+  // Wave Q1: ONE snapshot per keystroke, shared by both local layers.
+  // ⛔ Taken once on purpose: `getJSON()` walks the whole document, and the
+  // draft and the durable copy must describe the SAME instant — two reads
+  // could differ by a keystroke, which is exactly the disagreement the reopen
+  // comparison would then have to resolve without being able to.
+  const captureLocalState = () => {
+    if (!noteId || !editorRef.current) return null
+    return {
+      title: titleRef.current,
+      subtitle: subtitleRef.current,
+      bodyJson: editorRef.current.getJSON(),
+      baseUpdatedAt: lastSavedRef.current.updatedAt || null,
+      // ⛔⛔ WHAT THE SERVER LAST HELD, travelling WITH the member's words.
+      // The drain cannot classify a conflict without it — diffing the server's
+      // copy against the member's working copy would read the member's own
+      // unsent edit as somebody else's change and fork every single time. This
+      // is the only moment on this device when both are in hand.
+      serverBase: { ...lastSavedRef.current },
+    }
+  }
+  const saveDraftLocally = (state) => {
+    const snap = state || captureLocalState()
+    if (!snap) return
     try {
       localStorage.setItem(DRAFT_KEY(noteId), JSON.stringify({
-        title: titleRef.current, subtitle: subtitleRef.current,
-        bodyJson: editorRef.current.getJSON(), savedAt: Date.now(),
+        title: snap.title, subtitle: snap.subtitle,
+        bodyJson: snap.bodyJson, savedAt: Date.now(),
+        // Wave Q1: which tab-session wrote it. On reopen that separates "the
+        // durable copy from THIS session" (where the draft is written first and
+        // can only be equal-or-newer — an exact structural answer) from one
+        // left by a previous session (where only timestamps remain, and they
+        // are a hint).
+        // ⛔ Deliberately NO generation: that number is minted by the durable
+        // writer, and taking it here would mean scheduling the durable write
+        // BEFORE this synchronous line — reversing the one ordering that owns
+        // the crash window.
+        sessionId: SESSION_ID,
       }))
     } catch { /* private mode / storage full — the network autosave is still the primary path */ }
   }
@@ -650,10 +764,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     titleRef.current = draftTitle
     setSubtitle(draftSubtitle)
     subtitleRef.current = draftSubtitle
-    // `false` (emitUpdate) suppresses onUpdate — same convention as the
-    // note-load sync effect below.
-    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, false)
+    // ⛔ `EMIT_NOTHING`, never a bare `false` — see its declaration. Until this
+    // was fixed, this line ALSO re-armed the 800ms debounce and the durable
+    // write, which is precisely what the comment below says a restore
+    // deliberately does not do.
+    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, EMIT_NOTHING)
     setPendingDraft(null)
+    setRecovery(null)
 
     // Persist directly and immediately, from the local `draft*` values
     // captured above — NOT via the debounced scheduleAutosave path (a
@@ -666,13 +783,38 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const patch = { title: draftTitle, subtitle: draftSubtitle || null }
       if (draftBodyJson) patch.bodyJson = draftBodyJson
-      if (lastSavedRef.current.updatedAt) patch.baseUpdatedAt = lastSavedRef.current.updatedAt
+      // ⛔ The baseline is the revision this local work was WRITTEN ON, not
+      // whatever the server holds now. They differ exactly when another device
+      // saved in between — and that is the case where a restore must 409 and
+      // fork rather than quietly overwrite the newer copy.
+      const base = usableBaseline(recovery?.baseUpdatedAt, lastSavedRef.current.updatedAt)
+      if (base) patch.baseUpdatedAt = base
       const saved = await update(patch)
       lastSavedRef.current = {
         title: draftTitle, subtitle: draftSubtitle,
         bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
-        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+        updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
+      const ackedNow = { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson }
+      const currentNow = captureLocalState() || ackedNow
+      durableRef.current.markSynced({
+        acked: ackedNow, current: currentNow, updatedAt: lastSavedRef.current.updatedAt,
+      })
+      // ⛔⛔ AND AGAIN, WITHOUT THE MOUNT. `markSynced` goes through the hook's
+      // writer ref and does nothing once this component is gone — and this
+      // promise resolves after the member has navigated away often enough to
+      // matter (~1 offline session in 5, measured 2026-09-10). Navigating away
+      // is exactly when the note leaves `excludeNoteId` and becomes the sweep's,
+      // so the queue's most important moment was the one it could not settle,
+      // and a single-device member got a `(conflicted copy)` of their own note.
+      // ⛔ Not awaited: a save must not wait on bookkeeping, and this never
+      // throws. It is idempotent with `markSynced` — both settle to the same
+      // landed baseline.
+      settleLandedSave({
+        accountId: user?.id, noteId,
+        acked: ackedNow, current: currentNow,
+        updatedAt: lastSavedRef.current.updatedAt,
+      })
       setSaveStatus('saved')
       setSaveErrorMsg('')
       clearDraftLocally()
@@ -685,10 +827,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
   const discardDraft = () => {
     clearDraftLocally()
+    // ⛔ And the durable copy has to hear about it too. Clearing only the
+    // localStorage draft would leave a dirty working copy and a queued sync
+    // intent behind, and the next reconnect would push work the member just
+    // declined. This states the truth instead: what is on this device now is
+    // what the server has.
+    const server = {
+      title: note?.title || '',
+      subtitle: note?.subtitle || '',
+      bodyJson: note?.bodyJson ?? null,
+    }
+    durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
     setPendingDraft(null)
+    setRecovery(null)
   }
 
   const scheduleAutosave = () => {
+    // ⛔ See `hydratedRef`. Before the note is in the editor there is nothing of
+    // the member's to save, and everything to lose — so this refuses BEFORE it
+    // touches the status, the draft, the durable copy or the save timer.
+    if (!hydratedRef.current) return
     setSaveStatus('dirty')
     setSaveErrorMsg('')
     // Wave 0 (P1-10): mirror to localStorage on EVERY edit, synchronously —
@@ -696,7 +854,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // the debounce ever fires) must still have a local copy of what was
     // just typed; gating this on the same timer would leave exactly that
     // window unprotected, which is the gap this safety net exists to close.
-    saveDraftLocally()
+    const snapshot = captureLocalState()
+    saveDraftLocally(snapshot)
+    // Wave Q1: then — and only then — hand the SAME snapshot to the durable
+    // working copy, which coalesces it into an IndexedDB write ~200ms behind
+    // the last keystroke. ⛔ Second, never first: localStorage is the
+    // synchronous layer that owns the crash window, and IndexedDB's measured
+    // p95 (800.7ms in Chrome 152) is as long as the whole server autosave
+    // debounce. It is also NOT the network — a durable local write is not a
+    // save, and nothing here tells the member otherwise.
+    if (snapshot) durableRef.current.schedule(snapshot)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // Fresh user edit supersedes any in-flight retry — reset the backoff
     // counter so we don't waste a 30s wait on content the user just changed.
@@ -817,7 +984,31 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // the moment the chip does.
       refreshDocuments()
     } catch (e) {
-      setUploadToast({ message: `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`, tone: 'error' })
+      // ⚰️ WAVE P POST-CLOSURE — THE SERVER'S REASON WAS BEING THROWN AWAY.
+      // `uploadNoteAttachment` already preserves it (`body.detail`), and the
+      // server already says something a member can act on: "File is larger
+      // than the 25 MB limit…". This catch replaced it with "Couldn't upload",
+      // so someone attaching a 30 MB scan could not tell whether to split the
+      // file, retry, or report a bug — and with OCR now live, the natural
+      // (wrong) guess is that the SCAN failed rather than the upload.
+      //
+      // ⛔ AND IT GOES THROUGH `friendlySaveError`, NOT THROUGH `e.message`.
+      // The first attempt built the sentence from the exception and
+      // `rawErrorSurface.test.js` caught it — correctly: a bare "500" or a
+      // "Failed to fetch" is not member-facing copy. That mapper already
+      // returns the server-authored detail when there is one and a real
+      // sentence when there is not, so this reuses the product's ONE
+      // error-to-copy authority instead of adding a second.
+      // ⛔ The mapping happens FIRST, on its own line. The rail is
+      // ancestor-based: `e` anywhere beneath a template literal or a `+` is a
+      // violation even when it is only being handed to a function — which is
+      // the right conservatism, because "it is only passed to a helper" is
+      // exactly what the next unsafe version would also claim.
+      const why = friendlySaveError(e, e?.status)
+      setUploadToast({
+        message: `Couldn't upload ${file.name || 'file'} — ${why}`,
+        tone: 'error',
+      })
     }
   }
 
@@ -914,6 +1105,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       )
       return
     }
+    // ⚰️ WAVE P3 §12 — A CITED DOCUMENT PAGE USED TO GO NOWHERE. This handler
+    // knew about reviews and about the note body, and returned silently for
+    // `kind: 'document'` — so Ask could say "q3-filing.pdf · p.1", the member
+    // could click it, and nothing at all would happen. Search has reached the
+    // page since Wave M; the Ask citation never learned the same contract.
+    // Found by driving the real UI, because every unit rail below asserts the
+    // TARGET and none of them clicks the row in the editor.
+    //
+    // ⛔ THE SAME `?note=&doc=&page=` CONTRACT, never a second route shape —
+    // and never an OCR-specific one: a scanned page opens exactly the way a
+    // native page does, which is what makes the scanned page authoritative.
+    if (source?.navigation?.kind === 'document') {
+      // The decision lives in `searchNavigation`, beside the one Search uses,
+      // so the two can never answer differently about the same document.
+      const target = citationTarget(source, { fallbackNoteId: noteId })
+      if (!target) return
+      setSearchParams((prev) => applyTargetToParams(prev, target),
+                      { replace: false })
+      return
+    }
     const ed = editorRef.current
     if (!ed || source?.navigation?.kind !== 'note') return
     if (!resolved || !PRECISE_STATES.has(resolved.state)) return
@@ -921,7 +1132,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       .setTextSelection({ from: resolved.from, to: resolved.to })
       .scrollIntoView()
       .run()
-  }, [setSearchParams])
+  }, [setSearchParams, noteId])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
@@ -955,7 +1166,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         }),
       })
       if (!res.ok) throw new Error('save failed')
-      const { excerpt } = await res.json()
+      const { excerpt, note: excerptNote } = await res.json()
+      // ⛔⛔ `append_document_excerpt` ADVANCED THIS NOTE. The editor is open on
+      // it, which makes this the worst door to leave unlanded: the very next
+      // autosave carries a baseline the server has already passed, 409s, and —
+      // before the drain learned to classify — forked the member's note against
+      // their own excerpt. The route was changed to return the note for this.
+      await settleNoteWrite(noteId, excerptNote)
       // ⛔ insertContentAt(selection.to), NOT insertContent -- found live in
       // the browser, and it DESTROYED the member's attachment. Clicking a PDF
       // chip to open the preview leaves ProseMirror holding a NodeSelection
@@ -977,6 +1194,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
       }).run()
       await refreshExcerpts()
+      // ⛔ WAVE P5 — and the EVIDENCE PICKER's list, which is a different
+      // subscription. Without this the passage a member just saved is
+      // absent from Add evidence until they reload the note; the picker
+      // then tells them to "save an excerpt from a PDF in this note
+      // first", about the excerpt they are looking at. Measured on a
+      // phone, end to end, in one sitting.
+      refreshEvidenceCandidates(noteId)
     } catch (e) {
       setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
     }
@@ -1153,43 +1377,115 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const current = JSON.stringify(editor.getJSON())
       const fresh = JSON.stringify(bodyForEditor)
-      if (current !== fresh) editor.commands.setContent(bodyForEditor, false)
+      if (current !== fresh) editor.commands.setContent(bodyForEditor, EMIT_NOTHING)
     } catch {
       /* editor view not mounted yet — content already loaded via useEditor */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, editor])
 
-  // A15 conflict reconcile: pull the fresh note, append any widgetEmbed the
-  // server holds that the local doc lacks (the only server-side bodyJson
-  // writer is the Send-to-Journal append, so "missing locally" ≈ "appended
-  // after our baseline"; an embed the user deleted locally in that same
-  // window gets resurrected rather than lost — the safe direction), then
-  // advance the baseline so the caller's retry wins cleanly.
+  // ⛔ The arming half of `hydratedRef` — see its declaration for the defect.
+  // Declared AFTER `useEditor` on purpose: effects run in the order their hooks
+  // were called, so `useEditor`'s own rebuild effect runs first and its
+  // construction-time repair transaction is refused by a ref that is still
+  // false. It is armed here, one effect later, once `editor` and `note` are
+  // both the ones this render is about.
+  // ⛔ NOT gated on `note.bodyJson` (as the sync effect above is): a note the
+  // server holds with no body at all must still be editable, and gating on the
+  // body would leave that member typing into a page that saves nothing.
+  useEffect(() => {
+    hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
+  }, [note?.id, editor, note])
+
+  // A15 conflict reconcile: pull the fresh note, merge in any block the SERVER
+  // appended that the local doc lacks, then advance the baseline so the
+  // caller's retry wins cleanly.
+  //
+  // ⭐⭐ THE DECISION IS NOT MADE HERE. `classifyServerChange` owns it, and the
+  // drain asks the same function the same question — a guard repeated is a
+  // guard unproved, and the copy that used to live in this file knew about
+  // `widgetEmbed` and nothing else, so a member who saved a price or captured
+  // an excerpt into a note they were also editing got a fork instead of a
+  // merge. See `lib/offline/serverChange.js` for the three shapes.
+
+  /** ⚰️⚰️ WAVE Q1 ENTRY GATE — THIS USED TO OVERWRITE THE SERVER.
+   *
+   * The old handler appended the widget embeds it was missing, advanced the
+   * baseline, and let `commitSave` retry with the LOCAL document — so any
+   * newer server prose, title or subtitle was replaced. It was built for the
+   * Send-to-Journal server-side append (its comment says so) and it is correct
+   * for exactly that case. Against two humans it was last-write-wins, and it
+   * had no rail.
+   *
+   * Wave Q makes the stale-baseline case ORDINARY rather than rare — an
+   * offline outbox manufactures it on purpose — so the handler now proves the
+   * merge is safe or preserves both versions.
+   *
+   * Returns true when the caller may retry, false when the conflict has been
+   * resolved by forking (and the retry must NOT happen).
+   */
   const reconcileConflict = async () => {
     const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
     if (!res.ok) throw new Error(`${res.status}`)
     const fresh = (await res.json())?.note
     if (!fresh) throw new Error('empty note on reconcile')
-    const embedKey = (a) => `${a?.widgetId}|${a?.capturedAt}|${a?.searchText}`
-    const localKeys = new Set()
-    editor.state.doc.descendants((n) => {
-      if (n.type.name === 'widgetEmbed') localKeys.add(embedKey(n.attrs))
+    const base = lastSavedRef.current
+
+    const shape = classifyServerChange(fresh, base)
+    if (shape !== BODY_REWRITE) {
+      // ⛔ METADATA_ONLY appends nothing — the body never moved, so there is
+      // nothing to merge and the retry carries the member's words unchanged.
+      // The baseline still has to advance, or the retry 409s again for ever.
+      const localKeys = new Set()
+      editor.state.doc.descendants((n) => {
+        const k = nodeKeyOf({ type: n.type.name, attrs: n.attrs })
+        if (k) localKeys.add(k)
+        return true
+      })
+      const missing = missingServerNodes(appendedServerNodes(fresh, base), localKeys)
+      // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
+      // position, never a NodeSelection that would swallow a trailing atom.
+      // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-
+      // after-insert trap).
+      if (missing.length) editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
+      lastSavedRef.current.updatedAt = fresh.updatedAt || null
       return true
-    })
-    const missing = []
-    const walk = (node) => {
-      if (!node || typeof node !== 'object') return
-      if (node.type === 'widgetEmbed' && !localKeys.has(embedKey(node.attrs))) missing.push(node)
-      for (const child of node.content || []) walk(child)
     }
-    walk(fresh.bodyJson)
-    // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
-    // position, never a NodeSelection that would swallow a trailing atom.
-    // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-
-    // after-insert trap).
-    if (missing.length) editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
-    lastSavedRef.current.updatedAt = fresh.updatedAt || null
+
+    // ⛔ PRESERVE BOTH. The server keeps its version untouched; the member's
+    // version becomes a sibling, using the vocabulary the connectors already
+    // taught members (`sync-conflict`, a titled copy) rather than a second,
+    // offline-only conflict system.
+    const localTitle = titleRef.current || ''
+    const localSubtitle = subtitleRef.current || ''
+    const localBody = editor.getJSON()
+    await createNoteViaApi({
+      title: `${localTitle} (conflicted copy)`.trim(),
+      bodyJson: localBody,
+      tags: ['sync-conflict'],
+      folderId: note?.folderId || undefined,
+    })
+    if (localSubtitle) {
+      // The create endpoint takes no subtitle; the copy carries it in the body
+      // only if the member had one. Recorded here rather than silently dropped.
+      console.info('[note-conflict] subtitle not carried onto the conflicted copy')
+    }
+
+    // The editor now shows what the SERVER has — the canonical version — so the
+    // member is not typing into a document that no longer exists anywhere.
+    setTitle(fresh.title || '')
+    titleRef.current = fresh.title || ''
+    setSubtitle(fresh.subtitle || '')
+    subtitleRef.current = fresh.subtitle || ''
+    if (fresh.bodyJson) editor.commands.setContent(fresh.bodyJson, EMIT_NOTHING)
+    lastSavedRef.current = {
+      title: fresh.title || '', subtitle: fresh.subtitle || '',
+      bodyJson: fresh.bodyJson, updatedAt: fresh.updatedAt || null,
+    }
+    clearDraftLocally()
+    setSaveStatus('conflict')
+    setSaveErrorMsg('')
+    return false
   }
 
   const commitSave = async () => {
@@ -1213,15 +1509,77 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (bodyChanged) patch.bodyJson = bodyJson
     // Compare-and-set baseline (A15): the server 409s instead of letting this
     // full-doc PUT silently delete a write that landed after our baseline.
-    if (last.updatedAt) patch.baseUpdatedAt = last.updatedAt
+    if (isUsableBaseline(last.updatedAt)) patch.baseUpdatedAt = last.updatedAt
 
     setSaveStatus(retryAttemptsRef.current === 0 ? 'saving' : 'reconnecting')
+    // ⛔⛔ RAISE THE IN-FLIGHT MARKER BEFORE THE PUT, AND AWAIT IT.
+    //
+    // ⚰️ 2026-09-10: the self-fork fix shipped `settleLandedSave` into
+    // `restoreDraft` and NOT into this function — the debounced autosave every
+    // keystroke reaches, and the only path the defect actually rides. Eleven
+    // rails and four mutations exercised the FUNCTION; nothing exercised the
+    // WIRE, so the suite was green and the fix was not on the path. It
+    // reproduced on the rig eight minutes after going live.
+    //
+    // The marker is what lets the drain decline a note whose answer has not come
+    // back yet — the one fact it could never derive, because it lived in this
+    // promise, inside a component the member may already have navigated away
+    // from. ⛔ Awaited: a marker written after the request is one the drain can
+    // miss, which is the whole defect in miniature.
+    // ⛔ ISSUED BEFORE THE PUT, AND DELIBERATELY NOT AWAITED.
+    //
+    // ⚰️ It WAS awaited, and the existing rails rejected it — correctly. Awaiting
+    // couples the member's ability to save to IndexedDB being responsive: a
+    // blocked upgrade or a stalled store would stop saves outright, and to a
+    // member whose network is fine it would look like the network was down.
+    // "A save must not wait on bookkeeping" is a rule this file already lives
+    // by, and it does not stop applying because the bookkeeping is mine.
+    //
+    // ⭐ ORDER IS WHAT MATTERS, NOT COMPLETION. The put is issued first and
+    // commits in ~1 ms; the PUT it precedes takes ~111 ms at p50 (measured
+    // 2026-09-10, n=30). So the marker is in the store long before a 409 could
+    // come back, in every ordering anyone has observed.
+    // ⛔ AND WHERE IT IS NOT, THAT IS GUARD 2's JOB — the 409 self-supersede
+    // asks the SERVER and needs nothing to have worked beforehand. The marker
+    // is an optimisation that saves a round trip; it was never the guarantee.
+    beginInFlightSave({ accountId: user?.id, noteId, baseUpdatedAt: patch.baseUpdatedAt })
+    // ⛔ WHO LOWERS THE MARKER. On success `settleLandedSave` lowers it after it
+    // has settled the record — that order matters: a drain reading in between
+    // sees a note still marked in-flight, declines, and takes it next pass,
+    // whereas the reverse order opens a window with the marker down and the
+    // record not yet settled. On failure nothing settles, so the fallback below
+    // lowers it instead. Hence the flag rather than an unconditional `finally`.
+    let settleStarted = false
     try {
       const saved = await update(patch)
       lastSavedRef.current = {
         title, subtitle, bodyJson,
-        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+        updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
+      // Wave Q1: the server now holds `bodyJson`. ⛔ `current` is read AGAIN
+      // here rather than reusing what we sent: if the member typed during the
+      // PUT, the durable copy is ahead of this ack and its sync intent must
+      // SURVIVE — an acknowledgement of older words has never been permission
+      // to forget newer ones.
+      const ackedNow = { title, subtitle, bodyJson }
+      const currentNow = captureLocalState() || ackedNow
+      durableRef.current.markSynced({
+        acked: ackedNow, current: currentNow, updatedAt: lastSavedRef.current.updatedAt,
+      })
+      // ⛔⛔ AND THE MOUNT-INDEPENDENT SETTLE — THE LINE THAT WAS MISSING HERE.
+      // `markSynced` routes through the hook's writer ref and does nothing once
+      // this component is gone, and this promise resolves after the member has
+      // navigated away often enough to matter. Navigating away is exactly when
+      // the note leaves `excludeNoteId` and becomes the sweep's.
+      // ⛔ Not awaited: a save must not wait on bookkeeping, and it never throws.
+      // Idempotent with `markSynced` — both settle to the same landed baseline,
+      // and this one also lowers the in-flight marker in the same write.
+      settleStarted = true
+      settleLandedSave({
+        accountId: user?.id, noteId,
+        acked: ackedNow, current: currentNow,
+        updatedAt: lastSavedRef.current.updatedAt,
+      })
       conflictRetriedRef.current = false
       setSaveStatus('saved')
       setSaveErrorMsg('')
@@ -1236,7 +1594,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (status === 409 && !conflictRetriedRef.current) {
         conflictRetriedRef.current = true
         try {
-          await reconcileConflict()
+          const mayRetry = await reconcileConflict()
+          // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
+          // after one would push the local document over the server version
+          // the fork exists to protect — the exact overwrite this gate closes.
+          if (!mayRetry) return
           retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
           return
         } catch (re) {
@@ -1262,6 +1624,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       setSaveStatus('reconnecting')
       setSaveErrorMsg(friendlySaveError(e, status, { retrying: true }))
       retryTimerRef.current = setTimeout(() => commitSaveRef.current(), delay)
+    } finally {
+      // ⛔ A FAILED SAVE MUST NOT LEAVE THE NOTE UNSWEEPABLE. Without this a
+      // 500, a dropped connection or a non-retryable 4xx would pin the marker
+      // up until the TTL expires, and the member's queued work would sit there
+      // for that whole span. `finally`, not the catch tail, because this
+      // function returns early from four places inside it.
+      // ⛔ This repo has twice shipped a cleanup that lived only on the success
+      // branch; the second one was found this morning, in the rig.
+      if (!settleStarted) endInFlightSave({ accountId: user?.id, noteId })
     }
   }
 
@@ -1298,15 +1669,65 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await refresh()
   }
 
+  /**
+   * ⛔⛔ A METADATA CHANGE MOVES `updatedAt` TOO — AND THAT INVALIDATES A
+   * QUEUED BASELINE JUST AS A BODY SAVE DOES.
+   *
+   * ⚰️ Found 2026-09-10 by the derived wire rail, not by reading: changing a
+   * folder, ticker or tag while offline work sits in the outbox advances the
+   * server revision, so the queued entry's baseline goes stale and its next
+   * send 409s. Same mechanism as the self-fork, reached by a different door —
+   * and it is precisely the door a hand-written list of "save paths" misses,
+   * because these three do not look like saves.
+   *
+   * ⛔ `acked` IS THE SERVER'S COPY, NOT THE LOCAL ONE. Passing the local state
+   * as both sides would read as "caught up" and DELETE the member's queued
+   * work — the metadata PUT never carried their body. Server-as-acked means:
+   * still ahead ⇒ REBASE onto the new revision; genuinely caught up ⇒ clear.
+   */
+  const settleMetadataRevision = async (saved) => {
+    if (!saved?.updatedAt) return
+    // ⛔ ALWAYS record the landing FIRST. This PUT was ours, so its revision is
+    // ours, and that is true whether or not we can settle the queue. Withholding
+    // it made guard 2 answer "not ours" about our own write and fork the note.
+    await recordLandedRevision({ accountId: user?.id, noteId, updatedAt: saved.updatedAt })
+    const current = captureLocalState()
+    // ⛔⛔ NULL IS "NO EVIDENCE", NOT "CAUGHT UP" — AND THE DIFFERENCE COST A
+    // MEMBER'S WORDS.
+    //
+    // ⚰️ 2026-09-10, streak run 1, door `folder`. This read
+    // `current: captureLocalState() || saved`. When the editor could not report
+    // its local state, `current` fell back to `saved` — which IS `acked` — so
+    // `sameAuthoredContent` read "caught up", the intent became null, and
+    // `putNoteWithIntent` DELETED every queued entry for the note. The offline
+    // sentence was gone. The drain's own step stayed green throughout, because
+    // "the server holds text" is satisfied by the words typed ONLINE.
+    //
+    // ⛔ THE INVARIANT: a queued entry is never removed unless the server body
+    // is PROVEN to contain its content. Absence of local state proves nothing.
+    //
+    // ⭐ REFUSING IS SAFE, and that is why it is the right answer: the entry
+    // stays queued on its own baseline, the drain picks it up, and guard 2
+    // rebases it onto the revision this door just created. Doing nothing here
+    // costs one drain cycle; guessing here costs the member their work.
+    if (!current) return
+    await settleLandedSave({
+      accountId: user?.id, noteId,
+      acked: saved,
+      current,
+      updatedAt: saved.updatedAt,
+    })
+  }
+
   const onFolderChange = async (folderId) => {
-    await update({ folderId: folderId || null })
+    await settleMetadataRevision(await update({ folderId: folderId || null }))
   }
   const onTickerChange = async (ticker) => {
-    await update({ ticker: ticker || null })
+    await settleMetadataRevision(await update({ ticker: ticker || null }))
   }
   const onTagsChange = async (tagsCsv) => {
     const tags = tagsCsv.split(',').map((t) => t.trim()).filter(Boolean)
-    await update({ tags })
+    await settleMetadataRevision(await update({ tags }))
   }
 
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
@@ -1436,6 +1857,50 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Only surface a PROBLEM (reconnecting / save failed) — the steady
             "Saved"/"Saving"/"Editing" chatter is dropped so the formatting
             toolbar sits at the far left of the header. */}
+        {/* ⛔ CSS-module classes are hashes, not strings: `styles.saveState`
+            would have compiled to `undefined` and rendered unstyled. Reuse the
+            class the other save states already use. */}
+        {/* Wave Q1 — PERMANENT RULE: SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
+            Shown only while the server does NOT have the work (the healthy
+            path already stays quiet), and only once the durable write has
+            actually COMMITTED — never while it is pending, in flight, or
+            failed. `durable.unsynced` is that commit, not an intention.
+
+            ⛔ AND THE NOUN NARROWS WHEN THE PLATFORM WILL NOT PROMISE RETENTION.
+            "This device" implies the words outlive the browsing session; only a
+            granted `persisted()` supports that. Everywhere else — a private
+            window, a fresh profile, Safari and Firefox as measured — the honest
+            claim is "in this browser", which is true in every environment in the
+            §32 matrix.
+
+            ⛔ THIS IS NOT PRIVATE-MODE DETECTION AND MUST NEVER BECOME IT.
+            `persisted() === false` is equally true of a brand-new ordinary
+            profile; it means only that persistent-storage protection has not
+            been positively granted. No badge, no claim, no behaviour change. */}
+        {/* ⛔ THE BLOCKED CASE WINS, and it is NOT gated on the editor's own
+            save attempt. The queue has retired this note's write from retrying:
+            that is true whether or not a save is in flight right now, and the
+            member's next edit is what changes it. Two lines at once would read
+            as two different states, so this is an either/or, not an also.
+            ⛔ The words come from `unsyncedCopy` — one authority, so the list
+            and the header can never drift apart. */}
+        {noteIsBlocked ? (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {blockedLabel(durable.persisted)}
+          </div>
+        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {unsyncedLabel(durable.persisted)}
+          </div>
+        )}
+        {saveStatus === 'conflict' && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {'Conflict — this note changed elsewhere. Your version was kept as a conflicted copy.'}
+          </div>
+        )}
         {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
             {saveStatus === 'reconnecting' && 'Reconnecting…'}
@@ -1536,7 +2001,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       {pendingDraft && (
         <div className={styles.draftBanner} data-export-exclude role="status">
           <span>
-            Unsaved changes from a previous session were found for this note.
+            {recovery?.ambiguous
+              ? 'Two unsaved copies of this note were found on this device and they cannot be put in order. Restore uses the most recent one.'
+              : 'Unsaved changes from a previous session were found for this note.'}
           </span>
           <div className={styles.draftBannerActions}>
             <button
@@ -1757,6 +2224,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             a note with nothing set renders only a small "+ Add property"
             link, never a permanent header (progressive disclosure). */}
         <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+
+        {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
+            NOTHING when every document's text is complete — the common case
+            gets no chrome. */}
+        <DocumentTextStatus documents={noteDocuments} />
 
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't

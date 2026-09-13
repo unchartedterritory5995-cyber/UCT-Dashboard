@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UCT Intelligence — joystick hub</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --hub: 84px; --knob: 38px; --arc: 150px; --arc2: 96px; --lift: 28px;
+          --bg:#0a0a0c; --bg2:#101115; --line:rgba(255,255,255,.08);
+          --green:#67DB44; --red:#DE3E24; --buy:var(--green); --sell:var(--red);
+          --accent:#67DB44; --scan:#8fd3ff; --flow:#f7c96b; --echo:#ffb36b; --journal:#67DB44; --notebook:#d6a4ff; --breadth:#5dcaa5;
+          --mono:'IBM Plex Mono',ui-monospace,monospace; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; height:100%; font-family:Inter,-apple-system,system-ui,sans-serif; color:#f2f2f0; background:var(--bg); overflow:hidden; }
+
+  .app { position:fixed; inset:0; padding:calc(env(safe-area-inset-top) + 20px) 20px 20px; background:
+      radial-gradient(70% 40% at 85% 0%, rgba(103,219,68,.10) 0%, transparent 70%),
+      radial-gradient(40% 35% at 5% 100%, rgba(222,62,36,.10) 0%, transparent 70%), linear-gradient(var(--bg2),var(--bg)); }
+  .app h1 { font-size:20px; font-weight:600; margin:0; letter-spacing:-.01em; }
+  .brand { display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:14px; font-family:var(--mono); }
+  .brand svg { width:16px; height:16px; }
+  .sub { color:rgba(255,255,255,.5); font-size:12.5px; margin:4px 0 16px; font-family:var(--mono); }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:12px 12px; border-radius:10px; background:rgba(255,255,255,.04); margin-bottom:6px; font-size:14px; border:1px solid var(--line); transition:.15s; }
+  .row > span:last-child { font-family:var(--mono); font-size:13px; }
+  .row.sel { background:rgba(103,219,68,.10); border-color:var(--green); }
+  .row .up { color:var(--buy);} .row .dn { color:var(--sell);}
+  .row small { display:block; font-size:11px; color:rgba(255,255,255,.5); margin-top:2px; }
+  .chart { width:100%; height:120px; margin:6px 0 10px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:10px; }
+  .stat { padding:10px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line); }
+  .stat small { display:block; font-size:10px; color:rgba(255,255,255,.45); font-family:var(--mono); letter-spacing:.06em; }
+  .stat b { font-weight:500; font-size:16px; font-family:var(--mono); }
+  .panel { display:none; } .panel.show { display:block; }
+
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .18s; }
+  body.open .scrim { opacity:1; }
+
+  .glass { background:linear-gradient(rgba(255,255,255,.22),rgba(255,255,255,.06));
+           -webkit-backdrop-filter:blur(18px) saturate(160%); backdrop-filter:blur(18px) saturate(160%);
+           border:1px solid rgba(255,255,255,.32); box-shadow:0 8px 24px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.55); }
+  .pad::before { content:""; position:absolute; inset:5px; border-radius:50%; background:repeating-conic-gradient(rgba(255,255,255,.35) 0 1deg, transparent 1deg 45deg); -webkit-mask:radial-gradient(circle, transparent 66%, #000 67%, #000 74%, transparent 75%); mask:radial-gradient(circle, transparent 66%, #000 67%, #000 74%, transparent 75%); opacity:.7; }
+  .hub { position:fixed; right:22px; bottom:calc(env(safe-area-inset-bottom) + var(--lift)); width:var(--hub); height:var(--hub); touch-action:none; user-select:none; z-index:10; }
+  .pad { position:absolute; inset:0; border-radius:50%; }
+  .pad::after { content:""; position:absolute; inset:14px; border-radius:50%; border:1px solid rgba(255,255,255,.12); }
+  .knob { position:absolute; left:50%; top:50%; width:var(--knob); height:var(--knob); margin:calc(var(--knob)/-2) 0 0 calc(var(--knob)/-2); border-radius:50%;
+          background:linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.35) 55%,rgba(207,214,255,.3));
+          border:1.5px solid rgba(255,255,255,.7); box-shadow:0 6px 14px rgba(0,0,0,.5), inset 0 -4px 8px rgba(0,0,0,.08);
+          transition:transform .28s cubic-bezier(.34,1.56,.64,1); display:grid; place-items:center; }
+  .knob::before { content:""; position:absolute; left:22%; top:12%; width:56%; height:26%; border-radius:50%; background:linear-gradient(rgba(255,255,255,.95),transparent); }
+  .knob i { width:7px; height:7px; border-radius:50%; background:var(--mode,var(--accent)); transition:background .15s, transform .15s; }
+  body.dragging .knob { transition:none; }
+  .knob.pressing i { transform:scale(1.8); }
+
+  /* mode chip sits left of the hub */
+  .chip { position:fixed; right:calc(22px + var(--hub) + 10px); bottom:calc(env(safe-area-inset-bottom) + var(--lift) + var(--hub)/2 - 14px); height:28px; padding:0 12px; border-radius:999px;
+          display:flex; align-items:center; gap:6px; font-size:12px; white-space:nowrap; z-index:10; transition:.2s; }
+  .chip b { font-weight:500; color:var(--mode,var(--accent)); font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+  .chip span { color:rgba(255,255,255,.6); }
+  body.open .chip { opacity:0; }
+
+  .wedge { position:fixed; right:calc(22px + var(--hub)/2); bottom:calc(env(safe-area-inset-bottom) + var(--lift) + var(--hub)/2); width:0; height:0; pointer-events:none; z-index:9; }
+  .wedge::before { content:""; position:absolute; right:0; bottom:0; width:calc(var(--arc) + 40px); height:calc(var(--arc) + 40px); border-radius:100% 0 0 0;
+           background:radial-gradient(circle at 100% 100%, rgba(255,255,255,.05), transparent 70%); border-left:1px solid rgba(255,255,255,.08); border-top:1px solid rgba(255,255,255,.08); opacity:0; transition:opacity .18s; }
+  body.open .wedge::before { opacity:1; }
+  .slice { position:absolute; right:0; bottom:0; width:calc(var(--arc) + 40px); height:calc(var(--arc) + 40px); border-radius:100% 0 0 0; opacity:0; transition:opacity .1s;
+           background:conic-gradient(from 180deg at 100% 100%, transparent var(--a0), var(--c) var(--a0), var(--c) var(--a1), transparent var(--a1)); }
+  .slice.on { opacity:.35; }
+  .item { position:fixed; z-index:11; width:46px; height:46px; margin:-23px; border-radius:50%; display:grid; place-items:center; font-size:10.5px; text-align:center; line-height:1.1;
+          pointer-events:none; opacity:0; transform:translate(var(--hx),var(--hy)) scale(.4); transition:transform .26s cubic-bezier(.34,1.4,.64,1), opacity .18s, background .12s, border-color .12s; }
+  .item.small { width:36px; height:36px; margin:-18px; font-size:9.5px; }
+  body.open .item { opacity:1; transform:translate(0,0) scale(1); }
+  .item.on { transform:scale(1.18); background:color-mix(in srgb, var(--c) 40%, transparent); border-color:var(--c); }
+
+  .sheet { position:fixed; left:16px; right:16px; bottom:calc(env(safe-area-inset-bottom) + 24px); border-radius:18px; padding:16px; transform:translateY(140%); transition:transform .3s cubic-bezier(.2,.8,.2,1); z-index:20; }
+  .sheet.show { transform:none; }
+  .sheet p { margin:0 0 12px; font-size:14px; }
+  .sheet button { font:inherit; font-size:13px; padding:9px 16px; border-radius:999px; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.12); color:#fff; margin-right:8px; }
+  .sheet button.go { border:0; color:#2a1208; background:var(--c); }
+  .toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 16px); transform:translate(-50%,-30px); opacity:0; padding:8px 14px; border-radius:999px; font-size:13px; transition:.25s; z-index:30; }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+  .hint { position:fixed; left:20px; bottom:calc(env(safe-area-inset-bottom) + 12px); font-size:11px; color:rgba(255,255,255,.45); max-width:52%; line-height:1.4; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M12 7l3 5-3 5-3-5z" fill="var(--green)" stroke="none"/></svg>Uncharted Territory</div>
+  <div class="panel show" id="p-home"><h1>UCT Intelligence</h1><div class="sub">Home · tap the knob for the default action, drag to open the hub</div>
+    <div class="row"><span>Morning Wire<small>Market phase: uptrend under pressure · rally day 12</small></span><span class="up">Read</span></div>
+    <div class="row"><span>Open positions<small>3 open · +1.8R today</small></span><span class="up">+$1,240</span></div>
+    <div class="row"><span>Echo<small>7 new catalysts since open</small></span><span>7</span></div></div>
+
+  <div class="panel" id="p-scan"><h1>Scanner</h1><div class="sub" id="scanSub">Finviz-backed · tap = next · double-tap = previous</div><div id="scanList"></div></div>
+
+  <div class="panel" id="p-chart"><h1 id="chartT">NVDA</h1><div class="sub" id="chartTf">Daily</div>
+    <svg class="chart" viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true"><polyline id="line" points="0,100 30,85 55,95 85,60 115,70 145,40 175,50 205,20 235,30 265,10 320,20" fill="none" stroke="#5dcaa5" stroke-width="2"/></svg>
+    <div class="row"><span>Indicators</span><span id="ind">EMA 9/21</span></div></div>
+
+  <div class="panel" id="p-flow"><h1>Options flow</h1><div class="sub" id="flowSub">Showing: all</div>
+    <div class="row"><span>NVDA 190C 9/19<small>sweep · ask</small></span><span class="up">$1.2M</span></div>
+    <div class="row"><span>TSLA 300P 9/12<small>block · bid</small></span><span class="dn">$840K</span></div>
+    <div class="row"><span>AMD 170C 10/17<small>sweep · ask</small></span><span class="up">$620K</span></div></div>
+
+  <div class="panel" id="p-echo"><h1>Echo</h1><div class="sub" id="echoSub">Catalysts: all</div>
+    <div class="row"><span>NVDA<small>Analyst upgrade · Finnhub + FMP confirmed</small></span><span class="up">2m</span></div>
+    <div class="row"><span>SMCI<small>8-K filing · guidance raise</small></span><span class="up">9m</span></div>
+    <div class="row"><span>TSLA<small>FinTwit: @unusual_whales flagged puts</small></span><span class="dn">14m</span></div></div>
+
+  <div class="panel" id="p-journal"><h1>Journal 2.0</h1><div class="sub" id="jSub">Open positions</div>
+    <div class="row"><span>NVDA<small>stop 176.40 · 1.4R</small></span><span class="up">+2.4%</span></div>
+    <div class="row"><span>AMD<small>stop 158.00 · 0.9R</small></span><span class="up">+3.8%</span></div>
+    <div class="row"><span>COIN<small>stop 262.00 · −0.5R</small></span><span class="dn">−2.3%</span></div></div>
+
+  <div class="panel" id="p-breadth"><h1>Breadth monitor</h1><div class="sub" id="brSub">Tap = next metric group</div>
+    <div class="grid"><div class="stat"><small>S5FD</small><b>53.3%</b></div><div class="stat"><small>T2108</small><b>53.5%</b></div><div class="stat"><small>T2107</small><b>49.9%</b></div></div>
+    <div class="row"><span>Market phase<small>rally day 12 · distribution days 4</small></span><span class="dn">Under pressure</span></div>
+    <div class="row"><span>Positioning<small>net long 38% · max size 5%</small></span><span>38%</span></div></div>
+
+  <div class="panel" id="p-cal"><h1>Calendar</h1><div class="sub" id="calSub">This week</div>
+    <div class="row"><span>FOMC<small>Wed 2:00 PM ET</small></span><span class="dn">High</span></div>
+    <div class="row"><span>NVDA earnings<small>Wed after close</small></span><span class="up">Held</span></div>
+    <div class="row"><span>CPI<small>Thu 8:30 AM ET</small></span><span>Med</span></div></div>
+
+  <div class="panel" id="p-notebook"><h1>Notebook</h1><div class="sub" id="nbSub">Today</div>
+    <div class="row"><span>Pre-market plan<small>synced from Obsidian · 6:12 AM</small></span><span>Open</span></div>
+    <div class="row"><span>NVDA thesis<small>edited yesterday</small></span><span>Open</span></div></div>
+</div>
+
+<div class="scrim"></div>
+<div class="wedge" id="wedge"></div>
+<div class="chip glass" id="chip"><b id="chipMode">Home</b><span id="chipHint">tap: scan</span></div>
+<div class="hub" id="hub"><div class="pad glass"></div><div class="knob" id="knob"><i></i></div></div>
+<div class="sheet glass" id="sheet"><p id="sheetText"></p><button class="go" id="sheetGo">Confirm</button><button id="sheetNo">Cancel</button></div>
+<div class="toast glass" id="toast"></div>
+<div class="hint">Drag = menu · tap / double-tap = act in section · hold = home</div>
+
+<script>
+/* ================= data for the demo ================= */
+const STOCKS = [['NVDA','+2.4%',1],['AMD','+3.8%',1],['PLTR','+0.6%',1],['COIN','−2.3%',0],['TSLA','−1.1%',0],['SMCI','+5.1%',1]];
+let scanIdx = 0, tf = ['Daily','4H','1H','15m'], tfIdx = 0, flowFilter = ['all','sweeps only','calls','puts'], flowIdx = 0, echoF = ['all','confirmed','filings','analyst','fintwit'], echoIdx = 0, SCANS = ['RS leaders','Gap ups','Bull gap support','Biotech RS'], scanSet = 0, brG = ['Breadth thrust','Moving-average %','Positioning'], brIdx = 0;
+
+/* ================= modes =================
+   Each mode: color, fan (ring 0 = push hard, ring 1 = push soft),
+   tap / dbl = what a plain tap / double-tap does while in this mode.
+   An item with `mode:` switches the hub into that section. `back:true` returns home. */
+const MODES = {
+  home: { label:'Home', color:'#67DB44', tapHint:'tap: scanner',
+    tap:()=>enter('scan'), dbl:()=>enter('journal'),
+    fan:[ {label:'Scan', mode:'scan', color:'#8fd3ff'}, {label:'Chart', mode:'chart', color:'#9d95ff'},
+          {label:'Flow', mode:'flow', color:'#f7c96b'}, {label:'Echo', mode:'echo', color:'#ffb36b'}, {label:'Breadth', mode:'breadth', color:'#5dcaa5'},
+          {label:'Journal', ring:1, mode:'journal', color:'#67DB44'}, {label:'Notebook', ring:1, mode:'notebook', color:'#d6a4ff'}, {label:'Calendar', ring:1, mode:'cal', color:'#e9e9e9'}, {label:'Wire', ring:1, color:'#67DB44', run:()=>done('Morning Wire opened')} ] },
+
+  breadth: { label:'Breadth', color:'#5dcaa5', tapHint:'tap: next group',
+    tap:()=>{ brIdx=(brIdx+1)%brG.length; brSub.textContent=brG[brIdx]; }, dbl:()=>{ brIdx=(brIdx-1+brG.length)%brG.length; brSub.textContent=brG[brIdx]; },
+    fan:[ {label:'Phase', color:'#5dcaa5', run:()=>done('Market phase detail')}, {label:'Sizing', color:'#5dcaa5', run:()=>done('Sizing rule: 5% max')},
+          {label:'Sectors', color:'#5dcaa5', run:()=>done('Sector rotation')}, {label:'Scan', mode:'scan', color:'#8fd3ff'},
+          {label:'Snapshot', ring:1, color:'#5dcaa5', run:()=>done('Breadth snapshot saved')}, {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  cal: { label:'Calendar', color:'#e9e9e9', tapHint:'tap: next day',
+    tap:()=>done('Next day'), dbl:()=>done('Previous day'),
+    fan:[ {label:'Earnings', color:'#e9e9e9', run:()=>done('Earnings only')}, {label:'Econ', color:'#e9e9e9', run:()=>done('Economic only')},
+          {label:'My names', color:'#67DB44', run:()=>done('Positions with events')}, {label:'Alert', color:'#e9e9e9', run:()=>done('Event alert set')},
+          {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  scan: { label:'Scan', color:'#8fd3ff', tapHint:'tap: next stock',
+    tap:()=>{ scanIdx=(scanIdx+1)%STOCKS.length; renderScan(); },
+    dbl:()=>{ scanIdx=(scanIdx-1+STOCKS.length)%STOCKS.length; renderScan(); },
+    fan:[ {label:'Chart it', mode:'chart', color:'#9d95ff'}, {label:'Watch', color:'#8fd3ff', run:()=>done(STOCKS[scanIdx][0]+' added to UCT20')},
+          {label:'Alert', color:'#8fd3ff', run:()=>done('Alert set on '+STOCKS[scanIdx][0])}, {label:'Plan trade', color:'#67DB44', confirm:()=>'Plan '+STOCKS[scanIdx][0]+' · entry 184.20 · stop 176.40 · 1R = $780'},
+          {label:'Scans', ring:1, color:'#8fd3ff', run:()=>{ scanSet=(scanSet+1)%SCANS.length; chipMode.textContent='Scan · '+SCANS[scanSet]; done('Scan: '+SCANS[scanSet]); }}, {label:'Why?', ring:1, color:'#8fd3ff', run:()=>done('Sonar: why is '+STOCKS[scanIdx][0]+' moving')}, {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  chart: { label:'Chart', color:'#9d95ff', tapHint:'tap: timeframe',
+    tap:()=>{ tfIdx=(tfIdx+1)%tf.length; chartTf.textContent=tf[tfIdx]; },
+    dbl:()=>{ tfIdx=(tfIdx-1+tf.length)%tf.length; chartTf.textContent=tf[tfIdx]; },
+    fan:[ {label:'Draw', color:'#9d95ff', run:()=>done('Drawing tool')}, {label:'Indicator', color:'#9d95ff', run:()=>{ind.textContent='EMA + VWAP'; done('VWAP added');}},
+          {label:'Plan trade', color:'#67DB44', confirm:()=>'Plan '+chartT.textContent+' · entry 184.20 · stop 176.40 · 1R = $780'}, {label:'Alert', color:'#9d95ff', run:()=>done('Alert set')},
+          {label:'Log trade', ring:1, color:'#5dcaa5', run:()=>done('Added to Journal 2.0')}, {label:'Note', ring:1, color:'#d6a4ff', run:()=>done('Note on '+chartT.textContent)}, {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  flow: { label:'Flow', color:'#f7c96b', tapHint:'navigate only',
+    fan:[ {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  echo: { label:'Echo', color:'#f0997b', tapHint:'tap: filter',
+    tap:()=>{ echoIdx=(echoIdx+1)%echoF.length; echoSub.textContent='Catalysts: '+echoF[echoIdx]; },
+    dbl:()=>{ echoIdx=(echoIdx-1+echoF.length)%echoF.length; echoSub.textContent='Catalysts: '+echoF[echoIdx]; },
+    fan:[ {label:'Chart', mode:'chart', color:'#9d95ff'}, {label:'Watch', color:'#8fd3ff', run:()=>done('Added to UCT20')},
+          {label:'Why?', color:'#f0997b', run:()=>done('Sonar research opened')}, {label:'Mute', color:'#f0997b', run:()=>done('Ticker muted')},
+          {label:'Mark read', ring:1, color:'#f0997b', run:()=>done('All read')}, {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  journal: { label:'Journal', color:'#5dcaa5', tapHint:'tap: next position',
+    tap:()=>done('Next position'), dbl:()=>done('Previous position'),
+    fan:[ {label:'Chart', mode:'chart', color:'#9d95ff'}, {label:'Move stop', color:'#5dcaa5', run:()=>done('Stop editor')},
+          {label:'Breakeven', color:'#5dcaa5', run:()=>done('Stop raised to B/E')}, {label:'Sell', color:'#DE3E24', confirm:'Sell NVDA · 100 · market'},
+          {label:'Add trade', ring:1, color:'#5dcaa5', run:()=>done('New trade form')}, {label:'Stats', ring:1, color:'#5dcaa5', run:()=>done('Stats view')}, {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+
+  notebook: { label:'Notebook', color:'#d6a4ff', tapHint:'tap: new note',
+    tap:()=>done('New note'), dbl:()=>done('Search notes'),
+    fan:[ {label:'New note', color:'#d6a4ff', run:()=>done('New note')}, {label:'Voice', color:'#d6a4ff', run:()=>done('Recording…')},
+          {label:'Link ticker', color:'#d6a4ff', run:()=>done('Linked NVDA')}, {label:'Sync', color:'#d6a4ff', run:()=>done('Obsidian synced')},
+          {label:'Home', ring:1, back:true, color:'#67DB44'} ] },
+};
+/* ====================================================== */
+
+const $ = id => document.getElementById(id);
+const hub=$('hub'), knob=$('knob'), wedge=$('wedge'), sheet=$('sheet'), toast=$('toast');
+const css = getComputedStyle(document.documentElement);
+const R=[parseFloat(css.getPropertyValue('--arc')), parseFloat(css.getPropertyValue('--arc2'))];
+const KNOB_MAX=24, OPEN_AT=10, HOLD_MS=500, DBL_MS=280;
+let mode='home', items=[];
+const buzz = p => navigator.vibrate && navigator.vibrate(p);
+
+function renderScan(){ $('scanList').innerHTML = STOCKS.map((s,i)=>`<div class="row${i===scanIdx?' sel':''}"><span>${s[0]}<small>rel vol 2.${i+1}x</small></span><span class="${s[2]?'up':'dn'}">${s[1]}</span></div>`).join('');
+  chartT.textContent = STOCKS[scanIdx][0]; }
+renderScan();
+
+function enter(m){
+  mode=m; const M=MODES[m];
+  document.documentElement.style.setProperty('--mode', M.color);
+  chipMode.textContent=M.label; chipHint.textContent=M.tapHint;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('show', p.id==='p-'+m));
+  buildFan(); buzz([6,30,6]);
+}
+function buildFan(){
+  items.forEach(a=>{a.el.remove(); a.slice&&a.slice.remove();}); items=[];
+  const fan=MODES[mode].fan, outer=fan.filter(a=>!a.ring), inner=fan.filter(a=>a.ring);
+  [[outer,0],[inner,1]].forEach(([list,ring])=>{
+    const n=list.length, step=90/(n-1||1);
+    list.forEach((a,i)=>{
+      a.angle = 90 + (n===1?45:i*step); a.ring=ring;
+      const el=document.createElement('div'); el.className='item glass'+(ring?' small':''); el.textContent=a.label; el.style.setProperty('--c',a.color);
+      const rad=a.angle*Math.PI/180; el.style.setProperty('--hx',-Math.cos(rad)*R[ring]+'px'); el.style.setProperty('--hy',Math.sin(rad)*R[ring]+'px');
+      a.el=el; document.body.appendChild(el);
+      if(!ring){ const s=document.createElement('div'); s.className='slice'; s.style.setProperty('--c',a.color);
+        s.style.setProperty('--a0',(a.angle-step/2-90)+'deg'); s.style.setProperty('--a1',(a.angle+step/2-90)+'deg'); a.slice=s; wedge.appendChild(s); }
+      items.push(a);
+    });
+  });
+  layout();
+}
+function layout(){ const r=hub.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  items.forEach(a=>{ const rad=a.angle*Math.PI/180; a.el.style.left=cx+Math.cos(rad)*R[a.ring]+'px'; a.el.style.top=cy-Math.sin(rad)*R[a.ring]+'px'; }); }
+addEventListener('resize',layout);
+enter('home');
+
+/* ================= gesture engine ================= */
+let origin=null, current=null, open=false, holdT=null, held=false, tapT=null, taps=0;
+hub.addEventListener('pointerdown',e=>{
+  hub.setPointerCapture(e.pointerId); origin={x:e.clientX,y:e.clientY}; held=false; document.body.classList.add('dragging'); knob.classList.add('pressing');
+  holdT=setTimeout(()=>{ if(!open){ held=true; knob.classList.remove('pressing'); if(mode!=='home') enter('home'); else done('Already home'); } }, HOLD_MS);
+});
+hub.addEventListener('pointermove',e=>{
+  if(!origin) return;
+  let dx=e.clientX-origin.x, dy=e.clientY-origin.y; const d=Math.hypot(dx,dy);
+  if(d>KNOB_MAX){dx*=KNOB_MAX/d; dy*=KNOB_MAX/d;}
+  knob.style.transform=`translate(${dx}px,${dy}px)`;
+  if(d>OPEN_AT && !open && !held){ open=true; clearTimeout(holdT); knob.classList.remove('pressing'); document.body.classList.add('open'); layout(); buzz(8); }
+  if(!open) return;
+  const deg=(Math.atan2(-dy,dx)*180/Math.PI+360)%360, ring=d>KNOB_MAX*0.8?0:1, list=items.filter(a=>a.ring===ring);
+  let best=null, bd=999; list.forEach(a=>{const diff=Math.abs(a.angle-deg); if(diff<bd){bd=diff; best=a;}});
+  if(deg<60||deg>210||bd>30) best=null;
+  if(best!==current){ setCurrent(best); buzz(4); }
+});
+hub.addEventListener('pointerup',release); hub.addEventListener('pointercancel',release);
+function setCurrent(a){ if(current){current.el.classList.remove('on'); current.slice&&current.slice.classList.remove('on');} current=a;
+  if(a){a.el.classList.add('on'); a.slice&&a.slice.classList.add('on'); knob.querySelector('i').style.background=a.color;} else knob.querySelector('i').style.background=''; }
+function release(){
+  clearTimeout(holdT); knob.classList.remove('pressing'); document.body.classList.remove('dragging'); knob.style.transform='';
+  const picked=current, wasOpen=open, wasHeld=held; origin=null; open=false; held=false; setCurrent(null); document.body.classList.remove('open');
+  if(wasHeld) return;
+  if(wasOpen){ if(picked) fire(picked); return; }
+  /* tap vs double-tap, resolved after a short window */
+  taps++; clearTimeout(tapT);
+  tapT=setTimeout(()=>{ const M=MODES[mode]; if(taps>=2 && M.dbl) M.dbl(); else if(M.tap) M.tap(); taps=0; buzz(6); }, DBL_MS);
+}
+function fire(a){
+  if(a.back) return enter('home');
+  if(a.mode) return enter(a.mode);
+  if(a.confirm){ const txt=typeof a.confirm==='function'?a.confirm():a.confirm;
+    sheetText.textContent=txt; sheetGo.textContent=a.label==='Close'?'Log exit':'Save plan'; sheet.style.setProperty('--c',a.color); sheet.classList.add('show'); buzz([10,40,10]);
+    sheetGo.onclick=()=>{sheet.classList.remove('show'); done(a.label==='Close'?'Exit logged to Journal':'Planned trade saved to Journal');}; sheetNo.onclick=()=>sheet.classList.remove('show'); return; }
+  if(a.run) return a.run();
+  done(a.label);
+}
+let tt; function done(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>toast.classList.remove('show'),1400); buzz(12); }
+</script>
+</body>
+</html>

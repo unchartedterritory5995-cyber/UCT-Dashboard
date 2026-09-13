@@ -109,6 +109,11 @@ import { legacyInstanceId } from './engine/instances'
 // the twin this whole phase is retiring.
 import { CARVED_OUT_ROWS, unwiredKeys, NOT_IN_BLOB } from './indicatorCatalog'
 
+// The fixture tombstone. A removed MA overlay / volume pane keeps its slot (the
+// merge is POSITIONAL — see `chartDefaults`'s header) and simply stops being
+// listed and drawn.
+import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
+
 export const MA_TYPES = [['SMA', 'Simple'], ['EMA', 'Exponential']]
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
 export const LINE_WIDTHS = [[1, '1px'], [2, '2px'], [3, '3px'], [4, '4px']]
@@ -526,10 +531,40 @@ export function listEngineIndicators(settings, registry) {
  *  toggle inert instead of letting it look live. VOLUME_FIELDS is a shared module
  *  constant, so the flag is applied to a COPY, never mutated in place.
  */
+/**
+ * The settings-row id for the moving average stored at `index`.
+ *
+ * ⭐⭐ IT IS A FUNCTION BECAUSE TWO SURFACES HAVE TO AGREE ON IT, and for a while
+ * they did not. The LEGEND names the same row `ma:<index>` (`LegendRow`'s
+ * `rowId`, its own vocabulary, and the address its hide/remove verbs parse); this
+ * tab names it `overlay-<index>`. Those are allowed to differ — but the gear's
+ * deep link has to CONVERT between them, and it was passing the legend's spelling
+ * straight through.
+ *
+ * ⚰️ MEASURED 2026-09-10: clicking the gear on EMA 9 opened Chart Settings on the
+ * Indicators tab with NOTHING expanded, because `openRowId` was `"ma:0"` and the
+ * only rows on screen were `overlay-0`, `overlay-1`, `overlay-3`, `volume`,
+ * `legacy:rsi`, `legacy:macd`. Volume and RSI worked by coincidence — both
+ * surfaces happen to spell those two identically — which is exactly why the bug
+ * survived a round of verification aimed at RSI.
+ *
+ * ⛔ SO THE STRING IS BUILT HERE, WHERE THE ROWS ARE BUILT, and the translation in
+ * `ChartSettingsModal.indTargetRow` calls this rather than re-typing the prefix.
+ * A rename now cannot land on one side only.
+ */
+export function overlayRowId(index) {
+  return `overlay-${index}`
+}
+
 export function listIndicators(settings, opts = {}) {
   const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
+  // ⛔ INDEX FIRST, FILTER SECOND — and that order is the contract, not a style.
+  // `path.index` addresses the slot in the STORED array, so it has to be the real
+  // index; filtering before mapping would renumber every row after a tombstone
+  // and send the next colour edit to the wrong moving average. (This is the same
+  // trap `indTarget`'s colon-parsing bug was, one file over.)
   const rows = overlays.map((ov, index) => ({
-    id: `overlay-${index}`,
+    id: overlayRowId(index),
     // Label reads as the chart legend does — "EMA 9", "SMA 200".
     label: `${ov?.type || 'SMA'} ${ov?.period ?? ''}`.trim(),
     group: 'Moving averages',
@@ -541,8 +576,11 @@ export function listIndicators(settings, opts = {}) {
     // write `false` — the toggle could never reach `true`. Default it to false.
     values: { ...(ov || {}), onTop: !!(ov && ov.onTop) },
     canToggle: true,
-  }))
-  rows.push({
+  })).filter((row) => !isOverlayRemoved(overlays[row.path.index]))
+  // ⛔ A REMOVED VOLUME PANE GETS NO ROW EITHER, and `removed` is not `visible`:
+  // a hidden pane is still the member's and still listed, a removed one has left
+  // the chart and comes back from the catalogue. See `chartDefaults`.
+  if (!isVolumeRemoved(settings)) rows.push({
     id: 'volume',
     label: 'Volume',
     group: 'Volume',

@@ -113,6 +113,38 @@ export function latchOnDrag(settingsPct, appliedPct, measuredPct) {
   return { from: settings, pct }
 }
 
+/**
+ * The volume pane's height as a whole percentage of the PANE STACK.
+ *
+ * ⛔⛔ THE DENOMINATOR IS THE WHOLE STACK, AND GETTING THAT WRONG WAS A SHIPPED
+ * BUG. `latchOnDrag` compares this against `appliedPct` — a number the LAYOUT
+ * hands out, and `computePaneLayout` spends it across every pane (the
+ * oscillators are carved out of the main pane's share). Measuring the volume
+ * pane against `hMain + hVol` instead therefore answers a DIFFERENT QUESTION the
+ * moment one indicator pane exists, and subtracting the two is meaningless.
+ *
+ * ⚰️ MEASURED ON THE OWNER'S CHART, 2026-09-10 — AAPL 1D, panes `[376, 98, 83,
+ * 92]`: against `hMain + hVol` the volume pane reads **21%**; against the stack,
+ * **15%** — which is what the layout applied. `latchOnDrag` fires at a 2-point
+ * gap, so a SIX-point gap stood permanently, at rest. Every press inside the
+ * chart container then latched 21 as a drag and grew the volume pane, with every
+ * pane below it sliding down to make room. Owner: *"the other indicator panes
+ * move by themselves."*
+ *
+ * `null` when either number is unusable, which `latchOnDrag` already reads as
+ * "no opinion".
+ *
+ * @param {number} volHeightPx  the volume pane's measured height
+ * @param {number} stackHeightPx `paneLayout.paneStackHeightPx(chart)` — every
+ *                               pane plus its separators, the layout's own budget
+ * @returns {number|null}
+ */
+export function volPanePctOfStack(volHeightPx, stackHeightPx) {
+  if (!Number.isFinite(volHeightPx) || !Number.isFinite(stackHeightPx)) return null
+  if (volHeightPx <= 0 || stackHeightPx <= 0 || volHeightPx > stackHeightPx) return null
+  return Math.round((volHeightPx / stackHeightPx) * 100)
+}
+
 /** True when `latch` no longer describes the settings value in force. */
 export function latchIsStale(latch, settingsPct) {
   return !!latch && latch.from !== clampVolPct(settingsPct)

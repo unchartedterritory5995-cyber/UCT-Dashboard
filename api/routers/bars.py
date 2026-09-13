@@ -14,6 +14,7 @@ import orjson
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from api.middleware.auth_middleware import get_current_user, require_admin
+from api.bars_auth import require_bars_access, bars_service_headers
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -210,8 +211,17 @@ def _try_schema_repair() -> bool:
 
 
 @router.get("/api/bars/_debug_source/{ticker}")
-def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int = Query(default=0), focus_date: str = Query(default="")):
-    """Diagnostic — returns which source is providing intraday data + sample bars.
+def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int = Query(default=0),
+                 focus_date: str = Query(default=""),
+                 _admin: dict = Depends(require_admin)):
+    """Diagnostic — returns which source is providing intraday data + sample bars. ADMIN.
+
+    🔴 THIS WAS ANONYMOUS, and it is the sharpest amplifier on the surface: it
+    calls THREE paid providers directly per request (Massive, FMP, yfinance),
+    bypassing every cache, with `src_override` as an UNBOUNDED caller-controlled
+    bar count, and it names the provider stack and echoes upstream error text
+    back to whoever asked. Gated rather than deleted: it is the only thing that
+    answers "which source is actually serving this symbol right now".
 
     src_override: if >0, use this as the bars-to-fetch count instead of default 1000.
     focus_date: if set (YYYY-MM-DD), include all 30-min bars for that ET date and
@@ -287,7 +297,7 @@ def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int =
 
 
 @router.post("/api/bars/warm")
-def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(get_current_user)):
+def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(require_bars_access)):
     """Journal Widgets capture-time warm: fire-and-forget deep-fill of one
     (ticker, tf) so a freshly-captured embed's history lands in the
     forever-store. Auth-gated (it can trigger provider fetches); returns
@@ -339,7 +349,16 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
             timeout=httpx.Timeout(8.0, connect=2.0), follow_redirects=False)
     url = f"{origin}/api/bars/{_quote(ticker)}"
     r = await _bars_proxy_client.get(
-        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm})
+        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm},
+        headers=bars_service_headers())
+    # ⛔⛔ A TIER AUTH REFUSAL IS OURS, NEVER THE MEMBER’S. This caller already
+    # decided the request is entitled; a 401/403 from the tier can only mean
+    # PUSH_SECRET is unset or mismatched there. Raising drops into `get_bars`’
+    # existing fall-back-to-local path, so a misconfigured secret costs a
+    # performance tier and never a chart — which is what makes the two sides safe
+    # to deploy in either order.
+    if r.status_code in (401, 403):
+        raise RuntimeError(f"bars tier refused the service token ({r.status_code})")
     resp = _Response(content=r.content, status_code=r.status_code,
                      media_type=r.headers.get("content-type", "application/json"))
     for _h in ("cache-control", "pragma", "server-timing"):
@@ -384,9 +403,37 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     return (random.random() * 100.0) < pct
 
 
+@router.get("/api/bars-today-pack")
+def get_today_pack(_access: dict = Depends(require_bars_access)):
+    """Today's developing daily bar for the WHOLE market, in one small payload.
+
+    ⚠️ A SIBLING PATH, NOT `/api/bars/today-pack`, AND THAT IS NOT COSMETIC. FastAPI
+    matches in declaration order and `/api/bars/{ticker}` is declared right below —
+    a nested path would be captured as `ticker="today-pack"` and served as a symbol
+    lookup. `/api/bars-history/` already sets this precedent.
+
+    Edge-cacheable: every browser wants the same object, and it changes on a ~20s
+    clock, so Cloudflare absorbs the fan-out and the origin builds it once per
+    window. `no-store` would put 200+ members' polling straight onto the pod.
+    """
+    try:
+        from api.services import todaypack
+        pack = todaypack.build_today_pack()
+    except Exception:
+        _bars_log.exception("[bars] today-pack build failed")
+        pack = {"d": "", "n": 0, "bars": {}}
+    out = JSONResponse(content=pack)
+    # A pack with no open session is EMPTY and cheap; don't cache it long enough to
+    # survive the open (the first post-open request must get real bars).
+    out.headers["Cache-Control"] = ("public, max-age=20, stale-while-revalidate=40"
+                                    if pack.get("bars") else "public, max-age=10")
+    return out
+
+
 @router.get("/api/bars/{ticker}")
 async def get_bars(
     ticker: str,
+    _access: dict = Depends(require_bars_access),
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
@@ -449,6 +496,37 @@ def _augment_daily_with_today(response, ticker: str):
         # Already carries today, or somehow ahead of it → don't touch the tail.
         if isinstance(last_t, str) and last_t >= today_t:
             return response
+        # ── LAYER 2: RE-DATED STALE SNAPSHOT ────────────────────────────────
+        # 🔴 THE DUPLICATE-CANDLE CLASS, CAUGHT WITHOUT A CLOCK. Twice now the
+        # provider's `day` object has held the PRIOR session's OHLC while we stamped
+        # the CURRENT date on it: 2026-09-04 (phantom Saturday bar, byte-for-byte
+        # Friday's) and 2026-09-11 (duplicate of yesterday's candle, seen after
+        # midnight and again pre-market). Both were fixed upstream by tightening WHEN
+        # we ask — first a calendar check, then a clock check. Both fixes were correct
+        # and neither is a GUARANTEE: they encode our belief about when the provider
+        # rolls that object, and that belief has now been wrong twice.
+        #
+        # ⭐ SO ALSO CHECK THE ONLY THING THAT CANNOT LIE — THE VALUES. A developing
+        # bar whose o/h/l/c AND cumulative volume are all identical to the previous
+        # session's is not a new session; it is the previous session wearing a new
+        # date. Refuse it. This is time-agnostic and source-agnostic, so it holds for
+        # the next provider quirk we have not met yet.
+        #
+        # ⚠️ VOLUME IS WHAT MAKES THIS SAFE TO ENFORCE. Intraday volume is a
+        # monotonically rising counter, so a genuine session matching yesterday's OHLC
+        # *and* its exact volume is not a thing that happens; a zero-volume day is
+        # already refused upstream by the `o <= 0` gate. The cost of being wrong is one
+        # symbol's developing candle arriving a tick later — strictly cheaper than
+        # painting a phantom.
+        try:
+            _last = bars[-1]
+            if all(_last.get(k) == today_bar.get(k) for k in ("o", "h", "l", "c", "v")):
+                _bars_log.warning(
+                    "[bars] %s: refused a re-dated stale developing bar — %s carries "
+                    "the same OHLCV as %s", ticker, today_t, last_t)
+                return response
+        except Exception:                                          # noqa: BLE001
+            pass  # a shape surprise must never block a good serve
     payload["bars"] = bars + [today_bar]
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
@@ -897,7 +975,14 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
             timeout=httpx.Timeout(15.0, connect=3.0), follow_redirects=False)
     url = f"{origin}/api/bars-history/{_quote(ticker)}"
     r = await _bars_history_proxy_client.get(
-        url, params={"tf": tf, "bars": bars, "v": v, "d": d})
+        url, params={"tf": tf, "bars": bars, "v": v, "d": d},
+        headers=bars_service_headers())
+    # ⛔⛔ Same rule as the tier proxy above: a 401/403 from the WORKER means the
+    # secret is misconfigured there, so it drops into the caller’s
+    # fall-back-to-local path. The member gets the web’s shallow tail rather than
+    # an error, and deep history returns the moment the secret is right.
+    if r.status_code in (401, 403):
+        raise RuntimeError(f"bars worker refused the service token ({r.status_code})")
     resp = _Response(content=r.content, status_code=r.status_code,
                      media_type=r.headers.get("content-type", "application/json"))
     # Preserve the cache directives so Cloudflare caches the worker's deep response identically.
@@ -910,6 +995,7 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
 @router.get("/api/bars-history/{ticker}")
 async def get_bars_history(
     ticker: str,
+    _access: dict = Depends(require_bars_access),
     tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
     bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
     v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),

@@ -277,6 +277,8 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   return (
     <tr
       className={styles.row}
+      /* Joystick hub carrier (§3.4) — the table surface. Bare position/strategy id. */
+      data-hub-pos={String(position.id)}
       onClick={handleRowClick}
       // Seam: PositionsTable was a bare `<tr onClick>` -- a keyboard/switch-
       // control member could not open ANY position on this paid core
@@ -339,6 +341,10 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
     <div
       className={styles.card}
       data-testid="position-card"
+      /* Joystick hub carrier (§3.4) — the phone card surface. The plan cited the CALL SITE
+         (`:525-527`), which renders `<PhoneCard>`, a component: a data attribute there would
+         land on a React prop, not on a DOM node, so it sits on the card's own root instead. */
+      data-hub-pos={String(position.id)}
       onClick={handleCardClick}
       role="button"
       tabIndex={0}

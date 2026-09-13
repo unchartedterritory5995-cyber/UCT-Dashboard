@@ -67,6 +67,9 @@ _DIRECT_USER_TABLES = (
     "j2_thesis_reviews",
     "j2_note_documents",
     "j2_note_document_pages",
+    # Wave P1 — per-page OCR job state. Carries engine/version lineage about
+    # the member's own scanned documents, so it leaves with the account.
+    "j2_note_document_ocr_pages",
     "j2_note_excerpts",
     "j2_note_excerpt_refs",
     "j2_capture_inbox",

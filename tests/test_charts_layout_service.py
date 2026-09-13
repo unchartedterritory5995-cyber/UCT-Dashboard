@@ -50,3 +50,48 @@ def test_global_scope_still_stored_under_uid_zero():
     row = svc.upsert("global", UUID_USER, "Prebuilt", {"widgets": []}, None, "Admin")
     assert row["user_id"] == 0
     assert [r["name"] for r in svc.list_for_user(UUID_USER)["global"]] == ["Prebuilt"]
+
+
+def test_rename_updates_in_place_without_creating_a_second_row():
+    """The whole reason rename() exists: upsert is keyed on (scope, user_id,
+    name), so 'saving under a new name' creates a SECOND row rather than
+    renaming the first."""
+    row = svc.upsert("user", UUID_USER, "Main", {"widgets": [], "cols": 24}, None, "T")
+    renamed = svc.rename(row["id"], "Day Trading")
+    assert renamed["id"] == row["id"]
+    assert renamed["name"] == "Day Trading"
+    mine = svc.list_for_user(UUID_USER)["mine"]
+    assert [r["name"] for r in mine] == ["Day Trading"]
+
+
+def test_rename_keeps_the_layout_body_intact():
+    row = svc.upsert("user", UUID_USER, "Main", {"widgets": [{"id": "a"}], "cols": 12},
+                     {"A": "SPY"}, "T")
+    renamed = svc.rename(row["id"], "Renamed")
+    assert renamed["layout"] == {"widgets": [{"id": "a"}], "cols": 12}
+    assert renamed["groups"] == {"A": "SPY"}
+
+
+def test_rename_onto_a_name_you_already_use_raises_rather_than_merging():
+    """UNIQUE(scope, user_id, name). The router turns this into a 409 — silently
+    merging two layouts would destroy one of them."""
+    import sqlite3
+    svc.upsert("user", UUID_USER, "Keep", {"widgets": []}, None, "T")
+    other = svc.upsert("user", UUID_USER, "Rename me", {"widgets": []}, None, "T")
+    with pytest.raises(sqlite3.IntegrityError):
+        svc.rename(other["id"], "Keep")
+    assert sorted(r["name"] for r in svc.list_for_user(UUID_USER)["mine"]) == ["Keep", "Rename me"]
+
+
+def test_rename_a_layout_that_is_gone_returns_none():
+    assert svc.rename(999999, "Ghost") is None
+
+
+def test_two_users_may_hold_the_same_layout_name():
+    """The UNIQUE is per (scope, user_id) — a rename must not collide with a
+    DIFFERENT member's layout of that name."""
+    other_user = str(uuid.uuid4())
+    svc.upsert("user", other_user, "Shared Name", {"widgets": []}, None, "T")
+    mine = svc.upsert("user", UUID_USER, "Mine", {"widgets": []}, None, "T")
+    renamed = svc.rename(mine["id"], "Shared Name")
+    assert renamed["name"] == "Shared Name"

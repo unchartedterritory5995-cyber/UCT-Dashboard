@@ -21,6 +21,10 @@ class AlertCreate(BaseModel):
     anchor_p1: Optional[float] = None
     anchor_t2: Optional[int] = None
     anchor_p2: Optional[float] = None
+    # MOB-05 — bind this alert to a chart drawing ("follow this line"). NULL/absent
+    # is a FIXED level: snapshotted at creation and thereafter independent of the
+    # drawing, which is exactly what the seeded price-context alerts are.
+    drawing_id: Optional[str] = None
 
 
 @router.get("/api/watchlist-alerts")
@@ -40,8 +44,45 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
         anchors = (body.anchor_t1, body.anchor_p1, body.anchor_t2, body.anchor_p2)
     return watchlist_alert_service.create_alert(
         user["id"], body.sym, body.target_price, body.direction,
+        alert_type=alert_type, anchors=anchors, drawing_id=body.drawing_id,
+    )
+
+
+class BoundGeometry(BaseModel):
+    """The new shape of a bound line, as the chart measures it."""
+    target_price: float
+    alert_type: str = "trendline"
+    anchor_t1: Optional[int] = None
+    anchor_p1: Optional[float] = None
+    anchor_t2: Optional[int] = None
+    anchor_p2: Optional[float] = None
+
+
+# ⛔ DECLARED BEFORE `/{alert_id}`. FastAPI answers on FIRST MATCH, and
+# `/api/watchlist-alerts/{alert_id}` matches the literal string "bound" as an id —
+# registered the other way round, every bound delete would 404 while looking
+# entirely correct in review. Same trap as the COT live-drill route.
+@router.patch("/api/watchlist-alerts/bound/{drawing_id}")
+def resync_bound(drawing_id: str, body: BoundGeometry, user: dict = Depends(get_current_user)):
+    """Re-point the alerts bound to a drawing after the user moved it."""
+    alert_type = body.alert_type if body.alert_type in ("price", "line", "trendline") else "line"
+    anchors = None
+    if alert_type == "trendline" and None not in (body.anchor_t1, body.anchor_p1, body.anchor_t2, body.anchor_p2):
+        anchors = (body.anchor_t1, body.anchor_p1, body.anchor_t2, body.anchor_p2)
+    n = watchlist_alert_service.resync_bound_alerts(
+        user["id"], drawing_id, target_price=body.target_price,
         alert_type=alert_type, anchors=anchors,
     )
+    # ⛔ 0 IS NOT AN ERROR. The chart pushes on any move of a line it has seen; a
+    # line with no bound alert is the common case, and a 404 there would turn
+    # ordinary drawing into a stream of console noise.
+    return {"ok": True, "updated": n}
+
+
+@router.delete("/api/watchlist-alerts/bound/{drawing_id}")
+def delete_bound(drawing_id: str, user: dict = Depends(get_current_user)):
+    """The drawing is gone — take its still-armed alerts with it."""
+    return {"ok": True, "deleted": watchlist_alert_service.delete_bound_alerts(user["id"], drawing_id)}
 
 
 @router.delete("/api/watchlist-alerts/{alert_id}")

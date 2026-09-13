@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent } from '../../test-utils'
 
 // Stable overview data for all renders.
@@ -59,12 +59,37 @@ vi.mock('../journal-2-0/components/notebook/TickerResearchWorkspace', () => ({
   ),
 }))
 
+// Chart/Technical Intelligence Convergence (2026-09-05): same idiom -- the
+// new tab's own hook resolved so ?section=technical has positive content.
+vi.mock('./hooks/useTechnical', () => ({
+  default: () => ({
+    data: { verdicts: [{ setup: 'bull_flag', tf: 'D', asof_date: '2026-09-04', confirmed: 1, vision_confidence: 82, rationale: 'Clean flag on declining volume.', key_level: 191.5, checks: [{ criterion: 'Prior uptrend visible', passed: true }] }] },
+    isLoading: false,
+  }),
+}))
+
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
-const auth = { user: { role: 'user' }, isPaid: true }
+// researchTechnicalTabEnabled defaults TRUE here so the pre-existing Technical
+// assertions below keep exercising the released shape; the two tests at the
+// bottom flip it off and restore it.
+const auth = { user: { role: 'user' }, isPaid: true, researchTechnicalTabEnabled: true }
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
 }))
+
+// S7 filing-watch — controlled mock so the header action's tests are
+// deterministic rather than depending on an unmocked real fetch.
+const filingWatchMock = vi.hoisted(() => ({
+  // The S7 gate lives in useFilingWatch itself, so a mock of that hook must
+  // say whether the feature exists. These tests are about behaviour, so on.
+  enabled: true,
+  watchState: vi.fn(() => 'NOT_WATCHING'),
+  getWatch: vi.fn(() => null),
+  createOrReactivate: vi.fn(),
+  suspend: vi.fn(),
+}))
+vi.mock('../../hooks/useFilingWatch', () => ({ default: () => filingWatchMock }))
 
 import ResearchPage from './ResearchPage'
 
@@ -161,6 +186,53 @@ describe('ResearchPage', () => {
     expect(screen.getByRole('button', { name: 'News' })).toBeInTheDocument()
   })
 
+  it('honours ?section=technical — lands on the new Technical tab', () => {
+    // Chart/Technical Intelligence Convergence Phase B (2026-09-05): a new
+    // tab, deterministic-only, backed by the existing confirmed-only
+    // /api/patterns/{sym} endpoint (never the raw scanner firehose).
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=technical' })
+    expect(screen.getByText('Bull Flag')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('hides the Technical tab when the flag is off', () => {
+    // RESEARCH_TECHNICAL_TAB_ENABLED ships DARK. With it off the tab must be
+    // absent from the strip entirely -- not present-but-empty, which would
+    // advertise a surface nobody decided to release.
+    auth.researchTechnicalTabEnabled = false
+    try {
+      renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+      expect(screen.queryByRole('button', { name: 'Technical' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument()
+    } finally {
+      auth.researchTechnicalTabEnabled = true
+    }
+  })
+
+  it('falls through to Overview for ?section=technical when the flag is off', () => {
+    // The deep link must not select a tab the strip never offered: that renders
+    // an empty content area under a strip with no Technical button -- the orphan
+    // state, which reads as a broken page rather than an unreleased feature.
+    auth.researchTechnicalTabEnabled = false
+    try {
+      renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=technical' })
+      expect(screen.queryByRole('button', { name: 'Technical' })).not.toBeInTheDocument()
+      // Same signals the flag-on test above uses, inverted: Overview's content
+      // is rendered and the Technical tab's is not.
+      expect(screen.queryByText('Bull Flag')).not.toBeInTheDocument()
+      expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+    } finally {
+      auth.researchTechnicalTabEnabled = true
+    }
+  })
+
+  it('renders the "Technical" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Technical' })).toBeInTheDocument()
+  })
+
   it('honours ?section=ai — lands on the new Ask AI tab', () => {
     // AI-Native Research Assistant Slice 1 (2026-09-04): the one contextual
     // AI door inside the existing research experience.
@@ -202,5 +274,46 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?from=garbage' })
     expect(screen.queryByText(/Back to/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('S7 filing-watch header action (Stage 4, D7 — visible regardless of active tab)', () => {
+  beforeEach(() => {
+    auth.isPaid = true
+    filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.enabled = true   // an OFF test must not leak forward
+    filingWatchMock.getWatch.mockReset().mockReturnValue(null)
+    filingWatchMock.createOrReactivate.mockReset()
+    filingWatchMock.suspend.mockReset()
+  })
+
+  it('renders on Overview and creates a watch for the security on click', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    const btn = screen.getByRole('button', { name: /Notify me about new SEC filings for AAPL/ })
+    fireEvent.click(btn)
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
+  })
+
+  it('is still present after switching to a non-Overview tab (does not live inside a tab body)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Filings' }))
+    expect(screen.getByRole('button', { name: /Notify me about new SEC filings for AAPL/ })).toBeInTheDocument()
+  })
+
+  it('ACTIVE: renders "Watching SEC filings" and suspends on click', () => {
+    filingWatchMock.watchState.mockReturnValue('ACTIVE')
+    filingWatchMock.getWatch.mockReturnValue({ id: 'p1' })
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    const btn = screen.getByRole('button', { name: /Watching SEC filings/ })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
+    expect(filingWatchMock.suspend).toHaveBeenCalledWith('p1', 'AAPL')
+  })
+
+  it('SUSPENDED: reactivates via the same create call', () => {
+    filingWatchMock.watchState.mockReturnValue('SUSPENDED')
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: /Filing watch suspended/ }))
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
   })
 })

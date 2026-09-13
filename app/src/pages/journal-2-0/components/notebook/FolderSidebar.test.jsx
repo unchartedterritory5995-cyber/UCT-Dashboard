@@ -1359,3 +1359,57 @@ describe('⛔⛔ clicking a search hit goes to the OBJECT it named (Wave M §4/�
     expect(target.page).toBeUndefined()
   })
 })
+
+// ⛔ WAVE P2 §21 — the member has to be able to tell that a figure in this hit
+// was READ OFF AN IMAGE. Both directions, because a label on every row says
+// nothing and a label on a native page is a false warning.
+describe('search panel — scanned-text provenance on a document hit', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  function searchWith(row) {
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 12, noteId: 'n1', noteTitle: 'NVDA notes',
+        name: 'filing.pdf', attachmentUrl: '/x.pdf',
+        snippet: 'gross <mark>margin</mark> expanded', ...row,
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margin' } })
+    settle()
+  }
+
+  it('marks a hit whose text was read from a scan', () => {
+    searchWith({ textOrigin: 'ocr' })
+    expect(screen.getByText('Scanned text')).toBeInTheDocument()
+    expect(screen.getByTitle(/check exact figures/i)).toBeInTheDocument()
+  })
+
+  it('leaves a natively extracted hit unmarked', () => {
+    searchWith({ textOrigin: 'native' })
+    expect(screen.queryByText('Scanned text')).not.toBeInTheDocument()
+  })
+
+  it('leaves an older payload with no provenance unmarked', () => {
+    // ⛔ ABSENCE IS NOT EVIDENCE — a cached bundle mid-deploy must not start
+    // calling every document scanned.
+    searchWith({})
+    expect(screen.queryByText('Scanned text')).not.toBeInTheDocument()
+  })
+
+  it('still identifies the hit as the DOCUMENT at its page, not as OCR', () => {
+    // §20: provenance rides along; it never becomes the identity.
+    searchWith({ textOrigin: 'ocr' })
+    expect(screen.getByText(/filing\.pdf · p\.12/)).toBeInTheDocument()
+    expect(screen.getByText('margin').tagName).toBe('MARK')
+  })
+})

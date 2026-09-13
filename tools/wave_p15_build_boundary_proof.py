@@ -155,12 +155,21 @@ def main() -> int:
           "carriers: %s" % carriers)
 
     # ── E · start-up semantics are not forked ───────────────────────────────
-    same = web_cfg["deploy"] == shared_cfg["deploy"]
-    live_same = (w.get("startCommand") or "") == web_cfg["deploy"]["startCommand"]
-    check("E the start command has one authority",
-          OK if same else BAD,
-          "repo deploy blocks equal=%s | live web startCommand matches repo=%s"
-          % (same, live_same))
+    #
+    # ⚰️ THE FIRST CANARY DIED BECAUSE A RAILWAY START COMMAND WAS INTERPOSED
+    # between the image and the server. The contract now is that the image's CMD
+    # is the ONLY start authority, so this checks three things at once: the web
+    # config supplies no command, everything else about the deploy block still
+    # matches the shared file, and the PLATFORM agrees that nothing was applied.
+    no_repo_command = "startCommand" not in web_cfg["deploy"]
+    rest_same = web_cfg["deploy"] == {k: v for k, v in shared_cfg["deploy"].items()
+                                      if k != "startCommand"}
+    live_command = w.get("startCommand") or ""
+    check("E the image CMD is the only start authority",
+          OK if (no_repo_command and rest_same and not live_command) else BAD,
+          "web config supplies no startCommand=%s | rest of deploy block "
+          "identical=%s | live manifest startCommand=%r"
+          % (no_repo_command, rest_same, live_command))
 
     # ── F · OCR is dark, read live, never inferred from a default ───────────
     if args.skip_vars:

@@ -286,6 +286,26 @@ function orderedPaneKeys(instances, excluded) {
     let tombstone = false
     try { tombstone = isInstanceTombstone(inst) } catch { /* booby-trapped getter */ }
     if (tombstone) continue
+    // 🔴 A HIDDEN INSTANCE GETS NO PANE, AND SKIPPING IT HERE IS A BUG FIX.
+    //
+    // ⚰️ MEASURED BY THE OWNER: RSI and MACD each had their own pane; hiding RSI
+    // made its pane vanish (correct — nothing draws in it) and SHOWING IT AGAIN
+    // put RSI into MACD's pane. The two indicators shared one band from then on.
+    //
+    // The cause was this list disagreeing with `binder.js`, which opens its
+    // compute loop with the identical `if (inst.hidden === true) continue`. So
+    // the layout reserved index 1 for a hidden RSI and gave MACD index 2, while
+    // the binder created a series for MACD only — and lightweight-charts does not
+    // keep an empty pane, so MACD actually rendered at 1. Every later index was
+    // one out, and when RSI came back at "1" it landed on top of MACD.
+    //
+    // ⛔ THE FIX IS TO AGREE WITH THE BINDER, NOT TO RESERVE HARDER. Pane indices
+    // are over what is DRAWN; the binder already relocates a series whose index
+    // moved (`b.from.paneIndex !== paneIndex` → `moveToPane`), so un-hiding RSI
+    // re-solves to RSI=1, MACD=2 and MACD slides down to make room. Reserving an
+    // empty pane instead would mean maintaining a fiction the library refuses to
+    // hold, in a second place.
+    if (inst.hidden === true) continue
     const id = inst.defId
     if (typeof id !== 'string' || !paneIds.has(id)) continue
     if (excluded.has(id) || seen.has(id)) continue

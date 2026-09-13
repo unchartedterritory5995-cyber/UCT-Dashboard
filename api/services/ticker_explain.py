@@ -1009,6 +1009,13 @@ def _fetch_earnings(sym: str) -> list[dict]:
 #: would be silently discarded by the rebind, with the domain simply never
 #: fetching. ⭐ The cycle avoidance is real but it is done by the LOCAL imports
 #: inside each ``_fetch_*``, not by any placeholder.
+#:
+#: ⛔ THE RAIL IS ``tests/test_no_shadowed_definitions.py`` — an AST sweep for a
+#: top-level name bound twice, whole-repo. (Merge 2026-09-13: master had deleted
+#: the same binding independently and written its own note. The CODE below was
+#: byte-identical on both sides; two comments explaining one deletion would be
+#: the very second-authority defect the deletion fixed, so master's note is not
+#: kept beside this one — only the rail's name it carried, here.)
 _DOMAIN_FETCHERS = {
     "news": _fetch_news,
     "analyst": _fetch_analyst,

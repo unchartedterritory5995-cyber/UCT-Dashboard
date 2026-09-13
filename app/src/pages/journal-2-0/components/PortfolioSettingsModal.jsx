@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useId } from 'react'
 import styles from './PortfolioSettingsModal.module.css'
 import NoTradeWindowsEditor from './NoTradeWindowsEditor'
 import UIcon from '../../../components/ui/UIcon'
+import { uid } from '../../../utils/uid'
 
 const STOP_MODES = [
   {
@@ -208,7 +209,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       if (existing.length >= MAX_SETUP_RULES) return prev
       return {
         ...prev,
-        [setupName]: [...existing, { id: crypto.randomUUID(), label }],
+        [setupName]: [...existing, { id: uid(), label }],
       }
     })
     setNewRuleLabel('')

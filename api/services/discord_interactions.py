@@ -30,6 +30,25 @@ DISCORD_API = "https://discord.com/api/v10"
 EPHEMERAL = 64  # message flag: only the invoking user sees it
 _TICKER_RE = re.compile(r"^[A-Z0-9.^-]{1,12}$")
 
+# Why the most recent `edit_original` on THIS thread failed: {"status", "code", "detail"}.
+# `edit_original` keeps returning False (callers and tests depend on that); the
+# Discord render V2 runtime reads this to tell a dead interaction token (10015)
+# from a refused payload (50035) from a transport failure, which a bare False hides.
+LAST_EDIT = threading.local()
+
+
+def _record_edit_failure(status, body) -> None:
+    code = None
+    try:
+        code = json.loads(body).get("code") if body else None
+    except Exception:  # noqa: BLE001
+        code = None
+    LAST_EDIT.failure = {"status": status, "code": code, "detail": str(body or "")[:200]}
+
+
+def last_edit_failure() -> dict | None:
+    return getattr(LAST_EDIT, "failure", None)
+
 def render_slot_count(default: int = 4) -> int:
     """Concurrent renders the API will run (env DISCORD_CHART_MAX_CONCURRENT).
     Each slot is a threadpool thread waiting on the renderer for a few seconds;
@@ -801,7 +820,13 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
         row5.append(collapse)
         rows.append({"type": 1, "components": row5})
     else:
-        rows.append({"type": 1, "components": row5[:5]})
+        # ⛔ CHUNK, NEVER TRUNCATE. Dark Pools (a1ee351ec) made this row five buttons, so in an
+        # activity guild "Open in Discord" became a sixth and `row5[:5]` dropped it silently --
+        # the exact failure the note above describes for the collapse control. Railed by
+        # test_the_collapse_control_survives_a_full_toggle_row. Inert in production today
+        # (DISCORD_ACTIVITY_GUILDS=off), which is how it went unnoticed.
+        for i in range(0, len(row5), 5):
+            rows.append({"type": 1, "components": row5[i:i + 5]})
         rows.append({"type": 1, "components": [collapse]})
     rows.append({"type": 1, "components": [opts_sel]})
     return rows
@@ -1029,10 +1054,25 @@ def build_launch_command() -> dict:
             "default_member_permissions": "8"}
 
 
-def build_commands(activity: bool = False) -> list:
+RENDERHEALTH_COMMAND = "renderhealth"
+
+
+def build_renderhealth_command() -> dict:
+    """Admin-only Discord render V2 health (docs/discord-render, OI-09). NOT in the default
+    set: registering it changes the command list in every server, so it is registered at
+    flip time (`tools/discord_chart_commands.py register --renderhealth`). The handler checks
+    the admin bit again, because `default_member_permissions` is a default a server can
+    override per role."""
+    return {"name": RENDERHEALTH_COMMAND, "type": 1,
+            "description": "Chart and flow render health (admins)",
+            "default_member_permissions": "8"}
+
+
+def build_commands(activity: bool = False, renderhealth: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
-    are enabled on the app)."""
+    are enabled on the app); `renderhealth=True` adds the admin-only render
+    health command (V2 flip time)."""
     # `/charts` is retired: `/chart NVDA AMD AVGO` is the same thing through one
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
@@ -1040,6 +1080,8 @@ def build_commands(activity: bool = False) -> list:
             build_settings_command(), build_buzz_command(), build_flow_command()]
     if activity:
         cmds.append(build_launch_command())
+    if renderhealth:
+        cmds.append(build_renderhealth_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]
 
 
@@ -1112,6 +1154,7 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
                 c.close()
         if not r.is_success:
             log.warning("[discord-chart] edit_original HTTP %s: %s", r.status_code, r.text[:200])
+            _record_edit_failure(r.status_code, r.text)
             return False
         try:
             return r.json() or True
@@ -1119,6 +1162,7 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
             return True
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[discord-chart] edit_original failed: %s", e)
+        _record_edit_failure(None, type(e).__name__)
         return False
 
 
@@ -1268,7 +1312,7 @@ MULTI_SLOT_WAIT_S = 25.0         # how long one chart of a /charts set waits for
 
 
 def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render_fn, edit_fn,
-                        house_fn=None, quote_fn=None, components_fn=None) -> str:
+                        house_fn=None, quote_fn=None, components_fn=None, fail_fn=None) -> str:
     """/charts A B C: one message, one attachment per symbol, in the order
     asked. `items` = [(ChartRequest, prefs), ...] (prefs per chart: a breadth
     symbol has its own). A symbol that fails is named, never silently dropped.
@@ -1324,13 +1368,17 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
                 _warm_bars(it)
             # ex.map keeps the order asked, which the reply and the attachment
             # list both depend on.
+            from api.services.discord_render import ids as render_ids   # the renders keep the job's id
             with ThreadPoolExecutor(max_workers=min(len(items), MULTI_MAX)) as ex:
-                results = list(ex.map(_one, items))
+                results = list(ex.map(render_ids.carry(_one), items))
         label = TF_LABEL[items[0][0].tf]
         oks = [(png, fn) for _, o, png, fn in results if o in DELIVERED]
         why = {"busy": "busy, try again", "no_bars": "no bars", "render_failed": "failed"}
         skipped = [f"{req.ticker} ({why.get(o, o)})" for req, o, _, _ in results if o not in DELIVERED]
         if not oks:
+            if fail_fn is not None:
+                fail_fn("no_bars", ", ".join(skipped))
+                return "no_bars"
             edit_fn(app_id, token, content="No charts: " + ", ".join(skipped) + ". Unknown tickers, or the feed is still catching up.")
             return "no_bars"
         content = " · ".join((req.display or req.ticker) for req, o, _, _ in results if o in DELIVERED) + f" · {label}"
@@ -1342,7 +1390,10 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
     except Exception:  # noqa: BLE001
         log.exception("[discord-chart] multi job failed")
         try:
-            edit_fn(app_id, token, content="Charts failed, try again.")
+            if fail_fn is not None:
+                fail_fn("internal", "multi job crashed")
+            else:
+                edit_fn(app_id, token, content="Charts failed, try again.")
         except Exception:  # noqa: BLE001
             pass
         return "error"
@@ -1482,6 +1533,17 @@ _WARM_CURSOR_LOCK = threading.Lock()
 
 def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6,
                     deadline_s: float | None = None) -> list:
+    """The warm cycle, with every render it makes marked `X-Render-Priority: background` so a
+    pooled chart-renderer yields to members (docs/discord-render/03-architecture.md §3.7).
+    What the cycle does is `_warm_hot_charts`."""
+    from api.services.discord_render import ids as render_ids
+    with render_ids.background():
+        return _warm_hot_charts(bars_fn=bars_fn, render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
+                                limit=limit, deadline_s=deadline_s)
+
+
+def _warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6,
+                     deadline_s: float | None = None) -> list:
     """Re-render the charts members keep asking for, just before their cache
     entry goes stale, so the next member gets a hit instead of a 2.4 s render.
 
@@ -1707,7 +1769,8 @@ def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
-                  house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None) -> str:
+                  house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None,
+                  fail_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -1827,6 +1890,11 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
                      req.ticker, req.tf, outcome)
             _context_follow_up(None)
             return "ok"
+        elif fail_fn is not None:
+            # The V2 runtime: one contract message, with the class and an id, instead
+            # of a per-site sentence.
+            fail_fn({"busy": "queue_full", "no_bars": "no_bars"}.get(outcome, "internal"),
+                    f"{req.ticker} {req.tf} {outcome}")
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":
@@ -1837,4 +1905,12 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         return outcome
     except Exception:  # noqa: BLE001
         log.exception("[discord-chart] job crashed %s %s", req.ticker, req.tf)
+        # ⛔ Pre-V2 this path edited NOTHING: the member sat on "thinking…" until the
+        # token died. The V2 runtime would still catch it (a job that ends without a
+        # delivery is messaged), but saying so here keeps the class precise.
+        if fail_fn is not None:
+            try:
+                fail_fn("internal", "job crashed")
+            except Exception:  # noqa: BLE001
+                pass
         return "error"

@@ -694,7 +694,26 @@ def get_detections(
         from api.services.pattern_vision import store as pv_store
         pv_store.init_db()
         verdicts = pv_store.get_confirmed(sym, tf)
-        return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts, "count": len(verdicts)}
+        # `min_conf` was accepted and silently ignored on this branch: a caller
+        # asking for >=90 got every confirmed verdict, including 60s. The
+        # analogous field here is the JUDGE's confidence, not the rule engine's.
+        # ⚠️ At the default this filter is a no-op BY CONSTRUCTION and must stay
+        # that way: a verdict is only stored confirmed when its vision
+        # confidence already cleared PATTERN_VISION_MIN_CONFIDENCE (60), which
+        # is above this parameter's default of 50. So the default response is
+        # byte-identical to before, and only a caller who explicitly asks for a
+        # higher bar sees a difference.
+        verdicts = [v for v in verdicts
+                    if float(v.get("vision_confidence") or 0.0) >= min_conf]
+        # Seam 24: how many setups were EVALUATED in the same window, confirmed
+        # and rejected alike. A member seeing an empty tab cannot otherwise tell
+        # "we looked and nothing qualified" from "nothing was ever looked at" --
+        # and about 80% of judged tickers showed that empty state on 2026-09-10.
+        # ⛔ THE COUNT ONLY. Rejection rationales stay admin-only; nothing here
+        # exposes what the judge said about a setup it turned down.
+        return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts,
+                "count": len(verdicts),
+                "evaluated": pv_store.count_evaluated(sym, tf)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
     rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)
     return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
@@ -755,10 +774,53 @@ def patterns_judge(sym: str, tf: str = "D", user=Depends(require_admin)):
     """Admin: run the Opus-vision judge for a symbol in the background."""
     import threading
     from api.services.pattern_vision import orchestrator as pv_orch
-    threading.Thread(
-        target=lambda: pv_orch.judge_ticker(sym, tf, force=True),
-        daemon=True, name=f"pv-judge-{sym}",
-    ).start()
+
+    def _manual():
+        # This path calls judge_ticker DIRECTLY and never touches the cron's
+        # _run(), so without this it would write no slot row and a manual
+        # re-judge would be invisible to the slot log -- the same blind spot
+        # that made the Session #2 contamination check incomplete. Recording
+        # it with source="manual" makes vision_slot_log the complete record of
+        # every judge invocation, cron or manual.
+        import time as _t
+        import datetime as _dt
+        from zoneinfo import ZoneInfo
+        from api.services.pattern_vision import store as pv_store
+        started = _t.time()
+        cur, err, r = sym, None, {}
+        try:
+            r = pv_orch.judge_ticker(sym, tf, force=True) or {}
+            cur = None
+        except Exception as e:
+            err = e
+            print(f"[pv] manual judge {sym} failed: {e}")
+        finally:
+            try:
+                fin = _t.time()
+                uniq = sorted({a for a in (r.get("asof_dates") or []) if a})
+                paid, spend = pv_store.slot_spend(int(started), int(fin) + 1)
+                pv_store.log_slot({
+                    "slot_start": _dt.datetime.now(
+                        ZoneInfo("America/New_York")).isoformat(),
+                    "source": "manual",
+                    "started_ts": int(started), "finished_ts": int(fin),
+                    "duration_s": round(fin - started, 2),
+                    "evidence_min": uniq[0] if uniq else None,
+                    "evidence_max": uniq[-1] if uniq else None,
+                    "evidence_distinct": len(uniq),
+                    "active_set_n": 1, "judged": r.get("judged", 0),
+                    "skipped": r.get("skipped", 0),
+                    "capped": 1 if r.get("cost_capped") else 0,
+                    "render_failed": r.get("render_failed", 0),
+                    "errored": r.get("errored", 0),
+                    "aborted": 1 if err is not None else 0,
+                    "abort_ticker": cur if err is not None else None,
+                    "paid_calls": paid, "spend_usd": spend,
+                }, r.get("problems") or [])
+            except Exception as le:
+                print(f"[pv] manual slot-log failed: {le}")
+
+    threading.Thread(target=_manual, daemon=True, name=f"pv-judge-{sym}").start()
     return {"started": True}
 
 

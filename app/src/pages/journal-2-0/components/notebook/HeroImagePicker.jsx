@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import styles from './HeroImagePicker.module.css'
 
 export default function HeroImagePicker({ noteId, value, onChange }) {
@@ -30,6 +31,9 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
         throw new Error(body.detail || `${res.status}`)
       }
       const body = await res.json()
+      // ⛔ THIS ROUTE ADVANCED THE NOTE'S REVISION. Record it before anything
+      // else, or the drain forks the member's note over our own write.
+      await settleNoteWrite(noteId, body.note)
       onChange(body.heroImageUrl)
     } catch (e) {
       console.error('[notebook] hero upload failed', e)
@@ -46,6 +50,9 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
         method: 'DELETE', credentials: 'include',
       })
       if (!res.ok) throw new Error(`${res.status}`)
+      // ⛔ REMOVE ADVANCES THE REVISION TOO — it is an update_note, not a delete
+      // of the note. Same door, same requirement.
+      await settleNoteWrite(noteId, res)
       onChange(null)
     } catch (e) {
       console.error('[notebook] hero remove failed', e)
@@ -140,10 +147,21 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
               : 'Click, drag an image here, or focus + paste'}
         </button>
       )}
+      {/* ⛔⛔ THE CANARY CANNOT FIND THIS INPUT WITHOUT A STABLE HOOK, and for
+          the whole of Wave Q1 it did not. The note editor renders THREE file
+          inputs, and `NoteEditorPage`'s hidden inline-image input carries the
+          BYTE-IDENTICAL accept list — so `input[type=file][accept*=image]`
+          matched that one first, posted to `/images`, and the hero door was
+          never driven at all. The rig then reported its own mis-selection as a
+          product defect (`heroImageUrl = null` after a drain).
+          ⭐ `hero` is the door that shipped unsettled BECAUSE no canary could
+          reach it. `data-uct-hero-input` is what makes it reachable, and
+          `HeroImagePicker.settle.test.jsx` asserts it is still here. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/png,image/jpeg,image/gif,image/webp"
+        data-uct-hero-input=""
         style={{ display: 'none' }}
         onChange={(e) => upload(e.target.files?.[0])}
       />

@@ -69,6 +69,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({
 }))
 
 import NotebookTab from './NotebookTab'
+import * as settleModule from '../lib/offline/settleNoteWrite'
 
 let lastPostBody = null
 
@@ -481,5 +482,52 @@ describe('NotebookTab — Wave 0 trash view', () => {
       .filter(([opts]) => opts?.sort !== 'title')
       .at(-1)
     expect(lastMainCall[0]).toEqual(expect.objectContaining({ deleted: true, sort: 'deleted' }))
+  })
+})
+
+/**
+ * ⛔⛔ RESTORING FROM TRASH IS A DOOR.
+ *
+ * `restore_note` advances the note's `updated_at`. And a note coming back out
+ * of the trash is EXACTLY the note a member is likely to have unsent offline
+ * work queued against — they deleted it, changed their mind, and the queue
+ * still holds what they wrote. Unlanded, the restore reads to the drain as a
+ * stranger's write and forks the member's own recovery.
+ *
+ * ⭐ This rail owns "the tab settles the restore it just made, for this note".
+ * That the settle lands the right revision is owned in
+ * `lib/offline/doorFamilies.settle.test.jsx`.
+ */
+describe('⛔ restoring from trash lands the note revision', () => {
+  const trashedNote = { id: 'trashed1', title: 'Old Setup Notes' }
+
+  const goToTrashWith = (restoreResponse) => {
+    useJ2NotesMock.mockImplementation((opts) => (opts?.sort === 'title'
+      ? { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      : { notes: [trashedNote], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 1, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }))
+    global.fetch = vi.fn((url) => (String(url).includes('/restore')
+      ? Promise.resolve(restoreResponse)
+      : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+  }
+
+  it('the restore is settled, for THIS note', async () => {
+    const spy = vi.spyOn(settleModule, 'settleNoteWrite').mockResolvedValue('T2')
+    goToTrashWith({ ok: true, json: () => Promise.resolve({ note: { ...trashedNote, updatedAt: 'T2' } }) })
+
+    await waitFor(() => expect(spy, '⛔ the restore door did not land its revision').toHaveBeenCalled())
+    expect(spy.mock.calls[0][0]).toBe('trashed1')
+    spy.mockRestore()
+  })
+
+  it('⛔ CONTROL — a REFUSED restore settles nothing', async () => {
+    const spy = vi.spyOn(settleModule, 'settleNoteWrite').mockResolvedValue('T2')
+    goToTrashWith({ ok: false, status: 404, json: () => Promise.resolve({}) })
+
+    await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/restore'))).toBe(true))
+    expect(spy, 'a restore that failed has no revision to land').not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })

@@ -29,6 +29,7 @@ import { mondayOf, currentWeekMonday, localIso } from './calendar/weekAnchor'
 import { DEFAULT_FILTERS, applyFilters } from './calendar/filterLogic'
 import { tierWeek, FEATURED_CAP } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
+import useCalendarHubSection, { toggleEventType } from '../hub/sections/calendarSection'
 import FeedView from './calendar/FeedView'
 import WireView from './calendar/WireView'
 import TodaysBrief from './calendar/TodaysBrief'
@@ -615,6 +616,29 @@ export default function Calendar() {
     }, { replace: true })
     requestAnimationFrame(() => scrollToDay(ds))
   }, [view, setView, scrollToDay, setSearchParams])
+
+  // ── The joystick hub's Calendar controller (§C3, R-C) ─────────────────────
+  // Mounted HERE, after `onDayTab`, because that is the verb it drives: the hub's tap, double-tap
+  // and day scrub all resolve through the page's own "take me to that day" rather than moving a
+  // private cursor. Everything it needs is already computed above — it derives nothing about the
+  // calendar itself, which is what keeps the hub from becoming a second opinion on which week is
+  // showing or what a day is called.
+  const macroOn = eventTypes.has('macro')
+  // ⛔ A LATEST-STATE REF, not a dependency list — the same idiom `kbdBlockedRef` above uses, for
+  // the same reason. `setEventTypes` is re-created on EVERY render (`:192` is a bare arrow, not a
+  // useCallback), so depending on it would rebuild this callback every render, which rebuilds the
+  // section config, which re-registers the hub mode on every render of a page that re-renders on
+  // every live-price tick. The ref keeps the callback identity stable while it still reads live
+  // state at call time.
+  const macroRef = useRef(null)
+  macroRef.current = { eventTypes, setEventTypes }
+  const onToggleMacro = useCallback(() => {
+    const cur = macroRef.current
+    cur?.setEventTypes?.(toggleEventType(cur.eventTypes, 'macro'))
+  }, [])
+  useCalendarHubSection({
+    weekDates, days, activeDay: dParam, onDayTab, macroOn, onToggleMacro,
+  })
 
   // ── Search jump: sym in this week → scroll+pulse; else page to its week ────
   const onSearchJump = useCallback((sym, dateIso) => {

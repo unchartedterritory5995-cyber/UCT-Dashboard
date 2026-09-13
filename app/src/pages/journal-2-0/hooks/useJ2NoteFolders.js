@@ -1,5 +1,6 @@
 /** Notebook folders SWR hook. */
 import useSWR from 'swr'
+import { settleNoteWrites } from '../lib/offline/settleNoteWrite'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -44,6 +45,14 @@ export default function useJ2NoteFolders() {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.detail || `${res.status}`)
     }
+    // ⛔⛔ `delete_folder` MOVES EVERY NOTE IN THE FOLDER, in one bulk UPDATE, and
+    // every one of them gets a new revision. A member can easily have unsent
+    // offline work in one — deleting a folder is exactly the kind of tidying
+    // done after a writing session — and an unlanded revision reads to the drain
+    // as a stranger's write, forking the member's note against their own filing.
+    // The endpoint returns `moved: [{noteId, updatedAt}]` so this can land them.
+    const body = await res.json().catch(() => ({}))
+    await settleNoteWrites(body.moved)
     await mutate()
   }
   return { folders, isLoading, error, refresh: () => mutate(), create, rename, remove }

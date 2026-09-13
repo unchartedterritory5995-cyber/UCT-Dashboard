@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  clampVolPct, resolveVolPanePct, latchOnDrag, latchIsStale,
+  clampVolPct, resolveVolPanePct, latchOnDrag, latchIsStale, volPanePctOfStack,
   VOL_PCT_MIN, VOL_PCT_MAX,
 } from './volumePaneDrag'
 import { computePaneLayout, paneStretchPlan, SEPARATOR_PX } from './engine/paneLayout'
@@ -197,5 +197,69 @@ describe('StockChart wiring (comment-stripped source scan)', () => {
       .not.toMatch(/!onVolumePaneResize/)
     // ...and the probe has a subject: the prop is still read, optionally.
     expect(raw).toMatch(/onVolumePaneResize\?\./)
+  })
+})
+
+
+// ─── THE DENOMINATOR ────────────────────────────────────────────────────────
+//
+// ⛔⛔ `latchOnDrag` SUBTRACTS TWO PERCENTAGES, AND THEY MUST BE PERCENTAGES OF
+// THE SAME THING. `appliedPct` is what the LAYOUT handed out — a share of the
+// whole pane stack. For years the sampler in `StockChart` measured the volume
+// pane against `hMain + hVol` instead, which is the same number only while there
+// are no other panes. Add one oscillator and the two drift apart at rest, the
+// 2-point trigger below is permanently satisfied, and any press inside the chart
+// "corrects" the volume pane to a height nobody asked for.
+describe('volPanePctOfStack — the share `latchOnDrag` is entitled to compare', () => {
+  // The owner's chart on 2026-09-10: AAPL 1D with volume, RSI and MACD.
+  // `[main, vol, rsi, macd]` plus the three 1px separators between them.
+  const OWNER_PANES = { main: 376, vol: 98, rsi: 83, macd: 92, separators: 3 }
+  const STACK = OWNER_PANES.main + OWNER_PANES.vol + OWNER_PANES.rsi
+    + OWNER_PANES.macd + OWNER_PANES.separators
+
+  it('reads the LAYOUT s share, and the old two-pane reading did not', () => {
+    // 15 is what `computePaneLayout` applied. This is the number that makes the
+    // comparison mean something.
+    expect(volPanePctOfStack(OWNER_PANES.vol, STACK)).toBe(15)
+    // ⚰️ AND THE READING IT REPLACED, kept as an executable record of the defect:
+    // measured against main+vol alone the very same pane reads 21.
+    const twoPaneReading = Math.round(
+      (OWNER_PANES.vol / (OWNER_PANES.main + OWNER_PANES.vol)) * 100)
+    expect(twoPaneReading).toBe(21)
+    expect(Math.abs(twoPaneReading - 15)).toBeGreaterThanOrEqual(2)
+  })
+
+  it('⛔ so at REST the latch stays shut — the whole point', () => {
+    // Settings say 15, the layout applied 15, the pane measures 15. Nothing moved,
+    // so nothing may be recorded as a drag no matter how the gate is opened.
+    const applied = 15
+    expect(latchOnDrag(15, applied, volPanePctOfStack(OWNER_PANES.vol, STACK)))
+      .toBeNull()
+    // …and the control: the OLD reading latches, from a chart nobody touched.
+    expect(latchOnDrag(15, applied, 21),
+      'the two-pane reading still fires — this case would prove nothing').toEqual({ from: 15, pct: 21 })
+  })
+
+  it('a REAL drag still moves it — the fix did not just disable the feature', () => {
+    // The member drags the separator down: the volume pane grows by ~60px and the
+    // main pane gives it up. The stack total is unchanged, which is exactly why
+    // the stack is the right denominator.
+    const dragged = volPanePctOfStack(OWNER_PANES.vol + 60, STACK)
+    expect(dragged).toBe(24)
+    expect(latchOnDrag(15, 15, dragged)).toEqual({ from: 15, pct: 24 })
+  })
+
+  it('answers null rather than a wrong number for anything unusable', () => {
+    // `latchOnDrag` already reads null as "no opinion", so every one of these is
+    // a tick that does nothing — never a latch built on a bad measurement.
+    expect(volPanePctOfStack(0, STACK)).toBeNull()
+    expect(volPanePctOfStack(50, 0)).toBeNull()
+    expect(volPanePctOfStack(NaN, STACK)).toBeNull()
+    expect(volPanePctOfStack(50, NaN)).toBeNull()
+    expect(volPanePctOfStack(-5, STACK)).toBeNull()
+    // ⚠️ AND A VOLUME PANE TALLER THAN THE WHOLE STACK IS NOT A 100% READING, it
+    // is a measurement taken mid-relayout. Reporting 100 would latch the pane to
+    // the clamp ceiling and take the chart with it.
+    expect(volPanePctOfStack(STACK + 1, STACK)).toBeNull()
   })
 })

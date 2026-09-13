@@ -1,5 +1,23 @@
 # UCT Notebook — Ultimate Competitive Roadmap
 
+> ⚰️ **SUPERSEDED IN PART — 2026-09-11. The current authority is
+> `docs/notebook/PROGRAM-MANIFEST.md`.** This roadmap is dated 2026-09-06. Waves
+> K, L, M, N, O, O6 and P closed in production afterwards, and **every one of the
+> four headline gaps §2 names — version history, corpus-wide AI, thesis
+> structure, snapshot semantics — has since shipped.** Sections the code has
+> overtaken carry an inline ⚰️ **SUPERSEDED** marker naming the manifest row and
+> the wave that closed it.
+>
+> ⛔ **The original text is preserved beneath every marker on purpose** — a reader
+> must be able to see what was believed and when. Do not delete it.
+> ⛔ **The absence of a marker means nobody has re-checked that line, not that it
+> is true.**
+> ⚠️ **This document points readers at three other documents in its own "read in
+> this order" block, and two of them are stale in the same direction** (the
+> readiness scorecard, marked; the gap ledger, unaudited by this pass). Reading
+> the chain in order does not correct the error — it repeats it. Read the
+> manifest first.
+
 **What this document is:** the durable, long-term strategic map for UCT Notebook
 becoming a credible primary knowledge environment for financial users — built on
 top of, not instead of, the existing deep research. **This document does not
@@ -73,6 +91,18 @@ depends on. **Composite readiness is capped at 6-7/10 across every domain**
 until real Stage A member usage exists (currently zero, day 0 of
 instrumentation) — this is the actual ceiling right now, not any feature gap.
 
+⚰️ **SUPERSEDED (2026-09-11) — all four named gaps are closed; the cap is not.**
+Preserved verbatim above, not rewritten. Version history shipped in Wave C
+(panel, `/versions`, restore — manifest §7 #2); corpus-wide AI in Wave K (four
+scopes, deterministic refusal, verified citations); thesis structure in Waves
+E/G (typed properties, evidence, changelog over the fact ledger); snapshot
+semantics in Wave F (`note_facts.py` with `observed_at`/`source_as_of`/
+`rights_class` — manifest §7 #6). ⭐ **The last sentence is the one that aged
+correctly, and it is the most important sentence in this document**: the ceiling
+was never the feature gaps, and closing all four moved nothing. Stage A member
+activations remain **zero** and `Wave 4 authorization: NOT granted` — manifest
+**T-12**, which outranks every row in this roadmap.
+
 ## §3. Stage A/B/C
 
 Preserved as designed, reframed by Phase One's "alongside" north star:
@@ -137,10 +167,21 @@ G-030 through G-036. Real remaining gaps: command palette, find-in-note,
 note-to-note link authoring, non-image attachments. None of these are P0;
 none block Stage A.
 
+⚰️ **SUPERSEDED (2026-09-11) — all four shipped.** Command palette + find-in-note
+(Wave B; manifest §7 #7 records the palette claim as **retracted** — it pulls),
+`[[`-triggered note-to-note authoring + backlinks (Wave D), attachments beyond
+images with a real PDF path (Wave I). Manifest §1 "Editor & structure".
+
 ## §9. Organization
 
 Score 5/10. Folders/tags/ticker are solid and extendable. No favorites,
 recents, saved views, or structured properties (G-023, G-024, G-025, G-021).
+
+⚰️ **SUPERSEDED (2026-09-11) — all four shipped; manifest §7 #18 and §1.**
+Favorites + recents in Wave B, saved views + typed properties (built-in and
+user-defined, 7 types, plus 5 financial-derived properties computed live) in
+Wave E. The scorecard's Organization row already reads 7 (was 5) for exactly
+this reason — this section was not updated alongside it.
 The financial-native answer to "structured properties" is a derived layer
 (§13 below), not Notion-style generic databases.
 
@@ -267,12 +308,34 @@ session's own research). Remaining real work: extend to 4 uncovered surfaces
 (Screener, Options Flow, COT Data, Model Book), add a comment field, confirm
 the destination-menu (`targetsFor()`) is actually wired to all 9 buttons.
 
+⚰️ **SUPERSEDED IN PART (2026-09-11) — manifest §7 #15 and §4 R-1.** `targetsFor()`
+is wired: `CaptureMenu.jsx` calls it and "Send to Journal (choose where)…" ships
+on **7 widget headers + 2 pages**. The door inventory has also changed shape —
+7 widgets + 2 pages, not "9 buttons". ⚠️ **The Screener door is still missing**
+and is now the sharp end of this row (manifest **R-1a**): the master architecture
+doc names the Screener as the flagship trading-journal-moat example, and its door
+does not exist. Options Flow / COT / Model Book were descoped by owner ruling
+2026-09-08 and re-scoped by the 2026-09-11 charter (manifest §9).
+
 ## §21. PDF/OCR/Document Plan
 
 No PDF/OCR capability exists anywhere. OCR itself: DO NOT BUILD (false alarm
 for this persona — filings/transcripts/charts are already digital-native, per
 Phase One). Plain PDF ingestion (searchable, not scanned) remains a real,
 separate, untested-demand gap (G-045).
+
+⚰️ **SUPERSEDED (2026-09-11) — both halves are false; manifest §7 #9 and §1
+"Documents".** PDF upload, text-layer extraction, a page-level model, sectioned
+page-aware search, a PDF.js canvas + text-layer renderer and excerpts as
+first-class citable objects with W3C text-quote anchors shipped across Waves I
+and J. **OCR is LIVE IN PRODUCTION** at concurrency 1 since Wave P5 — the
+"DO NOT BUILD" verdict was reversed by later evidence, an engine was benchmarked
+against an alternative and packaged (`wave-p15-*`), and P5 certified it.
+⭐ **Worth keeping for the lesson, not the content:** a DO-NOT-BUILD entered here
+as a settled research conclusion ("false alarm for this persona") and was
+overturned by building it. ⚠️ Wave P closed the **English, printed, PDF** path
+only; handwriting, non-English and image attachments are **not assessed and not
+certified — which is not the same as rejected** (manifest **T-07**).
 
 ## §22. Filing/Transcript Plan
 
@@ -292,6 +355,19 @@ Version history: **still entirely absent** — the Product Constitution names it
 a non-negotiable trust bar alongside trash and search, and it's the one of
 the three with no current P0 disposition. This is the highest-leverage single
 gap remaining in the Trust domain.
+
+⚰️ **SUPERSEDED (2026-09-11) — "still entirely absent" is FALSE; the CODE
+overrules this document.** Manifest §7 #2, `[m]` measured: full-snapshot
+`j2_note_versions` with coalescing capture, a diff view, `GET
+/api/j2/notes/{id}/versions`, and a restore that force-captures a pre-restore
+checkpoint so restoring never erases history. Shipped in Wave C (2026-09-06),
+merged as `928380241`, production-verified. ⭐ **The scorecard recorded this
+closure on the very day this roadmap was baselined**, and the two documents sat
+in the same directory disagreeing about a claim the Product Constitution calls
+non-negotiable. ⚠️ **One real thing this row's disappearance would have hidden:**
+version *retention* is still contradicted and unowned — the pre-mortem designed a
+cap, Wave C's decision 10 kept all versions indefinitely, and **nothing prunes
+`j2_note_versions` today** (manifest **S-16**).
 
 ## §24. Export/Portability Plan
 
@@ -395,6 +471,16 @@ See `primary-notebook-readiness-scorecard.md` in full. Unweighted composite
 domains against each other (they carry different strategic weight). Every
 domain is capped at 6-7 until real Stage A member usage exists.
 
+⚰️ **SUPERSEDED (2026-09-11) — both numbers are stale, and the scorecard they
+point at disagrees with itself.** The scorecard now carries **22** capability
+domains, not 16, and states ~5.7 (it sums to 5.82). The **4.9 quoted here is the
+pre-Wave-C value** — and the scorecard ALSO quotes 4.9 in its own split-analysis
+section, which is why this line looks corroborated rather than stale. ⛔ **Do not
+re-derive a composite here.** Manifest §9 rules the scorecard stale and
+internally inconsistent and requires a **fresh measurement**, not a recomputation
+— this section should cite the scorecard, never restate its number. ⭐ The last
+sentence is still exactly right and is the only part worth acting on.
+
 ## §36. Stage A/B/C Roadmap
 
 See §3 above. Stage A is the active gate; do not proceed to Stage B work
@@ -410,6 +496,12 @@ actually shipped:
 - **Wave 0 (Trust):** trash/undo — DONE. Folder-sidebar fix, search-latency
   verification — status needs re-confirmation (verification is done per Wave
   4 prep; the sidebar fix itself is unconfirmed).
+  ⚰️ **SUPERSEDED (2026-09-11) — CONFIRMED, not unconfirmed.** Manifest §7 #4,
+  `[m]`: `GET /api/j2/notes/folder-counts` exists — the server-side COUNT the
+  architecture doc §3.2 prescribed, rather than deriving leaf counts from a
+  client-side page of 100. ⭐ **"Unconfirmed" propagated across three documents
+  and outlived the fix in all of them**, because it is the one status no reader
+  feels obliged to re-check: it already concedes that nobody has looked.
 - **Wave 1→2 equivalent (Capture):** the mechanism shipped earlier than any
   wave plan assumed (2026-08-12) — remaining work is coverage extension +
   small UX completion (G-040, G-041).

@@ -125,3 +125,20 @@ tests/fixtures/** text eol=lf
 # stored LF-only. They have no producer in the repo today, so they cannot churn —
 # which is an argument from today's state, and exactly why the rule is a class.
 tools/**/*.json text eol=lf
+
+# ─── merge seam, 2026-09-13 (feat/indicator-r0r1 ← origin/master 368520647) ───
+# ⛔ ORDER IS LOAD-BEARING HERE, WHICH IS WHY THIS IS NOT A BLIND CONCATENATION.
+# A later rule overrides an earlier one, and master's next block declares
+# `tools/wave_p_cert_corpus/manifest.json -text` — the exception to this branch's
+# class rule `tools/**/*.json text eol=lf` directly above. Master's side must
+# therefore come SECOND or its PDF-corpus manifest would be re-normalised by our
+# rule and the OCR certification would compare different bytes.
+
+# ⛔⛔ WAVE P5 — THE FROZEN OCR CERTIFICATION CORPUS IS BYTES, NOT TEXT.
+# `core.autocrlf` is true on the dev box and git guessed "text" for the one
+# small mostly-ASCII fixture (`native_text.pdf`, 2.3 KB), which would rewrite
+# its line endings on the next checkout and quietly change the pages the
+# 5.3.0-vs-5.4.0 certification compares. The signature check would catch it —
+# after somebody spent a CI run finding out.
+tools/wave_p_cert_corpus/*.pdf binary
+tools/wave_p_cert_corpus/manifest.json -text

@@ -12,6 +12,7 @@ conflates them is reassurance the data does not support.
 
 from __future__ import annotations
 
+import datetime as dt
 import pytest
 
 from api.services import auth_db
@@ -31,15 +32,33 @@ def env(tmp_path, monkeypatch):
     return {}
 
 
-def _series(ba, dollars, pcts=None):
+def _stamp(days_ago):
+    """A reading taken `days_ago` days before now, in the stored format."""
+    return (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days_ago)).isoformat()
+
+
+def _series(ba, dollars, pcts=None, sessions=None):
+    """Seed readings on DISTINCT RECENT DAYS, the newest one today.
+
+    ⛔ These used to pin an absolute "2026-08-30T07:40:00+00:00" while
+    run_bias_digest() scans a ROLLING 7-day window. They were green when
+    written and went red on their own about a week later, with nobody
+    touching the code -- the same date-bomb that took out nine buzz-digest
+    tests the same night. A relative stamp cannot rot that way.
+
+    `sessions` packs the readings onto that many distinct days, which is how
+    the "clears the dollar gate but is not STEADY yet" arm is expressed.
+    """
+    n = len(dollars)
     conn = auth_db.get_connection()
     try:
         for i, d in enumerate(dollars):
             pct = (pcts[i] if pcts else (d / 10000.0))
+            days_ago = (i % sessions) if sessions else (n - 1 - i)
             conn.execute(
                 "INSERT INTO j2_broker_drift_series (user_id, broker_account_id, "
                 "checked_at, drift_dollar, drift_pct, ok) VALUES (?,?,?,?,?,1)",
-                ("u1", ba, "2026-08-30T07:40:00+00:00", d, pct))
+                ("u1", ba, _stamp(days_ago), d, pct))
         conn.commit()
     finally:
         conn.close()
@@ -65,10 +84,35 @@ class TestLeanVsSpike:
         _series("acc-spike", [0.0, 0.0, 900.0, 0.0, 0.0, 0.0, 0.0])
         assert mc.bias_scan(days=3650)["leaning"] == []
 
-    def test_a_lean_too_small_in_PERCENT_is_noise_on_a_big_book(self, env):
-        # $12 on a $1.6M account is nothing; the dollar test alone would flag it.
-        _series("acc-whale", [12.0] * 8, pcts=[0.0000075] * 8)
-        assert mc.bias_scan(days=3650)["leaning"] == []
+    # ── Owner ruling 2026-09-10: BOTH ARMS of the percent gate ──────────────
+    #
+    # The percent gate used to be absolute, so a small-but-permanent lean on a
+    # big book was silent forever. That is the exact shape this module was
+    # built for -- the owner's own hero sat $19.96 off EVERY DAY FOR WEEKS --
+    # and the gate that was supposed to suppress noise was suppressing it.
+    # A lean that clears the DOLLAR gate and persists across
+    # _BIAS_STEADY_SESSIONS separate sessions is now reported regardless of
+    # percent. A one-off is not. Both arms are asserted, because a rule with
+    # only its positive arm tested will happily report everything.
+
+    def test_a_sub_percent_lean_seen_on_TOO_FEW_sessions_is_still_noise(self, env):
+        # Same $12 on a $1.6M book, same 8 readings -- but packed onto TWO days.
+        # Plenty of samples, not enough SESSIONS: a one-off stays unreported.
+        _series("acc-whale-burst", [12.0] * 8, pcts=[0.0000075] * 8, sessions=2)
+        out = mc.bias_scan(days=3650)
+        assert out["leaning"] == []
+        assert out["accounts"][0]["verdict"] == "clean"
+        assert out["accounts"][0]["sessions"] == 2, "the session count is the whole rule"
+
+    def test_a_STEADY_sub_percent_lean_IS_reported(self, env):
+        # The same $12 lean, the same book, seen on EIGHT separate sessions.
+        # Below the percent gate in every single reading, and reported anyway.
+        _series("acc-whale-steady", [12.0] * 8, pcts=[0.0000075] * 8)
+        out = mc.bias_scan(days=3650)
+        assert [r["brokerAccountId"] for r in out["leaning"]] == ["acc-whale-steady"]
+        r = out["leaning"][0]
+        assert r["sessions"] >= 5
+        assert abs(r["meanPct"]) < 0.0002, "this must still be BELOW the percent gate"
 
     def test_a_lean_too_small_in_DOLLARS_is_noise_on_a_tiny_book(self, env):
         # 0.5% of a $400 account is $2 — real in percent, immaterial in money.

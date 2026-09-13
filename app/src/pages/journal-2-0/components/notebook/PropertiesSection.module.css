@@ -149,6 +149,43 @@
   margin-top: 4px;
 }
 
+/* ⛔⛔ WAVE P5 — THE TOUCH FLOOR, AND IT IS ≤1024 NOT ≤640.
+   Measured on the P5 mobile flagship at 390x844: setting Research Type is a
+   REQUIRED step of the thesis journey (it is what grows the evidence section
+   at all), and its control was 32px — under `--tap-min`. Every control in this
+   panel was below the floor: the property picker rows at 36, "+ Add property"
+   at 28, the new-property form at 32, a bare 18px checkbox.
+
+   ⚰️ The phone block below restructured the LAYOUT and restored no tap floor,
+   which is the softer half of a defect this codebase has paid for before: a
+   floor restored only at ≤640 leaves TABLET broken. This one is at the touch
+   boundary, so a tablet is covered too. */
+@media (max-width: 1024px) {
+  .row {
+    min-height: var(--tap-min, 44px);
+  }
+  .input,
+  .select,
+  .pickerItem,
+  .newPropInput,
+  .newPropType,
+  .newPropCreate,
+  .addLink,
+  .multiSelectOption {
+    min-height: var(--tap-min, 44px);
+  }
+  /* A native checkbox draws its glyph in the CONTENT box, so padding buys a
+     real 44px hit area without a 44px-wide tick. `content-box` is what keeps
+     the arithmetic honest — the default border-box would eat the padding and
+     leave the target exactly as small as it was. */
+  .checkbox {
+    box-sizing: content-box;
+    width: 20px;
+    height: 20px;
+    padding: 12px;
+  }
+}
+
 @media (max-width: 640px) {
   .row {
     flex-wrap: wrap;

@@ -76,6 +76,7 @@ import math
 import os
 import pickle
 import threading
+import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -265,6 +266,24 @@ MAX_RATIO_COVERAGE_DRIFT = 0.05
 # pin a near-zero coverage (→ degraded) for the whole session; below the floor we
 # recompute each call until the bars warm. Well under any real trading day.
 _ANCHOR_MIN_CACHE_UNIVERSE = 500
+
+# 🔴 …and the absolute floor above is NOT enough on its own. 2026-09-09: a deploy
+# at 00:18 ET restarted web mid-overnight-ingest, the anchor build priced 1,823 of
+# the 2,647-name universe (coverage 0.69 — `degraded`, so the row is HIDDEN), and
+# 1,823 sailed past the 500 floor. That build was cached AND written to /data, so
+# every one of the twenty later restarts reloaded it and the live row stayed hidden
+# for the whole session while bars.db sat fully warm behind it. A build is only
+# good enough to PIN for a session if it priced essentially the whole universe —
+# the SAME share the published row is judged by, not a flat 500.
+_ANCHOR_MIN_CACHE_FRACTION = float(
+    os.environ.get("BREADTH_ANCHOR_MIN_FRACTION", str(1.0 - MAX_RATIO_COVERAGE_DRIFT)))
+
+# A thin build is still SERVED (a degraded row beats a 503, which is the whole
+# point of the snapshots) — it just isn't PINNED. After this long it is rebuilt on
+# the next call, so the session repairs itself the moment bars.db warms instead of
+# waiting for tomorrow's open. Long enough that a genuinely thin day costs one
+# extra full build every few minutes, not one per request.
+_THIN_RETRY_SECONDS = int(os.environ.get("BREADTH_THIN_RETRY_SECONDS", "300"))
 
 # Below this the live read itself is measuring a different market. Published as
 # `degraded` rather than silently served.
@@ -1080,6 +1099,13 @@ def _apply_dividend_basis(tickers: list[str], dates: list[int],
 _LEVELS_PERSIST = os.environ.get("BREADTH_LEVELS_PERSIST", "1") != "0"
 _LEVELS_MIN_COVERAGE = int(os.environ.get("BREADTH_LEVELS_MIN_COVERAGE", "500"))
 
+# …and, as with the anchor, an absolute floor is not enough: 883 of 2,647 names is
+# a third of the market and clears 500 comfortably. A share of the universe is what
+# separates "bars.db is warm" from "bars.db is still ingesting". Looser than the
+# anchor's 0.95 because `sma_ok[200]` legitimately misses names younger than 200
+# sessions (~1% of the universe on a normal day; 2,615/2,647 on 2026-09-08).
+_LEVELS_MIN_FRACTION = float(os.environ.get("BREADTH_LEVELS_MIN_FRACTION", "0.85"))
+
 
 def _snapshot_path(name: str) -> str:
     return os.path.join(os.environ.get("DATA_DIR", "/data"), name)
@@ -1095,8 +1121,26 @@ def _levels_coverage(levels: Optional[dict]) -> int:
         return 0
 
 
+def _levels_build_is_good(levels: Optional[dict]) -> bool:
+    """Did this build price enough of ITS OWN universe to be pinned for the day?"""
+    n = _levels_coverage(levels)
+    if n < _LEVELS_MIN_COVERAGE:
+        return False
+    size = len((levels or {}).get("tickers") or ())
+    return not size or n >= int(size * _LEVELS_MIN_FRACTION)
+
+
+def _anchor_build_is_good(live_prev: Optional[dict], tickers) -> bool:
+    """Same question for the anchor's prior-close re-pricing."""
+    seen = (live_prev or {}).get("universe_count") or 0
+    if seen < _ANCHOR_MIN_CACHE_UNIVERSE:
+        return False
+    size = len(tickers or ())
+    return not size or seen >= int(size * _ANCHOR_MIN_CACHE_FRACTION)
+
+
 def _persist_levels(levels: dict) -> None:
-    if not _LEVELS_PERSIST or _levels_coverage(levels) < _LEVELS_MIN_COVERAGE:
+    if not _LEVELS_PERSIST or not _levels_build_is_good(levels):
         return
     try:
         path = _snapshot_path("breadth_live_levels.pkl")
@@ -1153,8 +1197,8 @@ def _persisted_levels_as_of() -> Optional[int]:
         return None
 
 
-def _persist_anchor(as_of_ts: int, live_prev: dict) -> None:
-    if not _LEVELS_PERSIST or (live_prev.get("universe_count") or 0) < _ANCHOR_MIN_CACHE_UNIVERSE:
+def _persist_anchor(as_of_ts: int, live_prev: dict, tickers=()) -> None:
+    if not _LEVELS_PERSIST or not _anchor_build_is_good(live_prev, tickers):
         return
     try:
         path = _snapshot_path("breadth_live_anchor.json")
@@ -1200,45 +1244,67 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
     # The measured session, not the frame's end (see the key below).
     measured_ts = _ts_int(_now_et().date())
 
+    entered = time.monotonic()
+
     # Fast in-memory hit for this session (built OR snapshot-loaded) — avoids a disk
     # read per call. Keyed loosely on (as_of, measured_ts): the levels are the same
     # for a session regardless of a small intraday universe drift.
+    #
+    # ⚠️ …UNLESS what's cached is THIN. A build made while bars.db was still ingesting
+    # is not "the levels for this session", it is a third of them, and pinning it here
+    # is what kept 2026-09-09 hidden all day. A thin entry is still returned (it is
+    # better than nothing) but only until `_THIN_RETRY_SECONDS` has passed, after which
+    # we fall through and try to build a full one from the now-warmer bars.
     with _levels_lock:
         ck = _levels_cache.get("key")
-        if not force and ck and ck[0] == as_of_ts and ck[-1] == measured_ts:
-            return _levels_cache["levels"]
+        cached = _levels_cache.get("levels") if (
+            ck and ck[0] == as_of_ts and ck[-1] == measured_ts) else None
+        thin_at = _levels_cache.get("thin_at") or 0.0
+        gen = _levels_cache.get("gen", 0)
+    if cached is not None and not force and not (
+            thin_at and entered - thin_at >= _THIN_RETRY_SECONDS):
+        return cached
 
     # ⭐ SNAPSHOT-FIRST restart survival, BEFORE universe()/frame. A GOOD snapshot for
     # this session (same prior-close moving averages, constant all day) recovers the
     # ENTIRE live path across a restart — even when the cold bars.db OR an empty/flaky
     # `universe_list` read would otherwise return None here and 503 the live row (the
     # daily "breadth gone till 4:30" failure). Written by an earlier warm build today.
+    # A THIN snapshot is kept only as a fallback below — never as the session's answer.
+    fallback = cached
     if not force:
         disk = _load_persisted_levels(as_of_ts)
-        if disk is not None and _levels_coverage(disk) >= _LEVELS_MIN_COVERAGE:
+        if disk is not None and _levels_build_is_good(disk):
             dkey = (as_of_ts, disk.get("universe_date"),
                     len(disk.get("tickers", [])), measured_ts)
             with _levels_lock:
                 _levels_cache["key"] = dkey
                 _levels_cache["levels"] = disk
+                _levels_cache["thin_at"] = 0.0
+                _levels_cache["gen"] = _levels_cache.get("gen", 0) + 1
             return disk
+        if disk is not None and _levels_coverage(disk) > _levels_coverage(fallback):
+            fallback = disk
 
     tickers, uni_date = universe()
     if not tickers:
-        return None
+        return fallback
     key = (as_of_ts, uni_date, len(tickers), measured_ts)
 
     with _levels_build_lock:
-        # Re-check: while we queued, the first caller may have finished.
+        # Re-check: while we queued, the first caller may have finished. The generation
+        # counter is what makes this a re-check rather than a re-read of the very entry
+        # we just rejected — only a build that landed after us answers for us.
         with _levels_lock:
-            if not force and _levels_cache.get("key") == key:
+            if (not force and _levels_cache.get("key") == key
+                    and _levels_cache.get("gen", 0) > gen):
                 return _levels_cache["levels"]
 
         start = _ts_int(date.fromisoformat(_iso(as_of_ts))
                         - timedelta(days=_LOAD_CALENDAR_DAYS))
         dates = _session_dates(conn, as_of_ts, start)
         if len(dates) < 221:
-            return None
+            return fallback
 
         closes, volumes = _load_frame(conn, tickers, dates)
         closes = _apply_dividend_basis(tickers, dates, closes, measured_ts)
@@ -1247,13 +1313,21 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         levels["index"] = build_index_levels(_load_index_series(conn, as_of_ts, start))
         del closes, volumes
 
-        # Persist a GOOD build (coverage >= floor) for the next restart to load; a
-        # cold sliver build writes nothing (never overwrites a good snapshot).
-        _persist_levels(levels)
+        # Persist a GOOD build (a real share of the universe) for the next restart to
+        # load; a cold sliver build writes nothing (never overwrites a good snapshot).
+        good = _levels_build_is_good(levels)
+        if good:
+            _persist_levels(levels)
+        elif _levels_coverage(fallback) > _levels_coverage(levels):
+            # bars.db can't yet do better than what we already had — keep the better
+            # read and try again after the retry window rather than going backwards.
+            levels = fallback
 
         with _levels_lock:
             _levels_cache["key"] = key
             _levels_cache["levels"] = levels
+            _levels_cache["gen"] = _levels_cache.get("gen", 0) + 1
+            _levels_cache["thin_at"] = 0.0 if good else time.monotonic()
         return levels
 
 
@@ -1316,34 +1390,57 @@ def anchor_basis(as_of_ts: int, tickers: list[str],
     Re-reading `stored` (itself a cached `get_history`) is cheap and self-correcting.
     """
     key = (as_of_ts, len(tickers))
+    entered = time.monotonic()
     with _anchor_lock:
-        live_prev = _anchor_cache["value"] if (
-            not force and _anchor_cache.get("key") == key) else None
+        cached = _anchor_cache["value"] if _anchor_cache.get("key") == key else None
+        thin_at = _anchor_cache.get("thin_at") or 0.0
+        gen = _anchor_cache.get("gen", 0)
+    # A THIN anchor is served (a degraded row still carries the session's shape) but
+    # never pinned — after the retry window we rebuild against a warmer bars.db. This
+    # is the 2026-09-09 hole: 1,823/2,647 was cached, persisted, and reloaded by every
+    # later restart, so `degraded` never lifted even once the bars were complete.
+    live_prev = cached if (cached is not None and not force and not (
+        thin_at and entered - thin_at >= _THIN_RETRY_SECONDS)) else None
 
     if live_prev is None:
         with _anchor_build_lock:
             with _anchor_lock:
-                live_prev = _anchor_cache["value"] if (
-                    not force and _anchor_cache.get("key") == key) else None
+                # Only a build that landed AFTER we started waiting answers for us —
+                # a counter, not a clock, because the entry we just rejected can carry
+                # a timestamp equal to ours on a coarse (Windows) `time()`.
+                if (not force and _anchor_cache.get("key") == key
+                        and _anchor_cache.get("gen", 0) > gen):
+                    live_prev = _anchor_cache["value"]
             if live_prev is None:
                 # Snapshot-FIRST: a GOOD anchor persisted earlier this session is the
                 # SAME prior-close breadth (constant all day), so load it and SKIP the
                 # expensive re-pricing. After a restart the bars are cold and that
                 # build is both slow (2,600 tickers) and a sliver — skipping it is what
                 # makes recovery fast instead of a pile-up of slow builds (mirror of
-                # reference_levels). Only when there's no usable snapshot do we build,
+                # reference_levels). Only when there's no GOOD snapshot do we build,
                 # and persist a good one for the next restart.
-                live_prev = _load_persisted_anchor(as_of_ts)
-                if live_prev is None or (live_prev.get("universe_count") or 0) < _ANCHOR_MIN_CACHE_UNIVERSE:
-                    live_prev = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
+                disk = _load_persisted_anchor(as_of_ts)
+                if disk is not None and _anchor_build_is_good(disk, tickers):
+                    live_prev = disk
+                else:
+                    built = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
+                    if built is not None and _anchor_build_is_good(built, tickers):
+                        _persist_anchor(as_of_ts, built, tickers)
+                    # Whichever read priced more of the universe wins — a rebuild that
+                    # is thinner than what we already hold is not an upgrade. (`force`
+                    # means "re-price now", so what we were holding doesn't count.)
+                    have = [built, disk] if force else [built, disk, cached]
+                    live_prev = max(
+                        [c for c in have if c is not None],
+                        key=lambda c: c.get("universe_count") or 0, default=None)
                     if live_prev is None:
                         return None
-                    if (live_prev.get("universe_count") or 0) >= _ANCHOR_MIN_CACHE_UNIVERSE:
-                        _persist_anchor(as_of_ts, live_prev)
-                if (live_prev.get("universe_count") or 0) >= _ANCHOR_MIN_CACHE_UNIVERSE:
-                    with _anchor_lock:
-                        _anchor_cache["key"] = key
-                        _anchor_cache["value"] = live_prev
+                good = _anchor_build_is_good(live_prev, tickers)
+                with _anchor_lock:
+                    _anchor_cache["key"] = key
+                    _anchor_cache["value"] = live_prev
+                    _anchor_cache["gen"] = _anchor_cache.get("gen", 0) + 1
+                    _anchor_cache["thin_at"] = 0.0 if good else time.monotonic()
 
     from api.services import breadth_monitor as bm
     iso = _iso(as_of_ts)

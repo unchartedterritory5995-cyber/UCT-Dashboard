@@ -1,0 +1,37 @@
+/* Wave P1 §23 — a disclosure strip, not a dashboard. It exists only when a
+   document's text is incomplete, so it must read as a quiet aside rather than
+   competing with the note itself. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 10px;
+}
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+}
+.text { min-width: 0; }
+.name { font-weight: 600; }
+
+/* ⛔ TONE IS CARRIED BY A BORDER AND BY THE SENTENCE, NEVER BY COLOUR ALONE
+   (§52). A background wash is the part that disappears in forced-colors mode;
+   a left rule survives it, and the words survive everything. */
+.busy   { border-left-color: #8aa0b8; color: var(--color-text-muted, #98a0aa); }
+.muted  { border-left-color: #6d7683; color: var(--color-text-muted, #98a0aa); }
+.warn   { border-left-color: #dcbb5e; color: var(--color-text-primary, #e8eaed); }
+.error  { border-left-color: #e06c6c; color: var(--color-text-primary, #e8eaed); }
+
+/* Touch tier from the first commit (§51) — this row is not interactive today,
+   but it sits in a stack that is, and a 12px line in a 44px world is what the
+   mobile audits keep finding after the fact. */
+@media (max-width: 1024px) {
+  .row { padding: 10px 12px; font-size: 13px; }
+}

@@ -116,24 +116,14 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
         if (now - fetched_at) < ttl:
             return dict(value)  # copy — callers must not mutate the cache
 
-    from api.services.calendar_alerts import _get_reporters_for_date_with_status
+    # ⛔ THE WALK IS SHARED (Seam 4). It used to be a private copy here and a
+    # second copy in watchlist_intelligence, and the two had already diverged.
+    # The MEMOIZATION above and below stays this module's own -- sharing the
+    # walk is de-duplication, folding this wrapper into it would be a behaviour
+    # change for the other caller.
+    from api.services.calendar_alerts import collect_earnings_window
 
-    out: dict[str, str] = {}
-    any_failed = False
-    for offset in range(0, max(0, days) + 1):
-        d = today + timedelta(days=offset)
-        d_str = d.isoformat()
-        try:
-            reporters, ok = _get_reporters_for_date_with_status(d_str)
-        except Exception as e:  # noqa: BLE001 -- defensive backstop
-            _log.debug("[awareness] earnings lookup failed for %s: %s", d_str, e)
-            any_failed = True
-            continue
-        if not ok:
-            any_failed = True
-        for sym in reporters:
-            if sym not in out:  # keep the EARLIEST date per symbol
-                out[sym] = d_str
+    out, any_failed = collect_earnings_window(today, days)
     # A day's lookup failing mid-window used to memoize the (now day-
     # incomplete) window for the full 1h TTL regardless — silencing R5
     # earnings-proximity awareness for any symbol reporting on the failed

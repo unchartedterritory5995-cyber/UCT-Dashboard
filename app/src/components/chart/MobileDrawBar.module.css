@@ -119,3 +119,42 @@
   color: var(--ut-gold);
   background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
 }
+
+/* ── MOB-04 · the all-tools door, and making the swipe visible ──────────────
+   Fifteen of eighteen tools used to be reachable ONLY by a horizontal swipe on
+   a rail with no scrollbar and no edge treatment. Two changes, both about
+   discoverability rather than capability:
+     1. `.allTools` — a pinned door to the full grid, OUTSIDE `.tools` so it can
+        never scroll away with the tools it reaches.
+     2. a fade on the rail's right edge, so the swipe announces itself. */
+
+.allTools {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 44px;
+  min-height: var(--tap-min);
+  padding: 4px 6px;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--ut-gold);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.allTools:active { background: var(--bg-hover); }
+
+/* The rail keeps its hidden scrollbar (a native bar on a 44px strip is noise)
+   and gains a mask instead: content fades at the trailing edge, which is the
+   conventional "there is more this way" signal on touch.
+   ⚠️ `mask-image` degrades to NOTHING where unsupported, which is exactly the
+   behaviour we want from a hint — never a clipped tool. */
+.tools {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%);
+}

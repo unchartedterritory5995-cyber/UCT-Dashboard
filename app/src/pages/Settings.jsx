@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
+import JoystickSettingsCard from './settings/JoystickSettingsCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import useTagColors from '../hooks/useTagColors'
@@ -16,6 +17,7 @@ import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCar
 import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
+import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -1559,6 +1561,7 @@ const SEARCH_INDEX = [
   { card: 'dangerZone',     section: 'account',     title: 'Delete Account',             keywords: 'delete account danger zone close remove wipe permanent goodbye' },
   { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
+  { card: 'joystick',       section: 'charts',      title: 'Joystick',                   keywords: 'joystick hub pad thumb touch gesture fan wheel hide hidden restore turn off disable enable mobile phone' },
   { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled black light custom uct app themes default chart timeframe appearance' },
   { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification' },
   { card: 'indicatorAlerts', section: 'preferences', title: 'Indicator Alerts',          keywords: 'indicator alert rsi macd chart alerts armed not firing needs attention manager list all symbols' },
@@ -2082,6 +2085,17 @@ export default function Settings() {
         </TileCard>
   )
 
+  // ── S7 Filing Watches (Stage 5, owner authorization) ──────────────────
+  // Minimal management surface for the member's own document-arrival watches
+  // ("Notify me about new SEC filings for {sym}"). NOT a new Alerts
+  // dashboard — one compact list, suspend/reactivate only (no hard delete,
+  // no edit — matches the backend's suspend/reactivate-only model).
+  const filingWatchesCard = (
+    <TileCard icon="document" title="Filing Watches">
+      <FilingWatchesPanel />
+    </TileCard>
+  )
+
   /* 🔴 THE ALERT MANAGER (audit-not-wired finding 5). `list_for_user`'s own
      docstring calls the unscoped listing "the alert manager's view" and there
      was no alert manager: `IndicatorAlertPopover` filters to the chart's symbol,
@@ -2290,11 +2304,15 @@ export default function Settings() {
       card('prefs', preferencesCard),
       card('notifications', notificationsCard),
       card('indicatorAlerts', indicatorAlertsCard),
+      card('filingWatches', filingWatchesCard),
       card('digest', digestCard),
       card('tags', tagsCard),
     ],
     charts: [
       card('chartSettings', <ChartSettingsSection prefs={prefs} setPref={setPref} />),
+      // Phase 2.5: the ONE Phase 4 control pulled forward, so a persistent
+      // "Hide joystick" has a real re-enable path beside it.
+      card('joystick', <JoystickSettingsCard />),
     ],
     compass: [
       card('compassPanel', <VoicePanel />),

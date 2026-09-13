@@ -18,8 +18,87 @@ Env:
   (selection knobs live in compute_cream: CREAM_TOP_N / _MIN_VOI /
    CREAM_EXCLUDE_WEEKLY / CREAM_EXCLUDE_BLOCK_ONLY)
 """
+import json
+import logging
 import os
+import threading
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+log = logging.getLogger(__name__)
+
+# ── EOD slot + catch-up state (mirrors api/oi_morning.py) ────────────────────
+# The scheduled post is a 16:10 ET cron in an IN-MEMORY APScheduler job store on
+# the flow-worker. A pod that restarts across the slot never SCHEDULES that fire,
+# so `misfire_grace_time` cannot see it and the card vanishes with no trace — the
+# exact silent miss observed 2026-09-08 (a redeploy burst; the worker did not
+# stabilise until 17:53 ET, 103m past the slot). The cron entry (run_scheduled)
+# and a 60s catch-up both consult a DURABLE per-day record so a miss is recovered
+# within the honesty window, paged past it, and never double-posted.
+SLOT_ET = (16, 10)
+
+_RUN_LOCK = threading.Lock()
+
+
+def _grace_min() -> int:
+    """How late an EOD card may still be honest. This card is a SETTLED-day
+    snapshot ("the day's biggest builds"), so its claim stays true all evening —
+    a wider window than the morning OI card's 45m. Tunable."""
+    try:
+        return int(os.getenv("CREAM_EOD_CATCHUP_GRACE_MIN", "120"))
+    except (TypeError, ValueError):
+        return 120
+
+
+def _state_path() -> str:
+    return os.getenv("CREAM_EOD_STATE_PATH",
+                     os.path.join(os.getenv("DATA_DIR", "/data"), "cream_eod_state.json"))
+
+
+def _load_state() -> dict:
+    try:
+        with open(_state_path(), "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:  # noqa: BLE001 — a missing or corrupt file is "nothing recorded"
+        return {}
+
+
+def _save_state(state: dict) -> None:
+    """⛔ tmp -> os.replace. `open(path, "w")` truncates BEFORE the write can fail,
+    so a crash mid-write would leave an empty file and forget every slot handled
+    today — which reads as "nothing posted" and re-posts."""
+    path = _state_path()
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        os.replace(tmp, path)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[cream-eod] could not persist slot state: %s", e)
+
+
+def slot_done(day: str) -> bool:
+    return bool(_load_state().get("done", {}).get(day))
+
+
+def mark_slot_done(day: str, how: str) -> None:
+    state = _load_state()
+    done = state.setdefault("done", {})
+    done[day] = how
+    # Keep the file small; ~40 weekdays is ample to debug a fortnight of days.
+    for stale in sorted(done)[:-40]:
+        done.pop(stale, None)
+    _save_state(state)
+
+
+def _now_et():
+    return datetime.now(ZoneInfo("America/New_York"))
+
+
+def _armed() -> bool:
+    return os.getenv("CREAM_EOD_ENABLED", "0") == "1"
 
 
 def _webhook() -> str:
@@ -78,9 +157,78 @@ def run_cream_eod(*, target_date=None, force: bool = False, post: bool = True) -
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
+def _alert_missed(day: str, late: int) -> None:
+    """⛔ A LOG LINE IS NOT A NOTIFICATION. This pod's stream is flooded; a warning
+    closes the hole in the CODE and leaves it open in PRACTICE. `critical` is the
+    only severity `chart_health_alerts` pages on. Never raises — an alerting
+    failure must not cost the tape its ingest."""
+    try:
+        from api.services import chart_health_alerts
+        chart_health_alerts.emit(
+            f"cream_eod_missed:{day}", "critical",
+            f"The EOD Top Flow card for {day} was never posted ({late}m past the "
+            f"{_grace_min()}m catch-up window). Most likely the flow-worker restarted "
+            f"across the {SLOT_ET[0]:02d}:{SLOT_ET[1]:02d} ET slot.",
+            {"day": day, "minutes_late": late},
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("[cream-eod] could not raise a missed-slot alert: %s", e)
+
+
+def run_scheduled(*, now=None) -> dict:
+    """Cron entry: post the card and RECORD the day handled. No-op unless armed.
+
+    ⛔ SEPARATE FROM run_cream_eod ON PURPOSE. A manual preview or a force run must
+    never mark the slot done — that would suppress the real card for the rest of
+    the day, the opposite of what a previewer wants. An empty day IS marked done
+    (nothing to post is "handled", not "missed")."""
+    if not _armed():
+        return {"ok": False, "reason": "disarmed"}
+    now_dt = now or _now_et()
+    day = now_dt.date().isoformat()
+    with _RUN_LOCK:
+        if slot_done(day):
+            return {"ok": False, "reason": "already handled today"}
+        res = run_cream_eod(post=True)
+        if res.get("ok"):
+            mark_slot_done(day, "posted" if res.get("posted") else
+                           str(res.get("reason") or "completed"))
+        print(f"[cream-eod] {res}")
+        return res
+
+
+def catch_up(*, now=None) -> dict:
+    """Post a slot the scheduler never fired, or say why it will not be. Safe to
+    call every minute: `_RUN_LOCK` makes a race with the cron a no-op for whichever
+    arrives second, and the persisted per-day record makes a double-post impossible
+    even across a restart."""
+    if not _armed():
+        return {"posted": False, "reason": "disarmed"}
+    now_dt = now or _now_et()
+    if now_dt.weekday() > 4:                      # the cron is mon-fri
+        return {"posted": False, "reason": "weekend"}
+    day = now_dt.date().isoformat()
+    if slot_done(day):
+        return {"posted": False, "reason": "already handled today"}
+    late = (now_dt.hour * 60 + now_dt.minute) - (SLOT_ET[0] * 60 + SLOT_ET[1])
+    if late <= 0:
+        return {"posted": False, "reason": "not due yet"}
+    grace = _grace_min()
+    if late <= grace:
+        log.warning("[cream-eod] the %02d:%02d ET slot never fired (%dm ago) — "
+                    "catching it up now", SLOT_ET[0], SLOT_ET[1], late)
+        return run_scheduled(now=now_dt)
+    with _RUN_LOCK:
+        if slot_done(day):
+            return {"posted": False, "reason": "already handled today"}
+        mark_slot_done(day, f"missed ({late}m late)")
+    log.warning("[cream-eod] MISSED today's card — %dm late, past the %dm catch-up "
+                "window, so it will not be posted.", late, grace)
+    _alert_missed(day, late)
+    return {"posted": False, "reason": "past the catch-up window"}
+
+
 def scheduled_cream_eod() -> None:
-    """Scheduler entry (flow-worker). No-op unless CREAM_EOD_ENABLED=1."""
-    if os.getenv("CREAM_EOD_ENABLED", "0") != "1":
-        return
-    res = run_cream_eod(post=True)
-    print(f"[cream-eod] {res}")
+    """Back-compat alias for the old cron entry — delegates to run_scheduled (which
+    is flag-gated + slot-recording). Retained so any external caller still works."""
+    run_scheduled()

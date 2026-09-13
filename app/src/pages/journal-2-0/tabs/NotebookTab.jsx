@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -22,7 +22,12 @@ import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
+import { AuthContext } from '../../../context/AuthContext'
+import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
+import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
+import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import styles from './NotebookTab.module.css'
+import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -58,7 +63,41 @@ export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const noteId = searchParams.get('note')
 
+  // Wave Q1 — the reconnect. Mounted HERE, not in the editor: the queue is
+  // account-wide, and a note edited offline then closed must still reach the
+  // server. ⛔ `excludeNoteId` is the open note, which the editor owns and saves
+  // with its own backoff — two writers on one note is the last-write-wins this
+  // wave forbids. ⛔ And only the Web Locks LEADER drains; every other tab is a
+  // follower that waits rather than a racer that corrupts.
+  // ⛔ Read OPTIONALLY, the same way `useIsPaid` does: `useAuth()` throws
+  // outside a provider, and the drain is an enhancement — no account means no
+  // per-account database and nothing to drain, which is a degradation, not a
+  // reason to take the Notebook down.
+  const auth = useContext(AuthContext)
+  const drain = useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
+
+  // Wave Q1 — and the member has to be able to SEE it. A blocked entry is
+  // honest on the open note and was completely silent everywhere else: the
+  // words were held safely and told nobody, recoverable only by a member who
+  // happened to edit that note again for a reason nothing on screen gave them.
+  // ⛔ `drain.lastSummary` is the refresh signal, not `drain.pending`: a blocked
+  // entry is KEPT, so the queue length does not move when one becomes blocked.
+  const { blocked: blockedNoteIds } = useBlockedNotes({
+    accountId: auth?.user?.id,
+    refreshToken: drain.lastSummary,
+  })
+
   useEffect(() => { _logNotebookVisit() }, [])
+
+  // Wave Q1 — THE DENOMINATOR. "Zero blocked-baseline events" is worthless
+  // without knowing how many browsers ran the offline layer at all, and with
+  // the flag off in production that population may be nobody. This reports the
+  // transition into an opted-in state, once per browser, and is structurally
+  // silent for everyone else: the condition is `key === '1'`, which production
+  // never reaches on its own.
+  // ⛔ Best-effort and never awaited into the render path — an instrument that
+  // can break the Notebook is worse than no instrument.
+  useEffect(() => { reportOptIn().catch(() => {}) }, [])
 
   // Wave B: reads ?folder= (e.g. __trash__) -- the command palette's "Open
   // Trash" destination. NOT a lazy one-time initializer: NotebookTab does
@@ -435,6 +474,11 @@ export default function NotebookTab() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
+      // ⛔⛔ `restore_note` ADVANCED THIS NOTE'S REVISION. A note coming back
+      // out of the trash can still have unsent offline work queued against it
+      // — that is exactly the note a member restores — so an unlanded revision
+      // here forks the member's own recovery.
+      await settleNoteWrite(note.id, body.note)
       addNoteToTree(body.note)
       refresh()
       refreshAll()
@@ -801,6 +845,7 @@ export default function NotebookTab() {
                 onPropertySortChange={handlePropertySort}
                 onQuickFilter={handleQuickFilter}
                 onOpenNote={openNote}
+                blockedNoteIds={blockedNoteIds}
               />
             ) : (
               <div className={styles.grid}>
@@ -810,6 +855,7 @@ export default function NotebookTab() {
                     note={n}
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
+                    blocked={blockedNoteIds.has(n.id)}
                   />
                 ))}
               </div>

@@ -316,6 +316,42 @@ const AWAITING_A_DECISION = {
     'OUT-OF-SAMPLE HARNESS — an instrument, not a product surface: it runs the '
     + 'corpus against both lanes and is invoked by tooling and tests only. It '
     + 'has no member route by design and is NOT waiting on the pane.',
+  //
+  // ⚠️⚠️ THE EXPIRY CONDITION ABOVE IS AMENDED, NOT SILENTLY LEFT (merge
+  // 2026-09-13, feat/indicator-r0r1 ← origin/master 368520647). It said "delete
+  // this block when step 6 mounts the runtime". **Step 6 landed** — the pane
+  // draws Uncharted Volume v2's four plots and both DOM tables behind
+  // `VITE_PINE_MEMBER_PANE_ENABLED` — and these files are STILL unreachable,
+  // because ruling **D2** put the pane on the DEFINITION lane (`translatePine` →
+  // binder → pane) and kept the runtime IR lane off it. So the entries are still
+  // true and the rail is still right; what was wrong is the sentence naming the
+  // event that ends them.
+  //
+  // ⛔ THE CONDITION IS NOW: delete this block in the commit that puts the IR
+  // lane on the pane path (wave 2 — it currently refuses `runtime:tuple` at
+  // v2:251, an 8-value destructure the IR has no form for). An entry whose
+  // stated condition has passed while the entry survives is the "permanent
+  // excuse" this register's own header warns about, so this is dated and
+  // re-argued rather than re-greened.
+  //
+  // ── JOYSTICK HUB, PHASE 1 → WIRED IN PHASE 3 WAVE A (2026-09-09) ─────────
+  //
+  // `useHubMode.js` and `useHubCursor.js` WERE declared here, with a stated removal
+  // condition: "When the first page wires each one, DELETE ITS ENTRY HERE in the same
+  // commit." Wave A wired both — `MorningWire.jsx` and `Breadth.jsx` call `useHubMode`,
+  // and `hub/sections/wireSection.js` calls `useHubCursor` — so the entries are gone and
+  // this note is all that remains. An allow-list entry that outlives its condition is a
+  // permanent excuse, which is the failure mode this whole list is one step away from.
+  //
+  // `HubConfirmSheet.jsx` below is deliberately NOT removed: no Wave A section proposes a
+  // write, so it still has no caller.
+  // ── JOYSTICK HUB, PHASE 3 TASK 0 → WIRED IN WAVE B (2026-09-09) ─────────
+  //
+  // `HubConfirmSheet.jsx` WAS declared here, built in Task 0 ahead of its callers so the
+  // contract was testable before dispatch. Wave B gave it one: `HubRoot.jsx` mounts it and
+  // `runAction` opens it for every `kind: 'confirm'` action (R-09). Entry deleted per its
+  // own stated removal condition — the whole hub is now reachable, and this file's joystick
+  // section is empty by design.
   // ── THE DASHBOARD COCKPIT RETIREMENT (2026-08-30) ────────────────────────
   //
   // `/dashboard` became four zones with declared heights, and eight preview
@@ -493,6 +529,72 @@ const AWAITING_A_DECISION = {
   // `PineBox.jsx`/`ImportBox` and `pine.js` are all reachable through the real
   // import graph (`BuilderSheet.jsx` imports `ImportBox`, which imports
   // `dialect`), so listing any of them would be the same false claim.
+  // ── SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11) ─────
+  //
+  // ⛔ NOTHING HERE IS BEING DELETED. This rail offers three remedies — mount,
+  // delete, or record the decision — and for a feature somebody built and
+  // tested, recording it is the only one that is reversible. Deleting working
+  // code to turn a rail green is backwards: the rail exists to surface an
+  // undecided question, not to demand destruction. Same idiom as the cockpit
+  // retirement above, and as `api/routers/trades.py`.
+  //
+  // ⚠️ TWO OF THESE WERE NEVER ORPHANS, and that is a defect in what this rail
+  // can see rather than in the code. It walks from `App.jsx`; a module reached
+  // through a DIFFERENT entry point is structurally invisible to it and shows
+  // up here looking abandoned. Both are called out individually below. Before
+  // acting on any future entry in this list, check whether it is reached from
+  // a second HTML entry or a build-side bundle.
+  'app/src/floor2/main.jsx':
+    'NOT AN ORPHAN — it is the Vite entry for app/floor2.html '
+    + '(<script type="module" src="/src/floor2/main.jsx">). This rail walks from '
+    + 'App.jsx only, so a second HTML entry can never appear reachable to it. '
+    + 'Recorded so nobody deletes a live page because a test said so.',
+  'app/src/pages/optionsFlow/flowBootstrap.js':
+    'NOT AN ORPHAN — imported by flowFactsEntry.js (partsFrom) and covered by '
+    + 'its own flowBootstrap.test.js. It is reached through a build-side entry '
+    + 'rather than the App.jsx graph. Partner-owned OptionsFlow code: do not '
+    + 'touch without ack.',
+  'app/src/pages/charts/widgets/DockFundamentals.jsx':
+    'GENUINE ORPHAN, AWAITING A DECISION — in no WIDGET_REGISTRY entry and no '
+    + 'WORKSPACE_WIDGETS binding, so no workspace can mount it. Kept: it is a '
+    + 'built widget, and wiring it is one registry line if anyone wants it.',
+  // ── The Community surface itself: 15 files, one coherent feature ─────────
+  // Built and tested, never mounted. `chatStreamManager.js` is imported ONLY
+  // by these files, so the subgraph is self-contained — mounting CommunityPage
+  // would make the whole set reachable in one edit, and that is the shape of
+  // the decision. Awaiting a product ruling on whether Community ships.
+  'app/src/pages/community/CommunityPage.jsx':
+    'COMMUNITY SURFACE — the feature root. No route mounts it. Kept.',
+  'app/src/pages/community/ChatView.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/ThreadView.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/Composer.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/AckGate.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/components/CardRenderer.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from ChatView. Kept.',
+  'app/src/pages/community/components/FloorAvatar.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from ChatView. Kept.',
+  'app/src/pages/community/components/FloorSearch.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/components/MentionInbox.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/components/ProfileCard.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from ChatView. Kept.',
+  'app/src/pages/community/lib/renderBody.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/pages/community/lib/tickerMention.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/pages/community/lib/userMention.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/pages/community/lib/tiptapExtensions.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/lib/chatStreamManager.js':
+    'COMMUNITY SURFACE — the pooled EventSource for the chat stream. Its only '
+    + 'importers are the community files above, so it moves with them or not '
+    + 'at all (same pairing rule as buildRail / DeskVideoRail).',
   }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {

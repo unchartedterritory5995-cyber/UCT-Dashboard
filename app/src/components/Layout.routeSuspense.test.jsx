@@ -21,7 +21,22 @@ vi.mock('./MobileNav', () => ({ default: () => null }))
 vi.mock('./FeedbackWidget', () => ({ default: () => null }))
 vi.mock('./mobile/MoreSheet', () => ({ default: () => null }))
 vi.mock('./mobile/TickerHubSheet', () => ({ default: () => null }))
-vi.mock('../hooks/usePreferences', () => ({ default: () => ({ prefs: {} }) }))
+// `parsePref` is included so this mock reflects the REAL module surface —
+// `hub/useHubSettings.js` reaches for it (namespace import, defensively) and
+// HubRoot mounts inside this Layout render tree. `useHubSettings.js` already
+// guards a missing export with try/catch, so this addition isn't required to
+// avoid a crash today, but a mock missing an export the real module has is a
+// latent trap for the next file that imports it less defensively — keep the
+// two surfaces in sync. Mirrors `usePreferences.js`'s own
+// `parsePref(raw, fallback)` contract.
+vi.mock('../hooks/usePreferences', () => ({
+  default: () => ({ prefs: {} }),
+  parsePref: (raw, fallback) => {
+    if (raw == null) return fallback
+    if (typeof raw !== 'string') return raw
+    try { return JSON.parse(raw) } catch { return fallback }
+  },
+}))
 vi.mock('../lib/barsPackClient', () => ({ initBarsPack: () => {} }))
 
 beforeEach(() => { global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => ({}) })) })

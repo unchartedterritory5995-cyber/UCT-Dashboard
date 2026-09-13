@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { vi } from 'vitest'
+import { vi, describe, beforeEach } from 'vitest'
 
 const navigateMock = vi.fn()
 vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => navigateMock }))
@@ -11,6 +11,21 @@ vi.mock('../../hooks/useWatchlistAlerts', () => ({
   default: () => ({ createAlert: vi.fn(), hasAlert: () => false }),
 }))
 vi.mock('../../hooks/useTickerTweets', () => ({ default: () => ({ data: [] }) }))
+// S7 filing-watch — stubbed for the pre-existing navigation/action tests below
+// (they don't exercise it); a dedicated block further down drives the real
+// hook shape to prove the Filings action itself.
+const filingWatchMock = vi.hoisted(() => ({
+  // The S7 gate now lives in useFilingWatch itself, so a mock of that hook
+  // must say whether the feature exists. These suites are about the
+  // control's BEHAVIOUR, so they run with it on; absence-when-off has its
+  // own dedicated tests.
+  enabled: true,
+  watchState: vi.fn(() => 'NOT_WATCHING'),
+  getWatch: vi.fn(() => null),
+  createOrReactivate: vi.fn(),
+  suspend: vi.fn(),
+}))
+vi.mock('../../hooks/useFilingWatch', () => ({ default: () => filingWatchMock }))
 // The sheet now mounts ChartPane (the same chart /charts renders) instead of a
 // bare StockChart. ChartPane is lazy + imports the very same StockChart module,
 // so stubbing it here still covers the pane's inner chart.
@@ -62,6 +77,8 @@ test('opens with header, action buttons, TF chips and Compass', async () => {
   expect(screen.getByText('AAPL')).toBeInTheDocument()
   expect(screen.getByText('Chart')).toBeInTheDocument()
   expect(screen.getByText('Alert')).toBeInTheDocument()
+  // S7 filing watch — a DIFFERENT action from the price-alert "Alert" button above.
+  expect(screen.getByText('Filings')).toBeInTheDocument()
   expect(screen.getByText('Flag')).toBeInTheDocument()
   expect(screen.getByText('Journal')).toBeInTheDocument()
   expect(screen.getByText('Research')).toBeInTheDocument()
@@ -128,6 +145,62 @@ test('picking a comparator navigates to the exact canonical compare route (upper
   expect(screen.queryByText('AAPL')).toBeNull()
 })
 
+describe('S7 filing-watch action — distinct from the price Alert button', () => {
+  beforeEach(() => {
+    filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.enabled = true   // an OFF test must not leak forward
+    filingWatchMock.getWatch.mockReset().mockReturnValue(null)
+    filingWatchMock.createOrReactivate.mockReset()
+    filingWatchMock.suspend.mockReset()
+  })
+
+  test('NOT_WATCHING: clicking Filings creates a watch for this sym', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByText('open AAPL'))
+    fireEvent.click(screen.getByText('Filings'))
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
+    expect(filingWatchMock.suspend).not.toHaveBeenCalled()
+  })
+
+  test('ACTIVE: clicking Filings suspends the existing watch, never creates a second one', () => {
+    filingWatchMock.watchState.mockReturnValue('ACTIVE')
+    filingWatchMock.getWatch.mockReturnValue({ id: 'p1' })
+    render(<Harness />)
+    fireEvent.click(screen.getByText('open AAPL'))
+    fireEvent.click(screen.getByText('Filings'))
+    expect(filingWatchMock.suspend).toHaveBeenCalledWith('p1', 'AAPL')
+    expect(filingWatchMock.createOrReactivate).not.toHaveBeenCalled()
+  })
+
+  test('SUSPENDED: clicking Filings reactivates via the same create call', () => {
+    filingWatchMock.watchState.mockReturnValue('SUSPENDED')
+    render(<Harness />)
+    fireEvent.click(screen.getByText('open AAPL'))
+    fireEvent.click(screen.getByText('Filings'))
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
+  })
+
+  test('CREATING: the Filings action is disabled, no duplicate click fires a second request', () => {
+    filingWatchMock.watchState.mockReturnValue('CREATING')
+    render(<Harness />)
+    fireEvent.click(screen.getByText('open AAPL'))
+    const btn = screen.getByText('Filings').closest('button')
+    expect(btn).toBeDisabled()
+    fireEvent.click(btn)
+    expect(filingWatchMock.createOrReactivate).not.toHaveBeenCalled()
+  })
+
+  test('DARK: with S7_FILING_WATCH_ENABLED off the Filings action is ABSENT', () => {
+    // The price Alert button must survive: these are two different features
+    // and the gate must not take the neighbour with it.
+    filingWatchMock.enabled = false
+    render(<Harness />)
+    fireEvent.click(screen.getByText('open AAPL'))
+    expect(screen.queryByText('Filings')).toBeNull()
+    expect(screen.getByText('Alert')).toBeInTheDocument()
+  })
+})
+
 test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form, unconverted', () => {
   render(
     <MemoryRouter>
@@ -140,4 +213,5 @@ test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form
   fireEvent.click(screen.getByText('open BRK-B'))
   fireEvent.click(screen.getByText('Research'))
   expect(navigateMock).toHaveBeenCalledWith('/research/BRK-B')
+
 })

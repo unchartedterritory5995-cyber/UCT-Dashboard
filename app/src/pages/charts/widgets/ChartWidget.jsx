@@ -340,8 +340,20 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const wmPos = opts?.watermarkPos ?? null
   const startWatermarkAdjust = useCallback(() => { setWmAdjusting(true); closeCtx() }, [closeCtx])
   const endWatermarkAdjust = useCallback((pos) => {
-    if (pos) onOptsChange?.({ ...(opts || {}), watermarkPos: { x: pos.x, y: pos.y } })
+    // `anchor` = the spot in PIXELS from the pane's nearest edges. It's what keeps
+    // the mark where it was put when the chart later changes size (company panel
+    // opening, widget resize) — the x/y fraction alone re-resolves against the new
+    // pane and slides the fixed-width box off the edge. Kept alongside x/y so an
+    // older build (or a surface that ignores anchors) still reads the position.
+    if (pos) onOptsChange?.({ ...(opts || {}), watermarkPos: { x: pos.x, y: pos.y, anchor: pos.anchor ?? null } })
     setWmAdjusting(false)
+  }, [opts, onOptsChange])
+  // A position saved before anchors existed gets one derived + stored on first draw.
+  const adoptWatermarkAnchor = useCallback((anchor) => {
+    if (!anchor) return
+    const cur = opts?.watermarkPos
+    if (!cur || cur.anchor) return
+    onOptsChange?.({ ...(opts || {}), watermarkPos: { ...cur, anchor } })
   }, [opts, onOptsChange])
   const resetWatermark = useCallback(() => {
     onOptsChange?.({ ...(opts || {}), watermarkPos: null })
@@ -498,8 +510,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // drag itself while watermarkAdjusting is set.
           watermarkX: wmPos?.x ?? null,
           watermarkY: wmPos?.y ?? null,
+          watermarkAnchor: wmPos?.anchor ?? null,
           watermarkAdjusting: wmAdjusting,
           onWatermarkAdjustEnd: endWatermarkAdjust,
+          onWatermarkAnchor: adoptWatermarkAnchor,
           // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.

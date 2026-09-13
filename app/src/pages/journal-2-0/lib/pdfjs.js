@@ -1,3 +1,16 @@
+// ⛔⛔ THE SHIM IMPORT MUST STAY FIRST, AND IT MUST STAY AN IMPORT.
+//
+// `./iteratorGlobalShim` defines the `Iterator` global where the engine lacks it, which pdfjs-dist@6
+// reads unguarded at module top level (`typeof Iterator.prototype.join`) and therefore crashes on
+// every iOS below 18.4 — the 2026-09-12 `/journal/notebook` route outage. See that file for the
+// full incident and why four lines are enough.
+//
+// ⛔ IT CANNOT BE AN INLINE `if` ABOVE THESE LINES. ES imports are HOISTED: a top-level statement
+// written above them still executes AFTER every import has been evaluated, so an inline guard here
+// would read as correct and run too late. Sibling imports evaluate in source order, so this line
+// being FIRST is the whole mechanism. Do not reorder it, and do not "tidy" it into pdfjs.js.
+import './iteratorGlobalShim'
+
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
 

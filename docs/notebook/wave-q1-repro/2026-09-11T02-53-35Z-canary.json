@@ -1,0 +1,119 @@
+{
+  "ordering": "canary",
+  "started": "2026-09-11T02:53:35Z",
+  "sentence": "WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T02:53:35Z",
+  "noteId": "cd790bfcf843413796a8224e6f03339c",
+  "door": null,
+  "landed": null,
+  "notesBefore": 34,
+  "notesAfter": null,
+  "steps": [
+    {
+      "step": "rig",
+      "ok": true,
+      "detail": "PID 47196 \u00b7 Chrome/152.0.7977.83"
+    },
+    {
+      "step": "signed in",
+      "ok": true,
+      "detail": "account 7a6d0299-fd98-4017-b8dc-51b849d1ab1d"
+    },
+    {
+      "step": "create a fresh note",
+      "ok": true,
+      "detail": "cd790bfcf843413796a8224e6f03339c"
+    },
+    {
+      "step": "one CAS PUT while online",
+      "ok": true,
+      "detail": "1 PUT(s)"
+    },
+    {
+      "step": "offline is real",
+      "ok": true,
+      "detail": "FAILED: TypeError"
+    },
+    {
+      "step": "there IS queued work for the door to invalidate",
+      "ok": false,
+      "detail": "outbox 0 \u00b7 dirty None"
+    }
+  ],
+  "findings": [],
+  "revisions": [],
+  "puts": [
+    {
+      "at": "2026-09-11T02:53:58Z",
+      "url": "https://uctintelligence.com/api/j2/notes/cd790bfcf843413796a8224e6f03339c",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T02:53:50.878028+00:00",
+      "sentenceInPut": false
+    },
+    {
+      "at": "2026-09-11T02:54:05Z",
+      "url": "https://uctintelligence.com/api/j2/notes/cd790bfcf843413796a8224e6f03339c",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T02:53:58.255485+00:00",
+      "sentenceInPut": true
+    },
+    {
+      "at": "2026-09-11T02:54:06Z",
+      "url": "https://uctintelligence.com/api/j2/notes/cd790bfcf843413796a8224e6f03339c",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T02:53:58.255485+00:00",
+      "sentenceInPut": true
+    },
+    {
+      "at": "2026-09-11T02:54:08Z",
+      "url": "https://uctintelligence.com/api/j2/notes/cd790bfcf843413796a8224e6f03339c",
+      "keys": [
+        "baseUpdatedAt",
+        "bodyJson"
+      ],
+      "carriedBody": true,
+      "baseUpdatedAt": "2026-09-11T02:53:58.255485+00:00",
+      "sentenceInPut": true
+    }
+  ],
+  "layers": {
+    "offline": {
+      "noteId": "cd790bfcf843413796a8224e6f03339c",
+      "draft": {
+        "title": "WINDOW-CHECK-SENTINEL repro canary 2026-09-11T02:53:35Z",
+        "subtitle": "",
+        "bodyJson": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline @ 2026-09-11T02:53:35Z"
+                }
+              ]
+            }
+          ]
+        },
+        "savedAt": 1789095244669,
+        "sessionId": "69ef09fe-20df-4724-bee8-e1e033babe3c"
+      },
+      "record": null,
+      "outbox": [],
+      "server": "OFFLINE"
+    }
+  },
+  "error": "VACUOUS: nothing queued and nothing dirty before the door"
+}

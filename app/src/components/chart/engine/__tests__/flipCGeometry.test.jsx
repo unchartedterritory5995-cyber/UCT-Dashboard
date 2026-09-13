@@ -568,11 +568,19 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     // overlay scale named after the definition. The fixed range is unchanged —
     // it comes from `placement.scale` and the axis change did not touch it, which
     // is what keeps an RSI ladder reading 0/50/100.
+    //
+    // ⚰️ THE MARGINS WERE `{ top: 0, bottom: 0 }` AND THE `lastValue` KEY WAS NOT
+    // HERE. Both changed on 2026-09-10, together and for one reason: the pane got
+    // a readout. `PANE_BAND` keeps the line off the pane's two edges, and the tag
+    // puts the indicator's number on the axis sub-choice 2.2 paid 372 px for.
+    // `placement.test.js` holds the detail; this case pins the WHOLE object, so it
+    // is where a fourth key would be noticed.
     expect(resolvePlacement(inst('rsi'), def, { paneLayout: layout })).toEqual({
       paneIndex: 1,
       scaleId: 'right',
-      scaleOptions: { borderVisible: false, scaleMargins: { top: 0, bottom: 0 }, autoScale: false, minimum: 0, maximum: 100 },
+      scaleOptions: { borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: false, minimum: 0, maximum: 100 },
       autoscale: 'default',
+      lastValue: true,
     })
   })
 

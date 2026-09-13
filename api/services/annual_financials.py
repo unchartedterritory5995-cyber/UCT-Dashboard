@@ -43,7 +43,7 @@ def _pct_chg(cur, prev):
 # ── Actuals sources (mockable) ───────────────────────────────────────────────
 def _annual_actuals_from_fmp(ticker: str) -> dict[int, dict]:
     """{year: {eps, sales}} from FMP stable/income-statement (annual)."""
-    data = ee._fmp_get("/stable/income-statement", {"symbol": ticker, "limit": 12})
+    data = ee._fmp_get("/stable/income-statement", {"symbol": ticker, "limit": 12}, timeout=10)
     out: dict[int, dict] = {}
     if isinstance(data, list):
         for row in data:
@@ -142,7 +142,7 @@ def _forward_estimates_fmp(ticker: str, now: float, last_actual_year: int | None
     if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
         return []
     data = ee._fmp_get("/stable/analyst-estimates",
-                       {"symbol": ticker, "period": "annual", "limit": 20})
+                       {"symbol": ticker, "period": "annual", "limit": 20}, timeout=10)
     if not isinstance(data, list):
         return []
     floor = (last_actual_year if last_actual_year is not None

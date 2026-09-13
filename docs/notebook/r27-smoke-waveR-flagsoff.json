@@ -1,0 +1,161 @@
+{
+  "routes": [
+    {
+      "to": "/calendar",
+      "label": "UCT Terminal",
+      "status": "PASS",
+      "detail": "2396ms"
+    },
+    {
+      "to": "/charts",
+      "label": "Charts",
+      "status": "PASS",
+      "detail": "270ms"
+    },
+    {
+      "to": "/morning-wire",
+      "label": "Morning Wire",
+      "status": "PASS",
+      "detail": "265ms"
+    },
+    {
+      "to": "/dashboard",
+      "label": "Dashboard",
+      "status": "PASS",
+      "detail": "210ms"
+    },
+    {
+      "to": "/ai-search",
+      "label": "AI Search",
+      "status": "PASS",
+      "detail": "508ms"
+    },
+    {
+      "to": "/uct-20",
+      "label": "UCT 20",
+      "status": "PASS",
+      "detail": "207ms"
+    },
+    {
+      "to": "/breadth",
+      "label": "Breadth",
+      "status": "PASS",
+      "detail": "251ms"
+    },
+    {
+      "to": "/screener",
+      "label": "Screener",
+      "status": "PASS",
+      "detail": "226ms"
+    },
+    {
+      "to": "/options-flow",
+      "label": "Options Flow",
+      "status": "PASS",
+      "detail": "285ms"
+    },
+    {
+      "to": "/flow-scoreboard",
+      "label": "Flow Record",
+      "status": "PASS",
+      "detail": "214ms"
+    },
+    {
+      "to": "/live-massive",
+      "label": "Live Flow",
+      "status": "PASS",
+      "detail": "241ms"
+    },
+    {
+      "to": "/model-book",
+      "label": "Model Book",
+      "status": "PASS",
+      "detail": "236ms"
+    },
+    {
+      "to": "/desk",
+      "label": "The Desk",
+      "status": "PASS",
+      "detail": "214ms"
+    },
+    {
+      "to": "/journal",
+      "label": "Journal",
+      "status": "PASS",
+      "detail": "202ms"
+    },
+    {
+      "to": "/community",
+      "label": "Community",
+      "status": "PASS",
+      "detail": "222ms"
+    },
+    {
+      "to": "/support",
+      "label": "Support",
+      "status": "PASS",
+      "detail": "254ms"
+    },
+    {
+      "to": "/settings",
+      "label": "Settings",
+      "status": "PASS",
+      "detail": "1653 chars"
+    },
+    {
+      "to": "/catalysts/history",
+      "label": "Catalysts",
+      "status": "PASS",
+      "detail": "469 chars"
+    },
+    {
+      "to": "/journal/notebook",
+      "label": "Notebook",
+      "status": "PASS",
+      "detail": "683 chars"
+    }
+  ],
+  "stability": [
+    {
+      "route": "/dashboard",
+      "commits": 7,
+      "mutations": 46,
+      "seconds": 5,
+      "ok": true,
+      "detail": "stable (7 commits, 46 mutations)"
+    },
+    {
+      "route": "/charts",
+      "commits": 34,
+      "mutations": 139,
+      "seconds": 5,
+      "ok": true,
+      "detail": "stable (34 commits, 139 mutations)"
+    },
+    {
+      "route": "/screener",
+      "commits": 4,
+      "mutations": 913,
+      "seconds": 5,
+      "ok": true,
+      "detail": "stable (4 commits, 913 mutations)"
+    },
+    {
+      "route": "/journal",
+      "commits": 0,
+      "mutations": 0,
+      "seconds": 5,
+      "ok": true,
+      "detail": "stable (0 commits, 0 mutations)"
+    }
+  ],
+  "failures": [],
+  "keys": {
+    "uct.j2.offline.enabled": null,
+    "uct.nb.capture.enabled": null
+  },
+  "keys_as_found": {
+    "uct.j2.offline.enabled": null,
+    "uct.nb.capture.enabled": null
+  }
+}

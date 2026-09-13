@@ -21,15 +21,33 @@ from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
 
-# Matches api/services/massive.py::get_movers()'s own gap-filter threshold --
-# "only stocks with abs(change_pct) >= 3.0% are shown". Not re-derived here;
-# just reused so the two "notable move" definitions in this codebase agree.
-_PRICE_MOVE_THRESHOLD_PCT = 3.0
+def _price_move_threshold_pct() -> float:
+    """The gap that makes a move "notable" — DERIVED from the movers feed, not
+    restated here.
 
-# Matches api/services/awareness/rules.py::EARNINGS_PROXIMITY_DEFAULT_DAYS --
-# reused so "reporting soon" means the same thing here as it does in the
-# awareness engine, rather than a second, silently-different definition.
-_EARNINGS_PROXIMITY_DAYS = 3
+    ⛔ This used to be a hand-typed `3.0` with a comment claiming it "matches
+    massive.py::get_movers()'s own gap-filter threshold". It matched by
+    coincidence — nothing imported anything — so tuning either one would have
+    shipped two different definitions of a notable move with the comment still
+    asserting they agreed. Now there is one constant and this reads it (Seam 3).
+
+    Imported lazily inside the function, matching this module's convention for
+    every other cross-module use: `massive` builds an httpx client at import
+    time, and this file deliberately keeps that off its import path.
+    """
+    from api.services.massive import MOVER_THRESHOLD_PCT
+    return MOVER_THRESHOLD_PCT
+
+def _earnings_proximity_days() -> int:
+    """How far ahead "reporting soon" reaches -- DERIVED, not restated.
+
+    This was a hand-typed `3` whose comment said it matched
+    awareness/rules.py::EARNINGS_PROXIMITY_DEFAULT_DAYS. It did, by
+    coincidence: nothing imported anything (Seam 4). One declaration now
+    lives beside the shared window walk in calendar_alerts.
+    """
+    from api.services.calendar_alerts import EARNINGS_PROXIMITY_DEFAULT_DAYS
+    return EARNINGS_PROXIMITY_DEFAULT_DAYS
 
 # A filing newer than this many CALENDAR days counts as "new" -- a plain
 # calendar-day approximation (no trading-day calendar exists anywhere in this
@@ -46,7 +64,7 @@ def _fact(kind: str, label: str, as_of: Optional[str], source: str, freshness: s
 def _price_move_fact(sym: str, change_pct: Optional[float], observed_at: Optional[float] = None) -> Optional[dict]:
     if change_pct is None or not isinstance(change_pct, (int, float)):
         return None
-    if abs(change_pct) < _PRICE_MOVE_THRESHOLD_PCT:
+    if abs(change_pct) < _price_move_threshold_pct():
         return None
     sign = "+" if change_pct >= 0 else ""
     # Seam 8 (2026-09-07): `observed_at` is the vendor's own epoch-seconds
@@ -130,15 +148,19 @@ def _filing_fact(sym: str) -> Optional[dict]:
 
 
 def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
-    """{SYM: fact} for symbols reporting within _EARNINGS_PROXIMITY_DAYS, plus
+    """{SYM: fact} for symbols reporting within the shared proximity window, plus
     whether every day in the window was answered by a leg that actually ran
     cleanly (see calendar_alerts._get_reporters_for_date_with_status's own
     docstring for exactly what counts as clean).
 
-    Mirrors api/services/awareness/engine.py::_collect_earnings_window's own
-    algorithm (walk the window day-by-day via calendar_alerts' per-date
-    reporter lookup) rather than importing that module's private, engine-owned
-    memoization -- this is a one-shot on-demand batch, not a recurring scan.
+    ⚰️ This used to say it MIRRORED
+    `awareness/engine.py::_collect_earnings_window`'s algorithm rather than
+    importing it, to avoid inheriting that module's engine-owned memoization.
+    The two copies then diverged. Since Seam 4 both call ONE walk --
+    `calendar_alerts.collect_earnings_window` -- and the reason the mirror
+    existed is still honoured: the shared function owns the walk only, so this
+    one-shot on-demand batch still inherits no memoization from the recurring
+    scan.
 
     This is a SHARED, batch-level source: one lookup answers for every
     requested symbol, so the caller applies a single day's genuine failure to
@@ -147,31 +169,27 @@ def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
     design, so without the `_with_status` variant a total outage was
     indistinguishable from a genuinely quiet week and never degraded status.
     """
-    from api.services.calendar_alerts import _get_reporters_for_date_with_status
+    # ⛔ THE WALK IS SHARED (Seam 4). This module used to carry its own copy,
+    # deliberately, to avoid importing the awareness engine's private memoized
+    # version -- but two copies of one algorithm drift, and these already had.
+    # The shared function owns the walk only; the symbol filter and the fact
+    # phrasing below stay this module's, and no memoization is inherited.
+    from api.services.calendar_alerts import collect_earnings_window
 
     wanted = {s.upper() for s in symbols}
-    out: dict[str, dict] = {}
-    any_day_failed = False
     today = datetime.date.today()
-    for offset in range(0, _EARNINGS_PROXIMITY_DAYS + 1):
-        d = today + datetime.timedelta(days=offset)
-        d_str = d.isoformat()
-        try:
-            reporters, ok = _get_reporters_for_date_with_status(d_str)
-        except Exception as e:  # noqa: BLE001 -- defensive backstop; the callee's own contract is "never raises"
-            log.warning("[watchlist_intelligence] earnings lookup failed for %s: %s", d_str, e)
-            any_day_failed = True
+    by_sym, any_day_failed = collect_earnings_window(today, _earnings_proximity_days())
+
+    out: dict[str, dict] = {}
+    for sym, d_str in by_sym.items():
+        if sym not in wanted:
             continue
-        if not ok:
-            any_day_failed = True
-        for sym in reporters & wanted:
-            if sym in out:
-                continue  # earliest offset wins
-            when = "today" if offset == 0 else "tomorrow" if offset == 1 else f"in {offset} days"
-            out[sym] = _fact(
-                "earnings_proximity", f"Reports earnings {when}",
-                as_of=d_str, source="earnings calendar", freshness="fresh",
-            )
+        offset = (datetime.date.fromisoformat(d_str) - today).days
+        when = "today" if offset == 0 else "tomorrow" if offset == 1 else f"in {offset} days"
+        out[sym] = _fact(
+            "earnings_proximity", f"Reports earnings {when}",
+            as_of=d_str, source="earnings calendar", freshness="fresh",
+        )
     return out, any_day_failed
 
 

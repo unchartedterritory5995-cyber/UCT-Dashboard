@@ -582,3 +582,41 @@ def test_the_scheduled_post_is_never_ephemeral(mods, monkeypatch):
     assert out["posted"] is True
     assert "/channels/" in sent["url"], "the digest must post as the bot, not as an interaction"
     assert "flags" not in sent["payload"], "an ephemeral scheduled board is invisible to the room"
+
+
+def test_state_retention_still_prunes_and_is_anchored_to_the_data_not_the_clock(mods):
+    """⛔ THE GUARD FOR _KEEP_DAYS, which had NO test at all.
+
+    Two things must hold at once, and they pull in opposite directions:
+
+      1. the file must still SHRINK -- _KEEP_DAYS exists so seven slots a day
+         cannot accumulate forever, and a prune that never fires would be a
+         silent unbounded-growth regression that no other test would catch;
+      2. the prune must NOT consult the wall clock. It used to, and because
+         every caller injects its own `now`, a write dated anything other than
+         real-today was pruned in the same breath as writing it -- the slot
+         then read back as never posted, which is a DOUBLE POST into a ~750
+         member room. That is the bug this test locks shut.
+
+    Anchoring on the newest key present makes the window meaningful without a
+    clock, so this test also cannot rot into a date-bomb the way the nine that
+    exposed the bug did -- they were green when written and turned red five
+    days later with nobody touching the code.
+    """
+    _, _, digest = mods
+
+    old = "2026-09-01 10:00"       # far outside any _KEEP_DAYS window
+    recent = "2026-09-19 10:00"    # one day before the newest
+    newest = "2026-09-20 16:15"
+    for key in (old, recent, newest):
+        digest.mark_posted(key)
+
+    kept = digest.posted_keys()
+    assert newest in kept, "the write that triggered the prune was pruned by it"
+    assert recent in kept, "a slot inside the retention window was dropped"
+    assert old not in kept, "the prune never fired -- the state file grows forever"
+
+    # Clock-independence, stated as an assertion rather than a comment: these
+    # dates are years from any plausible run date, so a wall-clock prune would
+    # have emptied the set entirely.
+    assert kept == {recent, newest}

@@ -4,15 +4,35 @@ Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
 DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
 watch paths set in the Railway service settings (never railway.json — that file
+# 2026-09-13 - deploy trigger. `api/services/bar_quarantine.py` and
+# `api/services/bars_disk_cache.py` are REACHABLE from this worker but are not
+# on the watch list below, so a fix to them ships inert here unless a watched
+# file moves in the same commit. `tools/flow_worker_watch_coverage.py` failed
+# the diff and named them; this touch is the fix the rail prescribes.
 is shared by all three services): api/{massive_ws_worker,massive_processor,
-flow_db,bs_iv,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
+flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
 oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning,
 flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
-⚠️ TODO (2026-08-30): add `confluence_flow.py` to the DASHBOARD watch list — it's a
-flow module (reached via live_massive_router's /confluence-flow, imports weekly_flow)
-but is NOT yet watched, so a lone edit to it won't deploy until then (touch a watched
-file meanwhile, as this note does).
+PLUS three non-.py paths on the same list: `railway.json`, `requirements.txt`, and
+`api/flow_worker_deploy_marker.txt` (added 2026-09-12; Railway readback = 24 patterns).
+The marker is read by NOTHING — appending a dated line to it is the only way a
+non-flow-worker program can force this service to rebuild from master's tip and pick
+up an ADDITIVE strand. ⛔ `railway redeploy` CANNOT do that: it re-runs the last ACTUAL
+deployment, proved 2026-09-12 04:07 when it returned SUCCESS on the same commit it
+started from. See docs/runbooks/deploy-windows.md. The three non-.py paths live in
+`tools/flow_worker_watch_coverage.py::_EXTRA_WATCHED`, not in the brace list above —
+that list is expanded as `api/<name>.py`.
+✅ DONE (2026-09-12): `confluence_flow.py` IS now on the dashboard watch list, and
+`bs_iv.py` came OFF it in the same edit — bs_iv is not reachable from this module's
+import closure, so watching it only bought tape gaps for a file flow-worker never
+runs. Applied via the Railway GraphQL API (`serviceInstanceUpdate`), re-read to
+confirm exactly one removal and one addition and nothing else changed, and verified
+against this mirror by `tools/railway_watch_patterns.py --check` (exit 0).
+⛔ THE LIST ABOVE IS A MIRROR, NOT THE AUTHORITY — the Railway dashboard is. Run that
+tool after any change; it reads the LITERAL patterns and fails on drift. It
+authenticates from the railway CLI's own session when no token is set, so it needs no
+provisioning on a machine where `railway` works.
 ⚠️ TODO (2026-09-04): SAME for `oi_massive_snapshots.py` and `oi_morning.py` — both are
 flow-worker cards (07:00 ET capture + 08:00 ET OI Update post) but NEITHER is watched,
 so an edit to them alone won't deploy. This header edit is the trigger for the
@@ -95,6 +115,34 @@ has a single first-paint reader: every TICKER_DB consumer is a button handler, a
 consumer is `wlPopulate`/`wlPopulateUnusual` or Scanner Suggestions inside the
 Watchlist tab -- NO useMemo/useEffect reads either one. The client pulls both
 immediately AFTER paint and nothing is removed, summarised or reshaped.
+(2026-09-11:) TWO-PASS CONTRACT -- THE GUARD INVARIANT IS "WHAT WAS REQUESTED".
+The preparer runs pass 1 = FIRST_PAINT_PARTS (bootstrap + TOP_PICKS, published)
+then pass 2 = SERVED_PART_NAMES - FIRST_PAINT_PARTS (the deferred keys and the 3b
+raw fallback pair). ⛔ PASS 2'S `only=` SET NEVER CONTAINS `bootstrap`, so
+`build_parts` must judge a stream by whether it carries the parts that were ASKED
+FOR -- not by whether `bootstrap` is in it. That older test predated the `--only=`
+emission filter, when every build emitted everything and "bootstrap is present"
+WAS "the stream is complete".
+⚰️ It was wrong in both directions and both were live. Measured on prod
+2026-09-11: pass 2 spawned node, ran processFlowData IN FULL, piped back
+18,971,776 bytes of NINE valid frames and discarded all of it -- every roll, 5.5 s
+and ~19 MB of IPC, since the emission filter shipped. After 889 prepared rolls the
+parts cache held exactly ['bootstrap', 'TOP_PICKS'] with 22 of 24 slots free, so
+the deferred TICKER_DB/CONV split and the 3b fallback were NEVER pre-warmed.
+`build_failures` read 885 -- one per prepared roll -- while `prepare.failed` read
+0, because pass 2's return value is not checked and its own except arm cannot fire
+on a None. And in the other direction, a stream MISSING a requested part was
+ACCEPTED whenever bootstrap happened to be present.
+⭐ NO MEMBER EVER SAW AN ERROR, which is why it survived: the serving path passes
+no `only=`, so a cold interaction quietly paid a full ~5.8 s build instead of a
+warm hit. A silent loss of an optimisation is the failure mode a fallback creates
+-- the same shape as the `warm_only` NameError that 500'd every miss in prod.
+⛔ DERIVED PARTS STAY BEST-EFFORT: with no ETF replica the bundle emits no
+TOP_PICKS by design, and pass 1 requests it, so only PART_NAMES members are
+required. Rails: `tests/test_flow_parts_requested_guard.py` (mutation-proved
+against the old guard). A rejection now has its OWN counter,
+`parts_rejected_missing`, so the next one cannot hide inside `build_failures`.
+
 ⛔ THIS HEADER EDIT IS THE DEPLOY TRIGGER, AND WITHOUT IT THE SLICE IS INERT.
 The split lives in `app/dist/flow-facts.cjs`, built from `app/**`, and the
 mirrored allowlist lives in `api/services/flow_aggregate.py` -- NEITHER path is
@@ -600,15 +648,33 @@ def _start_flow_schedulers():
             # 2026-09-06: dropped the redundant content line — the post is image-only
             # now (bot name already reads "UCT Intelligence · Top Flow").
             from apscheduler.triggers.cron import CronTrigger as _CRCron
+            from apscheduler.triggers.interval import IntervalTrigger as _CREvery
             from api import cream_card as _cream
-            sched.add_job(_cream.scheduled_cream_eod,
-                          trigger=_CRCron(day_of_week="mon-fri", hour=16, minute=10,
+            # ⛔ THE SLOT IS READ, NOT RETYPED — cream_card.SLOT_ET is the one
+            # authority, so the cron and the catch-up below cannot disagree about
+            # which fire they mean (mirrors the OI-morning pair).
+            _crh, _crmin = _cream.SLOT_ET
+            sched.add_job(_cream.run_scheduled,
+                          trigger=_CRCron(day_of_week="mon-fri", hour=_crh, minute=_crmin,
                                           timezone=ZoneInfo("America/New_York")),
                           id="cream_eod", max_instances=1,
                           coalesce=True, replace_existing=True)
             n += 1
-            log.info("[startup] Cream of the Crop EOD cron registered (16:10 ET weekdays; "
-                     "dark until CREAM_EOD_ENABLED=1)")
+            # ⚰️ AND A CATCH-UP, because the job store is IN-MEMORY: a pod that
+            # restarts across the slot never SCHEDULES that fire, so
+            # `misfire_grace_time` cannot see it and the card vanishes with no trace
+            # (observed 2026-09-08 — a redeploy burst held the worker unstable until
+            # 17:53 ET, 103m past the slot; nothing posted). run_scheduled + catch_up
+            # both self-gate on CREAM_EOD_ENABLED, so this stays dark until armed.
+            # Same shape the OI card and /buzz already run.
+            sched.add_job(_cream.catch_up,
+                          trigger=_CREvery(seconds=60),
+                          id="cream_eod_catchup", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] Cream of the Crop EOD cron registered (%02d:%02d ET "
+                     "weekdays) + 60s catch-up; dark until CREAM_EOD_ENABLED=1",
+                     _crh, _crmin)
         except Exception as e:  # noqa: BLE001
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
 

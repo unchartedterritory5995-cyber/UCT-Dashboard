@@ -30,6 +30,7 @@
 import { useEffect, useState } from 'react'
 import UIcon from '../ui/UIcon'
 import { mapD1Freshness } from './freshnessContract'
+import { formatFreshnessAsOf } from '../../lib/presentation/presentationPrimitives'
 import styles from './FreshnessBadge.module.css'
 
 const _ICON_BY_TIER = {
@@ -41,20 +42,34 @@ const _ICON_BY_TIER = {
   unknown: 'info',
 }
 
-function formatAsOf(asOf) {
-  if (!asOf) return null
-  const d = new Date(asOf)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleTimeString('en-US', {
-    timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true,
-  })
-}
+// ⚰️ `formatAsOf` LIVED HERE, AND THE "tier !== 'real_time'" TEST LIVED IN
+// `Tier` BELOW. Both are now S10's `formatFreshnessAsOf`, which is the same two
+// rules in one place:
+//
+//     function formatAsOf(asOf) {
+//       if (!asOf) return null
+//       const d = new Date(asOf)
+//       if (Number.isNaN(d.getTime())) return null
+//       return d.toLocaleTimeString('en-US', {
+//         timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true,
+//       })
+//     }
+//
+// ⭐ It was byte-identical to `presentationFormat.js::formatEtTime` except for
+// one field — `second: '2-digit'` — so this component and `<Provenance>`, two
+// files apart in one directory, rendered the same instant two different ways.
+// That is the whole S10 case, at the smallest scale it can occur.
+//
+// ⛔ The suppression rule moved WITH the formatter on purpose. "A real-time
+// value gets no as-of clause" is a presentation fact, not a freshness fact:
+// leaving the `!== 'real_time'` test here and moving only the formatting would
+// have split one decision across two systems.
 
 /** One badge for one freshness-shaped value or one `fields[]` row (PRD-S8
  *  §9.5 composite support — "delayed price, live volume" on one row). */
 function Tier({ freshnessClass, asOf, label: labelOverride, testIdSuffix = '' }) {
   const presentation = mapD1Freshness(freshnessClass)
-  const asOfText = presentation.tier !== 'real_time' ? formatAsOf(asOf) : null
+  const asOfText = formatFreshnessAsOf({ tier: presentation.tier, asOf })
   const label = labelOverride || presentation.label || 'UNKNOWN'
   return (
     <span
@@ -65,7 +80,13 @@ function Tier({ freshnessClass, asOf, label: labelOverride, testIdSuffix = '' })
     >
       <UIcon name={_ICON_BY_TIER[presentation.tier] || 'clock'} size={12} />
       <span className={styles.tierLabel}>{label}</span>
-      {asOfText && <span className={styles.tierAsOf}>as of {asOfText} ET</span>}
+      {/* ⛔ `asOfText` now ARRIVES as the whole clause — "as of 9:32 AM ET" —
+          because the words and the zone label are part of the presentation
+          decision, not decoration around it. The rendered HTML is unchanged:
+          JSX serialises `as of {x} ET` and `{x}` to the same text content when
+          `x` carries the same characters, which is what the byte-identity
+          render test asserts rather than assumes. */}
+      {asOfText && <span className={styles.tierAsOf}>{asOfText}</span>}
       {presentation.isSourceStale && (
         // ⛔ NEVER THE BARE WORD "stale" ALONE — always qualified, so a reader
         // (and a test) can never mistake this for §9.6's session concept.

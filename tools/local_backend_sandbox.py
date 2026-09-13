@@ -199,8 +199,64 @@ def _verify_no_remote_sync() -> None:
           "— no R2 pull can start, from any caller")
 
 
+def _arm_ocr() -> str | None:
+    """Wire the REAL Tesseract adapter, in the sandbox only.
+
+    ⛔ OPT-IN, AND NOWHERE NEAR PRODUCTION. `J2_OCR_ENABLED` is unset in
+    production and this sets it for ONE local process whose every data path is
+    already redirected. It exists because Wave P3's exit standard is a member
+    JOURNEY -- upload, ask, cite, click through to the scanned page -- and an
+    API-only proof would leave the surface the member actually uses untested.
+    """
+    from api.services.journal_two import document_ocr_tesseract as tess
+    binary = tess.binary_path()
+    if binary is None:
+        # ⛔ THE WINDOWS INSTALL PATH LIVES HERE, NOT IN THE PRODUCT. Production
+        # is Debian and `binary_path()` finds /usr/bin/tesseract; teaching it
+        # about `C:\\Program Files` would put a developer machine's layout into
+        # the image. The sandbox is where local knowledge belongs.
+        win = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+        if not win.exists():
+            return None
+        binary = str(win)
+    os.environ[tess.FLAG] = "1"
+    os.environ["TESSERACT_BINARY"] = binary
+    return binary
+
+
+def _stub_ask_synthesis() -> None:
+    """Answer from the retrieved evidence WITHOUT a model call.
+
+    ⛔⛔ THIS IS SCAFFOLDING, AND IT LIVES IN tools/ FOR THAT REASON. No
+    product module knows it exists; it replaces one module attribute in this
+    process after the app is imported, behind an explicit flag.
+
+    ⭐ AND IT DERIVES ITS ANSWER FROM THE PROMPT IT WAS HANDED rather than
+    returning a fixed string. The evidence block carries the OCR text, so the
+    journey still proves the answer came from the scanned page and not from a
+    fixture -- which is the whole question §32 asks. A hardcoded reply would
+    make the citation render and prove nothing about retrieval.
+    """
+    from api.services.journal_two import ask_service as asvc
+
+    async def _echo(kwargs):
+        user = ""
+        for m in kwargs.get("messages") or []:
+            if m.get("role") == "user":
+                user = m.get("content") or ""
+        # The fenced evidence, minus the fences: what the model would read.
+        body = " ".join(user.split())
+        yield f"From the document: {body[-600:]} [1]"
+
+    asvc.synthesize = _echo
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--ocr", action="store_true",
+                    help="wire the real Tesseract adapter (sandbox only)")
+    ap.add_argument("--stub-ask", action="store_true",
+                    help="answer Ask from the retrieved evidence, no model call")
     ap.add_argument("--port", type=int, default=8077)
     ap.add_argument("--log-level", default="warning",
                     choices=["critical", "error", "warning", "info", "debug"],
@@ -229,6 +285,12 @@ def main() -> int:
     print(f"shared-root guard: {os.environ.get('UCT_TEST_SHARED_ROOT_GUARD', 'enforce')}")
     print(f"listening on     : http://127.0.0.1:{args.port}")
 
+    if args.ocr:
+        binary = _arm_ocr()
+        print(f"ocr adapter      : {binary or 'NO BINARY -- OCR stays dark'}")
+    else:
+        print("ocr adapter      : dark (pass --ocr to arm it here)")
+
     import uvicorn
     # ⛔ `warning` is the default here so a long-running dev backend does not
     # bury its own errors under a request-per-line access log. But PRODUCTION
@@ -237,6 +299,13 @@ def main() -> int:
     # lines at all, which silently makes any access-log assertion vacuous. That
     # is how "0 occurrences of the shared text" first read as a clean pass with
     # nothing to be clean about. `--log-level info` reproduces production.
+    if args.stub_ask:
+        # After the import above resolves `api.main`, so the module exists to
+        # patch and the route's attribute lookup finds the stub at call time.
+        import api.main  # noqa: F401
+        _stub_ask_synthesis()
+        print("ask synthesis    : STUBBED (echoes the evidence, no model call)")
+
     uvicorn.run("api.main:app", host="127.0.0.1", port=args.port,
                 log_level=args.log_level)
     return 0

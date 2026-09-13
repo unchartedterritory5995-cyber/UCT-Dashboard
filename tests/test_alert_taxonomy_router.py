@@ -72,6 +72,29 @@ def test_create_rejects_an_unknown_ticker_with_422(client, monkeypatch):
         app.dependency_overrides.clear()
 
 
+def test_list_active_only_default_hides_suspended_but_active_only_false_shows_it(client):
+    from api.main import app
+    from api.middleware.auth_middleware import get_current_user
+    from api.services.alert_taxonomy import predicates as _predicates
+    predicate_id = _predicates.register_predicate(
+        "document-arrival", {"kind": "entity", "id": "AAPL", "symbol": "AAPL"}, {}, "u1",
+    )
+    _predicates.suspend_predicate(predicate_id, "u1")
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "role": "member"}
+    try:
+        r_default = client.get("/api/alerts/taxonomy/document-arrival")
+        assert r_default.status_code == 200
+        assert predicate_id not in [p["id"] for p in r_default.json()["predicates"]], \
+            "default (active_only=True) must not regress -- a suspended predicate stays hidden"
+
+        r_all = client.get("/api/alerts/taxonomy/document-arrival?active_only=false")
+        assert r_all.status_code == 200
+        ids = [p["id"] for p in r_all.json()["predicates"]]
+        assert predicate_id in ids, "active_only=false must surface the caller's own suspended predicate"
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_suspend_is_ownership_scoped_at_the_route(client):
     from api.main import app
     from api.middleware.auth_middleware import get_current_user

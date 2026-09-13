@@ -433,22 +433,60 @@ describe('⭐ TASK 6 — one row per LIVE INSTANCE, and each row edits its own',
 describe('…and it reaches the real dialog, not just the row builder', () => {
   const openIndicators = () => fireEvent.click(screen.getByRole('tab', { name: 'Indicators' }))
 
-  it('renders a section per row group — fifteen indicator sections, derived', () => {
-    render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
+  /** A blob with EVERY shipped definition, and the carved-out section, switched
+   *  on — the widest active list the product can produce. */
+  const allOn = () => mergeChartSettings(JSON.stringify({
+    indicators: Object.fromEntries([
+      ...DEFS.map((d) => [d.id, { enabled: true }]),
+      ...CARVED_OUT_ROWS.map((r) => [r.id, { enabled: true }]),
+    ]),
+  }))
+
+  /** ⚠️ `document.body`, not render()'s container: the modal is PORTALED — and
+   *  the row's NAME, not the whole expander: a collapsed row also carries a short
+   *  type badge, so `textContent` reads "Bollinger BandsBB". */
+  const activeLabels = () => [...document.body.querySelectorAll('[data-row-id] [class*="actLabel"]')]
+    .map((n) => n.textContent.trim())
+
+  /** Open one indicator's row so its fields render. The consolidated tab shows
+   *  the active list COLLAPSED and opens one row at a time, so every case that
+   *  asserts on a FIELD has to make the gesture a member makes first. */
+  const openRow = (defId) => {
+    const block = document.body.querySelector(`[data-def-id="${defId}"]`)
+    expect(block, `${defId} is not in the ACTIVE list — the list shows what the chart draws`)
+      .toBeTruthy()
+    const expander = block.querySelector('[aria-expanded]')
+    if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
+    return block
+  }
+
+  it('renders a row per ACTIVE row — derived from listAllIndicators, never a typed list', () => {
+    // ⚰️ THIS ASSERTED A SECTION LIST — `['Moving averages', 'Volume', …every
+    // definition's short name, …the carved-out ones]` — because the tab rendered
+    // a section per definition whether or not the chart drew it. The
+    // consolidation makes the tab list what is ON, so the subject moves from
+    // "one section per definition" to "one row per active row"; the CLAIM does
+    // not move at all, and it is the claim that matters: the list is DERIVED, so
+    // a row in a group nobody thought to list can never render nothing.
+    //
+    // ⛔ EVERY DEFINITION IS SWITCHED ON HERE ON PURPOSE. A fresh blob draws five
+    // things, and five would pass over a tab that had quietly dropped fifteen.
+    const cs = allOn()
+    render(<ChartSettingsModal open settings={cs} onChange={vi.fn()} />)
     openIndicators()
-    // ⚠️ `document.body`, not render()'s container: the modal is PORTALED.
-    const labels = [...document.body.querySelectorAll('[class*="sectionLabel"]')].map((n) => n.textContent)
-    expect(labels).toEqual([
-      'Moving averages', 'Volume',
-      ...DEFS.map((d) => d.meta.shortName),
-      ...CARVED_OUT_ROWS.map((r) => r.shortName),
-    ])
+    const expected = listAllIndicators(cs, engineRegistry, {})
+      .filter((r) => r.path.kind !== 'indicator' || readEnabled(r))
+      .map((r) => r.label)
+    expect(expected.length, 'the fixture switched nothing on — the comparison is vacuous')
+      .toBeGreaterThan(15)
+    expect(activeLabels()).toEqual(expected)
   })
 
   it('⭐ MACD\'s two colours have a control now — the gap B3 measured and could not close', () => {
     const cs = mergeChartSettings(JSON.stringify({ indicators: { macd: { enabled: true } } }))
     render(<ChartSettingsModal open settings={cs} onChange={vi.fn()} />)
     openIndicators()
+    openRow('macd')
     const def = engineRegistry.getDefinition('macd')
     for (const key of ['macdColor', 'signalColor']) {
       const label = def.inputs.find((i) => i.key === key).label
@@ -469,6 +507,7 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
     const cs = mergeChartSettings(JSON.stringify({ indicators: { ichimoku: { enabled: true } } }))
     render(<ChartSettingsModal open settings={cs} onChange={vi.fn()} />)
     openIndicators()
+    openRow('ichimoku')
     expect([...document.body.querySelectorAll(`[title="${NOT_IN_BLOB}"]`)],
       'something is still greyed — the totality in indicatorCatalog.test.js says nothing is')
       .toHaveLength(0)
@@ -519,23 +558,38 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
       { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 7, color: '#227722' }, hidden: false },
     ],
   })
-  /** The `.indBlock`s of the RSI rows, in order, off the PORTALLED modal.
+  /** The ACTIVE ROWS of the two RSI instances, in order, off the PORTALLED modal.
    *
-   *  ⚠️ AN EXACT MATCH ON THE DEFINITION'S OWN `meta.name`, NOT A REGEX. A
-   *  `/Relative Strength/` test matched THREE blocks — RSI twice and `rsLine`
-   *  ("Relative Strength Line") once — so the case would have compared an RS-Line
-   *  colour against an RSI expectation and failed for the wrong reason. */
-  const RSI_NAME = engineRegistry.getDefinition('rsi').meta.name
-  const rsiBlocks = () => [...document.body.querySelectorAll('[class*="indBlock"]')]
-    .filter((b) => b.querySelector('[class*="indName"]')?.textContent === RSI_NAME)
-  /** One block's colour swatch for the `color` input. */
+   *  ⚰️ THIS USED TO FILTER `.indBlock`s BY `meta.name`, with a note that an exact
+   *  match rather than a `/Relative Strength/` regex was load-bearing (that regex
+   *  also matched `rsLine`, "Relative Strength Line"). The consolidated tab
+   *  publishes `data-def-id` on every active row, so the address is now the
+   *  definition ID itself — which is the same defect closed at the source rather
+   *  than dodged by a stricter string match. */
+  const rsiBlocks = () => [...document.body.querySelectorAll('[data-def-id="rsi"]')]
+
+  /** One row's COLLAPSED colour swatch — the headline control of the new row.
+   *
+   *  ⭐ IT IS THE SAME `ind:<rowId>:<field>` TARGET the expanded form uses, on the
+   *  row's first declared colour input, which for RSI is `color`. Reading it
+   *  collapsed is the stronger test: it proves the per-instance target resolves
+   *  before a member has opened anything. */
+  const collapsedSwatchIn = (block) => {
+    const sw = block.querySelector('[class*="actSwatch"] [data-color-swatch]')
+    expect(sw, 'the collapsed row shows no colour swatch').toBeTruthy()
+    return sw
+  }
+
+  /** One row's colour swatch for the `color` input, inside the OPEN settings. */
   const colourSwatchIn = (block) => {
+    const expander = block.querySelector('[aria-expanded]')
+    if (expander.getAttribute('aria-expanded') !== 'true') fireEvent.click(expander)
     const label = engineRegistry.getDefinition('rsi').inputs.find((i) => i.key === 'color').label
     const row = [...block.querySelectorAll('[class*="indRow"]')]
       .find((r) => r.querySelector('[class*="indLabel"]')?.textContent === label)
-    expect(row, 'the RSI block has no colour row — this case is asserting on nothing').toBeTruthy()
+    expect(row, 'the RSI row has no colour field — this case is asserting on nothing').toBeTruthy()
     const sw = row.querySelector('[data-color-swatch]')
-    expect(sw, 'the colour row renders no swatch').toBeTruthy()
+    expect(sw, 'the colour field renders no swatch').toBeTruthy()
     return sw
   }
   /** The open ColorPanel's hex box. */
@@ -574,6 +628,23 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
     const [, oldRowId, oldField] = 'ind:legacy:rsi:color'.split(':')
     expect([oldRowId, oldField], 'the naive split now parses an instance id correctly — the '
       + 'premise of this case is gone and the pair may not be needed').toEqual(['legacy', 'rsi'])
+  })
+
+  it('⭐⭐ the COLLAPSED swatch of each RSI row already shows ITS OWN colour', () => {
+    // The collapsed row is what a member sees before they click anything, and the
+    // whole point of putting a colour there is that it lets them match a row to a
+    // line on the chart. A swatch showing `targetValue`'s `#c9a84c` fallback — the
+    // shape a mis-parsed `ind:legacy:rsi:color` target produces — would look
+    // perfectly deliberate, so this reads the rendered colour rather than trusting
+    // that a swatch exists.
+    render(<ChartSettingsModal open settings={TWO_RSI_COLOURED()} onChange={vi.fn()} />)
+    openIndicators()
+    const blocks = rsiBlocks()
+    expect(blocks, 'two RSI instances did not produce two rows in the list').toHaveLength(2)
+    const seen = blocks.map((b) => collapsedSwatchIn(b).style.background)
+    // ⛔ AN EQUALITY, NOT "they differ" — see the case below for why.
+    expect(seen, 'a collapsed swatch is showing a colour neither instance holds')
+      .toEqual(['rgb(17, 17, 51)', 'rgb(34, 119, 34)'])
   })
 
   it('⭐ each of TWO RSI rows opens the colour panel on ITS OWN colour', () => {

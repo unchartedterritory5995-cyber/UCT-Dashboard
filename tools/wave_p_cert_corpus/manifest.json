@@ -1,0 +1,304 @@
+{
+  "ledger": {
+    "revenue": "$12.48 billion",
+    "gross_margin": "74.3%",
+    "eps": "$3.18",
+    "date": "September 8, 2026",
+    "shares": "2,461,000",
+    "negative": "(1,204)",
+    "ticker": "NVDA",
+    "ratio": "18.4x",
+    "small_pct": "0.7%",
+    "big_dollar": "$1,204.56"
+  },
+  "fixtures": {
+    "scan_clean": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "clean typed scan",
+      "truth": {
+        "1": [
+          "NVDA CORPORATION",
+          "CONDENSED CONSOLIDATED STATEMENTS OF INCOME",
+          "Quarter ended September 8, 2026",
+          "",
+          "Total revenue was $12.48 billion, an increase of 22% year over year.",
+          "Gross margin was 74.3% compared with 71.2% a year ago.",
+          "Diluted earnings per share were $3.18.",
+          "Weighted average shares outstanding: 2,461,000.",
+          "Other income (expense), net: (1,204).",
+          "Net debt to EBITDA stood at 18.4x at quarter end.",
+          "Restructuring charges represented 0.7% of revenue.",
+          "Average selling price per unit rose to $1,204.56."
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_lowres": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "low-resolution scan with grain",
+      "truth": {
+        "1": [
+          "NVDA CORPORATION",
+          "CONDENSED CONSOLIDATED STATEMENTS OF INCOME",
+          "Quarter ended September 8, 2026",
+          "",
+          "Total revenue was $12.48 billion, an increase of 22% year over year.",
+          "Gross margin was 74.3% compared with 71.2% a year ago.",
+          "Diluted earnings per share were $3.18.",
+          "Weighted average shares outstanding: 2,461,000.",
+          "Other income (expense), net: (1,204).",
+          "Net debt to EBITDA stood at 18.4x at quarter end.",
+          "Restructuring charges represented 0.7% of revenue.",
+          "Average selling price per unit rose to $1,204.56."
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_skew": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "2.1 degree skew",
+      "truth": {
+        "1": [
+          "NVDA CORPORATION",
+          "CONDENSED CONSOLIDATED STATEMENTS OF INCOME",
+          "Quarter ended September 8, 2026",
+          "",
+          "Total revenue was $12.48 billion, an increase of 22% year over year.",
+          "Gross margin was 74.3% compared with 71.2% a year ago.",
+          "Diluted earnings per share were $3.18.",
+          "Weighted average shares outstanding: 2,461,000.",
+          "Other income (expense), net: (1,204).",
+          "Net debt to EBITDA stood at 18.4x at quarter end.",
+          "Restructuring charges represented 0.7% of revenue.",
+          "Average selling price per unit rose to $1,204.56."
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_dense": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "dense filing page with footnotes",
+      "truth": {
+        "1": [
+          "Management's Discussion and Analysis of Financial Condition",
+          "",
+          "Revenue for the quarter was $12.48 billion. The increase was driven",
+          "primarily by data center demand, partially offset by lower gaming volumes.",
+          "Gross margin of 74.3% reflects a favorable product mix.",
+          "Operating expenses grew 14% on higher research and development headcount.",
+          "Diluted earnings per share of $3.18 include a one-time charge.",
+          "",
+          "Liquidity and Capital Resources",
+          "",
+          "Cash, cash equivalents and marketable securities totaled $31.4 billion.",
+          "Net leverage was 18.4x on a trailing twelve month basis.",
+          "The Company repurchased 4.1 million shares during the period.",
+          "",
+          "_______________",
+          "(1) Includes (1,204) of other expense, net.",
+          "(2) Restructuring represented 0.7% of total revenue.",
+          "(3) Weighted average diluted shares of 2,461,000."
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_table": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "table-heavy page",
+      "truth": {
+        "1": [
+          "REVENUE BY SEGMENT (in millions)",
+          "Segment Q3 2026 Q3 2025 Change",
+          "Data Center $9,242 $6,108 51%",
+          "Gaming $2,856 $3,041 (6%)",
+          "Professional Viz $486 $379 28%",
+          "Automotive $329 $253 30%",
+          "Total $12,913 $9,781 32%"
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_twocol": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "two-column layout",
+      "truth": {
+        "1": [
+          "OUTLOOK",
+          "",
+          "For the fourth quarter the Company",
+          "expects revenue of $13.5 billion,",
+          "plus or minus two percent.",
+          "GAAP gross margin is expected to be",
+          "74.3%, plus or minus",
+          "fifty basis points.",
+          "RISK FACTORS",
+          "",
+          "Demand may not materialize at the",
+          "levels currently anticipated.",
+          "A 0.7% shift in mix would",
+          "move gross margin materially.",
+          "Leverage of 18.4x limits",
+          "financial flexibility."
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_slide": {
+      "kind": "scanned_pdf",
+      "pages": 1,
+      "description": "image-only presentation slide",
+      "truth": {
+        "1": [
+          "DATA CENTER MOMENTUM",
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4E",
+          "Revenue reached $12.48 billion in the quarter."
+        ]
+      },
+      "expect_native_text": false
+    },
+    "scan_failed_page": {
+      "kind": "scanned_pdf",
+      "pages": 3,
+      "description": "3 scanned pages; page 2 is unreadable by construction",
+      "truth": {
+        "1": [
+          "NVDA CORPORATION",
+          "CONDENSED CONSOLIDATED STATEMENTS OF INCOME",
+          "Quarter ended September 8, 2026",
+          "",
+          "Total revenue was $12.48 billion, an increase of 22% year over year.",
+          "Gross margin was 74.3% compared with 71.2% a year ago.",
+          "Diluted earnings per share were $3.18.",
+          "Weighted average shares outstanding: 2,461,000.",
+          "Other income (expense), net: (1,204).",
+          "Net debt to EBITDA stood at 18.4x at quarter end.",
+          "Restructuring charges represented 0.7% of revenue.",
+          "Average selling price per unit rose to $1,204.56."
+        ],
+        "2": [],
+        "3": [
+          "REVENUE BY SEGMENT (in millions)",
+          "Segment Q3 2026 Q3 2025 Change",
+          "Data Center $9,242 $6,108 51%",
+          "Gaming $2,856 $3,041 (6%)",
+          "Professional Viz $486 $379 28%",
+          "Automotive $329 $253 30%",
+          "Total $12,913 $9,781 32%"
+        ]
+      },
+      "unreadable_pages": [
+        2
+      ],
+      "expect_native_text": false
+    },
+    "native_text": {
+      "kind": "native_pdf",
+      "pages": 2,
+      "description": "a real text-layer PDF \u2014 the no-OCR control",
+      "truth": {
+        "1": [
+          "NVDA CORPORATION",
+          "CONDENSED CONSOLIDATED STATEMENTS OF INCOME",
+          "Quarter ended September 8, 2026",
+          "",
+          "Total revenue was $12.48 billion, an increase of 22% year over year.",
+          "Gross margin was 74.3% compared with 71.2% a year ago.",
+          "Diluted earnings per share were $3.18.",
+          "Weighted average shares outstanding: 2,461,000.",
+          "Other income (expense), net: (1,204).",
+          "Net debt to EBITDA stood at 18.4x at quarter end.",
+          "Restructuring charges represented 0.7% of revenue.",
+          "Average selling price per unit rose to $1,204.56."
+        ],
+        "2": [
+          "Management's Discussion and Analysis of Financial Condition",
+          "",
+          "Revenue for the quarter was $12.48 billion. The increase was driven",
+          "primarily by data center demand, partially offset by lower gaming volumes.",
+          "Gross margin of 74.3% reflects a favorable product mix.",
+          "Operating expenses grew 14% on higher research and development headcount.",
+          "Diluted earnings per share of $3.18 include a one-time charge.",
+          "",
+          "Liquidity and Capital Resources",
+          "",
+          "Cash, cash equivalents and marketable securities totaled $31.4 billion.",
+          "Net leverage was 18.4x on a trailing twelve month basis.",
+          "The Company repurchased 4.1 million shares during the period.",
+          "",
+          "_______________",
+          "(1) Includes (1,204) of other expense, net.",
+          "(2) Restructuring represented 0.7% of total revenue.",
+          "(3) Weighted average diluted shares of 2,461,000."
+        ]
+      },
+      "expect_native_text": true
+    },
+    "mixed": {
+      "kind": "mixed_pdf",
+      "pages": 3,
+      "description": "page 1 native, page 2 scanned, page 3 native",
+      "truth": {
+        "1": [
+          "NVDA CORPORATION",
+          "CONDENSED CONSOLIDATED STATEMENTS OF INCOME",
+          "Quarter ended September 8, 2026",
+          "",
+          "Total revenue was $12.48 billion, an increase of 22% year over year.",
+          "Gross margin was 74.3% compared with 71.2% a year ago.",
+          "Diluted earnings per share were $3.18.",
+          "Weighted average shares outstanding: 2,461,000.",
+          "Other income (expense), net: (1,204).",
+          "Net debt to EBITDA stood at 18.4x at quarter end.",
+          "Restructuring charges represented 0.7% of revenue.",
+          "Average selling price per unit rose to $1,204.56."
+        ],
+        "2": [
+          "REVENUE BY SEGMENT (in millions)",
+          "Segment Q3 2026 Q3 2025 Change",
+          "Data Center $9,242 $6,108 51%",
+          "Gaming $2,856 $3,041 (6%)",
+          "Professional Viz $486 $379 28%",
+          "Automotive $329 $253 30%",
+          "Total $12,913 $9,781 32%"
+        ],
+        "3": [
+          "Management's Discussion and Analysis of Financial Condition",
+          "",
+          "Revenue for the quarter was $12.48 billion. The increase was driven",
+          "primarily by data center demand, partially offset by lower gaming volumes.",
+          "Gross margin of 74.3% reflects a favorable product mix.",
+          "Operating expenses grew 14% on higher research and development headcount.",
+          "Diluted earnings per share of $3.18 include a one-time charge.",
+          "",
+          "Liquidity and Capital Resources",
+          "",
+          "Cash, cash equivalents and marketable securities totaled $31.4 billion.",
+          "Net leverage was 18.4x on a trailing twelve month basis.",
+          "The Company repurchased 4.1 million shares during the period.",
+          "",
+          "_______________",
+          "(1) Includes (1,204) of other expense, net.",
+          "(2) Restructuring represented 0.7% of total revenue.",
+          "(3) Weighted average diluted shares of 2,461,000."
+        ]
+      },
+      "native_pages": [
+        1,
+        3
+      ],
+      "scanned_pages": [
+        2
+      ],
+      "expect_native_text": true
+    }
+  }
+}

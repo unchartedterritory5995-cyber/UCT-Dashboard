@@ -28,6 +28,7 @@ from typing import Optional
 import httpx
 
 from api.services import yf_util
+from api.services import fmp_client as _fmp_client
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,10 @@ def _fmp_profile_row(ticker: str):
     (`earnings_estimates._fmp_get` already swallows every failure)."""
     from api.services import earnings_estimates as ee
 
-    data = ee._fmp_get("/stable/profile", {"symbol": ticker}, timeout=8.0)
+    try:
+        data = _fmp_client.get_company_profile(ticker, timeout=8).value
+    except Exception:                   # noqa: BLE001 -- see the docstring's promise
+        return None
     if isinstance(data, list) and data and isinstance(data[0], dict):
         return data[0]
     if isinstance(data, dict):

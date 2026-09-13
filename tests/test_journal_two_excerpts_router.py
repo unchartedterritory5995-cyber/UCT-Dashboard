@@ -238,3 +238,33 @@ def test_evidence_endpoint_accepts_a_document_excerpt_target_end_to_end(app, cli
 
     listed = client.get(f"/api/j2/notes/{thesis_note}/evidence").json()["evidence"]
     assert len(listed) == 1 and listed[0]["targetId"] == excerpt["id"]
+
+
+def test_create_excerpt_returns_the_note_it_just_advanced(app, client):
+    """Wave Q1 (2026-09-12) -- A BROWSER CANNOT RECORD A REVISION IT WAS NEVER
+    TOLD.
+
+    `append_document_excerpt` advances the note's `updated_at`. Without the note
+    in this response the client has no revision to land, so the offline queue
+    meets a revision it has never heard of, concludes another writer produced
+    it, and forks the member's note against their own excerpt capture. Every
+    other door route already returned the note; this one did not.
+    """
+    _login_as(app, "u1")
+    note_id = _create_note(client, "Margin thesis")
+    before = client.get(f"/api/j2/notes/{note_id}").json()["note"]["updatedAt"]
+    doc_id = _upload_pdf(client, note_id, text="Management expects gross margins to normalize lower")
+
+    r = client.post(f"/api/j2/notes/{note_id}/excerpts", json={
+        "documentId": doc_id, "pageNumber": 1,
+        "capturedText": "gross margins to normalize lower",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert "excerpt" in body, "the excerpt must still come back -- this is additive"
+    note = body.get("note")
+    assert note is not None, "the note the append advanced must travel back with the excerpt"
+    assert note["id"] == note_id
+    # ...and it must be the NEW revision, not a copy of the one we started from.
+    assert note["updatedAt"] != before
+    assert note["updatedAt"] == client.get(f"/api/j2/notes/{note_id}").json()["note"]["updatedAt"]

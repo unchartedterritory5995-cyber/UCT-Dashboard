@@ -32,7 +32,13 @@ from api.services.journal_two.ask_evidence import (
     with_stance,
 )
 
-PAGE_ROW = {"document_id": "d1", "page_number": 2, "user_id": "u1", "name": "deck.pdf"}
+# ⛔ WAVE P3: the row shape MIRRORS WHAT THE REAL QUERY RETURNS. Every
+# production document-page query now selects `text_origin`, and the builder
+# demands it rather than defaulting, so a fixture that omits it is a fixture
+# that no longer describes production.
+PAGE_ROW = {"document_id": "d1", "page_number": 2, "user_id": "u1",
+            "name": "deck.pdf", "text_origin": "native"}
+OCR_PAGE_ROW = {**PAGE_ROW, "text_origin": "ocr"}
 EXCERPT_ROW = {
     "id": "e1", "user_id": "u1", "document_id": "d1", "page_number": 2,
     "document_name": "deck.pdf", "captured_text": "margins normalize lower",
