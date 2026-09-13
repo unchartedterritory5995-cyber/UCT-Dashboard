@@ -204,10 +204,15 @@ describe('candles are recognised but not offered (Phase A)', () => {
     expect(inst.presentation.plots.value.style).toBe('candles')
   })
 
-  it('⛔⛔ NO MEMBER-FACING CANDLES YET — the dropdown vocabulary is unchanged', () => {
-    expect(PLOT_STYLE_CHOICES.map((c) => c.value)).not.toContain('candles')
+  it('⛔⛔ CAPABILITY IS THE GATE, NOT THE CHOICE LIST', () => {
+    // ⚰️ PHASE A ASSERTED `PLOT_STYLE_CHOICES` DID NOT CARRY `candles` AT ALL —
+    // the honest statement of "the engine can do it and the member cannot ask".
+    // Phase B gives it a label, and the guarantee moves to where it always
+    // belonged: a choice list is a vocabulary, `availableStyles` is the rule.
+    expect(PLOT_STYLE_CHOICES.find((c) => c.value === 'candles').label).toBe('Candles')
     expect(availableStyles({ key: 'value', style: 'line' })).not.toContain('candles')
-    // It takes an explicit capability answer, which nothing in production passes.
+    expect(availableStyles({ key: 'value', style: 'line' }, { ohlcCapable: false }))
+      .not.toContain('candles')
     expect(availableStyles({ key: 'value', style: 'line' }, { ohlcCapable: true }))
       .toContain('candles')
   })

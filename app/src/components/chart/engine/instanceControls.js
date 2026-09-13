@@ -70,7 +70,8 @@ import { getDefinition } from './nativeRegistry'
 import { legacyInstanceId, newInstanceId, stackRank } from './instances'
 import { resolveDisplayTarget, isWritableDisplayTarget, legacyVolumeTarget } from './displayTarget'
 import { wouldCycle, severReferencesTo, parsePaneOfTarget } from './sourceRef'
-import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE } from './presentation'
+import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
+  CANDLE_COLOR_KEYS } from './presentation'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 
 function resolveRegistry(registry) {
@@ -409,6 +410,54 @@ export function setInstanceDotSize(cs, instanceId, size, registry, plotKey) {
       else delete presentation.plots
     } else if (size === DEFAULT_DOT_SIZE) delete presentation.dotSize
     else presentation.dotSize = size
+    return Object.keys(presentation).length ? { ...i, presentation } : (() => {
+      const { presentation: _drop, ...rest } = i
+      return rest
+    })()
+  })
+  return withInstances(cs, next, registry)
+}
+
+/**
+ * One candle output's up or down colour.
+ *
+ * ⭐ THE SAME SHAPE `setInstanceDotSize` WRITES, deliberately: a style-specific
+ * property lives beside the style in `presentation.plots[plotKey]`, and the
+ * writer DELETES it when the member returns to the chart's own colour. A saved
+ * chart therefore carries candle colours only where somebody changed one — the
+ * rule every other presentation key here already follows.
+ *
+ * ⛔ THE DEFAULT IS THE CALLER'S, because it is the CHART's. `cs.candles.upColor`
+ * is what the member's own candles wear, and a secondary instrument should match
+ * it until they say otherwise; a constant here would be a second palette.
+ *
+ * @param {'upColor'|'downColor'} which
+ * @param {string} color   the chosen colour
+ * @param {string} fallback the chart's colour for `which` — an equal value deletes
+ */
+export function setInstanceCandleColor(cs, instanceId, which, color, registry, plotKey, fallback) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!CANDLE_COLOR_KEYS.includes(which)) return cs
+  if (typeof color !== 'string' || !color) return cs
+  if (!findInstance(cs, instanceId)) return cs
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId) return i
+    const presentation = { ...(i.presentation || {}) }
+    // ⚠️ ABSENT `plotKey` MEANS THE INSTANCE LEVEL, exactly as `setInstanceDotSize`
+    // and `setInstancePlotStyle` treat it — a single-output row does not name its
+    // one output, and a second convention for candle colours would put a member's
+    // style and their colours in two different places on one instance.
+    if (typeof plotKey === 'string' && plotKey) {
+      const plots = { ...(presentation.plots || {}) }
+      const entry = { ...(plots[plotKey] || {}) }
+      if (color === fallback) delete entry[which]
+      else entry[which] = color
+      if (Object.keys(entry).length) plots[plotKey] = entry
+      else delete plots[plotKey]
+      if (Object.keys(plots).length) presentation.plots = plots
+      else delete presentation.plots
+    } else if (color === fallback) delete presentation[which]
+    else presentation[which] = color
     return Object.keys(presentation).length ? { ...i, presentation } : (() => {
       const { presentation: _drop, ...rest } = i
       return rest

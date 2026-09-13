@@ -462,3 +462,94 @@ works (`presentation.plots[key].style`), so Phase B adds no schema.
 ### OPEN QUESTION (unchanged)
 Axis domain for non-US-session secondaries: intersect (today) vs union. Needs a
 decision before any 24-hour or foreign-calendar instrument is admitted.
+
+## SECONDARY OHLC / CANDLES — PHASE B (member-facing style + candle colours)
+
+### WHAT SHIPPED
+Candles became a style a member can CHOOSE, on the sources that can honestly
+wear it, with the two colours that matter. No new widget, no new source type, no
+new pane type, no new modal, no new persisted field.
+
+- `presentation.js` — `PLOT_STYLE_CHOICES` gains `{ candles, 'Candles' }`,
+  APPENDED; `CANDLE_COLOR_KEYS`; `resolveCandleColors(instance, plot, fallback)`
+  walking the same per-output → instance → chart chain as the style and the dot
+  size; `DEFAULT_CANDLE_UP` / `DEFAULT_CANDLE_DOWN` as the last resort only.
+- `instanceControls.js` — `setInstanceCandleColor`, the `setInstanceDotSize`
+  shape exactly: `presentation.plots[plotKey]` when named, instance level when
+  not, and DELETE when the colour equals the chart's own.
+- `pool.js` — the candlestick branch spends `c.candleColors` on body, border and
+  wick together; absent, LWC's defaults, which is what every pre-Phase-B caller
+  means.
+- `binder.js` — resolves `candleColors` ONLY for a candlestick binding, with
+  `ctx.cs.candles` as the fallback, so a secondary instrument wears the member's
+  own candle colours until they say otherwise.
+- `secondaryBars.js` — `anyCachedBars(symbol)`: the window-agnostic read a
+  settings row needs, because a modal knows the instrument and never the chart's
+  timeframe. It never fetches.
+- `ChartSettingsIndicators.jsx` — one capability answer per row from
+  `sourceInputsOf` → `parseSource` → `anyCachedBars` → `symbolFamily` →
+  `ohlcCapabilityOf`, passed as `styleCtx` to BOTH `availableStyles` and
+  `resolvePlotStyle`; Up/Down colour inputs rendered only while the style is
+  candles, writing `single ? undefined : plot.key`.
+
+### THE ONE RULE WORTH RE-READING
+**Capability is the gate, not the choice list.** `PLOT_STYLE_CHOICES` now
+contains candles for everyone; `availableStyles` decides who is offered it and
+`resolvePlotStyle` clamps it for the renderer. A saved chart naming `candles` on
+a source that cannot wear them draws a line rather than a lie.
+
+### EVIDENCE
+- `ChartSettingsModal.candles.test.jsx` (new) 13 pass; `ohlcBinding` 18 pass;
+  `perOutputPresentation` 34 pass. Bite-check: bypassing the capability gate → 2
+  red.
+- Full frontend suite **19,610 pass / 16 fail / 12 skipped** — the same 16
+  baseline failures, same nine files. `vite build` clean, exit 0.
+- Browser (harness, real ChartSettingsModal): QQQ offered Candles and drawing
+  real bodies and wicks in its own pane; Up candle set to `#00e5ff` measured as
+  **4,193 cyan px in the QQQ pane canvas and 0 in the price pane**, while SPY's
+  candles in the next pane stayed 3,750 green / 4,436 red — the override is per
+  instance. `MA(QQQ)` joined the QQQ candle pane (one legend
+  `MA(5) 715.44 · QQQ 714.88`, cyan candles and a yellow line in ONE canvas).
+  Below → above → below round-tripped with the price pane intact. UCTA50 was
+  offered `[line, histogram, dots, area, lastValueHorizontal]` — no candles.
+  A duplicate QQQ became `QQQ #1` (candles, cyan) and `QQQ #2` (line), one
+  source and two presentations. Save blob → reconstruct returned style
+  `candles` and `#00e5ff`. **One `/api/bars/` request per secondary symbol**
+  across all of it. Console: no errors.
+
+### THE MEASUREMENT TRAP THAT COST AN HOUR — WORTH REMEMBERING
+Two false alarms, one cause each, and neither was product code.
+
+1. **The pixel scan read the wrong canvas.** Each pane is its OWN canvas. A scan
+   of `document.querySelector('canvas')` reads the PRICE pane and reports zero
+   cyan while the secondary pane is full of it. Enumerate every canvas and
+   report per-canvas counts, or the measurement answers a different question.
+
+2. **A BACKGROUNDED TAB HAS NO ANIMATION FRAMES, and lightweight-charts syncs
+   its DOM inside one.** `chart.panes()` reads the MODEL
+   (`_internal_model()._internal_panes()`); the `<tr>` per pane is created in
+   `_private__syncGuiWithModel`, which runs from the rAF draw loop. On a hidden
+   tab the model gains a pane, `addSeries` returns a real series, stretch
+   factors are accepted — and NOTHING renders, with no error anywhere. It
+   presents exactly like a pane-creation regression, and reverting the branch
+   does not fix it because there is nothing to fix. Check
+   `document.visibilityState` FIRST; a CDP screenshot forces frames and is a
+   usable workaround if the window cannot be raised.
+
+### KNOWN, PRE-EXISTING, NOT PHASE B
+`paneLayout: the chart has N panes, expected at least N+1` warns on the frame
+between the model gaining a pane and the widget syncing. On the hidden tab that
+frame lasted until the next forced capture, so the one re-apply "did not take"
+and the warning printed. Final geometry was correct every time
+(310 + 96 + 95 + 95 + 90 + 28 = 714). The message and mechanism predate Phase B.
+
+### MAIN TRADING
+Never opened; `40d361fa…` → 5,354 bytes, `ea9ebaeee302`, unchanged.
+
+### NEXT AUTHORIZED ACTION
+None. Phase B is complete and awaiting review.
+
+### OPEN QUESTIONS (unchanged)
+- Axis domain for non-US-session secondaries: intersect (today) vs union.
+- Splitting wick/border from the body is appearance work, deliberately deferred;
+  it would not move the seam `pool.seriesOptionsForPlot` already owns.

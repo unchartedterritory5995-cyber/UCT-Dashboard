@@ -608,10 +608,27 @@ export function seriesOptionsForPlot(plot, ctx) {
   // wick. `base` carries what every series needs (scale id, visibility,
   // autoscale, the axis tag), and the rest is the candle's own.
   //
-  // ⚠️ PHASE A LEAVES THE COLOURS TO LWC'S OWN DEFAULTS. Up/down/wick/border are
-  // member style, and no member can choose candles yet; inventing a palette here
-  // would be a product decision made in a renderer.
-  if (pk === 'candlestick') return base
+  // ⭐ THE COLOURS ARE RESOLVED BY THE CALLER, because the default is the CHART's
+  // own candle palette and this module has never read chart settings. Absent, LWC
+  // keeps its defaults — which is what every caller written before Phase B means.
+  //
+  // ⚠️ WICK AND BORDER FOLLOW THE BODY, and that is a choice worth stating: the
+  // shipped `chartDefaults.candles` sets `upBorder`/`upWick` to the same value as
+  // `upColor`, so a secondary instrument matches the member's own candles with
+  // ONE control instead of six. Splitting them is appearance work for later; it
+  // would not change this seam.
+  if (pk === 'candlestick') {
+    const cc = c.candleColors
+    if (!cc || !cc.upColor || !cc.downColor) return base
+    return Object.assign(base, {
+      upColor: cc.upColor,
+      downColor: cc.downColor,
+      borderUpColor: cc.upColor,
+      borderDownColor: cc.downColor,
+      wickUpColor: cc.upColor,
+      wickDownColor: cc.downColor,
+    })
+  }
 
   if (pk === 'histogram') {
     // A histogram has no line width, no line style and no crosshair marker.

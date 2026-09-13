@@ -48,6 +48,11 @@ export const PLOT_STYLE_CHOICES = Object.freeze([
   { value: 'dots', label: 'Dots' },
   { value: 'area', label: 'Area' },
   { value: 'lastValueHorizontal', label: 'Last value horizontal' },
+  // ⚠️ APPENDED, NOT INSERTED. Every other entry is a way of drawing one column
+  // and their order is the one members already read; candles are the odd one and
+  // belong at the end. `availableStyles` still decides whether this is OFFERED —
+  // a choice list is not a capability.
+  { value: 'candles', label: 'Candles' },
 ])
 
 /**
@@ -257,6 +262,41 @@ export function resolveDotSize(instance, plot) {
   const instLevel = pres ? read(pres.dotSize) : null
   return instLevel || DEFAULT_DOT_SIZE
 }
+
+/** The two colours a candlestick wears. ⚠️ KEYS, NOT VALUES — the DEFAULTS are
+ *  the chart's own (`cs.candles`), because a secondary instrument drawn on
+ *  somebody's chart should look like that chart's candles until they say
+ *  otherwise. Hard-coding a pair here would be a second palette to keep in step
+ *  with the theme that already exists. */
+export const CANDLE_COLOR_KEYS = Object.freeze(['upColor', 'downColor'])
+
+/**
+ * The up/down colours for ONE candle output of one instance.
+ *
+ * ⭐ PER OUTPUT, OVER AN INSTANCE FALLBACK, OVER THE CHART — the same three-step
+ * chain `resolvePlotStyle` and `resolveDotSize` already walk, so a member who has
+ * never touched these stores nothing and inherits the chart.
+ *
+ * @param {object} fallback `{upColor, downColor}` — normally `cs.candles`
+ */
+export function resolveCandleColors(instance, plot, fallback) {
+  const pres = instance && instance.presentation
+  const key = plot && plot.key
+  const ok = (v) => (typeof v === 'string' && v ? v : null)
+  const perOutput = (pres && pres.plots && typeof key === 'string' && pres.plots[key]) || null
+  const base = fallback && typeof fallback === 'object' ? fallback : {}
+  return {
+    upColor: (perOutput && ok(perOutput.upColor)) || (pres && ok(pres.upColor))
+      || ok(base.upColor) || DEFAULT_CANDLE_UP,
+    downColor: (perOutput && ok(perOutput.downColor)) || (pres && ok(pres.downColor))
+      || ok(base.downColor) || DEFAULT_CANDLE_DOWN,
+  }
+}
+
+/** The last resort, only when a chart supplies no palette at all — the same pair
+ *  `chartDefaults.candles` ships, so the two cannot disagree on a fresh chart. */
+export const DEFAULT_CANDLE_UP = '#2faf68'
+export const DEFAULT_CANDLE_DOWN = '#df4646'
 
 /**
  * The plot the RENDERER should draw — the definition's, restyled.

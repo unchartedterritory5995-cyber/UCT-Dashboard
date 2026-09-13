@@ -61,13 +61,20 @@ import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
   setInstancePanePosition, setInstanceDisplayTarget,
-  setInstancePlotStyle, setInstanceDotSize } from './engine/instanceControls'
+  setInstancePlotStyle, setInstanceDotSize, setInstanceCandleColor } from './engine/instanceControls'
 import { resolveDisplayTarget, displayTargetOptions } from './engine/displayTarget'
-import { sourceOptions } from './engine/sourceRef'
+import { sourceOptions, parseSource, sourceInputsOf } from './engine/sourceRef'
 import {
   resolvePlotStyle, resolveDotSize, availableStyles, styleIrrelevantInputs,
-  PLOT_STYLE_CHOICES, DOT_SIZE_CHOICES,
+  PLOT_STYLE_CHOICES, DOT_SIZE_CHOICES, resolveCandleColors,
 } from './engine/presentation'
+// ⭐ THE SAME CAPABILITY THE ENGINE ASKS, ASKED BY THE SURFACE THAT OFFERS THE
+// CHOICE. A dropdown that offers a style the renderer will clamp away is a
+// dropdown that lies, and the way to keep the two in step is to share the
+// function rather than to restate the rule.
+import { ohlcCapabilityOf } from './engine/ohlcCapability'
+import { anyCachedBars } from './engine/secondaryBars'
+import { symbolFamily } from '../../hooks/useBreadthSymbols'
 import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
@@ -75,6 +82,14 @@ import styles from './ChartSettingsModal.module.css'
 /** A stable identity for "this row hides nothing", so a non-engine row does not
  *  allocate a Set per render. */
 const EMPTY_KEY_SET = new Set()
+
+/** The two candle colours a member may change, with the words they read. ⛔ NOT
+ *  SIX: wick and border follow the body (`pool.seriesOptionsForPlot`), which is
+ *  what the chart's own `candles` defaults already do. */
+const CANDLE_ROWS = Object.freeze([
+  { key: 'upColor', label: 'Up candle' },
+  { key: 'downColor', label: 'Down candle' },
+])
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -431,7 +446,22 @@ export default function ChartSettingsIndicators({
     if (!row || !row.instanceId) return null
     const inst = findInstance(settings, row.instanceId)
     const plots = (def && Array.isArray(def.plots)) ? def.plots : []
-    const restyleable = plots.filter((p) => availableStyles(p, { target }).length > 0)
+    // ⭐⭐ ONE CAPABILITY ANSWER FOR THIS ROW. `anyCachedBars` is the window-
+    // agnostic read — the settings tab knows the instrument, never the chart's
+    // timeframe — and `symbolFamily` is the provider-family authority the binder
+    // uses. Absent bars or an unclassified family answer NO, so Candles is simply
+    // not offered until the source is known to mean them rather than appearing
+    // and then vanishing.
+    const ohlcCapable = (() => {
+      if (!inst || !def) return false
+      const declared = sourceInputsOf(def, inst)
+      if (!declared.length) return false
+      const parsed = parseSource(declared[0][1])
+      if (!parsed || parsed.kind !== 'symbol') return false
+      return ohlcCapabilityOf(parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
+    })()
+    const styleCtx = { target, ohlcCapable }
+    const restyleable = plots.filter((p) => availableStyles(p, styleCtx).length > 0)
     if (!restyleable.length) return null
     const commit = (next) => { if (next !== settings) onChange?.({ ...next, preset: 'custom' }) }
 
@@ -440,8 +470,8 @@ export default function ChartSettingsIndicators({
     const single = restyleable.length === 1
 
     const styleRow = (plot) => {
-      const style = resolvePlotStyle(inst, plot)
-      const choices = availableStyles(plot, { target })
+      const style = resolvePlotStyle(inst, plot, styleCtx)
+      const choices = availableStyles(plot, styleCtx)
       return (
         <div key={`style-${plot.key}`}>
           <div className={styles.indRow}>
@@ -459,6 +489,29 @@ export default function ChartSettingsIndicators({
               ))}
             </select>
           </div>
+          {/* ⭐ STYLE-SPECIFIC APPEARANCE, SHOWN ONLY WHILE IT APPLIES — the same
+              progressive disclosure "Dot size" already uses below. A member on a
+              line sees neither, and neither is left inert.
+              ⚠️ THE DEFAULT IS THE CHART'S OWN CANDLE COLOUR, so a secondary
+              instrument matches the candles beside it until somebody changes one,
+              and the writer stores nothing while it matches. */}
+          {style === 'candles' ? CANDLE_ROWS.map(({ key, label }) => (
+            <div className={styles.indRow} key={key}>
+              <span className={styles.indLabel}>{label}</span>
+              <input
+                type="text"
+                className={styles.indNum}
+                style={{ width: 92 }}
+                aria-label={single ? `${row.label} ${label.toLowerCase()}`
+                  : `${row.label} ${plot.key} ${label.toLowerCase()}`}
+                value={resolveCandleColors(inst, plot, settings.candles)[key]}
+                onChange={(e) => commit(setInstanceCandleColor(
+                  settings, row.instanceId, key, e.target.value, registry,
+                  single ? undefined : plot.key, (settings.candles || {})[key],
+                ))}
+              />
+            </div>
+          )) : null}
           {style === 'dots' ? (
             <div className={styles.indRow}>
               <span className={styles.indLabel}>Dot size</span>

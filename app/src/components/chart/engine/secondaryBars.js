@@ -128,6 +128,32 @@ export function cachedBars(symbol, tf, bars) {
 }
 
 /**
+ * ANY entry we hold for this symbol, whatever window it was fetched for.
+ *
+ * ⭐⭐ FOR A SURFACE THAT KNOWS THE SYMBOL AND NOT THE WINDOW. The settings tab
+ * has to answer "may this series be drawn as candles?" and it knows the
+ * instance's source — but the timeframe and bar count belong to the CHART, and
+ * threading them into a modal would put a rendering concern in a form. The
+ * question this answers is "what do we hold for this instrument", which is the
+ * honest one for a capability probe.
+ *
+ * ⛔ IT NEVER FETCHES, for the reason `cachedBars` states: a read that fetches
+ * cannot be called from a probe without paying for a request. It reads what the
+ * chart has already loaded, and answers `null` before that lands — which the
+ * capability gate treats as "not yet", the fail-closed direction.
+ *
+ * ⚠️ FIRST MATCH WINS. Two windows of one symbol are the same instrument and the
+ * same o/h/l/c shape; a capability answer cannot differ between them.
+ */
+export function anyCachedBars(symbol) {
+  const s = typeof symbol === 'string' ? symbol.trim().toUpperCase() : ''
+  if (!s) return null
+  const prefix = `${BARS_PATH}${encodeURIComponent(s)}?`
+  for (const [url, entry] of _cache) if (url.startsWith(prefix)) return entry
+  return null
+}
+
+/**
  * The fetch. Deduped per URL, so every consumer of one symbol costs one request.
  *
  * ⛔ A FAILURE IS NOT CACHED. An absent entry retries on the next paint; a cached

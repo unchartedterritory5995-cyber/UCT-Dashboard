@@ -56,7 +56,7 @@ import {
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
-import { resolvePlotStyle, drawsHistory } from './presentation'
+import { resolvePlotStyle, drawsHistory, resolveCandleColors } from './presentation'
 import {
   orderByDependency, sourceInputsOf, parseSource, barFieldSeries, resolveScaleDomain,
 } from './sourceRef'
@@ -1169,6 +1169,13 @@ export function createBinder({ chart, LWC }) {
         // option set, so without this the engine would re-show a hidden series on
         // the next paint — roughly once a second in extended hours.
         indicatorsHidden: ctx.indicatorsHidden === true,
+        // ⭐ ONLY A CANDLE READS THESE, and resolving them here is what keeps the
+        // chart's own palette the default: `cs.candles` is the member's candle
+        // colour, and a secondary instrument wears it until they override it on
+        // this instance.
+        candleColors: b.poolKey === 'candlestick'
+          ? resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles)
+          : null,
       })
       if (!options) { orphan(b); continue }
 
