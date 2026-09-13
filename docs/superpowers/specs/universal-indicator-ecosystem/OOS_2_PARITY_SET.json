@@ -70,21 +70,6 @@
       "sha": "de3f7a58c8789141dd6c5881b79e79bc8202de6eec1cd0a446fad40229404fdd"
     },
     {
-      "key": "mid_engagement__01-zeiierman-trend-pressure",
-      "title": "Zeiierman Trend Pressure (Zeiierman)",
-      "author": "Zeiierman",
-      "url": "https://www.tradingview.com/script/SEdUWOIJ-Zeiierman-Trend-Pressure-Zeiierman/",
-      "stratum": "mid_engagement",
-      "tier": "V5",
-      "loc": 245,
-      "families": "PLFMO",
-      "distinct_families": 5,
-      "visual_call_sites": 23,
-      "dynamic_colour_sites": 6,
-      "conditional_visibility": true,
-      "sha": "652954172540f4aba99ecaacb53059762501286ae950d83663614dae842cbc89"
-    },
-    {
       "key": "long_tail__05-master-line-plus",
       "title": "Master Line Plus. Multi-MA Consensus",
       "author": "zebris_boris",
@@ -159,5 +144,28 @@
       "conditional_visibility": false,
       "sha": "6b88159dcf5d63988d9f0eb3cd6356f4628b46ae3c5e5fcadcd0d7e83e30ff76"
     }
-  ]
+  ],
+  "_dropped_2026_09_13": {
+    "_": "⛔ R-N (owner ruling, 2026-09-13). `mid_engagement__01-zeiierman-trend-pressure` LEAVES THIS SET because its source is not published: the script page's viewer renders a 5-line stub against its own claim of 353 lines, so there is nothing to walk. ⭐ A parity set is a promise that every member can be re-measured; a member the vendor will not show can never keep it, and holding it here made the set permanently 9-of-10 for a reason that is not about parity.",
+    "key": "mid_engagement__01-zeiierman-trend-pressure",
+    "claimed_lines_on_page": 353,
+    "captured_lines": 5,
+    "capture_attempted_at": "2026-09-13",
+    "member": {
+      "key": "mid_engagement__01-zeiierman-trend-pressure",
+      "title": "Zeiierman Trend Pressure (Zeiierman)",
+      "author": "Zeiierman",
+      "url": "https://www.tradingview.com/script/SEdUWOIJ-Zeiierman-Trend-Pressure-Zeiierman/",
+      "stratum": "mid_engagement",
+      "tier": "V5",
+      "loc": 245,
+      "families": "PLFMO",
+      "distinct_families": 5,
+      "visual_call_sites": 23,
+      "dynamic_colour_sites": 6,
+      "conditional_visibility": true,
+      "sha": "652954172540f4aba99ecaacb53059762501286ae950d83663614dae842cbc89"
+    }
+  },
+  "_set_is_nine_since_2026_09_13": "The set is NINE. ⚠️ The remaining blocker is not structural: `mid_engagement__05-supertrend-fibonacci-ote` was an author edit after the freeze and is RE-FROZEN on today's bytes (R-N), so it can be measured again — its `sha` here is the 2026-09-07 one and is superseded by `pine_oos/MANIFEST.json`, which is the single authority on a member's hash."
 }

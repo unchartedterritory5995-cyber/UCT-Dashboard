@@ -1,8 +1,8 @@
 {
   "freeze_id": "5df718c2f342571ac57c32a8cdaf337ae7462eababe5aa2e0a8b3fd2e9f4904d",
   "frozen_at": "2026-09-07T12:24:25.146869-05:00",
-  "target": 60,
-  "selected": 60,
+  "target": 59,
+  "selected": 59,
   "quota": {
     "high_engagement": 20,
     "mid_engagement": 20,
@@ -386,12 +386,15 @@
       "license": "not stated",
       "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 166,
       "complexity_bucket": "long",
-      "sha256_source": "e134b969090a321a9ec19451800642097d2d66e25ce9306346fe45c9cff0b98c",
+      "sha256_source": "f31b84fee5a83776af145b88e9376407453b755d0562a1c5a5176611356f4a2c",
       "sha256_normalized": "827f6c737eb4b670137339b95fd86e1cecf525595dea66aa36183065ab28af36",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "e134b969090a321a9ec19451800642097d2d66e25ce9306346fe45c9cff0b98c",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "long_tail",
@@ -548,12 +551,15 @@
       "license": "not stated",
       "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 185,
       "complexity_bucket": "long",
-      "sha256_source": "d2f36d90354c62e35f2fd64fa1c920010894782bca47725e3df32aa15814d20c",
+      "sha256_source": "62c68dd4fe73410384fb59d686f63b0976d34fef2ed8fde16d9810b88b1060f9",
       "sha256_normalized": "61a9c9efd023d0681670338def85b99986d7f98e83c905c88cba8bbcdd8d4219",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "d2f36d90354c62e35f2fd64fa1c920010894782bca47725e3df32aa15814d20c",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "long_tail",
@@ -620,12 +626,15 @@
       "license": "not stated",
       "publish_or_update_date": "3 days ago (relative date shown on page; no absolute date displayed)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 97,
       "complexity_bucket": "long",
-      "sha256_source": "deaeeeca9cfc404ec5dd249f4abc5d6618ebe8a0697ac5685a6d0838c0d3639f",
+      "sha256_source": "b0f13a73faf1eae102cc7c95d63e36187f12021fd6d53958571b2498e634f16b",
       "sha256_normalized": "ad91ac92fec745e1d78490a13e626d7921137ffab1a136f2ca3a0b979e1a89bf",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "deaeeeca9cfc404ec5dd249f4abc5d6618ebe8a0697ac5685a6d0838c0d3639f",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "long_tail",
@@ -638,12 +647,15 @@
       "license": "not stated",
       "publish_or_update_date": "yesterday (relative date shown on page; no absolute date displayed)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 367,
       "complexity_bucket": "long",
-      "sha256_source": "3b8bb7928b24f85c283d18e10fb363bf600a2959036619d27161fbe50e19fbd7",
+      "sha256_source": "66ae0601a62e3dbb57effd93e073e8d795607ac1daeeeb098b27a3901a6b02fc",
       "sha256_normalized": "49f621ae62243724b53b9e4c2448682167546f964d0df405af1498d854d5f437",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "3b8bb7928b24f85c283d18e10fb363bf600a2959036619d27161fbe50e19fbd7",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "long_tail",
@@ -692,12 +704,15 @@
       "license": "not stated",
       "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 392,
       "complexity_bucket": "long",
-      "sha256_source": "1a8d80239fb158e579e9c8f6840e214394801efed720cc81c148216486591b7f",
+      "sha256_source": "01bcd05450fc2323499b2f6a35b9eadc77079af55daac7840ca9ebb1432ae409",
       "sha256_normalized": "125643cd8f0be1f4bb42a339936f1eaca0dfbe9a2b223c0ad16aa50b6305767c",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "1a8d80239fb158e579e9c8f6840e214394801efed720cc81c148216486591b7f",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "long_tail",
@@ -710,12 +725,15 @@
       "license": "CC-BY-NC-4.0",
       "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 83,
       "complexity_bucket": "medium",
-      "sha256_source": "cd0725019a5dce4b83f9097ce985e78ea333620b7af48bf27668ca490e61f079",
+      "sha256_source": "3d622bcfc9f652527c63b4d6692f5e593482dbaebd4f392c492f90d1f5e75ac6",
       "sha256_normalized": "6e2308b881503565d6b42b5e3d8faa189493f9e7d73384a9397561f40cc18fab",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "cd0725019a5dce4b83f9097ce985e78ea333620b7af48bf27668ca490e61f079",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "long_tail",
@@ -751,7 +769,12 @@
       "complexity_bucket": "long",
       "sha256_source": "5c6d87f8e3c8a29f173a68f3d2081f246a41ec9b33c8d2935d0642c41663c8cb",
       "sha256_normalized": "652954172540f4aba99ecaacb53059762501286ae950d83663614dae842cbc89",
-      "storage": "local-only"
+      "storage": "unpublished",
+      "census_member": false,
+      "claimed_lines_on_page": 353,
+      "captured_lines": 5,
+      "capture_attempted_at": "2026-09-13",
+      "_": "⛔ THE SOURCE IS NOT PUBLISHED. The page's viewer renders a 5-line stub against its own claim of 353 lines, so there is nothing to walk. ⭐ The claimed-vs-captured control is what separated this from the twelve author edits; without it this would have been filed as a thirteenth drift and the freeze would have carried a member nobody could ever restore."
     },
     {
       "tier": "mid_engagement",
@@ -764,12 +787,15 @@
       "license": "not stated",
       "publish_or_update_date": "shown as \"2 days ago\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 226,
       "complexity_bucket": "long",
-      "sha256_source": "9e67df29eb9a60669397c3c026008b20635685c71860a92ea9c667495645536b",
+      "sha256_source": "4b8f46b2ba740d0ed824b15ec18a5ee7cfd12dbb78783c3db42c2819a43420a2",
       "sha256_normalized": "9699a9bd9f47e5dc9ad5dc1613e93cc4933815947465d0c086921e072386980d",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "9e67df29eb9a60669397c3c026008b20635685c71860a92ea9c667495645536b",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "mid_engagement",
@@ -782,12 +808,16 @@
       "license": "not stated",
       "publish_or_update_date": "shown as \"2 days ago\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
-      "capture_method": null,
-      "non_comment_lines": 403,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
+      "non_comment_lines": 415,
       "complexity_bucket": "long",
-      "sha256_source": "7d7a01a9952724ec14e35735cbb8f481814fb8e9984dc123b26c0cf46623f4ea",
+      "sha256_source": "46b34a98964095095b2102ac3e42fd89c7978863f3ad59f25bf724e2d4ba5940",
       "sha256_normalized": "1815e4360c0918f3e0b531cfa43ed659890475a285b40640d96fbcecb37b26e0",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "7d7a01a9952724ec14e35735cbb8f481814fb8e9984dc123b26c0cf46623f4ea",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured",
+      "non_comment_lines_frozen_2026-09-07": 403
     },
     {
       "tier": "mid_engagement",
@@ -800,12 +830,15 @@
       "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (declared in script header comment)",
       "publish_or_update_date": "shown as \"4 hours ago\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 225,
       "complexity_bucket": "long",
-      "sha256_source": "a49af07885e7e26a5f0d722d72a98d2106d8e6d123b73fa39720d34ed6852baf",
+      "sha256_source": "a8689decebbd332a28c2b9b6ee1c624f4c4933e4681cfdcd9c2087757b7b0b07",
       "sha256_normalized": "24ce1a1f24f6ce750bc3b69366ff495791cecd7afaee3227ab83203917352100",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "a49af07885e7e26a5f0d722d72a98d2106d8e6d123b73fa39720d34ed6852baf",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "mid_engagement",
@@ -836,12 +869,15 @@
       "license": "not stated",
       "publish_or_update_date": "shown as \"3 days ago\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 181,
       "complexity_bucket": "long",
-      "sha256_source": "53b702f3ec7d45e78bc0e833af2f02900d0a7d4b11c53908d79ad60e05410e10",
+      "sha256_source": "c1e9efdc5ce313c4165e7089d51e62bf97c31c8cb50815ec3373498cba47962e",
       "sha256_normalized": "a2b7e19c9ba812bc150eff8ca910464ade43163faf7cb50e573114a0bf6e5fa7",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "53b702f3ec7d45e78bc0e833af2f02900d0a7d4b11c53908d79ad60e05410e10",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "mid_engagement",
@@ -872,12 +908,15 @@
       "license": "not stated",
       "publish_or_update_date": "shown as \"4 days ago\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 83,
       "complexity_bucket": "medium",
-      "sha256_source": "4070c667bfbc19116a7bcd282f5845393f21cea32351db49da210c52c15e58f9",
+      "sha256_source": "0181ec4a95d1b27933c1bba0a679361489c4b2b011169b78ec3e120d00d53f9e",
       "sha256_normalized": "4029b3869bea7a4c056ad81a983fdd6676e2f1c24c557f8dc0598177ae68f96d",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "4070c667bfbc19116a7bcd282f5845393f21cea32351db49da210c52c15e58f9",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "mid_engagement",
@@ -944,12 +983,15 @@
       "license": "not stated",
       "publish_or_update_date": "shown as \"4 days ago\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
-      "capture_method": null,
+      "capture_method": "Browser DOM capture on the rig, 2026-09-13: the script page's \"Source code\" tab, the viewer's per-line top-level <span> textContent, U+00A0 normalised to U+0020, each line right-stripped, joined with \n and one trailing \n. Transferred to disk by a URL-fragment handoff to a localhost sink which hashed the bytes before writing. Completeness control: captured line count == the page's own \"View in Pine Editor · N lines\" claim.",
       "non_comment_lines": 246,
       "complexity_bucket": "long",
-      "sha256_source": "a8c3a5e9743be02b436ed026c59d4e71c69c930df136d5268c7d0f11014318f2",
+      "sha256_source": "ac9adae0b645dfd4714927035a40ba2611e47c3b03db1b435bcf2d11904e7fcb",
       "sha256_normalized": "801975abdbc35f98e9da3069b1cb4954705505ad0defc0994fe0c456341e4308",
-      "storage": "local-only"
+      "storage": "local-only",
+      "sha256_source_frozen_2026-09-07": "a8c3a5e9743be02b436ed026c59d4e71c69c930df136d5268c7d0f11014318f2",
+      "captured_at": "2026-09-13",
+      "refreeze_reason": "author edit after freeze, re-captured"
     },
     {
       "tier": "mid_engagement",
@@ -995,7 +1037,7 @@
       "source_url": "https://www.tradingview.com/script/VlRSQGzY-Market-Profile-TPO-vault/",
       "retrieved_at": "2026-09-07T12:25:00Z",
       "pine_version": "v6",
-      "license": "Mozilla Public License 2.0 (declared in script header comment; comment also credits \"\u00a9 Edward \u2014 reworked / optimized build\")",
+      "license": "Mozilla Public License 2.0 (declared in script header comment; comment also credits \"© Edward — reworked / optimized build\")",
       "publish_or_update_date": "shown as \"Aug 26\" at retrieval time (2026-09-07)",
       "declared_type": "indicator",
       "capture_method": null,
@@ -1095,5 +1137,8 @@
       "sha256_normalized": "9817d78e1b80f9bb09dfd6e3c5a3ee8227ca120d67c0b2dfc967b6b92939dd90",
       "storage": "local-only"
     }
-  ]
+  ],
+  "_refreeze_rule": "⛔⛔ R-N (owner ruling, 2026-09-13). A SCRIPT WHOSE HASH DIFFERS AT RE-CAPTURE IS RE-FROZEN WITH HISTORY — never overwritten silently, and never held on the old hash. The new `sha256_source` is today's bytes, the previous one is kept beside it as `sha256_source_frozen_<date>`, and `captured_at` says when the new one was read. ⭐ BOTH HALVES MATTER. Overwriting silently loses the fact that the corpus moved, which is what every census number is measured against; holding the old hash forever means the fixture can never be restored from its own source again. ⚠️ A re-freeze is only legitimate when the capture is COMPLETE — captured line count == the page's own `View in Pine Editor · N lines` claim — because an incomplete capture re-frozen is a truncation promoted to a fixture.",
+  "_unpublished_rule": "⛔ A SCRIPT WHOSE SOURCE THE VENDOR DOES NOT PUBLISH IS NOT A CENSUS MEMBER. It stays in this file as a record — `storage: \"unpublished\"`, the line count the page CLAIMS, and the date the attempt was made — so the roster still says what was selected and why one of them cannot be walked. It is excluded from `selected` and from every count a census asserts against.",
+  "_target_is_59_since_2026-09-13": "⚰️ WAS 60. R-N: `01-zeiierman-trend-pressure.pine` leaves the frozen set because its source is not published — a census cannot walk a script the vendor will not show. ⛔ THE FLOOR MOVED BY MEASUREMENT, NOT BY CONVENIENCE: 59 is the number of members that can be fetched and hash-verified, and every other floor is unchanged (the runtime census still wants > 150 scripts across all corpora)."
 }

@@ -1,5 +1,113 @@
 # Session state — `feat/indicator-r0r1`
 
+## ⭐⭐⭐ R-N — THE CORPUS IS RE-FROZEN AT 59/59, AND EVERY PART 6 RED IS GONE
+
+**Owner ruling, 2026-09-13: re-freeze, do not substitute, do not lower
+arbitrarily.** Executed.
+
+```
+census members verified   59/59      hash mismatches  0
+frozen set                60 -> 59   (one member left; see below)
+Part 6 red FILES          5  -> 0
+```
+
+### The 12 — re-frozen on today's bytes, WITH HISTORY
+
+Each was re-captured on the rig (gate v2.1 before every click), each capture
+complete by its own control — **captured line count == the page's own "View in
+Pine Editor · N lines" claim** — and each written only after the sink hashed it.
+
+| script | frozen 2026-09-07 | re-frozen 2026-09-13 |
+|---|---|---|
+| `01-ny-macro-status` | `e134b969090a` | `f31b84fee5a8` |
+| `03-volatility-supply-demand-zones` | `9e67df29eb9a` | `4b8f46b2ba74` |
+| `04-cisd-order-block` | `7d7a01a99527` | `46b34a989640` |
+| `05-supertrend-fibonacci-ote` | `a49af07885e7` | `a8689decebbd` |
+| `08-hourly-alpha-profile-terminal` | `53b702f3ec7d` | `c1e9efdc5ce3` |
+| `10-mtf-supply-demand` | `d2f36d90354c` | `62c68dd4fe73` |
+| `10-smc-engine` | `4070c667bfbc` | `0181ec4a95d1` |
+| `14-vwap-z-score-oscillator` | `deaeeeca9cfc` | `b0f13a73faf1` |
+| `15-agreed-upon-dol` | `3b8bb7928b24` | `66ae0601a62e` |
+| `15-multi-timeframe-ma-forecast` | `a8c3a5e9743b` | `ac9adae0b645` |
+| `18-deltalabs-equal-highs-equal-lows` | `1a8d80239fb1` | `01bcd05450fc` |
+| `19-session-fibs-falcon-ai` | `cd0725019a5d` | `3d622bcfc9f6` |
+
+Every one carries `sha256_source_frozen_2026-09-07`, a `captured_at`, a
+`refreeze_reason: "author edit after freeze, re-captured"`, and a
+`capture_method` naming the exact recipe. Where `non_comment_lines` moved, the
+old value is kept beside the new one.
+
+### ⛔⛔ THE MANIFEST RULE, WRITTEN INTO THE MANIFEST
+
+> A script whose hash differs at re-capture is **re-frozen with history** — never
+> overwritten silently, and never held on the old hash.
+
+⭐ **BOTH HALVES MATTER.** Overwriting silently loses the fact that the corpus
+moved, which is what every census number is measured against. Holding the old
+hash forever means the fixture can never be restored from its own source again.
+
+⚠️ And the rule carries its own precondition: **a re-freeze is legitimate only
+when the capture is COMPLETE.** An incomplete capture re-frozen is a truncation
+promoted to a fixture, and the line-count control is what tells them apart.
+
+### `01-zeiierman-trend-pressure` — UNPUBLISHED, and out of the census
+
+`storage: "unpublished"`, `census_member: false`, `claimed_lines_on_page: 353`,
+`captured_lines: 5`, `capture_attempted_at: 2026-09-13`. It stays in the manifest
+as a record so the roster still says what was selected and why one of them cannot
+be walked.
+
+⛔ **THE FLOOR MOVED BY MEASUREMENT: 60 → 59**, and only that one. `> 150` on the
+runtime census is unchanged and is met at **158**.
+
+⭐ **AND THE FLOOR IS NOW DERIVED, NOT TYPED.** `objectDemandCensus` and
+`visualDemandCensus` read `MANIFEST.json::selected` instead of a literal `60`.
+Typing `59` in two test files would have been the second-authority defect this
+repo names most often — two places owning "how big is the frozen set", and the
+next member to leave or arrive moving one of them.
+
+### ⭐⭐ R-I IS 9 OF 9 — GREEN, not 8 of 9
+
+The ruling expected 8/9 with the author edit as the remaining blocker. **The
+re-freeze removed that blocker too**: `mid_engagement__05-supertrend-fibonacci-ote`
+is one of the twelve, so it is measurable again. `OOS_2_PARITY_SET.json` drops
+the unpublished member with the reason, the set is nine, and
+`visualParitySet.test.js` publishes **all nine, seventeen facts each**.
+
+Its length assertions now read the set's own size for the same reason the census
+floors do.
+
+### Movers — old → new, and every one is re-published with this commit
+
+| | before | after |
+|---|---|---|
+| `pine_oos` sources verified | 47 / 60 | **59 / 59** |
+| runtime census, scripts walked | 146 | **158** |
+| `oos1` corpus in every census | 47 | **59** |
+| frozen set (`MANIFEST.target/selected`) | 60 | **59** |
+| R-I parity set | 10 members, 3 unmeasurable | **9 members, 9 measured** |
+| chart suite | 10 failed / 7,083 passed | **5 failed / 7,088 passed** |
+| corpus-dependent red files | 5 | **0** |
+| `tools/corpus_metric.json` | 266 / 31 / 44 | **unchanged** |
+
+⭐ **The staleness rails that fired were right and are re-frozen with the
+reason.** Nothing was silenced: the two census floors moved because a member
+left, the twelve hashes moved because their authors edited, and both facts are
+recorded in the file the numbers are measured against.
+
+### Suites
+
+| lane | result |
+|---|---|
+| JS `chart/engine` + `chart/builder` | **339 files · 7,125 tests → 7,088 passed, 32 skipped, 5 failed in 3 files** |
+| Python (vendor + AST) | **257 passed, 5 skipped** |
+
+⛔ **The 5 remaining reds are the pre-existing HEAD trio** —
+`BuilderSheet.pine`, `ImportBox.thinkscript`, `pineBoxSuggestVoice` — baselined
+this session by restoring `BuilderSheet.jsx` from `HEAD` and re-running:
+identical 5 failed / 40 passed with and without the T5 wiring. **Nothing this
+wave added is red.**
+
 ## ⭐⭐⭐ SESSION 3 — THE LIST, IN ORDER (owner ruling, 2026-09-13). DO NOT START.
 
 | # | item | estimate |

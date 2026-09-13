@@ -187,9 +187,14 @@ function classify(exp, act) {
 }
 
 describe('C3A-CLOSE — the fixed parity set, remeasured at HEAD', () => {
-  it('all ten members, seventeen facts each', () => {
+  it('every member, seventeen facts each', () => {
     const set = JSON.parse(fs.readFileSync(SET, 'utf8')).selected
-    expect(set).toHaveLength(10)
+    // ⭐⭐ THE SIZE IS THE SET'S OWN, NOT A LITERAL (R-N, 2026-09-13). It was TEN
+    // and it is NINE: `mid_engagement__01-zeiierman-trend-pressure` left because
+    // its source is not published — the page renders a 5-line stub against its own
+    // claim of 353 lines, so a parity set could never re-measure it.
+    // ⛔ Reading the length off the file keeps ONE authority on how big the set is.
+    expect(set.length).toBeGreaterThan(0)
     const rows = []
     for (const m of set) {
       const srcPath = path.join(OOS, `${m.key}.pine`)
@@ -255,7 +260,7 @@ describe('C3A-CLOSE — the fixed parity set, remeasured at HEAD', () => {
     for (const r of rows) {
       if (r.exp.objects > 0) expect(r.grade).not.toBe('VISUAL_FULL')
     }
-    expect(rows).toHaveLength(10)
+    expect(rows).toHaveLength(set.length)
 
     // ⭐⭐ R-I's CONTROL — a known `overlay = true` script must produce a
     // PRICE-pane document, and an `overlay = false` one must not. Without it

@@ -28,6 +28,15 @@ import path from 'node:path'
 
 const OOS = path.resolve(process.cwd(), '../tests/fixtures/pine_oos')
 
+/** ⭐⭐ THE FLOOR IS THE MANIFEST'S OWN `selected`, NOT A LITERAL HERE (R-N,
+ *  2026-09-13). It was `60`, and it is `59` since `01-zeiierman-trend-pressure`
+ *  left the frozen set — its source is not published, so a census cannot walk it.
+ *  ⛔ TYPING THE NEW NUMBER HERE WOULD HAVE BEEN THE SECOND-AUTHORITY DEFECT THIS
+ *  REPO NAMES MOST OFTEN: two places would then own "how big is the frozen set",
+ *  and the next member to leave or arrive would move one of them. */
+const MANIFEST = JSON.parse(fs.readFileSync(path.join(OOS, 'MANIFEST.json'), 'utf8'))
+const FROZEN = MANIFEST.selected
+
 function stripComments(src) {
   const out = []
   for (const line of src.split(/\r?\n/)) {
@@ -157,7 +166,7 @@ function classOf(c) {
 describe('C3B.1 — the object-demand census', () => {
   it('every family, every shape class, across the frozen 60', () => {
     const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine')).sort()
-    expect(files.length).toBe(60)
+    expect(files.length).toBe(FROZEN)
 
     const rows = files.map((f) => {
       const raw = fs.readFileSync(path.join(OOS, f), 'utf8')
