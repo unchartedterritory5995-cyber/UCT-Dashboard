@@ -1,5 +1,154 @@
 # RESUME — cold-start entry point (Document B §3A)
 
+---
+
+# ❄️ COLD START 2026-09-13 — READ THIS FIRST, IT NEEDS NOTHING ELSE
+
+> Written immediately before an operator-initiated **machine restart**. Everything below was
+> measured at the time of writing, not remembered.
+
+## 0. State at shutdown
+
+| | |
+|---|---|
+| `origin/master` | **`7bd9c8785`** |
+| docs branch `terminal-research` | **`f6d528869`** |
+| both trees | **clean**, both branches **on origin** |
+| doc-SHA rail | **OK** — 190 files, 272 SHA candidates, every cited SHA resolves |
+| flag audit | **0 / 0 / 0 / 0** |
+| in flight | **nothing.** Both units of the session landed and merged. |
+
+## 1. Reopen — the worktrees that matter
+
+```sh
+# code (pushes to master)
+cd /c/Users/Patrick/uct-worktrees/s7-price-level      # branch feat/s7-price-level
+# docs
+cd /c/Users/Patrick/uct-worktrees/terminal-research   # branch terminal-research
+```
+
+**One command to verify each matches origin** (run in each tree):
+
+```sh
+git fetch -q origin && git status -sb && git log --oneline -1
+```
+
+Expect `feat/s7-price-level` == `origin/master` == `7bd9c8785`, and
+`terminal-research` == `origin/terminal-research` == `f6d528869`, both with an empty status body.
+
+⚠️ **Unit worktrees still on disk are OTHER sessions', not this programme's.** `git worktree list`
+shows ~60. Four are locked agent trees. **Do not prune, do not reuse, do not merge them.** In
+particular `feat/s7-indicator-condition` @ `4e04f43f0` (locked agent tree) is a **redundant
+re-derivation of `ccbab9bcd`, which is already on master** — its only unique content is a stale
+parity test whose `_EXPECTED` is missing three types, so merging it would REGRESS three siblings.
+**Abandon it unmerged.**
+
+## 2. The next §6 row
+
+| | |
+|---|---|
+| unit | **`indicator-condition` CP3** |
+| §4 checkpoint ID | **CP3** of `GATE-S7-INDICATOR-CONDITION` (§4 roster, approval line 2) |
+| signed fingerprint | **`148af5293`** |
+| branch | **`feat/s7-price-level`** (worktree `/c/Users/Patrick/uct-worktrees/s7-price-level`) |
+| dependency | ✅ **CLEARED.** Its line was *"void unless D2 §9.5 CP1 has merged first."* §9.5 is now signed as **GATE-D2 CP4**, fingerprint **`3257cc319`**, merged **`404b808c5`**. |
+
+⛔⛔ **DO NOT START IT BLIND — THERE IS AN UNRESOLVED SHAPE CONFLICT, AND IT IS THE FIRST THING TO
+PUT TO THE OWNER.** SPEC-S7 §5.2's corrected cell specifies the predicate as
+`{address, condition, threshold}` **with the timeframe riding inside the address**, and calls the
+eight-column `{indicator, condition, threshold, tf, …}` form the thing that *"predates D2."* **The
+merged CP1–CP2 code ships the eight-column form.** Spec and code disagree about the predicate
+shape. Under the standing rule a scope that does not match its artifact is not something to build
+against — resolve this before CP3 writes a line.
+
+⭐ Related and already measured (F-S7-IC-1): the legacy lane's **31** addresses and D2's **142**
+book metrics have an **empty intersection** — **one rename** (`close` ↔ `ohlcv.c`) and **thirty
+genuine absences**. D2 CP4 now declares that second axis, flag-OFF.
+
+## 3. Monday 09:05 ET — verbatim, covers all six sweeps
+
+**PowerShell / cmd:**
+
+```
+railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
+```
+
+**Git Bash** — ⛔ `MSYS_NO_PATHCONV=1` is REQUIRED, or MSYS rewrites `/opt/venv/bin/python` into
+`C:/Program Files/Git/opt/...` and the pod answers `sh: 1: C:/Program: not found`:
+
+```
+MSYS_NO_PATHCONV=1 railway ssh --service web "/opt/venv/bin/python tools/s7_price_level_report.py --ticking"
+```
+
+Exit **0** = ticking, or legitimately outside the window · **1** = stalled, or never started while
+INSIDE the window. `--ticking` covers **all six** sweeps with per-type staleness bounds.
+
+## 4. Flags — ARMED, and none of them changes on restart
+
+⛔ **A restart changes NO flag.** Every one is a Railway service variable; they live on Railway,
+not on this box. Nothing here needs re-arming, and **nothing may be armed on the way back up.**
+
+This programme's six dark sweeps, all `armed` on **`web`** (+ `document_arrival`, which is live):
+
+```
+ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED        ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED
+ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED    ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED
+ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED      ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED
+ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED   (live, not dark)
+```
+
+**118 flags are armed in total.** ⛔ That roster is deliberately NOT restated here — a hand-typed
+list beside the artifact that owns it is this programme's most-repeated defect. Derive it from
+`docs/feature_flags.json` (`status == "armed"`), or run `python tools/flag_ledger_audit.py`, which
+compares the ledger against Railway itself.
+
+⚠️ New this session: **`CANONICAL_INDICATOR_AXIS_ENABLED`** — declared **`dark`**, `where: []`,
+UNSET is the shipped state. **DO NOT ARM**: nothing reads the axis yet, so arming it lights a door
+with no room behind it.
+
+## 5. Environment prerequisites, each with its one-command check
+
+| need | confirm | if it fails |
+|---|---|---|
+| **Railway CLI authenticated** — account-based, survives a reboot | `railway whoami` | `railway login` (opens a browser) |
+| **Railway project linked** in the tree | `railway status --json` | `railway link` → project `luminous-recreation` |
+| **`node_modules`** in `app/` (gitignored, NOT copied by `git worktree add`) | `test -d app/node_modules && echo OK` | `cd app && npm ci` — until then every vitest claim is a config-load error, not a result |
+| **Python imports** | run pytest from the worktree ROOT; `railway ssh` probes need `PYTHONPATH=/app` **and** `/opt/venv/bin/python` (bare `python3` is the Nix system python with no app deps) | — |
+| **Git Bash path mangling** | any `railway ssh` with an absolute pod path needs `MSYS_NO_PATHCONV=1` | see §3 |
+| no venv is assumed | system Python 3.14 | — |
+
+## 6. ⛔ What a fresh session must NOT do
+
+1. **No unscoped `pytest tests/`.** Collection alone reached 6.6 GB and an unscoped run reached
+   18 GB and was OOM-killed. **Name the files.** `-k` does NOT scope — every test is still collected.
+2. **No `railway redeploy`.** A `--set` on `web` has been measured to auto-redeploy; verify a NEW
+   BOOT by `/api/health` `uptime_seconds` resetting, never by `--kv`.
+3. **No marker bump without a MEASURED strand.** `python tools/flow_worker_watch_coverage.py`
+   decides it. A bump during RTH drops the Massive OPRA socket and that tape gap is PERMANENT
+   until the T+1 flat file.
+4. **No flag changes.** Arming is the owner's flip.
+5. **No master push Mon–Fri 09:00–16:00 ET**, and **one master merge at a time repo-wide** —
+   Railway `web` must read SUCCESS before the next push. Other sessions push to this same master.
+6. **Do not touch the one stash** — `stash@{0}` *"On feat/catalyst-coverage-precision: broker-sync
+   WIP (deploy unblock)"* is **another session's**, pre-existing. The stash stack is shared.
+
+## 7. The three owner items — UNCHANGED
+
+1. **A9 / A11 / A13** — **BLOCKED-OWNER** on the flips after the dark reads. Nothing to do until
+   next weekend.
+2. **F-S2-1** — baselined is correct; tightening the guards is member-visible and waits for
+   **OI-06**, with its own PR then.
+3. **S6 CP2–CP5** — **SPEC-BLOCKED** on four owner rulings, each named in §4: SET-vs-WEIGHTED-SET,
+   derive-vs-mirror, `personal_edge`, and paid-gating.
+
+## 8. Cross-program, landed this session — F-CAT-1
+
+The catalyst engine spent money and wrote nothing for four trading days. Root cause, fix, rail and
+the open follow-up **F-CAT-2** are in `LEDGER.md` under *"CROSS-PROGRAM — F-CAT-1"*. Merged
+`f49da5ed6`, live and verified by artifact (`/api/health` uptime 23s on a fresh boot).
+**Not Terminal-Next scope; fixed because it was live.**
+
+
 **Last verified against git: docs branch `terminal-research` @ this commit; production tree `origin/master` @ `ccbab9bcd` (2026-09-12). Rail PASS.**
 
 ---
