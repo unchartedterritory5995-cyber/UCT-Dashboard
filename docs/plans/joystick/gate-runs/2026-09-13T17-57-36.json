@@ -1,0 +1,159 @@
+{
+  "at": "2026-09-13T17:57:36",
+  "tree_head_start": "2ae7e98aa11b5f859a26b9bd4830b850ad22662c",
+  "tree_head_end": "2ae7e98aa11b5f859a26b9bd4830b850ad22662c",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "2240e9c4945f9ad18047697a2845797d5612d443",
+  "shards": 6,
+  "excluded": [],
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 3,
+        "passed": 218,
+        "skipped": 0,
+        "todo": 0,
+        "total": 221
+      },
+      "tests": {
+        "failed": 4,
+        "passed": 2781,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2785
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 1,
+        "passed": 219,
+        "skipped": 1,
+        "todo": 0,
+        "total": 221
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 3037,
+        "skipped": 5,
+        "todo": 0,
+        "total": 3043
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 2,
+        "passed": 219,
+        "skipped": 0,
+        "todo": 0,
+        "total": 221
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 3963,
+        "skipped": 4,
+        "todo": 0,
+        "total": 3969
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 0,
+        "passed": 221,
+        "skipped": 0,
+        "todo": 0,
+        "total": 221
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3083,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3083
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 220,
+        "skipped": 0,
+        "todo": 0,
+        "total": 221
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2562,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2563
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 220,
+        "skipped": 0,
+        "todo": 0,
+        "total": 220
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 4063,
+        "skipped": 0,
+        "todo": 0,
+        "total": 4063
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 7,
+      "passed": 1317,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1325
+    },
+    "tests": {
+      "failed": 8,
+      "passed": 19489,
+      "skipped": 9,
+      "todo": 0,
+      "total": 19506
+    }
+  },
+  "test_files_on_disk": 1325,
+  "test_files_waived": 0,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > the seven Model Book / surface override props still reach their decisions > \u26d4 ENTERING EDIT MODE IS NOT A RESIZE",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "baseline_sha": "258c5609d529a1f247ae6ff2da266f8479742823",
+  "baseline_measured_at": "2026-09-10 (re-measured on origin/master 62a228e5d)",
+  "vs_baseline": {
+    "observed_count": 8,
+    "baseline_count": 7,
+    "new": [
+      "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing"
+    ],
+    "no_longer_failing": [],
+    "matches_baseline": false
+  },
+  "do_not_build": {
+    "ran": true,
+    "clean": true,
+    "hits": [],
+    "output": "DO-NOT-BUILD sweep -- 20 item(s) checked across app/src, api, scripts, tools\n\nOK no DO-NOT-BUILD item has gained code in the swept trees."
+  }
+}
