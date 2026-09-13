@@ -773,6 +773,22 @@ Constraints:
   current mode; the pad and compass ring are `aria-hidden`; the mode chip is `role="status"
   aria-live="polite"`; sheets and Peek reuse `components/mobile/Sheet.jsx` verbatim for dialog
   semantics, focus trap, Escape and focus restore.
+
+  > ⭐ **AMENDED 2026-09-13 — the knob's name and its `tabIndex`. Owner ruling, D-46.**
+  > The knob is still *"named for the current mode"* and the name is now **`Joystick, <mode>`**
+  > — the product noun first, so a member arriving here from a closing sheet is told WHAT they
+  > have landed on and not only which mode it is in. The old name, `<mode> mode`, read as a
+  > heading for the page rather than a name for a control.
+  >
+  > ⛔ **AND IT CARRIES `tabIndex={-1}`, WHICH THIS SECTION WOULD OTHERWISE ARGUE AGAINST.**
+  > §C4 promises *"any action that opens a sheet returns focus to the knob on close"*, and that
+  > sentence was false for the life of the feature for two reasons: nothing put the knob into
+  > `document.activeElement`, and **a `<div role="button">` with no `tabIndex` is not focusable at
+  > all**, so `focus()` on it is a silent no-op. `-1` and not `0` precisely because this section is
+  > right that there is no keyboard in this build: `-1` makes the knob programmatically focusable
+  > while leaving the screen-reader swipe sweep — which reaches `role="button"` regardless —
+  > exactly as it was. **It is not dead code and must not be tidied away**; removing it turns the
+  > §C4 promise back into a no-op, and `hub/knobFocusReturn.test.jsx` reds 3 of 4 when it goes.
 > ⚠️ **"Peek" below names the SHEET, not the removed gesture.** The two-finger tap is gone
 > (2026-09-10); the sheet it used to open is still there and the Actions button opens it. The
 > accessibility requirements in this section are therefore all still live — and §C2's argument

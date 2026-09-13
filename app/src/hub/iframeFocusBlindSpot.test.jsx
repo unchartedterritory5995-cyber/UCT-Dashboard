@@ -168,7 +168,13 @@ describe('the OR is still load-bearing — do not delete either half on a guess'
     // MobileNav.jsx:49 is the one. If this ever empties, `useKeyboardVisible` really has become a
     // hub-local hook and the delete conversation is a hub conversation — but until then it is not.
     expect(outsideHub).toEqual(['components/MobileNav.jsx'])
-  })
+    // ⚰️ 60 s, NOT the suite's 15 s default — and the extra time changes NO assertion above.
+    // This case reads EVERY .js/.jsx under app/src (~1,400 files). Alone it finishes in ~0.9 s; in
+    // an 84-file run on a loaded box it crossed 15 s and reported a TIMEOUT, twice, on a branch
+    // that had touched nothing it measures. A rail that fails at random gets muted, which is worse
+    // than no rail — so it gets the same explicit ceiling `components/screener/reachable.test.js`
+    // already gives each of its five tree-walking cases, for exactly this reason.
+  }, 60000)
 })
 
 describe('rail integrity', () => {
