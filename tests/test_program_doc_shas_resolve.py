@@ -1,23 +1,36 @@
-"""Every SHA cited in a program doc must resolve against git.
+"""Every SHA cited in a program doc must resolve against git — unless it is a
+CONTENT FINGERPRINT, which is a different kind of thing.
 
-⚰️ THE INCIDENT. On 2026-09-12 a scan of the whole doc tree found **thirteen**
-unresolvable SHA citations. Twelve were fabrications and they had exactly one
-shape: **every MERGE sha was real and every GATE sha was invented.** Merges were
-habitually re-checked against `origin/master`; the docs-branch gate commits were
-written down from a session's working notes and never resolved. Four had already
-been caught by hand; this scan found eight more, plus a 2026-07-26 deploy SHA in
-the existing-system survey that matches no object in the repository at all —
-including unreachable ones.
+⚰️⚰️ THIS FILE'S ORIGINAL DOCSTRING WAS WRONG AND IS RETIRED VERBATIM:
 
-⭐ **The tell that made it systemic rather than sloppy:** D2 CP1 and S12's first
-migration were signed in ONE commit (`84590f220`), and the ledger cited TWO
-different invented SHAs for them. The same shape as the four S7 gate packets —
-one signing commit, four invented SHAs. Nobody was mistyping; SHAs were being
-*composed* to fill a column.
+    "On 2026-09-12 a scan of the whole doc tree found **thirteen**
+    unresolvable SHA citations. Twelve were fabrications and they had exactly
+    one shape: **every MERGE sha was real and every GATE sha was invented.**"
 
-⛔ A plausible-looking SHA is the most convincing false citation there is. It has
-the right shape, it sits in the right column, and only git can tell you it is
-fiction.
+Twelve of the thirteen were `git hash-object` fingerprints of their own gate
+packets, written by the owner's approval format:
+
+    APPROVED AT SHA:  4b4c3549b   (git hash-object of this packet as it stood
+                      at approval, with this field blank)
+
+A fingerprint pins an approval to exact bytes. It is not a commit, is never
+written to the object store, and `git cat-file -e` will never resolve it. The
+scan met a second kind of hex string, had only one notion of what a hex string
+means, and reported the difference as dishonesty — then "corrected" eight
+legitimate fingerprints into commit SHAs, destroying the value that pinned each
+approval.
+
+⭐ THE INSTRUMENT AUDITED A CONVENTION IT HAD NOT READ, and its output read as
+measurement rather than as opinion, which is what made it persuasive. The four
+"confirmations" were one mistake repeated four times.
+
+⛔ ONE genuine unresolvable survives: `650865d5`, cited as a 2026-07-26 deploy,
+matching no object including unreachable ones — possibly a Railway deploy id.
+Allowlisted with that reason rather than erased.
+
+The rail now DERIVES fingerprints from the packets, so a gate signed tomorrow is
+covered the day it lands. Mutation: break the derivation and exactly twelve come
+back.
 """
 from __future__ import annotations
 
@@ -98,3 +111,34 @@ def test_the_all_digit_blind_spot_is_declared_not_silent(tool):
     src = _TOOL.read_text(encoding="utf-8")
     assert "_is_sha_shaped" in src
     assert "10/16" in src, "the blind-spot probability is no longer stated in the tool"
+
+
+def test_approval_fingerprints_are_DERIVED_from_the_packets_not_listed(tool):
+    """⭐ The correction, railed. A gate signed tomorrow must be covered the day
+    it lands — a hand-maintained list would put us back where we started."""
+    fps = tool.approval_fingerprints(_ROOT)
+    assert len(fps) >= 8, (
+        f"only {len(fps)} approval fingerprints found across the gate packets — "
+        "the AT SHA regex is broken. It has been broken once already, by a "
+        "heredoc turning a word-boundary escape into a 0x08 byte, and a regex "
+        "that matches nothing reports every fingerprint as a fabrication.")
+    for sha, why in fps.items():
+        assert "hash-object" in why, why
+
+
+def test_a_known_fingerprint_is_exempt_and_a_random_hex_string_is_NOT(tool):
+    """CONTROL in both directions — an exemption that exempts everything is not
+    an exemption."""
+    fps = tool.approval_fingerprints(_ROOT)
+    assert "4b4c3549b" in fps, (
+        "the regime-change packet's approval fingerprint is not being recognised")
+    assert "0123456789abc" not in fps
+
+
+def test_the_fingerprint_regex_is_built_from_named_atoms_never_a_literal(tool):
+    """⛔ Written literally, the word-boundary escape in this repo has twice
+    become a 0x08 BACKSPACE on the way through a heredoc."""
+    src = _TOOL.read_text(encoding="utf-8")
+    assert "_RXB" in src and 'chr(92) + "b"' in src, (
+        "the AT SHA regex is back to a literal escape")
+    assert "\x08" not in src, "a literal 0x08 byte is in the scanner source"

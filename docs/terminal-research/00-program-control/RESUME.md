@@ -276,9 +276,9 @@ calendar moved a lot, not that anything is wrong.
   the five primitives adopted by S8's four and nothing else, byte-identity proved against a
   frozen oracle rather than a snapshot file) · **S7 `catalyst-match` CP1** (`faaa30146`)
   and **CP2** (`d9631afa5`), dark, harness-armed only, parity 20/20.
-- **D2 CP1 IS BUILT AND MERGED** (`b9783d509`, gate `84590f220`). 137 metrics, derived, INERT —
+- **D2 CP1 IS BUILT AND MERGED** (`b9783d509`, gate `1a0adb471`). 137 metrics, derived, INERT —
   nothing in `api/**` reads it and a rail enforces that. CP2+ need new lines.
-- **S12's FIRST MIGRATION IS BUILT AND MERGED** (`56df6803f`, gate `84590f220`). Both S7 cohorts
+- **S12's FIRST MIGRATION IS BUILT AND MERGED** (`56df6803f`, gate `afdd4adf5`). Both S7 cohorts
   read `user_tags`. ⛔⛔ **An empty cohort means NO members** — the seed in `api/main.py` is what
   makes the swap a no-op, and it is idempotent and never removes.
 - **F-S10-2 MERGED** (`e909279e1`) — `<Cited>` pins ET with a visible label. **MEMBER-VISIBLE**:

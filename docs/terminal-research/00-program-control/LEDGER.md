@@ -769,16 +769,65 @@ commits landed on master today; every master push rebuilds web; the ledger is in
 | 3 | `regime-change` | **`0392c78bf`** | 138 passed · **3** mutations RED |
 | 4 | `indicator-condition` | **`ccbab9bcd`** | 158 passed · **2** mutations RED |
 
-All four packets were written EMPTY in ONE commit `6adb32f1e` and signed CP1-CP2 in ONE commit
+All four packets were written EMPTY in ONE commit `96fa0e5d4` and signed CP1-CP2 in ONE commit
 `dfc067b5f` — there is no per-packet gate SHA.
 
-⚰️ **THIS TABLE FIRST CARRIED FOUR PER-PACKET GATE SHAs** — `052d21475`, `b4280afaf`,
-`4b4c3549b`, `3460a279b` — and **not one of them is a valid git object**. They came out of my own
-working notes, not out of the repository, and they were caught only because every SHA written here
-is re-resolved against git before the commit. ⭐ **A plausible-looking SHA is the most
-convincing false citation there is**: it has the right shape, it sits in the right column, and
-nothing but `git cat-file` can tell you it is fiction. The four merge SHAs in the same table were
-re-verified the same way and are real (`git merge-base --is-ancestor` against `origin/master`).
+⚰️⚰️ **THE PARAGRAPH BELOW WAS WRONG, AND CORRECTING IT IS THE FINDING. Retired verbatim:**
+
+> ⚰️ **THIS TABLE FIRST CARRIED FOUR PER-PACKET GATE SHAs** — `052d21475`, `b4280afaf`,
+> `4b4c3549b`, `3460a279b` — and **not one of them is a valid git object**. They came out of my own
+> working notes, not out of the repository, and they were caught only because every SHA written here
+> is re-resolved against git before the commit. ⭐ **A plausible-looking SHA is the most
+> convincing false citation there is**: it has the right shape, it sits in the right column, and
+> nothing but `git cat-file` can tell you it is fiction. The four merge SHAs in the same table were
+> re-verified the same way and are real (`git merge-base --is-ancestor` against `origin/master`).
+
+**All four are `git hash-object` fingerprints of their own gate packets** — the owner's approval
+format, stated in the packets themselves:
+
+```
+APPROVED AT SHA:  4b4c3549b   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+```
+
+A content fingerprint is not a commit. It is never written to the object store, so
+`git cat-file -e` will never resolve it, **and that is the format working, not a missing commit.**
+
+⛔ **THE DAMAGE WENT FURTHER THAN THE WRONG PARAGRAPH.** On that false premise the doc-SHA scan
+was then run across the tree, reported *thirteen* unresolvable citations, called *nine* of them
+fabricated, and **rewrote eight legitimate fingerprints into commit SHAs** across `LEDGER.md` and
+`RESUME.md` — destroying, in each case, the one value that pins an approval to the exact bytes the
+owner approved. It also wrote a tombstone accusing an earlier session of *"composing SHAs to fill
+a column"*. Every one of those eight was an `AT SHA`. All eight are restored; the accusation is
+withdrawn.
+
+⭐⭐ **THE INSTRUMENT AUDITED A CONVENTION IT HAD NOT READ.** It knew exactly one thing a hex
+string could be, met a second kind, and reported the difference as dishonesty — the precise
+failure the file exists to catch, committed by the file itself, and then *amplified* because a
+rail's output reads as measurement rather than as opinion. The four "confirmations" were the same
+mistake four times, which felt like corroboration.
+
+⛔ **AND THE CORRECTION NEARLY FAILED THE SAME WAY.** `_AT_SHA_RX` was first written with a literal
+`\b`, which a heredoc turned into a 0x08 BACKSPACE byte; the regex then matched nothing and the
+scan cheerfully re-reported all twelve fingerprints as fabrications. It is now built by
+concatenation from `_RXS`/`_RXB`, so a recurrence is a `NameError`.
+
+✅ **THE RAIL NOW DERIVES fingerprints from the packets** (`approval_fingerprints()`), so a gate
+signed tomorrow is covered the day it lands and nothing has to be listed. Mutation-proved: break
+the derivation and **exactly twelve** come back as failures — the same twelve. The `QUOTED_DEAD`
+allowlist is empty, with its four false entries and their false reason recorded there too.
+
+⚠️ **ONE GENUINELY UNRESOLVABLE CITATION SURVIVES THE CORRECTION, AND IT IS NOT AN `AT SHA`:**
+`650865d5`, cited six times in the existing-system survey as *"deploy `650865d5`"* for the
+2026-07-26 healthcheck incident. It matches no object in this repository, including unreachable
+ones. The commit that matches its description exactly — the one on master that set
+`healthcheckPath` to `/api/ready`, reverted the same day by `f5fb3e21d` — is **`2908ab227`**, found
+by reading `railway.json`'s history rather than inferred, and the six sites now cite it. ⛔ It is
+possible the original string was a Railway deploy id rather than a git SHA; that is why this
+sentence exists instead of a silent substitution.
+
+**The four merge SHAs in the table above were verified by `git merge-base --is-ancestor` against
+`origin/master` and are real. That part of the original paragraph stands.**
 
 Every one: `[watch-coverage] OK`, **0 files in flow-worker's closure**, no marker bump. Every
 mutation restored by EDIT and the restore proved by an empty `git diff` before the commit.
@@ -901,7 +950,7 @@ unilaterally rewrite the two existing rows — session-day and commit-day are bo
 readings of that column — but a provenance table that disagrees with the commits it points at is
 precisely this repo's recurring defect class, so it needs one answer.
 
-## S4 CP1 — MERGED `76c62c494`. Gate `0868299a8`.
+## S4 CP1 — MERGED `76c62c494`. Gate `8007ad097`.
 
 ⭐⭐ **S4 IS AN ADOPTION GAP, NOT A CAPABILITY GAP.** The bus was built in August and two files
 joined it. `useAppFocus.js` carries the owner's own ruling — *"charts Group A IS the app focus …
@@ -950,7 +999,7 @@ flow-worker's closure. Zero of the 24 measured consumers migrated.
 ---
 
 
-## H14 — one placeholder-stop detector. MERGED `94209e962`. Gate `a9a06224d`.
+## H14 — one placeholder-stop detector. MERGED `94209e962`. Gate `4486f5cbc`.
 
 | | |
 |---|---|
@@ -1064,7 +1113,7 @@ tree" and "green on master" stopped being the same sentence today.
 
 ---
 
-### D2 CP2 — `ffa8102c7`. Gate line 2 `5a12aefc3`, marked **NARROWED**.
+### D2 CP2 — `ffa8102c7`. Gate line 2 `eee16c59e`, marked **NARROWED**.
 
 **The book stops describing the screener and starts being an address book.** `bars_sqlite` joins
 it — five metrics, `ohlcv.o/h/l/c/v` — and exactly ONE reader resolves through it, dark, serving
@@ -1179,7 +1228,7 @@ what moved.
 
 ---
 
-### S12 second migration — `78ba40fe8`. Gate line 2 `def2cd246`, marked **PROVISIONAL**.
+### S12 second migration — `78ba40fe8`. Gate line 2 `9891d29f0`, marked **PROVISIONAL**.
 
 #### What is gone, and how the emptiness was measured
 
@@ -1272,7 +1321,7 @@ means all → RED · E the tool writes without `--apply` → RED.
 
 ---
 
-### S10 CP2 — `6576f044e`. Gate line 2 `1eca32570`.
+### S10 CP2 — `6576f044e`. Gate line 2 `db1314f23`.
 
 **F-S10-1 is settled, and not by reconciling anything.** `formatPriceDisclosure` → `$12.50`, em
 dash absent. `formatPriceTick` → `123.46`, tick-aware, **empty string** absent. Both named in S10;
@@ -1478,7 +1527,7 @@ measurement rather than a vacuous green.
 
 ---
 
-### D5 CP1 — `9458ea641`. Gate `6adb32f1e`, CP1 only.
+### D5 CP1 — `9458ea641`. Gate `96fa0e5d4`, CP1 only.
 
 **An instrument before a table.** `tools/corp_actions_census.py` derives every corporate-action
 site in `api/**` and classifies each one *outstanding · migrated · outside (with a written
@@ -1671,7 +1720,7 @@ inferred from file extensions.** No marker bump on any of the four.
 
 ---
 
-### D2 CP1 — `b9783d509`. Gate `84590f220`. Rulings A / YES / A / YES; CP1 signed.
+### D2 CP1 — `b9783d509`. Gate `1a0adb471`. Rulings A / YES / A / YES; CP1 signed.
 
 **137 metrics, derived, inert.** Every value comes from a declaration that already exists —
 `closedTable.json` via `ast_lint.TABLE`, `resolve_entity_scope`, `_BARS_STORE_TF_KEYS`,
@@ -1712,7 +1761,7 @@ are `store: screener_rows`, so the book can address a nightly screener column an
 
 ---
 
-### S12 first migration — `56df6803f`. Gate `84590f220`.
+### S12 first migration — `56df6803f`. Gate `afdd4adf5`.
 
 Both S7 projections' cohorts are one SQL predicate over `user_tags` now. **A rollout gate that was
 written as a role check**, duplicated across two modules, with a third copy already scheduled.

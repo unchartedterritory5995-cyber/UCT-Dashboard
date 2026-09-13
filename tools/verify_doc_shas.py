@@ -60,11 +60,20 @@ def _is_sha_shaped(tok: str) -> bool:
 #: four fabrications below have to survive in the text they indict. Every entry is
 #: phantom-checked: if a string here stops appearing in the docs, the allowlist has
 #: rotted and the scan fails on THAT.
-QUOTED_DEAD = {
-    "052d21475": "fabricated gate SHA, quoted verbatim inside its own LEDGER tombstone",
-    "b4280afaf": "fabricated gate SHA, quoted verbatim inside its own LEDGER tombstone",
-    "4b4c3549b": "fabricated gate SHA, quoted verbatim inside its own LEDGER tombstone",
-    "3460a279b": "fabricated gate SHA, quoted verbatim inside its own LEDGER tombstone",
+QUOTED_DEAD: dict[str, str] = {
+    "650865d5": (
+        "the one genuinely unresolvable citation, kept verbatim inside the LEDGER "
+        "tombstone that replaces it. Cited as the 2026-07-26 healthcheck 'deploy'; "
+        "matches no object in this repo including unreachable ones; the commit "
+        "matching its description is 2908ab227. Possibly a Railway deploy id "
+        "rather than a git SHA -- which is why it is recorded, not erased."),
+    # ⚰️ THIS HELD FOUR ENTRIES CALLED "fabricated gate SHA, quoted verbatim
+    # inside its own LEDGER tombstone" — 052d21475, b4280afaf, 4b4c3549b and
+    # 3460a279b. Every one is an approval-block fingerprint, and they are now
+    # covered by `approval_fingerprints()`, which DERIVES them from the packets
+    # instead of listing them. The entries were not merely redundant; their
+    # stated reason was false, and a wrong reason in an allowlist is worse than
+    # no allowlist because it stops the next reader from re-checking.
 }
 
 
@@ -82,6 +91,49 @@ FOREIGN_REPO = {
     "c3efb4d": "uct-sunday-scan tip — UNVERIFIED, that repo is not checked out on this box",
     "9f05bfc": "uct-clips tip — UNVERIFIED, that repo is not checked out on this box",
 }
+
+#: ⛔⛔ APPROVAL-BLOCK FINGERPRINTS ARE NOT COMMITS, AND THIS RAIL ONCE CALLED
+#: TWELVE OF THEM FABRICATIONS.
+#:
+#: A gate packet's approval block carries, by the owner's own format:
+#:
+#:     APPROVED AT SHA:  4b4c3549b   (git hash-object of this packet as it stood
+#:                       at approval, with this field blank)
+#:
+#: That is a CONTENT fingerprint of the packet — the thing an approval is
+#: actually pinned to — and it is not written to the object store, so
+#: `git cat-file -e` will never resolve it. That is correct behaviour, not a
+#: missing commit.
+#:
+#: ⚰️ On 2026-09-12 this scanner reported thirteen unresolvable citations and
+#: called nine of them fabricated; it then "corrected" eight legitimate
+#: fingerprints into commit SHAs and wrote a tombstone accusing an earlier
+#: session of composing SHAs to fill a column. Every one of those eight, and the
+#: four already tombstoned, was an `AT SHA`. ⭐ The instrument had exactly one
+#: notion of what a hex string means and audited a convention it had not read —
+#: which is the failure this whole file exists to catch, committed by the file
+#: itself.
+#:
+#: They are DERIVED from the packets, never listed: a gate signed tomorrow is
+#: covered the day it lands.
+#: ⛔ Built by concatenation from named atoms. Written as a literal, a
+#: word-boundary escape in this file became a 0x08 BACKSPACE byte on the way
+#: through a heredoc, and a regex ending in a control character silently
+#: matches NOTHING — the rail then reports every fingerprint as a fabrication,
+#: which is exactly what happened. A recurrence is now a NameError.
+_RXS = chr(92) + "s"
+_RXB = chr(92) + "b"
+_AT_SHA_RX = re.compile("AT SHA:" + _RXS + "*([0-9a-f]{7,40})" + _RXB)
+
+
+def approval_fingerprints(root: pathlib.Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for p in doc_files(root):
+        rel = p.relative_to(root).as_posix()
+        for sha in _AT_SHA_RX.findall(p.read_text(encoding="utf-8", errors="replace")):
+            out[sha] = f"approval-block fingerprint (git hash-object) in {rel}"
+    return out
+
 
 _EXEMPT = {**QUOTED_DEAD, **FOREIGN_REPO}
 
@@ -114,6 +166,7 @@ def resolves(sha: str, root: pathlib.Path) -> bool:
 
 def scan(root: pathlib.Path) -> tuple[dict, list, list]:
     found = candidates(root)
+    exempt = {**_EXEMPT, **approval_fingerprints(root)}
 
     # NON-VACUITY CONTROL — an empty scan is a failed invocation. The docs are
     # dense with SHAs; finding none means the glob or the regex is wrong, not
@@ -125,15 +178,15 @@ def scan(root: pathlib.Path) -> tuple[dict, list, list]:
 
     # CONTROL 2 — the resolver must actually resolve something. If git is
     # unreachable or the cwd is wrong, EVERY sha 'fails' and the report is noise.
-    live = [s for s in found if s not in _EXEMPT and resolves(s, root)]
+    live = [s for s in found if s not in exempt and resolves(s, root)]
     if not live:
         raise SystemExit("⛔ RESOLVER BROKEN: not one candidate resolved. Wrong cwd or no git.")
 
     bad = sorted((s, found[s]) for s in found
-                 if s not in _EXEMPT and not resolves(s, root))
+                 if s not in exempt and not resolves(s, root))
 
     # Neither allowlist may rot: every exempt entry must still appear somewhere.
-    phantom = sorted(s for s in _EXEMPT if s not in found)
+    phantom = sorted(s for s in _EXEMPT if s not in found)  # listed ones only
     return found, bad, phantom
 
 
