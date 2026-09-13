@@ -1,0 +1,2448 @@
+{
+ "G-001": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "Bracco’s Breakdown & Top Ideas > SNDK (Daily)"
+  },
+  "quote_sha256": "be4e381e04e6d3d4111c15d36727b50e26f2271a2086d8d3596768adf4e9e507",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 7755,
+   "char_start": 7641,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-002": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "Bracco’s Breakdown & Top Ideas > SKHY (Daily)"
+  },
+  "quote_sha256": "713bb66168c8991a31ca6905330da0508ea7a5a915459e7931f5308888167f56",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 8288,
+   "char_start": 8197,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "test",
+  "status": "provisional",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-003": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > TWLO (Daily)"
+  },
+  "quote_sha256": "f850b41b16f5c686f601e6366c1bbc4456ffe4ffb2d08ce2a6a7c8448884581b",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 18152,
+   "char_start": 17991,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-004": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > TEM (Daily)"
+  },
+  "quote_sha256": "2047985743f1dfc622b99b3707db8e6fdecdba5d31b4980d876b47324c63037b",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 19947,
+   "char_start": 19889,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-005": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > SHOP (Weekly)"
+  },
+  "quote_sha256": "54daa2a996bc7a46bf8734d02eea2e3c9426b925cb3f234634bbf1c619553bfd",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 17676,
+   "char_start": 17450,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars+positions"
+ },
+ "G-006": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 19,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "0d566bc5a5b4fe667172db1e213a6bdff884877a4e9ffe6f5489346d0f28d159",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 10549,
+   "char_start": 10511,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars+positions"
+ },
+ "G-007": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 2,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "54efee3a7397bf99551b40b97bb7b11695260925652f6f57c24187ee27567c5c",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 7980,
+   "char_start": 7960,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars+positions"
+ },
+ "G-008": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 3,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "e2c145c8549fe04b4219012eb8be243cf361f253b5afc0d40233e70eb4015923",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 8004,
+   "char_start": 7981,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars+positions"
+ },
+ "G-009": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "ac38b75dfa22b5d72803066de71af4a1efa5c2fb65bd00ddb22b8da211070a78",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 7959,
+   "char_start": 7934,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars+positions"
+ },
+ "G-010": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > NET (Daily)"
+  },
+  "quote_sha256": "40490c784e3d1647766faa6de9e4959f9be930450e77d019e5f8088a1f323c17",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 13853,
+   "char_start": 13720,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-011": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2166,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "84be06714a8961f070646ca4838491db323b9474bc3557486396403ea5e0fd86",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 12451,
+   "char_start": 12356,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-012": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2114,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "1319c872c0be5526bc5c9d6dc40ed6cfb5051e4047e59ea554a807b9d5e03169",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 12164,
+   "char_start": 12012,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-013": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 6674,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "d09192ced6160d2a1855dda4bfd9ffd5f3dd5a22139792afb03f208b1ed69a4d",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 20332,
+   "char_start": 20075,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-014": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 194,
+   "external_ref": "edu_videos:356",
+   "sample": "zoom_video_356.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "d052233fc7dc9154f25dcd03c70b9104caeb85e6da9d2e5d4c7f315de295f112",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 1469,
+   "char_start": 1430,
+   "text_sha256": "adb44e900580c7cebcb6fd87c253b16a8be9c6bfddadad47502d0c7e95a26efe"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "workshop",
+  "verification": "text+bars+positions"
+ },
+ "G-015": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1524,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "6074025d4cb1c7ba6f4f6851d5fb93ce50f8ef03013e70e0e2b549d45b7cc18e",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 7943,
+   "char_start": 7797,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-016": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "Index & ETFs > SMH (Daily)"
+  },
+  "quote_sha256": "67fbee9115b0cfda60d33c3c87abdcf5ad029025644ccee530ecdeed14a9b06e",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 6501,
+   "char_start": 6329,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-017": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 19,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "61c92d8edb471a98eef52d0aa4ecfdf849f75eac6068e95608f2b18d6398a1c9",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 10686,
+   "char_start": 10640,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-018": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2363,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "dd719f2c9479d6e580cdb5494e8a268c6e167f75da8c40f8c5a1ce1cbc24dadd",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 12927,
+   "char_start": 12873,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "test",
+  "status": "provisional",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-019": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "Bracco’s Breakdown & Top Ideas > NBIS (Daily)"
+  },
+  "quote_sha256": "e5b7705aa4621798d891699b6dbd53660e65c73c95052367497f78ea1f4b5dde",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 8856,
+   "char_start": 8785,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-020": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "Bracco’s Breakdown & Top Ideas > ETH (Daily)"
+  },
+  "quote_sha256": "6437a68d874aa18353c2e6c184bcc0bc763868f2794e790be1286dacb6fc110d",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 9316,
+   "char_start": 9237,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-021": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 558,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "2a210b49cb8921bdfd9ed3f76d6ff4d42d5693d89128cac372478a21256d390a",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 2232,
+   "char_start": 2181,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-022": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Honorable Mention"
+  },
+  "quote_sha256": "8489132d2311a4f0fcbcfb88ac08488ae4f8b62160b5acc4dec621209cf5cb7c",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 12024,
+   "char_start": 11827,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-023": {
+  "author_id": "ravi",
+  "locator": {
+   "cue_t_s": 213,
+   "external_ref": "edu_videos:356",
+   "sample": "zoom_video_356.transcript_cues.json",
+   "speaker_label": "Ravi"
+  },
+  "quote_sha256": "13b0010f44381f42e908bcdf8ff53f299348493199bd48909734546f83180ba9",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 1641,
+   "char_start": 1611,
+   "text_sha256": "adb44e900580c7cebcb6fd87c253b16a8be9c6bfddadad47502d0c7e95a26efe"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "workshop",
+  "verification": "text-only"
+ },
+ "G-024": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 7,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "INTRO"
+  },
+  "quote_sha256": "b86755a65eefb61fe26f9de9ca659dbf8c2c73d25b08b04395a74e7ef570b29f",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 4272,
+   "char_start": 4204,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-025": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > BE (Daily)"
+  },
+  "quote_sha256": "03fa3050ab8fe9ca604e6b1f422d177ef6f1a7e95d17b878823b3620671d48f3",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 16492,
+   "char_start": 16321,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-026": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 6880,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "24b6074840932dee254fad4fa47c5375af440c7d9f32d577a23688d502dca2a3",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 22335,
+   "char_start": 22216,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-027": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 1,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > OKTA (Daily)"
+  },
+  "quote_sha256": "e61485854aae184f78b8481d17a50562ff07c8ed4ac5e8e9fdc583df55d6c2b3",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 14473,
+   "char_start": 14277,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-028": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 6709,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "a645cb708384c5270d003e582fbc3b3f085f8a88e3674bbfa31fd80421d2398f",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 20819,
+   "char_start": 20453,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "dev",
+  "status": "provisional",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-029": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 3,
+   "sample": "sunday_scans_2026-09-06.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "98d0c397500a0ed174102b703124fde3b903e5db49cf5f59439a7b5074348e82",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 11234,
+   "char_start": 11074,
+   "text_sha256": "78bc4ba329fd07d82935c47a5417468639aded7d6a84843417ae9e9dbfdbed37"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-030": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 7994,
+   "external_ref": "edu_videos:355",
+   "sample": "zoom_video_355.transcript_cues.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "a26a16914d765262b708ca160559daf2cceee65def3215c4457070937ee10fd3",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 24257,
+   "char_start": 24095,
+   "text_sha256": "ea028444ae83463f019ad381cc7835775ada66087d565cc8224c1d3e4ea47b22"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-031": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 19,
+   "sample": "sunday_scans_2026-08-30.txt",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "64c444f28e5ac769725efdb4abace0e4f576b40f3fd9454bec7b400d36b0b80c",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 10670,
+   "char_start": 10640,
+   "text_sha256": "a65213d90f2011d684e9c03bd076b7701d79bdee4316e9064a57d9630323a332"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-032": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 5332,
+   "external_ref": "edu_videos:274",
+   "sample": "transcripts/274.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "b49ee490f62ac6706cf8210318a50daec9a8a7acf1edb937847f9342c0ce512d",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 24876,
+   "char_start": 24781,
+   "text_sha256": "e311ddd6701f8a33f3de183e1d332648315db55b61780e3130184a4a7023181a"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-033": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2059,
+   "external_ref": "edu_videos:280",
+   "sample": "transcripts/280.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "56de4b2aba70e025cb2b750015d5193d01acf8b6913a108950db7f7c3b903517",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 23413,
+   "char_start": 23335,
+   "text_sha256": "2f9f1e2c1e29ab56f4541870f737c4c7c6f52ecd74d51177e457d23a913a0b2a"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-034": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1079,
+   "external_ref": "edu_videos:283",
+   "sample": "transcripts/283.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "429119563f483cd0d802f4a01db8c8e5e51f62bd29a850943f4400486bd9e13e",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 10609,
+   "char_start": 10404,
+   "text_sha256": "da730a273d1ad6c4e57bdcf3458856d3e35cdbc937aeae2f94f41adc66159a69"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-035": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1314,
+   "external_ref": "edu_videos:283",
+   "sample": "transcripts/283.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "dc46437d509aae9c88d0b128a558442857789a7f37c452a07b0d43e827154e03",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 12066,
+   "char_start": 12011,
+   "text_sha256": "da730a273d1ad6c4e57bdcf3458856d3e35cdbc937aeae2f94f41adc66159a69"
+  },
+  "split": "test",
+  "status": "provisional",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-036": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1520,
+   "external_ref": "edu_videos:288",
+   "sample": "transcripts/288.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "c46fb509ee2e93d6f43e58fff6eb727da4f480d90359b177a8d9b7dff1ccffa0",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 16740,
+   "char_start": 16702,
+   "text_sha256": "35b7de8887ec14c8ba8cd53ea8c6360d7cbbbb5688ec15d46f61522c019961c9"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-037": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2445,
+   "external_ref": "edu_videos:291",
+   "sample": "transcripts/291.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "c9686a8b6b5969d4b24fb64ea2dfdb7e3a4e95c076fcedcf13e31301a03da590",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 18254,
+   "char_start": 18030,
+   "text_sha256": "7e6cc539b5243e9380c14597ff0c338343f0fffa133dfed4a9134b5a18ea0427"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-038": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3129,
+   "external_ref": "edu_videos:293",
+   "sample": "transcripts/293.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "e2437156e756f9875b87f9aefa824e5d3e13b13dc66dcc83a8cfde10a4298265",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 20982,
+   "char_start": 20949,
+   "text_sha256": "77a1c2552cb18519dad6d6a5dcb51df3a02e4877e1c7303cc9e4d8309cb97057"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-039": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 4236,
+   "external_ref": "edu_videos:301",
+   "sample": "transcripts/301.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "57f5005a2c423b759c2a91c213cf24aeb7decf418865807bc08560f252cee32b",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 23577,
+   "char_start": 23306,
+   "text_sha256": "855f65683ea9a2b58bb71078f2c48e850c10de6a91091745f8629e5e3444ade3"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-040": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 663,
+   "external_ref": "edu_videos:305",
+   "sample": "transcripts/305.json",
+   "speaker_label": "Brac"
+  },
+  "quote_sha256": "9a8284241bf066589639954ce0d352a645774378ab006f51e35cb28d8755f243",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 6381,
+   "char_start": 6228,
+   "text_sha256": "8cfc83e1fcf98e98a7c639cfc11b5c95456213cf5df9416d1b3f5ef176f091de"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-041": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 12207,
+   "external_ref": "edu_videos:308",
+   "sample": "transcripts/308.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "607f11fb714507049544d6275800685ac4e43624641105fd24923b9ac134689b",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 82309,
+   "char_start": 82089,
+   "text_sha256": "893a920646fff9d55798419340b47b4f8bc4da61a9cf53b81365ef38c8d381c5"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-042": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 6124,
+   "external_ref": "edu_videos:309",
+   "sample": "transcripts/309.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "be31e84cf1b9ce4fc3d5794e62c17e550f298f22971683101bd1155eef0bc2cb",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 38023,
+   "char_start": 37997,
+   "text_sha256": "9059f1e6f0e67c38f30aebbc2a2313316b6a1bd4c9d6e350fc84b568cc67d202"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-043": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3441,
+   "external_ref": "edu_videos:321",
+   "sample": "transcripts/321.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "03b2c60e5ad991071b7d1bfb91d1f03f45dc1dd7d0729fcf9490eaa9772cb231",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 21535,
+   "char_start": 21498,
+   "text_sha256": "cb356f7b15635645cbaeaf5a1673e306a1e2bebe46d1c18121f1ea2e2215e2d6"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-044": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2562,
+   "external_ref": "edu_videos:327",
+   "sample": "transcripts/327.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "7aacdf1c8132d2c6c82bfacece0c397c6fc85cea8e8c8445ac45984f744d09cb",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 22499,
+   "char_start": 22443,
+   "text_sha256": "3dc78a104b591bb6f13453c826abafb976167bcda46100f6ae54bf1fcca5c6af"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars+positions"
+ },
+ "G-045": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3411,
+   "external_ref": "edu_videos:333",
+   "sample": "transcripts/333.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "c3851dbb02a2788711c5f5186b29a80314eb549bc92f1b492cb6f727c3e268ce",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 22834,
+   "char_start": 22798,
+   "text_sha256": "f4abf957ddc29e65083b9720c94377d8a5364f8e68cea49c10a789cd23d858ed"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars+positions"
+ },
+ "G-046": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1371,
+   "external_ref": "edu_videos:331",
+   "sample": "transcripts/331.json",
+   "speaker_label": "Patrick TSDR)"
+  },
+  "quote_sha256": "f35fd03937bc11825dd90a19cc1b100fc82178fb7296724d66a2d087a5be1f42",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 15858,
+   "char_start": 15813,
+   "text_sha256": "e4d9c6a9e7eb7ae3e6a9aac5d040842c98b0e6b2a3cac02fd83e133339c027ae"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-047": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3273,
+   "external_ref": "edu_videos:337",
+   "sample": "transcripts/337.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "8515a0ba08a1dee20b54461b55db98a70ccdc8ebd4e8ee6e35ce701b3f191e76",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 24639,
+   "char_start": 24604,
+   "text_sha256": "43f822721a6c93ceaaa308e03764474de709053de5f26fa181168f0779892d05"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-048": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 13754,
+   "external_ref": "edu_videos:337",
+   "sample": "transcripts/337.json",
+   "speaker_label": "Brac"
+  },
+  "quote_sha256": "7b0f3fbc2c048dba8099dc71effa15066400b6bc8ff2953fe3a4ab436f7d9cb7",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 68837,
+   "char_start": 68776,
+   "text_sha256": "43f822721a6c93ceaaa308e03764474de709053de5f26fa181168f0779892d05"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-049": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 1221,
+   "external_ref": "edu_videos:339",
+   "sample": "transcripts/339.json",
+   "speaker_label": "Brac"
+  },
+  "quote_sha256": "6a2be2b213db9c11a3759023e21039fb9c0e6165b67f933db21f7bc7c5dfadb6",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 8973,
+   "char_start": 8740,
+   "text_sha256": "5cd1dc0ce1f6ef707e9c982ea836db0cf5a4c1a8cb14f449640f51ab9aea7fee"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-050": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 6764,
+   "external_ref": "edu_videos:339",
+   "sample": "transcripts/339.json",
+   "speaker_label": "Brac"
+  },
+  "quote_sha256": "0e23af363b937133a48319c8bfbbde686192b31dc3b8b833f4372adf24f80b6e",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 24977,
+   "char_start": 24920,
+   "text_sha256": "5cd1dc0ce1f6ef707e9c982ea836db0cf5a4c1a8cb14f449640f51ab9aea7fee"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-051": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 2901,
+   "external_ref": "edu_videos:340",
+   "sample": "transcripts/340.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "c49615b8d6d9a226944a9698cb6817e0a828451b721072af447d396b13bedcee",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 19302,
+   "char_start": 19279,
+   "text_sha256": "65333cb61f8d0883af7799549b6a30ead1b7e319d95747778afb44cad12cfae5"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-052": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3458,
+   "external_ref": "edu_videos:343",
+   "sample": "transcripts/343.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "08ee9383174889ceae0e61b0cb22acd6020527c167a90a14d177c89fb63a1fc6",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 15723,
+   "char_start": 15676,
+   "text_sha256": "db6a55957e3470f06b9d8e4ba6d1b8538e0e3a5955b2d2059fb56ef00791bc27"
+  },
+  "split": "test",
+  "status": "provisional",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-053": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1130,
+   "external_ref": "edu_videos:344",
+   "sample": "transcripts/344.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "fff8a98f8fd50b1d966f082e84e2cb8de6ea32952e6aa5a46d3d90fde6d307fc",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 14213,
+   "char_start": 14126,
+   "text_sha256": "e8247b0337ff9b9f0873d5ba3631995adaeab619b3d00c409ddc217a81a94e62"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-054": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3653,
+   "external_ref": "edu_videos:344",
+   "sample": "transcripts/344.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "c25a66500263129e2ce99cbe0c171115d08f2185e8d1e72db65c45682209672e",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 23810,
+   "char_start": 23770,
+   "text_sha256": "e8247b0337ff9b9f0873d5ba3631995adaeab619b3d00c409ddc217a81a94e62"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-055": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3018,
+   "external_ref": "edu_videos:345",
+   "sample": "transcripts/345.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "63191b4f12284cdba38a30732abc0043f99b1c454d4ae9fa8722237c9e3231ea",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 24777,
+   "char_start": 24671,
+   "text_sha256": "ab7bde045bbc325af90705f9beb0e90f8ffada9a90d5c84cd57bf09cc7929d85"
+  },
+  "split": "dev",
+  "status": "provisional",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-056": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 1183,
+   "external_ref": "edu_videos:346",
+   "sample": "transcripts/346.json",
+   "speaker_label": "Brac"
+  },
+  "quote_sha256": "a3624a8fcb35de6d1994f26b5e66e4b1b54fd05af6998340e39d0e85079c245a",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 12084,
+   "char_start": 12013,
+   "text_sha256": "3a1e763927f1714511b6f58f4de0e675a137a6976a6743764f9417fd8e9b95fb"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-057": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 1089,
+   "external_ref": "edu_videos:348",
+   "sample": "transcripts/348.json",
+   "speaker_label": "Uncharted Territory"
+  },
+  "quote_sha256": "72bfc141b3f3af0e6d962ec164996b3754b035179d43fc9b1d03c32bec6eb5ce",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 11987,
+   "char_start": 11815,
+   "text_sha256": "a6c46324f3286e083c51f9a2e8a5ac2dc37e3fe19c29060048ae5ae89b88d03b"
+  },
+  "split": "dev",
+  "status": "provisional",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-058": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1445,
+   "external_ref": "edu_videos:348",
+   "sample": "transcripts/348.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "d663c0850c471e1c0250f4668c171d7e61f352bee915290afca863e4ded8d748",
+  "record_type": "NEGATIVE_CALL",
+  "span": {
+   "char_end": 15895,
+   "char_start": 15801,
+   "text_sha256": "a6c46324f3286e083c51f9a2e8a5ac2dc37e3fe19c29060048ae5ae89b88d03b"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-059": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 692,
+   "external_ref": "edu_videos:351",
+   "sample": "transcripts/351.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "0da47cd85ce2feee9bf143b44a2e4bc7db13526fdc2bac515fbdfe20fb708413",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 5921,
+   "char_start": 5714,
+   "text_sha256": "c162d917da5b1d03685ba22bed52f70b860af186a7666dfacd70b0aa6e2b5806"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-060": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 1314,
+   "external_ref": "edu_videos:351",
+   "sample": "transcripts/351.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "b136a8e5739a154a193b9dee9e29659ce2c4eb001688fda3eb89a71c36d5df4b",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 12640,
+   "char_start": 12620,
+   "text_sha256": "c162d917da5b1d03685ba22bed52f70b860af186a7666dfacd70b0aa6e2b5806"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-061": {
+  "author_id": "bracco",
+  "locator": {
+   "cue_t_s": 1050,
+   "external_ref": "edu_videos:352",
+   "sample": "transcripts/352.json",
+   "speaker_label": "Bracco"
+  },
+  "quote_sha256": "45fbb298f2e50eae9e1ea4b0e0d64fb690f7cb3414422fcb988eff31a1fdc262",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 10254,
+   "char_start": 9802,
+   "text_sha256": "de364db82afef5df6dad3d825af10d7e5bc53b2da00636e7014f73f7b10aafa5"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text+bars"
+ },
+ "G-062": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 4136,
+   "external_ref": "edu_videos:281",
+   "sample": "transcripts/281.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "87a07874fecd667f7cccf57e71c46c637ece52eed35700bf75a1942305be3ea3",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 23435,
+   "char_start": 23245,
+   "text_sha256": "2fb0c8021db6c96bb125bf03bbcbeeeef0d6d9b033285b2587e60bfcaec6b80f"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-063": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 8221,
+   "external_ref": "edu_videos:315",
+   "sample": "transcripts/315.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "6000d630ed166a1755258c2ffb98533696ee4b28378b818cce03a3c6a4b50efe",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 39289,
+   "char_start": 38919,
+   "text_sha256": "e824a7eef6c1e37aea08f474778761ea64ee933913caa21401816cc52294b9ba"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-064": {
+  "author_id": "tsdr",
+  "locator": {
+   "cue_t_s": 3120,
+   "external_ref": "edu_videos:295",
+   "sample": "transcripts/295.json",
+   "speaker_label": "Patrick (TSDR)"
+  },
+  "quote_sha256": "4cf4b475c8254abfe5d1895017badcf2d2f709eae3390a55a3c14716a9a3d84a",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 27998,
+   "char_start": 27957,
+   "text_sha256": "577c6b8e8c871d50276b8a909894d2afbf10117f85a80970fe3a32a551024599"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-065": {
+  "author_id": "chartmaster",
+  "locator": {
+   "cue_t_s": 1703,
+   "external_ref": "edu_videos:277",
+   "sample": "transcripts/277.json",
+   "speaker_label": "Joe Walburn"
+  },
+  "quote_sha256": "df69928757ea3498a7698b9e6c935a5c3f6e097e9c3859d30f0212bfc006fbd7",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 23347,
+   "char_start": 23252,
+   "text_sha256": "49a76e8a3ff791fa1e729e64fb5bb9f1243a0db8455ff5e8ce954bc54e7bdedf"
+  },
+  "split": "test",
+  "status": "provisional",
+  "stream": "workshop",
+  "verification": "text-only"
+ },
+ "G-066": {
+  "author_id": "guest:zen",
+  "locator": {
+   "cue_t_s": 1992,
+   "external_ref": "edu_videos:294",
+   "sample": "transcripts/294.json",
+   "speaker_label": "zen"
+  },
+  "quote_sha256": "de433c8f11fa03da79e6c6aee795fb40987e9b1b2cd50c0a70b02ec821d14c0b",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 32884,
+   "char_start": 32670,
+   "text_sha256": "f4aac1599bdb2c002956135261627c5f502837f125f285b2738e5044726218f6"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "workshop",
+  "verification": "text-only"
+ },
+ "G-067": {
+  "author_id": "guest:buckethead",
+  "locator": {
+   "cue_t_s": 2440,
+   "external_ref": "edu_videos:298",
+   "sample": "transcripts/298.json",
+   "speaker_label": "BucketHead"
+  },
+  "quote_sha256": "68df0187f75729da533e83401059863180c77a2b24a7aa8b2ad4643e5377f24e",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 37380,
+   "char_start": 37243,
+   "text_sha256": "4082b32c44062ed5987454a2cc70f7123fbb553457f2a635a8c0c87a156f9976"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "zoom_live",
+  "verification": "text-only"
+ },
+ "G-068": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1547974069591343105",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "8ce8a15f9cea34a4e6027725c4030cf084e3003cfa43fc32344c532a4c5e34d2",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 128,
+   "char_start": 0,
+   "text_sha256": "7f8adabd16874a526aaab257e79eab0d171b8a14814fa4fd498add061cadb912"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-069": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1548006142196846663",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "688b5ce27c0e3e5e8a89e515eb39df97a2e8f1ff1489e55845a55930796e7f7e",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 163,
+   "char_start": 0,
+   "text_sha256": "12ce1338ae94ac56b0c158a750c419efa74cbb1d434984255c48860ac4d10429"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-070": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1547630862521204767",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "ef563dc17af2e6cee18f970640bc872c97c6bfe9477584b786686d6197b48e3c",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 147,
+   "char_start": 0,
+   "text_sha256": "035b082ef92f14cd324b8739cb3b792821192305ce89b4a985dd3f44f1d0bc60"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-071": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1547974480121307187",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "40f4d5deb983d22554738cbd06a879a87ed8af457dd53537ed63324e2dd0a9a0",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 84,
+   "char_start": 0,
+   "text_sha256": "64ae233d8c327d2094805ebd44570df8344a863920286dc3e56681015ac214b4"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-072": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1547693587884548126",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "07b6e5332d7ec7364368945377ba2e867fac145e9911fc784cd46c3ccbbc2d7c",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 142,
+   "char_start": 0,
+   "text_sha256": "512e9256f3053baf1fde034af74ce27bd0562a6d692924fc146ea3e5f524562a"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-073": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1548032604840656906",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "dd132a3281a22452a34ac8b7842484e7303257347bf4b96100ff1ef68feafd88",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 41,
+   "char_start": 0,
+   "text_sha256": "3df9cec9d8eff48c1bdde041a404165733e7cfd5fde4683efa3034d173ca382c"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-074": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1547967356351811604",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "5d808d118ac5169cc0c1f680fed3ba185be45aaa59e1cb50174ff435c2e721a7",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 36,
+   "char_start": 0,
+   "text_sha256": "de5c0c1849ded57dbe792d83f8615f3cbad718c5c9a0a1a17bc215afdeda0b4a"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-075": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1547575992179232809",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "6671cca97992e13b38c15e811297528757a20ea8100c9d449779b43451931f70",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 64,
+   "char_start": 0,
+   "text_sha256": "0c128bca44af1d6a94ff0c3647b7e51922c795e63dbc8ed1f5b1a3b0b99565e1"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-076": {
+  "author_id": "chartmaster",
+  "locator": {
+   "external_ref": "discord:1399095349607530588:1548348159124705292",
+   "sample": "discord/chartmaster.jsonl"
+  },
+  "quote_sha256": "2605cf35a27c8ac04d7a19e10f0e1d294a15cf8ab751f30ccbdf408cd92292de",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 98,
+   "char_start": 0,
+   "text_sha256": "abcc3aac9d44e83339e713e87ae166366df9251235e6fb9c5e9dda7da473187a"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-077": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1547243216137617438",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "3c750d11048093fb2ba8f7b2c91f7538a2c78cfd379e8a3fa2bf60234f5434b8",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 51,
+   "char_start": 0,
+   "text_sha256": "f42b18003fceb823791f5f95dbcda079c20705588a5cdede94cbcbdeb6db6ca5"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-078": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1547244405843296387",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "cdc3ca9a57f26814728ebe4c569be3b79bb8736ea593b3c256b0ce8eefb7d79f",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 56,
+   "char_start": 0,
+   "text_sha256": "7b10a59f82cdeab80f480a2ee4ca1f2cf89ff99998bdcaa0ee6aed3ee48e02a0"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-079": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1548715819096080384",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "79d2b0016d5d424607ee460ce518f1c8b0b49ace139bbc8915c6f36e2b49493a",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 56,
+   "char_start": 0,
+   "text_sha256": "870af4c0f0b4fc9edd1399f1d7af279a72d24bda538b14ed24643637f41bb995"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-080": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1546558052205985894",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "811112b9fa23b3ba233d08bf888ace66cae4870f88391c1c89244329cb7a372f",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 116,
+   "char_start": 0,
+   "text_sha256": "143170dfeb68d5606474b0ebd19b6c7619e570042b424361aab995d59720543d"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-081": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1546606963012407377",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "f888315d14ef03d13b872e8196b82ab73b054cec138c595cfba8b4b5aa753c09",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 189,
+   "char_start": 0,
+   "text_sha256": "3d95cee90cc1cbafcbbe4f5fa2685776b26e3382249f59803d569f2d6e0a183d"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-082": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1547642429316796496",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "eab2fd4a4eee4979947abca38aa13e2289e2120656044a736334ac162eca59c4",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 153,
+   "char_start": 0,
+   "text_sha256": "e877022ea8c5ac6b83b127c1a0c89cf6bb2eba0a26e5323f19557ed4dc42ce12"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-083": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "discord:882460017352130630:1544413235372105811",
+   "sample": "discord/bracco.jsonl"
+  },
+  "quote_sha256": "e2ac6ce414f9ad1900ad6f83f4c1e3c89ba58ea70efb8a0ff354c091ca5bff47",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 32,
+   "char_start": 0,
+   "text_sha256": "1c61a575a9444215d53bb07a766aaeb182aff8c75570df1397059aa28a1e40bc"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-084": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "discord:882460017352130630:1544386898737496095",
+   "sample": "discord/bracco.jsonl"
+  },
+  "quote_sha256": "3c754a128ef5830172a33ff8a4828d804c167b4e9bbd067616bc2cb0b3d8f543",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 153,
+   "char_start": 19,
+   "text_sha256": "457f87cc5bb348071b38e53ed357a6151788ec9c354ae687351bbfc8e8412f91"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-085": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "discord:882460017352130630:1547974927498354759",
+   "sample": "discord/bracco.jsonl"
+  },
+  "quote_sha256": "d5f487cbcb24dfad4b59ab57366e7f34e7605df81b13dc7c43f57fd4b6f8fc57",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 45,
+   "char_start": 0,
+   "text_sha256": "9e14ca08d06a02efa2ad45dc7e03766c2fdb8480cf7c90156a917c8bedb1be5d"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-086": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "discord:882459873823043655:1547254857382232074",
+   "sample": "discord/tsdr.jsonl"
+  },
+  "quote_sha256": "1b128ec9fd5d81cd2526b8ecab6ebb3a2e8edde273d3551578d755c3c9f5f11e",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 27,
+   "char_start": 0,
+   "text_sha256": "65a81f31f72d6b5859860bcd297fee54ed746b1751df8504aa3d21671786b28d"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-087": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "discord:882459873823043655:1547295710745989170",
+   "sample": "discord/tsdr.jsonl"
+  },
+  "quote_sha256": "5b3f0e24b9927bac80ee199269dec34be9369561b591d0aac43a7844fda5b02f",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 187,
+   "char_start": 52,
+   "text_sha256": "a6d919a1bc826916f8592041fc415c1e80afa2de0a7fc0970be4318e890a96fe"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-088": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "discord:882459873823043655:1547403143371817031",
+   "sample": "discord/tsdr.jsonl"
+  },
+  "quote_sha256": "3c80888184c9dffe6864b37850269a298ddca829487535e1e74a5cdf0960e9a1",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 89,
+   "char_start": 6,
+   "text_sha256": "da8eb5c765ade243bfbb96ab25e28ba4de127301941f15f5f7c55d99805ef9fc"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-089": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "discord:882459873823043655:1547403143371817031",
+   "sample": "discord/tsdr.jsonl"
+  },
+  "quote_sha256": "c67fc841b28e39e1095d4ca40525a2723585dcc3143ad6c1c62d81985b725d4a",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 1467,
+   "char_start": 1267,
+   "text_sha256": "da8eb5c765ade243bfbb96ab25e28ba4de127301941f15f5f7c55d99805ef9fc"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-090": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1548013592387784704",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "7883cf2e3c20dd43ad2ec28373554bc1e2d70ef313c634001f9360c367cdf890",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 43,
+   "char_start": 0,
+   "text_sha256": "1b293baad6b7dfc239824716706a04fc20bed06ffc8846d38ada1ced8e4b6c13"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text-only"
+ },
+ "G-091": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1547098837439479848",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "62e536954282456e141d79e46008dc6c7ab6f0e3ff74ab5a4e48d02190a23500",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 48,
+   "char_start": 0,
+   "text_sha256": "e38dc0388de74bec40f5a5932ceda9f073121c9d34a1d0d2fa0e1bdb79883102"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-092": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1546899823733772299",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "fa19524c86eba2dd7a0bf44fe422a034a9a7bb42412057cc0a2a914f77e0146e",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 56,
+   "char_start": 0,
+   "text_sha256": "f342030e25c74b2a35320f52abd7b32aaf41690408adc472b6c937420dda6247"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-093": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1546614573669552171",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "243817cdf40a8214f8b3b72dbfd64cebd40843296ed00203a15525ebe85a4207",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 75,
+   "char_start": 0,
+   "text_sha256": "4a6168155c090dba075c351da3742f95b39337a31790c03bc01b873f0458ea9b"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-094": {
+  "author_id": "manrav",
+  "locator": {
+   "external_ref": "discord:1193233724440059946:1547615411845988383",
+   "sample": "discord/manrav.jsonl"
+  },
+  "quote_sha256": "7640a41e45e53a7d1acea06c9ff3df29fab77a853a52641ad6404deffb0fa170",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 48,
+   "char_start": 0,
+   "text_sha256": "50d45d29ed20649dae57ae4527c60296244d1b93493d388531176a0ecf5ffef3"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "discord",
+  "verification": "text+bars"
+ },
+ "G-095": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-807",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-807.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "7506fbcc9ba4862751a2a5faad05991283b787e7e40f5bed00b319048c74383d",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 8466,
+   "char_start": 8231,
+   "text_sha256": "dad49078857e8c0e6532b05ebe8a77456cb022d81416ef116e25375a1f457489"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-096": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-da5",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-da5.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "fc0fefdecd5c08b3b07c0f77f23d2e7a9d1cf6013f00e574e38b00fb1f154f33",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 6459,
+   "char_start": 6371,
+   "text_sha256": "816196f75092f638493589e890dc818566923a7e4d32761daaa358e61bd99847"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-097": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-da5",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-da5.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas > ARM (Daily & Weekly)"
+  },
+  "quote_sha256": "01af86dc01c8df8778db87a00d5eee920108287557b21801acee6405caedaaf0",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 6832,
+   "char_start": 6704,
+   "text_sha256": "816196f75092f638493589e890dc818566923a7e4d32761daaa358e61bd99847"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-098": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-1ad",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-1ad.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "886ac80a1ecd0c5b74642876cee088bca636e00a643d39ce91a0cda1a8775cc8",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 7440,
+   "char_start": 7355,
+   "text_sha256": "428c2e22d65bdeab64f82f011fd1f0638669dd02fba2b6b29bd269bfea06eef9"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-099": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-1ad",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-1ad.html",
+   "section_path": "Index & ETFs > CIBR (Daily)"
+  },
+  "quote_sha256": "4f9caddff046bff2e46897c653e2587dff9a463edbd55c55b2a6b88cf06757e5",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 7190,
+   "char_start": 7123,
+   "text_sha256": "428c2e22d65bdeab64f82f011fd1f0638669dd02fba2b6b29bd269bfea06eef9"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-100": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-1ad",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-1ad.html",
+   "section_path": "Index & ETFs > QQQ (Daily, Weekly, and Hourly)"
+  },
+  "quote_sha256": "47a7eb127bf40710e76957f2ce36772649a42120dc3c67873ad8d22b83151ed5",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 5517,
+   "char_start": 5422,
+   "text_sha256": "428c2e22d65bdeab64f82f011fd1f0638669dd02fba2b6b29bd269bfea06eef9"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-101": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-cd2",
+   "paragraph": 6,
+   "sample": "sunday_scans_html/sunday-scans-cd2.html",
+   "section_path": "Index & ETFs > QQQ (Daily, Weekly, and Hourly)"
+  },
+  "quote_sha256": "fd9d1693599beabb1e1527d309104d9ee2ef8aa72bf78aef8a3073ed8c620758",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 6525,
+   "char_start": 6400,
+   "text_sha256": "274a0f60bac1b168fd5bcd3c0cfd0b548a16369683ba1fc6794313eea4cf9d0a"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-102": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-898",
+   "paragraph": 3,
+   "sample": "sunday_scans_html/sunday-scans-898.html",
+   "section_path": "INTRO"
+  },
+  "quote_sha256": "f450f503c83ee87bfd1731b9230da28f95b8e520272e61f8861d68ac44038a0b",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 2782,
+   "char_start": 2685,
+   "text_sha256": "743db4c84e8a938f8454ffd7fb266df41b650ade9d0752260c43a228b78f71cf"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-103": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-898",
+   "paragraph": 3,
+   "sample": "sunday_scans_html/sunday-scans-898.html",
+   "section_path": "Index & ETFs > QQQ (Daily, Weekly, and Hourly)"
+  },
+  "quote_sha256": "144488c62fed572a40768d59728064501e074718a734d6283b28656fb8ba37bf",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 6179,
+   "char_start": 6106,
+   "text_sha256": "743db4c84e8a938f8454ffd7fb266df41b650ade9d0752260c43a228b78f71cf"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-104": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-cd2",
+   "paragraph": 4,
+   "sample": "sunday_scans_html/sunday-scans-cd2.html",
+   "section_path": "INTRO"
+  },
+  "quote_sha256": "04c9f1b543a33fd5bc0aa956a9ec84084bd80df27b888d47693710c75220202f",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 2236,
+   "char_start": 2165,
+   "text_sha256": "274a0f60bac1b168fd5bcd3c0cfd0b548a16369683ba1fc6794313eea4cf9d0a"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-105": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-a52",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-a52.html",
+   "section_path": "Index & ETFs > XLV (Daily)"
+  },
+  "quote_sha256": "554ab6bd1e8003220e3853f24c0aaaae1137c7bb18e25f1b5c1780ac259a45ca",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 4904,
+   "char_start": 4877,
+   "text_sha256": "513b81dc49d9cc45b4c5608ffeb15777416b27fd022350231d3c24b583dac5f4"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-106": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-a52",
+   "paragraph": 3,
+   "sample": "sunday_scans_html/sunday-scans-a52.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "624007a721ebce293510d0a085256a7e8d8437daf17083da20c060b6875adbcc",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 6495,
+   "char_start": 6322,
+   "text_sha256": "513b81dc49d9cc45b4c5608ffeb15777416b27fd022350231d3c24b583dac5f4"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-107": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-dec",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-dec.html",
+   "section_path": "Index & ETFs > IWM (Daily)"
+  },
+  "quote_sha256": "5a767e139e4ce377d8aa62e924cef06fc8b5c4ce4e1af6563850f4b968b847b3",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 5543,
+   "char_start": 5438,
+   "text_sha256": "29541369d0cfaacc5bfc397683436ab26069e9478581699b2ac3253836043109"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-108": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-ae1",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-ae1.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "f8516d6875d30e33ef77f0febf5c2e67b00f56ac06c46ef10768c378c573303f",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 7623,
+   "char_start": 7479,
+   "text_sha256": "ea0a9baae3a860ea867d69082fe5238f0e393a7b4c1198a7a73fbbbff00f7def"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-109": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-bc0",
+   "paragraph": 4,
+   "sample": "sunday_scans_html/sunday-scans-bc0.html",
+   "section_path": "INTRO"
+  },
+  "quote_sha256": "f1d88aaa0b60f45fb8006c3a8e197aa1478490ccb00ef3dd79e949bf3315af3d",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 3257,
+   "char_start": 3156,
+   "text_sha256": "cf610447e932af736197fba7526cb2c1186de0c2aa8324a095986692ea18df86"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-110": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-e95",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-e95.html",
+   "section_path": "Index & ETFs > QQQ (Daily)"
+  },
+  "quote_sha256": "b57f2218b2a84e302f657aa453e7b77858f5383332da8b55f8d420177fc23953",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 5757,
+   "char_start": 5681,
+   "text_sha256": "5b793e6163ce95754b9e2e66238eaa896285cc4b95224b8dd3d37e751abd8456"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-111": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-e95",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-e95.html",
+   "section_path": "Market Breadth Data"
+  },
+  "quote_sha256": "ace5634aaa0cab27bfd28c6115f40cb9b358361564f7a343fbf7f8821dc7468e",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 4947,
+   "char_start": 4893,
+   "text_sha256": "5b793e6163ce95754b9e2e66238eaa896285cc4b95224b8dd3d37e751abd8456"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-112": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d16",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-d16.html",
+   "section_path": "Market Breadth Data"
+  },
+  "quote_sha256": "029d397d563d0aec0182f8dd234004760493099855eaa2c581164507d903b58b",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 7111,
+   "char_start": 7029,
+   "text_sha256": "a7962a376417cf70f260d7502bff51ebe14b74d796953f2a610f8beeaed0cd1d"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-113": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-6d8",
+   "paragraph": 8,
+   "sample": "sunday_scans_html/sunday-scans-6d8.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "e3c39c509efa7cf39ac105f3d80f65f21f48ea04573e9d44237535a469ad7e08",
+  "record_type": "CALL",
+  "span": {
+   "char_end": 6561,
+   "char_start": 6349,
+   "text_sha256": "56017b66b039f80e4d10686e477383132048f61b9e6896b38670ab9d39bece79"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-114": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-6d8",
+   "paragraph": 5,
+   "sample": "sunday_scans_html/sunday-scans-6d8.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "f57ad5fffa19a5755e71dd49abf5ff7c896c9c44404a295bfb079ed9b630f935",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 5880,
+   "char_start": 5747,
+   "text_sha256": "56017b66b039f80e4d10686e477383132048f61b9e6896b38670ab9d39bece79"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-115": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-6d8",
+   "paragraph": 3,
+   "sample": "sunday_scans_html/sunday-scans-6d8.html",
+   "section_path": "INTRO"
+  },
+  "quote_sha256": "e24905bd8b77c1a22cf4adcaed1fcfd7b45905445f2a8ae29023d6b1ec706432",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 2035,
+   "char_start": 1934,
+   "text_sha256": "56017b66b039f80e4d10686e477383132048f61b9e6896b38670ab9d39bece79"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-116": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-ffb",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-ffb.html",
+   "section_path": "Index & ETFs > IWM (Daily)"
+  },
+  "quote_sha256": "b1ebc12c12f4fd7c951793aa457559d1649fcb1f3c3ac7cbda1d8654a6720146",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 6642,
+   "char_start": 6558,
+   "text_sha256": "54dd2352d9e87187c07947c1a37031839160e8f4dda26458d788489586584216"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-117": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-ffb",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-ffb.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas > SNDK (Daily)"
+  },
+  "quote_sha256": "110984309406a9c66668c8c5a3e57fd0bdcd36e438513f26bec5f208dc073163",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 10178,
+   "char_start": 10099,
+   "text_sha256": "54dd2352d9e87187c07947c1a37031839160e8f4dda26458d788489586584216"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-118": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-d40.html",
+   "section_path": "INTRO"
+  },
+  "quote_sha256": "bd378f0548b764cabe75e798b7c3fbd211909180b1c1eb74a31c4ca4da4f45e5",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 1886,
+   "char_start": 1676,
+   "text_sha256": "ce963f5084ee50f06004271796a780afb6b1adde1c2570cf7e3a51f340f424e2"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-119": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-d40.html",
+   "section_path": "Market Breadth Data"
+  },
+  "quote_sha256": "9129e86c617b2867d50bc5184b69d0924f2d356c6894f4d7f084a172fd02f118",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 4478,
+   "char_start": 4441,
+   "text_sha256": "ce963f5084ee50f06004271796a780afb6b1adde1c2570cf7e3a51f340f424e2"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-120": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-d40",
+   "paragraph": 0,
+   "sample": "sunday_scans_html/sunday-scans-d40.html",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Honorable mention"
+  },
+  "quote_sha256": "81a8ee29220f5e12ba7862658d38f719253fb72edfb80818c88be33dc553ec96",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 11755,
+   "char_start": 11562,
+   "text_sha256": "ce963f5084ee50f06004271796a780afb6b1adde1c2570cf7e3a51f340f424e2"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-121": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-fcd.html",
+   "section_path": "Index & ETFs > QQQ (Daily, Weekly, and Hourly)"
+  },
+  "quote_sha256": "9088ff7204fd33295f0eb70e8c677b0ed4c050eddbbe2d58b5aae1fc9285dc6b",
+  "record_type": "LEVEL",
+  "span": {
+   "char_end": 4073,
+   "char_start": 4024,
+   "text_sha256": "859f15b5b6b9c70eb63d1ab1d1e9585564b9d823c7e6f280d1b88627dc2bce66"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text+bars"
+ },
+ "G-122": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 4,
+   "sample": "sunday_scans_html/sunday-scans-fcd.html",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "076df1af32e2ad84c0533d35b80a63c29dc1e57ae235aa0a0a95c8d8e291dcb9",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 11314,
+   "char_start": 11238,
+   "text_sha256": "859f15b5b6b9c70eb63d1ab1d1e9585564b9d823c7e6f280d1b88627dc2bce66"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-123": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-fcd.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas"
+  },
+  "quote_sha256": "bbf2000cee3712f76978f051339af33e13ad99ab2a0afc356da4e63ebbbc3879",
+  "record_type": "MARKET_SIGNAL",
+  "span": {
+   "char_end": 6184,
+   "char_start": 6009,
+   "text_sha256": "859f15b5b6b9c70eb63d1ab1d1e9585564b9d823c7e6f280d1b88627dc2bce66"
+  },
+  "split": "dev",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-124": {
+  "author_id": "bracco",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 1,
+   "sample": "sunday_scans_html/sunday-scans-fcd.html",
+   "section_path": "Bracco’s Breakdown & Top Ideas > CBRS (Daily)"
+  },
+  "quote_sha256": "d9c60c96f47a3c5575457757b034803d16834a857443484d1ccdf4f0ddbfc654",
+  "record_type": "MENTION",
+  "span": {
+   "char_end": 9007,
+   "char_start": 8972,
+   "text_sha256": "859f15b5b6b9c70eb63d1ab1d1e9585564b9d823c7e6f280d1b88627dc2bce66"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ },
+ "G-125": {
+  "author_id": "tsdr",
+  "locator": {
+   "external_ref": "substack:/p/sunday-scans-fcd",
+   "paragraph": 2,
+   "sample": "sunday_scans_html/sunday-scans-fcd.html",
+   "section_path": "TSDR’s Weekly Outlook & Watchlist > Current Positions"
+  },
+  "quote_sha256": "6bcea24603276c9bf85fff0b22c42ce7a8f8acdde177294b2033c5f1a6943167",
+  "record_type": "PRINCIPLE",
+  "span": {
+   "char_end": 10769,
+   "char_start": 10641,
+   "text_sha256": "859f15b5b6b9c70eb63d1ab1d1e9585564b9d823c7e6f280d1b88627dc2bce66"
+  },
+  "split": "test",
+  "status": "confirmed",
+  "stream": "sunday_scans",
+  "verification": "text-only"
+ }
+}
