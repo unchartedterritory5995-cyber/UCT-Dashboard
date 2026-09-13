@@ -4,7 +4,96 @@
 
 ---
 
-# ⛔⛔ COLD START — WHERE THINGS ACTUALLY ARE, end of 2026-09-12 (SATURDAY)
+# ⛔⛔ COLD START — BUILD DAY, 2026-09-12 (evening). This block supersedes the one below it.
+
+**Read this, then `LEDGER.md`'s build-day sections, then the block below for the two dark runs.**
+
+## What merged today, in order
+
+| # | what | commit | classification |
+|---|---|---|---|
+| 1 | **D2 CP2** — the address book's first non-screener store + its first reader | `ffa8102c7` | ADDITIVE, 8 files |
+| 2 | **S12 second migration** — the flag and the role constants go; the assignment mechanism arrives | `78ba40fe8` | ADDITIVE, 6 files · **in-pod verified** |
+| 3 | **S10 CP2** — F-S10-1: a price has two right renderings, both named | `6576f044e` | ADDITIVE, 4 files, all `app/**` |
+| 4 | **I1 slice 3** — the tool-registry contract becomes six rails | `1c426c199` | ADDITIVE, 1 test file |
+| 5 | **D5 CP1** — the corporate-actions census | `9458ea641` | ADDITIVE, 2 files, `tools/` + `tests/` |
+
+## ⛔⛔ NO MARKER BUMP WAS NEEDED, AND THAT IS A MEASUREMENT, NOT AN OMISSION
+
+The day's plan said ADDITIVE strands would accumulate and be discharged by ONE marker bump at the
+end. **None accumulated.** Measured per commit against `reachable_paths()` (154) and
+`watched_paths()` (24):
+
+```
+D2 CP2      ffa8102c7  changed=8  in-closure=0  watched=0   no strand
+S12 2nd     78ba40fe8  changed=6  in-closure=0  watched=0   no strand
+S10 CP2     6576f044e  changed=4  in-closure=0  watched=0   no strand
+I1 slice 3  1c426c199  changed=1  in-closure=0  watched=0   no strand
+```
+
+⭐ **A strand exists only when flow-worker RUNS a changed file and will not redeploy for it.** Not
+one file changed today is inside flow-worker's import closure, so there is nothing stale for it to
+run. ⛔ **Bumping the marker anyway would drop the Massive OPRA socket to discharge nothing**, and
+Massive does not replay — the gap would be permanent until the T+1 flat file. The bump is the
+expensive half of the mechanism; it is not a ritual.
+
+⚠️ Flow-worker DID rebuild once today, `SUCCESS c4c77d385` at 23:14 ET, off another workstream's
+marker bump at `614036147`. Every deploy of mine reads `SKIPPED`, which is correct and is
+**cancellation-by-narrow-watch-list, not failure**.
+
+## ⛔ WHAT IS PROVISIONAL AND NEEDS ONE PASS FROM THE OWNER
+
+| # | where | the exact question | the answer taken |
+|---|---|---|---|
+| 1 | **GATE-D2 line 2 (NARROWED)** | the scope said "pick the store with the most divergent naming"; measured, that is FUNDAMENTALS | **bars_sqlite**, because fundamentals has ten metric names *because it has no declaration* — addressing it means typing them, which makes the book a second authority. F-D2-1 records it with its prerequisite |
+| 2 | **GATE-S12 line 2 (PROVISIONAL)** | does "S7 flags become tag assignments" include the two `_DARK_ENABLED` kill switches? | **the cohort flag only.** Converting the kill switches would make "stop the dark run" a `DELETE` against `user_tags`. Reversing this is one line in each sweep |
+| 3 | **GATE-D5 CP1** | signed on the build-day instruction, CP1 alone | CP2–CP7 remain unsigned; CP4 and CP7 touch an INERT STRAND and must be classified on the line that approves them |
+
+## ⛔⛔ H14 — A HAZARD CLASS WAS FOUND LIVE, CHECKED LIVE, AND IS NOT FIRING
+
+**THREE placeholder-stop detectors, three tolerances, and the weakest gates a member alert.**
+`awareness/rules.py:74` skips on `abs(stop − entry) < 1e-9`; `portfolio_heat.py:35` uses a relative
+tolerance; `broker/balances.py:457` uses `max(0.001, 1e-5 × entry)` and was written **after** the
+drift happened. A drifted placeholder passes the `1e-9` skip and can fire `stop_hit` at importance
+10, which away-delivers by email and Discord.
+
+Live flags read: **`AWARENESS_ENGINE_ENABLED=1`**, **`COMPASS_AUTOMATION_ENABLED=1`** — R1 is
+running. Production `auth.db`, read-only: **17 open broker positions, 17 with `stop == entry`
+exactly, 0 drifted.** ✅ Not firing. No deploy blocked.
+
+⛔ **And 0 of 17 carry a real, deliberate stop** — the entire live broker population is a
+placeholder, one float-drift from the branch. That is a measurement of today, not a proof about
+tomorrow, and it is why the class is written down here rather than closed.
+
+## The gate packets that now exist and are UNSIGNED
+
+`d3-realtime-streaming` · `d4-caching-and-serving` · `s5-persistence-user-state` ·
+`s4-context-bus` · `s7-position-risk` · `s7-scan-membership-change` · `s7-regime-change` ·
+`s7-indicator-condition`. **Every approval block is the four bare labels.** Each names its
+checkpoints so a line can name ONE.
+
+⛔ **`indicator-condition`'s three-clause gate is now 2/3 satisfied** — D2 CP1 merged, and D2 CP2
+gave the book its first non-screener store today. Clause 3 (cadence gates the predicate at
+registration) is a CP1 deliverable, and the packet's answer to the undeclared-cadence question is
+**refuse at registration, naming the axis** — with the harder half recorded: for bars, cadence is a
+property of the *(metric, timeframe)* PAIR, so the gate must resolve the ADDRESS, not the metric.
+
+## Three counts this programme got wrong today, all its own
+
+⭐ Recorded because the pattern is the point, not the individual numbers.
+
+1. **Δ2** (build-day plan): "F-S10-1 has SEVEN importers, not six." Measured — the MODULE has 9, the
+   SYMBOL `formatPrice` has 6. The gate packet was right; the plan's correction of it was wrong.
+2. **Δ3** (build-day plan): S4 CP1 sized **L** on "62 + 22 consumers". Both figures reproduce with
+   `grep -rl` and neither is a consumer count; the real number is **24**, and the size is **M**.
+3. **The D5 register**, hand-written from a measurement ten minutes old, was **two rows short** —
+   caught by its own census the moment the detector stopped being URL-only.
+
+**In every case the number sat beside the list it claimed to describe.**
+
+---
+
+# ⛔⛔ PREVIOUS COLD START (superseded by the block above) — WHERE THINGS ACTUALLY ARE, end of 2026-09-12 (SATURDAY)
 
 **This block supersedes everything below it. Read it, then `LEDGER.md`.**
 

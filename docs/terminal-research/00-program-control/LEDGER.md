@@ -980,6 +980,130 @@ a baseline guarding a migration nobody has approved measures nothing.
 ---
 
 
+## Tier 4 — 2026-09-12
+
+| what | commit | classification |
+|---|---|---|
+| **D5 CP1** — the corporate-actions census | **`9458ea641`** | ADDITIVE — 2 files, `tools/` + `tests/`, **0** in flow-worker's closure **by construction** |
+
+---
+
+### ⛔⛔ H14 CHECK — a hazard class was found while the code is live, so the live build was checked
+
+The four S7 gate packets written this evening surfaced a class, and the rule is that a class found
+while the code is running is a hard stop, not a footnote.
+
+> **THE CLASS: three placeholder-stop detectors, three different tolerances, and the weakest one
+> gates a member-visible alert.**
+>
+> | | tolerance |
+> |---|---|
+> | `awareness/rules.py:74` | `abs(stop − entry) < 1e-9`, plus a `source == 'broker'` gate |
+> | `portfolio_heat.py:35` | a RELATIVE tolerance, whose own comment says the exact-float form is *"one refactor away from silently failing"* |
+> | `broker/balances.py:457` | `max(0.001, 1e-5 × entry)` — **written after the drift actually happened**, ORCL entry 126.0049 against stop 126.005 |
+>
+> A broker placeholder that drifted by more than `1e-9` passes `rules.py`'s skip, reaches the
+> distance test, and on `distance_pct <= 0` fires `stop_hit` at **importance 10** — and importance
+> ≥ 8 away-delivers by email and Discord. A false stop alert on a stop the member never set.
+
+**Step 3 of H14 — the live build, checked rather than reasoned about.**
+
+Flags read live (`railway variables --service web --kv`): **`AWARENESS_ENGINE_ENABLED=1`** and
+**`COMPASS_AUTOMATION_ENABLED=1`** — the awareness scan IS running, so R1 is live. (Also read, and
+worth recording because the D5 pass could not: **`BARS_SPLIT_REPAIR_ENABLED=0`** — the store-path
+rewrite is OFF, so `bars_sanitize`'s serve-path rescale is the live adjuster. And
+`SCREEN_ALERTS_ENABLED` is unset, which means ON by its own default.)
+
+Production `auth.db`, read-only, `mode=ro`, no member identifier printed:
+
+```
+j2_positions total ............ 19
+  open (closed_at IS NULL) .... 19
+  open AND source='broker' .... 17
+
+open broker positions with both prices ..... 17
+  stop == entry EXACTLY (rules.py skips) ... 17
+  DRIFTED placeholder (rules.py does NOT) .. 0     <-- the defect's population
+  a real, deliberate stop ..................  0
+```
+
+✅ **VERDICT: THE DEFECT IS NOT FIRING. No deploy is blocked.** All 17 open broker positions carry
+`stop == entry` exactly, so the `1e-9` skip catches every one of them.
+
+⛔ **AND THE POPULATION IS 17 OF 17, WHICH IS THE PART TO KEEP.** Not one open broker position has
+a real, deliberate stop — so the entire live broker population is a placeholder, one float-drift
+away from the branch `balances.py`'s tolerance exists because somebody already hit. This is a
+measurement of today, not a proof about tomorrow.
+
+⭐ **The probe reports its own emptiness case explicitly** — had there been zero open broker rows,
+it says so and refuses to call that evidence of correctness. Seventeen is what makes this a
+measurement rather than a vacuous green.
+
+---
+
+### D5 CP1 — `9458ea641`. Gate `96fa0e5d4`, CP1 only.
+
+**An instrument before a table.** `tools/corp_actions_census.py` derives every corporate-action
+site in `api/**` and classifies each one *outstanding · migrated · outside (with a written
+reason)*; `tests/test_corp_actions_census.py` fails **by name** on an unregistered one.
+
+**22 rows across 20 files**, in three classes because they are three different mistakes:
+
+| class | rows | what it means |
+|---|---|---|
+| `PROVIDER_READ` | 4 | a corporate-action feed is fetched here. Four files, three vendors, one question |
+| `ADJUSTMENT_APPLIED` | 2 | a price is RESCALED here — the serve path and the store path, two copies of one judgement |
+| `VENDOR_ADJUSTED` | 16 | the code asks a VENDOR to pre-adjust. ⭐ The class easiest to miss: an adjustment decided in somebody else's process, on a basis we do not record, and `ohlcv` has no adjustment column, so nothing downstream can tell it from an unadjusted price |
+
+The adjustment entry points are **derived from `api/**`'s own `def`s**, never listed — a fifth
+adjuster appears in the census the day somebody defines it.
+
+#### ⚰️ THE CENSUS FOUND TWO SITES ITS OWN REGISTER HAD MISSED, TEN MINUTES AFTER THE MEASUREMENT
+
+The first detector matched only the URL spelling (`?adjusted=true`) and was blind to the Python
+keyword form. It missed `adjusted=(kind == "stock")` in the broker's historical-equity valuation,
+`adjusted=adjusted` in the breadth point-in-time calibrator, and `adjusted=False` in option marks —
+**three real adjustment-basis decisions, one of them carrying a five-line comment explaining
+exactly why the basis matters.** The register, hand-written from a measurement minutes old, was
+already two rows short.
+
+⭐ **A census with a blind spot is worse than no census**, because it converts an unknown into a
+false reassurance and nobody re-measures a question somebody has already answered. The detector now
+reads `ast.keyword` on a `Call` — which also correctly EXCLUDES `adjusted: bool = Query(False, …)`,
+a parameter declaration rather than a decision, and in `gex_router.py` a word that does not even
+mean a corporate action (it means trade-aware dealer positioning). Both cases are planted as tests.
+
+#### ⚰️ AND THE PROSE CONTROL WENT RED FOR THE RIGHT REASON
+
+The two-sided CODE-NEVER-PROSE control typed its own negative needles —
+`("doctrine", "reasoning", "explains")` — and failed, because none of them is in the file it was
+pointed at. ⭐ **That is the control refusing to pass vacuously**, which is what it is for, and the
+lesson is the one this repo keeps relearning: *a search for the shape you EXPECT rather than the
+shape that EXISTS returns silence.* The needle is now derived from the diff between raw and
+stripped source.
+
+#### The rails, and what each would miss without the other
+
+- fails **by name** on an unregistered site;
+- `outside` requires a REAL reason (>40 chars), and at least one row must be `outside` — a
+  three-state register that has quietly become two is a suppression list;
+- **the phantom check**, which caught six register entries naming rows the detector could not
+  produce. Same shape as I1 slice 3's exclusion-list control and the `.gitignore` negation that
+  could never fire;
+- a planted NEGATIVE (a docstring mentioning `reference/splits` is not counted) **and** a planted
+  POSITIVE (a real endpoint and a real `adjusted=` kwarg both are) — without the second, a detector
+  that matched nothing would pass the first perfectly;
+- the tool is **instrument-only**, asserted from its own AST: no `sqlite3`, no HTTP client, no
+  `open(..., 'w')`;
+- `nothing is marked migrated` — D5 has shipped no producer, so a census opening with anything
+  already migrated would be describing a programme that had not started.
+
+**Mutations:** M1 a new unregistered site → RED · M2 an `outside` entry loses its reason → RED.
+**Measured:** 13 passed, `PYTEST_EXIT=0`. Census exits 0 with every row registered.
+
+---
+
+
 ## ✅ THE ROLLOUT SEED RAN. Verified in production, read-only, 2026-09-12.
 
 ⛔ **The RESUME carried this as "Monday's first check" because it was an INFERENCE** — the boot had
