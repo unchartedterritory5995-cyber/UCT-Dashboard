@@ -18,13 +18,23 @@
 // slowdown).
 import { describe, it, expect } from 'vitest'
 import { computeFor, columnErrors } from '../nativeRegistry'
-import { interpret } from '../ast/interpret'
+import { interpret, MAX_RECURRENCE_STEPS } from '../ast/interpret'
 import { DEFAULT_BUDGET } from '../ast/budget'
 
 const bars = (n) => Array.from({ length: n }, (_, i) => ({
   t: 1500000000 + i * 86400, o: 100, h: 101, l: 99, c: 100 + Math.sin(i / 7) * 5, v: 1000,
 }))
 const B = bars(5000)
+
+/** ⛔⛔ THE OVER-CEILING SHAPE, DERIVED. R-Q moved `MAX_RECURRENCE_STEPS` from
+ *  1,000,000 to 12,000,000 on a measurement, and every fixture here that spelled
+ *  `250 × 5,000` as "expensive" quietly became cheap — the guard cases then
+ *  asserted a refusal that no longer happened. The warm-up is the grammar's own
+ *  maximum and the depth is whatever passes the ceiling by one step, so both
+ *  follow the constant instead of dating it. */
+const HEAVY_WARMUP = DEFAULT_BUDGET.maxLookback
+const HEAVY_BARS = Math.ceil(MAX_RECURRENCE_STEPS / HEAVY_WARMUP) + 1
+const HEAVY_B = bars(HEAVY_BARS)
 
 const S = (n) => ({ type: 'series', name: n })
 const N = (v) => ({ type: 'num', value: v })
@@ -90,8 +100,8 @@ describe('C2A.7 — the guard still guards', () => {
   })
 
   it('⛔ AN EXPENSIVE RECURRENCE is refused by the STEP ceiling', () => {
-    const acc = call('accum', N(0), op('+', S('self'), S('close')), N(250))
-    const cols = computeFor(doc({ ok: S('close'), heavy: acc }), B, {}, {})
+    const acc = call('accum', N(0), op('+', S('self'), S('close')), N(HEAVY_WARMUP))
+    const cols = computeFor(doc({ ok: S('close'), heavy: acc }), HEAVY_B, {}, {})
     expect(Object.keys(cols)).toEqual(['ok'])
     expect(columnErrors(cols).heavy.guard).toBe('interpret:steps')
   })
@@ -103,10 +113,14 @@ describe('C2A.7 — the guard still guards', () => {
     // containment safe to ship.
     const trees = {}
     for (let i = 0; i < 12; i += 1) {
-      trees[`h${i}`] = call('accum', N(0), op('+', S('self'), S('close')), N(250))
+      trees[`h${i}`] = call('accum', N(0), op('+', S('self'), S('close')), N(HEAVY_WARMUP))
     }
+    // ⛔ AT `HEAVY_B`, WHERE THEY ACTUALLY REFUSE. This ran against `B` (5,000
+    // bars), which was over the OLD ceiling and is comfortably under the derived
+    // one — so after R-Q the twelve computed instead of refusing and the case
+    // measured a 20-second document while asserting it cost nothing.
     const r = timed(() => {
-      const cols = computeFor(doc(trees), B, {}, {})
+      const cols = computeFor(doc(trees), HEAVY_B, {}, {})
       expect(Object.keys(cols)).toEqual([])
       expect(Object.keys(columnErrors(cols))).toHaveLength(12)
     })
@@ -155,7 +169,7 @@ describe('C2A.7 — the guard still guards', () => {
     // Containment lives in `computeFor`. `interpret` itself must go on refusing,
     // or every other caller (the scan lane, the alert evaluator) loses the guard.
     expect(() => interpret(
-      call('accum', N(0), op('+', S('self'), S('close')), N(250)), B, {}, DEFAULT_BUDGET,
+      call('accum', N(0), op('+', S('self'), S('close')), N(HEAVY_WARMUP)), HEAVY_B, {}, DEFAULT_BUDGET,
     )).toThrow(/steps/)
   })
 })

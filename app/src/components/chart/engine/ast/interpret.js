@@ -512,11 +512,43 @@ function refuse(guard, detail) {
  *  cross-lane parity run is blind to because both lanes would be internally
  *  consistent.
  *
- *  ⏳ WHAT WOULD RAISE IT: a scan needs only the LAST bar, so a last-bar-only
- *  entry point costs `warmup` steps instead of `bars × warmup` and would let a
- *  sweep carry a 500-bar warm-up over the whole universe. That is an API change
- *  in both lanes, not a number change here. */
-export const MAX_RECURRENCE_STEPS = 1000000
+ *  ⏳ WHAT WOULD RAISE IT FURTHER: a scan needs only the LAST bar, so a
+ *  last-bar-only entry point costs `warmup` steps instead of `bars × warmup` and
+ *  would let a sweep carry a 960-bar warm-up over the whole universe. That is an
+ *  API change in both lanes, not a number change here.
+ *
+ *  ─── ⭐⭐ R-Q (owner ruling, 2026-09-13) — 1,000,000 → 12,000,000, DERIVED ───
+ *
+ *  ⚰️ THE OLD NUMBER WAS NOT A MEASUREMENT, AND A MEMBER FOUND OUT.
+ *  `uncharted-volume-v2.pine` on SPY 1D — the timeframe a chart opens on — hit
+ *  this guard on 22 of its 133 graph nodes and drew the four characters `NaN` in
+ *  every dashboard cell. Not a wrong number: `Vol : NaN (NaNx)`, where a volume
+ *  goes. 1D is the criterion, so that shipped broken behind the flag.
+ *
+ *  📏 THE DERIVATION, measured by `recurrenceSteps.measure.test.js` over the
+ *  59-script `pine_oos` corpus plus v2, with `opts.stepSink` recording EVERY
+ *  recurrence rather than only the ones that refuse:
+ *
+ *      deepest REAL warm-up          250   (2 of 59 corpus scripts, and v2)
+ *      deepest depth a member reaches 32,000  (`fullBarsFor('30')`/`('60')` —
+ *                                     what panning left backfills to, NOT the
+ *                                     8,000 a first fetch happens to bring)
+ *      worst REAL product         8,000,000  = 32,000 × 250
+ *      THE CEILING               12,000,000  = 1.5 × the worst real shape
+ *
+ *  ⛔ AND IT IS STILL A BOUND. The grammar's own maximum warm-up is
+ *  `budget.js::DEFAULT_BUDGET.maxLookback` = 960, so the most this engine can
+ *  ever be ASKED for is `32,000 × 960 = 30,720,000` — which this still refuses,
+ *  by 2.56×. A ceiling raised until one script passed would have been set at
+ *  8,000,000 with no headroom and no runaway left bounded.
+ *
+ *  ⚠️ AND THE PYTHON LANE'S EXPOSURE DOES NOT MOVE, which is the whole of the
+ *  "one number for both lanes" concern above. The sweep's own bar count is
+ *  hard-capped at `scan_evaluator._MAX_BARS = 5000`, so the most Python can ever
+ *  reach is `5,000 × 960 = 4,800,000` steps — BELOW both the old ceiling's
+ *  intent and this one. This guard has never been what bounds that lane; its own
+ *  bar cap is. Measured cost is recorded in the derivation test. */
+export const MAX_RECURRENCE_STEPS = 12000000
 
 /** How far back a running value may read its OWN past — `self[k]`.
  *
@@ -3354,6 +3386,24 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // like any other window — but the WORK is `bars × warmup`, and the bar count
     // arrives with the caller. So it is measured here, where it is known, and
     // refused BY NAME rather than turning a chart into a hang.
+    //
+    // ⭐⭐ R-Q — AND EVERY RECURRENCE IS RECORDED, NOT ONLY THE ONES THAT REFUSE.
+    // ⛔ A GUARD THAT ONLY SPEAKS WHEN IT FIRES CANNOT BE CALIBRATED. The ceiling
+    // was 1,000,000 with no measurement of what real scripts need behind it, and
+    // the way that surfaced was a member's chart drawing `NaN` in every dashboard
+    // cell on the timeframe they open first. `opts.stepSink` is how the corpus
+    // was measured (`recurrenceSteps.measure.test.js`) and how a caller can
+    // report a refusal BY NODE instead of letting a NaN reach a cell — the same
+    // arrangement `textTooDeep` has one lane over, for the same reason.
+    if (opts && Array.isArray(opts.stepSink)) {
+      opts.stepSink.push({
+        name: node.name,
+        warmup,
+        bars: length,
+        steps: length * warmup,
+        exceeded: length * warmup > MAX_RECURRENCE_STEPS,
+      })
+    }
     if (length * warmup > MAX_RECURRENCE_STEPS) {
       refuse('interpret:steps',
         `— ${node.name} over ${length} bars with a ${warmup}-bar warm-up is `

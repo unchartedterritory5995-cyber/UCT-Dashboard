@@ -21,6 +21,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeFor, columnErrors } from '../nativeRegistry'
 import { DEFAULT_BUDGET } from '../ast/budget'
+import { MAX_RECURRENCE_STEPS } from '../ast/interpret'
 
 const bars = (n) => Array.from({ length: n }, (_, i) => ({
   t: 1500000000 + i * 86400, o: 100, h: 101, l: 99, c: 100 + (i % 7), v: 1000,
@@ -32,12 +33,28 @@ const NUM = (v) => ({ type: 'num', value: v })
 /** A cheap column: just the close. */
 const CHEAP = SERIES('close')
 
-/** An `accum` whose `bars × warmup` blows `MAX_RECURRENCE_STEPS` at 5,000 bars.
- *  250 × 5,000 = 1,250,000 > 1,000,000 — the exact shape master-line-lite uses. */
+/** ⛔⛔ THE EXPENSIVE COLUMN IS DERIVED FROM THE CEILING, NOT TYPED AGAINST IT.
+ *
+ *  ⚰️ THIS WAS `250 × 5,000 = 1,250,000 > 1,000,000 — the exact shape
+ *  master-line-lite uses`, and R-Q raised `MAX_RECURRENCE_STEPS` to 12,000,000 on
+ *  a derivation. Every case in this file then went green for the wrong reason:
+ *  the "failing" column computed, so containment had nothing to contain and the
+ *  suite asserted a partial-success shape that no longer occurred. A fixture
+ *  built out of a constant's CURRENT VALUE is a fixture that expires the day the
+ *  constant is right.
+ *
+ *  ⭐ So the warm-up is the grammar's own maximum and the bar count is whatever
+ *  it takes to pass the ceiling by one step. Both move with the thing they are
+ *  about. */
+const EXPENSIVE_WARMUP = DEFAULT_BUDGET.maxLookback
+const STEP_BARS = Math.ceil(MAX_RECURRENCE_STEPS / EXPENSIVE_WARMUP) + 1
+const CHEAP_BARS = Math.floor(MAX_RECURRENCE_STEPS / EXPENSIVE_WARMUP / 8)
+
 const EXPENSIVE = {
   type: 'call',
   name: 'accum',
-  args: [NUM(0), { type: 'op', name: '+', args: [SERIES('self'), SERIES('close')] }, NUM(250)],
+  args: [NUM(0), { type: 'op', name: '+', args: [SERIES('self'), SERIES('close')] },
+    NUM(EXPENSIVE_WARMUP)],
 }
 
 const doc = (trees) => ({
@@ -52,13 +69,15 @@ const doc = (trees) => ({
 const finite = (col) => (col || []).filter(Number.isFinite).length
 
 describe('a failing column does not erase its siblings', () => {
-  const B = bars(5000)
+  // ⛔ DEEP ENOUGH THAT THE EXPENSIVE COLUMN REFUSES, and no deeper: the guard
+  // refuses BEFORE running, so the bar array is an allocation and not a cost.
+  const B = bars(STEP_BARS)
 
   it('⭐⭐ the good columns still compute when a sibling refuses', () => {
     const cols = computeFor(doc({ a: CHEAP, bad: EXPENSIVE, b: CHEAP }), B, {}, {})
     expect(Object.keys(cols).sort()).toEqual(['a', 'b'])
-    expect(finite(cols.a)).toBe(5000)
-    expect(finite(cols.b)).toBe(5000)
+    expect(finite(cols.a)).toBe(STEP_BARS)
+    expect(finite(cols.b)).toBe(STEP_BARS)
   })
 
   it('⛔ THE ORDER DOES NOT MATTER — a failure FIRST must not eat what follows', () => {
@@ -115,10 +134,10 @@ describe('a failing column does not erase its siblings', () => {
   })
 
   it('⭐ at a bar count the expensive column CAN take, nothing is contained', () => {
-    // 250 × 900 = 225,000, well inside the ceiling. The same document computes
-    // every column — which is what proves the refusal is about cost and not about
-    // the shape of the tree.
-    const cols = computeFor(doc({ a: CHEAP, bad: EXPENSIVE }), bars(900), {}, {})
+    // An eighth of the ceiling's worth of steps, derived the same way. The same
+    // document computes every column — which is what proves the refusal is about
+    // cost and not about the shape of the tree.
+    const cols = computeFor(doc({ a: CHEAP, bad: EXPENSIVE }), bars(CHEAP_BARS), {}, {})
     expect(Object.keys(cols).sort()).toEqual(['a', 'bad'])
     expect(columnErrors(cols)).toEqual({})
   })

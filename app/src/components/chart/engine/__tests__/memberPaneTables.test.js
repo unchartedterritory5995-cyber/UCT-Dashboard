@@ -39,7 +39,6 @@ import { evaluateObjects } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
 import { layoutTables } from '../objectCanvas'
 import { renderTables } from '../objectTableDom'
-import { nodeTree } from '../ast/graph'
 import { interpret, MAX_RECURRENCE_STEPS } from '../ast/interpret'
 
 const V2 = fs.readFileSync(path.resolve(process.cwd(), '..',
@@ -220,44 +219,87 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
 // ⏭️ ROUTED, NOT GUESSED AT: whether the CHART lane may spend more steps than a
 // universe sweep is a ruling about the envelope, and raising a shared constant
 // at the end of a session is how a hang ships.
-describe('⛔ what the object lane could not read is COUNTED, not silently NaN', () => {
-  // ⚠️ THE TIMEOUTS ARE STATED, NOT INHERITED. Twenty-seven object trees over
-  // thousands of bars is genuinely slow — the 8,000-bar case walks
-  // `bars × warmup` until the ceiling refuses — and a case that trips vitest's
-  // 15s default reports as a FAILURE of the thing it measures. Naming the number
-  // keeps a slow measurement legible as slow.
-  it('⭐⭐ at 800 bars every node reads — and the count is zero', { timeout: 120_000 }, () => {
-    const built = paneDef()
-    const bars = Array.from({ length: 800 }, (_, i) => ({
-      t: 1_400_000_000 + i * 86400, o: 100, h: 104, l: 96,
-      c: 100 + Math.sin(i / 7) * 4, v: 40_000_000 + i * 13_000,
-    }))
-    const r = objectReaderFor(built.definition, bars, { inputs: undefined, tf: 'D', symbol: SYMBOL })
-    expect(r.failed).toEqual([])
-  })
+// ─── ⭐⭐ R-Q — THE STEP CEILING, DERIVED, AND WHAT IT NOW ADMITS ───────────
+//
+// ⚰️ THIS SECTION USED TO ASSERT THE OPPOSITE, AND THE OPPOSITE WAS THE DEFECT.
+// It pinned that v2 at 8,000 bars REFUSED 22 of its 133 graph nodes on
+// `interpret:steps` — *accum over 8000 bars with a 250-bar warm-up is 2000000
+// steps and the ceiling is 1000000* — and reported that as the engine's
+// containment envelope working. It was working; it was also drawing the four
+// characters `NaN` in every dashboard cell on SPY 1D, the timeframe a chart
+// opens on. A guard that is correct and ships a blank dashboard is still a
+// shipped blank dashboard.
+//
+// ⭐ R-Q derived the ceiling instead (`recurrenceSteps.measure.test.js`):
+// deepest real warm-up 250, deepest depth a member can pan to 32,000, worst real
+// product 8,000,000, ceiling 12,000,000. What this section pins now is the
+// consequence — nothing v2 needs refuses at any depth the product reaches — and
+// that the guard is still a guard.
+describe('⭐⭐ v2 reads at every depth the product reaches', () => {
+  const depths = [
+    ['SPY 1D as the chart loads it', 8000],
+    ['the daily backfill target (fullBarsFor D)', 12500],
+  ]
+  for (const [label, n] of depths) {
+    it(`⭐ ${label} — ${n} bars, ZERO nodes unreadable`, { timeout: 300_000 }, () => {
+      const built = paneDef()
+      const bars = Array.from({ length: n }, (_, i) => ({
+        t: 1_000_000_000 + i * 86400, o: 100, h: 104, l: 96,
+        c: 100 + Math.sin(i / 7) * 4, v: 40_000_000 + i * 13_000,
+      }))
+      const r = objectReaderFor(built.definition, bars, { inputs: undefined, tf: 'D', symbol: SYMBOL })
+      expect(r.failed, `refused: ${JSON.stringify((r.refusals || []).slice(0, 2))}`).toEqual([])
+      expect(r.refusals).toEqual([])
+    })
+  }
 
-  it('⛔⛔ …and at 8,000 the STEP CEILING refuses, by name and with its arithmetic', { timeout: 120_000 }, () => {
-    // ⭐ The bar count is the only thing that changes between the two cases, which
-    // is what makes this a statement about the ceiling rather than about v2.
-    const built = paneDef()
-    const bars = Array.from({ length: 8000 }, (_, i) => ({
-      t: 1_000_000_000 + i * 86400, o: 100, h: 104, l: 96,
-      c: 100 + Math.sin(i / 7) * 4, v: 40_000_000 + i * 13_000,
+  it('⛔⛔ AND THE GUARD IS STILL A GUARD — the grammar\'s own maximum refuses', () => {
+    // ⭐ `budget.js::DEFAULT_BUDGET.maxLookback` is 960, so 960 is the widest
+    // warm-up this engine will ever admit; `fullBarsFor('30')` is 32,000, the
+    // deepest a member can pan to. Their product is 30,720,000 — and it refuses,
+    // by 2.56×. A ceiling raised until one script passed would have landed at
+    // 8,000,000 with nothing left bounded above it.
+    // ⛔ THE WARM-UP IS THE GRAMMAR'S OWN MAXIMUM (`budget.js::DEFAULT_BUDGET
+    // .maxLookback` = 960), not an invented one — a wider value refuses at
+    // `budget:lookback` FIRST and would prove the wrong guard. 13,000 bars is
+    // just past the daily backfill target, so the shape is reachable rather than
+    // hypothetical: 13,000 × 960 = 12,480,000, over the ceiling.
+    const bars = Array.from({ length: 13000 }, (_, i) => ({
+      t: 1_000_000_000 + i * 86400, o: 100, h: 104, l: 96, c: 100 + Math.sin(i / 7) * 4, v: 1e7,
     }))
-    const r = objectReaderFor(built.definition, bars, { inputs: undefined, tf: 'D', symbol: SYMBOL })
-    expect(r.failed.length).toBeGreaterThan(0)
-    // ⛔ AND THE REASON IS THE ONE NAMED ABOVE, not some other refusal that
-    // happens to fire at this depth. The failed list is silent about WHY by
-    // construction (`objectReaderFor` catches), so the guard is asked directly.
     let msg = ''
     try {
-      interpret(nodeTree(built.definition.compute.graph || { nodes: [] }, r.failed[0]),
-        bars, {}, undefined, undefined, { tf: 'D' })
+      interpret({
+        type: 'call',
+        name: 'accum',
+        args: [
+          { type: 'series', name: 'close' },
+          { type: 'op', name: '+', args: [{ type: 'series', name: 'self' }, { type: 'series', name: 'close' }] },
+          { type: 'num', value: 960 },
+        ],
+      }, bars, {}, { maxNodes: 1e6, maxLookback: 960, maxSeriesRefs: 64 }, undefined, { tf: 'D' })
     } catch (e) { msg = String((e && e.message) || e) }
-    // A V1 document has no graph, so this only asserts when there is one to ask.
-    if (built.definition.compute.graph) {
-      expect(msg).toContain('steps')
-      expect(msg).toContain(String(MAX_RECURRENCE_STEPS))
-    }
+    expect(msg).toContain('steps')
+    expect(msg).toContain(String(MAX_RECURRENCE_STEPS))
+    expect(32000 * 960).toBeGreaterThan(MAX_RECURRENCE_STEPS)
+  })
+
+  it('⛔⛔ and a refusal is RECORDED BY NODE WITH ITS GUARD, never a bare NaN', () => {
+    // ⚰️ THE OTHER HALF OF THE RULING. Before this, a refused node reached a cell
+    // as `NaN` through `readNode` and the reader answered only `failed: [92, 95,
+    // …]` — a list of graph indices, thrown away by the binder. A member saw
+    // `Vol : NaN (NaNx)` and could not tell the engine's refusal from the
+    // script's own `na`; an engineer got an index and no guard.
+    //
+    // ⭐ The budget is squeezed rather than the bars, so this stays fast: the
+    // point is the SHAPE of the record, and a refusal is a refusal.
+    const built = paneDef()
+    const squeezed = { ...built.definition, compute: { ...built.definition.compute, budget: { maxNodes: 1, maxLookback: 1, maxSeriesRefs: 1 } } }
+    const r = objectReaderFor(squeezed, BARS, { inputs: undefined, tf: 'D', symbol: SYMBOL })
+    expect(r.failed.length).toBeGreaterThan(0)
+    expect(r.refusals.length).toBe(r.failed.length)
+    expect(r.refusals[0]).toHaveProperty('node')
+    expect(r.refusals[0].guard).toMatch(/^(budget|interpret|resolve):/)
+    expect(r.refusals[0].message.length).toBeGreaterThan(10)
   })
 })

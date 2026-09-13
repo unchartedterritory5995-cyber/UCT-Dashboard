@@ -71,16 +71,42 @@ import { foldBound } from './ast/bind'
 export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
+  const refusals = []
   const wanted = graphNodesReferenced(program)
   const fold = opts.fold || ((t) => t)
+  // ⭐⭐ ONE MEMO FOR THE WHOLE PASS — the same arrangement `computeFor` has had
+  // since C2C.11, and the object lane never got it.
+  //
+  // ⚠️ AND WITHOUT IT R-Q WOULD HAVE TRADED A BLANK DASHBOARD FOR A SLOW ONE.
+  // `nodeTree` EXPANDS the shared graph per referenced node, so a subtree two
+  // cells have in common is walked twice — and `uncharted-volume-v2.pine` has 27
+  // referenced nodes over one accumulator. While the step ceiling refused, that
+  // cost nothing because nothing ran; raising the ceiling is what makes it the
+  // member's wait. Measured on SPY 1D (8,000 bars) in `memberPaneTables`.
+  //
+  // ⛔ ITS LIFETIME IS THIS CALL. The columns it holds were computed against
+  // THESE bars, THESE inputs and THIS fold; a memo that outlived the pass would
+  // serve stale numbers with nothing red anywhere.
+  const crossMemo = new Map()
   for (const node of wanted) {
     try {
       const tree = fold(nodeTree(graph, node))
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget,
-        undefined, { tf: opts.tf })
+        undefined, { tf: opts.tf, crossMemo })
       columns.set(node, col)
-    } catch {
+    } catch (err) {
       failed.push(node)
+      // ⛔⛔ R-Q — WHY, NOT JUST WHICH. `failed` is a list of node indices, and a
+      // node index cannot tell a member that their dashboard is blank because
+      // the engine declined to spend the steps. Every refusal is kept with its
+      // guard, its sentence and the node it came from, so a `NaN` on the pane
+      // has a reason attached instead of being indistinguishable from the
+      // script's own `na`.
+      refusals.push({
+        node,
+        guard: (err && err.guard) || 'error',
+        message: String((err && err.message) || err),
+      })
     }
   }
   const readNode = (node, bar) => {
@@ -89,7 +115,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  return { readNode, columns, failed, wanted }
+  return { readNode, columns, failed, refusals, wanted }
 }
 
 /**
@@ -160,8 +186,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
-    const { readNode, failed } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, failed, form: 'graph' }
+    const { readNode, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
+    return { program, readNode, failed, refusals, form: 'graph' }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -171,11 +197,23 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const bound = bindObjectProgram(program, (i) => i)
   const columns = new Map()
   const failed = []
+  const refusals = []
+  // ⭐ THE SAME ONE-MEMO-PER-PASS ON THE V1 FORM, for the same reason.
+  const crossMemo = new Map()
   for (const i of graphNodesReferenced(bound)) {
     try {
       columns.set(i, interpret(fold(trees[i]), bars, evalOpts.inputs, evalOpts.budget,
-        undefined, { tf: evalOpts.tf }))
-    } catch { failed.push(i) }
+        undefined, { tf: evalOpts.tf, crossMemo }))
+    } catch (err) {
+      failed.push(i)
+      // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
+      // and a member on a V1 document is owed the same reason as one on a V2.
+      refusals.push({
+        node: i,
+        guard: (err && err.guard) || 'error',
+        message: String((err && err.message) || err),
+      })
+    }
   }
   const readNode = (node, bar) => {
     const col = columns.get(node)
@@ -183,5 +221,5 @@ export function objectReaderFor(definition, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  return { program: bound, readNode, failed, form: 'trees' }
+  return { program: bound, readNode, failed, refusals, form: 'trees' }
 }

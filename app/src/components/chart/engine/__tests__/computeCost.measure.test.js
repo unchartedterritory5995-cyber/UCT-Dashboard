@@ -65,6 +65,11 @@ function subtreeCensus(trees) {
   return seen
 }
 
+  // ⚠️ AN EXPLICIT TIMEOUT, BECAUSE R-Q MADE THIS FILE DO THE WORK IT USED TO
+  // SKIP. These columns refused instantly while the ceiling was 1,000,000; at
+  // the derived 12,000,000 they COMPUTE, which is the point — and a measurement
+  // file that trips vitest's 15s default reports as a failure of the thing it
+  // measures. Naming the number keeps a slow measurement legible as slow.
 describe('C2A.4 — is identical work done more than once?', () => {
   const SCRIPTS = [
     'mid_engagement__14-master-line-lite',
@@ -73,7 +78,7 @@ describe('C2A.4 — is identical work done more than once?', () => {
     'high_engagement__24-coppock-curve-multi-filter-markittick',
   ]
 
-  it('duplicated canonical subtrees across a document\'s outputs', () => {
+  it('duplicated canonical subtrees across a document\'s outputs', { timeout: 300_000 }, () => {
     const lines = []
     let worst = 0
     for (const f of SCRIPTS) {
@@ -114,7 +119,7 @@ describe('C2A.4 — is identical work done more than once?', () => {
 })
 
 describe('C2A.6 — the execution-cost distribution of the accepted corpus', () => {
-  it('nodes, outputs and wall clock at chart scale', () => {
+  it('nodes, outputs and wall clock at chart scale', { timeout: 300_000 }, () => {
     const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine')).sort()
     const B = bars(N_CHART)
     const rows = []

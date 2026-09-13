@@ -397,16 +397,33 @@ REFUSALS: Mapping[str, str] = {
 #: engine a STATIC budget cannot threshold, because it depends on how many bars
 #: the caller brought rather than on the tree alone.
 #:
-#: ⚠️ ONE NUMBER FOR BOTH LANES, AND THIS LANE IS WHY IT IS THIS LOW. The walker
-#: here is plain loops on purpose (numpy would change summation order and cost
-#: the 1e-9 parity), so it is far slower per step than the JS one. A per-lane
-#: ceiling would be two engines: the same formula would draw on a chart and
-#: refuse in an alert, which is the one divergence a cross-lane parity run is
-#: blind to, because both lanes would be internally consistent.
+#: ⚠️ ONE NUMBER FOR BOTH LANES, AND THAT STAYS TRUE. A per-lane ceiling would be
+#: two engines: the same formula would draw on a chart and refuse in an alert,
+#: which is the one divergence a cross-lane parity run is blind to, because both
+#: lanes would be internally consistent.
+#:
+#: ⚰️ BUT "THIS LANE IS WHY IT IS THIS LOW" WAS AN ESTIMATE. The walker here is
+#: plain loops on purpose (numpy would change summation order and cost the 1e-9
+#: parity) and the JS docblock put it at ``~40x slower per step``. R-Q timed the
+#: same synthetic ``accum`` in both lanes, 2026-09-13, and it is 4.9x.
 #:
 #: ⛔ THE VALUE IS ASSERTED EQUAL TO ``interpret.js::MAX_RECURRENCE_STEPS`` in
 #: ``test_ast_interpret.py``, read out of the JS source rather than retyped.
-MAX_RECURRENCE_STEPS = 1000000
+#:
+#: ⭐⭐ R-Q (owner ruling, 2026-09-13): 1,000,000 -> 12,000,000, DERIVED from the
+#: 59-script ``pine_oos`` corpus plus ``uncharted-volume-v2.pine`` -- deepest real
+#: warm-up 250, deepest depth a member reaches 32,000 (``fullBarsFor``), worst
+#: real product 8,000,000, ceiling at 1.5x that. The full derivation lives beside
+#: the JS constant; this file carries the number and not a second copy of the
+#: argument.
+#:
+#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``scan_evaluator._MAX_BARS`` caps a
+#: sweep at 5,000 bars, so the most this walker can ever be asked for is
+#: ``5000 x 960`` (the grammar's own ``maxLookback``) = 4,800,000 steps -- below
+#: this ceiling either way. The note above says the low number existed to bound
+#: THIS lane; the measurement says this lane was already bounded by its own bar
+#: cap, and that is why the number could move without moving the risk.
+MAX_RECURRENCE_STEPS = 12000000
 
 #: How far back a running value may read its OWN past -- ``self[k]``.
 #:

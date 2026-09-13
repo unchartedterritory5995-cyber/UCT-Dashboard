@@ -22,6 +22,7 @@
 import { describe, it, expect } from 'vitest'
 import { interpret, MAX_RECURRENCE_STEPS } from '../ast/interpret'
 import { DEFAULT_BUDGET } from '../ast/budget'
+import { fullBarsFor } from '../../../../utils/barsBackfill'
 
 const bars = (n) => Array.from({ length: n }, (_, i) => ({
   t: 1500000000 + i * 86400, o: 100, h: 101, l: 99, c: 100 + Math.sin(i / 7) * 5, v: 1000,
@@ -75,23 +76,43 @@ describe('C2A.5 — the real cost of a recurrence, per step', () => {
       + `\n  a 5,000-bar chart with a 250 warmup = 1,250,000 steps ~= ${msFor(1250000)}ms`
       + `\n  break-even bar count at warmup 250 = ${Math.floor(MAX_RECURRENCE_STEPS / 250)} bars`)
     expect(ran.length).toBeGreaterThan(2)
-    // ⛔ THE INVARIANT THE POLICY RESTS ON: the ceiling and the warm-up together
-    // put the break-even BELOW the 5,000 bars a chart loads. That is the whole
-    // finding, and it is arithmetic rather than timing, so it cannot flake.
-    expect(Math.floor(MAX_RECURRENCE_STEPS / 250)).toBe(4000)
-    expect(4000).toBeLessThan(5000)
+    // ⚰⚰ THE INVARIANT HERE USED TO BE THE OPPOSITE, AND IT WAS THE DEFECT.
+    // It read: *"the ceiling and the warm-up together put the break-even BELOW
+    // the 5,000 bars a chart loads. That is the whole finding."* It was a true
+    // measurement of a ceiling that was too low, written down as a policy — and
+    // what it described in practice was `uncharted-volume-v2.pine` drawing `NaN`
+    // in every dashboard cell on SPY 1D, the timeframe a chart opens on.
+    //
+    // ⭐ R-Q INVERTED IT ON A DERIVATION (`recurrenceSteps.measure.test.js`): the
+    // break-even must sit ABOVE the deepest depth a member can pan to, or a real
+    // script refuses on a real chart. At the deepest real warm-up of 250 that is
+    // 48,000 bars, against `fullBarsFor('30')` = 32,000 and `fullBarsFor('D')` =
+    // 12,500. Arithmetic rather than timing, so it still cannot flake.
+    const breakEven = Math.floor(MAX_RECURRENCE_STEPS / 250)
+    expect(breakEven).toBe(48000)
+    expect(breakEven).toBeGreaterThan(fullBarsFor('30'))
+    expect(breakEven).toBeGreaterThan(fullBarsFor('D'))
   })
 
   it('⛔ the ceiling refuses BEFORE running — the refusal is not the cost', () => {
-    // 5,000 × 250 = 1.25e6. The refusal is raised from a multiplication, so it
-    // costs nothing; the danger a raised ceiling would admit is the WORK, and
-    // that is what the extrapolation above sizes.
+    // ⛔ THE SHAPE IS DERIVED, not the `5,000 × 250` this used to spell. That
+    // product is 1.25e6 — over the OLD ceiling and a twelfth of the derived one,
+    // so after R-Q this case measured a column that RAN while asserting it had
+    // refused. The warm-up is now the grammar's own maximum and the depth is
+    // whatever passes the ceiling by one step.
+    const warm = DEFAULT_BUDGET.maxLookback
+    const n = Math.ceil(MAX_RECURRENCE_STEPS / warm) + 1
     const t0 = Date.now()
     let guard = null
-    try { interpret(accum(250), bars(5000), {}, DEFAULT_BUDGET) } catch (e) { guard = e.guard }
+    try { interpret(accum(warm), bars(n), {}, DEFAULT_BUDGET) } catch (e) { guard = e.guard }
     const ms = Date.now() - t0
     expect(guard).toBe('interpret:steps')
+    // ⭐ AND IT REALLY DID NOT RUN. `n × warm` steps at the measured ns/step would
+    // take seconds; a refusal raised from a multiplication takes none, and that is
+    // the property that makes containment affordable.
+    expect(ms).toBeLessThan(1500)
     // eslint-disable-next-line no-console
-    console.log(`\n  refusal at 5,000 × 250 took ${ms}ms (it never ran)`)
+    console.log(`
+  refusal at ${n} × ${warm} took ${ms}ms (it never ran)`)
   })
 })

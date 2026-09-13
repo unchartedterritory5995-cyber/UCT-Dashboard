@@ -197,6 +197,17 @@ export function createObjectLayer(host) {
         // script's `na` — two facts a member cannot tell apart on the pane.
         canvas.setAttribute('data-uct-objects-unreadable',
           String(meta.unreadableNodes === undefined ? '' : meta.unreadableNodes))
+        // ⛔⛔ R-Q — AND THE GUARD THAT REFUSED, ON THE DOM. A count told an
+        // observer that something was `NaN`; the guard tells them WHICH work it
+        // is. `interpret:steps` is a ceiling to derive, `interpret:bind-time-text`
+        // is a wire to thread, and a member cannot tell those apart from a cell.
+        canvas.setAttribute('data-uct-object-tf', String(meta.boundTf === undefined ? '' : meta.boundTf))
+        canvas.setAttribute('data-uct-objects-unreadable-guards',
+          (meta.unreadableGuards || []).join(','))
+        if (meta.unreadableWhy) {
+          canvas.setAttribute('data-uct-objects-unreadable-why',
+            String(meta.unreadableWhy).slice(0, 240))
+        }
       }
       if (changed) schedule()
       return tables

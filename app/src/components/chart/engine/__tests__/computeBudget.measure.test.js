@@ -72,11 +72,16 @@ function timed(fn) {
   }
 }
 
+  // ⚠️ AN EXPLICIT TIMEOUT, BECAUSE R-Q MADE THIS FILE DO THE WORK IT USED TO
+  // SKIP. These columns refused instantly while the ceiling was 1,000,000; at
+  // the derived 12,000,000 they COMPUTE, which is the point — and a measurement
+  // file that trips vitest's 15s default reports as a failure of the thing it
+  // measures. Naming the number keeps a slow measurement legible as slow.
 describe('C2A — master-line-lite, column by column', () => {
   const def = documentOf('mid_engagement__14-master-line-lite')
   const B = bars(N_CHART)
 
-  it('each column ALONE at 5,000 bars', () => {
+  it('each column ALONE at 5,000 bars', { timeout: 300_000 }, () => {
     const lines = []
     def.plots.forEach((p, i) => {
       const r = timed(() => interpret(def.compute.trees[p.key], B, def.__inputs, def.compute.budget))
@@ -89,7 +94,7 @@ describe('C2A — master-line-lite, column by column', () => {
     expect(def.plots.length).toBeGreaterThan(1)
   })
 
-  it('⭐⭐ THE DOCUMENT: growing subsets through the REAL computeFor', () => {
+  it('⭐⭐ THE DOCUMENT: growing subsets through the REAL computeFor', { timeout: 300_000 }, () => {
     const lines = []
     for (let n = 1; n <= def.plots.length; n += 1) {
       const sub = {
@@ -111,33 +116,44 @@ describe('C2A — master-line-lite, column by column', () => {
     expect(lines.length).toBe(def.plots.length)
   })
 
-  it('⛔⛔ ONE THROWING TREE TAKES EVERY SIBLING WITH IT — the mechanism, proved', () => {
-    // The whole document, exactly as the binder computes it.
+  it('⚰⚰ THE MIXED DOCUMENT IS GONE — R-Q made every column of it affordable', { timeout: 300_000 }, () => {
+    // ⚰⚰ THIS CASE USED TO PROVE CONTAINMENT ON A REAL SCRIPT, AND IT CANNOT ANY
+    // MORE, WHICH IS THE RESULT RATHER THAN A REGRESSION. `master-line-lite` was
+    // the corpus' one MIXED document: three columns affordable, four refusing
+    // `interpret:steps` at the 5,000 bars a chart loads. R-Q derived the ceiling
+    // from what real scripts need (`recurrenceSteps.measure.test.js`) and moved
+    // it 1,000,000 → 12,000,000, so all seven now compute — a member who imported
+    // this script used to lose four of its seven plots and no longer does.
+    //
+    // ⛔ THE FILE'S OWN WARNING FIRED: *"If it ever becomes all-cheap or
+    // all-expensive this file stops measuring what it claims to."* It became
+    // all-cheap. So this case records THAT, and the containment MECHANISM is
+    // proved in `computeContainment.test.js`, whose expensive column is derived
+    // from `MAX_RECURRENCE_STEPS` and therefore cannot go cheap under it again.
     const whole = timed(() => computeFor(def, B, def.__inputs, {}))
-    // And the columns that succeed when asked on their own.
     const alone = def.plots.map((p) => timed(
       () => interpret(def.compute.trees[p.key], B, def.__inputs, def.compute.budget)))
     const okAlone = alone.filter((r) => r.ok).length
     // eslint-disable-next-line no-console
-    console.log(`\n=== containment ===\n  whole document: ${whole.ok ? 'OK' : `THREW ${whole.guard}`}`
-      + `\n  columns that succeed ALONE: ${okAlone}/${def.plots.length}`)
-    // If any column succeeds alone and the document throws, the loss is
-    // containment — not the budget.
-    // ⛔ THE ASSERTION, NOT JUST THE PRINT. master-line-lite is the corpus' one
-    // MIXED document — some columns affordable, some not — and it is the only
-    // reason containment is testable against a real script. If it ever becomes
-    // all-cheap or all-expensive this file stops measuring what it claims to.
-    expect(okAlone, 'some columns must succeed alone').toBeGreaterThan(0)
-    expect(okAlone, 'and some must not — otherwise this is not the mixed case')
-      .toBeLessThan(def.plots.length)
-    // And with containment, the whole document now returns exactly those.
+    console.log(`
+=== containment ===
+  whole document: ${whole.ok ? 'OK' : `THREW ${whole.guard}`}`
+      + `
+  columns that succeed ALONE: ${okAlone}/${def.plots.length}`)
+    // ⭐ EVERY COLUMN, ALONE AND TOGETHER.
+    expect(okAlone).toBe(def.plots.length)
     expect(whole.ok).toBe(true)
-    expect(Object.keys(whole.value)).toHaveLength(okAlone)
+    expect(Object.keys(whole.value)).toHaveLength(def.plots.length)
+    // ⛔ AND NO COLUMN CAME BACK EMPTY — 'it computed' must mean values, or this
+    // would pass over seven columns of NaN.
+    for (const key of Object.keys(whole.value)) {
+      expect(finite(whole.value[key]), key).toBeGreaterThan(0)
+    }
   })
 })
 
 describe('C2A — the same shape on the other compute-blocked script', () => {
-  it('spma-trend, column by column', () => {
+  it('spma-trend, column by column', { timeout: 300_000 }, () => {
     const def = documentOf('mid_engagement__13-spma-trend')
     const B = bars(N_CHART)
     const lines = []

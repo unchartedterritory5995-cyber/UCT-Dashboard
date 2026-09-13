@@ -421,7 +421,21 @@ export function createBinder({ chart, LWC }) {
           // ⭐ So the count is stamped on the layer: a NaN a member can see now
           // has a number beside it saying the engine refused rather than the
           // script having said `na`.
+          // ⛔ THE TIMEFRAME THE OBJECT LANE ACTUALLY BOUND AT. `timeframeFlags`
+          // returns null for a code it does not know — deliberately, because a
+          // guessed `isdaily` is a confident wrong length — and every
+          // timeframe-conditional window then refuses `resolve:window`. Which
+          // means a member sees blank cells and the only way to tell that from
+          // any other blank is to know WHICH code reached the fold.
+          boundTf: ctx.tf === undefined ? '(undefined)' : String(ctx.tf),
           unreadableNodes: (reader.failed || []).length,
+          // ⛔⛔ R-Q — AND WHY EACH ONE. A count says a member's cell is `NaN`
+          // for a reason; the guard and its sentence say WHICH reason, and the
+          // two most likely ones need completely different work — a step
+          // ceiling is a number, an unsettled symbol is a wire. Deduped by
+          // guard: twenty-two nodes refusing the same way is ONE fact.
+          unreadableGuards: [...new Set((reader.refusals || []).map((r) => r.guard))].sort(),
+          unreadableWhy: ((reader.refusals || [])[0] || {}).message || null,
         }
       })
       if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
@@ -439,7 +453,10 @@ export function createBinder({ chart, LWC }) {
         // look identical in a screenshot. This is the fact that discriminates
         // them, and it is the engine's own record rather than a re-derivation.
         createdBars: built.value.run.live.map((o) => o.createdBar),
+        boundTf: built.value.boundTf,
         unreadableNodes: built.value.unreadableNodes,
+        unreadableGuards: built.value.unreadableGuards,
+        unreadableWhy: built.value.unreadableWhy,
         stats: {
           created: built.value.run.stats.created,
           updated: built.value.run.stats.updated,
