@@ -35,7 +35,14 @@ export function AuthProvider({ children }) {
 
   /**
    * ⛔⛔ ONE MAP, FOUR PATHS. Every server-served flag is applied here and only
-   * here, for signup, login, refresh and the initial /api/auth/me alike.
+   * here: the initial `/api/auth/me` (and every `refetch` through it), login,
+   * the TOTP second factor, and signup.
+   *
+   * ⚰️ This said "signup, login, refresh and the initial /api/auth/me" — wrong
+   * twice, and a comment naming a mechanism is a claim about a run. `refetch` IS
+   * the /me path, so that list double-counted one seat and omitted the real
+   * fourth, the second factor. An auditor would have hunted a "refresh" seat
+   * that does not exist and left `verifyTotp` unexamined.
    *
    * ⚰️ It was four hand-copied blocks of three lines. Adding Wave K's flags
    * would have made it four blocks of SEVEN — and the failure mode of that

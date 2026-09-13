@@ -2,9 +2,9 @@
  * ⛔⛔ K-R10 — A FLAG REACHES ALL FOUR AUTH PATHS, OR NONE.
  *
  * ⚰️ `AuthContext` applied its server-served flags at FOUR call sites — the
- * initial `/api/auth/me`, login, signup and refresh — as four hand-copied
- * blocks. Three flags meant twelve duplicated lines; Wave K's would have made it
- * sixteen.
+ * initial `/api/auth/me`, login, the TOTP second factor and signup — as four
+ * hand-copied blocks. Three flags meant twelve duplicated lines; Wave K's would
+ * have made it sixteen.
  *
  * ⛔ THE FAILURE MODE IS SILENT AND IT PICKS ITS VICTIM. A flag wired into three
  * paths and missed in the fourth works everywhere except one entry point — and
@@ -42,9 +42,12 @@ describe('⛔⛔ K-R10 — one map, four paths', () => {
     // this pins the PROPERTY, so an auth path added tomorrow (a magic-link, an
     // SSO callback, a second factor) cannot seat a member with stale flags and
     // leave every other assertion green. `_access_payload` is spliced at FIVE
-    // places server-side and the client seats a user at four — the asymmetry is
-    // real (one is /smoke-login, which no client code reads), and it is exactly
-    // why this asks the code rather than a remembered list.
+    // places server-side and the client seats a user at four. ⭐ THE ASYMMETRY IS
+    // REAL AND BENIGN, measured rather than assumed: the fifth is /smoke-login,
+    // and `SmokeLogin.jsx` DOES call it — it discards the response body and calls
+    // `refetch()`, so its flags arrive through the /me seat. Nothing reads the
+    // PAYLOAD from it, which is the only sense in which four is the right number,
+    // and it is exactly why this asks the code rather than a remembered list.
     const seats = [...CODE.matchAll(/setUser\s*\(\s*data\.user\s*\)/g)]
     expect(seats.length, 'no seat-the-user call found — this rail would pass over an empty set').toBe(4)
     const unflagged = []
