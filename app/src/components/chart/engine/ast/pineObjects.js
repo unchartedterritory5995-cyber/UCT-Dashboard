@@ -237,7 +237,13 @@ export function collectObjectOps(stmts, h) {
       // AFTER it, which is exactly Pine's own order. A copy is taken rather
       // than mutating, so a sibling block cannot see a name declared in this one.
       if (word && t[1] && h.isPunct(t[1], '=') && t.length > 2) {
-        localScope = [...localScope, { name: word, toks: t.slice(2) }]
+        // ⭐⭐ R2 STEP 1 — `st` IS THE JOIN KEY, and it is why `toks` is no
+        // longer the value. `buildObjectProgram` reads the binding the WALK made
+        // for this statement rather than re-parsing these tokens; the statement
+        // object is shared between the two walks (`blockStatements` runs once),
+        // so the pairing is by identity and two same-named locals in sibling
+        // blocks cannot be confused. `toks` stays for the diagnostics only.
+        localScope = [...localScope, { name: word, toks: t.slice(2), st }]
       }
       // any other statement may still hide a nested block
       if (st.sub && st.sub.length) walk(st.sub, guards, inLoop, localScope)

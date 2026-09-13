@@ -8482,6 +8482,14 @@ function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
 function foldStatements(stmts, ctx, env) {
   let value = null
   let i = 0
+  /** ⭐⭐ R2 STEP 1 — THE WALK RECORDS WHAT IT BOUND, PER STATEMENT.
+   *  `ctx.bindingByStatement` is the object pass's ONLY source for a block
+   *  local's value. See `scopeFor`'s header for the defect this replaces. */
+  const record = (st2, name) => {
+    if (ctx && ctx.bindingByStatement && env.has(name)) {
+      ctx.bindingByStatement.set(st2, env.get(name))
+    }
+  }
   while (i < stmts.length) {
     const st = stmts[i]
     const toks = st.header
@@ -8594,6 +8602,7 @@ function foldStatements(stmts, ctx, env) {
           tok: toks[mut],
         }
       env.set(nameTok.value, exprBinding(node, new Map(env), locate(nameTok)))
+      record(st, nameTok.value)
       ctx.consumed.add(toks[mut].index)
       i += 1
       continue
@@ -8616,12 +8625,14 @@ function foldStatements(stmts, ctx, env) {
             locate(rhs[0]))
         }
         env.set(nameTok.value, folded.value)
+        record(st, nameTok.value)
         i = folded.next
         continue
       }
       env.set(nameTok.value, exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
+      record(st, nameTok.value)
       i += 1
       continue
     }
@@ -8722,7 +8733,7 @@ function objectEnumValue(name) {
   return undefined
 }
 
-function buildObjectProgram(stmts, source, env, makeResolver) {
+function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement) {
   const collected = collectObjectOps(stmts, { isPunct, findTop, parseArguments, Cursor })
   const diagnostics = {
     loopBlocked: collected.diagnostics.loopBlocked.length,
@@ -8788,16 +8799,17 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
     try {
-      // ⛔⛔ `frame` OR NOTHING — never `scopeEnv`. The factory has ALWAYS
-      // ignored its argument and built its Resolver over the top-level `env`;
-      // R2 made it honour one, and handing it `scopeEnv` here (a `new Map(env)`
-      // COPY whenever the op has block locals) went red on
-      // `objectParams.test.js`: a `line.new` coordinate stopped moving with its
-      // member input, because `declareInputs` mints into the object it is given
-      // and the copy is thrown away. Passing nothing reproduces the old
-      // behaviour exactly; passing a FRAME is the one new case, and it exists
-      // only inside an inlined user-function body.
-      return makeResolver(frame).resolve(node)
+      // ⭐⭐ R2 STEP 1 — THE SCOPE IS HONOURED NOW, because it is finally
+      // trustworthy. `scopeFor` reads the WALK's binding for every block local
+      // and re-parses nothing, so the Resolver built over it sees exactly the
+      // nodes the walk stamped — `boundName` included. Before that fix, handing
+      // this the block scope silently welded a member's `input.int` shut inside
+      // an object coordinate (`objectParams.test.js`), which is why the first
+      // cut of this wave passed `frame` alone and left the block scope unused.
+      // ⛔ `frame` STILL WINS: an inlined user-function body must resolve its
+      // parameters against the caller's arguments, and that frame is layered on
+      // top of whichever scope the op already had.
+      return makeResolver(frame || scopeEnv).resolve(node)
     } catch {
       diagnostics.unresolvedValues += 1
       return null
@@ -9151,14 +9163,39 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
    *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
   const scopeCache = new Map()
+  /** An op's block-local bindings → a resolver scope layered over `env`.
+   *
+   *  ⛔⛔ IT READS THE WALK'S OWN BINDING AND RE-PARSES NOTHING. ⚰️ MEASURED
+   *  2026-09-13: this used to rebuild every name from its tokens
+   *  (`parseWholeExpression(b.toks)`), which is a SECOND reader of the same
+   *  source — and the two disagreed invisibly. `stampInputName` marks an
+   *  `input.*` call node with the name it was bound to, and only the WALK does
+   *  that; a re-parse hands back a fresh node without it, so `declareInputs`
+   *  found nothing to mint and a member's knob folded to its literal DEFAULT.
+   *  The plot on the same document honoured the knob and the object coordinate
+   *  did not, from one line of duplicated reading.
+   *
+   *  ⭐ Joined on the STATEMENT OBJECT, which both walks share, so two locals of
+   *  the same name in sibling blocks can never be mistaken for each other.
+   *
+   *  ⚠️ `unboundLocals` COUNTS WHAT THE WALK NEVER BOUND rather than guessing at
+   *  it. A true block local inside a block `foldIfChain` refused has no walk
+   *  binding to read, and this reports the residue instead of quietly inventing
+   *  one — the number is in `objectDiagnostics`, so "the walk covers everything"
+   *  is a measurement and not a hope.
+   *
+   *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
+   *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
   const scopeFor = (locals) => {
     if (!locals || !locals.length) return env
     if (scopeCache.has(locals)) return scopeCache.get(locals)
     const scoped = new Map(env)
     for (const b of locals) {
-      let node
-      try { node = parseWholeExpression(b.toks) } catch { continue }
-      scoped.set(b.name, exprBinding(node, scoped, b.toks[0]))
+      const bound = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
+      if (bound) { scoped.set(b.name, bound); continue }
+      diagnostics.unboundLocals = (diagnostics.unboundLocals || 0) + 1
+      diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
+      if (!diagnostics.unboundLocalNames.includes(b.name)) diagnostics.unboundLocalNames.push(b.name)
     }
     scopeCache.set(locals, scoped)
     return scoped
@@ -9385,7 +9422,61 @@ export function translatePine(source, opts = {}) {
    *  name. Filled as each `f(…) =>` body is folded, read by
    *  `Resolver.guardOffsetOfMutable`. See that guard for the measurement. */
   const finalLocals = new Set()
-  const ctx = { consumed: new Set() }
+  /** ⭐⭐ R2 STEP 1 — STATEMENT → THE BINDING THIS WALK MADE FOR IT.
+   *
+   *  ⛔⛔ THE ONE AUTHORITY FOR A BLOCK LOCAL'S VALUE. `buildObjectProgram`'s
+   *  `scopeFor` used to rebuild every name it needed by re-parsing the
+   *  statement's tokens, which is a SECOND reader of the same source and it
+   *  disagreed with this one in a way nothing could see: a re-parsed
+   *  `off = input.int(5, "Offset")` is a fresh call node with no `boundName`
+   *  stamped on it, so `declareInputs` could not mint an identifier and the
+   *  member's knob folded to the literal 5 — inside object coordinates only,
+   *  while every plot on the same document honoured it.
+   *
+   *  Keyed by the STATEMENT OBJECT, which both walks share (`blockStatements`
+   *  runs once and the same array reaches `buildObjectProgram`), so the join
+   *  needs no name matching and cannot mis-pair two locals of the same name in
+   *  sibling blocks. */
+  const bindingByStatement = new Map()
+  const ctx = { consumed: new Set(), bindingByStatement }
+
+  /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
+   *  LOCALS ARE BOUND BY SOMEBODY.
+   *
+   *  ⛔ THIS IS A SCHEDULER, NOT A SECOND READER. Every binding is still made by
+   *  `foldStatements` — the one function that reads the inside of an `if` — with
+   *  its own `exprBinding`, its own `stampInputName` and its own refusals. All
+   *  this adds is WHERE to point it: one call per block level, because
+   *  `foldStatements` stops at the first construct it cannot fold and the corpus
+   *  nests its dashboards two deep (`if barstate.islast` → `if showTable` → the
+   *  cells). Without the recursion the outer call throws on the inner `if` and
+   *  nothing inside it is ever bound — measured on v2 as 41 unbound locals across
+   *  20 names, every one of them a table cell's content.
+   *
+   *  ⛔ `env` IS NEVER TOUCHED. Each level folds into a CHILD map, so a block
+   *  local cannot leak to a scope the member cannot see it from; the child is
+   *  passed down so an inner block still reads its outer block's names.
+   *
+   *  ⚠️ THROWING IS THE NORMAL CASE and is swallowed on purpose — the chain was
+   *  already refused and its refusal already reported. What is kept is whatever
+   *  was bound before the throw, which is exactly as authoritative as a binding
+   *  from a chain that folded: same reader, same constructor. */
+  const harvestBlockLocals = (list, baseEnv) => {
+    if (!list || !list.length) return
+    const scope = new Map(baseEnv)
+    // ⛔⛔ ITS OWN `consumed` SET, SHARING ONLY THE RECORD. ⚰️ MEASURED: with the
+    // walk's own ctx, the harvest marked mutator tokens consumed that the walk
+    // had deliberately left alone, and two corpus rails moved —
+    // `pine.boolcast` ("the fold still fires inside it") and
+    // `pine.community.guards` ("every refusing script refuses at exactly this
+    // guard, line and token"). A harvest whose only job is to BIND names must
+    // not be able to change which guard a script refuses at.
+    const harvestCtx = { consumed: new Set(), bindingByStatement }
+    try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
+    for (const st2 of list) {
+      if (st2 && st2.sub && st2.sub.length) harvestBlockLocals(st2.sub, scope)
+    }
+  }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
   const unfoldable = new Map()
@@ -9552,6 +9643,29 @@ export function translatePine(source, opts = {}) {
             if (!unfoldable.has(name)) unfoldable.set(name, r)
           }
         }
+        // ⭐⭐ R2 STEP 1 — A REFUSED CHAIN STILL YIELDS ITS BLOCK LOCALS, THROUGH
+        // THE SAME READER.
+        //
+        // `foldIfChain` refuses a block that contains object statements, which is
+        // every table-populating block in the corpus — and until now the names
+        // those blocks declare (`rangeText`, `volCellText`, …) were bound by
+        // NOBODY. `buildObjectProgram` filled the hole by re-parsing their tokens,
+        // and that second reader is what silently stripped `boundName` off an
+        // `input.*` node. Measured on `uncharted-volume-v2.pine`: 41 locals across
+        // 20 names had no walk binding at all.
+        //
+        // ⛔ IT REUSES `foldStatements` RATHER THAN WALKING THE BLOCK AGAIN. That
+        // function IS this walk's reader for the inside of an `if`, it already
+        // records every binding it makes, and a second traversal here would be
+        // the very duplication this step exists to delete. It is expected to
+        // throw — that is why the chain was refused — and every binding it made
+        // before throwing is already recorded and is exactly as authoritative as
+        // one from a chain that folded.
+        //
+        // ⛔ THE VALUE IS DISCARDED AND `env` IS NEVER TOUCHED: a block local is
+        // not visible outside its block, and leaking one here would let a name
+        // the member cannot see resolve at the top level.
+        for (let k = si - 1; k < last; k += 1) harvestBlockLocals(stmts[k].sub, env)
         si = last
       }
       continue
@@ -9789,6 +9903,12 @@ export function translatePine(source, opts = {}) {
         env.set(nameTok.value, exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
+        // ⭐⭐ R2 STEP 1 — and the TOP-LEVEL walk records too, which is the half
+        // that actually mattered. `scopeFor` used to re-parse EVERY name the
+        // object collector had walked past — including top-level ones — and a
+        // re-parse produces a fresh node with no `stampInputName` on it. That is
+        // how a member's `input.int` knob went dead inside an object coordinate.
+        bindingByStatement.set(stmt, env.get(nameTok.value))
       } catch (err) {
         const r = fromError(err)
         // ⛔ THE REFUSAL IS STORED WHOLE — its guard, ITS OWN MESSAGE and ITS OWN
@@ -10264,7 +10384,7 @@ export function translatePine(source, opts = {}) {
         r.declareInputs = opts.declareInputs === 'all' ? 'all' : new Set(opts.declareInputs)
       }
       return r
-    })
+    }, bindingByStatement)
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
     // object reader and nothing about how, which is a diagnostic that cannot be
