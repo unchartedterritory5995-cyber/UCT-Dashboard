@@ -989,6 +989,13 @@
       "status": "dark",
       "where": [],
       "note": "GATE-D2 CP4 -- the indicator axis (PRD-D2 section 9.5, approval fingerprint 3257cc319; section 4 was RE-NUMBERED in the signing commit to add CP4, per the standing rule, because 9.5's scope matched none of CP1/CP2/CP3 -- all three were written for the stored-column form). Gates api/services/canonical/indicator_axis.py, a SECOND canonical address form `<indicator>[.<output>](<params>)@<timeframe>` that DECLARES and DESCRIBES and never computes: resolve() returns a computation descriptor and hands back the value FUNCTION, never a result. UNSET = OFF and that is the shipped state -- CP4 declares the axis; CONSUMING it is indicator-condition CP3's act under its own approval line. Merged 404b808c5 2026-09-13, classified ADDITIVE by reachable_paths(): indicator_axis is absent from flow-worker's 154-module closure (bars_fetch.py and bars_sqlite.py ARE in it, which is why the owner's 2026-09-13 ruling that the watch list is NOT widened means CP4 does not touch them). DO NOT ARM: arming is the owner's flip, and nothing reads this axis yet, so arming it would light a door with no room behind it."
+    },
+    "ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "GATE-S7-INDICATOR-CONDITION CP3, approval line 3 -- the dependency-discharge line, fingerprint 4e8d3af5d. Its blocker, PRD-D2 section 9.5, is signed as GATE-D2 CP4 (3257cc319) and merged 404b808c5. Arms the alert_taxonomy_indicator_condition_dark cron (every minute, weekdays 09:00-16:59 ET): the forward-only dark comparison of each cohort member's active indicator_alerts row against the canonical book. ARMED 2026-09-13 20:48:30 UTC on `web`, owner-authorized as a SINGLE variable; the `--set` auto-redeployed (a FIFTH data point for the open auto-redeploy question) and the new boot was verified by artifact -- /api/health uptime 14s, and the boot line '[startup] S7 indicator-condition DARK comparison ENABLED' read from railway logs. EXPECT ZERO COMPARISONS AND THAT IS CORRECT, NOT A FAULT. The in-pod dry run measured cohort=6 and indicator_alerts active TOTAL=0 -- production holds no armed indicator alert at all, so projected N=0 with that reason. And of the 31 legacy addresses only ONE (close -> ohlcv.c) is comparable against the book's 142 metrics (F-S7-IC-1), so even a populated cohort would report thirty NOT COMPARABLE per predicate, never as agreement. The heartbeat is the liveness signal here, not the outcome counts."
     }
   },
   "build_flags": {
