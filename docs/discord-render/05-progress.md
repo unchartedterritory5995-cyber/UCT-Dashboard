@@ -168,3 +168,17 @@ does not carry them today.
 
 `flow_source` on production's class table: **SPY, QQQ, SMH, IWM, SPX, NDX, GDX, DRAM, TSLL → `etfs`**;
 **NVDA, AAPL → `stocks`**; SPCX (a stock the legacy list had as an ETF) → `stocks`.
+
+---
+
+## Merge 4 — 2.4a, dark · 2026-09-13 (Sunday)
+
+**Shipped (dark):** `api/services/discord_render/symbols.py`; the symbol check at the ack for
+`/chart`, `/charts` and `/flow` (kill switch `DISCORD_RENDER_V2_SYMBOLS_ENABLED`); the V2 flow handler's
+`etfs`/`stocks` partition; `run_flow_card_job(..., source="stocks")` so the pre-V2 path is unchanged.
+
+**Gate on the merged tree** (`cee1b269b`, after merging 14 master commits): 26 scoped files,
+**763 passed, 0 failed**. Watch coverage `OK` (changed 8). Mutation proofs 22/22 red (second run;
+two rails fixed after the first).
+
+**Deploy, measured:** *(filled from the running pod after the push)*
