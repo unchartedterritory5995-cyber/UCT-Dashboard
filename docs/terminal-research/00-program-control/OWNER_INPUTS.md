@@ -175,6 +175,36 @@ CHOOSE: ____
 **PROVISIONAL taken: B**, ⚠️ with the warning that a dark flag with no retirement date becomes
 permanent by default — which is how this estate acquired the flags it now cannot explain.
 
+
+### B4-PLAIN · D2 §9.5, the indicator axis — five plain lines, as asked
+
+1. **What the metric address book is today.** One file listing 142 metrics, each saying *where a
+   value is already stored* — a table and a column, nothing more. It computes nothing, so it can
+   never be wrong about a number; it can only be wrong about a location.
+
+2. **What the indicator axis adds.** Thirty more addresses that have **no stored location** —
+   `bb.upper`, `rsi`, `macd` and the rest are calculated on demand from bars, differ per
+   timeframe, and change meaning with their parameters. The book would start describing *work to
+   be done* instead of *a place to look*.
+
+3. **What signing it lets happen.** `indicator-condition` becomes buildable. Today every predicate
+   a member could write in the legacy alert lane **refuses** — measured: 31 legacy addresses, 142
+   book metrics, exactly one shared (`close` ↔ `ohlcv.c`). Signing unblocks that type's CP3, whose
+   approval line is already written and void until this merges.
+
+4. **What it risks.** The book stops being a pure lookup, which is the property that makes it safe
+   — a wrong entry today points at the wrong column and is caught; a wrong entry then computes a
+   wrong number and looks authoritative. It also needs `bars_fetch`/`bars_sqlite` edits, and those
+   sit inside flow-worker's closure, so declaring the cadence costs either a tape gap or a change
+   to what flow-worker watches.
+
+5. **Recommendation.** ⚠️ **Not yet — and not never.** The unblock is one alert type; the cost is
+   the book's defining property plus a flow-worker decision nobody has made. **Settle the
+   flow-worker watch-list question first** (that is a small, reversible call), and sign §9.5 after.
+   If you want `indicator-condition` sooner than that, sign it — but sign the watch-list change
+   with it, because building one without the other ships a declaration the worker computes against
+   a stale copy of.
+
 ---
 
 ## PART C — the one thing I need that is not a ruling

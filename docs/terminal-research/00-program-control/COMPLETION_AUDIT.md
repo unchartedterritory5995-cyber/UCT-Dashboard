@@ -262,7 +262,7 @@ one starts HERE, not from memory.** One unit in flight at a time; never two on s
 | # | unit | authorized | state | SHA |
 |---|---|---|---|---|
 | 1 | **D3 CP1** — ratification rail, no runtime | `00ebb5e80` | ✅ **DONE** | **`302f99e8e`** |
-| 2 | **D4 CP1** — two adopters, hit-rate counter, snapshot-identity | `37bfe4251` | ⬜ next | — |
+| 2 | **D4 CP1** — ⛔ **SCOPE CONFLICT, see below** — the packet's CP1 is a test file; the owner's scope is its CP2+CP3, and CP3 strands | `37bfe4251` | ⛔ **needs a ruling** | — |
 | 3 | **S5 CP1** — extract Notebook's pattern, Notebook unchanged | `37e1823a6` | ⬜ | — |
 | 4 | **position-risk CP3** | `ec2b197f8` | ⬜ | — |
 | 5 | **scan-membership-change CP3** → then **re-sort A-series, build A9 CP1 if BUILDABLE** | `d0415f251` | ⬜ | — |
@@ -281,6 +281,59 @@ no legacy change · dry-run in-pod against Friday's data before merge · project
 time. Anything in flow-worker's closure that would strand waits for **16:05 ET or later** — no
 marker bump during RTH. If a unit would strand during RTH: finish on the branch, verify, hold the
 merge, and record the reason here.
+
+### Unit 2 — D4 CP1 · ⛔ NOT STARTED — A SCOPE CONFLICT THE NEXT SESSION MUST SETTLE FIRST
+
+**Do not build this unit until the conflict below is resolved. It is not a blocker discovered
+mid-build; it is visible from the packet and is recorded here so nobody rediscovers it.**
+
+⛔ **THE OWNER'S SCOPE AND THE PACKET'S OWN CHECKPOINT NUMBERING DESCRIBE DIFFERENT WORK.**
+
+| | says CP1 is |
+|---|---|
+| **the signed approval line** (`37bfe4251`) | *"the first two of the five named adopters, additive, with a hit-rate counter; snapshot-identity on served values"* |
+| **the packet's own §4 table** | *"the spec's §2.4 four rules written down as a DERIVED rail… **No product code changes. No key renamed. No module touched.**"* — a test file |
+
+The packet's §8 recommendation is explicit: *"Sign CP1 alone, or sign nothing yet. CP1 is a test
+file."* The owner's "first two adopters" maps to the packet's **CP2 + CP3**.
+
+⛔⛔ **AND THE SECOND ADOPTER STRANDS FLOW-WORKER. Measured, not read off the packet:**
+
+```
+  outside     api/services/watchlist_performance.py   <- adopter 1 (packet CP2)
+  IN CLOSURE  api/services/theme_performance.py       <- adopter 2 (packet CP3)
+  IN CLOSURE  api/services/groups.py                  <- adopter 2 (packet CP3)
+  IN CLOSURE  api/services/cache.py                   <- D4-D says DO NOT TOUCH
+```
+
+So "the first two adopters" cannot be built as one non-stranding unit. The packet's §4 already
+flags CP3 as *"the ONLY one that can strand"*, and D4-D's reasoning is that a flow-worker restart
+drops the Massive OPRA socket, which **does not replay** — the gap is permanent until the T+1 flat
+file.
+
+**THE THREE WAYS FORWARD, for the owner to pick — none taken:**
+
+- **A) Build the packet's CP1 (the derived rail) and re-number.** Matches the packet, strands
+  nothing, and is what §8 recommends. The adopters become CP2/CP3 with their own lines.
+- **B) Build adopter 1 only** (`watchlist_performance`, outside the closure) with the hit-rate
+  counter and snapshot-identity, and hold adopter 2 for an after-hours line. Delivers real
+  adoption; half the signed scope.
+- **C) Build both adopters with a marker bump.** Only legitimate outside RTH. ⚠️ It pays a
+  permanent OPRA tape gap for a caching adoption, which is the trade D4-D calls wrong in both
+  directions.
+
+⭐ **RECOMMENDATION: B.** It is the largest piece of the signed scope that is honestly
+non-stranding, and adopter 1 is the one that carries the real defect — `wl_perf:` is an **MD5 of
+the whole ticker set**, so one failed ticker's all-None row is cached against every peer in the
+same request. Per-ticker keys fix that; `theme_performance` gains far less and costs a tape gap.
+
+⚠️ **What adopter 1 actually changes, so the next session does not have to re-read it:**
+`get_batch_returns` keys on `"wl_perf:" + md5(sorted tickers)`, one `set_by_completeness` for the
+whole batch. Adoption = per-ticker `wl_returns::{TICKER}::{as_of}` with completeness moved inside
+the loop, the set key kept as a fast path, plus the counter. Snapshot-identity holds because the
+computation is unchanged — only which values come from cache moves.
+
+---
 
 ### Unit 1 — D3 CP1 · ✅ DONE · `302f99e8e`
 
