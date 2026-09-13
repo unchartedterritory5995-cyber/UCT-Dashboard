@@ -1151,12 +1151,28 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # the server; an SPA route change does not. `--spa-return` changes only
         # the second of those, so a colour change between the two runs names the
         # document load and nothing else.
-        if SPA_RETURN["on"]:
-            back = page.evaluate(SPA_NAV_JS, {"path": f"/journal/notebook?note={note_id}"})
-            log(f"      SPA return (no document load): {back}")
+        # ⛔⛔ ONLY RETURN IF WE LEFT. Caught before this ran, 2026-09-13:
+        # this navigation was UNCONDITIONAL, so the excerpt cell — whose whole
+        # purpose is to fire an append door WITHOUT leaving the note — would have
+        # been remounted anyway, by the instrument. It would have gone RED for
+        # the instrument's reason, and the reading would have been "both RED, so
+        # the mechanism is wider than unmount": a false widening of a real
+        # finding, produced by the tool that was measuring it.
+        #
+        # ⭐ THE TELL: a step that changes the surface must ask whether IT changed
+        # the surface. `family in WARM_ROUTES` is the same predicate that decided
+        # to leave, so the two cannot disagree.
+        navigated_away = family in WARM_ROUTES
+        if navigated_away:
+            if SPA_RETURN["on"]:
+                back = page.evaluate(SPA_NAV_JS, {"path": f"/journal/notebook?note={note_id}"})
+                log(f"      SPA return (no document load): {back}")
+            else:
+                page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
+            page.wait_for_timeout(6000)
         else:
-            page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
-        page.wait_for_timeout(6000)
+            log("      stayed on the note — no return navigation (this is the variable)")
+            page.wait_for_timeout(2000)
         # ⛔ WATCH THE STORE, NOT JUST THE CLOCK. "The outbox emptied" has two
         # completely different causes and the same appearance:
         #   SENT       the entry went out and the server took the words
@@ -1269,6 +1285,7 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
                f"forks: {forks} · outbox left: {(boxes or {}).get('outbox')} · "
                f"conflicts: {(boxes or {}).get('conflicts')} · "
                f"door via {res.get('via', 'n/a')} · sends before the door: {before_door}"
+               f" · left the note: **{navigated_away}**"
                f"{nav_note} · {int(time.time() - from_cell)}s")
         # ⛔ And it is only a spoiled cell if the words LANDED first. A door that
         # fired after a failed attempt still met queued work, which is the case
