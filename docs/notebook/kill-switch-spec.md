@@ -290,7 +290,7 @@ find is that nothing looked.
       reads as evidence. ⭐ It did NOT leave the rig opted in, and that is measured rather
       than hoped: the next run's opening read found the on-disk key at `'0'` with 61
       appends, so the write had reached disk and only the read-back was lost.
-- [ ] flip packet posted — **the first packet the owner expects**
+- [x] flip packet posted — **the first packet the owner expects**. `docs/notebook/kill-switch-flip-packet.md`, posted to the owner 2026-09-12 with the keys, the commands, the preconditions each carrying its evidence, the window and verdict rule, both rollback levers, and the member-impact paragraph. ⛔ It authorises NOTHING: nothing member-visible moves until the owner flips a key, and K-1 is a separate packet behind a measured precondition.
 
 ## 10. Open, named
 
