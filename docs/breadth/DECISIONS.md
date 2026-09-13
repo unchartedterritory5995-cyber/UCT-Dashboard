@@ -265,3 +265,38 @@ than the sessions on screen.
 **Why.** The polling rail defines a polling site as `useSWR(…, {refreshInterval})`; C1 adds none. Both refreshes fire on
 events — the live hook's superseded transition (that hook already polls) and `visibilitychange` — one request each, the
 second throttled to one per ten minutes.
+
+### D-028 · C2 keeps `notMerge`; state the member set is written into every option, and motion stops after first paint
+
+**Decision.** The legacy chart still rebuilds with `notMerge`. Zoom (as dates), hidden series (`legend.selected`) and the
+reference lines are carried in the option, so a rebuild re-applies them. `animationDuration` is 400 ms until ECharts'
+`finished` event, then 0; `animationDurationUpdate` is 0; reduced motion starts at 0.
+
+**Why.** A merge-mode update (`replaceMerge`) keeps properties the new option omits — the `EXTREMES_BAND` axis bounds would
+survive a deselect and pin the wrong axis. Rebuilding from state is predictable and testable on the option ECharts is
+handed; switching the draw off after first paint is what 02-design §7 asks for.
+
+### D-029 · The magnitude rule runs on the rows on screen, at 6×, and the legacy chart names the gap instead of splitting
+
+**Decision.** `chartMagnitude.MAGNITUDE_LIMIT = 6`, computed over the zoomed rows per axis; the notice reads
+"52W Lows (Close) is 300× smaller than Universe Count on this axis." V2 splits the series into its own panel (A-05).
+
+**Why.** 6× is the threshold the retired `MAX_ABS` test used (froth's closest pair is 4.8×; both round-one defects exceed
+it). Running it on the visible rows covers members' own selections, which the preset-only test never did, and removes a
+hand-typed range table that had already drifted.
+
+### D-030 · `adv_decline_cum` keeps its flat line as a metric-attached constant
+
+**Decision.** `METRIC_REF_LINES` includes `adv_decline_cum: flat 0` beside the audit's list.
+
+**Why.** The A/D Line preset already drew it (suppressed when zero is outside the framed extent). The audit's list
+omitted it; dropping it would remove a canonical line members see today. The constant is unchanged.
+
+### D-031 · Axis ticks follow the visible span; ECharts may still hide the year-bearing label in a short window
+
+**Decision.** ≤ 6 months: ECharts spaces the labels and the first session of a year reads "Jan 2, 2026"; ≤ 2 years: month
+starts "Jun '26"; longer: year starts "2026". The tooltip header always reads "Fri, Sep 11, 2026".
+
+**Why.** 02-design §4. In a short window crossing New Year, ECharts' automatic spacing can skip the one label that carries
+the year; the window is under six months there, so the months themselves disambiguate, and the tooltip always names the
+year. Forcing that label on would fight `hideOverlap`.
