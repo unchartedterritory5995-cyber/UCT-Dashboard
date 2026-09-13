@@ -157,7 +157,7 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | calendar | `calendar.myNames` “My names” | navigate → /calendar/mystocks | outer | yes |  |  | — (route only) | — | **newly reachable** |
 | calendar | `calendar.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | calendar | `calendar.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |
-| **home** | _mode_ · /dashboard · chip “tap: last section” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `home` | | | | | | | homeSection.js | **cursor added** |
+| **home** | _mode_ · /dashboard · chip “tap: last section” · Primary (tap) · Reverse (double-tap) · Scrub (drag y) · Scrub commit (release) · Chip readout · cursor `home` | | | | | | | homeSection.js | **LEFT PREVIEW** |
 | home | `home.scan` “Scan” | navigate → scan | outer | yes |  |  | — (route only) | — |  |
 | home | `home.chart` “Chart” | navigate → chart | outer | yes |  |  | — (route only) | — |  |
 | home | `home.breadth` “Breadth” | navigate → breadth | outer | yes |  |  | — (route only) | — |  |
@@ -167,6 +167,6 @@ action is dispatched, so a `?` is a place to look rather than a shrug.
 | home | `home.notebook` “Notebook” | navigate → notebook | inner | yes |  |  | — (route only) | — |  |
 | home | `home.calendar` “Calendar” | navigate → calendar | inner | yes |  |  | — (route only) | — | **newly reachable** |
 | home | `home.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
-| **flow** | _mode_ · /options-flow · chip “navigate only” · — none — | | | | | | | — no controller — |  |
+| **flow** | _mode_ · /options-flow · chip “navigate only” · — none — | | | | | | | — no controller — | **LEFT PREVIEW** |
 | flow | `flow.voice` “Voice” | run | inner | yes |  |  | ? | HubRoot.jsx:188 |  |
 | flow | `flow.home` “Home” | home | inner | yes |  |  | — (route only) | — |  |

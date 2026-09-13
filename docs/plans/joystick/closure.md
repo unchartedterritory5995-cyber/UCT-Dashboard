@@ -8,7 +8,7 @@
 > |---|---|---|
 > | `web` deployment | **`7fce88bd2`** — SUCCESS, 2026-09-12T02:17:25Z (*"Rail: a PREVIEW_MODES flip cannot ship without a regenerated surface matrix"*) | `railway status --json` → production → `web.latestDeployment.meta.commitHash` |
 > | Kill switch | **`HUB_PREVIEW_ENABLED=true`** — hub eligible | `railway variables --service web --kv` |
-> | Rollout stage | **1 — admin only** (`ROLLOUT_STAGE = 1`, `app/src/hub/rolloutStage.js`) | read from the source at the live SHA; it is a BUILD-time constant, so the deployed bundle is its only authority — no Railway variable to check |
+> | Rollout stage | **1 — admin preview** on master (`ROLLOUT_STAGE = 1`); **stage 2 prepared, unmerged** on `launch/stage-2-member-preview`, Patrick's to merge | read from the source at the live SHA; it is a BUILD-time constant, so the deployed bundle is its only authority — no Railway variable to check |
 >
 > ⭐ **Stage is a build constant and the kill switch is a runtime variable, and that asymmetry is
 > the design** (`rolloutStage.js`: *"a stage is a deploy, deliberately"*). So "what stage is live"

@@ -62,19 +62,27 @@ const read = (p) => readFileSync(p, 'utf8')
 // ── THE STAGE TABLE ───────────────────────────────────────────────────────────────────────────
 // Pure data on purpose. A row that held functions could not be digest-pinned, and pinning is what
 // stops a future row being edited ahead of the deploy that earns it.
+// ⚰️ RENUMBERED 2026-09-13 BY OWNER RULING (`rollout.md`, "THE STAGE DEFINITIONS"). The opt-in
+// rung — card visible to members, default still OFF — was DELETED, and what used to be stage 3 is
+// now stage 2. ⛔ This is the deliberate widening the digests below exist to make impossible by
+// accident: it arrived with the ruling, a member-impact paragraph and a full gate, which is
+// exactly the bar the failure message on the digest check asks for.
 const STAGE_TABLE = {
   1: {
-    name: 'admin only',
+    name: 'admin preview',
     unsetDefault: { admin: true, member: false },
     cardVisible: { admin: true, memberWhoChose: true, memberWhoNever: false },
   },
   2: {
-    name: 'settings card visible to members, default OFF (opt-in)',
-    unsetDefault: { admin: true, member: false },
+    name: 'member preview',
+    unsetDefault: { admin: true, member: true },
     cardVisible: { admin: true, memberWhoChose: true, memberWhoNever: true },
   },
+  // ⭐ Stage 3's row is IDENTICAL to stage 2's but for the name, and that is the point: GA is
+  // stage 2 minus the preview framing, and framing is not exposure. A future edit that gives
+  // stage 3 a different exposure row is a new rung, not a rename.
   3: {
-    name: 'unset preference resolves to ON',
+    name: 'general availability',
     unsetDefault: { admin: true, member: true },
     cardVisible: { admin: true, memberWhoChose: true, memberWhoNever: true },
   },
@@ -84,9 +92,12 @@ const STAGE_TABLE = {
 // pinned too — so the row cannot be edited to match a product change instead of the other way
 // round — but the current row is ALSO executed, which is the difference between the two kinds.
 const ROW_DIGESTS = {
-  1: '4008a0eab37e',
-  2: 'dfaec4d58683',
-  3: 'bd8cb93557ef',
+  // Recomputed 2026-09-13 with the renumbering above. Previously
+  // 1: 4008a0eab37e · 2: dfaec4d58683 · 3: bd8cb93557ef — kept here so the change is legible as a
+  // change rather than as three numbers that have always been these numbers.
+  1: 'f0517d2da2ad',
+  2: '3137135a9b5d',
+  3: '3d5f2b55c7fb',
 }
 
 const digest = (row) => createHash('sha1').update(JSON.stringify(row)).digest('hex').slice(0, 12)

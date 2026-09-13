@@ -8,33 +8,30 @@
 // worse the reverse.
 //
 // ── THE STAGES ────────────────────────────────────────────────────────────────────────────────
-//   1  admin only. The current, shipped state.
-//   2  the Settings card is visible to members; the default stays OFF. Opt-in.
-//   3  an unset preference resolves to ON. An explicit `false` is still honoured.
+//   1  admin preview. An unset preference resolves to `isAdmin`.
+//   2  member preview. An unset preference resolves to `true` for every authenticated user.
+//   3  general availability. Stage 2 minus the preview framing; exposure is identical.
 //
-// [!] THE THREE LINES ABOVE DESCRIBE THE CODE. THEY ARE NOT THE RULING ANY MORE.
+// [!] AN EXPLICIT STORED PREFERENCE ALWAYS WINS, AT EVERY STAGE, IN BOTH DIRECTIONS. Nothing
+// above reaches a member who has already chosen - `unsetDefault` is only consulted when there is
+// no stored value at all.
 //
-// Owner ruling 2026-09-13 (`docs/plans/joystick/rollout.md`, "THE STAGE DEFINITIONS") redefines
-// the ladder, and the numbers DO NOT LINE UP with what this file implements:
+// [x] THE RETIRED RUNG. Until 2026-09-13 stage 2 meant "the Settings card is visible to members,
+// the default stays OFF" - an opt-in rung - and stage 3 meant "an unset preference resolves to
+// ON". The owner ruling of that date DELETED the opt-in rung and renumbered: today's stage 2 is
+// what used to be stage 3. Recorded because a reader who remembers the old numbering would read
+// `ROLLOUT_STAGE = 2` as "members can opt in" when it now means "members have it".
 //
-//   ruled 1  unset -> isAdmin ................. == code stage 1, identical
-//   ruled 2  unset -> true for EVERY user ..... == code stage 3 (`unsetDefault: stage >= 3`)
-//   ruled 3  same exposure, preview framing off == nothing here; the code has no such rung
-//   (retired) the opt-in rung - card visible, default OFF - is dropped by the ruling
+// The ruling of record is `docs/plans/joystick/rollout.md`, "THE STAGE DEFINITIONS". This file and
+// that document are parsed against each other by `stageLadderAgreement.test.js` - rung count AND
+// meanings - so the two can never quietly disagree again.
 //
-// [!] SO `ROLLOUT_STAGE = 2` IN TODAY'S SOURCE SHIPS THE RETIRED OPT-IN RUNG - the hub still OFF
-// for every member - under a member-impact paragraph that would say "member preview". That is the
-// trap this comment exists to spring, and it is why the ruling is recorded at the call site and
-// not only in a document nobody has open while editing this line.
-//
-// [*] NOTHING IS RENUMBERED YET, DELIBERATELY. Renumbering is a member-facing exposure change and
-// belongs to the stage-2 PR (rollout.md section 3a), which Patrick merges - not to the commit that
-// writes the ruling down. When that PR is written it moves TOGETHER: `ROLLOUT_STAGE`,
-// `STAGE_NAMES`, `unsetDefault()`, the `STAGE_TABLE` row in `exposureGate.test.js` AND that row's
-// `ROW_DIGESTS` entry, plus `rolloutStages.test.js`, which asserts the stage has not moved and is
-// MEANT to go red when it does. Until then `STAGE_NAMES` below is the code's own vocabulary and is
-// correct about the code; the ruling is correct about the plan; this block is the one place that
-// says which is which, so the two can never quietly disagree.
+// [*] `cardVisible` DID NOT MOVE IN THE RENUMBERING, and that is worth one line because it looks
+// like an omission. Its rule is already `isAdmin || everChose || stage >= 2`: under the old ladder
+// stage 2 was the opt-in rung where members first needed the card, and under the new one stage 2
+// is member preview where they first need the OPT-OUT. Different reason, same threshold. A member
+// who has the hub can always reach the switch that turns it off - that is the recovery-path rule
+// this feature has already broken once.
 //
 // [!] AND THE PREVIEW FRAMING IS NOT DRIVEN FROM HERE. The chip hint comes from `PREVIEW_MODES`
 // (`registry.js`), not from this constant - so ruled stage 3's "the hint becomes the real hint" is
@@ -49,13 +46,13 @@
 // request in `api/routers/auth.py::_access_payload` and takes effect on a member's next
 // authenticated request with NO redeploy. Nothing here can turn the hub on for someone the
 // server-side switch has turned off — see `useHubActive.js`, where that check comes first.
-export const ROLLOUT_STAGE = 1
+export const ROLLOUT_STAGE = 2
 
 /** Human-readable, for the rollout doc and for failure messages. Keyed by stage number. */
 export const STAGE_NAMES = Object.freeze({
-  1: 'admin only',
-  2: 'settings card visible to members, default OFF (opt-in)',
-  3: 'unset preference resolves to ON',
+  1: 'admin preview',
+  2: 'member preview',
+  3: 'general availability',
 })
 
 /**
@@ -83,5 +80,8 @@ export function cardVisible({ stage = ROLLOUT_STAGE, isAdmin = false, everChose 
  */
 export function unsetDefault({ stage = ROLLOUT_STAGE, isAdmin = false } = {}) {
   if (isAdmin) return true
-  return stage >= 3
+  // [!] 2, NOT 3. The renumbering of 2026-09-13 made stage 2 the member-preview rung; this
+  // threshold IS the widening, and `exposureGate.test.js` pins it by digest so it cannot move
+  // without the owner. Stage 3 changes no exposure at all - it only drops the preview framing.
+  return stage >= 2
 }

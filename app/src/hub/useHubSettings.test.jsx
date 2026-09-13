@@ -91,11 +91,27 @@ describe('useHubSettings — the five enable-gate scenarios (spec v1.3 §B11, Ph
     expect(result.current.settings.enabled).toBe(false)
   })
 
-  it('unset-non-admin: nothing stored, ordinary member -> disabled', async () => {
+  it('unset-non-admin: nothing stored, ordinary member -> ENABLED at stage 2', async () => {
+    // ⚰️ THIS ASSERTED `false` UNTIL 2026-09-13, and flipping it IS the member-facing change the
+    // stage-2 ruling makes. Stage 1 resolved an unset preference to `isAdmin`; stage 2 resolves it
+    // to true for every authenticated user. ⛔ The expectation is not derived from `unsetDefault`
+    // on purpose — a test that asks the resolver what to expect agrees with it by construction and
+    // would have stayed green through the very change it exists to catch. The ladder itself is
+    // owned by `exposureGate.test.js` (digest-pinned) and `stageLadderAgreement.test.js`.
     mockPrefsFetch({})
     const { result } = renderHook(() => useHubSettings(), { wrapper: wrapper({ role: 'user' }) })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.storedEnabled).toBeUndefined()
+    expect(result.current.settings.enabled).toBe(true)
+  })
+
+  it('⛔ and an explicit false STILL beats the stage-2 default — the opt-out survives', async () => {
+    // The whole opt-out story rests on this: a member who turns the hub off keeps it off when the
+    // rollout widens. A stage that could overwrite a stored preference would be a stage that takes
+    // someone's choice away.
+    mockPrefsFetch({ [JOYSTICK_HUB_PREF_KEY]: JSON.stringify({ enabled: false }) })
+    const { result } = renderHook(() => useHubSettings(), { wrapper: wrapper({ role: 'user' }) })
+    await waitFor(() => expect(result.current.storedEnabled).toBe(false))
     expect(result.current.settings.enabled).toBe(false)
   })
 
@@ -107,13 +123,24 @@ describe('useHubSettings — the five enable-gate scenarios (spec v1.3 §B11, Ph
     expect(result.current.settings.enabled).toBe(true)
   })
 
-  it('no-provider: with no AuthContext.Provider at all, resolves the same as "no user" -> disabled', async () => {
+  it('no-provider: with no AuthContext.Provider at all, it resolves the unset default and never throws', async () => {
     mockPrefsFetch({})
     // No `wrapper` option at all — useContext(AuthContext) falls through to
     // the context's own default value (createContext(null)), never throws.
     const { result } = renderHook(() => useHubSettings())
     await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.settings.enabled).toBe(false)
+    // ⚰️ ASSERTED `false` UNTIL 2026-09-13. At stage 2 "no user" is not admin, and the unset
+    // default for a non-admin is now true — so this reads ENABLED.
+    //
+    // ⛔⛔ AND THAT IS NOT A LOGGED-OUT HOLE, WHICH IS THE OBVIOUS WORRY. `settings.enabled` is a
+    // preference, not the gate. `HubRoot` is mounted by `Layout.jsx:175`, and `App.jsx` nests
+    // `<Route element={<Layout />}>` (:525) INSIDE `<Route element={<AuthGuard />}>` (:508) — an
+    // unauthenticated visitor is redirected to /login and never renders the hub at all. ⭐ This
+    // hook's own docstring anticipated the change and said so: flipping the unset default to true
+    // for every authenticated user is "a one-line change here, not a new gate anywhere".
+    // ⚠️ If `Layout` is ever moved outside `AuthGuard`, this stops being true and the gate has to
+    // learn about authentication. That is why the reason is written here and not assumed.
+    expect(result.current.settings.enabled).toBe(true)
   })
 })
 

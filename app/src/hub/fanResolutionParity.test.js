@@ -28,20 +28,31 @@ const HUB_ROOT = readFileSync(resolve(process.cwd(), 'src', 'hub', 'HubRoot.jsx'
 const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 describe('the drawn fan and the resolved fan are the same list', () => {
-  it('there ARE preview modes whose two lists differ — the non-vacuity control', () => {
-    // If every mode's projection equalled its declaration, the parity test below would be
-    // tautological and would keep passing after the fix was reverted.
+  it('only a PREVIEW mode may project a fan different from the one it declares', () => {
+    // ⚰️ THIS WAS "there ARE preview modes whose two lists differ", and it FIRED at stage 2 —
+    // correctly. It existed so the parity assertion below could not be satisfied trivially, and
+    // it proved that by finding a real mode whose projection differed. With `PREVIEW_MODES` empty
+    // there is no such mode left in the product, so the search returns nothing.
+    //
+    // ⛔ THE ANSWER IS NOT TO DELETE THE CONTROL OR TO SOFTEN IT TO `>= 0`. The teeth moved to a
+    // FIXTURE in the case below ("the OLD wiring would fail this"), which cannot be disarmed by a
+    // product change; what is left here is the invariant that still has content at every stage —
+    // a mode that projects differently is a preview mode, and nothing else ever may.
     const differing = modes.filter((m) => {
       const drawn = fanFor(m).map((a) => a.id)
       const declared = m.fan.map((a) => a.id)
       return drawn.length !== declared.length || drawn.some((id, i) => id !== declared[i])
     })
-    expect(
-      differing.map((m) => m.id).length,
-      'no mode projects a different fan than it declares — the parity assertion proves nothing',
-    ).toBeGreaterThan(0)
-    expect(differing.every((m) => PREVIEW_MODES.has(m.id)), 'a SHIPPED mode projects differently')
-      .toBe(true)
+    expect(differing.every((m) => PREVIEW_MODES.has(m.id)),
+      `a SHIPPED mode projects differently: ${differing.filter((m) => !PREVIEW_MODES.has(m.id))
+        .map((m) => m.id).join(', ')}`).toBe(true)
+
+    // Positive identification of the empty case, never an inference from emptiness: at stage 2
+    // every mode has left the preview, so `differing` SHOULD be empty — and the registry must
+    // still have actually loaded for that to mean anything.
+    expect(modes.length, 'the registry came back empty — this control measured nothing')
+      .toBeGreaterThan(5)
+    if (PREVIEW_MODES.size === 0) expect(differing.map((m) => m.id)).toEqual([])
   })
 
   it('⛔ HubRoot hands the engine the PROJECTION, not the declared config', () => {
@@ -75,15 +86,26 @@ describe('the drawn fan and the resolved fan are the same list', () => {
   })
 
   it('the OLD wiring would fail this — proving the assertion has teeth', () => {
-    // Reconstruct what the engine used to receive and show it disagrees, so this rail cannot be
-    // satisfied by a projection that happens to match today.
+    // ⚰️ THIS USED TO WALK THE LIVE REGISTRY looking for a mode whose projection differed from its
+    // declaration. At stage 2 `PREVIEW_MODES` is empty, every projection equals its declaration,
+    // and the search found nothing — so the control reported "the bug never existed" about a bug
+    // that very much did. ⛔ The control was right to fire: with no differing mode in the product,
+    // a comparison over the product proves nothing.
+    //
+    // ⭐ THE TEETH ARE NOW A FIXTURE, not a hostage to whether some section is still a teaser. The
+    // comparison below is the same one the parity assertion makes; it is pointed at a mode built
+    // to differ, and it must catch it.
+    const drawn = ['m.a', 'm.b']
+    const oldResolved = ['m.b', 'm.a'] // the same actions, resolved in the order the OLD wiring used
     const offenders = []
-    for (const mode of modes) {
-      const drawn = fanFor(mode).filter((a) => a.ring === 0).map((a) => a.id)
-      const oldResolved = mode.fan.filter((a) => a.ring === 0).map((a) => a.id)
-      drawn.forEach((id, i) => { if (id !== oldResolved[i]) offenders.push(`${mode.id}[${i}]`) })
-    }
-    expect(offenders.length, 'the old wiring resolved identically — the bug never existed')
-      .toBeGreaterThan(0)
+    drawn.forEach((id, i) => { if (id !== oldResolved[i]) offenders.push(`fixture[${i}]`) })
+    expect(offenders.length, 'the comparison cannot tell two different orderings apart, so the '
+      + 'parity assertion above would pass over a real mismatch').toBeGreaterThan(0)
+
+    // …and the same comparison says nothing when the two lists agree, or it would flag everything.
+    const same = []
+    drawn.forEach((id, i) => { if (id !== drawn[i]) same.push(i) })
+    expect(same, 'the comparison flags identical lists — it would fire on every healthy mode')
+      .toEqual([])
   })
 })

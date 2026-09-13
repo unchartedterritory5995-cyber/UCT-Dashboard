@@ -157,7 +157,7 @@ question no generator can phrase. This sheet is the exhaustive per-surface sweep
 | GS-calendar-3 | **Voice** (`calendar.voice`) — flick to it from the pad. | The action runs once and the fan closes. | both | Live preferred | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |
 | GS-calendar-4 | **Home** (`calendar.home`) — flick to it from the pad. | The Home fan returns. No navigation happens on its own. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |
 
-## home — /dashboard
+## home — /dashboard  ⭐ **LEFT PREVIEW SINCE INCREMENT 2 — every row below is untested on glass**
 
 | # | Step | Expected | Device | Runner | Result |
 |---|---|---|---|---|---|
@@ -176,7 +176,7 @@ question no generator can phrase. This sheet is the exhaustive per-surface sweep
 | GS-home-8 | **Calendar** ⭐ (`home.calendar`) — flick to it from the pad. | The route changes to `calendar`, once. Nothing is written. | both | Automate-able | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |
 | GS-home-9 | **Voice** (`home.voice`) — flick to it from the pad. | The action runs once and the fan closes. | both | Live preferred | [ ] PASS [ ] FAIL [ ] BLOCKED-BY-G0 |
 
-## flow — /options-flow
+## flow — /options-flow  ⭐ **LEFT PREVIEW SINCE INCREMENT 2 — every row below is untested on glass**
 
 | # | Step | Expected | Device | Runner | Result |
 |---|---|---|---|---|---|

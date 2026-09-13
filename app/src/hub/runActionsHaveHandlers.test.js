@@ -179,8 +179,12 @@ describe('a run action never reaches a member without a handler', () => {
       + 'is vacuous').toBeGreaterThan(4)
     expect(MODE_ROWS.filter((r) => r.runActions.length).length, 'no mode declares a kind:\'run\' '
       + 'action at all, so this rail is measuring nothing').toBeGreaterThan(2)
-    expect(PREVIEW_MODES.size, 'PREVIEW_MODES is empty, so the projection half of the rule can never '
-      + 'be exercised').toBeGreaterThan(0)
+    // ⚰️ AT STAGE 2 PREVIEW_MODES IS EMPTY BY DESIGN — every mode has shipped its real fan — so
+    // the projection half has no population. That is a fact about the programme, not a broken
+    // import, and the two are told apart here rather than assumed: a Set that is genuinely empty
+    // still answers `instanceof Set`, an undefined import does not.
+    expect(PREVIEW_MODES, 'PREVIEW_MODES did not resolve to a Set, so its size proves nothing')
+      .toBeInstanceOf(Set)
     expect(CONTROLLERS.length, 'no section controllers found — the controller half cannot be '
       + 'exercised either').toBeGreaterThan(2)
   })

@@ -89,6 +89,13 @@ describe('HubRoot — the mount gate', () => {
     // ⚰️ This asserted `container.innerHTML === ''`. It is no longer true and the change is
     // the point: a hidden hub now always leaves a way back. The hub itself must still be
     // absent — that is what the second assertion holds.
+    //
+    // ⚰️⚰️ AND "A MEMBER WITH IT OFF" NOW HAS TO BE SAID OUT LOUD. Until stage 2 this test
+    // rendered a member with NOTHING STORED and relied on the unset default being false. At
+    // member preview an unset preference resolves ON, so that member is no longer "a member with
+    // it off" — they are a member with it on, and this case would have been quietly testing the
+    // opposite of its own name. The opt-out is now an explicit stored `false`.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: false }) }
     renderHub({ role: 'user' })
     expect(screen.queryByTestId('hub-root')).toBeNull()
     expect(screen.getByTestId('hub-edge-tab')).toBeTruthy()
@@ -147,6 +154,8 @@ describe('HubRoot — off adds no listeners', () => {
     const winSpy = vi.spyOn(window, 'addEventListener')
     const docSpy = vi.spyOn(document, 'addEventListener')
 
+    // Same as above: at stage 2 "disabled" is a stored choice, not the absence of one.
+    mockPrefs = { joystick_hub: JSON.stringify({ enabled: false }) }
     renderHub({ role: 'user' })
 
     // The restore tab is a plain <button> with an onClick — React attaches nothing to

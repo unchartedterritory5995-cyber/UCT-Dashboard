@@ -66,10 +66,20 @@ describe('every shipped mode ships the fan it means to', () => {
     // `notebook` live and this control went red — correctly. It is the FIXTURE that became
     // unrepresentative, not the product: a control that pins a count of four is a control that has
     // to be edited by every increment that ships a section, which is the point of it.
+    // ⭐ STAGE 2 (2026-09-13) FLIPPED THE LAST TWO — `flow` and `home` — so "shipped" is now
+    // every declared mode and PREVIEW_MODES is empty. The list is still written out rather than
+    // derived from `modes`, because a control that says "shipped === all modes" would agree with
+    // itself no matter which modes existed.
     const shipped = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id)).sort()
     expect(shipped).toEqual(
-      ['breadth', 'calendar', 'catalysts', 'chart', 'journal', 'notebook', 'scan', 'wire'])
-    expect(Object.keys(SHIPPED).sort()).toEqual(shipped)
+      ['breadth', 'calendar', 'catalysts', 'chart', 'flow', 'home', 'journal', 'notebook',
+        'scan', 'wire'])
+    // ⛔ `SHIPPED` is this file's own per-mode expectation table and does NOT cover `home`/`flow`:
+    // neither takes a symbol context, which is what this file measures. So it is a SUBSET check
+    // now, with the two exclusions named so the gap cannot widen silently.
+    const SYMBOL_EXEMPT = ['flow', 'home']
+    expect(Object.keys(SHIPPED).sort())
+      .toEqual(shipped.filter((id) => !SYMBOL_EXEMPT.includes(id)))
   })
 
   it('⛔ BREADTH needs no symbol at all — nothing in its fan may require one', () => {

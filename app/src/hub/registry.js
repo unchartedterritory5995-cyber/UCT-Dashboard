@@ -737,15 +737,34 @@ export const PREVIEW_MODES = new Set([
   // Note and Plan trade. `chart.compare` and `chart.logTrade` are DROPPED BY THE CONTROLLER
   // (not deleted from the registry) — compare's only write path cannot mount on a hub
   // viewport, and logging an executed trade lives under a rule-12 path.
-  // ⭐ INCREMENT 5 ALSO FLIPPED `catalysts` — the LAST section controller. `home` and `flow`
-  // are the only two left, and NEITHER is an unfinished build:
-  //   · `home` has a controller and zero run actions; it keeps a CURATED preview fan
-  //     (`PREVIEW_HOME`, owner ruling 2026-09-09). Flipping it shows eight bubbles instead
-  //     of seven — a product decision about how many doors Home offers, not a missing wire.
-  //   · `flow` is navigate-only BY DESIGN (3.9; OptionsFlow.jsx is partner-owned and a hard
-  //     no). Its real fan IS [Voice, Home], which is byte-identical to what the preview
-  //     projection returns for it — so the flag changes no bubble, only the chip.
-  'home', 'flow',
+  // ⭐ INCREMENT 5 ALSO FLIPPED `catalysts` — the LAST section controller.
+  //
+  // ⭐⭐ STAGE 2 (2026-09-13) FLIPPED THE FINAL TWO, and the set is now EMPTY.
+  //
+  //   · `flow` — navigate-only BY DESIGN (3.9; OptionsFlow.jsx is partner-owned and a hard no).
+  //     Its real fan IS [Voice, Home]. ⭐ MEASURED, not argued: `fanFor(flow)` and `flow.fan` are
+  //     byte-identical (`JSON.stringify` equal), so leaving the set changed NO bubble — only the
+  //     chip hint, which stops saying "Preview — more coming".
+  //
+  //   · `home` — kept a CURATED preview fan (`PREVIEW_HOME`, owner ruling 2026-09-09) that
+  //     disagreed with its DECLARED fan on two rings. Leaving the set adopts the declared fan,
+  //     which is the one §C3:957 owns.
+  //     ⚰️ THE COMMENT HERE USED TO SAY "eight bubbles instead of seven". BOTH NUMBERS WERE
+  //     WRONG, and nobody had run it: declared and projected are **nine actions each**. Nothing
+  //     is added and nothing is removed. What changes is the RING of exactly two:
+  //         home.wire     inner -> OUTER
+  //         home.journal  outer -> INNER
+  //     ⛔ That is a member-visible change on every phone, and it is the one thing in this flip
+  //     that is not a no-op — which is why it is stated here in the diff rather than left for
+  //     someone to rediscover from a screenshot. It restores §C3 ("Outer: Scan · Chart · Breadth
+  //     · Wire · Flow. Inner: Journal · Notebook · Calendar · Voice"), and it is what the
+  //     projection's own ⚠️ note predicted: "Home's eventual PREVIEW_MODES exit MOVES two bubbles".
+  //     ⭐ `home.calendar` SURVIVES — it is in both fans. The door is not lost.
+  //
+  // ⛔ THE SET STAYS, EMPTY, WITH ITS RAILS. A future mode may need it, and deleting the
+  // machinery would mean rebuilding the projection, `validatePreview` and the ring checks from
+  // scratch the day one does. `stageLadderAgreement.test.js` asserts it is EMPTY at stage >= 2:
+  // an unflipped mode at member preview would put "Preview — more coming" in front of everyone.
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */

@@ -15,7 +15,8 @@
 > leads to — the stale claim and its correction should not be more than one hop apart.
 >
 > **What is actually true right now:** the programme is closed to further FEATURE work; the
-> launch sequence is authorized; the rollout is at **stage 1**; and LAUNCHED is defined by the six
+> launch sequence is authorized; the rollout is at **stage 2 on this branch, stage 1 on master until
+> Patrick merges it**; and LAUNCHED is defined by the six
 > boxes in `closure.md`, **one of which is now ticked** (preference-key validation, shipped as
 > Deploy B).
 >
@@ -34,7 +35,9 @@ The three stages are a single build-time constant, `ROLLOUT_STAGE` in
 the audience arrives with a member-impact paragraph, a smoke run and a rollback beside it,
 rather than drifting between what is deployed and what is configured somewhere else.
 
-> 🟢 **Shipped state: STAGE 1.** Stages 2 and 3 are built, railed, and dark.
+> 🟢 **Shipped state on master: STAGE 1.** ⏳ **Stage 2 is PREPARED on `launch/stage-2-member-preview`
+> and is Patrick's to merge** — a member-facing rollout is not an agent's call. Stage 3 is defined
+> (below) and not yet written.
 
 ---
 
@@ -47,8 +50,8 @@ rather than drifting between what is deployed and what is configured somewhere e
 
 | stage | unset preference resolves to | framing | name |
 |---|---|---|---|
-| **1** *(current)* | `isAdmin` | preview | **Admin preview** |
-| **2** | **`true` for every authenticated user** | preview | **Member preview** |
+| **1** *(live on master)* | `isAdmin` | preview | **Admin preview** |
+| **2** *(prepared, unmerged)* | **`true` for every authenticated user** | preview | **Member preview** |
 | **3** | `true` for every authenticated user | **removed** | **General availability** |
 
 **Stage 2 — member preview.** An unset preference resolves to `true` for every authenticated user.
@@ -66,7 +69,23 @@ the chip hint becomes the mode's real `tapHint`, the `(preview)` suffix leaves t
 the Discord announcement moves from "preview" to "launched", and the feature is listed in whatever
 member-facing changelog exists. **The kill switch stays forever.**
 
-### 2. ⛔⛔ TWO THINGS THIS RULING COLLIDES WITH IN THE CODE. READ BEFORE ESTIMATING STAGE 2.
+### 2. ⛔⛔ TWO THINGS THIS RULING COLLIDED WITH IN THE CODE — ✅ BOTH RESOLVED 2026-09-13
+
+> ✅ **(a) is done:** the code adopted the ruled ladder on `launch/stage-2-member-preview`. The
+> opt-in rung is deleted, `unsetDefault` is `stage >= 2`, `STAGE_NAMES` and the `STAGE_TABLE`
+> row + digest moved with it, and a new rail — `stageLadderAgreement.test.js` — parses this
+> document, the comment above the constant and the resolver, and fails if any two disagree on
+> the rung count or a rung's meaning.
+>
+> ✅ **(b) is done:** `flow` and `home` both left `PREVIEW_MODES`, which is now **empty**, so
+> stage 3's "no new behaviour" clause is true as written and stays. ⛔ `home`'s exit was NOT a
+> no-op and the diff says so: **Wire moves inner → outer and Journal moves outer → inner**,
+> adopting the fan §C3:957 declares. Nothing is added or removed — nine actions either way,
+> Calendar included. `flow`'s exit WAS a no-op, measured: its declared fan and its projection
+> are byte-identical.
+
+The original analysis is kept below, because the reasoning is what makes the resolution
+checkable rather than something to take on trust.
 
 **(a) The ruled ladder is not the ladder the code implements, and the numbers do not line up.**
 

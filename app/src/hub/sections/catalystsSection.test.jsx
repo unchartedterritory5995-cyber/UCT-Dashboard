@@ -43,11 +43,12 @@ describe('the last mode leaves the preview', () => {
     expect(PREVIEW_MODES.has('catalysts')).toBe(false)
   })
 
-  it('⭐ and only home and flow remain — NEITHER of them an unfinished build', () => {
-    // `home` keeps a curated preview fan by owner ruling; `flow` is navigate-only by design and
-    // its real fan is byte-identical to what the preview projection returns for it. If this set
-    // ever grows, a section regressed.
-    expect([...PREVIEW_MODES].sort()).toEqual(['flow', 'home'])
+  it('⭐ and NOTHING remains — stage 2 flipped the last two', () => {
+    // ⚰️ Was `['flow', 'home']`. The stage-2 ruling (2026-09-13) flipped both: `flow`'s real fan
+    // is byte-identical to its projection so nothing moved, and `home` adopted its declared,
+    // §C3-backed fan — which moves Wire outer and Journal inner. If this set ever GROWS, a
+    // section regressed; `stageLadderAgreement.test.js` is what fails if it grows at stage >= 2.
+    expect([...PREVIEW_MODES].sort()).toEqual([])
   })
 
   it('⛔ the registry hint it must now keep', () => {

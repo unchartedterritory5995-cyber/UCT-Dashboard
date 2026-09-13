@@ -56,21 +56,30 @@ describe('⛔⛔ STAGE 1 IS A NO-OP — the flags ship dark', () => {
     expect(unsetDefault({ stage: 1, isAdmin: who.isAdmin })).toBe(OLD_unsetDefault(who))
   })
 
-  it('⛔ and the SHIPPED stage really is 1 — advancing it is a deliberate, visible edit', () => {
+  it('⛔ and the SHIPPED stage really is 2 — advancing it is a deliberate, visible edit', () => {
     // ⭐ Pinned on purpose. A stage change must break this line, so nobody advances the rollout as
     // a side effect of another edit. When a stage genuinely advances, this expectation moves in
     // the SAME commit as the member-impact paragraph that justifies it.
+    //
+    // ⚰️ 1 -> 2 on 2026-09-13, and this line going red is the system working: it is the guard
+    // that made the advance impossible to do by accident, and it moved in the same commit as the
+    // owner ruling, the member-impact paragraph and the full gate. ⛔ Do not "fix" a future red
+    // here by editing the number — that is the one thing this assertion exists to prevent.
     expect(ROLLOUT_STAGE, 'the rollout stage moved. That is a member-visible change and it must '
       + 'arrive with its own deploy, member-impact paragraph and smoke run — see rollout.md.')
-      .toBe(1)
+      .toBe(2)
   })
 })
 
 describe('the stage table, stated once', () => {
   // stage -> [card visible to a member who never chose, unset default for that member]
+  // ⚰️ RENUMBERED 2026-09-13. The middle row used to read `[2, true, false]` — the opt-in rung,
+  // card visible with the hub still OFF — which the owner ruling deleted. Stage 2 is now member
+  // preview, so its unset default is TRUE, and stage 3 is identical to it in exposure because GA
+  // differs from member preview only in framing.
   const TABLE = [
     [1, false, false],
-    [2, true, false],
+    [2, true, true],
     [3, true, true],
   ]
 
@@ -83,6 +92,9 @@ describe('the stage table, stated once', () => {
     // Without this, a `cardVisible` that returned a constant would satisfy every row above.
     const cards = TABLE.map(([s]) => cardVisible({ stage: s, isAdmin: false, everChose: false }))
     const defaults = TABLE.map(([s]) => unsetDefault({ stage: s, isAdmin: false }))
+    // ⭐ TWO DISTINCT VALUES, NOT THREE, AND THAT IS THE RULING RATHER THAN A WEAKENED CHECK:
+    // stages 2 and 3 are deliberately identical in exposure, so both columns go false -> true
+    // exactly once. A constant would still collapse either Set to 1 and fail here.
     expect(new Set(cards).size, 'card visibility is identical at every stage').toBe(2)
     expect(new Set(defaults).size, 'the unset default is identical at every stage').toBe(2)
   })

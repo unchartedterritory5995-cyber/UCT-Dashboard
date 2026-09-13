@@ -134,14 +134,21 @@ function vecAtAngle(dist, angleDeg) {
 // 1 — the projection places Calendar on the inner ring, beside Wire
 // ═════════════════════════════════════════════════════════════════════════════
 describe('§3.8(b) — Calendar in the fan Home actually shows', () => {
-  it('the RENDERED Home fan carries home.calendar on the inner ring, beside home.wire', async () => {
+  it('the RENDERED Home fan carries home.calendar on the inner ring', async () => {
     const { modesById, fanFor, isPreviewMode, HOME_MODE_ID } = await import('./registry')
 
-    // Non-vacuity: this whole file is about a PROJECTION, so if home ever leaves the preview the
-    // assertions below stop measuring what they claim to and must be re-pointed at `mode.fan`.
+    // ⚰️ THE NON-VACUITY GUARD HERE FIRED AT STAGE 2, AND IT WAS RIGHT TO. It said: "home has left
+    // PREVIEW_MODES — fanFor now returns mode.fan and this rail is testing the declared fan, not
+    // the projection it was written for." That is exactly what happened on 2026-09-13, and the
+    // instruction it gave is what was followed: the rail is re-pointed, not softened.
+    //
+    // ⭐ `fanFor` IS STILL THE CALL, deliberately. What this file guards is what a member SEES, and
+    // `fanFor` is the one function that answers that at every stage — it simply returns the
+    // declared fan now. Switching to `mode.fan` would make the rail blind the day a mode is put
+    // back into the preview set.
     expect(isPreviewMode(HOME_MODE_ID),
-      'home has left PREVIEW_MODES — fanFor now returns mode.fan and this rail is testing the '
-      + 'declared fan, not the projection it was written for').toBe(true)
+      'home is back in PREVIEW_MODES — a projection is being drawn again and the ring expectations '
+      + 'below describe the DECLARED fan').toBe(false)
 
     const shown = fanFor(modesById.home)
     const ids = shown.map((a) => a.id)
@@ -152,7 +159,12 @@ describe('§3.8(b) — Calendar in the fan Home actually shows', () => {
     const calendar = shown.find((a) => a.id === 'home.calendar')
     const wire = shown.find((a) => a.id === 'home.wire')
     expect(calendar.ring, 'Calendar must sit on the INNER ring (plan §3.8)').toBe(1)
-    expect(wire.ring, 'Calendar is restored ALONGSIDE Wire — both inner').toBe(1)
+    // ⚰️ WAS `expect(wire.ring).toBe(1)` — "Calendar is restored ALONGSIDE Wire, both inner".
+    // True of the PREVIEW projection, never of the declared fan. §C3:957 puts Wire on the OUTER
+    // ring ("Outer: Scan · Chart · Breadth · Wire · Flow"), and leaving the preview at stage 2
+    // adopted that. ⛔ This is the one member-visible movement in the stage-2 flip: Wire goes
+    // inner -> outer and Journal goes outer -> inner. Calendar itself does not move.
+    expect(wire.ring, 'Wire sits on the OUTER ring in the declared fan (§C3:957)').toBe(0)
 
     // The door, not the mode: it navigates to the calendar mode, which stays dark.
     expect(calendar.kind).toBe('navigate')
@@ -182,7 +194,22 @@ describe('§3.8(b) — the ring caps hold for the fan that is SHOWN, not just th
     expect(problems, 'a projected fan is over a ring cap — validateRegistry reads mode.fan and '
       + 'cannot see this').toEqual([])
 
-    // Non-vacuity: an empty preview set would make the loop above assert nothing at all.
+    // ⚰️ AT STAGE 2 THE PREVIEW SET IS EMPTY BY DESIGN, so there is no projection left to check
+    // and `checked` is legitimately 0. ⛔ Told apart from a broken import by positive
+    // identification, never by inferring from emptiness: the caps below are applied to the fan
+    // every mode actually shows, which is the property this case was written to protect and is
+    // still checkable with no preview mode in existence.
+    if (checked === 0) {
+      const capProblems = []
+      for (const mode of modes) {
+        const shown = fanFor(mode)
+        if (shown.filter((a) => a.ring === 0).length > OUTER_MAX) capProblems.push(`${mode.id} outer`)
+        if (shown.filter((a) => a.ring === 1).length > INNER_MAX) capProblems.push(`${mode.id} inner`)
+      }
+      expect(modes.length, 'the registry came back empty — nothing was measured').toBeGreaterThan(5)
+      expect(capProblems, 'a SHOWN fan is over a ring cap').toEqual([])
+      return
+    }
     expect(checked, 'no preview mode was walked — this rail is asserting nothing')
       .toBeGreaterThan(0)
   })

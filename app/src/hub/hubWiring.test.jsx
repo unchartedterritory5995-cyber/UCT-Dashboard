@@ -335,7 +335,17 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
           `${mode.id} shows ${id} in the preview`).toBe(true)
       }
     }
-    // Non-vacuity: the six remaining preview modes must actually have been walked.
+    // ⚰️ THIS CONTROL FIRED AT STAGE 2, AND IT WAS RIGHT TO. Every mode has now left the
+    // preview, so there is nothing left to walk — and "empty" is indistinguishable from "the
+    // import broke" unless the two are told apart by POSITIVE IDENTIFICATION rather than by
+    // inferring from emptiness (the same fix `rule12Paths.test.js` needed when its branch merged).
+    if (PREVIEW_MODES.size === 0) {
+      expect(modes.length, 'the registry itself came back empty, so this rail saw nothing at all')
+        .toBeGreaterThan(5)
+      expect(PREVIEW_MODES, 'PREVIEW_MODES did not resolve to a Set — an undefined import would '
+        + 'also report size 0 and this branch would pass forever').toBeInstanceOf(Set)
+      return
+    }
     expect(checked, 'no preview mode was checked — this rail is asserting nothing').toBeGreaterThan(0)
   })
 
