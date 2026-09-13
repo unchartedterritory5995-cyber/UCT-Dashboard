@@ -394,3 +394,71 @@ correct semantics, which is why nothing new was created.
 ### NEXT AUTHORIZED ACTION
 Blake's call. Still not started, deliberately: OHLC/candles for secondary
 symbols.
+
+---
+
+## SECONDARY OHLC — PHASE A — 2026-09-13
+
+### STATUS
+Complete and checkpointed. `feat/universal-data-series` @ `8da12905e`
+(previous good `1abb4f450`). Tree clean. Engine capability only — no
+member-facing Candles, no persisted field, no product row.
+
+### THE PAYLOAD CONTRACT
+`columns` stays `Map<bindingKey, …>`; the VALUE is now a `Float64Array` **or**
+`{ kind: 'ohlc', bars }`. Tagged, never sniffed. New/changed seams:
+- `engine/ohlcCapability.js` (new) — structural + semantic capability, pure,
+  injected family oracle, fails closed.
+- `engine/symbolProjection.js` — `clipBarsToDomain` / `clippedBarsFor`: the
+  secondary's OWN bars intersected with the chart's time domain, memoised in the
+  same WeakMap shape as `projectionFor`.
+- `engine/binder.js` — `ohlcPayload` / `isOhlcPayload` / `toOhlcPoints`,
+  `pointsFor` dispatch, `hasData` second shape, `lastPointValue` → close,
+  `SERIES_CTOR.candlestick`, one capability answer per instance shared by the
+  plan, the style clamp and the payload.
+- `engine/pool.js` — `poolKey('candles') → 'candlestick'`, candle options branch,
+  `planBindings(..., { ohlcCapable })`.
+- `engine/presentation.js` — `candles` recognised and mapped, NOT in
+  `PLOT_STYLE_CHOICES`; `availableStyles` requires `ctx.ohlcCapable`;
+  `resolvePlotStyle(instance, plot, ctx)` clamps for the renderer too.
+- `hooks/useBreadthSymbols.js` — `symbolFamily` / `breadthRegistryReady` /
+  `loadBreadthSymbols`, synchronous and fail-closed.
+- `StockChart.jsx` — passes `ohlcFamilyOf: symbolFamily`, and `engineLwc()` now
+  carries `CandlestickSeries`.
+
+### WHAT PHASE B MUST NOT REDO
+- No `sym:QQQ:ohlc`; no public `open`/`high`/`low` formula refs.
+- Compute never receives an OHLC payload.
+- Breadth is not candle-capable; the gate is the provider family, not fields.
+- Intersection, not union, for timestamps.
+
+### EVIDENCE (at `8da12905e`)
+- Focused: `__tests__/ohlcBinding.test.js` 18 pass; `binder.test.js` 73 pass
+  (4 new renderer cases); `perOutputPresentation` 34 pass.
+- Bite-checks: removing the semantic family gate → 2 red (breadth admitted);
+  union instead of intersection → 2 red.
+- Broader: full frontend suite **19,600 pass / 16 fail / 9 skipped** — the same
+  16 baseline failures. Build clean.
+- Browser (harness, dev-only style toggle): QQQ candles in Own Pane with real
+  bodies/wicks on a 680–760 ladder; `MA(QQQ)` on the same ladder; ZERO extra
+  `/api/bars` calls; above → below → back with the price pane intact; console
+  clean.
+
+### DEFECT FOUND AND FIXED
+`engineLwc()` did not carry `CandlestickSeries`, so `addSeries(undefined, …)`
+threw and `attempt` swallowed it — capability yes, payload 400 bars, nothing
+drawn. Worth remembering: that object is the whole list of series types the
+binder can build.
+
+### MAIN TRADING
+Never opened; `40d361fa…` → 5,354 bytes, `ea9ebaeee302`, unchanged.
+
+### NEXT AUTHORIZED ACTION
+Phase B — member-facing Candles: offer the style where
+`ohlcCapabilityOf(...).ok`, wire `availableStyles`’ `ohlcCapable` from the
+settings row, and add up/down/wick/border colour inputs. Persistence already
+works (`presentation.plots[key].style`), so Phase B adds no schema.
+
+### OPEN QUESTION (unchanged)
+Axis domain for non-US-session secondaries: intersect (today) vs union. Needs a
+decision before any 24-hour or foreign-calendar instrument is admitted.
