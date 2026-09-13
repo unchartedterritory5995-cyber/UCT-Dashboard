@@ -782,9 +782,19 @@ def main() -> int:
         return 0
 
     rig = load_rig()
-    if args.profile:
-        rig.PROFILE = pathlib.Path(args.profile)
-        rig.MARKER = rig.PROFILE.name
+    # ⛔ ONE AUTHORITY OVER THE ONE PROFILE. `use_profile(resolve_profile(...))` is
+    # window_check's own resolution — CLI beats env beats its default — and it
+    # REFUSES a directory name too generic to serve as a kill marker, because the
+    # marker is substring-matched against every chrome.exe on this machine and a
+    # generic one would match the owner's own browser. Setting PROFILE/MARKER by
+    # hand here would be a second authority over exactly that value.
+    rig.use_profile(rig.resolve_profile(args.profile))
+    print(f"rig profile: {rig.PROFILE}  ·  kill marker: {rig.MARKER}")
+    if not rig.PROFILE.exists():
+        print("⛔ that profile directory does not exist. A missing profile is NOT an empty "
+              "one to fill in — a fresh profile is a SIGNED-OUT profile and nothing on this "
+              "machine can sign it back in. Pass --profile pointing at the one rig profile.")
+        return 3
 
     from playwright.sync_api import sync_playwright
 

@@ -921,6 +921,60 @@ Closing it requires building an instrument first — that is a task, not a looku
     is a procedure in the deploy evidence, not a test. Owner-bound item **C-8**
     covers making three-way verification a tool rather than a practice.
 
+19. ⛔⛔ **FOUR FAULTS IN HOW THE GATE *READS*, ANY ONE OF WHICH PRINTED
+    **REVERT** ON THE RUN THAT DECIDES KEEP-OR-REVERT.** Found 2026-09-13, seven
+    hours before the 17:05 run, while wiring the C-4 sweep into it. Nothing was
+    wrong with the wave.
+
+    | # | the fault | what it printed |
+    |---|---|---|
+    | 1 | `rows()` selected on *"starts with a pipe"*, so the member identity/exclusion PROSE table — added the day before with the attributable-member report — was read as five observation rows ending in `**no**` / `**YES**` | *"trigger 1: 5 non-OK row(s), first at identity"* |
+    | 2 | triggers 2 and 4 read hard-coded indices `x[4]` and `x[6]` — correct under the 8-column header, **off by one** under the 9-column one the config-served column created | trigger 2 was reading `blocked-baseline` under the name sync-conflict; trigger 4 was reading `outbox` under the name console errors |
+    | 3 | the SKIPPED exclusion existed in **trigger 1 only**. The 2026-09-12 23:00 SKIP — production unreachable mid-deploy — carries **20 console errors** from a page that could not load | *"trigger 4: console errors at 2026-09-12 23:00 ET"* |
+    | 4 | the sampler's identity-based member count was computed and **overwritten on the next line**, and that branch also emptied the canary window list the timing fallback needs | after fault 2 was fixed: *"FIRST MEMBER OPT-IN 2026-09-12 15:45:46"* — on a row whose own count says `members 0` |
+
+    ⭐ **THE SHAPE THEY SHARE, and it is the one this programme keeps paying for:
+    each is a SECOND AUTHORITY over something the log already states** — what a
+    row is, where a column sits, whether a reading was taken, how many members
+    there were. Every fix makes the log the authority instead.
+
+    ⛔ **FAULT 4 WAS HIDDEN BY A SECOND BUG, and fixing fault 2 is what exposed
+    it.** The timing fallback read the WHOLE opt-in cell — `2026-09-12 15:45:46 ·
+    members 0` — which no date parser accepts, and `is_rig` answers True for
+    anything unparseable, because you never claim a member from a value you could
+    not read. That refusal was doing load-bearing work nobody knew about. ⭐ **A
+    fix can be the thing that reveals the defect, and an instrument that gets
+    MORE accurate can start reporting a fault that was always there.** It is the
+    reason a fix is re-measured end to end rather than at the line it touched.
+
+    ⚠️ **AND THE FIRST THREE ARRIVED WITH THE WORK THAT MADE THE GATE BETTER.**
+    The prose table, the ninth column and the SKIPPED row are all from the last
+    two days' improvements — the attributable-member report, the Wave K
+    config-served column, and the sampler learning to write a SKIPPED row instead
+    of failing silently. **Every one of those was right.** What was missing is
+    that the READER was never re-derived when the thing it reads changed.
+
+    ⚰️ **A FIFTH, MADE WHILE FIXING THE OTHER FOUR:** two successive patches each
+    inserted `is_observation_row`, leaving the function defined **twice** in one
+    file. Python keeps the last definition, so the behaviour was correct and the
+    first copy was dead code arguing for itself — the `_parse_mdy` shape exactly.
+    ⭐ **Two independent instruments caught it**: the gauntlet's own self-check
+    (*"G1: its guard is present exactly once"*) refused to run, and
+    `tests/test_no_shadowed_definitions.py` names it —
+    `tools/nb_gate.py: is_observation_row (def) at lines [178, 183]` — verified by
+    re-introducing the duplicate and watching that rail go red, then restoring.
+
+    ⭐ **RAILS:** `tests/test_nb_gate_columns.py` — eight cases, driven against a
+    log shaped like the real file (two header blocks, the prose table between
+    them, a SKIPPED row), because every one of these faults needed a feature a
+    tidy fixture would have left out. That is why the rails that already existed
+    could not see them. Plus **G1, G2 and G3 in the gauntlet, permanent**: cut
+    the row predicate, aim one column alias at its neighbour, or make
+    `is_skipped` return False, and the rail reddens by name. An unknown header
+    column is now a LOUD failure rather than a silent re-aim — the schema may
+    change again, and the next change must break the gate rather than quietly
+    move a trigger one column to the left.
+
 ### Rows added by §10
 
 | id | feature | status |
