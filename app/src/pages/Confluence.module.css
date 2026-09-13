@@ -55,6 +55,7 @@
 .search { font: inherit; font-size: 12px; background: var(--c-panel); border: 1px solid var(--c-border); color: var(--c-text); border-radius: 8px; padding: 6px 11px; min-width: 130px; }
 .search:focus { outline: 2px solid var(--c-dp-line); outline-offset: 0; }
 .count { margin-left: auto; font-size: 11.5px; color: var(--c-muted); }
+.winLab { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--c-faint); font-weight: 700; align-self: center; }
 
 /* legend */
 .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: 4px 0 2px; font-size: 11.5px; color: var(--c-muted); }

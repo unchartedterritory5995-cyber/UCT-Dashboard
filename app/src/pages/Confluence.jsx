@@ -55,7 +55,8 @@ function ladderPos(lo, hi, avg, now) {
 }
 
 export default function Confluence() {
-  const { data, isLoading } = useConfluence()
+  const [days, setDays] = useState(30)        // lookback window (trading days)
+  const { data, isLoading } = useConfluence(days)
   const [dir, setDir] = useState('all')       // all | BULL | BEAR
   const [cap, setCap] = useState('all')       // all | L | M | S
   const [status, setStatus] = useState('all') // all | BUILDING | STEADY | ESTABLISHED
@@ -189,6 +190,8 @@ export default function Confluence() {
       </div>
 
       <div className={s.filters}>
+        <span className={s.winLab}>Lookback</span>
+        <Seg val={days} set={setDays} opts={(data?.allowedDays || [20, 30, 60, 90]).map(d => ({ v: d, l: `${d}d` }))} />
         <Seg val={dir} set={setDir} opts={[{ v: 'all', l: 'All' }, { v: 'BULL', l: 'Bull', cls: 'bull' }, { v: 'BEAR', l: 'Bear', cls: 'bear' }]} />
         <Seg val={cap} set={setCap} opts={[{ v: 'all', l: 'All caps' }, { v: 'L', l: 'Large' }, { v: 'M', l: 'Mid' }, { v: 'S', l: 'Small' }]} />
         <Seg val={status} set={setStatus} opts={[{ v: 'all', l: 'Any' }, { v: 'BUILDING', l: 'Building' }, { v: 'STEADY', l: 'Steady' }, { v: 'ESTABLISHED', l: 'Established' }]} />
