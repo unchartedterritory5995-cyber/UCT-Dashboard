@@ -581,7 +581,10 @@ forbids a CR blob while `.gitattributes` deliberately declares
 ### Diff
 
 ```
- 1740 files changed, 763945 insertions(+), 2278 deletions(-)
+ 1741 files changed, 764499 insertions(+), 2278 deletions(-)
+
+(measured at the close-out commit; the body's own commit and this line are
+the last two, so a reader re-running it should see this number)
 ```
 
 Against the merged master `da0803baa`, by area:
