@@ -180,6 +180,67 @@ chunk logs read: 12   failing cases: 92   failing files: 34
   Manrav's work / 11b.
 - **⛔ NOT port 8077** — it has held a stale backend on the owner's live `C:\data`.
 
+## ⭐⭐⭐ WAVE 2 — NOT STARTED. THE ORDER IS THE OWNER'S.
+
+⛔ **NO ESTIMATES YET, DELIBERATELY.** The order below is a ruling; the numbers are
+not. An estimate typed before the first item is opened becomes the thing the work
+is measured against, and this programme has already paid for one of those
+(`lesson_an_acceptance_number_is_a_forecast_until_derived`). Estimate each item
+when it is picked up, against what is measured then.
+
+### ⚠️ TWO THINGS BEFORE ANY OF IT
+
+**1. THE BOX OOM-KILLS LONG-LIVED PROCESSES UNDER LOAD.** On 2026-09-13 it stopped
+three of this session's helpers — the sandbox backend, the fixture server and the
+sink — within minutes of the 12-chunk lane completing. Earlier in the programme it
+killed three unscoped `pytest tests/` runs outright, one at 15.9 GB. **One heavy
+process at a time** is a rule, not a preference: one Python lane, and no vitest or
+vite build beside it. Backend pytest is scoped or chunked, never repo-wide.
+
+**2. RESTART THE BACKEND FIRST — NOTHING IS RUNNING.** Every rig helper this wave
+used is dead. The mobile-audit and vendor-capture sections in this document are a
+RECORD, not a running state. Before anything drives a browser:
+
+```bash
+# UCT_RIG_DATA must resolve OUTSIDE any git worktree — boot_rig refuses otherwise,
+# by asking `git rev-parse --show-toplevel`, and the refusal names the worktree.
+python docs/pine/wip/rig/boot_rig.py        # then confirm the port answers
+```
+
+…then re-check the rig tab against the binding gate: own-text **`Add to chart`**
+plus **0 studies** by the corrected probe. ⛔ Not "the editor is closed" — an open
+editor says nothing about whether a capture is bound to a study, and the open Pine
+Editor on that tab is the owner's.
+
+### The order
+
+| # | item | what is already measured about it |
+|---|---|---|
+| **a** | **arrays + `for` loops** | Uncharted Clouds refuses **21 times at lines 64–84**. The refusals are precise and name their lines, so the grammar wave has its own worklist before it starts. |
+| **b** | **runtime inputs** | R-H. `INPUTS_ARE_FOLDED` flips to **`boundByDeclaredMaxval`** — a window naming a member's knob is bounded by the knob's declared `maxval` instead of being folded to its default. The rule is written (`closedTable.json::_input_windows`, `parse.js::INPUTS_ARE_FOLDED`, mirrored in `ast_table`) and **four readers already agree on the constant**, so this is a flip with rails, not a design. |
+| **c** | **`request.security` tuple form + IR-lane tuples** | One capability, two lanes. The IR lane refuses `runtime:tuple` at **`v2:251`** — `[a,…,h] = f_getDailyData()`, an 8-value destructure the IR has no form for — and `f_getDailyData@190` is already in `skippedFunctions` as `pine:collection`. Closing the tuple form is what lets **D2** be revisited at all. |
+| **d** | **`alertSets` wiring** | ⛔ **Its precondition is measured and is the hard part:** the HVE alert fires **25 times only at 2,751 bars** of loaded history (Lehman week, the Flash Crash, the 2011 downgrade). At ~640 bars it is flat 0 — which is what made `7f94f4404` a superseded fixture. So first paint must reach that depth before an alert set means anything; wire it with the precondition, not before. |
+| **e** | **short-circuit evaluation** | Both sides always evaluate today. No script in the 266-script corpus depends on it — measured, which is why it sits here and not at (a). |
+| **f** | **nested text helpers** | **0 of 266** scripts hit the refusal. The lowest-value item in the list, and it is in the list only because it is a known refusal rather than an unknown one. |
+| **g** | **`s := close` typing** | Real Pine rejects it; we render `<if> + num + ""`. A typing decision to make deliberately, not a defect to fix quietly. |
+| **h** | **stale `ticker_meta` rows + `BF.B`** | **R-O.** 13 rows hold raw yfinance tier codes (`OQB`×5, `OID`×5, `OQX`×3) that the current `_YF_EXCHANGE` map already handles — a refresh, not a fix. ⛔ **`BF.B` (`YHD`) is the genuine residual**: unmapped, not stale, and a refresh will not move it. |
+| **i** | **volume provenance** | The one **open** divergence row, `volume-provenance-two-sources-disagree-and-one-of-them-rounds`. Our store quantises to 100 shares; two of four sampled bars differ by 25 and 11 shares (pure rounding) and two by ~35k (a real provider difference). **It closes with a provenance decision, not code** — either we state which tape the column is, or we source it from the vendor's. |
+| **j** | **Uncharted Clouds as the wave-2 target** | Same rig, same fixture discipline, same gate. It is the right target because (a) is already its blocker: 21 refusals at 64–84 are the grammar wave's acceptance list, and a second real script is what stops the engine being fitted to one. |
+
+### What wave 2 inherits, and must not re-decide
+
+Every ruling from this wave is recorded with its location in
+**`docs/pine/PR-BODY.md` §6** — `ta.cum` class, R-A3, R-F, 3.1–3.5, D1, D2, R-G,
+R-H, R-I, R-J, R-K, R-L, R-M/gate v2.1, R-N, R-Q, R-R, and the `compareAll` gate.
+They are pointers to files and commits, not restatements. ⛔ Re-deciding one of
+them because it is faster than reading it is the failure this programme keeps
+paying for.
+
+⚠️ **`reachable.test.js` carries a dated entry that expires in wave 2**: the seven
+Pine-runtime modules are declared unreachable, and the condition is now *"delete
+this block in the commit that puts the IR lane on the pane path"* — item (c). An
+entry whose condition has passed while the entry survives is a permanent excuse.
+
 ## ⭐⭐⭐ R-R — THE PHONE-TIER TABLE FIT. THE LAST RED ROW FROM ITEM 4 IS GREEN.
 
 Owner ruling, 2026-09-13, and it settles a choice item 4 measured but refused to
