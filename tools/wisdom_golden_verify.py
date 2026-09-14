@@ -872,6 +872,327 @@ def check_v1(records: list[dict], samples: pathlib.Path, contracts: dict,
     return (1 if problems else 0), problems, provenance
 
 
+
+# ── v1.1 NULL segments ────────────────────────────────────────────────────────
+#
+# A NULL row asserts an ABSENCE over a span: "no CALL / no PRINCIPLE / no MARKET_SIGNAL is in
+# this text". It is what lets the gate score a FALSE POSITIVE — a positive label can only ever
+# make a miss visible. On golden-v1's dev split the gate scored 119 of the 882 records it kept;
+# the other 763 were claims about paragraphs nobody had labelled and could not be counted
+# against the extractor at all.
+#
+# ⛔ AN ABSENCE IS NOT MECHANICALLY DECIDABLE IN GENERAL, and this file must not pretend it is.
+# What IS mechanical is a set of screens over the text, each of which has to come back empty:
+#
+#   * no instrument token  -> CALL, NEGATIVE_CALL, MENTION and LEVEL are not CONSTRUCTIBLE.
+#     Each needs an instrument (R1, R3, the MENTION rule), so no instrument means no record.
+#   * no price token       -> LEVEL additionally needs a stated price.
+#   * lexicon screen       -> PRINCIPLE and MARKET_SIGNAL. This one is a SCREEN, NOT A PROOF: a
+#     generalisable teaching statement has no lexical signature, so absence of vocabulary is
+#     not absence of meaning. Those two types are always PROVISIONAL, and a false positive
+#     scored against them is a REVIEW ITEM, not a verdict.
+#
+# ⛔ THE INSTRUMENT SCREEN IS DELIBERATELY NOT `segmenter.detect_mentions`. That function is
+# UNIVERSE-GATED — an uppercase token counts only when cap_universe.json knows it — and the
+# first pass of this selection used it and passed messages naming SOXL, CBRS, ETHU, NBIL, SNDU
+# and KORU as "no instrument here". Absence of knowledge is not absence of a ticker
+# (`lesson_a_symbol_universe_does_not_settle_a_ticker_match`). The screen below rejects on the
+# SHAPE of a token, and adds company names and sector words because the extractor resolves
+# "Micron" and "semis" to instruments that no uppercase regex will ever see.
+
+NULL_KIND = "null_segment"
+NULL_KEYS = ("gid", "golden_version", "kind", "null_for", "record_type", "author_id", "is_guest", "stream",
+             "locator", "quote", "expected", "private", "relations", "status", "verification", "verified_by",
+             "evidence", "split", "notes")
+#: type -> (method, mechanical). The ONE authority on what a NULL row can honestly claim.
+NULL_METHODS = {
+    "CALL": ("no_instrument_token", True),
+    "NEGATIVE_CALL": ("no_instrument_token", True),
+    "MENTION": ("no_instrument_token", True),
+    "LEVEL": ("no_instrument_token+no_price_token", True),
+    "PRINCIPLE": ("lexicon_screen+read", False),
+    "MARKET_SIGNAL": ("lexicon_screen+read", False),
+}
+_NULL_CASHTAG = re.compile(r"\$[A-Za-z]{1,6}\b")
+_NULL_UPPER = re.compile(r"\b[A-Z]{2,6}\b")
+_NULL_PRICE = re.compile(r"\$\s?\d|(?<![\w.])\d{1,5}(?:,\d{3})*\.\d{1,2}(?![\w.])")
+#: Uppercase tokens that are never an instrument in this corpus. Anything NOT here is treated as
+#: a possible ticker, which is the safe direction for a claim of absence.
+_NULL_UPPER_OK = frozenset("""
+A I AM PM ET EST EDT CT PT AI IT ON NO OK OR SO TO IN IS IF AT BY OF AN AS BE DO GO UP MY WE HE
+ALL AND ARE BUT NOT YES NEW ONE TWO BIG LOW HIGH OUT FOR YOU CAN NOW THE WAS HAS HAD HOW WHY WHO
+US USA UK EU NYSE SEC IRS FOMC FED CPI PPI PCE GDP NFP PMI JOLTS UMICH ISM ADP ECB BOJ
+EPS ER IPO ETF ETFS CEO CFO COO CTO AH PT DD IMO TBH LOL HAGW FWIW BTW ASAP FYI TL DR
+EMA SMA MA RS HVC EP PEG ORB VWAP ADR ATR RSI MACD ATH HOD LOD YTD EOD MTD QTD NH NL
+UCT TSDR SUBSTACK ZOOM DISCORD YOUTUBE TC PDF API URL HTML CSS JSON ID OS PC TV APP
+Q1 Q2 Q3 Q4 H1 H2 FY MON TUE WED THU FRI SAT SUN JAN FEB MAR APR JUN JUL AUG SEP OCT NOV DEC
+LIVE TRADING SCANS SUNDAY MARKET WEEK DAY MONTH YEAR HOUR MIN SEC
+""".split())
+_NULL_COMPANY = re.compile(
+    r"\b(nvidia|tesla|apple|amazon|google|alphabet|meta|facebook|microsoft|netflix|micron|"
+    r"broadcom|intel|palantir|coinbase|robinhood|nike|walmart|costco|boeing|disney|oracle|"
+    r"salesforce|adobe|qualcomm|sandisk|seagate|western digital|super ?micro|arm holdings|"
+    r"bitcoin|ethereum|solana|dogecoin|berkshire|goldman|morgan stanley|jpmorgan|"
+    r"united parcel|fedex|starbucks|mcdonald|pepsi|coca[- ]cola|exxon|chevron|pfizer|moderna|"
+    r"lilly|novo|astrazeneca|paypal|block|square|uber|lyft|airbnb|doordash|snowflake|"
+    r"datadog|crowdstrike|cloudflare|shopify|spotify|roblox|unity|rivian|lucid|ford|"
+    r"general motors|caterpillar|deere|lockheed|raytheon|northrop|palo alto)\b", re.I)
+_NULL_SECTOR = re.compile(
+    r"\b(semis?|semiconductors?|banks?|financials?|megacaps?|mega[- ]cap|small[- ]caps?|"
+    r"russell|nasdaq|s&p|spx|dow jones|indices|the index|memory names?|leaders?|"
+    r"biotech|energy names?|miners?|crypto names?|quantum names?|nuclear names?|"
+    r"growth names?|momentum names?|utilities|healthcare|industrials|staples|discretionary)\b", re.I)
+_NULL_PRINCIPLE_LEX = re.compile(
+    r"\b(always|never|every time|the rule|rule is|you should|you have to|you must|the key is|"
+    r"discipline|risk manage|stop loss|position siz|cut (?:your )?loss|let (?:your )?winners|"
+    r"the mistake|principle|expectancy|probabilit|be careful|have a system|"
+    r"sit on (?:your|my) hands|less is more)\w*", re.I)
+_NULL_SIGNAL_LEX = re.compile(
+    r"\b(distribution day|follow[- ]through|risk[- ]on|risk[- ]off|washout|capitulat|rotation|"
+    r"uptrend|downtrend|correction|bull market|bear market|oversold|overbought|"
+    r"under the hood|t2108|t2100|advance/decline)\w*", re.I)
+
+
+def null_screens(text: str) -> dict:
+    """Every screen a NULL row's claim rests on, as MEASUREMENTS. Each value is the list of hits;
+    the claim holds only where the list is empty, and the lists are stored so a later run can
+    re-derive them and fail on drift instead of trusting the row's own word."""
+    return {
+        "cashtags": sorted(set(_NULL_CASHTAG.findall(text))),
+        "upper_tokens": sorted({t for t in _NULL_UPPER.findall(text) if t not in _NULL_UPPER_OK}),
+        "companies": sorted({m.group(0).lower() for m in _NULL_COMPANY.finditer(text)}),
+        "sectors": sorted({m.group(0).lower() for m in _NULL_SECTOR.finditer(text)}),
+        "prices": sorted({m.group(0) for m in _NULL_PRICE.finditer(text)}),
+        "principle_lexicon": sorted({m.group(0).lower() for m in _NULL_PRINCIPLE_LEX.finditer(text)}),
+        "signal_lexicon": sorted({m.group(0).lower() for m in _NULL_SIGNAL_LEX.finditer(text)}),
+    }
+
+
+_NULL_SCREEN_FOR = {"no_instrument_token": ("cashtags", "upper_tokens", "companies", "sectors"),
+                    "no_instrument_token+no_price_token": ("cashtags", "upper_tokens", "companies", "sectors",
+                                                           "prices"),
+                    "lexicon_screen+read": ("principle_lexicon", "signal_lexicon")}
+
+
+def null_checks_for(types, screens: dict) -> dict:
+    """The `evidence.null_checks` a row with these declared types MUST carry, derived from the
+    screens. Deriving it rather than reading it is the whole point: a row that claims a
+    mechanical method its own text does not support has to fail, not be believed."""
+    out = {}
+    for t in sorted(types):
+        method, mechanical = NULL_METHODS[t]
+        hits = sorted({h for key in _NULL_SCREEN_FOR[method] for h in screens[key]})
+        out[t] = {"method": method, "mechanical": mechanical, "screen_hits": hits}
+    return out
+
+
+def null_status(checks: dict) -> str:
+    """⛔ confirmed only when EVERY declared type rests on a mechanical method AND every screen
+    it rests on came back empty. One non-mechanical type makes the whole ROW provisional, because
+    `status` is a row-level field and the weakest claim on the row is what it can honestly say."""
+    if any(not c["mechanical"] or c["screen_hits"] for c in checks.values()):
+        return "provisional"
+    return "confirmed"
+
+
+def check_null(records: list[dict], samples: pathlib.Path, contracts: dict,
+               categories: dict[int, str] | None = None,
+               base_sha256: str | None = None) -> tuple[int, list[str], dict]:
+    # `contracts` is taken and not read: it is the authors/aliases table, and a NULL row makes no
+    # authorship claim (see the attribution block below). The parameter stays so this signature
+    # matches check_v1's and a future rule that DOES need it has somewhere to read it from.
+    """Everything check_v1 checks about a locator, an author and a quote — and then the screens.
+
+    ⛔ THE REVIEW-QUEUE RULE IS PER CLASS HERE, NOT PER ROW. v1 requires a review item for every
+    provisional record; 44 NULL rows provisional for the SAME reason ("a principle has no lexical
+    signature") would file 44 copies of one ruling, and a ruling repeated is a ruling unproved
+    (`lesson_a_guard_repeated_is_a_guard_unproved`). A provisional NULL row instead names the
+    ruling in `evidence.review_item`, and every row resting on the same non-mechanical methods
+    must name the SAME one — so the owner vetoes the rule once, and the check can still tell
+    that nobody quietly minted a second, softer ruling for a row they wanted to keep.
+    """
+    problems: list[str] = []
+    provenance: dict = {}
+    missing: set[str] = set()
+    cache: dict[tuple, Source | None] = {}
+    categories = categories or {}
+    by_method_set: dict[tuple, set] = {}
+
+    def source(sample: str, message_id: str | None = None):
+        key = (sample, message_id)
+        if key not in cache:
+            cache[key] = load_source(samples, sample, message_id)
+            if cache[key] is None:
+                missing.add(sample if message_id is None else f"{sample}#{message_id}")
+        return cache[key]
+
+    seen: set[str] = set()
+    for r in records:
+        gid = r.get("gid", "?")
+        bad = lambda msg, gid=gid: problems.append(f"{gid}: {msg}")  # noqa: E731
+        if gid in seen:
+            bad("duplicate gid")
+        seen.add(gid)
+        absent = [k for k in NULL_KEYS if k not in r]
+        if absent:
+            bad(f"missing keys {absent}")
+            continue
+        if r["golden_version"] != "v1.1":
+            bad(f"golden_version {r['golden_version']!r} != 'v1.1'")
+        # ⛔ record_type must be NULL on a NULL row. Setting it to one of the six would make the
+        # row readable as a positive label of that type by anything that keys off record_type.
+        if r["record_type"] is not None:
+            bad(f"record_type {r['record_type']!r} on a NULL row (it asserts an absence, not a type)")
+        if r["expected"] != [] or r["private"] != {} or r["relations"] != []:
+            bad("a NULL row carries expected=[], private={} and relations=[]")
+        declared = r["null_for"]
+        if not isinstance(declared, list) or not declared or any(t not in NULL_METHODS for t in declared):
+            bad(f"null_for {declared!r} must be a non-empty subset of {sorted(NULL_METHODS)}")
+            continue
+        if len(set(declared)) != len(declared):
+            bad(f"null_for {declared!r} repeats a type")
+        if r["stream"] not in STREAMS:
+            bad(f"stream {r['stream']!r} not in the contract enum")
+        loc = r["locator"] or {}
+        sample, ext = loc.get("sample"), loc.get("external_ref") or ""
+        if not sample or not ext:
+            bad("locator needs sample and external_ref")
+            continue
+        msg_id = ext.rsplit(":", 1)[-1] if ext.startswith("discord:") else None
+        src = source(sample, msg_id)
+        if src is None:
+            continue
+        q = r["quote"]
+        count = src.body.count(q) if q else 0
+        if count != 1:
+            bad(f"quote found {count}x in {sample} (must be exactly 1)")
+            continue
+        start = src.body.index(q)
+
+        # ── locator against the source, exactly as a positive row — but NO AUTHOR CLAIM ──
+        # ⛔ A NULL ROW HAS NO AUTHOR, and that is a decision, not an omission. An absence is a
+        # property of the TEXT, not of a speaker: naming one adds nothing the locator does not
+        # already carry, and it would force an attribution onto the shared "Uncharted Territory"
+        # Zoom label, which §8a.2 declares an alias of NOBODY. Three of the segments selected for
+        # v1.1 sit under exactly that label. The speaker label and section path stay in the
+        # locator, so the human information survives without a claim about who said it.
+        attribution = (r["evidence"] or {}).get("attribution") or {}
+        method = attribution.get("method")
+        if r["author_id"] is not None:
+            bad(f"author_id {r['author_id']!r}: a NULL row asserts an absence and names no author")
+        if method != "not_applicable":
+            bad(f"attribution method {method!r}: a NULL row declares 'not_applicable', explicitly")
+        if src.kind in ("cues", "transcript"):
+            edu = src.meta.get("edu_id") or _edu_id(sample)
+            if ext != f"edu_videos:{edu}":
+                bad(f"external_ref {ext!r} != edu_videos:{edu}")
+            _, t, spk = src.cue_at(start)
+            if loc.get("cue_t_s") != t:
+                bad(f"locator.cue_t_s={loc.get('cue_t_s')} but the quote starts in the cue at {t}s")
+            if loc.get("speaker_label") != spk:
+                bad(f"locator.speaker_label={loc.get('speaker_label')!r} but the cue label is {spk!r}")
+            category = src.meta.get("category") or categories.get(edu)
+            want_stream = CATEGORY_STREAM.get(category, "education") if category else None
+            if want_stream and r["stream"] != want_stream:
+                bad(f"stream {r['stream']!r} but category {category!r} maps to {want_stream!r}")
+        elif src.kind in ("html", "txt"):
+            info = src.block_at(start)
+            slug_path = f"/p/{src.meta['slug']}" if src.kind == "html" else src.meta.get("slug_path")
+            if ext != f"substack:{slug_path}":
+                bad(f"external_ref {ext!r} != substack:{slug_path}")
+            if loc.get("section_path") != info["section_path"]:
+                bad(f"locator.section_path={loc.get('section_path')!r} but source says {info['section_path']!r}")
+            if loc.get("paragraph") != info["paragraph"]:
+                bad(f"locator.paragraph={loc.get('paragraph')} but source says {info['paragraph']}")
+            if r["stream"] != "sunday_scans":
+                bad(f"stream {r['stream']!r} for a Sunday Scans sample")
+        elif src.kind == "discord":
+            if ext != f"discord:{src.meta['channel_id']}:{src.meta['message_id']}":
+                bad(f"external_ref {ext!r} does not match the stored message")
+            if r["stream"] != "discord":
+                bad(f"stream {r['stream']!r} for a Discord sample")
+
+        # ── the screens: re-derived, never read back ──
+        screens = null_screens(q)
+        want = null_checks_for(declared, screens)
+        got = ((r["evidence"] or {}).get("null_checks") or {})
+        if got != want:
+            bad(f"evidence.null_checks disagrees with the text: stored {sorted(got)} -> "
+                f"{[(k, v.get('method'), v.get('screen_hits')) for k, v in sorted(got.items())]}, "
+                f"derived {[(k, v['method'], v['screen_hits']) for k, v in sorted(want.items())]}")
+        for t, c in want.items():
+            if c["mechanical"] and c["screen_hits"]:
+                bad(f"{t} claims the mechanical method {c['method']!r} but the screen found {c['screen_hits']}")
+        want_status = null_status(want)
+        if r["status"] != want_status:
+            bad(f"status {r['status']!r} but the checks derive {want_status!r}")
+        if r["verification"] != "text-only":
+            bad(f"verification {r['verification']!r}: a NULL row is text-only by construction")
+        if r["verified_by"] != "auto":
+            bad(f"verified_by {r['verified_by']!r} (this set is auto-verified)")
+        if r["split"] != split_for(gid):
+            bad(f"split {r['split']!r} != {split_for(gid)!r} (sha256(gid)[:8] parity)")
+        if r["is_guest"] is not False:
+            bad("is_guest must be false on a NULL row: an absence is not authored by a guest")
+        if want_status == "provisional":
+            item = (r["evidence"] or {}).get("review_item")
+            soft = tuple(sorted(t for t, c in want.items() if not c["mechanical"]))
+            if not isinstance(item, str) or not item:
+                bad("a provisional NULL row must name its class-level ruling in evidence.review_item")
+            else:
+                by_method_set.setdefault(soft, set()).add(item)
+
+        # ⛔ THE SECTION HEADING IS INSIDE THE QUOTE, so it cannot be published. A Sunday Scans
+        # SECTION segment begins with its own heading line, which means a NULL row's quote — the
+        # whole segment — literally starts with `section_path`. Committing it would put 40-odd
+        # characters of quote text in a public file, and `quote_leaks` correctly refuses the
+        # write. It is hashed rather than dropped so drift is still detectable.
+        pub_loc = dict(loc)
+        if pub_loc.get("section_path"):
+            pub_loc["section_path_sha256"] = quote_sha256(pub_loc.pop("section_path"))
+        provenance[gid] = {
+            "kind": NULL_KIND, "null_for": sorted(declared), "stream": r["stream"],
+            "locator": pub_loc, "quote_sha256": quote_sha256(q),
+            "span": {"char_start": start, "char_end": start + len(q), "text_sha256": src.text_sha256},
+            "null_checks": {t: {"method": c["method"], "mechanical": c["mechanical"]} for t, c in want.items()},
+            "status": r["status"], "verification": r["verification"], "split": r["split"],
+        }
+    for soft, items in by_method_set.items():
+        if len(items) > 1:
+            problems.append(f"NULL rows provisional for {list(soft)} name {len(items)} different rulings "
+                            f"{sorted(items)}; one class, one ruling")
+    # ── the set-level summary, DERIVED and therefore drift-checked like every other entry ──
+    # ⛔ It is regenerated from the records on every run rather than hand-maintained beside them.
+    # A counts block typed once and never recomputed is the defect this repo keeps paying for: a
+    # hand-typed enumeration beside the list it claims to describe.
+    if provenance:
+        rows = [r for r in records if r.get("gid") in provenance]
+        by_stream: dict[str, int] = {}
+        by_split: dict[str, int] = {}
+        by_status: dict[str, int] = {}
+        by_type_n: dict[str, int] = {}
+        for r in rows:
+            by_stream[r["stream"]] = by_stream.get(r["stream"], 0) + 1
+            by_split[r["split"]] = by_split.get(r["split"], 0) + 1
+            by_status[r["status"]] = by_status.get(r["status"], 0) + 1
+            for t_ in r["null_for"]:
+                by_type_n[t_] = by_type_n.get(t_, 0) + 1
+        provenance["_null_set"] = {
+            "representation": "kind='null_segment' + null_for=[types]; expected=[] and record_type=null. "
+                              "The row contributes a SPAN and no label, so a prediction inside it is "
+                              "scorable as a false positive for the declared types and for nothing else.",
+            "base": {"golden_version": "golden-v1", "sha256": base_sha256},
+            "null_rows": len(rows), "by_stream": by_stream, "by_split": by_split, "by_status": by_status,
+            "types_asserted_absent": by_type_n,
+            "methods": {t: {"method": m, "mechanical": mech} for t, (m, mech) in sorted(NULL_METHODS.items())},
+            "author": "none — an absence is a property of the text, not of a speaker (§8a.2)",
+            "samples": sorted({(r["locator"] or {}).get("sample") for r in rows}),
+        }
+    if missing:
+        return 2, [f"sample not present: {m}" for m in sorted(missing)] + problems, provenance
+    return (1 if problems else 0), problems, provenance
+
+
 def quote_leaks(provenance_text: str, records: list[dict]) -> list[str]:
     """gids whose quote (or any 24-char window of it) appears in the provenance text."""
     leaks = []
@@ -1042,12 +1363,23 @@ def run(golden: pathlib.Path, samples: pathlib.Path, provenance_path: pathlib.Pa
             return 1
         print(f"FROZEN OK — sha256={got}")
     records = load_records(golden)
-    v1 = [r for r in records if "locator" in r]
-    v0 = [r for r in records if "locator" not in r]
+    # ⛔ NULL rows are split out FIRST. They carry a locator like a v1 row and would otherwise be
+    # handed to check_v1, which requires an `expected` record and a record_type — a NULL row has
+    # neither, on purpose, and the resulting failures would read as bad labels rather than as a
+    # format the checker has not been taught.
+    nulls = [r for r in records if r.get("kind") == NULL_KIND]
+    v1 = [r for r in records if r.get("kind") != NULL_KIND and "locator" in r]
+    v0 = [r for r in records if r.get("kind") != NULL_KIND and "locator" not in r]
     by_type: dict[str, int] = {}
-    for r in records:
+    for r in v0 + v1:
         by_type[r["record_type"]] = by_type.get(r["record_type"], 0) + 1
-    print(f"records={len(records)} (v0={len(v0)} v1={len(v1)}) by_type={by_type}")
+    null_by_type: dict[str, int] = {}
+    for r in nulls:
+        for t_ in r.get("null_for") or []:
+            null_by_type[t_] = null_by_type.get(t_, 0) + 1
+    print(f"records={len(records)} (v0={len(v0)} v1={len(v1)} null={len(nulls)}) by_type={by_type}")
+    if nulls:
+        print(f"NULL segments: {len(nulls)} asserting absence, by type {null_by_type}")
     code, problems, prov = 0, [], {}
     if v0:
         c, p, pv = check(v0, samples)
@@ -1065,6 +1397,13 @@ def run(golden: pathlib.Path, samples: pathlib.Path, provenance_path: pathlib.Pa
             print(f"review queue: {len(subjects)} subjects in {_rel(review_queue)}")
         c, p, pv = check_v1(v1, samples, contracts, subjects, categories)
         code, problems, prov = max(code, c), problems + p, {**prov, **pv}
+    if nulls:
+        # The base sha is READ FROM THE FILE, never asserted: an absent golden-v1 records null
+        # rather than a remembered number (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+        base = golden.parent / "golden-v1.jsonl"
+        base_sha = hashlib.sha256(base.read_bytes()).hexdigest() if base.exists() else None
+        c, p, pv = check_null(nulls, samples, load_contracts(), categories, base_sha)
+        code, problems, prov = max(code, c), problems + p, {**prov, **pv}
     for p in problems:
         print("  -", p)
     if code == 0 and provenance_path is not None:
@@ -1073,7 +1412,7 @@ def run(golden: pathlib.Path, samples: pathlib.Path, provenance_path: pathlib.Pa
         if leaks:
             print(f"FAIL — provenance would carry quote text for {leaks}")
             return 1
-        if v1 and provenance_path.exists() and not write_provenance:
+        if (v1 or nulls) and provenance_path.exists() and not write_provenance:
             old = json.loads(provenance_path.read_text(encoding="utf-8"))
             drift = sorted(g for g in set(old) | set(prov) if old.get(g) != prov.get(g))
             if drift:
@@ -1091,7 +1430,9 @@ def run(golden: pathlib.Path, samples: pathlib.Path, provenance_path: pathlib.Pa
         print("INCONCLUSIVE" if code == 2 else "FAIL")
         return code
     if require_strata:
-        lines, short = strata(v1 or records, categories)
+        # Strata are about who authored WHAT; a NULL row authors nothing and must not count
+        # toward a per-type minimum it would silently inflate.
+        lines, short = strata(v1 or [r for r in records if r.get("kind") != NULL_KIND], categories)
         print("\n".join(lines))
         if short:
             for s in short:
@@ -1354,6 +1695,85 @@ def self_check() -> int:
         good_tsdr = good + [mutate(neg, gid="T-5", split=split_for("T-5"))]
         _, short = strata(good_tsdr, load_categories(dp), zero)
         expect("control: minimums met -> no shortfall", short, [])
+
+
+        # ── v1.1 NULL segments ──────────────────────────────────────────────
+        # ⛔ NON-VACUITY FIRST. Every case below turns on a screen coming back EMPTY, and an
+        # empty result is a failed invocation until proven otherwise: if the screens matched
+        # nothing ever, every NULL row would pass and the checker would be decoration.
+        loud = null_screens("Bought $NVDA and MSFT at 10.50, Micron too. Never average down. T2108 washout.")
+        expect("null screens see a cashtag", loud["cashtags"], ["$NVDA"])
+        # NVDA is here too, from inside the cashtag: the two screens overlap ON PURPOSE, so a
+        # cashtag regex that stopped matching would not open a hole.
+        expect("null screens see a bare ticker", loud["upper_tokens"], ["MSFT", "NVDA"])
+        expect("null screens see a company name", loud["companies"], ["micron"])
+        expect("null screens see a price", loud["prices"], ["10.50"])
+        expect("null screens see principle vocabulary", loud["principle_lexicon"], ["never"])
+        expect("null screens see signal vocabulary", loud["signal_lexicon"], ["t2108", "washout"])
+        # ⛔ and the screen must NOT be the product's own universe-gated detector: SOXL and CBRS
+        # are real tickers that cap_universe.json does not know, and the first version of this
+        # selection passed messages naming them as "no instrument here".
+        expect("an off-universe ticker is still an instrument", null_screens("all out of SOXL and CBRS")["upper_tokens"],
+               ["CBRS", "SOXL"])
+
+        MECH = ["CALL", "NEGATIVE_CALL", "MENTION", "LEVEL"]
+
+        def nrec(gid, quote, types, sample="transcripts/7.json", ext="edu_videos:7", stream="zoom_live",
+                 locator_extra=None, **over):
+            checks = null_checks_for(types, null_screens(quote))
+            ev = {"attribution": {"method": "not_applicable"}, "null_checks": checks,
+                  "review_item": "RQ-selfcheck", "v1_labels_in_this_span": 0}
+            r = {"gid": gid, "golden_version": "v1.1", "kind": NULL_KIND, "null_for": list(types),
+                 "record_type": None, "author_id": None, "is_guest": False, "stream": stream,
+                 "locator": dict({"external_ref": ext, "sample": sample},
+                                 **(locator_extra if locator_extra is not None
+                                    else {"cue_t_s": 5, "speaker_label": "Patrick (TSDR)"})),
+                 "quote": quote, "expected": [], "private": {}, "relations": [],
+                 "status": null_status(checks), "verification": "text-only", "verified_by": "auto",
+                 "evidence": ev, "split": split_for(gid), "notes": None}
+            for k, v in over.items():
+                r[k] = v
+            return r
+
+        def nul(recs):
+            code, probs, _ = check_null(recs, dp, contracts, load_categories(dp))
+            return code, probs
+
+        mech_only = nrec("N-T1", "good morning", MECH)
+        all_six = nrec("N-T2", "good morning", MECH + ["PRINCIPLE", "MARKET_SIGNAL"])
+        expect("null control: a well-formed row passes", nul([mech_only])[0], 0, nul([mech_only])[1][:1])
+        expect("null: four mechanical types are CONFIRMED", mech_only["status"], "confirmed")
+        expect("null: adding PRINCIPLE/MARKET_SIGNAL makes the ROW provisional", all_six["status"], "provisional")
+        expect("null control: the provisional row still passes", nul([all_six])[0], 0, nul([all_six])[1][:1])
+        expect("null: a status that does not follow from the checks fails",
+               nul([mutate(all_six, status="confirmed")])[0], 1)
+        expect("null: a row that names an author fails", nul([mutate(mech_only, author_id="tsdr")])[0], 1)
+        expect("null: a row with a record_type fails", nul([mutate(mech_only, record_type="MENTION")])[0], 1)
+        expect("null: a row carrying an expected record fails",
+               nul([mutate(mech_only, expected={"record_type": "MENTION"})])[0], 1)
+        expect("null: a wrong cue_t_s fails", nul([mutate(mech_only, locator__cue_t_s=9999)])[0], 1)
+        expect("null: an unknown type in null_for fails", nul([mutate(mech_only, null_for=["NOPE"])])[0], 1)
+        expect("null: an empty null_for fails", nul([mutate(mech_only, null_for=[])])[0], 1)
+        expect("null: a missing sample is INCONCLUSIVE, not PASS",
+               nul([mutate(mech_only, locator__sample="transcripts/999.json")])[0], 2)
+        # ⛔ the load-bearing one: the stored claim is re-derived from the text, never believed
+        lying = json.loads(json.dumps(all_six))
+        lying["evidence"]["null_checks"]["PRINCIPLE"] = {"method": "no_instrument_token", "mechanical": True,
+                                                         "screen_hits": []}
+        expect("null: a row claiming a method its text does not support fails", nul([lying])[0], 1)
+        planted = nrec("N-T3", "fixture pass on DEF, too thin.", MECH)
+        expect("null: a quote carrying a ticker fails the mechanical screen", nul([planted])[0], 1)
+        # one class, one ruling — 44 copies of a single judgement is not 44 judgements
+        other = json.loads(json.dumps(all_six))
+        other["gid"] = "N-T4"
+        other["split"] = split_for("N-T4")
+        other["evidence"]["review_item"] = "RQ-different"
+        expect("null: two rulings for one provisional class fails", nul([all_six, other])[0], 1)
+        other["evidence"]["review_item"] = "RQ-selfcheck"
+        expect("null control: one ruling for the class passes", nul([all_six, other])[0], 0)
+        _, _, nprov = check_null([all_six], dp, contracts, load_categories(dp))
+        expect("null control: provenance is quote-free",
+               quote_leaks(json.dumps(nprov, ensure_ascii=False), [all_six]), [])
 
     print("SELF-CHECK", "PASS" if not bad else f"FAIL ({bad})")
     return 0 if not bad else 1
