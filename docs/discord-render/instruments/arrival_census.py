@@ -826,6 +826,27 @@ def self_check() -> int:
                         distinct_users_10s=40)
     check("a larger burst demands more workers", (big["chosen_c"] or 99) > (small["chosen_c"] or 0),
           f"small c={small['chosen_c']} big c={big['chosen_c']}")
+
+    # 9b. ⛔⛔ THE HEADROOM MULTIPLE IS APPLIED, NOT DECORATIVE.
+    # ⚰️ Added 2026-09-14 after a mutation caught this file out: replacing `multiple` with 1.0 in
+    # the arrival-rate line left the self-check at 17/17 PASS. The checks above test monotonicity
+    # in the BURST, which still holds when the multiple is inert — so the one term the owner's
+    # ruling actually specifies ("3x the observed busiest 10 s window never hits queue_full") was
+    # unguarded. A rail that cannot see the requirement it exists for is not a rail.
+    same = dict(burst_10s=40, burst_60s=120, service_p50_s=1.0, service_p95_s=1.748,
+                s2_budget_s=5.0, max_per_user_10s=3, distinct_users_10s=20)
+    at1 = derive_sizing(multiple=1.0, **same)
+    at3 = derive_sizing(multiple=3.0, **same)
+    check("3x headroom raises the arrival rate it sizes for",
+          abs(at3["lambda_per_s"] - 3.0 * at1["lambda_per_s"]) < 1e-9,
+          f"lam 1x={at1['lambda_per_s']} 3x={at3['lambda_per_s']}")
+    check("3x headroom demands strictly more workers OR a deeper queue",
+          (at3["chosen_c"] or 0) > (at1["chosen_c"] or 0) or at3["queue_need"] > at1["queue_need"],
+          f"c {at1['chosen_c']}->{at3['chosen_c']}  queue {at1['queue_need']}->{at3['queue_need']}")
+    # ⛔ control for the control: equal multiples must size IDENTICALLY, or the two rows above
+    # would pass for any function whose output merely varies between calls.
+    check("the same multiple sizes identically (control for the two above)",
+          derive_sizing(multiple=2.0, **same) == derive_sizing(multiple=2.0, **same))
     check("a larger burst demands a deeper queue", big["queue_need"] > small["queue_need"],
           f"small {small['queue_need']:.1f} big {big['queue_need']:.1f}")
     check("user ids are hashed, never carried through", hash_user("427798118935953410") !=
