@@ -66,12 +66,21 @@ message is false in one of its two meanings.**
 the deciding field (`outcome`) could not be read. The B3 sequence is running against a retained
 store; the question is answered there or by a dedicated run, not by inference. Filed as **OI-40**.
 
-⚠️ **AND THE GAUGE COULD NOT SEE.** That same run sampled queue depth **4 times in 21 seconds**
-against a 0.5 s loop — ~40 expected. The depth figures above are therefore a floor, not a
-measurement, and "max depth 1" means *the gauge caught 1*. The arithmetic (13 < 48) is what carries
-the conclusion, not the gauge. ⭐ This is D-01's blinded-gauge defect in a second instrument, which
-is why Part C's rail is a bound on BOTH sides plus a non-zero-sample control rather than a code
-comment saying to keep the loop tight.
+⚠️ **THE DEPTH GAUGE IS SPARSE BY DESIGN, AND THE DEPTH FIGURES ARE A FLOOR.** The **open** loop
+samples depth every **tenth arrival** (`load_harness.py:745`), not on a clock. At 0.6 arrivals/second
+ten arrivals span ~17 seconds, so a queue that fills and drains between samples is invisible. "Max
+depth 1" means *the gauge caught 1*. **The arithmetic (13 offers < 48 slots) is what carries the
+conclusion above, not the gauge.**
+
+⚰️ **AND I PUBLISHED THE WRONG REASON FOR THIS FIRST — CORRECTED HERE.** The original text of this
+paragraph said the gauge had been **starved**: "4 samples in 21 seconds against a 0.5 s loop, ~40
+expected". That is false. The 0.5 s loop is the **closed** loop's gauge (`:655`); the run in question
+was an **open** loop, whose gauge is arrival-driven, and 13 arrivals produce exactly the samples
+seen. Measured across both models: the closed loop's time-based gauge returned **38 of ~43** expected
+samples (88 %), which is healthy. ⭐ **The mistake was measuring an artifact against an expectation
+read off the wrong code path** — the same shape as "reading the call site is not reading the
+request", and it manufactured a finding about event-loop starvation that did not exist. The
+limitation is real; the mechanism I first gave for it was not.
 
 ---
 

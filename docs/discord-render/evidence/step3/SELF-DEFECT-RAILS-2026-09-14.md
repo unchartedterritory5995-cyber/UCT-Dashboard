@@ -60,15 +60,23 @@ TOTALS load_harness --self-check PASS declared=48 evaluated=48 failed=0
 | `closed loop actually HOLDS N in flight under saturation` | `mean >= 3.0` — the non-zero-sample half |
 | `releasing before completion is CAUGHT by the mean` | a deliberately broken client must break the lower bound, or the row above passes for a loop that never held anything |
 
-**⚠️ AND THE SAME DISEASE WAS FOUND AGAIN, IN A SECOND INSTRUMENT, WHILE WRITING THIS.** The
-`--real` driver's queue-depth gauge samples on a 0.5 s loop. In a 21-second shake-out it produced
-**four samples**. Its "max interactive depth: 1" therefore means *the gauge caught 1*, not *the
-depth was 1* — and nothing in the artifact said the gauge had been starved.
+**⚠️ A SECOND, WEAKER INSTANCE — AND I GOT ITS MECHANISM WRONG BEFORE I GOT IT RIGHT.** The depth
+gauge is **sparse**, so "max interactive depth: 1" means *the gauge caught 1*, not *the depth was 1*.
+But the reason is **sampling design, not starvation**: the **open** loop samples every **tenth
+arrival** (`load_harness.py:745`), and at 0.6 arrivals/second ten arrivals span ~17 seconds.
 
-**The second rail** — the artifact now carries the gauge's own coverage
-(`expected` vs `actual` samples and a `starved` flag), and a depth claim made over a starved gauge
-is refused rather than quoted. ⭐ It is the same fix as D1 wearing different clothes: **publish the
-denominator, not just the number.**
+⚰️ **My first write-up of this said the gauge had been starved to 3.5 % coverage**, computed against
+the **closed** loop's 0.5 s cadence (`:655`) — the wrong code path for the artifact in hand. Measured
+properly: the closed loop's time-based gauge returns **38 of ~43** expected samples (88 %), and the
+open loop's arrival-driven gauge returns exactly what it is written to return. ⭐ **I manufactured a
+finding about event-loop starvation by reading one driver's expectation onto another driver's
+output** — an instrument reporting a property of itself, in the very document about instruments
+reporting properties of themselves.
+
+**The second rail** — the artifact carries its gauge's own **cadence and coverage** (which model,
+what triggers a sample, expected vs actual), so a depth claim can be judged instead of trusted, and
+a claim made over a sparse gauge is labelled rather than quoted. ⭐ Same fix as D1 in different
+clothes: **publish the denominator, not just the number** — and name which denominator.
 
 ---
 

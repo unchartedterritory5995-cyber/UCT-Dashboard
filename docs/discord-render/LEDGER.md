@@ -1132,12 +1132,22 @@ other producer (`runtime.py:285`) closes a restart casualty as `queue_full`, tel
 *"we're at capacity right now"* about a pod restart. **Not asserted**: the deciding field is
 `outcome`, and that sandbox is gone.
 
-### ⛔ The gauge is blind — D-01's defect found again in a second instrument
+### ⚠️ The depth gauge is SPARSE — and my first explanation of why was wrong
 
-The `--real` driver's queue-depth gauge samples on a 0.5 s loop. On the 300-second design-burst run
-it produced **21 samples where ~602 were expected — 3.5 % coverage.** Every "max queue depth"
-figure this programme has published is therefore a floor, not a measurement. The arithmetic
-(13 offers < 48 slots) is what carries OI-40's conclusion, not the gauge.
+Every "max queue depth" figure this programme has published is a **floor**, not a measurement: the
+**open** loop samples depth every **tenth arrival** (`load_harness.py:745`), so at 0.6
+arrivals/second ten arrivals span ~17 seconds and a queue that fills and drains between samples is
+invisible. The arithmetic (13 offers < 48 slots) is what carries OI-40's conclusion, not the gauge.
+
+⚰️ **RETRACTED, SAME DAY, BEFORE IT SPREAD FURTHER: I first wrote that the gauge had been STARVED to
+"21 samples where ~602 were expected — 3.5 % coverage".** That number came from applying the
+**closed** loop's 0.5 s cadence (`:655`) to an **open**-loop artifact. Measured properly, the closed
+loop's time-based gauge returns **38 of ~43** expected samples (88 %) and the open loop's
+arrival-driven gauge returns exactly what it is written to return. ⭐ **I manufactured a finding
+about event-loop starvation by reading one driver's expectation onto another driver's output** —
+the same shape as "reading the call site is not reading the request", committed inside the pass whose
+whole subject is instruments reporting properties of themselves. The limitation is real; the
+mechanism I first gave for it was not.
 
 ### Part C — the three self-defects, now rails
 
