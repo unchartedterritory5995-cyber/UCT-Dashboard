@@ -19,6 +19,8 @@ REM   2  UCT_TERMINAL_NEXT_WEBHOOK is not set - this run could not have reported
 REM   3  STOPPED-ENV       an environment check failed; nothing was attempted
 REM   4  STOPPED-ERROR     it tried and something broke
 REM   5  NO STATUS LINE    the silent-failure case; never 0
+REM   6  NOT DELIVERED     the run was fine but the Discord post did not land;
+REM                        a worse code above is never downgraded to this
 REM ===================================================================================
 
 setlocal
@@ -35,6 +37,8 @@ if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 set "LOG=%LOGDIR%\%YM%.log"
 set "REPORT=%LOGDIR%\last-report.txt"
 set "STATUSTMP=%LOGDIR%\last-status.txt"
+set "POSTBODY=%LOGDIR%\last-post-body.txt"
+set "POSTCODE=%LOGDIR%\last-post-code.txt"
 
 echo. >> "%LOG%"
 echo ==================================================================== >> "%LOG%"
@@ -42,6 +46,26 @@ echo RUN START %DATE% %TIME% >> "%LOG%"
 echo ==================================================================== >> "%LOG%"
 
 REM --- 0. The reporter must exist BEFORE anything else, or this run is deaf ----------
+REM A PLACEHOLDER PASSES AN IS-IT-SET CHECK AND THEN POSTS INTO THE VOID, which is
+REM exactly the silent failure this runner exists to stop. The prefix is checked too.
+set "WH=%UCT_TERMINAL_NEXT_WEBHOOK%"
+set "WHPFX=%WH:~0,33%"
+set "WHID=%WH:~33,1%"
+if not "%WH%"=="" if /i not "%WHPFX%"=="https://discord.com/api/webhooks/" (
+  echo FATAL: UCT_TERMINAL_NEXT_WEBHOOK is set but is not a Discord webhook URL. >> "%LOG%"
+  echo It must begin https://discord.com/api/webhooks/ and carry a real id and token. >> "%LOG%"
+  echo RUN END %DATE% %TIME% exit=2 >> "%LOG%"
+  exit /b 2
+)
+if not "%WH%"=="" if /i "%WHPFX%"=="https://discord.com/api/webhooks/" (
+  echo %WHID%| findstr /r "^[0-9]$" >nul || (
+    echo FATAL: UCT_TERMINAL_NEXT_WEBHOOK looks like a PLACEHOLDER - the id after >> "%LOG%"
+    echo /webhooks/ must be numeric. A value such as ".../webhooks/..." passes a >> "%LOG%"
+    echo prefix check and then posts into the void. Refusing to start. >> "%LOG%"
+    echo RUN END %DATE% %TIME% exit=2 >> "%LOG%"
+    exit /b 2
+  )
+)
 if "%UCT_TERMINAL_NEXT_WEBHOOK%"=="" (
   echo FATAL: UCT_TERMINAL_NEXT_WEBHOOK is not set. >> "%LOG%"
   echo This run cannot report its own outcome, so it does not start one. >> "%LOG%"
@@ -80,17 +104,35 @@ if exist "%STATUSTMP%" set /p STATUS=<"%STATUSTMP%"
 
 :report
 REM --- 3. Report, whatever happened above -------------------------------------------
+REM Everything below runs at TOP LEVEL on purpose. Inside a parenthesised if/else,
+REM cmd expands %VAR% when it PARSES the block, so a value written by `set /p` in the
+REM same block reads as its OLD value. Reading the HTTP status that way would have
+REM reported every post as undelivered. No delayed expansion needed if nothing nests.
 set "LOGJ=%LOG:\=/%"
 set "PAYLOAD=%LOGDIR%\last-post.json"
 > "%PAYLOAD%" echo {"content":"**Terminal-Next weekly run** | `STATUS: %STATUS%` | exit `%RC%` | %DATE% %TIME%\nlog: `%LOGJ%`"}
 
-if defined UCT_WEEKLY_NO_POST (
-  echo [post skipped: UCT_WEEKLY_NO_POST] >> "%LOG%"
-) else (
-  REM Cloudflare 1010-blocks default agents, so the UA is load-bearing.
-  curl -sS -X POST -H "Content-Type: application/json" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) terminal-next-weekly" --data-binary "@%PAYLOAD%" "%UCT_TERMINAL_NEXT_WEBHOOK%" >> "%LOG%" 2>&1
-  echo. >> "%LOG%"
-)
+if defined UCT_WEEKLY_NO_POST goto :skippost
+
+REM Cloudflare 1010-blocks default agents, so the UA is load-bearing. And the STATUS
+REM CODE is read, not just the body: a revoked or mistyped webhook answers 401/404
+REM while curl itself exits 0, so "the post was attempted" was being mistaken for
+REM "the outcome was reported". Discord returns 204 No Content on success.
+curl -sS -o "%POSTBODY%" -w "%%{http_code}" -X POST -H "Content-Type: application/json" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) terminal-next-weekly" --data-binary "@%PAYLOAD%" "%UCT_TERMINAL_NEXT_WEBHOOK%" > "%POSTCODE%" 2>> "%LOG%"
+set "HTTPC="
+if exist "%POSTCODE%" set /p HTTPC=<"%POSTCODE%"
+if "%HTTPC%"=="204" goto :posted
+if "%HTTPC%"=="200" goto :posted
+echo [post] NOT DELIVERED - HTTP "%HTTPC%". THIS RUN REPORTED TO NOBODY. >> "%LOG%"
+if exist "%POSTBODY%" type "%POSTBODY%" >> "%LOG%"
+echo. >> "%LOG%"
+if "%RC%"=="0" set "RC=6"
+goto :posted
+
+:skippost
+echo [post skipped: UCT_WEEKLY_NO_POST] >> "%LOG%"
+
+:posted
 
 echo RUN END %DATE% %TIME% status=%STATUS% exit=%RC% >> "%LOG%"
 exit /b %RC%
