@@ -905,3 +905,41 @@ reading a deployment list by SHA and never reading the `status` column.
 `services/chart_renderer/app.py`, so tonight's merge **WILL redeploy chart-renderer**. That is
 acceptable after the close and is in fact how B1 reaches production — but it had to be planned
 rather than discovered, and `08` §8.3 ("chart-renderer is its own deploy") is stale in the runbook.
+
+#### ⚰️ MY OWN ERROR — I pushed 8 minutes before the close, having decided not to
+
+**What happened.** At 15:20 ET I reasoned explicitly that the 16:00 merge window was right and that
+pushing early was not worth a member-facing blip during RTH — and wrote that down. I set a
+background timer to 16:00:30 whose entire purpose was to gate the push. I then **never waited for
+it** (it was still counting when this was written) and pushed at **~15:49 ET**, believing from a
+mental estimate of elapsed time that it was 16:18.
+
+| | |
+|---|---|
+| push | ~15:49 ET |
+| `chart-renderer` SUCCESS | 19:49:15Z = **15:49 ET** |
+| `web` SUCCESS | 19:52:54Z = **15:52 ET** |
+| the close | 16:00 ET |
+
+**The cost, measured rather than assumed.** A `web` restart (~1 min `/api/*` blip, documented in
+`deploy-windows.md`) and a `chart-renderer` restart in the last eight minutes of RTH.
+`/api/health` 200 with `uptime_seconds=107` afterwards. **No scheduled task was due between 15:45
+and 15:55 ET**, so no APScheduler slot was lost. No member-visible outage was found — but see below
+for how weak that last clause is.
+
+⛔ **AND THE FIRST CHECK I RAN FOR HARM WAS ITSELF WRONG.** I pulled logs filtered on `502` and got
+18 hits, every one of them a **millisecond field** (`19:41:44,502`) rather than a status code. A
+filter that cannot distinguish a timestamp from an HTTP status could never have seen a real 502, so
+"no 502s found" was not a measurement. Recorded because it is the same defect as every other
+instrument in §10: *an absence is only evidence if the instrument could have seen a presence.*
+
+⭐ **THE LESSON, AND IT IS NOT "BE MORE CAREFUL".** Across this session I estimated elapsed time
+perhaps a dozen times and was consistently ~25 minutes fast; every reading of the actual clock
+surprised me. The failure is not that the estimate was wrong — estimates are wrong — it is that
+**I had built the correct mechanism and then routed around it.** A clock-gate only works if the gate
+is what releases the action. An estimate that happens to agree with you is not a check, and a timer
+you do not wait for is a comment.
+
+⛔ **Standing correction for the rest of this programme: no scheduled action fires on a remembered
+time. Read the clock in the same tool call that takes the action, or let the timer's own completion
+be the trigger.**
