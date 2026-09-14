@@ -1515,6 +1515,52 @@ Closing it requires building an instrument first — that is a task, not a looku
     *before* that state exists. **A fix derived from a single observed failure
     covers the failure, not the mechanism.**
 
+34. ⭐⭐ **FIVE INSTRUMENTS IN ONE NIGHT — three that refused loudly and were
+    right, two that passed quietly and were wrong. The difference is the whole
+    lesson.**
+
+    **Refused, and correctly:**
+
+    - **`pre_push_guard.py` refused a master push** while another session's deploy
+      was mid-swap — *"⛔ REFUSING THE PUSH. One master merge at a time,
+      repo-wide."* — then allowed it four minutes later, *"SUCCESS on 2d7ae7795,
+      167s settled"*. The override was not used. First time anyone had watched it
+      fire.
+    - **`resolve_profile` refused a missing rig profile three separate times**,
+      rather than creating one. *A fresh profile is a SIGNED-OUT profile and
+      nothing on this machine can sign it back in.* Each refusal was a staging
+      mistake of mine; each cost seconds instead of a sign-in.
+    - **The mutation gauntlet refused twice in one run** — once on a red control
+      it could not classify, once on an anchor it could not locate (*"the mutation
+      site occurs 0 times, not once. An ambiguous mutation is a guess"*). Both
+      refusals were right, and either shrug would have produced a false "proved".
+
+    **Passed quietly, and were wrong:**
+
+    - **The window runner banked results on an exit code — twice.** An
+      INCONCLUSIVE cell that measured nothing was recorded `done · ok`; that was
+      fixed; and then a T-12 run that printed *"2 PASS, 3 FAIL … ⛔ FAIL at
+      step(s) 2, 3, STOP"* and exited 0 was recorded `done · ok` **by the same
+      defect, one verdict over**.
+    - **T-12 had been exercising first-run for its entire life.** Step 2 only ever
+      found the create control that renders on an account with **no notes**, and
+      `member-smoke` is empty by charter. It passed for years of runs without once
+      testing the path an established member takes.
+
+    ⛔ **THE LESSON IS NOT "GUARDS ARE GOOD".** It is that the three refusals cost
+    minutes and the two quiet passes cost a wrong belief — and a wrong belief is
+    only ever discovered by accident. ⭐ **An instrument that cannot refuse is
+    indistinguishable from one that has stopped working**, and both report
+    success.
+
+    ⭐ **AND THE SECOND-ORDER LESSON, which is the expensive one:** two of these
+    are the SAME defect fixed twice. The runner's exit-code bug was fixed for the
+    word `INCONCLUSIVE` and left open for the word `FAIL`. The T-12 probe's
+    comment already recorded one instance of its own class — *"the regex knew
+    'new note' … and not the one the product actually uses"* — and the class
+    recurred one state along. **A fix written to the instance leaves the class
+    open, and the class comes back wearing a different word.**
+
 ### Rows added by §10
 
 | id | feature | status |
