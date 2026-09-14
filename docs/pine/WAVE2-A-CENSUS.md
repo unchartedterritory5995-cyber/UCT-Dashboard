@@ -208,3 +208,88 @@ refusal names `color.t` at line 90"*, and `color.t` is the first thing (a) does
 5. **Clouds needs the three simplest operations in the census**, which makes it a
    target that tests the machinery without exercising its hard edges — and
    `matrix`, `map`, `while`, nesting and drawing-in-loops all stay refused.
+
+---
+
+## F. RULINGS ON (a), FROM THIS CENSUS — owner, 2026-09-14
+
+### F1. The scope of (a), by census rank
+
+**IN:** `get` · `size` · `push` · `new` / `new_float` / `new_int` / `new_bool` ·
+`set` · `remove` · `shift` · `unshift` · `sum` · `from` · `insert` · `clear` ·
+`pop` · `max` / `min`.
+
+That is **7,272 of the 7,823 measured member calls (93.0%)** — the scope is the
+census's own head, not a guess at one.
+
+**OUT, and each refuses BY NAME pointing at the item that owns it:**
+
+| out | measured | refuses pointing at |
+|---|---|---|
+| `matrix.*` | 76 calls, 6 files | a later item |
+| `map.*` | 11 calls, 7 files | a later item |
+| `array.new_line` · `new_box` · `new_label` *(and `new_linefill`)* | **299 calls, 60 files** | **the drawing-layer item** |
+
+⛔ **A TYPED DRAWING ARRAY IS DRAWING, NOT DATA**, and it refuses **at creation**,
+not at first use. `array.new_label(...)` is a request for 64 labels; admitting the
+container and refusing the draw would accept a shape whose only purpose is the
+thing (a) does not do. Same reasoning as "a loop that draws refuses at the draw
+call": the refusal is placed where the intent is visible.
+
+### F2. Line 57 is an a2 ACCEPTANCE CONDITION
+
+A `var x = array.new<T>(n)` declaration is either **recorded in the plan** — with
+its **bounded size `n`**, its **persistence** (`var` vs non-`var`) and its
+**element type** — or **refused by name with its line**. **Never absent.**
+
+⛔ **AND THE RAIL IS ON THE READ, NOT ON THE DECLARATION.** Every array-typed name
+read anywhere in a tree must resolve to a recorded creation, or the READ refuses
+with a named guard. *"Read of an array that was never created"* is a **guard**,
+not `na`. A silent `na` from a read that succeeded is indistinguishable from a
+member's own empty array, which is exactly the failure the current silence would
+become the moment reads work.
+
+### F3. The 305 unresolved bounds are a1's job, not a refusal set
+
+a1 re-buckets them after transitive resolution **through the engine's own folder**.
+Whatever is still genuinely undecidable joins the **56 series bounds** as the
+refusal set, **with the count**. ⛔ Until a1 has run, "undecidable" is a statement
+about the census's regex and must not be quoted as a property of the corpus.
+
+### F4. `while` (116 uses) — a1 decides, with a stated threshold
+
+Admit **only** if the guard is decidable to a constant bound — a counter compared
+against a literal, an input (R-J), or a bounded array size. Otherwise refuse by
+name. a1 pastes how many of the 116 fall on each side.
+
+⭐ **AND THERE IS A PRE-COMMITTED THRESHOLD, WHICH IS WHAT STOPS THIS BEING
+DECIDED BY WHATEVER THE NUMBER TURNS OUT TO BE: if fewer than ~20 are admissible,
+`while` is refused ENTIRELY in (a) and routed with the count.**
+
+### F5. The iteration ceiling is DERIVED in a1
+
+From the **max statically known iteration count × nesting**, times a multiple that
+still bounds a runaway. Recorded the way `TEXT_MAX_DEPTH` and **R-Q** are: the
+derivation in the commit, the constant with a docblock, mirrored across both lanes.
+Exceeding it records **`loopTooLong` by line** — never a `NaN` cell.
+
+### F6. Acceptance for (a) — nothing else counts as done
+
+> Clouds' **21 `pine:collection` refusals clear**, and the **next refusal names
+> `color.t` at line 90**.
+
+---
+
+## G. a1 — ESTIMATE, STATED BEFORE THE WORK
+
+**90 minutes. 2× stop at 180.**
+
+What that covers: a plan-time bound extractor driven by the engine's own constant
+folding (not a second parser — per the standing rule, one reader per source); a run
+over all 327 scripts; the shape table with decidable Y/N and the reason for every
+N; the `while` split against F4's threshold; the ceiling with its derivation; and
+the R-A2-style probe that `maxLookback` and the repaint verdict stay decided for
+every admitted shape **before** any fold exists.
+
+⛔ **PAUSE POINT:** if any shape on Clouds' path — lines 30, 57, 59, 62, 64–84 —
+comes back undecidable, that is a stop, not a workaround.
