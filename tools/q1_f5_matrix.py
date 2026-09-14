@@ -1227,6 +1227,11 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         else:
             res = drive_append(page, family, base, log)
         log(f"      door: {res}")
+        if SECOND_WRITER["on"] and isinstance(res, dict) and res.get("ok"):
+            # the server has moved; the member's transport comes back, and only
+            # THEN do they navigate back to the note
+            offline(False)
+            log("      reconnected (server has moved; now the member returns)")
 
         if not (isinstance(res, dict) and res.get("ok")):
             why = (res or {}).get("why", res)
@@ -1305,9 +1310,6 @@ def run_cell(rig, page, cdp, base, acct, family, ordering, stamp, log):
         # ⛔ RECONNECT ONLY NOW, and only for this cell. The member came back to a
         # note whose server copy moved while they were away, and only then did the
         # transport return.
-        if SECOND_WRITER["on"]:
-            offline(False)
-            log("      reconnected AFTER returning to the note (this cell's ordering)")
         # ⛔⛔ THE EDITOR OWNS ITS OWN NOTE, so the drain SKIPS it (`excludeNoteId`)
         # and sitting on the note is a state in which queued words never leave.
         # Both of these cells therefore do what a member does next — leave —
