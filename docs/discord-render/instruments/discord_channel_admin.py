@@ -128,6 +128,38 @@ def read_channel(channel_id: str) -> int:
     return OK
 
 
+def list_channels(guild_id: str) -> int:
+    """Every channel the bot can enumerate, with whether `@everyone` is denied VIEW_CHANNEL.
+
+    ⛔⛔ THIS IS HOW "NOT BLIND" IS SATISFIED WITHOUT A BROWSER, and it is a READ. The question it
+    answers is the only one that matters before posting: **can members see this channel?** A
+    channel with an `@everyone` deny on VIEW_CHANNEL and no role re-allowing it is private; one
+    without that deny is not, whatever its name suggests.
+
+    ⚠️ `PRIVATE?` here is a first pass, not a verdict. A role overwrite could re-allow view to a
+    broad role, and this prints those roles rather than resolving them — resolving would need the
+    member list. Read the roles it prints before treating any channel as admin-only."""
+    status, chans = _req("GET", f"/guilds/{guild_id}/channels")
+    if status != 200 or not isinstance(chans, list):
+        print(f"CHANNELS ERROR http={status} code={chans if not isinstance(chans, list) else ''}")
+        return ERROR
+    private = 0
+    for ch in sorted(chans, key=lambda c: (c.get("parent_id") or "", c.get("position") or 0)):
+        if int(ch.get("type", 0)) != 0:          # text channels only
+            continue
+        ows = ch.get("permission_overwrites") or []
+        everyone_denied = any(str(o.get("id")) == guild_id and int(o.get("deny") or 0) & VIEW_CHANNEL
+                              for o in ows)
+        allowed_roles = [str(o.get("id")) for o in ows
+                         if int(o.get("type", 0)) == TYPE_ROLE and int(o.get("allow") or 0) & VIEW_CHANNEL]
+        private += bool(everyone_denied)
+        print(f"  {'PRIVATE?' if everyone_denied else 'public  '} {ch.get('id')} "
+              f"#{ch.get('name')}"
+              + (f"  view re-allowed to roles: {', '.join(allowed_roles)}" if allowed_roles else ""))
+    print(f"  ({private} of the text channels the bot can enumerate deny @everyone VIEW_CHANNEL)")
+    return OK
+
+
 def create_smoke(guild_id: str, *, name: str, category_id: str | None,
                  admin_role_id: str | None, contributor_role_id: str | None) -> int:
     """Create the channel with its overwrites AT CREATION, then read them back.
@@ -201,6 +233,7 @@ def main(argv=None) -> int:
     ap.add_argument("--admin-role", default="")
     ap.add_argument("--contributor-role", default="")
     ap.add_argument("--list-roles", action="store_true")
+    ap.add_argument("--list-channels", action="store_true")
     ap.add_argument("--self-check", action="store_true")
     args = ap.parse_args(argv)
 
@@ -219,6 +252,10 @@ def main(argv=None) -> int:
             print(f"  role {r.get('id')} {r.get('name')!r} "
                   f"perms=[{', '.join(describe(int(r.get('permissions') or 0))) or '-'}]")
         return OK
+    if args.list_channels:
+        if not args.guild:
+            ap.error("--list-channels needs --guild")
+        return list_channels(args.guild)
     if args.read_channel:
         return read_channel(args.read_channel)
     if args.create_smoke:
