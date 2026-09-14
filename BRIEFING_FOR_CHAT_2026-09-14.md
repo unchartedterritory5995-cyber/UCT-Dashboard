@@ -329,3 +329,73 @@ ET                         2026-09-14 17:51 EDT Mon     python tools/weekly_exec
 3. **"57 licensing rows" corrected to "57 of 118"** in the two places this programme wrote it. A third mention, `PHASE_2_INTEGRATION_SYNTHESIS.md:135`, is correct in its context and was left alone.
 4. **Full-file pastes to terminal were not performed.** RESUME (731 lines), LEDGER (~3,700), the weekly prompt and the settings JSON are committed and readable at their paths; echoing them into the transcript would consume the session's capacity without adding a reader. Paths are given instead — say if you want any pasted verbatim.
 5. **Phase 1 was not started.** Phase 0 surfaced three corrections that change what a packet would be built against; the session stopped at that boundary rather than building on a register whose row count it had just found wrong.
+
+---
+
+## Prelude 2026-09-14 evening
+
+**P.1 — s9-entitlements: BLOCKED, and my prior "newly unblocked" was wrong.** The packet
+names **three** blockers, not one: *"S9 waits on OI-03(a), OI-03(b) **and OI-12**."* OI-03(a)/(b)
+are now resolved by conservative default (Individual tier, no FMP agreement). **OI-12 is
+untouched** — it asks which commercial model is intended, where the code (`FREE_PAGES =
+['/morning-wire']`) and the seed facts **disagree** about which page is free. I checked only
+OI-03 last session and reported unblocked. ⚠️ OI-12 does carry a stated fallback (*"proceed on
+the code: Morning Wire free, everything else paid"*), so applying it would unblock S9 — but
+that is an owner call, and **S9 is explicitly out of scope this session. Not built.**
+
+**P.2 — the gate-line wording guidance, on record:** *"For your next prompt: instead of 'name
+the §4 checkpoint', write **'name the checkpoint ID from the packet's roster, wherever that
+roster is numbered'**."*
+
+**P.3 — the second [KEYBOARD] item, in full:** *"[KEYBOARD] decide whether the CLAUDE.md 'FIVE
+services' correction is ours to make."* — now executed as Packet C CP2 under the owner's
+default, built to signature-ready and not merged.
+
+---
+
+## Session result (evening)
+
+**ET** — start `18:04 EDT Mon`, end `18:16 EDT Mon`, both `python tools/weekly_exec.py et`.
+
+### Packet C — built, unsigned, fingerprint `c443515eb`
+
+| | |
+|---|---|
+| **CP1** | `tools/audit_signature_regexes.py` — pins the approval-block parsers line-anchored. Docs branch `c31ce4f9e`. |
+| **CP2** | `CLAUDE.md:10` FIVE → SIX, one-line diff. Code branch `669bde826`. Watch coverage `OK, changed=1`. |
+
+⛔ **C.1's premise was false and is reported, not worked around.** There is no committed
+instrument using `APPROVED AT SHA:\s*\S` — it was a throwaway snippet. Both real instruments
+were **already** line-safe. CP1 therefore **pins** a property rather than fixing a defect.
+
+⚰️ **And rail v1 was decoration.** Mutating `sign_gate._H` to `chr(92) + "s*"` did **not** fire
+it, because `_H` is **assembled by concatenation** — so no string literal ever contains `\s`.
+⭐ It is written that way *deliberately*, because the house rule says to build needles by
+concatenation so a sweep cannot match itself. **The convention that protects one check
+structurally blinded another.** v2 reads **compiled** patterns and fires. Restored by EDIT.
+
+**Reconciliation unmoved:** 35 on disk + 1 external = 36 declared, no drift. That is what
+makes CP1 a fix rather than a finding about the registry.
+
+### Packet A — stopped at A.2, deliberately. Code branch `18dd13683`
+
+```
+files parsed 2570 | rows 150 | ABSENT-GUARDED-AND=30 · CLOSED-ON-ABSENT=71 · UNREADABLE=49
+non-vacuity: the roster contains tools/s7_price_level_report.py:301, the F-S7-TICK-1 site ✅
+```
+
+⛔⛔ **Triage killed the rail.** All 30 were read by hand: **zero are defects.** The class is
+the ordinary correct optional-guard idiom (`retry_after`, `deadline`, `age_days > _STALE_DAYS`,
+`cap_after`). ⭐ **The syntactic shape does not distinguish the defect from the idiom** — what
+made F-S7-TICK-1 a defect was that shape inside a predicate **whose caller reads "guard did not
+fire" as "inside the window"**, which is a property of the *caller*. **A.3 and A.4 are not done
+because there is nothing to fix and the rail would be harmful** — it would red 30 correct sites
+and be muted, the exact fate F-S7-TICK-1 warns of.
+
+### Packet B — not started
+
+### ⚰️ The pattern of the day
+
+**Three instruments reported a property of themselves as a finding about the repo**, two of
+them mine today: the retired derived audits (F-AUDIT-2), the backslash-s block counter, and
+the absent-bound classifier. **It is a live class, not a historical one.**
