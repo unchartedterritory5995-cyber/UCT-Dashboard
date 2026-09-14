@@ -151,6 +151,67 @@ def test_the_golden_stores_no_image_bytes():
             assert "png" not in edit and "pngs" not in edit
 
 
+# ── 2b · the render URL, including the stale one (C-07) ────────────────────
+#
+# ⛔⛔ WHY THIS IS NOT A SCENARIO IN THE GOLDEN ABOVE. That capture runs with `house_fn` absent, so
+# nothing reaches the network — which means the house render URL is never built on that path at all.
+# A stale-render "golden" added there would be green whatever `build_render_url` did, and a rail
+# that cannot distinguish is not a rail. These read the builder directly.
+
+
+@pytest.fixture(scope="module")
+def url_captures():
+    return gc.capture_render_urls(), gc.capture_render_urls()
+
+
+def test_the_render_url_capture_agrees_with_itself(url_captures):
+    first, second = url_captures
+    assert not gc.diff_paths(first, second), "the render-URL capture is not deterministic"
+
+
+def test_the_render_url_golden_actually_covers_a_stale_render(url_captures):
+    """⛔ THE NON-VACUITY CONTROL, AND IT IS THE POINT OF THE FILE. A golden of thirteen URLs that
+    all carry no vintage would compare clean forever while C-07 regressed, so this asserts the
+    artifact contains the case it exists for — by NAME and by content, not by a count."""
+    cases = url_captures[0]["cases"]
+    assert len(cases) >= 12
+    stale = {n: c for n, c in cases.items() if c["carries_vintage"]}
+    assert set(stale) == {"stale/daily", "stale/intraday-with-everything"}, (
+        f"the stale render is not being captured; captured instead: {sorted(stale)}")
+    for name, case in stale.items():
+        assert "stale=%E2%9A%A0+data+as+of+2026-09-04+16%3A00+ET+%28stale%29" in case["url"], (
+            f"{name} carries a vintage parameter that is not the badge sentence")
+
+
+def test_a_verdict_of_fresh_or_unknown_puts_nothing_on_the_url(url_captures):
+    """04 §2 — a badge that shows when nothing is wrong is not there on the day it matters. The
+    three non-badge verdicts are captured BESIDE the stale ones so the golden records the silence
+    as deliberately as it records the sentence."""
+    cases = url_captures[0]["cases"]
+    for name in ("stale/verdict-false", "stale/verdict-unknown", "stale/no-readable-timestamp"):
+        assert cases[name]["carries_vintage"] is False
+        assert "stale=" not in cases[name]["url"]
+    assert cases["stale/verdict-false"]["url"] == cases["daily/stats"]["url"], (
+        "a fresh verdict changed the URL, so 'no vintage' is not the same string as 'no verdict'")
+
+
+def test_a_fresh_render_url_capture_matches_the_stored_golden_at_zero_drift(url_captures):
+    stored = gc.load_golden(gc.URL_GOLDEN)
+    assert stored is not None, f"no stored golden at {gc.URL_GOLDEN} — run the instrument with --write"
+    assert stored["version"] == gc.URL_CAPTURE_VERSION and stored["cases"]
+    drift = gc.diff_paths(stored, url_captures[0])
+    assert not drift, ("the render URLs have MOVED — every one of these is what a member's picture "
+                       "is drawn from:\n  " + "\n  ".join(drift[:40]))
+
+
+def test_the_render_url_golden_carries_no_wall_clock(url_captures):
+    """§3.10 again: the vintage in these URLs is a fixed string, never 'yesterday'. A computed one
+    would re-baseline this golden every morning until somebody deleted it."""
+    today = dt.date.today().isoformat()
+    assert today != gc.FIXED_TODAY, "the control: this can only detect a leak on another day"
+    assert today not in gc.canonical(url_captures[0])
+
+
 # ── 3 · the controls this file exists because of ───────────────────────────
 
 def test_the_differ_reports_a_change_by_NAME_and_not_as_a_count():

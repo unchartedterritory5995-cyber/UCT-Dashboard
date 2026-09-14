@@ -1,0 +1,129 @@
+{
+  "cases": {
+    "breadth/uct-a5": {
+      "carries_vintage": false,
+      "options": {
+        "breadth": "pct_above_5sma"
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=UCTA5&tf=D&w=1296&h=670&token=RENDER-TOKEN&breadth=1&bname=pct_above_5sma"
+    },
+    "daily/bare": {
+      "carries_vintage": false,
+      "options": {},
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=670&token=RENDER-TOKEN"
+    },
+    "daily/compare": {
+      "carries_vintage": false,
+      "options": {
+        "compare": [
+          "spy",
+          "qqq"
+        ]
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0&compare=SPY%2CQQQ"
+    },
+    "daily/exttag": {
+      "carries_vintage": false,
+      "options": {
+        "exttag": [
+          "post",
+          178.125
+        ]
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0&exttag=post%3A178.12"
+    },
+    "daily/panned": {
+      "carries_vintage": false,
+      "options": {
+        "bars": 240,
+        "to": "2026-06-01"
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&bars=240&to=2026-06-01&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0"
+    },
+    "daily/stats": {
+      "carries_vintage": false,
+      "options": {},
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0"
+    },
+    "intraday/30-no-ext": {
+      "carries_vintage": false,
+      "options": {
+        "ext": false
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=AAPL&tf=30&w=1296&h=670&ext=0&bars=80&token=RENDER-TOKEN"
+    },
+    "intraday/5-ext": {
+      "carries_vintage": false,
+      "options": {
+        "ext": true
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=AAPL&tf=5&w=1296&h=698&ext=1&bars=110&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0"
+    },
+    "stale/daily": {
+      "carries_vintage": true,
+      "options": {
+        "as_of": "2026-09-04 16:00",
+        "stale": true
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0&stale=%E2%9A%A0+data+as+of+2026-09-04+16%3A00+ET+%28stale%29"
+    },
+    "stale/intraday-with-everything": {
+      "carries_vintage": true,
+      "options": {
+        "as_of": "2026-09-04 16:00",
+        "compare": [
+          "spy"
+        ],
+        "ext": true,
+        "preset": "dark",
+        "stale": true
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=AAPL&tf=5&w=1296&h=698&ext=1&bars=110&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0&preset=dark&compare=SPY&stale=%E2%9A%A0+data+as+of+2026-09-04+16%3A00+ET+%28stale%29"
+    },
+    "stale/no-readable-timestamp": {
+      "carries_vintage": false,
+      "options": {
+        "as_of": "",
+        "stale": true
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0"
+    },
+    "stale/verdict-false": {
+      "carries_vintage": false,
+      "options": {
+        "as_of": "2026-09-04 16:00",
+        "stale": false
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0"
+    },
+    "stale/verdict-unknown": {
+      "carries_vintage": false,
+      "options": {
+        "as_of": "2026-09-04 16:00",
+        "stale": null
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D&w=1296&h=698&token=RENDER-TOKEN&stats=eyJhc19vZiI6IjIwMjYtMDktMTEiLCJjbG9zZSI6NTUzLjExLCJkYXlfcGN0IjotMy40Nywidm9sdW1lIjo0MTAwMDAwMH0"
+    },
+    "weekly/heikin-dark": {
+      "carries_vintage": false,
+      "options": {
+        "indicators": {
+          "heikinAshi": true
+        },
+        "preset": "dark",
+        "stats": false
+      },
+      "url": "https://uctintelligence.com/r/chart?sym=SPY&tf=W&w=1296&h=670&token=RENDER-TOKEN&indicators=eyJoZWlraW5Bc2hpIjp0cnVlfQ&preset=dark"
+    }
+  },
+  "generated_by": "docs/discord-render/instruments/golden_capture.py",
+  "version": 1,
+  "world": {
+    "base": {
+      "base_url": "https://uctintelligence.com",
+      "token": "RENDER-TOKEN"
+    },
+    "stale_at": "2026-09-04 16:00",
+    "today": "2026-09-11"
+  }
+}

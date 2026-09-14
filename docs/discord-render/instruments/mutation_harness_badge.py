@@ -28,9 +28,12 @@ ROOT = Path(_ARGS[0]).resolve() if _ARGS else Path(__file__).resolve().parents[3
 
 T = "tests/test_discord_render_badge.py::"
 G = "tests/test_discord_render_goldens.py::"
-SUITES = ["tests/test_discord_render_badge.py", "tests/test_discord_render_goldens.py"]
+V = "tests/test_discord_render_vintage_url.py::"
+SUITES = ["tests/test_discord_render_badge.py", "tests/test_discord_render_goldens.py",
+          "tests/test_discord_render_vintage_url.py"]
 BADGE = "api/services/discord_render/badge.py"
 GOLD = "docs/discord-render/instruments/golden_capture.py"
+HOUSE = "api/services/discord_chart_house.py"
 
 MUTATIONS = [
     # ── the badge: drawn on True, and on nothing else ───────────────────────
@@ -54,13 +57,74 @@ MUTATIONS = [
 
     # ── the footer: order, the id, one line ─────────────────────────────────
     {"name": "B4 the footer leads with provenance instead of vintage", "file": BADGE,
-     "old": "    parts = [p for p in (_vintage_clause(results),\n"
+     "old": "    parts = [p for p in (quality,\n"
+            "                         _vintage_clause(results),\n"
             "                         BACKUP_CLAUSE if any(_is_backup(r) for r in (results or {}).values()) else None)\n"
             "             if p]\n",
-     "new": "    parts = [p for p in (BACKUP_CLAUSE if any(_is_backup(r) for r in (results or {}).values()) else None,\n"
+     "new": "    parts = [p for p in (quality,\n"
+            "                         BACKUP_CLAUSE if any(_is_backup(r) for r in (results or {}).values()) else None,\n"
             "                         _vintage_clause(results))\n"
             "             if p]\n",
-     "tests": [T + "test_the_footer_order_is_vintage_then_provenance_then_id"]},
+     "tests": [T + "test_the_footer_order_is_vintage_then_provenance_then_id",
+               T + "test_the_quality_clause_leads_the_line_and_shares_it"]},
+
+    # ── the quality clause (C-06's half of this line) ───────────────────────
+    {"name": "Q1 the stand-in label never reaches the member's content", "file": BADGE,
+     "old": "    parts = [p for p in (quality,\n",
+     "new": "    parts = [p for p in (None,\n",
+     "tests": [T + "test_the_quality_clause_leads_the_line_and_shares_it",
+               T + "test_a_quality_clause_alone_still_carries_the_id"]},
+    {"name": "Q2 the quality clause trails the line instead of leading it", "file": BADGE,
+     "old": "    parts = [p for p in (quality,\n"
+            "                         _vintage_clause(results),\n"
+            "                         BACKUP_CLAUSE if any(_is_backup(r) for r in (results or {}).values()) else None)\n",
+     "new": "    parts = [p for p in (_vintage_clause(results),\n"
+            "                         BACKUP_CLAUSE if any(_is_backup(r) for r in (results or {}).values()) else None,\n"
+            "                         quality)\n",
+     "tests": [T + "test_the_quality_clause_leads_the_line_and_shares_it"]},
+    {"name": "Q3 passing no quality stops being byte-identical to today", "file": BADGE,
+     "old": "def render_footer(results: dict, corr_id: str | None, *, quality: str | None = None) -> str:\n",
+     "new": 'def render_footer(results: dict, corr_id: str | None, *, quality: str | None = "") -> str:\n'
+            '    quality = quality or "chart"\n',
+     "tests": [T + "test_omitting_quality_leaves_every_existing_line_byte_identical",
+               T + "test_a_healthy_delivery_reads_exactly_as_it_would_undegraded"]},
+
+    # ── C-07: the vintage that travels to the house page ────────────────────
+    {"name": "V1 the page is sent a bare date and left to phrase the warning itself", "file": BADGE,
+     "old": "    opts = options or {}\n    return render_badge(freshness.Envelope(\n",
+     "new": "    opts = options or {}\n"
+            "    if opts.get('stale') is True and opts.get('as_of'):\n"
+            "        return str(opts['as_of'])\n"
+            "    return render_badge(freshness.Envelope(\n",
+     "tests": [T + "test_the_house_page_is_handed_the_envelopes_own_sentence",
+               V + "test_what_travels_is_the_ONE_sentence_and_not_a_second_phrasing_of_it",
+               G + "test_the_render_url_golden_actually_covers_a_stale_render"]},
+    {"name": "V2 every render claims a stale vintage (the badge becomes furniture)", "file": BADGE,
+     "old": "        provider=None, session_state=\"\", age_s=None, budget_s=None, stale=opts.get(\"stale\")))\n",
+     "new": "        provider=None, session_state=\"\", age_s=None, budget_s=None, stale=True))\n",
+     "tests": [T + "test_nothing_travels_when_there_is_nothing_to_say",
+               T + "test_the_weekend_never_sends_a_badge_to_the_page",
+               V + "test_the_page_is_told_nothing_when_there_is_nothing_to_tell_it"]},
+    {"name": "V3 the render URL carries no vintage at all (C-07 itself, restored)", "file": HOUSE,
+     "old": "    vintage = _vintage_param(opts)\n    if vintage:\n",
+     "new": "    vintage = None\n    if vintage:\n",
+     "tests": [V + "test_the_render_url_carries_the_vintage_when_the_data_is_stale",
+               V + "test_the_comparison_can_actually_fail",
+               G + "test_the_render_url_golden_actually_covers_a_stale_render"]},
+    {"name": "V4 the vintage is emitted unconditionally, so every pre-V2 URL moves", "file": HOUSE,
+     "old": '    params = {"sym": sym, "tf": tf, "w": HOUSE_W, "h": h}\n',
+     "new": '    params = {"sym": sym, "tf": tf, "stale": "", "w": HOUSE_W, "h": h}\n',
+     "tests": [V + "test_the_pre_v2_url_is_byte_identical_to_the_version_this_lane_started_from",
+               G + "test_a_fresh_render_url_capture_matches_the_stored_golden_at_zero_drift"]},
+    {"name": "V5 the vintage is inserted before the rest, reordering every stale URL", "file": HOUSE,
+     "old": '        params["stale"] = vintage\n',
+     "new": '        params = {"stale": vintage, **params}\n',
+     "tests": [V + "test_the_vintage_is_the_LAST_parameter_so_nothing_else_shifts",
+               G + "test_a_fresh_render_url_capture_matches_the_stored_golden_at_zero_drift"]},
+    {"name": "V6 the URL golden stops capturing the stale case (coverage that is none)", "file": GOLD,
+     "old": '    ("stale/daily", ("NVDA", "D", URL_STATS), {"stale": True, "as_of": STALE_AT}),\n',
+     "new": '    ("stale/daily", ("NVDA", "D", URL_STATS), {}),\n',
+     "tests": [G + "test_the_render_url_golden_actually_covers_a_stale_render"]},
     {"name": "B5 a degraded delivery loses the id a member quotes", "file": BADGE,
      "old": '    return _SEP.join(parts) + (f"{_ID}{corr_id}" if corr_id else "")\n',
      "new": "    return _SEP.join(parts)\n",

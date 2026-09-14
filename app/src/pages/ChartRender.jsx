@@ -343,6 +343,28 @@ export default function ChartRender() {
   const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
   if (fixedBars) installHermeticFetch()
 
+  // ?stale=<sentence> — THE DATA'S VINTAGE, DECIDED AND WORDED BY THE BACKEND (C-07).
+  //
+  // ⛔ THE PAGE COMPOSES NOTHING HERE. The sentence has exactly one author —
+  // `api/services/discord_render/freshness.py::Envelope.badge`, selected by
+  // `badge.render_badge` and put on the URL by `badge.vintage_param` — and this draws
+  // what it was handed. Phrasing it here from a bare date would be a second author over
+  // one value, which is how a chart reached the public channel on 2026-08-31 stamped
+  // with Monday's clock while its stats strip described Friday's session.
+  //
+  // ⛔ AND ABSENT MEANS ABSENT, NOT FRESH. No parameter draws no badge: `vintage_param`
+  // emits nothing for a fresh verdict, an unknown one, or a stale one with no readable
+  // timestamp, so "nothing to say" and "nothing is wrong" reach the page identically —
+  // which is correct, because in both cases there is nothing to tell a member.
+  //
+  // ⚠️ `/r/chart` is PUBLIC, so this value is attacker-controlled in exactly the way
+  // `?bname=` and `?company=` already are. React escapes it, and it is bounded and
+  // stripped of control characters so it can only ever be one short line of text in our
+  // own footer — never markup, never a second line, never an unbounded string.
+  const staleBadge = (sp.get('stale') || '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 96)
+
   const lvl = (k) => { const v = parseFloat(sp.get(k) || ''); return Number.isFinite(v) && v > 0 ? v : null }
   const entry = lvl('entry'), stop = lvl('stop'), t1 = lvl('t1'), t2 = lvl('t2')
 
@@ -908,8 +930,19 @@ export default function ChartRender() {
                 timeZone: 'America/New_York', month: 'short', day: 'numeric',
                 hour: 'numeric', minute: '2-digit',
               }).format(new Date())} ET`}
-            {dataVintage ? ` · data as of ${dataVintage}` : ''}
+            {/* ⛔ THE BACKEND'S VERDICT WINS, AND IT IS THE ONLY VINTAGE SENTENCE DRAWN.
+                `?stale=` is the measured freshness envelope (C-07); the clause below it
+                is the older stats-derived disclosure, kept for a caller that sends no
+                verdict. Drawing both would put two sentences about one value under one
+                chart — the disagreement this whole class of bug is made of. */}
+            {!staleBadge && dataVintage ? ` · data as of ${dataVintage}` : ''}
           </span>
+          {staleBadge && (
+            <span data-testid="stale-badge"
+                  style={{ marginLeft: 10, color: '#e0a32e', fontWeight: 600 }}>
+              {staleBadge}
+            </span>
+          )}
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
       </div>
