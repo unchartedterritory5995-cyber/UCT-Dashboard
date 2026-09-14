@@ -27,6 +27,9 @@ def _load():
 
 W = _load()
 
+#: A Windows shim path, built rather than written, so no escape can be eaten in transit.
+RAILWAY_SHIM = "C:" + chr(92) + "tools" + chr(92) + "railway.cmd"
+
 
 # ── the refusals that matter ────────────────────────────────────────────────
 
@@ -85,6 +88,25 @@ def test_every_declared_pod_report_is_read_only_by_construction():
     assert set(W.POD_REPORTS) == {"ticking", "report", "gate-check"}
 
 
+def test_the_railway_binary_is_RESOLVED_not_invoked_by_bare_name(monkeypatch):
+    """Found by the weekly run itself: `railway` is a .cmd shim on Windows and a bare
+    name does not resolve from subprocess without a shell. CLAUDE.md rule 14 already
+    records the identical defect in deploy_watch.py v1."""
+    seen = {}
+    monkeypatch.setattr(W.shutil, "which", lambda n: RAILWAY_SHIM if n == "railway" else None)
+    monkeypatch.setattr(W.subprocess, "run",
+                        lambda argv, **kw: seen.update(argv=argv) or type("R", (), {"returncode": 0})())
+    assert W.cmd_pod(["ticking"]) == 0
+    assert seen["argv"][0] == RAILWAY_SHIM, "invoked by bare name again"
+
+
+def test_a_missing_railway_cli_is_REFUSED_not_reported_as_a_pod_answer(monkeypatch, capsys):
+    """UNREADABLE is not 'the pod said no'."""
+    monkeypatch.setattr(W.shutil, "which", lambda n: None)
+    assert W.cmd_pod(["ticking"]) == W.REFUSED
+    assert "not on PATH" in capsys.readouterr().err
+
+
 def test_the_pod_command_is_built_from_the_declared_argv_not_the_caller(monkeypatch):
     """The caller's string never reaches the pod — only the table's does."""
     seen = {}
@@ -97,6 +119,7 @@ def test_the_pod_command_is_built_from_the_declared_argv_not_the_caller(monkeypa
             returncode = 0
         return R()
 
+    monkeypatch.setattr(W.shutil, "which", lambda n: "railway")
     monkeypatch.setattr(W.subprocess, "run", fake_run)
     assert W.cmd_pod(["ticking"]) == 0
     assert seen["argv"][:4] == ["railway", "ssh", "--service", "web"]

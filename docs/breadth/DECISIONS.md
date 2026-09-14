@@ -442,3 +442,131 @@ failed on the paragraph explaining that rule; and the harness's new self-check h
 as a fixture, in a committed file, in a public repo — found by the scanner, which is the whole argument for having one.
 That commit reached no remote and was rewritten away. **The exempt files are now held to a stricter rule than the scan
 they are exempt from** (no long high-entropy literal), because an allowlist is exactly where a secret hides.
+
+### D-039 · The password-change session defect found by D-038 is fixed and live
+
+**Decision.** The defect D-038 recorded — on this app a password change writes `password_hash` and nothing else, so
+every stolen session survives it — shipped as its own corrective change on its own branch, gate and merge:
+`fix/password-change-revokes-sessions`, merged **`bd68c4147`**, deploy `7c380b6a` **SUCCESS** 2026-09-14T04:02:50Z.
+Member-facing: *"Security: changing your password now signs out all other devices."*
+
+`auth_service.revoke_sessions(user_id, keep_token=None)` is the one implementation, and
+`POST /api/auth/sessions/revoke-others` now calls it too so the endpoint and the password paths cannot drift.
+
+⛔ **THREE functions write a password, not two.** The one outside the original scope —
+`execute_password_reset`, the emailed forgot-password link — is the most important of the three: it is the path a
+locked-out or compromised member actually reaches for, and until this change it reset the password and left the
+attacker signed in. It revokes everything; there is no caller session to preserve. Self-service keeps only the calling
+device; admin reset keeps nothing.
+
+**Verified on the shipped build, not just in tests** (member-smoke, production): two live sessions → self-service
+change → **the device that changed it stayed 200 and the other device went 401**, with
+`other_sessions_signed_out: true` on the response. `revoke-others` through the new shared implementation: 3 alive →
+`revoked: 14` → caller 200, others 401/401.
+
+⚠️ **Two process failures on this change, both worth more than the fix.** The first commit was authored against a
+**RED run** — the last pytest before it printed `1 failed, 5 passed` and its message claimed six passing. The cause
+was a fixture domain: `AdminResetRequest.email` is an `EmailStr` and the validator refuses special-use domains, so
+`*.invalid` 422s before the endpoint is reached while `.internal` passes. **The five service-level cases never touch
+Pydantic and passed regardless — a fixture can be wrong for five tests and fatal for the sixth**, which is exactly the
+shape that makes a partial green read as a whole one. Second, the correction was `--amend`ed onto a MERGE commit
+rather than the fix, leaving the red test in history; the branch was local-only, so it was restructured into one
+commit on master. Neither reached a remote.
+
+⭐ **A backend-only change is NOT gated by the six-shard vitest gate**, which cannot see it — zero `app/` files. The
+gate that applies is the scoped backend suite: 6/6 in the new rail and **312 passed** across every auth surface it can
+reach. Flow-worker is an **INERT STRAND**, traced rather than assumed: its closure takes exactly one symbol from
+`auth_service` (`validate_session`, via `flow_gap_autofill.py:45` → `flow_admin_auth.py:24`) and this change touches
+it in zero lines, so forcing a redeploy would buy a permanent OPRA tape gap for no behavioural difference.
+
+### D-040 · `DESK_PUBLIC_SHOWS='*'` is the owner's decision, is ledgered, and must not be "fixed"
+
+**Decision.** Public YouTube publishing of live sessions, workshops and evening updates is **deliberate** — owner
+decision 2026-08-19, reaffirmed 2026-09-13. The 2026-09-13 change that unlisted them was the error and was reverted on
+the owner's confirmation. `DESK_PUBLIC_SHOWS='*'` on `web` is the intended live value.
+
+**Verified, not assumed** (2026-09-14, this tree at master): `tests/test_visibility_flag_ledger.py` → **16 passed**, and
+`python tools/flag_ledger_audit.py --visibility` → **FINDINGS: 0** with `web: DESK_PUBLIC_SHOWS='*'` read live. The
+ledger already declares it `status: armed`, `values: ['*', 'sunday scans']`, with an `owner_decision` field — and the
+rail permits a wildcard on a public-exposure flag **precisely because** that field is present. So the shape is the
+intended one, the same shape `J2_OCR_ENABLED` uses.
+
+⛔ **Do not narrow this flag, and do not file it as an exposure.** A later session reading an incident framing will be
+tempted to "fix" a wildcard on a flag named PUBLIC — that would unlist the owner's public catalogue and would look
+like diligence. The rail is the authority and it is green; a finding here means the LEDGER drifted, never that the
+flag is wrong.
+
+⚠️ **This entry exists because I got it wrong in exactly that direction** — I read the incident framing, treated a
+deliberate decision as an exposure, and reported it as one. The correction is recorded here rather than only in a
+conversation so the next reader meets it beside the flag.
+
+### D-041 · B1 ships the series endpoint dark, flag-first, cached under the existing prefix, with downsampling deferred on measurement
+
+**Decision.** `GET /api/breadth-monitor/series` is implemented to D-035's contract. Full contract, caps, defaults and
+cost table: **`docs/breadth/api-series.md`** — that file is the authority and this entry does not restate it.
+
+Four choices worth recording:
+
+**1. Flag-first is the mechanism, not a detail.** `require_series_flag` is declared before `require_paid` because
+FastAPI 0.115.6 resolves dependencies in declaration order (`fastapi/dependencies/utils.py:592`). Reversed, an
+anonymous probe gets 401/402 — which **advertises that a paid route exists** before it has shipped. The rail asserts
+the two POSITIONS rather than three status codes, because three green codes are also compatible with a route that 404s
+for an unrelated reason.
+
+**2. The row schema is the key authority, and the constraint is "a series is numbers."** D-035 allowed the chartMetrics
+registry or the row schema; the registry is JavaScript and this is Python, so citing it would mean a hand-typed copy —
+the exact second-authority defect R1 spent itself removing. The numeric test is also what keeps `*_list` ticker arrays
+out **by type**, rather than adding a second stripper beside the one already inside `get_history_deep`. ⭐ That came
+from a failing test, not from design: the first `series_known_keys` admitted any non-`date` key, and a stubbed history
+(which bypasses the real stripper) served a ticker array as a column. **A stub that bypasses a guard is how you find
+out the guard was the only thing holding a contract up.**
+
+**3. The cache key sits under `breadth_history_` deliberately.** Every snapshot write already calls
+`cache.delete_prefix("breadth_history_")`, so this needs no new invalidation path and none can be forgotten. Key order
+is normalised so a reordered `keys=` is the same cache entry.
+
+**4. Downsampling is DEFERRED, on measurement.** D-035's trigger was 2008– with 8 keys exceeding ~1 s cold. Measured:
+**30.3 ms p50 / 36.0 ms p95** over 4,530 sessions, ~33× under it. `bucket=` is not implemented.
+⚠️ **And the measurement is not the one D-035 asked for, which is why it says so.** `C:\data\breadth_monitor.db` on
+this box is **12 KB — schema only**; the real history is on Railway's volume. Timing "the local DB" would have measured
+an empty table and produced a flattering number, so the history reader was stubbed with a full-size row set to isolate
+what B1 *adds*. `get_history_deep`'s own cost is pre-existing, unchanged and separately cached.
+
+**The ledger row ships in this commit, not before it.** `test_the_ledger_does_not_describe_gates_that_no_longer_exist`
+computes `stale = ledger − (gates ∪ visibility_flags)`, so a row for a flag no code reads is rot by definition — a
+standalone "flags commit" could not have been green. The mirror rule sent `VITE_BREADTH_CHARTS_V2_ENABLED` the other
+way: `test_no_stale_build_flag_rows` asserts `declared ⊆ names_read(repo)`, so its **ledger row waits for V2-1's first
+read** while its Dockerfile `ARG`/`ENV` lands now (a spare ARG is inert, and nothing ties the ARG list to the ledger).
+
+### D-042 · The cost bound is NOT met, `bucket=` would not fix it, and the cause is the reader — B1 stays dark
+
+**Measured on production, 2026-09-14, member-smoke, off-peak**, through the existing paid monitor endpoint (same
+`get_history_deep`, heavier payload, so a strict upper bound on B1's read):
+
+| request | rows | payload | cold | warm |
+|---|---|---|---|---|
+| `days=90` (no `end`, the default Monitor view) | 90 | 146 KB | 1,018 ms | 166 ms |
+| `days=8000` (no `end`) | 4,703 | 4.96 MB | **54,923 ms** | 676 ms |
+| `days=365&end=2026-08-01` (teleport) | 365 | 455 KB | 10,498 ms | 1,912 ms |
+
+⛔ **D-035's trigger is breached by ~55×**, so by the standing rule downsampling is owed. **It is not implemented, and
+implementing it would be a fix that does not fix anything.** `bucket=` reduces the RESPONSE; the 55 s is spent in
+`get_history_deep` PRODUCING the 4,703 rows, entirely upstream of any bucketing. Every row must exist before it can be
+averaged into a week. Shipping `bucket=` here would lower the payload, leave the 55 s exactly where it is, and — worse —
+make the endpoint *look* bounded.
+
+⭐ **B1's own cost was never the problem and the two numbers should not be confused.** B1's marginal filter+project+
+encode is **30 ms** over 4,530 rows (D-041). The reader is ~1,800× that. A stubbed measurement was right about what it
+measured and silent about what dominates — which is why this second measurement was demanded, and why the answer
+inverted the decision.
+
+⚠️ **THIS IS PRE-EXISTING AND LIVE, AND IT IS NOT B1's.** `GET /api/breadth-monitor?days=8000` is a shipped, paid
+route; any member who asks the Monitor for a deep window pays 55 s on the ONE uvicorn process, which is the
+anyio-threadpool starvation class that caused the 2026-07-01 524 outage. `00-discovery` §7 already recorded the Time
+Navigator firing 32 sequential `days=150&end=…` calls and a 45 s rig timeout attributed to it — the same path, not yet
+named as a cost. **Raised, not fixed here**: a reader rewrite is not a Data Charts change and must not ride a UI branch.
+
+**Decision.** B1 **stays dark** — it is set on no service, so nothing is exposed and no member can reach it. The flag
+must NOT be enabled until the reader cost is addressed. `bucket=` is **not** implemented and is **not** the owed work;
+what is owed is one of: bound B1's span to the warm collector range, pre-warm the deep windows off the request path, or
+make `get_history_deep` cheap for a cold deep span. That choice is the owner's and is recorded as open.

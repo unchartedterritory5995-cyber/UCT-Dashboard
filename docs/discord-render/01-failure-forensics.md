@@ -167,7 +167,7 @@ Each class gets a fix in Phase 2 and a regression test before it is closed (`05-
 | **C-01** | A `web` restart kills in-flight replies and blanks the page the renderer screenshots | 1,077 deploys, median 8.4 min; 238 × 422; SPCX 09-08 flow-worker restart | 2.1 durable jobs + resume · 2.3 swap-signature retry | `test_C01_resume_*` (2.1, mutation-proved) |
 | **C-02** | `web` saturation → Discord acks miss 3 s and page loads miss 21 s | 23 × 10015 (22 RTH), 37× co-occurrence with 142 × 502 | 2.1 off-loop ack + dedicated workers · 2.3 background renderer lane | `test_v2_chart_is_offered_and_deferred_without_a_background_task` (2.1b, mutation-proved) · load test 3.1 |
 | **C-03** | Discord rejects the whole component tree (invalid emoji, duplicate id, >100 chars) | 33 × COMPONENT_INVALID_EMOJI | 2.6 pre-flight validation | components test forbids U+25B2 (2.1a, mutation-proved) · validator rail (2.6) |
-| **C-04** | A follow-up edit re-declares attachments Discord no longer has | 23 double-failed ATTACHMENT_NOT_FOUND, 0 % load correlation | 2.6 / OI-04 context folded into the image PATCH | 2.6 (pending) · real-Discord 3.5 |
+| **C-04** | A follow-up edit re-declares attachments Discord no longer has | 23 double-failed ATTACHMENT_NOT_FOUND, 0 % load correlation | OI-29: the image PATCH through `delivery.edit_image`; the ids folded away | ✅ **CLOSED on the V2 path, `649ccccf3`** — `test_c04_the_v2_path_never_re_declares_an_attachment_id_it_did_not_upload` (was xfail-strict) + `tests/test_discord_render_image_delivery.py`, 21/21 mutations red · real-Discord 3.5 still owed |
 | **C-05** | A FastAPI route function called in-process leaks a `Query()` default | 178 autocomplete failures, 6 days | 2.4 service functions only + import rail | autocomplete fake bound to the real signature (2.1a, mutation-proved) |
 | **C-06** | A render that drew nothing costs 40 s of retries, then an unlabelled stand-in | 258 blank + 84 near-empty; 3 stand-ins, 2 never healed; 4.8 % in bench | 2.3 renderer pool + hard timeout · 2.7 labelled stand-in | 2.3 / 2.7 (pending) |
 | **C-07** | Data or wall-clock shown as current when it is not | footer wall clock, header live quote: 27 of 85 closed-market cases differ run-to-run | 2.4 freshness envelope, vintage stamp, STALE badge | 2.4 / determinism 3.3 (pending) |
@@ -178,6 +178,44 @@ Each class gets a fix in Phase 2 and a regression test before it is closed (`05-
 | **C-12** | Failures cannot be tied to a command, symbol, member or request | Finding #1 | 2.2 correlation ids, structured events, jobs table | 2.2 built (`2509cc0de`, merged `6d779dd47`): `test_discord_render_observe.py` · `test_discord_render_health_command.py` · `test_discord_render_health_endpoint.py` — 18 mutations red |
 | **C-13** | A credential in logs | 142 renderer call logs with the render token | 2.3 renderer log hygiene · OI-13 rotation | 2.3 (pending) |
 | **C-14** | `/flow` queries the wrong partition: ETFs report no flow | SPY 0 / 182, QQQ 0 / 136, SMH 0 / 83 | 2.4 resolver picks the partition (OI-16) | 2.4a built (`0e331168a`), V2 path: `test_the_flow_partition_follows_flow_ingestions_classifier_then_the_etf_list` · `test_the_v2_flow_handler_passes_the_resolved_partition` · `test_the_flow_job_reads_the_partition_it_is_given_and_defaults_to_stocks`. Production class table: SPY/QQQ/SMH/IWM/SPX/NDX → `etfs`, NVDA/AAPL → `stocks` |
+
+### ✅ C-04 — closed 2026-09-14 in `649ccccf3`. Read this before reading the row as finished.
+
+Step 2.6 shipped `delivery.py`: a bounded, retried, class-named delivery layer with 429/5xx
+handling, pre-flight component validation and a budget. **Every byte of it is on the TEXT path.**
+The chart **image** never passed through it: `discord_interactions.edit_original` builds its own
+multipart `payload_json` + `files[0]` PATCH with its own `httpx.Client(timeout=15.0)`, its own
+400-handling, and no retry policy at all.
+
+⛔ **So the layer built to close this class did not touch the path the evidence came from.** All
+23 `ATTACHMENT_NOT_FOUND` edits and all 23 `10015` finals are image-PATCH traffic.
+`01`'s own root-cause paragraph names the mechanism — `_context_follow_up` sends a SECOND PATCH
+carrying `keep_attachments`, ids read off the first edit's response, with **none of the file
+bytes** — and that second PATCH is exactly the request `delivery.py` cannot see.
+
+⭐ **This is the shape worth carrying out of this document:** a hardening layer is only as wide as
+the call sites routed through it, and "2.6 is done" was true of the module and false of the class.
+Owner ruling **OI-29** (2026-09-13): *2.6 is NOT done until the image PATCH goes through delivery.*
+
+**What closed it, and it is not the hardening.** `delivery.edit_image` puts the image PATCH under
+the text path's budget, retry, 429/5xx policy, size guard and class table — necessary, and not
+sufficient. `01` §E measured **0 % correlation with load**: a deterministic payload fault, which no
+retry policy can help. The class ends because `bindings._fold_attachments` **re-uploads the bytes**
+where the second PATCH used to re-declare ids, and **an id naming a part present in the same
+request cannot be stale.** The fix is the deletion of the mechanism, not a guard in front of it.
+
+⛔⛔ **AND IT IS CLOSED ON THE V2 PATH ONLY, DELIBERATELY.** `_context_follow_up` lives in
+`api/services/discord_interactions.py`, a shared pre-V2 file under this programme's byte-for-byte
+guarantee, so the fold was built in the V2 wrapper and that file has **no diff at all**. The old
+shape survives until the flag flips and that path stops being reachable —
+`test_c04_the_prev2_path_is_deliberately_unchanged_and_this_is_the_proof` pins it, so the residual
+risk is a recorded fact rather than a silence.
+
+⚠️ **Still owed:** §3.5's real-Discord smoke. The hypothesis in the root-cause paragraph above —
+that a component click or a later edit replaced the attachment between the two PATCHes — is still
+the best reading of the evidence and has still never been tested against a real interaction token.
+The architecture removes the path either way, which is why the class closes; the hypothesis does
+not, and it is not claimed as settled.
 
 **Where the gaps are, stated once:** the member-facing split of the 764 house-render problems, the
 denominator for every rate, the command/ticker behind each Discord PATCH failure, and the count of

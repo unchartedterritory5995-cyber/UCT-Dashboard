@@ -1185,6 +1185,14 @@
         "worker"
       ],
       "note": ""
+    },
+    "BREADTH_SERIES_ENDPOINT_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "breadth-charts programme",
+      "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition."
     }
   },
   "build_flags": {

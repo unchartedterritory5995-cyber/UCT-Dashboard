@@ -1,0 +1,1016 @@
+{
+  "generated_by": "docs/discord-render/instruments/golden_capture.py",
+  "scenarios": {
+    "buzz/board/drawn": {
+      "edits": [
+        {
+          "content": "**Buzz** · since the open",
+          "filename": "buzz.png",
+          "png_bytes": 40,
+          "png_sha256": "734c96490c57c55cadc8b1af0fa03d3aefa20d645f44f6db803f4979e6928c60"
+        }
+      ]
+    },
+    "buzz/board/no-image": {
+      "edits": [
+        {
+          "content": "**Buzz** · since the open"
+        }
+      ]
+    },
+    "chart/AAPL/5/no-mas-no-volume": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "AAPL"
+        },
+        {
+          "n": 515,
+          "tf": "5",
+          "ticker": "AAPL"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|AAPL|D|off|0|auto|none|candles|house|||t",
+                  "label": "D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|AAPL|W|off|0|auto|none|candles|house|||t",
+                  "label": "W",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|AAPL|60|off|0|auto|none|candles|house|||t",
+                  "label": "60m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|AAPL|5|off|0|auto|none|candles|house|||t",
+                  "label": "5m",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|AAPL|5|off|2|auto|none|candles|house|||g",
+                  "emoji": {
+                    "name": "⚙️"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "AAPL · 5 min",
+          "filename": "AAPL_5m_2025-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "669d9650ad0062a5e9bed2f3db87a729397eef3e28e4b05a2cd36799197f492b"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 515,
+          "first_t": 1757466600,
+          "kwargs": {
+            "daily_bars": 260,
+            "show_mas": false,
+            "show_volume": false
+          },
+          "last_t": 1757620800,
+          "tf": "5",
+          "ticker": "AAPL"
+        }
+      ]
+    },
+    "chart/NOPE/D/unknown-ticker": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NOPE"
+        },
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NOPE"
+        }
+      ],
+      "edits": [
+        {
+          "content": "No bars for NOPE (Daily). Unknown ticker, or the feed is still catching up on it - try again in a minute."
+        }
+      ],
+      "outcome": "no_bars",
+      "render_requests": []
+    },
+    "chart/NVDA/D/controls-expanded": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|||t",
+                  "label": "D",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|W|house|3|auto|none|candles|house|||t",
+                  "label": "W",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|60|house|3|auto|none|candles|house|||t",
+                  "label": "60m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|15|house|3|auto|none|candles|house|||t",
+                  "label": "15m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|5|house|3|auto|none|candles|house|||t",
+                  "label": "5m",
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            },
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|2026-06-08||e",
+                  "label": "◀ Earlier",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|||l",
+                  "disabled": true,
+                  "label": "Later ▶",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|10-20-50|3|auto|none|candles|house|||m",
+                  "label": "MAs: House",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|2|auto|none|candles|house|||v",
+                  "label": "Volume off",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|7|auto|none|candles|house|||dp",
+                  "emoji": {
+                    "name": "🌊"
+                  },
+                  "label": "Dark Pools",
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            },
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|1|auto|none|candles|house|||g",
+                  "emoji": {
+                    "name": "🔼"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            },
+            {
+              "components": [
+                {
+                  "custom_id": "opt|c2|NVDA|D|house|3|auto|none|candles|house|||",
+                  "options": [
+                    {
+                      "label": "Zoom: Auto",
+                      "value": "zoom:auto"
+                    },
+                    {
+                      "label": "Zoom: 1 month",
+                      "value": "zoom:1m"
+                    },
+                    {
+                      "label": "Zoom: 3 months",
+                      "value": "zoom:3m"
+                    },
+                    {
+                      "label": "Zoom: 6 months",
+                      "value": "zoom:6m"
+                    },
+                    {
+                      "label": "Zoom: 1 year",
+                      "value": "zoom:1y"
+                    },
+                    {
+                      "label": "Zoom: 2 years",
+                      "value": "zoom:2y"
+                    },
+                    {
+                      "label": "Indicators: None",
+                      "value": "ind:none"
+                    },
+                    {
+                      "label": "Indicators: RSI (14)",
+                      "value": "ind:rsi"
+                    },
+                    {
+                      "label": "Indicators: MACD (12/26/9)",
+                      "value": "ind:macd"
+                    },
+                    {
+                      "label": "Indicators: RSI + MACD",
+                      "value": "ind:rsi+macd"
+                    },
+                    {
+                      "label": "Style: Candles",
+                      "value": "style:candles"
+                    },
+                    {
+                      "label": "Style: Hollow candles",
+                      "value": "style:hollow"
+                    },
+                    {
+                      "label": "Style: OHLC bars",
+                      "value": "style:bars"
+                    },
+                    {
+                      "label": "Style: Line",
+                      "value": "style:line"
+                    },
+                    {
+                      "label": "Style: Area",
+                      "value": "style:area"
+                    },
+                    {
+                      "label": "Style: Heikin-Ashi",
+                      "value": "style:heikin"
+                    },
+                    {
+                      "label": "Theme: House (the owner's theme)",
+                      "value": "theme:house"
+                    },
+                    {
+                      "label": "Theme: Classic Dark",
+                      "value": "theme:classic"
+                    },
+                    {
+                      "label": "Theme: OLED Black",
+                      "value": "theme:oled"
+                    },
+                    {
+                      "label": "Theme: TradingView",
+                      "value": "theme:tradingview"
+                    },
+                    {
+                      "label": "Theme: Light",
+                      "value": "theme:light"
+                    },
+                    {
+                      "description": "Timeframe, zoom, indicators, MAs, volume, style, theme",
+                      "label": "💾 Save this chart's settings as my defaults",
+                      "value": "save"
+                    },
+                    {
+                      "description": "Compare, panning, several charts at once, breadth, saved defaults",
+                      "label": "❓ How these controls work",
+                      "value": "help"
+                    }
+                  ],
+                  "placeholder": "⚙️ Zoom Auto · None · Candles",
+                  "type": 3
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "NVDA · Daily",
+          "filename": "NVDA_D_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "f6bf01fd31bc7a84039e6101fb4591fd81415b22c5ff79e2e842aa30c69d2387"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ]
+    },
+    "chart/NVDA/D/default": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|1|auto|none|candles|house|||t",
+                  "label": "D",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|W|house|1|auto|none|candles|house|||t",
+                  "label": "W",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|60|house|1|auto|none|candles|house|||t",
+                  "label": "60m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|5|house|1|auto|none|candles|house|||t",
+                  "label": "5m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|||g",
+                  "emoji": {
+                    "name": "⚙️"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "NVDA · Daily",
+          "filename": "NVDA_D_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "f6bf01fd31bc7a84039e6101fb4591fd81415b22c5ff79e2e842aa30c69d2387"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ]
+    },
+    "chart/NVDA/D/no-controls": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ],
+      "edits": [
+        {
+          "content": "NVDA · Daily",
+          "filename": "NVDA_D_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "f6bf01fd31bc7a84039e6101fb4591fd81415b22c5ff79e2e842aa30c69d2387"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ]
+    },
+    "chart/NVDA/D/panned": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|||t",
+                  "label": "D",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|W|house|3|auto|none|candles|house|||t",
+                  "label": "W",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|60|house|3|auto|none|candles|house|||t",
+                  "label": "60m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|15|house|3|auto|none|candles|house|||t",
+                  "label": "15m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|5|house|3|auto|none|candles|house|||t",
+                  "label": "5m",
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            },
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|2026-02-26||e",
+                  "label": "◀ Earlier",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|3|auto|none|candles|house|2026-09-04||l",
+                  "disabled": false,
+                  "label": "Later ▶",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|10-20-50|3|auto|none|candles|house|2026-06-01||m",
+                  "label": "MAs: House",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|2|auto|none|candles|house|2026-06-01||v",
+                  "label": "Volume off",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|NVDA|D|house|7|auto|none|candles|house|2026-06-01||dp",
+                  "emoji": {
+                    "name": "🌊"
+                  },
+                  "label": "Dark Pools",
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            },
+            {
+              "components": [
+                {
+                  "custom_id": "c2|NVDA|D|house|1|auto|none|candles|house|2026-06-01||g",
+                  "emoji": {
+                    "name": "🔼"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            },
+            {
+              "components": [
+                {
+                  "custom_id": "opt|c2|NVDA|D|house|3|auto|none|candles|house|2026-06-01||",
+                  "options": [
+                    {
+                      "label": "Zoom: Auto",
+                      "value": "zoom:auto"
+                    },
+                    {
+                      "label": "Zoom: 1 month",
+                      "value": "zoom:1m"
+                    },
+                    {
+                      "label": "Zoom: 3 months",
+                      "value": "zoom:3m"
+                    },
+                    {
+                      "label": "Zoom: 6 months",
+                      "value": "zoom:6m"
+                    },
+                    {
+                      "label": "Zoom: 1 year",
+                      "value": "zoom:1y"
+                    },
+                    {
+                      "label": "Zoom: 2 years",
+                      "value": "zoom:2y"
+                    },
+                    {
+                      "label": "Indicators: None",
+                      "value": "ind:none"
+                    },
+                    {
+                      "label": "Indicators: RSI (14)",
+                      "value": "ind:rsi"
+                    },
+                    {
+                      "label": "Indicators: MACD (12/26/9)",
+                      "value": "ind:macd"
+                    },
+                    {
+                      "label": "Indicators: RSI + MACD",
+                      "value": "ind:rsi+macd"
+                    },
+                    {
+                      "label": "Style: Candles",
+                      "value": "style:candles"
+                    },
+                    {
+                      "label": "Style: Hollow candles",
+                      "value": "style:hollow"
+                    },
+                    {
+                      "label": "Style: OHLC bars",
+                      "value": "style:bars"
+                    },
+                    {
+                      "label": "Style: Line",
+                      "value": "style:line"
+                    },
+                    {
+                      "label": "Style: Area",
+                      "value": "style:area"
+                    },
+                    {
+                      "label": "Style: Heikin-Ashi",
+                      "value": "style:heikin"
+                    },
+                    {
+                      "label": "Theme: House (the owner's theme)",
+                      "value": "theme:house"
+                    },
+                    {
+                      "label": "Theme: Classic Dark",
+                      "value": "theme:classic"
+                    },
+                    {
+                      "label": "Theme: OLED Black",
+                      "value": "theme:oled"
+                    },
+                    {
+                      "label": "Theme: TradingView",
+                      "value": "theme:tradingview"
+                    },
+                    {
+                      "label": "Theme: Light",
+                      "value": "theme:light"
+                    },
+                    {
+                      "description": "Timeframe, zoom, indicators, MAs, volume, style, theme",
+                      "label": "💾 Save this chart's settings as my defaults",
+                      "value": "save"
+                    },
+                    {
+                      "description": "Compare, panning, several charts at once, breadth, saved defaults",
+                      "label": "❓ How these controls work",
+                      "value": "help"
+                    }
+                  ],
+                  "placeholder": "⚙️ Zoom Auto · None · Candles",
+                  "type": 3
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "NVDA · Daily",
+          "filename": "NVDA_D_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "f6bf01fd31bc7a84039e6101fb4591fd81415b22c5ff79e2e842aa30c69d2387"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ]
+    },
+    "chart/NVDA/D/render-failed": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ],
+      "edits": [
+        {
+          "content": "Chart failed, try again."
+        }
+      ],
+      "outcome": "render_failed",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "NVDA"
+        }
+      ]
+    },
+    "chart/SPY/D/stats-off": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "SPY"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|SPY|D|house|1|auto|none|candles|house|||t",
+                  "label": "D",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|W|house|1|auto|none|candles|house|||t",
+                  "label": "W",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|60|house|1|auto|none|candles|house|||t",
+                  "label": "60m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|5|house|1|auto|none|candles|house|||t",
+                  "label": "5m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|D|house|3|auto|none|candles|house|||g",
+                  "emoji": {
+                    "name": "⚙️"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "SPY · Daily",
+          "filename": "SPY_D_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "848109d89080a875d7f478b5cc3d1de30af1d0872c8c62c67167119397485254"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": null
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "SPY"
+        }
+      ]
+    },
+    "chart/SPY/W/heikin-dark": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "SPY"
+        },
+        {
+          "n": 154,
+          "tf": "W",
+          "ticker": "SPY"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|SPY|D|house|1|auto|none|heikin|dark|||t",
+                  "label": "D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|W|house|1|auto|none|heikin|dark|||t",
+                  "label": "W",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|60|house|1|auto|none|heikin|dark|||t",
+                  "label": "60m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|5|house|1|auto|none|heikin|dark|||t",
+                  "label": "5m",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|SPY|W|house|3|auto|none|heikin|dark|||g",
+                  "emoji": {
+                    "name": "⚙️"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "SPY · Weekly",
+          "filename": "SPY_W_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "085bcefda527c7e512bd19b69395ed9a2835edd4b9001492a9ead53369479548"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 154,
+          "first_t": "2023-10-06",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "W",
+          "ticker": "SPY"
+        }
+      ]
+    },
+    "chart/UCTA5/D/breadth": {
+      "bars_requests": [
+        {
+          "n": 260,
+          "tf": "D",
+          "ticker": "UCTA5"
+        }
+      ],
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "c2|UCTA5|D|house|1|auto|none|candles|house|||t",
+                  "label": "D",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|UCTA5|W|house|1|auto|none|candles|house|||t",
+                  "label": "W",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "c2|UCTA5|D|house|3|auto|none|candles|house|||g",
+                  "emoji": {
+                    "name": "⚙️"
+                  },
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "UCTA5 · % of Stocks Above 5-Day MA · Daily",
+          "filename": "UCTA5_D_2026-09-11_Chart.png",
+          "png_bytes": 40,
+          "png_sha256": "b6e81dc8809bd73d05bf6d62819d2a10495760b3332ed49e5335862cbcdd35ac"
+        }
+      ],
+      "outcome": "ok",
+      "render_requests": [
+        {
+          "bars": 260,
+          "first_t": "2025-09-15",
+          "kwargs": {
+            "daily_bars": 260
+          },
+          "last_t": "2026-09-11",
+          "tf": "D",
+          "ticker": "UCTA5"
+        }
+      ]
+    },
+    "flow/NVDA/1/not-ok": {
+      "edits": [
+        {
+          "content": "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment."
+        }
+      ]
+    },
+    "flow/NVDA/1/quiet-tape": {
+      "edits": [
+        {
+          "content": "**NVDA** — no significant options flow today."
+        }
+      ]
+    },
+    "flow/NVDA/1/unreadable": {
+      "edits": [
+        {
+          "content": "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment."
+        }
+      ]
+    },
+    "flow/NVDA/5/delivered": {
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "flowchart|NVDA",
+                  "emoji": {
+                    "name": "📈"
+                  },
+                  "label": "View chart",
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "",
+          "filename": "NVDA_flow.png",
+          "png_bytes": 40,
+          "png_sha256": "e32ce4de74026452b85d783e519505c2fcef8818691cec79e3b12c0f3de02c23"
+        }
+      ]
+    },
+    "flow/NVDA/all/all-history": {
+      "edits": [
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "custom_id": "flowchart|NVDA",
+                  "emoji": {
+                    "name": "📈"
+                  },
+                  "label": "View chart",
+                  "style": 2,
+                  "type": 2
+                }
+              ],
+              "type": 1
+            }
+          ],
+          "content": "",
+          "filename": "NVDA_flow.png",
+          "png_bytes": 40,
+          "png_sha256": "e68bbcaff57e5317017bedc559f4d08595b77d0b1cbf2403532b15ee599a1af5"
+        }
+      ]
+    }
+  },
+  "stubs": [
+    {
+      "kind": "fixture",
+      "target": "bars_fn",
+      "why": "the bars authority is a network call; the fixture is closed-market and records what the pipeline asked for, which is where the pre-V2 fetch plan actually lives"
+    },
+    {
+      "kind": "fixture",
+      "target": "render_fn",
+      "why": "mplfinance draws a real PNG whose bytes move with the library; the stub returns bytes derived from the request, so the hash is sensitive to what we handed the renderer and not to matplotlib's version"
+    },
+    {
+      "kind": "absent",
+      "target": "house_fn",
+      "why": "the house renderer is chart-renderer over HTTP. Absent, so `produce_chart` takes the mplfinance leg and nothing reaches the network"
+    },
+    {
+      "kind": "clock",
+      "target": "discord_interactions.pan_to(today=)",
+      "why": "⚠️ THE ONLY WALL CLOCK IN THE PRE-V2 CONTROL TREE. The expanded rows' ◀ Earlier button encodes a date computed from `date.today()`, so that custom_id changes every day. Pinned here; recorded as a §3.10 finding in the report rather than silently frozen"
+    },
+    {
+      "kind": "capture surface",
+      "target": "edit_fn",
+      "why": "the PATCH to Discord. It records the payload instead of sending it, and returns the message dict shape the real `edit_original` returns so the follow-up path is real"
+    },
+    {
+      "kind": "fixture",
+      "target": "flow fetch_fn",
+      "why": "flow-worker over HTTP; the fixture is a fixed tape"
+    },
+    {
+      "kind": "fixture",
+      "target": "flow render_fn / buzz render_fn",
+      "why": "the card and board renderers draw real images; hashed stubs, same reason as render_fn"
+    }
+  ],
+  "version": 1,
+  "world": {
+    "env": {
+      "CHART_RENDER_BASE_URL": "https://uctintelligence.com",
+      "DISCORD_ACTIVITY_GUILDS": "",
+      "DISCORD_CHART_FAST_FIRST": "0",
+      "DISCORD_CHART_SELF_HEAL": "0"
+    },
+    "session_end_unix": 1757620800,
+    "today": "2026-09-11"
+  }
+}

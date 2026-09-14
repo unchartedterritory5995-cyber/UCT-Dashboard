@@ -366,9 +366,90 @@ python tools/discord_chart_commands.py show                                     
 `docs/discord-render/06-flip-packet.md` §3 and §5. ⛔ A failing post-deploy smoke is rolled back
 first and diagnosed second (rule H15) — and INCONCLUSIVE is not FAILED.
 
+**Add a command.** Four places, and missing any one of them ships something a member cannot reach
+or cannot be answered by:
+
+1. a builder in `api/services/discord_interactions.py` (`build_*_command()`), added to the list
+   `all_commands()` returns — that function is what the registrar PUTs;
+2. a handler in `api/services/discord_render/commands.py`, registered in `HANDLERS` under the
+   command name, taking a `JobContext` and ending in a terminal state (delivered, or `ctx.fail`
+   with a class — ⛔ never both, never neither: C-11 is 46 finals that produced no message);
+3. any upstream it needs bound through `adapters/bindings.py`, so the call is inside
+   `min(dependency timeout, the job's remaining time)` and behind its own breaker;
+4. `python tools/discord_chart_commands.py register --guild <GUILD_ID>` — **per-guild, never
+   `--global`**, see above.
+
+⛔ Components carry a `custom_id` ≤ 100 characters and only emoji in `delivery.EMOJI_ALLOWED`.
+Discord validates the component tree as a UNIT and refuses the whole message for one bad emoji —
+that is C-03, 33 charts that lost every control for a week.
+
+**Update the goldens.** A golden changes only when the rendered output is *meant* to change, and
+the diff is the review:
+
+```sh
+python docs/discord-render/instruments/golden_capture.py --self-check     # proves it can fail
+python docs/discord-render/instruments/golden_capture.py --write          # re-capture
+python -m pytest tests/test_discord_render_goldens.py -q                  # then this must be green
+```
+
+⛔ **Re-capture and commit in the same change as the code that moved the output, never separately.**
+A golden refreshed on its own is a recorded decision that nobody reviewed. ⚠️ And a golden test that
+reads the STORED file rather than a FRESH capture cannot fail — that exact weakness was found and
+fixed in this programme, by a mutation that should have gone red and did not.
+
+**Rotate `CHART_RENDER_TOKEN`.** The render URL's bearer is a live credential and it appears in the
+URL, so rotation is two-phase and never a single `--set`:
+
+1. set the new `CHART_RENDER_TOKEN` (+ `VITE_CHART_RENDER_TOKEN`) on `web` and move the old value
+   to `CHART_RENDER_TOKEN_PREVIOUS` / `VITE_CHART_RENDER_TOKEN_PREVIOUS` — browsers holding the
+   previous bundle still present the old one;
+2. verify a **new boot** and read the value **in-process**, never from `--kv` (CLAUDE.md:
+   `railway variables --set` has been measured both staging and auto-redeploying);
+3. the `_PREVIOUS` pair is cleared by the scheduled task **UCT Render Token Retire**
+   (`C:\Users\Patrick\uct-q1-observe\render_token_retire.cmd`, Mondays 07:15 local), which refuses
+   to run until that morning's wire has completed. Opt out with a `render_token_retire.disabled`
+   marker beside it.
+
+⛔ **Do NOT put `CHART_RENDER_TOKEN` on chart-renderer** — §7 above, and it is the trap on this
+path most likely to look like the fix.
+
 ---
 
-## 10. What this runbook does not cover
+## 10. Measurement pitfalls — instruments on this path that have lied
+
+Each of these produced a confident, wrong reading in this programme. They are here because the
+next person to measure this system will reach for the same instrument.
+
+- **`observe.event` silently drops every field outside its allowlist.** Shadow mode ran for ~20
+  minutes emitting `{"evt":"shadow","cmd":"chart","ms":12.3}` — lines at the right rate, with
+  plausible latency, and **no content at all**, because `outcome` and `detail` were not in
+  `_FIELDS`. ⭐ A record that arrives on schedule and says nothing reads exactly like a healthy
+  one. Emit inside the allowlist, and there is now an AST rail over the whole package.
+- **A probe that is stricter than the path it models under-reports in the flattering direction.**
+  The shadow's budget was 0.4 s against the ack path's 0.6 s, so it would have bailed precisely
+  where V2 succeeds — and "few divergences" is what a flip is authorised on.
+- **A budget computed once per call is not a deadline.** `_call.guarded` derived its budget per
+  CALL rather than per ATTEMPT, so an N-attempt hop could spend N × the deadline; the chaos
+  harness measured **4.6 s against a 2 s deadline** in the layer built to prevent exactly that.
+  Live blast radius was zero only because `bindings` passed `attempts=1` for an unrelated reason.
+- **A `railway ssh` probe imports modules cold and is not the running pod.** One reported
+  `ticker_search_index.ready()` False and every symbol unanswerable — a production outage that did
+  not exist. The tell is the pid: the server is pid 1, the probe was pid 569.
+- **A bench whose stub the code never looks up benches the live path.** The first adapter bench
+  reported adapters FASTER than raw, because the adapter ignored the stub. Pin the double where
+  the code's own lookup finds it, and add a live probe that refuses to bench otherwise.
+- **A `-k` filter is not a scope, and a filter that matches nothing exits 0.** Collection is where
+  the memory goes; a vitest `-t` matching nothing is a false PASS.
+- **Reading `grep`'s exit code is not reading the command's.** A `push | grep` reported `rc=0`
+  while the push had been refused.
+- **`/api/health` 200 and a rising uptime are compatible with a completely broken member
+  experience** — that is rule H14, and it cost 4.5 hours of app-wide broken navigation once.
+- **A file mtime moving is not a write.** Opening a WAL database read-only rewrites its `-shm`;
+  judge a leak by the main `.db`'s content.
+
+---
+
+## 11. What this runbook does not cover
 
 - **The flip and the rollback procedure** → `docs/discord-render/06-flip-packet.md`.
 - **Why any of it is built this way** → `docs/discord-render/03-architecture.md`; the SLO definitions
