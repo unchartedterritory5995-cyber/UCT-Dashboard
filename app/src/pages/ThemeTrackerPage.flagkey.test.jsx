@@ -94,10 +94,15 @@ afterEach(() => { vi.unstubAllGlobals() })
  *  ⚠️ The theme must be EXPANDED first. `ThemeTrackerPage.chartmount.test.jsx` says the
  *  page "auto-opens the FIRST theme on load"; measured 2026-09-14 it does not, and that
  *  harness is RED on this branch for exactly that reason — the row renders, the holding
- *  does not. The last commit to touch the page is `0b7570df4` (*"simpler customize —
- *  read-only Default + auto-saving presets"*), which postdates that test. Reverting this
- *  packet's guard change leaves those two failures identical, so the red is pre-existing
- *  and is reported, not inherited. */
+ *  does not. Reverting this packet's guard change leaves those two failures identical,
+ *  so the red is pre-existing and is reported, not inherited.
+ *
+ *  ⚰️ ATTRIBUTION CORRECTED 2026-09-14: this first named `0b7570df4`, which is merely
+ *  the LAST commit to touch the page. `git log -S"firstThemeTicker"` names the one that
+ *  actually removed the auto-open: **`453ecc3ec`** (2026-09-05, *"feat(theme-sets):
+ *  rebuilt editor — watchlist-style, in-widget, optimistic"*, +253/-115). The behaviour
+ *  was added by `3fe7b63e3` and is absent at HEAD. **Last-to-touch is not who changed
+ *  it; the pickaxe is.** */
 async function selectAAPL() {
   const user = userEvent.setup()
   render(<ThemeTrackerPage />)
