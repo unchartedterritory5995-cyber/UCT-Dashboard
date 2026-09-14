@@ -9,7 +9,9 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+import types
 from datetime import datetime
 
 import pytest
@@ -18,6 +20,8 @@ from api.services.wisdom import registry
 from api.services.wisdom.core import store
 from api.services.wisdom.core.timeutil import ET
 from api.services.wisdom.evals import grounding
+
+_RETRIEVAL_MODULE = "api.services.wisdom.publish.retrieval"
 
 SEG_A = "a" * 24
 SEG_B = "b" * 24
@@ -123,8 +127,36 @@ def test_answers_are_generated_only_when_asked_never_on_a_dry_run_and_stop_at_th
     assert out["faithfulness"] == "4/4" and out["citation_validity"] == "4/4"
 
 
+def _hide_retrieval(mp):
+    """Make the retrieval module unresolvable to the seam ONLY, leaving every other import alone.
+
+    ⛔ Always through a SCOPED MonkeyPatch context, never the `monkeypatch` fixture + `undo()`:
+    the `db` fixture requests that same fixture instance to pin WISDOM_DB_PATH, so an undo here
+    would silently unpin the test database along with the hiding.
+    """
+    real = importlib.util.find_spec
+    mp.setattr(
+        grounding.importlib.util, "find_spec",
+        lambda name, *a, **kw: None if name == _RETRIEVAL_MODULE else real(name, *a, **kw))
+
+
 def test_the_with_arm_uses_retrieval_when_present_and_says_so_when_absent(db, tmp_path):
-    absent = grounding.run_grounding(_ctx(dry_run=True), with_wisdom=True, set_path=_set(tmp_path))
+    """⚰️ THIS ASSERTED THE REPO'S FILE INVENTORY AS A FACT, and the fact expired on merge.
+
+    It read `assert absent["retrieval"] == "retrieval_module_absent"` against a real, un-faked
+    seam — true only while S-F had not yet built `publish/retrieval.py`. The moment S-F2 merged,
+    the module resolved and the rail went red for the RIGHT reason in the WRONG place: nothing
+    had regressed, the world had simply caught up with the seam's own docstring ("S-F builds the
+    module; until then None").
+
+    ⭐ A rail whose subject is "which files exist today" silently changes meaning under a merge.
+    This one now DRIVES both branches — absent is forced, present is the real module — so it
+    says the same thing before and after S-F, and keeps failing for the only reason that matters:
+    the seam answering wrongly about retrieval it was handed.
+    """
+    with pytest.MonkeyPatch.context() as mp:
+        _hide_retrieval(mp)
+        absent = grounding.run_grounding(_ctx(dry_run=True), with_wisdom=True, set_path=_set(tmp_path))
     assert absent["retrieval"] == "retrieval_module_absent"
     seen = []
 
@@ -137,3 +169,49 @@ def test_the_with_arm_uses_retrieval_when_present_and_says_so_when_absent(db, tm
     assert out["retrieval"] == "injected" and len(seen) == 30
     assert out["citation_validity"] == "30/30"
     assert out["faithfulness"] == "0/30"          # the cited segment does not say what the answer claims
+
+
+def test_the_seam_can_actually_CALL_the_retrieval_it_reports_ok_for(db):
+    """⛔ 6. A SEAM THAT SAYS "ok" FOR A SEARCH IT CANNOT CALL — the one the merge caught.
+
+    S-F's `search` is keyword-only past `query` (`search(query, *, tickers=(), limit=3, ...)`)
+    and this seam called `fn(query, k)` positionally. Every question raised TypeError,
+    `run_grounding` swallowed it into `retrieval_error`, and the arm carried on with no
+    segments — so with_wisdom retrieved NOTHING while the row said `retrieval: ok`, making the
+    two arms identical by construction and publishing that as the D-class grounding number.
+
+    ⭐ Status alone cannot say this, which is why the old rail could not have caught it: it
+    asserted the string the seam returns, and the seam returned the right string. The load-
+    bearing assertion is the CALL — arity is not a shape, and no validator catches it
+    (CLAUDE.md, "Contracts — verify against the RUNTIME CALL SITE, not a harness").
+    """
+    fn, status = grounding.retrieval_seam()
+    assert status == "ok", f"the real retrieval module should resolve on this tree: {status}"
+    hits = fn("what does the stop rule say about the low of the day", 5)
+    assert isinstance(hits, list)                 # must not raise — that was the whole defect
+    for hit in hits:
+        assert set(hit) == {"segment_id", "text"}, hit
+
+
+def test_a_retrieval_this_seam_cannot_call_is_REFUSED_BY_NAME_never_reported_ok(db):
+    """THE FAILING-DIRECTION CONTROL. The check above passes if the seam is simply correct today;
+    it cannot show that a WRONG signature would be caught, and a guard nobody has seen fire is
+    not a guard. So hand the seam a search it must refuse.
+
+    ⛔ Refused, not called-and-caught: `retrieval_signature_mismatch` in the status is a fact a
+    reader of the metric row can act on, whereas a per-question exception is invisible inside a
+    number. An over-REFUSAL is visible; this over-PERMISSION shipped a measurement of nothing.
+    """
+    hostile = types.ModuleType("fake_retrieval")
+    hostile.search = lambda query, k: [{"segment_id": SEG_A, "text": "x"}]   # positional k: not the contract
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(grounding.importlib.util, "find_spec", lambda name, *a, **kw: object())
+        mp.setattr(grounding.importlib, "import_module", lambda name: hostile)
+        fn, status = grounding.retrieval_seam()
+        assert fn is None and status == "retrieval_signature_mismatch", (fn, status)
+
+        # ...and the arm reports that instead of a score it cannot stand behind.
+        hostile.search = lambda query, *, limit=3: [{"segment_id": SEG_A, "text": "x"}]
+        ok_fn, ok_status = grounding.retrieval_seam()
+        assert ok_status == "ok" and ok_fn("q", 2) == [{"segment_id": SEG_A, "text": "x"}]

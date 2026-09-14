@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import inspect
 import json
 import pathlib
 import re
@@ -31,6 +32,9 @@ from api.services.wisdom.core import ids, store, timeutil
 SET_VERSION = "askai-wisdom-v1"
 METHOD_VERSION = "grounding-v1"
 EXPECTED_QUESTIONS = 30
+#: Bound against the retrieval signature, never executed — `bind()` matches arguments to
+#: parameters and runs no code, so this costs no query and touches no index.
+_PROBE_QUERY = "signature probe"
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 CITE_RE = re.compile(r"\[S:([0-9a-f]{8,64})\]")
 _NUM_RE = re.compile(r"(?<![\w.])\d+(?:\.\d+)?")
@@ -176,7 +180,25 @@ class AnthropicAnswerer:
 
 
 def retrieval_seam() -> tuple:
-    """(search(query, k) -> [{segment_id, text}], status). S-F builds the module; until then None."""
+    """(search(query, k) -> [{segment_id, text}], status). S-F builds the module; until then None.
+
+    ⚰️ THIS SEAM REPORTED "ok" FOR A SEARCH IT COULD NOT CALL, and the arm it feeds is the
+    whole point of the eval. S-F's search is keyword-only past `query`
+    (`search(query, *, tickers=(), limit=3, ...)`), and this wrapper invoked `fn(query, k)`
+    positionally — a TypeError on EVERY question. `run_grounding` catches that per question
+    into `retrieval_error` and carries on with no segments, so the with_wisdom arm would have
+    retrieved NOTHING while the metric row still said `retrieval: ok`: the two arms identical,
+    published as a measurement of whether wisdom retrieval grounds better than none.
+
+    ⭐ Which is why the bind check is here rather than at the call site. An exception per
+    question is swallowed and becomes a confident finding; a status computed ONCE, before this
+    returns, is the difference between "we could not retrieve" and "retrieval added nothing" —
+    two facts a reader of the D-class metrics must never see collapsed
+    (`lesson_a_swallowed_error_becomes_a_confident_finding`).
+
+    ⛔ Refusing outright beats calling it wrong. An unbindable search is reported by NAME and
+    the arm runs without retrieval; guessing at a positional spelling is how this broke.
+    """
     name = "api.services.wisdom.publish.retrieval"
     if importlib.util.find_spec(name) is None:
         return None, "retrieval_module_absent"
@@ -186,10 +208,14 @@ def retrieval_seam() -> tuple:
         return None, f"retrieval_import_failed:{type(exc).__name__}"
     if not callable(fn):
         return None, "retrieval_search_absent"
+    try:
+        inspect.signature(fn).bind(_PROBE_QUERY, limit=1)
+    except (TypeError, ValueError):
+        return None, "retrieval_signature_mismatch"
 
     def search(query: str, k: int) -> list:
         out = []
-        for item in fn(query, k) or []:
+        for item in fn(query, limit=k) or []:
             item = dict(item)
             if item.get("segment_id"):
                 out.append({"segment_id": item["segment_id"], "text": item.get("text") or ""})

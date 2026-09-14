@@ -560,9 +560,25 @@ def weekly_embed(report: dict) -> dict:
     text = "\n".join(lines)
     if len(text) > EMBED_DESCRIPTION_MAX:
         text = text[:EMBED_DESCRIPTION_MAX - 1] + "…"
+    # ⭐ The embed carries the provenance marker in its FOOTER, and it is marked rather than
+    # exempted on purpose. A Discord webhook is a DELIVERY, not a consumer-table write, so the
+    # §8c.3 rail arguably over-reached in flagging it — but the two available answers were
+    # "narrow the check" and "mark the thing", and only one of those can be wrong in the
+    # direction that matters. An unmarked Wisdom artifact on an external surface is exactly
+    # what the marker exists to make findable afterwards.
+    # ⛔ It goes in the footer, never the description: the description is counts-and-ratios the
+    # owner reads, and EMBED_DESCRIPTION_MAX truncates from the end — a marker appended there
+    # would be the first thing dropped on a long week, which is a guard that disappears exactly
+    # when there is most to account for.
+    from api.services.wisdom.publish.adapters import provenance
+
     return {"title": f"Weekly Wisdom Report — {report['period_key']}", "description": text, "color": 0xC9A84C,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "footer": {"text": "Full report: /admin/wisdom → Reports"}}
+            "footer": {"text": "Full report: /admin/wisdom → Reports · " + provenance.marker_text(
+                consumer="discord_admin_webhook",
+                subject_ref=f"wisdom_reports:{report.get('report_id') or report['period_key']}",
+                locator=f"weekly:{report['period_key']}",
+                flag_env="WISDOM_WEEKLY_REPORT_ENABLED")}}
 
 
 # ── storing and delivering ───────────────────────────────────────────────────
@@ -593,8 +609,15 @@ def deliver_weekly(report_id: str, report: dict, *, dry_run: bool) -> dict:
     if row is not None and row["delivered_at"]:
         return {"status": "skipped", "note": f"already delivered at {row['delivered_at']}"}
     from api.services import discord_notify
+    from api.services.wisdom.publish.adapters import provenance
 
-    discord_notify._send_webhook(weekly_embed(report))
+    embed = weekly_embed(report)
+    # ⛔ The marker is built in weekly_embed's footer; this REFUSES to send an embed that lost
+    # it. Two different jobs: the builder makes the artifact findable afterwards, and this makes
+    # "it went out unmarked" impossible rather than merely unlikely — the §8c.3 rail reads the
+    # guard in the sending scope, and so does a human asking whether the send can outrun it.
+    provenance.assert_marked(embed["footer"]["text"], what="weekly report webhook")
+    discord_notify._send_webhook(embed)
     return _record_delivery(report_id, "sent", "admin webhook (fire-and-forget)",
                             delivered_at=timeutil.iso_et(timeutil.now_et()))
 
