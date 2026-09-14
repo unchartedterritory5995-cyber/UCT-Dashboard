@@ -1071,3 +1071,61 @@
     display: inline;
   }
 }
+
+/* ── TRACK B · THE ON-CHART POPOVER'S HEADER ───────────────────────────────
+ *
+ * ⛔ IT LIVES IN THIS FILE EVEN THOUGH IT RENDERS INSIDE `ContextPopover`, WHICH
+ * PORTALS TO `<body>`. CSS modules compile to a global stylesheet with hashed
+ * names, so a class declared here applies wherever the element ends up; what
+ * matters is that the COMPONENT is `StockChart`'s, and it is (`LegendMenuHeader`).
+ * Putting it in `ContextPopover.module.css` instead would push chart vocabulary
+ * into a generic mobile primitive that four other surfaces share.
+ *
+ * ⚠️ THE MENU PALETTE IS FIXED AND DARK ON PURPOSE — `--menu-*`, not the canvas
+ * theme (`chart-menu-canvas-theming`, reversed 2026-07-30). A header that adapted
+ * to the chart background would be the one part of the menu that did. */
+.legMenuHead {
+  padding: 7px 10px 8px;
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  margin-bottom: 3px;
+  cursor: default;
+}
+.legMenuTop {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+/* The same 2px rail the label on the chart wears, in the same colour — the one
+   thing that ties this menu back to the line it is about. */
+.legMenuRail {
+  flex: 0 0 auto;
+  width: 2px;
+  height: 13px;
+  border-radius: 1px;
+}
+.legMenuName {
+  font: 600 12.5px 'Instrument Sans', sans-serif;
+  color: var(--menu-text, #ededed);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The value: brightest thing in the header, tabular, pinned right — the same
+   grading the resting label uses, for the same reason. */
+.legMenuVal {
+  margin-left: auto;
+  font: 600 12.5px 'Instrument Sans', sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: #f8f7f3;
+  white-space: nowrap;
+}
+.legMenuSub {
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

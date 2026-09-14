@@ -1,12 +1,35 @@
-import { describe, it, expect, vi } from 'vitest'
-import { chipMenuItems, moveTargetRefusal, currentTargetOf, MOVE_TARGETS } from './chipMenu'
+// app/src/components/chart/legend/chipMenu.test.js
+//
+// ─── THE ROWS BEHIND A LEGEND LABEL, AND WHERE THEIR DESTINATIONS COME FROM ──
+//
+// ⚰️⚰️ THIS FILE USED TO CARRY A 200-LINE RAIL THAT DROVE `moveTargetRefusal`
+// AGAINST `resolvePlacement` — every definition × every target, with a real
+// `computePaneLayout` — to prove that `chipMenu`'s hand-written refusals agreed
+// with the renderer's. It was a good rail for a bad design: the reason it had to
+// exist is that this module HELD ITS OWN COPY of the placement rules, and a
+// second copy of a rule is a thing you can only keep honest by measuring it.
+//
+// ⭐⭐ THE COPY IS GONE. `displayTargetOptions` is now the one function that
+// answers *"where may this instance draw?"* — for the on-chart popover and for
+// Chart Settings → Indicators alike — so the rail this file needs is no longer
+// *"do two implementations agree?"* but *"does the menu show what the helper
+// said, unaltered?"*. That is what the second block below drives, over a REAL
+// settings blob with a REAL host pane, because the answer it is checking is the
+// one Universal Data made possible and the old list could not express:
+// `@<hostInstanceId>`.
+//
+// The refusals themselves keep their own rails where the rules now live —
+// `ChartSettingsModal.displayIn.test.jsx` (orphan, self-exclusion, tombstones)
+// and `engine/__tests__/instanceHostedPanes.test.jsx`.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { chipMenuItems, displaySubmenu } from './chipMenu'
 import * as engineRegistry from '../engine/nativeRegistry'
-import { resolvePlacement } from '../engine/placement'
-import { computePaneLayout, paneMode } from '../engine/paneLayout'
-// ⚠️ FROM `defSchema`, WHICH IS WHERE THE VOCABULARY LIVES — `instances.js`
-// IMPORTS it to validate against and re-exports nothing, so a read from there
-// would have been a read of a name that does not exist.
-import { PLACEMENT_TARGETS } from '../engine/defSchema'
+import { mergeChartSettings } from '../chartDefaults'
+import { createDirectSeries, lastCreatedInstance } from '../discoveryCatalog'
+import { symbolSource } from '../engine/sourceRef'
+import { clearSecondaryBars, primeSecondaryBars } from '../engine/secondaryBars'
+import { addInstance, findInstance } from '../engine/instanceControls'
+import { displayTargetOptions, resolveDisplayTarget } from '../engine/displayTarget'
 
 const chip = (over = {}) => ({
   defId: 'rsi', plotKey: 'rsi', instanceId: 'legacy:rsi',
@@ -17,24 +40,35 @@ const handlers = () => ({
   onSettings: vi.fn(), onToggleHidden: vi.fn(), onMove: vi.fn(), onDuplicate: vi.fn(),
   onAlerts: vi.fn(), onAbout: vi.fn(), onRemove: vi.fn(),
 })
-const rows = (c, id = 'rsi', h = handlers()) =>
-  chipMenuItems(c, engineRegistry.getDefinition(id), h)
+const rows = (c, id = 'rsi', h = handlers(), caps = {}) =>
+  chipMenuItems(c, engineRegistry.getDefinition(id), h, caps)
 
-describe('chipMenuItems — spec §6\'s rows, from ONE source', () => {
-  it('offers exactly the declared actions, in the declared order', () => {
-    // ⭐ THE EXPECTATION MOVED, THE ASSERTION DID NOT (chart-UX-walls Task 6).
-    // `duplicate` is the seventh row and it sits between Move and Alerts:
-    // everything above the separator changes what is drawn, and a row that ADDS
-    // a line does not belong on the destructive side of it.
+describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
+  it('offers exactly the declared actions, in the declared hierarchy', () => {
+    // ⭐ THE ORDER IS THE HIERARCHY: visibility and placement are the
+    // high-frequency verbs and lead; the full editor and the additive verbs
+    // follow; the one destructive verb is alone below a rule.
+    // ⚰️ `settings` USED TO BE FIRST AND IS NOW THIRD — it opens a MODAL, which
+    // is the least frequent thing a member does to a plotted line, and it sat
+    // above Hide for no reason other than spec order.
     const items = rows(chip()).filter(i => !i.separator)
     expect(items.map(i => i.key))
-      .toEqual(['settings', 'hidden', 'move', 'duplicate', 'alerts', 'about', 'remove'])
+      .toEqual(['hidden', 'move', 'settings', 'duplicate', 'alerts', 'about', 'remove'])
+  })
+
+  it('⭐ the full-editor row is the ONE channel, and it says where it goes', () => {
+    const h = handlers()
+    const s = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
+      .find(i => i.key === 'settings')
+    expect(s.label).toBe('Edit in Chart Data…')
+    s.onClick()
+    expect(h.onSettings).toHaveBeenCalledWith('legacy:rsi')
   })
 
   it('⭐ Duplicate names the DEFINITION and hands back the INSTANCE id', () => {
     // The row is per DEFINITION in what it says ("another RSI") and per INSTANCE
     // in what it passes, because the caller has to prove the instance still
-    // exists before minting a sibling for it — a chip whose × already fired
+    // exists before minting a sibling for it — a chip whose Delete already fired
     // would otherwise add an indicator the user never asked for.
     const h = handlers()
     const dup = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
@@ -54,53 +88,37 @@ describe('chipMenuItems — spec §6\'s rows, from ONE source', () => {
     expect(rows(chip({ hidden: true })).find(i => i.key === 'hidden').label).toBe('Show RSI(14)')
   })
 
-  it('Remove is the only danger row, and it is the only one behind a separator', () => {
+  it('Delete is the only danger row, and it is the only one behind the LAST separator', () => {
     const items = rows(chip())
     expect(items.filter(i => i.danger).map(i => i.key)).toEqual(['remove'])
-    const sep = items.findIndex(i => i.separator)
-    expect(sep, 'the destructive row is not separated from the rest').toBeGreaterThan(0)
-    expect(items.slice(sep + 1).map(i => i.key)).toEqual(['remove'])
+    const seps = items.map((i, n) => (i.separator ? n : -1)).filter(n => n >= 0)
+    expect(seps.length, 'the destructive row is not separated from the rest').toBeGreaterThan(0)
+    expect(items.slice(seps[seps.length - 1] + 1).map(i => i.key)).toEqual(['remove'])
   })
 
-  it('⛔ Move offers only targets the VALIDATOR accepts, and the current one is CHECKED', () => {
-    const move = rows(chip()).find(i => i.key === 'move')
-    expect(move.submenu.map(s => s.target)).toEqual(['price', 'pane', 'volume'])
-    // ⛔ DERIVED, NOT TYPED: the three rows are exactly the three values
-    // `normalizeInstances` will accept on an instance. An offer outside that set
-    // is an instance the validator DROPS — an indicator that vanishes on the next
-    // paint rather than moving.
-    expect(MOVE_TARGETS.map(t => t.target).sort()).toEqual([...PLACEMENT_TARGETS].sort())
-    // The CURRENT target is checked, never offered as a destination that does
-    // nothing — `rsi` declares `pane`, and the chip carries no override.
-    const pane = move.submenu.find(s => s.target === 'pane')
-    expect(pane.checked).toBe(true)
-    expect(pane.disabled, 'the current placement is offered as a destination').toBeTruthy()
-    expect(pane.onClick, 'a refused row still carries a handler').toBeUndefined()
-  })
+  it('⭐⭐ Delete ARMS before it fires, and the armed row names what it will delete', () => {
+    // ⛔ THE REPLACEMENT FOR THE 11px ✕ THAT SAT 5px FROM THE GEAR.
+    // `IndicatorChip.module.css` carries the measurement that condemned it — one
+    // extra glyph in a live value moved every control 5.4px, so the box that was
+    // Settings a moment ago was Remove — and it predicted this ending in as many
+    // words: *"the fix is a confirm on the destructive verb"*.
+    const cold = rows(chip()).find(i => i.key === 'remove')
+    expect(cold.label).toBe('Delete')
+    expect(cold.keepOpen, 'the first click closes the popover — the arm would be invisible').toBe(true)
 
-  it('…and an instance that OVERRODE its target is checked on the override, not the declaration', () => {
-    const move = rows(chip({ placementTarget: 'price' })).find(i => i.key === 'move')
-    expect(move.submenu.filter(s => s.checked).map(s => s.target)).toEqual(['price'])
-    // …so the definition's own `pane` is now a real destination again.
-    expect(move.submenu.find(s => s.target === 'pane').disabled).toBeUndefined()
-  })
-
-  it('a PRICE-target definition cannot be moved AT ALL, and the row says so once', () => {
-    const items = rows(chip({ defId: 'bb', instanceId: 'legacy:bb', label: 'BB(20, 2)' }), 'bb')
-    const move = items.find(i => i.key === 'move')
-    const vol = move.submenu.find(s => s.target === 'volume')
-    expect(vol.disabled, 'a price overlay in the volume pane is not a placement the binder resolves')
-      .toBeTruthy()
-    expect(move.submenu.find(s => s.target === 'pane').disabled,
-      'a price overlay is given no pane by `computePaneLayout`, so this move unbinds it').toBeTruthy()
-    expect(move.submenu.every(s => s.disabled),
-      'a price overlay has a live destination — the rail below says the binder disagrees').toBe(true)
-    expect(move.disabled, 'every destination is refused and the ROW is still live').toBeTruthy()
+    const armed = rows(chip(), 'rsi', handlers(), { armed: true }).find(i => i.key === 'remove')
+    // ⛔ "Delete?" ON A CHART CARRYING ELEVEN SERIES IS A QUESTION ABOUT NOTHING.
+    expect(armed.label).toBe('Delete RSI(14)?')
+    expect(armed.keepOpen, 'the confirming click must close the popover').toBeFalsy()
+    expect(armed.danger).toBe(true)
   })
 
   it('every row calls its handler with the INSTANCE id, never the defId', () => {
     const h = handlers()
-    const items = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
+    const items = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h, {
+      displayOptions: [{ value: 'price', label: 'Price', group: 'shared' }],
+      displayCurrent: 'pane',
+    })
     for (const item of items) if (item.onClick) item.onClick()
     // ⚠️ `move` carries NO `onClick` — it is a submenu — so `onMove` is fired
     // through the submenu instead of weakening the assertion to "some handler ran".
@@ -128,9 +146,6 @@ describe('chipMenuItems — spec §6\'s rows, from ONE source', () => {
     expect(live.label).toBe('Add alert on RSI(14)…')
     expect(live.disabled).toBeUndefined()
     expect(typeof live.onClick).toBe('function')
-    // A mount with no symbol (or no toolbar) has no alert popover to open — the
-    // 🔔 button is `disabled` there for the same reason. A live row would be a
-    // row that opens nothing.
     const dead = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), handlers(),
       { alertsRefusal: 'pick a symbol first' }).find(i => i.key === 'alerts')
     expect(dead.disabled).toBe('pick a symbol first')
@@ -143,126 +158,149 @@ describe('chipMenuItems — spec §6\'s rows, from ONE source', () => {
     expect(chipMenuItems(chip({ defId: 'ghost' }), null, handlers())
       .find(i => i.key === 'about').label).toBe('About ghost')
   })
+
+  it('⛔ NO DESTINATIONS ⇒ the Display-in row is dead, and it says so ONCE', () => {
+    // `displayTargetOptions` answers EMPTY for a definition with exactly one
+    // place to draw — the same test Chart Settings uses to render no control at
+    // all. The row is disabled with a sentence, not silently live.
+    const move = rows(chip()).find(i => i.key === 'move')
+    expect(move.submenu).toEqual([])
+    expect(move.disabled).toBeTruthy()
+    expect(move.disabled).toMatch(/nowhere else/)
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ─── THE RAIL: THIS FILE'S REFUSALS ARE THE RENDERER'S, MEASURED ────────────
+// ─── THE RAIL: THE MENU SHOWS WHAT THE HELPER SAID, UNALTERED ───────────────
 //
-// ⛔ A DISABLED REASON IS A CLAIM ABOUT THE BINDER, AND A CLAIM ABOUT THE BINDER
-// THAT NOTHING CHECKS IS THE `legendParams`-DECLARED-AND-INERT DEFECT WEARING A
-// DIFFERENT COAT. So the two refusals `chipMenu` can give are driven against the
-// REAL `resolvePlacement`, over the REAL registry, with a REAL `computePaneLayout`
-// — every definition × every target, sixteen definitions and three targets each.
+// ⛔⛔ THE INVARIANT THAT REPLACED A 200-LINE AGREEMENT PROOF. There is one
+// placement truth and this module is not it: every row of the Display-in page is
+// a `displayTargetOptions` entry in the order that helper returned it, with the
+// CURRENT one ticked-and-refused and a `missing` one refused and never healed.
+// If this module ever grows a rule of its own again — a filter, a reorder, a
+// target it invents — one of these equalities breaks.
 //
-// `resolvePlacement` returning `null` means `binder.sync` binds NOTHING
-// (`placement.js` — *"an indicator nobody can place renders nothing rather than
-// landing somewhere plausible-looking"*). A menu that offered that move would
-// take the indicator off the chart while leaving its box ticked.
-describe('⛔ the Move refusals are DERIVED from the renderer, not asserted about it', () => {
-  const DEFS = engineRegistry.listDefinitions()
+// ⭐ AND IT IS DRIVEN OVER A REAL BLOB WITH A REAL HOST PANE, because
+// `@<hostInstanceId>` is exactly the destination the old hard-coded list could
+// not express and is therefore the one a regression would drop first.
+const TF = 'D'
+const WINDOW = 400
+function prime(symbol) {
+  primeSecondaryBars(symbol, TF, WINDOW, {
+    bars: Array.from({ length: 12 }, (_, i) => ({
+      t: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      o: 100 + i, h: 102 + i, l: 99 + i, c: 101 + i, v: 1000,
+    })),
+  })
+}
+function withSeries(cs, symbol) {
+  prime(symbol)
+  const next = createDirectSeries(cs, symbolSource(symbol, 'close'), engineRegistry, { name: symbol })
+  return { cs: next, id: lastCreatedInstance(cs, next).instanceId }
+}
 
-  /** `resolvePlacement`'s answer for `def` moved to `target`, through a real
-   *  layout built from a real one-instance list. */
-  const resolveAt = (def, target, { overlaid = false } = {}) => {
-    const inst = {
-      instanceId: `probe:${def.id}`, defId: def.id, defVersion: def.version,
-      inputs: {}, placement: { target }, hidden: false,
+describe('⛔ the Display-in page IS `displayTargetOptions`, shaped — not a second rule', () => {
+  beforeEach(() => { clearSecondaryBars() })
+  afterEach(() => { clearSecondaryBars() })
+
+  /** A chart with two direct series: QQQ (a pane HOST) and SPY. */
+  const twoSeries = () => {
+    const a = withSeries(mergeChartSettings({}), 'QQQ')
+    const b = withSeries(a.cs, 'SPY')
+    return { cs: b.cs, qqq: a.id, spy: b.id }
+  }
+  const optionsFor = (cs, id) => {
+    const inst = findInstance(cs, id)
+    const defOf = (d) => engineRegistry.getDefinition(d)
+    return {
+      options: displayTargetOptions(inst, cs, defOf),
+      current: resolveDisplayTarget(inst, cs),
     }
-    const volOverlaySet = new Set(overlaid ? [def.id] : [])
-    const layout = computePaneLayout([inst], {
-      chartHeight: 600, hasVolumeBand: false, excludeKeys: volOverlaySet,
-    })
-    return resolvePlacement(inst, def, {
-      paneMargins: layout.bands,
-      paneLayout: layout,
-      volOverlaySet,
-      volSeparatePane: overlaid,
-      VOL_PANE_INDEX: 1,
-    })
+  }
+  const submenuFor = (cs, id, h = handlers()) => {
+    const { options, current } = optionsFor(cs, id)
+    const inst = findInstance(cs, id)
+    return chipMenuItems(
+      chip({ instanceId: id, defId: inst.defId, label: 'SPY' }),
+      engineRegistry.getDefinition(inst.defId), h,
+      { displayOptions: options, displayCurrent: current },
+    ).find(i => i.key === 'move')
   }
 
-  it('the subject is not empty, and the probe really can produce BOTH answers', () => {
-    expect(DEFS.length, 'no definitions — every loop below is vacuous').toBeGreaterThan(10)
-    expect(paneMode(), 'the rail was measured under real panes (Flip C)').toBe('panes')
-    const all = DEFS.flatMap(d => MOVE_TARGETS.map(t => resolveAt(d, t.target)))
-    expect(all.some(r => r === null),
-      'the probe never resolves to null — the whole rail would be vacuously satisfied').toBe(true)
-    expect(all.some(r => r !== null),
-      'the probe resolves NOTHING — the layout it builds is broken, not the menu').toBe(true)
+  it('the fixture really produces a host pane — otherwise every case below is vacuous', () => {
+    const { cs, qqq, spy } = twoSeries()
+    const { options } = optionsFor(cs, spy)
+    expect(options.length, 'no destinations at all — the fixture is broken, not the menu')
+      .toBeGreaterThan(2)
+    expect(options.some(o => o.value === `@${qqq}`),
+      'the helper offers no host-instance pane — the thing Universal Data made possible and the '
+      + 'retired hard-coded list could never express').toBe(true)
   })
 
-  it('⭐ every move this menu OFFERS is one the binder resolves — and every null is refused', () => {
-    const offeredButUnbindable = []
-    const refusedButBindable = []
-    for (const def of DEFS) {
-      const current = currentTargetOf({}, def)
-      for (const { target } of MOVE_TARGETS) {
-        const refusal = moveTargetRefusal(def, target, current)
-        const resolved = resolveAt(def, target)
-        if (!refusal && resolved === null) {
-          offeredButUnbindable.push(`${def.id} → ${target}`)
-        }
-        // The converse, scoped to the reason that CLAIMS unbindability: the
-        // "already here" and "chart-wide toggle" refusals are about meaning, not
-        // about the binder, and are gated by their own cases below.
-        if (refusal && /no pane of its own/.test(refusal) && resolved !== null) {
-          refusedButBindable.push(`${def.id} → ${target}`)
-        }
-      }
-    }
-    expect(offeredButUnbindable,
-      'the menu offers a move `resolvePlacement` returns null for. `binder.sync` skips a binding '
-      + 'whose placement does not resolve, so this row takes the indicator OFF THE CHART while '
-      + 'its box stays ticked — the silent-vanish the fail-closed posture exists to prevent.')
-      .toEqual([])
-    expect(refusedButBindable,
-      'the menu refuses a move with "no pane of its own" that the binder resolves fine. The '
-      + 'reason is stale — re-derive it against `paneLayout.paneTargetIds`, do not delete the row.')
-      .toEqual([])
+  it('⭐⭐ every row is a helper option, in the helper’s own order, with the helper’s label', () => {
+    const { cs, spy } = twoSeries()
+    const { options } = optionsFor(cs, spy)
+    const move = submenuFor(cs, spy)
+    expect(move.submenu.map(s => s.target)).toEqual(options.map(o => o.value))
+    expect(move.submenu.map(s => s.label)).toEqual(options.map(o => o.label))
   })
 
-  it('⛔ and the population is real: exactly the PRICE-declared definitions lose their pane', () => {
-    // Non-vacuity with teeth. If `paneTargetIds` ever stopped deriving from the
-    // DEFINITION's target, the equality above would still hold (both sides move
-    // together) while this equality names who is affected.
-    const noPane = DEFS.filter(d => resolveAt(d, 'pane') === null).map(d => d.id).sort()
-    const declaredPrice = DEFS
-      .filter(d => (d.placement && d.placement.target) !== 'pane').map(d => d.id).sort()
-    expect(noPane, 'the set of definitions `computePaneLayout` gives no pane is no longer the '
-      + 'set that declares a PRICE target — `chipMenu`\'s reason names the wrong mechanism')
-      .toEqual(declaredPrice)
-    expect(noPane.length, 'no definition is pane-less — the refusal has no subject').toBeGreaterThan(0)
-    expect(noPane.length, 'EVERY definition is pane-less — the layout probe is broken')
-      .toBeLessThan(DEFS.length)
+  it('⛔ the CURRENT target is ticked, refused, and carries no handler', () => {
+    const { cs, spy } = twoSeries()
+    const { current } = optionsFor(cs, spy)
+    const move = submenuFor(cs, spy)
+    const here = move.submenu.filter(s => s.checked)
+    expect(here.map(s => s.target), 'the current target is not ticked exactly once')
+      .toEqual([current])
+    expect(here[0].disabled).toBe('it is already here')
+    // ⛔ NO HANDLER ON A REFUSED ROW — a handler that exists is one a keyboard, a
+    // test or a future renderer can still fire, and `setInstanceDisplayTarget`
+    // would refuse it by identity anyway. A click that changes nothing is the
+    // defect class this whole surface exists to retire.
+    expect(here[0].onClick).toBeUndefined()
   })
 
-  it('⭐ "volume" is INERT as an instance placement — measured, both ways round', () => {
-    // The reason the Volume row is refused for every definition. It is not that
-    // it is unbindable — for a pane definition it binds perfectly — it is that it
-    // binds to the SAME PLACE `pane` does, because `resolvePlacement` reads the
-    // overlay decision from `cs.volumeOverlayIndicators` and never from the
-    // instance's target. A persisted no-op with a tick beside it.
-    const paneDefs = DEFS.filter(d => (d.placement && d.placement.target) === 'pane')
-    expect(paneDefs.length, 'no pane definitions — this case is vacuous').toBeGreaterThan(3)
-    for (const def of paneDefs) {
-      expect(resolveAt(def, 'volume'), `${def.id}: 'volume' resolved differently from 'pane' with `
-        + 'the chart-wide overlay list EMPTY — the instance target has become meaningful and the '
-        + 'Volume row can be enabled')
-        .toEqual(resolveAt(def, 'pane'))
-      expect(resolveAt(def, 'volume', { overlaid: true }),
-        `${def.id}: 'volume' resolved differently from 'pane' with the definition IN the '
-        + 'chart-wide overlay list`)
-        .toEqual(resolveAt(def, 'pane', { overlaid: true }))
-    }
-    // …and the control: the two contexts really do produce different answers, so
-    // the equalities above are not comparing one constant with itself.
-    const probe = paneDefs[0]
-    expect(resolveAt(probe, 'pane', { overlaid: true }),
-      'the overlay context changed nothing — the pair of equalities above is one equality')
-      .not.toEqual(resolveAt(probe, 'pane'))
-    // …and every definition therefore refuses it, in one place.
-    for (const def of DEFS) {
-      expect(moveTargetRefusal(def, 'volume', currentTargetOf({}, def)), def.id).toBeTruthy()
-    }
+  it('⭐ a host pane is a LIVE destination, and firing it passes the canonical target string', () => {
+    const { cs, qqq, spy } = twoSeries()
+    const h = handlers()
+    const move = submenuFor(cs, spy, h)
+    const intoQqq = move.submenu.find(s => s.target === `@${qqq}`)
+    expect(intoQqq, 'the QQQ pane is not offered').toBeTruthy()
+    expect(intoQqq.disabled).toBeUndefined()
+    intoQqq.onClick()
+    expect(h.onMove).toHaveBeenCalledWith(spy, `@${qqq}`)
+  })
+
+  it('⛔⛔ an ORPHANED target is SHOWN, refused, and never silently healed', () => {
+    // The helper lists a stored target whose host is gone, flagged `missing`, and
+    // the member's placement is preserved. A menu that omitted it would tell a
+    // member their line is fine while it draws nothing — which is exactly how the
+    // original defect hid.
+    const missing = { value: '@inst:ghost', label: 'Pane unavailable', group: 'missing', missing: true }
+    const sub = displaySubmenu(
+      [missing, { value: 'price', label: 'Price', group: 'shared' }],
+      '@inst:ghost', vi.fn(), 'inst:spy',
+    )
+    expect(sub[0].label).toBe('Pane unavailable')
+    expect(sub[0].disabled).toMatch(/no longer exists/)
+    expect(sub[0].onClick).toBeUndefined()
+    // …and the live one beside it is still live, so the refusal is targeted.
+    expect(sub[1].disabled).toBeUndefined()
+  })
+
+  it('a price overlay with nowhere to go gets an EMPTY page and a dead row', () => {
+    // `bb` declares a price target and reads no source, so `displayTargetOptions`
+    // answers empty — derived, never a list of ids typed here.
+    const cs = addInstance(mergeChartSettings({}), 'bb', engineRegistry)
+    const inst = (cs.indicatorInstances || []).find(i => i && i.defId === 'bb')
+    const { options, current } = optionsFor(cs, inst.instanceId)
+    expect(options).toEqual([])
+    const move = chipMenuItems(
+      chip({ instanceId: inst.instanceId, defId: 'bb', label: 'BB(20, 2)' }),
+      engineRegistry.getDefinition('bb'), handlers(),
+      { displayOptions: options, displayCurrent: current },
+    ).find(i => i.key === 'move')
+    expect(move.submenu).toEqual([])
+    expect(move.disabled, 'every destination is refused and the ROW is still live').toBeTruthy()
   })
 })

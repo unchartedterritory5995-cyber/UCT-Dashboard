@@ -62,7 +62,41 @@
 .vLabel {
   white-space: nowrap;
   font-weight: 500;
+  /* ⭐⭐ TRACK B: THE ROW'S TEXT IS NEUTRAL AND THE RAIL CARRIES THE COLOUR.
+     The row used to wear `style={{ color }}` on the whole box, so the price
+     pane's moving averages printed blue, purple and orange NAMES at 11px. The
+     rail is 2×9px of the same colour and cannot be styled into illegibility. */
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
 }
+.vVal, .flatVal {
+  color: var(--chart-panel-text-strong, #f8f7f3);
+}
+/* The colour rail — the one piece of chrome at rest, and the only identity
+   anchor that survives a hidden row and an off-cursor row with no value.
+   ⛔ AN `<i>`, NOT A `<span>` (`stockChartWiring.test.jsx` counts spans), and
+   `aria-hidden`: it restates a colour a sighted reader already has. */
+.rail {
+  display: inline-block;
+  width: 2px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 1px;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  transition: height 100ms ease;
+}
+.vRow:hover .rail,
+.flat:hover .rail { height: 11px; }
+/* Hidden: a DASHED rail says so with no word and no icon — the only thing left
+   to say it once the value is suppressed. */
+.rowHidden .rail {
+  background-image: repeating-linear-gradient(180deg,
+    rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.55) 2px 4px);
+}
+/* A row with a door says so on hover, the same way the chip does. */
+.rowLive { cursor: pointer; }
+.rowLive:hover .vLabel,
+.rowLive:hover { color: var(--chart-panel-text-strong, #f8f7f3); }
 .vVal {
   text-align: right;
   font-weight: 600;
@@ -141,7 +175,8 @@
 }
 .flat:hover .flatCtl,
 .flat:has(:focus-visible) .flatCtl {   /* see `.vRow` — never `:focus-within` */
-  max-width: 88px;
+  /* ⚰️ 88px HELD THREE BUTTONS. Track B leaves one. */
+  max-width: 26px;
   opacity: 1;
 }
 
@@ -212,7 +247,9 @@
 
 /* ⛔ NO EXTRA MARGIN — see `.controls` above. Remove is told apart by its RED
    hover, not by a gap that would break the even spacing. */
-.btnDanger:hover { color: var(--loss); background: rgba(196, 31, 45, 0.35); }
+/* ⚰️ `.btnDanger` IS GONE WITH THE STRIP THAT HELD IT. Delete is no longer a
+   control on this row — it is the last row of the popover, below a rule, and it
+   ARMS before it fires (`chipMenu.chipMenuItems`). */
 
 /* ── TOUCH: THERE IS NO HOVER ──────────────────────────────────────────────
  *

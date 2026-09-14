@@ -44,7 +44,49 @@
    * chip's own box. That is the trade every charting product makes for a
    * clickable legend, and it is why the box is the CHIP and not the legend. */
   pointer-events: auto;
-  cursor: default;
+  cursor: pointer;
+  /* ⭐⭐ TRACK B: THE CHIP'S TEXT IS NEUTRAL AND THE RAIL CARRIES THE COLOUR.
+     The chip used to wear `style={{ color: chip.color }}` on the whole box, so a
+     chart with eleven series printed eleven differently-coloured names — a
+     rainbow at 11px — and a member who picked a dark plot colour got a label
+     they could not read. The rail is 2×9px of the SAME colour, immune to being
+     styled into illegibility because it carries no glyph. */
+  color: var(--chart-panel-text-strong-low, #e2dfd6);
+}
+
+/* The colour rail: the one piece of chrome at rest, and the only identity anchor
+   that survives a HIDDEN row (no value) and an OFF-CURSOR row (no value). Colour
+   must not live on text that can be suppressed.
+   ⛔ IT IS AN `<i>`, NOT A `<span>` — `stockChartWiring.test.jsx` counts spans —
+   and it is `aria-hidden`. */
+.chipRail {
+  display: inline-block;
+  width: 2px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 1px;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  transition: height 100ms ease;
+}
+.chip:hover .chipRail,
+.chipGridRow:hover .chipRail { height: 11px; }
+/* A hidden row's rail is DASHED — it says "hidden" with no word and no icon, and
+   it is the only thing left to say it once the value is suppressed. */
+.chipHidden .chipRail {
+  background-image: repeating-linear-gradient(180deg,
+    rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.55) 2px 4px);
+}
+
+/* The VALUE, in the inline layout, as its own ink: the brightest thing in the
+   legend, because reading it is the label's primary job. The grid variant does
+   the same through `.chipGridVal`.
+   ⛔ IT HOLDS DIGITS ONLY — never the label — so it cannot match a
+   label-anchored text predicate and cannot be double-counted. */
+.chipVal {
+  color: var(--chart-panel-text-strong, #f8f7f3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── THE HOVER ROW — eye · gear · × ────────────────────────────────────────
@@ -93,7 +135,10 @@
    rule was added for survives untouched. */
 .chip:hover .chipControls,
 .chip:has(:focus-visible) .chipControls {
-  max-width: 82px;
+  /* ⚰️ 82px HELD THREE 16px BUTTONS AND TWO 5px GAPS. Track B leaves one button,
+     so the reveal is one box plus headroom — and the headroom is still what
+     keeps `overflow: hidden` from silently clipping the control. */
+  max-width: 26px;
   opacity: 1;
   margin-left: 5px;
 }
@@ -158,7 +203,12 @@
    ⛔ IF MIS-CLICKED REMOVES ARE EVER REPORTED, THIS PARAGRAPH IS THE PLACE TO
    START — the fix is a confirm on the destructive verb, not a re-introduced gap
    that puts one legend out of step with the other. */
-.chipBtnDanger:hover { background: rgba(196, 31, 45, 0.35); }
+/* ⚰️ `.chipBtnDanger` IS GONE WITH THE STRIP THAT HELD IT, and the paragraph
+   above called the ending: *"the fix is a confirm on the destructive verb, not a
+   re-introduced gap"*. Delete is no longer a control on this row at all — it is
+   the last row of the popover, below a rule, and it ARMS before it fires
+   (`chipMenu.chipMenuItems`). A mis-click now costs one extra click, not an
+   indicator. */
 
 /* GRAY = intentional (spec §6's colour language: red broken / amber degraded /
    gray intentional). A hidden indicator is not an error. */
@@ -318,8 +368,13 @@
     text-indent: -9999px;
     overflow: hidden;
   }
-  .chip::before {
-    content: '';
+  /* ⛔ THE DOT IS THE RAIL, NOT A `::before`. The dot used to take
+     `currentColor`, which was the PLOT's colour while the chip wore it inline;
+     Track B made the chip's text neutral, so a `currentColor` dot would print
+     every series the same grey. The rail already carries the right colour as an
+     inline background — so on a phone it simply becomes round. */
+  .chip::before { content: none; }
+  .chipRail {
     position: absolute;
     left: 50%;
     top: 50%;
@@ -327,7 +382,6 @@
     height: 10px;
     margin: -5px 0 0 -5px;
     border-radius: 50%;
-    background: currentColor;
   }
   .chipControls { display: none; }
   /* The chip is a 10 px dot here and its text is indented off-screen; a 10 px
@@ -444,7 +498,7 @@
    keyboard reveal and drops the stuck one. */
 .chipGridRow:hover .chipControls,
 .chipGridRow:has(:focus-visible) .chipControls {
-  max-width: 82px;
+  max-width: 26px;
   opacity: 1;
   margin-left: 6px;
   transition: none;

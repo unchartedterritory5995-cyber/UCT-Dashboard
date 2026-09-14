@@ -129,7 +129,7 @@ describe('the legend chip\'s controls are evenly spaced, and the strip fits them
     }
   })
 
-  it('the three controls share ONE gap — even spacing, no per-button margin', () => {
+  it('the ONE control keeps the shared gap — same spacing on both kinds of row', () => {
     const body = ruleBody(css, '.chipControls')
     const gap = /gap:\s*(\d+)px/.exec(body)
     expect(gap, '`.chipControls` lost its gap').toBeTruthy()
@@ -154,8 +154,19 @@ describe('the legend chip\'s controls are evenly spaced, and the strip fits them
     const max = /max-width:\s*(\d+)px/.exec(hover[1])
     expect(max).toBeTruthy()
     const gap = Number(/gap:\s*(\d+)px/.exec(ruleBody(css, '.chipControls'))[1])
-    // three 16px buttons + two gaps, and it must not merely equal that — a strip
-    // sized to exactly its contents clips on the first sub-pixel rounding.
-    expect(Number(max[1])).toBeGreaterThanOrEqual(3 * 16 + 2 * gap)
+    // ⚰️ THIS READ `3 * 16 + 2 * gap` — three 16px buttons and the two gaps
+    // between them. Track B leaves ONE control on the strip, so the arithmetic is
+    // one button plus the same headroom the three-button reveal carried (82 for
+    // 58 needed, i.e. 24px of slack). The CLAIM is unchanged and is the one this
+    // case exists for: `.chipControls` is `overflow: hidden`, so a max-width that
+    // no longer fits clips the last button, and it must not merely EQUAL its
+    // contents — a strip sized exactly clips on the first sub-pixel rounding.
+    const BUTTONS = 1
+    expect(Number(max[1]),
+      'the revealed strip no longer fits the control it contains — `overflow: hidden` '
+      + 'will clip it, and jsdom cannot see that')
+      .toBeGreaterThanOrEqual(BUTTONS * 16 + Math.max(0, BUTTONS - 1) * gap)
+    expect(Number(max[1]), 'the strip is sized to EXACTLY its contents')
+      .toBeGreaterThan(BUTTONS * 16 + Math.max(0, BUTTONS - 1) * gap)
   })
 })

@@ -1294,10 +1294,18 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     return hover(view, rsi ? [[rsi.series, { value: 54.321 }]] : [])
   }
 
-  /** The inline colour the RSI chip is painted in, as jsdom reports it. */
+  /** The colour the RSI chip is painted in, as jsdom reports it.
+   *
+   *  ⚰️ IT USED TO READ `span.style.color`. Track B moved the plot colour off
+   *  the chip's TEXT and onto a 2×9px rail: the chip wore
+   *  `style={{ color: chip.color }}` on the whole box, so eleven series printed
+   *  eleven differently-coloured names at 11px and a member who picked a dark
+   *  plot colour got a label they could not read. The INVARIANT these cases
+   *  assert is unchanged — the chip wears the colour the LINE wears — only the
+   *  element carrying it moved. */
   const rsiChipColor = (view) => {
     const span = [...view.container.querySelectorAll('span')].find(s => s.textContent.startsWith('RSI('))
-    return span ? span.style.color : null
+    return span ? (span.querySelector('i')?.style.backgroundColor ?? null) : null
   }
 
   it('LEGACY draws the chip — the control', async () => {
@@ -3193,9 +3201,13 @@ describe('an engine-drawn MACD keeps its TWO legend chips, and adds no third', (
     const chips = [...view.container.querySelectorAll('span')]
       .filter(el => /^(MACD|SIG) /.test(el.textContent))
     expect(chips.map(el => el.textContent)).toEqual(['MACD 0.1235', 'SIG -0.6789'])
-    expect(chips.map(el => el.style.color)).toEqual(['rgb(18, 52, 86)', 'rgb(101, 67, 33)'])
+    // ⚰️ `el.style.color` UNTIL TRACK B — see `rsiChipColor` above for why the
+    // colour moved to the rail. The claim is the same one: the chips follow the
+    // INSTANCE's colours, not the settings blob.
+    const railOf = (el) => el.querySelector('i')?.style.backgroundColor
+    expect(chips.map(railOf)).toEqual(['rgb(18, 52, 86)', 'rgb(101, 67, 33)'])
     // …and the blob's colours are NOT what is showing.
-    expect(chips.map(el => el.style.color)).not.toContain('rgb(33, 150, 243)')
+    expect(chips.map(railOf)).not.toContain('rgb(33, 150, 243)')
   })
 
   it('and the histogram still DECLARES its chip hidden, while the two lines do not', () => {

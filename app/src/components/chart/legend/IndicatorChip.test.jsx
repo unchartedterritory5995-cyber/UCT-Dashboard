@@ -26,9 +26,12 @@ const CHIP = {
   label: 'RSI(14)', color: '#7b68ee', decimals: 1, value: 54.3,
   hidden: false, text: 'RSI(14) 54.3',
 }
-const handlers = () => ({
-  onToggleHidden: vi.fn(), onOpenSettings: vi.fn(), onRemove: vi.fn(), onMenu: vi.fn(),
-})
+// ⚰️ THIS USED TO BE FOUR MOCKS — `onToggleHidden`, `onOpenSettings`,
+// `onRemove` and `onMenu`, one per icon in the hover strip plus the right-click.
+// Track B retired the strip: there is ONE door now and every verb is a row of
+// the popover it opens, so a chip that took three write handlers was a chip that
+// knew about three verbs it no longer renders.
+const handlers = () => ({ onMenu: vi.fn() })
 const draw = (over = {}, h = handlers()) =>
   ({ h, ...render(<IndicatorChip chip={{ ...CHIP, ...over }} {...h} />) })
 
@@ -126,9 +129,14 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
 
   // ── wiring ────────────────────────────────────────────────────────────────
 
-  it('the three controls are in the DOM with NO hover event, and there are exactly three', () => {
+  it('⭐ there is exactly ONE control, in the DOM with NO hover event', () => {
+    // ⚰️ THREE, UNTIL TRACK B. Three 11px targets with the destructive one
+    // 5px from the routine ones — and this file's own CSS carries the
+    // measurement that condemned that layout (one extra glyph in a live value
+    // moved every control 5.4px, so the box that was Settings a moment ago was
+    // Remove).
     const { container } = draw()
-    expect(container.querySelectorAll('button')).toHaveLength(3)
+    expect(container.querySelectorAll('button')).toHaveLength(1)
   })
 
   it('…and the control strip adds NO TEXT — one element, one text node, still', () => {
@@ -140,28 +148,27 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(chip.textContent).toBe('RSI(14) 54.3')
   })
 
-  it('clicking the eye toggles hidden — once, with the INSTANCE id, and nothing else fires', () => {
+  it('⭐⭐ the control opens the SAME popover the right-click does — one vocabulary', () => {
+    // The whole point of the change: a member who learns the affordance and a
+    // member who reflexively right-clicks land on the identical surface. Two
+    // menus with two row sets is the thing this replaces.
     const { container, h } = draw()
-    fireEvent.click(container.querySelector('[aria-label="Hide RSI(14)"]'))
-    expect(h.onToggleHidden).toHaveBeenCalledTimes(1)
-    expect(h.onToggleHidden).toHaveBeenCalledWith('legacy:rsi')
-    for (const fn of [h.onOpenSettings, h.onRemove, h.onMenu]) expect(fn).not.toHaveBeenCalled()
+    fireEvent.click(container.querySelector('[aria-label="RSI(14) options"]'))
+    expect(h.onMenu).toHaveBeenCalledTimes(1)
+    // ⚠️ THE WHOLE ROW, not the id — one instance can own several chips.
+    expect(h.onMenu.mock.calls[0][0]).toMatchObject({ instanceId: 'legacy:rsi', plotKey: 'rsi' })
   })
 
-  it('clicking the gear opens THIS instance\'s settings', () => {
-    const { container, h } = draw()
-    fireEvent.click(container.querySelector('[aria-label="RSI(14) settings"]'))
-    expect(h.onOpenSettings).toHaveBeenCalledTimes(1)
-    expect(h.onOpenSettings).toHaveBeenCalledWith('legacy:rsi')
-    for (const fn of [h.onToggleHidden, h.onRemove, h.onMenu]) expect(fn).not.toHaveBeenCalled()
-  })
-
-  it('clicking × removes THIS instance', () => {
-    const { container, h } = draw()
-    fireEvent.click(container.querySelector('[aria-label="Remove RSI(14)"]'))
-    expect(h.onRemove).toHaveBeenCalledTimes(1)
-    expect(h.onRemove).toHaveBeenCalledWith('legacy:rsi')
-    for (const fn of [h.onToggleHidden, h.onOpenSettings, h.onMenu]) expect(fn).not.toHaveBeenCalled()
+  it('⛔ …and the control click STOPS at the chip', () => {
+    // A click that keeps travelling reaches the chart wrapper and opens its
+    // region menu beside ours.
+    const spy = vi.fn()
+    const h = handlers()
+    const { container } = render(<div onClick={spy}><IndicatorChip chip={CHIP} {...h} /></div>)
+    fireEvent.click(container.querySelector('[aria-label="RSI(14) options"]'))
+    expect(spy, 'the click reached the ancestor — the chart region menu opens too')
+      .not.toHaveBeenCalled()
+    expect(h.onMenu, 'the popover never opened — the absence above is vacuous').toHaveBeenCalled()
   })
 
   it('a right-click opens the menu at the pointer, and eats the browser default', () => {
@@ -210,14 +217,31 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
       .toHaveBeenCalledTimes(1)
   })
 
-  it('every control NAMES the chip, and the eye says which way it goes', () => {
-    const labels = (over) => [...draw(over).container.querySelectorAll('button')]
+  it('the control NAMES the chip — "options" on nine chips is nine identical controls', () => {
+    const labels = [...draw().container.querySelectorAll('button')]
       .map(b => b.getAttribute('aria-label'))
-    expect(labels()).toEqual(['Hide RSI(14)', 'RSI(14) settings', 'Remove RSI(14)'])
-    cleanup()
-    // ⛔ "Hide" on a chip that is already hidden is a lie, and the chip's own
-    // dimming is the only other thing on screen that says which state it is in.
-    expect(labels({ hidden: true })[0]).toBe('Show RSI(14)')
+    expect(labels).toEqual(['RSI(14) options'])
+    // ⛔ AND IT ADVERTISES A MENU, so a screen reader announces that something
+    // opens rather than that something happens.
+    expect(draw().container.querySelector('button').getAttribute('aria-haspopup')).toBe('menu')
+  })
+
+  it('⭐ the RAIL carries the plot colour and the chip TEXT does not', () => {
+    // ⚰️ THE CHIP USED TO WEAR `style={{ color: chip.color }}` ON THE WHOLE
+    // BOX, so eleven series printed eleven differently-coloured names at 11px —
+    // and a member who picked a dark plot colour got a label they could not read.
+    // The rail is 2×9px of the same colour and carries no glyph, so it cannot be
+    // styled into illegibility.
+    const { container } = draw()
+    const chip = container.querySelector('[data-instance-id]')
+    expect(chip.style.color, 'the chip still tints its own text with the plot colour').toBe('')
+    const rail = chip.querySelector('i')
+    expect(rail, 'no colour rail on the chip').toBeTruthy()
+    expect(rail.style.backgroundColor.replace(/\s/g, '')).toBe('rgb(123,104,238)')
+    // ⛔ AN `<i>`, NOT A `<span>` — `stockChartWiring.test.jsx` counts spans —
+    // and hidden from the accessibility tree, because it restates a colour.
+    expect(rail.tagName).toBe('I')
+    expect(rail.getAttribute('aria-hidden')).toBe('true')
   })
 
   it('⛔ a READ-ONLY mount gets the inert chip — no controls, no tooltip, no menu', () => {
@@ -232,17 +256,29 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(chip.textContent).toBe('RSI(14) 54.3')
   })
 
-  it('⛔ …and a PARTIAL handler set renders none of them', () => {
-    // Two controls out of three is a worse lie than none: the missing one reads
-    // as "this chip cannot be removed" rather than as "this mount is read-only".
-    const { container } = render(
-      <IndicatorChip chip={CHIP} onToggleHidden={vi.fn()} onOpenSettings={vi.fn()} />)
+  it('⛔ …and a mount that brings only HOVER is still read-only', () => {
+    // ⚰️ THIS CASE USED TO SAY "a PARTIAL handler set renders none of them",
+    // because the gate was all-three-or-none. With one door the gate is simply
+    // that door — but the hover lift is a SEPARATE prop, and a mount that wants
+    // identification without management must not sprout a control that writes
+    // nowhere.
+    const { container } = render(<IndicatorChip chip={CHIP} onHover={vi.fn()} />)
     expect(container.querySelectorAll('button')).toHaveLength(0)
+  })
+
+  it('⭐ hover reports the INSTANCE id, and reports null on the way out', () => {
+    const onHover = vi.fn()
+    const { container } = render(<IndicatorChip chip={CHIP} {...handlers()} onHover={onHover} />)
+    const chip = container.querySelector('[data-instance-id]')
+    fireEvent.mouseEnter(chip)
+    expect(onHover).toHaveBeenCalledWith('legacy:rsi')
+    fireEvent.mouseLeave(chip)
+    expect(onHover).toHaveBeenLastCalledWith(null)
   })
 })
 
 describe('wave 10 — the body tap (tap-the-legend-name → editor)', () => {
-  it('fires onBodyTap with THE ROW on a body click, and the controls never do', () => {
+  it('fires onBodyTap with THE ROW on a body click, and the control never does', () => {
     const h = handlers()
     const onBodyTap = vi.fn()
     const { container } = render(<IndicatorChip chip={CHIP} {...h} onBodyTap={onBodyTap} />)
@@ -250,16 +286,26 @@ describe('wave 10 — the body tap (tap-the-legend-name → editor)', () => {
     fireEvent.click(chip)
     expect(onBodyTap).toHaveBeenCalledTimes(1)
     expect(onBodyTap.mock.calls[0][0]).toMatchObject({ defId: 'rsi', instanceId: 'legacy:rsi' })
+    // ⛔⛔ AND `onBodyTap` WINS OVER THE POPOVER, WHICH IS WHAT KEEPS THE PHONE
+    // SHELL UNCHANGED. The body click opens the popover on every mount that does
+    // NOT pass this prop; the phone shell passes it and keeps its own study
+    // editor sheet, exactly as before Track B.
+    expect(h.onMenu, 'the body tap also opened the popover — the phone shell now gets two')
+      .not.toHaveBeenCalled()
     // a control click stops propagation — it must not ALSO count as a body tap
-    fireEvent.click(container.querySelector('[aria-label="Hide RSI(14)"]'))
+    fireEvent.click(container.querySelector('[aria-label="RSI(14) options"]'))
     expect(onBodyTap).toHaveBeenCalledTimes(1)
-    expect(h.onToggleHidden).toHaveBeenCalledTimes(1)
+    expect(h.onMenu).toHaveBeenCalledTimes(1)
   })
 
-  it('without the prop the body stays inert — no onClick, exactly the Task-4 chip', () => {
-    const { container } = render(<IndicatorChip chip={CHIP} {...handlers()} />)
-    const chip = container.querySelector('[data-instance-id="legacy:rsi"]')
-    fireEvent.click(chip)   // must not throw, and nothing to assert fired
-    expect(chip).toBeTruthy()
+  it('⭐ without the prop the body OPENS THE POPOVER — the label is the button', () => {
+    // ⚰️ IT USED TO STAY INERT. The approved V1 makes the label itself the
+    // primary target: a member should not have to find a 16px chevron to manage
+    // the line they are already pointing at.
+    const h = handlers()
+    const { container } = render(<IndicatorChip chip={CHIP} {...h} />)
+    const chip = container.querySelector('[data-instance-id]')
+    fireEvent.click(chip)
+    expect(h.onMenu).toHaveBeenCalledTimes(1)
   })
 })

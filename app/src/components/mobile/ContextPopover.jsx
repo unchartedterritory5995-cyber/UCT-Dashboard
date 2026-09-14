@@ -24,6 +24,18 @@ export default function ContextPopover({
   anchor,
   items,
   title,
+  /** ⭐ AN OPTIONAL NON-INTERACTIVE HEADER, ABOVE THE ROWS, IN BOTH BRANCHES.
+   *
+   *  Added for Track B's on-chart popover, which has to answer *"what is this?"*
+   *  — name, live value, what it reads — before it offers a verb. `title` cannot
+   *  carry that: it is a single string and on touch it is the `Sheet`'s own
+   *  heading. `children` cannot either, because passing children REPLACES the
+   *  declarative `items` list and this menu needs both.
+   *
+   *  ⛔ IT IS NOT A ROW. `renderItems` emits `<button>`s and a focus trap walks
+   *  them; a header that rendered as one would be a tab stop that does nothing.
+   *  Ignored when `children` is given — that branch owns its own layout. */
+  header,
   children,
   width = 220,
   // Theme class forwarded to the touch bottom-sheet — it portals to <body>,
@@ -121,7 +133,7 @@ export default function ContextPopover({
     return (
       <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
         <div className={styles.sheetList}>
-          {children ?? renderItems()}
+          {children ?? <>{header}{renderItems()}</>}
         </div>
       </Sheet>
     )
@@ -142,7 +154,7 @@ export default function ContextPopover({
       tabIndex={-1}
     >
       {title != null && <div className={styles.menuTitle}>{title}</div>}
-      {children ?? renderItems()}
+      {children ?? <>{header}{renderItems()}</>}
     </div>,
     document.body,
   )

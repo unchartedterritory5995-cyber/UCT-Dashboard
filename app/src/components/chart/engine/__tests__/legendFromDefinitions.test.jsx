@@ -675,7 +675,15 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // …and its COLOUR is the one the shipped row printed for an untouched blob.
     const o = [...view.container.querySelectorAll('span')].find(s => /^O\s/.test(s.textContent || ''))
     const span = [...o.parentElement.children].find(el => el.textContent === expected(key, V))
-    expect(span.style.color.replace(/\s/g, ''), `${key}'s chip changed colour`)
+    // ⚰️ THIS READ `span.style.color` UNTIL TRACK B. The chip wore
+    // `style={{ color: chip.color }}` on the whole box, so eleven series printed
+    // eleven differently-coloured NAMES at 11px — and a member who picked a dark
+    // plot colour got a label they could not read. The colour moved to a 2×9px
+    // rail that carries no glyph; the INVARIANT is unchanged and is what this
+    // still asserts: the chip wears the colour the LINE wears.
+    const rail = span.querySelector('i')
+    expect(rail, `${key}'s chip has no colour rail`).toBeTruthy()
+    expect(rail.style.backgroundColor.replace(/\s/g, ''), `${key}'s chip changed colour`)
       .toBe(hexToRgb(SHIPPED[key].color))
     view.unmount()
   })
@@ -1373,7 +1381,19 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     (blob.indicatorInstances || []).find(i => i && i.instanceId === id) || null
   const menuRows = () => [...document.body.querySelectorAll('[role="menu"] button')]
 
-  it('the EYE hides THAT instance, through the per-INSTANCE door, and nothing else moves', async () => {
+  /** ⭐⭐ TRACK B — THE ONE DOOR. The affordance button, a click on the chip
+   *  body and a right-click all call the same handler and open the same popover,
+   *  so every case below drives the surface a member actually uses. The verbs
+   *  that used to be three 11px icons are ROWS of this menu now. */
+  const openChip = async (view, name) => {
+    await act(async () => {
+      fireEvent.contextMenu(chipFor(view, name), { clientX: 120, clientY: 60 })
+    })
+    return menuRows()
+  }
+  const rowStarting = (t) => menuRows().find(b => (b.textContent || '').startsWith(t))
+
+  it('the HIDE row hides THAT instance, through the per-INSTANCE door, and nothing else moves', async () => {
     const persist = vi.fn()
     const view = drawObserved(FOUR(), persist)
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
@@ -1381,8 +1401,9 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const id = chip.getAttribute('data-instance-id')
     expect(chip.getAttribute('data-hidden')).toBe('false')
 
-    await act(async () => { chip.querySelector('[aria-label^="Hide "]').click() })
-    expect(persist, 'the eye wrote nothing — the chip control is decorative').toHaveBeenCalledTimes(1)
+    await openChip(view, 'RSI')
+    await act(async () => { rowStarting('Hide RSI').click() })
+    expect(persist, 'the Hide row wrote nothing — the popover is decorative').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
     expect(liveInstance(next, id).hidden,
       'the eye did not hide the instance it names').toBe(true)
@@ -1413,8 +1434,9 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'RSI')
     expect(chip.getAttribute('data-hidden'), 'the fixture did not start hidden').toBe('true')
-    const btn = chip.querySelector('[aria-label^="Show "]')
-    expect(btn, 'a hidden chip still offers "Hide" — the control lies about its direction').toBeTruthy()
+    await openChip(view, 'RSI')
+    const btn = rowStarting('Show RSI')
+    expect(btn, 'a hidden chip still offers "Hide" — the row lies about its direction').toBeTruthy()
 
     await act(async () => { btn.click() })
     expect(persist).toHaveBeenCalledTimes(1)
@@ -1424,31 +1446,45 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     view.unmount()
   })
 
-  it('the GEAR opens the settings dialog on THAT instance', async () => {
+  it('⭐ "Edit in Chart Data…" opens the full editor on THAT instance', async () => {
     const view = drawObserved(FOUR(), vi.fn())
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'ATR')
     const id = chip.getAttribute('data-instance-id')
     expect(id, 'the ATR chip does not name an atr instance').toContain('atr')
-    await act(async () => { chip.querySelector('[aria-label$="settings"]').click() })
-    // Task 5's dialog, mounted on `settingsInstanceId`. It names the instance it
-    // opened on, which is how "RSI(7) settings" differs from "RSI(14) settings".
+    await openChip(view, 'ATR')
+    await act(async () => { rowStarting('Edit in Chart Data').click() })
+    // ⭐⭐ ONE CHANNEL. A mount that HAS the workspace modal gets
+    // `onOpenSettings('data:<instanceId>')` — the same `scrollTo` string
+    // `watermark` / `axis` / `volume` / `ind:` ride, which `ChartSettingsModal`
+    // resolves to this exact row. This mount passes none, so it falls back to the
+    // per-instance dialog, which is the only settings surface a phone shell or a
+    // bare chart has. Both doors name the instance that was clicked.
     const dialog = document.body.querySelector('[role="dialog"]')
     expect(dialog, 'the gear opened no settings dialog').toBeTruthy()
     expect(dialog.textContent, 'the dialog opened on some other indicator').toMatch(/ATR/i)
     view.unmount()
   })
 
-  it('the × removes THAT instance and leaves its siblings drawing', async () => {
+  it('⭐⭐ Delete ARMS, then removes THAT instance and leaves its siblings drawing', async () => {
     const persist = vi.fn()
     const view = drawObserved(FOUR(), persist)
     await settledLegend(view, crosshairWith({}))
     const chip = chipFor(view, 'ATR')
     const id = chip.getAttribute('data-instance-id')
-    await act(async () => { chip.querySelector('[aria-label^="Remove "]').click() })
+    await openChip(view, 'ATR')
+    // ⛔ THE FIRST CLICK WRITES NOTHING. It re-labels the row and keeps the
+    // popover open — the replacement for an 11px × that sat 5px from the gear.
+    await act(async () => { rowStarting('Delete').click() })
+    expect(persist, 'the first Delete click removed the instance — there is no confirmation')
+      .not.toHaveBeenCalled()
+    const armed = rowStarting('Delete')
+    expect(armed.textContent, 'the armed row does not name what it will delete')
+      .toContain('ATR')
+    await act(async () => { armed.click() })
     expect(persist).toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
-    expect(liveInstance(next, id).deleted, '× did not tombstone the instance').toBe(true)
+    expect(liveInstance(next, id).deleted, 'Delete did not tombstone the instance').toBe(true)
     for (const other of ['rsi', 'stoch']) {
       expect((next.indicatorInstances || []).some(i => i && i.defId === other && !i.deleted),
         `removing ATR took ${other} with it`).toBe(true)
@@ -1463,7 +1499,8 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const menu = document.body.querySelector('[role="menu"]')
     expect(menu, 'the right-click opened no menu').toBeTruthy()
     const text = menu.textContent
-    for (const row of ['Settings', 'Hide RSI', 'Move to', 'Add alert on RSI', 'About', 'Remove']) {
+    for (const row of ['Hide RSI', 'Display in', 'Edit in Chart Data', 'Add alert on RSI',
+      'About', 'Delete']) {
       expect(text, `${row} is missing from the chip menu`).toContain(row)
     }
     // …and it is the shipped primitive, PORTALLED: not inside the legend, which
@@ -1474,39 +1511,42 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     view.unmount()
   })
 
-  it('⛔ a REFUSED move target is disabled IN THE DOM, with the reason on screen', async () => {
-    // The whole point of a disabled REASON. `chipMenu.test.js` proves the verdict
-    // against the real `resolvePlacement`; this proves the verdict REACHES the
-    // button — a row that renders live and writes an unresolvable placement takes
-    // the indicator off the chart with its box still ticked.
+  it('⛔ a REFUSED destination is disabled IN THE DOM, with the reason on screen', async () => {
+    // The whole point of a disabled REASON. `chipMenu.test.js` proves the page is
+    // `displayTargetOptions`' answer unaltered; this proves the verdict REACHES
+    // the button — a row that renders live and writes nothing is the defect class
+    // this surface exists to retire.
+    //
+    // ⚰️ THIS CASE USED TO ASSERT THAT **Volume** WAS DEAD, because
+    // `chipMenu` refused it: the old hand-rolled move wrote `placement.target`
+    // straight onto the instance, and `resolvePlacement` reads the overlay
+    // decision from `cs.volumeOverlayIndicators` and never from that key — so the
+    // row persisted a no-op with a tick beside it. `setInstanceDisplayTarget`
+    // keeps the legacy mirror in step on an explicit move, so Volume is a real
+    // destination now and the refusal that remains is the honest one: you cannot
+    // move something to where it already is.
     const view = drawObserved(FOUR(), vi.fn())
     await settledLegend(view, crosshairWith({}))
-    fireEvent.contextMenu(chipFor(view, 'RSI'), { clientX: 120, clientY: 60 })
-    const move = menuRows().find(b => (b.textContent || '').startsWith('Move to'))
-    expect(move, 'no Move row').toBeTruthy()
-    expect(move.disabled, 'a pane oscillator has nowhere to move — re-derive the refusals').toBe(false)
+    await openChip(view, 'RSI')
+    const move = rowStarting('Display in')
+    expect(move, 'no Display-in row').toBeTruthy()
+    expect(move.disabled, 'a pane oscillator has nowhere to draw — re-derive the destinations')
+      .toBe(false)
     await act(async () => { move.click() })
 
     const rows = menuRows()
     const byLabel = (t) => rows.find(b => (b.textContent || '').startsWith(t))
-    const volume = byLabel('Volume pane')
-    expect(volume, 'the Move page does not offer the volume target at all').toBeTruthy()
-    expect(volume.disabled,
-      'the volume target is live. `resolvePlacement` reads the overlay decision from '
-      + '`cs.volumeOverlayIndicators` and NEVER from the instance target, so this row would '
-      + 'persist a placement that changes nothing — with a tick beside it')
-      .toBe(true)
-    expect(volume.textContent,
-      'the refusal reason is not on screen — the user is left clicking a grey line')
-      .toMatch(/chart-wide toggle/)
-    // The CURRENT placement is refused too, and for a different reason.
-    expect(byLabel('Its own pane').disabled, 'the CURRENT target is offered as a destination')
-      .toBe(true)
-    // ⛔ …and the control: one row on this page IS live, so "disabled" is a
-    // property of these two and not of the page.
-    expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 11)),
-      'every row on the Move page is dead, or none is — the verdict is not discriminating')
-      .toContain('Price pane')
+    // The CURRENT placement is shown, ticked, and refused.
+    const here = byLabel('Own pane')
+    expect(here, 'the page does not show where the series is now').toBeTruthy()
+    expect(here.disabled, 'the CURRENT target is offered as a destination').toBe(true)
+    expect(here.textContent, 'the refusal reason is not on screen — the user is left '
+      + 'clicking a grey line').toMatch(/already here/)
+    // ⛔ …and the control: other rows on this page ARE live, so "disabled" is a
+    // property of this one and not of the page.
+    expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 5)),
+      'every row on the Display-in page is dead, or none is — the verdict is not discriminating')
+      .toContain('Price')
     view.unmount()
   })
 
@@ -1515,13 +1555,13 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
       indicators: { rsi: { enabled: true }, bb: { enabled: true } },
     }), vi.fn())
     await settledLegend(view, crosshairWith({}))
-    fireEvent.contextMenu(chipFor(view, 'BB'), { clientX: 120, clientY: 60 })
-    const move = menuRows().find(b => (b.textContent || '').startsWith('Move to'))
-    expect(move, 'no Move row on the BB chip').toBeTruthy()
+    await openChip(view, 'BB')
+    const move = rowStarting('Display in')
+    expect(move, 'no Display-in row on the BB chip').toBeTruthy()
     expect(move.disabled,
-      'BB can be moved. `computePaneLayout` gives a PRICE-declared definition no pane, so '
-      + '`resolvePlacement` returns null and the binder binds nothing — the indicator would '
-      + 'silently vanish').toBe(true)
+      'BB can be moved. It declares a PRICE target and reads no source, so '
+      + '`displayTargetOptions` answers EMPTY — the same test Chart Settings uses to render no '
+      + 'control at all').toBe(true)
     view.unmount()
   })
 
@@ -1693,9 +1733,12 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const chip = chipEls(view).find(e => (e.textContent || '').startsWith('RSI(7)'))
     expect(chip, 'no RSI(7) chip to remove').toBeTruthy()
     const id = chip.getAttribute('data-instance-id')
-    await act(async () => { chip.querySelector('[aria-label^="Remove "]').click() })
+    await act(async () => { fireEvent.contextMenu(chip, { clientX: 120, clientY: 60 }) })
+    const del = () => menuRows().find(b => (b.textContent || '').startsWith('Delete'))
+    await act(async () => { del().click() })      // arms
+    await act(async () => { del().click() })      // fires
 
-    expect(persist, '× wrote nothing').toHaveBeenCalledTimes(1)
+    expect(persist, 'Delete wrote nothing').toHaveBeenCalledTimes(1)
     const next = persist.mock.calls[0][0]
     const live = (next.indicatorInstances || []).filter(i => i && i.defId === 'rsi' && !i.deleted)
     expect(live.map(i => i.instanceId),
@@ -1755,9 +1798,16 @@ describe('W0.1 — a colour change through the settings dialog', () => {
   }
   /** Gear → Style tab → swatch → a preset that is not the current colour → Done. */
   const recolourThroughTheDialog = async (view) => {
-    const gear = view.container.querySelector('button[aria-label="RSI(14) settings"]')
-    expect(gear, 'no gear on the RSI chip — the door this case drives does not exist').toBeTruthy()
-    await act(async () => { fireEvent.click(gear) })
+    // ⚰️ A `button[aria-label="RSI(14) settings"]` GEAR STOOD HERE. The door is
+    // the popover now, and its full-editor row is what opens the dialog.
+    const chipEl = [...view.container.querySelectorAll('[data-instance-id]')]
+      .find(e => (e.textContent || '').startsWith('RSI('))
+    expect(chipEl, 'no RSI chip — the door this case drives does not exist').toBeTruthy()
+    await act(async () => { fireEvent.contextMenu(chipEl, { clientX: 40, clientY: 40 }) })
+    const edit = [...document.body.querySelectorAll('[role="menu"] button')]
+      .find(b => (b.textContent || '').startsWith('Edit in Chart Data'))
+    expect(edit, 'the popover has no full-editor row').toBeTruthy()
+    await act(async () => { fireEvent.click(edit) })
     const dialog = screen.getByRole('dialog')
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Style' }))
     // The colour row is keyed by its input (`data-input-key`, IndicatorSettingsDialog.jsx:426);
@@ -1790,12 +1840,13 @@ describe('W0.1 — a colour change through the settings dialog', () => {
   it('🔴 recolours the OFF-CURSOR chip with NO crosshair delivered — the 8/15 symptom', async () => {
     const view = mount()
     const before = await offCursorChip(view, 'RSI')
-    expect(before.style.color.replace(/\s/g, '')).toBe(hexToRgb(RSI_DEFAULT))
+    expect(before.querySelector('i').style.backgroundColor.replace(/\s/g, ''))
+      .toBe(hexToRgb(RSI_DEFAULT))
     const picked = await recolourThroughTheDialog(view)
     // ⛔ NO `settledLegend` HERE. A crosshair would drive the hovering path, which
     // reads `engineInstancesRef` fresh and was never the stale half.
     const after = await offCursorChip(view, 'RSI')
-    expect(after.style.color.replace(/\s/g, ''),
+    expect(after.querySelector('i').style.backgroundColor.replace(/\s/g, ''),
       'the off-cursor chip kept the OLD colour after Done — the legend payload was not re-derived')
       .toBe(hexToRgb(picked))
     view.unmount()
@@ -1808,7 +1859,7 @@ describe('W0.1 — a colour change through the settings dialog', () => {
     await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.3 }))
     const chip = chipIn(view, 'RSI')
     expect(chip, 'no RSI chip under the crosshair').toBeTruthy()
-    expect(chip.style.color.replace(/\s/g, '')).toBe(hexToRgb(picked))
+    expect(chip.querySelector('i').style.backgroundColor.replace(/\s/g, '')).toBe(hexToRgb(picked))
     view.unmount()
   })
 })
@@ -1986,7 +2037,7 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(row.textContent.replace(/\s/g, '')).not.toBe('Vol')
   })
 
-  it('⭐ the pane s own strip carries the same three verbs', async () => {
+  it('⭐ the pane s own strip carries the SAME ONE DOOR', async () => {
     // Owner: *"when I hover over this with my mouse the buttons should pop up on
     // the right just like for RSI."* The strip's row carries NO label and NO value
     // — the three readings beside it are already the volume pane's — so this
@@ -1997,11 +2048,18 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(box, 'the volume strip did not render').toBeTruthy()
     const ctl = box.querySelector('[data-legend-ctl]')
     expect(ctl, 'the strip has no control cell').toBeTruthy()
+    // ⚰️ THREE BUTTONS — `Hide Volume` / `Volume settings` / `Remove Volume` —
+    // STOOD HERE. Track B leaves ONE door on every legend surface, and the volume
+    // pane's verbs are rows of the popover it opens: Hide/Show, Edit in Chart
+    // Data, and an ARMING Delete. The pane keeps its own structure (it is
+    // `cs.volume`, not an engine instance, with no destinations and nothing to
+    // duplicate) and shares the surface, which is the unification that was safe
+    // to make tonight.
     expect([...ctl.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Hide Volume', 'Volume settings', 'Remove Volume'])
+      .toEqual(['Volume options'])
     // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". `controlLabel` is what a screen
     // reader and the tooltip get, and a row with an empty label would otherwise
-    // announce three buttons called "Hide ", "settings" and "Remove ".
+    // announce a button called " options".
     expect(box.textContent).not.toMatch(/Vol\s*$/)
   })
 
