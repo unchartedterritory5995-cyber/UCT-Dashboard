@@ -173,6 +173,124 @@ fires only for one that has not. `put_immutable`, `get` and `list_prefix` all fu
 ⚠️ **Scope, stated rather than implied:** this is a *pytest* rail. A bare `python tools/...` run
 still reaches the live bucket, exactly as the conftest tripwire is a test-suite rail only.
 
+### Incident — 27 PAID sessions published PUBLIC to YouTube for 25 days (2026-08-19 → 2026-09-13)
+
+**Not this program's defect. Found by this program's agent, fixed under owner priority override.**
+Recorded here because the finding, the measurement and the rail are this session's work, and
+because the way it was nearly missed is the reusable part.
+
+**How it surfaced.** The P3 Track-A transcription agent ended an unrelated report with:
+*"Observed in passing, unverified as intentional: `DESK_PUBLIC_SHOWS=*` on `web`, so every show —
+including paywalled workshops — uploads public."* ⭐ That is the H14 tell verbatim — a hazard class
+demoted to a footnote. Running the H14 chain instead of filing it is the whole of this entry.
+
+**Confirmed, in three independent places before anything was changed:**
+
+| layer | evidence |
+|---|---|
+| source | `desk_daily_session.privacy_for_section:117` — `if "*" in shows: return "public"` |
+| live config | `railway variables --service web --kv` → `DESK_PUBLIC_SHOWS=*`, with `DESK_DAILY_SESSION_ENABLED=1` |
+| artifact | anonymous fetch of `rKVAkk3811Q` (a PAID Stockbee workshop) → `"isUnlisted":false` |
+
+⭐ **The artifact check carried its own control.** Two older Mental Game videos read
+`"isUnlisted":true` in the same sweep, and Sunday Scans read `false` — so the probe demonstrably
+discriminates, and "public" was a measurement rather than an inference.
+
+**The revert (owner's flag flip, executed 2026-09-13).**
+⛔ **The owner's instruction said `DESK_PUBLIC_SHOWS=sundayscans` — no space — and that value makes
+NOTHING public, including Sunday Scans.** `privacy_for_section` does a plain substring test, so
+`"sundayscans" in "sunday scans"` is False. Run against the real classifier over all six routable
+sections before touching production: `*` → 6 public · `sundayscans` → 0 public · `sunday scans` →
+exactly `Sunday Scans`. The RULING ("Public = Sunday Scans only") was executed, the typo was not,
+and it was reported the same minute. The space is load-bearing and is now pinned by a rail.
+
+| | before | after |
+|---|---|---|
+| `DESK_PUBLIC_SHOWS` on `web` | `*` | `sunday scans` |
+| sections resolving to public, **read in-process on the pod** | all 6 | `Sunday Scans` only |
+
+Verified by `railway ssh` running `privacy_for_section` in the live process — not from `--kv`,
+which shows what the service is configured with and is not evidence the running process has it.
+
+**Blast radius — 320 videos, every privacy status read from YouTube's own API with the publisher's
+token, then split by CAUSE rather than by the literal predicate:**
+
+| set | n | disposition |
+|---|---|---|
+| desk-published (`meeting_uuid`), public, non-Sunday-Scans | **28** | **the leak** — all set to unlisted |
+| legacy back-catalog, public, non-Sunday-Scans | 66 | **UNTOUCHED** — predates the flag, never governed by it |
+
+⛔ **The literal instruction was "any non-Sunday-Scans video with `isUnlisted:false`", which is all
+94.** Applying it as written would have unlisted 23 Interviews, 9 Scanning and 8 Setups videos that
+have been deliberately public for months and have nothing to do with this flag — a second,
+unrelated member-visible change made under cover of a fix. The 66 are reported for the owner's
+call instead. ⭐ Two of them are Live Trading Sessions and ten are Post-Market Recaps; those may be
+a separate, older exposure and are flagged as such rather than silently swept in.
+
+**Earliest affected upload 2026-07-28** — which does NOT match the commit date, and the discrepancy
+is kept rather than smoothed: `0894d7ac0` (the wildcard) is 2026-08-19, and Live Trading Sessions do
+go public from 2026-08-19 onward. Five earlier uploads (an Evening Update on 07-28, a Live Trading
+Session on 08-04, Evening Updates on 08-04/08-12/08-18) predate both the wildcard AND the per-show
+privacy feature itself (`634326923`, 2026-08-09), so they cannot have been caused by either. Their
+cause is **unattributed**; Railway exposes no variable history from the CLI.
+
+**How it got set.** `0894d7ac0`, 2026-08-19 07:51 CDT, authored by a **Claude Fable 5** session:
+
+> `feat(desk): DESK_PUBLIC_SHOWS="*" uploads every show to YouTube as public`
+> *"Owner decision 2026-08-19: all auto-recorded sessions post public."*
+
+⛔ **That commit message and the owner's 2026-09-13 ruling ("the wildcard was NOT intentional")
+contradict each other, and this ledger does not resolve it.** Both are recorded; the later ruling
+governs. What is not in dispute: **the decision was never written into `docs/feature_flags.json`**,
+so 25 days later nothing in the repo could tell a deliberate setting from a leak — which is exactly
+the ambiguity that ledger exists to remove, and exactly the flag it could not see.
+
+**Three could not be changed**, listed with the exact reason rather than counted as done:
+`hmGZSV_axHo` and `znjo804B_0k` (Evening Update, Sep 10) and `vslaRnO9G3E` (Sunday Scans Aug 16 Pt 1)
+return **no item** from `videos.list` even to the owning token — the videos are gone from YouTube;
+their `edu_videos` rows point at nothing. One video, `ngF6_2A3L2w`, read back `public` immediately
+after its update and `unlisted` three seconds later: propagation lag, re-verified, not a failure.
+
+**Final state, re-read from YouTube after every change:** desk non-Sunday-Scans = 73 unlisted,
+1 private (pre-existing, untouched), 2 gone, **0 public**. Sunday Scans = 3 public, as intended.
+
+**The class, and why no rail could see it.** `tests/test_feature_flag_ledger.py` narrows the census
+with `is_gate()` — true only for names carrying `ENABLED`/`DISABLE`/`_ON`. `DESK_PUBLIC_SHOWS`
+carries none, so it was **absent from the gate census entirely**; and it defaults to a non-empty
+string, so even a name-agnostic version would have read it as a live decision. Two independent
+blindnesses, either sufficient alone.
+
+⭐ **A gate decides whether a feature RUNS; a visibility flag decides who can SEE what it produced.**
+The first fails loudly and reversibly; the second fails silently and **cannot be un-published**.
+They are now separate axes:
+
+- `feature_flag_index.is_visibility_flag()` / `visibility_flags()` — narrowed from `scan()`, never
+  from `gates()`, because `gates()` is the thing that was blind. Markers are decision words;
+  exclusions are the three kinds of name that carry them and decide nothing (destination,
+  credential, location). Measured: 4 flags, excluding exactly `DESK_ANNOUNCE_DB_PATH`,
+  `DISCORD_CHART_PUBLIC_KEY`, `UCT_PUBLIC_BASE`.
+- `tests/test_visibility_flag_ledger.py` — declared with `exposure`/`default`/`values`; **wildcard
+  refused**; declared values must name sections `_RULES`/`_HOST_AWARE` can actually produce; the
+  declared default must equal the code default; and the default must resolve to Sunday Scans alone
+  through the REAL classifier. Two vacuity controls, because every assertion is over a derived set.
+- `tools/flag_ledger_audit.py --visibility` — the live half, which is the only half that could have
+  caught this: **the wildcard was never in the repo.** Value reads are scoped to ledger-declared
+  `exposure: public` flags so the "names only, values are secrets" rule still holds.
+- ⚠️ `test_the_ledger_does_not_describe_gates_that_no_longer_exist` immediately demanded the
+  deletion of the two new entries — its own docstring already names this failure
+  (*"the rail was reporting its own blindness and blaming the ledger"*), now recurring one axis
+  over. Its subtrahend is the union of both axes.
+
+**Mutation-proved, 7 guards, all four files restored byte-exact:** PUBLIC marker removed (2 red) ·
+exclusions widened to swallow everything (2) · predicate narrowed to nothing (2) · narrowed from
+`gates()` instead of `scan()` (1) · the wildcard back in the ledger (4) · **the code default losing
+its space — the owner's typo, reproduced as a mutant (2)** · the live audit no longer flagging
+wildcards (1). Control: 15 passed.
+
+⚠️ **RESIDUAL, stated rather than hidden:** the predicate is a NAME test. A future flag that decides
+public exposure without one of the marker words in its name is not caught. That is a smaller hole
+than the one it closes; it is named in the source and here so the next reader inherits it.
+
 ### Open, carried deliberately — the provenance-marker gap (owner ruling, checkpoint 3 §8c.3)
 
 **The audit that says "nothing reached the member-facing tables" is shape-based.** It searches for
@@ -495,6 +613,19 @@ against production-shaped product stores, so `detections_retention`'s byte-per-r
 no real TwitterAPI.io call was made, so `PAGE_SIZE_ESTIMATE`, the `has_next_page`/`next_cursor`
 field names and `since_time`/`until_time` remain assumptions that only `smoke_test(execute=True)`
 can settle — and that needs the flag on and the owner's consent to spend.
+
+### Observed external drift — not this program's, recorded so it is not re-diagnosed
+
+| what | commit | state |
+|---|---|---|
+| `TERMINAL_NEXT_MONITOR_ENABLED` undeclared in `docs/feature_flags.json`, so `test_feature_flag_ledger::test_every_off_by_default_gate_is_declared` is RED on master | master's own `6a7a8ee73` (terminal-next-monitor) | open, theirs |
+
+Provenance from `git show origin/master:docs/feature_flags.json` (absent) and
+`git log --diff-filter=A -- api/terminal_next_monitor_main.py`, never `git status`.
+⛔ **Deliberately not fixed here** (owner ruling, 2026-09-13): the ledger records a programme's
+INTENT — `armed` / `dark` / `pending` — and only terminal-next can state theirs. Writing a verdict
+on their behalf would be inventing one. Wisdom merges proceed past it; it is counted as a known
+external red in every gate, never as a new failure.
 
 ## Section 3 — other programs' commits on paths this program created
 

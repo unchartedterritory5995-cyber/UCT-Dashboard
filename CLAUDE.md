@@ -2164,6 +2164,42 @@ flattering direction: fewer files run, fewer failures found. Count the files, no
 find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
 ```
 
+### ⛔⛔ Write a file with the line endings GIT ALREADY STORES — never "whatever was on disk" (Editing)
+
+> **Every repo file written from a script on this box is written with the endings of the blob git
+> holds for that path. For a new file that is LF. Gate: `python tools/check_repo_hygiene.py`.**
+
+Owner ruling **R-2**, 2026-09-13, after the same trap bit twice in one programme: a 2-line edit came
+back as a **918-line** diff, and a 7-line edit as a **1,199-line** one. Both times the edit was
+correct and unreviewable.
+
+**The mechanism, measured rather than assumed.** `core.autocrlf=true` on this box, and 7 of the
+9,135 tracked blobs were committed CRLF (`docs/plans/joystick/deferred.md` is **mixed** — 87 CRLF
+lines among LF ones). A Python round trip opened with `newline=""` faithfully preserves what is ON
+DISK, which for those paths is the opposite of what git stores.
+
+⚠️ **The trap is one-directional, and "never write CRLF" is the wrong lesson.** Writing CRLF over an
+LF-stored file is *cleaned on the way in*: `git diff` reports nothing at all and nothing wrong can
+reach a commit (measured on `docs/feature_flags.json` — numstat empty). The direction that destroys a
+diff is a **CRLF-stored or mixed blob flattened to LF**. So the rule is *match the stored blob*, not
+*avoid CRLF*.
+
+⭐ **The gate compares CR-stripped content, not a "style".** A bare CRLF ban would go red on
+`deferred.md` the moment somebody edited it *correctly* — and a check that fires on the right answer
+is muted within a week. A style comparison is not enough either: on a mixed file both sides answer
+"crlf" and a real flip slips through. `tools/check_repo_hygiene.py` reports a path only when the two
+sides are **identical once every CR is removed**, i.e. when endings are the *only* difference.
+`--staged` compares the index blob (what a commit would record, so it works as a pre-commit hook);
+the default mode compares the working file, which fires before `git add`. Rails:
+`tests/test_repo_hygiene.py` (11 quiet-cases beside the 4 firing ones, an exact-path allowlist check,
+and a non-vacuity case — the check walks CHANGED paths, so on a clean tree it inspects nothing and a
+broken one is indistinguishable from a working one). `--self-check` proves it can fail.
+
+⚰️ **And a related one, paid for in the same hour: `git checkout -- <file>` is not a restore.** Used
+to undo a one-line probe, it discarded an unrelated finished edit to the same file that had taken
+twenty minutes to write. Restore by writing back bytes you captured first and verifying the sha —
+`feedback_mutation_check_never_git_checkout`, which now has a second incident behind it.
+
 ### ⛔ Run the suite in its OWN tool call, before `git commit` — never in the same one (Testing)
 
 > **The verification and the commit are two separate acts, in that order. Chaining them into one
@@ -4157,6 +4193,21 @@ becomes a searchable video on the channel, so:
   it lands and defaults to unlisted. Mutation-checked three ways (guard deleted · call
   site stops passing privacy · client ignores the value it was handed) — the middle one
   is the "routing computed but never applied" failure this repo keeps rediscovering.
+- ⛔⛔ **THE RULE ABOVE IS CORRECT AND IT WAS NOT TRUE FOR 25 DAYS.**
+  `DESK_PUBLIC_SHOWS=*` was set on `web` on **2026-08-19** (`0894d7ac0`, whose message
+  cites an owner decision) and **27 paid sessions** — Live Trading Sessions, a paid
+  workshop, Evening Updates — uploaded **public and searchable** until the owner's
+  revert on 2026-09-13. Every rail was green throughout: the flag carries no
+  `ENABLED`/`DISABLE` marker, so `is_gate()` is false for it and the ledger rail never
+  asked. **A doc that states a rule no check enforces is a rule that lasts until
+  somebody changes a variable.** The checks that now exist, and which this paragraph and
+  they must be kept in step with:
+  **`tests/test_visibility_flag_ledger.py`** (offline — every visibility flag declared
+  in `docs/feature_flags.json` with `exposure`/`default`/`values`, a wildcard refused,
+  declared values must name sections `_RULES`/`_HOST_AWARE` can actually produce) and
+  **`python tools/flag_ledger_audit.py --visibility`** (the live half — reads the
+  services and fails on a wildcard or an undeclared value, because the wildcard was
+  never in the repo and only the running service ever had it).
 
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
