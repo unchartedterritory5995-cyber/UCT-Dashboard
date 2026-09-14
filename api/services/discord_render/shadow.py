@@ -86,8 +86,16 @@ def observe_ack(interaction: dict, *, pre_v2_reply: dict | None, resolve=None, n
                 break
 
     refused = [v.symbol for v in verdicts if getattr(v, "status", None) == symbols.UNKNOWN]
+    unanswerable = [v.symbol for v in verdicts if getattr(v, "status", None) == symbols.UNANSWERABLE]
     out["symbols"] = len(tickers)
     out["would_refuse"] = ",".join(refused) if refused else None
+    # ⛔⛔ WITHOUT THIS, A DIVERGENCE OF ZERO IS UNINTERPRETABLE — and zero is the number the flip
+    # decision rests on. "V2 agreed with the old path" and "V2 could not tell" both produce no
+    # refusals, and only this count separates them. A run that recorded a quiet weekend of perfect
+    # agreement, when what actually happened was that every symbol check failed open, is an
+    # instrument reporting its own blind spot as a property of what it measured.
+    out["unanswerable"] = ",".join(unanswerable) if unanswerable else None
+    out["index_ready"] = _index_ready()
     out["pre_v2_type"] = (pre_v2_reply or {}).get("type")
     # ⭐ The single number worth watching through a session: how often V2 would have told a member
     # "I don't have that symbol" where the old path went ahead and drew something.
@@ -95,6 +103,25 @@ def observe_ack(interaction: dict, *, pre_v2_reply: dict | None, resolve=None, n
     out["ms"] = round((now() - started) * 1000.0, 1)
     observe.event("shadow", **{k: v for k, v in out.items() if v is not None})
     return out
+
+
+def _index_ready() -> bool | None:
+    """Whether the symbol authorities can answer at all, in THIS process.
+
+    ⚰️ ⛔ AND "THIS PROCESS" IS THE POINT, LEARNED THE HARD WAY 2026-09-13. A `railway ssh` probe
+    spawns a **different** Python from the uvicorn server (pid 569 vs pid 1) and imports every module
+    COLD — so `ticker_search_index.ready()` reads False there while the server has the index fully
+    loaded. A probe run that way reported every symbol as `unanswerable` and looked exactly like a
+    production defect; `/api/ticker-search?q=NV` through the real server returned real rows seconds
+    later. **A pod probe measures the probe's process.** Timing from one is an upper bound (which
+    `05-progress` already said); a VERDICT from one can be simply wrong.
+
+    Recorded on the shadow line so Monday's data says which process state produced it."""
+    try:
+        from api.services.discord_render import symbols
+        return bool(symbols._index_ready())
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _tickers(interaction: dict) -> list[str]:

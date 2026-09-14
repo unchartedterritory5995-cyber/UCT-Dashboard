@@ -87,6 +87,48 @@ def test_agreement_is_not_a_divergence():
     assert out["would_refuse"] is None and out["divergence"] is False
 
 
+def test_the_record_separates_could_not_tell_from_agreed(monkeypatch):
+    """⛔⛔ A DIVERGENCE OF ZERO IS THE NUMBER THE FLIP RESTS ON, AND WITHOUT THIS IT IS
+    UNINTERPRETABLE. "V2 agreed with the old path" and "V2 could not tell" both produce no refusals.
+    A weekend of apparent perfect agreement, when what actually happened was that every symbol check
+    failed open, is an instrument reporting its own blind spot as a property of what it measured."""
+    agreed = shadow.observe_ack(_chart(), pre_v2_reply={"type": 5},
+                                resolve=lambda t, **k: symbols.Resolution(t, symbols.KNOWN))
+    could_not = shadow.observe_ack(_chart(), pre_v2_reply={"type": 5},
+                                   resolve=lambda t, **k: symbols.Resolution(t, symbols.UNANSWERABLE))
+    assert agreed["divergence"] is False and could_not["divergence"] is False, "both look the same…"
+    assert agreed.get("unanswerable") is None
+    assert could_not["unanswerable"] == "NVDA", "…and only this tells them apart"
+
+
+def test_the_record_says_whether_the_authorities_could_answer_at_all(monkeypatch):
+    """⚰️ The lesson behind the field: a `railway ssh` probe is a DIFFERENT process from the uvicorn
+    server and imports every module cold, so it read `index_ready=False` and reported every symbol
+    as unanswerable — which looked exactly like a production defect until the real server answered
+    `/api/ticker-search?q=NV` with real rows. Recording it means Monday's line says which process
+    state produced it."""
+    from api.services.discord_render import symbols as sym_mod
+    monkeypatch.setattr(sym_mod, "_index_ready", lambda: False)
+    assert shadow._index_ready() is False
+    monkeypatch.setattr(sym_mod, "_index_ready", lambda: True)
+    assert shadow._index_ready() is True
+    out = shadow.observe_ack(_chart(), pre_v2_reply={"type": 5},
+                             resolve=lambda t, **k: symbols.Resolution(t, symbols.KNOWN))
+    assert out["index_ready"] is True
+
+
+def test_an_authority_that_cannot_be_asked_reports_None_not_False():
+    """⛔ Three-valued again: "we could not find out whether the index is ready" is not "it is not
+    ready". A False here would be an unmeasured claim dressed as a measurement."""
+    import api.services.discord_render.symbols as sym_mod
+    real = sym_mod._index_ready
+    try:
+        sym_mod._index_ready = lambda: (_ for _ in ()).throw(RuntimeError("no"))
+        assert shadow._index_ready() is None
+    finally:
+        sym_mod._index_ready = real
+
+
 def test_an_unanswerable_verdict_is_not_a_divergence_either():
     """⛔ The symbol check fails OPEN: `UNANSWERABLE` means we could not tell, and V2 would have let
     it through exactly as the old path did. Counting it as a divergence would inflate the one number
