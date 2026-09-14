@@ -74,14 +74,36 @@ describe('the committed corpus, both lanes', () => {
     // yesterday — a stamp claiming to date a measurement, dating the last time someone
     // edited the literal. It is derived from the run now, so the only way for it to be
     // wrong is for the file not to have been regenerated, which is the thing it should say.
-    fs.writeFileSync(OUT, `${JSON.stringify({
-      measured_at: new Date().toISOString().slice(0, 10),
+    // ⚰️⚰️ AND THEN IT WENT WRONG THE OTHER WAY (owner ruling, 2026-09-14). A
+    // wall-clock stamp re-written on EVERY run means a run that moved nothing
+    // still dirties the tree, so `git status` shows a modified metric after any
+    // suite and somebody reverts it by hand — which is the churn pattern the CRLF
+    // days were spent killing, and which trains a reader to ignore a diff in the
+    // one file whose diff is the whole point.
+    //
+    // ⭐ SO THE STAMP FOLLOWS THE VALUES, NOT THE CLOCK: the file is rewritten
+    // only when a measured value actually changes, and `measured_at` is then the
+    // day it changed. A metric that has not moved keeps the date it last moved,
+    // which is the true answer to "when was this measured" for an unchanged
+    // number — and it makes a modified `corpus_metric.json` mean something again.
+    const measured = {
       scripts: rows.length,
       host_ok: hostOk,
       screener_ok: screenerOk,
       threw: threw.map((r) => r.file),
       rows,
-    }, null, 2)}\n`)
+    }
+    let prior = null
+    try { prior = JSON.parse(fs.readFileSync(OUT, 'utf8')) } catch { prior = null }
+    const same = prior
+      && JSON.stringify({ ...prior, measured_at: undefined })
+        === JSON.stringify({ ...measured, measured_at: undefined })
+    if (!same) {
+      fs.writeFileSync(OUT, `${JSON.stringify({
+        measured_at: new Date().toISOString().slice(0, 10),
+        ...measured,
+      }, null, 2)}\n`)
+    }
 
     // ── NON-VACUITY, not a floor ──────────────────────────────────────────
     // It really read the corpus…

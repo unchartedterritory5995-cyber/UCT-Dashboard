@@ -119,6 +119,14 @@ export function refuseUncreated(name) {
 
 /** A statically-known index outside a known size.
  *
+ *  ⭐⭐ OWNER RULING, 2026-09-14, AND IT REVERSED THE INSTRUCTION THAT PRECEDED
+ *  IT. The item was scoped with "out-of-range read follows Pine's na rule"; the
+ *  measurement says Pine RAISES a runtime error for an out-of-bounds
+ *  `array.get`, so `na` would match neither Pine nor this engine's own "never a
+ *  silent na" doctrine. Ruled: refuse at plan time, naming the index, the size
+ *  and the line. Recorded here rather than only in a commit message because the
+ *  next reader of this function is the one who needs to know it was decided.
+ *
  *  ⚠️ THIS REFUSES RATHER THAN YIELDING `na`, and the reason is on file: this
  *  engine's standing doctrine is that a value it can prove wrong is named, not
  *  silently emptied. Pine itself raises a RUNTIME error for an out-of-bounds
