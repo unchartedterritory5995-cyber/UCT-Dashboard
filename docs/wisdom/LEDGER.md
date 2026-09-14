@@ -451,8 +451,9 @@ no adapter ran in any mode.
 |---|---|---|---|---|---|
 | 1 | `wisdom/w1-b-rails` | `010fadbe2` | `e5dfb23fb` | **OK** — `reachable=154 watched=24 changed=75`, no Wisdom module in flow-worker's import closure, so web-only | **SUCCESS 2026-09-13 21:10:33Z** on `e5dfb23fb`; `/api/health` `status: ok`, `uptime_seconds: 36` (a fresh boot, not the old pod answering) |
 | 2 | `wisdom/w1-a-capture` | `7a456bcd6` | `fb62a44d9` | **OK** — `reachable=154 watched=24 changed=42`, web-only | **SUCCESS** on `fb62a44d9`; `/api/health` `uptime_seconds: 38` (fresh boot). Anonymous probes: `/capture/health`, `/capture/runs`, `/core/status` and **`POST /capture/run-family/detections?dry_run=false&as_of=2027-06-15`** each **401** |
+| 3 | `wisdom/w1-c-sources` | `9193a5aa3` | `a64336c89` | **OK** — `reachable=154 watched=24 changed=26`, web-only | **SUCCESS** on `a64336c89`; `/api/health` `uptime_seconds: 27` (fresh boot) |
 
-*(next in the §8.4 order: S-C → S-D → S-E → S-F, one at a time, web SUCCESS between)*
+*(next in the §8.4 order: S-D → S-E → S-F1 → S-F2, one at a time, web SUCCESS between)*
 
 **Merge 1 evidence.**
 - Base `89c6b12bf`. Master moved TWICE during the gate (`d623baf1d` → `834034622` → `89c6b12bf`,
