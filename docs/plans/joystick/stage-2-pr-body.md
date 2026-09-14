@@ -85,12 +85,12 @@ Found by the new toggle-state assertion, not by reading: at stage ≥ 2 card *pr
 
 ## 5 · The gate
 
-**Manifest `docs/plans/joystick/gate-runs/2026-09-13T15-55-29.md`.** Run on a box verified clear first (`foreign-shard=0, freeGB=12.7`).
+**Manifest `docs/plans/joystick/gate-runs/2026-09-13T17-57-36.md`.** Run on a box verified clear first — pre-flight reading, not something the manifest attests: `foreign-shard=0, freeGB=13.7`.
 
 ```
-tree    640dcd8d166e404545dad420b3ee4a52efdc664c  (start) -> same (end)
-files   1318 on disk — RECONCILES with the summed shard total
-totals  8 failed / 19,439 passed / 19,456
+tree    2ae7e98aa11b5f859a26b9bd4830b850ad22662c  (start) -> same (end)
+files   1325 on disk — RECONCILES with the summed shard total
+totals  8 failed / 19,489 passed / 19,506
 ```
 
 Baseline (`258c5609d`) has **7**; observed **8**; **NEW = 1**, and it is not this branch's:
@@ -99,7 +99,7 @@ Baseline (`258c5609d`) has **7**; observed **8**; **NEW = 1**, and it is not thi
 |---|---|
 | `components/screener/reachable.test.js > …nothing committed is connected to nothing` | ❌ **not attributable — R-29**, S4's `focusDivergence.js` orphan |
 
-⭐ **Classified by DIRECTION, not by memory.** The branch diff touches neither `focusDivergence.js` nor `reachable.test.js`; the module already exists at the merge base `d6ac61816`; and the rail was **run at that base** in a detached worktree and failed **identically**, on a tree containing none of this branch's changes. R-29 stays in `requests.md`, owned by S4.
+⭐ **Classified by DIRECTION, not by memory.** The branch diff touches neither `focusDivergence.js` nor `reachable.test.js`; the module already exists at the merge base `d6ac61816`; the rail was **run at that base** in a detached worktree and failed **identically**; and after master was merged in it was re-proved against `origin/master` itself, where `focusDivergence.js` has **zero real importers** — its only non-test mention sits inside a **comment** in `HubContext.jsx`. R-29 stays in `requests.md`, owned by S4.
 
 **Zero attributable NEW.**
 

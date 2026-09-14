@@ -956,3 +956,52 @@ merging **with the guard in place and apparently working**, because the never/al
 
 ⭐ A filter that is correct for similarity (short words are noise) is wrong for polarity (the
 short words ARE the meaning). The guard now tokenises for itself, and the docstring says why.
+
+---
+
+## ⛔ FROM ANOTHER WORKSTREAM — a shadowed `_tokens` in `extract/golden.py` (2026-09-14)
+
+**Fixed on `fix/golden-tokens-shadow` by the breadth-history-reader programme, with the
+owner's instruction, because master was RED on `test_no_shadowed_definitions` and the
+defect was silently changing this programme's own scoring. Written here so a later merge
+from the wisdom branch does not quietly undo it.**
+
+**What it was.** `api/services/wisdom/extract/golden.py` bound `_tokens` twice at module
+level — the similarity scorer's at line 329 and the fuzzy-agreement lens's at line 689.
+**Python keeps the LAST binding**, so `match_segment`'s
+`_jaccard(_tokens(...), _tokens(...))` had been running the fuzzy lens's tokenizer since
+`c9d6af653`.
+
+**Why it matters here rather than being cosmetic.** The two are not interchangeable, and
+the direction of the loss is the worst one for a trading extraction gate:
+
+```
+"Buy $NVDA above 30% on a 1.5R stop"
+  scorer intended (_WORD)      ['$nvda', '1.5r', '30%', 'a', 'above', 'buy', 'on', 'stop']
+  actually running (_KEY_WORD) ['above', 'buy', 'nvda', 'stop']
+```
+
+The cashtag loses its `$`, and the percentage and the R-multiple disappear entirely — the
+three token classes that carry the trade — plus every word of three characters or fewer.
+
+⚰️ **Same defect class as the `_parse_mdy` incident** (`api/live_massive_router.py`,
+2026-09-01): two top-level definitions, the later one winning, every call site written
+against the earlier. Both were found by a sweep, neither by review.
+
+**The fix.** The fuzzy lens's function is renamed `_key_tokens` and its two call sites
+(`_fuzzy_agreed`) follow it; the similarity scorer keeps `_tokens` and its `Optional[str]`
+behaviour. Both still accept `None` — ⚠️ correcting a claim made in a report, this pair
+never crashed; the defect was silent semantic drift, which in a scoring gate is harder to
+notice than a traceback, not easier.
+
+**Rail:** `tests/test_wisdom_golden_tokens_shadow.py` — the two tokenizers must differ,
+the trade-carrying tokens must survive the similarity one, and no top-level name in this
+module may be bound twice (with a non-vacuity control).
+
+⭐ **No frozen expectation moved.** `test_wisdom_extract_golden.py` and
+`test_wisdom_golden_freeze.py` pass unchanged (61 tests with the new rail). So this
+restores the scorer's intent without shifting any recorded golden number — but **any
+stability figure computed between `c9d6af653` and this fix was produced with the wrong
+tokenizer at the similarity step**, and that is worth knowing before those numbers are
+cited again.
+
