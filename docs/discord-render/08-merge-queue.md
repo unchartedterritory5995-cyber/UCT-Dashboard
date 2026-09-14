@@ -21,7 +21,7 @@ happened — a row that silently kept a stale green is the defect this column ex
 | # | Branch | Step | Gated against | Scoped gate | Mutations | Status |
 |---|---|---|---|---|---|---|
 | 11 | `discord-render-hardening` → `d0586beed` | **OI-34** channel allowlist · **OI-35** per-channel V2 · **B2** dated shadow lines · A1–A3 evidence | `beace00e0` | see below | 3/3 + 4/4 RED | **ready — merges first** |
-| 12 | `lane-b1-pool-recycle` | **B1** admin-only `POST /admin/pool/recycle` | — | — | — | agent running |
+| 12 | `lane-b1-pool-recycle` → `81176c296` | **B1** admin-only `POST /admin/pool/recycle` | `dcef25baa` | **873 passed** combined with row 11 | 12/12 RED (lane) + **1 re-proved by the integrator** | ✅ **ACCEPTED — merged into row 11** |
 | 13 | `lane-b45-harness-hygiene` | **B4** mutation-target refusal · **B5** stale-anchor gate step | — | — | — | agent running |
 
 ⛔ **Row 11 goes first and it is not a preference.** B1's value is a determinism/chaos trigger,
@@ -154,3 +154,38 @@ One master merge at a time, repo-wide.` Two merges inside one swap is what produ
 an override exists so that it is a deliberate act, not so that it is the way past a red.
 
 ⚠️ Nothing about this branch changed. It is gated and ready; only the window moved.
+
+### B1 acceptance — what the integrator actually re-ran
+
+⛔ **A lane's self-report is evidence, never a verdict**, so none of the lane's numbers were taken
+on trust:
+
+- **Scoped gate re-run in the integrator's session, on the MERGED tree:** `873 passed, 9 skipped,
+  0 failed` (was 798 before B1 — the lane adds 67+ and none of them interact).
+- **The mutation table was checked for fabrication first** — every test it names exists in
+  `tests/test_chart_renderer_admin_recycle.py`, and the guards it claims exist in
+  `services/chart_renderer/app.py`.
+- **One mutation re-proved independently.** Inverting the flag guard
+  (`== "1"` → `!= "1"`, one occurrence) turned **30 tests red**, matching the lane's "30 red"
+  exactly. Control green before and after; restore sha256-verified byte-identical.
+
+⭐ **The lane's most valuable design choice** is that "exactly one page" is a diff over page
+*identities*, not a count, and "the browser was not restarted" is a diff over a browser id — because
+a replacement browser answers `is_connected(): true` just as happily as the original. A count and a
+liveness probe would both have passed a lever that recycled the whole pool.
+
+⚠️ **B1 is merged but DARK and undeployed.** `RENDER_ADMIN_ENDPOINTS` is unset, no
+`RENDER_ADMIN_TOKEN` exists, and chart-renderer deploys by `railway up`, not off a master push —
+so merging this changes nothing running until that deploy is made deliberately.
+
+### A finding B1 surfaced that is NOT B1's to fix
+
+**The feature-flag ledger is blind to `services/**`.** `feature_flag_index.repo_roots()` scans only
+`api/`, `scripts/`, `tools/`. Declaring `RENDER_ADMIN_ENDPOINTS` in `docs/feature_flags.json` makes
+`test_the_ledger_does_not_describe_gates_that_no_longer_exist` go **RED** — the ledger reports its
+own blindness and blames the entry. `RENDER_POOL_ENABLED` is undeclared for the same reason.
+
+⭐ The lane **measured this instead of assuming it**, and then left the ledger alone rather than
+widening `repo_roots` on its own authority. That is the right call: widening the scan is an owner
+decision that touches every flag in the repo, and a lane that "fixed" it would have been changing a
+shared rail to make its own row green.
