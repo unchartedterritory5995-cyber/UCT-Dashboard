@@ -151,7 +151,9 @@ describe('a blob written before the engine existed', () => {
       chartHeight: 532, hasVolumeBand: false, excludeKeys: new Set(),
       separatorPx: 1, firstPaneIndex: 2, abovePct: [78, 22],
     })
-    expect(layout.panes.map(p => p.key),
+    // ⚠️ THROUGH `defByKey`: the claim is the stack ORDER a stored blob produces,
+    // in DEFINITION terms. Pane keys are host instance ids (P2.0c).
+    expect(layout.panes.map(p => layout.defByKey.get(p.key)),
       'the stored blob\'s panes came out in REGISTRY order — MACD and Stochastics '
       + 'swapped for every existing user, which is exactly what the owner\'s '
       + '"preserve today\'s pane heights" answer refused')

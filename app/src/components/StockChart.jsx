@@ -184,15 +184,23 @@ const NO_PANE_KEYS = Object.freeze([])
  * @param {object|null} layout `paneLayoutRef.current`
  * @returns {{key: string, index: number, chips: object[]}[]}
  */
-function paneReadoutRows(chips, layout) {
+function paneReadoutRows(chips, layout, hostOf) {
   const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
   if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
+  // ⭐⭐ GROUPED BY ACTUAL PANE MEMBERSHIP, NOT BY DEFINITION (P2.0c). This
+  // grouped on `c.defId` and matched it against `pane.key`, which was only ever
+  // right while a pane WAS a definition. With host-instance keys, two own-pane
+  // instances of one definition would otherwise put both chips in whichever pane
+  // matched first — one legend showing a value from a series that is not in it,
+  // which is worse than a missing chip because it reads as correct.
   const byKey = new Map()
   for (const c of chips) {
-    if (!c || c.hidden === true || typeof c.defId !== 'string') continue
-    const group = byKey.get(c.defId)
+    if (!c || c.hidden === true) continue
+    const key = hostOf ? hostOf(c) : null
+    if (typeof key !== 'string' || !key) continue
+    const group = byKey.get(key)
     if (group) group.push(c)
-    else byKey.set(c.defId, [c])
+    else byKey.set(key, [c])
   }
   const out = []
   for (const pane of panes) {
@@ -603,6 +611,17 @@ import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
+// ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
+// INSTANCES and geometry; it has no `cs`, and the three questions below are all
+// answered FROM `cs` — who follows whom, who hosts a pane, and who still needs
+// one while hidden. So the call site is the only place that can ask them, and
+// asking them here is what keeps the layout a geometry module rather than a
+// second reader of chart settings.
+import {
+  paneFollowerKeys, paneOwnKeys, paneOwnersNeeded, volumeOverlayPaneKeys,
+  resolveDisplayTarget,
+} from './chart/engine/displayTarget'
+import { parsePaneOfTarget } from './chart/engine/sourceRef'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { symbolFamily, loadBreadthSymbols } from '../hooks/useBreadthSymbols'
@@ -5593,6 +5612,27 @@ export default function StockChart({
   // instrument the member did configure, against a first paint that would
   // otherwise draw nothing.
   const _storedInstances = useCallback(() => cs.indicatorInstances, [cs])
+  // ⭐ WHICH PANE A CHIP BELONGS TO, IN PANE-KEY UNITS. Pane keys are host
+  // instance ids, so a chip's pane is: its own instance when it hosts one, or the
+  // host it follows. `resolveDisplayTarget` is the same authority the layout and
+  // the placement resolver both consume, so the legend cannot disagree with where
+  // the series actually drew — which is the failure mode that reads as correct.
+  const chipPaneHost = useCallback((chip) => {
+    const id = chip && chip.instanceId
+    if (typeof id !== 'string' || !id) return null
+    // ⛔⛔ THE ENGINE'S LIST, NOT `cs.indicatorInstances`. A LEGACY instance is
+    // PROJECTED by `migrateLegacyToInstances` at read time and was never stored,
+    // so looking it up in the blob finds nothing and its pane readout silently
+    // disappears — measured, as an RSI pane that printed no label at all. This is
+    // the same list the LAYOUT keyed its panes from, which is the only list that
+    // can answer "which pane is this chip in".
+    const inst = (engineInstancesRef.current || []).find((i) => i && i.instanceId === id)
+      || (cs.indicatorInstances || []).find((i) => i && i.instanceId === id)
+    if (!inst) return null
+    const target = resolveDisplayTarget(inst, cs)
+    if (target === 'pane') return id
+    return parsePaneOfTarget(target)
+  }, [cs])
   const _defOf = useCallback((id) => engineRegistry.getDefinition(id), [])
   // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
   // asynchronously; a ref would leave the chart painted with the empty map until
@@ -10305,7 +10345,30 @@ export default function StockChart({
     const paneLayout = computePaneLayout(engineInstances, {
       chartHeight: paneStackHeightPx(chart),
       hasVolumeBand,
-      excludeKeys: volOverlaySet,
+      // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
+      // list's own units); `excludeKeys` is matched against PANE KEYS, which are
+      // host instance ids. `volumeOverlayPaneKeys` is the same answer in the units
+      // this call site now speaks.
+      //
+      // ⭐⭐ AND A GUEST RESERVES NO PANE OF ITS OWN. A series drawn INSIDE another
+      // instance's pane must not also carve one — that would leave an empty
+      // rectangle and push every index below it out by one. `displayTarget` decides
+      // who follows whom; this consumes that answer rather than forming its own.
+      excludeKeys: new Set([
+        ...volumeOverlayPaneKeys(engineInstances, cs),
+        ...paneFollowerKeys(engineInstances, cs),
+      ]),
+      // ⭐ A HIDDEN HOST KEEPS ITS PANE WHILE SOMETHING VISIBLE DRAWS IN IT. Hiding
+      // QQQ must not take MA(QQQ) with it — the eye icon is about ink, not about
+      // existence.
+      keepKeys: paneOwnersNeeded(engineInstances, cs),
+      // ⭐⭐ AND THE ADDITIVE HALF: a definition whose DEFAULT is `price` still needs
+      // a pane when THIS instance's active placement resolved to `pane`.
+      // `excludeKeys` consumes `displayTarget`'s answer subtractively; this consumes
+      // the same answer in the other direction, so a writable placement is also a
+      // REALISABLE one. Without it "Display in: Own pane" stores correctly, reads
+      // back correctly, and draws nothing.
+      includeKeys: paneOwnKeys(engineInstances, cs),
       separatorPx: SEPARATOR_PX,
       firstPaneIndex: 1 + (volSeparatePane ? 1 : 0) + (_hasIdxPane ? 1 : 0),
       abovePct: _abovePct,
@@ -10818,6 +10881,15 @@ export default function StockChart({
         volOverlaySet,
         volSeparatePane,
         VOL_PANE_INDEX,
+        // ⭐⭐ THE RESOLVED TARGET, NOT THE DECLARED ONE. `resolvePlacement` read
+        // `instance.placement.target || def.placement.target` itself, which is fine
+        // for a static answer and blind to a DERIVED one: an average of QQQ belongs
+        // in QQQ's pane, and nothing in the definition or the instance says so — it
+        // is computed from the source. Handing the resolver `displayTarget`'s answer
+        // is what keeps ONE module deciding where an indicator draws, and it is the
+        // same authority the LAYOUT above consumes, so the pane that gets allocated
+        // and the pane that gets resolved cannot disagree.
+        targetOf: (inst) => resolveDisplayTarget(inst, cs),
         resolvePlacement,
         resolvePreset,
       })
@@ -14445,7 +14517,16 @@ export default function StockChart({
       if (paneMode() === 'panes' && _layout) {
         let livePanes = []
         try { livePanes = chart.panes() } catch { livePanes = [] }
-        const keyAt = new Map(_layout.panes.map((p) => [p.index, p.key]))
+        // ⛔⛔ THE REGION IS NAMED BY THE **DEFINITION**, NOT BY THE PANE KEY.
+        // Pane keys are host INSTANCE ids (P2.0c); the right-click menu this feeds
+        // is definition-shaped end to end — `labelFor`, `indEnabled` and the
+        // catalogue row all take a defId — so handing it an instance id would open
+        // a menu for an indicator it cannot name. `defByKey` is the layout's own
+        // host → definition map, which is why it is published beside `panes`
+        // rather than reconstructed here from a key that is deliberately opaque.
+        const _defByKey = (_layout && _layout.defByKey) || null
+        const keyAt = new Map(_layout.panes.map(
+          (p) => [p.index, (_defByKey && _defByKey.get(p.key)) || p.key]))
         region = resolveChartRegionFromPanes({
           x: px, y: py, width: rect.width, height: rect.height,
           axisWidth, timeAxisHeight,
@@ -16855,7 +16936,7 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current).map((row) => (
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost).map((row) => (
         <div
           key={row.key}
           ref={(el) => {
