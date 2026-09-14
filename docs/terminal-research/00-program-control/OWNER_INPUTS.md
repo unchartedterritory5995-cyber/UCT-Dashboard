@@ -31,7 +31,8 @@ what this programme would do; it is not what it *has* done. Nothing here has bee
 
 ### ⛔ The consequence of the two conservative defaults, stated once
 
-**All 57 licensing-register rows are RESTRICTED, and S9 is built to ENFORCE that rather than to
+**The 57 licensing-register rows that MOVE on these two facts are RESTRICTED, and S9 is built
+to ENFORCE that rather than to
 assume it away.** Per the owner's rule: *a conservative default that is wrong costs features; a
 permissive default that is wrong costs a licensing breach.*
 

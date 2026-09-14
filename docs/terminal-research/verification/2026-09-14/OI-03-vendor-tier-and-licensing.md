@@ -36,7 +36,11 @@ permissive default that's wrong costs a licensing breach — always pick the fir
 
 - **Massive tier → treated as INDIVIDUAL** (no member display).
 - **FMP agreement → treated as ABSENT.**
-- **All 57 licensing-register rows → RESTRICTED.**
+- **The 57 rows that MOVE on these two facts → RESTRICTED.** ⛔ Corrected 2026-09-14: the
+  register holds **118** classified rows, and `EVIDENCE_INDEX.md:69` says the Massive tier and
+  the FMP DDLA *"between them move **57 of the 118 rows**"*. The first draft of this file said
+  *"all 57 licensing-register rows"*, which reads as **the register having 57 rows in total** —
+  it does not. The other 61 are settled by facts OI-03 does not touch and are unaffected.
 - **S9 is built to ENFORCE that**, not to assume it away.
 
 ⭐ **This is a DEFAULT, not a finding.** It must be re-read the moment either account can be
