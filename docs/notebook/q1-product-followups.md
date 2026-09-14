@@ -489,3 +489,56 @@ A named rig limitation renders as `⚠️ INCONCL` in the table (`tools/q1_f5_ma
 must restate that arming condition in the same commit, or the programme carries two
 authorities over one question — the defect it has already recorded against itself more
 than once. **This file does not change that rail and is not the place to.**
+
+
+---
+
+## ⛔ 2026-09-14 — the `hero` family is NOT a named limitation. It is an UNFINISHED INSTRUMENT.
+
+Six `hero` cells are INCONCLUSIVE, and after tonight's passes they all give one
+reason, verbatim from the tool:
+
+> the `hero` door was not opened: **the hero picker is not on the page. It renders
+> ONLY for a note that already has a hero, so the seed step must have failed**
+
+⛔ **This must not be filed beside L-1 and L-2, and the distinction is the whole
+point of the amended arming condition.**
+
+| | what it is | can it be lifted? |
+|---|---|---|
+| **L-1** excerpt | CDP-synthesised pointer input produces no text selection in pdf.js | no — a property of the renderer |
+| **L-2** fact | MoversSidebar renders nothing after the offline route change | partly established; cause still hedged |
+| **`hero`** | the rig's own SEED STEP did not attach a hero, so the door it needs never rendered | **yes — it is our fixture, not the product's ceiling** |
+
+⭐ L-1 is a property of the world. `hero` is a to-do. **"Named" means a recorded
+property of the rig, never "we did not finish the instrument"** — and a table that
+counted this as named would lift the freeze on six cells nobody has measured.
+
+### Where that leaves the arming condition
+
+The freeze lifts when every cell is GREEN or NAMED. Measured 2026-09-14, 42 cells:
+
+```
+GREEN 18   RED 5   N/A 3   INCONCLUSIVE 16
+                            ├─  5  append_document_excerpt  NAMED (L-1)
+                            ├─  5  append_financial_fact    NAMED (L-2, partly)
+                            └─  6  hero                     NOT NAMED — unfinished seed
+```
+
+⛔ **It does not lift, for two independent reasons, and either alone is enough:**
+the five RED `append_widget_embed` cells are a live defect, and the six `hero`
+cells have never been measured at all.
+
+### And the retries were futile — recorded so nobody re-runs them hoping
+
+`--resume` re-runs every INCONCLUSIVE cell, and three passes tonight moved the
+count **16 → 16**. None of these is a transient 502; each fails for a structural
+reason the retry cannot touch. ⭐ **A retry loop is only honest when the thing it
+retries is capable of a different answer.** The queue entry should not be re-armed
+until the `hero` seed is fixed or the two limitations are excluded from `--resume`
+by name.
+
+**Owner / next step:** fix the rig's hero seed (attach a hero image before the
+offline window opens, the way `prepare_family` already does for the excerpt PDF),
+then re-run the six cells. Until then `hero` is an OPEN instrument gap, not a
+limitation.
