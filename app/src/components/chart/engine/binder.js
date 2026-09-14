@@ -56,6 +56,15 @@ import {
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
+import {
+  sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
+} from './sourceRef'
+import { projectionFor } from './symbolProjection'
+
+/** Monotonic id stamped on each resolved source column, so a consumer's memo key
+ *  can name the exact array it computed against. Non-enumerable, so it can never
+ *  reach a settings blob or a JSON payload. */
+let SOURCE_SERIAL = 0
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -492,7 +501,24 @@ export function createBinder({ chart, LWC }) {
     // cannot be computed must not take the paint down with it.
     const columns = new Map()
     const computedIds = new Set()
-    for (const inst of instances) {
+
+    // ⭐⭐ BARS FOR ANY CANONICAL SYMBOL AN INSTANCE NAMES, AS DATA. The binder
+    // never fetches — `sync` runs inside a paint — so this arrives already
+    // resolved, exactly as `bars` does. Absent is not an error: it is a chart
+    // with no symbol sources, and every lookup simply misses.
+    const secondary = ctx.secondary && typeof ctx.secondary.get === 'function'
+      ? ctx.secondary : null
+
+    // ⛔⛔ DEPENDENCY ORDER, NOT ARRAY ORDER. The loop below used to walk
+    // `instances` as stored — which is the order they were ADDED — and that was
+    // correct only by accident: a definition reading another instance's output
+    // would compute against a column that did not exist yet and silently draw
+    // nothing. `orderByDependency` is Kahn's algorithm over the edges that exist
+    // and nothing more; a cycle is REPORTED rather than sorted around, and the
+    // ids in it are refused below instead of spun on.
+    const { ordered, cyclic } = orderByDependency(instances, (id) => registry.getDefinition(id))
+
+    for (const inst of ordered) {
       if (!inst || typeof inst.instanceId !== 'string') continue
       // A HIDDEN instance is computed by NOBODY. `planBindings` drops it on its
       // first line (`if (inst.hidden === true) continue`), before it ever asks
@@ -511,7 +537,65 @@ export function createBinder({ chart, LWC }) {
       if (!def) continue
       computedIds.add(inst.instanceId)
 
-      const sig = inputsSignature(inst.inputs)
+      // ⛔ A CYCLE COMPUTES NOTHING. It is not an error the member can see yet,
+      // but it is never a partial answer either: the instance is skipped whole.
+      if (cyclic.has(inst.instanceId)) continue
+
+      // ── THE SOURCE, RESOLVED INTO A NUMERIC SERIES ───────────────────────
+      //
+      // Three families, and the definition never learns which one it got:
+      //   a BAR FIELD  — read off the chart's own bars.
+      //   an INSTANCE  — a lookup in `columns`, which the dependency order above
+      //                  guarantees is already filled. The key is the same string
+      //                  `bindingKey` writes, so a source reference and a computed
+      //                  column cannot drift apart.
+      //   a SYMBOL     — projected from the canonical secondary bar bundle.
+      //
+      // ⛔⛔ AN UNSUPPLIED SYMBOL IS `null`, WHICH IS NOT-COMPUTABLE — NEVER THE
+      // CHART'S OWN BARS. Falling back to the bars in hand would answer
+      // confidently about the WRONG INSTRUMENT, which is the one failure here
+      // that looks exactly like success.
+      let sourceCols = null
+      let sourceSig = ''
+      for (const [key, value] of sourceInputsOf(def, inst)) {
+        const parsed = parseSource(value)
+        let series = null
+        if (parsed && parsed.kind === 'bar') series = barFieldSeries(bars, parsed.field)
+        else if (parsed && parsed.kind === 'instance') {
+          series = columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
+        } else if (parsed && parsed.kind === 'symbol') {
+          const entry = secondary ? secondary.get(parsed.symbol) : null
+          const secBars = entry && Array.isArray(entry.bars) && entry.bars.length ? entry.bars : null
+          // ⭐ EXACT-t ALIGNMENT, NO FORWARD FILL — `projectionFor` aligns the
+          // secondary's own timestamps to the chart's and leaves a missing bar as
+          // a GAP. A hole is the truth; a carried-forward value is a price that
+          // never traded.
+          series = secBars ? projectionFor(secBars, parsed.field, bars) : null
+        }
+        sourceCols = sourceCols || {}
+        sourceCols[key] = series
+        // ⭐ THE COLUMN'S IDENTITY IS THE INVALIDATION KEY, and it costs nothing.
+        // A recomputed source is a NEW array, so the consumer's memo misses and it
+        // recomputes; a source that only changed COLOUR or PANE returns the very
+        // same array from its own memo, so the consumer hits and does not. The
+        // dependency invalidation rule is therefore not a rule anybody has to
+        // maintain — it is object identity.
+        sourceSig += `${key}${value}`
+        if (series) {
+          if (!series.__srcId) {
+            SOURCE_SERIAL += 1
+            try { Object.defineProperty(series, '__srcId', { value: SOURCE_SERIAL, enumerable: false }) }
+            catch { /* a frozen column keeps its place in the signature below */ }
+          }
+          sourceSig += `#${series.__srcId || 0}`
+        }
+      }
+      // ⛔ THE PRIMARY SOURCE IS THE FIRST DECLARED ONE. `ctx.source` is what a
+      // single-source definition reads; `ctx.sources` carries them all by input
+      // key for the day one takes two.
+      const primarySource = sourceCols ? sourceCols[Object.keys(sourceCols)[0]] : null
+
+      const sig = inputsSignature(inst.inputs) + sourceSig
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === bars && memo.sig === sig) {
@@ -523,7 +607,8 @@ export function createBinder({ chart, LWC }) {
         // line registered, enabled and permanently blank — a definition that
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
-        const r = attempt(() => registry.computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf }))
+        const r = attempt(() => registry.computeFor(def, bars, inst.inputs,
+          { sym: ctx.sym, tf: ctx.tf, source: primarySource, sources: sourceCols }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least

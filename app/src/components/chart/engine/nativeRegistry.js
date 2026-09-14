@@ -1344,7 +1344,15 @@ export function computeFor(def, bars, inputs, ctx) {
     )
   }
   const series = Array.isArray(bars) ? bars : []
-  const raw = fn(series, resolveInputs(def, inputs))
+  // ⭐ THE CTX REACHES THE NATIVE LANE NOW. The server and AST lanes above were
+  // already handed it; only this one dropped it, which is why a definition whose
+  // input is a SERIES rather than the bars had nowhere to read it from.
+  //
+  // ⛔ INERT FOR EVERY SHIPPED NATIVE, and that is a property of the language
+  // rather than a promise: all sixteen declare `(bars, p)` and JavaScript
+  // discards an argument a function does not name. `nativeRegistry.test.js`
+  // asserts it rather than trusting it.
+  const raw = fn(series, resolveInputs(def, inputs), ctx)
 
   const columns = {}
   for (const key of Object.keys(raw)) columns[key] = toColumn(raw[key], series.length)
