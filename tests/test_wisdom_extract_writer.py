@@ -480,3 +480,58 @@ def test_the_default_bar_range_seam_is_absent_so_every_inferred_ticker_is_downgr
     with store.read() as conn:
         row, = [dict(r) for r in conn.execute("SELECT * FROM wisdom_records")]
     assert row["record_type"] == "MENTION" and row["entity_id"] is None and row["ticker_inferred"] == 1
+
+
+# ── Wave 1.5 item 4: the PRINCIPLE/MARKET_SIGNAL shape is a STABILITY lever ──
+
+def _principle(statement):
+    return make(record_type="PRINCIPLE", quote="Your stop is your north star.",
+                principle={"statement": statement, "category": "risk",
+                           "empirical_claim": False, "testable_claim": None})
+
+
+def test_a_principle_statement_over_thirty_words_is_REJECTED_not_truncated():
+    """⛔ OWNER RULING, Wave 1.5 item 4 (2026-09-14): "statement <= 30 words ... one claim per
+    record". This is a stability lever, not tidiness: a PRINCIPLE's identity IS its statement
+    (`Chunk.key` = (type, normalize_quote_key(statement))), so every extra word is another
+    chance for two runs of the same model to disagree about the same teaching. Measured drift
+    for PRINCIPLE on 2026-09-14 was 6 of ~30.
+
+    ⛔ REJECTED, never truncated. Cutting at 30 words keeps a fragment and silently discards the
+    rest, and the discarded half is invisible afterwards — the record would look well-formed and
+    be wrong. A rejection is counted BY NAME and can be re-extracted.
+    """
+    ok = validate([_principle(" ".join(["word"] * 30))])
+    assert ok.counts["kept"] == 1 and not [k for k in ok.counts if k.startswith("reject:")]
+
+    too_long = validate([_principle(" ".join(["word"] * 31))])
+    assert too_long.counts["kept"] == 0
+    assert too_long.counts["reject:principle_statement_too_long"] == 1
+
+
+def test_two_claims_in_one_principle_are_REJECTED_so_they_come_back_as_two_records():
+    joined = validate([_principle("Cut the loser fast. Then reassess the setup before re-entry.")])
+    assert joined.counts["reject:principle_more_than_one_claim"] == 1 and joined.counts["kept"] == 0
+    semi = validate([_principle("Cut the loser fast; reassess before re-entry")])
+    assert semi.counts["reject:principle_more_than_one_claim"] == 1
+    andalso = validate([_principle("Size down in a hostile regime and also stop trading it")])
+    assert andalso.counts["reject:principle_more_than_one_claim"] == 1
+
+    # CONTROL — one claim survives, INCLUDING an abbreviation whose dot is not a sentence end.
+    # ⚰️ The first version of this check used `[.;]\s+\S` and flagged "i.e." as a second claim,
+    # which would have rejected real teachings for containing a shorthand.
+    assert validate([_principle("Use the 20 EMA, i.e. the fast one, as the line")]).counts["kept"] == 1
+    assert validate([_principle("Your stop is your north star.")]).counts["kept"] == 1
+
+
+def test_a_market_signal_NAME_that_is_really_a_sentence_is_rejected():
+    """R8c: `name` is a short name for the read ("breadth washout"), not a sentence and not the
+    quote. Same identity argument as the principle statement — MARKET_SIGNAL's key is its name,
+    and it drifted worse than anything else (4 of ~17)."""
+    def signal(name):
+        return make(record_type="MARKET_SIGNAL", quote="Your stop is your north star.",
+                    market_signal={"name": name, "direction": "bearish"})
+
+    assert validate([signal("breadth washout")]).counts["kept"] == 1
+    long_name = validate([signal(" ".join(["word"] * 13))])
+    assert long_name.counts["reject:market_signal_name_too_long"] == 1 and long_name.counts["kept"] == 0

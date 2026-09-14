@@ -108,8 +108,48 @@ PROVENANCE_FIELDS = ("quote", "ticker_as_written", "ticker_as_heard", "direction
                      "stated_outcome", "stated_return_pct", "event_at_text", "principle", "market_signal")
 
 
+#: Owner ruling, Wave 1.5 item 4 (2026-09-14): "tighter PRINCIPLE/MARKET_SIGNAL schema
+#: (statement <= 30 words, category from the fixed list, one claim per record …)".
+#:
+#: ⛔ WHY A LENGTH CAP IS A STABILITY LEVER, NOT TIDINESS. A PRINCIPLE's identity IS its
+#: statement — `Chunk.key` is `(type, normalize_quote_key(statement))` — so every extra word is
+#: another chance for two runs of the same model to disagree about the same teaching. The
+#: 2026-09-14 drift measurement put PRINCIPLE agreement at 6 of ~30. Shortening the statement
+#: shrinks the space the identity lives in, which is the cheapest lever available and the one
+#: the owner ordered tried BEFORE paying 3x for N=3 voting.
+STATEMENT_MAX_WORDS = 30
+#: Not the owner's number — he specified 30 words for `statement` and said only "tighter" for
+#: MARKET_SIGNAL. A signal is a NAME ("breadth washout", "risk-off"), not a sentence, so it gets
+#: a tighter cap. Flagged as an integrator choice rather than a ruling.
+SIGNAL_NAME_MAX_WORDS = 12
+#: A full stop followed by a CAPITAL (a real new sentence), a semicolon joining clauses, or an
+#: explicit "and also". ⚰️ The first version was `[.;]\s+\S`, which flagged "Use the 20 EMA,
+#: i.e. the fast one" as two claims — an abbreviation is a dot followed by a word too. Requiring
+#: a capital is what separates a sentence boundary from a full stop.
+_CLAIM_SPLIT_RE = re.compile(r"\.\s+[A-Z]|;\s+\S|\s+\band\s+also\b\s+")
+
+
 def normalize_quote_key(quote: str) -> str:
     return " ".join(str(quote or "").casefold().split())
+
+
+def _too_many_words(text: Any, limit: int) -> bool:
+    return len(str(text or "").split()) > limit
+
+
+def _more_than_one_claim(text: Any) -> bool:
+    """⛔ REJECT, NEVER TRUNCATE. Cutting a two-claim statement at the first sentence keeps one
+    claim and silently discards the other, and the discarded half is invisible afterwards — the
+    record would look well-formed and be incomplete. A rejected record is counted by name in
+    `counts` and can be re-extracted; a truncated one cannot be recovered.
+
+    ⚠️ Deliberately conservative, and the conservatism is measured rather than assumed: it wants
+    a full stop followed by a CAPITAL, so "Use the 20 EMA, i.e. the fast one" stays ONE claim
+    (the first version flagged it — an abbreviation is also a dot followed by a word). The cost
+    is that a lowercase run-on ("cut it fast. then reassess") is missed, which is the right
+    direction to miss in: this rejects records, and over-rejecting a real teaching is worse than
+    letting a rare run-on through."""
+    return bool(_CLAIM_SPLIT_RE.search(str(text or "").strip()))
 
 
 def normalize_ticker(value: Any) -> Optional[str]:
@@ -400,10 +440,16 @@ def _check(raw: dict, *, text: str, segment: dict, source: dict, vocab: set, res
         principle = r.get("principle")
         if not isinstance(principle, dict) or not str(principle.get("statement") or "").strip():
             return "principle_without_statement"
+        if _too_many_words(principle.get("statement"), STATEMENT_MAX_WORDS):
+            return "principle_statement_too_long"
+        if _more_than_one_claim(principle.get("statement")):
+            return "principle_more_than_one_claim"
     if rtype == "MARKET_SIGNAL":
         signal = r.get("market_signal")
         if not isinstance(signal, dict) or not str(signal.get("name") or "").strip():
             return "market_signal_without_name"
+        if _too_many_words(signal.get("name"), SIGNAL_NAME_MAX_WORDS):
+            return "market_signal_name_too_long"
 
     if r.get("stance") == "no_view" and rtype in CALL_TYPES:
         rtype = "MENTION"
