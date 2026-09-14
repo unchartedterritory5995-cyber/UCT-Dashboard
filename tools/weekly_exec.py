@@ -24,6 +24,7 @@ Two subcommands, one job each:
   weekly_exec.py pod <report>                one DECLARED read-only pod report
   weekly_exec.py health                      GET /api/health with a browser agent
   weekly_exec.py memory [ceiling]            percent physical memory used; 1 = at/over
+  weekly_exec.py et                         the real ET; exit 1 = push window CLOSED
 
 Exit codes: whatever the child returns, except **2 = REFUSED by this guard**, which is
 never confusable with a test failure (pytest uses 1 for failures, 2 for interrupted —
@@ -31,6 +32,7 @@ so a refusal prints `REFUSED:` on stderr and the caller is told to read that, no
 """
 from __future__ import annotations
 
+import datetime as dt
 import os
 import pathlib
 import shutil
@@ -191,6 +193,44 @@ def cmd_memory(args: list[str]) -> int:
     return 0 if used < ceiling else 1
 
 
+def push_window_closed(et) -> bool:
+    """Is the master-push window closed at this ET datetime?
+
+    Mon-Fri 09:00-16:00 ET. Pure, so it can be tested at a named instant instead of
+    whenever the suite happens to run - the bug this whole subcommand exists for was a
+    time READING, and a rail that reads the same clock proves nothing.
+    """
+    return et.weekday() < 5 and 9 <= et.hour < 16
+
+
+def cmd_et(args: list[str]) -> int:
+    """The Eastern time, and whether the master-push window is open.
+
+    WHY THIS EXISTS, and it cost a broken rule to learn: on this box
+    `TZ=America/New_York date` in Git Bash IGNORES TZ and prints UTC labelled GMT. Read
+    at 18:49 it looks like 18:49 ET; the true ET was 14:49. Acting on that reading, three
+    commits were pushed to master at 14:26 ET - inside the 09:00-16:00 window they were
+    explicitly being held out of. flow-worker was SKIPPED so no tape was lost, but the
+    rule was broken by arithmetic, not by judgement.
+
+    A clock that is wrong by four hours and CONFIDENT is worse than no clock. This is the
+    one authority; never hand-roll the conversion again.
+    """
+    if args:
+        return _refuse("et takes no arguments")
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:                                  # noqa: BLE001
+        return _refuse("zoneinfo unavailable - cannot resolve ET, and guessing is the bug")
+    now = dt.datetime.now(dt.timezone.utc)
+    et = now.astimezone(ZoneInfo("America/New_York"))
+    closed = push_window_closed(et)
+    print("UTC %s | ET %s | master-push window: %s"
+          % (now.strftime("%Y-%m-%d %H:%M"), et.strftime("%Y-%m-%d %H:%M %Z %a"),
+             "CLOSED (Mon-Fri 09:00-16:00 ET)" if closed else "open"))
+    return 1 if closed else 0
+
+
 def main(argv=None) -> int:
     a = list(sys.argv[1:] if argv is None else argv)
     if "pytest" in sys.modules and argv is None:
@@ -208,6 +248,8 @@ def main(argv=None) -> int:
         return cmd_health(rest)
     if sub == "memory":
         return cmd_memory(rest)
+    if sub == "et":
+        return cmd_et(rest)
     return _refuse("unknown subcommand %r" % sub)
 
 
