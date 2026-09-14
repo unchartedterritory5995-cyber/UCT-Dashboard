@@ -65,6 +65,13 @@ import { CLEAN } from './engine/repaintVerdict'
 import UIcon from '../ui/UIcon'
 import styles from './ChartSettingsModal.module.css'
 import SourceField from './SourceField'
+import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES } from './engine/presentation'
+import { ohlcCapabilityOf } from './engine/ohlcCapability'
+import { anyCachedBars } from './engine/secondaryBars'
+import { symbolFamily } from '../../hooks/useBreadthSymbols'
+import { resolveDisplayTarget } from './engine/displayTarget'
+import { sourceInputsOf, parseSource } from './engine/sourceRef'
+import { setInstancePlotStyle } from './engine/instanceControls'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -543,6 +550,7 @@ export default function ChartSettingsIndicators({
                 </div>
               )
             })}
+            {styleControl(row)}
             {/* ⭐ REMOVE LIVES HERE, ONE LEVEL IN (§14). A trash icon on a dense
                 collapsed list is one mis-click from deleting a configured
                 indicator; behind the expander it takes an intent. */}
@@ -561,6 +569,78 @@ export default function ChartSettingsIndicators({
       </div>
     )
   }
+
+  /**
+   * The PLOT STYLE control — how this output draws, as opposed to what it reads.
+   *
+   * ⭐⭐ STYLE IS NOT AN INPUT, which is why it is not in `row.fields`. Inputs are
+   * declared by the definition and identical on every chart; a style is a
+   * per-INSTANCE presentation choice, written through `setInstancePlotStyle` —
+   * the canonical writer — and stored beside the instance, never in its inputs.
+   *
+   * ⛔⛔ AND CANDLES ARE OFFERED ONLY WHEN THE SOURCE CAN MEAN THEM. Every other
+   * style is a property of the OUTPUT — any column can be drawn as an area — and
+   * this one is a property of what the output READS: four fields describing one
+   * auction period. A dropdown that offered Candles over an RSI, a formula or a
+   * breadth measure would be a dropdown that lies.
+   *
+   * ⭐ `anyCachedBars` IS THE WINDOW-AGNOSTIC READ: this tab knows the INSTRUMENT
+   * and never the chart's timeframe, so asking for a specific (tf, bars) window
+   * would make the offer flicker with the chart. `symbolFamily` is the same
+   * provider-family authority the binder gates on, so the menu and the renderer
+   * cannot disagree about what is capable.
+   */
+  const styleControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const def = registry?.getDefinition?.(row.defId)
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return null
+
+    const ohlcCapable = (() => {
+      const declared = sourceInputsOf(def, inst)
+      if (!declared.length) return false
+      const parsed = parseSource(declared[0][1])
+      if (!parsed || parsed.kind !== 'symbol') return false
+      return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
+    })()
+
+    const target = resolveDisplayTarget(inst, settings)
+    const styleCtx = { target, ohlcCapable }
+    const plots = Array.isArray(def.plots) ? def.plots : []
+    const restyleable = plots.filter((pl) => availableStyles(pl, styleCtx).length > 0)
+    if (!restyleable.length) return null
+
+    // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
+    // inside a panel already titled `QQQ`, is furniture.
+    const single = restyleable.length === 1
+
+    return restyleable.map((plot) => {
+      const style = resolvePlotStyle(inst, plot, styleCtx)
+      const choices = availableStyles(plot, styleCtx)
+      const label = single ? 'Plot style' : `${plot.label || plot.key} style`
+      return (
+        <div className={styles.indRow} key={`style-${plot.key}`}>
+          <span className={styles.indLabel}>{label}</span>
+          <select
+            className={styles.indSelect}
+            value={style}
+            aria-label={`${row.label} ${single ? 'plot style' : `${plot.key} plot style`}`}
+            onChange={(e) => {
+              const next = setInstancePlotStyle(
+                settings, row.instanceId, e.target.value, registry,
+                single ? undefined : plot.key,
+              )
+              if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+            }}
+          >
+            {PLOT_STYLE_CHOICES.filter((c) => choices.includes(c.value)).map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+      )
+    })
+  }, [settings, registry, onChange])
 
   // ─── ONE CATALOGUE RESULT ─────────────────────────────────────────────────
   const renderResult = (row) => {

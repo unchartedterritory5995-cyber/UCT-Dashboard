@@ -315,6 +315,11 @@ const isWhitespacePoint = (p) => !!p && p.value === undefined && p.open === unde
 let _engineLwc = null
 const engineLwc = () => (_engineLwc || (_engineLwc = {
   LineSeries, HistogramSeries, AreaSeries, BaselineSeries, LineStyle, LineType,
+  // ⚠️ THE ENGINE CAN ONLY BUILD WHAT THIS OBJECT CARRIES. `binder.SERIES_CTOR`
+  // names a constructor and reads it off HERE, so a series type absent from this
+  // literal resolves to `undefined`, `addSeries(undefined, …)` throws, `attempt`
+  // swallows it, and the plot plans, computes and then silently does not exist.
+  CandlestickSeries,
 }))
 
 // "Same % scale" comparison → transform the comparison's raw closes into the base's
@@ -600,6 +605,7 @@ import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
+import { symbolFamily, loadBreadthSymbols } from '../hooks/useBreadthSymbols'
 
 const NOOP = () => {}
 
@@ -5595,6 +5601,15 @@ export default function StockChart({
   // repainting continuously.
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+
+  // ⛔⛔ THE CAPABILITY ORACLE NEEDS ITS REGISTRY, AND THIS CHART MUST NOT ASSUME
+  // A SIBLING LOADED IT. `symbolFamily` answers `'unknown'` until the breadth
+  // registry has landed, and the OHLC gate REFUSES `'unknown'` — fail-closed, so
+  // a chart that never triggers the fetch would simply never offer candles, on
+  // every surface that does not happen to mount `ChartPane` (the pane harness is
+  // one). It is one module-level fetch per session, already shared with the
+  // symbol search and the breadth widgets, and calling it twice is a no-op.
+  useEffect(() => { try { loadBreadthSymbols() } catch { /* offline: stays unknown */ } }, [])
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -10761,6 +10776,17 @@ export default function StockChart({
         // instances name, already fetched and cached above. Absent is not an
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
+        // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
+        // half of `ohlcCapability`. The breadth registry is the same authority
+        // `api/routers/bars.py` routes on, read synchronously because the binder
+        // has no hooks; it answers `'unknown'` until it has loaded and the gate
+        // REFUSES `'unknown'`, so a breadth measure can never be mistaken for a
+        // security while the page is still starting.
+        //
+        // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
+        // No ticker, no prefix: the binder asks what KIND of thing this is, and
+        // `ohlcCapability` owns what each kind may be drawn as.
+        ohlcFamilyOf: symbolFamily,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.

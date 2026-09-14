@@ -59,7 +59,9 @@ import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
 } from './sourceRef'
-import { projectionFor } from './symbolProjection'
+import { projectionFor, clippedBarsFor } from './symbolProjection'
+import { ohlcCapabilityOf, barHasOhlc } from './ohlcCapability'
+import { resolvePlotStyle, resolveCandleColors } from './presentation'
 
 /** Monotonic id stamped on each resolved source column, so a consumer's memo key
  *  can name the exact array it computed against. Non-enumerable, so it can never
@@ -72,6 +74,12 @@ const SERIES_CTOR = {
   histogram: 'HistogramSeries',
   area: 'AreaSeries',
   baseline: 'BaselineSeries',
+  // ⚠️ THE BINDER CAN ONLY BUILD WHAT THIS TABLE NAMES, and a pool key absent
+  // from it resolves to `undefined`: `addSeries(undefined, …)` throws, `attempt`
+  // swallows it, and the result is an orphaned binding — a plot that plans,
+  // computes, and then silently does not exist. `engineLwc()` in StockChart must
+  // carry the constructor this names, or the same hole opens one file over.
+  candlestick: 'CandlestickSeries',
 }
 
 /**
@@ -95,6 +103,60 @@ const SERIES_CTOR = {
  * `>= 0` is green, matching the legacy comparison exactly. A whitespace point
  * carries no colour, which is correct: there is no bar to colour.
  */
+// ─── THE ONE COMPOUND PAYLOAD ─────────────────────────────────────
+//
+// ⛔⛔ TAGGED, NOT DUCK-TYPED. `payload.bars !== undefined` would be a contract
+// nobody declared, and a Float64Array that grew a property would silently change
+// lanes. `kind` is the only thing any reader tests.
+//
+// ⛔ AND COMPUTE NEVER SEES ONE. `columns` feeds two consumers: the renderer,
+// and the source resolution that hands a numeric column to `computeFor`. An OHLC
+// payload is produced only for a binding whose PRESENTATION asked for candles,
+// and a source reference always resolves through the scalar projection — so
+// `MA(QQQ)` reads `sym:QQQ:close` exactly as it did.
+const OHLC_KIND = 'ohlc'
+
+/** A tagged OHLC payload for one visual binding. */
+function ohlcPayload(bars) {
+  return { kind: OHLC_KIND, bars: Array.isArray(bars) ? bars : [] }
+}
+
+/** Is this binding payload the coordinated bar shape rather than a column? */
+function isOhlcPayload(v) {
+  return !!v && typeof v === 'object' && v.kind === OHLC_KIND
+}
+
+/**
+ * Canonical bars → LWC `CandlestickData`.
+ *
+ * ⛔ THE BAR'S OWN `t`, NEVER THE PRIMARY'S. `clippedBarsFor` has already dropped
+ * every bar outside the chart's time domain, so each survivor is a real bar of
+ * the secondary instrument at its own timestamp. Rewriting it would attribute one
+ * instrument's auction to another's bar.
+ *
+ * ⛔ AND NO SIGN COLOURS. `colorMode: 'sign'` paints a histogram bar from the
+ * value's sign; a candle's colour is its own up/down option and is LWC's to
+ * decide from open vs close. Threading the scalar machinery through here would
+ * paint every candle one colour and call it a feature.
+ */
+function toOhlcPoints(payload, adjustTime) {
+  const bars = payload && Array.isArray(payload.bars) ? payload.bars : []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i]
+    const time = adjustTime(b.t)
+    // A bar the capability probe admitted may still be individually incomplete —
+    // whitespace, exactly as a NaN column position becomes whitespace.
+    if (!Number.isFinite(b.o) || !Number.isFinite(b.h)
+      || !Number.isFinite(b.l) || !Number.isFinite(b.c)) {
+      out[i] = { time }
+      continue
+    }
+    out[i] = { time, open: b.o, high: b.h, low: b.l, close: b.c }
+  }
+  return out
+}
+
 function toPoints(column, bars, adjustTime, signColors) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
@@ -622,19 +684,74 @@ export function createBinder({ chart, LWC }) {
           computeMemo.delete(inst.instanceId)
         }
       }
+      // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
+      //
+      // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved
+      // presentation is `candles`, the source is a canonical SYMBOL, and
+      // `ohlcCapabilityOf` says that symbol's PROVIDER FAMILY means an auction
+      // period by those four fields. Absent `ctx.ohlcFamilyOf` nothing is
+      // capable — fail closed, because "not classified yet" must never read as
+      // "ordinary security".
+      const ohlcBarsForPlot = (definition, instance, plotKey) => {
+        const declared = sourceInputsOf(definition, instance)
+        if (!declared.length) return null
+        const parsed = parseSource(declared[0][1])
+        if (!parsed || parsed.kind !== 'symbol') return null
+        const entry = secondary ? secondary.get(parsed.symbol) : null
+        const cap = ohlcCapabilityOf(definition, parsed, entry, ctx.ohlcFamilyOf)
+        if (!cap.ok) return null
+        const plot = (definition.plots || []).find((pl) => pl && pl.key === plotKey)
+        if (!plot) return null
+        // ⛔ THE SAME RESOLUTION THE PLAN MADE, with the same capability answer —
+        // a stored `candles` the source cannot mean is clamped to a line in both
+        // places, so the series type and its payload can never disagree.
+        if (resolvePlotStyle(instance, plot, { ohlcCapable: true }) !== 'candles') return null
+        return clippedBarsFor(entry.bars, bars)
+      }
+
       for (const plotKey of Object.keys(cols)) {
-        columns.set(bindingKey(inst.instanceId, plotKey), cols[plotKey])
+        // ⭐⭐ THE ONE PLACE A BINDING BECOMES COMPOUND. The column above was
+        // computed exactly as it always is — this does not replace a CALCULATION,
+        // it replaces what the RENDERER is handed for an output whose presentation
+        // asked for candles and whose source can mean them. Everything upstream
+        // (the projection, `computeFor`, the memo) is untouched, which is why
+        // `MA(QQQ)` and a QQQ line are byte-identical.
+        const ohlcBars = ohlcBarsForPlot(def, inst, plotKey)
+        columns.set(bindingKey(inst.instanceId, plotKey),
+          ohlcBars ? ohlcPayload(ohlcBars) : cols[plotKey])
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
 
     const hasData = (key) => {
       const col = columns.get(key)
+      // ⭐ "IS THERE ANYTHING TO DRAW" HAS TWO SHAPES NOW. `hasAnyFinite` walks a
+      // numeric column and would read an OHLC payload as EMPTY — which would drop
+      // the binding before the renderer ever saw it, silently, with the bars
+      // sitting right there in the cache.
+      if (isOhlcPayload(col)) return col.bars.some(barHasOhlc)
       return col !== undefined && registry.hasAnyFinite(col)
     }
 
     // ── 2. Ask the pool what should happen ──
-    const { bind, release } = planBindings(instances, registry, held, { hasData })
+    // ⭐⭐ ONE CAPABILITY ANSWER PER INSTANCE, ASKED ONCE AND SHARED. The plan
+    // needs it (a `candles` style decides the SERIES TYPE), the style resolution
+    // needs it (the clamp refuses what the source cannot mean), and the payload
+    // production needs it. Three readers of one answer, so they cannot disagree
+    // about whether a member's stored style is honoured.
+    const ohlcCapableFor = (instance) => {
+      const idef = registry.getDefinition(instance && instance.defId)
+      if (!idef) return false
+      const declared = sourceInputsOf(idef, instance)
+      if (!declared.length) return false
+      const parsed = parseSource(declared[0][1])
+      if (!parsed || parsed.kind !== 'symbol') return false
+      const entry = secondary ? secondary.get(parsed.symbol) : null
+      return ohlcCapabilityOf(idef, parsed, entry, ctx.ohlcFamilyOf).ok
+    }
+    const { bind, release } = planBindings(instances, registry, held, {
+      hasData, ohlcCapable: ohlcCapableFor,
+    })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
     // instance's first VISIBLE plot BEFORE the hidden-plot skip below ever
@@ -663,6 +780,16 @@ export function createBinder({ chart, LWC }) {
      *  moved. `adjustTime` is part of the key because it is what stamps every
      *  `time`; it is a stable `useCallback` in `StockChart`, so this hits. */
     const pointsFor = (b, column) => {
+      // ⭐ ONE ADAPTER, TWO SHAPES. The memo is keyed on the payload's IDENTITY
+      // exactly as it is on a column's, so a candle binding that did not change
+      // re-uses its points for the same reason a line does.
+      if (isOhlcPayload(column)) {
+        const m0 = pointMemo.get(b.key)
+        if (m0 && m0.column === column && m0.adjustTime === adjustTime) return m0.points
+        const pts = toOhlcPoints(column, adjustTime)
+        pointMemo.set(b.key, { column, bars, adjustTime, up: null, down: null, points: pts })
+        return pts
+      }
       const sc = signColorsForPlot(b.plot)
       const up = sc ? sc.up : null
       const down = sc ? sc.down : null
@@ -717,6 +844,13 @@ export function createBinder({ chart, LWC }) {
         // option set, so without this the engine would re-show a hidden series on
         // the next paint — roughly once a second in extended hours.
         indicatorsHidden: ctx.indicatorsHidden === true,
+        // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
+        // chart's own palette the default: `cs.candles` is the member's candle
+        // colour, so a secondary instrument wears it until they override it on
+        // this instance. No new palette, no second source of truth.
+        candleColors: b.poolKey === 'candlestick'
+          ? resolveCandleColors(b.inst, b.plot, ctx.cs && ctx.cs.candles)
+          : null,
       })
       if (!options) { orphan(b); continue }
 
