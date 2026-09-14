@@ -66,6 +66,7 @@ and do not hunt for alternatives when one is refused — a refusal is the profil
 | a named test | `python tools/weekly_exec.py tests tests/test_<name>.py` |
 | a pod report | `python tools/weekly_exec.py pod ticking` · `pod report` · `pod gate-check` |
 | production health | `python tools/weekly_exec.py health` |
+| **the memory gate** | `python tools/weekly_exec.py memory` — exit **0** under 70%, **1** at or over, **REFUSED** if unmeasurable |
 | the flag ledger | `python tools/flag_ledger_audit.py` |
 | the doc-SHA rail | `python <docs-worktree>/tools/verify_doc_shas.py` |
 
@@ -98,6 +99,13 @@ failed check. A check that cannot be performed must never be dressed up as one t
 with `STATUS: STOPPED-ENV` and stop. Do not "work around" a red check; a run that begins on an
 unverified box is a run whose results cannot be trusted, and the whole point of this file is
 trustworthy results. ⚠️ You cannot post to Discord and must not try — the runner reports for you.
+
+✅ **AND IT IS NOW RUNNABLE.** Until 2026-09-14 this gate had **no allow-listed command**:
+`systeminfo` is denied by the profile and nothing replaced it, so every run either skipped the
+gate in silence or stopped on it. **The weekly run found that itself** and said so — *"a check
+that cannot run looks identical to one that passed"*, which is F-L2-1 one layer down. Use
+`python tools/weekly_exec.py memory`. ⛔ If it REFUSES, report the gate as **unperformed**, never
+as passed.
 
 ⛔ **MEMORY GATE, CHECKED FIRST OF ALL:** if the box is above **70% memory used** at start, post
 that and exit **without building**. Three sessions once OOM-swept this machine and deleted a
