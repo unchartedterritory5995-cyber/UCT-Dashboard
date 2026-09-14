@@ -1031,11 +1031,19 @@
    is the thing the eye scans for. Gold is reserved for active/important state;
    this is neither. No pill, no badge, no second line: a dense terminal list.
 
-   ⛔ AND IT YIELDS FIRST. `flex: 0 1 auto` plus `min-width: 0` means a long
-   destination ("Pane unavailable", "Source: UCTA50") ellipses before the NAME
-   does — the name is the identity and must survive every width. */
+   ⛔ AND IT TAKES THE SLACK, WHICH IS LOAD-BEARING AND WAS MEASURED THE HARD WAY.
+   The scoped rule below stops the NAME growing; if the meta does not grow in its
+   place, NOTHING in the row grows and the trailing controls pack left — the very
+   defect this feature is known for, relocated rather than fixed. Measured in a
+   browser: with `flex: 0 1 auto` here, summarised rows sat 148-173px short of the
+   right edge while fixture rows were flush. jsdom cannot see it.
+
+   ⛔ `min-width: 0` IS WHAT MAKES IT YIELD ANYWAY. Growing and shrinking are not
+   opposites here: the meta absorbs the free space, and when there is none a long
+   destination ("Pane unavailable", "Source: UCTA50") ellipses rather than pushing
+   the controls off — the NAME is the identity and must survive every width. */
 .actMeta {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 11px;
   font-weight: 500;
