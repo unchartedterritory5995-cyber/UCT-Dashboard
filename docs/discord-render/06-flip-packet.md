@@ -27,7 +27,7 @@ the command is right and this section is what drifted.
 
 | Flip | Who | When |
 |---|---|---|
-| `DISCORD_RENDER_V2_ENABLED=1`, **admin-only canary channel** | pre-authorised to the integrating session | **only** when the command prints `ALL MET` |
+| `DISCORD_RENDER_V2_CHANNELS=<canary id>` **then** `DISCORD_RENDER_V2_ENABLED=1` | pre-authorised to the integrating session | **only** when the command prints `ALL MET` |
 | the **member-channel** flip | **the owner, and only the owner** | after reading the canary evidence |
 
 ⛔ **NOT MEASURABLE blocks the flip exactly as NOT MET does.** They are kept apart because what you
@@ -51,11 +51,24 @@ is a pass. Collapsing them is the defect `CoverageLine` exists to avoid.
 
 **VERDICT: NOT MET — do not flip.** Three rows NOT MET, four NOT MEASURABLE.
 
-⛔ ~~**The single owner action that moves the most rows:** grant the bot's role~~ — **DONE 2026-09-14**, verified by API (`CAN create channels`). Superseded; kept struck rather than deleted so a reader who remembers the ask does not re-issue it. Original text: grant the bot's role
-(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**. That lets
-`discord_channel_admin.py --create-smoke` build `#render-smoke` with the bot inside it, which
-unblocks 3.5 **and** the `--real` delivery hop in one go. ⚠️ It does **not** fix `#render-alerts` —
-50001 there is *membership*, and the bot has no overwrite on that channel.
+⚰️ ~~**The single owner action that moves the most rows:** grant the bot's role
+(`UCT Intelligence`, `1474903498700230668`) **`MANAGE_CHANNELS`**.~~
+**DONE 2026-09-14**, verified by API — `--whoami` reports `CAN create channels`. Kept struck rather
+than deleted so a reader who remembers the ask does not re-issue it.
+
+**What it actually unblocked, measured rather than predicted:**
+
+- ✅ `#render-smoke` = `1549129739048853544` exists, private at creation, **organic members exposed 0**.
+- ✅ The `--real` delivery hop: proven by a real post carrying a PNG — `DELIVERY OK http=200
+  attachments=1`. `step3_real.sh --deliver-channel 1549129739048853544`.
+- ⛔ **It did NOT let the bot create that channel.** `--create-smoke` returned `403 / 50013`:
+  creating a channel *with overwrites* also needs **`MANAGE_ROLES`**, and so does editing an
+  existing channel's overwrites (**OI-33**). `MANAGE_ROLES` was deliberately **not** granted — it
+  would let the bot rewrite overwrites anywhere and manage every role beneath its own on a
+  1,558-member production guild, to save a few browser clicks. Both channels were finished in the
+  browser instead.
+- ⚠️ And it did **not** fix `#render-alerts`, exactly as predicted — 50001 there is *membership*.
+  That was fixed separately by removing the `Contributor` overwrite and giving the bot one.
 
 ### ⛔ THE ROW THAT MATTERS MOST, STATED PLAINLY
 
