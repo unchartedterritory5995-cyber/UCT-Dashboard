@@ -374,7 +374,28 @@ to ship silently, and it buys a line that agrees with the sentence no better.
 
 ## ✅ H.1 … H.4 — RULED (owner, chat, 2026-09-14)
 
-### H.1 — ALPHA IS CARRIED · scheduled as **a6.0**
+### H.1 — ALPHA IS CARRIED · **a6.0 DONE** (`930645f50` red, `2639e03a1` green)
+
+✅ **Landed, and measuring the consumers first cut it from a new field to one branch.**
+`presentation.opacity` already existed, was already validated by `defSchema` and already
+read by the renderer. Three of the four colour paths already carried alpha correctly:
+
+| source | before | after |
+|---|---|---|
+| `color.new(color.red, 50)` | `opacity 0.5` | unchanged |
+| `transp=40` | `opacity 0.6` | unchanged |
+| `color.new(color.red, close)` | `colorDynamic` | unchanged |
+| `color.rgb(255,0,0)` | no opacity | unchanged |
+| **`color.rgb(255,0,0,80)`** | **alpha dropped** | **`opacity 0.2`** |
+
+`colourNewAlpha` → `colourHelperAlpha`, reading `color.new`'s second argument and
+`color.rgb`'s fourth through **one** `1 − t/100`, so the three paths cannot drift.
+**No re-baseline**: no snapshot moved, because the 3-argument form is untouched — which
+a permanent control asserts rather than leaves to luck.
+
+---
+
+### H.1 — the ruling, as recorded
 
 A literal alpha on `color.rgb` / `color.new` is parsed, validated, and then **discarded**
 at `staticColourOf` (`pine.js:11743`, branches `11768–76` and `11786–97`) because the
