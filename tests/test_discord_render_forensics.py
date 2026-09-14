@@ -48,6 +48,32 @@ PNG = b"\x89PNG\r\n\x1a\n"
 
 # ── shared doubles ──────────────────────────────────────────────────────────
 
+
+def _renderer_module():
+    """Load `services/chart_renderer/app.py` the way its own image does.
+
+    The renderer image has `WORKDIR /app` and copies its modules FLAT, so `app.py` does
+    `from edge_scope import ...` with no package. Importing it from the repo therefore needs that
+    directory on `sys.path` — without it every renderer test dies at import with
+    `ModuleNotFoundError: No module named 'edge_scope'`.
+
+    ⚠️ THIS IS ALSO AN INHERITED BREAKAGE, NOT A LOCAL WORKAROUND. `tests/test_chart_renderer_*.py`
+    fail the same way on a clean checkout of origin/master (6 failed, reproduced), because the flat
+    import was added without a path entry. Recorded as an OI; this helper keeps Lane E's two tests
+    honest in the meantime rather than skipping them, because a skip here would hide the C-13 token
+    scrub — the one property that must never regress."""
+    import importlib.util
+    import sys
+    here = pathlib.Path(__file__).resolve().parents[1] / "services" / "chart_renderer"
+    if str(here) not in sys.path:
+        sys.path.insert(0, str(here))
+    spec = importlib.util.spec_from_file_location("chart_renderer_app", here / "app.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("chart_renderer_app", mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 class FakeDelivery:
     """Records what a member would have been sent. `edit_text`/`followup` are the only two ways
     anything reaches Discord from the runtime, so capturing both is capturing the member."""
@@ -56,11 +82,18 @@ class FakeDelivery:
         self.ok = ok
         self.sent: list[tuple[str, str, list | None]] = []
 
-    def edit_text(self, app_id, token, *, content, components=None, client=None):
+    # ⛔ The double must track the REAL signature, not restate it. `send_failure` passes
+    # `deadline_s` (the interaction TOKEN's remaining life, never the job's remaining time — see
+    # `JobRuntime._failure_budget`) and `cid`. A double that omits them fails with
+    # `unexpected keyword argument`, which is the contract-arity defect in miniature: it reads as a
+    # product failure and is a test-fixture failure.
+    def edit_text(self, app_id, token, *, content, components=None, client=None,
+                  deadline_s=None, cid=None):
         self.sent.append(("edit_text", content, components))
         return DeliveryResult(self.ok, 200 if self.ok else 500)
 
-    def followup(self, app_id, token, *, content, components=None, ephemeral=True, client=None):
+    def followup(self, app_id, token, *, content, components=None, ephemeral=True, client=None,
+                 deadline_s=None, cid=None):
         self.sent.append(("followup", content, components))
         return DeliveryResult(self.ok, 200 if self.ok else 500)
 
@@ -769,7 +802,7 @@ def test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the
     # background token BEFORE a render slot, so warm work cannot occupy every slot members use.
     import asyncio
 
-    from services.chart_renderer import app as renderer_app
+    renderer_app = _renderer_module()
 
     async def probe():
         renderer_app._slots = asyncio.Semaphore(2)
@@ -838,15 +871,15 @@ def test_c10_the_bars_hop_is_bounded_and_its_retry_is_jittered_not_a_fixed_wait(
         "four fetches and ~2.9 s of sleeping inside a 15 s deadline (OI-25)")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "C-10: `_call.guarded` computes the effective budget ONCE per call, not per attempt, so an "
-    "N-attempt hop can overrun the job's remaining time by a factor of N. Measured by "
-    "`instruments/chaos_scenarios.py` on its first run: 4.6 s spent against a 2 s deadline with "
-    "the bars adapter's own ATTEMPTS=2. Live impact is bounded today only because "
-    "`adapters/bindings.py` passes attempts=1 (OI-25) — the adapter's own default is unsafe, and "
-    "the fix is a production change under `api/`, which Lane E may not make."))
 def test_c10_the_budget_is_re_evaluated_per_attempt_not_once_per_call():
-    """XFAIL-STRICT — an open gap this step MEASURED rather than assumed.
+    """✅ WAS XFAIL-STRICT, NOW A REGRESSION GUARD — and the promotion is the mechanism working.
+
+    Lane E measured this gap and could not fix it (it ships no `api/` change), so it marked the
+    test `xfail(strict=True)`. The fix landed in `_call.guarded` at integration, the strict marker
+    turned the pass into an `XPASS(strict)` **failure**, and that is exactly what it is for: a plain
+    red test would have blocked every merge in the queue, and a non-strict xfail would have
+    swallowed the fix in silence. Measured after the fix: attempts of 1, 2 and 3 against a 2 s
+    budget all spend ~2.0 s, where three attempts previously spent ~6 s.
 
     The class is "a hop outlives the answer the member was already given". A per-call budget makes
     the ceiling a per-ATTEMPT ceiling, so two attempts behind a 2 s deadline spend 4 s — the same
@@ -967,7 +1000,8 @@ def test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_
     property over several spellings, and the control asserts it is not simply deleting everything —
     a scrubber that returned "" would pass a naive "the token is absent" check.
     """
-    from services.chart_renderer.app import scrub, url_path
+    _r = _renderer_module()
+    scrub, url_path = _r.scrub, _r.url_path
     from api.services.discord_render.observe import scrub as observe_scrub
 
     playwright_error = (

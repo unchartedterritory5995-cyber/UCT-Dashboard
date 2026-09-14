@@ -107,9 +107,20 @@ def guarded(name: str, fn, *, dep_timeout_s: float, remaining_s: float | None = 
                     budget_s=round(eff, 3), dep_timeout_s=dep_timeout_s)
 
     def _once():
-        fut = pool(name).submit(fn, eff)
+        # ⛔⛔ THE BUDGET IS RE-READ PER ATTEMPT, NOT ONCE PER CALL.
+        # ⚰️ It was computed once and handed to every attempt, so an N-attempt hop could spend N ×
+        # the budget: Lane E's chaos harness measured **4.6 s against a 2 s deadline** with the bars
+        # adapter's own `ATTEMPTS = 2`. The live blast radius was zero only by luck — `bindings`
+        # passes `attempts=1` for an unrelated reason (OI-25, the caller already retries) — so the
+        # layer built to stop an upstream overrunning the deadline would have overrun it itself the
+        # moment anyone used its own default. Found by a lane that could not fix it, in code this
+        # lane owns.
+        left = eff - (now() - started)
+        if left < MIN_USEFUL_S:
+            raise cf.TimeoutError(f"{name}: {left:.3f}s left of a {eff:.3f}s budget")
+        fut = pool(name).submit(fn, left)
         try:
-            return fut.result(timeout=eff)
+            return fut.result(timeout=left)
         except cf.TimeoutError:
             fut.cancel()                       # only helps if it never started; honest either way
             with _POOL_LOCK:

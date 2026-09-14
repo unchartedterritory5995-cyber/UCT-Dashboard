@@ -53,7 +53,12 @@ def test_the_function_is_handed_the_effective_timeout_not_the_constant():
     seen = []
     out = _call.guarded("bars", lambda t: seen.append(t) or "data", dep_timeout_s=8.0, remaining_s=2.5)
     assert not _call.is_result(out) and out[0] == "data"
-    assert seen == [2.5]
+    # ⚠️ Not `== 2.5`. Since the C-10 fix the budget is re-read PER ATTEMPT, so the first attempt
+    # gets `2.5 minus the microseconds already spent` — which is the point, not an imprecision. The
+    # property is "it got the BUDGET, not the dependency's 8 s constant", and asserting the exact
+    # float would make a correct change look like a regression.
+    assert len(seen) == 1 and 2.0 < seen[0] <= 2.5, seen
+    assert seen[0] != 8.0, "the adapter was handed its own constant instead of the job's budget"
 
 
 # ── the breaker ─────────────────────────────────────────────────────────────
@@ -496,6 +501,39 @@ def test_the_remaining_budget_counts_down_from_the_ack():
     assert job.remaining_s(now=1004.0) == 11.0, "four seconds of queue wait are four seconds gone"
     assert job.remaining_s(now=1015.0) == 0.0
     assert job.remaining_s(now=1099.0) == 0.0, "past the deadline is zero, never negative"
+
+
+def test_the_failure_message_budget_is_the_tokens_life_and_never_the_jobs_remaining_time():
+    """⛔⛔ THE ONE PLACE `remaining_s()` MUST NOT BE USED, and it is the most tempting one.
+
+    The watchdog sends the failure message AT the deadline, so `job.remaining_s()` is ~0 at exactly
+    the moment it is needed. Passing it would give delivery no time to retry and would suppress
+    every retry of the one message C-11 exists to guarantee — a member whose render failed would
+    then also not be told it failed, which is the silent failure the whole contract removes.
+
+    The right clock is the interaction TOKEN's remaining life: while it lives the message can still
+    land, and once it dies no budget helps. Capped so a fresh token cannot license a long retry
+    loop, floored so a nearly-dead one still gets one honest attempt."""
+    import time
+    from api.services.discord_render import delivery as d
+    from api.services.discord_render.runtime import Job, JobRuntime, TOKEN_LIFETIME_S
+    now = time.time()
+
+    def job_at(age_s):
+        return Job(corr_id="c", command="chart", app_id="a", token="t", args={}, label="x",
+                   created_at=now - age_s)
+
+    assert JobRuntime._failure_budget(job_at(0)) == d.DEFAULT_BUDGET_S, "a fresh token is capped"
+    near_dead = JobRuntime._failure_budget(job_at(TOKEN_LIFETIME_S - 1))
+    assert 0 < near_dead <= 1.0, f"a nearly-expired token still gets one attempt, got {near_dead}"
+    assert JobRuntime._failure_budget(job_at(TOKEN_LIFETIME_S + 60)) == d.MIN_USEFUL_S, (
+        "a dead token is floored, never negative")
+
+    # The discriminator: the value the code must NOT use is zero exactly when it would be read.
+    j = job_at(0)
+    assert j.remaining_s(now=now + j.deadline_s) == 0.0
+    assert JobRuntime._failure_budget(j) > 0.0, (
+        "the failure budget must not collapse to the job's remaining time at the deadline")
 
 
 def test_the_context_exposes_the_same_budget_as_its_job():
