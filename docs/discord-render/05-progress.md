@@ -274,3 +274,41 @@ this proves there is no path at all, for every input. The companion rail asserts
 **Kill switch:** `DISCORD_RENDER_V2_ADAPTERS_ENABLED` — under the V2 master, **unset = ON**, read
 per call (railed), declared `dark`. Set it to `0` and the handlers bind the raw functions again: a
 rollback of P2.1 with no deploy, and a switch rather than a delete.
+
+---
+
+## Master merge 5 — 2.4b part 2 (P2.1–P2.10), dark · 2026-09-13 (Sunday, 20:1x ET)
+
+**Shipped (dark):** the provider adapters and the hot path wired to them; the member-facing stamp;
+the breaker and loop-stall alerts; the event-loop probe; shadow mode. Design in `03` §3.8c/§3.8d,
+the member-facing surface in `04-visual-spec.md`.
+
+**Gate on the merged tree** (after merging 43 master commits, with overlap on `CLAUDE.md`,
+`api/main.py` and `docs/feature_flags.json` — merged, not rebased, per the standing rule): 44 scoped
+files, **1,112 passed, 0 failed**. Hygiene gate clean (9,219 tracked files). Watch coverage `OK`
+(changed 39, none on flow-worker's list). Mutation proofs **69/69 red**, restores sha-verified,
+controls green either side. Secret scan **0 findings** over 39 paths, run by hand because the hook
+cannot run it here (OI-26).
+
+**Deploy, measured:**
+
+| Check | Result |
+|---|---|
+| Push | fast-forward to `5ca4d5db2`; master's own pre-push guard confirmed `web` SUCCESS and 769 s settled first |
+| `web` deployment | BUILDING → DEPLOYING → **SUCCESS** on `5ca4d5db2`, ~2 min |
+| Running commit, read in-process | **`5ca4d5db2385`** |
+| `/api/health` · bad signature · render-health unauthenticated | **200** · **401** · **401** |
+| flow-worker | **SKIPPED** on both pushes — the tape was never touched |
+| `DISCORD_RENDER_V2_ENABLED` · `RENDER_V2_SHADOW` · the two kill switches | **all absent** in the running process |
+| Renderer ceiling, read in-process | **20.0 s** (was effectively 60 s over two attempts behind a 15 s deadline — OI-21) |
+| `loopwatch.snapshot()` | `running: false`, `samples: 0`, `max_ms: null` |
+
+⭐ **That last row is the design working, not a defect.** The probe starts inside the V2 lifespan
+block, which is dark — so it costs nothing today and says so. `samples: 0` with `max_ms: null` is
+deliberately distinguishable from a healthy loop: a probe that never ran must never read as "fine".
+
+**Member impact: none.** Everything new is reachable only from `commands.py`, which runs only when
+`DISCORD_RENDER_V2_ENABLED` is set, and it is absent. The one change on the pre-V2 path is the
+interactions route delegating to `_dispatch_interaction` and returning its reply **unchanged**; the
+shadow beside it is gated on `RENDER_V2_SHADOW`, also absent, and a rail asserts the reply survives
+even when the shadow setup raises.
