@@ -572,6 +572,24 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
  * different choices. This names a SERIES in a legend, where the field is noise:
  * a pane reading `QQQ · Close 715.44` says "close" twice.
  */
+/**
+ * The name a `labelFrom: 'source'` instance gives ITSELF, from its source alone.
+ *
+ * ⭐⭐ EXPORTED SO A CALLER CAN ASK "IS THIS NAME WORTH STORING?". A catalogue
+ * that stamps `display.name = 'QQQ'` on a series whose source already derives
+ * `QQQ` has not recorded a CHOICE — it has frozen a copy of the answer, and the
+ * copy stops being true the moment the member re-points the source. That is the
+ * defect measured in a browser at Phase 3 (the legend read `QQQ 218.29` over
+ * NVDA's price). `discoveryCatalog` compares against this before stamping.
+ *
+ * ⛔ IT IS NOT A SECOND NAMING SYSTEM. `instanceLabel` is still the one answer
+ * every surface reads; this is the same derivation, exposed so the WRITE side can
+ * tell a derived name from a chosen one.
+ */
+export function derivedSourceName(def, instance) {
+  return sourceStem(def, instance)
+}
+
 function sourceStem(def, instance) {
   const sources = sourceInputsOf(def, instance)
   if (!sources.length) return null

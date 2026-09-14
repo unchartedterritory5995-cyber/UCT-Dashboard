@@ -33,7 +33,7 @@
 // be created — that is the whole point of `capability`. See its block below.
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
-import { symbolSource, canonicalSymbol } from './engine/sourceRef'
+import { symbolSource, canonicalSymbol, derivedSourceName } from './engine/sourceRef'
 import { addInstance, setInstanceInput, findInstance } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
 
@@ -448,7 +448,26 @@ export function createDirectSeries(cs, source, registry, display) {
   // A refused input write leaves a `dataSeries` instance pointed at `close` —
   // a line the member did not ask for. Fail closed instead.
   if (next === added) return cs
-  return display && display.name ? withDisplay(next, minted.instanceId, display) : next
+  // ⛔⛔ A NAME IS STORED ONLY WHEN IT SAYS SOMETHING THE SOURCE CANNOT.
+  //
+  // ⚰️ MEASURED IN A BROWSER 2026-09-14: stamping the catalogue's short name
+  // unconditionally wrote `display.name = 'QQQ'` on a series whose source already
+  // derives `QQQ` — an AUTOMATIC name wearing the shape of a chosen one. Re-point
+  // that series at NVDA and the data followed while the label did not: the legend
+  // read `QQQ 218.29`, and 218.29 is NVDA's price.
+  //
+  // ⭐ SO THE RULE IS PROVENANCE, NOT PRECEDENCE. `instanceLabel` still prefers a
+  // stored name over a derived one — that is what makes a real choice like
+  // "Invesco QQQ Trust" stick. What changed is that a name IDENTICAL to the
+  // derived one is not a choice, so it is not recorded, and the label stays a
+  // function of the current source.
+  // ⛔ THE INJECTED REGISTRY, like every other definition lookup in this module —
+  // a member's own definitions live in the one passed in, not in a module global.
+  const defOf = (registry && typeof registry.getDefinition === 'function')
+    ? registry.getDefinition(minted.defId) : null
+  const derived = derivedSourceName(defOf, findInstance(next, minted.instanceId))
+  const worthStoring = display && display.name && display.name !== derived
+  return worthStoring ? withDisplay(next, minted.instanceId, display) : next
 }
 
 /**
