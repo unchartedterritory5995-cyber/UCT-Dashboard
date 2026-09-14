@@ -889,6 +889,164 @@ is new plumbing plus new UX decisions, which Part S says to defer.
    secondary-series palette — with the target-namespace decision made explicitly
    rather than in passing.
 
+---
+
+# PHASE 6 — DISPLAY IN, AND THE MERGE-READINESS PICTURE
+
+Starting HEAD `d85f7267c`; ending HEAD `cc2a498cc` (+ this ledger). Two commits.
+Baseline re-verified before any edit: 4 failed / 10403 passed, build clean,
+fingerprint `ea9ebaeee302`.
+
+## THE CONTROL
+
+The collapsed row already said `Line · QQQ`. The expanded row now lets the member
+say it, and the expanded Moving Average row is the whole phase in one picture:
+
+    Source       QQQ · Close
+    Period       5
+    Type         SMA
+    Color        ▣
+    Display in   QQQ          ← new
+    Plot style   Line
+    ────────────────────────────────────────
+    collapsed:   Line · QQQ · Source: QQQ
+
+Every fact the summary states now has a control in the row that states it.
+
+## CANONICAL SEAMS REUSED — NOTHING NEW
+
+`displayTargetOptions` supplies the choices, `resolveDisplayTarget` supplies the
+current value, `setInstanceDisplayTarget` owns the mutation, and
+`placementSummary` reports it. **Two views of one value**: no summary-specific
+state, no editor-specific target vocabulary, no new persisted field. The rail that
+proves it compares the rendered options to the helper's output value-for-value AND
+label-for-label.
+
+⛔ **Every validation is the helper's.** Self-exclusion (a series naming its own
+pane would be its own guest and vanish), tombstones, and "only a pane OWNER may be
+joined" — which is what makes a placement cycle unconstructible through this menu.
+The control re-checks none of it; those are asserted here as OUTCOMES.
+
+⛔ **A fixture gains nothing.** `displayTargetOptions` returning EMPTY means one
+place to draw — derived exactly as Phase 5's summary silence is, so the legacy
+overlays, the volume pane and a plain price overlay (`bb`) grow no control.
+
+## ORPHAN BEHAVIOUR — SHOWN, DISABLED, NEVER HEALED
+
+Browser-measured: with the targeted host deleted, the control's value stays
+`@inst:dataSeries:3` and its selected option reads **"Pane unavailable"** and is
+**disabled**. The surviving QQQ is offered as a real destination but is NOT
+adopted — identity is authoritative, and a new series with the same ticker, name
+and source does not inherit the orphan. An explicit choice repairs it.
+
+⭐ **Duplicates**: `QQQ #1` / `QQQ #2`, because `paneHostLabels` disambiguates
+against the WHOLE chart rather than against the menu. The label is presentation;
+the VALUE written is the instance id, so renaming can never re-target a pane.
+
+## ACCESSIBILITY
+
+`aria-label="<row> display in"`, a native `<select>` (keyboard-usable by
+construction), the current value is the selected option, and the unavailable state
+is carried by the WORD "unavailable" plus `disabled` — never by colour alone.
+Phase 5's expander contract is untouched: the summary is still outside the button.
+
+## CSS
+
+**None added.** The control reuses `.indRow` / `.indLabel` / `.indSelect`, the
+same shapes the Source and Plot style controls already use. Phase 5's `.actMeta`
+and `.actHeadMeta` are untouched.
+
+## PART I — INSTANCE-LABEL POLISH: MEASURED, THEN DEFERRED
+
+The change is one condition — use `instanceLabel(def, instance)` for any row that
+HAS an instance, rather than only for `labelFrom` definitions. It is small and it
+is canonical. **It was probed and reverted**, because of what it actually does:
+
+    Moving Average (Source)   →  MA (5)        ← the wanted case
+    Session VWAP              →  VWAP          ← loses a word, gains nothing
+    Relative Strength Index   →  RSI (14)
+
+That is a member-visible rename of **every shipped engine row**, not a Universal
+Data polish — 9 rails across 3 files, all asserting the old names. Part I's own
+words rule it out: *"Do not expand this into a broad naming redesign."* There is
+no principled narrow gate either: gating on `legendParams` still renames RSI and
+MACD, and gating on a definition id is the ad-hoc rule this codebase refuses.
+
+**Recorded for a deliberate decision rather than taken in passing.**
+
+## TESTS AND BITE CHECKS
+
++13 rails (`ChartSettingsModal.displayIn.test.jsx`). Four bites, each reverted:
+
+| mutation | result |
+|---|---|
+| the writer disconnected | 4 red |
+| the missing option made pickable | the disabled case red |
+| self-target filtering removed | 2 red |
+| the orphan no longer represented | 5 red across BOTH suites |
+
+⚰️ **A fifth did not bite, and chasing it found the real owner.** Making the
+control fall back to the first option for an unrepresentable target changed
+nothing — the helper ALREADY lists the orphan, so that branch is never reached for
+it. The honest bite is deleting the helper's `missing` push. The fallback stays as
+a guard for a target with no option at all, and is no longer described as though
+it were what preserves an orphan.
+
+⚰️ **And a fixture bug in my own test**, worth keeping: `withMA` took
+`indicatorInstances[length - 1]` as the new instance. `addInstance` inserts in
+SHIPPED STACK ORDER — it does not append — so it silently handed back a DIFFERENT
+instance and wrote the source onto the QQQ series. It read as "the summary dropped
+its Source". `lastCreatedInstance` is the canonical finder, and `discoveryCatalog`
+documents this exact trap: predicting the slot is predicting the id wearing
+another hat.
+
+## BROWSER PROOF — all 19 scenarios, `pane-harness.html`, /charts never opened
+
+Own pane → QQQ → Own pane with summary and control following each time; duplicate
+hosts distinguishable and targetable; targeted host deleted → `Line · Pane
+unavailable` with the control preserving it disabled; explicit repair; MA(QQQ)
+placed into QQQ's pane reading `Line · QQQ · Source: QQQ`. Row heads stay flush
+and 39px at 520 / 420 / 340px, control rows keep constant heights, nothing
+overflows. **`preference writes refused: 0` throughout.**
+
+## RESULTS
+
+| | |
+|---|---|
+| `src/components` | **4 failed / 10416 passed** vs Phase 5's 4 / 10403 — **+13, zero regressions** |
+| Build | ✅ |
+| StockChart | **untouched** |
+| Persistence | **unchanged** |
+
+## CANDLE COLOURS — STILL DEFERRED (PART Q)
+
+Unchanged from Phase 5's finding: the writer and resolver exist, but the modal's
+`colorSwatch` addresses `ind:<rowId>:<field>` which resolves to an INPUT write,
+and candle colours live in `instance.presentation`. It needs a target namespace, a
+colour-apply route and a UX decision — which deserves an explicit decision rather
+than being smuggled into this phase.
+
+## ⭐ MERGE-READINESS PICTURE (measured this phase)
+
+`origin/master` was re-fetched. It has moved **31 commits** since this branch's
+base `025be081e`; the branch is **18 ahead / 31 behind**.
+
+| measurement | result |
+|---|---|
+| files this branch changed | 67 |
+| files master changed | 66 |
+| **overlap** | **0** |
+| `git merge-tree --write-tree` (computation only) | **exit 0, zero conflicts** |
+| master commits touching `components/chart` or `StockChart` | **0** |
+
+Master's 31 commits are entirely backend and documentation — `api/services`,
+wisdom, breadth, discord-render, runbooks and their tests. This branch is confined
+to the chart frontend. The two have not met.
+
+⚠️ **What that does NOT prove**: the baselines here were measured against a
+31-commit-old master, and master added ~12 test files this branch has never run
+alongside. Textual cleanliness is not a green suite.
+
 ## STANDING FACTS
 
 - Local branch. **Nothing pushed, nothing deployed, nothing merged.**
